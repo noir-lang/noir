@@ -1208,6 +1208,9 @@ mod test {
 
     #[test]
     fn does_not_use_cached_constrain_in_block_that_is_not_dominated() {
+        // Here v1 in b2 was incorrectly determined to be equal to `Field 1` in the past
+        // because of the constrain in b1. However, b2 is not dominated by b1 so this
+        // assumption is not valid.
         let src = "
             brillig(inline) fn main f0 {
               b0(v0: Field, v1: Field):
