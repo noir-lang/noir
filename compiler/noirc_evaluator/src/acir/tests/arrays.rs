@@ -151,7 +151,6 @@ fn generates_memory_op_for_dynamic_read() {
     ";
 
     let program = ssa_to_acir_program(src);
-    println!("{program}");
 
     assert_circuit_snapshot!(program, @r"
     func 0
