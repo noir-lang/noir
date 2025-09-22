@@ -858,6 +858,9 @@ dependencies = [
  "acvm_blackbox_solver",
  "num-bigint",
  "num-traits",
+ "proptest",
+ "proptest-derive",
+ "serde",
  "thiserror 1.0.69",
 ]
 

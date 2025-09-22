@@ -127,6 +127,7 @@
 use std::sync::Arc;
 
 use acvm::{AcirField, FieldElement};
+use im::HashSet;
 use noirc_errors::call_stack::CallStackId;
 
 use crate::ssa::{
@@ -154,7 +155,7 @@ impl Ssa {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 enum Reachability {
     /// By default instructions are reachable.
     Reachable,
@@ -175,12 +176,16 @@ impl Function {
         // after an always failing one was found.
         let mut current_block_reachability = Reachability::Reachable;
 
+        // In some cases a side effect variable can become effective again.
+        let mut unreachable_predicates = HashSet::new();
+
         self.simple_optimization(|context| {
             let block_id = context.block_id;
 
             if current_block_id != Some(block_id) {
                 current_block_id = Some(block_id);
                 current_block_reachability = Reachability::Reachable;
+                unreachable_predicates.clear();
             }
 
             if current_block_reachability == Reachability::Unreachable {
@@ -190,29 +195,35 @@ impl Function {
 
             let instruction = context.instruction();
             if let Instruction::EnableSideEffectsIf { condition } = instruction {
-                current_block_reachability = match context.dfg.get_numeric_constant(*condition) {
-                    Some(predicate) if predicate.is_zero() => {
-                        // We can replace side effecting instructions with defaults until the next predicate.
-                        Reachability::UnreachableUnderPredicate
-                    }
-                    _ => Reachability::Reachable,
-                };
+                current_block_reachability =
+                    if let Some(predicate) = context.dfg.get_numeric_constant(*condition) {
+                        // If side effects are turned off, we can replace side effecting instructions with defaults until the next predicate
+                        if predicate.is_zero() {
+                            Reachability::UnreachableUnderPredicate
+                        } else {
+                            Reachability::Reachable
+                        }
+                    } else {
+                        // During loops a previous predicate variable can be restored.
+                        if unreachable_predicates.contains(condition) {
+                            Reachability::UnreachableUnderPredicate
+                        } else {
+                            Reachability::Reachable
+                        }
+                    };
                 return;
             };
 
             if current_block_reachability == Reachability::UnreachableUnderPredicate {
-                // Instructions that don't interact with the predicate should be left alone,
-                // because the `remove_enable_side_effects` pass might have moved the boundaries around them.
-                if !instruction.requires_acir_gen_predicate(context.dfg) {
-                    return;
+                if should_replace_instruction_with_defaults(context) {
+                    remove_and_replace_with_defaults(context, func_id, block_id);
                 }
-                remove_and_replace_with_defaults(context, func_id, block_id);
                 return;
             }
 
             // Check if the current predicate is known to be enabled.
             let is_predicate_constant_one =
-                || match context.dfg.get_numeric_constant(context.enable_side_effects) {
+                match context.dfg.get_numeric_constant(context.enable_side_effects) {
                     Some(predicate) => predicate.is_one(),
                     None => false, // The predicate is a variable
                 };
@@ -252,34 +263,16 @@ impl Function {
                         binary.requires_acir_gen_predicate(context.dfg);
 
                     let fails_under_predicate =
-                        requires_acir_gen_predicate && !is_predicate_constant_one();
+                        requires_acir_gen_predicate && !is_predicate_constant_one;
 
-                    // Insert the instruction right away so we can add a constrain immediately after it
-                    context.insert_current_instruction();
-
-                    // Insert a constraint which makes it easy to see that this instruction will fail.
-                    let guard = if fails_under_predicate {
-                        context.enable_side_effects
-                    } else {
-                        context.dfg.make_constant(1_u128.into(), NumericType::bool())
-                    };
-                    let zero = context.dfg.make_constant(0_u128.into(), NumericType::bool());
-                    let message = Some(ConstrainError::StaticString(message));
-                    let instruction = Instruction::Constrain(zero, guard, message);
-                    let call_stack =
-                        context.dfg.get_instruction_call_stack_id(context.instruction_id);
-
-                    context.dfg.insert_instruction_and_results(
-                        instruction,
-                        block_id,
-                        None,
-                        call_stack,
-                    );
+                    insert_constraint(context, block_id, message);
 
                     // Subsequent instructions can either be removed, of replaced by defaults until the next predicate.
                     current_block_reachability = if fails_under_predicate {
+                        remove_and_replace_with_defaults(context, func_id, block_id);
                         Reachability::UnreachableUnderPredicate
                     } else {
+                        context.remove_current_instruction();
                         Reachability::Unreachable
                     }
                 }
@@ -302,7 +295,7 @@ impl Function {
                         return;
                     }
 
-                    let always_fail = is_predicate_constant_one();
+                    let always_fail = is_predicate_constant_one;
                     // We could leave the array operation to trigger an OOB on the invalid access, however if the array contains and returns
                     // references, then the SSA passes still won't be able to deal with them as nothing ever stores to references which are
                     // never created. Instead, we can replace the result of the instruction with defaults, which will allocate and store
@@ -341,7 +334,7 @@ impl Function {
                     // If the compiler knows the slice is empty, there is no point trying to pop from it, we know it will fail.
                     // Barretenberg doesn't handle memory operations with predicates, so we can't rely on those to disable the operation
                     // based on the current side effect variable. Instead we need to replace it with a conditional constraint.
-                    let always_fail = is_predicate_constant_one();
+                    let always_fail = is_predicate_constant_one;
 
                     // We might think that if the predicate is constant 1, we can leave the pop as it will always fail.
                     // However by turning the block Unreachable, ACIR-gen would create empty bytecode and not fail the circuit.
@@ -368,6 +361,11 @@ impl Function {
                 let call_stack = terminator.call_stack();
                 context.dfg[block_id]
                     .set_terminator(TerminatorInstruction::Unreachable { call_stack });
+            }
+            if current_block_reachability == Reachability::UnreachableUnderPredicate
+                && !is_predicate_constant_one
+            {
+                unreachable_predicates.insert(context.enable_side_effects);
             }
         });
     }
@@ -505,6 +503,55 @@ fn insert_constraint(
     context.dfg.insert_instruction_and_results(instruction, block_id, None, call_stack);
 }
 
+/// Check if an instruction should be replaced with default values if we are in the
+/// `UnreachableUnderPredicate` mode.
+///
+/// These are generally the ones that require an ACIR predicate, except for `ArrayGet`,
+/// which might appear safe after having its index replaced by a default zero value,
+/// but by doing so we may have made the item and result types misaligned.
+fn should_replace_instruction_with_defaults(context: &SimpleOptimizationContext) -> bool {
+    let instruction = context.instruction();
+
+    // ArrayGet needs special handling: if we replaced the index with a default value, it could be invalid.
+    if let Instruction::ArrayGet { array, index, offset: _ } = instruction {
+        // If we replaced the index with a default, it's going to be zero.
+        let index_zero = context.dfg.get_numeric_constant(*index).is_some_and(|c| c.is_zero());
+
+        // If it's zero, make sure that the type in the results
+        if index_zero {
+            let typ = match context.dfg.type_of_value(*array) {
+                Type::Array(typ, _) | Type::Slice(typ) => typ,
+                other => unreachable!("Array or Slice type expected; got {other:?}"),
+            };
+            let results = context.dfg.instruction_results(context.instruction_id).to_vec();
+            let result_type = context.dfg.type_of_value(results[0]);
+            // If the type doesn't agree then we should not use this any more,
+            // as the type in the array will replace the type we wanted to get,
+            // and cause problems further on.
+            if typ[0] != result_type {
+                return true;
+            }
+            // If the array contains a reference, then we should replace the results
+            // with defaults because unloaded references also cause issues.
+            if context.dfg.runtime().is_acir() && result_type.contains_reference() {
+                return true;
+            }
+            // Note that it may be incorrect to replace a *safe* ArrayGet with defaults,
+            // because `remove_enable_side_effects` may have moved the side effect
+            // boundaries around them, and then `fold_constants_with_brillig` could
+            // have replaced some with `enable_side_effect u1 0`. If we then replace
+            // a *safe* ArrayGet with a default, that might be a result that would
+            // really be enabled, had it not been skipped over by its original side
+            // effect variable. Instructions which use its result would then get
+            // incorrect zero, instead of whatever was in the array.
+        }
+    };
+
+    // Instructions that don't interact with the predicate should be left alone,
+    // because the `remove_enable_side_effects` pass might have moved the boundaries around them.
+    instruction.requires_acir_gen_predicate(context.dfg)
+}
+
 #[cfg(test)]
 mod test {
     use crate::{
@@ -578,7 +625,6 @@ mod test {
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) predicate_pure fn main f0 {
           b0():
-            v2 = sub u32 0, u32 1
             constrain u1 0 == u1 1, "attempt to subtract with overflow"
             unreachable
         }
@@ -601,7 +647,6 @@ mod test {
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) predicate_pure fn main f0 {
           b0():
-            v2 = div u32 1, u32 0
             constrain u1 0 == u1 1, "attempt to divide by zero"
             unreachable
         }
@@ -643,7 +688,6 @@ mod test {
         acir(inline) predicate_pure fn main f0 {
           b0(v0: u1):
             enable_side_effects v0
-            v3 = sub u32 0, u32 1
             constrain u1 0 == v0, "attempt to subtract with overflow"
             return u32 0
         }
@@ -671,7 +715,6 @@ mod test {
         acir(inline) predicate_pure fn main f0 {
           b0(v0: u1):
             enable_side_effects v0
-            v3 = sub u32 0, u32 1
             constrain u1 0 == v0, "attempt to subtract with overflow"
             return u32 0
         }
@@ -726,14 +769,50 @@ mod test {
           b0(v0: u1):
             v1 = make_array [] : [&mut u1; 0]
             enable_side_effects v0
-            v4 = mod u32 1, u32 0
             constrain u1 0 == v0, "attempt to calculate the remainder with a divisor of zero"
             constrain u1 0 == v0, "Index out of bounds"
-            v6 = allocate -> &mut u1
-            store u1 0 at v6
-            v7 = load v6 -> u1
+            v3 = allocate -> &mut u1
+            store u1 0 at v3
+            v4 = load v3 -> u1
             enable_side_effects u1 1
-            return v7
+            return v4
+        }
+        "#);
+    }
+
+    #[test]
+    fn replaces_array_get_following_conditional_constraint_with_default_if_index_was_defaulted() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            enable_side_effects v0
+            v1 = make_array [u8 1, u8 2] : [u8; 2]
+            v2 = make_array [v1, u1 0] : [([u8; 2], u1); 1]
+            v3 = mul u32 4294967295, u32 2          // overflow
+            v4 = add v3, u32 1                      // after overflow, replaced by default
+            enable_side_effects u1 1                // end of side effects mode
+            enable_side_effects v0                  // restore side effects to what we know will fail
+            v5 = array_get v1, index v4 -> u1       // if v4 is replaced by default, the item at 0 is not a u1
+            v6 = unchecked_mul v0, v5               // v5 is no longer a u1, but [u8; 2]
+            enable_side_effects u1 1
+            return
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_unreachable_instructions();
+
+        // The `array_get` is should be replaced by `u1 0`
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            enable_side_effects v0
+            v3 = make_array [u8 1, u8 2] : [u8; 2]
+            v5 = make_array [v3, u1 0] : [([u8; 2], u1); 1]
+            constrain u1 0 == v0, "attempt to multiply with overflow"
+            enable_side_effects u1 1
+            enable_side_effects v0
+            enable_side_effects u1 1
+            return
         }
         "#);
     }
@@ -758,11 +837,9 @@ mod test {
         acir(inline) predicate_pure fn main f0 {
           b0(v0: u1):
             enable_side_effects v0
-            v3 = sub u32 0, u32 1
             constrain u1 0 == v0, "attempt to subtract with overflow"
             enable_side_effects u1 1
-            v6 = add v3, u32 1
-            return v6
+            return u32 1
         }
         "#);
     }
@@ -1257,7 +1334,6 @@ mod test {
         acir(inline) predicate_pure fn main f0 {
           b0(v0: u1):
             enable_side_effects v0
-            v3 = div u64 1, u64 0
             constrain u1 0 == v0, "attempt to divide by zero"
             enable_side_effects u1 1
             return

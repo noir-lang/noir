@@ -283,45 +283,9 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
                 panic!("ToRadix opcode's output_bits size does not match expected bit size 1")
             };
 
-            let mut input = BigUint::from_bytes_be(&input.to_be_bytes());
+            let output = to_be_radix(input, radix, num_limbs, output_bits)?;
 
-            // maximum number of bits that the limbs can hold
-            let max_bit_size = radix.ilog2() * num_limbs as u32;
-            let radix = BigUint::from_bytes_be(&radix.to_be_bytes());
-            let mut limbs: Vec<MemoryValue<F>> = vec![MemoryValue::default(); num_limbs];
-
-            assert!(
-                radix >= BigUint::from(2u32) && radix <= BigUint::from(256u32),
-                "Radix out of the valid range [2,256]. Value: {radix}"
-            );
-
-            assert!(
-                num_limbs >= 1 || input == BigUint::from(0u32),
-                "Input value {input} is not zero but number of limbs is zero."
-            );
-
-            assert!(
-                !output_bits || radix == BigUint::from(2u32),
-                "Radix {radix} is not equal to 2 and bit mode is activated."
-            );
-
-            if (input.bits() as u32) > max_bit_size {
-                return Err(BlackBoxResolutionError::AssertFailed(format!(
-                    "Field failed to decompose into specified {num_limbs} limbs"
-                )));
-            }
-            for i in (0..num_limbs).rev() {
-                let limb = &input % &radix;
-                if output_bits {
-                    limbs[i] = MemoryValue::U1(!limb.is_zero());
-                } else {
-                    let limb: u8 = limb.try_into().unwrap();
-                    limbs[i] = MemoryValue::U8(limb);
-                };
-                input /= &radix;
-            }
-
-            memory.write_slice(memory.read_ref(*output_pointer), &limbs);
+            memory.write_slice(memory.read_ref(*output_pointer), &output);
 
             Ok(())
         }
@@ -346,5 +310,110 @@ fn black_box_function_from_op(op: &BlackBoxOp) -> BlackBoxFunc {
         BlackBoxOp::Poseidon2Permutation { .. } => BlackBoxFunc::Poseidon2Permutation,
         BlackBoxOp::Sha256Compression { .. } => BlackBoxFunc::Sha256Compression,
         BlackBoxOp::ToRadix { .. } => unreachable!("ToRadix is not an ACIR BlackBoxFunc"),
+    }
+}
+
+fn to_be_radix<F: AcirField>(
+    input: F,
+    radix: u32,
+    num_limbs: usize,
+    output_bits: bool,
+) -> Result<Vec<MemoryValue<F>>, BlackBoxResolutionError> {
+    assert!(
+        (2u32..=256u32).contains(&radix),
+        "Radix out of the valid range [2,256]. Value: {radix}"
+    );
+
+    assert!(
+        num_limbs >= 1 || input.is_zero(),
+        "Input value {input} is not zero but number of limbs is zero."
+    );
+
+    assert!(
+        !output_bits || radix == 2u32,
+        "Radix {radix} is not equal to 2 and bit mode is activated."
+    );
+
+    let mut input = BigUint::from_bytes_be(&input.to_be_bytes());
+    let radix = BigUint::from(radix);
+
+    let mut limbs: Vec<MemoryValue<F>> = vec![MemoryValue::default(); num_limbs];
+    for i in (0..num_limbs).rev() {
+        let limb = &input % &radix;
+        limbs[i] = if output_bits {
+            MemoryValue::U1(!limb.is_zero())
+        } else {
+            let limb: u8 = limb.try_into().unwrap();
+            MemoryValue::U8(limb)
+        };
+        input /= &radix;
+    }
+
+    // In order for a successful decomposition, we require that after `num_limbs` divisions by `radix` then `input` should be zero.
+    // If `input` is non-zero then that implies that we have additional limbs which are not handled.
+    if !input.is_zero() {
+        return Err(BlackBoxResolutionError::AssertFailed(format!(
+            "Field failed to decompose into specified {num_limbs} limbs"
+        )));
+    }
+
+    Ok(limbs)
+}
+
+#[cfg(test)]
+mod to_be_radix_tests {
+    use crate::black_box::to_be_radix;
+
+    use acir::{AcirField, FieldElement};
+
+    use proptest::prelude::*;
+
+    // Define a wrapper around field so we can implement `Arbitrary`.
+    // NB there are other methods like `arbitrary_field_elements` around the codebase,
+    // but for `proptest_derive::Arbitrary` we need `F: AcirField + Arbitrary`.
+    acir::acir_field::field_wrapper!(TestField, FieldElement);
+
+    impl Arbitrary for TestField {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            any::<u128>().prop_map(|v| Self(FieldElement::from(v))).boxed()
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn matches_byte_decomposition(param: TestField) {
+            let bytes: Vec<u8> = to_be_radix(param.0, 256, 32, false).unwrap().into_iter().map(|byte| byte.expect_u8().unwrap()).collect();
+            let expected_bytes = param.0.to_be_bytes();
+            prop_assert_eq!(bytes, expected_bytes);
+        }
+    }
+
+    #[test]
+    fn correctly_handles_unusual_radices() {
+        let value = FieldElement::from(65024u128);
+        let expected_limbs = vec![254, 254];
+
+        let limbs: Vec<u8> = to_be_radix(value, 255, 2, false)
+            .unwrap()
+            .into_iter()
+            .map(|byte| byte.expect_u8().unwrap())
+            .collect();
+        assert_eq!(limbs, expected_limbs);
+    }
+
+    #[test]
+    fn matches_decimal_decomposition() {
+        let value = FieldElement::from(123456789u128);
+        let expected_limbs = vec![1, 2, 3, 4, 5, 6, 7, 8, 9];
+
+        let limbs: Vec<u8> = to_be_radix(value, 10, 9, false)
+            .unwrap()
+            .into_iter()
+            .map(|byte| byte.expect_u8().unwrap())
+            .collect();
+        assert_eq!(limbs, expected_limbs);
     }
 }
