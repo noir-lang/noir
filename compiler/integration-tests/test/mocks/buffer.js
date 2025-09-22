@@ -1,6 +1,10 @@
 import * as buffer from 'buffer-esm';
-
 const Buffer = buffer.BufferShim;
+
+// bb.js requires `allocUnsafeSlow` which is not present in buffer-esm
+if (!Buffer.allocUnsafeSlow) {
+  Buffer.allocUnsafeSlow = Buffer.allocUnsafe;
+}
 
 // bb.js requires writeBigUInt64BE and readBigUInt64BE which are not present in buffer-esm
 // so we are adding custom implementations

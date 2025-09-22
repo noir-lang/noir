@@ -24,6 +24,7 @@ it(`smart contract can verify a recursive proof`, async () => {
   const innerCircuitVerificationKey = await innerBackend.getVerificationKey();
   const barretenbergAPI = await Barretenberg.new({ threads: 1 });
   const vkAsFields = await barretenbergAPI.acirVkAsFieldsUltraHonk(new RawBuffer(innerCircuitVerificationKey));
+  const vkHash = await barretenbergAPI.poseidon2Hash(vkAsFields);
 
   // Generate proof of the recursive circuit
   const recursiveCircuitNoir = new Noir(recursionCircuit as CompiledCircuit);
@@ -33,6 +34,7 @@ it(`smart contract can verify a recursive proof`, async () => {
     proof: deflattenFields(intermediateProof),
     public_inputs: intermediatePublicInputs,
     verification_key: vkAsFields.map((field) => field.toString()),
+    key_hash: vkHash.toString(),
   };
   const { witness: recursiveWitness } = await recursiveCircuitNoir.execute(recursiveInputs);
   const { proof: recursiveProof, publicInputs: recursivePublicInputs } = await recursiveBackend.generateProof(
@@ -49,7 +51,16 @@ it(`smart contract can verify a recursive proof`, async () => {
   expect(verified).to.be.true;
 
   // Smart contract verification
-  const contract = await ethers.deployContract('contracts/recursion.sol:HonkVerifier', []);
+
+  // Link the ZKTranscriptLib
+  const ZKTranscriptLib = await ethers.deployContract('contracts/recursion.sol:ZKTranscriptLib');
+  await ZKTranscriptLib.waitForDeployment();
+
+  const contract = await ethers.deployContract('contracts/recursion.sol:HonkVerifier', [], {
+    libraries: {
+      ZKTranscriptLib: await ZKTranscriptLib.getAddress(),
+    },
+  });
   const result = await contract.verify.staticCall(recursiveProof, recursivePublicInputs);
 
   expect(result).to.be.true;
