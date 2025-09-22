@@ -135,7 +135,7 @@ fn constant_folding_post_check(context: &Context, dfg: &DataFlowGraph) {
 }
 
 struct Context {
-    /// Keeps track of visted blocks and blocks to visit.
+    /// Keeps track of visited blocks and blocks to visit.
     block_queue: VisitOnceDeque,
 
     /// Whether to use [constraints][Instruction::Constrain] to inform simplifications later on in the program.
