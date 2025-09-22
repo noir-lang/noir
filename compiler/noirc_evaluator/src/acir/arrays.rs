@@ -836,19 +836,8 @@ impl Context<'_> {
                     unreachable!("ICE: element type size arrays are expected to be initialized");
                 }
 
-                let type_sizes_array_len = *self.internal_mem_block_lengths.get(inner_elem_type_sizes).ok_or_else(||
-                                            InternalError::General {
-                                                message: format!("Array {array_id}'s inner element type sizes array does not have a tracked length"),
-                                                call_stack: self.acir_context.get_call_stack(),
-                                            }
-                                        )?;
-                self.copy_dynamic_array(
-                    *inner_elem_type_sizes,
-                    element_type_sizes,
-                    type_sizes_array_len,
-                )?;
-                self.internal_mem_block_lengths.insert(element_type_sizes, type_sizes_array_len);
-                Ok(element_type_sizes)
+                self.internal_memory_blocks.insert(array_id, *inner_elem_type_sizes);
+                Ok(*inner_elem_type_sizes)
             }
             _ => Err(InternalError::Unexpected {
                 expected: "AcirValue::DynamicArray or AcirValue::Array".to_owned(),
