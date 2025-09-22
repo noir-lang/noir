@@ -410,7 +410,8 @@ impl Context<'_> {
 
         // Handle the predicated store value
         let new_value = store_value
-            .map(|store| self.predicated_store_value(store, dfg, block_id, predicate_index)?);
+            .map(|store| self.predicated_store_value(store, dfg, block_id, predicate_index))
+            .transpose()?;
 
         Ok((predicate_index, new_value))
     }
