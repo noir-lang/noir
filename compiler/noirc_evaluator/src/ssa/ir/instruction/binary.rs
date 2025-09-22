@@ -109,7 +109,10 @@ impl Binary {
                 (Value::NumericConstant { .. }, _) => {
                     Self { lhs: self.rhs, rhs: self.lhs, operator: self.operator }
                 }
-                (Value::Instruction { .. } | Value::Param { .. }, Value::Instruction { .. } | Value::Param { .. }) => {
+                (
+                    Value::Instruction { .. } | Value::Param { .. },
+                    Value::Instruction { .. } | Value::Param { .. },
+                ) => {
                     let (lhs, rhs) = if self.lhs <= self.rhs {
                         (self.lhs, self.rhs)
                     } else {
