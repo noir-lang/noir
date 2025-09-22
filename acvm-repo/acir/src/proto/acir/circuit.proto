@@ -7,11 +7,11 @@ import "acir/native.proto";
 message Circuit {
   uint32 current_witness_index = 1;
   repeated Opcode opcodes = 2;
-  ExpressionWidth expression_width = 3;
-  repeated native.Witness private_parameters = 4;
-  repeated native.Witness public_parameters = 5;
-  repeated native.Witness return_values = 6;
-  repeated AssertMessage assert_messages = 7;
+  repeated native.Witness private_parameters = 3;
+  repeated native.Witness public_parameters = 4;
+  repeated native.Witness return_values = 5;
+  repeated AssertMessage assert_messages = 6;
+  string function_name = 7;
 }
 
 message ExpressionWidth {
@@ -63,7 +63,7 @@ message Opcode {
   message MemoryOp {
     uint32 block_id = 1;
     MemOp op = 2;
-    optional native.Expression predicate = 3;
+    optional native.Expression predicate = 3 [deprecated=true];
   }
   message MemoryInit {
     uint32 block_id = 1;
@@ -98,14 +98,8 @@ message BlackBoxFuncCall {
     EmbeddedCurveAdd embedded_curve_add = 10;
     Keccakf1600 keccak_f1600 = 11;
     RecursiveAggregation recursive_aggregation = 12;
-    BigIntAdd big_int_add = 13;
-    BigIntSub big_int_sub = 14;
-    BigIntMul big_int_mul = 15;
-    BigIntDiv big_int_div = 16;
-    BigIntFromLeBytes big_int_from_le_bytes = 17;
-    BigIntToLeBytes big_int_to_le_bytes = 18;
-    Poseidon2Permutation poseidon2_permutation = 19;
-    Sha256Compression sha256_compression = 20;
+    Poseidon2Permutation poseidon2_permutation = 13;
+    Sha256Compression sha256_compression = 14;
   }
   message AES128Encrypt {
     repeated FunctionInput inputs = 1;
@@ -116,14 +110,16 @@ message BlackBoxFuncCall {
   message AND {
     FunctionInput lhs = 1;
     FunctionInput rhs = 2;
-    native.Witness output = 3;
+    uint32 num_bits = 3;
+    native.Witness output = 4;
   }
   message XOR {
     FunctionInput lhs = 1;
     FunctionInput rhs = 2;
-    native.Witness output = 3;
+    uint32 num_bits = 3;
+    native.Witness output = 4;
   }
-  message RANGE { FunctionInput input = 1; }
+  message RANGE { FunctionInput input = 1; uint32 num_bits = 2; }
   message Blake2s {
     repeated FunctionInput inputs = 1;
     repeated native.Witness outputs = 2;
@@ -137,24 +133,28 @@ message BlackBoxFuncCall {
     repeated FunctionInput public_key_y = 2;
     repeated FunctionInput signature = 3;
     repeated FunctionInput hashed_message = 4;
-    native.Witness output = 5;
+    FunctionInput predicate = 5;
+    native.Witness output = 6;
   }
   message EcdsaSecp256r1 {
     repeated FunctionInput public_key_x = 1;
     repeated FunctionInput public_key_y = 2;
     repeated FunctionInput signature = 3;
     repeated FunctionInput hashed_message = 4;
-    native.Witness output = 5;
+    FunctionInput predicate = 5;
+    native.Witness output = 6;
   }
   message MultiScalarMul {
     repeated FunctionInput points = 1;
     repeated FunctionInput scalars = 2;
-    repeated native.Witness outputs = 3;
+    FunctionInput predicate = 3;
+    repeated native.Witness outputs = 4;
   }
   message EmbeddedCurveAdd {
     repeated FunctionInput input1 = 1;
     repeated FunctionInput input2 = 2;
-    repeated native.Witness outputs = 3;
+    FunctionInput predicate = 3;
+    repeated native.Witness outputs = 4;
   }
   message Keccakf1600 {
     repeated FunctionInput inputs = 1;
@@ -166,40 +166,11 @@ message BlackBoxFuncCall {
     repeated FunctionInput public_inputs = 3;
     FunctionInput key_hash = 4;
     uint32 proof_type = 5;
-  }
-  message BigIntAdd {
-    uint32 lhs = 1;
-    uint32 rhs = 2;
-    uint32 output = 3;
-  }
-  message BigIntSub {
-    uint32 lhs = 1;
-    uint32 rhs = 2;
-    uint32 output = 3;
-  }
-  message BigIntMul {
-    uint32 lhs = 1;
-    uint32 rhs = 2;
-    uint32 output = 3;
-  }
-  message BigIntDiv {
-    uint32 lhs = 1;
-    uint32 rhs = 2;
-    uint32 output = 3;
-  }
-  message BigIntFromLeBytes {
-    repeated FunctionInput inputs = 1;
-    bytes modulus = 2;
-    uint32 output = 3;
-  }
-  message BigIntToLeBytes {
-    uint32 input = 1;
-    repeated native.Witness outputs = 2;
+    FunctionInput predicate = 6;
   }
   message Poseidon2Permutation {
     repeated FunctionInput inputs = 1;
     repeated native.Witness outputs = 2;
-    uint32 len = 3;
   }
   message Sha256Compression {
     repeated FunctionInput inputs = 1;
@@ -209,11 +180,6 @@ message BlackBoxFuncCall {
 }
 
 message FunctionInput {
-  ConstantOrWitnessEnum input = 1;
-  uint32 num_bits = 2;
-}
-
-message ConstantOrWitnessEnum {
   oneof value {
     native.Field constant = 1;
     native.Witness witness = 2;

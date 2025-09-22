@@ -2,7 +2,7 @@ import { expect } from 'chai';
 import assert_lt_json from '../../circuits/assert_lt/target/assert_lt.json' assert { type: 'json' };
 import fold_fibonacci_json from '../../circuits/fold_fibonacci/target/fold_fibonacci.json' assert { type: 'json' };
 import { Noir } from '@noir-lang/noir_js';
-import { BarretenbergVerifier, UltraHonkBackend } from '@aztec/bb.js';
+import { UltraHonkVerifierBackend, UltraHonkBackend } from '@aztec/bb.js';
 import { CompiledCircuit } from '@noir-lang/types';
 
 const assert_lt_program = assert_lt_json as CompiledCircuit;
@@ -48,8 +48,8 @@ it('end-to-end proof creation and verification -- Verifier API', async () => {
   const verificationKey = await honkBackend.getVerificationKey();
 
   // Proof verification
-  const verifier = new BarretenbergVerifier();
-  const isValid = await verifier.verifyUltraHonkProof(proof, verificationKey);
+  const verifier = new UltraHonkVerifierBackend();
+  const isValid = await verifier.verifyProof({ ...proof, verificationKey });
   expect(isValid).to.be.true;
 });
 

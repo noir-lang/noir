@@ -512,54 +512,56 @@ jobs:
         run: |
           yarn test:node
 
-  test-integration-browser:
-    name: Integration Tests (Browser)
-    runs-on: ubuntu-22.04
-    needs: [build-acvm-js, build-noir-wasm, build-noirc-abi]
-    timeout-minutes: 30
-    permissions:
-      contents: read
+  # TODO(https://github.com/noir-lang/noir/issues/9935): These tests are currently broken as they are currently written
+  # We have other browser tests under `examples/browser`, but it would be good to get these working again.
+  # test-integration-browser:
+  #   name: Integration Tests (Browser)
+  #   runs-on: ubuntu-22.04
+  #   needs: [build-acvm-js, build-noir-wasm, build-noirc-abi]
+  #   timeout-minutes: 30
+  #   permissions:
+  #     contents: read
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v5
 
-      - name: Download acvm_js package artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: acvm-js
-          path: ./acvm-repo/acvm_js
+  #     - name: Download acvm_js package artifact
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: acvm-js
+  #         path: ./acvm-repo/acvm_js
 
-      - name: Download noir_wasm package artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: noir_wasm
-          path: ./compiler/wasm
+  #     - name: Download noir_wasm package artifact
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: noir_wasm
+  #         path: ./compiler/wasm
 
-      - name: Download noirc_abi package artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: noirc_abi_wasm
-          path: ./tooling/noirc_abi_wasm
+  #     - name: Download noirc_abi package artifact
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: noirc_abi_wasm
+  #         path: ./tooling/noirc_abi_wasm
 
-      - name: Install Yarn dependencies
-        uses: ./.github/actions/setup
+  #     - name: Install Yarn dependencies
+  #       uses: ./.github/actions/setup
 
-      - uses: taiki-e/install-action@just
+  #     - uses: taiki-e/install-action@just
 
-      - name: Install Playwright
-        run: just install-playwright
+  #     - name: Install Playwright
+  #       run: just install-playwright
 
-      - name: Setup `integration-tests`
-        run: |
-          # Note the lack of spaces between package names.
-          PACKAGES_TO_BUILD="@noir-lang/types,@noir-lang/noir_js"
-          yarn workspaces foreach -Wvtp --from "{$PACKAGES_TO_BUILD}" run build
+  #     - name: Setup `integration-tests`
+  #       run: |
+  #         # Note the lack of spaces between package names.
+  #         PACKAGES_TO_BUILD="@noir-lang/types,@noir-lang/noir_js"
+  #         yarn workspaces foreach -Wvtp --from "{$PACKAGES_TO_BUILD}" run build
 
-      - name: Run `integration-tests`
-        working-directory: ./compiler/integration-tests
-        run: |
-          yarn test:browser
+  #     - name: Run `integration-tests`
+  #       working-directory: ./compiler/integration-tests
+  #       run: |
+  #         yarn test:browser
 
   test-examples:
     name: Example scripts
@@ -801,7 +803,7 @@ jobs:
       - test-noir-wasm
       - test-noir-codegen
       - test-integration-node
-      - test-integration-browser
+      #- test-integration-browser
       - test-examples
       - compile-noir-contracts
     permissions:
