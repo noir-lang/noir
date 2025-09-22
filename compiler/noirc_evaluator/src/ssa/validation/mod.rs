@@ -264,7 +264,7 @@ impl<'f> Validator<'f> {
             Value::Function(func_id) => {
                 let called_function = &self.ssa.functions[func_id];
 
-                let parameter_types = called_function.parameter_types();
+                let parameter_types = called_function.view().parameter_types();
                 assert_eq!(
                     arguments.len(),
                     parameter_types.len(),
