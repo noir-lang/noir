@@ -48,6 +48,12 @@
 //! This pass meant to be one of the very last, just before generating ACIR and Brillig opcodes
 //! from the SSA. Some of the earlier passes would not expect the offset to be set, and may
 //! not take offset indexes correctly into account.
+//!
+//! The main motivation behind this pass is to make it possible to reuse the same constants across
+//! Brillig opcodes without having to re-allocate another register for them every time they appear.
+//! For this to happen the constants need to be part of the DFG, where they can be hoisted and
+//! deduplicated across instructions. Doing this during Brillig codegen would be too late, as at
+//! that time we have a read-only DFG and we would be forced to generate more Brillig opcodes.
 use acvm::FieldElement;
 
 use crate::{
