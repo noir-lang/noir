@@ -169,6 +169,11 @@ impl Context<'_> {
         Ok(())
     }
 
+    /// Attempts a compile-time read/write from an array.
+    ///
+    /// This relies on all previous operations on this array being done at known indices so that the `AcirValue` at each
+    /// position is known (even if the value of this `AcirValue` is unknown). This can then be done only for
+    /// `AcirValue::Array` as an `AcirValue::DynamicArray` has been mutated at an unknown index.
     fn handle_constant_index_wrapper(
         &mut self,
         instruction: InstructionId,
@@ -194,12 +199,16 @@ impl Context<'_> {
                     Ok(false)
                 }
             }
-            AcirValue::DynamicArray(_) => Ok(false),
+            AcirValue::DynamicArray(_) => {
+                // We do not perform any compile-time reads/writes to dynamic arrays as we'd need to promote this into
+                // a regular array by reading all of its elements. It's then better to defer to the dynamic index
+                // codepath so we just issue a single read/write.
+                Ok(false)
+            }
         }
     }
 
-    /// Handle constant index: if there is no predicate and we have the array values,
-    /// we can perform the operation directly on the array
+    /// See [Self::handle_constant_index_wrapper]
     fn handle_constant_index(
         &mut self,
         instruction: InstructionId,
@@ -243,13 +252,6 @@ impl Context<'_> {
             // as if the predicate were true. This is as if the predicate were to resolve to false then
             // the result should not affect the rest of circuit execution.
             let value = array[index].clone();
-            // An `Array` might contain a `DynamicArray`, however if we define the result this way,
-            // we would bypass the array initialization and the handling of dynamic values that
-            // happens in `array_get_value`. Rather than repeat it here, let the non-special-case
-            // handling take over by returning `false`.
-            if matches!(value, AcirValue::DynamicArray(_)) {
-                return Ok(false);
-            }
             self.define_result(dfg, instruction, value);
             Ok(true)
         }

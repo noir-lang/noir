@@ -8,16 +8,13 @@
 //! [`AcirContext`] also tracks [`Expression`]s which have been simplified into a [`Witness`], or constant witnesses
 //! allowing these to be reused later in the program.
 
-use acvm::{
-    BlackBoxFunctionSolver,
-    acir::{
-        AcirField, BlackBoxFunc,
-        circuit::{
-            AssertionPayload, ErrorSelector, ExpressionOrMemory, ExpressionWidth, Opcode,
-            opcodes::{AcirFunctionId, BlockId, BlockType, MemOp},
-        },
-        native_types::{Expression, Witness},
+use acvm::acir::{
+    AcirField, BlackBoxFunc,
+    circuit::{
+        AssertionPayload, ErrorSelector, ExpressionOrMemory, ExpressionWidth, Opcode,
+        opcodes::{AcirFunctionId, BlockId, BlockType, MemOp},
     },
+    native_types::{Expression, Witness},
 };
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::call_stack::{CallStack, CallStackHelper};
@@ -50,8 +47,7 @@ pub(crate) use generated_acir::{BrilligStdLib, BrilligStdlibFunc};
 /// Context object which holds the relationship between
 /// `Variables`(AcirVar) and types such as `Expression` and `Witness`
 /// which are placed into ACIR.
-pub(crate) struct AcirContext<F: AcirField, B: BlackBoxFunctionSolver<F>> {
-    pub(super) blackbox_solver: B,
+pub(crate) struct AcirContext<F: AcirField> {
     brillig_stdlib: BrilligStdLib<F>,
 
     vars: HashMap<AcirVar, AcirVarData<F>>,
@@ -75,11 +71,10 @@ pub(crate) struct AcirContext<F: AcirField, B: BlackBoxFunctionSolver<F>> {
     pub(super) warnings: Vec<SsaReport>,
 }
 
-impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
-    pub(super) fn new(brillig_stdlib: BrilligStdLib<F>, blackbox_solver: B) -> Self {
+impl<F: AcirField> AcirContext<F> {
+    pub(super) fn new(brillig_stdlib: BrilligStdLib<F>) -> Self {
         AcirContext {
             brillig_stdlib,
-            blackbox_solver,
             vars: Default::default(),
             constant_witnesses: Default::default(),
             acir_ir: Default::default(),
@@ -302,7 +297,6 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
             &self.brillig_stdlib.get_code(BrilligStdlibFunc::Inverse).clone(),
             vec![AcirValue::Var(var, AcirType::field())],
             vec![AcirType::field()],
-            true,
         )?;
         let inverted_var = Self::expect_one_var(results);
 
@@ -898,7 +892,6 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                     AcirValue::Var(rhs, AcirType::unsigned(bit_size)),
                 ],
                 vec![AcirType::unsigned(max_q_bits), AcirType::unsigned(max_rhs_bits)],
-                true,
             )?
             .try_into()
             .expect("quotient only returns two values");
@@ -1582,9 +1575,6 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
             }
             Some(optional_value) => {
                 let mut values = Vec::new();
-                if let AcirValue::DynamicArray(_) = optional_value {
-                    unreachable!("Dynamic array should already be initialized");
-                }
                 self.initialize_array_inner(&mut values, optional_value)?;
                 values
             }

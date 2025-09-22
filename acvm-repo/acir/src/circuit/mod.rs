@@ -325,13 +325,13 @@ impl<F: AcirField + for<'a> Deserialize<'a>> Program<F> {
 
 impl<F: AcirField> std::fmt::Display for Circuit<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "current witness index : _{}", self.current_witness_index)?;
+        writeln!(f, "current witness: w{}", self.current_witness_index)?;
 
         let write_witness_indices =
             |f: &mut std::fmt::Formatter<'_>, indices: &[u32]| -> Result<(), std::fmt::Error> {
                 write!(f, "[")?;
                 for (index, witness_index) in indices.iter().enumerate() {
-                    write!(f, "_{witness_index}")?;
+                    write!(f, "w{witness_index}")?;
                     if index != indices.len() - 1 {
                         write!(f, ", ")?;
                     }
@@ -339,7 +339,7 @@ impl<F: AcirField> std::fmt::Display for Circuit<F> {
                 writeln!(f, "]")
             };
 
-        write!(f, "private parameters indices : ")?;
+        write!(f, "private parameters: ")?;
         write_witness_indices(
             f,
             &self
@@ -349,10 +349,10 @@ impl<F: AcirField> std::fmt::Display for Circuit<F> {
                 .collect::<Vec<_>>(),
         )?;
 
-        write!(f, "public parameters indices : ")?;
+        write!(f, "public parameters: ")?;
         write_witness_indices(f, &self.public_parameters.indices())?;
 
-        write!(f, "return value indices : ")?;
+        write!(f, "return values: ")?;
         write_witness_indices(f, &self.return_values.indices())?;
 
         for opcode in &self.opcodes {
@@ -376,7 +376,10 @@ impl<F: AcirField> std::fmt::Display for Program<F> {
         }
         for (func_index, function) in self.unconstrained_functions.iter().enumerate() {
             writeln!(f, "unconstrained func {func_index}")?;
-            writeln!(f, "{:?}", function.bytecode)?;
+            let width = function.bytecode.len().to_string().len();
+            for (index, opcode) in function.bytecode.iter().enumerate() {
+                writeln!(f, "{index:>width$}: {opcode}")?;
+            }
         }
         Ok(())
     }
@@ -537,14 +540,14 @@ mod tests {
         insta::assert_snapshot!(
             circuit.to_string(),
             @r"
-            current witness index : _3
-            private parameters indices : []
-            public parameters indices : [_2]
-            return value indices : [_2]
-            EXPR [ (2, _1) 8 ]
-            BLACKBOX::RANGE [(_1, 8)] []
-            BLACKBOX::AND [(_1, 4), (_2, 4)] [_3]
-            BLACKBOX::KECCAKF1600 [(_1, 8), (_2, 8), (_3, 8), (_4, 8), (_5, 8), (_6, 8), (_7, 8), (_8, 8), (_9, 8), (_10, 8), (_11, 8), (_12, 8), (_13, 8), (_14, 8), (_15, 8), (_16, 8), (_17, 8), (_18, 8), (_19, 8), (_20, 8), (_21, 8), (_22, 8), (_23, 8), (_24, 8), (_25, 8)] [_26, _27, _28, _29, _30, _31, _32, _33, _34, _35, _36, _37, _38, _39, _40, _41, _42, _43, _44, _45, _46, _47, _48, _49, _50]
+            current witness: w3
+            private parameters: []
+            public parameters: [w2]
+            return values: [w2]
+            EXPR [ (2, w1) 8 ]
+            BLACKBOX::RANGE [(w1, 8)] []
+            BLACKBOX::AND [(w1, 4), (w2, 4)] [w3]
+            BLACKBOX::KECCAKF1600 [(w1, 8), (w2, 8), (w3, 8), (w4, 8), (w5, 8), (w6, 8), (w7, 8), (w8, 8), (w9, 8), (w10, 8), (w11, 8), (w12, 8), (w13, 8), (w14, 8), (w15, 8), (w16, 8), (w17, 8), (w18, 8), (w19, 8), (w20, 8), (w21, 8), (w22, 8), (w23, 8), (w24, 8), (w25, 8)] [w26, w27, w28, w29, w30, w31, w32, w33, w34, w35, w36, w37, w38, w39, w40, w41, w42, w43, w44, w45, w46, w47, w48, w49, w50]
             "
         );
     }

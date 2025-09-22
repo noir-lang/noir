@@ -92,7 +92,7 @@ mod tests {
         let src = r#"
         acir(inline) fn main f0 {
           b0():
-            call f0()
+            call f0(u32 1, Field 2)
             return
         }
         acir(inline) fn foo f0 {
@@ -116,7 +116,7 @@ mod tests {
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0():
-            call f1()
+            call f1(u32 1)
             return
         }
         acir(inline) fn foo f1 {
