@@ -7,7 +7,7 @@ use std::{
 use super::{
     Ssa,
     ir::{
-        instruction::{ArrayOffset, BinaryOp},
+        instruction::BinaryOp,
         types::{NumericType, Type},
     },
     opt::pure::Purity,
@@ -27,7 +27,10 @@ use noirc_frontend::{
 use thiserror::Error;
 use token::{Keyword, SpannedToken, Token};
 
-use crate::ssa::{ir::function::RuntimeType, parser::ast::ParsedTerminator};
+use crate::ssa::{
+    ir::{function::RuntimeType, instruction::ArrayOffset},
+    parser::ast::ParsedTerminator,
+};
 
 mod ast;
 mod into_ssa;

@@ -5,9 +5,7 @@ use super::{
     ir::{
         dfg::DataFlowGraph,
         function::{Function, FunctionId, RuntimeType},
-        instruction::{
-            ArrayOffset, Binary, BinaryOp, ConstrainError, Instruction, TerminatorInstruction,
-        },
+        instruction::{Binary, BinaryOp, ConstrainError, Instruction, TerminatorInstruction},
         types::Type,
         value::ValueId,
     },
@@ -585,19 +583,17 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 self.side_effects_enabled = self.lookup_bool(*condition, "enable_side_effects")?;
                 Ok(())
             }
-            Instruction::ArrayGet { array, index, offset } => {
-                self.interpret_array_get(*array, *index, *offset, results[0], side_effects_enabled)
+            Instruction::ArrayGet { array, index } => {
+                self.interpret_array_get(*array, *index, results[0], side_effects_enabled)
             }
-            Instruction::ArraySet { array, index, value, mutable, offset } => self
-                .interpret_array_set(
-                    *array,
-                    *index,
-                    *value,
-                    *mutable,
-                    *offset,
-                    results[0],
-                    side_effects_enabled,
-                ),
+            Instruction::ArraySet { array, index, value, mutable } => self.interpret_array_set(
+                *array,
+                *index,
+                *value,
+                *mutable,
+                results[0],
+                side_effects_enabled,
+            ),
             Instruction::IncrementRc { value } => self.interpret_inc_rc(*value),
             Instruction::DecrementRc { value } => self.interpret_dec_rc(*value),
             Instruction::IfElse { then_condition, then_value, else_condition, else_value } => self
@@ -892,10 +888,10 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         &mut self,
         array: ValueId,
         index: ValueId,
-        offset: ArrayOffset,
         result: ValueId,
         side_effects_enabled: bool,
     ) -> IResult<()> {
+        let offset = self.dfg().array_offset(array, index);
         let array = self.lookup_array_or_slice(array, "array get")?;
         let index = self.lookup_u32(index, "array get index")?;
         let mut index = index - offset.to_u32();
@@ -959,10 +955,10 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         index: ValueId,
         value: ValueId,
         mutable: bool,
-        offset: ArrayOffset,
         result: ValueId,
         side_effects_enabled: bool,
     ) -> IResult<()> {
+        let offset = self.dfg().array_offset(array, index);
         let array = self.lookup_array_or_slice(array, "array set")?;
 
         let result_array = if side_effects_enabled {

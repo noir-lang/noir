@@ -7,7 +7,7 @@ use crate::{
     ssa::ir::{
         basic_block::BasicBlockId,
         dfg::DataFlowGraph,
-        instruction::{ArrayOffset, BinaryOp, Instruction},
+        instruction::{BinaryOp, Instruction},
         types::{NumericType, Type},
         value::ValueId,
     },
@@ -158,8 +158,7 @@ impl<'a> ValueMerger<'a> {
                 let typevars = Some(vec![element_type.clone()]);
 
                 let mut get_element = |array, typevars| {
-                    let offset = ArrayOffset::None;
-                    let get = Instruction::ArrayGet { array, index, offset };
+                    let get = Instruction::ArrayGet { array, index };
                     self.dfg
                         .insert_instruction_and_results(get, self.block, typevars, self.call_stack)
                         .first()
@@ -228,8 +227,7 @@ impl<'a> ValueMerger<'a> {
                     if len <= index_u32 {
                         self.make_slice_dummy_data(element_type)
                     } else {
-                        let offset = ArrayOffset::None;
-                        let get = Instruction::ArrayGet { array, index, offset };
+                        let get = Instruction::ArrayGet { array, index };
                         let results = self.dfg.insert_instruction_and_results(
                             get,
                             self.block,

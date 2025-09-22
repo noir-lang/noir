@@ -4,7 +4,7 @@ use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         function::Function,
-        instruction::{ArrayOffset, BinaryOp, Instruction},
+        instruction::{BinaryOp, Instruction},
         types::{NumericType, Type},
         value::ValueId,
     },
@@ -155,11 +155,7 @@ pub(super) fn should_insert_oob_check(function: &Function, instruction: &Instruc
 
     use Instruction::*;
     match instruction {
-        ArrayGet { array, index, offset } | ArraySet { array, index, offset, .. } => {
-            assert!(
-                matches!(offset, ArrayOffset::None),
-                "ICE: The array offset should always be `None` for ACIR"
-            );
+        ArrayGet { array, index } | ArraySet { array, index, .. } => {
             // We only care about arrays here as slices are expected to have explicit checks laid down in the initial SSA.
             function.dfg.try_get_array_length(*array).is_some()
                 && !function.dfg.is_safe_index(*index, *array)

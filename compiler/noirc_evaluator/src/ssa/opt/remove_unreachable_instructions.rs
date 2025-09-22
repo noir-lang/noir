@@ -135,8 +135,7 @@ use crate::ssa::{
         dfg::DataFlowGraph,
         function::{Function, FunctionId},
         instruction::{
-            ArrayOffset, Binary, BinaryOp, ConstrainError, Instruction, Intrinsic,
-            TerminatorInstruction,
+            Binary, BinaryOp, ConstrainError, Instruction, Intrinsic, TerminatorInstruction,
             binary::{BinaryEvaluationResult, eval_constant_binary_op},
         },
         types::{NumericType, Type},
@@ -284,11 +283,10 @@ impl Function {
                         Reachability::Unreachable
                     }
                 }
-                Instruction::ArrayGet { array, index, offset }
-                | Instruction::ArraySet { array, index, offset, .. }
+                Instruction::ArrayGet { array, index }
+                | Instruction::ArraySet { array, index, .. }
                     if context.dfg.runtime().is_acir() =>
                 {
-                    assert_eq!(*offset, ArrayOffset::None);
                     let array_type = context.dfg.type_of_value(*array);
                     // We can only know a guaranteed out-of-bounds access for arrays, never for slices.
                     let Type::Array(_, len) = array_type else {

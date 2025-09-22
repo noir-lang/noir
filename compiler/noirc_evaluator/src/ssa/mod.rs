@@ -285,6 +285,7 @@ pub fn optimize_ssa_builder_into_acir(
     // in the (re)use of otherwise unused global values.
     // It must be the last pass to either alter or add new instructions before Brillig generation,
     // as other semantics in the compiler can potentially break (e.g. inserting instructions).
+    // Running it through the builder so it can be printed, for transparency.
     let builder = builder.run_passes(&[SsaPass::new(
         Ssa::brillig_array_get_and_set,
         "Brillig Array Get and Set Optimizations",

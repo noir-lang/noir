@@ -338,17 +338,19 @@ fn display_instruction_inner(
         Instruction::EnableSideEffectsIf { condition } => {
             write!(f, "enable_side_effects {}", show(*condition))
         }
-        Instruction::ArrayGet { array, index, offset } => {
+        Instruction::ArrayGet { array, index } => {
+            let offset = dfg.array_offset(*array, *index);
             write!(
                 f,
                 "array_get {}, index {}{}{}",
                 show(*array),
                 show(*index),
-                display_array_offset(offset),
+                display_array_offset(&offset),
                 result_types(dfg, results)
             )
         }
-        Instruction::ArraySet { array, index, value, mutable, offset } => {
+        Instruction::ArraySet { array, index, value, mutable } => {
+            let offset = dfg.array_offset(*array, *index);
             let array = show(*array);
             let index = show(*index);
             let value = show(*value);
@@ -359,7 +361,7 @@ fn display_instruction_inner(
                 mutable,
                 array,
                 index,
-                display_array_offset(offset),
+                display_array_offset(&offset),
                 value
             )
         }

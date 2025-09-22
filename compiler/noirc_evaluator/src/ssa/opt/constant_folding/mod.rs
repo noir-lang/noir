@@ -26,7 +26,7 @@ use crate::ssa::{
         dfg::{DataFlowGraph, InsertInstructionResult},
         dom::DominatorTree,
         function::{Function, FunctionId, RuntimeType},
-        instruction::{ArrayOffset, Instruction, InstructionId},
+        instruction::{Instruction, InstructionId},
         types::NumericType,
         value::{Value, ValueId, ValueMapping},
     },
@@ -405,9 +405,7 @@ impl Context {
         if let Instruction::ArraySet { index, value, .. } = &instruction {
             let predicate = self.use_constraint_info.then_some(side_effects_enabled_var);
 
-            let offset = ArrayOffset::None;
-            let array_get =
-                Instruction::ArrayGet { array: instruction_results[0], index: *index, offset };
+            let array_get = Instruction::ArrayGet { array: instruction_results[0], index: *index };
 
             // If we encounter an array_get for this address, we know what the result will be.
             self.cached_instruction_results.cache(array_get, predicate, block, vec![*value]);

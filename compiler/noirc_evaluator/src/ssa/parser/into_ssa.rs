@@ -12,7 +12,7 @@ use crate::ssa::{
         basic_block::BasicBlockId,
         dfg::GlobalsGraph,
         function::{Function, FunctionId},
-        instruction::{ConstrainError, Instruction},
+        instruction::{ArrayOffset, ConstrainError, Instruction},
         value::ValueId,
     },
     opt::pure::FunctionPurities,
@@ -290,15 +290,17 @@ impl Translator {
             ParsedInstruction::ArrayGet { target, element_type, array, index, offset } => {
                 let array = self.translate_value(array)?;
                 let index = self.translate_value(index)?;
-                let value_id = self.builder.insert_array_get(array, index, offset, element_type);
+                let value_id = self.builder.insert_array_get(array, index, element_type);
                 self.define_variable(target, value_id)?;
+                self.set_offset(offset);
             }
             ParsedInstruction::ArraySet { target, array, index, value, mutable, offset } => {
                 let array = self.translate_value(array)?;
                 let index = self.translate_value(index)?;
                 let value = self.translate_value(value)?;
-                let value_id = self.builder.insert_array_set(array, index, value, mutable, offset);
+                let value_id = self.builder.insert_array_set(array, index, value, mutable);
                 self.define_variable(target, value_id)?;
+                self.set_offset(offset);
             }
             ParsedInstruction::BinaryOp { target, lhs, op, rhs } => {
                 let lhs = self.translate_value(lhs)?;
@@ -594,5 +596,10 @@ impl Translator {
 
     fn current_function_id(&self) -> FunctionId {
         self.builder.current_function.id()
+    }
+
+    /// If any array instruction has an offset, mark the DFG as using offsets in general.
+    fn set_offset(&mut self, offset: ArrayOffset) {
+        self.builder.current_function.dfg.brillig_arrays_offset |= offset != ArrayOffset::None;
     }
 }
