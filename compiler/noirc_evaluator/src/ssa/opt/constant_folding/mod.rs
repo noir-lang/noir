@@ -25,7 +25,7 @@ use crate::ssa::{
         basic_block::BasicBlockId,
         dfg::{DataFlowGraph, InsertInstructionResult},
         dom::DominatorTree,
-        function::{Function, FunctionId, RuntimeType},
+        function::{Function, FunctionId},
         instruction::{ArrayOffset, Instruction, InstructionId},
         types::NumericType,
         value::{Value, ValueId, ValueMapping},
@@ -79,7 +79,7 @@ impl Ssa {
         // Collect all brillig functions so that later we can find them when processing a call instruction
         let mut brillig_functions: BTreeMap<FunctionId, Function> = BTreeMap::new();
         for (func_id, func) in &self.functions {
-            if let RuntimeType::Brillig(..) = func.runtime() {
+            if func.runtime().is_brillig() {
                 let cloned_function = Function::clone_with_id(*func_id, func);
                 brillig_functions.insert(*func_id, cloned_function);
             };
