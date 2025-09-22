@@ -224,10 +224,6 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         SsaPass::new(Ssa::fold_constants_with_brillig, "Inlining Brillig Calls"),
         SsaPass::new(Ssa::remove_unreachable_instructions, "Remove Unreachable Instructions")
             .and_then(Ssa::remove_unreachable_functions),
-        // This pass makes transformations specific to Brillig generation.
-        // It must be the last pass to either alter or add new instructions before Brillig generation,
-        // as other semantics in the compiler can potentially break (e.g. inserting instructions).
-        SsaPass::new(Ssa::brillig_array_get_and_set, "Brillig Array Get and Set Optimizations"),
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination")
             // A function can be potentially unreachable post-DIE if all calls to that function were removed.
             .and_then(Ssa::remove_unreachable_functions),
@@ -262,10 +258,6 @@ pub fn minimal_passes() -> Vec<SsaPass<'static>> {
         // which was called in the AST not being called in the SSA. Such functions would cause
         // panics later, when we are looking for global allocations.
         SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
-        // We need to add an offset to constant array indices in Brillig.
-        // This can change which globals are used, because constant creation might result
-        // in the (re)use of otherwise unused global values.
-        SsaPass::new(Ssa::brillig_array_get_and_set, "Brillig Array Get and Set Optimizations"),
     ]
 }
 
@@ -284,6 +276,19 @@ pub fn optimize_ssa_builder_into_acir(
     let builder = builder.with_skip_passes(options.skip_passes.clone()).run_passes(passes)?;
 
     drop(ssa_gen_span_guard);
+
+    // Shift the array offsets in Brillig functions to benefit from the constant allocation logic,
+    // but do this outside the normal SSA passes, so we don't need to make the SSA interpreter and
+    // every other pass aware of the possibility that indexes are shifted, which could result in
+    // them conceptually not aligning with the positions of complex item types for example.
+    // This can change which globals are used, because constant creation might result
+    // in the (re)use of otherwise unused global values.
+    // It must be the last pass to either alter or add new instructions before Brillig generation,
+    // as other semantics in the compiler can potentially break (e.g. inserting instructions).
+    let builder = builder.run_passes(&[SsaPass::new(
+        Ssa::brillig_array_get_and_set,
+        "Brillig Array Get and Set Optimizations",
+    )])?;
 
     let brillig = time("SSA to Brillig", options.print_codegen_timings, || {
         builder.ssa().to_brillig(&options.brillig_options)
