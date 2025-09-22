@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1758553463608,
+  "lastUpdate": 1758553469076,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -12477,80 +12477,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "e6260d7b76ea148e5f7e50f7ffcc7a6b7a6be8d1",
-          "message": "feat(ssa): SSA CLI (#9826)",
-          "timestamp": "2025-09-12T15:56:59Z",
-          "tree_id": "a42a23373ae0514b8e9582711b413359d6db4ab1",
-          "url": "https://github.com/noir-lang/noir/commit/e6260d7b76ea148e5f7e50f7ffcc7a6b7a6be8d1"
-        },
-        "date": 1757696365626,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 258.83,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 291.99,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 243.6,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 506.72,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 439.12,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1540,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 331.16,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 333.68,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 72.87,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 69.42,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -16305,6 +16231,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-tx-base-public",
             "value": 540.08,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 334.45,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 73,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 69.57,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "852d0fb96c3abe67f34b0ec594ab0307b760509c",
+          "message": "fix(ssa): Start with checked operations in index calculations (#9888)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2025-09-22T14:14:27Z",
+          "tree_id": "e12b75cd43923bba745ad96c5938fd286d85b6fd",
+          "url": "https://github.com/noir-lang/noir/commit/852d0fb96c3abe67f34b0ec594ab0307b760509c"
+        },
+        "date": 1758553447342,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 259.27,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 292.53,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 243.22,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 336.27,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 335.23,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1540,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1540,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 336.44,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 523.42,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 540.09,
             "unit": "MB"
           },
           {
