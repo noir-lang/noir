@@ -219,7 +219,7 @@ impl<'f> Context<'f> {
                     }
                 }
                 // Arrays loaded from memory might reference an existing array
-                // For instance if the array comes from a load we may potentially being mutating an array
+                // For instance if the array comes from a load we may potentially be mutating an array
                 // at a reference that is loaded from by other values.
                 Instruction::Load { .. } => {
                     panic!("Load instruction exists before `array_set_optimization` pass");
