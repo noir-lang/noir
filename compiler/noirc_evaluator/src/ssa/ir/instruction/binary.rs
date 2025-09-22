@@ -2,6 +2,8 @@ use acvm::{FieldElement, acir::AcirField};
 use num_traits::ToPrimitive as _;
 use serde::{Deserialize, Serialize};
 
+use crate::ssa::ir::{dfg::DataFlowGraph, value::Value};
+
 use super::{InstructionResultType, NumericType, Type, ValueId};
 
 /// Binary Operations allowed in the IR.
@@ -44,6 +46,15 @@ pub enum BinaryOp {
     Shr,
 }
 
+impl BinaryOp {
+    pub(crate) fn commutative(&self) -> bool {
+        matches!(self, BinaryOp::Add { .. } | BinaryOp::Mul { .. } | BinaryOp::Eq | BinaryOp::And |
+            BinaryOp::Or |
+            BinaryOp::Xor)
+       
+    }
+}
+
 impl std::fmt::Display for BinaryOp {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -84,6 +95,19 @@ impl Binary {
             BinaryOp::Eq | BinaryOp::Lt => InstructionResultType::Known(Type::bool()),
             _ => InstructionResultType::Operand(self.lhs),
         }
+    }
+
+    pub(crate) fn canonicalize(self, dfg:&DataFlowGraph) -> Self {
+       if self.operator.commutative() {
+            match (&dfg[self.lhs], &dfg[self.rhs]) {
+               (_, Value::NumericConstant{..}) => self,
+               ( Value::NumericConstant{..}, _) => Self { lhs: self.rhs, rhs: self.lhs, operator: self.operator },
+               
+               _ => self
+            }
+       } else {
+        self
+       }
     }
 }
 
