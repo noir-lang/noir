@@ -387,7 +387,7 @@ fn to_be_radix<F: AcirField>(
     output_bits: bool,
 ) -> Result<Vec<MemoryValue<F>>, BlackBoxResolutionError> {
     assert!(
-        radix >= 2u32 && radix <= 256u32,
+        (2u32..=256u32).contains(&radix),
         "Radix out of the valid range [2,256]. Value: {radix}"
     );
 
