@@ -27,11 +27,8 @@ pub(crate) mod ssa;
 mod tests;
 mod types;
 
+use crate::brillig::Brillig;
 use crate::brillig::brillig_gen::gen_brillig_for;
-use crate::brillig::{
-    Brillig, brillig_gen::brillig_fn::FunctionContext as BrilligFunctionContext,
-    brillig_ir::artifact::BrilligParameter,
-};
 use crate::errors::{InternalError, InternalWarning, RuntimeError, SsaReport};
 use crate::ssa::{
     function_builder::data_bus::DataBus,
@@ -585,40 +582,6 @@ impl<'a> Context<'a> {
 
         self.acir_context.set_call_stack(CallStack::new());
         Ok(warnings)
-    }
-
-    fn gen_brillig_parameters(
-        &self,
-        values: &[ValueId],
-        dfg: &DataFlowGraph,
-    ) -> Vec<BrilligParameter> {
-        values
-            .iter()
-            .map(|&value_id| {
-                let typ = dfg.type_of_value(value_id);
-                if let Type::Slice(item_types) = typ {
-                    let len = match self
-                        .ssa_values
-                        .get(&value_id)
-                        .expect("ICE: Unknown slice input to brillig")
-                    {
-                        AcirValue::DynamicArray(AcirDynamicArray { len, .. }) => *len,
-                        AcirValue::Array(array) => array.len(),
-                        _ => unreachable!("ICE: Slice value is not an array"),
-                    };
-
-                    BrilligParameter::Slice(
-                        item_types
-                            .iter()
-                            .map(BrilligFunctionContext::ssa_type_to_parameter)
-                            .collect(),
-                        len / item_types.len(),
-                    )
-                } else {
-                    BrilligFunctionContext::ssa_type_to_parameter(&typ)
-                }
-            })
-            .collect()
     }
 
     /// Remember the result of an instruction returning a single value

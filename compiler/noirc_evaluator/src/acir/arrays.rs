@@ -381,11 +381,11 @@ impl Context<'_> {
     ///   in case we have a nested array. The index for SSA array operations only represents the flattened index of the current array.
     ///   Thus internal array element type sizes need to be computed to accurately transform the index.
     ///
-    /// - predicate_index is offset, or the index if the predicate is true
+    /// - If the predicate is known to be true or the array access is guaranteed to be safe predicate_index the index itself.
+    ///   Otherwise, `predicate_index` is a fallback offset set by [Self::predicated_index].
     ///
-    /// - new_value is the optional value when the operation is an array_set
-    ///   When there is a predicate, it is predicate*value + (1-predicate)*dummy, where dummy is the value of the array at the requested index.
-    ///   It is a dummy value because in the case of a false predicate, the value stored at the requested index will be itself.
+    /// - new_value is the optional value when the operation is an array_set.
+    ///   The value used in an array_set is also dependent upon the predicate and is set in [Self::predicated_store_value]
     fn convert_array_operation_inputs(
         &mut self,
         array_id: ValueId,
@@ -400,42 +400,59 @@ impl Context<'_> {
         let index_var = self.convert_numeric_value(index, dfg)?;
         let index_var = self.get_flattened_index(&array_typ, array_id, index_var, dfg)?;
 
-        let predicate_index = if dfg.is_safe_index(index, array_id) {
-            index_var
-        } else {
-            // index*predicate + (1-predicate)*offset
-            let offset = self.acir_context.add_constant(offset);
-            let sub = self.acir_context.sub_var(index_var, offset)?;
-            let pred = self.acir_context.mul_var(sub, self.current_side_effects_enabled_var)?;
-            self.acir_context.add_var(pred, offset)?
-        };
+        // Side-effects are always enabled so we do not need to do any predication
+        if self.acir_context.is_constant_one(&self.current_side_effects_enabled_var) {
+            let store_value = store_value.map(|store| self.convert_value(store, dfg));
+            return Ok((index_var, store_value));
+        }
 
+        let predicate_index = self.predicated_index(index_var, index, array_id, dfg, offset)?;
+
+        // Handle the predicated store value
         let new_value = if let Some(store) = store_value {
-            let store_value = self.convert_value(store, dfg);
-            if self.acir_context.is_constant_one(&self.current_side_effects_enabled_var) {
-                Some(store_value)
-            } else {
-                let store_type = dfg.type_of_value(store);
-
-                let mut dummy_predicate_index = predicate_index;
-                // We must setup the dummy value to match the type of the value we wish to store
-                let dummy =
-                    self.array_get_value(&store_type, block_id, &mut dummy_predicate_index)?;
-
-                Some(self.convert_array_set_store_value(&store_value, &dummy)?)
-            }
+            Some(self.predicated_store_value(store, dfg, block_id, predicate_index)?)
         } else {
             None
         };
 
-        let new_index = if self.acir_context.is_constant_one(&self.current_side_effects_enabled_var)
-        {
-            index_var
-        } else {
-            predicate_index
-        };
+        Ok((predicate_index, new_value))
+    }
 
-        Ok((new_index, new_value))
+    /// Computes the predicated index for an array access.
+    /// If the index is always safe, it is returned directly.
+    /// Otherwise, we compute `predicate * index + (1 - predicate) * offset`.
+    fn predicated_index(
+        &mut self,
+        index_var: AcirVar,
+        index: ValueId,
+        array_id: ValueId,
+        dfg: &DataFlowGraph,
+        offset: usize,
+    ) -> Result<AcirVar, RuntimeError> {
+        if dfg.is_safe_index(index, array_id) {
+            Ok(index_var)
+        } else {
+            let offset = self.acir_context.add_constant(offset);
+            let sub = self.acir_context.sub_var(index_var, offset)?;
+            let pred = self.acir_context.mul_var(sub, self.current_side_effects_enabled_var)?;
+            self.acir_context.add_var(pred, offset)
+        }
+    }
+
+    /// When there is a predicate, the store value is predicate*value + (1-predicate)*dummy, where dummy is the value of the array at the requested index.
+    /// It is a dummy value because in the case of a false predicate, the value stored at the requested index will be itself.
+    fn predicated_store_value(
+        &mut self,
+        store: ValueId,
+        dfg: &DataFlowGraph,
+        block_id: BlockId,
+        mut dummy_predicate_index: AcirVar,
+    ) -> Result<AcirValue, RuntimeError> {
+        let store_value = self.convert_value(store, dfg);
+        let store_type = dfg.type_of_value(store);
+        // We must setup the dummy value to match the type of the value we wish to store
+        let dummy = self.array_get_value(&store_type, block_id, &mut dummy_predicate_index)?;
+        self.convert_array_set_store_value(&store_value, &dummy)
     }
 
     fn convert_array_set_store_value(

@@ -3,7 +3,9 @@ use acvm::{AcirField, FieldElement};
 use iter_extended::vecmap;
 
 use crate::acir::AcirVar;
+use crate::brillig::brillig_gen::brillig_fn::FunctionContext as BrilligFunctionContext;
 use crate::brillig::brillig_gen::gen_brillig_for;
+use crate::brillig::brillig_ir::artifact::BrilligParameter;
 use crate::errors::{RuntimeError, SsaReport};
 use crate::ssa::ir::instruction::Hint;
 use crate::ssa::ir::value::Value;
@@ -168,6 +170,40 @@ impl Context<'_> {
 
         assert_eq!(result_ids.len(), output_values.len(), "Brillig output length mismatch");
         self.handle_ssa_call_outputs(result_ids, output_values, dfg)
+    }
+
+    pub(super) fn gen_brillig_parameters(
+        &self,
+        values: &[ValueId],
+        dfg: &DataFlowGraph,
+    ) -> Vec<BrilligParameter> {
+        values
+            .iter()
+            .map(|&value_id| {
+                let typ = dfg.type_of_value(value_id);
+                if let Type::Slice(item_types) = typ {
+                    let len = match self
+                        .ssa_values
+                        .get(&value_id)
+                        .expect("ICE: Unknown slice input to brillig")
+                    {
+                        AcirValue::DynamicArray(AcirDynamicArray { len, .. }) => *len,
+                        AcirValue::Array(array) => array.len(),
+                        _ => unreachable!("ICE: Slice value is not an array"),
+                    };
+
+                    BrilligParameter::Slice(
+                        item_types
+                            .iter()
+                            .map(BrilligFunctionContext::ssa_type_to_parameter)
+                            .collect(),
+                        len / item_types.len(),
+                    )
+                } else {
+                    BrilligFunctionContext::ssa_type_to_parameter(&typ)
+                }
+            })
+            .collect()
     }
 
     /// Returns a vector of `AcirVar`s constrained to be result of the function call.
