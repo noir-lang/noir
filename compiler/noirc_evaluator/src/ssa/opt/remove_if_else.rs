@@ -1,5 +1,5 @@
 //! This file contains the SSA `remove_if_else` pass - a required pass for ACIR to remove any
-//! remaining`Instruction::IfElse` in the singular program-function, and replace them with
+//! remaining `Instruction::IfElse` in the singular program-function, and replace them with
 //! arithmetic operations using the `then_condition`.
 //!
 //! ACIR/Brillig differences within this pass:
