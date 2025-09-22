@@ -566,7 +566,7 @@ mod tests {
         let mut ssa = Ssa::from_str(src).unwrap();
         ssa = ssa.remove_if_else().unwrap();
 
-        // Merge slices v3 (empty) and v8 ([v2]) into v12, using a dummy value for the element at index 0 of v3, which does not exist.
+        // Merge slices v3 (empty) and v8 ([v2]) into v12, directly using v13 as the first element
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) impure fn main f0 {
           b0(v0: u1, v1: Field, v2: Field):
@@ -630,7 +630,7 @@ mod tests {
         let mut ssa = Ssa::from_str(src).unwrap();
         ssa = ssa.remove_if_else().unwrap();
 
-        // Here v17 is the result of merging the original slice value with a dummy value
+        // Here v14 is the result of the merge (keep `[v13]`)
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) impure fn main f0 {
           b0(v0: u1, v1: Field, v2: Field):
@@ -681,7 +681,7 @@ mod tests {
         let mut ssa = Ssa::from_str(src).unwrap();
         ssa = ssa.remove_if_else().unwrap();
 
-        // Here v19 is the result of merging the original slice value with a dummy value
+        // Here v17 is the result of the merge (keep `[v16]`)
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) impure fn main f0 {
           b0(v0: u1, v1: Field, v2: Field):
@@ -730,7 +730,7 @@ mod tests {
         let mut ssa = Ssa::from_str(src).unwrap();
         ssa = ssa.remove_if_else().unwrap();
 
-        // Here v14 is the result of merging the original slice value with a dummy value
+        // Here v14 is the result of the merge (keep `[v13]`)
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) impure fn main f0 {
           b0(v0: u1, v1: Field, v2: Field):
@@ -778,8 +778,8 @@ mod tests {
         let mut ssa = Ssa::from_str(src).unwrap();
         ssa = ssa.remove_if_else().unwrap();
 
-        // Here [v21, v24] is the result of merging the original slice (`[Field 2, Field 3]`)
-        // where for v24 there's a dummy value in one of the cases.
+        // Here [v21, Field 3] is the result of merging the original slice (`[Field 2, Field 3]`)
+        // with the other slice, where `v21` merges the two values.
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) impure fn main f0 {
           b0(v0: u1, v1: Field, v2: Field):
@@ -832,8 +832,8 @@ mod tests {
         let mut ssa = Ssa::from_str(src).unwrap();
         ssa = ssa.remove_if_else().unwrap();
 
-        // Here [v21, v24] is the result of merging the original slice (`[Field 2, Field 3]`)
-        // where for v21 there's a dummy value in one of the cases.
+        // Here [v21, Field 3] is the result of merging the original slice (`[Field 2, Field 3]`)
+        // where for v21 it's the merged value.
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) impure fn main f0 {
           b0(v0: u1, v1: Field, v2: Field):
@@ -886,8 +886,8 @@ mod tests {
         let mut ssa = Ssa::from_str(src).unwrap();
         ssa = ssa.remove_if_else().unwrap();
 
-        // Here [v21, v24] is the result of merging the original slice (`[Field 2, Field 3]`)
-        // where for v21 there's a dummy value in one of the cases.
+        // Here [v21, Field 3] is the result of merging the original slice (`[Field 2, Field 3]`)
+        // where for v21 it's the merged value.
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) impure fn main f0 {
           b0(v0: u1, v1: Field, v2: Field):
