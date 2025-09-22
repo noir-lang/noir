@@ -160,7 +160,18 @@ impl Comparable for NargoErrorWithTypes {
                         || msg.contains("division by zero")
                 })
                 || both(&msg1, &msg2, |msg| {
-                    msg.contains("attempted to shift by") || msg.contains("bit-shift with overflow")
+                    msg.contains("attempted to shift by")
+                        || msg.contains("shift with overflow")
+                        || msg.contains("shift right with overflow")
+                        || msg.contains("shift left with overflow")
+                })
+                || both(&msg1, &msg2, |msg| {
+                    // In Brillig we have constraints protecting overflows,
+                    // while in ACIR we have checked multiplication unless we know its safe.
+                    msg.contains("multiply with overflow") || msg.contains("index out of bounds")
+                })
+                || both(&msg1, &msg2, |msg| {
+                    msg.contains("add with overflow") || msg.contains("index out of bounds")
                 })
         } else {
             false

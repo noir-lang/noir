@@ -37,3 +37,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RUST_MIN_STACK: 8388608
+
+      - name: Send an alert in slack
+        if: ${{ failure() }}
+        uses: slackapi/slack-github-action@v2.1.1
+        with:
+          webhook: ${{ secrets.FUZZING_ALERT_URL }}
+          webhook-type: webhook-trigger
+          payload: |
+            workflow-url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
