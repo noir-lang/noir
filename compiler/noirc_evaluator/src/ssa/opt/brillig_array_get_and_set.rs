@@ -305,4 +305,19 @@ mod tests {
             "It should have no side effects, but the index is now considered unsafe."
         );
     }
+
+    #[test]
+    #[should_panic(expected = "offset at most once")]
+    fn only_executes_once() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: [Field]):
+            v2 = array_get v0, index u32 3 minus 3 -> Field
+            return v2
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        ssa.brillig_array_get_and_set();
+    }
 }
