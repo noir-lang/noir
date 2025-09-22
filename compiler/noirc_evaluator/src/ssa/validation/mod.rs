@@ -172,10 +172,15 @@ impl<'f> Validator<'f> {
                     panic!("Cannot use `{operator}` with field elements");
                 };
             }
-            Instruction::ArrayGet { index, .. } | Instruction::ArraySet { index, .. } => {
+            Instruction::ArrayGet { array, index, .. }
+            | Instruction::ArraySet { array, index, .. } => {
                 let index_type = dfg.type_of_value(*index);
                 if !matches!(index_type, Type::Numeric(NumericType::Unsigned { bit_size: 32 })) {
                     panic!("ArrayGet/ArraySet index must be u32");
+                }
+                let array_type = dfg.type_of_value(*array);
+                if !array_type.contains_an_array() {
+                    panic!("ArrayGet/ArraySet must operate on an array; got {array_type}");
                 }
             }
             Instruction::Call { func, arguments } => {
@@ -1606,7 +1611,7 @@ mod tests {
             return
 
         }
-        
+
         ";
         let _ = Ssa::from_str(src).unwrap();
     }
@@ -1617,7 +1622,7 @@ mod tests {
         let src = "
         acir(inline) fn main f0 {
             b0():
-              v3 = make_array [Field 1, Field 2, Field 3] : [Field] 
+              v3 = make_array [Field 1, Field 2, Field 3] : [Field]
               v4 = call f1(v3) -> u32
               return v4
         }
@@ -1656,6 +1661,30 @@ mod tests {
             return v1
         }
         ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "ArrayGet/ArraySet index must be u32")]
+    fn array_get_wrong_index_type() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: [u8; 3], v1: u64):
+            v2 = array_get v0, index v1 -> u32
+            return v2
+        }";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "ArrayGet/ArraySet must operate on an array")]
+    fn array_get_wrong_array_type() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32, v1: u32):
+            v2 = array_get v0, index v1 -> u32
+            return v2
+        }";
         let _ = Ssa::from_str(src).unwrap();
     }
 }
