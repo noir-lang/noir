@@ -60,19 +60,15 @@
 //! ## Signed shift-left
 //!
 //! This case is similar to unsigned shift-left.
-use std::{borrow::Cow, sync::Arc};
+use std::sync::Arc;
 
 use acvm::{FieldElement, acir::AcirField};
-use noirc_errors::call_stack::CallStackId;
 
 use crate::ssa::{
     ir::{
-        basic_block::BasicBlockId,
-        dfg::{DataFlowGraph, InsertInstructionResult},
+        dfg::InstructionBuilder,
         function::Function,
-        instruction::{
-            ArrayOffset, Binary, BinaryOp, ConstrainError, Endian, Instruction, Intrinsic,
-        },
+        instruction::{Binary, BinaryOp, ConstrainError, Endian, Instruction, Intrinsic},
         types::{NumericType, Type},
         value::ValueId,
     },
@@ -251,81 +247,14 @@ impl Context<'_, '_, '_> {
         }
     }
 
-    /// Computes 2^exponent via square&multiply, using the bits decomposition of exponent
-    /// Pseudo-code of the computation:
-    /// let mut r = 1;
-    /// let exponent_bits = to_bits(exponent);
-    /// for i in 1 .. bit_size + 1 {
-    ///     let r_squared = r * r;
-    ///     let b = exponent_bits[bit_size - i];
-    ///     r = if b { 2 * r_squared } else { r_squared };
-    /// }
+    /// See [InstructionBuilder::two_pow]
     fn two_pow(&mut self, exponent: ValueId) -> ValueId {
-        // Require that exponent < bit_size, ensuring that `pow` returns a value consistent with `lhs`'s type.
-        let max_bit_size = self.context.dfg.type_of_value(exponent).bit_size();
-
-        if let Some(exponent_const) = self.context.dfg.get_numeric_constant(exponent) {
-            let exponent_const_as_u32 = exponent_const.try_to_u32();
-            let pow = if exponent_const_as_u32.is_none_or(|v| v > max_bit_size) {
-                // If the exponent is guaranteed to overflow the value returned here doesn't matter as
-                // `enforce_bitshift_rhs_lt_bit_size` will trigger a constrain failure. We don't want to return
-                // `2^exponent` here as that value is later cast to the target type and it would be an invalid cast.
-                FieldElement::zero()
-            } else {
-                FieldElement::from(2u32).pow(&exponent_const)
-            };
-            return self.field_constant(pow);
-        }
-
-        // When shifting, for instance, `u32` values the maximum allowed value is 31, one less than the bit size.
-        // Representing the maximum value requires 5 bits, which is log2(32), so any `u32` exponent will require
-        // at most 5 bits. Similarly, `u64` values will require at most 6 bits, etc.
-        // Using `get_value_max_num_bits` here could work, though in practice:
-        // - constant exponents are handled in the `if` above
-        // - if a smaller type was upcasted, for example `u8` to `u32`, an `u8` can hold values up to 256
-        //   which is even larger than the largest unsigned type u128, so nothing better can be done here
-        // - the exception would be casting a `u1` to a larger type, where we know the exponent can be
-        //   either zero or one, which we special-case here
-        let max_exponent_bits = if self.context.dfg.get_value_max_num_bits(exponent) == 1 {
-            1
-        } else {
-            self.context.dfg.type_of_value(exponent).bit_size().ilog2()
-        };
-        let result_types = vec![Type::Array(Arc::new(vec![Type::bool()]), max_exponent_bits)];
-
-        // A call to ToBits can only be done with a field argument (exponent is always u8 here)
-        let exponent_as_field = self.insert_cast(exponent, NumericType::NativeField);
-        let to_bits = self.context.dfg.import_intrinsic(Intrinsic::ToBits(Endian::Little));
-        let exponent_bits = self.insert_call(to_bits, vec![exponent_as_field], result_types);
-
-        let exponent_bits = exponent_bits[0];
-        let one = self.field_constant(FieldElement::one());
-        let two = self.field_constant(FieldElement::from(2u32));
-        let mut r = one;
-        // All operations are unchecked as we're acting on Field types (which are always unchecked)
-        for i in 1..max_exponent_bits + 1 {
-            let idx = self.numeric_constant(
-                FieldElement::from(i128::from(max_exponent_bits - i)),
-                NumericType::length_type(),
-            );
-            let b = self.insert_array_get(exponent_bits, idx, Type::bool());
-            let not_b = self.insert_not(b);
-            let b = self.insert_cast(b, NumericType::NativeField);
-            let not_b = self.insert_cast(not_b, NumericType::NativeField);
-
-            let r_squared = self.insert_binary(r, BinaryOp::Mul { unchecked: true }, r);
-            let r1 = self.insert_binary(r_squared, BinaryOp::Mul { unchecked: true }, not_b);
-            let a = self.insert_binary(r_squared, BinaryOp::Mul { unchecked: true }, two);
-            let r2 = self.insert_binary(a, BinaryOp::Mul { unchecked: true }, b);
-            r = self.insert_binary(r1, BinaryOp::Add { unchecked: true }, r2);
-        }
-
-        assert!(
-            matches!(self.context.dfg.type_of_value(r).unwrap_numeric(), NumericType::NativeField),
-            "ICE: pow is expected to always return a NativeField"
+        let mut instruction_builder = InstructionBuilder::new(
+            self.context.dfg,
+            self.context.block_id,
+            self.context.call_stack_id,
         );
-
-        r
+        instruction_builder.two_pow(exponent)
     }
 
     /// Insert constraints ensuring that the right-hand side of a bit-shift operation
@@ -346,10 +275,6 @@ impl Context<'_, '_, '_> {
         self.insert_constrain(overflow, one, assert_message.map(Into::into));
     }
 
-    fn field_constant(&mut self, constant: FieldElement) -> ValueId {
-        self.context.dfg.make_constant(constant, NumericType::NativeField)
-    }
-
     /// Insert a numeric constant into the current function
     fn numeric_constant(&mut self, value: impl Into<FieldElement>, typ: NumericType) -> ValueId {
         self.context.dfg.make_constant(value.into(), typ)
@@ -360,12 +285,6 @@ impl Context<'_, '_, '_> {
     fn insert_binary(&mut self, lhs: ValueId, operator: BinaryOp, rhs: ValueId) -> ValueId {
         let instruction = Instruction::Binary(Binary { lhs, rhs, operator });
         self.context.insert_instruction(instruction, None).first()
-    }
-
-    /// Insert a not instruction at the end of the current block.
-    /// Returns the result of the instruction.
-    fn insert_not(&mut self, rhs: ValueId) -> ValueId {
-        self.context.insert_instruction(Instruction::Not(rhs), None).first()
     }
 
     /// Insert a constrain instruction at the end of the current block.
@@ -391,81 +310,84 @@ impl Context<'_, '_, '_> {
     fn insert_cast(&mut self, value: ValueId, typ: NumericType) -> ValueId {
         self.context.insert_instruction(Instruction::Cast(value, typ), None).first()
     }
-
-    /// Insert a call instruction at the end of the current block and return
-    /// the results of the call.
-    fn insert_call(
-        &mut self,
-        func: ValueId,
-        arguments: Vec<ValueId>,
-        result_types: Vec<Type>,
-    ) -> Cow<[ValueId]> {
-        self.context
-            .insert_instruction(Instruction::Call { func, arguments }, Some(result_types))
-            .results()
-    }
-
-    /// Insert an instruction to extract an element from an array
-    fn insert_array_get(&mut self, array: ValueId, index: ValueId, element_type: Type) -> ValueId {
-        let element_type = Some(vec![element_type]);
-        let offset = ArrayOffset::None;
-        let instruction = Instruction::ArrayGet { array, index, offset };
-        self.context.insert_instruction(instruction, element_type).first()
-    }
-}
-
-struct InstructionBuilder<'dfg> {
-    dfg: &'dfg mut DataFlowGraph,
-    block_id: BasicBlockId,
-    call_stack_id: CallStackId,
 }
 
 impl<'dfg> InstructionBuilder<'dfg> {
-    fn new(
-        dfg: &'dfg mut DataFlowGraph,
-        block_id: BasicBlockId,
-        call_stack_id: CallStackId,
-    ) -> Self {
-        Self { dfg, block_id, call_stack_id }
-    }
+    /// Computes 2^exponent via square&multiply, using the bits decomposition of exponent
+    /// Pseudo-code of the computation:
+    /// let mut r = 1;
+    /// let exponent_bits = to_bits(exponent);
+    /// for i in 1 .. bit_size + 1 {
+    ///     let r_squared = r * r;
+    ///     let b = exponent_bits[bit_size - i];
+    ///     r = if b { 2 * r_squared } else { r_squared };
+    /// }
+    fn two_pow(&mut self, exponent: ValueId) -> ValueId {
+        // Require that exponent < bit_size, ensuring that `pow` returns a value consistent with `lhs`'s type.
+        let max_bit_size = self.dfg.type_of_value(exponent).bit_size();
 
-    /// Insert a numeric constant into the current function
-    fn numeric_constant(&mut self, value: impl Into<FieldElement>, typ: NumericType) -> ValueId {
-        self.dfg.make_constant(value.into(), typ)
-    }
+        if let Some(exponent_const) = self.dfg.get_numeric_constant(exponent) {
+            let exponent_const_as_u32 = exponent_const.try_to_u32();
+            let pow = if exponent_const_as_u32.is_none_or(|v| v > max_bit_size) {
+                // If the exponent is guaranteed to overflow the value returned here doesn't matter as
+                // `enforce_bitshift_rhs_lt_bit_size` will trigger a constrain failure. We don't want to return
+                // `2^exponent` here as that value is later cast to the target type and it would be an invalid cast.
+                FieldElement::zero()
+            } else {
+                FieldElement::from(2u32).pow(&exponent_const)
+            };
+            return self.field_constant(pow);
+        }
 
-    /// Inserts an instruction in the current block right away.
-    pub(crate) fn insert_instruction(
-        &mut self,
-        instruction: Instruction,
-        ctrl_typevars: Option<Vec<Type>>,
-    ) -> InsertInstructionResult {
-        self.dfg.insert_instruction_and_results(
-            instruction,
-            self.block_id,
-            ctrl_typevars,
-            self.call_stack_id,
-        )
-    }
+        // When shifting, for instance, `u32` values the maximum allowed value is 31, one less than the bit size.
+        // Representing the maximum value requires 5 bits, which is log2(32), so any `u32` exponent will require
+        // at most 5 bits. Similarly, `u64` values will require at most 6 bits, etc.
+        // Using `get_value_max_num_bits` here could work, though in practice:
+        // - constant exponents are handled in the `if` above
+        // - if a smaller type was upcasted, for example `u8` to `u32`, an `u8` can hold values up to 256
+        //   which is even larger than the largest unsigned type u128, so nothing better can be done here
+        // - the exception would be casting a `u1` to a larger type, where we know the exponent can be
+        //   either zero or one, which we special-case here
+        let max_exponent_bits = if self.dfg.get_value_max_num_bits(exponent) == 1 {
+            1
+        } else {
+            self.dfg.type_of_value(exponent).bit_size().ilog2()
+        };
+        let result_types = vec![Type::Array(Arc::new(vec![Type::bool()]), max_exponent_bits)];
 
-    /// Insert a binary instruction at the end of the current block.
-    /// Returns the result of the binary instruction.
-    fn insert_binary(&mut self, lhs: ValueId, operator: BinaryOp, rhs: ValueId) -> ValueId {
-        let instruction = Instruction::Binary(Binary { lhs, rhs, operator });
-        self.insert_instruction(instruction, None).first()
-    }
+        // A call to ToBits can only be done with a field argument (exponent is always u8 here)
+        let exponent_as_field = self.insert_cast(exponent, NumericType::NativeField);
+        let to_bits = self.dfg.import_intrinsic(Intrinsic::ToBits(Endian::Little));
+        let exponent_bits = self.insert_call(to_bits, vec![exponent_as_field], result_types);
 
-    /// Insert a truncate instruction at the end of the current block.
-    /// Returns the result of the truncate instruction.
-    fn insert_truncate(&mut self, value: ValueId, bit_size: u32, max_bit_size: u32) -> ValueId {
-        self.insert_instruction(Instruction::Truncate { value, bit_size, max_bit_size }, None)
-            .first()
-    }
+        let exponent_bits = exponent_bits[0];
+        let one = self.field_constant(FieldElement::one());
+        let two = self.field_constant(FieldElement::from(2u32));
+        let mut r = one;
+        // All operations are unchecked as we're acting on Field types (which are always unchecked)
+        for i in 1..max_exponent_bits + 1 {
+            let idx = self.numeric_constant(
+                FieldElement::from(i128::from(max_exponent_bits - i)),
+                NumericType::length_type(),
+            );
+            let b = self.insert_array_get(exponent_bits, idx, Type::bool());
+            let not_b = self.insert_not(b);
+            let b = self.insert_cast(b, NumericType::NativeField);
+            let not_b = self.insert_cast(not_b, NumericType::NativeField);
 
-    /// Insert a cast instruction at the end of the current block.
-    /// Returns the result of the cast instruction.
-    fn insert_cast(&mut self, value: ValueId, typ: NumericType) -> ValueId {
-        self.insert_instruction(Instruction::Cast(value, typ), None).first()
+            let r_squared = self.insert_binary(r, BinaryOp::Mul { unchecked: true }, r);
+            let r1 = self.insert_binary(r_squared, BinaryOp::Mul { unchecked: true }, not_b);
+            let a = self.insert_binary(r_squared, BinaryOp::Mul { unchecked: true }, two);
+            let r2 = self.insert_binary(a, BinaryOp::Mul { unchecked: true }, b);
+            r = self.insert_binary(r1, BinaryOp::Add { unchecked: true }, r2);
+        }
+
+        assert!(
+            matches!(self.dfg.type_of_value(r).unwrap_numeric(), NumericType::NativeField),
+            "ICE: pow is expected to always return a NativeField"
+        );
+
+        r
     }
 
     fn convert_twos_complement_to_ones_complement(
