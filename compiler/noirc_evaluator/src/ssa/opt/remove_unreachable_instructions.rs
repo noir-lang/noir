@@ -276,8 +276,8 @@ impl Function {
                         Reachability::Unreachable
                     }
                 }
-                Instruction::ArrayGet { array, index, offset }
-                | Instruction::ArraySet { array, index, offset, .. }
+                Instruction::ArrayGet { array, index }
+                | Instruction::ArraySet { array, index, .. }
                     if context.dfg.runtime().is_acir() =>
                 {
                     let array_type = context.dfg.type_of_value(*array);
@@ -288,7 +288,7 @@ impl Function {
 
                     let array_op_always_fails = len == 0
                         || context.dfg.get_numeric_constant(*index).is_some_and(|index| {
-                            (index.try_to_u32().unwrap() - offset.to_u32())
+                            (index.try_to_u32().unwrap())
                                 >= (array_type.element_size() as u32 * len)
                         });
                     if !array_op_always_fails {
@@ -513,7 +513,7 @@ fn should_replace_instruction_with_defaults(context: &SimpleOptimizationContext)
     let instruction = context.instruction();
 
     // ArrayGet needs special handling: if we replaced the index with a default value, it could be invalid.
-    if let Instruction::ArrayGet { array, index, offset: _ } = instruction {
+    if let Instruction::ArrayGet { array, index } = instruction {
         // If we replaced the index with a default, it's going to be zero.
         let index_zero = context.dfg.get_numeric_constant(*index).is_some_and(|c| c.is_zero());
 
