@@ -272,33 +272,6 @@ impl Context<'_> {
         }
     }
 
-    // Get an offset such that the type of the array at the offset is the same as the type at the 'index'
-    // If we find one, we will use it when computing the index under the enable_side_effect predicate
-    // If not, array_get(..) will use a fallback costing one multiplication in the worst case.
-    // cf. https://github.com/noir-lang/noir/pull/4971
-    // For simplicity we compute the offset only for simple arrays
-    fn compute_offset(
-        &mut self,
-        instruction: InstructionId,
-        dfg: &DataFlowGraph,
-        array_typ: &Type,
-    ) -> Option<usize> {
-        let is_simple_array = dfg.instruction_results(instruction).len() == 1
-            && (array_has_constant_element_size(array_typ) == Some(1));
-        if is_simple_array {
-            let result_type = dfg.type_of_value(dfg.instruction_results(instruction)[0]);
-            match array_typ {
-                Type::Array(item_type, _) | Type::Slice(item_type) => item_type
-                    .iter()
-                    .enumerate()
-                    .find_map(|(index, typ)| (result_type == *typ).then_some(index)),
-                _ => None,
-            }
-        } else {
-            None
-        }
-    }
-
     /// Attempts a compile-time read/write from an array.
     ///
     /// This relies on all previous operations on this array being done at known indices so that the `AcirValue` at each
@@ -388,6 +361,33 @@ impl Context<'_> {
             let value = array[index].clone();
             self.define_result(dfg, instruction, value);
             Ok(true)
+        }
+    }
+
+    /// Get an offset such that the type of the array at the offset is the same as the type at the 'index'
+    /// If we find one, we will use it when computing the index under the enable_side_effect predicate
+    /// If not, array_get(..) will use a fallback costing one multiplication in the worst case.
+    /// cf. https://github.com/noir-lang/noir/pull/4971
+    /// For simplicity we compute the offset only for simple arrays
+    fn compute_offset(
+        &mut self,
+        instruction: InstructionId,
+        dfg: &DataFlowGraph,
+        array_typ: &Type,
+    ) -> Option<usize> {
+        let is_simple_array = dfg.instruction_results(instruction).len() == 1
+            && (array_has_constant_element_size(array_typ) == Some(1));
+        if is_simple_array {
+            let result_type = dfg.type_of_value(dfg.instruction_results(instruction)[0]);
+            match array_typ {
+                Type::Array(item_type, _) | Type::Slice(item_type) => item_type
+                    .iter()
+                    .enumerate()
+                    .find_map(|(index, typ)| (result_type == *typ).then_some(index)),
+                _ => None,
+            }
+        } else {
+            None
         }
     }
 
@@ -603,7 +603,8 @@ impl Context<'_> {
         }
     }
 
-    /// Applies predication logic if the index has potential side effects.
+    /// Applies predication logic on the result in case the read under a false predicate
+    /// returns a value with a larger type that may later trigger an overflow.
     /// Ensures values read under false predicate are zeroed out if types don’t align.
     fn apply_index_side_effects(
         &mut self,
