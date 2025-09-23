@@ -63,9 +63,12 @@
 use std::{borrow::Cow, sync::Arc};
 
 use acvm::{FieldElement, acir::AcirField};
+use noirc_errors::call_stack::CallStackId;
 
 use crate::ssa::{
     ir::{
+        basic_block::BasicBlockId,
+        dfg::{DataFlowGraph, InsertInstructionResult},
         function::Function,
         instruction::{
             ArrayOffset, Binary, BinaryOp, ConstrainError, Endian, Instruction, Intrinsic,
@@ -224,33 +227,24 @@ impl Context<'_, '_, '_> {
                 // unsigned right bit shift is just a normal division
                 self.insert_binary(lhs, BinaryOp::Div, pow)
             }
-            NumericType::Signed { bit_size } => {
-                // Get the sign of the operand; positive signed operand will just do a division as well
-                let zero =
-                    self.numeric_constant(FieldElement::zero(), NumericType::signed(bit_size));
-                let lhs_sign = self.insert_binary(lhs, BinaryOp::Lt, zero);
-                let lhs_sign_as_field = self.insert_cast(lhs_sign, NumericType::NativeField);
-                let lhs_as_field = self.insert_cast(lhs, NumericType::NativeField);
-                // For negative numbers, convert to 1-complement using wrapping addition of a + 1
-                // Unchecked add as these are fields
-                let add = BinaryOp::Add { unchecked: true };
-                let one_complement = self.insert_binary(lhs_sign_as_field, add, lhs_as_field);
-                let one_complement = self.insert_truncate(one_complement, bit_size, bit_size + 1);
-                let one_complement =
-                    self.insert_cast(one_complement, NumericType::signed(bit_size));
-                // Performs the division on the 1-complement (or the operand if positive)
-                let shifted_complement = self.insert_binary(one_complement, BinaryOp::Div, pow);
-                // Convert back to 2-complement representation if operand is negative
-                let lhs_sign_as_int = self.insert_cast(lhs_sign, lhs_typ);
+            NumericType::Signed { .. } => {
+                let mut instruction_builder = InstructionBuilder::new(
+                    self.context.dfg,
+                    self.context.block_id,
+                    self.context.call_stack_id,
+                );
 
-                // The requirements for this to underflow are all of these:
-                // - lhs < 0
-                // - ones_complement(lhs) / (2^rhs) == 0
-                // As the upper bit is set for the ones complement of negative numbers we'd need 2^rhs
-                // to be larger than the lhs bitsize for this to overflow.
-                let sub = BinaryOp::Sub { unchecked: true };
-                let shifted = self.insert_binary(shifted_complement, sub, lhs_sign_as_int);
-                self.insert_truncate(shifted, bit_size, bit_size + 1)
+                let zero = instruction_builder.numeric_constant(FieldElement::zero(), lhs_typ);
+                let lhs_sign = instruction_builder.insert_binary(lhs, BinaryOp::Lt, zero);
+
+                // Get the sign of the operand; positive signed operand will just do a division as well
+                let one_complement =
+                    instruction_builder.convert_twos_complement_to_ones_complement(lhs, lhs_sign);
+                // Performs the division on the 1-complement (or the operand if positive)
+                let shifted_complement =
+                    instruction_builder.insert_binary(one_complement, BinaryOp::Div, pow);
+                instruction_builder
+                    .convert_ones_complement_to_twos_complement(shifted_complement, lhs_sign)
             }
 
             NumericType::NativeField => unreachable!("Bit shifts are disallowed on `Field` type"),
@@ -420,6 +414,101 @@ impl Context<'_, '_, '_> {
     }
 }
 
+struct InstructionBuilder<'dfg> {
+    dfg: &'dfg mut DataFlowGraph,
+    block_id: BasicBlockId,
+    call_stack_id: CallStackId,
+}
+
+impl<'dfg> InstructionBuilder<'dfg> {
+    fn new(
+        dfg: &'dfg mut DataFlowGraph,
+        block_id: BasicBlockId,
+        call_stack_id: CallStackId,
+    ) -> Self {
+        Self { dfg, block_id, call_stack_id }
+    }
+
+    /// Insert a numeric constant into the current function
+    fn numeric_constant(&mut self, value: impl Into<FieldElement>, typ: NumericType) -> ValueId {
+        self.dfg.make_constant(value.into(), typ)
+    }
+
+    /// Inserts an instruction in the current block right away.
+    pub(crate) fn insert_instruction(
+        &mut self,
+        instruction: Instruction,
+        ctrl_typevars: Option<Vec<Type>>,
+    ) -> InsertInstructionResult {
+        self.dfg.insert_instruction_and_results(
+            instruction,
+            self.block_id,
+            ctrl_typevars,
+            self.call_stack_id,
+        )
+    }
+
+    /// Insert a binary instruction at the end of the current block.
+    /// Returns the result of the binary instruction.
+    fn insert_binary(&mut self, lhs: ValueId, operator: BinaryOp, rhs: ValueId) -> ValueId {
+        let instruction = Instruction::Binary(Binary { lhs, rhs, operator });
+        self.insert_instruction(instruction, None).first()
+    }
+
+    /// Insert a truncate instruction at the end of the current block.
+    /// Returns the result of the truncate instruction.
+    fn insert_truncate(&mut self, value: ValueId, bit_size: u32, max_bit_size: u32) -> ValueId {
+        self.insert_instruction(Instruction::Truncate { value, bit_size, max_bit_size }, None)
+            .first()
+    }
+
+    /// Insert a cast instruction at the end of the current block.
+    /// Returns the result of the cast instruction.
+    fn insert_cast(&mut self, value: ValueId, typ: NumericType) -> ValueId {
+        self.insert_instruction(Instruction::Cast(value, typ), None).first()
+    }
+
+    fn convert_twos_complement_to_ones_complement(
+        &mut self,
+        twos_complement: ValueId,
+        sign: ValueId,
+    ) -> ValueId {
+        let typ = self.dfg.type_of_value(twos_complement);
+        debug_assert!(typ.is_signed(), "Expected a signed type");
+
+        let sign_as_field = self.insert_cast(sign, NumericType::NativeField);
+
+        let twos_complement_as_field = self.insert_cast(twos_complement, NumericType::NativeField);
+        // For negative numbers, convert to 1-complement using wrapping addition of a + 1
+        // Unchecked add as these are fields
+        let add = BinaryOp::Add { unchecked: true };
+        let one_complement = self.insert_binary(sign_as_field, add, twos_complement_as_field);
+        let one_complement =
+            self.insert_truncate(one_complement, typ.bit_size(), typ.bit_size() + 1);
+        self.insert_cast(one_complement, typ.unwrap_numeric())
+    }
+
+    fn convert_ones_complement_to_twos_complement(
+        &mut self,
+        ones_complement: ValueId,
+        sign: ValueId,
+    ) -> ValueId {
+        let typ = self.dfg.type_of_value(ones_complement);
+        debug_assert!(typ.is_signed(), "Expected a signed type");
+
+        // Convert back to 2-complement representation if operand is negative
+        let lhs_sign_as_int = self.insert_cast(sign, typ.unwrap_numeric());
+
+        // - lhs < 0
+        // - ones_complement(lhs) / (2^rhs) == 0
+        // As the upper bit is set for the ones complement of negative numbers we'd need 2^rhs
+        // to be larger than the lhs bitsize for this to overflow.
+        let sub = BinaryOp::Sub { unchecked: true };
+        let shifted = self.insert_binary(ones_complement, sub, lhs_sign_as_int);
+        self.insert_truncate(shifted, typ.bit_size(), typ.bit_size() + 1)
+    }
+}
+
 /// Post-check condition for [Function::remove_bit_shifts].
 ///
 /// Succeeds if:
@@ -450,7 +539,24 @@ fn remove_bit_shifts_post_check(func: &Function) {
 
 #[cfg(test)]
 mod tests {
-    use crate::{assert_ssa_snapshot, ssa::ssa_gen::Ssa};
+    use noirc_errors::call_stack::CallStackId;
+
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{
+            function_builder::FunctionBuilder,
+            interpreter::value::{NumericValue, Value},
+            ir::{
+                basic_block::BasicBlockId,
+                function::Function,
+                instruction::BinaryOp,
+                map::Id,
+                types::{NumericType, Type},
+            },
+            opt::remove_bit_shifts::InstructionBuilder,
+            ssa_gen::Ssa,
+        },
+    };
 
     mod unsigned {
         use super::*;
@@ -969,5 +1075,47 @@ mod tests {
             return v8
         }
         ");
+    }
+
+    #[test]
+    /// Ensure that converting an i8 value from two's complement to one's complement and back again restores the input.
+    fn complements_conversion_roundtrip() {
+        use proptest::prelude::*;
+
+        let main_id: Id<Function> = Id::new(0);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+
+        let v0 = builder.add_parameter(Type::signed(8));
+        let mut instruction_builder = InstructionBuilder::new(
+            &mut builder.current_function.dfg,
+            BasicBlockId::new(0),
+            CallStackId::new(0),
+        );
+
+        let zero = instruction_builder.numeric_constant(0u32, NumericType::signed(8));
+        let sign = instruction_builder.insert_binary(v0, BinaryOp::Lt, zero);
+        let complement = instruction_builder.convert_twos_complement_to_ones_complement(v0, sign);
+        let reconstructed =
+            instruction_builder.convert_ones_complement_to_twos_complement(complement, sign);
+
+        builder.terminate_with_return(vec![reconstructed]);
+
+        let ssa = builder.finish();
+        let mut runner = proptest::test_runner::TestRunner::new(proptest::test_runner::Config::default());
+
+        runner
+            .run(&any::<i8>(), |input| {
+                let mut result = ssa.interpret(vec![Value::Numeric(NumericValue::I8(input))]).unwrap();
+                let Value::Numeric(NumericValue::I8(result)) = result.remove(0) else {
+                    return Err(TestCaseError::Fail("Could not execute".into()));
+                };
+
+                if input == result {
+                    Ok(())
+                } else {
+                    Err(TestCaseError::Fail("Did not reconstruct input".into()))
+                }
+            })
+            .unwrap();
     }
 }
