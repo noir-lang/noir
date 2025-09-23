@@ -102,11 +102,11 @@ fn assert_zero_opcodes() {
     private parameters: [w0, w1, w2, w3, w4]
     public parameters: [w5, w6, w7, w8, w9]
     return values: []
-    EXPR w0 - w5 = 0
-    EXPR w1 - w6 = 0
-    EXPR w2 - w7 = 0
-    EXPR w3 - w8 = 0
-    EXPR w4 - w9 = 0
+    EXPR w0 = w5
+    EXPR w1 = w6
+    EXPR w2 = w7
+    EXPR w3 = w8
+    EXPR w4 = w9
     ";
     assert_circuit_roundtrip(src);
 }
@@ -122,7 +122,7 @@ fn assert_zero_with_mul_terms() {
     EXPR w3*w3 - w4 = 0
     EXPR w4*w4 - w5 = 0
     EXPR w5*w5 - w6 = 0
-    EXPR -w2 + w6 = 0
+    EXPR w2 = w6
     ";
     assert_circuit_roundtrip(src);
 }
@@ -223,22 +223,22 @@ fn aes128_encrypt() {
     BLACKBOX::RANGE [w58]:8 bits []
     BLACKBOX::RANGE [w59]:8 bits []
     BLACKBOX::AES128_ENCRYPT [w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25, w26, w27, w28, w29, w30, w31, w32, w33, w34, w35, w36, w37, w38, w39, w40, w41, w42, w43] [w60, w61, w62, w63, w64, w65, w66, w67, w68, w69, w70, w71, w72, w73, w74, w75]
-    EXPR -w44 + w60 = 0
-    EXPR -w45 + w61 = 0
-    EXPR -w46 + w62 = 0
-    EXPR -w47 + w63 = 0
-    EXPR -w48 + w64 = 0
-    EXPR -w49 + w65 = 0
-    EXPR -w50 + w66 = 0
-    EXPR -w51 + w67 = 0
-    EXPR -w52 + w68 = 0
-    EXPR -w53 + w69 = 0
-    EXPR -w54 + w70 = 0
-    EXPR -w55 + w71 = 0
-    EXPR -w56 + w72 = 0
-    EXPR -w57 + w73 = 0
-    EXPR -w58 + w74 = 0
-    EXPR -w59 + w75 = 0
+    EXPR w44 = w60
+    EXPR w45 = w61
+    EXPR w46 = w62
+    EXPR w47 = w63
+    EXPR w48 = w64
+    EXPR w49 = w65
+    EXPR w50 = w66
+    EXPR w51 = w67
+    EXPR w52 = w68
+    EXPR w53 = w69
+    EXPR w54 = w70
+    EXPR w55 = w71
+    EXPR w56 = w72
+    EXPR w57 = w73
+    EXPR w58 = w74
+    EXPR w59 = w75
     ";
     assert_circuit_roundtrip(src);
 }
@@ -526,7 +526,7 @@ fn brillig_call() {
     return values: []
     BRILLIG CALL func 0: inputs: [EXPR [ (1, w0) (-1, w1) 0 ]], outputs: [w3]
     EXPR w0*w3 - w1*w3 - 1 = 0
-    EXPR -w0 + w2 = 0
+    EXPR w0 = w2
     ";
     assert_circuit_roundtrip(src);
 }
@@ -541,7 +541,7 @@ fn brillig_call_with_predicate() {
     BRILLIG CALL func 0: PREDICATE: EXPR [ 1 ]
     inputs: [EXPR [ (1, w0) (-1, w1) 0 ]], outputs: [w3]
     EXPR w0*w3 - w1*w3 - 1 = 0
-    EXPR -w0 + w2 = 0
+    EXPR w0 = w2
     ";
     assert_circuit_roundtrip(src);
 }
@@ -719,7 +719,7 @@ fn fold_basic() {
     return values: [w2]
     BRILLIG CALL func 0: inputs: [EXPR [ (1, w0) (-1, w1) 0 ]], outputs: [w3]
     EXPR w0*w3 - w1*w3 - 1 = 0
-    EXPR -w0 + w2 = 0
+    EXPR w0 = w2
     ";
     assert_program_roundtrip(src);
 }

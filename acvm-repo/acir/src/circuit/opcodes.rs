@@ -169,6 +169,23 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
                     }
                 }
 
+                // Chec if it's `-wN * wM = 0` or `wN * -wM = 0` in which case we can
+                // print it as `wN = wM`.
+                if expr.mul_terms.is_empty()
+                    && expr.linear_combinations.len() == 2
+                    && expr.q_c.is_zero()
+                {
+                    let (coefficient1, witness1) = expr.linear_combinations[0];
+                    let (coefficient2, witness2) = expr.linear_combinations[1];
+
+                    if (coefficient1.is_one() && (-coefficient2).is_one())
+                        || ((-coefficient1).is_one() && coefficient2.is_one())
+                    {
+                        write!(f, "{witness1} = {witness2}")?;
+                        return Ok(());
+                    }
+                }
+
                 let mut printed_term = false;
 
                 for (coefficient, witness1, witness2) in &expr.mul_terms {

@@ -275,9 +275,16 @@ impl<'a> Parser<'a> {
                 let coefficient = if negative { -coefficient } else { coefficient };
 
                 if first && self.eat(Token::Equal)? {
+                    if let Some(w2) = self.eat_witness()? {
+                        // Here we parsed `coefficient*w1 = w2` so we produce `coefficient*w1 - w2 = 0`
+                        linear_combinations.push((coefficient, w1));
+                        linear_combinations.push((-FieldElement::one(), w2));
+                        break;
+                    }
+
                     let q_c = self.eat_field_or_error()?;
 
-                    // Here we parsed `coefficient*witness = constant` so we produce `coefficient*witness - q_c = 0`
+                    // Here we parsed `coefficient*w1 = constant` so we produce `coefficient*w1 - q_c = 0`
                     linear_combinations.push((coefficient, w1));
                     constant = Some(-q_c);
                     break;

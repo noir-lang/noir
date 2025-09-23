@@ -128,9 +128,9 @@ fn generates_memory_op_for_dynamic_write() {
     MEM (id: 1, read at: EXPR [ (1, w10) 0 ], value: EXPR [ (1, w11) 0 ])
     EXPR w12 = 2
     MEM (id: 1, read at: EXPR [ (1, w12) 0 ], value: EXPR [ (1, w13) 0 ])
-    EXPR w4 - w9 = 0
-    EXPR w5 - w11 = 0
-    EXPR w6 - w13 = 0
+    EXPR w4 = w9
+    EXPR w5 = w11
+    EXPR w6 = w13
     ");
 }
 
@@ -210,9 +210,9 @@ fn generates_predicated_index_and_dummy_value_for_dynamic_write() {
     MEM (id: 1, read at: EXPR [ (1, w13) 0 ], value: EXPR [ (1, w14) 0 ])
     EXPR w15 = 2
     MEM (id: 1, read at: EXPR [ (1, w15) 0 ], value: EXPR [ (1, w16) 0 ])
-    EXPR w5 - w12 = 0
-    EXPR w6 - w14 = 0
-    EXPR w7 - w16 = 0
+    EXPR w5 = w12
+    EXPR w6 = w14
+    EXPR w7 = w16
     ");
 }
 
