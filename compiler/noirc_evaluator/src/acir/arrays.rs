@@ -377,14 +377,14 @@ impl Context<'_> {
 
     /// We need to properly setup the inputs for array operations in ACIR.
     /// From the original SSA values we compute the following AcirVars:
-    /// - new_index is the index of the array. ACIR memory operations work with a flat memory, so we fully flattened the specified index
+    /// - `index_var` is the index of the array. ACIR memory operations work with a flat memory, so we fully flattened the specified index
     ///   in case we have a nested array. The index for SSA array operations only represents the flattened index of the current array.
     ///   Thus internal array element type sizes need to be computed to accurately transform the index.
     ///
-    /// - If the predicate is known to be true or the array access is guaranteed to be safe predicate_index the index itself.
+    /// - If the predicate is known to be true or the array access is guaranteed to be safe, we can directly return `index_var`
     ///   Otherwise, `predicate_index` is a fallback offset set by [Self::predicated_index].
     ///
-    /// - new_value is the optional value when the operation is an array_set.
+    /// - `new_value` is the optional value when the operation is an array_set.
     ///   The value used in an array_set is also dependent upon the predicate and is set in [Self::predicated_store_value]
     fn convert_array_operation_inputs(
         &mut self,

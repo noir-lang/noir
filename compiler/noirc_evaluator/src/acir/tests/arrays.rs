@@ -210,11 +210,11 @@ fn generates_predicated_index_for_dynamic_read() {
     ";
     let program = ssa_to_acir_program(src);
 
-    // w0, w1, w2 represent the array
+    // w0, w1, w2 represents the array
     // So w3 represents our index and w4 is our predicate
-    // We can before the read we have `EXPR [ (1, w3, w4) (-1, w5) 0 ]`
+    // We can see that before the read we have `EXPR [ (1, w3, w4) (-1, w5) 0 ]`
     // As the index is zero this is a simplified version of `index*predicate + (1-predicate)*offset`
-    // w5 is then used as the index from which we read
+    // w5 is then used as the index which we use to read from the memory block
     assert_circuit_snapshot!(program, @r"
     func 0
     current witness: w6
