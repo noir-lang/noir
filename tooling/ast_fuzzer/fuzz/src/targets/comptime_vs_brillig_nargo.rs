@@ -59,8 +59,8 @@ mod tests {
     }
 
     #[test]
-    fn fuzz_regressions() {   
-    for seed in crate::targets::tests::load_seeds_from_file() {
+    fn fuzz_regressions() {
+        for seed in crate::targets::tests::load_seeds_from_file() {
             crate::targets::tests::run_reproduce(super::fuzz, seed);
         }
     }

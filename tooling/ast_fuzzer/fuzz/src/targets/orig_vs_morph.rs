@@ -820,7 +820,7 @@ mod helpers {
 
 #[cfg(test)]
 mod tests {
-    
+
     /// ```ignore
     /// NOIR_AST_FUZZER_SEED=0xb2fb5f0b00100000 \
     /// cargo test -p noir_ast_fuzzer_fuzz orig_vs_morph

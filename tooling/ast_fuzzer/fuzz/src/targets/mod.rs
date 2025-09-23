@@ -38,7 +38,7 @@ mod tests {
     use crate::bool_from_env;
 
     pub(crate) fn load_seeds_from_file() -> impl Iterator<Item = u64> {
-         let regressions_file =
+        let regressions_file =
             PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("./src/targets/fuzzer-regressions.txt");
         let file = File::open(regressions_file).unwrap();
         let file_reader = std::io::BufReader::new(file).lines();
