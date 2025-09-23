@@ -136,8 +136,8 @@ use super::{
 impl Context<'_> {
     /// Get the BlockId corresponding to the ValueId
     /// If there is no matching BlockId, we create a new one.
-    pub(super) fn block_id(&mut self, value: &ValueId) -> BlockId {
-        *self.memory_blocks.entry(*value).or_insert_with(|| {
+    pub(super) fn block_id(&mut self, value: ValueId) -> BlockId {
+        *self.memory_blocks.entry(value).or_insert_with(|| {
             let block_id = BlockId(self.max_block_id);
             self.max_block_id += 1;
             block_id
@@ -149,8 +149,8 @@ impl Context<'_> {
     /// This is useful for referencing information that can
     /// only be computed dynamically, such as the type structure
     /// of non-homogenous arrays.
-    fn internal_block_id(&mut self, value: &ValueId) -> BlockId {
-        *self.internal_memory_blocks.entry(*value).or_insert_with(|| {
+    fn internal_block_id(&mut self, value: ValueId) -> BlockId {
+        *self.internal_memory_blocks.entry(value).or_insert_with(|| {
             let block_id = BlockId(self.max_block_id);
             self.max_block_id += 1;
             block_id
@@ -164,7 +164,7 @@ impl Context<'_> {
     ) -> Result<(), RuntimeError> {
         // Initialize return_data using provided witnesses
         if let Some(return_data) = self.data_bus.return_data {
-            let block_id = self.block_id(&return_data);
+            let block_id = self.block_id(return_data);
             let already_initialized = self.initialized_arrays.contains(&block_id);
             if !already_initialized {
                 // We hijack ensure_array_is_initialized() because we want the return data to use the return value witnesses,
@@ -748,7 +748,7 @@ impl Context<'_> {
             self.memory_blocks.insert(result, block_id);
             Ok(block_id)
         } else {
-            let new_block = self.block_id(&result);
+            let new_block = self.block_id(result);
             self.copy_array(array, new_block, dfg)?;
             Ok(new_block)
         }
@@ -841,7 +841,7 @@ impl Context<'_> {
         supplied_acir_value: Option<&AcirValue>,
         dfg: &DataFlowGraph,
     ) -> Result<BlockId, RuntimeError> {
-        let element_type_sizes = self.internal_block_id(&array_id);
+        let element_type_sizes = self.internal_block_id(array_id);
         // Check whether an internal type sizes array has already been initialized
         // Need to look into how to optimize for slices as this could lead to different element type sizes
         // for different slices that do not have consistent sizes
@@ -1067,7 +1067,7 @@ impl Context<'_> {
         dfg: &DataFlowGraph,
     ) -> Result<BlockId, RuntimeError> {
         // Use the SSA ID to get or create its block ID
-        let block_id = self.block_id(&array);
+        let block_id = self.block_id(array);
 
         // Check if the array has already been initialized in ACIR gen
         // if not, we initialize it using the values from SSA
@@ -1103,12 +1103,12 @@ impl Context<'_> {
     ) -> Result<(), InternalError> {
         let mut databus = BlockType::Memory;
         if self.data_bus.return_data.is_some()
-            && self.block_id(&self.data_bus.return_data.unwrap()) == array
+            && self.block_id(self.data_bus.return_data.unwrap()) == array
         {
             databus = BlockType::ReturnData;
         }
         for (call_data_id, array_id) in self.data_bus.call_data_array() {
-            if self.block_id(&array_id) == array {
+            if self.block_id(array_id) == array {
                 assert!(databus == BlockType::Memory);
                 databus = BlockType::CallData(call_data_id);
                 break;

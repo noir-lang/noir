@@ -327,8 +327,8 @@ impl<'a> Context<'a> {
     ) -> Result<Vec<Witness>, RuntimeError> {
         // The first witness (if any) is the next one
         let start_witness = self.acir_context.current_witness_index().0;
-        for param_id in params {
-            let typ = dfg.type_of_value(*param_id);
+        for &param_id in params {
+            let typ = dfg.type_of_value(param_id);
             let value = self.convert_ssa_block_param(&typ)?;
             match &value {
                 AcirValue::Var(_, _) => (),
@@ -350,7 +350,7 @@ impl<'a> Context<'a> {
                     "The dynamic array type is created in Acir gen and therefore cannot be a block parameter"
                 ),
             }
-            self.ssa_values.insert(*param_id, value);
+            self.ssa_values.insert(param_id, value);
         }
         let end_witness = self.acir_context.current_witness_index().0;
         let witnesses = (start_witness..=end_witness).map(Witness::from).collect();
