@@ -404,9 +404,8 @@ impl<'a> Parser<'a> {
             }
         }
 
-        let Some(q_c) = constant else {
-            return Err(ParserError::MissingConstantTerm { span: self.token.span() });
-        };
+        // If a constant isn't provided, we default it to zero
+        let q_c = constant.unwrap_or_default();
 
         Ok(Expression { mul_terms, linear_combinations, q_c })
     }
@@ -1114,8 +1113,6 @@ pub(crate) enum ParserError {
     ExpectedZero { found: Token, span: Span },
     #[error("Duplicate constant term in native Expression")]
     DuplicatedConstantTerm { found: Token, span: Span },
-    #[error("Missing constant term in native Expression")]
-    MissingConstantTerm { span: Span },
     #[error("Expected valid black box function name, found '{found}'")]
     ExpectedBlackBoxFuncName { found: Token, span: Span },
     #[error("Number does not fit in u32, got: '{number}'")]
@@ -1142,7 +1139,6 @@ impl ParserError {
             | ExpectedWitness { span, .. }
             | ExpectedZero { span, .. }
             | DuplicatedConstantTerm { span, .. }
-            | MissingConstantTerm { span }
             | ExpectedBlackBoxFuncName { span, .. }
             | IntegerLargerThanU32 { span, .. }
             | IncorrectInputLength { span, .. }

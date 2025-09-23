@@ -53,7 +53,7 @@ fn constant_array_access_out_of_bounds() {
     EXPR w1 = 1
     INIT (id: 0, len: 2, witnesses: [w0, w1])
     EXPR w2 = 5
-    MEM (id: 0, read at: EXPR [ (1, w2) 0 ], value: EXPR [ (1, w3) 0 ])
+    MEM (id: 0, read at: EXPR [ (1, w2) ], value: EXPR [ (1, w3) ])
     EXPR w3 = 0
     ");
 }
@@ -96,7 +96,7 @@ fn generates_memory_op_for_dynamic_read() {
     public parameters: []
     return values: []
     INIT (id: 0, len: 3, witnesses: [w0, w1, w2])
-    MEM (id: 0, read at: EXPR [ (1, w3) 0 ], value: EXPR [ (1, w4) 0 ])
+    MEM (id: 0, read at: EXPR [ (1, w3) ], value: EXPR [ (1, w4) ])
     EXPR w4 = 10
     ");
 }
@@ -121,13 +121,13 @@ fn generates_memory_op_for_dynamic_write() {
     return values: [w4, w5, w6]
     INIT (id: 1, len: 3, witnesses: [w0, w1, w2])
     EXPR w7 = 10
-    MEM (id: 1, write EXPR [ (1, w7) 0 ] at: EXPR [ (1, w3) 0 ])
+    MEM (id: 1, write EXPR [ (1, w7) ] at: EXPR [ (1, w3) ])
     EXPR w8 = 0
-    MEM (id: 1, read at: EXPR [ (1, w8) 0 ], value: EXPR [ (1, w9) 0 ])
+    MEM (id: 1, read at: EXPR [ (1, w8) ], value: EXPR [ (1, w9) ])
     EXPR w10 = 1
-    MEM (id: 1, read at: EXPR [ (1, w10) 0 ], value: EXPR [ (1, w11) 0 ])
+    MEM (id: 1, read at: EXPR [ (1, w10) ], value: EXPR [ (1, w11) ])
     EXPR w12 = 2
-    MEM (id: 1, read at: EXPR [ (1, w12) 0 ], value: EXPR [ (1, w13) 0 ])
+    MEM (id: 1, read at: EXPR [ (1, w12) ], value: EXPR [ (1, w13) ])
     EXPR w4 = w9
     EXPR w5 = w11
     EXPR w6 = w13
@@ -162,7 +162,7 @@ fn generates_predicated_index_for_dynamic_read() {
     BLACKBOX::RANGE [w3]:32 bits []
     BLACKBOX::RANGE [w4]:1 bits []
     EXPR w3*w4 - w5 = 0
-    MEM (id: 0, read at: EXPR [ (1, w5) 0 ], value: EXPR [ (1, w6) 0 ])
+    MEM (id: 0, read at: EXPR [ (1, w5) ], value: EXPR [ (1, w6) ])
     EXPR w6 = 10
     ");
 }
@@ -200,16 +200,16 @@ fn generates_predicated_index_and_dummy_value_for_dynamic_write() {
     BLACKBOX::RANGE [w3]:32 bits []
     BLACKBOX::RANGE [w4]:1 bits []
     EXPR w3*w4 - w8 = 0
-    MEM (id: 0, read at: EXPR [ (1, w8) 0 ], value: EXPR [ (1, w9) 0 ])
+    MEM (id: 0, read at: EXPR [ (1, w8) ], value: EXPR [ (1, w9) ])
     INIT (id: 1, len: 3, witnesses: [w0, w1, w2])
     EXPR -w4*w9 + 10*w4 + w9 - w10 = 0
-    MEM (id: 1, write EXPR [ (1, w10) 0 ] at: EXPR [ (1, w8) 0 ])
+    MEM (id: 1, write EXPR [ (1, w10) ] at: EXPR [ (1, w8) ])
     EXPR w11 = 0
-    MEM (id: 1, read at: EXPR [ (1, w11) 0 ], value: EXPR [ (1, w12) 0 ])
+    MEM (id: 1, read at: EXPR [ (1, w11) ], value: EXPR [ (1, w12) ])
     EXPR w13 = 1
-    MEM (id: 1, read at: EXPR [ (1, w13) 0 ], value: EXPR [ (1, w14) 0 ])
+    MEM (id: 1, read at: EXPR [ (1, w13) ], value: EXPR [ (1, w14) ])
     EXPR w15 = 2
-    MEM (id: 1, read at: EXPR [ (1, w15) 0 ], value: EXPR [ (1, w16) 0 ])
+    MEM (id: 1, read at: EXPR [ (1, w15) ], value: EXPR [ (1, w16) ])
     EXPR w5 = w12
     EXPR w6 = w14
     EXPR w7 = w16
