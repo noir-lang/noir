@@ -169,7 +169,7 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
                     }
                 }
 
-                // Chec if it's `-wN * wM = 0` or `wN * -wM = 0` in which case we can
+                // Check if it's `-wN * wM = 0` or `wN * -wM = 0` in which case we can
                 // print it as `wN = wM`.
                 if expr.mul_terms.is_empty()
                     && expr.linear_combinations.len() == 2
