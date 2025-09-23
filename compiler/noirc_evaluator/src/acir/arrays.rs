@@ -1,3 +1,121 @@
+//! Array handling in ACIR.
+//!
+//! This modules how Noir's SSA array semantics are lowered into ACIR's flat memory model.
+//! Arrays in SSA can appear as constants or dynamically allocated blocks.
+//! Our responsibility here is to preserve correctness while ensuring memory access is efficient.
+//!
+//! ## Design
+//!
+//! ACIR does not have a first-class array type. Instead, all arrays are
+//! represented as contiguous regions in linear memory, identified by a
+//! [BlockId]. This module provides helpers for translating SSA array
+//! operations into ACIR memory reads and writes.
+//!
+//! ACIR generation use twos different array types for representing arrays:
+//!
+//! [Constant arrays][AcirValue::Array]
+//!   - Known at compile time.  
+//!   - Reads and writes may be folded into an [AcirValue] where possible.
+//!   - Useful for optimization (e.g., constant element lookups do not require laying down opcodes)  
+//!
+//! [Dynamic arrays][AcirValue::DynamicArray]
+//!   - Referenced by a [unique identifier][BlockId]
+//!   - Must be explicitly initialized using an [opcode][acvm::acir::circuit::opcodes::Opcode::MemoryInit]
+//!   - Reads and writes must lower to at least an explicit [memory opcode][acvm::acir::circuit::opcodes::Opcode::MemoryOp].
+//!   - Required for arrays accessed by dynamic indices (witness inputs) or function parameters (the array is itself a witness)
+//!
+//! ### Array Flattening
+//!
+//! ACIR memory is flat, while SSA arrays may be multi-dimensional or
+//! contain elements of varying size (we refer to these are non-homogenous arrays).
+//! To reconcile this, each element's "flattened index" is computed relative to the array’s base pointer.
+//! In some cases this requires consulting a side "element type sizes"
+//! array to calculate offsets when elements have a non-homogenous layout.
+//!
+//! The following Noir program:
+//! ```noir
+//! struct Bar {
+//!     inner: [Field; 3],
+//! }
+//! struct Foo {
+//!     a: Field,
+//!     b: [Field; 3],
+//!     bar: Bar,
+//! }
+//! fn main(x: [Foo; 4]) -> pub [Field; 3] {
+//!     x[3].bar.inner
+//! }
+//! ```
+//! Will produce the following SSA:
+//! ```text
+//! acir(inline) pure fn main f0 {
+//!   b0(v0: [(Field, [Field; 3], [Field; 3]); 4]):
+//!     v2 = array_get v0, index u32 11 -> [Field; 3]
+//!     return v2
+//! }
+//! ```
+//! In the SSA above we see that we have an index of `11`. However, with a flat memory
+//! the true starting index of `x[3].bar.inner` is `25`.
+//!
+//! We can determine what the starting offset of the outer array object `x[3]` is by first dividing the index by the element size.
+//! In this case we have `11 / 3 = 3`. To get the flattened outer offset we will multiply `3` by the flattened size of a single element.
+//! We can see that `Foo` contains `7` elements, thus we multiply by `7`. So now we have a flattened index of `21`.
+//!
+//! We could use the modulo of `11 % 3 = 2` to determine which object within x we are attempting to access.
+//! However, since we have a flattened structure we cannot simply add `2` to `21`. Instead we generate an array that holds the
+//! respective inner offset for accessing each element.
+//!
+//! In the example above we will generate this internal type array: [0, 1, 4].
+//! The start of `bar` in `Foo` is the fourth flattened index. We then use the modulo we previously computed to access
+//! the type array and fetch `4`. Finally we can do `21 + 4 = 25` to get the true starting index of `x[3].bar.inner`.
+//! We then use the resulting type to increment the index appropriately and fetch ever element of `bar.inner`.
+//!
+//! This element type sizes array is dynamic as we still need to access it based upon the index which itself can be dynamic.
+//! The module will also attempt to not create this array when possible (e.g., we have a simple homogenous array).
+//!
+//! ### Side effects and Predication
+//!
+//! This module uses the special [side effects variable][Context::current_side_effects_enabled_var] to guard
+//! array operations that may not always be executed. This variable acts as a predicate.
+//!
+//! The goal is to preserve SSA semantics where some array operations are dominated by a branch condition.
+//! We predicate the following:
+//!
+//! #### Index Predication
+//!
+//! Array indices themselves are guarded by the side-effect predicate.
+//! If an SSA array operation is executed at runtime, then we must ensure any arithmetic that computes the index
+//! and any memory reads/writes implied by that index are safe even when the predicate is false.
+//! The only array operations not left to runtime are those with safe indices (constant index under the array length).
+//!
+//! To achieve this we compute a predicated index value (`predicate_index`) with the formula:
+//! ```text
+//! predicate_index = predicate * index + (1 - predicate) * offset
+//! ```
+//! where `offset` is a safe fallback index (chosen so the element type at that
+//! offset matches the requested element type).
+//! The offset is necessary to match the correct result type for array reads.
+//!
+//! #### Writes
+//!
+//! When the predicate is not a constant one, instead of actually overwriting memory, we compute a "dummy value".
+//! The dummy value is fetched from the same array at the requested `predicate_index`.
+//! The store value of an array write is then converted from a `store_value` to `predicate * store_value + (1 - predicate) * dummy`
+//! This ensures the memory remains unchanged when the write is disabled. In the case of a false predicate, the value stored will be itself.
+//!
+//! #### Reads
+//!
+//! If we perform an array read under a false predicate we will read from `offset`. As arrays are not always homogenous
+//! the result at index `offset` may contain a value that will overflow the resulting type of the array read.
+//! When we read a value from a non-homogenous array we multiply any resulting [AcirValue::Var] by the predicate
+//! to avoid any possible mismatch. In the case of a false predicate, the value will now be zero.
+//! For homogenous arrays, the fallback `offset` will produce a value with a compatible type.
+//!
+//! ### Zero-Length Arrays
+//!
+//! Arrays of length 0 are valid in the SSA but must never generate ACIR
+//! memory operations as they may produce runtime errors. These operations are special cased to always fail with an
+//! index out of bounds error (with respect to side effects) and ensures they do not produce illegal memory accesses.
 use acvm::acir::{circuit::opcodes::BlockType, native_types::Witness};
 use acvm::{FieldElement, acir::AcirField, acir::circuit::opcodes::BlockId};
 use iter_extended::{try_vecmap, vecmap};
@@ -83,8 +201,8 @@ impl Context<'_> {
 
         // Pass the instruction between array methods rather than the internal fields themselves
         let (array, index, store_value) = match dfg[instruction] {
-            Instruction::ArrayGet { array, index, offset: _ } => (array, index, None),
-            Instruction::ArraySet { array, index, value, mutable, offset: _ } => {
+            Instruction::ArrayGet { array, index } => (array, index, None),
+            Instruction::ArraySet { array, index, value, mutable } => {
                 mutable_array_set = mutable;
                 (array, index, Some(value))
             }
@@ -106,7 +224,7 @@ impl Context<'_> {
         };
 
         // For 0-length arrays and slices, even the disabled memory operations would cause runtime failures.
-        // Set rhe result to a zero value that matches the type then bypass the rest of the operation,
+        // Set the result to a zero value that matches the type then bypass the rest of the operation,
         // leaving an assertion that the side effect variable must be false.
         if self.has_zero_length(array, dfg) {
             // Zero result.
@@ -249,7 +367,7 @@ impl Context<'_> {
             }
         } else {
             // If the index is not out of range, we can optimistically perform the read at compile time
-            // as if the predicate were true. This is as if the predicate were to resolve to false then
+            // as if the predicate were true. If the predicate were to resolve to false then
             // the result should not affect the rest of circuit execution.
             let value = array[index].clone();
             self.define_result(dfg, instruction, value);
@@ -259,15 +377,15 @@ impl Context<'_> {
 
     /// We need to properly setup the inputs for array operations in ACIR.
     /// From the original SSA values we compute the following AcirVars:
-    /// - new_index is the index of the array. ACIR memory operations work with a flat memory, so we fully flattened the specified index
+    /// - `index_var` is the index of the array. ACIR memory operations work with a flat memory, so we fully flattened the specified index
     ///   in case we have a nested array. The index for SSA array operations only represents the flattened index of the current array.
     ///   Thus internal array element type sizes need to be computed to accurately transform the index.
     ///
-    /// - predicate_index is offset, or the index if the predicate is true
+    /// - If the predicate is known to be true or the array access is guaranteed to be safe, we can directly return `index_var`
+    ///   Otherwise, `predicate_index` is a fallback offset set by [Self::predicated_index].
     ///
-    /// - new_value is the optional value when the operation is an array_set
-    ///   When there is a predicate, it is predicate*value + (1-predicate)*dummy, where dummy is the value of the array at the requested index.
-    ///   It is a dummy value because in the case of a false predicate, the value stored at the requested index will be itself.
+    /// - `new_value` is the optional value when the operation is an array_set.
+    ///   The value used in an array_set is also dependent upon the predicate and is set in [Self::predicated_store_value]
     fn convert_array_operation_inputs(
         &mut self,
         array_id: ValueId,
@@ -282,42 +400,57 @@ impl Context<'_> {
         let index_var = self.convert_numeric_value(index, dfg)?;
         let index_var = self.get_flattened_index(&array_typ, array_id, index_var, dfg)?;
 
-        let predicate_index = if dfg.is_safe_index(index, array_id) {
-            index_var
+        // Side-effects are always enabled so we do not need to do any predication
+        if self.acir_context.is_constant_one(&self.current_side_effects_enabled_var) {
+            let store_value = store_value.map(|store| self.convert_value(store, dfg));
+            return Ok((index_var, store_value));
+        }
+
+        let predicate_index = self.predicated_index(index_var, index, array_id, dfg, offset)?;
+
+        // Handle the predicated store value
+        let new_value = store_value
+            .map(|store| self.predicated_store_value(store, dfg, block_id, predicate_index))
+            .transpose()?;
+
+        Ok((predicate_index, new_value))
+    }
+
+    /// Computes the predicated index for an array access.
+    /// If the index is always safe, it is returned directly.
+    /// Otherwise, we compute `predicate * index + (1 - predicate) * offset`.
+    fn predicated_index(
+        &mut self,
+        index_var: AcirVar,
+        index: ValueId,
+        array_id: ValueId,
+        dfg: &DataFlowGraph,
+        offset: usize,
+    ) -> Result<AcirVar, RuntimeError> {
+        if dfg.is_safe_index(index, array_id) {
+            Ok(index_var)
         } else {
-            // index*predicate + (1-predicate)*offset
             let offset = self.acir_context.add_constant(offset);
             let sub = self.acir_context.sub_var(index_var, offset)?;
             let pred = self.acir_context.mul_var(sub, self.current_side_effects_enabled_var)?;
-            self.acir_context.add_var(pred, offset)?
-        };
+            self.acir_context.add_var(pred, offset)
+        }
+    }
 
-        let new_value = if let Some(store) = store_value {
-            let store_value = self.convert_value(store, dfg);
-            if self.acir_context.is_constant_one(&self.current_side_effects_enabled_var) {
-                Some(store_value)
-            } else {
-                let store_type = dfg.type_of_value(store);
-
-                let mut dummy_predicate_index = predicate_index;
-                // We must setup the dummy value to match the type of the value we wish to store
-                let dummy =
-                    self.array_get_value(&store_type, block_id, &mut dummy_predicate_index)?;
-
-                Some(self.convert_array_set_store_value(&store_value, &dummy)?)
-            }
-        } else {
-            None
-        };
-
-        let new_index = if self.acir_context.is_constant_one(&self.current_side_effects_enabled_var)
-        {
-            index_var
-        } else {
-            predicate_index
-        };
-
-        Ok((new_index, new_value))
+    /// When there is a predicate, the store value is predicate*value + (1-predicate)*dummy, where dummy is the value of the array at the requested index.
+    /// It is a dummy value because in the case of a false predicate, the value stored at the requested index will be itself.
+    fn predicated_store_value(
+        &mut self,
+        store: ValueId,
+        dfg: &DataFlowGraph,
+        block_id: BlockId,
+        mut dummy_predicate_index: AcirVar,
+    ) -> Result<AcirValue, RuntimeError> {
+        let store_value = self.convert_value(store, dfg);
+        let store_type = dfg.type_of_value(store);
+        // We must setup the dummy value to match the type of the value we wish to store
+        let dummy = self.array_get_value(&store_type, block_id, &mut dummy_predicate_index)?;
+        self.convert_array_set_store_value(&store_value, &dummy)
     }
 
     fn convert_array_set_store_value(

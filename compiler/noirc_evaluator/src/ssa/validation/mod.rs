@@ -264,7 +264,7 @@ impl<'f> Validator<'f> {
             Value::Function(func_id) => {
                 let called_function = &self.ssa.functions[func_id];
 
-                let parameter_types = called_function.parameter_types();
+                let parameter_types = called_function.view().parameter_types();
                 assert_eq!(
                     arguments.len(),
                     parameter_types.len(),
@@ -483,15 +483,13 @@ impl<'f> Validator<'f> {
             }
             Intrinsic::SliceRemove => {
                 // fn remove(self: [T], index: u32) -> (Self, T) {}
-                assert_arguments_length(arguments, 3, "SliceRemove");
+                let (slice_length_type, slice_type, index_type) =
+                    self.assert_three_arguments(arguments, "SliceRemove");
 
-                let slice_length_type = self.function.dfg.type_of_value(arguments[0]);
                 assert_u32(&slice_length_type, "SliceRemove self length");
 
-                let slice_type = self.function.dfg.type_of_value(arguments[1]);
                 let slice_element_types = assert_slice(&slice_type, "SliceRemove self slice");
 
-                let index_type = self.function.dfg.type_of_value(arguments[2]);
                 assert_u32(&index_type, "SliceRemove index");
 
                 let results = self.function.dfg.instruction_results(instruction);
@@ -629,19 +627,14 @@ impl<'f> Validator<'f> {
                 //     iv: [u8; 16],
                 //     key: [u8; 16],
                 // ) -> [u8; N + 16 - N % 16] {}
-                assert_arguments_length(arguments, 3, "aes128_encrypt");
+                let (input_type, iv_type, key_type) =
+                    self.assert_three_arguments(arguments, "aes128_encrypt");
 
-                let input = arguments[0];
-                let input_type = dfg.type_of_value(input);
                 let input_length = assert_u8_array(&input_type, "aes128_encrypt input");
 
-                let iv = arguments[1];
-                let iv_type = dfg.type_of_value(iv);
                 let iv_length = assert_u8_array(&iv_type, "aes128_encrypt iv");
                 assert_array_length(iv_length, 16, "aes128_encrypt iv");
 
-                let key = arguments[2];
-                let key_type = dfg.type_of_value(key);
                 let key_length = assert_u8_array(&key_type, "aes128_encrypt key");
                 assert_array_length(key_length, 16, "aes128_encrypt key");
 
@@ -653,12 +646,6 @@ impl<'f> Validator<'f> {
                     "aes128_encrypt output length mismatch"
                 );
             }
-            BlackBoxFunc::BigIntAdd
-            | BlackBoxFunc::BigIntSub
-            | BlackBoxFunc::BigIntMul
-            | BlackBoxFunc::BigIntDiv
-            | BlackBoxFunc::BigIntFromLeBytes
-            | BlackBoxFunc::BigIntToLeBytes => {}
             BlackBoxFunc::Blake2s | BlackBoxFunc::Blake3 => {
                 // fn blake2s<let N: u32>(input: [u8; N]) -> [u8; 32]
                 // fn __blake3<let N: u32>(input: [u8; N]) -> [u8; 32] {}
@@ -675,8 +662,9 @@ impl<'f> Validator<'f> {
                 //     public_key_y: [u8; 32],
                 //     signature: [u8; 64],
                 //     message_hash: [u8; N],
+                //     predicate: bool,
                 // ) -> bool
-                assert_arguments_length(arguments, 4, "ecdsa_secp_256");
+                assert_arguments_length(arguments, 5, "ecdsa_secp_256");
 
                 let public_key_x = arguments[0];
                 let public_key_x_type = dfg.type_of_value(public_key_x);
@@ -699,13 +687,19 @@ impl<'f> Validator<'f> {
                 let message_hash_type = dfg.type_of_value(message_hash);
                 assert_array(&message_hash_type, "ecdsa_secp256 message_hash");
 
-                let result_type = self.assert_one_result(instruction, "ecdsa_secp256");
+                let predicate_type = dfg.type_of_value(arguments[4]);
+                assert_u1(&predicate_type, "ecdsa_secp256 predicate");
+
+                let results = dfg.instruction_results(instruction);
+                assert_eq!(results.len(), 1, "Expected one result");
+                let result_type = dfg.type_of_value(results[0]);
                 assert_u1(&result_type, "ecdsa_secp256 result");
             }
             BlackBoxFunc::EmbeddedCurveAdd => {
                 // fn embedded_curve_add_array_return(
                 //     _point1: EmbeddedCurvePoint,
                 //     _point2: EmbeddedCurvePoint,
+                //     _predicate: bool,
                 // ) -> [EmbeddedCurvePoint; 1] {}
                 //
                 // struct EmbeddedCurvePoint {
@@ -713,10 +707,13 @@ impl<'f> Validator<'f> {
                 //     y: Field,
                 //     is_infinite: bool,
                 // }
-                assert_arguments_length(arguments, 6, "embedded_curve_add");
+                assert_arguments_length(arguments, 7, "embedded_curve_add");
 
                 assert_embedded_curve_point(arguments, 0, dfg, "embedded_curve_add _point1");
                 assert_embedded_curve_point(arguments, 3, dfg, "embedded_curve_add _point2");
+
+                let predicate_type = dfg.type_of_value(arguments[6]);
+                assert_u1(&predicate_type, "embedded_curve_add _predicate");
 
                 let result_type = self.assert_one_result(instruction, "embedded_curve_add");
                 let (result_elements, result_length) =
@@ -738,7 +735,9 @@ impl<'f> Validator<'f> {
                 let input_length = assert_u64_array(&input_type, "keccakf1600 input");
                 assert_array_length(input_length, 25, "keccakf1600 input");
 
-                let result_type = self.assert_one_result(instruction, "keccakf1600");
+                let results = dfg.instruction_results(instruction);
+                assert_eq!(results.len(), 1);
+                let result_type = dfg.type_of_value(results[0]);
                 let result_length = assert_u64_array(&result_type, "keccakf1600 result");
                 assert_array_length(result_length, 25, "keccakf1600 result");
             }
@@ -746,9 +745,10 @@ impl<'f> Validator<'f> {
                 //  fn multi_scalar_mul_array_return<let N: u32>(
                 //     points: [EmbeddedCurvePoint; N],
                 //     scalars: [EmbeddedCurveScalar; N],
+                //     predicate: bool,
                 // ) -> [EmbeddedCurvePoint; 1] {}
-                let (points_type, scalars_type) =
-                    self.assert_two_arguments(arguments, "multi_scalar_mul");
+                let (points_type, scalars_type, predicate_type) =
+                    self.assert_three_arguments(arguments, "multi_scalar_mul");
 
                 let (points_elements, points_length) =
                     assert_array(&points_type, "multi_scalar_mul points");
@@ -774,14 +774,13 @@ impl<'f> Validator<'f> {
                 assert_field(&scalars_elements[1], "multi_scalar_mul scalars hi");
 
                 assert_eq!(points_length, scalars_length, "MSM input array lengths mismatch");
+
+                assert_u1(&predicate_type, "multi_scalar_mul predicate");
             }
             BlackBoxFunc::Poseidon2Permutation => {
-                // fn poseidon2_permutation<let N: u32>(_input: [Field; N], _state_length: u32) -> [Field; N] {}
-                let (input_type, state_length_type) =
-                    self.assert_two_arguments(arguments, "poseidon2_permutation");
-
+                // fn poseidon2_permutation<let N: u32>(_input: [Field; N]) -> [Field; N] {}
+                let input_type = self.assert_one_argument(arguments, "poseidon2_permutation");
                 let input_length = assert_field_array(&input_type, "poseidon2_permutation _input");
-                assert_u32(&state_length_type, "poseidon2_permutation _state_length");
 
                 let result_type = self.assert_one_result(instruction, "poseidon2_permutation");
                 let result_length =
@@ -857,6 +856,20 @@ impl<'f> Validator<'f> {
         (
             self.function.dfg.type_of_value(arguments[0]),
             self.function.dfg.type_of_value(arguments[1]),
+        )
+    }
+
+    fn assert_three_arguments(
+        &self,
+        arguments: &[ValueId],
+        object: &'static str,
+    ) -> (Type, Type, Type) {
+        assert_arguments_length(arguments, 3, object);
+
+        (
+            self.function.dfg.type_of_value(arguments[0]),
+            self.function.dfg.type_of_value(arguments[1]),
+            self.function.dfg.type_of_value(arguments[2]),
         )
     }
 
@@ -1571,9 +1584,9 @@ mod tests {
     fn msm_has_incorrect_type() {
         let src = "
         acir(inline) fn main f0 {
-          b0(v0: [(Field, Field, Field); 3], v1: [(Field, Field); 3]):
-            v2 = call multi_scalar_mul(v0, v1) -> [(Field, Field, u1); 1]
-            return v2
+          b0(v0: [(Field, Field, Field); 3], v1: [(Field, Field); 3], v2: u1):
+            v3 = call multi_scalar_mul(v0, v1, v2) -> [(Field, Field, u1); 1]
+            return v3
         }
         ";
         let _ = Ssa::from_str(src).unwrap();

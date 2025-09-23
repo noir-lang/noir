@@ -67,9 +67,7 @@ use acvm::{FieldElement, acir::AcirField};
 use crate::ssa::{
     ir::{
         function::Function,
-        instruction::{
-            ArrayOffset, Binary, BinaryOp, ConstrainError, Endian, Instruction, Intrinsic,
-        },
+        instruction::{Binary, BinaryOp, ConstrainError, Endian, Instruction, Intrinsic},
         types::{NumericType, Type},
         value::ValueId,
     },
@@ -414,8 +412,7 @@ impl Context<'_, '_, '_> {
     /// Insert an instruction to extract an element from an array
     fn insert_array_get(&mut self, array: ValueId, index: ValueId, element_type: Type) -> ValueId {
         let element_type = Some(vec![element_type]);
-        let offset = ArrayOffset::None;
-        let instruction = Instruction::ArrayGet { array, index, offset };
+        let instruction = Instruction::ArrayGet { array, index };
         self.context.insert_instruction(instruction, element_type).first()
     }
 }

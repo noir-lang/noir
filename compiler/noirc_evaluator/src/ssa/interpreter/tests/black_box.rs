@@ -10,7 +10,7 @@ fn test_msm() {
     b0(v0: Field, v1: Field):
       v2 = make_array [Field 1, Field 17631683881184975370165255887551781615748388533673675138860, u1 0] : [(Field, Field, u1); 1]
       v3 = make_array [v0, v1] : [(Field, Field); 1]
-      v4= call multi_scalar_mul(v2, v3) -> [(Field, Field, u1); 1]
+      v4= call multi_scalar_mul(v2, v3, u1 1) -> [(Field, Field, u1); 1]
       return v4
   }
       ";
@@ -30,7 +30,7 @@ fn test_ec_add() {
     let src = "
   acir(inline) fn main f0  {
     b0(v0: Field):
-      v1 = call embedded_curve_add(v0, Field 17631683881184975370165255887551781615748388533673675138860, u1 0, v0, Field 17631683881184975370165255887551781615748388533673675138860, u1 0) -> [(Field, Field, u1); 1]
+      v1 = call embedded_curve_add(v0, Field 17631683881184975370165255887551781615748388533673675138860, u1 0, v0, Field 17631683881184975370165255887551781615748388533673675138860, u1 0, u1 1) -> [(Field, Field, u1); 1]
       return v1
   }
       ";
@@ -159,7 +159,7 @@ fn test_poseidon() {
     let src = "
     acir(inline) predicate_pure fn main f0 {
       b0(v0: [Field; 4]):
-        v1 = call poseidon2_permutation(v0, u32 4) -> [Field; 4]
+        v1 = call poseidon2_permutation(v0) -> [Field; 4]
         return v1
     }
       ";
@@ -193,7 +193,7 @@ fn test_ecdsa_k1() {
     let src = "
     acir(inline) predicate_pure fn main f0 {
       b0(v0: [u8; 32], v1: [u8; 32], v2: [u8; 64], v3: [u8; 32]):
-        v4 = call ecdsa_secp256k1(v0, v1, v2, v3) -> u1
+        v4 = call ecdsa_secp256k1(v0, v1, v2, v3, u1 1) -> u1
         return v4
     }
       ";
@@ -240,7 +240,7 @@ fn test_ecdsa_r1() {
     let src = "
     acir(inline) predicate_pure fn main f0 {
       b0(v0: [u8; 32], v1: [u8; 32], v2: [u8; 64], v3: [u8; 32]):
-        v4 = call ecdsa_secp256r1(v0, v1, v2, v3) -> u1
+        v4 = call ecdsa_secp256r1(v0, v1, v2, v3, u1 1) -> u1
         return v4
     }
       ";
