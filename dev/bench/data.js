@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1758629149991,
+  "lastUpdate": 1758629151337,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4488,90 +4488,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "158470fdd93b21dedcebbb9ab4ceec11f0adb087",
-          "message": "chore(ownership): Add tests for cloning nested arrays returned from indexing (#9789)",
-          "timestamp": "2025-09-15T14:28:04Z",
-          "tree_id": "51f2438d203363af915d792bfd4568c81f7397f4",
-          "url": "https://github.com/noir-lang/noir/commit/158470fdd93b21dedcebbb9ab4ceec11f0adb087"
-        },
-        "date": 1757948712872,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.79,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 8.18,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.402,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 17.98,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 16.24,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 17.5,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 208,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 209,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.356,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.504,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.778,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 2.317,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "46fb776ab8d7788ef2009d65064f91cc69f72dfa",
           "message": "chore(die): IncrementRc/DecrementRc comments (#9855)",
           "timestamp": "2025-09-15T14:47:17Z",
@@ -8756,6 +8672,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.706,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "83c48682a715dba54b09e1fa297ccc052c30dc71",
+          "message": "chore: add regression test for #9852 (#9960)",
+          "timestamp": "2025-09-23T11:24:57Z",
+          "tree_id": "0ddb275958a01143a818c5b91601b8ba10ad1085",
+          "url": "https://github.com/noir-lang/noir/commit/83c48682a715dba54b09e1fa297ccc052c30dc71"
+        },
+        "date": 1758629127871,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.82,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.804,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.366,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 1.406,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 1.35,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1.45,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 1.452,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.538,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 21.48,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 79.8,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 1.358,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.759,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.707,
             "unit": "s"
           }
         ]
