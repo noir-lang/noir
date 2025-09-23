@@ -17,7 +17,7 @@
 //! ```
 //!
 //! If the shift amount is not a constant, 2^N is computed via square&multiply,
-//! using the bits decomposition of exponent.
+//! using the bits decomposition of the exponent.
 //!
 //! Pseudo-code of the computation:
 //!
@@ -33,7 +33,7 @@
 //!
 //! ## Unsigned shift-left
 //!
-//! Shifting an unsigned integer to the right by N is the same as multiplying by 2^N.
+//! Shifting an unsigned integer to the left by N is the same as multiplying by 2^N.
 //! However, since that can overflow the target bit size, the operation is done using
 //! Field, then truncated to the target bit size.
 //!
