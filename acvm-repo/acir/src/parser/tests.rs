@@ -102,11 +102,11 @@ fn assert_zero_opcodes() {
     private parameters: [w0, w1, w2, w3, w4]
     public parameters: [w5, w6, w7, w8, w9]
     return values: []
-    EXPR 1*w0 + -1*w5 = 0
-    EXPR 1*w1 + -1*w6 = 0
-    EXPR 1*w2 + -1*w7 = 0
-    EXPR 1*w3 + -1*w8 = 0
-    EXPR 1*w4 + -1*w9 = 0
+    EXPR w0 + -1*w5 = 0
+    EXPR w1 + -1*w6 = 0
+    EXPR w2 + -1*w7 = 0
+    EXPR w3 + -1*w8 = 0
+    EXPR w4 + -1*w9 = 0
     ";
     assert_circuit_roundtrip(src);
 }
@@ -118,11 +118,11 @@ fn assert_zero_with_mul_terms() {
     private parameters: [w0, w1, w2]
     public parameters: []
     return values: []
-    EXPR 1*w0*w1 + -1*w3 = 0
-    EXPR 1*w3*w3 + -1*w4 = 0
-    EXPR 1*w4*w4 + -1*w5 = 0
-    EXPR 1*w5*w5 + -1*w6 = 0
-    EXPR -1*w2 + 1*w6 = 0
+    EXPR w0*w1 + -1*w3 = 0
+    EXPR w3*w3 + -1*w4 = 0
+    EXPR w4*w4 + -1*w5 = 0
+    EXPR w5*w5 + -1*w6 = 0
+    EXPR -1*w2 + w6 = 0
     ";
     assert_circuit_roundtrip(src);
 }
@@ -149,7 +149,7 @@ fn xor() {
     BLACKBOX::RANGE [w0]:32 bits []
     BLACKBOX::RANGE [w1]:32 bits []
     BLACKBOX::XOR [w0, w1]:32 bits [w2]
-    EXPR 1*w2 + -15 = 0
+    EXPR w2 + -15 = 0
     ";
     assert_circuit_roundtrip(src);
 }
@@ -223,22 +223,22 @@ fn aes128_encrypt() {
     BLACKBOX::RANGE [w58]:8 bits []
     BLACKBOX::RANGE [w59]:8 bits []
     BLACKBOX::AES128_ENCRYPT [w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25, w26, w27, w28, w29, w30, w31, w32, w33, w34, w35, w36, w37, w38, w39, w40, w41, w42, w43] [w60, w61, w62, w63, w64, w65, w66, w67, w68, w69, w70, w71, w72, w73, w74, w75]
-    EXPR -1*w44 + 1*w60 = 0
-    EXPR -1*w45 + 1*w61 = 0
-    EXPR -1*w46 + 1*w62 = 0
-    EXPR -1*w47 + 1*w63 = 0
-    EXPR -1*w48 + 1*w64 = 0
-    EXPR -1*w49 + 1*w65 = 0
-    EXPR -1*w50 + 1*w66 = 0
-    EXPR -1*w51 + 1*w67 = 0
-    EXPR -1*w52 + 1*w68 = 0
-    EXPR -1*w53 + 1*w69 = 0
-    EXPR -1*w54 + 1*w70 = 0
-    EXPR -1*w55 + 1*w71 = 0
-    EXPR -1*w56 + 1*w72 = 0
-    EXPR -1*w57 + 1*w73 = 0
-    EXPR -1*w58 + 1*w74 = 0
-    EXPR -1*w59 + 1*w75 = 0
+    EXPR -1*w44 + w60 = 0
+    EXPR -1*w45 + w61 = 0
+    EXPR -1*w46 + w62 = 0
+    EXPR -1*w47 + w63 = 0
+    EXPR -1*w48 + w64 = 0
+    EXPR -1*w49 + w65 = 0
+    EXPR -1*w50 + w66 = 0
+    EXPR -1*w51 + w67 = 0
+    EXPR -1*w52 + w68 = 0
+    EXPR -1*w53 + w69 = 0
+    EXPR -1*w54 + w70 = 0
+    EXPR -1*w55 + w71 = 0
+    EXPR -1*w56 + w72 = 0
+    EXPR -1*w57 + w73 = 0
+    EXPR -1*w58 + w74 = 0
+    EXPR -1*w59 + w75 = 0
     ";
     assert_circuit_roundtrip(src);
 }
@@ -525,8 +525,8 @@ fn brillig_call() {
     public parameters: []
     return values: []
     BRILLIG CALL func 0: inputs: [EXPR [ (1, w0) (-1, w1) 0 ]], outputs: [w3]
-    EXPR 1*w0*w3 + -1*w1*w3 + -1 = 0
-    EXPR -1*w0 + 1*w2 = 0
+    EXPR w0*w3 + -1*w1*w3 + -1 = 0
+    EXPR -1*w0 + w2 = 0
     ";
     assert_circuit_roundtrip(src);
 }
@@ -540,8 +540,8 @@ fn brillig_call_with_predicate() {
     return values: []
     BRILLIG CALL func 0: PREDICATE: EXPR [ 1 ]
     inputs: [EXPR [ (1, w0) (-1, w1) 0 ]], outputs: [w3]
-    EXPR 1*w0*w3 + -1*w1*w3 + -1 = 0
-    EXPR -1*w0 + 1*w2 = 0
+    EXPR w0*w3 + -1*w1*w3 + -1 = 0
+    EXPR -1*w0 + w2 = 0
     ";
     assert_circuit_roundtrip(src);
 }
@@ -608,39 +608,39 @@ fn array_dynamic() {
     BLACKBOX::RANGE [w17]:32 bits []
     EXPR 5*w6 + -1*w19 = 0
     BLACKBOX::RANGE [w19]:32 bits []
-    EXPR 1*w5 + -1*w19 + -1*w20 = 0
+    EXPR w5 + -1*w19 + -1*w20 = 0
     BLACKBOX::RANGE [w20]:32 bits []
-    EXPR 1*w20 + -1*w21 + -5 = 0
-    EXPR 1*w21 + -1*w22 + -3 = 0
+    EXPR w20 + -1*w21 + -5 = 0
+    EXPR w21 + -1*w22 + -3 = 0
     MEM (id: 0, read at: EXPR [ (1, w21) 0 ], value: EXPR [ (1, w23) 0 ])
-    EXPR 1*w23 + -111 = 0
+    EXPR w23 + -111 = 0
     MEM (id: 0, read at: EXPR [ (1, w22) 0 ], value: EXPR [ (1, w24) 0 ])
-    EXPR 1*w24 + -101 = 0
+    EXPR w24 + -101 = 0
     BRILLIG CALL func 0: inputs: [EXPR [ (1, w22) 4294967291 ], EXPR [ 4294967296 ]], outputs: [w25, w26]
     BLACKBOX::RANGE [w26]:32 bits []
-    EXPR 1*w22 + -4294967296*w25 + -1*w26 + 4294967291 = 0
+    EXPR w22 + -4294967296*w25 + -1*w26 + 4294967291 = 0
     EXPR -1*w25 = 0
     EXPR -1*w27 = 0
     MEM (id: 0, write EXPR [ (1, w27) 0 ] at: EXPR [ (1, w22) 0 ])
     MEM (id: 0, read at: EXPR [ (1, w21) 0 ], value: EXPR [ (1, w28) 0 ])
-    EXPR 1*w28 + -111 = 0
+    EXPR w28 + -111 = 0
     EXPR -1*w29 + 1 = 0
     MEM (id: 0, read at: EXPR [ (1, w29) 0 ], value: EXPR [ (1, w30) 0 ])
-    EXPR 1*w30 = 0
+    EXPR w30 = 0
     BRILLIG CALL func 0: inputs: [EXPR [ (1, w21) 4294967286 ], EXPR [ 4294967296 ]], outputs: [w31, w32]
     BLACKBOX::RANGE [w31]:1 bits []
     BLACKBOX::RANGE [w32]:32 bits []
-    EXPR 1*w21 + -4294967296*w31 + -1*w32 + 4294967286 = 0
-    EXPR -1*w21*w31 + 1*w21 + -1*w33 = 0
+    EXPR w21 + -4294967296*w31 + -1*w32 + 4294967286 = 0
+    EXPR -1*w21*w31 + w21 + -1*w33 = 0
     MEM (id: 0, read at: EXPR [ (1, w33) 0 ], value: EXPR [ (1, w34) 0 ])
-    EXPR -1*w31*w34 + 2*w31 + 1*w34 + -1*w35 + -2 = 0
+    EXPR -1*w31*w34 + 2*w31 + w34 + -1*w35 + -2 = 0
     BLACKBOX::RANGE [w35]:32 bits []
     BRILLIG CALL func 0: inputs: [EXPR [ (1, w21) 4294967291 ], EXPR [ 4294967296 ]], outputs: [w36, w37]
     BLACKBOX::RANGE [w36]:1 bits []
     BLACKBOX::RANGE [w37]:32 bits []
-    EXPR 1*w21 + -4294967296*w36 + -1*w37 + 4294967291 = 0
-    EXPR 1*w31*w36 + -1*w36 = 0
-    EXPR -1*w21*w31 + 1*w21 + -1*w38 = 0
+    EXPR w21 + -4294967296*w36 + -1*w37 + 4294967291 = 0
+    EXPR w31*w36 + -1*w36 = 0
+    EXPR -1*w21*w31 + w21 + -1*w38 = 0
     MEM (id: 0, read at: EXPR [ (1, w38) 0 ], value: EXPR [ (1, w39) 0 ])
     MEM (id: 0, read at: EXPR [ (1, w27) 0 ], value: EXPR [ (1, w40) 0 ])
     MEM (id: 0, read at: EXPR [ (1, w29) 0 ], value: EXPR [ (1, w41) 0 ])
@@ -651,19 +651,19 @@ fn array_dynamic() {
     EXPR -1*w46 + 4 = 0
     MEM (id: 0, read at: EXPR [ (1, w46) 0 ], value: EXPR [ (1, w47) 0 ])
     INIT (id: 3, len: 5, witnesses: [w40, w41, w43, w45, w47])
-    EXPR -1*w31*w35 + 1*w31*w39 + 1*w35 + -1*w48 = 0
+    EXPR -1*w31*w35 + w31*w39 + w35 + -1*w48 = 0
     MEM (id: 3, write EXPR [ (1, w48) 0 ] at: EXPR [ (1, w38) 0 ])
     MEM (id: 3, read at: EXPR [ (1, w46) 0 ], value: EXPR [ (1, w49) 0 ])
     MEM (id: 0, read at: EXPR [ (1, w46) 0 ], value: EXPR [ (1, w50) 0 ])
     EXPR -1*w31*w36 = 0
-    EXPR 1*w21*w31 + -1*w51 = 0
+    EXPR w21*w31 + -1*w51 = 0
     MEM (id: 0, read at: EXPR [ (1, w51) 0 ], value: EXPR [ (1, w52) 0 ])
-    EXPR -1*w31*w52 + 1*w52 + -1*w53 = 0
+    EXPR -1*w31*w52 + w52 + -1*w53 = 0
     MEM (id: 0, write EXPR [ (1, w53) 0 ] at: EXPR [ (1, w51) 0 ])
     MEM (id: 0, read at: EXPR [ (1, w46) 0 ], value: EXPR [ (1, w54) 0 ])
     EXPR -1*w31 + -1*w55 + 1 = 0
-    EXPR -1*w31*w49 + 1*w31*w50 + 1*w49 + -1*w56 = 0
-    EXPR 1*w31*w54 + 1*w55*w56 + -109 = 0
+    EXPR -1*w31*w49 + w31*w50 + w49 + -1*w56 = 0
+    EXPR w31*w54 + w55*w56 + -109 = 0
     EXPR -1*w57 + 246 = 0
     EXPR -1*w58 + 159 = 0
     EXPR -1*w59 + 32 = 0
@@ -676,27 +676,27 @@ fn array_dynamic() {
     MEM (id: 4, read at: EXPR [ (1, w10) 0 ], value: EXPR [ (1, w65) 0 ])
     MEM (id: 4, read at: EXPR [ (1, w11) 0 ], value: EXPR [ (1, w66) 0 ])
     BRILLIG CALL func 1: inputs: [EXPR [ (1, w62) (1, w63) (1, w64) (1, w65) (1, w66) 0 ]], outputs: [w67]
-    EXPR 1*w62*w67 + 1*w63*w67 + 1*w64*w67 + 1*w65*w67 + 1*w66*w67 + -1 = 0
+    EXPR w62*w67 + w63*w67 + w64*w67 + w65*w67 + w66*w67 + -1 = 0
     BRILLIG CALL func 0: inputs: [EXPR [ (1, w18) 0 ], EXPR [ 4294967296 ]], outputs: [w68, w69]
     BLACKBOX::RANGE [w68]:222 bits []
     BLACKBOX::RANGE [w69]:32 bits []
-    EXPR 1*w18 + -4294967296*w68 + -1*w69 = 0
+    EXPR w18 + -4294967296*w68 + -1*w69 = 0
     EXPR -1*w68 + -1*w70 + 5096253676302562286669017222071363378443840053029366383258766538131 = 0
     BLACKBOX::RANGE [w70]:222 bits []
     BRILLIG CALL func 1: inputs: [EXPR [ (-1, w68) 5096253676302562286669017222071363378443840053029366383258766538131 ]], outputs: [w71]
-    EXPR -1*w68*w71 + 5096253676302562286669017222071363378443840053029366383258766538131*w71 + 1*w72 + -1 = 0
+    EXPR -1*w68*w71 + 5096253676302562286669017222071363378443840053029366383258766538131*w71 + w72 + -1 = 0
     EXPR -1*w68*w72 + 5096253676302562286669017222071363378443840053029366383258766538131*w72 = 0
-    EXPR 1*w69*w72 + 268435455*w72 + -1*w73 = 0
+    EXPR w69*w72 + 268435455*w72 + -1*w73 = 0
     BLACKBOX::RANGE [w73]:32 bits []
     BRILLIG CALL func 0: inputs: [EXPR [ (-1, w69) 4294967299 ], EXPR [ 4294967296 ]], outputs: [w74, w75]
     BLACKBOX::RANGE [w74]:1 bits []
     BLACKBOX::RANGE [w75]:32 bits []
     EXPR -1*w69 + -4294967296*w74 + -1*w75 + 4294967299 = 0
-    EXPR -1*w17*w74 + 1*w17 + -3*w74 + -1*w76 + 3 = 0
+    EXPR -1*w17*w74 + w17 + -3*w74 + -1*w76 + 3 = 0
     BLACKBOX::RANGE [w76]:32 bits []
-    EXPR -1*w74*w76 + 1*w76 + -1*w77 = 0
+    EXPR -1*w74*w76 + w76 + -1*w77 = 0
     MEM (id: 1, read at: EXPR [ (1, w77) 0 ], value: EXPR [ (1, w78) 0 ])
-    EXPR 1*w15*w74 + -1*w74*w78 + -1*w15 + 1*w78 = 0
+    EXPR w15*w74 + -1*w74*w78 + -1*w15 + w78 = 0
     ";
     assert_circuit_roundtrip(src);
 }
@@ -718,8 +718,8 @@ fn fold_basic() {
     public parameters: []
     return values: [w2]
     BRILLIG CALL func 0: inputs: [EXPR [ (1, w0) (-1, w1) 0 ]], outputs: [w3]
-    EXPR 1*w0*w3 + -1*w1*w3 + -1 = 0
-    EXPR -1*w0 + 1*w2 = 0
+    EXPR w0*w3 + -1*w1*w3 + -1 = 0
+    EXPR -1*w0 + w2 = 0
     ";
     assert_program_roundtrip(src);
 }

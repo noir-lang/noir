@@ -273,27 +273,35 @@ impl<'a> Parser<'a> {
         let mut constant: Option<FieldElement> = None;
 
         loop {
-            let Some(coefficient) = self.eat_field_element()? else {
-                return self.expected_field_element();
-            };
-
-            if self.eat(Token::Star)? {
-                let w1 = self.eat_witness_or_error()?;
-
+            if let Some(w1) = self.eat_witness()? {
+                let coefficient = FieldElement::one();
                 if self.eat(Token::Star)? {
                     let w2 = self.eat_witness_or_error()?;
                     mul_terms.push((coefficient, w1, w2));
                 } else {
                     linear_combinations.push((coefficient, w1));
                 }
-            } else {
-                if constant.is_some() {
-                    return Err(ParserError::DuplicatedConstantTerm {
-                        found: self.token.token().clone(),
-                        span: self.token.span(),
-                    });
+            } else if let Some(coefficient) = self.eat_field_element()? {
+                if self.eat(Token::Star)? {
+                    let w1 = self.eat_witness_or_error()?;
+
+                    if self.eat(Token::Star)? {
+                        let w2 = self.eat_witness_or_error()?;
+                        mul_terms.push((coefficient, w1, w2));
+                    } else {
+                        linear_combinations.push((coefficient, w1));
+                    }
+                } else {
+                    if constant.is_some() {
+                        return Err(ParserError::DuplicatedConstantTerm {
+                            found: self.token.token().clone(),
+                            span: self.token.span(),
+                        });
+                    }
+                    constant = Some(coefficient);
                 }
-                constant = Some(coefficient);
+            } else {
+                return self.expected_field_element();
             }
 
             if self.eat(Token::Plus)? {
