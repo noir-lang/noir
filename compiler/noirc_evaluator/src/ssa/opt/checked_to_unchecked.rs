@@ -96,7 +96,11 @@ impl Function {
             };
             if unchecked {
                 let operator = binary.operator.into_unchecked();
-                context.replace_current_instruction_with(Instruction::Binary(Binary { lhs: binary.lhs, rhs: binary.rhs, operator}));
+                context.replace_current_instruction_with(Instruction::Binary(Binary {
+                    lhs: binary.lhs,
+                    rhs: binary.rhs,
+                    operator,
+                }));
             }
         });
     }
