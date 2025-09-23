@@ -6,6 +6,9 @@ use iter_extended::vecmap;
 use noirc_frontend::monomorphization::ast::InlineType;
 use serde::{Deserialize, Serialize};
 
+use crate::ssa::ir::instruction::Instruction;
+use crate::ssa::ir::post_order::PostOrder;
+
 use super::basic_block::BasicBlockId;
 use super::dfg::{DataFlowGraph, GlobalsGraph};
 use super::instruction::TerminatorInstruction;
@@ -229,31 +232,8 @@ impl Function {
             .sum()
     }
 
-    /// Iterate over the numeric constants in the function.
-    pub fn constants(&self) -> impl Iterator<Item = (&FieldElement, &NumericType)> {
-        let local = self.dfg.values_iter();
-        let global = self.dfg.globals.values_iter();
-        local.chain(global).filter_map(|(_, value)| {
-            if let Value::NumericConstant { constant, typ } = value {
-                Some((constant, typ))
-            } else {
-                None
-            }
-        })
-    }
-
-    pub fn has_data_bus_return_data(&self) -> bool {
-        self.dfg.data_bus.return_data.is_some()
-    }
-
-    /// Return the types of the function parameters.
-    pub fn parameter_types(&self) -> Vec<Type> {
-        vecmap(self.parameters(), |p| self.dfg.type_of_value(*p))
-    }
-
-    /// Return the types of the returned values, if there are any.
-    pub fn return_types(&self) -> Option<Vec<Type>> {
-        self.returns().map(|rs| vecmap(rs, |p| self.dfg.type_of_value(*p)))
+    pub fn view(&self) -> FunctionView {
+        FunctionView(self)
     }
 }
 
@@ -272,10 +252,71 @@ impl std::fmt::Display for RuntimeType {
     }
 }
 
-/// Iterate over every Value in this DFG in no particular order, including unused Values,
-/// for testing purposes.
-pub fn function_values_iter(func: &Function) -> impl DoubleEndedIterator<Item = (ValueId, &Value)> {
-    func.dfg.values_iter()
+/// Provide public access to certain aspects of a `Function` without bloating its API.
+pub struct FunctionView<'a>(&'a Function);
+
+impl<'a> FunctionView<'a> {
+    /// Iterate over every Value in this DFG in no particular order, including unused Values,
+    /// for testing purposes.
+    pub fn values_iter(&self) -> impl DoubleEndedIterator<Item = (ValueId, &'a Value)> {
+        self.0.dfg.values_iter()
+    }
+
+    /// Iterate over the blocks in the CFG in reverse-post-order.
+    pub fn blocks_iter(&self) -> impl ExactSizeIterator<Item = BasicBlockId> {
+        let post_order = PostOrder::with_function(self.0);
+        post_order.into_vec_reverse().into_iter()
+    }
+
+    /// Iterate over the successors of a blocks.
+    pub fn block_successors_iter(
+        &self,
+        block_id: BasicBlockId,
+    ) -> impl ExactSizeIterator<Item = BasicBlockId> {
+        let block = &self.0.dfg[block_id];
+        block.successors()
+    }
+
+    /// Iterate over the functions called from a block.
+    pub fn block_callees_iter(&self, block_id: BasicBlockId) -> impl Iterator<Item = FunctionId> {
+        let block = &self.0.dfg[block_id];
+        block.instructions().iter().map(|id| &self.0.dfg[*id]).filter_map(|instruction| {
+            let Instruction::Call { func, .. } = instruction else {
+                return None;
+            };
+            let Value::Function(func) = self.0.dfg[*func] else {
+                return None;
+            };
+            Some(func)
+        })
+    }
+
+    /// Iterate over the numeric constants in the function.
+    pub fn constants(&self) -> impl Iterator<Item = (&FieldElement, &NumericType)> {
+        let local = self.0.dfg.values_iter();
+        let global = self.0.dfg.globals.values_iter();
+        local.chain(global).filter_map(|(_, value)| {
+            if let Value::NumericConstant { constant, typ } = value {
+                Some((constant, typ))
+            } else {
+                None
+            }
+        })
+    }
+
+    pub fn has_data_bus_return_data(&self) -> bool {
+        self.0.dfg.data_bus.return_data.is_some()
+    }
+
+    /// Return the types of the function parameters.
+    pub fn parameter_types(&self) -> Vec<Type> {
+        vecmap(self.0.parameters(), |p| self.0.dfg.type_of_value(*p))
+    }
+
+    /// Return the types of the returned values, if there are any.
+    pub fn return_types(&self) -> Option<Vec<Type>> {
+        self.0.returns().map(|rs| vecmap(rs, |p| self.0.dfg.type_of_value(*p)))
+    }
 }
 
 /// FunctionId is a reference for a function
