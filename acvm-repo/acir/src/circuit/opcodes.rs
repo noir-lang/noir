@@ -146,16 +146,47 @@ pub enum Opcode<F: AcirField> {
 impl<F: AcirField> std::fmt::Display for Opcode<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Opcode::AssertZero(expr) => expr.fmt(f),
+            Opcode::AssertZero(expr) => {
+                write!(f, "EXPR ")?;
+
+                let mut printed_term = false;
+
+                for (coefficient, witness1, witness2) in &expr.mul_terms {
+                    if printed_term {
+                        write!(f, " + ")?;
+                    }
+
+                    write!(f, "{coefficient}*{witness1}*{witness2}")?;
+                    printed_term = true;
+                }
+
+                for (coefficient, witness) in &expr.linear_combinations {
+                    if printed_term {
+                        write!(f, " + ")?;
+                    }
+
+                    write!(f, "{coefficient}*{witness}")?;
+                    printed_term = true;
+                }
+
+                if printed_term {
+                    write!(f, " + ")?;
+                }
+
+                write!(f, "{}", expr.q_c)?;
+                write!(f, " = 0")?;
+
+                Ok(())
+            }
             Opcode::BlackBoxFuncCall(g) => g.fmt(f),
             Opcode::MemoryOp { block_id, op } => {
                 write!(f, "MEM ")?;
 
                 let is_read = op.operation.is_zero();
                 if is_read {
-                    write!(f, "(id: {}, read at: {}, value: {}) ", block_id.0, op.index, op.value)
+                    write!(f, "(id: {}, read at: {}, value: {})", block_id.0, op.index, op.value)
                 } else {
-                    write!(f, "(id: {}, write {} at: {}) ", block_id.0, op.value, op.index)
+                    write!(f, "(id: {}, write {} at: {})", block_id.0, op.value, op.index)
                 }
             }
             Opcode::MemoryInit { block_id, init, block_type: databus } => {

@@ -102,7 +102,7 @@ mod tests {
         private parameters: [w0, w1]
         public parameters: []
         return values: []
-        EXPR [ (1, w0, w1) 0 ]
+        EXPR 1*w0*w1 + 0 = 0
         ");
     }
 
@@ -124,7 +124,7 @@ mod tests {
         private parameters: [w0, w1]
         public parameters: []
         return values: []
-        EXPR [ (1, w1) 0 ]
+        EXPR 1*w1 + 0 = 0
         ");
     }
 
@@ -147,7 +147,7 @@ mod tests {
         private parameters: [w0, w1]
         public parameters: []
         return values: []
-        EXPR [ (9, w0, w1) 0 ]
+        EXPR 9*w0*w1 + 0 = 0
         ");
     }
 
@@ -167,7 +167,7 @@ mod tests {
         private parameters: [w0, w1]
         public parameters: []
         return values: []
-        EXPR [ 0 ]
+        EXPR 0 = 0
         ");
     }
 
@@ -190,7 +190,7 @@ mod tests {
         private parameters: [w0, w1]
         public parameters: []
         return values: []
-        EXPR [ (6, w0) 0 ]
+        EXPR 6*w0 + 0 = 0
         ");
     }
 
@@ -210,7 +210,7 @@ mod tests {
         private parameters: [w0, w1]
         public parameters: []
         return values: []
-        EXPR [ 0 ]
+        EXPR 0 = 0
         ");
     }
 }

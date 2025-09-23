@@ -49,12 +49,12 @@ fn constant_array_access_out_of_bounds() {
     private parameters: []
     public parameters: []
     return values: []
-    EXPR [ (-1, w0) 0 ]
-    EXPR [ (-1, w1) 1 ]
+    EXPR -1*w0 + 0 = 0
+    EXPR -1*w1 + 1 = 0
     INIT (id: 0, len: 2, witnesses: [w0, w1])
-    EXPR [ (-1, w2) 5 ]
-    MEM (id: 0, read at: EXPR [ (1, w2) 0 ], value: EXPR [ (1, w3) 0 ]) 
-    EXPR [ (1, w3) 0 ]
+    EXPR -1*w2 + 5 = 0
+    MEM (id: 0, read at: EXPR [ (1, w2) 0 ], value: EXPR [ (1, w3) 0 ])
+    EXPR 1*w3 + 0 = 0
     ");
 }
 
@@ -96,8 +96,8 @@ fn generates_memory_op_for_dynamic_read() {
     public parameters: []
     return values: []
     INIT (id: 0, len: 3, witnesses: [w0, w1, w2])
-    MEM (id: 0, read at: EXPR [ (1, w3) 0 ], value: EXPR [ (1, w4) 0 ]) 
-    EXPR [ (1, w4) -10 ]
+    MEM (id: 0, read at: EXPR [ (1, w3) 0 ], value: EXPR [ (1, w4) 0 ])
+    EXPR 1*w4 + -10 = 0
     ");
 }
 
@@ -120,17 +120,17 @@ fn generates_memory_op_for_dynamic_write() {
     public parameters: []
     return values: [w4, w5, w6]
     INIT (id: 1, len: 3, witnesses: [w0, w1, w2])
-    EXPR [ (-1, w7) 10 ]
-    MEM (id: 1, write EXPR [ (1, w7) 0 ] at: EXPR [ (1, w3) 0 ]) 
-    EXPR [ (-1, w8) 0 ]
-    MEM (id: 1, read at: EXPR [ (1, w8) 0 ], value: EXPR [ (1, w9) 0 ]) 
-    EXPR [ (-1, w10) 1 ]
-    MEM (id: 1, read at: EXPR [ (1, w10) 0 ], value: EXPR [ (1, w11) 0 ]) 
-    EXPR [ (-1, w12) 2 ]
-    MEM (id: 1, read at: EXPR [ (1, w12) 0 ], value: EXPR [ (1, w13) 0 ]) 
-    EXPR [ (1, w4) (-1, w9) 0 ]
-    EXPR [ (1, w5) (-1, w11) 0 ]
-    EXPR [ (1, w6) (-1, w13) 0 ]
+    EXPR -1*w7 + 10 = 0
+    MEM (id: 1, write EXPR [ (1, w7) 0 ] at: EXPR [ (1, w3) 0 ])
+    EXPR -1*w8 + 0 = 0
+    MEM (id: 1, read at: EXPR [ (1, w8) 0 ], value: EXPR [ (1, w9) 0 ])
+    EXPR -1*w10 + 1 = 0
+    MEM (id: 1, read at: EXPR [ (1, w10) 0 ], value: EXPR [ (1, w11) 0 ])
+    EXPR -1*w12 + 2 = 0
+    MEM (id: 1, read at: EXPR [ (1, w12) 0 ], value: EXPR [ (1, w13) 0 ])
+    EXPR 1*w4 + -1*w9 + 0 = 0
+    EXPR 1*w5 + -1*w11 + 0 = 0
+    EXPR 1*w6 + -1*w13 + 0 = 0
     ");
 }
 
@@ -161,9 +161,9 @@ fn generates_predicated_index_for_dynamic_read() {
     INIT (id: 0, len: 3, witnesses: [w0, w1, w2])
     BLACKBOX::RANGE [w3]:32 bits []
     BLACKBOX::RANGE [w4]:1 bits []
-    EXPR [ (1, w3, w4) (-1, w5) 0 ]
-    MEM (id: 0, read at: EXPR [ (1, w5) 0 ], value: EXPR [ (1, w6) 0 ]) 
-    EXPR [ (1, w6) -10 ]
+    EXPR 1*w3*w4 + -1*w5 + 0 = 0
+    MEM (id: 0, read at: EXPR [ (1, w5) 0 ], value: EXPR [ (1, w6) 0 ])
+    EXPR 1*w6 + -10 = 0
     ");
 }
 
@@ -199,20 +199,20 @@ fn generates_predicated_index_and_dummy_value_for_dynamic_write() {
     INIT (id: 0, len: 3, witnesses: [w0, w1, w2])
     BLACKBOX::RANGE [w3]:32 bits []
     BLACKBOX::RANGE [w4]:1 bits []
-    EXPR [ (1, w3, w4) (-1, w8) 0 ]
-    MEM (id: 0, read at: EXPR [ (1, w8) 0 ], value: EXPR [ (1, w9) 0 ]) 
+    EXPR 1*w3*w4 + -1*w8 + 0 = 0
+    MEM (id: 0, read at: EXPR [ (1, w8) 0 ], value: EXPR [ (1, w9) 0 ])
     INIT (id: 1, len: 3, witnesses: [w0, w1, w2])
-    EXPR [ (-1, w4, w9) (10, w4) (1, w9) (-1, w10) 0 ]
-    MEM (id: 1, write EXPR [ (1, w10) 0 ] at: EXPR [ (1, w8) 0 ]) 
-    EXPR [ (-1, w11) 0 ]
-    MEM (id: 1, read at: EXPR [ (1, w11) 0 ], value: EXPR [ (1, w12) 0 ]) 
-    EXPR [ (-1, w13) 1 ]
-    MEM (id: 1, read at: EXPR [ (1, w13) 0 ], value: EXPR [ (1, w14) 0 ]) 
-    EXPR [ (-1, w15) 2 ]
-    MEM (id: 1, read at: EXPR [ (1, w15) 0 ], value: EXPR [ (1, w16) 0 ]) 
-    EXPR [ (1, w5) (-1, w12) 0 ]
-    EXPR [ (1, w6) (-1, w14) 0 ]
-    EXPR [ (1, w7) (-1, w16) 0 ]
+    EXPR -1*w4*w9 + 10*w4 + 1*w9 + -1*w10 + 0 = 0
+    MEM (id: 1, write EXPR [ (1, w10) 0 ] at: EXPR [ (1, w8) 0 ])
+    EXPR -1*w11 + 0 = 0
+    MEM (id: 1, read at: EXPR [ (1, w11) 0 ], value: EXPR [ (1, w12) 0 ])
+    EXPR -1*w13 + 1 = 0
+    MEM (id: 1, read at: EXPR [ (1, w13) 0 ], value: EXPR [ (1, w14) 0 ])
+    EXPR -1*w15 + 2 = 0
+    MEM (id: 1, read at: EXPR [ (1, w15) 0 ], value: EXPR [ (1, w16) 0 ])
+    EXPR 1*w5 + -1*w12 + 0 = 0
+    EXPR 1*w6 + -1*w14 + 0 = 0
+    EXPR 1*w7 + -1*w16 + 0 = 0
     ");
 }
 
@@ -237,7 +237,7 @@ fn zero_length_array_constant() {
     private parameters: []
     public parameters: []
     return values: []
-    EXPR [ 1 ]
+    EXPR 1 = 0
     ");
 }
 
@@ -264,6 +264,6 @@ fn zero_length_array_dynamic_predicate() {
     private parameters: [w0]
     public parameters: []
     return values: []
-    EXPR [ (1, w0) 0 ]
+    EXPR 1*w0 + 0 = 0
     ");
 }

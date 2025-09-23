@@ -235,7 +235,7 @@ impl<'a> Parser<'a> {
         while let Some(keyword) = self.peek_keyword() {
             match keyword {
                 Keyword::Expression => {
-                    let expr = self.parse_arithmetic_expression()?;
+                    let expr = self.parse_assert_zero_expression()?;
                     opcodes.push(Opcode::AssertZero(expr));
                 }
                 Keyword::BlackBoxFuncCall => {
@@ -260,8 +260,76 @@ impl<'a> Parser<'a> {
         Ok(opcodes)
     }
 
+    fn parse_assert_zero_expression(&mut self) -> ParseResult<Expression<FieldElement>> {
+        self.eat_keyword_or_error(Keyword::Expression)?;
+
+        // Support the old `EXPR [ ... ]` syntax for old tests, for now
+        if matches!(self.token.token(), Token::LeftBracket) {
+            return self.parse_arithmetic_expression_after_expr();
+        }
+
+        let mut linear_combinations = Vec::new();
+        let mut mul_terms = Vec::new();
+        let mut constant: Option<FieldElement> = None;
+
+        loop {
+            let Some(coefficient) = self.eat_field_element()? else {
+                return self.expected_field_element();
+            };
+
+            if self.eat(Token::Star)? {
+                let w1 = self.eat_witness_or_error()?;
+
+                if self.eat(Token::Star)? {
+                    let w2 = self.eat_witness_or_error()?;
+                    mul_terms.push((coefficient, w1, w2));
+                } else {
+                    linear_combinations.push((coefficient, w1));
+                }
+            } else {
+                if constant.is_some() {
+                    return Err(ParserError::DuplicatedConstantTerm {
+                        found: self.token.token().clone(),
+                        span: self.token.span(),
+                    });
+                }
+                constant = Some(coefficient);
+            }
+
+            if self.eat(Token::Plus)? {
+                continue;
+            }
+
+            if self.eat(Token::Equal)? {
+                break;
+            }
+
+            return self.expected_token(Token::Equal);
+        }
+
+        let zero_token = self.token.token().clone();
+        let span = self.token.span();
+        let Some(zero) = self.eat_field_element()? else {
+            return self.expected_field_element();
+        };
+
+        if !zero.is_zero() {
+            return Err(ParserError::ExpectedZero { found: zero_token, span });
+        }
+
+        let Some(q_c) = constant else {
+            return Err(ParserError::MissingConstantTerm { span: self.token.span() });
+        };
+
+        Ok(Expression { mul_terms, linear_combinations, q_c })
+    }
+
     fn parse_arithmetic_expression(&mut self) -> ParseResult<Expression<FieldElement>> {
         self.eat_keyword_or_error(Keyword::Expression)?;
+        self.parse_arithmetic_expression_after_expr()
+    }
+
+    fn parse_arithmetic_expression_after_expr(&mut self) -> ParseResult<Expression<FieldElement>> {
         self.eat_or_error(Token::LeftBracket)?;
 
         let mut linear_combinations = Vec::new();
@@ -1014,6 +1082,8 @@ pub(crate) enum ParserError {
     ExpectedFieldElement { found: Token, span: Span },
     #[error("Expected a witness index, found '{found}'")]
     ExpectedWitness { found: Token, span: Span },
+    #[error("Expected a zero, found '{found}'")]
+    ExpectedZero { found: Token, span: Span },
     #[error("Duplicate constant term in native Expression")]
     DuplicatedConstantTerm { found: Token, span: Span },
     #[error("Missing constant term in native Expression")]
@@ -1042,6 +1112,7 @@ impl ParserError {
             | ExpectedIdentifier { span, .. }
             | ExpectedFieldElement { span, .. }
             | ExpectedWitness { span, .. }
+            | ExpectedZero { span, .. }
             | DuplicatedConstantTerm { span, .. }
             | MissingConstantTerm { span }
             | ExpectedBlackBoxFuncName { span, .. }
