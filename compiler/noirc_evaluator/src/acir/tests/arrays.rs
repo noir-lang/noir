@@ -149,7 +149,7 @@ fn generates_predicated_index_for_dynamic_read() {
 
     // w0, w1, w2 represents the array
     // So w3 represents our index and w4 is our predicate
-    // We can see that before the read we have `EXPR [ (1, w3, w4) (-1, w5) 0 ]`
+    // We can see that before the read we have `w3*w4 - w5 = 0`
     // As the index is zero this is a simplified version of `index*predicate + (1-predicate)*offset`
     // w5 is then used as the index which we use to read from the memory block
     assert_circuit_snapshot!(program, @r"
@@ -180,15 +180,15 @@ fn generates_predicated_index_and_dummy_value_for_dynamic_write() {
     let program = ssa_to_acir_program(src);
 
     // Similar to the `generates_predicated_index_for_dynamic_read` test we can
-    // see how `EXPR [ (1, w3, w4) (-1, w8) 0 ]` forms our predicated index.
+    // see how `w3*w4 - w8 = 0` forms our predicated index.
     // However, now we also have extra logic for generating a dummy value.
     // The original value we want to write is `Field 10` and our predicate is `w4`.
     // We read the value at the predicated index into `w9`. This is our dummy value.
     // We can then see how we form our new store value with:
-    // `EXPR [ (-1, w4, w9) (10, w4) (1, w9) (-1, w10) 0 ]` -> (predicate*value + (1-predicate)*dummy)
-    // `(10, w4)` -> predicate*value
-    // `(-1, w4, w9)` -> (-predicate * dummy)
-    // `(1, w9)` -> dummy
+    // `EXPR -w4*w9 + 10*w4 + w9 - w10 = 0` -> (predicate*value + (1-predicate)*dummy)
+    // `10*w4` -> predicate*value
+    // `-w4*w9` -> (-predicate * dummy)
+    // `w9` -> dummy
     // As expected, we then store `w10` at the predicated index `w8`.
     assert_circuit_snapshot!(program, @r"
     func 0
