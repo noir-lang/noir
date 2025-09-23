@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1758627975104,
+  "lastUpdate": 1758628133983,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20971,48 +20971,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "158470fdd93b21dedcebbb9ab4ceec11f0adb087",
-          "message": "chore(ownership): Add tests for cloning nested arrays returned from indexing (#9789)",
-          "timestamp": "2025-09-15T14:28:04Z",
-          "tree_id": "51f2438d203363af915d792bfd4568c81f7397f4",
-          "url": "https://github.com/noir-lang/noir/commit/158470fdd93b21dedcebbb9ab4ceec11f0adb087"
-        },
-        "date": 1757948214181,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 256156,
-            "range": "± 419",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 227642,
-            "range": "± 2268",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2793036,
-            "range": "± 2649",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "46fb776ab8d7788ef2009d65064f91cc69f72dfa",
           "message": "chore(die): IncrementRc/DecrementRc comments (#9855)",
           "timestamp": "2025-09-15T14:47:17Z",
@@ -23054,6 +23012,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2781651,
             "range": "± 3526",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "83c48682a715dba54b09e1fa297ccc052c30dc71",
+          "message": "chore: add regression test for #9852 (#9960)",
+          "timestamp": "2025-09-23T11:24:57Z",
+          "tree_id": "0ddb275958a01143a818c5b91601b8ba10ad1085",
+          "url": "https://github.com/noir-lang/noir/commit/83c48682a715dba54b09e1fa297ccc052c30dc71"
+        },
+        "date": 1758628112840,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 253214,
+            "range": "± 412",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 223725,
+            "range": "± 3971",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2783202,
+            "range": "± 4007",
             "unit": "ns/iter"
           }
         ]
