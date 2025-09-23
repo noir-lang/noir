@@ -137,8 +137,8 @@ struct Context<'m, 'dfg, 'mapping> {
 }
 
 impl Context<'_, '_, '_> {
-    /// Insert ssa instructions which computes lhs << rhs by doing lhs*2^rhs
-    /// and truncate the result to bit_size
+    /// Insert SSA instructions which computes lhs << rhs by doing lhs*2^rhs
+    /// and truncate the result to `bit_size`.
     fn insert_wrapping_shift_left(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
         let typ = self.context.dfg.type_of_value(lhs).unwrap_numeric();
         let max_lhs_bits = self.context.dfg.get_value_max_num_bits(lhs);
@@ -178,7 +178,7 @@ impl Context<'_, '_, '_> {
             let result = self.insert_truncate(result, typ.bit_size(), max_bit);
             self.insert_cast(result, typ)
         } else {
-            // Otherwise, the result might not bit in a FieldElement.
+            // Otherwise, the result might not fit in a FieldElement.
             // For this, if we have to do `lhs << rhs` we can first shift by half of `rhs`, truncate,
             // then shift by `rhs - half_of_rhs` and truncate again.
             assert!(typ.bit_size() <= 128);
@@ -188,12 +188,12 @@ impl Context<'_, '_, '_> {
             // rhs_divided_by_two = rhs / 2
             let rhs_divided_by_two = self.insert_binary(rhs, BinaryOp::Div, two);
 
-            // rhs_remainder = rhs - rhs_remainder
+            // rhs_remainder = rhs - rhs_divided_by_two
             let rhs_remainder =
                 self.insert_binary(rhs, BinaryOp::Sub { unchecked: true }, rhs_divided_by_two);
 
             // pow1 = 2^rhs_divided_by_two
-            // pow2 = r^rhs_remainder
+            // pow2 = 2^rhs_remainder
             let pow1 = self.two_pow(rhs_divided_by_two);
             let pow2 = self.two_pow(rhs_remainder);
 
@@ -208,7 +208,7 @@ impl Context<'_, '_, '_> {
         }
     }
 
-    /// Insert ssa instructions which computes lhs >> rhs by doing lhs/2^rhs
+    /// Insert SSA instructions which computes lhs >> rhs by doing lhs/2^rhs
     /// For negative signed integers, we do the division on the 1-complement representation of lhs,
     /// before converting back the result to the 2-complement representation.
     fn insert_shift_right(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
@@ -257,6 +257,7 @@ impl Context<'_, '_, '_> {
 
     /// Computes 2^exponent via square&multiply, using the bits decomposition of exponent
     /// Pseudo-code of the computation:
+    /// ```text
     /// let mut r = 1;
     /// let exponent_bits = to_bits(exponent);
     /// for i in 1 .. bit_size + 1 {
@@ -264,6 +265,7 @@ impl Context<'_, '_, '_> {
     ///     let b = exponent_bits[bit_size - i];
     ///     r = if b { 2 * r_squared } else { r_squared };
     /// }
+    /// ```
     fn two_pow(&mut self, exponent: ValueId) -> ValueId {
         // Require that exponent < bit_size, ensuring that `pow` returns a value consistent with `lhs`'s type.
         let max_bit_size = self.context.dfg.type_of_value(exponent).bit_size();
