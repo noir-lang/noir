@@ -4,7 +4,7 @@
 //! Arrays in SSA can appear as constants or dynamically allocated blocks.
 //! Our responsibility here is to preserve correctness while ensuring memory access is efficient.
 //!
-//! ## Design
+//! # Design
 //!
 //! ACIR does not have a first-class array type. Instead, all arrays are
 //! represented as contiguous regions in linear memory, identified by a
@@ -152,12 +152,12 @@ impl Context<'_> {
     /// only be computed dynamically, such as the type structure
     /// of non-homogenous arrays.
     fn internal_block_id(&mut self, value: &ValueId) -> BlockId {
-        if let Some(block_id) = self.internal_memory_blocks.get(value) {
+        if let Some(block_id) = self.element_type_sizes_blocks.get(value) {
             return *block_id;
         }
         let block_id = BlockId(self.max_block_id);
         self.max_block_id += 1;
-        self.internal_memory_blocks.insert(*value, block_id);
+        self.element_type_sizes_blocks.insert(*value, block_id);
         block_id
     }
 
@@ -815,7 +815,6 @@ impl Context<'_> {
                     Some(AcirValue::Array(init_values.into())),
                 )?;
 
-                self.internal_mem_block_lengths.insert(element_type_sizes, element_type_sizes_len);
                 Ok(element_type_sizes)
             }
 
@@ -838,7 +837,7 @@ impl Context<'_> {
 
                 // We can safely overwrite the memory block from the initial call to `self.internal_block_id(&array_id)` here.
                 // The type sizes array is never mutated so we can re-use it.
-                self.internal_memory_blocks.insert(array_id, *inner_elem_type_sizes);
+                self.element_type_sizes_blocks.insert(array_id, *inner_elem_type_sizes);
                 Ok(*inner_elem_type_sizes)
             }
             _ => Err(InternalError::Unexpected {
