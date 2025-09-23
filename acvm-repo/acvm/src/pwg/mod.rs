@@ -973,7 +973,7 @@ mod tests {
         native_types::{Witness, WitnessMap},
     };
 
-    use crate::pwg::{ACVMStatus, ACVM};
+    use crate::pwg::{ACVM, ACVMStatus};
 
     #[test]
     fn solve_simple_circuit() {
@@ -1016,6 +1016,5 @@ mod tests {
         let mut acvm = ACVM::new(&backend, &opcodes, initial_witness, &empty1, &empty2);
         assert_eq!(acvm.solve(), ACVMStatus::Solved);
         assert_eq!(acvm.witness_map()[&Witness(5)], FieldElement::from(0u128));
-        
     }
 }
