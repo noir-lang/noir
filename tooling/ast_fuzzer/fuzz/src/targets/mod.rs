@@ -86,7 +86,7 @@ mod tests {
     ///
     /// The `cases` determine how many tests to run on CI.
     /// Tune this so that we can expect CI to be able to get through all cases in reasonable time.
-    pub fn fuzz_with_arbtest(f: impl Fn(&mut Unstructured) -> eyre::Result<()>, cases: u32) {
+    pub(crate) fn fuzz_with_arbtest(f: impl Fn(&mut Unstructured) -> eyre::Result<()>, cases: u32) {
         let _ = env_logger::try_init();
 
         if let Some(seed) = seed_from_env() {
