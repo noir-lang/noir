@@ -26,7 +26,7 @@ use crate::ssa::{
         dfg::DataFlowGraph,
         dom::DominatorTree,
         function::{Function, FunctionId},
-        instruction::{ArrayOffset, Instruction, InstructionId},
+        instruction::{Instruction, InstructionId},
         types::NumericType,
         value::{Value, ValueId, ValueMapping},
     },
@@ -394,9 +394,7 @@ impl Context {
         if let Instruction::ArraySet { index, value, .. } = instruction {
             let predicate = self.use_constraint_info.then_some(side_effects_enabled_var);
 
-            let offset = ArrayOffset::None;
-            let array_get =
-                Instruction::ArrayGet { array: instruction_results[0], index: *index, offset };
+            let array_get = Instruction::ArrayGet { array: instruction_results[0], index: *index };
 
             // If we encounter an array_get for this address, we know what the result will be.
             self.cached_instruction_results.cache(array_get, predicate, block, vec![*value]);
@@ -1124,9 +1122,6 @@ mod test {
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();
-        // Need to run SSA pass that sets up Brillig array gets
-        let ssa = ssa.brillig_array_get_and_set();
-
         let ssa = ssa.fold_constants_with_brillig();
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
