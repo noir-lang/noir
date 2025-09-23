@@ -161,7 +161,7 @@ fn basic_nested_call(inline_type: InlineType) {
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
-    EXPR w0 - w3 + 2 = 0
+    EXPR w0 - w3 = -2
     CALL func 2: PREDICATE: EXPR [ 1 ]
     inputs: [w3, w1], outputs: [w4]
     EXPR w2 = w4

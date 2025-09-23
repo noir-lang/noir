@@ -336,12 +336,19 @@ impl<'a> Parser<'a> {
             if self.eat(Token::Equal)? {
                 let zero_token = self.token.token().clone();
                 let span = self.token.span();
-                let Some(zero) = self.eat_field_element()? else {
+                let Some(q_c) = self.eat_field_element()? else {
                     return self.expected_field_element();
                 };
 
-                if !zero.is_zero() {
-                    return Err(ParserError::ExpectedZero { found: zero_token, span });
+                if !q_c.is_zero() {
+                    if constant.is_some() {
+                        return Err(ParserError::DuplicatedConstantTerm {
+                            found: zero_token,
+                            span,
+                        });
+                    }
+                    // If we have `... = q_c` we produce `... - q_c = 0`
+                    constant = Some(-q_c);
                 }
 
                 break;
@@ -1109,8 +1116,6 @@ pub(crate) enum ParserError {
     ExpectedFieldElement { found: Token, span: Span },
     #[error("Expected a witness index, found '{found}'")]
     ExpectedWitness { found: Token, span: Span },
-    #[error("Expected a zero, found '{found}'")]
-    ExpectedZero { found: Token, span: Span },
     #[error("Duplicate constant term in native Expression")]
     DuplicatedConstantTerm { found: Token, span: Span },
     #[error("Expected valid black box function name, found '{found}'")]
@@ -1137,7 +1142,6 @@ impl ParserError {
             | ExpectedIdentifier { span, .. }
             | ExpectedFieldElement { span, .. }
             | ExpectedWitness { span, .. }
-            | ExpectedZero { span, .. }
             | DuplicatedConstantTerm { span, .. }
             | ExpectedBlackBoxFuncName { span, .. }
             | IntegerLargerThanU32 { span, .. }

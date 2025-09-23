@@ -246,9 +246,13 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
                     printed_term = true;
                 }
 
-                if !expr.q_c.is_zero()
-                    || (expr.mul_terms.is_empty() && expr.linear_combinations.is_empty())
-                {
+                if printed_term {
+                    // Change `... + c = 0` to `... = -c`
+                    let q_c = -expr.q_c;
+                    write!(f, " = {q_c}")?;
+                } else if expr.q_c.is_zero() {
+                    write!(f, "0 = 0")?;
+                } else {
                     let coefficient = expr.q_c;
                     let coefficient_as_string = coefficient.to_string();
                     let coefficient_is_negative = coefficient_as_string.starts_with('-');
@@ -267,9 +271,8 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
                         coefficient
                     };
                     write!(f, "{coefficient}")?;
+                    write!(f, " = 0")?;
                 }
-
-                write!(f, " = 0")?;
 
                 Ok(())
             }
