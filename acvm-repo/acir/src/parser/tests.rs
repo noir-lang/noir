@@ -149,7 +149,7 @@ fn xor() {
     BLACKBOX::RANGE [w0]:32 bits []
     BLACKBOX::RANGE [w1]:32 bits []
     BLACKBOX::XOR [w0, w1]:32 bits [w2]
-    EXPR w2 - 15 = 0
+    EXPR w2 = 15
     ";
     assert_circuit_roundtrip(src);
 }
@@ -613,9 +613,9 @@ fn array_dynamic() {
     EXPR w20 - w21 - 5 = 0
     EXPR w21 - w22 - 3 = 0
     MEM (id: 0, read at: EXPR [ (1, w21) 0 ], value: EXPR [ (1, w23) 0 ])
-    EXPR w23 - 111 = 0
+    EXPR w23 = 111
     MEM (id: 0, read at: EXPR [ (1, w22) 0 ], value: EXPR [ (1, w24) 0 ])
-    EXPR w24 - 101 = 0
+    EXPR w24 = 101
     BRILLIG CALL func 0: inputs: [EXPR [ (1, w22) 4294967291 ], EXPR [ 4294967296 ]], outputs: [w25, w26]
     BLACKBOX::RANGE [w26]:32 bits []
     EXPR w22 - 4294967296*w25 - w26 + 4294967291 = 0
@@ -623,7 +623,7 @@ fn array_dynamic() {
     EXPR -1*w27 = 0
     MEM (id: 0, write EXPR [ (1, w27) 0 ] at: EXPR [ (1, w22) 0 ])
     MEM (id: 0, read at: EXPR [ (1, w21) 0 ], value: EXPR [ (1, w28) 0 ])
-    EXPR w28 - 111 = 0
+    EXPR w28 = 111
     EXPR -1*w29 + 1 = 0
     MEM (id: 0, read at: EXPR [ (1, w29) 0 ], value: EXPR [ (1, w30) 0 ])
     EXPR w30 = 0

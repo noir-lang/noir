@@ -149,6 +149,21 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
             Opcode::AssertZero(expr) => {
                 write!(f, "EXPR ")?;
 
+                // Check if it's `wN - C = 0` and print it as `wN = C`,
+                // or if its' `wN + C = 0` and print it as `wN = -C`.
+                if expr.mul_terms.is_empty() && expr.linear_combinations.len() == 1 {
+                    let (coefficient, witness) = expr.linear_combinations[0];
+                    let constant = expr.q_c;
+
+                    if coefficient.is_one() {
+                        // This is `wN + C = 0`, so show it as `wN = -C`.
+
+                        let constant = -constant;
+                        write!(f, "{witness} = {constant}")?;
+                        return Ok(());
+                    }
+                }
+
                 let mut printed_term = false;
 
                 for (coefficient, witness1, witness2) in &expr.mul_terms {

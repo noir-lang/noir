@@ -272,11 +272,21 @@ impl<'a> Parser<'a> {
         let mut mul_terms = Vec::new();
         let mut constant: Option<FieldElement> = None;
         let mut negative = false;
+        let mut first = true;
 
         loop {
             if let Some(w1) = self.eat_witness()? {
                 let coefficient = FieldElement::one();
                 let coefficient = if negative { -coefficient } else { coefficient };
+
+                if first && self.eat(Token::Equal)? {
+                    let q_c = self.eat_field_or_error()?;
+
+                    // Here we parsed `coefficient*witness = constant` so we produce `coefficient*witness - q_c = 0`
+                    linear_combinations.push((coefficient, w1));
+                    constant = Some(-q_c);
+                    break;
+                }
 
                 if self.eat(Token::Star)? {
                     let w2 = self.eat_witness_or_error()?;
@@ -309,6 +319,8 @@ impl<'a> Parser<'a> {
                 return self.expected_field_element();
             }
 
+            first = false;
+
             if self.eat(Token::Plus)? {
                 negative = false;
                 continue;
@@ -320,20 +332,20 @@ impl<'a> Parser<'a> {
             }
 
             if self.eat(Token::Equal)? {
+                let zero_token = self.token.token().clone();
+                let span = self.token.span();
+                let Some(zero) = self.eat_field_element()? else {
+                    return self.expected_field_element();
+                };
+
+                if !zero.is_zero() {
+                    return Err(ParserError::ExpectedZero { found: zero_token, span });
+                }
+
                 break;
             }
 
             return self.expected_token(Token::Equal);
-        }
-
-        let zero_token = self.token.token().clone();
-        let span = self.token.span();
-        let Some(zero) = self.eat_field_element()? else {
-            return self.expected_field_element();
-        };
-
-        if !zero.is_zero() {
-            return Err(ParserError::ExpectedZero { found: zero_token, span });
         }
 
         // If a constant isn't provided, we default it to zero

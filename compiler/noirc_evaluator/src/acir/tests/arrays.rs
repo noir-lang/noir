@@ -97,7 +97,7 @@ fn generates_memory_op_for_dynamic_read() {
     return values: []
     INIT (id: 0, len: 3, witnesses: [w0, w1, w2])
     MEM (id: 0, read at: EXPR [ (1, w3) 0 ], value: EXPR [ (1, w4) 0 ])
-    EXPR w4 - 10 = 0
+    EXPR w4 = 10
     ");
 }
 
@@ -163,7 +163,7 @@ fn generates_predicated_index_for_dynamic_read() {
     BLACKBOX::RANGE [w4]:1 bits []
     EXPR w3*w4 - w5 = 0
     MEM (id: 0, read at: EXPR [ (1, w5) 0 ], value: EXPR [ (1, w6) 0 ])
-    EXPR w6 - 10 = 0
+    EXPR w6 = 10
     ");
 }
 
