@@ -157,8 +157,13 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
 
                     if coefficient.is_one() {
                         // This is `wN + C = 0`, so show it as `wN = -C`.
-
                         let constant = -constant;
+                        write!(f, "{witness} = {constant}")?;
+                        return Ok(());
+                    }
+
+                    if (-coefficient).is_one() {
+                        // This is `-wN + C = 0`, so show it as `wN = C`.
                         write!(f, "{witness} = {constant}")?;
                         return Ok(());
                     }

@@ -619,12 +619,12 @@ fn array_dynamic() {
     BRILLIG CALL func 0: inputs: [EXPR [ (1, w22) 4294967291 ], EXPR [ 4294967296 ]], outputs: [w25, w26]
     BLACKBOX::RANGE [w26]:32 bits []
     EXPR w22 - 4294967296*w25 - w26 + 4294967291 = 0
-    EXPR -1*w25 = 0
-    EXPR -1*w27 = 0
+    EXPR w25 = 0
+    EXPR w27 = 0
     MEM (id: 0, write EXPR [ (1, w27) 0 ] at: EXPR [ (1, w22) 0 ])
     MEM (id: 0, read at: EXPR [ (1, w21) 0 ], value: EXPR [ (1, w28) 0 ])
     EXPR w28 = 111
-    EXPR -1*w29 + 1 = 0
+    EXPR w29 = 1
     MEM (id: 0, read at: EXPR [ (1, w29) 0 ], value: EXPR [ (1, w30) 0 ])
     EXPR w30 = 0
     BRILLIG CALL func 0: inputs: [EXPR [ (1, w21) 4294967286 ], EXPR [ 4294967296 ]], outputs: [w31, w32]
@@ -644,11 +644,11 @@ fn array_dynamic() {
     MEM (id: 0, read at: EXPR [ (1, w38) 0 ], value: EXPR [ (1, w39) 0 ])
     MEM (id: 0, read at: EXPR [ (1, w27) 0 ], value: EXPR [ (1, w40) 0 ])
     MEM (id: 0, read at: EXPR [ (1, w29) 0 ], value: EXPR [ (1, w41) 0 ])
-    EXPR -1*w42 + 2 = 0
+    EXPR w42 = 2
     MEM (id: 0, read at: EXPR [ (1, w42) 0 ], value: EXPR [ (1, w43) 0 ])
-    EXPR -1*w44 + 3 = 0
+    EXPR w44 = 3
     MEM (id: 0, read at: EXPR [ (1, w44) 0 ], value: EXPR [ (1, w45) 0 ])
-    EXPR -1*w46 + 4 = 0
+    EXPR w46 = 0
     MEM (id: 0, read at: EXPR [ (1, w46) 0 ], value: EXPR [ (1, w47) 0 ])
     INIT (id: 3, len: 5, witnesses: [w40, w41, w43, w45, w47])
     EXPR -1*w31*w35 + w31*w39 + w35 - w48 = 0
@@ -664,11 +664,11 @@ fn array_dynamic() {
     EXPR -1*w31 - w55 + 1 = 0
     EXPR -1*w31*w49 + w31*w50 + w49 - w56 = 0
     EXPR w31*w54 + w55*w56 - 109 = 0
-    EXPR -1*w57 + 246 = 0
-    EXPR -1*w58 + 159 = 0
-    EXPR -1*w59 + 32 = 0
-    EXPR -1*w60 + 176 = 0
-    EXPR -1*w61 + 8 = 0
+    EXPR w57 = 246
+    EXPR w58 = 159
+    EXPR w59 = 32
+    EXPR w60 = 176
+    EXPR w61 = 8
     INIT (id: 4, len: 5, witnesses: [w57, w58, w59, w60, w61])
     MEM (id: 4, read at: EXPR [ (1, w7) 0 ], value: EXPR [ (1, w62) 0 ])
     MEM (id: 4, read at: EXPR [ (1, w8) 0 ], value: EXPR [ (1, w63) 0 ])
