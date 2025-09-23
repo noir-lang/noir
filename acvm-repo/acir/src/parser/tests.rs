@@ -742,7 +742,7 @@ fn fold_basic_mismatched_ids() {
     return values: [w2]
     BRILLIG CALL func 0: inputs: [EXPR [ (1, w0) (-1, w1) 0 ]], outputs: [w3]
     EXPR w0*w3 - w1*w3 - 1 = 0
-    EXPR -w0 + w2 = 0
+    EXPR w0 = w2
     ";
     let result = Program::from_str(src).err().unwrap();
     let ParserError::UnexpectedFunctionId { expected, found, .. } = result.get_error() else {
