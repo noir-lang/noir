@@ -72,7 +72,7 @@ fn basic_call_with_outputs_assert(inline_type: InlineType) {
     public parameters: []
     return values: [w2]
     EXPR w0 - w1 = 0
-    EXPR -1*w0 + w2 = 0
+    EXPR -w0 + w2 = 0
     ");
 }
 
@@ -115,7 +115,7 @@ fn call_output_as_next_call_input(inline_type: InlineType) {
     public parameters: []
     return values: [w2]
     EXPR w0 - w1 = 0
-    EXPR -1*w0 + w2 = 0
+    EXPR -w0 + w2 = 0
     ");
 }
 
@@ -172,6 +172,6 @@ fn basic_nested_call(inline_type: InlineType) {
     public parameters: []
     return values: [w2]
     EXPR w0 - w1 = 0
-    EXPR -1*w0 + w2 = 0
+    EXPR -w0 + w2 = 0
     ");
 }

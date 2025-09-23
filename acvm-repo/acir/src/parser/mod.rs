@@ -271,8 +271,8 @@ impl<'a> Parser<'a> {
         let mut linear_combinations = Vec::new();
         let mut mul_terms = Vec::new();
         let mut constant: Option<FieldElement> = None;
-        let mut negative = false;
         let mut first = true;
+        let mut negative = self.eat(Token::Minus)?;
 
         loop {
             if let Some(w1) = self.eat_witness()? {

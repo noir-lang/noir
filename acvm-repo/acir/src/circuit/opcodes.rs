@@ -191,6 +191,8 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
 
                     if coefficient.is_one() {
                         write!(f, "{witness1}*{witness2}")?;
+                    } else if (-coefficient).is_one() {
+                        write!(f, "-{witness1}*{witness2}")?;
                     } else {
                         write!(f, "{coefficient}*{witness1}*{witness2}")?;
                     }
@@ -218,6 +220,8 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
 
                     if coefficient.is_one() {
                         write!(f, "{witness}")?;
+                    } else if (-coefficient).is_one() {
+                        write!(f, "-{witness}")?;
                     } else {
                         write!(f, "{coefficient}*{witness}")?;
                     }

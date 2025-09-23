@@ -202,7 +202,7 @@ fn generates_predicated_index_and_dummy_value_for_dynamic_write() {
     EXPR w3*w4 - w8 = 0
     MEM (id: 0, read at: EXPR [ (1, w8) 0 ], value: EXPR [ (1, w9) 0 ])
     INIT (id: 1, len: 3, witnesses: [w0, w1, w2])
-    EXPR -1*w4*w9 + 10*w4 + w9 - w10 = 0
+    EXPR -w4*w9 + 10*w4 + w9 - w10 = 0
     MEM (id: 1, write EXPR [ (1, w10) 0 ] at: EXPR [ (1, w8) 0 ])
     EXPR w11 = 0
     MEM (id: 1, read at: EXPR [ (1, w11) 0 ], value: EXPR [ (1, w12) 0 ])
