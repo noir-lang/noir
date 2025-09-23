@@ -23,7 +23,7 @@ use super::{
         basic_block::BasicBlock,
         dfg::{GlobalsGraph, InsertInstructionResult},
         function::RuntimeType,
-        instruction::{ArrayOffset, ConstrainError, InstructionId, Intrinsic},
+        instruction::{ConstrainError, InstructionId, Intrinsic},
         types::NumericType,
     },
     opt::pure::FunctionPurities,
@@ -353,12 +353,10 @@ impl FunctionBuilder {
         &mut self,
         array: ValueId,
         index: ValueId,
-        offset: ArrayOffset,
         element_type: Type,
     ) -> ValueId {
         let element_type = Some(vec![element_type]);
-        self.insert_instruction(Instruction::ArrayGet { array, index, offset }, element_type)
-            .first()
+        self.insert_instruction(Instruction::ArrayGet { array, index }, element_type).first()
     }
 
     /// Insert an instruction to create a new array with the given index replaced with a new value
@@ -368,9 +366,8 @@ impl FunctionBuilder {
         index: ValueId,
         value: ValueId,
         mutable: bool,
-        offset: ArrayOffset,
     ) -> ValueId {
-        let instruction = Instruction::ArraySet { array, index, value, mutable, offset };
+        let instruction = Instruction::ArraySet { array, index, value, mutable };
         self.insert_instruction(instruction, None).first()
     }
 

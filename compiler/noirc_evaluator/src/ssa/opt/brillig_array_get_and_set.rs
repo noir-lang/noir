@@ -21,16 +21,16 @@
 //!   v1 = array_get v0, index u32 4 minus 1 -> Field
 //! ```
 //!
-//! Now the index to retrieve is 4 and there's no need to offset it in Brillig,
-//! avoiding one addition.
 //! The "minus 1" part is just there so that readers can understand that the index
 //! was offset and that the actual element index is 3. On the Brillig side,
 //! array operations with constant indexes are always assumed to have already been
 //! shifted.
 //!
-//! In the case of slices, these are represented as Brillig vectors, where the items
-//! pointer instead starts at three rather than one.
-//! A Brillig vector is represented as [RC, Size, Capacity, ...items]. So for a slice
+//! Now the index to retrieve is 4 and there's no need to offset it in Brillig,
+//! avoiding one addition.
+//!
+//! In the case of slices, they are represented as Brillig vectors as [RC, Size, Capacity, ...items],
+//! thus the items pointer instead starts at three rather than one. So for a slice
 //! this pass will transform this:
 //!
 //! ```ssa
@@ -44,18 +44,22 @@
 //! b0(v0: [Field]):
 //!   v1 = array_get v0, index u32 6 minus 3 -> Field
 //! ```
-use acvm::FieldElement;
+//!
+//! This pass must be the very last, just before generating ACIR and Brillig opcodes from the SSA.
+//! Shifting indexes can break some of the assumptions of earlier compiler operations, so this is
+//! done outside the normal SSA pipeline, as an internal step, and must be run only once.
+//!
+//! The main motivation behind this pass is to make it possible to reuse the same constants across
+//! Brillig opcodes without having to re-allocate another register for them every time they appear.
+//! For this to happen the constants need to be part of the DFG, where they can be hoisted and
+//! deduplicated across instructions. Doing this during Brillig codegen would be too late, as at
+//! that time we have a read-only DFG and we would be forced to generate more Brillig opcodes.
 
 use crate::{
     brillig::brillig_ir::BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
     ssa::{
         Ssa,
-        ir::{
-            function::Function,
-            instruction::{ArrayOffset, Instruction},
-            types::{NumericType, Type},
-            value::ValueId,
-        },
+        ir::{function::Function, instruction::Instruction, types::NumericType, value::ValueId},
     },
 };
 
@@ -79,38 +83,30 @@ impl Function {
             return;
         }
 
+        assert!(!self.dfg.brillig_arrays_offset, "Brillig arrays can be offset at most once!");
+        self.dfg.brillig_arrays_offset = true;
+
         self.simple_optimization(|context| {
             let instruction = context.instruction();
             match instruction {
-                Instruction::ArrayGet { array, index, offset } => {
-                    // This pass should run at most once
-                    assert!(*offset == ArrayOffset::None);
-
+                Instruction::ArrayGet { array, index } => {
                     let array = *array;
                     let index = *index;
-                    let Some(constant_index) = context.dfg.get_numeric_constant(index) else {
+                    let Some(index) = compute_offset_index(context, array, index) else {
                         return;
                     };
-
-                    let (index, offset) = compute_index_and_offset(context, array, constant_index);
-                    let new_instruction = Instruction::ArrayGet { array, index, offset };
+                    let new_instruction = Instruction::ArrayGet { array, index };
                     context.replace_current_instruction_with(new_instruction);
                 }
-                Instruction::ArraySet { array, index, value, mutable, offset } => {
-                    // This pass should run at most once
-                    assert!(*offset == ArrayOffset::None);
-
+                Instruction::ArraySet { array, index, value, mutable } => {
                     let array = *array;
                     let index = *index;
                     let value = *value;
                     let mutable = *mutable;
-                    let Some(constant_index) = context.dfg.get_numeric_constant(index) else {
+                    let Some(index) = compute_offset_index(context, array, index) else {
                         return;
                     };
-
-                    let (index, offset) = compute_index_and_offset(context, array, constant_index);
-                    let new_instruction =
-                        Instruction::ArraySet { array, index, value, mutable, offset };
+                    let new_instruction = Instruction::ArraySet { array, index, value, mutable };
                     context.replace_current_instruction_with(new_instruction);
                 }
                 _ => (),
@@ -119,23 +115,19 @@ impl Function {
     }
 }
 
-/// Given an array or slice value and a constant index, returns an offset (shifted) index
-/// together with which type of [`ArrayOffset`] was used to shift it.
-fn compute_index_and_offset(
+/// Given an array or slice value and a constant index, returns an offset (shifted) index.
+fn compute_offset_index(
     context: &mut SimpleOptimizationContext,
     array_or_slice: ValueId,
-    constant_index: FieldElement,
-) -> (ValueId, ArrayOffset) {
-    let offset = if matches!(context.dfg.type_of_value(array_or_slice), Type::Array(..)) {
-        ArrayOffset::Array
-    } else {
-        ArrayOffset::Slice
-    };
+    index: ValueId,
+) -> Option<ValueId> {
+    let constant_index = context.dfg.get_numeric_constant(index)?;
+    let offset = context.dfg.array_offset(array_or_slice, index);
     let index = context.dfg.make_constant(
         constant_index + offset.to_u32().into(),
         NumericType::unsigned(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
     );
-    (index, offset)
+    Some(index)
 }
 
 #[cfg(test)]
@@ -278,5 +270,54 @@ mod tests {
         }
         ";
         assert_ssa_does_not_change(src, Ssa::brillig_array_get_and_set);
+    }
+
+    // This test is here to demonstrate how trying to use the common machinery
+    // after this pass would lead to unexpected results.
+    #[test]
+    fn is_safe_index_unexpected_after_pass() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: [Field; 1]):
+            v1 = array_get v0, index u32 0 -> Field
+            return v1
+        }
+        ";
+
+        fn has_side_effects(ssa: &Ssa) -> bool {
+            let func = ssa.main();
+            let b0 = &func.dfg[func.entry_block()];
+            let instruction = &func.dfg[b0.instructions()[0]];
+            instruction.has_side_effects(&func.dfg)
+        }
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        assert!(
+            !has_side_effects(&ssa),
+            "Indexing 1-element array with index 0 should be safe and have no side effects."
+        );
+
+        let ssa = ssa.brillig_array_get_and_set();
+
+        assert!(
+            has_side_effects(&ssa),
+            "It should have no side effects, but the index is now considered unsafe."
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "offset at most once")]
+    fn only_executes_once() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: [Field]):
+            v2 = array_get v0, index u32 3 minus 3 -> Field
+            return v2
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        ssa.brillig_array_get_and_set();
     }
 }
