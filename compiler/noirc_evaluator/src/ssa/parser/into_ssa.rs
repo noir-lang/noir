@@ -12,7 +12,7 @@ use crate::ssa::{
         basic_block::BasicBlockId,
         dfg::GlobalsGraph,
         function::{Function, FunctionId},
-        instruction::{ConstrainError, Instruction},
+        instruction::{ArrayOffset, ConstrainError, Instruction},
         value::ValueId,
     },
     opt::pure::FunctionPurities,
@@ -288,16 +288,18 @@ impl Translator {
                 self.define_variable(target, value_id)?;
             }
             ParsedInstruction::ArrayGet { target, element_type, array, index, offset } => {
+                self.set_offset(&target, offset)?;
                 let array = self.translate_value(array)?;
                 let index = self.translate_value(index)?;
-                let value_id = self.builder.insert_array_get(array, index, offset, element_type);
+                let value_id = self.builder.insert_array_get(array, index, element_type);
                 self.define_variable(target, value_id)?;
             }
             ParsedInstruction::ArraySet { target, array, index, value, mutable, offset } => {
+                self.set_offset(&target, offset)?;
                 let array = self.translate_value(array)?;
                 let index = self.translate_value(index)?;
                 let value = self.translate_value(value)?;
-                let value_id = self.builder.insert_array_set(array, index, value, mutable, offset);
+                let value_id = self.builder.insert_array_set(array, index, value, mutable);
                 self.define_variable(target, value_id)?;
             }
             ParsedInstruction::BinaryOp { target, lhs, op, rhs } => {
@@ -594,5 +596,17 @@ impl Translator {
 
     fn current_function_id(&self) -> FunctionId {
         self.builder.current_function.id()
+    }
+
+    /// If any array instruction has an offset, mark the DFG as using offsets in general.
+    fn set_offset(&mut self, target: &Identifier, offset: ArrayOffset) -> Result<(), SsaError> {
+        if offset == ArrayOffset::None {
+            return Ok(());
+        }
+        if !self.builder.current_function.dfg.runtime().is_brillig() {
+            return Err(SsaError::IllegalOffset(target.clone(), offset));
+        }
+        self.builder.current_function.dfg.brillig_arrays_offset = true;
+        Ok(())
     }
 }
