@@ -148,11 +148,15 @@ impl Context<'_, '_, '_> {
             || {
                 // If we don't know `rhs`'s value then it could be anything up to the number
                 // of bits in the type, e.g. u32 means shifting by up to 32 bits as otherwise we get overflow.
-                let type_max = self.context.dfg.type_of_value(rhs).bit_size();
                 // get_value_max_num_bits might indicate that the underlying type actually has less
                 // bits than the RHS; e.g. because it was upcast from a u1 to a u32.
-                let value_max = 2u32.pow(self.context.dfg.get_value_max_num_bits(rhs));
-                value_max.min(type_max)
+                // The maximum value we can get would be `2^bits - 1`, but `u1` is the only interesting case,
+                // because even for u8 the max value is 255, larger than anything we get based on type.
+                if self.context.dfg.get_value_max_num_bits(rhs) == 1 {
+                    1
+                } else {
+                    self.context.dfg.type_of_value(rhs).bit_size()
+                }
             },
             |rhs_constant| {
                 // Happy case is that we know precisely by how many bits we're shifting by.
@@ -566,6 +570,8 @@ mod tests {
             let ssa = Ssa::from_str(src).unwrap();
             let ssa = ssa.remove_bit_shifts();
 
+            // `max_bit_size` in `truncate` has to be 64, because even though `u8` is just 8 bits,
+            // the maximum value can be 255, which would clearly overflow, as anything over 32 would.
             assert_ssa_snapshot!(ssa, @r#"
             acir(inline) fn main f0 {
               b0(v0: u32, v1: u8):
@@ -622,6 +628,50 @@ mod tests {
                 v60 = truncate v59 to 32 bits, max_bit_size: 64
                 v61 = cast v60 as u32
                 return v61
+            }
+            "#);
+        }
+
+        #[test]
+        fn removes_shl_with_non_constant_rhs_casted_from_u1() {
+            let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u64, v1: u1):
+                v2 = cast v1 as u8
+                v3 = cast v2 as u32
+                v4 = cast v3 as u64
+                v5 = shl v0, v4
+                return v5
+            }
+            ";
+            let ssa = Ssa::from_str(src).unwrap();
+            let ssa = ssa.remove_bit_shifts();
+
+            // What we are casting with can originally be only 1 bit,
+            // so in the truncate we expect to shift with less than
+            // if only considered the 64 bits based on the type.
+            assert_ssa_snapshot!(ssa, @r#"
+            acir(inline) fn main f0 {
+              b0(v0: u64, v1: u1):
+                v2 = cast v1 as u8
+                v3 = cast v2 as u32
+                v4 = cast v3 as u64
+                v5 = cast v3 as u64
+                v7 = lt v5, u64 64
+                constrain v7 == u1 1, "attempt to bit-shift with overflow"
+                v9 = cast v3 as Field
+                v11 = call to_le_bits(v9) -> [u1; 1]
+                v13 = array_get v11, index u32 0 -> u1
+                v14 = not v13
+                v15 = cast v13 as Field
+                v16 = cast v14 as Field
+                v18 = mul Field 2, v15
+                v19 = add v16, v18
+                v20 = cast v0 as Field
+                v21 = mul v20, v19
+                v22 = truncate v21 to 64 bits, max_bit_size: 65
+                v23 = cast v22 as u64
+                return v23
             }
             "#);
         }
