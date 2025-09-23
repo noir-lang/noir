@@ -232,7 +232,11 @@ impl Comparable for InputValue {
 
 impl std::fmt::Display for NargoErrorWithTypes {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        std::fmt::Display::fmt(&self.0, f)
+        if let Some(msg) = self.user_defined_failure_message() {
+            write!(f, "{}: {}", self.0, msg)
+        } else {
+            std::fmt::Display::fmt(&self.0, f)
+        }
     }
 }
 
