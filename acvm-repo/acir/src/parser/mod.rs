@@ -271,10 +271,13 @@ impl<'a> Parser<'a> {
         let mut linear_combinations = Vec::new();
         let mut mul_terms = Vec::new();
         let mut constant: Option<FieldElement> = None;
+        let mut negative = false;
 
         loop {
             if let Some(w1) = self.eat_witness()? {
                 let coefficient = FieldElement::one();
+                let coefficient = if negative { -coefficient } else { coefficient };
+
                 if self.eat(Token::Star)? {
                     let w2 = self.eat_witness_or_error()?;
                     mul_terms.push((coefficient, w1, w2));
@@ -282,6 +285,8 @@ impl<'a> Parser<'a> {
                     linear_combinations.push((coefficient, w1));
                 }
             } else if let Some(coefficient) = self.eat_field_element()? {
+                let coefficient = if negative { -coefficient } else { coefficient };
+
                 if self.eat(Token::Star)? {
                     let w1 = self.eat_witness_or_error()?;
 
@@ -305,6 +310,12 @@ impl<'a> Parser<'a> {
             }
 
             if self.eat(Token::Plus)? {
+                negative = false;
+                continue;
+            }
+
+            if self.eat(Token::Minus)? {
+                negative = true;
                 continue;
             }
 

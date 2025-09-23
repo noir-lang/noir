@@ -97,7 +97,7 @@ fn generates_memory_op_for_dynamic_read() {
     return values: []
     INIT (id: 0, len: 3, witnesses: [w0, w1, w2])
     MEM (id: 0, read at: EXPR [ (1, w3) 0 ], value: EXPR [ (1, w4) 0 ])
-    EXPR w4 + -10 = 0
+    EXPR w4 - 10 = 0
     ");
 }
 
@@ -128,9 +128,9 @@ fn generates_memory_op_for_dynamic_write() {
     MEM (id: 1, read at: EXPR [ (1, w10) 0 ], value: EXPR [ (1, w11) 0 ])
     EXPR -1*w12 + 2 = 0
     MEM (id: 1, read at: EXPR [ (1, w12) 0 ], value: EXPR [ (1, w13) 0 ])
-    EXPR w4 + -1*w9 = 0
-    EXPR w5 + -1*w11 = 0
-    EXPR w6 + -1*w13 = 0
+    EXPR w4 - w9 = 0
+    EXPR w5 - w11 = 0
+    EXPR w6 - w13 = 0
     ");
 }
 
@@ -161,9 +161,9 @@ fn generates_predicated_index_for_dynamic_read() {
     INIT (id: 0, len: 3, witnesses: [w0, w1, w2])
     BLACKBOX::RANGE [w3]:32 bits []
     BLACKBOX::RANGE [w4]:1 bits []
-    EXPR w3*w4 + -1*w5 = 0
+    EXPR w3*w4 - w5 = 0
     MEM (id: 0, read at: EXPR [ (1, w5) 0 ], value: EXPR [ (1, w6) 0 ])
-    EXPR w6 + -10 = 0
+    EXPR w6 - 10 = 0
     ");
 }
 
@@ -199,10 +199,10 @@ fn generates_predicated_index_and_dummy_value_for_dynamic_write() {
     INIT (id: 0, len: 3, witnesses: [w0, w1, w2])
     BLACKBOX::RANGE [w3]:32 bits []
     BLACKBOX::RANGE [w4]:1 bits []
-    EXPR w3*w4 + -1*w8 = 0
+    EXPR w3*w4 - w8 = 0
     MEM (id: 0, read at: EXPR [ (1, w8) 0 ], value: EXPR [ (1, w9) 0 ])
     INIT (id: 1, len: 3, witnesses: [w0, w1, w2])
-    EXPR -1*w4*w9 + 10*w4 + w9 + -1*w10 = 0
+    EXPR -1*w4*w9 + 10*w4 + w9 - w10 = 0
     MEM (id: 1, write EXPR [ (1, w10) 0 ] at: EXPR [ (1, w8) 0 ])
     EXPR -1*w11 = 0
     MEM (id: 1, read at: EXPR [ (1, w11) 0 ], value: EXPR [ (1, w12) 0 ])
@@ -210,9 +210,9 @@ fn generates_predicated_index_and_dummy_value_for_dynamic_write() {
     MEM (id: 1, read at: EXPR [ (1, w13) 0 ], value: EXPR [ (1, w14) 0 ])
     EXPR -1*w15 + 2 = 0
     MEM (id: 1, read at: EXPR [ (1, w15) 0 ], value: EXPR [ (1, w16) 0 ])
-    EXPR w5 + -1*w12 = 0
-    EXPR w6 + -1*w14 = 0
-    EXPR w7 + -1*w16 = 0
+    EXPR w5 - w12 = 0
+    EXPR w6 - w14 = 0
+    EXPR w7 - w16 = 0
     ");
 }
 

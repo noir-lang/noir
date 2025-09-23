@@ -50,6 +50,8 @@ pub(crate) enum Token {
     RightParen,
     /// +
     Plus,
+    /// -
+    Minus,
     /// *
     Star,
     /// =
@@ -82,6 +84,7 @@ impl std::fmt::Display for Token {
             Token::LeftParen => write!(f, "("),
             Token::RightParen => write!(f, ")"),
             Token::Plus => write!(f, "+"),
+            Token::Minus => write!(f, "-"),
             Token::Star => write!(f, "*"),
             Token::Equal => write!(f, "="),
             Token::Eof => write!(f, "(end of stream)"),

@@ -152,9 +152,22 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
                 let mut printed_term = false;
 
                 for (coefficient, witness1, witness2) in &expr.mul_terms {
+                    let coefficient_as_string = coefficient.to_string();
+                    let coefficient_is_negative = coefficient_as_string.starts_with('-');
+
                     if printed_term {
-                        write!(f, " + ")?;
+                        if coefficient_is_negative {
+                            write!(f, " - ")?;
+                        } else {
+                            write!(f, " + ")?;
+                        }
                     }
+
+                    let coefficient = if printed_term && coefficient_is_negative {
+                        -*coefficient
+                    } else {
+                        *coefficient
+                    };
 
                     if coefficient.is_one() {
                         write!(f, "{witness1}*{witness2}")?;
@@ -166,9 +179,22 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
                 }
 
                 for (coefficient, witness) in &expr.linear_combinations {
+                    let coefficient_as_string = coefficient.to_string();
+                    let coefficient_is_negative = coefficient_as_string.starts_with('-');
+
                     if printed_term {
-                        write!(f, " + ")?;
+                        if coefficient_is_negative {
+                            write!(f, " - ")?;
+                        } else {
+                            write!(f, " + ")?;
+                        }
                     }
+
+                    let coefficient = if printed_term && coefficient_is_negative {
+                        -*coefficient
+                    } else {
+                        *coefficient
+                    };
 
                     if coefficient.is_one() {
                         write!(f, "{witness}")?;
@@ -182,10 +208,24 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
                 if !expr.q_c.is_zero()
                     || (expr.mul_terms.is_empty() && expr.linear_combinations.is_empty())
                 {
+                    let coefficient = expr.q_c;
+                    let coefficient_as_string = coefficient.to_string();
+                    let coefficient_is_negative = coefficient_as_string.starts_with('-');
+
                     if printed_term {
-                        write!(f, " + ")?;
+                        if coefficient_is_negative {
+                            write!(f, " - ")?;
+                        } else {
+                            write!(f, " + ")?;
+                        }
                     }
-                    write!(f, "{}", expr.q_c)?;
+
+                    let coefficient = if printed_term && coefficient_is_negative {
+                        -coefficient
+                    } else {
+                        coefficient
+                    };
+                    write!(f, "{coefficient}")?;
                 }
 
                 write!(f, " = 0")?;
