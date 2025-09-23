@@ -4,7 +4,7 @@
 //! Arrays in SSA can appear as constants or dynamically allocated blocks.
 //! Our responsibility here is to preserve correctness while ensuring memory access is efficient.
 //!
-//! # Design
+//! ## Design
 //!
 //! ACIR does not have a first-class array type. Instead, all arrays are
 //! represented as contiguous regions in linear memory, identified by a
