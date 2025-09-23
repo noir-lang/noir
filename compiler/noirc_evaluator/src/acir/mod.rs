@@ -11,7 +11,7 @@ use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use types::{AcirDynamicArray, AcirValue};
 
 use acvm::acir::{
-    circuit::{AssertionPayload, ExpressionWidth, Opcode, brillig::BrilligFunctionId},
+    circuit::{AssertionPayload, ExpressionWidth, brillig::BrilligFunctionId},
     native_types::Witness,
 };
 use acvm::{FieldElement, acir::AcirField, acir::circuit::opcodes::BlockId};
@@ -249,7 +249,7 @@ impl<'a> Context<'a> {
         warnings.extend(self.acir_context.warnings.clone());
 
         #[cfg(debug_assertions)]
-        acir_post_check(&self, self.acir_context.acir_ir.opcodes());
+        acir_post_check(&self, &self.acir_context.acir_ir);
 
         // Add the warnings from the alter Ssa passes
         Ok(self.acir_context.finish(
@@ -945,8 +945,9 @@ impl<'a> Context<'a> {
 /// * No memory opcodes should be laid down that write to the internal type sizes array.
 ///   See [arrays] for more information on the type sizes array.
 #[cfg(debug_assertions)]
-fn acir_post_check(context: &Context<'_>, acir: &[Opcode<FieldElement>]) {
-    for opcode in acir {
+fn acir_post_check(context: &Context<'_>, acir: &GeneratedAcir<FieldElement>) {
+    use acvm::acir::circuit::Opcode;
+    for opcode in acir.opcodes() {
         let Opcode::MemoryOp { block_id, op } = opcode else {
             continue;
         };
