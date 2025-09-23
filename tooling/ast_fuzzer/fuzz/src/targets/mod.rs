@@ -99,7 +99,7 @@ mod tests {
     }
 
     /// Reproduce the result of a single seed.
-    pub fn run_reproduce(f: impl Fn(&mut Unstructured) -> eyre::Result<()>, seed: u64) {
+    pub(crate) fn run_reproduce(f: impl Fn(&mut Unstructured) -> eyre::Result<()>, seed: u64) {
         arbtest::arbtest(|u| {
             f(u).unwrap();
             Ok(())
