@@ -312,7 +312,7 @@ impl Context<'_, '_, '_> {
     }
 }
 
-impl<'dfg> InstructionBuilder<'dfg> {
+impl InstructionBuilder<'_> {
     /// Computes 2^exponent via square&multiply, using the bits decomposition of exponent
     /// Pseudo-code of the computation:
     /// let mut r = 1;
