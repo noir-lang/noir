@@ -108,6 +108,9 @@ pub(crate) struct DataFlowGraph {
 
     #[serde(skip)]
     pub(crate) function_purities: Arc<FunctionPurities>,
+
+    /// Indicate whether the Brillig array index offset optimizations have been performed.
+    pub(crate) brillig_arrays_offset: bool,
 }
 
 /// The GlobalsGraph contains the actual global data.
@@ -767,6 +770,21 @@ impl DataFlowGraph {
     pub(crate) fn purity_of(&self, function: FunctionId) -> Option<Purity> {
         self.function_purities.get(&function).copied()
     }
+
+    /// Determine the appropriate [ArrayOffset] to use for indexing an array or slice.
+    pub(crate) fn array_offset(&self, array: ValueId, index: ValueId) -> ArrayOffset {
+        if !self.runtime.is_brillig()
+            || !self.brillig_arrays_offset
+            || self.get_numeric_constant(index).is_none()
+        {
+            return ArrayOffset::None;
+        }
+        match self.type_of_value(array) {
+            Type::Array(_, _) => ArrayOffset::Array,
+            Type::Slice(_) => ArrayOffset::Slice,
+            _ => ArrayOffset::None,
+        }
+    }
 }
 
 impl std::ops::Index<InstructionId> for DataFlowGraph {
@@ -986,8 +1004,7 @@ impl<'dfg> InstructionBuilder<'dfg> {
         element_type: Type,
     ) -> ValueId {
         let element_type = Some(vec![element_type]);
-        let offset = ArrayOffset::None;
-        let instruction = Instruction::ArrayGet { array, index, offset };
+        let instruction = Instruction::ArrayGet { array, index };
         self.insert_instruction(instruction, element_type).first()
     }
 }
