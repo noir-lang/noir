@@ -1,4 +1,4 @@
-use acvm::assert_circuit_snapshot;
+use acvm::{acir::circuit::Opcode, assert_circuit_snapshot};
 
 use crate::acir::tests::ssa_to_acir_program;
 
@@ -22,68 +22,10 @@ fn does_not_generate_memory_blocks_without_dynamic_accesses() {
     let program = ssa_to_acir_program(src);
 
     // Check that no memory opcodes were emitted.
-    assert_circuit_snapshot!(program, @r"
-    func 0
-    current witness: w1
-    private parameters: [w0, w1]
-    public parameters: []
-    return values: []
-    BRILLIG CALL func 0: inputs: [EXPR [ 2 ], [EXPR [ (1, w0) 0 ], EXPR [ (1, w1) 0 ]]], outputs: []
-    EXPR [ (1, w0) 0 ]
-
-    unconstrained func 0
-     0: @2 = const u32 1
-     1: @1 = const u32 32839
-     2: @0 = const u32 3
-     3: sp[3] = const u32 3
-     4: sp[4] = const u32 0
-     5: @32836 = calldata copy [sp[4]; sp[3]]
-     6: @32836 = cast @32836 to u32
-     7: sp[1] = @32836
-     8: sp[2] = const u32 32837
-     9: sp[4] = const u32 2
-    10: sp[6] = const u32 3
-    11: sp[5] = u32 add sp[4], sp[6]
-    12: sp[3] = @1
-    13: @1 = u32 add @1, sp[5]
-    14: sp[3] = indirect const u32 1
-    15: sp[5] = u32 add sp[3], @2
-    16: store sp[4] at sp[5]
-    17: sp[5] = u32 add sp[5], @2
-    18: store sp[4] at sp[5]
-    19: sp[6] = const u32 3
-    20: sp[5] = u32 add sp[3], sp[6]
-    21: @32771 = sp[2]
-    22: @32772 = sp[5]
-    23: @32773 = sp[4]
-    24: call 31
-    25: sp[2] = sp[3]
-    26: call 42
-    27: call 43
-    28: sp[1] = const u32 32839
-    29: sp[2] = const u32 0
-    30: stop &[sp[1]; sp[2]]
-    31: @32775 = u32 add @32771, @32773
-    32: @32776 = @32771
-    33: @32777 = @32772
-    34: @32778 = u32 eq @32776, @32775
-    35: jump if @32778 to 41
-    36: @32774 = load @32776
-    37: store @32774 at @32777
-    38: @32776 = u32 add @32776, @2
-    39: @32777 = u32 add @32777, @2
-    40: jump to 34
-    41: return
-    42: return
-    43: call 45
-    44: return
-    45: @32772 = const u32 30720
-    46: @32771 = u32 lt @0, @32772
-    47: jump if @32771 to 50
-    48: @1 = indirect const u64 15764276373176857197
-    49: trap &[@1; @2]
-    50: return
-    ");
+    assert_eq!(program.functions.len(), 1);
+    for opcode in &program.functions[0].opcodes {
+        assert!(!matches!(opcode, Opcode::MemoryInit { .. }));
+    }
 }
 
 #[test]
@@ -130,13 +72,8 @@ fn constant_array_access_in_bounds() {
     let program = ssa_to_acir_program(src);
 
     // We know the circuit above to be trivially true
-    assert_circuit_snapshot!(program, @r"
-    func 0
-    current witness: w0
-    private parameters: []
-    public parameters: []
-    return values: []
-    ");
+    assert_eq!(program.functions.len(), 1);
+    assert_eq!(program.functions[0].opcodes.len(), 0);
 }
 
 #[test]
