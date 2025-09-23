@@ -74,6 +74,12 @@ static MAX_CONST_VALUE_THAT_DOES_NOT_OVERFLOW_U128_MUL: std::sync::LazyLock<u128
             BigUint::from(u128::MAX) * max_const_value_that_does_not_overflow_u128_mul
                 < FieldElement::modulus()
         );
+        assert!(
+            max_const_value_that_does_not_overflow_u128_mul
+                .checked_mul(max_const_value_that_does_not_overflow_u128_mul)
+                .is_none(),
+            "expected max_const_value_that_does_not_overflow_u128_mul * max_const_value_that_does_not_overflow_u128_mul to overflow u128"
+        );
         max_const_value_that_does_not_overflow_u128_mul
     });
 
