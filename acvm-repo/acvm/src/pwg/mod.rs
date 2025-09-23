@@ -20,11 +20,11 @@
 //!  - `assertion_payloads`: additional information used to provide feedback to the user when an assertion fails.
 //!
 //! Returns: ACVM Status
-//! - Solved: all witness have been sucessfully computed, execution is complete.
-//! - InProgress: The ACVM is processing the circuit, i.e solving the opcodes. This status is used to resume execution after it has been paused.
-//! - Failure(OpcodeResolutionError<F>): Error, execution is stopped.
-//! - RequiresForeignCall(ForeignCallWaitInfo<F>): Execution is paused until the result of a foreign call is provided
-//! - RequiresAcirCall(AcirCallWaitInfo<F>): Execution is paused until the result of an ACIR call is provided
+//! - `Solved`: all witness have been sucessfully computed, execution is complete.
+//! - `InProgress`: The ACVM is processing the circuit, i.e solving the opcodes. This status is used to resume execution after it has been paused.
+//! - `Failure(OpcodeResolutionError<F>)`: Error, execution is stopped.
+//! - `RequiresForeignCall(ForeignCallWaitInfo<F>)`: Execution is paused until the result of a foreign call is provided
+//! - `RequiresAcirCall(AcirCallWaitInfo<F>)`: Execution is paused until the result of an ACIR call is provided
 //!
 //! Each opcode is solved independently. In general we require its inputs to be already known, i.e previoulsy solved,
 //! and the output is simply computed from the inputs, and then the output becomes 'known' for the subsequent opcodes.
@@ -50,23 +50,23 @@
 //!
 //!
 //! Example:
-//! Compiled ACIR for main (non-transformed):
-//! func 0
-//! current witness: w9
-//! private parameters: [w0, w1, w2, w3, w4]
-//! public parameters: []
-//! return values: [w9]
-//! BLACKBOX::RANGE [w0]:32 bits []
-//! BLACKBOX::RANGE [w1]:32 bits []
-//! BLACKBOX::RANGE [w2]:32 bits []
-//! BLACKBOX::RANGE [w3]:32 bits []
-//! BLACKBOX::RANGE [w4]:32 bits []
-//! EXPR [ (1, w0) (-1, w1) (-1, w6) 0 ]
-//! BRILLIG CALL func 0: inputs: [EXPR [ (1, w6) 0 ]], outputs: [w7]
-//! EXPR [ (1, w6, w7) (1, w8) -1 ]
-//! EXPR [ (1, w6, w8) 0 ]
-//! EXPR [ (1, w1, w8) 0 ]
-//! EXPR [ (1, w0) (-1, w2) (-1, w9) 0 ]
+// Compiled ACIR for main (non-transformed):
+// func 0
+// current witness: w9
+// private parameters: [w0, w1, w2, w3, w4]
+// public parameters: []
+// return values: [w9]
+// BLACKBOX::RANGE [w0]:32 bits []
+// BLACKBOX::RANGE [w1]:32 bits []
+// BLACKBOX::RANGE [w2]:32 bits []
+// BLACKBOX::RANGE [w3]:32 bits []
+// BLACKBOX::RANGE [w4]:32 bits []
+// EXPR [ (1, w0) (-1, w1) (-1, w6) 0 ]
+// BRILLIG CALL func 0: inputs: [EXPR [ (1, w6) 0 ]], outputs: [w7]
+// EXPR [ (1, w6, w7) (1, w8) -1 ]
+// EXPR [ (1, w6, w8) 0 ]
+// EXPR [ (1, w1, w8) 0 ]
+// EXPR [ (1, w0) (-1, w2) (-1, w9) 0 ]
 //!
 //! This ACIR program defines the 'main' function and indicates it is 'non-transformed'.
 //! Indeed, some ACIR pass can transform the ACIR program in order to apply optimisations,
