@@ -263,11 +263,6 @@ impl<'a> Parser<'a> {
     fn parse_assert_zero_expression(&mut self) -> ParseResult<Expression<FieldElement>> {
         self.eat_keyword_or_error(Keyword::Expression)?;
 
-        // Support the old `EXPR [ ... ]` syntax for old tests, for now
-        if matches!(self.token.token(), Token::LeftBracket) {
-            return self.parse_arithmetic_expression_after_expr();
-        }
-
         let mut linear_combinations = Vec::new();
         let mut mul_terms = Vec::new();
         let mut constant: Option<FieldElement> = None;
@@ -356,10 +351,6 @@ impl<'a> Parser<'a> {
 
     fn parse_arithmetic_expression(&mut self) -> ParseResult<Expression<FieldElement>> {
         self.eat_keyword_or_error(Keyword::Expression)?;
-        self.parse_arithmetic_expression_after_expr()
-    }
-
-    fn parse_arithmetic_expression_after_expr(&mut self) -> ParseResult<Expression<FieldElement>> {
         self.eat_or_error(Token::LeftBracket)?;
 
         let mut linear_combinations = Vec::new();

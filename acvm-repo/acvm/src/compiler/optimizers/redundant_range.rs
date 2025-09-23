@@ -349,10 +349,10 @@ mod tests {
         return values: []
         BLACKBOX::RANGE [w1]:16 bits []
         BLACKBOX::RANGE [w1]:16 bits []
-        EXPR [ 0 ]
-        EXPR [ 0 ]
-        EXPR [ 0 ]
-        EXPR [ 0 ]
+        EXPR 0 = 0
+        EXPR 0 = 0
+        EXPR 0 = 0
+        EXPR 0 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
 
@@ -382,7 +382,7 @@ mod tests {
         public parameters: []
         return values: []
         BLACKBOX::RANGE [w1]:16 bits []
-        EXPR [ (1, w1) 0 ]
+        EXPR w1 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
 
@@ -420,7 +420,7 @@ mod tests {
         BLACKBOX::RANGE [w1]:64 bits []
 
         // assert w1 == 0
-        EXPR [ (1, w1) 0 ]
+        EXPR w1 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
 
