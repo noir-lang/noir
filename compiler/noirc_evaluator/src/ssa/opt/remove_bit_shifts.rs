@@ -148,7 +148,11 @@ impl Context<'_, '_, '_> {
             || {
                 // If we don't know `rhs`'s value then it could be anything up to the number
                 // of bits in the type, e.g. u32 means shifting by up to 32 bits as otherwise we get overflow.
-                self.context.dfg.type_of_value(rhs).bit_size()
+                let type_max = self.context.dfg.type_of_value(rhs).bit_size();
+                // get_value_max_num_bits might indicate that the underlying type actually has less
+                // bits than the RHS; e.g. because it was upcast from a u1 to a u32.
+                let value_max = 2u32.pow(self.context.dfg.get_value_max_num_bits(rhs));
+                value_max.min(type_max)
             },
             |rhs_constant| {
                 // Happy case is that we know precisely by how many bits we're shifting by.
