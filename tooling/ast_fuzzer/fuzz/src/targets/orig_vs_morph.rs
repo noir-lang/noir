@@ -820,6 +820,7 @@ mod helpers {
 
 #[cfg(test)]
 mod tests {
+    
     /// ```ignore
     /// NOIR_AST_FUZZER_SEED=0xb2fb5f0b00100000 \
     /// cargo test -p noir_ast_fuzzer_fuzz orig_vs_morph
@@ -827,5 +828,12 @@ mod tests {
     #[test]
     fn fuzz_with_arbtest() {
         crate::targets::tests::fuzz_with_arbtest(super::fuzz, 10000);
+    }
+
+    #[test]
+    fn fuzz_regressions() {
+        for seed in crate::targets::tests::load_seeds_from_file() {
+            crate::targets::tests::run_reproduce(super::fuzz, seed);
+        }
     }
 }

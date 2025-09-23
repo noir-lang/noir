@@ -29,13 +29,25 @@ mod tests {
     const MIN_SIZE: u32 = 1 << 12;
     const MAX_SIZE: u32 = 1 << 20;
 
-    use std::time::Duration;
+    use std::{fs::File, io::BufRead, path::PathBuf, time::Duration};
 
     use arbitrary::Unstructured;
     use color_eyre::eyre;
     use proptest::prelude::*;
 
     use crate::bool_from_env;
+
+    pub(crate) fn load_seeds_from_file() -> impl Iterator<Item = u64> {
+         let regressions_file =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("./src/targets/fuzzer-regressions.txt");
+        let file = File::open(regressions_file).unwrap();
+        let file_reader = std::io::BufReader::new(file).lines();
+        file_reader.map(|line| {
+            let line = line.expect("Could not read line");
+            let seed = line.strip_prefix("0x").unwrap_or(&line);
+            u64::from_str_radix(seed, 16).expect("Seed should parse as u64")
+        })
+    }
 
     fn seed_from_env() -> Option<u64> {
         let Ok(seed) = std::env::var("NOIR_AST_FUZZER_SEED") else { return None };
@@ -87,7 +99,7 @@ mod tests {
     }
 
     /// Reproduce the result of a single seed.
-    fn run_reproduce(f: impl Fn(&mut Unstructured) -> eyre::Result<()>, seed: u64) {
+    pub fn run_reproduce(f: impl Fn(&mut Unstructured) -> eyre::Result<()>, seed: u64) {
         arbtest::arbtest(|u| {
             f(u).unwrap();
             Ok(())
