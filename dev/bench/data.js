@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1758637873414,
+  "lastUpdate": 1758638805136,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -16864,95 +16864,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "1b4e25231fd0518d75e794889b4dc5a68e1ebf46",
-          "message": "chore(opt): Fetch set of Brillig entry points without reachability and recursive functions computation  (#9844)",
-          "timestamp": "2025-09-13T16:15:03Z",
-          "tree_id": "3edb634b05cdeb762caee5d2e7469ada82f73697",
-          "url": "https://github.com/noir-lang/noir/commit/1b4e25231fd0518d75e794889b4dc5a68e1ebf46"
-        },
-        "date": 1757782638638,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_aztec-nr",
-            "value": 100,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_noir-contracts",
-            "value": 126,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_blob",
-            "value": 255,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_private-kernel-lib",
-            "value": 226,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_reset-kernel-lib",
-            "value": 34,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_rollup-lib",
-            "value": 660,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_types",
-            "value": 101,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_noir-lang_noir-bignum_",
-            "value": 132,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_noir-lang_noir_bigcurve_",
-            "value": 360,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_noir-lang_sha256_",
-            "value": 15,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_noir-lang_sha512_",
-            "value": 13,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_zkpassport_noir-ecdsa_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_zkpassport_noir_rsa_",
-            "value": 2,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -21127,6 +21038,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "test_report_noir-lang_sha512_",
             "value": 13,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_zkpassport_noir-ecdsa_",
+            "value": 2,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_zkpassport_noir_rsa_",
+            "value": 1,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "fabd2af0f388ccd72e18136233ad087b77b0490d",
+          "message": "chore: checked_to_unchecked enhancements from audit review (#9958)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-09-23T13:49:47Z",
+          "tree_id": "f10bf94948cf2aceefa74fdd97a7bd97147ccb95",
+          "url": "https://github.com/noir-lang/noir/commit/fabd2af0f388ccd72e18136233ad087b77b0490d"
+        },
+        "date": 1758638784329,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_aztec-nr",
+            "value": 120,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_noir-contracts",
+            "value": 132,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_blob",
+            "value": 265,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_private-kernel-lib",
+            "value": 217,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_reset-kernel-lib",
+            "value": 35,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_types",
+            "value": 130,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_noir-lang_noir-bignum_",
+            "value": 136,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_noir-lang_noir_bigcurve_",
+            "value": 322,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_noir-lang_sha256_",
+            "value": 15,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_noir-lang_sha512_",
+            "value": 14,
             "unit": "s"
           },
           {
