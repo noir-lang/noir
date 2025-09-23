@@ -64,15 +64,15 @@ fn basic_call_with_outputs_assert(inline_type: InlineType) {
     inputs: [w0, w1], outputs: [w2]
     CALL func 1: PREDICATE: EXPR [ 1 ]
     inputs: [w0, w1], outputs: [w3]
-    EXPR 1*w2 + -1*w3 + 0 = 0
+    EXPR 1*w2 + -1*w3 = 0
 
     func 1
     current witness: w2
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
-    EXPR 1*w0 + -1*w1 + 0 = 0
-    EXPR -1*w0 + 1*w2 + 0 = 0
+    EXPR 1*w0 + -1*w1 = 0
+    EXPR -1*w0 + 1*w2 = 0
     ");
 }
 
@@ -107,15 +107,15 @@ fn call_output_as_next_call_input(inline_type: InlineType) {
     inputs: [w0, w1], outputs: [w2]
     CALL func 1: PREDICATE: EXPR [ 1 ]
     inputs: [w2, w1], outputs: [w3]
-    EXPR 1*w2 + -1*w3 + 0 = 0
+    EXPR 1*w2 + -1*w3 = 0
 
     func 1
     current witness: w2
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
-    EXPR 1*w0 + -1*w1 + 0 = 0
-    EXPR -1*w0 + 1*w2 + 0 = 0
+    EXPR 1*w0 + -1*w1 = 0
+    EXPR -1*w0 + 1*w2 = 0
     ");
 }
 
@@ -154,7 +154,7 @@ fn basic_nested_call(inline_type: InlineType) {
     inputs: [w0, w1], outputs: [w2]
     CALL func 1: PREDICATE: EXPR [ 1 ]
     inputs: [w0, w1], outputs: [w3]
-    EXPR 1*w2 + -1*w3 + 0 = 0
+    EXPR 1*w2 + -1*w3 = 0
 
     func 1
     current witness: w4
@@ -164,14 +164,14 @@ fn basic_nested_call(inline_type: InlineType) {
     EXPR 1*w0 + -1*w3 + 2 = 0
     CALL func 2: PREDICATE: EXPR [ 1 ]
     inputs: [w3, w1], outputs: [w4]
-    EXPR 1*w2 + -1*w4 + 0 = 0
+    EXPR 1*w2 + -1*w4 = 0
 
     func 2
     current witness: w2
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
-    EXPR 1*w0 + -1*w1 + 0 = 0
-    EXPR -1*w0 + 1*w2 + 0 = 0
+    EXPR 1*w0 + -1*w1 = 0
+    EXPR -1*w0 + 1*w2 = 0
     ");
 }

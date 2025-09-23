@@ -169,11 +169,15 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
                     printed_term = true;
                 }
 
-                if printed_term {
-                    write!(f, " + ")?;
+                if !expr.q_c.is_zero()
+                    || (expr.mul_terms.is_empty() && expr.linear_combinations.is_empty())
+                {
+                    if printed_term {
+                        write!(f, " + ")?;
+                    }
+                    write!(f, "{}", expr.q_c)?;
                 }
 
-                write!(f, "{}", expr.q_c)?;
                 write!(f, " = 0")?;
 
                 Ok(())

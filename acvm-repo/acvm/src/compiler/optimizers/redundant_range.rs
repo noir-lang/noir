@@ -395,7 +395,7 @@ mod tests {
         private parameters: []
         public parameters: []
         return values: []
-        EXPR 1*w1 + 0 = 0
+        EXPR 1*w1 = 0
         ");
     }
 
@@ -444,7 +444,7 @@ mod tests {
         BRILLIG CALL func 0: inputs: [EXPR [ (1, w2) 0 ]], outputs: []
         BLACKBOX::RANGE [w1]:16 bits []
         BRILLIG CALL func 0: inputs: [EXPR [ (1, w2) 0 ]], outputs: []
-        EXPR 1*w1 + 0 = 0
+        EXPR 1*w1 = 0
         ");
 
         // Applying again should have no effect (despite the range having the same bit size as the assert).

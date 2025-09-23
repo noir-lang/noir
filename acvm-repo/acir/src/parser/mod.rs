@@ -317,9 +317,8 @@ impl<'a> Parser<'a> {
             return Err(ParserError::ExpectedZero { found: zero_token, span });
         }
 
-        let Some(q_c) = constant else {
-            return Err(ParserError::MissingConstantTerm { span: self.token.span() });
-        };
+        // If a constant isn't provided, we default it to zero
+        let q_c = constant.unwrap_or_default();
 
         Ok(Expression { mul_terms, linear_combinations, q_c })
     }
