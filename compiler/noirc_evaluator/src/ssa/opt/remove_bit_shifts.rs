@@ -1101,11 +1101,13 @@ mod tests {
         builder.terminate_with_return(vec![reconstructed]);
 
         let ssa = builder.finish();
-        let mut runner = proptest::test_runner::TestRunner::new(proptest::test_runner::Config::default());
+        let mut runner =
+            proptest::test_runner::TestRunner::new(proptest::test_runner::Config::default());
 
         runner
             .run(&any::<i8>(), |input| {
-                let mut result = ssa.interpret(vec![Value::Numeric(NumericValue::I8(input))]).unwrap();
+                let mut result =
+                    ssa.interpret(vec![Value::Numeric(NumericValue::I8(input))]).unwrap();
                 let Value::Numeric(NumericValue::I8(result)) = result.remove(0) else {
                     return Err(TestCaseError::Fail("Could not execute".into()));
                 };
