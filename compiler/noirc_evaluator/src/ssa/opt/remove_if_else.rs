@@ -249,14 +249,17 @@ impl Context {
         new: ValueId,
         f: impl Fn(u32) -> u32,
     ) {
+        // No need to store the capacity of arrays, only slices.
+        if !matches!(dfg.type_of_value(new), Type::Slice(_)) {
+            return;
+        }
         let capacity = self.get_or_find_capacity(dfg, old);
         self.slice_sizes.insert(new, f(capacity));
     }
 
-    /// Make sure the capacity is recorded.
+    /// Make sure the slice capacity is recorded.
     fn ensure_capacity(&mut self, dfg: &DataFlowGraph, slice: ValueId) {
-        let capacity = self.get_or_find_capacity(dfg, slice);
-        self.slice_sizes.insert(slice, capacity);
+        self.set_capacity(dfg, slice, slice, |c| c);
     }
 
     /// Get the tracked size of array/slices, or retrieve (and track) it for arrays.
@@ -264,14 +267,14 @@ impl Context {
         match self.slice_sizes.entry(value) {
             Entry::Occupied(entry) => *entry.get(),
             Entry::Vacant(entry) => {
+                // For arrays we know the size statically, and we don't need to store it.
+                if let Type::Array(_, length) = dfg.type_of_value(value) {
+                    return length;
+                }
                 // Check if the item was made by a MakeArray instruction, which can create slices as well.
                 if let Some((array, typ)) = dfg.get_array_constant(value) {
                     let length = array.len() / typ.element_types().len();
                     return *entry.insert(length as u32);
-                }
-                // For arrays we know the size statically.
-                if let Type::Array(_, length) = dfg.type_of_value(value) {
-                    return *entry.insert(length);
                 }
                 // For non-constant slices we can't tell the size, which would mean we can't merge it.
                 let dbg_value = &dfg[value];
