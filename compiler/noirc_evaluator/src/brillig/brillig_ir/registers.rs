@@ -22,8 +22,8 @@
 //! - [LayoutConfig]: Centralized configuration of maximum sizes for stack frames, total stack size,
 //!   and scratch space. All register allocators query this configuration to determine their memory bounds.
 //!   This config is meant to be immutable and provides the following benefits:
-//!   - Unit tests to vary memory layouts and ensure bytecode remains consistent.
 //!   - Clear separation between memory layout policy and actual code generation.
+//!   - Unit tests to vary memory layouts and ensure bytecode remains consistent.
 //! - [RegisterAllocator]: Trait implemented by all memory region allocators. Each allocator is expected
 //!   to enforce its own bounds checks and allocation/deallocation logic.
 //! - [Stack], [ScratchSpace], and [GlobalSpace]: Register allocator implementations for each memory region.
@@ -38,17 +38,8 @@ use super::{BrilligContext, ReservedRegisters, brillig_variable::SingleAddrVaria
 ///
 /// Brillig execution splits its register space into fixed regions
 /// (reserved registers, scratch space, globals, calldata) and dynamic regions
-/// (stack, heap). This configuration structure centralizes the sizing rules for the
-/// fixed regions and the stack.:
-///
-/// # Purpose
-/// - Tuning parameters (e.g. maximum stack frame size) are isolated here, rather
-///   than spread across constants in multiple modules.
-/// - Unit tests can easily vary the layout to check how it affects generated
-///   bytecode (e.g. detecting dependencies on the stack size).
-/// - Register allocator implementations should query this struct to determine where
-///   each region starts/ends.
-/// - [BrilligOptions] embeds a [LayoutConfig]
+/// (stack, heap). This configuration structure centralizes the sizing rules for
+/// fixed regions and the stack.
 #[derive(Clone, Copy, Debug)]
 pub struct LayoutConfig {
     max_stack_frame_size: usize,
