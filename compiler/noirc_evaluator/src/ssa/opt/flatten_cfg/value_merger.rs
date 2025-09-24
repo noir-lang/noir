@@ -16,9 +16,9 @@ pub(crate) struct ValueMerger<'a> {
     dfg: &'a mut DataFlowGraph,
     block: BasicBlockId,
 
-    // Maps SSA array values with a slice type to their size.
-    // This must be computed before merging values.
-    slice_sizes: &'a mut HashMap<ValueId, u32>,
+    /// Maps SSA array values with a slice type to their size.
+    /// This must be computed before merging values.
+    slice_sizes: &'a HashMap<ValueId, u32>,
 
     call_stack: CallStackId,
 }
@@ -27,7 +27,7 @@ impl<'a> ValueMerger<'a> {
     pub(crate) fn new(
         dfg: &'a mut DataFlowGraph,
         block: BasicBlockId,
-        slice_sizes: &'a mut HashMap<ValueId, u32>,
+        slice_sizes: &'a HashMap<ValueId, u32>,
         call_stack: CallStackId,
     ) -> Self {
         ValueMerger { dfg, block, slice_sizes, call_stack }
@@ -144,14 +144,15 @@ impl<'a> ValueMerger<'a> {
         let mut merged = im::Vector::new();
 
         let (element_types, len) = match &typ {
-            Type::Array(elements, len) => (elements, *len),
+            Type::Array(elements, len) => (elements.as_slice(), *len),
             _ => panic!("Expected array type"),
         };
 
+        let element_count = element_types.len() as u32;
+
         for i in 0..len {
             for (element_index, element_type) in element_types.iter().enumerate() {
-                let index =
-                    u128::from(i * element_types.len() as u32 + element_index as u32).into();
+                let index = u128::from(i * element_count + element_index as u32).into();
                 let index = self.dfg.make_constant(index, NumericType::length_type());
 
                 let typevars = Some(vec![element_type.clone()]);
@@ -192,7 +193,7 @@ impl<'a> ValueMerger<'a> {
         let mut merged = im::Vector::new();
 
         let element_types = match &typ {
-            Type::Slice(elements) => elements,
+            Type::Slice(elements) => elements.as_slice(),
             _ => panic!("Expected slice type"),
         };
 

@@ -172,7 +172,7 @@ impl Context {
 
                     let call_stack = context.dfg.get_instruction_call_stack_id(instruction_id);
                     let mut value_merger =
-                        ValueMerger::new(context.dfg, block, &mut self.slice_sizes, call_stack);
+                        ValueMerger::new(context.dfg, block, &self.slice_sizes, call_stack);
 
                     let value = value_merger.merge_values(
                         then_condition,
