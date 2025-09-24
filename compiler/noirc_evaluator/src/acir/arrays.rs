@@ -251,7 +251,7 @@ impl Context<'_> {
         if !self.has_zero_length(array, dfg) {
             return Ok(false);
         }
-        
+
         // Zero result.
         let result_ids = dfg.instruction_results(instruction);
         for result_id in result_ids {
