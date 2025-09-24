@@ -144,12 +144,11 @@ impl Context<'_> {
         })
     }
 
-    /// Get the next BlockId for internal memory
-    /// used during ACIR generation.
+    /// Get the next BlockId for the internal element type sizes array.
     /// This is useful for referencing information that can
-    /// only be computed dynamically, such as the type structure
+    /// only be accessed dynamically, such as the type structure
     /// of non-homogenous arrays.
-    fn internal_block_id(&mut self, value: ValueId) -> BlockId {
+    fn type_sizes_block_id(&mut self, value: ValueId) -> BlockId {
         *self.element_type_sizes_blocks.entry(value).or_insert_with(|| {
             let block_id = BlockId(self.max_block_id);
             self.max_block_id += 1;
@@ -841,7 +840,7 @@ impl Context<'_> {
         supplied_acir_value: Option<&AcirValue>,
         dfg: &DataFlowGraph,
     ) -> Result<BlockId, RuntimeError> {
-        let element_type_sizes = self.internal_block_id(array_id);
+        let element_type_sizes = self.type_sizes_block_id(array_id);
         // Check whether an internal type sizes array has already been initialized
         // Need to look into how to optimize for slices as this could lead to different element type sizes
         // for different slices that do not have consistent sizes
