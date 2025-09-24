@@ -1,6 +1,4 @@
-use acvm::acir::circuit::Program;
-use base64::Engine;
-use noir_ssa_executor::compiler::compile_from_ssa;
+use noir_ssa_executor::compiler::compile_to_bytecode_base64;
 use noirc_driver::CompileOptions;
 use noirc_evaluator::ssa::ssa_gen::Ssa;
 
@@ -17,10 +15,8 @@ fn main() {
         return v14
     }
     ";
-    let compiled_program =
-        compile_from_ssa(Ssa::from_str(&ssa).unwrap(), &CompileOptions::default());
-
-    let bytecode = Program::serialize_program(&compiled_program.unwrap().program);
-    let bytecode_b64 = base64::engine::general_purpose::STANDARD.encode(bytecode);
-    println!("Bytecode: {bytecode_b64}");
+    let program_bytecode =
+        compile_to_bytecode_base64(Ssa::from_str(ssa).unwrap(), &CompileOptions::default())
+            .unwrap();
+    println!("Bytecode: {program_bytecode}");
 }
