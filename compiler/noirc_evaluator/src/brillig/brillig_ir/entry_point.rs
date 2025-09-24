@@ -12,10 +12,6 @@ use acvm::acir::{
     brillig::{HeapVector, MemoryAddress},
 };
 
-pub(crate) const MAX_STACK_SIZE: usize = 16 * MAX_STACK_FRAME_SIZE;
-pub(crate) const MAX_STACK_FRAME_SIZE: usize = 2048;
-pub(crate) const MAX_SCRATCH_SPACE: usize = 64;
-
 impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
     /// Creates an entry point artifact that will jump to the function label provided.
     pub(crate) fn new_entry_point_artifact(
@@ -44,19 +40,23 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
     }
 
     fn calldata_start_offset(&self) -> usize {
-        ReservedRegisters::len()
-            + MAX_STACK_SIZE
-            + MAX_SCRATCH_SPACE
-            + self.globals_memory_size.expect("The memory size of globals should be set")
+        let globals_size =
+            self.globals_memory_size.expect("The memory size of globals should be set");
+        self.layout.entry_point_start(globals_size)
     }
 
     fn return_data_start_offset(&self, calldata_size: usize) -> usize {
-        self.calldata_start_offset() + calldata_size
+        let globals_size =
+            self.globals_memory_size.expect("The memory size of globals should be set");
+        self.layout.return_data_start(globals_size, calldata_size)
     }
 
     /// Adds the instructions needed to handle entry point parameters
     /// The runtime will leave the parameters in calldata.
     /// Arrays will be passed flattened.
+    ///
+    /// Memory layout for entry points:
+    /// {reserved} {scratch} {globals} {entry point (call data + return data)} {stack} {heap}
     fn codegen_entry_point(
         &mut self,
         arguments: &[BrilligParameter],
@@ -74,16 +74,19 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
             1_usize.into(),
         );
 
-        // Set initial value of free memory pointer: calldata_start_offset + calldata_size + return_data_size
+        let return_data_start = self.return_data_start_offset(calldata_size);
+        // The heap begins after the end of the stack.
+        // Set initial value of free memory pointer: `return_data_start + return_data_size + self.layout.max_stack_frame_size()`
         self.const_instruction(
             SingleAddrVariable::new_usize(ReservedRegisters::free_memory_pointer()),
-            (self.calldata_start_offset() + calldata_size + return_data_size).into(),
+            (return_data_start + return_data_size + self.layout.max_stack_frame_size()).into(),
         );
 
-        // Set initial value of stack pointer: ReservedRegisters.len()
+        // The stack begins after the calldata region (calldata + return data)
+        // Set initial value of the stack pointer: `return_data_start + return_data_size`
         self.const_instruction(
             SingleAddrVariable::new_usize(ReservedRegisters::stack_pointer()),
-            ReservedRegisters::len().into(),
+            (return_data_start + return_data_size).into(),
         );
 
         // Copy calldata

@@ -5,7 +5,6 @@ use crate::brillig::brillig_ir::{
     BrilligBinaryOp, BrilligContext, ReservedRegisters,
     brillig_variable::SingleAddrVariable,
     debug_show::DebugToString,
-    entry_point::{MAX_STACK_FRAME_SIZE, MAX_STACK_SIZE},
     registers::{RegisterAllocator, ScratchSpace},
 };
 
@@ -19,11 +18,15 @@ pub(super) fn compile_check_max_stack_depth_procedure<F: AcirField + DebugToStri
     brillig_context: &mut BrilligContext<F, ScratchSpace>,
 ) {
     let in_range = SingleAddrVariable::new(brillig_context.allocate_register(), 1);
+
+    let max_stack_size = brillig_context.registers.layout().max_stack_size();
+    let max_frame_size = brillig_context.registers.layout().max_stack_frame_size();
+
     brillig_context.codegen_usize_op(
         ReservedRegisters::stack_pointer(),
         in_range.address,
         BrilligBinaryOp::LessThan,
-        MAX_STACK_SIZE - MAX_STACK_FRAME_SIZE,
+        max_stack_size - max_frame_size,
     );
     brillig_context.codegen_constrain(in_range, Some("Stack too deep".to_string()));
     brillig_context.deallocate_single_addr(in_range);

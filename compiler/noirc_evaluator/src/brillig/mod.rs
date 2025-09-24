@@ -21,6 +21,7 @@ use self::brillig_ir::{
     procedures::compile_procedure,
 };
 
+use crate::brillig::brillig_ir::LayoutConfig;
 use crate::ssa::{
     ir::{
         dfg::DataFlowGraph,
@@ -41,6 +42,7 @@ pub struct BrilligOptions {
     pub enable_debug_trace: bool,
     pub enable_debug_assertions: bool,
     pub enable_array_copy_counter: bool,
+    pub layout: LayoutConfig,
 }
 
 /// Context structure for the brillig pass.
@@ -182,5 +184,61 @@ impl Ssa {
         }
 
         brillig
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        brillig::{BrilligOptions, brillig_ir::LayoutConfig},
+        ssa::ssa_gen::Ssa,
+    };
+
+    #[test]
+    fn same_program_has_same_bytecode_with_different_memory_layouts() {
+        let src = r#"
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            v7 = make_array [u32 1, u32 2, u32 3, u32 4, u32 5] : [u32; 5]
+            v8 = allocate -> &mut [u32; 5]
+            store v7 at v8
+            v9 = lt v0, u32 5
+            jmp b1(u32 0)
+          b1(v1: u32):
+            v11 = lt v1, u32 5
+            jmpif v11 then: b2, else: b3
+          b2():
+            v15 = load v8 -> [u32; 5]
+            constrain v9 == u1 1, "Index out of bounds"
+            v16 = array_set v15, index v0, value v1
+            store v16 at v8
+            v17 = unchecked_add v1, u32 1
+            jmp b1(v17)
+          b3():
+            v12 = load v8 -> [u32; 5]
+            constrain v9 == u1 1, "Index out of bounds"
+            v14 = array_get v12, index v0 -> u32
+            constrain v14 == u32 4
+            return
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let brillig_default_mem_layout = ssa.to_brillig(&BrilligOptions::default());
+
+        let layout = LayoutConfig::new(4096, 64);
+        let options = BrilligOptions { layout, ..Default::default() };
+        let brillig_4096_stack_frame = ssa.to_brillig(&options);
+
+        let byte_code_default =
+            &brillig_default_mem_layout.ssa_function_to_brillig[&ssa.main_id].byte_code;
+        let byte_code_4096_stack_frame =
+            &brillig_4096_stack_frame.ssa_function_to_brillig[&ssa.main_id].byte_code;
+        // We could assert on the byte code vectors directly but if this test were to fail we want to see the exact opcodes that differ
+        for (opcode_default, opcode_4096) in
+            byte_code_default.iter().zip(byte_code_4096_stack_frame)
+        {
+            assert_eq!(opcode_default, opcode_4096);
+        }
     }
 }
