@@ -508,7 +508,7 @@ impl Context<'_> {
                 //    the flattened element arguments.
                 // 3. If we are above the max insertion index we should insert the previous value from the original slice,
                 //    as during an insertion we want to shift all elements after the insertion up an index.
-                let result_block_id = self.block_id(&result_ids[1]);
+                let result_block_id = self.block_id(result_ids[1]);
                 self.initialize_array(result_block_id, slice_size, None)?;
                 let mut current_insert_index = 0;
                 for i in 0..slice_size {
@@ -657,7 +657,7 @@ impl Context<'_> {
                 // 2. At the end of the slice reading from the next value of the original slice
                 //    can lead to a potential out of bounds error. In this case we just fetch from the original slice
                 //    at the current index. As we are decreasing the slice in length, this is a safe operation.
-                let result_block_id = self.block_id(&result_ids[1]);
+                let result_block_id = self.block_id(result_ids[1]);
                 self.initialize_array(
                     result_block_id,
                     slice_size,
@@ -775,7 +775,7 @@ impl Context<'_> {
         for (result_id, output) in result_ids.iter().zip(output_values) {
             if let AcirValue::Array(_) = &output {
                 let array_id = *result_id;
-                let block_id = self.block_id(&array_id);
+                let block_id = self.block_id(array_id);
                 let array_typ = dfg.type_of_value(array_id);
                 let len = if matches!(array_typ, Type::Array(_, _)) {
                     array_typ.flattened_size() as usize
