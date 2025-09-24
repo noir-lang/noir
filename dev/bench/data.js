@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1758714867901,
+  "lastUpdate": 1758715186829,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -12857,80 +12857,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "671ffe9dc4ba2136635bba289dec3b12a73b5315",
-          "message": "chore: greenlight `remove_unreachable_instructions` for new requirements (#9810)",
-          "timestamp": "2025-09-15T16:57:48Z",
-          "tree_id": "57e9dc347e0742d32756e192a846bd292ac155bb",
-          "url": "https://github.com/noir-lang/noir/commit/671ffe9dc4ba2136635bba289dec3b12a73b5315"
-        },
-        "date": 1757958634442,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 258.78,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 291.94,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 243.56,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 506.71,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 440.02,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1540,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 331.09,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 333.61,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 73,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 69.57,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "b4cba65f52dce42b479ba0521c7e12f8e89dec0f",
           "message": "chore: greenlight check_u128_mul_overflow (#9759)",
           "timestamp": "2025-09-15T16:59:44Z",
@@ -16790,6 +16716,95 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/fabd2af0f388ccd72e18136233ad087b77b0490d"
         },
         "date": 1758637581972,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 255.16,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 292.45,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 243.3,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 336.15,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 335.12,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1030,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1030,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 336.32,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 456.1,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 539.73,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 334.41,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 73.04,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 65.44,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "773e2868ed451787429bba24389c685468822b32",
+          "message": "fix: correct max_bit_size when left-shifting (#9770)\n\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
+          "timestamp": "2025-09-24T11:12:50Z",
+          "tree_id": "cebc9e77849d073938d88b274d8a3e3df374b547",
+          "url": "https://github.com/noir-lang/noir/commit/773e2868ed451787429bba24389c685468822b32"
+        },
+        "date": 1758715166056,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
