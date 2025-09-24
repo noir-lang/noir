@@ -163,7 +163,6 @@ use crate::ssa::{
 };
 
 mod branch_analysis;
-pub(crate) mod value_merger;
 
 impl Ssa {
     /// Flattens the control flow graph of main such that the function is left with a
@@ -1050,7 +1049,9 @@ impl<'f> Context<'f> {
                     arguments[3] = point2_x;
                     arguments[4] = point2_y;
                 }
-
+                // TODO: We now use a predicate in order to disable the blackbox on the backend side
+                // the predicates on the inputs above will be removed once the backend is updated
+                arguments[5] = self.mul_by_condition(arguments[5], condition, call_stack);
                 arguments
             }
 
@@ -1058,10 +1059,12 @@ impl<'f> Context<'f> {
             BlackBoxFunc::MultiScalarMul => {
                 let (elements, typ) =
                     self.apply_predicate_to_msm_argument(arguments[0], condition, call_stack);
-
                 let instruction = Instruction::MakeArray { elements, typ };
                 let array = self.insert_instruction(instruction, call_stack);
                 arguments[0] = array;
+                // TODO: We now use a predicate in order to disable the blackbox on the backend side
+                // the predicates on the inputs above will be removed once the backend is updated
+                arguments[2] = self.mul_by_condition(arguments[2], condition, call_stack);
                 arguments
             }
 
@@ -1095,7 +1098,9 @@ impl<'f> Context<'f> {
                     condition,
                     call_stack,
                 );
-
+                // TODO: We now use a predicate in order to disable the blackbox on the backend side
+                // the predicates on the inputs above will be removed once the backend is updated
+                arguments[4] = self.mul_by_condition(arguments[4], condition, call_stack);
                 arguments
             }
             BlackBoxFunc::EcdsaSecp256r1 => {
@@ -1123,7 +1128,9 @@ impl<'f> Context<'f> {
                     condition,
                     call_stack,
                 );
-
+                // TODO: We now use a predicate in order to disable the blackbox on the backend side
+                // the predicates on the inputs above will be removed once the backend is updated
+                arguments[4] = self.mul_by_condition(arguments[4], condition, call_stack);
                 arguments
             }
 
@@ -1142,15 +1149,6 @@ impl<'f> Context<'f> {
 
             BlackBoxFunc::RANGE => {
                 unreachable!("RANGE should have been converted into `Instruction::RangeCheck`")
-            }
-
-            BlackBoxFunc::BigIntAdd
-            | BlackBoxFunc::BigIntSub
-            | BlackBoxFunc::BigIntMul
-            | BlackBoxFunc::BigIntDiv
-            | BlackBoxFunc::BigIntFromLeBytes
-            | BlackBoxFunc::BigIntToLeBytes => {
-                todo!("BigInt opcodes are not supported yet")
             }
         }
     }

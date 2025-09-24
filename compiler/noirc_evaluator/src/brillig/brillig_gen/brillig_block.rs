@@ -8,7 +8,7 @@ use crate::brillig::brillig_ir::registers::RegisterAllocator;
 use crate::brillig::brillig_ir::{
     BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, BrilligBinaryOp, BrilligContext, ReservedRegisters,
 };
-use crate::ssa::ir::instruction::{ArrayOffset, ConstrainError, Hint};
+use crate::ssa::ir::instruction::{ConstrainError, Hint};
 use crate::ssa::ir::{
     basic_block::BasicBlockId,
     dfg::DataFlowGraph,
@@ -19,6 +19,7 @@ use crate::ssa::ir::{
     types::{NumericType, Type},
     value::{Value, ValueId},
 };
+use acvm::acir::BlackBoxFunc;
 use acvm::acir::brillig::{MemoryAddress, ValueOrArray};
 use acvm::{FieldElement, acir::AcirField};
 use iter_extended::vecmap;
@@ -711,6 +712,26 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                                 }
                             }
 
+                            if matches!(
+                                bb_func,
+                                BlackBoxFunc::EcdsaSecp256k1
+                                    | BlackBoxFunc::EcdsaSecp256r1
+                                    | BlackBoxFunc::MultiScalarMul
+                                    | BlackBoxFunc::EmbeddedCurveAdd
+                            ) {
+                                // Some black box functions have a predicate argument in SSA which we don't want to
+                                // use in the brillig VM. This is as we do not need to flatten the CFG in brillig
+                                // so we expect the predicate to always be true.
+                                let predicate = &arguments_no_slice_len.pop().expect(
+                                    "ICE: ECDSA black box function must have a predicate argument",
+                                );
+                                assert_eq!(
+                                    dfg.get_numeric_constant_with_type(*predicate),
+                                    Some((FieldElement::one(), NumericType::bool())),
+                                    "ICE: ECDSA black box function must have a predicate argument with value 1"
+                                );
+                            }
+
                             let function_arguments = vecmap(&arguments_no_slice_len, |arg| {
                                 self.convert_ssa_value(*arg, dfg)
                             });
@@ -825,7 +846,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 let source_variable = self.convert_ssa_single_addr_value(*value, dfg);
                 self.convert_cast(destination_variable, source_variable);
             }
-            Instruction::ArrayGet { array, index, offset } => {
+            Instruction::ArrayGet { array, index } => {
                 let result_ids = dfg.instruction_results(instruction_id);
                 let destination_variable = self.variables.define_variable(
                     self.function_context,
@@ -837,13 +858,8 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 let array_variable = self.convert_ssa_value(*array, dfg);
                 let index_variable = self.convert_ssa_single_addr_value(*index, dfg);
 
-                let has_offset = if dfg.is_constant(*index) {
-                    // For constant indices it must be the case that they have been offset during SSA
-                    assert!(*offset != ArrayOffset::None);
-                    true
-                } else {
-                    false
-                };
+                // Constants are assumed to have been offset just before Brillig gen.
+                let has_offset = dfg.is_constant(*index);
 
                 self.convert_ssa_array_get(
                     array_variable,
@@ -852,7 +868,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     has_offset,
                 );
             }
-            Instruction::ArraySet { array, index, value, mutable, offset } => {
+            Instruction::ArraySet { array, index, value, mutable } => {
                 let source_variable = self.convert_ssa_value(*array, dfg);
                 let index_register = self.convert_ssa_single_addr_value(*index, dfg);
                 let value_variable = self.convert_ssa_value(*value, dfg);
@@ -865,13 +881,8 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     dfg,
                 );
 
-                let has_offset = if dfg.is_constant(*index) {
-                    // For constant indices it must be the case that they have been offset during SSA
-                    assert!(*offset != ArrayOffset::None);
-                    true
-                } else {
-                    false
-                };
+                // Constants are assumed to have been offset just before Brillig gen.
+                let has_offset = dfg.is_constant(*index);
 
                 self.convert_ssa_array_set(
                     source_variable,

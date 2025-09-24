@@ -16,7 +16,7 @@ use crate::ssa::function_builder::FunctionBuilder;
 use crate::ssa::ir::basic_block::BasicBlockId;
 use crate::ssa::ir::function::FunctionId as IrFunctionId;
 use crate::ssa::ir::function::{Function, RuntimeType};
-use crate::ssa::ir::instruction::{ArrayOffset, BinaryOp};
+use crate::ssa::ir::instruction::BinaryOp;
 use crate::ssa::ir::map::AtomicCounter;
 use crate::ssa::ir::types::{NumericType, Type};
 use crate::ssa::ir::value::ValueId;
@@ -518,12 +518,16 @@ impl<'a> FunctionContext<'a> {
     }
 
     /// Create a const offset of an address for an array load or store
-    pub(super) fn make_offset(&mut self, mut address: ValueId, offset: u128) -> ValueId {
+    pub(super) fn make_offset(
+        &mut self,
+        mut address: ValueId,
+        offset: u128,
+        unchecked: bool,
+    ) -> ValueId {
         if offset != 0 {
             let typ = self.builder.type_of_value(address).unwrap_numeric();
             let offset = self.builder.numeric_constant(offset, typ);
-            address =
-                self.builder.insert_binary(address, BinaryOp::Add { unchecked: true }, offset);
+            address = self.builder.insert_binary(address, BinaryOp::Add { unchecked }, offset);
         }
         address
     }
@@ -834,8 +838,7 @@ impl<'a> FunctionContext<'a> {
         new_value.for_each(|value| {
             let value = value.eval(self);
             let mutable = false;
-            let offset = ArrayOffset::None;
-            array = self.builder.insert_array_set(array, index, value, mutable, offset);
+            array = self.builder.insert_array_set(array, index, value, mutable);
             // Unchecked add because this can't overflow (it would have overflowed when creating the array)
             index = self.builder.insert_binary(index, BinaryOp::Add { unchecked: true }, one);
         });

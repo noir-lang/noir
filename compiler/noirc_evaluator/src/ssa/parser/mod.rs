@@ -7,7 +7,7 @@ use std::{
 use super::{
     Ssa,
     ir::{
-        instruction::{ArrayOffset, BinaryOp},
+        instruction::BinaryOp,
         types::{NumericType, Type},
     },
     opt::pure::Purity,
@@ -27,7 +27,10 @@ use noirc_frontend::{
 use thiserror::Error;
 use token::{Keyword, SpannedToken, Token};
 
-use crate::ssa::{ir::function::RuntimeType, parser::ast::ParsedTerminator};
+use crate::ssa::{
+    ir::{function::RuntimeType, instruction::ArrayOffset},
+    parser::ast::ParsedTerminator,
+};
 
 mod ast;
 mod into_ssa;
@@ -130,6 +133,8 @@ pub(crate) enum SsaError {
     VariableAlreadyDefined(Identifier),
     #[error("Global '{0}' already defined")]
     GlobalAlreadyDefined(Identifier),
+    #[error("Illegal use of offset in non-Brillig function '{0:?}'")]
+    IllegalOffset(Identifier, ArrayOffset),
 }
 
 impl SsaError {
@@ -141,7 +146,8 @@ impl SsaError {
             | SsaError::UnknownBlock(identifier)
             | SsaError::VariableAlreadyDefined(identifier)
             | SsaError::GlobalAlreadyDefined(identifier)
-            | SsaError::UnknownFunction(identifier) => identifier.span,
+            | SsaError::UnknownFunction(identifier)
+            | SsaError::IllegalOffset(identifier, _) => identifier.span,
             SsaError::MismatchedReturnValues { returns, expected: _ } => returns[0].span,
         }
     }

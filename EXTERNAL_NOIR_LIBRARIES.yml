@@ -1,4 +1,4 @@
-define: &AZ_COMMIT 9a7dd2b0b67f0af92401ce32105de3558052d6ca
+define: &AZ_COMMIT 63acec5b331ff4ad7011ffc76b8b6e1c3b5a9afb
 libraries:
   noir_check_shuffle:
     repo: noir-lang/noir_check_shuffle
@@ -46,7 +46,7 @@ libraries:
     critical: true
   sparse_array:
     repo: noir-lang/sparse_array
-    timeout: 3
+    timeout: 10
     critical: false
   noir_json_parser:
     repo: noir-lang/noir_json_parser
