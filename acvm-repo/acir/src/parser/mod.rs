@@ -261,67 +261,44 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_assert_zero_expression(&mut self) -> ParseResult<Expression<FieldElement>> {
+        // 'EXPR'
         self.eat_keyword_or_error(Keyword::Expression)?;
 
+        // Parse the left-hand side terms
+        let lhs_terms = self.parse_terms_or_error()?;
+
+        // '='
+        self.eat_or_error(Token::Equal)?;
+
+        // Parse the right-hand side terms
+        let rhs_terms = self.parse_terms_or_error()?;
+
+        // "Move" the terms to the left by negating them
+        let rhs_terms = rhs_terms.into_iter().map(|term| term.negate()).collect::<Vec<_>>();
+
+        // Gather all terms, summing the constants
+        let mut q_c = FieldElement::zero();
         let mut linear_combinations = Vec::new();
         let mut mul_terms = Vec::new();
-        let mut constant: Option<FieldElement> = None;
-        let mut first = true;
-        let mut negative = self.eat(Token::Minus)?;
 
-        loop {
-            if let Some(w1) = self.eat_witness()? {
-                let coefficient = FieldElement::one();
-                let coefficient = if negative { -coefficient } else { coefficient };
-
-                if first && self.eat(Token::Equal)? {
-                    if let Some(w2) = self.eat_witness()? {
-                        // Here we parsed `coefficient*w1 = w2` so we produce `coefficient*w1 - w2 = 0`
-                        linear_combinations.push((coefficient, w1));
-                        linear_combinations.push((-FieldElement::one(), w2));
-                        break;
-                    }
-
-                    let q_c = self.eat_field_or_error()?;
-
-                    // Here we parsed `coefficient*w1 = constant` so we produce `coefficient*w1 - q_c = 0`
-                    linear_combinations.push((coefficient, w1));
-                    constant = Some(-q_c);
-                    break;
-                }
-
-                if self.eat(Token::Star)? {
-                    let w2 = self.eat_witness_or_error()?;
-                    mul_terms.push((coefficient, w1, w2));
-                } else {
-                    linear_combinations.push((coefficient, w1));
-                }
-            } else if let Some(coefficient) = self.eat_field_element()? {
-                let coefficient = if negative { -coefficient } else { coefficient };
-
-                if self.eat(Token::Star)? {
-                    let w1 = self.eat_witness_or_error()?;
-
-                    if self.eat(Token::Star)? {
-                        let w2 = self.eat_witness_or_error()?;
-                        mul_terms.push((coefficient, w1, w2));
-                    } else {
-                        linear_combinations.push((coefficient, w1));
-                    }
-                } else {
-                    if constant.is_some() {
-                        return Err(ParserError::DuplicatedConstantTerm {
-                            found: self.token.token().clone(),
-                            span: self.token.span(),
-                        });
-                    }
-                    constant = Some(coefficient);
-                }
-            } else {
-                return self.expected_field_element();
+        for term in lhs_terms.into_iter().chain(rhs_terms) {
+            match term {
+                Term::Constant(c) => q_c += c,
+                Term::Linear(c, w) => linear_combinations.push((c, w)),
+                Term::Multiplication(c, w1, w2) => mul_terms.push((c, w1, w2)),
             }
+        }
 
-            first = false;
+        Ok(Expression { mul_terms, linear_combinations, q_c })
+    }
+
+    fn parse_terms_or_error(&mut self) -> ParseResult<Vec<Term>> {
+        let mut terms = Vec::new();
+        let mut negative = self.eat(Token::Minus)?;
+        loop {
+            let term = self.parse_term_or_error()?;
+            let term = if negative { term.negate() } else { term };
+            terms.push(term);
 
             if self.eat(Token::Plus)? {
                 negative = false;
@@ -333,34 +310,37 @@ impl<'a> Parser<'a> {
                 continue;
             }
 
-            if self.eat(Token::Equal)? {
-                let zero_token = self.token.token().clone();
-                let span = self.token.span();
-                let Some(q_c) = self.eat_field_element()? else {
-                    return self.expected_field_element();
-                };
-
-                if !q_c.is_zero() {
-                    if constant.is_some() {
-                        return Err(ParserError::DuplicatedConstantTerm {
-                            found: zero_token,
-                            span,
-                        });
-                    }
-                    // If we have `... = q_c` we produce `... - q_c = 0`
-                    constant = Some(-q_c);
-                }
-
-                break;
-            }
-
-            return self.expected_token(Token::Equal);
+            break;
         }
+        Ok(terms)
+    }
 
-        // If a constant isn't provided, we default it to zero
-        let q_c = constant.unwrap_or_default();
+    fn parse_term_or_error(&mut self) -> ParseResult<Term> {
+        if let Some(coefficient) = self.eat_field_element()? {
+            if self.eat(Token::Star)? {
+                let w1 = self.eat_witness_or_error()?;
+                self.parse_linear_or_multiplication_term(coefficient, w1)
+            } else {
+                Ok(Term::Constant(coefficient))
+            }
+        } else if let Some(w1) = self.eat_witness()? {
+            self.parse_linear_or_multiplication_term(FieldElement::one(), w1)
+        } else {
+            self.expected_term()
+        }
+    }
 
-        Ok(Expression { mul_terms, linear_combinations, q_c })
+    fn parse_linear_or_multiplication_term(
+        &mut self,
+        coefficient: FieldElement,
+        w1: Witness,
+    ) -> Result<Term, ParserError> {
+        if self.eat(Token::Star)? {
+            let w2 = self.eat_witness_or_error()?;
+            Ok(Term::Multiplication(coefficient, w1, w2))
+        } else {
+            Ok(Term::Linear(coefficient, w1))
+        }
     }
 
     fn parse_arithmetic_expression(&mut self) -> ParseResult<Expression<FieldElement>> {
@@ -1079,6 +1059,13 @@ impl<'a> Parser<'a> {
         })
     }
 
+    fn expected_term<T>(&mut self) -> ParseResult<T> {
+        Err(ParserError::ExpectedTerm {
+            found: self.token.token().clone(),
+            span: self.token.span(),
+        })
+    }
+
     fn expected_token<T>(&mut self, token: Token) -> ParseResult<T> {
         Err(ParserError::ExpectedToken {
             token,
@@ -1100,6 +1087,23 @@ fn eof_spanned_token() -> SpannedToken {
     SpannedToken::new(Token::Eof, Default::default())
 }
 
+#[derive(Debug, Clone, Copy)]
+enum Term {
+    Constant(FieldElement),
+    Linear(FieldElement, Witness),
+    Multiplication(FieldElement, Witness, Witness),
+}
+
+impl Term {
+    fn negate(self) -> Self {
+        match self {
+            Term::Constant(c) => Term::Constant(-c),
+            Term::Linear(c, w) => Term::Linear(-c, w),
+            Term::Multiplication(c, w1, w2) => Term::Multiplication(-c, w1, w2),
+        }
+    }
+}
+
 type ParseResult<T> = Result<T, ParserError>;
 
 #[derive(Debug, Error)]
@@ -1116,6 +1120,8 @@ pub(crate) enum ParserError {
     ExpectedFieldElement { found: Token, span: Span },
     #[error("Expected a witness index, found '{found}'")]
     ExpectedWitness { found: Token, span: Span },
+    #[error("Expected a term, found '{found}'")]
+    ExpectedTerm { found: Token, span: Span },
     #[error("Duplicate constant term in native Expression")]
     DuplicatedConstantTerm { found: Token, span: Span },
     #[error("Expected valid black box function name, found '{found}'")]
@@ -1142,6 +1148,7 @@ impl ParserError {
             | ExpectedIdentifier { span, .. }
             | ExpectedFieldElement { span, .. }
             | ExpectedWitness { span, .. }
+            | ExpectedTerm { span, .. }
             | DuplicatedConstantTerm { span, .. }
             | ExpectedBlackBoxFuncName { span, .. }
             | IntegerLargerThanU32 { span, .. }
