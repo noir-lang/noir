@@ -217,8 +217,28 @@ impl Context<'_, '_, '_> {
     }
 
     /// Insert SSA instructions which computes lhs >> rhs by doing lhs/2^rhs
-    /// For negative signed integers, we do the division on the 1-complement representation of lhs,
-    /// before converting back the result to the 2-complement representation.
+    ///
+    /// For negative signed integers, we do the shifting using a technique based on how dividing a
+    /// 2-complement value can be done by converting to the 1-complement representation of lhs,
+    /// shifting, then converting back the result to the 2-complement representation.
+    ///
+    /// To understand the algorithm, take a look at how division works on pages 7-8 of
+    /// <https://dspace.mit.edu/bitstream/handle/1721.1/6090/AIM-378.pdf>
+    ///
+    /// Division for a negative number represented as a 2-complement is implemented by the following steps:
+    /// 1. Convert to 1-complement by subtracting 1 from the value
+    /// 2. Shift right by the number of bits corresponding to the divisor
+    /// 3. Convert back to 2-complement by adding 1 to the result
+    ///
+    /// That's division in terms of shifting; we need shifting in terms of division. The following steps show how:
+    /// * `DIV(a) = SHR(a-1)+1`
+    /// * `SHR(a-1) = DIV(a)-1`
+    /// * `SHR(a) = DIV(a+1)-1`
+    ///
+    /// Hence we handle negative values in shifting by:
+    /// 1. Adding 1 to the value
+    /// 2. Dividing by 2^rhs
+    /// 3. Subtracting 1 from the result
     fn insert_shift_right(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
         let lhs_typ = self.context.dfg.type_of_value(lhs).unwrap_numeric();
 
@@ -234,24 +254,24 @@ impl Context<'_, '_, '_> {
                 // Get the sign of the operand; positive signed operand will just do a division as well
                 let zero =
                     self.numeric_constant(FieldElement::zero(), NumericType::signed(bit_size));
+                // The sign will be 0 for positive numbers and 1 for negatives, so it covers both cases.
                 let lhs_sign = self.insert_binary(lhs, BinaryOp::Lt, zero);
                 let lhs_sign_as_field = self.insert_cast(lhs_sign, NumericType::NativeField);
                 let lhs_as_field = self.insert_cast(lhs, NumericType::NativeField);
-                // For negative numbers, convert to 1-complement using wrapping addition of a + 1
-                // Unchecked add as these are fields
+                // For negative numbers, we prepare for the division using a wrapping addition of a + 1. Unchecked add as these are fields.
                 let add = BinaryOp::Add { unchecked: true };
-                let one_complement = self.insert_binary(lhs_sign_as_field, add, lhs_as_field);
-                let one_complement = self.insert_truncate(one_complement, bit_size, bit_size + 1);
-                let one_complement =
-                    self.insert_cast(one_complement, NumericType::signed(bit_size));
-                // Performs the division on the 1-complement (or the operand if positive)
-                let shifted_complement = self.insert_binary(one_complement, BinaryOp::Div, pow);
-                // Convert back to 2-complement representation if operand is negative
+                let div_complement = self.insert_binary(lhs_sign_as_field, add, lhs_as_field);
+                let div_complement = self.insert_truncate(div_complement, bit_size, bit_size + 1);
+                let div_complement =
+                    self.insert_cast(div_complement, NumericType::signed(bit_size));
+                // Performs the division on the adjusted complement (or the operand if positive)
+                let shifted_complement = self.insert_binary(div_complement, BinaryOp::Div, pow);
+                // For negative numbers, convert back to 2-complement by subtracting 1.
                 let lhs_sign_as_int = self.insert_cast(lhs_sign, lhs_typ);
 
                 // The requirements for this to underflow are all of these:
                 // - lhs < 0
-                // - ones_complement(lhs) / (2^rhs) == 0
+                // - div_complement(lhs) / (2^rhs) == 0
                 // As the upper bit is set for the ones complement of negative numbers we'd need 2^rhs
                 // to be larger than the lhs bitsize for this to overflow.
                 let sub = BinaryOp::Sub { unchecked: true };
