@@ -1,14 +1,12 @@
-use crate::ssa::{
-    ir::{
-        basic_block::BasicBlockId,
-        instruction::{
-            Binary, BinaryOp, ConstrainError, Instruction,
-            binary::{truncate, truncate_field},
-        },
-        types::{NumericType, Type},
-        value::{Value, ValueId},
+use crate::ssa::ir::{
+    basic_block::BasicBlockId,
+    dfg::simplify::value_merger::ValueMerger,
+    instruction::{
+        Binary, BinaryOp, ConstrainError, Instruction,
+        binary::{truncate, truncate_field},
     },
-    opt::flatten_cfg::value_merger::ValueMerger,
+    types::{NumericType, Type},
+    value::{Value, ValueId},
 };
 use acvm::{AcirField as _, FieldElement};
 use binary::simplify_binary;
@@ -23,6 +21,7 @@ mod binary;
 mod call;
 mod cast;
 mod constrain;
+pub(crate) mod value_merger;
 
 pub(crate) use call::constant_to_radix;
 
