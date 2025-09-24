@@ -47,7 +47,7 @@
 //!          y[0] = 2;
 //!     }
 //!
-//!     assert(y[0] == 1);
+//!     assert(y[0] == 3);
 //!  }
 //!  ```
 //!
@@ -74,14 +74,14 @@
 //! ```ssa
 //! v13 = cast v0 as u32
 //! v14 = cast v6 as u32
-//! v15 = unchecked_mul v14, u32 2  
+//! v15 = unchecked_mul v14, u32 2
 //! v16 = unchecked_add v13, v15
 //! v17 = array_get v5, index u32 1 -> u32
 //! v18 = array_get v8, index u32 1 -> u32
 //! v19 = cast v0 as u32
 //! v20 = cast v6 as u32
 //! v21 = unchecked_mul v19, v17
-//! v22 = unchecked_mul v20, v18   
+//! v22 = unchecked_mul v20, v18
 //! v23 = unchecked_add v21, v22
 //! v24 = make_array [v16, v23] : [u32; 2]
 //! ```
@@ -521,18 +521,18 @@ mod tests {
         let src = "
 acir(inline) impure fn main f0 {
   b0(v0: u1, v1: Field, v2: Field):
-    v3 = make_array [] : [Field]   
-    v4 = allocate -> &mut u32       
-    v5 = allocate -> &mut [Field]    
+    v3 = make_array [] : [Field]
+    v4 = allocate -> &mut u32
+    v5 = allocate -> &mut [Field]
     enable_side_effects v0
     v6 = cast v0 as u32
     v7, v8 = call slice_push_back(v6, v3, v2) -> (u32, [Field])
-    v9 = not v0                                   
-    v10 = cast v0 as u32   
-    v12 = if v0 then v8 else (if v9) v3   
-    enable_side_effects u1 1        
+    v9 = not v0
+    v10 = cast v0 as u32
+    v12 = if v0 then v8 else (if v9) v3
+    enable_side_effects u1 1
     v15, v16 = call slice_push_back(v10, v12, v2) -> (u32, [Field])
-    v17 = array_get v16, index u32 0 -> Field    
+    v17 = array_get v16, index u32 0 -> Field
     constrain v17 == Field 1
     return
 }
