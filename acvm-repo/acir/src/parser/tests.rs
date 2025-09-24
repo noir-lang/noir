@@ -1,3 +1,5 @@
+use insta::assert_snapshot;
+
 use crate::{
     circuit::{Circuit, Program},
     parser::ParserError,
@@ -118,10 +120,10 @@ fn assert_zero_with_mul_terms() {
     private parameters: [w0, w1, w2]
     public parameters: []
     return values: []
-    EXPR w0*w1 - w3 = 0
-    EXPR w3*w3 - w4 = 0
-    EXPR w4*w4 - w5 = 0
-    EXPR w5*w5 - w6 = 0
+    EXPR w3 = w0*w1
+    EXPR w4 = w3*w3
+    EXPR w5 = w4*w4
+    EXPR w6 = w5*w5
     EXPR w2 = w6
     ";
     assert_circuit_roundtrip(src);
@@ -656,7 +658,7 @@ fn array_dynamic() {
     MEM (id: 3, read at: EXPR [ (1, w46) ], value: EXPR [ (1, w49) ])
     MEM (id: 0, read at: EXPR [ (1, w46) ], value: EXPR [ (1, w50) ])
     EXPR -w31*w36 = 0
-    EXPR w21*w31 - w51 = 0
+    EXPR w51 = w21*w31
     MEM (id: 0, read at: EXPR [ (1, w51) ], value: EXPR [ (1, w52) ])
     EXPR -w31*w52 + w52 - w53 = 0
     MEM (id: 0, write EXPR [ (1, w53) ] at: EXPR [ (1, w51) ])
@@ -750,4 +752,23 @@ fn fold_basic_mismatched_ids() {
     };
     assert_eq!(expected, 1);
     assert_eq!(found, 2);
+}
+
+#[test]
+fn assert_zero_equation() {
+    let src = "
+    current witness: w9
+    private parameters: [w0, w1, w2, w2]
+    public parameters: []
+    return values: []
+    EXPR - w0 + w1 - 10 + 20 + w0*w2 = w2 - w3 + w0*w1 - w1*w2 - 30
+    ";
+    let circuit = Circuit::from_str(src).unwrap();
+    assert_snapshot!(circuit.to_string(), @r"
+    current witness: w9
+    private parameters: [w0, w1, w2]
+    public parameters: []
+    return values: []
+    EXPR w0*w2 - w0*w1 + w1*w2 - w0 + w1 - w2 + w3 = -40
+    ");
 }

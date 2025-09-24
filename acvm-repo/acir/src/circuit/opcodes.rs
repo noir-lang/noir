@@ -149,8 +149,8 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
             Opcode::AssertZero(expr) => {
                 write!(f, "EXPR ")?;
 
-                // Check if it's `wN - C = 0` and print it as `wN = C`,
-                // or if its' `wN + C = 0` and print it as `wN = -C`.
+                // Check if it's `w - C = 0` and print it as `w = C`,
+                // or if its' `w + C = 0` and print it as `w = -C`.
                 if expr.mul_terms.is_empty() && expr.linear_combinations.len() == 1 {
                     let (coefficient, witness) = expr.linear_combinations[0];
                     let constant = expr.q_c;
@@ -169,8 +169,8 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
                     }
                 }
 
-                // Check if it's `-wN * wM = 0` or `wN * -wM = 0` in which case we can
-                // print it as `wN = wM`.
+                // Check if it's `-w1 * w2 = 0` or `w1 * -w2 = 0` in which case we can
+                // print it as `w1 = w2`.
                 if expr.mul_terms.is_empty()
                     && expr.linear_combinations.len() == 2
                     && expr.q_c.is_zero()
@@ -182,6 +182,31 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
                         || ((-coefficient1).is_one() && coefficient2.is_one())
                     {
                         write!(f, "{witness1} = {witness2}")?;
+                        return Ok(());
+                    }
+                }
+
+                // Check if it's `c1*w1*w2 - w3 = 0` or similar, in which case we can print it
+                // as `w1 = c1*w2*w3`.
+                if expr.mul_terms.len() == 1
+                    && expr.linear_combinations.len() == 1
+                    && expr.q_c.is_zero()
+                {
+                    let (coefficient1, witness1, witness2) = expr.mul_terms[0];
+                    let (coefficient2, witness3) = expr.linear_combinations[0];
+                    if witness1 != witness3
+                        && witness2 != witness3
+                        && (coefficient2.is_one() || (-coefficient2).is_one())
+                    {
+                        let coefficient1 =
+                            if coefficient2.is_one() { -coefficient1 } else { coefficient1 };
+                        if coefficient1.is_one() {
+                            write!(f, "{witness3} = {witness1}*{witness2}")?;
+                        } else if (-coefficient1).is_one() {
+                            write!(f, "{witness3} = -{witness1}*{witness2}")?;
+                        } else {
+                            write!(f, "{witness3} = {coefficient1}*{witness1}*{witness2}")?;
+                        }
                         return Ok(());
                     }
                 }
