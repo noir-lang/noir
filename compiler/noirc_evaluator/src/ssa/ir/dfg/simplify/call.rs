@@ -7,15 +7,12 @@ use bn254_blackbox_solver::derive_generators;
 use iter_extended::vecmap;
 use num_bigint::BigUint;
 
-use crate::ssa::{
-    ir::{
-        basic_block::BasicBlockId,
-        dfg::DataFlowGraph,
-        instruction::{Binary, BinaryOp, Endian, Hint, Instruction, Intrinsic},
-        types::{NumericType, Type},
-        value::{Value, ValueId},
-    },
-    opt::flatten_cfg::value_merger::ValueMerger,
+use crate::ssa::ir::{
+    basic_block::BasicBlockId,
+    dfg::{DataFlowGraph, simplify::value_merger::ValueMerger},
+    instruction::{Binary, BinaryOp, Endian, Hint, Instruction, Intrinsic},
+    types::{NumericType, Type},
+    value::{Value, ValueId},
 };
 
 use super::SimplifyResult;
