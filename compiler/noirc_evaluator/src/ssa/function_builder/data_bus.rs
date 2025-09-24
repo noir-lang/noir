@@ -251,6 +251,11 @@ impl FunctionBuilder {
         result
     }
 
+    /// Forcefully sets the databus of the current function.
+    pub(crate) fn set_data_bus(&mut self, data_bus: DataBus) {
+        self.current_function.dfg.data_bus = data_bus;
+    }
+
     /// This function takes the flattened databus visibilities and generates the databus visibility for each ssa parameter
     /// asserting that an ssa parameter is not assigned two different databus visibilities
     fn deflatten_databus_visibilities(

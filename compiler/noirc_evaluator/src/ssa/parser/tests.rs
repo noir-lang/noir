@@ -7,7 +7,6 @@ use crate::{
 
 fn assert_ssa_roundtrip(src: &str) {
     let ssa = Ssa::from_str(src).unwrap();
-    println!("offset: {}", ssa.main().dfg.brillig_arrays_offset);
     let ssa = ssa.print_without_locations().to_string();
     let ssa = trim_leading_whitespace_from_lines(&ssa);
     let src = trim_leading_whitespace_from_lines(src);
@@ -895,4 +894,83 @@ fn illegal_offset_in_acir_function() {
     }
     ";
     let _ = Ssa::from_str_no_validation(src).unwrap();
+}
+
+#[test]
+fn call_data_and_return_data() {
+    let src = "
+    acir(inline) predicate_pure fn main f0 {
+      call_data(0): array: v16, indexes: [v2: 1]
+      return_data: v20
+      b0(v0: u32, v1: u32, v2: [u32; 4]):
+        v3 = cast v1 as Field
+        v5 = array_get v2, index u32 0 -> u32
+        v6 = cast v5 as Field
+        v8 = array_get v2, index u32 1 -> u32
+        v9 = cast v8 as Field
+        v11 = array_get v2, index u32 2 -> u32
+        v12 = cast v11 as Field
+        v14 = array_get v2, index u32 3 -> u32
+        v15 = cast v14 as Field
+        v16 = make_array [v3, v6, v9, v12, v15] : [Field; 5]
+        v17 = array_get v2, index v0 -> u32
+        v18 = add v17, u32 1
+        v19 = cast v18 as Field
+        v20 = make_array [v19] : [Field; 1]
+        return v20
+    }
+    ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
+fn call_data_without_return_data() {
+    let src = "
+    acir(inline) predicate_pure fn main f0 {
+      call_data(0): array: v16, indexes: [v2: 1]
+      b0(v0: u32, v1: u32, v2: [u32; 4]):
+        v3 = cast v1 as Field
+        v5 = array_get v2, index u32 0 -> u32
+        v6 = cast v5 as Field
+        v8 = array_get v2, index u32 1 -> u32
+        v9 = cast v8 as Field
+        v11 = array_get v2, index u32 2 -> u32
+        v12 = cast v11 as Field
+        v14 = array_get v2, index u32 3 -> u32
+        v15 = cast v14 as Field
+        v16 = make_array [v3, v6, v9, v12, v15] : [Field; 5]
+        v17 = array_get v2, index v0 -> u32
+        v18 = add v17, u32 1
+        v19 = cast v18 as Field
+        v20 = make_array [v19] : [Field; 1]
+        return v20
+    }
+    ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
+fn return_data_without_call_data() {
+    let src = "
+    acir(inline) predicate_pure fn main f0 {
+      return_data: v20
+      b0(v0: u32, v1: u32, v2: [u32; 4]):
+        v3 = cast v1 as Field
+        v5 = array_get v2, index u32 0 -> u32
+        v6 = cast v5 as Field
+        v8 = array_get v2, index u32 1 -> u32
+        v9 = cast v8 as Field
+        v11 = array_get v2, index u32 2 -> u32
+        v12 = cast v11 as Field
+        v14 = array_get v2, index u32 3 -> u32
+        v15 = cast v14 as Field
+        v16 = make_array [v3, v6, v9, v12, v15] : [Field; 5]
+        v17 = array_get v2, index v0 -> u32
+        v18 = add v17, u32 1
+        v19 = cast v18 as Field
+        v20 = make_array [v19] : [Field; 1]
+        return v20
+    }
+    ";
+    assert_ssa_roundtrip(src);
 }
