@@ -275,6 +275,7 @@ impl CompareComptime {
             || msg.contains("cannot fit into") // covers signed overflows
             || msg.contains("divide by zero")
             || msg.contains("division by zero")
+            || msg.contains("the remainder with a divisor of zero")
             || msg.contains("out of bounds")
     }
 
