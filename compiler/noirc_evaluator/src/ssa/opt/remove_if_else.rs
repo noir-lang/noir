@@ -170,10 +170,6 @@ impl Context {
                     let then_value = *then_value;
                     let else_value = *else_value;
 
-                    let typ = context.dfg.type_of_value(then_value);
-                    // Numeric values should have been handled during flattening
-                    assert!(!matches!(typ, Type::Numeric(_)));
-
                     let call_stack = context.dfg.get_instruction_call_stack_id(instruction_id);
                     let mut value_merger =
                         ValueMerger::new(context.dfg, block, &mut self.slice_sizes, call_stack);
@@ -185,7 +181,6 @@ impl Context {
                         else_value,
                     )?;
 
-                    let _typ = context.dfg.type_of_value(value);
                     let results = context.dfg.instruction_results(instruction_id);
                     let result = results[0];
 
@@ -336,12 +331,17 @@ fn remove_if_else_pre_check(func: &Function) {
         let instruction_ids = func.dfg[block_id].instructions();
 
         for instruction_id in instruction_ids {
-            if matches!(func.dfg[*instruction_id], Instruction::IfElse { .. }) {
+            if let Instruction::IfElse { then_value, .. } = &func.dfg[*instruction_id] {
                 assert!(
                     func.dfg.instruction_results(*instruction_id).iter().all(|value| {
                         matches!(func.dfg.type_of_value(*value), Type::Array(_, _) | Type::Slice(_))
                     }),
                     "IfElse instruction returns unexpected type"
+                );
+                let typ = func.dfg.type_of_value(*then_value);
+                assert!(
+                    !matches!(typ, Type::Numeric(_)),
+                    "Numeric values should have been handled during flattening"
                 );
             }
         }
