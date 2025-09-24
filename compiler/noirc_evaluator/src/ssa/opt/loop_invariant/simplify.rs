@@ -25,6 +25,10 @@ impl LoopInvariantContext<'_> {
         binary: &Binary,
     ) -> bool {
         match binary.operator {
+            // An unchecked operation cannot overflow, so it can be safely evaluated
+            BinaryOp::Add { unchecked: true }
+            | BinaryOp::Mul { unchecked: true }
+            | BinaryOp::Sub { unchecked: true } => true,
             BinaryOp::Div | BinaryOp::Mod => {
                 // Division can be evaluated if we ensure that the divisor cannot be zero
                 let Some((left, value, lower, upper)) =
@@ -55,9 +59,8 @@ impl LoopInvariantContext<'_> {
             }
             // An unchecked operation cannot overflow, so it can be safely evaluated.
             // Some checked operations can be safely evaluated, depending on the loop bounds, but in that case,
-            // they would have been already converted to unchecked operation in `simplify_induction_variable_in_binary()`.
-            // These are all handled by `requires_acir_gen_predicate`, and are redundant with `can_be_hoisted`.
-            _ => !binary.requires_acir_gen_predicate(&self.inserter.function.dfg),
+            // they would have been already converted to unchecked operation in `simplify_induction_variable_in_binary()`
+            _ => false
         }
     }
 
