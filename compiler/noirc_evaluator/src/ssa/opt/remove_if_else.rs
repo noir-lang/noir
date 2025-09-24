@@ -195,8 +195,9 @@ impl Context {
 
                         match slice_capacity_change(context.dfg, intrinsic, arguments, results) {
                             SizeChange::None => (),
-                            SizeChange::SetTo(value, new_capacity) => {
-                                self.slice_sizes.insert(value, new_capacity);
+                            SizeChange::SetTo { old, new } => {
+                                let old_capacity = self.get_or_find_capacity(context.dfg, old);
+                                self.slice_sizes.insert(new, old_capacity);
                             }
                             SizeChange::Inc { old, new } => {
                                 let old_capacity = self.get_or_find_capacity(context.dfg, old);
@@ -228,7 +229,7 @@ impl Context {
     /// Get the tracked size of array/slices, or retrieve (and track) it for arrays.
     fn get_or_find_capacity(&mut self, dfg: &DataFlowGraph, value: ValueId) -> u32 {
         match self.slice_sizes.entry(value) {
-            Entry::Occupied(entry) => return *entry.get(),
+            Entry::Occupied(entry) => *entry.get(),
             Entry::Vacant(entry) => {
                 // Check if the item was made by a MakeArray instruction, which can create slices as well.
                 if let Some((array, typ)) = dfg.get_array_constant(value) {
@@ -249,12 +250,21 @@ impl Context {
 
 enum SizeChange {
     None,
-    SetTo(ValueId, u32),
-
-    // These two variants store the old and new slice ids
-    // not their lengths which should be old_len = new_len +/- 1
-    Inc { old: ValueId, new: ValueId },
-    Dec { old: ValueId, new: ValueId },
+    /// Make the size of the new slice equal to the old array.
+    SetTo {
+        old: ValueId,
+        new: ValueId,
+    },
+    /// Make the size of the new slice equal to old+1.
+    Inc {
+        old: ValueId,
+        new: ValueId,
+    },
+    /// Make the size of the new slice equal to old-1.
+    Dec {
+        old: ValueId,
+        new: ValueId,
+    },
 }
 
 /// Find the change to a slice's capacity an instruction would have
@@ -276,6 +286,8 @@ fn slice_capacity_change(
         }
 
         Intrinsic::SlicePopBack | Intrinsic::SliceRemove => {
+            // Expecting:  len, slice, value = ...
+            assert_eq!(results.len(), 3);
             let old = arguments[1];
             let new = results[1];
             assert!(matches!(dfg.type_of_value(old), Type::Slice(_)));
@@ -284,6 +296,8 @@ fn slice_capacity_change(
         }
 
         Intrinsic::SlicePopFront => {
+            // Expecting:  value, len, slice = ...
+            assert_eq!(results.len(), 3);
             let old = arguments[1];
             let new = results[results.len() - 1];
             assert!(matches!(dfg.type_of_value(old), Type::Slice(_)));
@@ -294,12 +308,11 @@ fn slice_capacity_change(
         Intrinsic::AsSlice => {
             assert_eq!(arguments.len(), 1);
             assert_eq!(results.len(), 2);
-            let length = match dfg.type_of_value(arguments[0]) {
-                Type::Array(_, length) => length,
-                other => unreachable!("slice_capacity_change expected array, found {other:?}"),
-            };
-            assert!(matches!(dfg.type_of_value(results[1]), Type::Slice(_)));
-            SizeChange::SetTo(results[1], length)
+            let old = arguments[0];
+            let new = results[1];
+            assert!(matches!(dfg.type_of_value(old), Type::Array(_, _)));
+            assert!(matches!(dfg.type_of_value(new), Type::Slice(_)));
+            SizeChange::SetTo { old, new }
         }
 
         // These cases don't affect slice capacities
