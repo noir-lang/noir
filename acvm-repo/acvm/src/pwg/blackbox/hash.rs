@@ -137,3 +137,81 @@ pub(crate) fn solve_poseidon2_permutation_opcode<F: AcirField>(
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::pwg::blackbox::solve_generic_256_hash_opcode;
+    use acir::{
+        FieldElement,
+        circuit::opcodes::FunctionInput,
+        native_types::{Witness, WitnessMap},
+    };
+    use acvm_blackbox_solver::{blake2s, blake3};
+    use std::collections::BTreeMap;
+
+    #[test]
+    fn test_blake2s() {
+        // Test vector is coming from Barretenberg (cf. blake2s.test.cpp)
+        let mut inputs = Vec::new();
+        for i in 0..3 {
+            inputs.push(FunctionInput::Witness(Witness(1 + i)));
+        }
+        let mut outputs = [Witness(0); 32];
+        for i in 0..32 {
+            outputs[i] = Witness(4 + i as u32);
+        }
+
+        let mut initial_witness = WitnessMap::from(BTreeMap::from_iter([
+            (Witness(1), FieldElement::from('a' as u128)),
+            (Witness(2), FieldElement::from('b' as u128)),
+            (Witness(3), FieldElement::from('c' as u128)),
+        ]));
+
+        solve_generic_256_hash_opcode(&mut initial_witness, &inputs, None, &outputs, blake2s)
+            .unwrap();
+
+        let expected_output: [u128; 32] = [
+            0x50, 0x8C, 0x5E, 0x8C, 0x32, 0x7C, 0x14, 0xE2, 0xE1, 0xA7, 0x2B, 0xA3, 0x4E, 0xEB,
+            0x45, 0x2F, 0x37, 0x45, 0x8B, 0x20, 0x9E, 0xD6, 0x3A, 0x29, 0x4D, 0x99, 0x9B, 0x4C,
+            0x86, 0x67, 0x59, 0x82,
+        ];
+        let expected_output = expected_output.map(|e| FieldElement::from(e));
+        let expected_output: Vec<&FieldElement> = expected_output.iter().collect();
+        for i in 0..32 {
+            assert_eq!(initial_witness[&Witness(4 + i as u32)], *expected_output[i]);
+        }
+    }
+
+    #[test]
+    fn test_blake3s() {
+        // Test vector is coming from Barretenberg (cf. blake3s.test.cpp)
+        let mut inputs = Vec::new();
+        for i in 0..3 {
+            inputs.push(FunctionInput::Witness(Witness(1 + i)));
+        }
+        let mut outputs = [Witness(0); 32];
+        for i in 0..32 {
+            outputs[i] = Witness(4 + i as u32);
+        }
+
+        let mut initial_witness = WitnessMap::from(BTreeMap::from_iter([
+            (Witness(1), FieldElement::from('a' as u128)),
+            (Witness(2), FieldElement::from('b' as u128)),
+            (Witness(3), FieldElement::from('c' as u128)),
+        ]));
+
+        solve_generic_256_hash_opcode(&mut initial_witness, &inputs, None, &outputs, blake3)
+            .unwrap();
+
+        let expected_output: [u128; 32] = [
+            0x64, 0x37, 0xB3, 0xAC, 0x38, 0x46, 0x51, 0x33, 0xFF, 0xB6, 0x3B, 0x75, 0x27, 0x3A,
+            0x8D, 0xB5, 0x48, 0xC5, 0x58, 0x46, 0x5D, 0x79, 0xDB, 0x03, 0xFD, 0x35, 0x9C, 0x6C,
+            0xD5, 0xBD, 0x9D, 0x85,
+        ];
+        let expected_output = expected_output.map(|e| FieldElement::from(e));
+        let expected_output: Vec<&FieldElement> = expected_output.iter().collect();
+        for i in 0..32 {
+            assert_eq!(initial_witness[&Witness(4 + i as u32)], *expected_output[i]);
+        }
+    }
+}
