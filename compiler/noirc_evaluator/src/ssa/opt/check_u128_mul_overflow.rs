@@ -61,24 +61,19 @@ impl Function {
     }
 }
 
-/// MAX_CONST_VALUE_THAT_DOES_NOT_OVERFLOW_U128_MUL is expected to be [p/U],
+/// MAX_NON_OVERFLOWING_CONST_ARG is expected to be [p/U],
 /// where U=U128::max() and p is the field modulus.
 ///
 /// Then x<[p/u]<=p/U, so x*U<p
-static MAX_CONST_VALUE_THAT_DOES_NOT_OVERFLOW_U128_MUL: std::sync::LazyLock<u128> =
-    std::sync::LazyLock::new(|| {
-        let max_const_value_that_does_not_overflow_u128_mul =
-            u128::try_from(FieldElement::modulus() / u128::MAX)
-                .expect("expected max_const_value_that_does_not_overflow to fit into a u128");
-        assert!(
-            BigUint::from(u128::MAX) * max_const_value_that_does_not_overflow_u128_mul
-                < FieldElement::modulus()
-        );
-        max_const_value_that_does_not_overflow_u128_mul
-    });
+static MAX_NON_OVERFLOWING_CONST_ARG: std::sync::LazyLock<u128> = std::sync::LazyLock::new(|| {
+    let max_non_overflowing_const_arg = u128::try_from(FieldElement::modulus() / u128::MAX)
+        .expect("expected max_const_value_that_does_not_overflow to fit into a u128");
+    assert!(BigUint::from(u128::MAX) * max_non_overflowing_const_arg < FieldElement::modulus());
+    max_non_overflowing_const_arg
+});
 
-fn max_const_value_that_does_not_overflow_u128_mul() -> u128 {
-    *MAX_CONST_VALUE_THAT_DOES_NOT_OVERFLOW_U128_MUL
+fn max_non_overflowing_const_arg() -> u128 {
+    *MAX_NON_OVERFLOWING_CONST_ARG
 }
 
 fn check_u128_mul_overflow(
@@ -99,11 +94,8 @@ fn check_u128_mul_overflow(
         "expected rhs_value to fit in a u128, but found {rhs_value:?}"
     );
 
-    if lhs_value
-        .is_some_and(|value| value.to_u128() <= max_const_value_that_does_not_overflow_u128_mul())
-        || rhs_value.is_some_and(|value| {
-            value.to_u128() <= max_const_value_that_does_not_overflow_u128_mul()
-        })
+    if lhs_value.is_some_and(|value| value.to_u128() <= max_non_overflowing_const_arg())
+        || rhs_value.is_some_and(|value| value.to_u128() <= max_non_overflowing_const_arg())
     {
         return;
     }
@@ -175,8 +167,7 @@ mod tests {
         assert_ssa_snapshot,
         ssa::{
             opt::{
-                assert_ssa_does_not_change,
-                check_u128_mul_overflow::max_const_value_that_does_not_overflow_u128_mul,
+                assert_ssa_does_not_change, check_u128_mul_overflow::max_non_overflowing_const_arg,
             },
             ssa_gen::Ssa,
         },
@@ -192,7 +183,7 @@ mod tests {
             return
         }}
         ",
-            max_const_value_that_does_not_overflow_u128_mul()
+            max_non_overflowing_const_arg()
         );
         assert_ssa_does_not_change(&src, Ssa::check_u128_mul_overflow);
     }
@@ -207,20 +198,21 @@ mod tests {
             return
         }}
         ",
-            max_const_value_that_does_not_overflow_u128_mul()
+            max_non_overflowing_const_arg()
         );
         assert_ssa_does_not_change(&src, Ssa::check_u128_mul_overflow);
     }
 
     #[test]
     fn inserts_check_for_lhs() {
-        let src = format!("
+        let src = format!(
+            "
         acir(inline) fn main f0 {{
           b0(v0: u128):
             v2 = mul v0, u128 {}
             return
         }}",
-            max_const_value_that_does_not_overflow_u128_mul() + 1
+            max_non_overflowing_const_arg() + 1
         );
         let ssa = Ssa::from_str(&src).unwrap();
 
@@ -238,13 +230,14 @@ mod tests {
 
     #[test]
     fn inserts_check_for_rhs() {
-        let src = format!("
+        let src = format!(
+            "
         acir(inline) fn main f0 {{
           b0(v0: u128):
             v2 = mul u128 {}, v0
             return
         }}",
-            max_const_value_that_does_not_overflow_u128_mul() + 1
+            max_non_overflowing_const_arg() + 1
         );
         let ssa = Ssa::from_str(&src).unwrap();
 
@@ -287,14 +280,15 @@ mod tests {
 
     #[test]
     fn inserts_assertion_failure_if_overflow_is_guaranteed() {
-        let src = format!("
+        let src = format!(
+            "
         acir(inline) fn main f0 {{
           b0():
             v2 = mul u128 {}, u128 {}
             return
         }}",
-            max_const_value_that_does_not_overflow_u128_mul() + 1,
-            max_const_value_that_does_not_overflow_u128_mul() + 1
+            max_non_overflowing_const_arg() + 1,
+            max_non_overflowing_const_arg() + 1
         );
         let ssa = Ssa::from_str(&src).unwrap();
 
@@ -325,14 +319,15 @@ mod tests {
     #[test]
     fn predicate_overflow_on_lhs_potentially_overflowing() {
         // This code performs a u128 multiplication that overflows, under a condition.
-        let src = format!("
+        let src = format!(
+            "
         acir(inline) fn main f0 {{
           b0(v0: u128, v1: u1):
             enable_side_effects v1
             v2 = mul v0, u128 {}
             return v2
         }}",
-            max_const_value_that_does_not_overflow_u128_mul() + 1
+            max_non_overflowing_const_arg() + 1
         );
         let ssa = Ssa::from_str(&src).unwrap();
         let ssa = ssa.flatten_cfg().check_u128_mul_overflow();
@@ -354,7 +349,8 @@ mod tests {
     #[test]
     fn predicate_overflow_on_guaranteed_overflow() {
         // This code performs a u128 multiplication that overflows, under a condition.
-        let src = format!("
+        let src = format!(
+            "
         acir(inline) fn main f0 {{
           b0(v0: u1):
             jmpif v0 then: b1, else: b2
@@ -364,8 +360,8 @@ mod tests {
           b2():
             return v0
         }}",
-            max_const_value_that_does_not_overflow_u128_mul() + 1,
-            max_const_value_that_does_not_overflow_u128_mul() + 1
+            max_non_overflowing_const_arg() + 1,
+            max_non_overflowing_const_arg() + 1
         );
         let ssa = Ssa::from_str(&src).unwrap();
         let ssa = ssa.flatten_cfg().check_u128_mul_overflow();
