@@ -214,14 +214,12 @@ mod tests {
 
     #[test]
     fn inserts_check_for_lhs() {
-        let src = format!(
-            "
+        let src = format!("
         acir(inline) fn main f0 {{
           b0(v0: u128):
             v2 = mul v0, u128 {}
             return
-        }}
-        ",
+        }}",
             max_const_value_that_does_not_overflow_u128_mul() + 1
         );
         let ssa = Ssa::from_str(&src).unwrap();
@@ -240,14 +238,12 @@ mod tests {
 
     #[test]
     fn inserts_check_for_rhs() {
-        let src = format!(
-            "
+        let src = format!("
         acir(inline) fn main f0 {{
           b0(v0: u128):
             v2 = mul u128 {}, v0
             return
-        }}
-        ",
+        }}",
             max_const_value_that_does_not_overflow_u128_mul() + 1
         );
         let ssa = Ssa::from_str(&src).unwrap();
@@ -291,14 +287,12 @@ mod tests {
 
     #[test]
     fn inserts_assertion_failure_if_overflow_is_guaranteed() {
-        let src = format!(
-            "
+        let src = format!("
         acir(inline) fn main f0 {{
           b0():
             v2 = mul u128 {}, u128 {}
             return
-        }}
-        ",
+        }}",
             max_const_value_that_does_not_overflow_u128_mul() + 1,
             max_const_value_that_does_not_overflow_u128_mul() + 1
         );
@@ -331,15 +325,13 @@ mod tests {
     #[test]
     fn predicate_overflow_on_lhs_potentially_overflowing() {
         // This code performs a u128 multiplication that overflows, under a condition.
-        let src = format!(
-            "
+        let src = format!("
         acir(inline) fn main f0 {{
           b0(v0: u128, v1: u1):
             enable_side_effects v1
             v2 = mul v0, u128 {}
             return v2
-        }}
-        ",
+        }}",
             max_const_value_that_does_not_overflow_u128_mul() + 1
         );
         let ssa = Ssa::from_str(&src).unwrap();
@@ -362,8 +354,7 @@ mod tests {
     #[test]
     fn predicate_overflow_on_guaranteed_overflow() {
         // This code performs a u128 multiplication that overflows, under a condition.
-        let src = format!(
-            "
+        let src = format!("
         acir(inline) fn main f0 {{
           b0(v0: u1):
             jmpif v0 then: b1, else: b2
@@ -372,8 +363,7 @@ mod tests {
             jmp b2()
           b2():
             return v0
-        }}
-        ",
+        }}",
             max_const_value_that_does_not_overflow_u128_mul() + 1,
             max_const_value_that_does_not_overflow_u128_mul() + 1
         );
