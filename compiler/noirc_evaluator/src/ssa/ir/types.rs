@@ -215,10 +215,22 @@ impl Type {
     /// The size of a type is defined as representing how many Fields are needed
     /// to represent the type. This is 1 for every primitive type, and is the number of fields
     /// for any flattened tuple type.
+    ///
+    /// Panics if `self` is not a [`Type::Array`] or [`Type::Slice`].
     pub(crate) fn element_size(&self) -> usize {
         match self {
             Type::Array(elements, _) | Type::Slice(elements) => elements.len(),
             other => panic!("element_size: Expected array or slice, found {other}"),
+        }
+    }
+
+    /// Return the types of items in this array/slice.
+    ///
+    /// Panics if `self` is not a [`Type::Array`] or [`Type::Slice`].
+    pub(crate) fn element_types(self) -> Arc<Vec<Type>> {
+        match self {
+            Type::Array(element_types, _) | Type::Slice(element_types) => element_types,
+            other => panic!("element_types: Expected array or slice, found {other}"),
         }
     }
 
@@ -266,13 +278,6 @@ impl Type {
             Type::Numeric(_) | Type::Function => false,
             Type::Array(_, _) | Type::Slice(_) => true,
             Type::Reference(element) => element.contains_an_array(),
-        }
-    }
-
-    pub(crate) fn element_types(self) -> Arc<Vec<Type>> {
-        match self {
-            Type::Array(element_types, _) | Type::Slice(element_types) => element_types,
-            other => panic!("element_types: Expected array or slice, found {other}"),
         }
     }
 

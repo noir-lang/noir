@@ -225,24 +225,25 @@ impl Context {
         })
     }
 
-    //Get the tracked size of array/slices, or retrieve (and track) it for arrays.
+    /// Get the tracked size of array/slices, or retrieve (and track) it for arrays.
     fn get_or_find_capacity(&mut self, dfg: &DataFlowGraph, value: ValueId) -> u32 {
         match self.slice_sizes.entry(value) {
             Entry::Occupied(entry) => return *entry.get(),
             Entry::Vacant(entry) => {
+                // Check if the item was made by a MakeArray instruction, which can create slices as well.
                 if let Some((array, typ)) = dfg.get_array_constant(value) {
                     let length = array.len() / typ.element_types().len();
                     return *entry.insert(length as u32);
                 }
-
+                // For arrays we know the size statically.
                 if let Type::Array(_, length) = dfg.type_of_value(value) {
                     return *entry.insert(length);
                 }
+                // For non-constant slices we can't tell the size, which would mean we can't merge it.
+                let dbg_value = &dfg[value];
+                unreachable!("ICE: No size for slice {value} = {dbg_value:?}")
             }
         }
-
-        let dbg_value = &dfg[value];
-        unreachable!("No size for slice {value} = {dbg_value:?}")
     }
 }
 
