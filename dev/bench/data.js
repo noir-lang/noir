@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1758733624184,
+  "lastUpdate": 1758733748750,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -21306,48 +21306,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "846076709790fdd91243e85d46f25278af875e6a",
-          "message": "chore: Add tests from post-order PR (#9846)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-09-15T19:56:12Z",
-          "tree_id": "bf08213ca3d671a853af536a180e0718773790ff",
-          "url": "https://github.com/noir-lang/noir/commit/846076709790fdd91243e85d46f25278af875e6a"
-        },
-        "date": 1757967857264,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 257200,
-            "range": "± 726",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 234232,
-            "range": "± 1108",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2819468,
-            "range": "± 1954",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -23399,6 +23357,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2783081,
             "range": "± 1627",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "197cee04c3a0feee5e59ac24026d601a30a1aa12",
+          "message": "chore(acir): More arrays refactors  (#9962)",
+          "timestamp": "2025-09-24T16:46:24Z",
+          "tree_id": "1136b7953cc952098337eda684a5ce4587ef28c9",
+          "url": "https://github.com/noir-lang/noir/commit/197cee04c3a0feee5e59ac24026d601a30a1aa12"
+        },
+        "date": 1758733727808,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 253253,
+            "range": "± 1110",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 226728,
+            "range": "± 5576",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2788197,
+            "range": "± 3993",
             "unit": "ns/iter"
           }
         ]
