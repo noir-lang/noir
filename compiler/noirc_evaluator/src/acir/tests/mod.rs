@@ -23,6 +23,7 @@ use crate::{
 };
 use proptest::prelude::*;
 
+mod arrays;
 mod brillig_call;
 mod call;
 mod intrinsics;
@@ -55,14 +56,13 @@ fn ssa_to_acir_program_with_debug_info(src: &str) -> (Program<FieldElement>, Vec
 
     let brillig = ssa.to_brillig(&BrilligOptions::default());
 
-    let (acir_functions, brillig_functions, brillig_names, _) = ssa
+    let (acir_functions, brillig_functions, _) = ssa
+        .generate_entry_point_index()
         .into_acir(&brillig, &BrilligOptions::default(), ExpressionWidth::default())
         .expect("Should compile manually written SSA into ACIR");
 
-    let artifacts = ArtifactsAndWarnings(
-        (acir_functions, brillig_functions, brillig_names, BTreeMap::default()),
-        vec![],
-    );
+    let artifacts =
+        ArtifactsAndWarnings((acir_functions, brillig_functions, BTreeMap::default()), vec![]);
     let program_artifact = combine_artifacts(
         artifacts,
         &arg_size_and_visibilities,
@@ -93,44 +93,9 @@ fn unchecked_mul_should_not_have_range_check() {
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
-    BLACKBOX::RANGE [(w0, 32)] []
-    BLACKBOX::RANGE [(w1, 32)] []
+    BLACKBOX::RANGE [w0]:32 bits []
+    BLACKBOX::RANGE [w1]:32 bits []
     EXPR [ (-1, w0, w1) (1, w2) 0 ]
-    ");
-}
-
-#[test]
-fn does_not_generate_memory_blocks_without_dynamic_accesses() {
-    let src = "
-        acir(inline) fn main f0 {
-          b0(v0: [Field; 2]):
-            v2, v3 = call as_slice(v0) -> (u32, [Field])
-            call f1(u32 2, v3)
-            v7 = array_get v0, index u32 0 -> Field
-            constrain v7 == Field 0
-            return
-        }
-
-        brillig(inline) fn foo f1 {
-          b0(v0: u32, v1: [Field]):
-              return
-          }
-        ";
-    let program = ssa_to_acir_program(src);
-    println!("{program}");
-
-    // Check that no memory opcodes were emitted.
-    assert_circuit_snapshot!(program, @r"
-    func 0
-    current witness: w1
-    private parameters: [w0, w1]
-    public parameters: []
-    return values: []
-    BRILLIG CALL func 0: inputs: [EXPR [ 2 ], [EXPR [ (1, w0) 0 ], EXPR [ (1, w1) 0 ]]], outputs: []
-    EXPR [ (1, w0) 0 ]
-
-    unconstrained func 0
-    [Const { destination: Direct(2), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(1), bit_size: Integer(U32), value: 32839 }, Const { destination: Direct(0), bit_size: Integer(U32), value: 3 }, Const { destination: Relative(3), bit_size: Integer(U32), value: 3 }, Const { destination: Relative(4), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(32836), size_address: Relative(3), offset_address: Relative(4) }, Cast { destination: Direct(32836), source: Direct(32836), bit_size: Integer(U32) }, Mov { destination: Relative(1), source: Direct(32836) }, Const { destination: Relative(2), bit_size: Integer(U32), value: 32837 }, Const { destination: Relative(4), bit_size: Integer(U32), value: 2 }, Const { destination: Relative(6), bit_size: Integer(U32), value: 3 }, BinaryIntOp { destination: Relative(5), op: Add, bit_size: U32, lhs: Relative(4), rhs: Relative(6) }, Mov { destination: Relative(3), source: Direct(1) }, BinaryIntOp { destination: Direct(1), op: Add, bit_size: U32, lhs: Direct(1), rhs: Relative(5) }, IndirectConst { destination_pointer: Relative(3), bit_size: Integer(U32), value: 1 }, BinaryIntOp { destination: Relative(5), op: Add, bit_size: U32, lhs: Relative(3), rhs: Direct(2) }, Store { destination_pointer: Relative(5), source: Relative(4) }, BinaryIntOp { destination: Relative(5), op: Add, bit_size: U32, lhs: Relative(5), rhs: Direct(2) }, Store { destination_pointer: Relative(5), source: Relative(4) }, Const { destination: Relative(6), bit_size: Integer(U32), value: 3 }, BinaryIntOp { destination: Relative(5), op: Add, bit_size: U32, lhs: Relative(3), rhs: Relative(6) }, Mov { destination: Direct(32771), source: Relative(2) }, Mov { destination: Direct(32772), source: Relative(5) }, Mov { destination: Direct(32773), source: Relative(4) }, Call { location: 31 }, Mov { destination: Relative(2), source: Relative(3) }, Call { location: 42 }, Call { location: 43 }, Const { destination: Relative(1), bit_size: Integer(U32), value: 32839 }, Const { destination: Relative(2), bit_size: Integer(U32), value: 0 }, Stop { return_data: HeapVector { pointer: Relative(1), size: Relative(2) } }, BinaryIntOp { destination: Direct(32775), op: Add, bit_size: U32, lhs: Direct(32771), rhs: Direct(32773) }, Mov { destination: Direct(32776), source: Direct(32771) }, Mov { destination: Direct(32777), source: Direct(32772) }, BinaryIntOp { destination: Direct(32778), op: Equals, bit_size: U32, lhs: Direct(32776), rhs: Direct(32775) }, JumpIf { condition: Direct(32778), location: 41 }, Load { destination: Direct(32774), source_pointer: Direct(32776) }, Store { destination_pointer: Direct(32777), source: Direct(32774) }, BinaryIntOp { destination: Direct(32776), op: Add, bit_size: U32, lhs: Direct(32776), rhs: Direct(2) }, BinaryIntOp { destination: Direct(32777), op: Add, bit_size: U32, lhs: Direct(32777), rhs: Direct(2) }, Jump { location: 34 }, Return, Return, Call { location: 45 }, Return, Const { destination: Direct(32772), bit_size: Integer(U32), value: 30720 }, BinaryIntOp { destination: Direct(32771), op: LessThan, bit_size: U32, lhs: Direct(0), rhs: Direct(32772) }, JumpIf { condition: Direct(32771), location: 50 }, IndirectConst { destination_pointer: Direct(1), bit_size: Integer(U64), value: 15764276373176857197 }, Trap { revert_data: HeapVector { pointer: Direct(1), size: Direct(2) } }, Return]
     ");
 }
 
@@ -209,7 +174,7 @@ fn properly_constrains_quotient_when_truncating_fields() {
     let malicious_brillig_stdlib =
         BrilligStdLib { quotient: malicious_quotient, ..BrilligStdLib::default() };
 
-    let (acir_functions, brillig_functions, _, _) = codegen_acir(
+    let (acir_functions, brillig_functions, _) = codegen_acir(
         ssa,
         &Brillig::default(),
         malicious_brillig_stdlib,
@@ -252,7 +217,7 @@ fn do_not_overflow_with_constant_constrain_neq() {
     let ssa = Ssa::from_str(src).unwrap();
     let brillig = ssa.to_brillig(&BrilligOptions::default());
 
-    let (acir_functions, _brillig_functions, _, _) = ssa
+    let (acir_functions, _brillig_functions, _) = ssa
         .into_acir(&brillig, &BrilligOptions::default(), ExpressionWidth::default())
         .expect("Should compile manually written SSA into ACIR");
 
@@ -314,7 +279,7 @@ fn execute_ssa(
     output: Option<&Witness>,
 ) -> (ACVMStatus<FieldElement>, Option<FieldElement>) {
     let brillig = ssa.to_brillig(&BrilligOptions::default());
-    let (acir_functions, brillig_functions, _, _) = ssa
+    let (acir_functions, brillig_functions, _) = ssa
         .into_acir(&brillig, &BrilligOptions::default(), ExpressionWidth::default())
         .expect("Should compile manually written SSA into ACIR");
     assert_eq!(acir_functions.len(), 1);

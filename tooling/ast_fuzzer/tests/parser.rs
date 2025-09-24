@@ -12,7 +12,6 @@ use noirc_evaluator::{
     brillig::BrilligOptions,
     ssa::{
         self,
-        ir::function::function_values_iter,
         opt::inlining::MAX_INSTRUCTIONS,
         primary_passes,
         ssa_gen::{self, Ssa}, OptimizationLevel,
@@ -96,8 +95,8 @@ fn arb_ssa_roundtrip() {
                 continue;
             }
             let func2 = &ssa2.functions[&func_id];
-            let values1 = function_values_iter(&func1).collect::<Vec<_>>();
-            let values2 = function_values_iter(func2).collect::<Vec<_>>();
+            let values1 = func1.view().values_iter().collect::<Vec<_>>();
+            let values2 = func2.view().values_iter().collect::<Vec<_>>();
             similar_asserts::assert_eq!(values1, values2);
         }
 

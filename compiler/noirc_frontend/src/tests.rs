@@ -4515,6 +4515,19 @@ fn cannot_assign_to_nested_struct() {
 }
 
 #[test]
+fn cannot_return_slice_from_main() {
+    let src = r#"
+    fn main() -> pub [Field]{
+       ^^^^ Invalid type found in the entry point to a program
+       ~~~~ Slice is not a valid entry point type. Found: [Field]
+        &[1,2]
+        
+    }
+        "#;
+    check_errors!(src);
+}
+
+#[test]
 fn disallows_references_in_globals() {
     let src = r#"
     pub global mutable: &mut Field = &mut 0;

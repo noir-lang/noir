@@ -289,11 +289,6 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         vec![All, Debug],
     );
     ssa_pass_builder.add_pass(
-        Ssa::array_set_optimization,
-        "Array Set Optimizations",
-        vec![All, Debug],
-    );
-    ssa_pass_builder.add_pass(
         Ssa::brillig_entry_point_analysis,
         "Brillig Entry Point Analysis",
         vec![All],
@@ -319,11 +314,6 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
     );
     ssa_pass_builder.attach_pass_to_last(Ssa::remove_unreachable_functions, vec![All, Debug]);
     ssa_pass_builder.add_pass(
-        Ssa::brillig_array_get_and_set,
-        "Brillig Array Get and Set Optimizations",
-        vec![All, Debug],
-    );
-    ssa_pass_builder.add_pass(
         Ssa::dead_instruction_elimination,
         "Dead Instruction Elimination",
         vec![All, Debug],
@@ -339,6 +329,11 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
     ssa_pass_builder.add_try_pass(
         Ssa::verify_no_dynamic_indices_to_references,
         "Verifying no dynamic array indices to reference value elements",
+        vec![All, Debug],
+    );
+    ssa_pass_builder.add_pass(
+        Ssa::array_set_optimization,
+        "Array Set Optimizations",
         vec![All, Debug],
     );
     ssa_pass_builder.attach_pass_to_last(
@@ -372,10 +367,6 @@ pub fn minimal_passes() -> Vec<SsaPass<'static>> {
         // which was called in the AST not being called in the SSA. Such functions would cause
         // panics later, when we are looking for global allocations.
         SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
-        // We need to add an offset to constant array indices in Brillig.
-        // This can change which globals are used, because constant creation might result
-        // in the (re)use of otherwise unused global values.
-        SsaPass::new(Ssa::brillig_array_get_and_set, "Brillig Array Get and Set Optimizations"),
     ]
 }
 
@@ -394,6 +385,20 @@ pub fn optimize_ssa_builder_into_acir(
     let builder = builder.with_skip_passes(options.skip_passes.clone()).run_passes(passes)?;
 
     drop(ssa_gen_span_guard);
+
+    // Shift the array offsets in Brillig functions to benefit from the constant allocation logic,
+    // but do this outside the normal SSA passes, so we don't need to make the SSA interpreter and
+    // every other pass aware of the possibility that indexes are shifted, which could result in
+    // them conceptually not aligning with the positions of complex item types for example.
+    // This can change which globals are used, because constant creation might result
+    // in the (re)use of otherwise unused global values.
+    // It must be the last pass to either alter or add new instructions before Brillig generation,
+    // as other semantics in the compiler can potentially break (e.g. inserting instructions).
+    // Running it through the builder so it can be printed, for transparency.
+    let builder = builder.run_passes(&[SsaPass::new(
+        Ssa::brillig_array_get_and_set,
+        "Brillig Array Get and Set Optimizations",
+    )])?;
 
     let brillig = time("SSA to Brillig", options.print_codegen_timings, || {
         builder.ssa().to_brillig(&options.brillig_options)
@@ -518,10 +523,8 @@ pub fn combine_artifacts(
     debug_functions: DebugFunctions,
     debug_types: DebugTypes,
 ) -> SsaProgramArtifact {
-    let ArtifactsAndWarnings(
-        (mut generated_acirs, generated_brillig, brillig_function_names, error_types),
-        ssa_level_warnings,
-    ) = artifacts;
+    let ArtifactsAndWarnings((mut generated_acirs, generated_brillig, error_types), ssa_level_warnings) =
+        artifacts;
 
     assert_eq!(
         generated_acirs.len(),
@@ -554,7 +557,6 @@ pub fn combine_artifacts(
 
     SsaProgramArtifact::new(
         functions,
-        brillig_function_names,
         generated_brillig,
         error_types,
         ssa_level_warnings,
@@ -597,8 +599,8 @@ pub fn convert_generated_acir_into_circuit(
     let return_values = PublicInputs(return_witnesses.iter().copied().collect());
 
     let circuit = Circuit {
+        function_name: name.clone(),
         current_witness_index,
-        expression_width: ExpressionWidth::Unbounded,
         opcodes,
         private_parameters,
         public_parameters,

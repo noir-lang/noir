@@ -34,12 +34,12 @@ libfuzzer_sys::fuzz_target!(|data: &[u8]| -> Corpus {
             "FULL" => compile_options.show_ssa = true,
             "FINAL" => {
                 compile_options.show_ssa_pass =
-                    vec!["After Dead Instruction Elimination - ACIR".to_string()];
+                    vec!["Dead Instruction Elimination (3)".to_string()];
             }
             "FIRST_AND_FINAL" => {
                 compile_options.show_ssa_pass = vec![
                     "After Removing Unreachable Functions (1)".to_string(),
-                    "After Dead Instruction Elimination - ACIR".to_string(),
+                    "Dead Instruction Elimination (3)".to_string(),
                 ];
             }
             _ => (),

@@ -33,6 +33,7 @@ strum = "0.24"
 sha2.workspace = true
 p256 = "0.13.2"
 k256 = "0.13.4"
+reqwest = { version = "0.12.23", features = ["json", "blocking"] }
 
 [dependencies.noir_ssa_fuzzer]
 path = "../"

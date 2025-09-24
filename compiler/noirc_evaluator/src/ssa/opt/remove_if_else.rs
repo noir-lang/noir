@@ -554,30 +554,27 @@ acir(inline) impure fn main f0 {
             v10 = not v0
             v11 = cast v0 as u32
             v13 = array_get v9, index u32 0 -> Field
-            v14 = cast v0 as Field
-            v15 = cast v10 as Field
-            v16 = mul v14, v13
-            v17 = make_array [v16] : [Field]
+            v14 = make_array [v13] : [Field]
             enable_side_effects u1 1
-            v20 = eq v11, u32 1
-            v21 = not v20
-            v22 = add v11, u32 1
-            v23 = make_array [v16, v2] : [Field]
-            v24 = array_set v23, index v11, value v2
-            v25 = array_get v24, index u32 0 -> Field
-            v26 = cast v21 as Field
-            v27 = cast v20 as Field
-            v28 = mul v26, v25
-            v29 = mul v27, v16
-            v30 = add v28, v29
-            v31 = array_get v24, index u32 1 -> Field
-            v32 = cast v21 as Field
-            v33 = cast v20 as Field
-            v34 = mul v32, v31
-            v35 = mul v33, v2
-            v36 = add v34, v35
-            v37 = make_array [v30, v36] : [Field]
-            constrain v30 == Field 1
+            v17 = eq v11, u32 1
+            v18 = not v17
+            v19 = add v11, u32 1
+            v20 = make_array [v13, v2] : [Field]
+            v21 = array_set v20, index v11, value v2
+            v22 = array_get v21, index u32 0 -> Field
+            v23 = cast v18 as Field
+            v24 = cast v17 as Field
+            v25 = mul v23, v22
+            v26 = mul v24, v13
+            v27 = add v25, v26
+            v28 = array_get v21, index u32 1 -> Field
+            v29 = cast v18 as Field
+            v30 = cast v17 as Field
+            v31 = mul v29, v28
+            v32 = mul v30, v2
+            v33 = add v31, v32
+            v34 = make_array [v27, v33] : [Field]
+            constrain v27 == Field 1
             return
         }
         ");

@@ -248,7 +248,7 @@ fn ssa_to_acir_program(ssa: Ssa) -> AcirProgram<FieldElement> {
         skip_passes: vec![],
         optimization_level: OptimizationLevel::All,
     };
-    let (acir_functions, brillig, _, _) = match optimize_ssa_builder_into_acir(
+    let (acir_functions, brillig, _) = match optimize_ssa_builder_into_acir(
         builder,
         &ssa_evaluator_options,
         &primary_passes(&ssa_evaluator_options),

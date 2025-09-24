@@ -123,7 +123,7 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
         // correctness, it's enough if we make sure the flattened values match.
         let ssa_return = ssa_return.map(|ssa_return| {
             let main_function = &ssa.functions[&ssa.main_id];
-            if main_function.has_data_bus_return_data() {
+            if main_function.view().has_data_bus_return_data() {
                 let values = flatten_databus_values(ssa_return);
                 vec![Value::array(values, vec![Type::Numeric(NumericType::NativeField)])]
             } else {

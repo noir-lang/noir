@@ -172,416 +172,19 @@ impl<'f> Validator<'f> {
                     panic!("Cannot use `{operator}` with field elements");
                 };
             }
-            Instruction::ArrayGet { index, .. } | Instruction::ArraySet { index, .. } => {
+            Instruction::ArrayGet { array, index, .. }
+            | Instruction::ArraySet { array, index, .. } => {
                 let index_type = dfg.type_of_value(*index);
                 if !matches!(index_type, Type::Numeric(NumericType::Unsigned { bit_size: 32 })) {
                     panic!("ArrayGet/ArraySet index must be u32");
                 }
+                let array_type = dfg.type_of_value(*array);
+                if !array_type.contains_an_array() {
+                    panic!("ArrayGet/ArraySet must operate on an array; got {array_type}");
+                }
             }
             Instruction::Call { func, arguments } => {
-                match &dfg[*func] {
-                    Value::Intrinsic(intrinsic) => {
-                        match intrinsic {
-                            Intrinsic::ToRadix(_) => {
-                                assert_arguments_length(arguments, 2, "ToRadix");
-
-                                let value_type = dfg.type_of_value(arguments[0]);
-                                assert_field(&value_type, "ToRadix value");
-
-                                let radix_type = dfg.type_of_value(arguments[1]);
-                                assert_u32(&radix_type, "ToRadix radix");
-                            }
-                            Intrinsic::ToBits(_) => {
-                                // Intrinsic::ToBits always has a set radix
-                                assert_arguments_length(arguments, 1, "ToBits");
-
-                                let value_type = dfg.type_of_value(arguments[0]);
-                                assert_field(&value_type, "ToBits value");
-                            }
-                            Intrinsic::BlackBox(blackbox) => match blackbox {
-                                BlackBoxFunc::AND | BlackBoxFunc::XOR => {
-                                    assert_eq!(arguments.len(), 2);
-                                    let value_typ = dfg.type_of_value(arguments[0]);
-                                    assert!(
-                                        matches!(
-                                            value_typ,
-                                            Type::Numeric(
-                                                NumericType::Unsigned { .. }
-                                                    | NumericType::Signed { .. }
-                                            )
-                                        ),
-                                        "Bitwise operation performed on non-integer type"
-                                    );
-                                }
-                                BlackBoxFunc::AES128Encrypt => {
-                                    // fn aes128_encrypt<let N: u32>(
-                                    //     input: [u8; N],
-                                    //     iv: [u8; 16],
-                                    //     key: [u8; 16],
-                                    // ) -> [u8; N + 16 - N % 16] {}
-                                    assert_arguments_length(arguments, 3, "aes128_encrypt");
-
-                                    let input = arguments[0];
-                                    let input_type = dfg.type_of_value(input);
-                                    let input_length =
-                                        assert_u8_array(&input_type, "aes128_encrypt input");
-
-                                    let iv = arguments[1];
-                                    let iv_type = dfg.type_of_value(iv);
-                                    let iv_length = assert_u8_array(&iv_type, "aes128_encrypt iv");
-                                    assert_array_length(iv_length, 16, "aes128_encrypt iv");
-
-                                    let key = arguments[2];
-                                    let key_type = dfg.type_of_value(key);
-                                    let key_length =
-                                        assert_u8_array(&key_type, "aes128_encrypt key");
-                                    assert_array_length(key_length, 16, "aes128_encrypt key");
-
-                                    let results = dfg.instruction_results(instruction);
-                                    assert_eq!(results.len(), 1, "Expected one result",);
-                                    let result_type = dfg.type_of_value(results[0]);
-                                    let result_length =
-                                        assert_u8_array(&result_type, "aes128_encrypt output");
-                                    assert_eq!(
-                                        result_length,
-                                        input_length + 16 - input_length % 16,
-                                        "aes128_encrypt output length mismatch"
-                                    );
-                                }
-                                BlackBoxFunc::BigIntAdd
-                                | BlackBoxFunc::BigIntSub
-                                | BlackBoxFunc::BigIntMul
-                                | BlackBoxFunc::BigIntDiv
-                                | BlackBoxFunc::BigIntFromLeBytes
-                                | BlackBoxFunc::BigIntToLeBytes => {}
-                                BlackBoxFunc::Blake2s | BlackBoxFunc::Blake3 => {
-                                    // fn blake2s<let N: u32>(input: [u8; N]) -> [u8; 32]
-                                    // fn __blake3<let N: u32>(input: [u8; N]) -> [u8; 32] {}
-                                    assert_arguments_length(arguments, 1, "blake");
-
-                                    let input = arguments[0];
-                                    let input_type = dfg.type_of_value(input);
-                                    assert_u8_array(&input_type, "blake input");
-
-                                    let results = dfg.instruction_results(instruction);
-                                    assert_eq!(results.len(), 1, "Expected one result");
-                                    let result_type = dfg.type_of_value(results[0]);
-                                    let result_length =
-                                        assert_u8_array(&result_type, "blake output");
-                                    assert_array_length(result_length, 32, "blake output");
-                                }
-                                BlackBoxFunc::EcdsaSecp256k1 | BlackBoxFunc::EcdsaSecp256r1 => {
-                                    // fn verify_signature<let N: u32>(
-                                    //     public_key_x: [u8; 32],
-                                    //     public_key_y: [u8; 32],
-                                    //     signature: [u8; 64],
-                                    //     message_hash: [u8; N],
-                                    // ) -> bool
-                                    assert_arguments_length(arguments, 4, "ecdsa_secp_256");
-
-                                    let public_key_x = arguments[0];
-                                    let public_key_x_type = dfg.type_of_value(public_key_x);
-                                    let public_key_x_length = assert_u8_array(
-                                        &public_key_x_type,
-                                        "ecdsa_secp256 public_key_x",
-                                    );
-                                    assert_array_length(
-                                        public_key_x_length,
-                                        32,
-                                        "ecdsa_secp256 public_key_x",
-                                    );
-
-                                    let public_key_y = arguments[1];
-                                    let public_key_y_type = dfg.type_of_value(public_key_y);
-                                    let public_key_y_length = assert_u8_array(
-                                        &public_key_y_type,
-                                        "ecdsa_secp256 public_key_y",
-                                    );
-                                    assert_array_length(
-                                        public_key_y_length,
-                                        32,
-                                        "ecdsa_secp256 public_key_y",
-                                    );
-
-                                    let signature = arguments[2];
-                                    let signature_type = dfg.type_of_value(signature);
-                                    let signature_length =
-                                        assert_u8_array(&signature_type, "ecdsa_secp256 signature");
-                                    assert_array_length(
-                                        signature_length,
-                                        64,
-                                        "ecdsa_secp256 signature",
-                                    );
-
-                                    let message_hash = arguments[3];
-                                    let message_hash_type = dfg.type_of_value(message_hash);
-                                    assert_array(&message_hash_type, "ecdsa_secp256 message_hash");
-
-                                    let results = dfg.instruction_results(instruction);
-                                    assert_eq!(results.len(), 1, "Expected one result");
-                                    let result_type = dfg.type_of_value(results[0]);
-                                    assert_u1(&result_type, "ecdsa_secp256 result");
-                                }
-                                BlackBoxFunc::EmbeddedCurveAdd => {
-                                    // fn embedded_curve_add_array_return(
-                                    //     _point1: EmbeddedCurvePoint,
-                                    //     _point2: EmbeddedCurvePoint,
-                                    // ) -> [EmbeddedCurvePoint; 1] {}
-                                    //
-                                    // struct EmbeddedCurvePoint {
-                                    //     x: Field,
-                                    //     y: Field,
-                                    //     is_infinite: bool,
-                                    // }
-                                    assert_arguments_length(arguments, 6, "embedded_curve_add");
-
-                                    assert_embedded_curve_point(
-                                        arguments,
-                                        0,
-                                        dfg,
-                                        "embedded_curve_add _point1",
-                                    );
-                                    assert_embedded_curve_point(
-                                        arguments,
-                                        3,
-                                        dfg,
-                                        "embedded_curve_add _point2",
-                                    );
-
-                                    let results = dfg.instruction_results(instruction);
-                                    assert_eq!(results.len(), 1, "Expected one result");
-                                    let result_type = dfg.type_of_value(results[0]);
-                                    let (result_elements, result_length) =
-                                        assert_array(&result_type, "embedded_curve_add result");
-                                    assert_array_length(
-                                        result_length,
-                                        1,
-                                        "embedded_curve_add result length",
-                                    );
-                                    assert_eq!(
-                                        result_elements.len(),
-                                        3,
-                                        "Expected embedded_curve_add result element types length to be 3, got: {}",
-                                        result_elements.len(),
-                                    );
-                                    assert_field(
-                                        &result_elements[0],
-                                        "embedded_curve_add result x",
-                                    );
-                                    assert_field(
-                                        &result_elements[1],
-                                        "embedded_curve_add result y",
-                                    );
-                                    assert_u1(
-                                        &result_elements[2],
-                                        "embedded_curve_add result is_infinite",
-                                    );
-                                }
-                                BlackBoxFunc::Keccakf1600 => {
-                                    // fn keccakf1600(input: [u64; 25]) -> [u64; 25] {}
-                                    assert_eq!(arguments.len(), 1);
-
-                                    let input = arguments[0];
-                                    let input_type = dfg.type_of_value(input);
-                                    let input_length =
-                                        assert_u64_array(&input_type, "keccakf1600 input");
-                                    assert_array_length(input_length, 25, "keccakf1600 input");
-
-                                    let results = dfg.instruction_results(instruction);
-                                    assert_eq!(results.len(), 1);
-                                    let result_type = dfg.type_of_value(results[0]);
-                                    let result_length =
-                                        assert_u64_array(&result_type, "keccakf1600 result");
-                                    assert_array_length(result_length, 25, "keccakf1600 result");
-                                }
-                                BlackBoxFunc::MultiScalarMul => {
-                                    //  fn multi_scalar_mul_array_return<let N: u32>(
-                                    //     points: [EmbeddedCurvePoint; N],
-                                    //     scalars: [EmbeddedCurveScalar; N],
-                                    // ) -> [EmbeddedCurvePoint; 1] {}
-                                    assert_arguments_length(arguments, 2, "multi_scalar_mul");
-
-                                    let points_type = dfg.type_of_value(arguments[0]);
-                                    let scalars_type = dfg.type_of_value(arguments[1]);
-
-                                    let (points_elements, points_length) =
-                                        assert_array(&points_type, "multi_scalar_mul points");
-                                    assert_eq!(
-                                        points_elements.len(),
-                                        3,
-                                        "Expected multi_scalar_mul points element types length to be 3, got: {}",
-                                        points_elements.len()
-                                    );
-                                    assert_field(&points_elements[0], "multi_scalar_mul points x");
-                                    assert_field(&points_elements[1], "multi_scalar_mul points y");
-                                    assert_u1(
-                                        &points_elements[2],
-                                        "multi_scalar_mul points is_infinite",
-                                    );
-
-                                    let (scalars_elements, scalars_length) =
-                                        assert_array(&scalars_type, "multi_scalar_mul scalars");
-                                    assert_eq!(
-                                        scalars_elements.len(),
-                                        2,
-                                        "Expected multi_scalar_mul scalars element types length to be 2, got: {}",
-                                        scalars_elements.len()
-                                    );
-                                    assert_field(
-                                        &scalars_elements[0],
-                                        "multi_scalar_mul scalars lo",
-                                    );
-                                    assert_field(
-                                        &scalars_elements[1],
-                                        "multi_scalar_mul scalars hi",
-                                    );
-
-                                    assert_eq!(
-                                        points_length, scalars_length,
-                                        "MSM input array lengths mismatch"
-                                    );
-                                }
-                                BlackBoxFunc::Poseidon2Permutation => {
-                                    // fn poseidon2_permutation<let N: u32>(_input: [Field; N], _state_length: u32) -> [Field; N] {}
-                                    assert_arguments_length(arguments, 2, "poseidon2_permutation");
-
-                                    let input = arguments[0];
-                                    let input_type = dfg.type_of_value(input);
-                                    let input_length = assert_field_array(
-                                        &input_type,
-                                        "poseidon2_permutation _input",
-                                    );
-
-                                    let state_length = arguments[1];
-                                    let state_length_type = dfg.type_of_value(state_length);
-                                    assert_u32(
-                                        &state_length_type,
-                                        "poseidon2_permutation _state_length",
-                                    );
-
-                                    let results = dfg.instruction_results(instruction);
-                                    assert_eq!(results.len(), 1, "Expected one result");
-                                    let result_type = dfg.type_of_value(results[0]);
-                                    let result_length = assert_field_array(
-                                        &result_type,
-                                        "poseidon2_permutation result",
-                                    );
-                                    assert_eq!(
-                                        result_length, input_length,
-                                        "poseidon2_permutation input/output length mismatch"
-                                    );
-                                }
-                                BlackBoxFunc::RANGE => {}
-                                BlackBoxFunc::RecursiveAggregation => {
-                                    // fn verify_proof_internal<let N: u32, let M: u32, let K: u32>(
-                                    //     verification_key: [Field; N],
-                                    //     proof: [Field; M],
-                                    //     public_inputs: [Field; K],
-                                    //     key_hash: Field,
-                                    //     proof_type: u32,
-                                    // ) {}
-                                    assert_arguments_length(arguments, 5, "recursive_aggregation");
-
-                                    let verification_key = arguments[0];
-                                    let verification_key_type = dfg.type_of_value(verification_key);
-                                    assert_field_array(
-                                        &verification_key_type,
-                                        "recursive_aggregation verification_key",
-                                    );
-
-                                    let proof = arguments[1];
-                                    let proof_type = dfg.type_of_value(proof);
-                                    assert_field_array(&proof_type, "recursive_aggregation proof");
-
-                                    let public_inputs = arguments[2];
-                                    let public_inputs_type = dfg.type_of_value(public_inputs);
-                                    assert_field_array(
-                                        &public_inputs_type,
-                                        "recursive_aggregation public_inputs",
-                                    );
-
-                                    let key_hash = arguments[3];
-                                    let key_hash_type = dfg.type_of_value(key_hash);
-                                    assert_field(&key_hash_type, "recursive_aggregation key_hash");
-
-                                    let proof_type = arguments[4];
-                                    let proof_type_type = dfg.type_of_value(proof_type);
-                                    assert_u32(
-                                        &proof_type_type,
-                                        "recursive_aggregation proof_type",
-                                    );
-                                }
-                                BlackBoxFunc::Sha256Compression => {
-                                    // fn sha256_compression(input: [u32; 16], state: [u32; 8]) -> [u32; 8] {}
-                                    assert_arguments_length(arguments, 2, "sha256_compression");
-
-                                    let input = arguments[0];
-                                    let input_type = dfg.type_of_value(input);
-                                    let input_length =
-                                        assert_u32_array(&input_type, "sha256_compression input");
-                                    assert_array_length(
-                                        input_length,
-                                        16,
-                                        "sha256_compression input",
-                                    );
-
-                                    let state = arguments[1];
-                                    let state_type = dfg.type_of_value(state);
-                                    let state_length =
-                                        assert_u32_array(&state_type, "sha256_compression state");
-                                    assert_array_length(
-                                        state_length,
-                                        8,
-                                        "sha256_compression state",
-                                    );
-
-                                    let results = dfg.instruction_results(instruction);
-                                    assert_eq!(results.len(), 1, "Expected one result");
-                                    let result_type = dfg.type_of_value(results[0]);
-                                    let result_length =
-                                        assert_u32_array(&result_type, "sha256_compression result");
-                                    assert_array_length(
-                                        result_length,
-                                        8,
-                                        "sha256_compression result",
-                                    );
-                                }
-                            },
-                            _ => {}
-                        }
-                    }
-                    Value::Function(func_id) => {
-                        let called_function = &self.ssa.functions[func_id];
-                        if let Some(returns) = called_function.returns() {
-                            let instruction_results = dfg.instruction_results(instruction);
-                            if instruction_results.len() != returns.len() {
-                                panic!(
-                                    "Function call to {} expected {} return values, but got {}",
-                                    func_id,
-                                    instruction_results.len(),
-                                    returns.len(),
-                                );
-                            }
-                            for (index, (instruction_result, return_value)) in
-                                instruction_results.iter().zip(returns).enumerate()
-                            {
-                                let return_type = called_function.dfg.type_of_value(*return_value);
-                                let instruction_result_type =
-                                    dfg.type_of_value(*instruction_result);
-                                if return_type != instruction_result_type {
-                                    panic!(
-                                        "Function call to {} expected return type {}, but got {} (at position {})",
-                                        func_id,
-                                        instruction_result_type,
-                                        return_type,
-                                        index + 1
-                                    );
-                                }
-                            }
-                        }
-                    }
-                    _ => (),
-                }
+                self.type_check_call(instruction, func, arguments);
             }
             Instruction::Constrain(lhs, rhs, _) | Instruction::ConstrainNotEqual(lhs, rhs, _) => {
                 let lhs_type = dfg.type_of_value(*lhs);
@@ -593,10 +196,7 @@ impl<'f> Validator<'f> {
                 }
             }
             Instruction::MakeArray { elements, typ: _ } => {
-                let results = dfg.instruction_results(instruction);
-                assert_eq!(results.len(), 1, "MakeArray must return exactly one value");
-
-                let result_type = dfg.type_of_value(results[0]);
+                let result_type = self.assert_one_result(instruction, "MakeArray");
 
                 let composite_type = match result_type {
                     Type::Array(composite_type, length) => {
@@ -653,6 +253,641 @@ impl<'f> Validator<'f> {
             }
             _ => (),
         }
+    }
+
+    fn type_check_call(&self, instruction: InstructionId, func: &ValueId, arguments: &[ValueId]) {
+        let dfg = &self.function.dfg;
+        match &dfg[*func] {
+            Value::Intrinsic(intrinsic) => {
+                self.type_check_intrinsic(instruction, arguments, intrinsic);
+            }
+            Value::Function(func_id) => {
+                let called_function = &self.ssa.functions[func_id];
+
+                let parameter_types = called_function.view().parameter_types();
+                assert_eq!(
+                    arguments.len(),
+                    parameter_types.len(),
+                    "Function call to {func_id} expected {} parameters, but got {}",
+                    parameter_types.len(),
+                    arguments.len()
+                );
+
+                for (index, (argument, parameter_type)) in
+                    arguments.iter().zip(parameter_types).enumerate()
+                {
+                    let argument_type = dfg.type_of_value(*argument);
+                    if argument_type != parameter_type {
+                        panic!(
+                            "Argument #{} to {func_id} has type {parameter_type}, but {argument_type} was given",
+                            index + 1,
+                        );
+                    }
+                }
+
+                if let Some(returns) = called_function.returns() {
+                    let instruction_results = dfg.instruction_results(instruction);
+                    if instruction_results.len() != returns.len() {
+                        panic!(
+                            "Function call to {} expected {} return values, but got {}",
+                            func_id,
+                            instruction_results.len(),
+                            returns.len(),
+                        );
+                    }
+                    for (index, (instruction_result, return_value)) in
+                        instruction_results.iter().zip(returns).enumerate()
+                    {
+                        let return_type = called_function.dfg.type_of_value(*return_value);
+                        let instruction_result_type = dfg.type_of_value(*instruction_result);
+                        if return_type != instruction_result_type {
+                            panic!(
+                                "Function call to {} expected return type {}, but got {} (at position {})",
+                                func_id,
+                                instruction_result_type,
+                                return_type,
+                                index + 1
+                            );
+                        }
+                    }
+                }
+            }
+            _ => (),
+        }
+    }
+
+    fn type_check_intrinsic(
+        &self,
+        instruction: InstructionId,
+        arguments: &[ValueId],
+        intrinsic: &Intrinsic,
+    ) {
+        match intrinsic {
+            Intrinsic::ToRadix(_) => {
+                // fn __to_le_radix<let N: u32>(value: Field, radix: u32) -> [u8; N] {}
+                // fn __to_be_radix<let N: u32>(value: Field, radix: u32) -> [u8; N] {}
+                let (value_type, radix_type) = self.assert_two_arguments(arguments, "ToRadix");
+                assert_field(&value_type, "ToRadix value");
+                assert_u32(&radix_type, "ToRadix radix");
+
+                let result_type = self.assert_one_result(instruction, "ToRadix");
+                assert_u8_array(&result_type, "to_radix output");
+            }
+            Intrinsic::ToBits(_) => {
+                // fn __to_le_bits<let N: u32>(value: Field) -> [u1; N] {}
+                // fn __to_be_bits<let N: u32>(value: Field) -> [u1; N] {}
+                let value_type = self.assert_one_argument(arguments, "ToBits");
+                assert_field(&value_type, "ToBits value");
+
+                let result_type = self.assert_one_result(instruction, "ToBits");
+                assert_u1_array(&result_type, "to_bits output");
+            }
+            Intrinsic::ArrayLen => {
+                // fn len(self: [T; N]) -> u32 {}
+                let argument_type = self.assert_one_argument(arguments, "ArrayLen");
+                assert_array(&argument_type, "ArrayLen argument");
+
+                let result_type = self.assert_one_result(instruction, "ArrayLen");
+                assert_u32(&result_type, "ArrayLen return");
+            }
+            Intrinsic::ArrayAsStrUnchecked => {
+                // fn as_str_unchecked(self: [u8; N]) -> str<N> {}
+                let argument_type = self.assert_one_argument(arguments, "ArrayAsStrUnchecked");
+                let array_length = assert_u8_array(&argument_type, "ArrayAsStrUnchecked argument");
+
+                let result_type = self.assert_one_result(instruction, "ArrayAsStrUnchecked");
+                let string_length = assert_u8_array(&result_type, "ArrayAsStrUnchecked argument");
+                assert_eq!(
+                    array_length, string_length,
+                    "ArrayAsStrUnchecked array length must match string length"
+                );
+            }
+            Intrinsic::AsSlice => {
+                // fn as_slice(self: [T; N]) -> [T] {}
+                let argument_type = self.assert_one_argument(arguments, "AsSlice");
+                let (array_types, _array_length) = assert_array(&argument_type, "AsSlice argument");
+
+                let results = self.function.dfg.instruction_results(instruction);
+                assert_eq!(results.len(), 2, "Expected two results for AsSlice",);
+
+                let length_type = self.function.dfg.type_of_value(results[0]);
+                assert_u32(&length_type, "AsSlice length");
+
+                let slice_type = self.function.dfg.type_of_value(results[1]);
+                let slice_types = assert_slice(&slice_type, "AsSlice return");
+                assert_eq!(
+                    array_types, slice_types,
+                    "AsSlice input array element types must match output slice element types"
+                );
+            }
+            Intrinsic::AssertConstant => {
+                // fn assert_constant<T>(x: T) {}
+                self.assert_no_results(instruction, "AssertConstant");
+            }
+            Intrinsic::StaticAssert => {
+                // fn static_assert<T>(predicate: bool, message: T) {}
+                assert!(!arguments.is_empty(), "StaticAssert must have at least one argument");
+
+                let predicate_type = self.function.dfg.type_of_value(arguments[0]);
+                assert_u1(&predicate_type, "StaticAssert predicate");
+
+                self.assert_no_results(instruction, "StaticAssert");
+            }
+            Intrinsic::SlicePushBack | Intrinsic::SlicePushFront => {
+                // fn push_back(self: [T], elem: T) -> Self {}
+                // fn push_front(self: [T], elem: T) -> Self {}
+                assert!(arguments.len() >= 2, "SlicePush must have at least two arguments");
+
+                let slice_length_type = self.function.dfg.type_of_value(arguments[0]);
+                assert_u32(&slice_length_type, "SlicePush self length");
+
+                let slice_type = self.function.dfg.type_of_value(arguments[1]);
+                let slice_element_types = assert_slice(&slice_type, "SlicePush self slice");
+
+                let (returned_slice_length_type, returned_slice_type) =
+                    self.assert_two_results(instruction, "SlicePush");
+                assert_u32(&returned_slice_length_type, "SlicePush returned length");
+                let returned_slice_element_types =
+                    assert_slice(&returned_slice_type, "SlicePush returned slice");
+                assert_eq!(
+                    slice_element_types, returned_slice_element_types,
+                    "SlicePush self slice element types must match returned slice element types"
+                );
+            }
+            Intrinsic::SlicePopBack => {
+                // fn pop_back(self: [T]) -> (Self, T) {}
+                let (slice_length_type, slice_type) =
+                    self.assert_two_arguments(arguments, "SlicePopBack");
+                assert_u32(&slice_length_type, "SlicePopBack self length");
+                let slice_element_types = assert_slice(&slice_type, "SlicePopBack self slice");
+
+                let results = self.function.dfg.instruction_results(instruction);
+                assert!(results.len() >= 2, "Expected at least two results for SlicePopBack");
+
+                let returned_slice_length_type = self.function.dfg.type_of_value(results[0]);
+                assert_u32(&returned_slice_length_type, "SlicePopBack returned length");
+
+                let returned_slice_type = self.function.dfg.type_of_value(results[1]);
+                let returned_slice_element_types =
+                    assert_slice(&returned_slice_type, "SlicePopBack returned slice");
+                assert_eq!(
+                    slice_element_types, returned_slice_element_types,
+                    "SlicePopBack self slice element types must match returned slice element types"
+                );
+            }
+            Intrinsic::SlicePopFront => {
+                // fn pop_front(self: [T]) -> (T, Self) {}
+                let (slice_length_type, slice_type) =
+                    self.assert_two_arguments(arguments, "SlicePopFront");
+                assert_u32(&slice_length_type, "SlicePopFront self length");
+                let slice_element_types = assert_slice(&slice_type, "SlicePopFront self slice");
+
+                let results = self.function.dfg.instruction_results(instruction);
+                assert!(results.len() >= 2, "Expected at least two results for SlicePopFront");
+
+                let returned_slice_type =
+                    self.function.dfg.type_of_value(results[results.len() - 1]);
+                let returned_slice_element_types =
+                    assert_slice(&returned_slice_type, "SlicePopFront returned slice");
+                assert_eq!(
+                    slice_element_types, returned_slice_element_types,
+                    "SlicePopFront self slice element types must match returned slice element types"
+                );
+
+                let returned_slice_length_type =
+                    self.function.dfg.type_of_value(results[results.len() - 2]);
+                assert_u32(&returned_slice_length_type, "SlicePopFront returned length");
+            }
+            Intrinsic::SliceInsert => {
+                // fn insert(self: [T], index: u32, elem: T) -> Self {}
+                assert!(arguments.len() >= 3, "SliceInsert must have at least three arguments");
+
+                let slice_length_type = self.function.dfg.type_of_value(arguments[0]);
+                assert_u32(&slice_length_type, "SliceInsert self length");
+
+                let slice_type = self.function.dfg.type_of_value(arguments[1]);
+                let slice_element_types = assert_slice(&slice_type, "SliceInsert self slice");
+
+                let index_type = self.function.dfg.type_of_value(arguments[2]);
+                assert_u32(&index_type, "SliceInsert index");
+
+                let (returned_slice_length_type, returned_slice_type) =
+                    self.assert_two_results(instruction, "SliceInsert");
+                assert_u32(&returned_slice_length_type, "SliceInsert returned length");
+                let returned_slice_element_types =
+                    assert_slice(&returned_slice_type, "SliceInsert returned slice");
+                assert_eq!(
+                    slice_element_types, returned_slice_element_types,
+                    "SliceInsert self slice element types must match returned slice element types"
+                );
+            }
+            Intrinsic::SliceRemove => {
+                // fn remove(self: [T], index: u32) -> (Self, T) {}
+                let (slice_length_type, slice_type, index_type) =
+                    self.assert_three_arguments(arguments, "SliceRemove");
+
+                assert_u32(&slice_length_type, "SliceRemove self length");
+
+                let slice_element_types = assert_slice(&slice_type, "SliceRemove self slice");
+
+                assert_u32(&index_type, "SliceRemove index");
+
+                let results = self.function.dfg.instruction_results(instruction);
+                assert!(results.len() >= 2, "Expected at least two results for SliceRemove");
+
+                let returned_slice_length_type = self.function.dfg.type_of_value(results[0]);
+                assert_u32(&returned_slice_length_type, "SliceRemove returned length");
+
+                let returned_slice_type = self.function.dfg.type_of_value(results[1]);
+                let returned_slice_element_types =
+                    assert_slice(&returned_slice_type, "SliceRemove returned slice");
+                assert_eq!(
+                    slice_element_types, returned_slice_element_types,
+                    "SliceRemove self slice element types must match returned slice element types"
+                );
+            }
+            Intrinsic::ApplyRangeConstraint => {
+                // fn __assert_max_bit_size(value: Field, bit_size: u32) {}
+                let (value_type, bit_size_type) =
+                    self.assert_two_arguments(arguments, "ApplyRangeConstraint");
+                assert_field(&value_type, "ApplyRangeConstraint value");
+                assert_u32(&bit_size_type, "ApplyRangeConstraint bit size");
+            }
+            Intrinsic::StrAsBytes => {
+                // fn as_bytes(self: str<N>) -> [u8; N] {}
+                let argument_type = self.assert_one_argument(arguments, "StrAsBytes");
+                let string_length = assert_u8_array(&argument_type, "StrAsBytes argument");
+
+                let result_type = self.assert_one_result(instruction, "StrAsBytes");
+                let array_length = assert_u8_array(&result_type, "StrAsBytes argument");
+                assert_eq!(
+                    string_length, array_length,
+                    "StrAsBytes string length must match array length"
+                );
+            }
+            Intrinsic::Hint(_) => {
+                // fn black_box<T>(value: T) -> T {}
+                // Not much we can do here (T might be `()` so arguments aren't guaranteed)
+            }
+            Intrinsic::AsWitness => {
+                // fn as_witness(x: Field) {}
+                let argument_type = self.assert_one_argument(arguments, "AsWitness");
+                assert_field(&argument_type, "AsWitness argument");
+
+                self.assert_no_results(instruction, "AsWitness");
+            }
+            Intrinsic::IsUnconstrained => {
+                // fn is_unconstrained() -> bool {}
+                assert_arguments_length(arguments, 0, "IsUnconstrained");
+
+                let result_type = self.assert_one_result(instruction, "IsUnconstrained");
+                assert_u1(&result_type, "IsUnconstrained result");
+            }
+            Intrinsic::DerivePedersenGenerators => {
+                // fn __derive_generators<let N: u32, let M: u32>(
+                //     domain_separator_bytes: [u8; M],
+                //     starting_index: u32,
+                // ) -> [EmbeddedCurvePoint; N] {}
+                let (domain_separator_bytes_type, starting_index_type) =
+                    self.assert_two_arguments(arguments, "DerivePedersenGenerators");
+                assert_u8_array(
+                    &domain_separator_bytes_type,
+                    "DerivePedersenGenerators domain_separator_bytes",
+                );
+                assert_u32(&starting_index_type, "DerivePedersenGenerators starting_index");
+
+                let result_type = self.assert_one_result(instruction, "DerivePedersenGenerators");
+                let (result_elements, _array_length) =
+                    assert_array(&result_type, "DerivePedersenGenerators result");
+                assert_eq!(
+                    result_elements.len(),
+                    3,
+                    "Expected embedded_curve_add result element types length to be 3, got: {}",
+                    result_elements.len(),
+                );
+                assert_field(&result_elements[0], "embedded_curve_add result x");
+                assert_field(&result_elements[1], "embedded_curve_add result y");
+                assert_u1(&result_elements[2], "embedded_curve_add result is_infinite");
+            }
+            Intrinsic::FieldLessThan => {
+                // fn __field_less_than(x: Field, y: Field) -> bool {}
+                let (x_type, y_type) = self.assert_two_arguments(arguments, "FieldLessThan");
+                assert_field(&x_type, "FieldLessThan x");
+                assert_field(&y_type, "FieldLessThan y");
+
+                let result_type = self.assert_one_result(instruction, "FieldLessThan");
+                assert_u1(&result_type, "FieldLessThan result");
+            }
+            Intrinsic::ArrayRefCount => {
+                // fn array_refcount<T, let N: u32>(array: [T; N]) -> u32 {}
+                let array_type = self.assert_one_argument(arguments, "ArrayRefCount");
+                assert_array(&array_type, "ArrayRefCount array");
+
+                let result_type = self.assert_one_result(instruction, "ArrayRefCount");
+                assert_u32(&result_type, "ArrayRefCount result");
+            }
+            Intrinsic::SliceRefCount => {
+                // fn slice_refcount<T>(slice: [T]) -> u32 {}
+                let (slice_length_type, slice_type) =
+                    self.assert_two_arguments(arguments, "SliceRefCount");
+                assert_u32(&slice_length_type, "SliceRefCount length");
+                assert_slice(&slice_type, "SliceRefCount slice");
+
+                let result_type = self.assert_one_result(instruction, "SliceRefCount");
+                assert_u32(&result_type, "SliceRefCount result");
+            }
+            Intrinsic::BlackBox(blackbox) => {
+                self.type_check_black_box(instruction, arguments, blackbox);
+            }
+        }
+    }
+
+    fn type_check_black_box(
+        &self,
+        instruction: InstructionId,
+        arguments: &[ValueId],
+        blackbox: &BlackBoxFunc,
+    ) {
+        let dfg = &self.function.dfg;
+        match blackbox {
+            BlackBoxFunc::AND | BlackBoxFunc::XOR => {
+                assert_eq!(arguments.len(), 2);
+                let value_typ = dfg.type_of_value(arguments[0]);
+                assert!(
+                    matches!(
+                        value_typ,
+                        Type::Numeric(NumericType::Unsigned { .. } | NumericType::Signed { .. })
+                    ),
+                    "Bitwise operation performed on non-integer type"
+                );
+            }
+            BlackBoxFunc::AES128Encrypt => {
+                // fn aes128_encrypt<let N: u32>(
+                //     input: [u8; N],
+                //     iv: [u8; 16],
+                //     key: [u8; 16],
+                // ) -> [u8; N + 16 - N % 16] {}
+                let (input_type, iv_type, key_type) =
+                    self.assert_three_arguments(arguments, "aes128_encrypt");
+
+                let input_length = assert_u8_array(&input_type, "aes128_encrypt input");
+
+                let iv_length = assert_u8_array(&iv_type, "aes128_encrypt iv");
+                assert_array_length(iv_length, 16, "aes128_encrypt iv");
+
+                let key_length = assert_u8_array(&key_type, "aes128_encrypt key");
+                assert_array_length(key_length, 16, "aes128_encrypt key");
+
+                let result_type = self.assert_one_result(instruction, "aes128_encrypt");
+                let result_length = assert_u8_array(&result_type, "aes128_encrypt output");
+                assert_eq!(
+                    result_length,
+                    input_length + 16 - input_length % 16,
+                    "aes128_encrypt output length mismatch"
+                );
+            }
+            BlackBoxFunc::Blake2s | BlackBoxFunc::Blake3 => {
+                // fn blake2s<let N: u32>(input: [u8; N]) -> [u8; 32]
+                // fn __blake3<let N: u32>(input: [u8; N]) -> [u8; 32] {}
+                let input_type = self.assert_one_argument(arguments, "blake");
+                assert_u8_array(&input_type, "blake input");
+
+                let result_type = self.assert_one_result(instruction, "blake");
+                let result_length = assert_u8_array(&result_type, "blake output");
+                assert_array_length(result_length, 32, "blake output");
+            }
+            BlackBoxFunc::EcdsaSecp256k1 | BlackBoxFunc::EcdsaSecp256r1 => {
+                // fn verify_signature<let N: u32>(
+                //     public_key_x: [u8; 32],
+                //     public_key_y: [u8; 32],
+                //     signature: [u8; 64],
+                //     message_hash: [u8; N],
+                //     predicate: bool,
+                // ) -> bool
+                assert_arguments_length(arguments, 5, "ecdsa_secp_256");
+
+                let public_key_x = arguments[0];
+                let public_key_x_type = dfg.type_of_value(public_key_x);
+                let public_key_x_length =
+                    assert_u8_array(&public_key_x_type, "ecdsa_secp256 public_key_x");
+                assert_array_length(public_key_x_length, 32, "ecdsa_secp256 public_key_x");
+
+                let public_key_y = arguments[1];
+                let public_key_y_type = dfg.type_of_value(public_key_y);
+                let public_key_y_length =
+                    assert_u8_array(&public_key_y_type, "ecdsa_secp256 public_key_y");
+                assert_array_length(public_key_y_length, 32, "ecdsa_secp256 public_key_y");
+
+                let signature = arguments[2];
+                let signature_type = dfg.type_of_value(signature);
+                let signature_length = assert_u8_array(&signature_type, "ecdsa_secp256 signature");
+                assert_array_length(signature_length, 64, "ecdsa_secp256 signature");
+
+                let message_hash = arguments[3];
+                let message_hash_type = dfg.type_of_value(message_hash);
+                assert_array(&message_hash_type, "ecdsa_secp256 message_hash");
+
+                let predicate_type = dfg.type_of_value(arguments[4]);
+                assert_u1(&predicate_type, "ecdsa_secp256 predicate");
+
+                let results = dfg.instruction_results(instruction);
+                assert_eq!(results.len(), 1, "Expected one result");
+                let result_type = dfg.type_of_value(results[0]);
+                assert_u1(&result_type, "ecdsa_secp256 result");
+            }
+            BlackBoxFunc::EmbeddedCurveAdd => {
+                // fn embedded_curve_add_array_return(
+                //     _point1: EmbeddedCurvePoint,
+                //     _point2: EmbeddedCurvePoint,
+                //     _predicate: bool,
+                // ) -> [EmbeddedCurvePoint; 1] {}
+                //
+                // struct EmbeddedCurvePoint {
+                //     x: Field,
+                //     y: Field,
+                //     is_infinite: bool,
+                // }
+                assert_arguments_length(arguments, 7, "embedded_curve_add");
+
+                assert_embedded_curve_point(arguments, 0, dfg, "embedded_curve_add _point1");
+                assert_embedded_curve_point(arguments, 3, dfg, "embedded_curve_add _point2");
+
+                let predicate_type = dfg.type_of_value(arguments[6]);
+                assert_u1(&predicate_type, "embedded_curve_add _predicate");
+
+                let result_type = self.assert_one_result(instruction, "embedded_curve_add");
+                let (result_elements, result_length) =
+                    assert_array(&result_type, "embedded_curve_add result");
+                assert_array_length(result_length, 1, "embedded_curve_add result length");
+                assert_eq!(
+                    result_elements.len(),
+                    3,
+                    "Expected embedded_curve_add result element types length to be 3, got: {}",
+                    result_elements.len(),
+                );
+                assert_field(&result_elements[0], "embedded_curve_add result x");
+                assert_field(&result_elements[1], "embedded_curve_add result y");
+                assert_u1(&result_elements[2], "embedded_curve_add result is_infinite");
+            }
+            BlackBoxFunc::Keccakf1600 => {
+                // fn keccakf1600(input: [u64; 25]) -> [u64; 25] {}
+                let input_type = self.assert_one_argument(arguments, "keccakf1600");
+                let input_length = assert_u64_array(&input_type, "keccakf1600 input");
+                assert_array_length(input_length, 25, "keccakf1600 input");
+
+                let results = dfg.instruction_results(instruction);
+                assert_eq!(results.len(), 1);
+                let result_type = dfg.type_of_value(results[0]);
+                let result_length = assert_u64_array(&result_type, "keccakf1600 result");
+                assert_array_length(result_length, 25, "keccakf1600 result");
+            }
+            BlackBoxFunc::MultiScalarMul => {
+                //  fn multi_scalar_mul_array_return<let N: u32>(
+                //     points: [EmbeddedCurvePoint; N],
+                //     scalars: [EmbeddedCurveScalar; N],
+                //     predicate: bool,
+                // ) -> [EmbeddedCurvePoint; 1] {}
+                let (points_type, scalars_type, predicate_type) =
+                    self.assert_three_arguments(arguments, "multi_scalar_mul");
+
+                let (points_elements, points_length) =
+                    assert_array(&points_type, "multi_scalar_mul points");
+                assert_eq!(
+                    points_elements.len(),
+                    3,
+                    "Expected multi_scalar_mul points element types length to be 3, got: {}",
+                    points_elements.len()
+                );
+                assert_field(&points_elements[0], "multi_scalar_mul points x");
+                assert_field(&points_elements[1], "multi_scalar_mul points y");
+                assert_u1(&points_elements[2], "multi_scalar_mul points is_infinite");
+
+                let (scalars_elements, scalars_length) =
+                    assert_array(&scalars_type, "multi_scalar_mul scalars");
+                assert_eq!(
+                    scalars_elements.len(),
+                    2,
+                    "Expected multi_scalar_mul scalars element types length to be 2, got: {}",
+                    scalars_elements.len()
+                );
+                assert_field(&scalars_elements[0], "multi_scalar_mul scalars lo");
+                assert_field(&scalars_elements[1], "multi_scalar_mul scalars hi");
+
+                assert_eq!(points_length, scalars_length, "MSM input array lengths mismatch");
+
+                assert_u1(&predicate_type, "multi_scalar_mul predicate");
+            }
+            BlackBoxFunc::Poseidon2Permutation => {
+                // fn poseidon2_permutation<let N: u32>(_input: [Field; N]) -> [Field; N] {}
+                let input_type = self.assert_one_argument(arguments, "poseidon2_permutation");
+                let input_length = assert_field_array(&input_type, "poseidon2_permutation _input");
+
+                let result_type = self.assert_one_result(instruction, "poseidon2_permutation");
+                let result_length =
+                    assert_field_array(&result_type, "poseidon2_permutation result");
+                assert_eq!(
+                    result_length, input_length,
+                    "poseidon2_permutation input/output length mismatch"
+                );
+            }
+            BlackBoxFunc::RANGE => {}
+            BlackBoxFunc::RecursiveAggregation => {
+                // fn verify_proof_internal<let N: u32, let M: u32, let K: u32>(
+                //     verification_key: [Field; N],
+                //     proof: [Field; M],
+                //     public_inputs: [Field; K],
+                //     key_hash: Field,
+                //     proof_type: u32,
+                // ) {}
+                assert_arguments_length(arguments, 5, "recursive_aggregation");
+
+                let verification_key = arguments[0];
+                let verification_key_type = dfg.type_of_value(verification_key);
+                assert_field_array(
+                    &verification_key_type,
+                    "recursive_aggregation verification_key",
+                );
+
+                let proof = arguments[1];
+                let proof_type = dfg.type_of_value(proof);
+                assert_field_array(&proof_type, "recursive_aggregation proof");
+
+                let public_inputs = arguments[2];
+                let public_inputs_type = dfg.type_of_value(public_inputs);
+                assert_field_array(&public_inputs_type, "recursive_aggregation public_inputs");
+
+                let key_hash = arguments[3];
+                let key_hash_type = dfg.type_of_value(key_hash);
+                assert_field(&key_hash_type, "recursive_aggregation key_hash");
+
+                let proof_type = arguments[4];
+                let proof_type_type = dfg.type_of_value(proof_type);
+                assert_u32(&proof_type_type, "recursive_aggregation proof_type");
+
+                self.assert_no_results(instruction, "recursive_aggregation");
+            }
+            BlackBoxFunc::Sha256Compression => {
+                // fn sha256_compression(input: [u32; 16], state: [u32; 8]) -> [u32; 8] {}
+                let (input_type, state_type) =
+                    self.assert_two_arguments(arguments, "sha256_compression");
+
+                let input_length = assert_u32_array(&input_type, "sha256_compression input");
+                assert_array_length(input_length, 16, "sha256_compression input");
+
+                let state_length = assert_u32_array(&state_type, "sha256_compression state");
+                assert_array_length(state_length, 8, "sha256_compression state");
+
+                let result_type = self.assert_one_result(instruction, "sha256_compression");
+                let result_length = assert_u32_array(&result_type, "sha256_compression result");
+                assert_array_length(result_length, 8, "sha256_compression result");
+            }
+        }
+    }
+
+    fn assert_one_argument(&self, arguments: &[ValueId], object: &'static str) -> Type {
+        assert_arguments_length(arguments, 1, object);
+
+        self.function.dfg.type_of_value(arguments[0])
+    }
+
+    fn assert_two_arguments(&self, arguments: &[ValueId], object: &'static str) -> (Type, Type) {
+        assert_arguments_length(arguments, 2, object);
+
+        (
+            self.function.dfg.type_of_value(arguments[0]),
+            self.function.dfg.type_of_value(arguments[1]),
+        )
+    }
+
+    fn assert_three_arguments(
+        &self,
+        arguments: &[ValueId],
+        object: &'static str,
+    ) -> (Type, Type, Type) {
+        assert_arguments_length(arguments, 3, object);
+
+        (
+            self.function.dfg.type_of_value(arguments[0]),
+            self.function.dfg.type_of_value(arguments[1]),
+            self.function.dfg.type_of_value(arguments[2]),
+        )
+    }
+
+    fn assert_no_results(&self, instruction: InstructionId, object: &'static str) {
+        let results = self.function.dfg.instruction_results(instruction);
+        assert_eq!(results.len(), 0, "Expected zero result for {object}",);
+    }
+
+    fn assert_one_result(&self, instruction: InstructionId, object: &'static str) -> Type {
+        let results = self.function.dfg.instruction_results(instruction);
+        assert_eq!(results.len(), 1, "Expected one result for {object}",);
+        self.function.dfg.type_of_value(results[0])
+    }
+
+    fn assert_two_results(&self, instruction: InstructionId, object: &'static str) -> (Type, Type) {
+        let results = self.function.dfg.instruction_results(instruction);
+        assert_eq!(results.len(), 2, "Expected two results for {object}",);
+        (self.function.dfg.type_of_value(results[0]), self.function.dfg.type_of_value(results[1]))
     }
 
     /// Validates that acir functions are not called from unconstrained code.
@@ -757,11 +992,30 @@ fn assert_u64(typ: &Type, object: &str) {
     }
 }
 
+fn assert_slice<'a>(typ: &'a Type, object: &str) -> &'a Arc<Vec<Type>> {
+    let Type::Slice(elements) = typ else {
+        panic!("{object} must be a slice");
+    };
+    elements
+}
+
 fn assert_array<'a>(typ: &'a Type, object: &str) -> (&'a Arc<Vec<Type>>, u32) {
     let Type::Array(elements, length) = typ else {
         panic!("{object} must be an array");
     };
     (elements, *length)
+}
+
+fn assert_u1_array(typ: &Type, object: &str) -> u32 {
+    let (elements, length) = assert_array(typ, object);
+    assert_eq!(
+        elements.len(),
+        1,
+        "Expected {object} to be an array of length 1, not {}",
+        elements.len()
+    );
+    assert_u1(&elements[0], &format!("{object} array element"));
+    length
 }
 
 fn assert_u8_array(typ: &Type, object: &str) -> u32 {
@@ -1117,6 +1371,42 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "Function call to f1 expected 1 parameters, but got 0")]
+    fn call_has_wrong_parameter_count() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            call f1()
+            return
+        }
+
+        acir(inline) fn foo f1 {
+          b0(v0: Field):
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Argument #1 to f1 has type Field, but u32 was given")]
+    fn call_has_wrong_argument_type() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            call f1(v0)
+            return
+        }
+
+        acir(inline) fn foo f1 {
+          b0(v0: Field):
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
     #[should_panic(expected = "Function call to f1 expected 2 return values, but got 1")]
     fn call_has_wrong_return_count() {
         let src = "
@@ -1294,9 +1584,9 @@ mod tests {
     fn msm_has_incorrect_type() {
         let src = "
         acir(inline) fn main f0 {
-          b0(v0: [(Field, Field, Field); 3], v1: [(Field, Field); 3]):
-            v2 = call multi_scalar_mul(v0, v1) -> [(Field, Field, u1); 1]
-            return v2
+          b0(v0: [(Field, Field, Field); 3], v1: [(Field, Field); 3], v2: u1):
+            v3 = call multi_scalar_mul(v0, v1, v2) -> [(Field, Field, u1); 1]
+            return v3
         }
         ";
         let _ = Ssa::from_str(src).unwrap();
@@ -1334,8 +1624,80 @@ mod tests {
             return
 
         }
-        
+
         ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "AsSlice argument must be an array")]
+    fn as_slice_length_on_slice_type() {
+        let src = "
+        acir(inline) fn main f0 {
+            b0():
+              v3 = make_array [Field 1, Field 2, Field 3] : [Field]
+              v4 = call f1(v3) -> u32
+              return v4
+        }
+
+        acir(inline) fn foo f1 {
+            b0(v0: [Field]):
+              v2, v3 = call as_slice(v0) -> (u32, [Field])
+              return v2
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "AsSlice argument must be an array")]
+    fn as_slice_length_on_numeric_type() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v2, v3 = call as_slice(v0) -> (u32, [Field])
+            return v2
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "assertion `left == right` failed: Expected AsSlice to have 1 arguments, got 0\n  left: 0\n right: 1"
+    )]
+    fn as_slice_wrong_number_of_arguments() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v1, v2 = call as_slice() -> (u32, [Field])
+            return v1
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "ArrayGet/ArraySet index must be u32")]
+    fn array_get_wrong_index_type() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: [u8; 3], v1: u64):
+            v2 = array_get v0, index v1 -> u32
+            return v2
+        }";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "ArrayGet/ArraySet must operate on an array")]
+    fn array_get_wrong_array_type() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32, v1: u32):
+            v2 = array_get v0, index v1 -> u32
+            return v2
+        }";
         let _ = Ssa::from_str(src).unwrap();
     }
 }

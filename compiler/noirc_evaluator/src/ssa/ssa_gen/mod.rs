@@ -29,7 +29,7 @@ use self::{
 
 use super::ir::basic_block::BasicBlockId;
 use super::ir::dfg::GlobalsGraph;
-use super::ir::instruction::{ArrayOffset, ErrorType};
+use super::ir::instruction::ErrorType;
 use super::ir::types::NumericType;
 use super::validation::validate_function;
 use super::{
@@ -469,13 +469,13 @@ impl FunctionContext<'_> {
             self.builder.numeric_constant(type_size as u128, NumericType::length_type());
 
         let array_type = &self.builder.type_of_value(array);
+        let runtime = self.builder.current_function.runtime();
 
         // Checks for index Out-of-bounds
         match array_type {
             Type::Array(_, len) => {
                 // Out of bounds array accesses are guaranteed to fail in ACIR so this check is performed implicitly.
                 // We then only need to inject it for brillig functions.
-                let runtime = self.builder.current_function.runtime();
                 if runtime.is_brillig() {
                     let len =
                         self.builder.numeric_constant(u128::from(*len), NumericType::length_type());
@@ -494,23 +494,26 @@ impl FunctionContext<'_> {
             _ => unreachable!("must have array or slice but got {array_type}"),
         }
 
-        // This shouldn't overflow because the initial index is within array bounds
+        // This can overflow if the original index is already not in the bounds of the array
+        // and we skipped inserting constraints. To stay on the conservative side, start with
+        // a checked operation, and simplify to unchecked if it can be evaluated.
+        // In Brillig we will be protected from overflows by constraints, so we can go unchecked.
+        let unchecked = runtime.is_brillig();
         let base_index = self.builder.set_location(location).insert_binary(
             index,
-            BinaryOp::Mul { unchecked: true },
+            BinaryOp::Mul { unchecked },
             type_size,
         );
 
         let mut field_index = 0u128;
         Ok(Self::map_type(element_type, |typ| {
-            let index = self.make_offset(base_index, field_index);
+            let index = self.make_offset(base_index, field_index, unchecked);
             field_index += 1;
 
             // Reference counting in brillig relies on us incrementing reference
             // counts when nested arrays/slices are constructed or indexed. This
             // has no effect in ACIR code.
-            let offset = ArrayOffset::None;
-            let result = self.builder.insert_array_get(array, index, offset, typ);
+            let result = self.builder.insert_array_get(array, index, typ);
             result.into()
         }))
     }
@@ -634,7 +637,7 @@ impl FunctionContext<'_> {
 
         let result = self.codegen_expression(&for_expr.block);
         self.codegen_unless_break_or_continue(result, |this, _| {
-            let new_loop_index = this.make_offset(loop_index, 1);
+            let new_loop_index = this.make_offset(loop_index, 1, true);
             this.builder.terminate_with_jmp(loop_entry, vec![new_loop_index]);
         })?;
 
@@ -1201,7 +1204,7 @@ impl FunctionContext<'_> {
 
         // Must remember to increment i before jumping
         if let Some(loop_index) = loop_.loop_index {
-            let new_loop_index = self.make_offset(loop_index, 1);
+            let new_loop_index = self.make_offset(loop_index, 1, true);
             self.builder.terminate_with_jmp(loop_.loop_entry, vec![new_loop_index]);
         } else {
             self.builder.terminate_with_jmp(loop_.loop_entry, vec![]);

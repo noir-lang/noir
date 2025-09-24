@@ -424,6 +424,10 @@ impl<'f> PerFunctionContext<'f> {
                 self.analyze_possibly_simplified_instruction(references, id, false);
             }
             InsertInstructionResult::SimplifiedTo(value) => {
+                // Globals cannot contain references thus we do not need to analyze insertion which simplified to them.
+                if self.inserter.function.dfg.is_global(value) {
+                    return;
+                }
                 let value = &self.inserter.function.dfg[value];
                 if let Value::Instruction { instruction, .. } = value {
                     self.analyze_possibly_simplified_instruction(references, *instruction, true);
@@ -431,6 +435,10 @@ impl<'f> PerFunctionContext<'f> {
             }
             InsertInstructionResult::SimplifiedToMultiple(values) => {
                 for value in values {
+                    // Globals cannot contain references thus we do not need to analyze insertion which simplified to them.
+                    if self.inserter.function.dfg.is_global(value) {
+                        continue;
+                    }
                     let value = &self.inserter.function.dfg[value];
                     if let Value::Instruction { instruction, .. } = value {
                         self.analyze_possibly_simplified_instruction(
@@ -1112,7 +1120,7 @@ mod tests {
             jmp b1(v8)
         }
         acir(inline) fn foo f1 {
-          b0(v0: &mut Field):
+          b0(v0: &mut &mut Field):
             return
         }
         ";
@@ -2176,7 +2184,7 @@ mod tests {
             v11 = load v4 -> u32
             v12 = load v5 -> u1
             inc_rc v10
-            v15 = call poseidon2_permutation(v10, u32 4) -> [Field; 4]
+            v15 = call poseidon2_permutation(v10) -> [Field; 4]
             v16 = load v2 -> [Field; 3]
             v17 = load v3 -> [Field; 4]
             v18 = load v4 -> u32
@@ -2231,40 +2239,40 @@ mod tests {
             v7 = lt v4, u32 3
             jmpif v7 then: b2, else: b3
           b2():
-            v15 = load v0 -> [Field; 3]
-            v16 = load v1 -> [Field; 4]
-            v17 = load v2 -> u32
-            v18 = load v3 -> u1
-            v19 = lt v4, v17
-            jmpif v19 then: b4, else: b5
+            v14 = load v0 -> [Field; 3]
+            v15 = load v1 -> [Field; 4]
+            v16 = load v2 -> u32
+            v17 = load v3 -> u1
+            v18 = lt v4, v16
+            jmpif v18 then: b4, else: b5
           b3():
             v8 = load v0 -> [Field; 3]
             v9 = load v1 -> [Field; 4]
             v10 = load v2 -> u32
             v11 = load v3 -> u1
             inc_rc v9
-            v14 = call poseidon2_permutation(v9, u32 4) -> [Field; 4]
+            v13 = call poseidon2_permutation(v9) -> [Field; 4]
             store v8 at v0
-            store v14 at v1
+            store v13 at v1
             store v10 at v2
             store v11 at v3
             return
           b4():
             v20 = lt v4, u32 4
             constrain v20 == u1 1, "Index out of bounds"
-            v22 = array_get v16, index v4 -> Field
+            v22 = array_get v15, index v4 -> Field
             v23 = lt v4, u32 3
             constrain v23 == u1 1, "Index out of bounds"
-            v24 = array_get v15, index v4 -> Field
+            v24 = array_get v14, index v4 -> Field
             v25 = add v22, v24
             v26 = lt v4, u32 4
             constrain v26 == u1 1, "Index out of bounds"
-            v27 = array_set v16, index v4, value v25
+            v27 = array_set v15, index v4, value v25
             v29 = unchecked_add v4, u32 1
-            store v15 at v0
+            store v14 at v0
             store v27 at v1
-            store v17 at v2
-            store v18 at v3
+            store v16 at v2
+            store v17 at v3
             jmp b5()
           b5():
             v30 = unchecked_add v4, u32 1
@@ -2326,5 +2334,61 @@ mod tests {
         }
         "
         );
+    }
+
+    #[test]
+    fn simplify_to_global_instruction() {
+        // We want to have more global instructions than instructions in the function as we want
+        // to test that we never attempt to access a function's instruction map using a global instruction index.
+        // If we were to access the function's instruction map using the global instruction index in this case
+        // we would expect to hit an OOB panic.
+        // We also want to make sure that we simplify to a make array instructions as global constants will
+        // resolve directly to a constant.
+        let src = "
+        g0 = Field 1
+        g1 = Field 2
+        g2 = Field 3
+        g3 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g4 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g5 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g6 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g7 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g8 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g9 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g10 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g11 = make_array [g10, g10, g10] : [[Field; 3]; 3]
+  
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut [[Field; 3]; 3]
+            store g11 at v0
+            v1 = load v0 -> [[Field; 3]; 3]
+            v3 = array_get v1, index u32 0 -> [Field; 3]
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+
+        assert_ssa_snapshot!(ssa, @r"
+        g0 = Field 1
+        g1 = Field 2
+        g2 = Field 3
+        g3 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g4 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g5 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g6 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g7 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g8 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g9 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g10 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g11 = make_array [g10, g10, g10] : [[Field; 3]; 3]
+        
+        acir(inline) fn main f0 {
+          b0():
+            v12 = allocate -> &mut [[Field; 3]; 3]
+            return g10
+        }
+        ");
     }
 }

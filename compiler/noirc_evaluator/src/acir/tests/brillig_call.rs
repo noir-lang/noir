@@ -51,11 +51,67 @@ fn multiple_brillig_calls_one_bytecode() {
     BRILLIG CALL func 1: inputs: [EXPR [ (1, w0) 0 ], EXPR [ (1, w1) 0 ]], outputs: [w5]
     BRILLIG CALL func 0: inputs: [EXPR [ (1, w0) 0 ], EXPR [ (1, w1) 0 ]], outputs: [w6]
     BRILLIG CALL func 1: inputs: [EXPR [ (1, w0) 0 ], EXPR [ (1, w1) 0 ]], outputs: [w7]
-    
+
     unconstrained func 0
-    [Const { destination: Direct(2), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(1), bit_size: Integer(U32), value: 32839 }, Const { destination: Direct(0), bit_size: Integer(U32), value: 3 }, Const { destination: Relative(3), bit_size: Integer(U32), value: 2 }, Const { destination: Relative(4), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(32836), size_address: Relative(3), offset_address: Relative(4) }, Mov { destination: Relative(1), source: Direct(32836) }, Mov { destination: Relative(2), source: Direct(32837) }, Call { location: 14 }, Call { location: 15 }, Mov { destination: Direct(32838), source: Relative(1) }, Const { destination: Relative(2), bit_size: Integer(U32), value: 32838 }, Const { destination: Relative(3), bit_size: Integer(U32), value: 1 }, Stop { return_data: HeapVector { pointer: Relative(2), size: Relative(3) } }, Return, Call { location: 23 }, BinaryFieldOp { destination: Relative(3), op: Equals, lhs: Relative(1), rhs: Relative(2) }, Const { destination: Relative(2), bit_size: Integer(U1), value: 0 }, BinaryIntOp { destination: Relative(4), op: Equals, bit_size: U1, lhs: Relative(3), rhs: Relative(2) }, JumpIf { condition: Relative(4), location: 22 }, Const { destination: Relative(5), bit_size: Integer(U32), value: 0 }, Trap { revert_data: HeapVector { pointer: Direct(1), size: Relative(5) } }, Return, Const { destination: Direct(32772), bit_size: Integer(U32), value: 30720 }, BinaryIntOp { destination: Direct(32771), op: LessThan, bit_size: U32, lhs: Direct(0), rhs: Direct(32772) }, JumpIf { condition: Direct(32771), location: 28 }, IndirectConst { destination_pointer: Direct(1), bit_size: Integer(U64), value: 15764276373176857197 }, Trap { revert_data: HeapVector { pointer: Direct(1), size: Direct(2) } }, Return]
+     0: @2 = const u32 1
+     1: @1 = const u32 32839
+     2: @0 = const u32 3
+     3: sp[3] = const u32 2
+     4: sp[4] = const u32 0
+     5: @32836 = calldata copy [sp[4]; sp[3]]
+     6: sp[1] = @32836
+     7: sp[2] = @32837
+     8: call 14
+     9: call 15
+    10: @32838 = sp[1]
+    11: sp[2] = const u32 32838
+    12: sp[3] = const u32 1
+    13: stop &[sp[2]; sp[3]]
+    14: return
+    15: call 23
+    16: sp[3] = field eq sp[1], sp[2]
+    17: sp[2] = const bool 0
+    18: sp[4] = bool eq sp[3], sp[2]
+    19: jump if sp[4] to 22
+    20: sp[5] = const u32 0
+    21: trap &[@1; sp[5]]
+    22: return
+    23: @32772 = const u32 30720
+    24: @32771 = u32 lt @0, @32772
+    25: jump if @32771 to 28
+    26: @1 = indirect const u64 15764276373176857197
+    27: trap &[@1; @2]
+    28: return
     unconstrained func 1
-    [Const { destination: Direct(2), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(1), bit_size: Integer(U32), value: 32839 }, Const { destination: Direct(0), bit_size: Integer(U32), value: 3 }, Const { destination: Relative(3), bit_size: Integer(U32), value: 2 }, Const { destination: Relative(4), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(32836), size_address: Relative(3), offset_address: Relative(4) }, Mov { destination: Relative(1), source: Direct(32836) }, Mov { destination: Relative(2), source: Direct(32837) }, Call { location: 14 }, Call { location: 15 }, Mov { destination: Direct(32838), source: Relative(1) }, Const { destination: Relative(2), bit_size: Integer(U32), value: 32838 }, Const { destination: Relative(3), bit_size: Integer(U32), value: 1 }, Stop { return_data: HeapVector { pointer: Relative(2), size: Relative(3) } }, Return, Call { location: 23 }, BinaryFieldOp { destination: Relative(3), op: Equals, lhs: Relative(1), rhs: Relative(2) }, Const { destination: Relative(2), bit_size: Integer(U1), value: 0 }, BinaryIntOp { destination: Relative(4), op: Equals, bit_size: U1, lhs: Relative(3), rhs: Relative(2) }, JumpIf { condition: Relative(4), location: 22 }, Const { destination: Relative(5), bit_size: Integer(U32), value: 0 }, Trap { revert_data: HeapVector { pointer: Direct(1), size: Relative(5) } }, Return, Const { destination: Direct(32772), bit_size: Integer(U32), value: 30720 }, BinaryIntOp { destination: Direct(32771), op: LessThan, bit_size: U32, lhs: Direct(0), rhs: Direct(32772) }, JumpIf { condition: Direct(32771), location: 28 }, IndirectConst { destination_pointer: Direct(1), bit_size: Integer(U64), value: 15764276373176857197 }, Trap { revert_data: HeapVector { pointer: Direct(1), size: Direct(2) } }, Return]
+     0: @2 = const u32 1
+     1: @1 = const u32 32839
+     2: @0 = const u32 3
+     3: sp[3] = const u32 2
+     4: sp[4] = const u32 0
+     5: @32836 = calldata copy [sp[4]; sp[3]]
+     6: sp[1] = @32836
+     7: sp[2] = @32837
+     8: call 14
+     9: call 15
+    10: @32838 = sp[1]
+    11: sp[2] = const u32 32838
+    12: sp[3] = const u32 1
+    13: stop &[sp[2]; sp[3]]
+    14: return
+    15: call 23
+    16: sp[3] = field eq sp[1], sp[2]
+    17: sp[2] = const bool 0
+    18: sp[4] = bool eq sp[3], sp[2]
+    19: jump if sp[4] to 22
+    20: sp[5] = const u32 0
+    21: trap &[@1; sp[5]]
+    22: return
+    23: @32772 = const u32 30720
+    24: @32771 = u32 lt @0, @32772
+    25: jump if @32771 to 28
+    26: @1 = indirect const u64 15764276373176857197
+    27: trap &[@1; @2]
+    28: return
     ");
 }
 
@@ -93,31 +149,46 @@ fn multiple_brillig_stdlib_calls() {
     private parameters: [w0, w1, w2]
     public parameters: []
     return values: []
-    BLACKBOX::RANGE [(w0, 32)] []
-    BLACKBOX::RANGE [(w1, 32)] []
-    BLACKBOX::RANGE [(w2, 32)] []
+    BLACKBOX::RANGE [w0]:32 bits []
+    BLACKBOX::RANGE [w1]:32 bits []
+    BLACKBOX::RANGE [w2]:32 bits []
     BRILLIG CALL func 0: inputs: [EXPR [ (1, w1) 0 ]], outputs: [w3]
     EXPR [ (1, w1, w3) -1 ]
     BRILLIG CALL func 1: inputs: [EXPR [ (1, w0) 0 ], EXPR [ (1, w1) 0 ]], outputs: [w4, w5]
-    BLACKBOX::RANGE [(w4, 32)] []
-    BLACKBOX::RANGE [(w5, 32)] []
+    BLACKBOX::RANGE [w4]:32 bits []
+    BLACKBOX::RANGE [w5]:32 bits []
     EXPR [ (1, w1) (-1, w5) (-1, w6) -1 ]
-    BLACKBOX::RANGE [(w6, 32)] []
+    BLACKBOX::RANGE [w6]:32 bits []
     EXPR [ (-1, w1, w4) (1, w0) (-1, w5) 0 ]
     EXPR [ (-1, w2) (1, w4) 0 ]
     BRILLIG CALL func 0: inputs: [EXPR [ (1, w2) 0 ]], outputs: [w7]
     EXPR [ (1, w2, w7) -1 ]
     BRILLIG CALL func 1: inputs: [EXPR [ (1, w1) 0 ], EXPR [ (1, w2) 0 ]], outputs: [w8, w9]
-    BLACKBOX::RANGE [(w9, 32)] []
+    BLACKBOX::RANGE [w9]:32 bits []
     EXPR [ (1, w2) (-1, w9) (-1, w10) -1 ]
-    BLACKBOX::RANGE [(w10, 32)] []
+    BLACKBOX::RANGE [w10]:32 bits []
     EXPR [ (-1, w2, w8) (1, w1) (-1, w9) 0 ]
     EXPR [ (1, w8) -1 ]
-    
+
     unconstrained func 0
-    [Const { destination: Direct(21), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(20), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(21), offset_address: Direct(20) }, Const { destination: Direct(2), bit_size: Field, value: 0 }, BinaryFieldOp { destination: Direct(3), op: Equals, lhs: Direct(0), rhs: Direct(2) }, JumpIf { condition: Direct(3), location: 8 }, Const { destination: Direct(1), bit_size: Field, value: 1 }, BinaryFieldOp { destination: Direct(0), op: Div, lhs: Direct(1), rhs: Direct(0) }, Stop { return_data: HeapVector { pointer: Direct(20), size: Direct(21) } }]
+    0: @21 = const u32 1
+    1: @20 = const u32 0
+    2: @0 = calldata copy [@20; @21]
+    3: @2 = const field 0
+    4: @3 = field eq @0, @2
+    5: jump if @3 to 8
+    6: @1 = const field 1
+    7: @0 = field field_div @1, @0
+    8: stop &[@20; @21]
     unconstrained func 1
-    [Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]
+    0: @10 = const u32 2
+    1: @11 = const u32 0
+    2: @0 = calldata copy [@11; @10]
+    3: @2 = field int_div @0, @1
+    4: @1 = field mul @2, @1
+    5: @1 = field sub @0, @1
+    6: @0 = @2
+    7: stop &[@11; @10]
     ");
 }
 
@@ -166,37 +237,82 @@ fn brillig_stdlib_calls_with_regular_brillig_call() {
     private parameters: [w0, w1, w2]
     public parameters: []
     return values: []
-    BLACKBOX::RANGE [(w0, 32)] []
-    BLACKBOX::RANGE [(w1, 32)] []
-    BLACKBOX::RANGE [(w2, 32)] []
+    BLACKBOX::RANGE [w0]:32 bits []
+    BLACKBOX::RANGE [w1]:32 bits []
+    BLACKBOX::RANGE [w2]:32 bits []
     BRILLIG CALL func 1: inputs: [EXPR [ (1, w1) 0 ]], outputs: [w3]
     EXPR [ (1, w1, w3) -1 ]
     BRILLIG CALL func 2: inputs: [EXPR [ (1, w0) 0 ], EXPR [ (1, w1) 0 ]], outputs: [w4, w5]
-    BLACKBOX::RANGE [(w4, 32)] []
-    BLACKBOX::RANGE [(w5, 32)] []
+    BLACKBOX::RANGE [w4]:32 bits []
+    BLACKBOX::RANGE [w5]:32 bits []
     EXPR [ (1, w1) (-1, w5) (-1, w6) -1 ]
-    BLACKBOX::RANGE [(w6, 32)] []
+    BLACKBOX::RANGE [w6]:32 bits []
     EXPR [ (-1, w1, w4) (1, w0) (-1, w5) 0 ]
     EXPR [ (-1, w2) (1, w4) 0 ]
     BRILLIG CALL func 0: inputs: [EXPR [ (1, w0) 0 ], EXPR [ (1, w1) 0 ]], outputs: [w7]
-    BLACKBOX::RANGE [(w7, 32)] []
+    BLACKBOX::RANGE [w7]:32 bits []
     BRILLIG CALL func 0: inputs: [EXPR [ (1, w0) 0 ], EXPR [ (1, w1) 0 ]], outputs: [w8]
-    BLACKBOX::RANGE [(w8, 32)] []
+    BLACKBOX::RANGE [w8]:32 bits []
     BRILLIG CALL func 1: inputs: [EXPR [ (1, w2) 0 ]], outputs: [w9]
     EXPR [ (1, w2, w9) -1 ]
     BRILLIG CALL func 2: inputs: [EXPR [ (1, w1) 0 ], EXPR [ (1, w2) 0 ]], outputs: [w10, w11]
-    BLACKBOX::RANGE [(w11, 32)] []
+    BLACKBOX::RANGE [w11]:32 bits []
     EXPR [ (1, w2) (-1, w11) (-1, w12) -1 ]
-    BLACKBOX::RANGE [(w12, 32)] []
+    BLACKBOX::RANGE [w12]:32 bits []
     EXPR [ (-1, w2, w10) (1, w1) (-1, w11) 0 ]
     EXPR [ (1, w10) -1 ]
-    
+
     unconstrained func 0
-    [Const { destination: Direct(2), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(1), bit_size: Integer(U32), value: 32839 }, Const { destination: Direct(0), bit_size: Integer(U32), value: 3 }, Const { destination: Relative(3), bit_size: Integer(U32), value: 2 }, Const { destination: Relative(4), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(32836), size_address: Relative(3), offset_address: Relative(4) }, Cast { destination: Direct(32836), source: Direct(32836), bit_size: Integer(U32) }, Cast { destination: Direct(32837), source: Direct(32837), bit_size: Integer(U32) }, Mov { destination: Relative(1), source: Direct(32836) }, Mov { destination: Relative(2), source: Direct(32837) }, Call { location: 16 }, Call { location: 17 }, Mov { destination: Direct(32838), source: Relative(1) }, Const { destination: Relative(2), bit_size: Integer(U32), value: 32838 }, Const { destination: Relative(3), bit_size: Integer(U32), value: 1 }, Stop { return_data: HeapVector { pointer: Relative(2), size: Relative(3) } }, Return, Call { location: 25 }, BinaryIntOp { destination: Relative(3), op: Equals, bit_size: U32, lhs: Relative(1), rhs: Relative(2) }, Const { destination: Relative(2), bit_size: Integer(U1), value: 0 }, BinaryIntOp { destination: Relative(4), op: Equals, bit_size: U1, lhs: Relative(3), rhs: Relative(2) }, JumpIf { condition: Relative(4), location: 24 }, Const { destination: Relative(5), bit_size: Integer(U32), value: 0 }, Trap { revert_data: HeapVector { pointer: Direct(1), size: Relative(5) } }, Return, Const { destination: Direct(32772), bit_size: Integer(U32), value: 30720 }, BinaryIntOp { destination: Direct(32771), op: LessThan, bit_size: U32, lhs: Direct(0), rhs: Direct(32772) }, JumpIf { condition: Direct(32771), location: 30 }, IndirectConst { destination_pointer: Direct(1), bit_size: Integer(U64), value: 15764276373176857197 }, Trap { revert_data: HeapVector { pointer: Direct(1), size: Direct(2) } }, Return]
+     0: @2 = const u32 1
+     1: @1 = const u32 32839
+     2: @0 = const u32 3
+     3: sp[3] = const u32 2
+     4: sp[4] = const u32 0
+     5: @32836 = calldata copy [sp[4]; sp[3]]
+     6: @32836 = cast @32836 to u32
+     7: @32837 = cast @32837 to u32
+     8: sp[1] = @32836
+     9: sp[2] = @32837
+    10: call 16
+    11: call 17
+    12: @32838 = sp[1]
+    13: sp[2] = const u32 32838
+    14: sp[3] = const u32 1
+    15: stop &[sp[2]; sp[3]]
+    16: return
+    17: call 25
+    18: sp[3] = u32 eq sp[1], sp[2]
+    19: sp[2] = const bool 0
+    20: sp[4] = bool eq sp[3], sp[2]
+    21: jump if sp[4] to 24
+    22: sp[5] = const u32 0
+    23: trap &[@1; sp[5]]
+    24: return
+    25: @32772 = const u32 30720
+    26: @32771 = u32 lt @0, @32772
+    27: jump if @32771 to 30
+    28: @1 = indirect const u64 15764276373176857197
+    29: trap &[@1; @2]
+    30: return
     unconstrained func 1
-    [Const { destination: Direct(21), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(20), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(21), offset_address: Direct(20) }, Const { destination: Direct(2), bit_size: Field, value: 0 }, BinaryFieldOp { destination: Direct(3), op: Equals, lhs: Direct(0), rhs: Direct(2) }, JumpIf { condition: Direct(3), location: 8 }, Const { destination: Direct(1), bit_size: Field, value: 1 }, BinaryFieldOp { destination: Direct(0), op: Div, lhs: Direct(1), rhs: Direct(0) }, Stop { return_data: HeapVector { pointer: Direct(20), size: Direct(21) } }]
+    0: @21 = const u32 1
+    1: @20 = const u32 0
+    2: @0 = calldata copy [@20; @21]
+    3: @2 = const field 0
+    4: @3 = field eq @0, @2
+    5: jump if @3 to 8
+    6: @1 = const field 1
+    7: @0 = field field_div @1, @0
+    8: stop &[@20; @21]
     unconstrained func 2
-    [Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]
+    0: @10 = const u32 2
+    1: @11 = const u32 0
+    2: @0 = calldata copy [@11; @10]
+    3: @2 = field int_div @0, @1
+    4: @1 = field mul @2, @1
+    5: @1 = field sub @0, @1
+    6: @0 = @2
+    7: stop &[@11; @10]
     ");
 }
 
@@ -255,52 +371,97 @@ fn brillig_stdlib_calls_with_multiple_acir_calls() {
     private parameters: [w0, w1, w2]
     public parameters: []
     return values: []
-    BLACKBOX::RANGE [(w0, 32)] []
-    BLACKBOX::RANGE [(w1, 32)] []
-    BLACKBOX::RANGE [(w2, 32)] []
+    BLACKBOX::RANGE [w0]:32 bits []
+    BLACKBOX::RANGE [w1]:32 bits []
+    BLACKBOX::RANGE [w2]:32 bits []
     BRILLIG CALL func 1: inputs: [EXPR [ (1, w1) 0 ]], outputs: [w3]
     EXPR [ (1, w1, w3) -1 ]
     BRILLIG CALL func 2: inputs: [EXPR [ (1, w0) 0 ], EXPR [ (1, w1) 0 ]], outputs: [w4, w5]
-    BLACKBOX::RANGE [(w4, 32)] []
-    BLACKBOX::RANGE [(w5, 32)] []
+    BLACKBOX::RANGE [w4]:32 bits []
+    BLACKBOX::RANGE [w5]:32 bits []
     EXPR [ (1, w1) (-1, w5) (-1, w6) -1 ]
-    BLACKBOX::RANGE [(w6, 32)] []
+    BLACKBOX::RANGE [w6]:32 bits []
     EXPR [ (-1, w1, w4) (1, w0) (-1, w5) 0 ]
     EXPR [ (-1, w2) (1, w4) 0 ]
     BRILLIG CALL func 0: inputs: [EXPR [ (1, w0) 0 ], EXPR [ (1, w1) 0 ]], outputs: [w7]
-    BLACKBOX::RANGE [(w7, 32)] []
+    BLACKBOX::RANGE [w7]:32 bits []
     BRILLIG CALL func 0: inputs: [EXPR [ (1, w0) 0 ], EXPR [ (1, w1) 0 ]], outputs: [w8]
-    BLACKBOX::RANGE [(w8, 32)] []
-    CALL func 2: PREDICATE: EXPR [ 1 ]
+    BLACKBOX::RANGE [w8]:32 bits []
+    CALL func 1: PREDICATE: EXPR [ 1 ]
     inputs: [w0, w1], outputs: [w9]
     BRILLIG CALL func 1: inputs: [EXPR [ (1, w2) 0 ]], outputs: [w10]
     EXPR [ (1, w2, w10) -1 ]
     BRILLIG CALL func 2: inputs: [EXPR [ (1, w1) 0 ], EXPR [ (1, w2) 0 ]], outputs: [w11, w12]
-    BLACKBOX::RANGE [(w12, 32)] []
+    BLACKBOX::RANGE [w12]:32 bits []
     EXPR [ (1, w2) (-1, w12) (-1, w13) -1 ]
-    BLACKBOX::RANGE [(w13, 32)] []
+    BLACKBOX::RANGE [w13]:32 bits []
     EXPR [ (-1, w2, w11) (1, w1) (-1, w12) 0 ]
     EXPR [ (1, w11) -1 ]
-    
+
     func 1
     current witness: w5
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
-    BLACKBOX::RANGE [(w0, 32)] []
-    BLACKBOX::RANGE [(w1, 32)] []
+    BLACKBOX::RANGE [w0]:32 bits []
+    BLACKBOX::RANGE [w1]:32 bits []
     EXPR [ (1, w0) (-1, w1) (-1, w3) 0 ]
     BRILLIG CALL func 1: inputs: [EXPR [ (1, w3) 0 ]], outputs: [w4]
     EXPR [ (1, w3, w4) (1, w5) -1 ]
     EXPR [ (1, w3, w5) 0 ]
     EXPR [ (1, w5) 0 ]
     EXPR [ (-1, w0) (1, w2) 0 ]
-    
+
     unconstrained func 0
-    [Const { destination: Direct(2), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(1), bit_size: Integer(U32), value: 32839 }, Const { destination: Direct(0), bit_size: Integer(U32), value: 3 }, Const { destination: Relative(3), bit_size: Integer(U32), value: 2 }, Const { destination: Relative(4), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(32836), size_address: Relative(3), offset_address: Relative(4) }, Cast { destination: Direct(32836), source: Direct(32836), bit_size: Integer(U32) }, Cast { destination: Direct(32837), source: Direct(32837), bit_size: Integer(U32) }, Mov { destination: Relative(1), source: Direct(32836) }, Mov { destination: Relative(2), source: Direct(32837) }, Call { location: 16 }, Call { location: 17 }, Mov { destination: Direct(32838), source: Relative(1) }, Const { destination: Relative(2), bit_size: Integer(U32), value: 32838 }, Const { destination: Relative(3), bit_size: Integer(U32), value: 1 }, Stop { return_data: HeapVector { pointer: Relative(2), size: Relative(3) } }, Return, Call { location: 25 }, BinaryIntOp { destination: Relative(3), op: Equals, bit_size: U32, lhs: Relative(1), rhs: Relative(2) }, Const { destination: Relative(2), bit_size: Integer(U1), value: 0 }, BinaryIntOp { destination: Relative(4), op: Equals, bit_size: U1, lhs: Relative(3), rhs: Relative(2) }, JumpIf { condition: Relative(4), location: 24 }, Const { destination: Relative(5), bit_size: Integer(U32), value: 0 }, Trap { revert_data: HeapVector { pointer: Direct(1), size: Relative(5) } }, Return, Const { destination: Direct(32772), bit_size: Integer(U32), value: 30720 }, BinaryIntOp { destination: Direct(32771), op: LessThan, bit_size: U32, lhs: Direct(0), rhs: Direct(32772) }, JumpIf { condition: Direct(32771), location: 30 }, IndirectConst { destination_pointer: Direct(1), bit_size: Integer(U64), value: 15764276373176857197 }, Trap { revert_data: HeapVector { pointer: Direct(1), size: Direct(2) } }, Return]
+     0: @2 = const u32 1
+     1: @1 = const u32 32839
+     2: @0 = const u32 3
+     3: sp[3] = const u32 2
+     4: sp[4] = const u32 0
+     5: @32836 = calldata copy [sp[4]; sp[3]]
+     6: @32836 = cast @32836 to u32
+     7: @32837 = cast @32837 to u32
+     8: sp[1] = @32836
+     9: sp[2] = @32837
+    10: call 16
+    11: call 17
+    12: @32838 = sp[1]
+    13: sp[2] = const u32 32838
+    14: sp[3] = const u32 1
+    15: stop &[sp[2]; sp[3]]
+    16: return
+    17: call 25
+    18: sp[3] = u32 eq sp[1], sp[2]
+    19: sp[2] = const bool 0
+    20: sp[4] = bool eq sp[3], sp[2]
+    21: jump if sp[4] to 24
+    22: sp[5] = const u32 0
+    23: trap &[@1; sp[5]]
+    24: return
+    25: @32772 = const u32 30720
+    26: @32771 = u32 lt @0, @32772
+    27: jump if @32771 to 30
+    28: @1 = indirect const u64 15764276373176857197
+    29: trap &[@1; @2]
+    30: return
     unconstrained func 1
-    [Const { destination: Direct(21), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(20), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(21), offset_address: Direct(20) }, Const { destination: Direct(2), bit_size: Field, value: 0 }, BinaryFieldOp { destination: Direct(3), op: Equals, lhs: Direct(0), rhs: Direct(2) }, JumpIf { condition: Direct(3), location: 8 }, Const { destination: Direct(1), bit_size: Field, value: 1 }, BinaryFieldOp { destination: Direct(0), op: Div, lhs: Direct(1), rhs: Direct(0) }, Stop { return_data: HeapVector { pointer: Direct(20), size: Direct(21) } }]
+    0: @21 = const u32 1
+    1: @20 = const u32 0
+    2: @0 = calldata copy [@20; @21]
+    3: @2 = const field 0
+    4: @3 = field eq @0, @2
+    5: jump if @3 to 8
+    6: @1 = const field 1
+    7: @0 = field field_div @1, @0
+    8: stop &[@20; @21]
     unconstrained func 2
-    [Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]
+    0: @10 = const u32 2
+    1: @11 = const u32 0
+    2: @0 = calldata copy [@11; @10]
+    3: @2 = field int_div @0, @1
+    4: @1 = field mul @2, @1
+    5: @1 = field sub @0, @1
+    6: @0 = @2
+    7: stop &[@11; @10]
     ");
 }

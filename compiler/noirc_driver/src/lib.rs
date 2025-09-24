@@ -691,8 +691,7 @@ fn compile_contract_inner(
             bytecode: function.program,
             debug: function.debug,
             is_unconstrained: modifiers.is_unconstrained,
-            names: function.names,
-            brillig_names: function.brillig_names,
+            expression_width: options.expression_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH),
         });
     }
 
@@ -826,20 +825,15 @@ pub fn compile_no_check(
     let return_visibility = program.return_visibility();
     let ssa_evaluator_options = options.as_ssa_options(context.package_build_path.clone(), options.instrument_debug);
 
-    let SsaProgramArtifact { program, debug, warnings, names, brillig_names, error_types, .. } =
-        if options.minimal_ssa {
-            create_program_with_minimal_passes(
-                program,
-                &ssa_evaluator_options,
-                &context.file_manager,
-            )?
-        } else {
-            create_program(
-                program,
-                &ssa_evaluator_options,
-                if options.with_ssa_locations { Some(&context.file_manager) } else { None },
-            )?
-        };
+    let SsaProgramArtifact { program, debug, warnings, error_types, .. } = if options.minimal_ssa {
+        create_program_with_minimal_passes(program, &ssa_evaluator_options, &context.file_manager)?
+    } else {
+        create_program(
+            program,
+            &ssa_evaluator_options,
+            if options.with_ssa_locations { Some(&context.file_manager) } else { None },
+        )?
+    };
 
     let abi = gen_abi(context, &main_function, return_visibility, error_types);
     let file_map = filter_relevant_files(&debug, &context.file_manager);
@@ -852,8 +846,7 @@ pub fn compile_no_check(
         file_map,
         noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
         warnings,
-        names,
-        brillig_names,
+        expression_width: options.expression_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH),
     })
 }
 

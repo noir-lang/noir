@@ -1859,17 +1859,24 @@ impl<'a> FunctionContext<'a> {
 
         // If we picked a global variable, we need to create a local binding first,
         // because the match only works with local variable IDs.
+        // We also need to create a secondary local binding for a local variable,
+        // because of how the ownership analysis works: it only tracks the use of
+        // identifiers, but the `Match::variable_to_match` only contains a `LocalId`.
+        // We could change it to an `Ident`, but that's not enough: when the ownership
+        // inserts `Clone` expressions for all but the last use of an ident, it could
+        // not do so with the `Match`, because it would need match on an `Expression`.
         let (src_id, src_name, src_typ, src_dyn, src_expr) = match id {
-            VariableId::Local(id) => {
-                let (_, name, typ) = self.locals.current().get_variable(&id);
-                let is_dyn = self.is_dynamic(&id);
-                (id, name.clone(), typ.clone(), is_dyn, None)
-            }
             VariableId::Global(id) => {
                 let typ = self.globals.get_variable(&id).2.clone();
                 // The source is a technical variable that we don't want to access in the match rows.
                 let (id, name, let_expr) = self.indirect_global(id, false, false);
-                (id, name, typ, false, Some(let_expr))
+                (id, name, typ, false, let_expr)
+            }
+            VariableId::Local(id) => {
+                let typ = self.local_type(id).clone();
+                let (id, name, let_expr) = self.indirect_local(id, false, false);
+                let is_dyn = self.is_dynamic(&id);
+                (id, name, typ, is_dyn, let_expr)
             }
         };
 
@@ -1956,11 +1963,7 @@ impl<'a> FunctionContext<'a> {
         }
 
         let match_expr = Expression::Match(match_expr);
-        let expr = if let Some(src_expr) = src_expr {
-            Expression::Block(vec![src_expr, match_expr])
-        } else {
-            match_expr
-        };
+        let expr = Expression::Block(vec![src_expr, match_expr]);
 
         Ok(Some((expr, is_dyn)))
     }
@@ -2163,6 +2166,31 @@ impl<'a> FunctionContext<'a> {
         let ident_id = self.next_ident_id();
         let ident = expr::ident(VariableId::Global(id), ident_id, false, name, typ.clone());
         let let_expr = self.let_var(mutable, typ, ident, add_to_scope, false, local_name);
+        let Expression::Let(Let { id, name, .. }) = &let_expr else {
+            unreachable!("expected Let; got {let_expr:?}");
+        };
+        (*id, name.clone(), let_expr)
+    }
+
+    /// Create a local let binding over a local variable.
+    ///
+    /// Returns the local ID and the `Let` expression.
+    fn indirect_local(
+        &mut self,
+        id: LocalId,
+        mutable: bool,
+        add_to_scope: bool,
+    ) -> (LocalId, String, Expression) {
+        let ident = self.local_ident(id);
+        let is_dynamic = self.is_dynamic(&id);
+        let let_expr = self.let_var(
+            mutable,
+            ident.typ.clone(),
+            Expression::Ident(ident),
+            add_to_scope,
+            is_dynamic,
+            local_name,
+        );
         let Expression::Let(Let { id, name, .. }) = &let_expr else {
             unreachable!("expected Let; got {let_expr:?}");
         };

@@ -16,6 +16,7 @@ use crate::{
     node_interner::{GlobalValue, QuotedTypeId},
     token::SecondaryAttributeKind,
     usage_tracker::UsageTracker,
+    validity::length_is_zero,
 };
 use crate::{
     EnumVariant, Shared, Type, TypeVariable,
@@ -1021,6 +1022,16 @@ impl<'context> Elaborator<'context> {
 
         let return_type = Box::new(self.use_type(func.return_type(), wildcard_allowed));
 
+        // Temporary allow slices for contract functions, until contracts are re-factored.
+        if !func.attributes().has_contract_library_method() {
+            self.check_if_type_is_valid_for_program_output(
+                &return_type,
+                is_entry_point || is_test_or_fuzz,
+                has_inline_attribute,
+                location,
+            );
+        }
+
         let mut typ = Type::Function(
             parameter_types,
             return_type,
@@ -1179,6 +1190,32 @@ impl<'context> Elaborator<'context> {
                 self.push_err(TypeCheckError::InvalidTypeForEntryPoint { invalid_type, location });
             }
         }
+    }
+
+    fn check_if_type_is_valid_for_program_output(
+        &mut self,
+        typ: &Type,
+        is_entry_point: bool,
+        has_inline_attribute: bool,
+        location: Location,
+    ) {
+        match typ {
+            Type::Unit => return,
+            Type::Array(length, _) | Type::String(length) => {
+                if length_is_zero(length) {
+                    //returning zero length arrays is allowed
+                    return;
+                }
+            }
+            _ => (),
+        }
+
+        self.check_if_type_is_valid_for_program_input(
+            typ,
+            is_entry_point,
+            has_inline_attribute,
+            location,
+        );
     }
 
     /// True if the `pub` keyword is allowed on parameters in this function

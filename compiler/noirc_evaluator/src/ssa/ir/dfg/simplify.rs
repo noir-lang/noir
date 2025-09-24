@@ -2,7 +2,7 @@ use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         instruction::{
-            ArrayOffset, Binary, BinaryOp, ConstrainError, Instruction,
+            Binary, BinaryOp, ConstrainError, Instruction,
             binary::{truncate, truncate_field},
         },
         types::{NumericType, Type},
@@ -110,7 +110,7 @@ pub(crate) fn simplify(
             }
         }
         Instruction::ConstrainNotEqual(..) => None,
-        Instruction::ArrayGet { array, index, offset } => {
+        Instruction::ArrayGet { array, index } => {
             if let Some(index) = dfg.get_numeric_constant(*index) {
                 return try_optimize_array_get_from_previous_set(dfg, *array, index);
             }
@@ -121,7 +121,7 @@ pub(crate) fn simplify(
             {
                 // If the array is of length 1 then we know the only value which can be potentially read out of it.
                 // We can then simply assert that the index is equal to zero and return the array's contained value.
-                optimize_length_one_array_read(dfg, block, call_stack, *array, *index, *offset)
+                optimize_length_one_array_read(dfg, block, call_stack, *array, *index)
             } else {
                 None
             }
@@ -226,6 +226,18 @@ pub(crate) fn simplify(
                     zero,
                     assert_message.as_ref().map(|msg| ConstrainError::from(msg.clone())),
                 ))
+            } else if let Some(c) = dfg.get_numeric_constant(*value) {
+                if c.num_bits() > *max_bit_size {
+                    let zero = dfg.make_constant(FieldElement::zero(), NumericType::bool());
+                    let one = dfg.make_constant(FieldElement::one(), NumericType::bool());
+                    SimplifiedToInstruction(Instruction::Constrain(
+                        zero,
+                        one,
+                        assert_message.as_ref().map(|msg| ConstrainError::from(msg.clone())),
+                    ))
+                } else {
+                    Remove
+                }
             } else {
                 None
             }
@@ -330,7 +342,6 @@ fn optimize_length_one_array_read(
     call_stack: CallStackId,
     array: ValueId,
     index: ValueId,
-    offset: ArrayOffset,
 ) -> SimplifyResult {
     let zero = dfg.make_constant(FieldElement::zero(), NumericType::length_type());
     let index_constraint = Instruction::Constrain(
@@ -342,11 +353,7 @@ fn optimize_length_one_array_read(
 
     let result = try_optimize_array_get_from_previous_set(dfg, array, FieldElement::zero());
     if let SimplifyResult::None = result {
-        SimplifyResult::SimplifiedToInstruction(Instruction::ArrayGet {
-            array,
-            index: zero,
-            offset,
-        })
+        SimplifyResult::SimplifiedToInstruction(Instruction::ArrayGet { array, index: zero })
     } else {
         result
     }
@@ -444,8 +451,8 @@ fn try_optimize_array_set_from_previous_get(
     target_value: ValueId,
 ) -> SimplifyResult {
     let array_from_get = match dfg.get_local_or_global_instruction(target_value) {
-        Some(Instruction::ArrayGet { array, index, offset }) => {
-            if *offset == ArrayOffset::None && *array == array_id && *index == target_index {
+        Some(Instruction::ArrayGet { array, index }) => {
+            if *array == array_id && *index == target_index {
                 // If array and index match from the value, we can immediately simplify
                 return SimplifyResult::SimplifiedTo(array_id);
             } else if *index == target_index {
@@ -508,25 +515,30 @@ mod tests {
 
     #[test]
     fn removes_range_constraints_on_constants() {
-        let src = "
+        let src = r#"
         acir(inline) fn main f0 {
-          b0(v0: Field):
+          b0(v0: Field, v1: u8):
             range_check Field 0 to 1 bits
             range_check Field 1 to 1 bits
+            range_check Field 2 to 1 bits, "2 > 1"
             range_check Field 255 to 8 bits
-            range_check Field 256 to 8 bits
+            range_check Field 256 to 8 bits, "256 > 255"
+            range_check v0 to 8 bits
+            range_check v1 to 8 bits
             return
         }
-        ";
+        "#;
         let ssa = Ssa::from_str_simplifying(src).unwrap();
 
-        assert_ssa_snapshot!(ssa, @r"
+        assert_ssa_snapshot!(ssa, @r#"
         acir(inline) fn main f0 {
-          b0(v0: Field):
-            range_check Field 256 to 8 bits
+          b0(v0: Field, v1: u8):
+            constrain u1 0 == u1 1, "2 > 1"
+            constrain u1 0 == u1 1, "256 > 255"
+            range_check v0 to 8 bits
             return
         }
-        ");
+        "#);
     }
 
     #[test]
