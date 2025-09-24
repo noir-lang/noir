@@ -22,7 +22,12 @@ acvm.workspace = true
 bn254_blackbox_solver.workspace = true
 thiserror.workspace = true
 nargo.workspace = true
+base64.workspace = true
 
 [features]
 nargo = ["nargo/rpc"]
 bls12_381 = []
+
+[[example]]
+name = "compilation"
+path = "examples/compilation.rs"
