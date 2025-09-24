@@ -132,7 +132,7 @@ impl<'a> ValueMerger<'a> {
 
     /// Given an if expression that returns an array: `if c { array1 } else { array2 }`,
     /// this function will recursively merge array1 and array2 into a single resulting array
-    /// by creating a new array containing the result of self.merge_values for each element.
+    /// by creating a new array containing the result of `self.merge_values` for each element.
     pub(crate) fn merge_array_values(
         &mut self,
         typ: Type,
@@ -198,27 +198,22 @@ impl<'a> ValueMerger<'a> {
         };
 
         let then_len = self.slice_sizes.get(&then_value_id).copied().unwrap_or_else(|| {
-            let (slice, typ) = self.dfg.get_array_constant(then_value_id).unwrap_or_else(|| {
-                panic!("ICE: Merging values during flattening encountered slice {then_value_id} without a preset size");
-            });
-            (slice.len() / typ.element_types().len()) as u32
+            panic!("ICE: Merging values during flattening encountered slice {then_value_id} without a preset size");
         });
 
         let else_len = self.slice_sizes.get(&else_value_id).copied().unwrap_or_else(|| {
-            let (slice, typ) = self.dfg.get_array_constant(else_value_id).unwrap_or_else(|| {
-                panic!("ICE: Merging values during flattening encountered slice {else_value_id} without a preset size");
-            });
-            (slice.len() / typ.element_types().len()) as u32
+            panic!("ICE: Merging values during flattening encountered slice {else_value_id} without a preset size");
         });
 
         let len = then_len.max(else_len);
+        let element_count = element_types.len() as u32;
 
         let flattened_then_length = then_len * element_types.len() as u32;
         let flattened_else_length = else_len * element_types.len() as u32;
 
         for i in 0..len {
             for (element_index, element_type) in element_types.iter().enumerate() {
-                let index_u32 = i * element_types.len() as u32 + element_index as u32;
+                let index_u32 = i * element_count + element_index as u32;
                 let index_value = u128::from(index_u32).into();
                 let index = self.dfg.make_constant(index_value, NumericType::length_type());
 

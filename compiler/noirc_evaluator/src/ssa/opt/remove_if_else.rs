@@ -170,6 +170,10 @@ impl Context {
                     let then_value = *then_value;
                     let else_value = *else_value;
 
+                    // Register values for the merger to use.
+                    self.ensure_capacity(context.dfg, then_value);
+                    self.ensure_capacity(context.dfg, else_value);
+
                     let call_stack = context.dfg.get_instruction_call_stack_id(instruction_id);
                     let mut value_merger =
                         ValueMerger::new(context.dfg, block, &self.slice_sizes, call_stack);
@@ -196,18 +200,15 @@ impl Context {
                         match slice_capacity_change(context.dfg, intrinsic, arguments, results) {
                             SizeChange::None => (),
                             SizeChange::SetTo { old, new } => {
-                                let old_capacity = self.get_or_find_capacity(context.dfg, old);
-                                self.slice_sizes.insert(new, old_capacity);
+                                self.set_capacity(context.dfg, old, new, |c| c);
                             }
                             SizeChange::Inc { old, new } => {
-                                let old_capacity = self.get_or_find_capacity(context.dfg, old);
-                                self.slice_sizes.insert(new, old_capacity + 1);
+                                self.set_capacity(context.dfg, old, new, |c| c + 1);
                             }
                             SizeChange::Dec { old, new } => {
-                                let old_capacity = self.get_or_find_capacity(context.dfg, old);
                                 // We use a saturating sub here as calling `pop_front` or `pop_back` on a zero-length slice
                                 // would otherwise underflow.
-                                self.slice_sizes.insert(new, old_capacity.saturating_sub(1));
+                                self.set_capacity(context.dfg, old, new, |c| c.saturating_sub(1));
                             }
                         }
                     }
@@ -216,14 +217,30 @@ impl Context {
                 Instruction::ArraySet { array, .. } => {
                     let results = context.dfg.instruction_results(instruction_id);
                     let result = results[0];
-
-                    let old_capacity = self.get_or_find_capacity(context.dfg, *array);
-                    self.slice_sizes.insert(result, old_capacity);
+                    self.set_capacity(context.dfg, *array, result, |c| c);
                 }
                 _ => (),
             }
             Ok(())
         })
+    }
+
+    /// Set the capacity of the new slice based on the capacity of the old array/slice.
+    fn set_capacity(
+        &mut self,
+        dfg: &DataFlowGraph,
+        old: ValueId,
+        new: ValueId,
+        f: impl Fn(u32) -> u32,
+    ) {
+        let capacity = self.get_or_find_capacity(dfg, old);
+        self.slice_sizes.insert(new, f(capacity));
+    }
+
+    /// Make sure the capacity is recorded.
+    fn ensure_capacity(&mut self, dfg: &DataFlowGraph, slice: ValueId) {
+        let capacity = self.get_or_find_capacity(dfg, slice);
+        self.slice_sizes.insert(slice, capacity);
     }
 
     /// Get the tracked size of array/slices, or retrieve (and track) it for arrays.
@@ -286,7 +303,7 @@ fn slice_capacity_change(
         }
 
         Intrinsic::SlicePopBack | Intrinsic::SliceRemove => {
-            // Expecting:  len, slice, value = ...
+            // Expecting:  len, slice, ...value = ...
             assert_eq!(results.len(), 3);
             let old = arguments[1];
             let new = results[1];
@@ -296,8 +313,7 @@ fn slice_capacity_change(
         }
 
         Intrinsic::SlicePopFront => {
-            // Expecting:  value, len, slice = ...
-            assert_eq!(results.len(), 3);
+            // Expecting:  ...value, len, slice = ...
             let old = arguments[1];
             let new = results[results.len() - 1];
             assert!(matches!(dfg.type_of_value(old), Type::Slice(_)));
