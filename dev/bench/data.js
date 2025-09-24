@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1758714715625,
+  "lastUpdate": 1758714867901,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -21146,48 +21146,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "b4cba65f52dce42b479ba0521c7e12f8e89dec0f",
-          "message": "chore: greenlight check_u128_mul_overflow (#9759)",
-          "timestamp": "2025-09-15T16:59:44Z",
-          "tree_id": "19984ca96a130693d39003be06d3cf4c9e522e05",
-          "url": "https://github.com/noir-lang/noir/commit/b4cba65f52dce42b479ba0521c7e12f8e89dec0f"
-        },
-        "date": 1757957874634,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 255038,
-            "range": "± 819",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 225872,
-            "range": "± 7382",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2791959,
-            "range": "± 2682",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "d88b3564938fc7ce2679dbad15431f18f7cf3cdf",
           "message": "chore: greenlight remove_bit_shifts (revised) (#9813)",
           "timestamp": "2025-09-15T17:46:57Z",
@@ -23229,6 +23187,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2783391,
             "range": "± 2728",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "754ffb6e07ded2da915257e6b2a1e3067ffedbeb",
+          "message": "chore(acir): Do not copy element type sizes array when initializing (#9955)",
+          "timestamp": "2025-09-24T11:25:19Z",
+          "tree_id": "bd30d172671f8efdd41754ae5c2cc864de444598",
+          "url": "https://github.com/noir-lang/noir/commit/754ffb6e07ded2da915257e6b2a1e3067ffedbeb"
+        },
+        "date": 1758714847610,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 256631,
+            "range": "± 607",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 226689,
+            "range": "± 893",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2785666,
+            "range": "± 5020",
             "unit": "ns/iter"
           }
         ]
