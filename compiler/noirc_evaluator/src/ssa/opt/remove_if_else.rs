@@ -1,5 +1,5 @@
-//! This file contains the SSA `remove_if_else` pass - a required pass for ACIR to remove any remaining
-//! `Instruction::IfElse` in the singular program-function, and replace them with
+//! This file contains the SSA `remove_if_else` pass - a required pass for ACIR to remove any
+//! remaining `Instruction::IfElse` in the singular program-function, and replace them with
 //! arithmetic operations using the `then_condition`.
 //!
 //! ACIR/Brillig differences within this pass:
@@ -9,15 +9,18 @@
 //! Conditions:
 //!   - Precondition: Flatten CFG has been performed which should result in the function having only
 //!     one basic block.
-//!   - Precondition: `then_value` and `else_value` of `Instruction::IfElse` return arrays or slices. Numeric values should be handled previously by the flattening pass.
+//!   - Precondition: `then_value` and `else_value` of `Instruction::IfElse` return arrays or slices.
+//!     Numeric values should be handled previously by the flattening pass.
 //!     Reference or function values are not handled by remove if-else and will cause an error.
 //!   - Postcondition: A program without any `IfElse` instructions.
 //!
 //! Relevance to other passes:
-//!   - Flattening inserts `Instruction::IfElse` to merge array or slice values from an if-expression's "then"
-//!     and "else" branches. `Instruction::IfElse` with numeric values are directly handled during the flattening
+//!   - Flattening inserts `Instruction::IfElse` to merge array or slice values from an
+//!     if-expression's "then" and "else" branches. `Instruction::IfElse` with numeric values are
+//!     directly handled during flattening, [via instruction simplification][crate::ssa::ir::dfg::simplify::simplify],
 //!     and will cause a panic in the `remove_if_else` pass.
-//!   - Defunctionalize removes first-class function values from the program which eliminates the need for remove-if-else to handle `Instruction::IfElse` returning function values.
+//!   - Defunctionalize removes first-class function values from the program which eliminates the need
+//!     for remove-if-else to handle `Instruction::IfElse` returning function values.
 //!
 //! Implementation details & examples:
 //! `IfElse` instructions choose between its two operand values,
@@ -89,6 +92,11 @@
 //! The result of the removed `IfElse` instruction, array `v24`, is a merge of each of the elements of `v5` and `v8`.
 //! The elements at index 0 are replaced by their known value, instead of doing an additional array get.
 //! Operations with the conditions are unchecked operations, because the conditions are 0 or 1, so it cannot overflow.
+//!
+//! For slices the logic is similar except that slice lengths need to be tracked in order to know
+//! the length of the merged slice resulting in a `make_array` instruction. This length will be the
+//! maximum length of the two input slices. Note that the actual length of the merged slice should
+//! have been merged during flattening.
 
 use std::collections::hash_map::Entry;
 
@@ -96,6 +104,7 @@ use rustc_hash::FxHashMap as HashMap;
 
 use crate::errors::RtResult;
 
+use crate::ssa::ir::dfg::simplify::value_merger::ValueMerger;
 use crate::ssa::{
     Ssa,
     ir::{
@@ -105,7 +114,6 @@ use crate::ssa::{
         types::Type,
         value::{Value, ValueId},
     },
-    opt::flatten_cfg::value_merger::ValueMerger,
 };
 
 impl Ssa {
@@ -149,6 +157,14 @@ impl Function {
 
 #[derive(Default)]
 struct Context {
+    /// Keeps track of each size a slice is known to be.
+    ///
+    /// This is passed to the `ValueMerger` because when merging two slices
+    /// we need to know their sizes to create the merged slice.
+    ///
+    /// Note: as this pass operates on a single block, which is an entry block,
+    /// and because slices are disallowed in entry blocks, all slice lengths
+    /// should be known at this point.
     slice_sizes: HashMap<ValueId, u32>,
 }
 
@@ -293,7 +309,7 @@ fn slice_capacity_change(
 ) -> SizeChange {
     match intrinsic {
         Intrinsic::SlicePushBack | Intrinsic::SlicePushFront | Intrinsic::SliceInsert => {
-            // Expecting:  len, slice = ...
+            // All of these return `Self` (the slice), we are expecting: len, slice = ...
             assert_eq!(results.len(), 2);
             let old = arguments[1];
             let new = results[1];
@@ -303,8 +319,11 @@ fn slice_capacity_change(
         }
 
         Intrinsic::SlicePopBack | Intrinsic::SliceRemove => {
-            // Expecting:  len, slice, ...value = ...
-            assert_eq!(results.len(), 3);
+            // fn pop_back(self) -> (Self, T)
+            // fn remove(self, index: u32) -> (Self, T)
+            //
+            // These functions return the slice as the result `(len, slice, ...item)`,
+            // so the slice is the second result.
             let old = arguments[1];
             let new = results[1];
             assert!(matches!(dfg.type_of_value(old), Type::Slice(_)));
@@ -313,7 +332,10 @@ fn slice_capacity_change(
         }
 
         Intrinsic::SlicePopFront => {
-            // Expecting:  ...value, len, slice = ...
+            // fn pop_front(self) -> (T, Self)
+            //
+            // These functions return the slice as the result `(...item, len, slice)`,
+            // so the slice is the last result.
             let old = arguments[1];
             let new = results[results.len() - 1];
             assert!(matches!(dfg.type_of_value(old), Type::Slice(_)));
@@ -413,12 +435,12 @@ mod tests {
         // ```
         // fn main(x: bool, mut y: [u32; 2]) {
         //     if x {
-        //         y[0] = 1;
-        //         y[1] = 2;
+        //         y[0] = 2;
+        //         y[1] = 3;
         //     }
         //
         //     let z = y[0] + y[1];
-        //     assert(z == 3);
+        //     assert(z == 5);
         // }
         // ```
         let src = "
@@ -426,16 +448,16 @@ mod tests {
           b0(v0: u1, v1: [u32; 2]):
             v2 = allocate -> &mut [u32; 2]
             enable_side_effects v0
-            v5 = array_set v1, index u32 0, value u32 1
-            v7 = array_set v5, index u32 1, value u32 2
+            v5 = array_set v1, index u32 0, value u32 2
+            v7 = array_set v5, index u32 1, value u32 3
             v8 = not v0
             v9 = if v0 then v7 else (if v8) v1
             enable_side_effects u1 1
             v11 = array_get v9, index u32 0 -> u32
             v12 = array_get v9, index u32 1 -> u32
             v13 = add v11, v12
-            v15 = eq v13, u32 3
-            constrain v13 == u32 3
+            v15 = eq v13, u32 5
+            constrain v13 == u32 5
             return
         }
         ";
@@ -452,41 +474,42 @@ mod tests {
           b0(v0: u1, v1: [u32; 2]):
             v2 = allocate -> &mut [u32; 2]
             enable_side_effects v0
-            v5 = array_set v1, index u32 0, value u32 1
-            v7 = array_set v5, index u32 1, value u32 2
-            v8 = not v0
-            v9 = array_get v1, index u32 0 -> u32
-            v10 = cast v0 as u32
-            v11 = cast v8 as u32
-            v12 = unchecked_mul v11, v9
-            v13 = unchecked_add v10, v12
-            v14 = array_get v1, index u32 1 -> u32
-            v15 = cast v0 as u32
-            v16 = cast v8 as u32
-            v17 = unchecked_mul v15, u32 2
-            v18 = unchecked_mul v16, v14
-            v19 = unchecked_add v17, v18
-            v20 = make_array [v13, v19] : [u32; 2]
+            v5 = array_set v1, index u32 0, value u32 2
+            v8 = array_set v5, index u32 1, value u32 3
+            v9 = not v0
+            v10 = array_get v1, index u32 0 -> u32
+            v11 = cast v0 as u32
+            v12 = cast v9 as u32
+            v13 = unchecked_mul v11, u32 2
+            v14 = unchecked_mul v12, v10
+            v15 = unchecked_add v13, v14
+            v16 = array_get v1, index u32 1 -> u32
+            v17 = cast v0 as u32
+            v18 = cast v9 as u32
+            v19 = unchecked_mul v17, u32 3
+            v20 = unchecked_mul v18, v16
+            v21 = unchecked_add v19, v20
+            v22 = make_array [v15, v21] : [u32; 2]
             enable_side_effects u1 1
-            v22 = add v13, v19
-            v24 = eq v22, u32 3
-            constrain v22 == u32 3
+            v24 = add v15, v21
+            v26 = eq v24, u32 5
+            constrain v24 == u32 5
             return
         }
         ");
     }
 
     #[test]
-    fn try_merge_only_changed_indices() {
+    fn merges_all_indices_even_if_they_did_not_change() {
         // This is the flattened SSA for the following Noir logic:
         // ```
         // fn main(x: bool, mut y: [u32; 2]) {
         //     if x {
-        //         y[0] = 1;
+        //         y[0] = 2;
         //     }
         //
         //     let z = y[0] + y[1];
-        //     assert(z == 1);
+        //     assert(z == 3);
         // }
         // ```
         let src = "
@@ -494,15 +517,15 @@ mod tests {
           b0(v0: u1, v1: [u32; 2]):
             v2 = allocate -> &mut [u32; 2]
             enable_side_effects v0
-            v5 = array_set v1, index u32 0, value u32 1
+            v5 = array_set v1, index u32 0, value u32 2
             v6 = not v0
             v7 = if v0 then v5 else (if v6) v1
             enable_side_effects u1 1
             v9 = array_get v7, index u32 0 -> u32
             v10 = array_get v7, index u32 1 -> u32
             v11 = add v9, v10
-            v12 = eq v11, u32 1
-            constrain v11 == u32 1
+            v12 = eq v11, u32 3
+            constrain v11 == u32 3
             return
         }
         ";
@@ -510,65 +533,66 @@ mod tests {
         let mut ssa = Ssa::from_str(src).unwrap();
         ssa = ssa.remove_if_else().unwrap();
 
-        // We attempt to optimize array mergers to only handle where an array was modified,
-        // rather than merging the entire array. As we only modify the `y` array at a single index,
-        // we instead only map the if predicate onto the the numeric value we are looking to write,
-        // and then write into the array directly.
+        // In the past we used to optimize array mergers to only handle where an array was modified,
+        // rather than merging the entire array.
+        // However, that was removed in https://github.com/noir-lang/noir/pull/8142
+        // Pending: investigate if this can be brought back: https://github.com/noir-lang/noir/issues/8145
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) predicate_pure fn main f0 {
           b0(v0: u1, v1: [u32; 2]):
             v2 = allocate -> &mut [u32; 2]
             enable_side_effects v0
-            v5 = array_set v1, index u32 0, value u32 1
+            v5 = array_set v1, index u32 0, value u32 2
             v6 = not v0
             v7 = array_get v1, index u32 0 -> u32
             v8 = cast v0 as u32
             v9 = cast v6 as u32
-            v10 = unchecked_mul v9, v7
-            v11 = unchecked_add v8, v10
-            v12 = array_get v5, index u32 1 -> u32
-            v13 = array_get v1, index u32 1 -> u32
-            v14 = cast v0 as u32
-            v15 = cast v6 as u32
-            v16 = unchecked_mul v14, v12
-            v17 = unchecked_mul v15, v13
-            v18 = unchecked_add v16, v17
-            v19 = make_array [v11, v18] : [u32; 2]
+            v10 = unchecked_mul v8, u32 2
+            v11 = unchecked_mul v9, v7
+            v12 = unchecked_add v10, v11
+            v14 = array_get v5, index u32 1 -> u32
+            v15 = array_get v1, index u32 1 -> u32
+            v16 = cast v0 as u32
+            v17 = cast v6 as u32
+            v18 = unchecked_mul v16, v14
+            v19 = unchecked_mul v17, v15
+            v20 = unchecked_add v18, v19
+            v21 = make_array [v12, v20] : [u32; 2]
             enable_side_effects u1 1
-            v21 = add v11, v18
-            v22 = eq v21, u32 1
-            constrain v21 == u32 1
+            v23 = add v12, v20
+            v25 = eq v23, u32 3
+            constrain v23 == u32 3
             return
         }
         ");
     }
 
     #[test]
-    fn merge_slice() {
+    fn merge_slice_with_slice_push_back() {
         let src = "
-acir(inline) impure fn main f0 {
-  b0(v0: u1, v1: Field, v2: Field):
-    v3 = make_array [] : [Field]
-    v4 = allocate -> &mut u32
-    v5 = allocate -> &mut [Field]
-    enable_side_effects v0
-    v6 = cast v0 as u32
-    v7, v8 = call slice_push_back(v6, v3, v2) -> (u32, [Field])
-    v9 = not v0
-    v10 = cast v0 as u32
-    v12 = if v0 then v8 else (if v9) v3
-    enable_side_effects u1 1
-    v15, v16 = call slice_push_back(v10, v12, v2) -> (u32, [Field])
-    v17 = array_get v16, index u32 0 -> Field
-    constrain v17 == Field 1
-    return
-}
+        acir(inline) impure fn main f0 {
+          b0(v0: u1, v1: Field, v2: Field):
+            v3 = make_array [] : [Field]
+            v4 = allocate -> &mut u32
+            v5 = allocate -> &mut [Field]
+            enable_side_effects v0
+            v6 = cast v0 as u32
+            v7, v8 = call slice_push_back(v6, v3, v2) -> (u32, [Field])
+            v9 = not v0
+            v10 = cast v0 as u32
+            v12 = if v0 then v8 else (if v9) v3
+            enable_side_effects u1 1
+            v15, v16 = call slice_push_back(v10, v12, v2) -> (u32, [Field])
+            v17 = array_get v16, index u32 0 -> Field
+            constrain v17 == Field 1
+            return
+        }
         ";
 
         let mut ssa = Ssa::from_str(src).unwrap();
         ssa = ssa.remove_if_else().unwrap();
 
-        // Merge slices v3 (empty) and v8 ([v2]) into v12, using a dummy value for the element at index 0 of v3, which does not exist.
+        // Merge slices v3 (empty) and v8 ([v2]) into v12, directly using v13 as the first element
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) impure fn main f0 {
           b0(v0: u1, v1: Field, v2: Field):
@@ -601,6 +625,316 @@ acir(inline) impure fn main f0 {
             v32 = mul v30, v2
             v33 = add v31, v32
             v34 = make_array [v27, v33] : [Field]
+            constrain v27 == Field 1
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn merge_slice_with_slice_push_front() {
+        let src = "
+        acir(inline) impure fn main f0 {
+          b0(v0: u1, v1: Field, v2: Field):
+            v3 = make_array [] : [Field]
+            v4 = allocate -> &mut u32
+            v5 = allocate -> &mut [Field]
+            enable_side_effects v0
+            v6 = cast v0 as u32
+            v7, v8 = call slice_push_front(v6, v3, v2) -> (u32, [Field])
+            v9 = not v0
+            v10 = cast v0 as u32
+            v12 = if v0 then v8 else (if v9) v3
+            enable_side_effects u1 1
+            v15, v16 = call slice_push_front(v10, v12, v2) -> (u32, [Field])
+            v17 = array_get v16, index u32 0 -> Field
+            constrain v17 == Field 1
+            return
+        }
+        ";
+
+        let mut ssa = Ssa::from_str(src).unwrap();
+        ssa = ssa.remove_if_else().unwrap();
+
+        // Here v14 is the result of the merge (keep `[v13]`)
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) impure fn main f0 {
+          b0(v0: u1, v1: Field, v2: Field):
+            v3 = make_array [] : [Field]
+            v4 = allocate -> &mut u32
+            v5 = allocate -> &mut [Field]
+            enable_side_effects v0
+            v6 = cast v0 as u32
+            v8, v9 = call slice_push_front(v6, v3, v2) -> (u32, [Field])
+            v10 = not v0
+            v11 = cast v0 as u32
+            v13 = array_get v9, index u32 0 -> Field
+            v14 = make_array [v13] : [Field]
+            enable_side_effects u1 1
+            v17 = add v11, u32 1
+            v18 = make_array [v2, v13] : [Field]
+            constrain v2 == Field 1
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn merge_slice_with_as_slice_and_slice_push_front() {
+        // Same as the previous test, but using `as_slice` to prove that slice length tracking
+        // is working correctly.
+        let src = "
+        acir(inline) impure fn main f0 {
+          b0(v0: u1, v1: Field, v2: Field):
+            v102 = make_array [] : [Field; 0]
+            v103, v3 = call as_slice(v102) -> (u32, [Field])
+            v4 = allocate -> &mut u32
+            v5 = allocate -> &mut [Field]
+            enable_side_effects v0
+            v6 = cast v0 as u32
+            v7, v8 = call slice_push_front(v6, v3, v2) -> (u32, [Field])
+            v9 = not v0
+            v10 = cast v0 as u32
+            v12 = if v0 then v8 else (if v9) v3
+            enable_side_effects u1 1
+            v15, v16 = call slice_push_front(v10, v12, v2) -> (u32, [Field])
+            v17 = array_get v16, index u32 0 -> Field
+            constrain v17 == Field 1
+            return
+        }
+        ";
+
+        let mut ssa = Ssa::from_str(src).unwrap();
+        ssa = ssa.remove_if_else().unwrap();
+
+        // Here v17 is the result of the merge (keep `[v16]`)
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) impure fn main f0 {
+          b0(v0: u1, v1: Field, v2: Field):
+            v3 = make_array [] : [Field; 0]
+            v5, v6 = call as_slice(v3) -> (u32, [Field])
+            v7 = allocate -> &mut u32
+            v8 = allocate -> &mut [Field]
+            enable_side_effects v0
+            v9 = cast v0 as u32
+            v11, v12 = call slice_push_front(v9, v6, v2) -> (u32, [Field])
+            v13 = not v0
+            v14 = cast v0 as u32
+            v16 = array_get v12, index u32 0 -> Field
+            v17 = make_array [v16] : [Field]
+            enable_side_effects u1 1
+            v20 = add v14, u32 1
+            v21 = make_array [v2, v16] : [Field]
+            constrain v2 == Field 1
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn merge_slice_with_slice_insert() {
+        let src = "
+        acir(inline) impure fn main f0 {
+          b0(v0: u1, v1: Field, v2: Field):
+            v3 = make_array [] : [Field]
+            v4 = allocate -> &mut u32
+            v5 = allocate -> &mut [Field]
+            enable_side_effects v0
+            v6 = cast v0 as u32
+            v7, v8 = call slice_insert(v6, v3, u32 0, v2) -> (u32, [Field])
+            v9 = not v0
+            v10 = cast v0 as u32
+            v12 = if v0 then v8 else (if v9) v3
+            enable_side_effects u1 1
+            v15, v16 = call slice_insert(v10, v12, u32 0, v2) -> (u32, [Field])
+            v17 = array_get v16, index u32 0 -> Field
+            constrain v17 == Field 1
+            return
+        }
+        ";
+
+        let mut ssa = Ssa::from_str(src).unwrap();
+        ssa = ssa.remove_if_else().unwrap();
+
+        // Here v14 is the result of the merge (keep `[v13]`)
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) impure fn main f0 {
+          b0(v0: u1, v1: Field, v2: Field):
+            v3 = make_array [] : [Field]
+            v4 = allocate -> &mut u32
+            v5 = allocate -> &mut [Field]
+            enable_side_effects v0
+            v6 = cast v0 as u32
+            v9, v10 = call slice_insert(v6, v3, u32 0, v2) -> (u32, [Field])
+            v11 = not v0
+            v12 = cast v0 as u32
+            v13 = array_get v10, index u32 0 -> Field
+            v14 = make_array [v13] : [Field]
+            enable_side_effects u1 1
+            v17 = add v12, u32 1
+            v18 = make_array [v2, v13] : [Field]
+            constrain v2 == Field 1
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn merge_slice_with_slice_pop_back() {
+        let src = "
+        acir(inline) impure fn main f0 {
+          b0(v0: u1, v1: Field, v2: Field):
+            v3 = make_array [Field 2, Field 3] : [Field]
+            v4 = allocate -> &mut u32
+            v5 = allocate -> &mut [Field]
+            enable_side_effects v0
+            v6 = cast v0 as u32
+            v7, v8, v100 = call slice_pop_back(v6, v3) -> (u32, [Field], Field)
+            v9 = not v0
+            v10 = cast v0 as u32
+            v12 = if v0 then v8 else (if v9) v3
+            enable_side_effects u1 1
+            v15, v16, v101 = call slice_pop_back(v10, v12) -> (u32, [Field], Field)
+            v17 = array_get v16, index u32 0 -> Field
+            constrain v17 == Field 1
+            return
+        }
+        ";
+
+        let mut ssa = Ssa::from_str(src).unwrap();
+        ssa = ssa.remove_if_else().unwrap();
+
+        // Here [v21, Field 3] is the result of merging the original slice (`[Field 2, Field 3]`)
+        // with the other slice, where `v21` merges the two values.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) impure fn main f0 {
+          b0(v0: u1, v1: Field, v2: Field):
+            v5 = make_array [Field 2, Field 3] : [Field]
+            v6 = allocate -> &mut u32
+            v7 = allocate -> &mut [Field]
+            enable_side_effects v0
+            v8 = cast v0 as u32
+            v10, v11, v12 = call slice_pop_back(v8, v5) -> (u32, [Field], Field)
+            v13 = not v0
+            v14 = cast v0 as u32
+            v16 = array_get v11, index u32 0 -> Field
+            v17 = cast v0 as Field
+            v18 = cast v13 as Field
+            v19 = mul v17, v16
+            v20 = mul v18, Field 2
+            v21 = add v19, v20
+            v22 = make_array [v21, Field 3] : [Field]
+            enable_side_effects u1 1
+            v24, v25, v26 = call slice_pop_back(v14, v22) -> (u32, [Field], Field)
+            v27 = array_get v25, index u32 0 -> Field
+            constrain v27 == Field 1
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn merge_slice_with_slice_pop_front() {
+        let src = "
+        acir(inline) impure fn main f0 {
+          b0(v0: u1, v1: Field, v2: Field):
+            v3 = make_array [Field 2, Field 3] : [Field]
+            v4 = allocate -> &mut u32
+            v5 = allocate -> &mut [Field]
+            enable_side_effects v0
+            v6 = cast v0 as u32
+            v100, v7, v8 = call slice_pop_front(v6, v3) -> (Field, u32, [Field])
+            v9 = not v0
+            v10 = cast v0 as u32
+            v12 = if v0 then v8 else (if v9) v3
+            enable_side_effects u1 1
+            v101, v15, v16 = call slice_pop_front(v10, v12) -> (Field, u32, [Field])
+            v17 = array_get v16, index u32 0 -> Field
+            constrain v17 == Field 1
+            return
+        }
+        ";
+
+        let mut ssa = Ssa::from_str(src).unwrap();
+        ssa = ssa.remove_if_else().unwrap();
+
+        // Here [v21, Field 3] is the result of merging the original slice (`[Field 2, Field 3]`)
+        // where for v21 it's the merged value.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) impure fn main f0 {
+          b0(v0: u1, v1: Field, v2: Field):
+            v5 = make_array [Field 2, Field 3] : [Field]
+            v6 = allocate -> &mut u32
+            v7 = allocate -> &mut [Field]
+            enable_side_effects v0
+            v8 = cast v0 as u32
+            v10, v11, v12 = call slice_pop_front(v8, v5) -> (Field, u32, [Field])
+            v13 = not v0
+            v14 = cast v0 as u32
+            v16 = array_get v12, index u32 0 -> Field
+            v17 = cast v0 as Field
+            v18 = cast v13 as Field
+            v19 = mul v17, v16
+            v20 = mul v18, Field 2
+            v21 = add v19, v20
+            v22 = make_array [v21, Field 3] : [Field]
+            enable_side_effects u1 1
+            v24, v25, v26 = call slice_pop_front(v14, v22) -> (Field, u32, [Field])
+            v27 = array_get v26, index u32 0 -> Field
+            constrain v27 == Field 1
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn merge_slice_with_slice_remove() {
+        let src = "
+        acir(inline) impure fn main f0 {
+          b0(v0: u1, v1: Field, v2: Field):
+            v3 = make_array [Field 2, Field 3] : [Field]
+            v4 = allocate -> &mut u32
+            v5 = allocate -> &mut [Field]
+            enable_side_effects v0
+            v6 = cast v0 as u32
+            v7, v8, v100 = call slice_remove(v6, v3, u32 0) -> (u32, [Field], Field)
+            v9 = not v0
+            v10 = cast v0 as u32
+            v12 = if v0 then v8 else (if v9) v3
+            enable_side_effects u1 1
+            v15, v16, v101 = call slice_remove(v10, v12, u32 0) -> (u32, [Field], Field)
+            v17 = array_get v16, index u32 0 -> Field
+            constrain v17 == Field 1
+            return
+        }
+        ";
+
+        let mut ssa = Ssa::from_str(src).unwrap();
+        ssa = ssa.remove_if_else().unwrap();
+
+        // Here [v21, Field 3] is the result of merging the original slice (`[Field 2, Field 3]`)
+        // where for v21 it's the merged value.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) impure fn main f0 {
+          b0(v0: u1, v1: Field, v2: Field):
+            v5 = make_array [Field 2, Field 3] : [Field]
+            v6 = allocate -> &mut u32
+            v7 = allocate -> &mut [Field]
+            enable_side_effects v0
+            v8 = cast v0 as u32
+            v11, v12, v13 = call slice_remove(v8, v5, u32 0) -> (u32, [Field], Field)
+            v14 = not v0
+            v15 = cast v0 as u32
+            v16 = array_get v12, index u32 0 -> Field
+            v17 = cast v0 as Field
+            v18 = cast v14 as Field
+            v19 = mul v17, v16
+            v20 = mul v18, Field 2
+            v21 = add v19, v20
+            v22 = make_array [v21, Field 3] : [Field]
+            enable_side_effects u1 1
+            v24, v25, v26 = call slice_remove(v15, v22, u32 0) -> (u32, [Field], Field)
+            v27 = array_get v25, index u32 0 -> Field
             constrain v27 == Field 1
             return
         }

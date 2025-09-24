@@ -33,7 +33,7 @@ impl<'a> ValueMerger<'a> {
         ValueMerger { dfg, block, slice_sizes, call_stack }
     }
 
-    /// Merge two values a and b from separate basic blocks to a single value.
+    /// Merge two values a and b to a single value.
     /// If these two values are numeric, the result will be
     /// `then_condition * (then_value - else_value) + else_value`.
     /// Otherwise, if the values being merged are arrays, a new array will be made

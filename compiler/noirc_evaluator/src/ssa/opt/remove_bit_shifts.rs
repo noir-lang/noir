@@ -146,7 +146,15 @@ impl Context<'_, '_, '_> {
             || {
                 // If we don't know `rhs`'s value then it could be anything up to the number
                 // of bits in the type, e.g. u32 means shifting by up to 32 bits as otherwise we get overflow.
-                self.context.dfg.get_value_max_num_bits(rhs)
+                // get_value_max_num_bits might indicate that the underlying type actually has less
+                // bits than the RHS; e.g. because it was upcast from a u1 to a u32.
+                // The maximum value we can get would be `2^bits - 1`, but `u1` is the only interesting case,
+                // because even for u8 the max value is 255, larger than anything we get based on type.
+                if self.context.dfg.get_value_max_num_bits(rhs) == 1 {
+                    1
+                } else {
+                    self.context.dfg.type_of_value(rhs).bit_size()
+                }
             },
             |rhs_constant| {
                 // Happy case is that we know precisely by how many bits we're shifting by.
@@ -466,15 +474,16 @@ mod tests {
             let ssa = Ssa::from_str(src).unwrap();
             let ssa = ssa.remove_bit_shifts();
             assert_ssa_snapshot!(ssa, @r"
-        acir(inline) fn main f0 {
-          b0(v0: u32):
-            v1 = cast v0 as Field
-            v3 = mul v1, Field 4
-            v4 = truncate v3 to 32 bits, max_bit_size: 34
-            v5 = cast v4 as u32
-            return v5
-        }
-        ");
+            acir(inline) fn main f0 {
+              b0(v0: u32):
+                v1 = cast v0 as Field
+                v3 = mul v1, Field 4
+                v4 = truncate v3 to 32 bits, max_bit_size: 34
+                v5 = cast v4 as u32
+                return v5
+            }
+            "
+            );
         }
 
         #[test]
@@ -543,6 +552,125 @@ mod tests {
                 v58 = truncate v57 to 32 bits, max_bit_size: 64
                 v59 = cast v58 as u32
                 return v59
+            }
+            "#);
+        }
+
+        #[test]
+        fn removes_shl_with_non_constant_rhs_casted_from_smaller_type() {
+            let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u32, v1: u8):
+                v2 = cast v1 as u32
+                v3 = shl v0, v2
+                return v3
+            }
+            ";
+            let ssa = Ssa::from_str(src).unwrap();
+            let ssa = ssa.remove_bit_shifts();
+
+            // `max_bit_size` in `truncate` has to be 64, because even though `u8` is just 8 bits,
+            // the maximum value can be 255, which would clearly overflow, as anything over 32 would.
+            assert_ssa_snapshot!(ssa, @r#"
+            acir(inline) fn main f0 {
+              b0(v0: u32, v1: u8):
+                v2 = cast v1 as u32
+                v3 = cast v1 as u32
+                v5 = lt v3, u32 32
+                constrain v5 == u1 1, "attempt to bit-shift with overflow"
+                v7 = cast v1 as Field
+                v9 = call to_le_bits(v7) -> [u1; 5]
+                v11 = array_get v9, index u32 4 -> u1
+                v12 = not v11
+                v13 = cast v11 as Field
+                v14 = cast v12 as Field
+                v16 = mul Field 2, v13
+                v17 = add v14, v16
+                v19 = array_get v9, index u32 3 -> u1
+                v20 = not v19
+                v21 = cast v19 as Field
+                v22 = cast v20 as Field
+                v23 = mul v17, v17
+                v24 = mul v23, v22
+                v25 = mul v23, Field 2
+                v26 = mul v25, v21
+                v27 = add v24, v26
+                v29 = array_get v9, index u32 2 -> u1
+                v30 = not v29
+                v31 = cast v29 as Field
+                v32 = cast v30 as Field
+                v33 = mul v27, v27
+                v34 = mul v33, v32
+                v35 = mul v33, Field 2
+                v36 = mul v35, v31
+                v37 = add v34, v36
+                v39 = array_get v9, index u32 1 -> u1
+                v40 = not v39
+                v41 = cast v39 as Field
+                v42 = cast v40 as Field
+                v43 = mul v37, v37
+                v44 = mul v43, v42
+                v45 = mul v43, Field 2
+                v46 = mul v45, v41
+                v47 = add v44, v46
+                v49 = array_get v9, index u32 0 -> u1
+                v50 = not v49
+                v51 = cast v49 as Field
+                v52 = cast v50 as Field
+                v53 = mul v47, v47
+                v54 = mul v53, v52
+                v55 = mul v53, Field 2
+                v56 = mul v55, v51
+                v57 = add v54, v56
+                v58 = cast v0 as Field
+                v59 = mul v58, v57
+                v60 = truncate v59 to 32 bits, max_bit_size: 64
+                v61 = cast v60 as u32
+                return v61
+            }
+            "#);
+        }
+
+        #[test]
+        fn removes_shl_with_non_constant_rhs_casted_from_u1() {
+            let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u64, v1: u1):
+                v2 = cast v1 as u8
+                v3 = cast v2 as u32
+                v4 = cast v3 as u64
+                v5 = shl v0, v4
+                return v5
+            }
+            ";
+            let ssa = Ssa::from_str(src).unwrap();
+            let ssa = ssa.remove_bit_shifts();
+
+            // What we are casting with can originally be only 1 bit,
+            // so in the truncate we expect to shift with less than
+            // if only considered the 64 bits based on the type.
+            assert_ssa_snapshot!(ssa, @r#"
+            acir(inline) fn main f0 {
+              b0(v0: u64, v1: u1):
+                v2 = cast v1 as u8
+                v3 = cast v2 as u32
+                v4 = cast v3 as u64
+                v5 = cast v3 as u64
+                v7 = lt v5, u64 64
+                constrain v7 == u1 1, "attempt to bit-shift with overflow"
+                v9 = cast v3 as Field
+                v11 = call to_le_bits(v9) -> [u1; 1]
+                v13 = array_get v11, index u32 0 -> u1
+                v14 = not v13
+                v15 = cast v13 as Field
+                v16 = cast v14 as Field
+                v18 = mul Field 2, v15
+                v19 = add v16, v18
+                v20 = cast v0 as Field
+                v21 = mul v20, v19
+                v22 = truncate v21 to 64 bits, max_bit_size: 65
+                v23 = cast v22 as u64
+                return v23
             }
             "#);
         }
