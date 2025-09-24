@@ -248,27 +248,23 @@ impl Context<'_> {
         dfg: &DataFlowGraph,
         instruction: InstructionId,
     ) -> Result<bool, RuntimeError> {
-        if self.has_zero_length(array, dfg) {
-            // Zero result.
-            let result_ids = dfg.instruction_results(instruction);
-            for result_id in result_ids {
-                let res_typ = dfg.type_of_value(*result_id);
-                let zero_value = self.array_zero_value(&res_typ)?;
-                self.ssa_values.insert(*result_id, zero_value);
-            }
-            // Make sure this code is disabled, or fail with "Index out of bounds".
-            let msg = "Index out of bounds, array has size 0".to_string();
-            let msg = self.acir_context.generate_assertion_message_payload(msg);
-            let zero = self.acir_context.add_constant(FieldElement::zero());
-            self.acir_context.assert_eq_var(
-                self.current_side_effects_enabled_var,
-                zero,
-                Some(msg),
-            )?;
-            Ok(true)
-        } else {
-            Ok(false)
+        if !self.has_zero_length(array, dfg) {
+            return Ok(false);
         }
+        
+        // Zero result.
+        let result_ids = dfg.instruction_results(instruction);
+        for result_id in result_ids {
+            let res_typ = dfg.type_of_value(*result_id);
+            let zero_value = self.array_zero_value(&res_typ)?;
+            self.ssa_values.insert(*result_id, zero_value);
+        }
+        // Make sure this code is disabled, or fail with "Index out of bounds".
+        let msg = "Index out of bounds, array has size 0".to_string();
+        let msg = self.acir_context.generate_assertion_message_payload(msg);
+        let zero = self.acir_context.add_constant(FieldElement::zero());
+        self.acir_context.assert_eq_var(self.current_side_effects_enabled_var, zero, Some(msg))?;
+        Ok(true)
     }
 
     /// Attempts a compile-time read/write from an array.
