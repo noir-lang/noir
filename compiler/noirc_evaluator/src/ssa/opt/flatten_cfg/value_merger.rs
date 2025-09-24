@@ -208,8 +208,8 @@ impl<'a> ValueMerger<'a> {
         let len = then_len.max(else_len);
         let element_count = element_types.len() as u32;
 
-        let flattened_then_length = then_len * element_types.len() as u32;
-        let flattened_else_length = else_len * element_types.len() as u32;
+        let flat_then_length = then_len * element_types.len() as u32;
+        let flat_else_length = else_len * element_types.len() as u32;
 
         for i in 0..len {
             for (element_index, element_type) in element_types.iter().enumerate() {
@@ -220,40 +220,35 @@ impl<'a> ValueMerger<'a> {
                 let typevars = Some(vec![element_type.clone()]);
 
                 let mut get_element = |array, typevars, len| {
-                    if len <= index_u32 {
-                        panic!("get_element invoked with an out of bounds index");
-                    } else {
-                        let get = Instruction::ArrayGet { array, index };
-                        let results = self.dfg.insert_instruction_and_results(
-                            get,
-                            self.block,
-                            typevars,
-                            self.call_stack,
-                        );
-                        results.first()
-                    }
+                    assert!(index_u32 < len, "get_element invoked with an out of bounds index");
+                    let get = Instruction::ArrayGet { array, index };
+                    let results = self.dfg.insert_instruction_and_results(
+                        get,
+                        self.block,
+                        typevars,
+                        self.call_stack,
+                    );
+                    results.first()
                 };
 
                 // If it's out of bounds for the "then" slice, a value in the "else" *must* exist.
                 // We can use that value directly as accessing it is always checked against the actual
                 // slice length.
-                if index_u32 >= flattened_then_length {
-                    let else_element = get_element(else_value_id, typevars, flattened_else_length);
+                if index_u32 >= flat_then_length {
+                    let else_element = get_element(else_value_id, typevars, flat_else_length);
                     merged.push_back(else_element);
                     continue;
                 }
 
                 // Same for if it's out of bounds for the "else" slice.
-                if index_u32 >= flattened_else_length {
-                    let then_element =
-                        get_element(then_value_id, typevars.clone(), flattened_then_length);
+                if index_u32 >= flat_else_length {
+                    let then_element = get_element(then_value_id, typevars, flat_then_length);
                     merged.push_back(then_element);
                     continue;
                 }
 
-                let then_element =
-                    get_element(then_value_id, typevars.clone(), flattened_then_length);
-                let else_element = get_element(else_value_id, typevars, flattened_else_length);
+                let then_element = get_element(then_value_id, typevars.clone(), flat_then_length);
+                let else_element = get_element(else_value_id, typevars, flat_else_length);
 
                 merged.push_back(self.merge_values(
                     then_condition,
