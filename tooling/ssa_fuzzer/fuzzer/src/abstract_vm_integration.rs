@@ -5,7 +5,11 @@ use acvm::{AcirField, FieldElement};
 use base64::Engine;
 use sancov::Counters;
 use std::collections::HashMap;
+use std::sync::{Mutex, MutexGuard, OnceLock};
 use std::time::Instant;
+
+static COUNTERS: Counters<1_000_000> = Counters::new();
+static COUNTERS_LOCK: OnceLock<Mutex<Option<&'static Counters<1_000_000>>>> = OnceLock::new();
 
 /// Function for transpiling Brillig bytecode to Abstract VM bytecode
 /// The first argument is the Brillig bytecode
@@ -28,14 +32,24 @@ pub(crate) enum AbstractVMComparisonResult {
     BrilligCompilationError(String),
 }
 
-fn register_external_coverage(coverage: HashMap<String, u16>) {
-    static COUNTERS: Counters<1_000_000> = Counters::new();
-    COUNTERS.register();
+fn get_or_init_counters()
+-> Result<MutexGuard<'static, Option<&'static Counters<1_000_000>>>, String> {
+    let mutex = COUNTERS_LOCK.get_or_init(|| Mutex::new(None));
+    let mut guard = mutex.lock().map_err(|e| format!("Failed to lock counters mutex: {e}"))?;
 
-    for (key, value) in coverage {
-        for _ in 0..value {
-            COUNTERS.hash_increment(&key);
-        }
+    if guard.is_none() {
+        COUNTERS.register();
+        *guard = Some(&COUNTERS);
+    }
+
+    Ok(guard)
+}
+
+fn register_external_coverage(coverage: HashMap<String, u16>) {
+    let counters = get_or_init_counters().expect("Failed to get or init counters");
+
+    for (key, new_value) in coverage {
+        counters.as_ref().unwrap().hash_increment(&key);
     }
 }
 

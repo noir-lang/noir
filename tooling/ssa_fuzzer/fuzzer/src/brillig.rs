@@ -272,7 +272,6 @@ impl SimulatorProcess {
         }
 
         let outputs = response.output;
-        // TODO(sn)
         let result: Result<Vec<String>, String> = Ok(outputs);
 
         (result, coverage_map)
