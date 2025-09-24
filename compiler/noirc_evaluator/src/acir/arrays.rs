@@ -150,7 +150,7 @@ impl Context<'_> {
     /// only be computed dynamically, such as the type structure
     /// of non-homogenous arrays.
     fn internal_block_id(&mut self, value: ValueId) -> BlockId {
-        *self.internal_memory_blocks.entry(value).or_insert_with(|| {
+        *self.element_type_sizes_blocks.entry(value).or_insert_with(|| {
             let block_id = BlockId(self.max_block_id);
             self.max_block_id += 1;
             block_id
@@ -887,7 +887,6 @@ impl Context<'_> {
                     Some(AcirValue::Array(init_values.into())),
                 )?;
 
-                self.internal_mem_block_lengths.insert(element_type_sizes, element_type_sizes_len);
                 Ok(element_type_sizes)
             }
 
@@ -908,19 +907,10 @@ impl Context<'_> {
                     unreachable!("ICE: element type size arrays are expected to be initialized");
                 }
 
-                let type_sizes_array_len = *self.internal_mem_block_lengths.get(inner_elem_type_sizes).ok_or_else(||
-                                            InternalError::General {
-                                                message: format!("Array {array_id}'s inner element type sizes array does not have a tracked length"),
-                                                call_stack: self.acir_context.get_call_stack(),
-                                            }
-                                        )?;
-                self.copy_dynamic_array(
-                    *inner_elem_type_sizes,
-                    element_type_sizes,
-                    type_sizes_array_len,
-                )?;
-                self.internal_mem_block_lengths.insert(element_type_sizes, type_sizes_array_len);
-                Ok(element_type_sizes)
+                // We can safely overwrite the memory block from the initial call to `self.internal_block_id(&array_id)` here.
+                // The type sizes array is never mutated so we can re-use it.
+                self.element_type_sizes_blocks.insert(array_id, *inner_elem_type_sizes);
+                Ok(*inner_elem_type_sizes)
             }
             _ => Err(InternalError::Unexpected {
                 expected: "AcirValue::DynamicArray or AcirValue::Array".to_owned(),
