@@ -61,10 +61,10 @@ impl Function {
     }
 }
 
-// MAX_CONST_VALUE_THAT_DOES_NOT_OVERFLOW_U128_MUL is expected to be [p/U],
-// where U=U128::max() and p is the field modulus.
-//
-// Then x<[p/u]<=p/U, so x*U<p
+/// MAX_CONST_VALUE_THAT_DOES_NOT_OVERFLOW_U128_MUL is expected to be [p/U],
+/// where U=U128::max() and p is the field modulus.
+///
+/// Then x<[p/u]<=p/U, so x*U<p
 static MAX_CONST_VALUE_THAT_DOES_NOT_OVERFLOW_U128_MUL: std::sync::LazyLock<u128> =
     std::sync::LazyLock::new(|| {
         let max_const_value_that_does_not_overflow_u128_mul =
