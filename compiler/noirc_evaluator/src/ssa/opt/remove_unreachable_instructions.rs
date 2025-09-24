@@ -282,8 +282,25 @@ impl Function {
                 {
                     let array_type = context.dfg.type_of_value(*array);
                     // We can only know a guaranteed out-of-bounds access for arrays, never for slices.
-                    let Type::Array(_, len) = array_type else {
-                        return;
+                    let len = match array_type {
+                        Type::Array(_, len) => len,
+                        Type::Slice(_) => {
+                            // This is kinda hacky but this only becomes an issue for slices where the *capacity* is zero.
+                            // This can only be the case if the slice starts empty and hasn't had its size increased.
+                            let instruction = &context.dfg[*array];
+                            let Value::Instruction { instruction, .. } = instruction else {
+                                return;
+                            };
+
+                            let Instruction::MakeArray { elements, .. } =
+                                &context.dfg[*instruction]
+                            else {
+                                return;
+                            };
+
+                            elements.len() as u32
+                        }
+                        _ => return,
                     };
 
                     let array_op_always_fails = len == 0
@@ -580,6 +597,38 @@ mod test {
             v0 = make_array [] : [&mut u1; 0]
             constrain u1 0 == u1 1, "Index out of bounds"
             unreachable
+        }
+        "#);
+    }
+
+    #[test]
+    fn handles_failing_reads_from_zero_length_slices_under_predicate() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            v1 = make_array [] : [&mut Field]
+            enable_side_effects v0
+            constrain u1 0 == v0, "Index out of bounds"
+            v4 = array_get v1, index u32 0 -> &mut Field
+            v5 = load v4 -> Field
+            return v5
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_unreachable_instructions();
+
+        // Store and load will be removed from mem2reg, allowing later removal of the allocation.
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            v1 = make_array [] : [&mut Field]
+            enable_side_effects v0
+            constrain u1 0 == v0, "Index out of bounds"
+            constrain u1 0 == v0, "Index out of bounds"
+            v3 = allocate -> &mut Field
+            store Field 0 at v3
+            v5 = load v3 -> Field
+            return v5
         }
         "#);
     }
