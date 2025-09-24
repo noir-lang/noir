@@ -1,0 +1,30 @@
+[
+  { "Type": { "kind": 30, "lang_type": "None", "specific_info": { "kind": "None" } } },
+  { "Path": "src/main.nr" },
+  { "Function": { "path_id": 0, "line": 1, "name": "main" } },
+  { "Type": { "kind": 7, "lang_type": "Field", "specific_info": { "kind": "None" } } },
+  { "VariableName": "x" },
+  { "VariableName": "y" },
+  { "Call": { "function_id": 0, "args": [
+    { "variable_id": 0, "value": { "kind": "Int", "i": 5, "type_id": 1 } },
+    { "variable_id": 1, "value": { "kind": "Int", "i": 7, "type_id": 1 } }
+  ] } },
+  { "Step": { "path_id": 0, "line": 2 } },
+  { "Value": { "variable_id": 0, "value": { "kind": "Int", "i": 5, "type_id": 1 } } },
+  { "Value": { "variable_id": 1, "value": { "kind": "Int", "i": 7, "type_id": 1 } } },
+  { "Step": { "path_id": 0, "line": 3 } },
+  { "Value": { "variable_id": 0, "value": { "kind": "Int", "i": 5, "type_id": 1 } } },
+  { "Value": { "variable_id": 1, "value": { "kind": "Int", "i": 7, "type_id": 1 } } },
+  { "Step": { "path_id": 0, "line": 4 } },
+  { "Type": { "kind": 9, "lang_type": "String", "specific_info": { "kind": "None" } } },
+  { "Type": { "kind": 27, "lang_type": "(..)", "specific_info": { "kind": "None" } } },
+  { "VariableName": "my_tuple" },
+  { "Value": { "variable_id": 2, "value": { "kind": "Tuple", "elements": [
+    { "kind": "Int", "i": 5, "type_id": 1 },
+    { "kind": "Int", "i": 5, "type_id": 1 },
+    { "kind": "Int", "i": 7, "type_id": 1 },
+    { "kind": "String", "text": "try", "type_id": 2 }
+  ], "type_id": 3 } } },
+  { "Value": { "variable_id": 0, "value": { "kind": "Int", "i": 5, "type_id": 1 } } },
+  { "Value": { "variable_id": 1, "value": { "kind": "Int", "i": 7, "type_id": 1 } } }
+]
