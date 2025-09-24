@@ -204,8 +204,7 @@ impl Context {
                         else_value,
                     )?;
 
-                    let results = context.dfg.instruction_results(instruction_id);
-                    let result = results[0];
+                    let [result] = context.dfg.instruction_result(instruction_id);
 
                     context.remove_current_instruction();
                     // The `IfElse` instruction is replaced by the merge done with the `ValueMerger`
@@ -236,8 +235,7 @@ impl Context {
                 }
                 // Track slice sizes through array set instructions
                 Instruction::ArraySet { array, .. } => {
-                    let results = context.dfg.instruction_results(instruction_id);
-                    let result = if results.len() == 2 { results[1] } else { results[0] };
+                    let [result] = context.dfg.instruction_result(instruction_id);
 
                     let old_capacity = self.get_or_find_capacity(context.dfg, *array);
                     self.slice_sizes.insert(result, old_capacity);

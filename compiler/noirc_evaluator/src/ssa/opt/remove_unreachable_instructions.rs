@@ -523,8 +523,8 @@ fn should_replace_instruction_with_defaults(context: &SimpleOptimizationContext)
                 Type::Array(typ, _) | Type::Slice(typ) => typ,
                 other => unreachable!("Array or Slice type expected; got {other:?}"),
             };
-            let results = context.dfg.instruction_results(context.instruction_id).to_vec();
-            let result_type = context.dfg.type_of_value(results[0]);
+            let [result] = context.dfg.instruction_result(context.instruction_id);
+            let result_type = context.dfg.type_of_value(result);
             // If the type doesn't agree then we should not use this any more,
             // as the type in the array will replace the type we wanted to get,
             // and cause problems further on.
