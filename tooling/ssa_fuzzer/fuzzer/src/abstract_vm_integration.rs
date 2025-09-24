@@ -49,7 +49,9 @@ fn register_external_coverage(coverage: HashMap<String, u16>) {
     let counters = get_or_init_counters().expect("Failed to get or init counters");
 
     for (key, new_value) in coverage {
-        counters.as_ref().unwrap().hash_increment(&key);
+        if new_value == 1 {
+            counters.as_ref().unwrap().hash_increment(&key);
+        }
     }
 }
 
