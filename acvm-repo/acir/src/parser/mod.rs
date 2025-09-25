@@ -273,23 +273,20 @@ impl<'a> Parser<'a> {
         // Parse the right-hand side terms
         let rhs_terms = self.parse_terms_or_error()?;
 
-        // "Move" the terms to the right by negating them
-        let lhs_terms = lhs_terms.into_iter().map(|term| term.negate()).collect::<Vec<_>>();
+        // If we have something like `0 = ...` or `... = 0`, just consider the expressions
+        // on the non-zero side. Otherwise we could be "moving" terms to the other side and
+        // negating them, which won't accurately reflect the original expression.
+        let expression = if is_zero_term(&lhs_terms) {
+            build_expression_from_terms(rhs_terms.into_iter())
+        } else if is_zero_term(&rhs_terms) {
+            build_expression_from_terms(lhs_terms.into_iter())
+        } else {
+            // "Move" the terms to the left by negating them
+            let rhs_terms = rhs_terms.into_iter().map(|term| term.negate()).collect::<Vec<_>>();
+            build_expression_from_terms(lhs_terms.into_iter().chain(rhs_terms))
+        };
 
-        // Gather all terms, summing the constants
-        let mut q_c = FieldElement::zero();
-        let mut linear_combinations = Vec::new();
-        let mut mul_terms = Vec::new();
-
-        for term in rhs_terms.into_iter().chain(lhs_terms) {
-            match term {
-                Term::Constant(c) => q_c += c,
-                Term::Linear(c, w) => linear_combinations.push((c, w)),
-                Term::Multiplication(c, w1, w2) => mul_terms.push((c, w1, w2)),
-            }
-        }
-
-        Ok(Expression { mul_terms, linear_combinations, q_c })
+        Ok(expression)
     }
 
     fn parse_terms_or_error(&mut self) -> ParseResult<Vec<Term>> {
@@ -1081,6 +1078,27 @@ impl<'a> Parser<'a> {
             span: self.token.span(),
         })
     }
+}
+
+fn build_expression_from_terms(terms: impl Iterator<Item = Term>) -> Expression<FieldElement> {
+    // Gather all terms, summing the constants
+    let mut q_c = FieldElement::zero();
+    let mut linear_combinations = Vec::new();
+    let mut mul_terms = Vec::new();
+
+    for term in terms {
+        match term {
+            Term::Constant(c) => q_c += c,
+            Term::Linear(c, w) => linear_combinations.push((c, w)),
+            Term::Multiplication(c, w1, w2) => mul_terms.push((c, w1, w2)),
+        }
+    }
+
+    Expression { mul_terms, linear_combinations, q_c }
+}
+
+fn is_zero_term(terms: &[Term]) -> bool {
+    terms.len() == 1 && matches!(terms[0], Term::Constant(c) if c.is_zero())
 }
 
 fn eof_spanned_token() -> SpannedToken {

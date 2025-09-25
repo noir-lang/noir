@@ -769,6 +769,25 @@ fn assert_zero_equation() {
     private parameters: [w0, w1, w2]
     public parameters: []
     return values: []
-    EXPR w3 = w0*w1 - w1*w2 - w0*w2 + w2 + w0 - w1 - 40
+    EXPR w3 = -w0*w2 + w0*w1 - w1*w2 + w0 - w1 + w2 - 40
+    ");
+}
+
+#[test]
+fn does_not_negate_when_equal_to_zero() {
+    let src = "
+    current witness: w9
+    private parameters: [w0, w1, w2]
+    public parameters: []
+    return values: []
+    EXPR w0*w1 + w0*w2 = 0
+    ";
+    let circuit = Circuit::from_str(src).unwrap();
+    assert_snapshot!(circuit.to_string(), @r"
+    current witness: w9
+    private parameters: [w0, w1, w2]
+    public parameters: []
+    return values: []
+    EXPR 0 = w0*w1 + w0*w2
     ");
 }
