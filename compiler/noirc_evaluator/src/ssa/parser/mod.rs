@@ -278,17 +278,17 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_data_bus(&mut self) -> ParseResult<ParsedDataBus> {
-        let call_data = self.parse_call_datas()?;
+        let call_data = self.parse_call_data_vec()?;
         let return_data = self.parse_return_data()?;
         Ok(ParsedDataBus { call_data, return_data })
     }
 
-    fn parse_call_datas(&mut self) -> ParseResult<Vec<ParsedCallData>> {
-        let mut call_datas = Vec::new();
+    fn parse_call_data_vec(&mut self) -> ParseResult<Vec<ParsedCallData>> {
+        let mut call_data_vec = Vec::new();
         while let Some(call_data) = self.parse_call_data()? {
-            call_datas.push(call_data);
+            call_data_vec.push(call_data);
         }
-        Ok(call_datas)
+        Ok(call_data_vec)
     }
 
     fn parse_call_data(&mut self) -> ParseResult<Option<ParsedCallData>> {

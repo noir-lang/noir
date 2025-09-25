@@ -215,7 +215,7 @@ impl Translator {
         &mut self,
         parsed_data_bus: ParsedDataBus,
     ) -> Result<(), SsaError> {
-        let mut call_datas = Vec::new();
+        let mut call_data_vec = Vec::new();
         for parsed_call_data in parsed_data_bus.call_data {
             let call_data_id = parsed_call_data.call_data_id;
             let array_id = self.translate_value(parsed_call_data.array)?;
@@ -225,7 +225,7 @@ impl Translator {
                 index_map.insert(value_id, index);
             }
             let call_data = CallData { call_data_id, array_id, index_map };
-            call_datas.push(call_data);
+            call_data_vec.push(call_data);
         }
 
         let return_data = if let Some(return_data) = parsed_data_bus.return_data {
@@ -233,7 +233,7 @@ impl Translator {
         } else {
             None
         };
-        let data_bus = DataBus { call_data: call_datas, return_data };
+        let data_bus = DataBus { call_data: call_data_vec, return_data };
         self.builder.set_data_bus(data_bus);
         Ok(())
     }
