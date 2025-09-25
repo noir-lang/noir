@@ -241,7 +241,9 @@ impl Context {
 
     fn handle_literal(&mut self, literal: &mut Literal) {
         match literal {
-            Literal::Integer(..) | Literal::Bool(_) | Literal::Unit | Literal::Str(_) => (),
+            // TODO: WIP
+            // Literal::Integer(..) | Literal::Bool(_) | Literal::Unit | Literal::Str(_) => (),
+            Literal::Integer(..) | Literal::Bool(_) | Literal::Str(_) => (),
 
             Literal::FmtStr(_, _, captures) => self.handle_expression(captures),
 
@@ -347,7 +349,9 @@ impl Context {
                 if name == "array_len" {
                     if let Some(Expression::Clone(array)) = call.arguments.get_mut(0) {
                         let array =
-                            std::mem::replace(array.as_mut(), Expression::Literal(Literal::Unit));
+                            // TODO: WIP
+                            // std::mem::replace(array.as_mut(), Expression::Literal(Literal::Unit));
+                            std::mem::replace(array.as_mut(), Expression::Tuple(vec![]));
                         call.arguments[0] = array;
                     }
                 }
@@ -417,7 +421,9 @@ fn contains_index(lvalue: &LValue) -> bool {
 /// Note that this method should be careful not to actually duplicate the given expression
 /// so that we do not duplicate any side-effects.
 fn clone_expr(expr: &mut Expression) {
-    let unit = Expression::Literal(Literal::Unit);
+    // TODO: WIP
+    // let unit = Expression::Literal(Literal::Unit);
+    let unit = Expression::Tuple(vec![]);
     let old_expr = std::mem::replace(expr, unit);
     *expr = Expression::Clone(Box::new(old_expr));
 }
@@ -427,7 +433,8 @@ fn contains_array_or_str_type(typ: &Type) -> bool {
         Type::Field
         | Type::Integer(..)
         | Type::Bool
-        | Type::Unit
+        // TODO: WIP
+        // | Type::Unit
         | Type::Function(..)
         | Type::Reference(..) => false,
 

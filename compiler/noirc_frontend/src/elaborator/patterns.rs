@@ -128,6 +128,7 @@ impl Elaborator<'_> {
             Pattern::Tuple(fields, location) => {
                 let field_types = match expected_type.follow_bindings() {
                     Type::Tuple(fields) => fields,
+                    Type::Unit => vec![],
                     Type::Error => Vec::new(),
                     expected_type => {
                         let tuple =

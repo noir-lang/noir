@@ -266,7 +266,9 @@ impl<'a, 'b> LimitContext<'a, 'b> {
                 typ: Type::Function(
                     self.func.parameters.iter().map(|p| p.3.clone()).collect(),
                     Box::new(self.func.return_type.clone()),
-                    Box::new(Type::Unit),
+                    // TODO: WIP
+                    // Box::new(Type::Unit),
+                    Box::new(Type::Tuple(vec![])),
                     self.func.unconstrained,
                 ),
                 id: self.next_ident_id(),

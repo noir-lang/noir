@@ -18,7 +18,9 @@ pub const U32: Type = Type::Integer(Signedness::Unsigned, IntegerBitSize::Thirty
 /// Leaf types have a depth of 0.
 pub fn type_depth(typ: &Type) -> usize {
     match typ {
-        Type::Field | Type::Bool | Type::String(_) | Type::Unit | Type::Integer(_, _) => 0,
+        // TODO: WIP
+        // Type::Field | Type::Bool | Type::String(_) | Type::Unit | Type::Integer(_, _) => 0,
+        Type::Field | Type::Bool | Type::String(_) | Type::Integer(_, _) => 0,
         Type::Array(_, typ) | Type::Slice(typ) => 1 + type_depth(typ),
         Type::Tuple(types) => 1 + types.iter().map(type_depth).max().unwrap_or_default(),
         Type::Reference(typ, _) => 1 + type_depth(typ.as_ref()),
@@ -54,7 +56,9 @@ pub fn can_be_main(typ: &Type) -> bool {
 
 /// Check if a variable with a given type can be used in a match.
 pub fn can_be_matched(typ: &Type) -> bool {
-    matches!(typ, Type::Unit | Type::Bool | Type::Field | Type::Integer(_, _) | Type::Tuple(_))
+    // TODO: WIP
+    // matches!(typ, Type::Unit | Type::Bool | Type::Field | Type::Integer(_, _) | Type::Tuple(_))
+    matches!(typ, Type::Bool | Type::Field | Type::Integer(_, _) | Type::Tuple(_))
 }
 
 /// Collect all the sub-types produced by a type.
@@ -132,7 +136,9 @@ pub fn types_produced(typ: &Type) -> HashSet<Type> {
             Type::Function(_, ret, _, _) => {
                 visit(acc, ret);
             }
-            Type::Unit | Type::FmtString(_, _) => {}
+            // TODO: WIP
+            // Type::Unit | Type::FmtString(_, _) => {}
+            Type::FmtString(_, _) => {}
         }
     }
 
@@ -156,7 +162,8 @@ pub fn to_hir_type(typ: &Type) -> hir_def::types::Type {
     };
 
     match typ {
-        Type::Unit => HirType::Unit,
+        // TODO: WIP
+        // Type::Unit => HirType::Unit,
         Type::Bool => HirType::Bool,
         Type::Field => HirType::FieldElement,
         Type::Integer(signedness, integer_bit_size) => {
@@ -186,7 +193,12 @@ pub fn is_numeric(typ: &Type) -> bool {
 
 /// Check if a type is `Unit`.
 pub fn is_unit(typ: &Type) -> bool {
-    matches!(typ, Type::Unit)
+    // TODO: WIP
+    // matches!(typ, Type::Unit)
+    match typ {
+        Type::Tuple(items) => items.len() == 0,
+        _ => false,
+    }
 }
 
 /// Check if the type works with `UnaryOp::Not`
@@ -227,7 +239,8 @@ pub fn contains_reference(typ: &Type) -> bool {
         | Type::Integer(_, _)
         | Type::Bool
         | Type::String(_)
-        | Type::Unit
+        // TODO: WIP
+        // | Type::Unit
         | Type::FmtString(_, _)
         | Type::Function(_, _, _, _) => false,
         Type::Array(_, typ) | Type::Slice(typ) => contains_reference(typ),
@@ -243,7 +256,8 @@ pub fn contains_slice(typ: &Type) -> bool {
         | Type::Integer(_, _)
         | Type::Bool
         | Type::String(_)
-        | Type::Unit
+        // TODO: WIP
+        // | Type::Unit
         | Type::FmtString(_, _)
         | Type::Function(_, _, _, _) => false,
         Type::Array(_, typ) | Type::Reference(typ, _) => contains_slice(typ),
@@ -255,7 +269,9 @@ pub fn contains_slice(typ: &Type) -> bool {
 pub fn is_printable(typ: &Type) -> bool {
     match typ {
         Type::Reference(_, _) => false,
-        Type::Field | Type::Integer(_, _) | Type::String(_) | Type::Bool | Type::Unit => true,
+        // TODO: WIP
+        // Type::Field | Type::Integer(_, _) | Type::String(_) | Type::Bool | Type::Unit => true,
+        Type::Field | Type::Integer(_, _) | Type::String(_) | Type::Bool => true,
         Type::Slice(typ) | Type::Array(_, typ) | Type::FmtString(_, typ) => is_printable(typ),
         Type::Tuple(types) => types.iter().all(is_printable),
         // Function signatures are printable, although they might differ when we force things to be Brillig.
