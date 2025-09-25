@@ -169,6 +169,10 @@ impl<F: AcirField> Expression<F> {
         Self::from_field(F::one())
     }
 
+    pub fn is_one(&self) -> bool {
+        *self == Self::one()
+    }
+
     /// Returns a `Witness` if the `Expression` can be represented as a degree-1
     /// univariate polynomial. Otherwise returns `None`.
     ///

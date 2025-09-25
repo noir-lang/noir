@@ -71,7 +71,7 @@ impl CallContext {
 }
 
 type IResult<T> = Result<T, InterpreterError>;
-type IResults = IResult<Vec<Value>>;
+pub type IResults = IResult<Vec<Value>>;
 
 #[allow(unused)]
 impl Ssa {

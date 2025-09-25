@@ -730,7 +730,7 @@ impl Loop {
             instructions
                 .filter(|i| matches!(&function.dfg[**i], Instruction::Allocate))
                 // Get the value into which the allocation was stored.
-                .map(|i| function.dfg.instruction_results(*i)[0])
+                .map(|i| function.dfg.instruction_result::<1>(*i)[0])
         });
 
         // Collect reference parameters of the function itself.

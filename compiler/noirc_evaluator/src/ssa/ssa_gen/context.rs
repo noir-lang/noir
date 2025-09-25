@@ -773,10 +773,14 @@ impl<'a> FunctionContext<'a> {
                 // Checks for index Out-of-bounds
                 match array_type {
                     Type::Array(_, len) => {
-                        let len = self
-                            .builder
-                            .numeric_constant(u128::from(*len), NumericType::length_type());
-                        self.codegen_access_check(index, len);
+                        // Out of bounds array accesses are guaranteed to fail in ACIR so this check is performed implicitly.
+                        // We then only need to inject it for brillig functions.
+                        if self.builder.current_function.runtime().is_brillig() {
+                            let len = self
+                                .builder
+                                .numeric_constant(u128::from(*len), NumericType::length_type());
+                            self.codegen_access_check(index, len);
+                        }
                     }
                     _ => unreachable!("must have array or slice but got {array_type}"),
                 }
