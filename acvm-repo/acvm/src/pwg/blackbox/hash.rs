@@ -175,7 +175,7 @@ mod tests {
             0x45, 0x2F, 0x37, 0x45, 0x8B, 0x20, 0x9E, 0xD6, 0x3A, 0x29, 0x4D, 0x99, 0x9B, 0x4C,
             0x86, 0x67, 0x59, 0x82,
         ];
-        let expected_output = expected_output.map(|e| FieldElement::from(e));
+        let expected_output = expected_output.map(FieldElement::from);
         let expected_output: Vec<&FieldElement> = expected_output.iter().collect();
         for i in 0..32 {
             assert_eq!(initial_witness[&Witness(4 + i as u32)], *expected_output[i]);
@@ -208,7 +208,7 @@ mod tests {
             0x8D, 0xB5, 0x48, 0xC5, 0x58, 0x46, 0x5D, 0x79, 0xDB, 0x03, 0xFD, 0x35, 0x9C, 0x6C,
             0xD5, 0xBD, 0x9D, 0x85,
         ];
-        let expected_output = expected_output.map(|e| FieldElement::from(e));
+        let expected_output = expected_output.map(FieldElement::from);
         let expected_output: Vec<&FieldElement> = expected_output.iter().collect();
         for i in 0..32 {
             assert_eq!(initial_witness[&Witness(4 + i as u32)], *expected_output[i]);

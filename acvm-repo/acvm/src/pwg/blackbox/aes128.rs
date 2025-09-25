@@ -173,7 +173,7 @@ mod tests {
             0xe6, 0x9e, 0x22, 0x22, 0x95, 0x16, 0x3f, 0xf1, 0xca, 0xa1, 0x68, 0x1f, 0xac, 0x09,
             0x12, 0x0e, 0xca, 0x30, 0x75, 0x86, 0xe1, 0xa7,
         ];
-        let expected_output = expected_output.map(|e| FieldElement::from(e));
+        let expected_output = expected_output.map(FieldElement::from);
         let expected_output: Vec<&FieldElement> = expected_output.iter().collect();
         for i in 0..64 {
             assert_eq!(initial_witness[&Witness(97 + i as u32)], *expected_output[i]);
