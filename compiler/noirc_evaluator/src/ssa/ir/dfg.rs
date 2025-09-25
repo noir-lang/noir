@@ -565,11 +565,10 @@ impl DataFlowGraph {
         instruction_id: InstructionId,
     ) -> [ValueId; N] {
         let results = self.instruction_results(instruction_id);
-        assert_eq!(
-            results.len(),
-            N,
-            "expected an exact number of results for instruction {instruction_id}"
-        );
+        if results.len() != N {
+            let instruction = &self[instruction_id];
+            panic!("expected {instruction:?} to have {N} results; got {}", results.len());
+        }
         std::array::from_fn(|i| results[i])
     }
 
