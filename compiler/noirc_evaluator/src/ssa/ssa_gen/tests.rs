@@ -127,7 +127,7 @@ fn acir_no_access_check_on_array_read() {
 #[test]
 fn acir_no_access_check_on_array_assignment() {
     let src = "
-    fn main(mut array: [Field; 3], index: u32, x: Field, y: Field) {
+    fn main(mut array: [Field; 3], index: u32, x: Field) {
         array[index] = x;
     }
     ";
