@@ -282,7 +282,8 @@ impl Context {
                     // This will only move the current instance of the instruction right now.
                     // When constant folding is run a second time later on, it'll catch
                     // that the previous instance can be deduplicated to this instance.
-
+                    // Another effect is going to be that the cache should be updated to
+                    // point at the dominator, so subsequent blocks can use the result.
                     block = dominator;
                 }
             }
@@ -302,7 +303,14 @@ impl Context {
 
         self.values_to_replace.batch_insert(&old_results, &new_results);
 
-        self.cache_instruction(&instruction, new_results, dfg, *side_effects_enabled_var, block);
+        self.cache_instruction(
+            &instruction,
+            new_results,
+            dfg,
+            dom,
+            *side_effects_enabled_var,
+            block,
+        );
 
         // If we just inserted an `Instruction::EnableSideEffectsIf`, we need to update `side_effects_enabled_var`
         // so that we use the correct set of constrained values in future.
@@ -363,6 +371,7 @@ impl Context {
         instruction: &Instruction,
         instruction_results: Vec<ValueId>,
         dfg: &DataFlowGraph,
+        dom: &mut DominatorTree,
         side_effects_enabled_var: ValueId,
         block: BasicBlockId,
     ) {
@@ -397,7 +406,7 @@ impl Context {
             let array_get = Instruction::ArrayGet { array: instruction_results[0], index: *index };
 
             // If we encounter an array_get for this address, we know what the result will be.
-            self.cached_instruction_results.cache(array_get, predicate, block, vec![*value]);
+            self.cached_instruction_results.cache(dom, array_get, predicate, block, vec![*value]);
         }
 
         self.cached_instruction_results
@@ -415,6 +424,7 @@ impl Context {
             let predicate = self.cache_predicate(side_effects_enabled_var, instruction, dfg);
             // If we see this make_array again, we can reuse the current result.
             self.cached_instruction_results.cache(
+                dom,
                 instruction.clone(),
                 predicate,
                 block,
@@ -1010,24 +1020,25 @@ mod test {
         let mut ssa = Ssa::from_str(src).unwrap();
         ssa = ssa.fold_constants();
 
-        // The first instruction from b3 and b5, identical to the one in b1,
-        // are hoisted to b0, where they are duplicated.
+        // 1. v9 is a duplicate of v5 -> hoisted to b0
+        // 2. v13 is a duplicate of v9 -> immediately deduplicated because it's now in b0
+        // 3. v14 is a duplicate of v10 -> hoisted to b2
         assert_ssa_snapshot!(&mut ssa, @r"
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: u1, v1: i8):
             v2 = allocate -> &mut i8
             store i8 0 at v2
             v5 = unchecked_mul v1, i8 127
-            v6 = unchecked_mul v1, i8 127
             jmpif v0 then: b1, else: b2
           b1():
-            v7 = unchecked_mul v1, i8 127
-            v8 = cast v7 as u16
-            v9 = truncate v8 to 8 bits, max_bit_size: 16
-            v10 = cast v9 as i8
-            store v10 at v2
+            v6 = unchecked_mul v1, i8 127
+            v7 = cast v6 as u16
+            v8 = truncate v7 to 8 bits, max_bit_size: 16
+            v9 = cast v8 as i8
+            store v9 at v2
             jmp b2()
           b2():
+            v10 = cast v5 as u16
             jmpif v0 then: b3, else: b4
           b3():
             v11 = cast v5 as u16
@@ -1038,21 +1049,21 @@ mod test {
           b4():
             jmpif v0 then: b5, else: b6
           b5():
-            v14 = cast v6 as u16
-            v15 = truncate v14 to 8 bits, max_bit_size: 16
-            v16 = cast v15 as i8
-            store v16 at v2
+            v14 = truncate v10 to 8 bits, max_bit_size: 16
+            v15 = cast v14 as i8
+            store v15 at v2
             jmp b6()
           b6():
-            v17 = load v2 -> i8
-            return v17
+            v16 = load v2 -> i8
+            return v16
         }
         ");
 
         ssa = ssa.fold_constants();
 
-        // The previously hoisted instructions deduplicated in b0 and b1,
-        // then the next two instructions from b3 and b5 are hoisted, but stay in b1.
+        // 1. v6 removed as a duplicate of v5
+        // 2. v11 is a duplicate of v7 -> hoisted to b0
+        // 3. v14 is a duplicate of v12 -> hoisted to b2
         assert_ssa_snapshot!(&mut ssa, @r"
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: u1, v1: i8):
@@ -1060,15 +1071,15 @@ mod test {
             store i8 0 at v2
             v5 = unchecked_mul v1, i8 127
             v6 = cast v5 as u16
-            v7 = cast v5 as u16
             jmpif v0 then: b1, else: b2
           b1():
-            v8 = cast v5 as u16
-            v9 = truncate v8 to 8 bits, max_bit_size: 16
-            v10 = cast v9 as i8
-            store v10 at v2
+            v7 = cast v5 as u16
+            v8 = truncate v7 to 8 bits, max_bit_size: 16
+            v9 = cast v8 as i8
+            store v9 at v2
             jmp b2()
           b2():
+            v10 = truncate v6 to 8 bits, max_bit_size: 16
             jmpif v0 then: b3, else: b4
           b3():
             v11 = truncate v6 to 8 bits, max_bit_size: 16
@@ -1078,13 +1089,12 @@ mod test {
           b4():
             jmpif v0 then: b5, else: b6
           b5():
-            v13 = truncate v7 to 8 bits, max_bit_size: 16
-            v14 = cast v13 as i8
-            store v14 at v2
+            v13 = cast v10 as i8
+            store v13 at v2
             jmp b6()
           b6():
-            v15 = load v2 -> i8
-            return v15
+            v14 = load v2 -> i8
+            return v14
         }
         ");
     }

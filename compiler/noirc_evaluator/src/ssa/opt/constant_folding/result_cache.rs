@@ -62,12 +62,18 @@ impl InstructionResultCache {
 
     pub(super) fn cache(
         &mut self,
+        dom: &mut DominatorTree,
         instruction: Instruction,
         predicate: Option<ValueId>,
         block: BasicBlockId,
         results: Vec<ValueId>,
     ) {
-        self.0.entry(instruction).or_default().entry(predicate).or_default().cache(block, results);
+        self.0
+            .entry(instruction)
+            .or_default()
+            .entry(predicate)
+            .or_default()
+            .cache(block, dom, results);
     }
 
     pub(super) fn remove(
@@ -157,9 +163,14 @@ pub(super) struct ResultCache {
 }
 impl ResultCache {
     /// Records that an `Instruction` in block `block` produced the result values `results`.
-    fn cache(&mut self, block: BasicBlockId, results: Vec<ValueId>) {
-        if self.result.is_none() {
-            self.result = Some((block, results));
+    fn cache(&mut self, block: BasicBlockId, dom: &mut DominatorTree, results: Vec<ValueId>) {
+        let overwrite = match self.result {
+            None => true,
+            Some((origin, _)) => dom.dominates(block, origin),
+        };
+
+        if overwrite {
+            self.result = Some((block, results))
         }
     }
 
@@ -175,13 +186,13 @@ impl ResultCache {
         dom: &mut DominatorTree,
         has_side_effects: bool,
     ) -> Option<CacheResult> {
-        self.result.as_ref().and_then(|(origin_block, results)| {
-            if dom.dominates(*origin_block, block) {
+        self.result.as_ref().and_then(|(origin, results)| {
+            if dom.dominates(*origin, block) {
                 Some(CacheResult::Cached(results))
             } else if !has_side_effects {
                 // Insert a copy of this instruction in the common dominator
-                let dominator = dom.common_dominator(*origin_block, block);
-                Some(CacheResult::NeedToHoistToCommonBlock { origin: *origin_block, dominator })
+                let dominator = dom.common_dominator(*origin, block);
+                Some(CacheResult::NeedToHoistToCommonBlock { origin: *origin, dominator })
             } else {
                 None
             }
