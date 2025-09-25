@@ -341,6 +341,10 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_arithmetic_expression(&mut self) -> ParseResult<Expression<FieldElement>> {
+        if let Some(witness) = self.eat_witness()? {
+            return Ok(Expression::from(witness));
+        }
+
         self.eat_keyword_or_error(Keyword::Expression)?;
         self.eat_or_error(Token::LeftBracket)?;
 
@@ -764,11 +768,15 @@ impl<'a> Parser<'a> {
                     BrilligInputs::Single(expr)
                 }
                 _ => {
-                    return self.expected_one_of_tokens(&[
-                        Token::LeftBracket,
-                        Token::Ident("MemoryArray".into()),
-                        Token::Keyword(Keyword::Expression),
-                    ]);
+                    if let Some(witness) = self.eat_witness()? {
+                        BrilligInputs::Single(Expression::from(witness))
+                    } else {
+                        return self.expected_one_of_tokens(&[
+                            Token::LeftBracket,
+                            Token::Ident("MemoryArray".into()),
+                            Token::Keyword(Keyword::Expression),
+                        ]);
+                    }
                 }
             };
 

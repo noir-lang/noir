@@ -49,8 +49,12 @@ impl<F: AcirField> Default for Expression<F> {
     }
 }
 
-impl<F: std::fmt::Display> std::fmt::Display for Expression<F> {
+impl<F: AcirField> std::fmt::Display for Expression<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        if let Some(witness) = self.to_witness() {
+            return write!(f, "{witness}");
+        }
+
         write!(f, "EXPR [ ")?;
         for i in &self.mul_terms {
             write!(f, "({}, {}, {}) ", i.0, i.1, i.2)?;
