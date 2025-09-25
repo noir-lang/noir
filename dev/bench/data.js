@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1758823534920,
+  "lastUpdate": 1758831942805,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -21816,48 +21816,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "84741533+defkit@users.noreply.github.com",
-            "name": "defkit",
-            "username": "defkit"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "0bb32f3cda42789b7ec55aff820da91f259791af",
-          "message": "chore(ssa_fuzzer): refactor brillig target (#9821)",
-          "timestamp": "2025-09-17T10:57:03Z",
-          "tree_id": "751e2af94945e86352246fe1fc20fe5c04da80de",
-          "url": "https://github.com/noir-lang/noir/commit/0bb32f3cda42789b7ec55aff820da91f259791af"
-        },
-        "date": 1758109088099,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 250232,
-            "range": "± 1319",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 222896,
-            "range": "± 925",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2796680,
-            "range": "± 1430",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -23909,6 +23867,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2780909,
             "range": "± 6872",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "df2e584a22d8d2b11c16c9a099a25c73e915135e",
+          "message": "chore: print ACIR AssertZero as an equation (#9970)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2025-09-25T20:01:53Z",
+          "tree_id": "8497ac80bea06d173d6043415fda951677f60cfe",
+          "url": "https://github.com/noir-lang/noir/commit/df2e584a22d8d2b11c16c9a099a25c73e915135e"
+        },
+        "date": 1758831922084,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 251279,
+            "range": "± 541",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 223410,
+            "range": "± 4393",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2784392,
+            "range": "± 13675",
             "unit": "ns/iter"
           }
         ]
