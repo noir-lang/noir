@@ -281,9 +281,21 @@ impl Function {
                     if context.dfg.runtime().is_acir() =>
                 {
                     let array_type = context.dfg.type_of_value(*array);
-                    // We can only know a guaranteed out-of-bounds access for arrays, never for slices.
-                    let Type::Array(_, len) = array_type else {
-                        return;
+                    // We can only know a guaranteed out-of-bounds access for arrays,
+                    // and slices which have been declared as a literal.
+                    let len = match array_type {
+                        Type::Array(_, len) => len,
+                        Type::Slice(_) => {
+                            let Some(Instruction::MakeArray { elements, typ }) =
+                                context.dfg.get_local_or_global_instruction(*array)
+                            else {
+                                return;
+                            };
+                            // The index check expects `len` to be the logical length, like for arrays,
+                            // not the flattened size, so we need to divide by the number of items.
+                            (elements.len() / typ.element_size()) as u32
+                        }
+                        _ => return,
                     };
 
                     let array_op_always_fails = len == 0
@@ -840,6 +852,29 @@ mod test {
             constrain u1 0 == v0, "attempt to subtract with overflow"
             enable_side_effects u1 1
             return u32 1
+        }
+        "#);
+    }
+
+    #[test]
+    fn removes_slice_literal_index_oob() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            v1 = make_array [u1 1, u32 2, u64 3] : [(u1, u32, u64)]
+            v2 = array_get v1, index u32 4 -> u32
+            return v2
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_unreachable_instructions();
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            v4 = make_array [u1 1, u32 2, u64 3] : [(u1, u32, u64)]
+            constrain u1 0 == u1 1, "Index out of bounds"
+            unreachable
         }
         "#);
     }
