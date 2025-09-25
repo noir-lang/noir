@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1758818924624,
+  "lastUpdate": 1758819120637,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -9115,80 +9115,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "d5c4ac8548a5f04fbef3013f72386a985f229c48",
-          "message": "chore(acir_gen): Remove Brillig execution with constant arguments  (#9879)",
-          "timestamp": "2025-09-16T19:40:23Z",
-          "tree_id": "b707a1db22f299442861e0e2097c1800f70eb5c9",
-          "url": "https://github.com/noir-lang/noir/commit/d5c4ac8548a5f04fbef3013f72386a985f229c48"
-        },
-        "date": 1758054139982,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.016,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.161,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.01,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.268,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.161,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 14.7,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.002,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.004,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.019,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 0.103,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "8fb7ac562e288263dd40015a50c0d1bac2f727ea",
           "message": "chore(acir_gen): Switching existing ACIR gen tests to use parser and cleanup test module (#9878)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
           "timestamp": "2025-09-16T20:42:31Z",
@@ -13308,6 +13234,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 0.067,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "88bf5402b734dfdb1d6315fe181c0a9770144ff9",
+          "message": "fix(ssa): Handle OOB indexing of slice literals in `remove_unreachalbe_instructions` (#9999)",
+          "timestamp": "2025-09-25T15:58:18Z",
+          "tree_id": "185df730b97fba91bbc0b2e1ea5887960a18142f",
+          "url": "https://github.com/noir-lang/noir/commit/88bf5402b734dfdb1d6315fe181c0a9770144ff9"
+        },
+        "date": 1758819100177,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.014,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.152,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.01,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 0.004,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 0.003,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 0.004,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 0.003,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.004,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 0.314,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 0.255,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 0.002,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.046,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.054,
             "unit": "s"
           }
         ]
