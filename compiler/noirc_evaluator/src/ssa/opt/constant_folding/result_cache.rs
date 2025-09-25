@@ -181,7 +181,7 @@ impl ResultCache {
             } else if !has_side_effects {
                 // Insert a copy of this instruction in the common dominator
                 let dominator = dom.common_dominator(*origin_block, block);
-                Some(CacheResult::NeedToHoistToCommonBlock(dominator))
+                Some(CacheResult::NeedToHoistToCommonBlock { origin: *origin_block, dominator })
             } else {
                 None
             }
@@ -191,6 +191,17 @@ impl ResultCache {
 
 #[derive(Debug)]
 pub(super) enum CacheResult<'a> {
+    /// The result of an earlier instruction can be readily reused, because it was found
+    /// in a block that dominates the one where the current instruction is. We can drop
+    /// the current instruction and redefine its results in terms of the existing values.
     Cached(&'a [ValueId]),
-    NeedToHoistToCommonBlock(BasicBlockId),
+    /// We found an identical instruction in a non-dominating block, so we cannot directly
+    /// reuse its results, because they are not visible in the current block. However, we
+    /// can hoist the instruction into the common dominator, and deduplicate later.
+    NeedToHoistToCommonBlock {
+        /// The block in which we found the identical instruction.
+        origin: BasicBlockId,
+        /// The common dominator where we can hoist the current instruction.
+        dominator: BasicBlockId,
+    },
 }

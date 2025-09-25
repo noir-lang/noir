@@ -277,11 +277,12 @@ impl Context {
                     self.values_to_replace.batch_insert(&old_results, cached);
                     return;
                 }
-                CacheResult::NeedToHoistToCommonBlock(dominator) => {
+                CacheResult::NeedToHoistToCommonBlock { dominator, origin } => {
                     // Just change the block to insert in the common dominator instead.
                     // This will only move the current instance of the instruction right now.
                     // When constant folding is run a second time later on, it'll catch
                     // that the previous instance can be deduplicated to this instance.
+
                     block = dominator;
                 }
             }
