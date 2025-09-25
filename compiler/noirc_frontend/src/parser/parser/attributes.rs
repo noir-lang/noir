@@ -797,4 +797,28 @@ mod tests {
         };
         assert!(matches!(attr.kind, SecondaryAttributeKind::Deprecated(None)));
     }
+
+    #[test]
+    fn parses_tag_attribute_with_whitespace() {
+        let src = "#!['hello world]";
+        let mut parser = Parser::for_str_with_dummy_file(src);
+        let SecondaryAttributeKind::Tag(contents) = parser.parse_inner_attribute().unwrap().kind
+        else {
+            panic!("Expected inner tag attribute");
+        };
+        expect_no_errors(&parser.errors);
+        assert_eq!(contents, "hello world");
+    }
+
+    #[test]
+    fn parses_tag_attribute_with_multiple_whitespaces() {
+        let src = "#!['x as u32]";
+        let mut parser = Parser::for_str_with_dummy_file(src);
+        let SecondaryAttributeKind::Tag(contents) = parser.parse_inner_attribute().unwrap().kind
+        else {
+            panic!("Expected inner tag attribute");
+        };
+        expect_no_errors(&parser.errors);
+        assert_eq!(contents, "x as u32");
+    }
 }

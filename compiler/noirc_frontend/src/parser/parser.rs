@@ -368,7 +368,9 @@ impl<'a> Parser<'a> {
 
     fn eat_inner_attribute_start(&mut self) -> Option<bool> {
         if matches!(self.token.token(), Token::AttributeStart { is_inner: true, .. }) {
+            self.set_lexer_skip_whitespaces_flag(false);
             let token = self.bump();
+            self.set_lexer_skip_whitespaces_flag(true);
             match token.into_token() {
                 Token::AttributeStart { is_tag, .. } => Some(is_tag),
                 _ => unreachable!(),
