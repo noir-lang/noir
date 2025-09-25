@@ -6,9 +6,9 @@ fn main(x: Field) {
     {
         let internal___variable: Field = x;
         match internal___variable {
-            1 => panic(f"Branch 1 should not be taken"),
-            2 => panic(f"Branch 2 should not be taken"),
-            3 => panic(f"Branch 3 should not be taken"),
+            1 => panic("Branch 1 should not be taken"),
+            2 => panic("Branch 2 should not be taken"),
+            3 => panic("Branch 3 should not be taken"),
             _ => {
                 let _: Field = internal___variable;
                 ()
