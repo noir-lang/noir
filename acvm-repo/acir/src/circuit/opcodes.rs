@@ -180,33 +180,8 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
                 let mut printed_term = false;
 
                 for (coefficient, witness1, witness2) in &expr.mul_terms {
-                    let coefficient =
-                        if negate_coefficients { -*coefficient } else { *coefficient };
-                    let coefficient_as_string = coefficient.to_string();
-                    let coefficient_is_negative = coefficient_as_string.starts_with('-');
-
-                    if printed_term {
-                        if coefficient_is_negative {
-                            write!(f, " - ")?;
-                        } else {
-                            write!(f, " + ")?;
-                        }
-                    }
-
-                    let coefficient = if printed_term && coefficient_is_negative {
-                        -coefficient
-                    } else {
-                        coefficient
-                    };
-
-                    if coefficient.is_one() {
-                        write!(f, "{witness1}*{witness2}")?;
-                    } else if (-coefficient).is_one() {
-                        write!(f, "-{witness1}*{witness2}")?;
-                    } else {
-                        write!(f, "{coefficient}*{witness1}*{witness2}")?;
-                    }
-
+                    let witnesses = [*witness1, *witness2];
+                    display_term(*coefficient, witnesses, printed_term, negate_coefficients, f)?;
                     printed_term = true;
                 }
 
@@ -218,33 +193,8 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
                         continue;
                     }
 
-                    let coefficient =
-                        if negate_coefficients { -*coefficient } else { *coefficient };
-                    let coefficient_as_string = coefficient.to_string();
-                    let coefficient_is_negative = coefficient_as_string.starts_with('-');
-
-                    if printed_term {
-                        if coefficient_is_negative {
-                            write!(f, " - ")?;
-                        } else {
-                            write!(f, " + ")?;
-                        }
-                    }
-
-                    let coefficient = if printed_term && coefficient_is_negative {
-                        -coefficient
-                    } else {
-                        coefficient
-                    };
-
-                    if coefficient.is_one() {
-                        write!(f, "{witness}")?;
-                    } else if (-coefficient).is_one() {
-                        write!(f, "-{witness}")?;
-                    } else {
-                        write!(f, "{coefficient}*{witness}")?;
-                    }
-
+                    let witnesses = [*witness];
+                    display_term(*coefficient, witnesses, printed_term, negate_coefficients, f)?;
                     printed_term = true;
                 }
 
@@ -344,6 +294,46 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
             }
         }
     }
+}
+
+fn display_term<F: AcirField, const N: usize>(
+    coefficient: F,
+    witnesses: [Witness; N],
+    printed_term: bool,
+    negate_coefficients: bool,
+    f: &mut std::fmt::Formatter<'_>,
+) -> std::fmt::Result {
+    let coefficient = if negate_coefficients { -coefficient } else { coefficient };
+    let coefficient_as_string = coefficient.to_string();
+    let coefficient_is_negative = coefficient_as_string.starts_with('-');
+
+    if printed_term {
+        if coefficient_is_negative {
+            write!(f, " - ")?;
+        } else {
+            write!(f, " + ")?;
+        }
+    }
+
+    let coefficient =
+        if printed_term && coefficient_is_negative { -coefficient } else { coefficient };
+
+    if coefficient.is_one() {
+        // Don't print the cofficient
+    } else if (-coefficient).is_one() {
+        write!(f, "-")?;
+    } else {
+        write!(f, "{coefficient}*")?;
+    }
+
+    for (index, witness) in witnesses.iter().enumerate() {
+        if index != 0 {
+            write!(f, "*")?;
+        }
+        write!(f, "{witness}")?;
+    }
+
+    Ok(())
 }
 
 impl<F: AcirField> std::fmt::Debug for Opcode<F> {
