@@ -902,6 +902,7 @@ fn call_data_and_return_data() {
     acir(inline) predicate_pure fn main f0 {
       call_data(0): array: v18, indices: [v2: 1]
       call_data(1): array: v22, indices: [v3: 1, v4: 3]
+      call_data(2): array: v22, indices: []
       return_data: v22
       b0(v0: u32, v1: u32, v2: [u32; 4], v3: [Field; 4], v4: [Field; 4]):
         v5 = cast v1 as Field

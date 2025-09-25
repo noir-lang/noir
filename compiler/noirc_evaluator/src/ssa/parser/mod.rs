@@ -318,22 +318,24 @@ impl<'a> Parser<'a> {
         self.eat_or_error(Token::Colon)?;
         self.eat_or_error(Token::LeftBracket)?;
 
-        loop {
-            let value = self.parse_value_or_error()?;
-            self.eat_or_error(Token::Colon)?;
-            let index_span = self.token.span();
-            let index = self.eat_int_or_error()?;
-            let Some(index) = index.try_to_unsigned::<usize>() else {
-                return Err(ParserError::ExpectedUSize { found: index, span: index_span });
-            };
-            index_map.push((value, index));
+        if !self.eat(Token::RightBracket)? {
+            loop {
+                let value = self.parse_value_or_error()?;
+                self.eat_or_error(Token::Colon)?;
+                let index_span = self.token.span();
+                let index = self.eat_int_or_error()?;
+                let Some(index) = index.try_to_unsigned::<usize>() else {
+                    return Err(ParserError::ExpectedUSize { found: index, span: index_span });
+                };
+                index_map.push((value, index));
 
-            if self.eat(Token::Comma)? {
-                continue;
+                if self.eat(Token::Comma)? {
+                    continue;
+                }
+
+                self.eat_or_error(Token::RightBracket)?;
+                break;
             }
-
-            self.eat(Token::RightBracket)?;
-            break;
         }
 
         Ok(Some(ParsedCallData { call_data_id, array, index_map }))
