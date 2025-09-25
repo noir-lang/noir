@@ -284,9 +284,10 @@ impl AstPrinter {
                 }
                 write!(f, "\"")
             }
-            Literal::Unit => {
-                write!(f, "()")
-            }
+            // TODO: WIP
+            // Literal::Unit => {
+            //     write!(f, "()")
+            // }
         }
     }
 

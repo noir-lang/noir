@@ -1197,11 +1197,15 @@ impl<'a> FunctionContext<'a> {
 
         // Require a positive budget, so that we have some for the block itself and its contents.
         if freq.enabled_when("if", self.budget > 1) {
-            return self.gen_if(u, &Type::Unit, self.max_depth(), Flags::TOP).map(|(e, _)| e);
+            // TODO: WIP
+            // return self.gen_if(u, &Type::Unit, self.max_depth(), Flags::TOP).map(|(e, _)| e);
+            return self.gen_if(u, &Type::Tuple(vec![]), self.max_depth(), Flags::TOP).map(|(e, _)| e);
         }
 
         if freq.enabled_when("match", self.budget > 1 && !self.ctx.config.avoid_match) {
-            if let Some((e, _)) = self.gen_match(u, &Type::Unit, self.max_depth())? {
+            // TODO: WIP
+            // if let Some((e, _)) = self.gen_match(u, &Type::Unit, self.max_depth())? {
+            if let Some((e, _)) = self.gen_match(u, &Type::Tuple(vec![]), self.max_depth())? {
                 return Ok(e);
             }
         }
@@ -1211,7 +1215,9 @@ impl<'a> FunctionContext<'a> {
         }
 
         if freq.enabled_when("call", self.budget > 0) {
-            if let Some((e, _)) = self.gen_call(u, &Type::Unit, self.max_depth())? {
+            // TODO: WIP
+            // if let Some((e, _)) = self.gen_call(u, &Type::Unit, self.max_depth())? {
+            if let Some((e, _)) = self.gen_call(u, &Type::Tuple(vec![]), self.max_depth())? {
                 return Ok(e);
             }
         }
@@ -1481,14 +1487,18 @@ impl<'a> FunctionContext<'a> {
             definition: Definition::Oracle("print".to_string()),
             mutable: false,
             name: "print_oracle".to_string(),
-            typ: Type::Function(param_types, Box::new(Type::Unit), Box::new(Type::Unit), true),
+            // TODO: WIP
+            // typ: Type::Function(param_types, Box::new(Type::Unit), Box::new(Type::Unit), true),
+            typ: Type::Function(param_types, Box::new(Type::Tuple(vec![])), Box::new(Type::Tuple(vec![])), true),
             id: self.next_ident_id(),
         };
 
         let call = Expression::Call(Call {
             func: Box::new(Expression::Ident(print_oracle_ident)),
             arguments: args,
-            return_type: Type::Unit,
+            // TODO: WIP
+            // return_type: Type::Unit,
+            return_type: Type::Tuple(vec![]),
             location: Location::dummy(),
         });
 
@@ -1617,7 +1627,9 @@ impl<'a> FunctionContext<'a> {
         self.decrease_budget(1);
 
         let was_in_loop = std::mem::replace(&mut self.in_loop, true);
-        let (block, _) = self.gen_block(u, &Type::Unit)?;
+        // TODO: WIP
+        // let (block, _) = self.gen_block(u, &Type::Unit)?;
+        let (block, _) = self.gen_block(u, &Type::Tuple(vec![]))?;
         self.in_loop = was_in_loop;
 
         let expr = Expression::For(For {
@@ -1741,7 +1753,9 @@ impl<'a> FunctionContext<'a> {
 
         // Get the randomized loop body
         let was_in_loop = std::mem::replace(&mut self.in_loop, true);
-        let (mut loop_body, _) = self.gen_block(u, &Type::Unit)?;
+        // TODO: WIP
+        // let (mut loop_body, _) = self.gen_block(u, &Type::Unit)?;
+        let (mut loop_body, _) = self.gen_block(u, &Type::Tuple(vec![]))?;
         self.in_loop = was_in_loop;
 
         // Increment the index in the beginning of the body.
@@ -1759,7 +1773,9 @@ impl<'a> FunctionContext<'a> {
             expr::binary(idx_expr, BinaryOp::Equal, expr::u32_literal(max_loop_size as u32)),
             Expression::Break,
             loop_body,
-            Type::Unit,
+            // TODO: WIP
+            // Type::Unit,
+            Type::Tuple(vec![]),
         );
 
         Ok(Expression::Block(vec![let_idx, Expression::Loop(Box::new(loop_body))]))
@@ -1786,7 +1802,9 @@ impl<'a> FunctionContext<'a> {
 
         // Get the randomized loop body
         let was_in_loop = std::mem::replace(&mut self.in_loop, true);
-        let (mut loop_body, _) = self.gen_block(u, &Type::Unit)?;
+        // TODO: WIP
+        // let (mut loop_body, _) = self.gen_block(u, &Type::Unit)?;
+        let (mut loop_body, _) = self.gen_block(u, &Type::Tuple(vec![]))?;
         self.in_loop = was_in_loop;
 
         // Increment the index in the beginning of the body.
@@ -1804,7 +1822,9 @@ impl<'a> FunctionContext<'a> {
             expr::binary(idx_expr, BinaryOp::Equal, expr::u32_literal(max_loop_size as u32)),
             Expression::Break,
             loop_body,
-            Type::Unit,
+            // TODO: WIP
+            // Type::Unit,
+            Type::Tuple(vec![]),
         )]);
 
         // Generate the `while` condition with depth 1
@@ -2092,7 +2112,9 @@ impl<'a> FunctionContext<'a> {
             typ: Type::Function(
                 param_types,
                 Box::new(callee.return_type.clone()),
-                Box::new(Type::Unit),
+                // TODO: WIP
+                // Box::new(Type::Unit),
+                Box::new(Type::Tuple(vec![])),
                 callee.unconstrained,
             ),
             id: self.next_ident_id(),
@@ -2205,7 +2227,9 @@ impl<'a> FunctionContext<'a> {
             definition: Definition::Builtin("array_len".to_string()),
             mutable: false,
             name: "len".to_string(),
-            typ: Type::Function(vec![typ], Box::new(types::U32), Box::new(Type::Unit), false),
+            // TODO: WIP
+            // typ: Type::Function(vec![typ], Box::new(types::U32), Box::new(Type::Unit), false),
+            typ: Type::Function(vec![typ], Box::new(types::U32), Box::new(Type::Tuple(vec![])), false),
             id: self.next_ident_id(),
         };
         Expression::Call(Call {
@@ -2232,7 +2256,9 @@ impl<'a> FunctionContext<'a> {
             typ: Type::Function(
                 arg_types,
                 Box::new(return_type.clone()),
-                Box::new(Type::Unit),
+                // TODO: WIP
+                // Box::new(Type::Unit),
+                Box::new(Type::Tuple(vec![])),
                 false,
             ),
             id: self.next_ident_id(),

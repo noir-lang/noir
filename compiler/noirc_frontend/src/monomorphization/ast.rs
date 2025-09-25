@@ -74,7 +74,8 @@ impl Expression {
                 Literal::Array(literal) | Literal::Slice(literal) => borrowed(&literal.typ),
                 Literal::Integer(_, typ, _) => borrowed(typ),
                 Literal::Bool(_) => borrowed(&Type::Bool),
-                Literal::Unit => borrowed(&Type::Unit),
+                // TODO: WIP
+                // Literal::Unit => borrowed(&Type::Unit),
                 Literal::Str(s) => owned(Type::String(s.len() as u32)),
                 Literal::FmtStr(_, size, expr) => expr.return_type().and_then(|typ| {
                     owned(Type::FmtString(*size as u32, Box::new(typ.into_owned())))
@@ -196,6 +197,14 @@ impl Expression {
             | Expression::Continue => false,
         }
     }
+
+    // TODO: WIP
+    pub fn is_unit(&self) -> bool {
+        match self {
+            Expression::Tuple(fields) => fields.len() == 0,
+            _ => false,
+        }
+    }
 }
 
 /// A definition is either a local (variable), function, or is a built-in
@@ -272,7 +281,8 @@ pub enum Literal {
     Slice(ArrayLiteral),
     Integer(SignedField, Type, Location),
     Bool(bool),
-    Unit,
+    // TODO: WIP
+    // Unit,
     Str(String),
     FmtStr(Vec<FmtStrFragment>, u64, Box<Expression>),
 }
@@ -503,7 +513,8 @@ pub enum Type {
     Bool,
     String(/*len:*/ u32), // String(4) = str[4]
     FmtString(/*len:*/ u32, Box<Type>),
-    Unit,
+    // TODO: WIP
+    // Unit,
     Tuple(Vec<Type>),
     Slice(Box<Type>),
     Reference(Box<Type>, /*mutable:*/ bool),
@@ -650,7 +661,8 @@ impl Display for Type {
             Type::FmtString(len, elements) => {
                 write!(f, "fmtstr<{len}, {elements}>")
             }
-            Type::Unit => write!(f, "()"),
+            // TODO: WIP
+            // Type::Unit => write!(f, "()"),
             Type::Tuple(elements) => {
                 let elements = vecmap(elements, ToString::to_string);
                 if elements.len() == 1 {
@@ -665,8 +677,16 @@ impl Display for Type {
                 }
 
                 let args = vecmap(args, ToString::to_string);
-                let closure_env_text = match **env {
-                    Type::Unit => "".to_string(),
+                let closure_env_text = match *(env.clone()) {
+                    // TODO: WIP
+                    // Type::Unit => "".to_string(),
+                    Type::Tuple(elements) => {
+                        if elements.len() == 0 {
+                            "".to_string()
+                        } else {
+                            format!(" with closure environment {env}")
+                        }
+                    }
                     _ => format!(" with closure environment {env}"),
                 };
                 write!(f, "fn({}) -> {}{}", args.join(", "), ret, closure_env_text)

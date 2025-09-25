@@ -278,7 +278,9 @@ impl Context {
                 let typ = Type::Function(
                     param_types,
                     Box::new(callee.return_type.clone()),
-                    Box::new(Type::Unit),
+                    // TODO: WIP
+                    // Box::new(Type::Unit),
+                    Box::new(Type::Tuple(vec![])),
                     callee.unconstrained,
                 );
                 if u.ratio(2, 5)? { types::ref_mut(typ) } else { typ }

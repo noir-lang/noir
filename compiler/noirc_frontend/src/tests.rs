@@ -4535,3 +4535,27 @@ fn disallows_references_in_globals() {
     "#;
     check_errors!(src);
 }
+
+#[test]
+fn TODO_rename_unit_match() {
+    let src = r#"
+    fn foo(x: ()) {
+        let (): () = x;
+    }
+
+    fn main() {
+        foo(())
+    }
+    "#;
+    assert_no_errors!(src);
+}
+
+#[test]
+fn regression_9729() {
+    let src = r#"
+    fn main() {
+        let _: fmtstr<5, ()> = f"Hello";
+    }
+    "#;
+    assert_no_errors!(src);
+}

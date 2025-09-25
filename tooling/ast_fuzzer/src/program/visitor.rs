@@ -57,7 +57,9 @@ where
                     visit_expr_be_mut(expr, b, e, i);
                 }
             }
-            Literal::Integer(_, _, _) | Literal::Bool(_) | Literal::Unit | Literal::Str(_) => {}
+            // TODO: WIP
+            // Literal::Integer(_, _, _) | Literal::Bool(_) | Literal::Unit | Literal::Str(_) => {}
+            Literal::Integer(_, _, _) | Literal::Bool(_) | Literal::Str(_) => {}
             Literal::FmtStr(_, _, expr) => {
                 visit_expr_be_mut(expr, b, e, i);
             }
@@ -222,7 +224,9 @@ where
                     visit_expr_be(expr, b, e, i);
                 }
             }
-            Literal::Integer(_, _, _) | Literal::Bool(_) | Literal::Unit | Literal::Str(_) => {}
+            // TODO: WIP
+            // Literal::Integer(_, _, _) | Literal::Bool(_) | Literal::Unit | Literal::Str(_) => {}
+            Literal::Integer(_, _, _) | Literal::Bool(_) | Literal::Str(_) => {}
             Literal::FmtStr(_, _, expr) => {
                 visit_expr_be(expr, b, e, i);
             }
