@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1758806770857,
+  "lastUpdate": 1758808413847,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -21495,48 +21495,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "0c6ff68b807ab75c87b9a4ba36d88638d87c7a56",
-          "message": "chore: greenlight remove enable side effects (#9833)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-09-16T13:06:12Z",
-          "tree_id": "8f141cd9ef43ae1ad93f21bbd1d6a37b88febd91",
-          "url": "https://github.com/noir-lang/noir/commit/0c6ff68b807ab75c87b9a4ba36d88638d87c7a56"
-        },
-        "date": 1758029982140,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 258875,
-            "range": "± 1497",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 234137,
-            "range": "± 1367",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2819230,
-            "range": "± 65664",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "be751f0d577841b4f88c96e3cd46f9f2312f6541",
           "message": "chore: use `w` prefix for ACIR witnesses (#9839)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
@@ -23579,6 +23537,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2783193,
             "range": "± 5353",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "4eb2a5c83a4951f0cc7cc6e53fa093f81b8932be",
+          "message": "fix: Disable early mem2reg (#9987)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-09-25T13:25:24Z",
+          "tree_id": "bb48be0eaaa05db0fcc3e3494b73c84f37f39f1b",
+          "url": "https://github.com/noir-lang/noir/commit/4eb2a5c83a4951f0cc7cc6e53fa093f81b8932be"
+        },
+        "date": 1758808393659,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 251502,
+            "range": "± 539",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 223398,
+            "range": "± 2971",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2780466,
+            "range": "± 7077",
             "unit": "ns/iter"
           }
         ]
