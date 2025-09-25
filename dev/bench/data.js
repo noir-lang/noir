@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1758820530020,
+  "lastUpdate": 1758820539422,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23873,90 +23873,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "8fb7ac562e288263dd40015a50c0d1bac2f727ea",
-          "message": "chore(acir_gen): Switching existing ACIR gen tests to use parser and cleanup test module (#9878)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
-          "timestamp": "2025-09-16T20:42:31Z",
-          "tree_id": "3cbb7690aa8675433ebd57fe2f9f8ff87f6da285",
-          "url": "https://github.com/noir-lang/noir/commit/8fb7ac562e288263dd40015a50c0d1bac2f727ea"
-        },
-        "date": 1758057343944,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 712.1,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 1983.6,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 506.6,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 4361.8,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 3365.6,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 3852.6,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 30879.7,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 30908.3,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 189.1,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 391.2,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 634,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 527.6,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -28176,6 +28092,95 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/88bf5402b734dfdb1d6315fe181c0a9770144ff9"
         },
         "date": 1758819100085,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 740.3,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2087.3,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 543.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 172.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 170.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 234,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 386.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 415.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 5120.6,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 5108.5,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 186.9,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 570.7,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 506.4,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "c60257cb22c685c6d560879bd18de03c018fd3bb",
+          "message": "fix(fuzz): Handle divisor of zero msg in error comparison (#9995)",
+          "timestamp": "2025-09-25T16:30:10Z",
+          "tree_id": "ffe1e6a4ff2964029b3643791c703bd03ab0b638",
+          "url": "https://github.com/noir-lang/noir/commit/c60257cb22c685c6d560879bd18de03c018fd3bb"
+        },
+        "date": 1758820518392,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
