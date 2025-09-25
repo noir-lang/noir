@@ -3,7 +3,9 @@ use acvm::{AcirField, FieldElement};
 use iter_extended::vecmap;
 
 use crate::acir::AcirVar;
+use crate::brillig::brillig_gen::brillig_fn::FunctionContext as BrilligFunctionContext;
 use crate::brillig::brillig_gen::gen_brillig_for;
+use crate::brillig::brillig_ir::artifact::BrilligParameter;
 use crate::errors::{RuntimeError, SsaReport};
 use crate::ssa::ir::instruction::Hint;
 use crate::ssa::ir::value::Value;
@@ -168,6 +170,40 @@ impl Context<'_> {
 
         assert_eq!(result_ids.len(), output_values.len(), "Brillig output length mismatch");
         self.handle_ssa_call_outputs(result_ids, output_values, dfg)
+    }
+
+    pub(super) fn gen_brillig_parameters(
+        &self,
+        values: &[ValueId],
+        dfg: &DataFlowGraph,
+    ) -> Vec<BrilligParameter> {
+        values
+            .iter()
+            .map(|&value_id| {
+                let typ = dfg.type_of_value(value_id);
+                if let Type::Slice(item_types) = typ {
+                    let len = match self
+                        .ssa_values
+                        .get(&value_id)
+                        .expect("ICE: Unknown slice input to brillig")
+                    {
+                        AcirValue::DynamicArray(AcirDynamicArray { len, .. }) => *len,
+                        AcirValue::Array(array) => array.len(),
+                        _ => unreachable!("ICE: Slice value is not an array"),
+                    };
+
+                    BrilligParameter::Slice(
+                        item_types
+                            .iter()
+                            .map(BrilligFunctionContext::ssa_type_to_parameter)
+                            .collect(),
+                        len / item_types.len(),
+                    )
+                } else {
+                    BrilligFunctionContext::ssa_type_to_parameter(&typ)
+                }
+            })
+            .collect()
     }
 
     /// Returns a vector of `AcirVar`s constrained to be result of the function call.
@@ -472,7 +508,7 @@ impl Context<'_> {
                 //    the flattened element arguments.
                 // 3. If we are above the max insertion index we should insert the previous value from the original slice,
                 //    as during an insertion we want to shift all elements after the insertion up an index.
-                let result_block_id = self.block_id(&result_ids[1]);
+                let result_block_id = self.block_id(result_ids[1]);
                 self.initialize_array(result_block_id, slice_size, None)?;
                 let mut current_insert_index = 0;
                 for i in 0..slice_size {
@@ -621,7 +657,7 @@ impl Context<'_> {
                 // 2. At the end of the slice reading from the next value of the original slice
                 //    can lead to a potential out of bounds error. In this case we just fetch from the original slice
                 //    at the current index. As we are decreasing the slice in length, this is a safe operation.
-                let result_block_id = self.block_id(&result_ids[1]);
+                let result_block_id = self.block_id(result_ids[1]);
                 self.initialize_array(
                     result_block_id,
                     slice_size,
@@ -739,7 +775,7 @@ impl Context<'_> {
         for (result_id, output) in result_ids.iter().zip(output_values) {
             if let AcirValue::Array(_) = &output {
                 let array_id = *result_id;
-                let block_id = self.block_id(&array_id);
+                let block_id = self.block_id(array_id);
                 let array_typ = dfg.type_of_value(array_id);
                 let len = if matches!(array_typ, Type::Array(_, _)) {
                     array_typ.flattened_size() as usize
