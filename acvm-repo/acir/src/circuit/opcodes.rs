@@ -149,37 +149,39 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
             Opcode::AssertZero(expr) => {
                 write!(f, "EXPR ")?;
 
-                // Check if it's `w - C = 0` and print it as `w = C`,
-                // or if its' `w + C = 0` and print it as `w = -C`.
-                if expr.mul_terms.is_empty() && expr.linear_combinations.len() == 1 {
-                    let (coefficient, witness) = expr.linear_combinations[0];
-                    if coefficient.is_one() || (-coefficient).is_one() {
-                        let constant = if coefficient.is_one() { -expr.q_c } else { expr.q_c };
-                        write!(f, "{witness} = {constant}")?;
-                        return Ok(());
-                    }
-                }
+                // This is set to an index if we show this expression "as an assignment", meaning
+                // that the linear combination at this index must not be printed again.
+                let mut show_as_assignment: Option<usize> = None;
 
-                // Check if it's `-w1 * w2 = 0` or `w1 * -w2 = 0` in which case we can
-                // print it as `w1 = w2`.
-                if expr.mul_terms.is_empty()
-                    && expr.linear_combinations.len() == 2
-                    && expr.q_c.is_zero()
-                {
-                    let (coefficient1, witness1) = expr.linear_combinations[0];
-                    let (coefficient2, witness2) = expr.linear_combinations[1];
+                // If true, negate all coefficients when printing.
+                // This is set to true if we show this expression "as an assignment", and the witness
+                // had a coefficient of 1 and we "moved" everything to the right of the equal sign.
+                let mut negate_coefficients = false;
 
-                    if (coefficient1.is_one() && (-coefficient2).is_one())
-                        || ((-coefficient1).is_one() && coefficient2.is_one())
-                    {
-                        write!(f, "{witness1} = {witness2}")?;
-                        return Ok(());
-                    }
+                // Find a linear combination with a coefficient of 1 or -1 and, if there are many,
+                // keep the one with the largest witness.
+                let linear_witness_one = expr
+                    .linear_combinations
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, (coefficient, _))| {
+                        coefficient.is_one() || (-*coefficient).is_one()
+                    })
+                    .max_by_key(|(_, (_, witness))| witness);
+
+                // If we find one, show the expression as equaling this witness to everything else
+                // (this is likely to happen as in ACIR gen we tend to equate a witness to previous expressions)
+                if let Some((index, (coefficient, witness))) = linear_witness_one {
+                    show_as_assignment = Some(index);
+                    negate_coefficients = coefficient.is_one();
+                    write!(f, "{witness} = ")?;
                 }
 
                 let mut printed_term = false;
 
                 for (coefficient, witness1, witness2) in &expr.mul_terms {
+                    let coefficient =
+                        if negate_coefficients { -*coefficient } else { *coefficient };
                     let coefficient_as_string = coefficient.to_string();
                     let coefficient_is_negative = coefficient_as_string.starts_with('-');
 
@@ -192,9 +194,9 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
                     }
 
                     let coefficient = if printed_term && coefficient_is_negative {
-                        -*coefficient
+                        -coefficient
                     } else {
-                        *coefficient
+                        coefficient
                     };
 
                     if coefficient.is_one() {
@@ -208,7 +210,16 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
                     printed_term = true;
                 }
 
-                for (coefficient, witness) in &expr.linear_combinations {
+                for (index, (coefficient, witness)) in expr.linear_combinations.iter().enumerate() {
+                    if show_as_assignment
+                        .is_some_and(|show_as_assignment_index| show_as_assignment_index == index)
+                    {
+                        // We already printed this term as part of the assignment
+                        continue;
+                    }
+
+                    let coefficient =
+                        if negate_coefficients { -*coefficient } else { *coefficient };
                     let coefficient_as_string = coefficient.to_string();
                     let coefficient_is_negative = coefficient_as_string.starts_with('-');
 
@@ -221,9 +232,9 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
                     }
 
                     let coefficient = if printed_term && coefficient_is_negative {
-                        -*coefficient
+                        -coefficient
                     } else {
-                        *coefficient
+                        coefficient
                     };
 
                     if coefficient.is_one() {
@@ -238,13 +249,18 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
                 }
 
                 if expr.q_c.is_zero() {
-                    if printed_term {
-                        write!(f, " = 0")?;
-                    } else {
-                        write!(f, "0 = 0")?;
+                    if show_as_assignment.is_none() {
+                        if printed_term {
+                            write!(f, " = 0")?;
+                        } else {
+                            write!(f, "0 = 0")?;
+                        }
+                    } else if !printed_term {
+                        write!(f, "0")?;
                     }
                 } else {
                     let coefficient = expr.q_c;
+                    let coefficient = if negate_coefficients { -coefficient } else { coefficient };
                     let coefficient_as_string = coefficient.to_string();
                     let coefficient_is_negative = coefficient_as_string.starts_with('-');
 
@@ -262,7 +278,10 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
                         coefficient
                     };
                     write!(f, "{coefficient}")?;
-                    write!(f, " = 0")?;
+
+                    if show_as_assignment.is_none() {
+                        write!(f, " = 0")?;
+                    }
                 }
 
                 Ok(())

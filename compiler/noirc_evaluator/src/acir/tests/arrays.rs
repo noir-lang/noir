@@ -128,9 +128,9 @@ fn generates_memory_op_for_dynamic_write() {
     MEM (id: 1, read at: EXPR [ (1, w10) ], value: EXPR [ (1, w11) ])
     EXPR w12 = 2
     MEM (id: 1, read at: EXPR [ (1, w12) ], value: EXPR [ (1, w13) ])
-    EXPR w4 = w9
-    EXPR w5 = w11
-    EXPR w6 = w13
+    EXPR w9 = w4
+    EXPR w11 = w5
+    EXPR w13 = w6
     ");
 }
 
@@ -161,7 +161,7 @@ fn generates_predicated_index_for_dynamic_read() {
     INIT (id: 0, len: 3, witnesses: [w0, w1, w2])
     BLACKBOX::RANGE [w3]:32 bits []
     BLACKBOX::RANGE [w4]:1 bits []
-    EXPR w3*w4 - w5 = 0
+    EXPR w5 = w3*w4
     MEM (id: 0, read at: EXPR [ (1, w5) ], value: EXPR [ (1, w6) ])
     EXPR w6 = 10
     ");
@@ -199,10 +199,10 @@ fn generates_predicated_index_and_dummy_value_for_dynamic_write() {
     INIT (id: 0, len: 3, witnesses: [w0, w1, w2])
     BLACKBOX::RANGE [w3]:32 bits []
     BLACKBOX::RANGE [w4]:1 bits []
-    EXPR w3*w4 - w8 = 0
+    EXPR w8 = w3*w4
     MEM (id: 0, read at: EXPR [ (1, w8) ], value: EXPR [ (1, w9) ])
     INIT (id: 1, len: 3, witnesses: [w0, w1, w2])
-    EXPR -w4*w9 + 10*w4 + w9 - w10 = 0
+    EXPR w10 = -w4*w9 + 10*w4 + w9
     MEM (id: 1, write EXPR [ (1, w10) ] at: EXPR [ (1, w8) ])
     EXPR w11 = 0
     MEM (id: 1, read at: EXPR [ (1, w11) ], value: EXPR [ (1, w12) ])
@@ -210,9 +210,9 @@ fn generates_predicated_index_and_dummy_value_for_dynamic_write() {
     MEM (id: 1, read at: EXPR [ (1, w13) ], value: EXPR [ (1, w14) ])
     EXPR w15 = 2
     MEM (id: 1, read at: EXPR [ (1, w15) ], value: EXPR [ (1, w16) ])
-    EXPR w5 = w12
-    EXPR w6 = w14
-    EXPR w7 = w16
+    EXPR w12 = w5
+    EXPR w14 = w6
+    EXPR w16 = w7
     ");
 }
 
