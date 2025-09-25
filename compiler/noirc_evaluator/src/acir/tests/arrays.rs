@@ -237,7 +237,7 @@ fn zero_length_array_constant() {
     private parameters: []
     public parameters: []
     return values: []
-    EXPR 1 = 0
+    EXPR 0 = 1
     ");
 }
 

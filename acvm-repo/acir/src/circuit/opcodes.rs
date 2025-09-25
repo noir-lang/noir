@@ -149,12 +149,12 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
             Opcode::AssertZero(expr) => {
                 write!(f, "EXPR ")?;
 
-                // This is set to an index if we show this expression "as an assignment", meaning
+                // This is set to an index if we show this expression "as a witness assignment", meaning
                 // that the linear combination at this index must not be printed again.
-                let mut show_as_assignment: Option<usize> = None;
+                let mut assignment_witness: Option<usize> = None;
 
                 // If true, negate all coefficients when printing.
-                // This is set to true if we show this expression "as an assignment", and the witness
+                // This is set to true if we show this expression "as a witness assignment", and the witness
                 // had a coefficient of 1 and we "moved" everything to the right of the equal sign.
                 let mut negate_coefficients = false;
 
@@ -172,9 +172,11 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
                 // If we find one, show the expression as equaling this witness to everything else
                 // (this is likely to happen as in ACIR gen we tend to equate a witness to previous expressions)
                 if let Some((index, (coefficient, witness))) = linear_witness_one {
-                    show_as_assignment = Some(index);
+                    assignment_witness = Some(index);
                     negate_coefficients = coefficient.is_one();
                     write!(f, "{witness} = ")?;
+                } else {
+                    write!(f, "0 = ")?;
                 }
 
                 let mut printed_term = false;
@@ -186,7 +188,7 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
                 }
 
                 for (index, (coefficient, witness)) in expr.linear_combinations.iter().enumerate() {
-                    if show_as_assignment
+                    if assignment_witness
                         .is_some_and(|show_as_assignment_index| show_as_assignment_index == index)
                     {
                         // We already printed this term as part of the assignment
@@ -199,13 +201,7 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
                 }
 
                 if expr.q_c.is_zero() {
-                    if show_as_assignment.is_none() {
-                        if printed_term {
-                            write!(f, " = 0")?;
-                        } else {
-                            write!(f, "0 = 0")?;
-                        }
-                    } else if !printed_term {
+                    if !printed_term {
                         write!(f, "0")?;
                     }
                 } else {
@@ -228,10 +224,6 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
                         coefficient
                     };
                     write!(f, "{coefficient}")?;
-
-                    if show_as_assignment.is_none() {
-                        write!(f, " = 0")?;
-                    }
                 }
 
                 Ok(())

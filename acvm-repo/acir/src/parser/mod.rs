@@ -273,15 +273,15 @@ impl<'a> Parser<'a> {
         // Parse the right-hand side terms
         let rhs_terms = self.parse_terms_or_error()?;
 
-        // "Move" the terms to the left by negating them
-        let rhs_terms = rhs_terms.into_iter().map(|term| term.negate()).collect::<Vec<_>>();
+        // "Move" the terms to the right by negating them
+        let lhs_terms = lhs_terms.into_iter().map(|term| term.negate()).collect::<Vec<_>>();
 
         // Gather all terms, summing the constants
         let mut q_c = FieldElement::zero();
         let mut linear_combinations = Vec::new();
         let mut mul_terms = Vec::new();
 
-        for term in lhs_terms.into_iter().chain(rhs_terms) {
+        for term in rhs_terms.into_iter().chain(lhs_terms) {
             match term {
                 Term::Constant(c) => q_c += c,
                 Term::Linear(c, w) => linear_combinations.push((c, w)),
