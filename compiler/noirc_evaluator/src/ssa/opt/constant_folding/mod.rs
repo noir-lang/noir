@@ -14,7 +14,10 @@
 //!
 //! This is the only pass which removes duplicated pure [`Instruction`]s however and so is needed when
 //! different blocks are merged, i.e. after the [`flatten_cfg`][super::flatten_cfg] pass.
-use std::{collections::BTreeMap, io::Empty};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    io::Empty,
+};
 
 use acvm::{FieldElement, acir::AcirField};
 use iter_extended::vecmap;
@@ -119,7 +122,6 @@ impl Function {
 
         while let Some(block) = context.block_queue.pop_front() {
             context.fold_constants_in_block(&mut self.dfg, &mut dom, block, interpreter);
-            context.block_queue.extend(self.dfg[block].successors());
         }
 
         #[cfg(debug_assertions)]
@@ -192,6 +194,10 @@ impl Context {
         let mut side_effects_enabled_var =
             dfg.make_constant(FieldElement::one(), NumericType::bool());
 
+        // Collect any block we hoisted instructions from. They will have instructions
+        // which can subsequently be deduplicated, potentially unlocking new opportunities.
+        let mut hoisted_from = BTreeSet::new();
+
         for instruction_id in instructions {
             let instruction = &mut dfg[instruction_id];
             instruction.replace_values(&self.values_to_replace);
@@ -202,6 +208,7 @@ impl Context {
                 block_id,
                 instruction_id,
                 &mut side_effects_enabled_var,
+                &mut hoisted_from,
                 interpreter,
             );
         }
@@ -227,6 +234,14 @@ impl Context {
         terminator.map_values_mut(&mut resolve_cache);
         dfg[block_id].set_terminator(terminator);
         dfg.data_bus.map_values_mut(resolve_cache);
+
+        // If we hoisted from blocks, revisit them, and then revisit this block,
+        // before moving on to its successors.
+        if hoisted_from.is_empty() {
+            self.block_queue.extend(dfg[block_id].successors());
+        } else {
+            todo!()
+        }
     }
 
     fn fold_constants_into_instruction(
@@ -236,6 +251,7 @@ impl Context {
         mut block: BasicBlockId,
         id: InstructionId,
         side_effects_enabled_var: &mut ValueId,
+        hoisted_from: &mut BTreeSet<BasicBlockId>,
         interpreter: &mut Option<Interpreter<Empty>>,
     ) {
         let constraint_simplification_mapping =
@@ -284,6 +300,7 @@ impl Context {
                     // that the previous instance can be deduplicated to this instance.
                     // Another effect is going to be that the cache should be updated to
                     // point at the dominator, so subsequent blocks can use the result.
+                    hoisted_from.insert(origin);
                     block = dominator;
                 }
             }
