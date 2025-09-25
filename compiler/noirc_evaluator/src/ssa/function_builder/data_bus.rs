@@ -63,7 +63,18 @@ impl DataBusBuilder {
 pub(crate) struct CallData {
     /// The id to this calldata assigned by the user
     pub(crate) call_data_id: u32,
+    /// The array to read from, when reading from a value in `index_map`
     pub(crate) array_id: ValueId,
+    /// When reading from a value in `index_map`, read it instead fom `array_id` at the offset
+    /// given by the value in the map.
+    ///
+    /// For example, if the call data is:
+    ///
+    /// ```ssa
+    /// call_data(0): array: v16, indexes: [v2: 1]
+    /// ```
+    ///
+    /// then when reading from `v2`, read from `v16` but with an offset of 1.
     pub(crate) index_map: HashMap<ValueId, usize>,
 }
 
