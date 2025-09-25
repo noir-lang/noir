@@ -101,3 +101,99 @@ fn basic_loop() {
 
     assert_normalized_ssa_equals(ssa, expected);
 }
+
+#[test]
+fn acir_no_access_check_on_array_read() {
+    let src = "
+    fn main(mut array: [Field; 3], index: u32) -> pub Field {
+        array[index]
+    }
+    ";
+    let ssa = get_initial_ssa(src).unwrap();
+
+    let expected = "
+    acir(inline) fn main f0 {
+      b0(v0: [Field; 3], v1: u32):
+        v2 = allocate -> &mut [Field; 3]
+        store v0 at v2
+        v3 = load v2 -> [Field; 3]
+        v4 = array_get v3, index v1 -> Field
+        return v4
+    }
+    ";
+    assert_normalized_ssa_equals(ssa, expected);
+}
+
+#[test]
+fn acir_no_access_check_on_array_assignment() {
+    let src = "
+    fn main(mut array: [Field; 3], index: u32, x: Field, y: Field) {
+        array[index] = x;
+    }
+    ";
+    let ssa = get_initial_ssa(src).unwrap();
+
+    let expected = "
+    acir(inline) fn main f0 {
+      b0(v0: [Field; 3], v1: u32, v2: Field):
+        v3 = allocate -> &mut [Field; 3]
+        store v0 at v3
+        v4 = load v3 -> [Field; 3]
+        v5 = array_set v4, index v1, value v2
+        v7 = unchecked_add v1, u32 1
+        store v5 at v3
+        return
+    }
+    ";
+    assert_normalized_ssa_equals(ssa, expected);
+}
+
+#[test]
+fn brillig_access_check_on_array_read() {
+    let src = "
+    unconstrained fn main(mut array: [Field; 3], index: u32) -> pub Field {
+        array[index]
+    }
+    ";
+    let ssa = get_initial_ssa(src).unwrap();
+
+    let expected = r#"
+    brillig(inline) fn main f0 {
+      b0(v0: [Field; 3], v1: u32):
+        v2 = allocate -> &mut [Field; 3]
+        store v0 at v2
+        v3 = load v2 -> [Field; 3]
+        v5 = lt v1, u32 3
+        constrain v5 == u1 1, "Index out of bounds"
+        v7 = array_get v3, index v1 -> Field
+        return v7
+    }
+    "#;
+    assert_normalized_ssa_equals(ssa, expected);
+}
+
+#[test]
+fn brillig_access_check_on_array_assignment() {
+    let src = "
+    unconstrained fn main(mut array: [Field; 3], index: u32, x: Field) {
+        array[index] = x;
+    }
+    ";
+    let ssa = get_initial_ssa(src).unwrap();
+
+    let expected = r#"
+    brillig(inline) fn main f0 {
+      b0(v0: [Field; 3], v1: u32, v2: Field):
+        v3 = allocate -> &mut [Field; 3]
+        store v0 at v3
+        v4 = load v3 -> [Field; 3]
+        v6 = lt v1, u32 3
+        constrain v6 == u1 1, "Index out of bounds"
+        v8 = array_set v4, index v1, value v2
+        v10 = unchecked_add v1, u32 1
+        store v8 at v3
+        return
+    }
+    "#;
+    assert_normalized_ssa_equals(ssa, expected);
+}
