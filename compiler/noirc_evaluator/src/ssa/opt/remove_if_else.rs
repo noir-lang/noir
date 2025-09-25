@@ -50,7 +50,7 @@
 //!          y[0] = 2;
 //!     }
 //!
-//!     assert(y[0] == 1);
+//!     assert(y[0] == 3);
 //!  }
 //!  ```
 //!
@@ -175,9 +175,6 @@ impl Context {
     fn remove_if_else(&mut self, function: &mut Function) -> RtResult<()> {
         let block = function.entry_block();
 
-        // Make sure this optimization runs when there's only one block
-        assert_eq!(function.dfg[block].successors().count(), 0);
-
         function.simple_optimization_result(|context| {
             let instruction_id = context.instruction_id;
             let instruction = context.instruction();
@@ -189,13 +186,13 @@ impl Context {
                     let then_value = *then_value;
                     let else_value = *else_value;
 
-                    let typ = context.dfg.type_of_value(then_value);
-                    // Numeric values should have been handled during flattening
-                    assert!(!matches!(typ, Type::Numeric(_)));
+                    // Register values for the merger to use.
+                    self.ensure_capacity(context.dfg, then_value);
+                    self.ensure_capacity(context.dfg, else_value);
 
                     let call_stack = context.dfg.get_instruction_call_stack_id(instruction_id);
                     let mut value_merger =
-                        ValueMerger::new(context.dfg, block, &mut self.slice_sizes, call_stack);
+                        ValueMerger::new(context.dfg, block, &self.slice_sizes, call_stack);
 
                     let value = value_merger.merge_values(
                         then_condition,
@@ -218,18 +215,16 @@ impl Context {
 
                         match slice_capacity_change(context.dfg, intrinsic, arguments, results) {
                             SizeChange::None => (),
-                            SizeChange::SetTo(value, new_capacity) => {
-                                self.slice_sizes.insert(value, new_capacity);
+                            SizeChange::SetTo { old, new } => {
+                                self.set_capacity(context.dfg, old, new, |c| c);
                             }
                             SizeChange::Inc { old, new } => {
-                                let old_capacity = self.get_or_find_capacity(context.dfg, old);
-                                self.slice_sizes.insert(new, old_capacity + 1);
+                                self.set_capacity(context.dfg, old, new, |c| c + 1);
                             }
                             SizeChange::Dec { old, new } => {
-                                let old_capacity = self.get_or_find_capacity(context.dfg, old);
                                 // We use a saturating sub here as calling `pop_front` or `pop_back` on a zero-length slice
                                 // would otherwise underflow.
-                                self.slice_sizes.insert(new, old_capacity.saturating_sub(1));
+                                self.set_capacity(context.dfg, old, new, |c| c.saturating_sub(1));
                             }
                         }
                     }
@@ -237,10 +232,8 @@ impl Context {
                 // Track slice sizes through array set instructions
                 Instruction::ArraySet { array, .. } => {
                     let results = context.dfg.instruction_results(instruction_id);
-                    let result = if results.len() == 2 { results[1] } else { results[0] };
-
-                    let old_capacity = self.get_or_find_capacity(context.dfg, *array);
-                    self.slice_sizes.insert(result, old_capacity);
+                    let result = results[0];
+                    self.set_capacity(context.dfg, *array, result, |c| c);
                 }
                 _ => (),
             }
@@ -248,35 +241,66 @@ impl Context {
         })
     }
 
-    //Get the tracked size of array/slices, or retrieve (and track) it for arrays.
+    /// Set the capacity of the new slice based on the capacity of the old array/slice.
+    fn set_capacity(
+        &mut self,
+        dfg: &DataFlowGraph,
+        old: ValueId,
+        new: ValueId,
+        f: impl Fn(u32) -> u32,
+    ) {
+        // No need to store the capacity of arrays, only slices.
+        if !matches!(dfg.type_of_value(new), Type::Slice(_)) {
+            return;
+        }
+        let capacity = self.get_or_find_capacity(dfg, old);
+        self.slice_sizes.insert(new, f(capacity));
+    }
+
+    /// Make sure the slice capacity is recorded.
+    fn ensure_capacity(&mut self, dfg: &DataFlowGraph, slice: ValueId) {
+        self.set_capacity(dfg, slice, slice, |c| c);
+    }
+
+    /// Get the tracked size of array/slices, or retrieve (and track) it for arrays.
     fn get_or_find_capacity(&mut self, dfg: &DataFlowGraph, value: ValueId) -> u32 {
         match self.slice_sizes.entry(value) {
-            Entry::Occupied(entry) => return *entry.get(),
+            Entry::Occupied(entry) => *entry.get(),
             Entry::Vacant(entry) => {
+                // For arrays we know the size statically, and we don't need to store it.
+                if let Type::Array(_, length) = dfg.type_of_value(value) {
+                    return length;
+                }
+                // Check if the item was made by a MakeArray instruction, which can create slices as well.
                 if let Some((array, typ)) = dfg.get_array_constant(value) {
                     let length = array.len() / typ.element_types().len();
                     return *entry.insert(length as u32);
                 }
-
-                if let Type::Array(_, length) = dfg.type_of_value(value) {
-                    return *entry.insert(length);
-                }
+                // For non-constant slices we can't tell the size, which would mean we can't merge it.
+                let dbg_value = &dfg[value];
+                unreachable!("ICE: No size for slice {value} = {dbg_value:?}")
             }
         }
-
-        let dbg_value = &dfg[value];
-        unreachable!("No size for slice {value} = {dbg_value:?}")
     }
 }
 
 enum SizeChange {
     None,
-    SetTo(ValueId, u32),
-
-    // These two variants store the old and new slice ids
-    // not their lengths which should be old_len = new_len +/- 1
-    Inc { old: ValueId, new: ValueId },
-    Dec { old: ValueId, new: ValueId },
+    /// Make the size of the new slice equal to the old array.
+    SetTo {
+        old: ValueId,
+        new: ValueId,
+    },
+    /// Make the size of the new slice equal to old+1.
+    Inc {
+        old: ValueId,
+        new: ValueId,
+    },
+    /// Make the size of the new slice equal to old-1.
+    Dec {
+        old: ValueId,
+        new: ValueId,
+    },
 }
 
 /// Find the change to a slice's capacity an instruction would have
@@ -301,7 +325,7 @@ fn slice_capacity_change(
             // fn pop_back(self) -> (Self, T)
             // fn remove(self, index: u32) -> (Self, T)
             //
-            // These functions return the slice as the result `(len, slice, item)`,
+            // These functions return the slice as the result `(len, slice, ...item)`,
             // so the slice is the second result.
             let old = arguments[1];
             let new = results[1];
@@ -313,7 +337,8 @@ fn slice_capacity_change(
         Intrinsic::SlicePopFront => {
             // fn pop_front(self) -> (T, Self)
             //
-            // The returned slice is the last result.
+            // These functions return the slice as the result `(...item, len, slice)`,
+            // so the slice is the last result.
             let old = arguments[1];
             let new = results[results.len() - 1];
             assert!(matches!(dfg.type_of_value(old), Type::Slice(_)));
@@ -324,12 +349,11 @@ fn slice_capacity_change(
         Intrinsic::AsSlice => {
             assert_eq!(arguments.len(), 1);
             assert_eq!(results.len(), 2);
-            let length = match dfg.type_of_value(arguments[0]) {
-                Type::Array(_, length) => length,
-                other => unreachable!("slice_capacity_change expected array, found {other:?}"),
-            };
-            assert!(matches!(dfg.type_of_value(results[1]), Type::Slice(_)));
-            SizeChange::SetTo(results[1], length)
+            let old = arguments[0];
+            let new = results[1];
+            assert!(matches!(dfg.type_of_value(old), Type::Array(_, _)));
+            assert!(matches!(dfg.type_of_value(new), Type::Slice(_)));
+            SizeChange::SetTo { old, new }
         }
 
         // These cases don't affect slice capacities
@@ -362,12 +386,17 @@ fn remove_if_else_pre_check(func: &Function) {
         let instruction_ids = func.dfg[block_id].instructions();
 
         for instruction_id in instruction_ids {
-            if matches!(func.dfg[*instruction_id], Instruction::IfElse { .. }) {
+            if let Instruction::IfElse { then_value, .. } = &func.dfg[*instruction_id] {
                 assert!(
                     func.dfg.instruction_results(*instruction_id).iter().all(|value| {
                         matches!(func.dfg.type_of_value(*value), Type::Array(_, _) | Type::Slice(_))
                     }),
                     "IfElse instruction returns unexpected type"
+                );
+                let typ = func.dfg.type_of_value(*then_value);
+                assert!(
+                    !matches!(typ, Type::Numeric(_)),
+                    "Numeric values should have been handled during flattening"
                 );
             }
         }
