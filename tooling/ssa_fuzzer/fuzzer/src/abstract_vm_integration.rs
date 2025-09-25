@@ -8,6 +8,7 @@ use std::collections::HashMap;
 use std::sync::{Mutex, MutexGuard, OnceLock};
 use std::time::Instant;
 
+/// The external Program Counters, which are used to track the coverage of the external program
 static COUNTERS: Counters<1_000_000> = Counters::new();
 static COUNTERS_LOCK: OnceLock<Mutex<Option<&'static Counters<1_000_000>>>> = OnceLock::new();
 
@@ -32,6 +33,11 @@ pub(crate) enum AbstractVMComparisonResult {
     BrilligCompilationError(String),
 }
 
+/// Gets or initializes the counters
+///
+/// The counters must be registered ONCE (if we reregister them, LibFuzzer will panic),
+/// so we use a `Mutex` to ensure this
+/// We cannot just register it in `init` closure of `fuzz_target!` macro https://github.com/rust-fuzz/libfuzzer/issues/135
 fn get_or_init_counters()
 -> Result<MutexGuard<'static, Option<&'static Counters<1_000_000>>>, String> {
     let mutex = COUNTERS_LOCK.get_or_init(|| Mutex::new(None));
@@ -45,11 +51,16 @@ fn get_or_init_counters()
     Ok(guard)
 }
 
+/// Registers the coverage of the external program
 fn register_external_coverage(coverage: HashMap<String, u16>) {
     let counters = get_or_init_counters().expect("Failed to get or init counters");
 
     for (key, new_value) in coverage {
+        assert!(new_value <= 1, "Coverage value must be 0 or 1");
         if new_value == 1 {
+            // Increment the counter for the given key
+            // Uses hash_increment method, because we don't know the number of
+            // counters from the external program
             counters.as_ref().unwrap().hash_increment(&key);
         }
     }
