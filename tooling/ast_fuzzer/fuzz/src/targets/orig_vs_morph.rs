@@ -17,9 +17,9 @@ use noirc_frontend::monomorphization::ast::{
 };
 
 pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
-    let rules = rules::all();
-    let max_rewrites = 10;
     let config = default_config(u)?;
+    let rules = rules::collect(&config);
+    let max_rewrites = 10;
     let inputs = CompareMorph::arb(
         u,
         config,
@@ -365,8 +365,8 @@ mod rules {
     }
 
     /// Construct all rules that we can apply on a program.
-    pub fn all() -> Vec<Rule> {
-        vec![
+    pub fn collect(config: &Config) -> Vec<Rule> {
+        let mut rules = vec![
             num_add_zero(),
             num_sub_zero(),
             num_mul_one(),
@@ -374,10 +374,16 @@ mod rules {
             bool_or_self(),
             bool_xor_self(),
             bool_xor_rand(),
-            num_commute(),
             any_inevitable(),
             int_break_up(),
-        ]
+        ];
+        if config.avoid_overflow {
+            // When we can overflowing instruction, then swapping around the LHS and RHS
+            // of a binary operation can swap failures. We could visit the expressions to rule
+            // out a potential failure on both sides at the same time, or just skip this rule.
+            rules.push(num_commute());
+        }
+        rules
     }
 
     /// Transform any numeric value `x` into `x <op> <rhs>`
@@ -629,7 +635,8 @@ mod helpers {
     use crate::targets::orig_vs_morph::VariableContext;
 
     /// Check if an expression can have a side effect, in which case duplicating or reordering it could
-    /// change the behavior of the program.
+    /// change the behavior of the program. This doesn't concern about failures, just observable changes
+    /// the state of the program.
     pub(super) fn has_side_effect(expr: &Expression) -> bool {
         expr::exists(expr, |expr| {
             matches!(
