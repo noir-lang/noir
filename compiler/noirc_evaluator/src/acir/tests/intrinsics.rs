@@ -24,8 +24,8 @@ fn slice_push_back_not_affected_by_predicate() {
     }
     ";
 
-    let program_side_effects = ssa_to_acir_program(&src_side_effects);
-    let program_no_side_effects = ssa_to_acir_program(&src_no_side_effects);
+    let program_side_effects = ssa_to_acir_program(src_side_effects);
+    let program_no_side_effects = ssa_to_acir_program(src_no_side_effects);
     assert_eq!(program_side_effects, program_no_side_effects);
 }
 
@@ -53,8 +53,8 @@ fn slice_push_front_not_affected_by_predicate() {
     }
     ";
 
-    let program_side_effects = ssa_to_acir_program(&src_side_effects);
-    let program_no_side_effects = ssa_to_acir_program(&src_no_side_effects);
+    let program_side_effects = ssa_to_acir_program(src_side_effects);
+    let program_no_side_effects = ssa_to_acir_program(src_no_side_effects);
     assert_eq!(program_side_effects, program_no_side_effects);
 }
 
@@ -82,8 +82,8 @@ fn slice_pop_back_not_affected_by_predicate() {
     }
     ";
 
-    let program_side_effects = ssa_to_acir_program(&src_side_effects);
-    let program_no_side_effects = ssa_to_acir_program(&src_no_side_effects);
+    let program_side_effects = ssa_to_acir_program(src_side_effects);
+    let program_no_side_effects = ssa_to_acir_program(src_no_side_effects);
     assert_eq!(program_side_effects, program_no_side_effects);
 }
 
@@ -111,8 +111,8 @@ fn slice_pop_front_not_affected_by_predicate() {
     }
     ";
 
-    let program_side_effects = ssa_to_acir_program(&src_side_effects);
-    let program_no_side_effects = ssa_to_acir_program(&src_no_side_effects);
+    let program_side_effects = ssa_to_acir_program(src_side_effects);
+    let program_no_side_effects = ssa_to_acir_program(src_no_side_effects);
     assert_eq!(program_side_effects, program_no_side_effects);
 }
 
@@ -140,8 +140,8 @@ fn slice_insert_affected_by_predicate() {
     }
     ";
 
-    let program_side_effects = ssa_to_acir_program(&src_side_effects);
-    let program_no_side_effects = ssa_to_acir_program(&src_no_side_effects);
+    let program_side_effects = ssa_to_acir_program(src_side_effects);
+    let program_no_side_effects = ssa_to_acir_program(src_no_side_effects);
     assert_ne!(program_side_effects, program_no_side_effects);
 }
 
@@ -169,7 +169,7 @@ fn slice_remove_affected_by_predicate() {
     }
     ";
 
-    let program_side_effects = ssa_to_acir_program(&src_side_effects);
-    let program_no_side_effects = ssa_to_acir_program(&src_no_side_effects);
+    let program_side_effects = ssa_to_acir_program(src_side_effects);
+    let program_no_side_effects = ssa_to_acir_program(src_no_side_effects);
     assert_ne!(program_side_effects, program_no_side_effects);
 }
