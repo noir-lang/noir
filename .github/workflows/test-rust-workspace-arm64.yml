@@ -23,6 +23,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      - name: Delete android SDK
+        run: rm -rf /usr/local/lib/android/sdk
+
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.85.0
         with:
