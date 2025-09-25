@@ -432,8 +432,8 @@ impl<'f> LoopInvariantContext<'f> {
                     // If we are hoisting a MakeArray instruction,
                     // we need to issue an extra inc_rc in case they are mutated afterward.
                     if insert_rc {
-                        let result =
-                            self.inserter.function.dfg.instruction_results(instruction_id)[0];
+                        let [result] =
+                            self.inserter.function.dfg.instruction_result(instruction_id);
                         let inc_rc = Instruction::IncrementRc { value: result };
                         let call_stack = self
                             .inserter

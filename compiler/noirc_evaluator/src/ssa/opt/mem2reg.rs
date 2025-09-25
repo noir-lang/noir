@@ -471,12 +471,12 @@ impl<'f> PerFunctionContext<'f> {
             Instruction::Load { address } => {
                 let address = *address;
 
-                let result = self.inserter.function.dfg.instruction_results(instruction)[0];
+                let [result] = self.inserter.function.dfg.instruction_result(instruction);
                 references.remember_dereference(self.inserter.function, address, result);
 
                 // If the load is known, replace it with the known value and remove the load.
                 if let Some(value) = references.get_known_value(address) {
-                    let result = self.inserter.function.dfg.instruction_results(instruction)[0];
+                    let [result] = self.inserter.function.dfg.instruction_result(instruction);
                     self.inserter.map_value(result, value);
                     self.instructions_to_remove.insert(instruction);
                 }
@@ -488,9 +488,9 @@ impl<'f> PerFunctionContext<'f> {
                     else {
                         panic!("Expected a Load instruction here");
                     };
-                    let result = self.inserter.function.dfg.instruction_results(instruction)[0];
-                    let previous_result =
-                        self.inserter.function.dfg.instruction_results(*last_load)[0];
+                    let [result] = self.inserter.function.dfg.instruction_result(instruction);
+                    let [previous_result] =
+                        self.inserter.function.dfg.instruction_result(*last_load);
                     if *previous_address == address {
                         self.inserter.map_value(result, previous_result);
                         self.instructions_to_remove.insert(instruction);
@@ -541,12 +541,12 @@ impl<'f> PerFunctionContext<'f> {
             }
             Instruction::Allocate => {
                 // Register the new reference
-                let result = self.inserter.function.dfg.instruction_results(instruction)[0];
+                let [result] = self.inserter.function.dfg.instruction_result(instruction);
                 references.expressions.insert(result, Expression::Other(result));
                 references.aliases.insert(Expression::Other(result), AliasSet::known(result));
             }
             Instruction::ArrayGet { array, .. } => {
-                let result = self.inserter.function.dfg.instruction_results(instruction)[0];
+                let [result] = self.inserter.function.dfg.instruction_result(instruction);
 
                 if self.inserter.function.dfg.type_of_value(result).contains_reference() {
                     let array = *array;
@@ -575,7 +575,7 @@ impl<'f> PerFunctionContext<'f> {
                 let element_type = self.inserter.function.dfg.type_of_value(*value);
 
                 if element_type.contains_reference() {
-                    let result = self.inserter.function.dfg.instruction_results(instruction)[0];
+                    let [result] = self.inserter.function.dfg.instruction_result(instruction);
                     let array = *array;
 
                     let expression = references.expressions.get(&array).copied();
@@ -620,7 +620,7 @@ impl<'f> PerFunctionContext<'f> {
                 // If `array` is an array constant that contains reference types, then insert each element
                 // as a potential alias to the array itself.
                 if typ.contains_reference() {
-                    let array = self.inserter.function.dfg.instruction_results(instruction)[0];
+                    let [array] = self.inserter.function.dfg.instruction_result(instruction);
 
                     let expr = Expression::ArrayElement(array);
                     references.expressions.insert(array, expr);
@@ -630,7 +630,7 @@ impl<'f> PerFunctionContext<'f> {
                 }
             }
             Instruction::IfElse { then_value, else_value, .. } => {
-                let result = self.inserter.function.dfg.instruction_results(instruction)[0];
+                let [result] = self.inserter.function.dfg.instruction_result(instruction);
                 let result_type = self.inserter.function.dfg.type_of_value(result);
 
                 if result_type.contains_reference() {
@@ -2357,7 +2357,7 @@ mod tests {
         g9 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
         g10 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
         g11 = make_array [g10, g10, g10] : [[Field; 3]; 3]
-  
+
         acir(inline) fn main f0 {
           b0():
             v0 = allocate -> &mut [[Field; 3]; 3]
@@ -2383,7 +2383,7 @@ mod tests {
         g9 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
         g10 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
         g11 = make_array [g10, g10, g10] : [[Field; 3]; 3]
-        
+
         acir(inline) fn main f0 {
           b0():
             v12 = allocate -> &mut [[Field; 3]; 3]
