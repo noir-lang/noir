@@ -29,7 +29,7 @@ use self::{
 
 use super::ir::basic_block::BasicBlockId;
 use super::ir::dfg::GlobalsGraph;
-use super::ir::instruction::{ArrayOffset, ErrorType};
+use super::ir::instruction::ErrorType;
 use super::ir::types::NumericType;
 use super::validation::validate_function;
 use super::{
@@ -510,8 +510,7 @@ impl FunctionContext<'_> {
             // Reference counting in brillig relies on us incrementing reference
             // counts when nested arrays/slices are constructed or indexed. This
             // has no effect in ACIR code.
-            let offset = ArrayOffset::None;
-            let result = self.builder.insert_array_get(array, index, offset, typ);
+            let result = self.builder.insert_array_get(array, index, typ);
             result.into()
         }))
     }

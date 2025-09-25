@@ -382,7 +382,7 @@ fn test_array_get() {
 #[test]
 fn test_array_get_with_index_minus_1() {
     let src: &'static str = "
-        acir(inline) fn main f0 {
+        brillig(inline) fn main f0 {
           b0(v0: [Field; 3]):
             v2 = array_get v0, index u32 3 minus 1 -> Field
             return
@@ -394,8 +394,8 @@ fn test_array_get_with_index_minus_1() {
 #[test]
 fn test_array_get_with_index_minus_3() {
     let src: &'static str = "
-        acir(inline) fn main f0 {
-          b0(v0: [Field; 3]):
+        brillig(inline) fn main f0 {
+          b0(v0: [Field]):
             v2 = array_get v0, index u32 6 minus 3 -> Field
             return
         }
@@ -430,7 +430,7 @@ fn test_mutable_array_set() {
 #[test]
 fn test_array_set_with_index_minus_1() {
     let src = "
-        acir(inline) fn main f0 {
+        brillig(inline) fn main f0 {
           b0(v0: [Field; 3]):
             v3 = array_set v0, index u32 2 minus 1, value Field 1
             return
@@ -442,8 +442,8 @@ fn test_array_set_with_index_minus_1() {
 #[test]
 fn test_array_set_with_index_minus_3() {
     let src = "
-        acir(inline) fn main f0 {
-          b0(v0: [Field; 3]):
+        brillig(inline) fn main f0 {
+          b0(v0: [Field]):
             v3 = array_set v0, index u32 4 minus 3, value Field 1
             return
         }
@@ -877,6 +877,19 @@ fn unknown_function_global_function_pointer() {
         v13 = call v12() -> Field
         v14 = eq v13, v4
         constrain v13 == v4
+        return
+    }
+    ";
+    let _ = Ssa::from_str_no_validation(src).unwrap();
+}
+
+#[test]
+#[should_panic(expected = "Illegal use of offset")]
+fn illegal_offset_in_acir_function() {
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: [Field; 3]):
+        v3 = array_set v0, index u32 2 minus 1, value Field 1
         return
     }
     ";

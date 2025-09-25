@@ -17,11 +17,15 @@ impl<F: AcirField> ProtoCodec<circuit::brillig::BrilligBytecode<F>, BrilligBytec
     for ProtoSchema<F>
 {
     fn encode(value: &circuit::brillig::BrilligBytecode<F>) -> BrilligBytecode {
-        BrilligBytecode { bytecode: Self::encode_vec(&value.bytecode) }
+        BrilligBytecode {
+            function_name: value.function_name.clone(),
+            bytecode: Self::encode_vec(&value.bytecode),
+        }
     }
 
     fn decode(value: &BrilligBytecode) -> eyre::Result<circuit::brillig::BrilligBytecode<F>> {
         Ok(circuit::brillig::BrilligBytecode {
+            function_name: value.function_name.clone(),
             bytecode: Self::decode_vec_wrap(&value.bytecode, "bytecode")?,
         })
     }
@@ -58,10 +62,6 @@ impl<F: AcirField> ProtoCodec<brillig::Opcode<F>, BrilligOpcode> for ProtoSchema
                 destination: Self::encode_some(destination),
                 source: Self::encode_some(source),
                 bit_size: Self::encode_some(bit_size),
-            }),
-            brillig::Opcode::JumpIfNot { condition, location } => Value::JumpIfNot(JumpIfNot {
-                condition: Self::encode_some(condition),
-                location: Self::encode(location),
             }),
             brillig::Opcode::JumpIf { condition, location } => Value::JumpIf(JumpIf {
                 condition: Self::encode_some(condition),
@@ -165,10 +165,6 @@ impl<F: AcirField> ProtoCodec<brillig::Opcode<F>, BrilligOpcode> for ProtoSchema
                 destination: Self::decode_some_wrap(&v.destination, "destination")?,
                 source: Self::decode_some_wrap(&v.source, "source")?,
                 bit_size: Self::decode_some_wrap(&v.bit_size, "bit_size")?,
-            }),
-            Value::JumpIfNot(v) => Ok(brillig::Opcode::JumpIfNot {
-                condition: Self::decode_some_wrap(&v.condition, "condition")?,
-                location: Self::decode_wrap(&v.location, "location")?,
             }),
             Value::JumpIf(v) => Ok(brillig::Opcode::JumpIf {
                 condition: Self::decode_some_wrap(&v.condition, "condition")?,
@@ -553,44 +549,10 @@ impl<F> ProtoCodec<brillig::BlackBoxOp, BlackBoxOp> for ProtoSchema<F> {
                 input2_infinite: Self::encode_some(input2_infinite),
                 result: Self::encode_some(result),
             }),
-            brillig::BlackBoxOp::BigIntAdd { lhs, rhs, output } => Value::BigIntAdd(BigIntAdd {
-                lhs: Self::encode_some(lhs),
-                rhs: Self::encode_some(rhs),
-                output: Self::encode_some(output),
-            }),
-            brillig::BlackBoxOp::BigIntSub { lhs, rhs, output } => Value::BigIntSub(BigIntSub {
-                lhs: Self::encode_some(lhs),
-                rhs: Self::encode_some(rhs),
-                output: Self::encode_some(output),
-            }),
-            brillig::BlackBoxOp::BigIntMul { lhs, rhs, output } => Value::BigIntMul(BigIntMul {
-                lhs: Self::encode_some(lhs),
-                rhs: Self::encode_some(rhs),
-                output: Self::encode_some(output),
-            }),
-            brillig::BlackBoxOp::BigIntDiv { lhs, rhs, output } => Value::BigIntDiv(BigIntDiv {
-                lhs: Self::encode_some(lhs),
-                rhs: Self::encode_some(rhs),
-                output: Self::encode_some(output),
-            }),
-            brillig::BlackBoxOp::BigIntFromLeBytes { inputs, modulus, output } => {
-                Value::BigIntFromLeBytes(BigIntFromLeBytes {
-                    inputs: Self::encode_some(inputs),
-                    modulus: Self::encode_some(modulus),
-                    output: Self::encode_some(output),
-                })
-            }
-            brillig::BlackBoxOp::BigIntToLeBytes { input, output } => {
-                Value::BigIntToLeBytes(BigIntToLeBytes {
-                    input: Self::encode_some(input),
-                    output: Self::encode_some(output),
-                })
-            }
-            brillig::BlackBoxOp::Poseidon2Permutation { message, output, len } => {
+            brillig::BlackBoxOp::Poseidon2Permutation { message, output } => {
                 Value::Poseidon2Permutation(Poseidon2Permutation {
                     message: Self::encode_some(message),
                     output: Self::encode_some(output),
-                    len: Self::encode_some(len),
                 })
             }
             brillig::BlackBoxOp::Sha256Compression { input, hash_values, output } => {
@@ -666,39 +628,9 @@ impl<F> ProtoCodec<brillig::BlackBoxOp, BlackBoxOp> for ProtoSchema<F> {
                 input2_infinite: Self::decode_some_wrap(&v.input2_infinite, "input2_infinite")?,
                 result: Self::decode_some_wrap(&v.result, "result")?,
             }),
-            Value::BigIntAdd(v) => Ok(brillig::BlackBoxOp::BigIntAdd {
-                lhs: Self::decode_some_wrap(&v.lhs, "lhs")?,
-                rhs: Self::decode_some_wrap(&v.rhs, "rhs")?,
-                output: Self::decode_some_wrap(&v.output, "output")?,
-            }),
-            Value::BigIntSub(v) => Ok(brillig::BlackBoxOp::BigIntSub {
-                lhs: Self::decode_some_wrap(&v.lhs, "lhs")?,
-                rhs: Self::decode_some_wrap(&v.rhs, "rhs")?,
-                output: Self::decode_some_wrap(&v.output, "output")?,
-            }),
-            Value::BigIntMul(v) => Ok(brillig::BlackBoxOp::BigIntMul {
-                lhs: Self::decode_some_wrap(&v.lhs, "lhs")?,
-                rhs: Self::decode_some_wrap(&v.rhs, "rhs")?,
-                output: Self::decode_some_wrap(&v.output, "output")?,
-            }),
-            Value::BigIntDiv(v) => Ok(brillig::BlackBoxOp::BigIntDiv {
-                lhs: Self::decode_some_wrap(&v.lhs, "lhs")?,
-                rhs: Self::decode_some_wrap(&v.rhs, "rhs")?,
-                output: Self::decode_some_wrap(&v.output, "output")?,
-            }),
-            Value::BigIntFromLeBytes(v) => Ok(brillig::BlackBoxOp::BigIntFromLeBytes {
-                inputs: Self::decode_some_wrap(&v.inputs, "inputs")?,
-                modulus: Self::decode_some_wrap(&v.modulus, "modulus")?,
-                output: Self::decode_some_wrap(&v.output, "output")?,
-            }),
-            Value::BigIntToLeBytes(v) => Ok(brillig::BlackBoxOp::BigIntToLeBytes {
-                input: Self::decode_some_wrap(&v.input, "input")?,
-                output: Self::decode_some_wrap(&v.output, "output")?,
-            }),
             Value::Poseidon2Permutation(v) => Ok(brillig::BlackBoxOp::Poseidon2Permutation {
                 message: Self::decode_some_wrap(&v.message, "message")?,
                 output: Self::decode_some_wrap(&v.output, "output")?,
-                len: Self::decode_some_wrap(&v.len, "len")?,
             }),
             Value::Sha256Compression(v) => Ok(brillig::BlackBoxOp::Sha256Compression {
                 input: Self::decode_some_wrap(&v.input, "input")?,

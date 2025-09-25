@@ -3,7 +3,9 @@ use acvm::{AcirField, FieldElement};
 use iter_extended::vecmap;
 
 use crate::acir::AcirVar;
+use crate::brillig::brillig_gen::brillig_fn::FunctionContext as BrilligFunctionContext;
 use crate::brillig::brillig_gen::gen_brillig_for;
+use crate::brillig::brillig_ir::artifact::BrilligParameter;
 use crate::errors::{RuntimeError, SsaReport};
 use crate::ssa::ir::instruction::Hint;
 use crate::ssa::ir::value::Value;
@@ -170,6 +172,40 @@ impl Context<'_> {
         self.handle_ssa_call_outputs(result_ids, output_values, dfg)
     }
 
+    pub(super) fn gen_brillig_parameters(
+        &self,
+        values: &[ValueId],
+        dfg: &DataFlowGraph,
+    ) -> Vec<BrilligParameter> {
+        values
+            .iter()
+            .map(|&value_id| {
+                let typ = dfg.type_of_value(value_id);
+                if let Type::Slice(item_types) = typ {
+                    let len = match self
+                        .ssa_values
+                        .get(&value_id)
+                        .expect("ICE: Unknown slice input to brillig")
+                    {
+                        AcirValue::DynamicArray(AcirDynamicArray { len, .. }) => *len,
+                        AcirValue::Array(array) => array.len(),
+                        _ => unreachable!("ICE: Slice value is not an array"),
+                    };
+
+                    BrilligParameter::Slice(
+                        item_types
+                            .iter()
+                            .map(BrilligFunctionContext::ssa_type_to_parameter)
+                            .collect(),
+                        len / item_types.len(),
+                    )
+                } else {
+                    BrilligFunctionContext::ssa_type_to_parameter(&typ)
+                }
+            })
+            .collect()
+    }
+
     /// Returns a vector of `AcirVar`s constrained to be result of the function call.
     ///
     /// The function being called is required to be intrinsic.
@@ -191,34 +227,26 @@ impl Context<'_> {
                 Ok(arguments.iter().map(|v| self.convert_value(*v, dfg)).collect())
             }
             Intrinsic::BlackBox(black_box) => {
-                // Slices are represented as a tuple of (length, slice contents).
-                // We must check the inputs to determine if there are slices
-                // and make sure that we pass the correct inputs to the black box function call.
-                // The loop below only keeps the slice contents, so that
-                // setting up a black box function with slice inputs matches the expected
-                // number of arguments specified in the function signature.
-                let mut arguments_no_slice_len = Vec::new();
-                for (i, arg) in arguments.iter().enumerate() {
-                    if matches!(dfg.type_of_value(*arg), Type::Numeric(_)) {
-                        if i < arguments.len() - 1 {
-                            if !matches!(dfg.type_of_value(arguments[i + 1]), Type::Slice(_)) {
-                                arguments_no_slice_len.push(*arg);
-                            }
-                        } else {
-                            arguments_no_slice_len.push(*arg);
-                        }
-                    } else {
-                        arguments_no_slice_len.push(*arg);
-                    }
-                }
+                // Slice arguments to blackbox functions would break the following logic (due to being split over two `ValueIds`)
+                // No blackbox functions currently take slice arguments so we have an assertion here to catch if this changes in the future.
+                assert!(
+                    !arguments.iter().any(|arg| matches!(dfg.type_of_value(*arg), Type::Slice(_))),
+                    "ICE: Slice arguments passed to blackbox function"
+                );
 
-                let inputs = vecmap(&arguments_no_slice_len, |arg| self.convert_value(*arg, dfg));
+                let inputs = vecmap(arguments, |arg| self.convert_value(*arg, dfg));
 
                 let output_count = result_ids.iter().fold(0usize, |sum, result_id| {
                     sum + dfg.type_of_value(*result_id).flattened_size() as usize
                 });
 
-                let vars = self.acir_context.black_box_function(black_box, inputs, output_count)?;
+                let vars = self.acir_context.black_box_function(
+                    black_box,
+                    inputs,
+                    None,
+                    output_count,
+                    Some(self.current_side_effects_enabled_var),
+                )?;
 
                 Ok(self.convert_vars_to_values(vars, dfg, result_ids))
             }
@@ -480,7 +508,7 @@ impl Context<'_> {
                 //    the flattened element arguments.
                 // 3. If we are above the max insertion index we should insert the previous value from the original slice,
                 //    as during an insertion we want to shift all elements after the insertion up an index.
-                let result_block_id = self.block_id(&result_ids[1]);
+                let result_block_id = self.block_id(result_ids[1]);
                 self.initialize_array(result_block_id, slice_size, None)?;
                 let mut current_insert_index = 0;
                 for i in 0..slice_size {
@@ -629,7 +657,7 @@ impl Context<'_> {
                 // 2. At the end of the slice reading from the next value of the original slice
                 //    can lead to a potential out of bounds error. In this case we just fetch from the original slice
                 //    at the current index. As we are decreasing the slice in length, this is a safe operation.
-                let result_block_id = self.block_id(&result_ids[1]);
+                let result_block_id = self.block_id(result_ids[1]);
                 self.initialize_array(
                     result_block_id,
                     slice_size,
@@ -747,7 +775,7 @@ impl Context<'_> {
         for (result_id, output) in result_ids.iter().zip(output_values) {
             if let AcirValue::Array(_) = &output {
                 let array_id = *result_id;
-                let block_id = self.block_id(&array_id);
+                let block_id = self.block_id(array_id);
                 let array_typ = dfg.type_of_value(array_id);
                 let len = if matches!(array_typ, Type::Array(_, _)) {
                     array_typ.flattened_size() as usize

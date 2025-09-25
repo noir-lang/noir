@@ -136,11 +136,11 @@ where
             }
             CompareResult::LeftFailed(e, _) => {
                 let e = &e.error;
-                bail!("first program failed: {e}\n{e:?}")
+                bail!("first program failed: {e}\n\n{e:?}")
             }
             CompareResult::RightFailed(_, e) => {
                 let e = &e.error;
-                bail!("second program failed: {e}\n{e:?}")
+                bail!("second program failed: {e}\n\n{e:?}")
             }
             CompareResult::BothPassed(o1, o2) => match (&o1.return_value, &o2.return_value) {
                 (Some(r1), Some(r2)) if !Comparable::equivalent(r1, r2) => {
