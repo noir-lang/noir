@@ -824,6 +824,10 @@ mod test {
         let instructions = main.dfg[main.entry_block()].instructions();
         assert_eq!(instructions.len(), 15);
 
+        // The `array_get` instructions after `enable_side_effects v1` is deduplicated
+        // with the one under `enable_side_effects v0` because it doesn't require a predicate,
+        // but the `array_set` is not, because it does require a predicate, and the subsequent
+        // `array_get` uses a different input, so it's not a duplicate of anything.
         let expected = "
             acir(inline) fn main f0 {
               b0(v0: u1, v1: u1, v2: [Field; 2]):
@@ -958,6 +962,128 @@ mod test {
             jmp b4()
           b4():
             return
+        }
+        ");
+    }
+
+    #[test]
+    fn repeatedly_hoist_and_deduplicate() {
+        // Repeating the same block 3x times.
+        let src = "
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: u1, v1: i8):
+            v2 = allocate -> &mut i8
+            store i8 0 at v2
+            jmpif v0 then: b1, else: b2
+          b1():
+            v5 = unchecked_mul v1, i8 127
+            v6 = cast v5 as u16
+            v7 = truncate v6 to 8 bits, max_bit_size: 16
+            v8 = cast v7 as i8
+            store v8 at v2
+            jmp b2()
+          b2():
+            jmpif v0 then: b3, else: b4
+          b3():
+            v9 = unchecked_mul v1, i8 127
+            v10 = cast v9 as u16
+            v11 = truncate v10 to 8 bits, max_bit_size: 16
+            v12 = cast v11 as i8
+            store v12 at v2
+            jmp b4()
+          b4():
+            jmpif v0 then: b5, else: b6
+          b5():
+            v13 = unchecked_mul v1, i8 127
+            v14 = cast v13 as u16
+            v15 = truncate v14 to 8 bits, max_bit_size: 16
+            v16 = cast v15 as i8
+            store v16 at v2
+            jmp b6()
+          b6():
+            v17 = load v2 -> i8
+            return v17
+          }
+        ";
+
+        let mut ssa = Ssa::from_str(src).unwrap();
+        ssa = ssa.fold_constants();
+
+        // The first instruction from b3 and b5, identical to the one in b1,
+        // are hoisted to b0, where they are duplicated.
+        assert_ssa_snapshot!(&mut ssa, @r"
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: u1, v1: i8):
+            v2 = allocate -> &mut i8
+            store i8 0 at v2
+            v5 = unchecked_mul v1, i8 127
+            v6 = unchecked_mul v1, i8 127
+            jmpif v0 then: b1, else: b2
+          b1():
+            v7 = unchecked_mul v1, i8 127
+            v8 = cast v7 as u16
+            v9 = truncate v8 to 8 bits, max_bit_size: 16
+            v10 = cast v9 as i8
+            store v10 at v2
+            jmp b2()
+          b2():
+            jmpif v0 then: b3, else: b4
+          b3():
+            v11 = cast v5 as u16
+            v12 = truncate v11 to 8 bits, max_bit_size: 16
+            v13 = cast v12 as i8
+            store v13 at v2
+            jmp b4()
+          b4():
+            jmpif v0 then: b5, else: b6
+          b5():
+            v14 = cast v6 as u16
+            v15 = truncate v14 to 8 bits, max_bit_size: 16
+            v16 = cast v15 as i8
+            store v16 at v2
+            jmp b6()
+          b6():
+            v17 = load v2 -> i8
+            return v17
+        }
+        ");
+
+        ssa = ssa.fold_constants();
+
+        // The previously hoisted instructions deduplicated in b0 and b1,
+        // then the next two instructions from b3 and b5 are hoisted, but stay in b1.
+        assert_ssa_snapshot!(&mut ssa, @r"
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: u1, v1: i8):
+            v2 = allocate -> &mut i8
+            store i8 0 at v2
+            v5 = unchecked_mul v1, i8 127
+            v6 = cast v5 as u16
+            v7 = cast v5 as u16
+            jmpif v0 then: b1, else: b2
+          b1():
+            v8 = cast v5 as u16
+            v9 = truncate v8 to 8 bits, max_bit_size: 16
+            v10 = cast v9 as i8
+            store v10 at v2
+            jmp b2()
+          b2():
+            jmpif v0 then: b3, else: b4
+          b3():
+            v11 = truncate v6 to 8 bits, max_bit_size: 16
+            v12 = cast v11 as i8
+            store v12 at v2
+            jmp b4()
+          b4():
+            jmpif v0 then: b5, else: b6
+          b5():
+            v13 = truncate v7 to 8 bits, max_bit_size: 16
+            v14 = cast v13 as i8
+            store v14 at v2
+            jmp b6()
+          b6():
+            v15 = load v2 -> i8
+            return v15
         }
         ");
     }
