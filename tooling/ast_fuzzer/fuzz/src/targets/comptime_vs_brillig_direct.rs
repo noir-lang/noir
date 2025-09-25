@@ -68,4 +68,11 @@ mod tests {
     fn fuzz_with_arbtest() {
         crate::targets::tests::fuzz_with_arbtest(super::fuzz, 2500);
     }
+
+    #[test]
+    fn fuzz_regressions() {
+        for seed in crate::targets::tests::load_seeds_from_file() {
+            crate::targets::tests::run_reproduce(super::fuzz, seed);
+        }
+    }
 }
