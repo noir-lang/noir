@@ -420,7 +420,7 @@ mod tests {
             let field = 2;
             let _: [u8; 8] = field.to_le_radix(1);
         } else {
-            panic(f"radix must be greater than 1");
+            panic("radix must be greater than 1");
         }
     }
 
@@ -432,7 +432,7 @@ mod tests {
             let field = 1;
             let _: [u8; 8] = field.to_le_radix(1);
         } else {
-            panic(f"radix must be greater than 1");
+            panic("radix must be greater than 1");
         }
     }
 
@@ -443,7 +443,7 @@ mod tests {
             let field = 2;
             let _: [u8; 8] = field.to_le_radix(3);
         } else {
-            panic(f"radix must be a power of 2");
+            panic("radix must be a power of 2");
         }
     }
 
@@ -466,7 +466,7 @@ mod tests {
             let field = 2;
             let _: [u8; 8] = field.to_le_radix(512);
         } else {
-            panic(f"radix must be less than or equal to 256")
+            panic("radix must be less than or equal to 256")
         }
     }
 

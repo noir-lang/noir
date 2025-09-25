@@ -60,7 +60,7 @@ impl UnaryOp {
             quote { * }
         } else {
             let op = self;
-            crate::panic::panic(f"Unexpected unary operator in UnaryOp::quoted: {op}")
+            crate::panic::panic("Unexpected unary operator in UnaryOp::quoted: {op}")
         }
     }
 }
@@ -218,7 +218,7 @@ impl BinaryOp {
             quote { % }
         } else {
             let op = self;
-            crate::panic::panic(f"Unexpected binary operator in BinaryOp::quoted: {op}")
+            crate::panic::panic("Unexpected binary operator in BinaryOp::quoted: {op}")
         }
     }
 }

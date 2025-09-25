@@ -12,7 +12,7 @@ fn lambdas_no_inputs(x: u32) {
     } else if x == 1 {
         f2
     } else {
-        panic(f"!")
+        panic("!")
     };
     f();
 }
