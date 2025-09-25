@@ -230,6 +230,10 @@ pub(super) fn flatten_cfg_post_check(function: &Function) {
     }
     let blocks = function.reachable_blocks();
     assert_eq!(blocks.len(), 1, "CFG contains more than 1 block");
+
+    // Note: it's tempting to assert that we have no `enable_side_effects u1 0` instruction here,
+    // however there are a few way that these can be inserted(e.g. conditions in a `no_predicates` function
+    // which is inlined later) so we do not assert this here.
 }
 
 pub(crate) struct Context<'f> {
@@ -456,6 +460,18 @@ impl<'f> Context<'f> {
         // We do not inline the target block into itself.
         // This is the case in the beginning for the entry block.
         if self.target_block == block {
+            // The `simplify_cfg` pass can sometimes result in instructions for which all inputs are known but
+            // the instruction is not replaced with the known output - this can result in unnecessary instructions
+            // being present in the flattened output.
+            //
+            // To handle this, we reinsert all instructions in the target block to propagate any simplifications into the
+            // terminator instruction. Any later blocks will be simplified automatically as they are inlined into the target.
+            //
+            // See the test `fully_simplifies_with_non_simplified_first_block` for an example of this.
+            let instructions = self.inserter.function.dfg[block].take_instructions();
+            for instruction in instructions {
+                self.push_instruction(instruction);
+            }
             return;
         }
 
@@ -506,6 +522,9 @@ impl<'f> Context<'f> {
         block: BasicBlockId,
         work_list: &WorkList,
     ) -> Vec<BasicBlockId> {
+        // Update the terminator instruction to simplify jmpif with resolved conditions.
+        self.simplify_jmpif(block);
+
         let terminator = self.inserter.function.dfg[block].unwrap_terminator().clone();
         match &terminator {
             TerminatorInstruction::JmpIf {
@@ -557,6 +576,30 @@ impl<'f> Context<'f> {
                 unreachable!("unexpected unreachable terminator in flattening")
             }
         }
+    }
+
+    pub(crate) fn simplify_jmpif(&mut self, block: BasicBlockId) -> bool {
+        self.inserter.map_terminator_in_place(block);
+
+        if let Some(TerminatorInstruction::JmpIf {
+            condition,
+            then_destination,
+            else_destination,
+            call_stack,
+        }) = self.inserter.function.dfg[block].terminator()
+        {
+            if let Some(constant) = self.inserter.function.dfg.get_numeric_constant(*condition) {
+                let destination =
+                    if constant.is_zero() { *else_destination } else { *then_destination };
+
+                let arguments = Vec::new();
+                let call_stack = *call_stack;
+                let jmp = TerminatorInstruction::Jmp { destination, arguments, call_stack };
+                self.inserter.function.dfg[block].set_terminator(jmp);
+                return true;
+            }
+        }
+        false
     }
 
     /// Process a conditional statement by creating a `ConditionalContext`
@@ -1889,7 +1932,6 @@ mod test {
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0():
-            enable_side_effects u1 1
             constrain u1 0 == u1 1
             return
         }
@@ -2280,10 +2322,41 @@ mod test {
             enable_side_effects u1 1
             v11 = cast v0 as u32
             v12 = cast v7 as u32
-            v13 = unchecked_mul v11, v3
+            v13 = unchecked_mul v11, v6
             v14 = unchecked_mul v12, v9
             v15 = unchecked_add v13, v14
             return v15
+        }
+        ");
+    }
+
+    #[test]
+    fn fully_simplifies_with_non_simplified_first_block() {
+        // The `simplify_cfg` pass does not fully propagate any simplifications which are made possible by inlining
+        // a block's successor into it. This can result in a `jmpif` instruction being left in SSA which in actuality
+        // has a constant condition. We want to ensure that we can still fully simplify the SSA in this case.
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = eq Field 1, Field 0                     	
+            jmpif v0 then: b1, else: b2
+          b1():
+            v1 = div Field 1, Field 0
+            jmp b11()
+          b2():
+            jmp b11()
+          b11():
+            return
+        }";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.flatten_cfg();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            return
         }
         ");
     }
