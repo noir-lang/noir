@@ -193,12 +193,14 @@ pub(crate) fn eval_constant_binary_op(
                 return CouldNotEvaluate;
             };
 
+            let two_pow_bit_size_minus_one = 1i128 << (bit_size - 1);
+
             // Because we always perform signed operations using i128, an operation like `-128_i8 / -1`
             // will not overflow as it'll actually be done via `-128_i128 / -1`. Thus we need to
             // manually check this specific case.
             if matches!(operator, BinaryOp::Div | BinaryOp::Mod) && rhs == -1 {
                 assert!(bit_size < 128);
-                let min_value = -(1_i128 << (bit_size - 1));
+                let min_value = -two_pow_bit_size_minus_one;
                 if lhs == min_value {
                     return Failure(if operator == BinaryOp::Div {
                         "attempt to divide with overflow".to_string()
@@ -228,7 +230,6 @@ pub(crate) fn eval_constant_binary_op(
                 }
 
                 // Check for overflow
-                let two_pow_bit_size_minus_one = 1i128 << (bit_size - 1);
                 let Some(result) = result else {
                     if let BinaryOp::Shl = operator {
                         return CouldNotEvaluate;
