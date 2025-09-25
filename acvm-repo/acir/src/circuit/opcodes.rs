@@ -319,7 +319,7 @@ fn display_term<F: AcirField, const N: usize>(
         if printed_term && coefficient_is_negative { -coefficient } else { coefficient };
 
     if coefficient.is_one() {
-        // Don't print the cofficient
+        // Don't print the coefficient
     } else if (-coefficient).is_one() {
         write!(f, "-")?;
     } else {
