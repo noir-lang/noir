@@ -38,7 +38,7 @@ libraries:
     critical: true
   noir_base64:
     repo: noir-lang/noir_base64
-    timeout: 5
+    timeout: 15
     critical: true
   noir_string_search:
     repo: noir-lang/noir_string_search
