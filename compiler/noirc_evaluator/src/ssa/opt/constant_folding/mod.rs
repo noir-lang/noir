@@ -119,6 +119,7 @@ impl Function {
 
         while let Some(block) = context.block_queue.pop_front() {
             context.fold_constants_in_block(&mut self.dfg, &mut dom, block, interpreter);
+            context.block_queue.extend(self.dfg[block].successors());
         }
 
         #[cfg(debug_assertions)]
@@ -226,8 +227,6 @@ impl Context {
         terminator.map_values_mut(&mut resolve_cache);
         dfg[block_id].set_terminator(terminator);
         dfg.data_bus.map_values_mut(resolve_cache);
-
-        self.block_queue.extend(dfg[block_id].successors());
     }
 
     fn fold_constants_into_instruction(
