@@ -107,15 +107,15 @@ fn call_output_as_next_call_input(inline_type: InlineType) {
     inputs: [w0, w1], outputs: [w2]
     CALL func 1: PREDICATE: EXPR [ 1 ]
     inputs: [w2, w1], outputs: [w3]
-    EXPR w2 = w3
+    EXPR w3 = w2
 
     func 1
     current witness: w2
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
-    EXPR w0 = w1
-    EXPR w0 = w2
+    EXPR w1 = w0
+    EXPR w2 = w0
     ");
 }
 
