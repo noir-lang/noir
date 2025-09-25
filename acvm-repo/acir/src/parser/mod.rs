@@ -622,8 +622,6 @@ impl<'a> Parser<'a> {
     fn parse_memory_op(&mut self) -> ParseResult<Opcode<FieldElement>> {
         self.eat_keyword_or_error(Keyword::MemoryOp)?;
 
-        self.eat_or_error(Token::LeftParen)?;
-
         // Parse `id: <int>`
         self.eat_expected_ident("id")?;
         self.eat_or_error(Token::Colon)?;
@@ -649,7 +647,8 @@ impl<'a> Parser<'a> {
                 (Expression::zero(), index, value)
             }
             "write" => {
-                // write <expr> at: <expr>
+                // write: <expr> at: <expr>
+                self.eat_or_error(Token::Colon)?;
                 let value = self.parse_arithmetic_expression()?;
                 self.eat_expected_ident("at")?;
                 self.eat_or_error(Token::Colon)?;
@@ -664,8 +663,6 @@ impl<'a> Parser<'a> {
                 ]);
             }
         };
-
-        self.eat_or_error(Token::RightParen)?;
 
         Ok(Opcode::MemoryOp { block_id: BlockId(block_id), op: MemOp { index, value, operation } })
     }
@@ -685,8 +682,6 @@ impl<'a> Parser<'a> {
             _ => BlockType::Memory,
         };
 
-        self.eat_or_error(Token::LeftParen)?;
-
         // Parse `id: <int>`
         self.eat_expected_ident("id")?;
         self.eat_or_error(Token::Colon)?;
@@ -703,7 +698,6 @@ impl<'a> Parser<'a> {
         self.eat_expected_ident("witnesses")?;
         self.eat_or_error(Token::Colon)?;
         let init = self.parse_witness_vector()?;
-        self.eat_or_error(Token::RightParen)?;
 
         if init.len() != len as usize {
             return Err(ParserError::InitLengthMismatch {

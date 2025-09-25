@@ -234,9 +234,9 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
 
                 let is_read = op.operation.is_zero();
                 if is_read {
-                    write!(f, "(id: {}, read at: {}, value: {})", block_id.0, op.index, op.value)
+                    write!(f, "id: {}, read at: {}, value: {}", block_id.0, op.index, op.value)
                 } else {
-                    write!(f, "(id: {}, write {} at: {})", block_id.0, op.value, op.index)
+                    write!(f, "id: {}, write: {} at: {}", block_id.0, op.value, op.index)
                 }
             }
             Opcode::MemoryInit { block_id, init, block_type: databus } => {
@@ -247,7 +247,7 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
                 }
                 let witnesses =
                     init.iter().map(|w| format!("{w}")).collect::<Vec<String>>().join(", ");
-                write!(f, "(id: {}, len: {}, witnesses: [{witnesses}])", block_id.0, init.len())
+                write!(f, "id: {}, len: {}, witnesses: [{witnesses}]", block_id.0, init.len())
             }
             // We keep the display for a BrilligCall and circuit Call separate as they
             // are distinct in their functionality and we should maintain this separation for debugging.
@@ -355,7 +355,7 @@ mod tests {
 
         insta::assert_snapshot!(
             mem_init.to_string(),
-            @"INIT (id: 42, len: 10, witnesses: [w0, w1, w2, w3, w4, w5, w6, w7, w8, w9])"
+            @"INIT id: 42, len: 10, witnesses: [w0, w1, w2, w3, w4, w5, w6, w7, w8, w9]"
         );
     }
 

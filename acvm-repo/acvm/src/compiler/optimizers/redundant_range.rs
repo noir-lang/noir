@@ -463,8 +463,8 @@ mod tests {
         public parameters: []
         return values: []
         BLACKBOX::RANGE [w1]:16 bits []
-        INIT (id: 0, len: 8, witnesses: [w0, w0, w0, w0, w0, w0, w0, w0])
-        MEM (id: 0, read at: EXPR [ (1, w1) 0 ], value: EXPR [ (1, w2) 0 ])
+        INIT id: 0, len: 8, witnesses: [w0, w0, w0, w0, w0, w0, w0, w0]
+        MEM id: 0, read at: w1, value: w2
         ";
         let circuit = Circuit::from_str(src).unwrap();
 
@@ -477,8 +477,8 @@ mod tests {
         private parameters: []
         public parameters: []
         return values: []
-        INIT (id: 0, len: 8, witnesses: [w0, w0, w0, w0, w0, w0, w0, w0])
-        MEM (id: 0, read at: w1, value: w2)
+        INIT id: 0, len: 8, witnesses: [w0, w0, w0, w0, w0, w0, w0, w0]
+        MEM id: 0, read at: w1, value: w2
         ");
     }
 }
