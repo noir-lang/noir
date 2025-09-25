@@ -450,7 +450,7 @@ jobs:
         uses: ./scripts/.github/actions/download-nargo
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: ${{ matrix.repo }}
           path: test-repo
