@@ -60,6 +60,13 @@ pub struct ModuleAttributes {
     pub visibility: ItemVisibility,
 }
 
+static TOP_LEVEL_MODULE_ATTRIBUTES: ModuleAttributes = ModuleAttributes {
+    name: String::new(),
+    location: Location::dummy(),
+    parent: None,
+    visibility: ItemVisibility::Public,
+};
+
 type TypeAttributes = Vec<SecondaryAttribute>;
 
 /// The node interner is the central storage location of all nodes in Noir's Hir (the
@@ -698,7 +705,7 @@ impl NodeInterner {
     }
 
     pub fn module_attributes(&self, module_id: ModuleId) -> &ModuleAttributes {
-        &self.module_attributes[&module_id]
+        self.try_module_attributes(module_id).unwrap_or(&TOP_LEVEL_MODULE_ATTRIBUTES)
     }
 
     pub fn try_module_attributes(&self, module_id: ModuleId) -> Option<&ModuleAttributes> {
