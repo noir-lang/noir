@@ -42,6 +42,7 @@ mod tests {
     use std::collections::BTreeMap;
 
     #[test]
+    #[allow(clippy::needless_range_loop)]
     fn test_aes() {
         // Test vector is coming from Barretenberg (cf. aes128.test.cpp)
         let mut initial_witness = WitnessMap::from(BTreeMap::from_iter([

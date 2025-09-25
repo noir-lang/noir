@@ -157,6 +157,7 @@ mod tests {
             inputs.push(FunctionInput::Witness(Witness(1 + i)));
         }
         let mut outputs = [Witness(0); 32];
+        #[allow(clippy::needless_range_loop)]
         for i in 0..32 {
             outputs[i] = Witness(4 + i as u32);
         }
@@ -190,6 +191,7 @@ mod tests {
             inputs.push(FunctionInput::Witness(Witness(1 + i)));
         }
         let mut outputs = [Witness(0); 32];
+        #[allow(clippy::needless_range_loop)]
         for i in 0..32 {
             outputs[i] = Witness(4 + i as u32);
         }
