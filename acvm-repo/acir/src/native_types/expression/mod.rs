@@ -58,9 +58,12 @@ impl<F: std::fmt::Display> std::fmt::Display for Expression<F> {
         for i in &self.linear_combinations {
             write!(f, "({}, {}) ", i.0, i.1)?;
         }
-        write!(f, "{}", self.q_c)?;
 
-        write!(f, " ]")
+        let q_c_as_string = self.q_c.to_string();
+        if q_c_as_string != "0" {
+            write!(f, "{} ", self.q_c)?;
+        }
+        write!(f, "]")
     }
 }
 
