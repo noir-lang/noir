@@ -335,7 +335,7 @@ jobs:
   external_repo_reports:
     needs: [build-nargo, build-noir-inspector, benchmark-projects-list]
     runs-on: ubuntu-22.04
-    timeout-minutes: 15
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
