@@ -511,6 +511,7 @@ fn resolve_cache(
     }
 }
 
+#[derive(Debug)]
 enum CanBeDeduplicated {
     /// This instruction has no side effects so we can substitute the results for those of the same instruction elsewhere.
     Always,
@@ -977,8 +978,8 @@ mod test {
                 return
             }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.fold_constants_using_constraints();
+        let mut ssa = Ssa::from_str(src).unwrap();
+        ssa.main_mut().constant_fold(true, false, &mut None);
 
         // v4 has been hoisted, although:
         // - v5 has not yet been removed since it was encountered earlier in the program
@@ -1659,19 +1660,23 @@ mod test {
           b0(v0: Field):
             v1 = call to_le_radix(v0, u32 256) -> [u8; 2]
             v2 = call to_le_radix(v0, u32 256) -> [u8; 3]
-            v3 = call to_le_radix(v0, u32 256) -> [u8; 2]
+            v3 = call to_le_radix(v0, u32 256) -> [u8; 3]
+            v4 = call to_le_radix(v0, u32 256) -> [u8; 2]
             return
         }
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
+        // These intrinsic calls can only be deduplicated when using constraints.
         let ssa = ssa.fold_constants_using_constraints();
 
+        // Only the first one is cached at the moment.
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: Field):
             v3 = call to_le_radix(v0, u32 256) -> [u8; 2]
             v4 = call to_le_radix(v0, u32 256) -> [u8; 3]
+            v5 = call to_le_radix(v0, u32 256) -> [u8; 3]
             inc_rc v3
             return
         }

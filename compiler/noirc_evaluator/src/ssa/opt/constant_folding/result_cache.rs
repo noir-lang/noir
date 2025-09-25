@@ -46,14 +46,14 @@ impl InstructionResultCache {
             // This is a hacky solution to https://github.com/noir-lang/noir/issues/9477
             // We explicitly check that the cached result values are of the same type as expected by the instruction
             // being checked against the cache and reject if they differ.
+            // They can also be the exact same value after a re-visit, which we don't want as it creates a cycle.
             if let CacheResult::Cached(results) = results {
                 let old_results = dfg.instruction_results(id).to_vec();
 
                 results.len() == old_results.len()
-                    && old_results
-                        .iter()
-                        .zip(results.iter())
-                        .all(|(old, new)| dfg.type_of_value(*old) == dfg.type_of_value(*new))
+                    && old_results.iter().zip(results.iter()).all(|(old, new)| {
+                        new != old && dfg.type_of_value(*old) == dfg.type_of_value(*new)
+                    })
             } else {
                 true
             }
@@ -157,7 +157,7 @@ impl InstructionResultCache {
 /// Records the results of all duplicate [`Instruction`]s along with the blocks in which they sit.
 ///
 /// For more information see [`InstructionResultCache`].
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub(super) struct ResultCache {
     result: Option<(BasicBlockId, Vec<ValueId>)>,
 }
@@ -166,7 +166,7 @@ impl ResultCache {
     fn cache(&mut self, block: BasicBlockId, dom: &mut DominatorTree, results: Vec<ValueId>) {
         let overwrite = match self.result {
             None => true,
-            Some((origin, _)) => dom.dominates(block, origin),
+            Some((origin, _)) => origin != block && dom.dominates(block, origin),
         };
 
         if overwrite {
@@ -187,10 +187,6 @@ impl ResultCache {
         has_side_effects: bool,
     ) -> Option<CacheResult> {
         self.result.as_ref().and_then(|(origin, results)| {
-            if *origin == block {
-                // A revisit of the same block.
-                return None;
-            }
             if dom.dominates(*origin, block) {
                 Some(CacheResult::Cached(results))
             } else if !has_side_effects {
