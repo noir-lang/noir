@@ -348,7 +348,7 @@ mod tests {
         private parameters: [w0, w1]
         public parameters: []
         return values: []
-        EXPR w5 = -w0*w1
+        EXPR w0*w1 + w5 = 0
         EXPR 2*w0*w0 - w3 + 2*w5 = 0
         BLACKBOX::RANGE [w3]:32 bits []
         ");

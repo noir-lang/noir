@@ -95,7 +95,7 @@ fn unchecked_mul_should_not_have_range_check() {
     return values: [w2]
     BLACKBOX::RANGE [w0]:32 bits []
     BLACKBOX::RANGE [w1]:32 bits []
-    EXPR w2 = w0*w1
+    EXPR -w0*w1 + w2 = 0
     ");
 }
 
