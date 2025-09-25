@@ -1,4 +1,4 @@
-pub fn panic<T, U, let N: u32>(message: fmtstr<N, T>) -> U {
+pub fn panic<T, U>(message: T) -> U {
     assert(false, message);
     crate::mem::zeroed()
 }
