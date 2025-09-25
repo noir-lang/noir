@@ -761,7 +761,7 @@ fn assert_zero_equation() {
     private parameters: [w0, w1, w2, w2]
     public parameters: []
     return values: []
-    EXPR - w0 + w1 - 10 + 20 + w0*w2 = w2 - w3 + w0*w1 - w1*w2 - 30
+    EXPR -w0 + w1 - 10 + 20 + w0*w2 = w2 - w3 + w0*w1 - w1*w2 - 30
     ";
     let circuit = Circuit::from_str(src).unwrap();
     assert_snapshot!(circuit.to_string(), @r"
