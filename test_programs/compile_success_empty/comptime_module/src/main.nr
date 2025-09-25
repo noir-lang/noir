@@ -192,3 +192,12 @@ fn child_modules_test2() {
         assert_eq(children, expected);
     }
 }
+
+/// Ensures calling `Module::name` on the top-level module does not panic
+#[test]
+fn top_level_module_name_is_empty() {
+    comptime {
+        let top = quote [my_module].as_module().unwrap().parent().unwrap();
+        assert_eq(top.name(), quote[]);
+    }
+}

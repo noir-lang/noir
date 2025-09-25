@@ -134,6 +134,12 @@ fn child_modules_test2() {
     ()
 }
 
+/// Ensures calling `Module::name` on the top-level module does not panic
+#[test]
+fn top_level_module_name_is_empty() {
+    ()
+}
+
 mod separate_module {
     comptime fn inner_attribute_separate_module(m: Module) {
         assert(m.name() == quote { separate_module });
