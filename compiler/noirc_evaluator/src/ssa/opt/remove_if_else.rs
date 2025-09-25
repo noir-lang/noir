@@ -271,7 +271,7 @@ impl Context {
                 }
                 // Check if the item was made by a MakeArray instruction, which can create slices as well.
                 if let Some((array, typ)) = dfg.get_array_constant(value) {
-                    let length = array.len() / typ.element_types().len();
+                    let length = array.len() / typ.element_size();
                     return *entry.insert(length as u32);
                 }
                 // For non-constant slices we can't tell the size, which would mean we can't merge it.

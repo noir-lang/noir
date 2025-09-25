@@ -216,6 +216,8 @@ impl Type {
     /// to represent the type. This is 1 for every primitive type, and is the number of fields
     /// for any flattened tuple type.
     ///
+    /// Equivalent to `self.element_types().len()`, but doesn't consume the `self`.
+    ///
     /// Panics if `self` is not a [`Type::Array`] or [`Type::Slice`].
     pub(crate) fn element_size(&self) -> usize {
         match self {
