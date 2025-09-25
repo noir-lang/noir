@@ -106,7 +106,7 @@ fn display_databus(data_bus: &DataBus, dfg: &DataFlowGraph, f: &mut Formatter) -
     for call_data in &data_bus.call_data {
         write!(
             f,
-            "  call_data({}): array: {}, indexes: [",
+            "  call_data({}): array: {}, indices: [",
             call_data.call_data_id,
             value(dfg, call_data.array_id),
         )?;

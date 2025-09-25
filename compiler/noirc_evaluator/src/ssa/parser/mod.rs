@@ -314,7 +314,7 @@ impl<'a> Parser<'a> {
         let mut index_map = Vec::new();
 
         // indexes: [value: id, ...]
-        self.eat_keyword_or_error(Keyword::Indexes)?;
+        self.eat_keyword_or_error(Keyword::Indices)?;
         self.eat_or_error(Token::Colon)?;
         self.eat_or_error(Token::LeftBracket)?;
 
