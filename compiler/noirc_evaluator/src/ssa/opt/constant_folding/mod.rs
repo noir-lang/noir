@@ -57,7 +57,7 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn fold_constants(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            function.constant_fold(false, &mut None);
+            function.constant_fold(false, true, &mut None);
         }
         self
     }
@@ -70,7 +70,7 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn fold_constants_using_constraints(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            function.constant_fold(true, &mut None);
+            function.constant_fold(true, true, &mut None);
         }
         self
     }
@@ -101,7 +101,7 @@ impl Ssa {
         };
 
         for function in self.functions.values_mut() {
-            function.constant_fold(false, &mut interpreter);
+            function.constant_fold(false, true, &mut interpreter);
         }
 
         self
@@ -114,9 +114,10 @@ impl Function {
     pub(crate) fn constant_fold(
         &mut self,
         use_constraint_info: bool,
+        revisit_hoisted: bool,
         interpreter: &mut Option<Interpreter<Empty>>,
     ) {
-        let mut context = Context::new(use_constraint_info);
+        let mut context = Context::new(use_constraint_info, revisit_hoisted);
         let mut dom = DominatorTree::with_function(self);
         context.block_queue.push_back(self.entry_block());
 
@@ -152,6 +153,10 @@ struct Context {
     /// ```
     use_constraint_info: bool,
 
+    /// Whether to revisit blocks we hoist cached instruction from, looking for new
+    /// instructions that can be deduplicated and unlock further opportunities.
+    revisit_hoisted: bool,
+
     /// Contains sets of values which are constrained to be equivalent to each other.
     ///
     /// The mapping's structure is `side_effects_enabled_var => (constrained_value => simplified_value)`.
@@ -171,9 +176,10 @@ struct Context {
 }
 
 impl Context {
-    fn new(use_constraint_info: bool) -> Self {
+    fn new(use_constraint_info: bool, revisit_hoisted: bool) -> Self {
         Self {
             use_constraint_info,
+            revisit_hoisted,
             block_queue: Default::default(),
             constraint_simplification_mappings: Default::default(),
             cached_instruction_results: Default::default(),
@@ -235,12 +241,19 @@ impl Context {
         dfg[block_id].set_terminator(terminator);
         dfg.data_bus.map_values_mut(resolve_cache);
 
-        // If we hoisted from blocks, revisit them, and then revisit this block,
-        // before moving on to its successors.
-        if hoisted_from.is_empty() {
-            self.block_queue.extend(dfg[block_id].successors());
+        if self.revisit_hoisted && !hoisted_from.is_empty() {
+            // If we hoisted from blocks, revisit them, to deduplicate what was hoisted,
+            // and potentially replace the values in the next instructions, then revisit
+            // this block, to take advantage of further hoisting opportunities.
+            self.block_queue.clear_visited(&block_id);
+            self.block_queue.push_front(block_id);
+            for origin in hoisted_from.into_iter().rev() {
+                self.block_queue.clear_visited(&origin);
+                self.block_queue.push_front(origin);
+            }
         } else {
-            todo!()
+            // Otherwise proceed to the successors.
+            self.block_queue.extend(dfg[block_id].successors());
         }
     }
 
@@ -1035,12 +1048,14 @@ mod test {
         ";
 
         let mut ssa = Ssa::from_str(src).unwrap();
-        ssa = ssa.fold_constants();
+
+        // First demonstrate what happens if we don't revisit.
+        ssa.main_mut().constant_fold(false, false, &mut None);
 
         // 1. v9 is a duplicate of v5 -> hoisted to b0
         // 2. v13 is a duplicate of v9 -> immediately deduplicated because it's now in b0
         // 3. v14 is a duplicate of v10 -> hoisted to b2
-        assert_ssa_snapshot!(&mut ssa, @r"
+        assert_ssa_snapshot!(ssa, @r"
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: u1, v1: i8):
             v2 = allocate -> &mut i8
@@ -1076,42 +1091,37 @@ mod test {
         }
         ");
 
-        ssa = ssa.fold_constants();
+        // Now with revisit.
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants();
 
-        // 1. v6 removed as a duplicate of v5
-        // 2. v11 is a duplicate of v7 -> hoisted to b0
-        // 3. v14 is a duplicate of v12 -> hoisted to b2
-        assert_ssa_snapshot!(&mut ssa, @r"
+        // All duplicates hoisted into b0.
+        assert_ssa_snapshot!(ssa, @r"
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: u1, v1: i8):
             v2 = allocate -> &mut i8
             store i8 0 at v2
             v5 = unchecked_mul v1, i8 127
             v6 = cast v5 as u16
+            v7 = truncate v6 to 8 bits, max_bit_size: 16
+            v8 = cast v7 as i8
             jmpif v0 then: b1, else: b2
           b1():
-            v7 = cast v5 as u16
-            v8 = truncate v7 to 8 bits, max_bit_size: 16
-            v9 = cast v8 as i8
-            store v9 at v2
+            store v8 at v2
             jmp b2()
           b2():
-            v10 = truncate v6 to 8 bits, max_bit_size: 16
             jmpif v0 then: b3, else: b4
           b3():
-            v11 = truncate v6 to 8 bits, max_bit_size: 16
-            v12 = cast v11 as i8
-            store v12 at v2
+            store v8 at v2
             jmp b4()
           b4():
             jmpif v0 then: b5, else: b6
           b5():
-            v13 = cast v10 as i8
-            store v13 at v2
+            store v8 at v2
             jmp b6()
           b6():
-            v14 = load v2 -> i8
-            return v14
+            v9 = load v2 -> i8
+            return v9
         }
         ");
     }

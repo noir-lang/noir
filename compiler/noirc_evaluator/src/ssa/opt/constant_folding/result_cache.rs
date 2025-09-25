@@ -187,6 +187,10 @@ impl ResultCache {
         has_side_effects: bool,
     ) -> Option<CacheResult> {
         self.result.as_ref().and_then(|(origin, results)| {
+            if *origin == block {
+                // A revisit of the same block.
+                return None;
+            }
             if dom.dominates(*origin, block) {
                 Some(CacheResult::Cached(results))
             } else if !has_side_effects {
