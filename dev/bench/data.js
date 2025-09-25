@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1758815181502,
+  "lastUpdate": 1758815188459,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -21581,48 +21581,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "0eead18ffe3373b74853cd06bacc12b4d9ff42f8",
-          "message": "fix: disallow `_` in where clauses, and disallow unused trait impl generics (#9871)",
-          "timestamp": "2025-09-16T18:41:41Z",
-          "tree_id": "69f78ef583db736bc2fd136f2aa91e03091f6864",
-          "url": "https://github.com/noir-lang/noir/commit/0eead18ffe3373b74853cd06bacc12b4d9ff42f8"
-        },
-        "date": 1758049830389,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 256545,
-            "range": "± 1171",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 229968,
-            "range": "± 770",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2817715,
-            "range": "± 2957",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -23674,6 +23632,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2781588,
             "range": "± 8004",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9559138b29c554cae2caead93cfb2d1b44f7981a",
+          "message": "chore: Add `DataFlowGraph::instruction_result` for getting a known number of results (#9989)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-09-25T15:15:34Z",
+          "tree_id": "c1552b3bf9060697dfdc6017862147d1a9480a70",
+          "url": "https://github.com/noir-lang/noir/commit/9559138b29c554cae2caead93cfb2d1b44f7981a"
+        },
+        "date": 1758815167197,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 250893,
+            "range": "± 1420",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 222139,
+            "range": "± 5503",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2782698,
+            "range": "± 22250",
             "unit": "ns/iter"
           }
         ]
