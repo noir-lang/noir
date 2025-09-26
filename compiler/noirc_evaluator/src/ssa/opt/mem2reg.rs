@@ -615,6 +615,24 @@ impl<'f> PerFunctionContext<'f> {
                         .extend(references.get_aliases_for_value(*arg).iter());
                 }
                 self.mark_all_unknown(arguments, references);
+
+                // Call results might be aliases of their arguments, if they are references
+                let results = self.inserter.function.dfg.instruction_results(instruction);
+                for result in results {
+                    if self.inserter.function.dfg.type_of_value(*result).contains_reference() {
+                        for arg in arguments {
+                            if self.inserter.function.dfg.type_of_value(*arg).contains_reference() {
+                                let expression = Expression::Other(*arg);
+                                let aliases = references.aliases.entry(expression).or_default();
+                                aliases.insert(*result);
+
+                                let expression = Expression::Other(*result);
+                                let aliases = references.aliases.entry(expression).or_default();
+                                aliases.insert(*arg);
+                            }
+                        }
+                    }
+                }
             }
             Instruction::MakeArray { elements, typ } => {
                 // If `array` is an array constant that contains reference types, then insert each element
@@ -2390,5 +2408,28 @@ mod tests {
             return g10
         }
         ");
+    }
+
+    #[test]
+    fn correctly_aliases_references_in_call_return_values_to_arguments() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = allocate -> &mut Field
+            store v0 at v1
+            v2 = call f1(v1) -> &mut Field
+            store Field 1 at v2
+            store Field 2 at v1
+            v8 = load v2 -> Field
+            constrain v8 == Field 2
+            return
+        }
+        acir(inline) fn helper f1 {
+          b0(v0: &mut Field):
+            return v0
+        }
+        ";
+
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 }
