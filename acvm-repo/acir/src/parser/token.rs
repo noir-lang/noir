@@ -95,10 +95,6 @@ impl std::fmt::Display for Token {
 /// ACIR human readable text format keywords
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum Keyword {
-    /// current
-    Current,
-    /// witness
-    Witness,
     /// private
     Private,
     /// parameters
@@ -123,7 +119,7 @@ pub(crate) enum Keyword {
     Brillig,
     /// CALL
     Call,
-    /// PREDICATE
+    /// predicate
     Predicate,
     /// CALLDATA
     CallData,
@@ -131,13 +127,21 @@ pub(crate) enum Keyword {
     ReturnData,
     /// func
     Function,
+    /// input
+    Input,
+    /// inputs
+    Inputs,
+    /// output
+    Output,
+    /// outputs
+    Outputs,
+    /// bits
+    Bits,
 }
 
 impl Keyword {
     pub(super) fn lookup_keyword(word: &str) -> Option<Token> {
         let keyword = match word {
-            "current" => Keyword::Current,
-            "witness" => Keyword::Witness,
             "private" => Keyword::Private,
             "parameters" => Keyword::Parameters,
             "public" => Keyword::Public,
@@ -150,10 +154,15 @@ impl Keyword {
             "INIT" => Keyword::MemoryInit,
             "BRILLIG" => Keyword::Brillig,
             "CALL" => Keyword::Call,
-            "PREDICATE" => Keyword::Predicate,
+            "predicate" => Keyword::Predicate,
             "CALLDATA" => Keyword::CallData,
             "RETURNDATA" => Keyword::ReturnData,
             "func" => Keyword::Function,
+            "input" => Keyword::Input,
+            "inputs" => Keyword::Inputs,
+            "output" => Keyword::Output,
+            "outputs" => Keyword::Outputs,
+            "bits" => Keyword::Bits,
             _ => return None,
         };
         Some(Token::Keyword(keyword))
@@ -163,8 +172,6 @@ impl Keyword {
 impl std::fmt::Display for Keyword {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Keyword::Current => write!(f, "current"),
-            Keyword::Witness => write!(f, "witness"),
             Keyword::Private => write!(f, "private"),
             Keyword::Parameters => write!(f, "parameters"),
             Keyword::Public => write!(f, "public"),
@@ -177,10 +184,15 @@ impl std::fmt::Display for Keyword {
             Keyword::MemoryInit => write!(f, "INIT"),
             Keyword::Brillig => write!(f, "BRILLIG"),
             Keyword::Call => write!(f, "CALL"),
-            Keyword::Predicate => write!(f, "PREDICATE"),
+            Keyword::Predicate => write!(f, "predicate"),
             Keyword::CallData => write!(f, "CALLDATA"),
             Keyword::ReturnData => write!(f, "RETURNDATA"),
             Keyword::Function => write!(f, "func"),
+            Keyword::Input => write!(f, "input"),
+            Keyword::Inputs => write!(f, "inputs"),
+            Keyword::Output => write!(f, "output"),
+            Keyword::Outputs => write!(f, "outputs"),
+            Keyword::Bits => write!(f, "bits"),
         }
     }
 }

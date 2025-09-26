@@ -54,20 +54,8 @@ fn assert_program_roundtrip(src: &str) {
 }
 
 #[test]
-fn current_witness() {
-    let src = "
-    current witness: w1
-    private parameters: []
-    public parameters: []
-    return values: []
-    ";
-    assert_circuit_roundtrip(src);
-}
-
-#[test]
 fn private_parameters() {
     let src = "
-    current witness: w4
     private parameters: [w0, w1, w2, w3, w4]
     public parameters: []
     return values: []
@@ -78,7 +66,6 @@ fn private_parameters() {
 #[test]
 fn public_parameters() {
     let src = "
-    current witness: w9
     private parameters: [w0, w1, w2, w3, w4]
     public parameters: [w5, w6, w7, w8, w9]
     return values: []
@@ -89,7 +76,6 @@ fn public_parameters() {
 #[test]
 fn return_values() {
     let src = "
-    current witness: w12
     private parameters: [w0, w1, w2, w3, w4]
     public parameters: [w5, w6, w7, w8, w9]
     return values: [w10, w11, w12]
@@ -98,9 +84,19 @@ fn return_values() {
 }
 
 #[test]
+fn computed_current_witness() {
+    let src = "
+    private parameters: [w0, w1]
+    public parameters: [w3]
+    return values: [w2]
+    ";
+    let circuit = Circuit::from_str(src).unwrap();
+    assert_eq!(circuit.current_witness_index, 3);
+}
+
+#[test]
 fn assert_zero_opcodes() {
     let src = "
-    current witness: w9
     private parameters: [w0, w1, w2, w3, w4]
     public parameters: [w5, w6, w7, w8, w9]
     return values: []
@@ -116,7 +112,6 @@ fn assert_zero_opcodes() {
 #[test]
 fn assert_zero_with_mul_terms() {
     let src = "
-    current witness: w6
     private parameters: [w0, w1, w2]
     public parameters: []
     return values: []
@@ -132,11 +127,10 @@ fn assert_zero_with_mul_terms() {
 #[test]
 fn range_check() {
     let src = "
-    current witness: w5
     private parameters: []
     public parameters: []
     return values: []
-    BLACKBOX::RANGE [w0]:32 bits []
+    BLACKBOX::RANGE input: w0, bits: 32
     ";
     assert_circuit_roundtrip(src);
 }
@@ -144,13 +138,12 @@ fn range_check() {
 #[test]
 fn xor() {
     let src = "
-    current witness: w2
     private parameters: [w0]
     public parameters: [w1]
     return values: []
-    BLACKBOX::RANGE [w0]:32 bits []
-    BLACKBOX::RANGE [w1]:32 bits []
-    BLACKBOX::XOR [w0, w1]:32 bits [w2]
+    BLACKBOX::RANGE input: w0, bits: 32
+    BLACKBOX::RANGE input: w1, bits: 32
+    BLACKBOX::XOR inputs: [w0, w1], bits: 32, output: w2
     EXPR w2 = 15
     ";
     assert_circuit_roundtrip(src);
@@ -160,71 +153,70 @@ fn xor() {
 fn aes128_encrypt() {
     // This ACIR represents an accurately constrained aes128 encryption in ACIR
     let src = "
-    current witness: w75
     private parameters: [w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25, w26, w27, w28, w29, w30, w31, w32, w33, w34, w35, w36, w37, w38, w39, w40, w41, w42, w43]
     public parameters: [w44, w45, w46, w47, w48, w49, w50, w51, w52, w53, w54, w55, w56, w57, w58, w59]
     return values: []
-    BLACKBOX::RANGE [w0]:8 bits []
-    BLACKBOX::RANGE [w1]:8 bits []
-    BLACKBOX::RANGE [w2]:8 bits []
-    BLACKBOX::RANGE [w3]:8 bits []
-    BLACKBOX::RANGE [w4]:8 bits []
-    BLACKBOX::RANGE [w5]:8 bits []
-    BLACKBOX::RANGE [w6]:8 bits []
-    BLACKBOX::RANGE [w7]:8 bits []
-    BLACKBOX::RANGE [w8]:8 bits []
-    BLACKBOX::RANGE [w9]:8 bits []
-    BLACKBOX::RANGE [w10]:8 bits []
-    BLACKBOX::RANGE [w11]:8 bits []
-    BLACKBOX::RANGE [w12]:8 bits []
-    BLACKBOX::RANGE [w13]:8 bits []
-    BLACKBOX::RANGE [w14]:8 bits []
-    BLACKBOX::RANGE [w15]:8 bits []
-    BLACKBOX::RANGE [w16]:8 bits []
-    BLACKBOX::RANGE [w17]:8 bits []
-    BLACKBOX::RANGE [w18]:8 bits []
-    BLACKBOX::RANGE [w19]:8 bits []
-    BLACKBOX::RANGE [w20]:8 bits []
-    BLACKBOX::RANGE [w21]:8 bits []
-    BLACKBOX::RANGE [w22]:8 bits []
-    BLACKBOX::RANGE [w23]:8 bits []
-    BLACKBOX::RANGE [w24]:8 bits []
-    BLACKBOX::RANGE [w25]:8 bits []
-    BLACKBOX::RANGE [w26]:8 bits []
-    BLACKBOX::RANGE [w27]:8 bits []
-    BLACKBOX::RANGE [w28]:8 bits []
-    BLACKBOX::RANGE [w29]:8 bits []
-    BLACKBOX::RANGE [w30]:8 bits []
-    BLACKBOX::RANGE [w31]:8 bits []
-    BLACKBOX::RANGE [w32]:8 bits []
-    BLACKBOX::RANGE [w33]:8 bits []
-    BLACKBOX::RANGE [w34]:8 bits []
-    BLACKBOX::RANGE [w35]:8 bits []
-    BLACKBOX::RANGE [w36]:8 bits []
-    BLACKBOX::RANGE [w37]:8 bits []
-    BLACKBOX::RANGE [w38]:8 bits []
-    BLACKBOX::RANGE [w39]:8 bits []
-    BLACKBOX::RANGE [w40]:8 bits []
-    BLACKBOX::RANGE [w41]:8 bits []
-    BLACKBOX::RANGE [w42]:8 bits []
-    BLACKBOX::RANGE [w43]:8 bits []
-    BLACKBOX::RANGE [w44]:8 bits []
-    BLACKBOX::RANGE [w45]:8 bits []
-    BLACKBOX::RANGE [w46]:8 bits []
-    BLACKBOX::RANGE [w47]:8 bits []
-    BLACKBOX::RANGE [w48]:8 bits []
-    BLACKBOX::RANGE [w49]:8 bits []
-    BLACKBOX::RANGE [w50]:8 bits []
-    BLACKBOX::RANGE [w51]:8 bits []
-    BLACKBOX::RANGE [w52]:8 bits []
-    BLACKBOX::RANGE [w53]:8 bits []
-    BLACKBOX::RANGE [w54]:8 bits []
-    BLACKBOX::RANGE [w55]:8 bits []
-    BLACKBOX::RANGE [w56]:8 bits []
-    BLACKBOX::RANGE [w57]:8 bits []
-    BLACKBOX::RANGE [w58]:8 bits []
-    BLACKBOX::RANGE [w59]:8 bits []
-    BLACKBOX::AES128_ENCRYPT [w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25, w26, w27, w28, w29, w30, w31, w32, w33, w34, w35, w36, w37, w38, w39, w40, w41, w42, w43] [w60, w61, w62, w63, w64, w65, w66, w67, w68, w69, w70, w71, w72, w73, w74, w75]
+    BLACKBOX::RANGE input: w0, bits: 8
+    BLACKBOX::RANGE input: w1, bits: 8
+    BLACKBOX::RANGE input: w2, bits: 8
+    BLACKBOX::RANGE input: w3, bits: 8
+    BLACKBOX::RANGE input: w4, bits: 8
+    BLACKBOX::RANGE input: w5, bits: 8
+    BLACKBOX::RANGE input: w6, bits: 8
+    BLACKBOX::RANGE input: w7, bits: 8
+    BLACKBOX::RANGE input: w8, bits: 8
+    BLACKBOX::RANGE input: w9, bits: 8
+    BLACKBOX::RANGE input: w10, bits: 8
+    BLACKBOX::RANGE input: w11, bits: 8
+    BLACKBOX::RANGE input: w12, bits: 8
+    BLACKBOX::RANGE input: w13, bits: 8
+    BLACKBOX::RANGE input: w14, bits: 8
+    BLACKBOX::RANGE input: w15, bits: 8
+    BLACKBOX::RANGE input: w16, bits: 8
+    BLACKBOX::RANGE input: w17, bits: 8
+    BLACKBOX::RANGE input: w18, bits: 8
+    BLACKBOX::RANGE input: w19, bits: 8
+    BLACKBOX::RANGE input: w20, bits: 8
+    BLACKBOX::RANGE input: w21, bits: 8
+    BLACKBOX::RANGE input: w22, bits: 8
+    BLACKBOX::RANGE input: w23, bits: 8
+    BLACKBOX::RANGE input: w24, bits: 8
+    BLACKBOX::RANGE input: w25, bits: 8
+    BLACKBOX::RANGE input: w26, bits: 8
+    BLACKBOX::RANGE input: w27, bits: 8
+    BLACKBOX::RANGE input: w28, bits: 8
+    BLACKBOX::RANGE input: w29, bits: 8
+    BLACKBOX::RANGE input: w30, bits: 8
+    BLACKBOX::RANGE input: w31, bits: 8
+    BLACKBOX::RANGE input: w32, bits: 8
+    BLACKBOX::RANGE input: w33, bits: 8
+    BLACKBOX::RANGE input: w34, bits: 8
+    BLACKBOX::RANGE input: w35, bits: 8
+    BLACKBOX::RANGE input: w36, bits: 8
+    BLACKBOX::RANGE input: w37, bits: 8
+    BLACKBOX::RANGE input: w38, bits: 8
+    BLACKBOX::RANGE input: w39, bits: 8
+    BLACKBOX::RANGE input: w40, bits: 8
+    BLACKBOX::RANGE input: w41, bits: 8
+    BLACKBOX::RANGE input: w42, bits: 8
+    BLACKBOX::RANGE input: w43, bits: 8
+    BLACKBOX::RANGE input: w44, bits: 8
+    BLACKBOX::RANGE input: w45, bits: 8
+    BLACKBOX::RANGE input: w46, bits: 8
+    BLACKBOX::RANGE input: w47, bits: 8
+    BLACKBOX::RANGE input: w48, bits: 8
+    BLACKBOX::RANGE input: w49, bits: 8
+    BLACKBOX::RANGE input: w50, bits: 8
+    BLACKBOX::RANGE input: w51, bits: 8
+    BLACKBOX::RANGE input: w52, bits: 8
+    BLACKBOX::RANGE input: w53, bits: 8
+    BLACKBOX::RANGE input: w54, bits: 8
+    BLACKBOX::RANGE input: w55, bits: 8
+    BLACKBOX::RANGE input: w56, bits: 8
+    BLACKBOX::RANGE input: w57, bits: 8
+    BLACKBOX::RANGE input: w58, bits: 8
+    BLACKBOX::RANGE input: w59, bits: 8
+    BLACKBOX::AES128_ENCRYPT inputs: [w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25, w26, w27, w28, w29, w30, w31, w32, w33, w34, w35, w36, w37, w38, w39, w40, w41, w42, w43], outputs: [w60, w61, w62, w63, w64, w65, w66, w67, w68, w69, w70, w71, w72, w73, w74, w75]
     EXPR w60 = w44
     EXPR w61 = w45
     EXPR w62 = w46
@@ -248,11 +240,10 @@ fn aes128_encrypt() {
 #[test]
 fn blake2s() {
     let src = "
-    current witness: w68
     private parameters: [w0, w1, w2, w3, w4]
     public parameters: [w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25, w26, w27, w28, w29, w30, w31, w32, w33, w34, w35, w36]
     return values: []
-    BLACKBOX::BLAKE2S [w0, w1, w2, w3, w4] [w37, w38, w39, w40, w41, w42, w43, w44, w45, w46, w47, w48, w49, w50, w51, w52, w53, w54, w55, w56, w57, w58, w59, w60, w61, w62, w63, w64, w65, w66, w67, w68]
+    BLACKBOX::BLAKE2S inputs: [w0, w1, w2, w3, w4], outputs: [w37, w38, w39, w40, w41, w42, w43, w44, w45, w46, w47, w48, w49, w50, w51, w52, w53, w54, w55, w56, w57, w58, w59, w60, w61, w62, w63, w64, w65, w66, w67, w68]
     ";
     assert_circuit_roundtrip(src);
 }
@@ -260,11 +251,10 @@ fn blake2s() {
 #[test]
 fn blake3() {
     let src = "
-    current witness: w37
     private parameters: [w0, w1, w2, w3, w4]
     public parameters: []
     return values: []
-    BLACKBOX::BLAKE3 [w0, w1, w2, w3, w4] [w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25, w26, w27, w28, w29, w30, w31, w32, w33, w34, w35, w36]
+    BLACKBOX::BLAKE3 inputs: [w0, w1, w2, w3, w4], outputs: [w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25, w26, w27, w28, w29, w30, w31, w32, w33, w34, w35, w36]
     ";
     assert_circuit_roundtrip(src);
 }
@@ -276,11 +266,10 @@ fn ecdsa_secp256k1() {
 
     let src = format!(
         "
-    current witness: w161
     private parameters: []
     public parameters: []
     return values: []
-    BLACKBOX::ECDSA_SECP256K1 [{inputs_str}] [w161]
+    BLACKBOX::ECDSA_SECP256K1 inputs: [{inputs_str}], output: w161
     "
     );
     assert_circuit_roundtrip(&src);
@@ -294,11 +283,10 @@ fn ecdsa_secp256k1_missing_inputs() {
 
     let src = format!(
         "
-    current witness: w100
     private parameters: []
     public parameters: []
     return values: []
-    BLACKBOX::ECDSA_SECP256K1 [{inputs_str}] [w100]
+    BLACKBOX::ECDSA_SECP256K1 inputs: [{inputs_str}], output: w100
     "
     );
     let _ = Circuit::from_str(&src).unwrap();
@@ -311,11 +299,10 @@ fn ecdsa_secp256r1() {
 
     let src = format!(
         "
-    current witness: w161
     private parameters: []
     public parameters: []
     return values: []
-    BLACKBOX::ECDSA_SECP256R1 [{inputs_str}] [w161]
+    BLACKBOX::ECDSA_SECP256R1 inputs: [{inputs_str}], output: w161
     "
     );
     assert_circuit_roundtrip(&src);
@@ -329,11 +316,10 @@ fn ecdsa_secp256r1_missing_inputs() {
 
     let src = format!(
         "
-    current witness: w100
     private parameters: []
     public parameters: []
     return values: []
-    BLACKBOX::ECDSA_SECP256R1 [{inputs_str}] [w100]
+    BLACKBOX::ECDSA_SECP256R1 inputs: [{inputs_str}], outputs: [w100]
     "
     );
     let _ = Circuit::from_str(&src).unwrap();
@@ -349,11 +335,10 @@ fn keccakf1600() {
 
     let src = format!(
         "
-    current witness: w50
     private parameters: []
     public parameters: []
     return values: []
-    BLACKBOX::KECCAKF1600 [{inputs_str}] [{outputs_str}]
+    BLACKBOX::KECCAKF1600 inputs: [{inputs_str}], outputs: [{outputs_str}]
     "
     );
     assert_circuit_roundtrip(&src);
@@ -370,11 +355,10 @@ fn keccakf1600_missing_inputs() {
 
     let src = format!(
         "
-        current witness: w49
         private parameters: []
         public parameters: []
         return values: []
-        BLACKBOX::KECCAKF1600 [{inputs_str}] [{outputs_str}]
+        BLACKBOX::KECCAKF1600 inputs: [{inputs_str}], outputs: [{outputs_str}]
         "
     );
     let _ = Circuit::from_str(&src).unwrap();
@@ -383,11 +367,10 @@ fn keccakf1600_missing_inputs() {
 #[test]
 fn embedded_curve_add() {
     let src = "
-    current witness: w9
     private parameters: []
     public parameters: []
     return values: []
-    BLACKBOX::EMBEDDED_CURVE_ADD [w0, w1, w2, w3, w4, w5, w6] [w7, w8, w9]
+    BLACKBOX::EMBEDDED_CURVE_ADD inputs: [w0, w1, w2, w3, w4, w5, w6], outputs: [w7, w8, w9]
     ";
     assert_circuit_roundtrip(src);
 }
@@ -396,11 +379,10 @@ fn embedded_curve_add() {
 #[should_panic]
 fn embedded_curve_add_wrong_output_count() {
     let src = "
-        current witness: w9
         private parameters: []
         public parameters: []
         return values: []
-        BLACKBOX::EMBEDDED_CURVE_ADD [w0, w1, w2, w3, w4, w5, w6] [w7, w8]
+        BLACKBOX::EMBEDDED_CURVE_ADD inputs: [w0, w1, w2, w3, w4, w5, w6], outputs: [w7, w8]
     ";
     let _ = Circuit::from_str(src).unwrap();
 }
@@ -408,11 +390,10 @@ fn embedded_curve_add_wrong_output_count() {
 #[test]
 fn poseidon2_permutation() {
     let src = "
-    current witness: w5
     private parameters: []
     public parameters: []
     return values: []
-    BLACKBOX::POSEIDON2_PERMUTATION [w0, w1, w2] [w3, w4, w5]
+    BLACKBOX::POSEIDON2_PERMUTATION inputs: [w0, w1, w2], outputs: [w3, w4, w5]
     ";
     assert_circuit_roundtrip(src);
 }
@@ -427,11 +408,10 @@ fn sha256_compression() {
 
     let src = format!(
         "
-    current witness: w31
     private parameters: []
     public parameters: []
     return values: []
-    BLACKBOX::SHA256_COMPRESSION [{inputs_str}] [{outputs_str}]
+    BLACKBOX::SHA256_COMPRESSION inputs: [{inputs_str}], outputs: [{outputs_str}]
     "
     );
     assert_circuit_roundtrip(&src);
@@ -448,11 +428,10 @@ fn sha256_compression_missing_outputs() {
 
     let src = format!(
         "
-        current witness: w31
         private parameters: []
         public parameters: []
         return values: []
-        BLACKBOX::SHA256_COMPRESSION [{inputs_str}] [{outputs_str}]
+        BLACKBOX::SHA256_COMPRESSION inputs: [{inputs_str}], outputs: [{outputs_str}]
         "
     );
     let _ = Circuit::from_str(&src).unwrap();
@@ -461,7 +440,6 @@ fn sha256_compression_missing_outputs() {
 #[test]
 fn memory_read() {
     let src = "
-    current witness: w1
     private parameters: []
     public parameters: []
     return values: []
@@ -473,11 +451,10 @@ fn memory_read() {
 #[test]
 fn memory_write() {
     let src = "
-    current witness: w1
     private parameters: []
     public parameters: []
     return values: []
-    MEM id: 3, write: w0 at: w1
+    MEM id: 3, write: w0, at: w1
     ";
     assert_circuit_roundtrip(src);
 }
@@ -485,7 +462,6 @@ fn memory_write() {
 #[test]
 fn memory_init() {
     let src = "
-    current witness: w4
     private parameters: []
     public parameters: []
     return values: []
@@ -497,7 +473,6 @@ fn memory_init() {
 #[test]
 fn memory_init_duplicate_witness() {
     let src = "
-    current witness: w4
     private parameters: []
     public parameters: []
     return values: []
@@ -509,7 +484,6 @@ fn memory_init_duplicate_witness() {
 #[test]
 fn memory_databus() {
     let src = "
-    current witness: w5
     private parameters: [w0, w1, w2, w3, w4, w5]
     public parameters: []
     return values: []
@@ -522,11 +496,10 @@ fn memory_databus() {
 #[test]
 fn brillig_call() {
     let src = "
-    current witness: w2
     private parameters: [w0, w1, w2]
     public parameters: []
     return values: []
-    BRILLIG CALL func 0: inputs: [w0 - w1], outputs: [w3]
+    BRILLIG CALL func: 0, inputs: [w0 - w1], outputs: [w3]
     EXPR 0 = w0*w3 - w1*w3 - 1
     EXPR w2 = w0
     ";
@@ -536,12 +509,10 @@ fn brillig_call() {
 #[test]
 fn brillig_call_with_predicate() {
     let src = "
-    current witness: w2
     private parameters: [w0, w1, w2]
     public parameters: []
     return values: []
-    BRILLIG CALL func 0: PREDICATE: 1
-    inputs: [w0 - w1], outputs: [w3]
+    BRILLIG CALL func: 0, predicate: 1, inputs: [w0 - w1], outputs: [w3]
     EXPR 0 = w0*w3 - w1*w3 - 1
     EXPR w2 = w0
     ";
@@ -551,11 +522,10 @@ fn brillig_call_with_predicate() {
 #[test]
 fn brillig_call_with_memory_array_input() {
     let src = "
-    current witness: w2
     private parameters: [w0, w1, w2]
     public parameters: []
     return values: []
-    BRILLIG CALL func 0: inputs: [2, MemoryArray(0)], outputs: []
+    BRILLIG CALL func: 0, inputs: [2, MemoryArray(0)], outputs: []
     ";
     assert_circuit_roundtrip(src);
 }
@@ -563,11 +533,10 @@ fn brillig_call_with_memory_array_input() {
 #[test]
 fn call() {
     let src = "
-    current witness: w2
     private parameters: [w0]
     public parameters: [w1]
     return values: []
-    CALL func 1: inputs: [w0, w1], outputs: [w2]
+    CALL func: 1, inputs: [w0, w1], outputs: [w2]
     ";
     assert_circuit_roundtrip(src);
 }
@@ -575,12 +544,10 @@ fn call() {
 #[test]
 fn call_with_predicate() {
     let src = "
-    current witness: w2
     private parameters: [w0]
     public parameters: [w1]
     return values: []
-    CALL func 1: PREDICATE: 1
-    inputs: [w0, w1], outputs: [w2]
+    CALL func: 1, predicate: 1, inputs: [w0, w1], outputs: [w2]
     ";
     assert_circuit_roundtrip(src);
 }
@@ -589,57 +556,56 @@ fn call_with_predicate() {
 #[test]
 fn array_dynamic() {
     let src = "
-    current witness: w78
     private parameters: [w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18]
     public parameters: []
     return values: []
-    BLACKBOX::RANGE [w0]:32 bits []
-    BLACKBOX::RANGE [w1]:32 bits []
-    BLACKBOX::RANGE [w2]:32 bits []
-    BLACKBOX::RANGE [w3]:32 bits []
-    BLACKBOX::RANGE [w4]:32 bits []
+    BLACKBOX::RANGE input: w0, bits: 32
+    BLACKBOX::RANGE input: w1, bits: 32
+    BLACKBOX::RANGE input: w2, bits: 32
+    BLACKBOX::RANGE input: w3, bits: 32
+    BLACKBOX::RANGE input: w4, bits: 32
     INIT id: 0, len: 5, witnesses: [w0, w1, w2, w3, w4]
-    BLACKBOX::RANGE [w5]:32 bits []
-    BLACKBOX::RANGE [w6]:32 bits []
+    BLACKBOX::RANGE input: w5, bits: 32
+    BLACKBOX::RANGE input: w6, bits: 32
     INIT id: 1, len: 5, witnesses: [w7, w8, w9, w10, w11]
-    BLACKBOX::RANGE [w12]:32 bits []
-    BLACKBOX::RANGE [w13]:32 bits []
-    BLACKBOX::RANGE [w14]:32 bits []
-    BLACKBOX::RANGE [w15]:32 bits []
-    BLACKBOX::RANGE [w16]:32 bits []
-    BLACKBOX::RANGE [w17]:32 bits []
+    BLACKBOX::RANGE input: w12, bits: 32
+    BLACKBOX::RANGE input: w13, bits: 32
+    BLACKBOX::RANGE input: w14, bits: 32
+    BLACKBOX::RANGE input: w15, bits: 32
+    BLACKBOX::RANGE input: w16, bits: 32
+    BLACKBOX::RANGE input: w17, bits: 32
     EXPR w19 = 5*w6
-    BLACKBOX::RANGE [w19]:32 bits []
+    BLACKBOX::RANGE input: w19, bits: 32
     EXPR w20 = w5 - w19
-    BLACKBOX::RANGE [w20]:32 bits []
+    BLACKBOX::RANGE input: w20, bits: 32
     EXPR w21 = w20 - 5
     EXPR w22 = w21 - 3
     MEM id: 0, read at: w21, value: w23
     EXPR w23 = 111
     MEM id: 0, read at: w22, value: w24
     EXPR w24 = 101
-    BRILLIG CALL func 0: inputs: [w22 + 4294967291, 4294967296], outputs: [w25, w26]
-    BLACKBOX::RANGE [w26]:32 bits []
+    BRILLIG CALL func: 0, inputs: [w22 + 4294967291, 4294967296], outputs: [w25, w26]
+    BLACKBOX::RANGE input: w26, bits: 32
     EXPR w26 = w22 - 4294967296*w25 + 4294967291
     EXPR w25 = 0
     EXPR w27 = 0
-    MEM id: 0, write: w27 at: w22
+    MEM id: 0, write: w27, at: w22
     MEM id: 0, read at: w21, value: w28
     EXPR w28 = 111
     EXPR w29 = 1
     MEM id: 0, read at: w29, value: w30
     EXPR w30 = 0
-    BRILLIG CALL func 0: inputs: [w21 + 4294967286, 4294967296], outputs: [w31, w32]
-    BLACKBOX::RANGE [w31]:1 bits []
-    BLACKBOX::RANGE [w32]:32 bits []
+    BRILLIG CALL func: 0, inputs: [w21 + 4294967286, 4294967296], outputs: [w31, w32]
+    BLACKBOX::RANGE input: w31, bits: 1
+    BLACKBOX::RANGE input: w32, bits: 32
     EXPR w32 = w21 - 4294967296*w31 + 4294967286
     EXPR w33 = -w21*w31 + w21
     MEM id: 0, read at: w33, value: w34
     EXPR w35 = -w31*w34 + 2*w31 + w34 - 2
-    BLACKBOX::RANGE [w35]:32 bits []
-    BRILLIG CALL func 0: inputs: [w21 + 4294967291, 4294967296], outputs: [w36, w37]
-    BLACKBOX::RANGE [w36]:1 bits []
-    BLACKBOX::RANGE [w37]:32 bits []
+    BLACKBOX::RANGE input: w35, bits: 32
+    BRILLIG CALL func: 0, inputs: [w21 + 4294967291, 4294967296], outputs: [w36, w37]
+    BLACKBOX::RANGE input: w36, bits: 1
+    BLACKBOX::RANGE input: w37, bits: 32
     EXPR w37 = w21 - 4294967296*w36 + 4294967291
     EXPR w36 = w31*w36
     EXPR w38 = -w21*w31 + w21
@@ -654,14 +620,14 @@ fn array_dynamic() {
     MEM id: 0, read at: w46, value: w47
     INIT id: 3, len: 5, witnesses: [w40, w41, w43, w45, w47]
     EXPR w48 = -w31*w35 + w31*w39 + w35
-    MEM id: 3, write: w48 at: w38
+    MEM id: 3, write: w48, at: w38
     MEM id: 3, read at: w46, value: w49
     MEM id: 0, read at: w46, value: w50
     EXPR 0 = -w31*w36
     EXPR w51 = w21*w31
     MEM id: 0, read at: w51, value: w52
     EXPR w53 = -w31*w52 + w52
-    MEM id: 0, write: w53 at: w51
+    MEM id: 0, write: w53, at: w51
     MEM id: 0, read at: w46, value: w54
     EXPR w55 = -w31 + 1
     EXPR w56 = -w31*w49 + w31*w50 + w49
@@ -677,25 +643,25 @@ fn array_dynamic() {
     MEM id: 4, read at: w9, value: w64
     MEM id: 4, read at: w10, value: w65
     MEM id: 4, read at: w11, value: w66
-    BRILLIG CALL func 1: inputs: [w62 + w63 + w64 + w65 + w66], outputs: [w67]
+    BRILLIG CALL func: 1, inputs: [w62 + w63 + w64 + w65 + w66], outputs: [w67]
     EXPR 0 = w62*w67 + w63*w67 + w64*w67 + w65*w67 + w66*w67 - 1
-    BRILLIG CALL func 0: inputs: [w18, 4294967296], outputs: [w68, w69]
-    BLACKBOX::RANGE [w68]:222 bits []
-    BLACKBOX::RANGE [w69]:32 bits []
+    BRILLIG CALL func: 0, inputs: [w18, 4294967296], outputs: [w68, w69]
+    BLACKBOX::RANGE input: w68, bits: 222
+    BLACKBOX::RANGE input: w69, bits: 32
     EXPR w69 = w18 - 4294967296*w68
     EXPR w70 = -w68 + 5096253676302562286669017222071363378443840053029366383258766538131
-    BLACKBOX::RANGE [w70]:222 bits []
-    BRILLIG CALL func 1: inputs: [-w68 + 5096253676302562286669017222071363378443840053029366383258766538131], outputs: [w71]
+    BLACKBOX::RANGE input: w70, bits: 222
+    BRILLIG CALL func: 1, inputs: [-w68 + 5096253676302562286669017222071363378443840053029366383258766538131], outputs: [w71]
     EXPR w72 = w68*w71 - 5096253676302562286669017222071363378443840053029366383258766538131*w71 + 1
     EXPR 0 = -w68*w72 + 5096253676302562286669017222071363378443840053029366383258766538131*w72
     EXPR w73 = w69*w72 + 268435455*w72
-    BLACKBOX::RANGE [w73]:32 bits []
-    BRILLIG CALL func 0: inputs: [-w69 + 4294967299, 4294967296], outputs: [w74, w75]
-    BLACKBOX::RANGE [w74]:1 bits []
-    BLACKBOX::RANGE [w75]:32 bits []
+    BLACKBOX::RANGE input: w73, bits: 32
+    BRILLIG CALL func: 0, inputs: [-w69 + 4294967299, 4294967296], outputs: [w74, w75]
+    BLACKBOX::RANGE input: w74, bits: 1
+    BLACKBOX::RANGE input: w75, bits: 32
     EXPR w75 = -w69 - 4294967296*w74 + 4294967299
     EXPR w76 = -w17*w74 + w17 - 3*w74 + 3
-    BLACKBOX::RANGE [w76]:32 bits []
+    BLACKBOX::RANGE input: w76, bits: 32
     EXPR w77 = -w74*w76 + w76
     MEM id: 1, read at: w77, value: w78
     EXPR w78 = -w15*w74 + w74*w78 + w15
@@ -707,19 +673,16 @@ fn array_dynamic() {
 fn fold_basic() {
     let src = "
     func 0
-    current witness: w2
     private parameters: [w0]
     public parameters: [w1]
     return values: []
-    CALL func 1: PREDICATE: 1
-    inputs: [w0, w1], outputs: [w2]
+    CALL func: 1, predicate: 1, inputs: [w0, w1], outputs: [w2]
 
     func 1
-    current witness: w3
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
-    BRILLIG CALL func 0: inputs: [w0 - w1], outputs: [w3]
+    BRILLIG CALL func: 0, inputs: [w0 - w1], outputs: [w3]
     EXPR 0 = w0*w3 - w1*w3 - 1
     EXPR w2 = w0
     ";
@@ -730,19 +693,16 @@ fn fold_basic() {
 fn fold_basic_mismatched_ids() {
     let src = "
     func 0
-    current witness: w2
     private parameters: [w0]
     public parameters: [w1]
     return values: []
-    CALL func 1: PREDICATE: 1
-    inputs: [w0, w1], outputs: [w2]
+    CALL func: 1, predicate: 1, inputs: [w0, w1], outputs: [w2]
 
     func 2
-    current witness: w3
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
-    BRILLIG CALL func 0: inputs: [w0 - w1], outputs: [w3]
+    BRILLIG CALL func: 0, inputs: [w0 - w1], outputs: [w3]
     EXPR w0*w3 - w1*w3 - 1 = 0
     EXPR w0 = w2
     ";
@@ -757,7 +717,6 @@ fn fold_basic_mismatched_ids() {
 #[test]
 fn assert_zero_equation() {
     let src = "
-    current witness: w9
     private parameters: [w0, w1, w2, w2]
     public parameters: []
     return values: []
@@ -765,7 +724,6 @@ fn assert_zero_equation() {
     ";
     let circuit = Circuit::from_str(src).unwrap();
     assert_snapshot!(circuit.to_string(), @r"
-    current witness: w9
     private parameters: [w0, w1, w2]
     public parameters: []
     return values: []
@@ -776,7 +734,6 @@ fn assert_zero_equation() {
 #[test]
 fn does_not_negate_when_equal_to_zero() {
     let src = "
-    current witness: w9
     private parameters: [w0, w1, w2]
     public parameters: []
     return values: []
@@ -784,7 +741,6 @@ fn does_not_negate_when_equal_to_zero() {
     ";
     let circuit = Circuit::from_str(src).unwrap();
     assert_snapshot!(circuit.to_string(), @r"
-    current witness: w9
     private parameters: [w0, w1, w2]
     public parameters: []
     return values: []

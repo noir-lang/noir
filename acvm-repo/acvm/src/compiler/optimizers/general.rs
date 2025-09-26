@@ -87,7 +87,6 @@ mod tests {
     #[test]
     fn removes_zero_coefficients_from_mul_terms() {
         let src = "
-        current witness: w1
         private parameters: [w0, w1]
         public parameters: []
         return values: []
@@ -98,7 +97,6 @@ mod tests {
         let circuit = Circuit::from_str(src).unwrap();
         let optimized_circuit = optimize(circuit);
         assert_circuit_snapshot!(optimized_circuit, @r"
-        current witness: w1
         private parameters: [w0, w1]
         public parameters: []
         return values: []
@@ -109,7 +107,6 @@ mod tests {
     #[test]
     fn removes_zero_coefficients_from_linear_terms() {
         let src = "
-        current witness: w1
         private parameters: [w0, w1]
         public parameters: []
         return values: []
@@ -120,7 +117,6 @@ mod tests {
         let circuit = Circuit::from_str(src).unwrap();
         let optimized_circuit = optimize(circuit);
         assert_circuit_snapshot!(optimized_circuit, @r"
-        current witness: w1
         private parameters: [w0, w1]
         public parameters: []
         return values: []
@@ -131,7 +127,6 @@ mod tests {
     #[test]
     fn simplifies_mul_terms() {
         let src = "
-        current witness: w1
         private parameters: [w0, w1]
         public parameters: []
         return values: []
@@ -143,7 +138,6 @@ mod tests {
         let circuit = Circuit::from_str(src).unwrap();
         let optimized_circuit = optimize(circuit);
         assert_circuit_snapshot!(optimized_circuit, @r"
-        current witness: w1
         private parameters: [w0, w1]
         public parameters: []
         return values: []
@@ -154,7 +148,6 @@ mod tests {
     #[test]
     fn removes_zero_coefficients_after_simplifying_mul_terms() {
         let src = "
-        current witness: w1
         private parameters: [w0, w1]
         public parameters: []
         return values: []
@@ -163,7 +156,6 @@ mod tests {
         let circuit = Circuit::from_str(src).unwrap();
         let optimized_circuit = optimize(circuit);
         assert_circuit_snapshot!(optimized_circuit, @r"
-        current witness: w1
         private parameters: [w0, w1]
         public parameters: []
         return values: []
@@ -174,7 +166,6 @@ mod tests {
     #[test]
     fn simplifies_linear_terms() {
         let src = "
-        current witness: w1
         private parameters: [w0, w1]
         public parameters: []
         return values: []
@@ -186,7 +177,6 @@ mod tests {
         let circuit = Circuit::from_str(src).unwrap();
         let optimized_circuit = optimize(circuit);
         assert_circuit_snapshot!(optimized_circuit, @r"
-        current witness: w1
         private parameters: [w0, w1]
         public parameters: []
         return values: []
@@ -197,7 +187,6 @@ mod tests {
     #[test]
     fn removes_zero_coefficients_after_simplifying_linear_terms() {
         let src = "
-        current witness: w1
         private parameters: [w0, w1]
         public parameters: []
         return values: []
@@ -206,7 +195,6 @@ mod tests {
         let circuit = Circuit::from_str(src).unwrap();
         let optimized_circuit = optimize(circuit);
         assert_circuit_snapshot!(optimized_circuit, @r"
-        current witness: w1
         private parameters: [w0, w1]
         public parameters: []
         return values: []

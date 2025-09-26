@@ -158,7 +158,7 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
                 if is_read {
                     write!(f, "id: {}, read at: {}, value: {}", block_id.0, op.index, op.value)
                 } else {
-                    write!(f, "id: {}, write: {} at: {}", block_id.0, op.value, op.index)
+                    write!(f, "id: {}, write: {}, at: {}", block_id.0, op.value, op.index)
                 }
             }
             Opcode::MemoryInit { block_id, init, block_type: databus } => {
@@ -174,9 +174,9 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
             // We keep the display for a BrilligCall and circuit Call separate as they
             // are distinct in their functionality and we should maintain this separation for debugging.
             Opcode::BrilligCall { id, inputs, outputs, predicate } => {
-                write!(f, "BRILLIG CALL func {id}: ")?;
+                write!(f, "BRILLIG CALL func: {id}, ")?;
                 if let Some(pred) = predicate {
-                    writeln!(f, "PREDICATE: {pred}")?;
+                    write!(f, "predicate: {pred}, ")?;
                 }
 
                 let inputs = inputs
@@ -194,9 +194,9 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
                 write!(f, "outputs: [{outputs}]")
             }
             Opcode::Call { id, inputs, outputs, predicate } => {
-                write!(f, "CALL func {id}: ")?;
+                write!(f, "CALL func: {id}, ")?;
                 if let Some(pred) = predicate {
-                    writeln!(f, "PREDICATE: {pred}")?;
+                    write!(f, "predicate: {pred}, ")?;
                 }
                 let inputs =
                     inputs.iter().map(|w| format!("{w}")).collect::<Vec<String>>().join(", ");
@@ -252,7 +252,7 @@ mod tests {
 
         insta::assert_snapshot!(
             xor.to_string(),
-            @"BLACKBOX::XOR [w0, w1]:32 bits [w3]"
+            @"BLACKBOX::XOR inputs: [w0, w1], bits: 32, output: w3"
         );
     }
 
@@ -265,7 +265,7 @@ mod tests {
 
         insta::assert_snapshot!(
             range.to_string(),
-            @"BLACKBOX::RANGE [w0]:32 bits []"
+            @"BLACKBOX::RANGE input: w0, bits: 32"
         );
     }
 }
