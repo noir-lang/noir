@@ -115,6 +115,8 @@ libraries:
     path: noir-projects/noir-protocol-circuits/crates/rollup-lib
     timeout: 900
     critical: false
+    # Use 4 test threads for rollup-lib because each test requires a lot of memory, and multiple ones in parallel exceed the maximum memory limit.
+    nargo_args: "--test-threads 4"
   zk_regex:
     repo: Mach-34/noir-zk-regex
     ref: 20de93bd8b30bb51271690c7d13fad86399527e1
