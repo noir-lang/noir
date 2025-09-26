@@ -434,23 +434,22 @@ impl<F: std::fmt::Display + Copy> std::fmt::Display for BlackBoxFuncCall<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let uppercase_name = self.name().to_uppercase();
         write!(f, "BLACKBOX::{uppercase_name} ")?;
-        // INPUTS
 
+        // inputs
         let inputs_str = &self
             .get_inputs_vec()
             .iter()
             .map(|i| i.to_string())
             .collect::<Vec<String>>()
             .join(", ");
+        write!(f, "inputs: [{inputs_str}], ")?;
 
-        write!(f, "[{inputs_str}]")?;
+        // bits
         if let Some(bit_size) = self.bit_size() {
-            write!(f, ":{bit_size} bits")?;
+            write!(f, "bits: {bit_size}, ")?;
         }
-        write!(f, " ")?;
 
-        // OUTPUTS
-
+        // outputs
         let outputs_str = &self
             .get_outputs_vec()
             .iter()
@@ -458,7 +457,7 @@ impl<F: std::fmt::Display + Copy> std::fmt::Display for BlackBoxFuncCall<F> {
             .collect::<Vec<String>>()
             .join(", ");
 
-        write!(f, "[{outputs_str}]")
+        write!(f, "outputs: [{outputs_str}]")
     }
 }
 

@@ -280,8 +280,8 @@ mod tests {
         private parameters: []
         public parameters: []
         return values: []
-        BLACKBOX::RANGE [w1]:32 bits []
-        BLACKBOX::RANGE [w1]:16 bits []
+        BLACKBOX::RANGE inputs: [w1], bits :32, outputs: []
+        BLACKBOX::RANGE inputs: [w1], bits :16, outputs: []
         ";
         let circuit = Circuit::from_str(src).unwrap();
 
@@ -303,7 +303,7 @@ mod tests {
         private parameters: []
         public parameters: []
         return values: []
-        BLACKBOX::RANGE [w1]:16 bits []
+        BLACKBOX::RANGE inputs: [w1], bits: 16, outputs: []
         ");
     }
 
@@ -314,10 +314,10 @@ mod tests {
         private parameters: []
         public parameters: []
         return values: []
-        BLACKBOX::RANGE [w1]:16 bits []
-        BLACKBOX::RANGE [w1]:16 bits []
-        BLACKBOX::RANGE [w2]:23 bits []
-        BLACKBOX::RANGE [w2]:23 bits []
+        BLACKBOX::RANGE inputs: [w1], bits :16, outputs: []
+        BLACKBOX::RANGE inputs: [w1], bits :16, outputs: []
+        BLACKBOX::RANGE inputs: [w2], bits :23, outputs: []
+        BLACKBOX::RANGE inputs: [w2], bits :23, outputs: []
         ";
         let circuit = Circuit::from_str(src).unwrap();
 
@@ -329,8 +329,8 @@ mod tests {
         private parameters: []
         public parameters: []
         return values: []
-        BLACKBOX::RANGE [w1]:16 bits []
-        BLACKBOX::RANGE [w2]:23 bits []
+        BLACKBOX::RANGE inputs: [w1], bits: 16, outputs: []
+        BLACKBOX::RANGE inputs: [w2], bits: 23, outputs: []
         ");
     }
 
@@ -342,8 +342,8 @@ mod tests {
         private parameters: []
         public parameters: []
         return values: []
-        BLACKBOX::RANGE [w1]:16 bits []
-        BLACKBOX::RANGE [w1]:16 bits []
+        BLACKBOX::RANGE inputs: [w1], bits: 16, outputs: []
+        BLACKBOX::RANGE inputs: [w1], bits: 16, outputs: []
         EXPR 0 = 0
         EXPR 0 = 0
         EXPR 0 = 0
@@ -359,7 +359,7 @@ mod tests {
         private parameters: []
         public parameters: []
         return values: []
-        BLACKBOX::RANGE [w1]:16 bits []
+        BLACKBOX::RANGE inputs: [w1], bits: 16, outputs: []
         EXPR 0 = 0
         EXPR 0 = 0
         EXPR 0 = 0
@@ -374,7 +374,7 @@ mod tests {
         private parameters: []
         public parameters: []
         return values: []
-        BLACKBOX::RANGE [w1]:16 bits []
+        BLACKBOX::RANGE inputs: [w1], bits: 16, outputs: []
         EXPR w1 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
@@ -398,17 +398,17 @@ mod tests {
         private parameters: []
         public parameters: []
         return values: []
-        BLACKBOX::RANGE [w1]:32 bits []
+        BLACKBOX::RANGE inputs: [w1], bits: 32, outputs: []
 
         // Call brillig with w2
         BRILLIG CALL func: 0, inputs: [w2], outputs: []
-        BLACKBOX::RANGE [w1]:16 bits []
+        BLACKBOX::RANGE inputs: [w1], bits: 16, outputs: []
 
         // Another call
         BRILLIG CALL func: 0, inputs: [w2], outputs: []
 
         // One more constraint, but this is redundant.
-        BLACKBOX::RANGE [w1]:64 bits []
+        BLACKBOX::RANGE inputs: [w1], bits: 64, outputs: []
 
         // assert w1 == 0
         EXPR w1 = 0
@@ -430,9 +430,9 @@ mod tests {
         private parameters: []
         public parameters: []
         return values: []
-        BLACKBOX::RANGE [w1]:32 bits []
+        BLACKBOX::RANGE inputs: [w1], bits: 32, outputs: []
         BRILLIG CALL func: 0, inputs: [w2], outputs: []
-        BLACKBOX::RANGE [w1]:16 bits []
+        BLACKBOX::RANGE inputs: [w1], bits: 16, outputs: []
         BRILLIG CALL func: 0, inputs: [w2], outputs: []
         EXPR w1 = 0
         ");
@@ -451,7 +451,7 @@ mod tests {
         private parameters: []
         public parameters: []
         return values: []
-        BLACKBOX::RANGE [w1]:16 bits []
+        BLACKBOX::RANGE inputs: [w1], bits: 16, outputs: []
         INIT id: 0, len: 8, witnesses: [w0, w0, w0, w0, w0, w0, w0, w0]
         MEM id: 0, read at: w1, value: w2
         ";

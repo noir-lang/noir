@@ -335,7 +335,7 @@ mod tests {
         EXPR w0*w1 + w5 = 0
         EXPR -w2 + w4 + w5 = 0
         EXPR w2 - w3 + w4 + w5 = 0
-        BLACKBOX::RANGE [w3]:32 bits []
+        BLACKBOX::RANGE inputs: [w3], bits: 32, outputs: []
         ";
         let circuit = Circuit::from_str(src).unwrap();
 
@@ -346,7 +346,7 @@ mod tests {
         return values: []
         EXPR w5 = -w0*w1
         EXPR w3 = 2*w0*w0 + 2*w5
-        BLACKBOX::RANGE [w3]:32 bits []
+        BLACKBOX::RANGE inputs: [w3], bits: 32, outputs: []
         ");
     }
 
@@ -361,7 +361,7 @@ mod tests {
         public parameters: []
         return values: [w2]
         BRILLIG CALL func: 0, inputs: [], outputs: [w3]
-        BLACKBOX::AND [w0, w1]:8 bits [w4]
+        BLACKBOX::AND inputs: [w0, w1], bits: 8, outputs: [w4]
         EXPR w3 - w4 = 0
         EXPR -w2 + w4 = 0
         ";

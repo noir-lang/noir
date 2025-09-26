@@ -127,6 +127,12 @@ pub(crate) enum Keyword {
     ReturnData,
     /// func
     Function,
+    /// inputs
+    Inputs,
+    /// outputs
+    Outputs,
+    /// bits
+    Bits,
 }
 
 impl Keyword {
@@ -148,6 +154,9 @@ impl Keyword {
             "CALLDATA" => Keyword::CallData,
             "RETURNDATA" => Keyword::ReturnData,
             "func" => Keyword::Function,
+            "inputs" => Keyword::Inputs,
+            "outputs" => Keyword::Outputs,
+            "bits" => Keyword::Bits,
             _ => return None,
         };
         Some(Token::Keyword(keyword))
@@ -173,6 +182,9 @@ impl std::fmt::Display for Keyword {
             Keyword::CallData => write!(f, "CALLDATA"),
             Keyword::ReturnData => write!(f, "RETURNDATA"),
             Keyword::Function => write!(f, "func"),
+            Keyword::Inputs => write!(f, "inputs"),
+            Keyword::Outputs => write!(f, "outputs"),
+            Keyword::Bits => write!(f, "bits"),
         }
     }
 }

@@ -147,24 +147,24 @@ fn multiple_brillig_stdlib_calls() {
     private parameters: [w0, w1, w2]
     public parameters: []
     return values: []
-    BLACKBOX::RANGE [w0]:32 bits []
-    BLACKBOX::RANGE [w1]:32 bits []
-    BLACKBOX::RANGE [w2]:32 bits []
+    BLACKBOX::RANGE inputs: [w0], bits: 32, outputs: []
+    BLACKBOX::RANGE inputs: [w1], bits: 32, outputs: []
+    BLACKBOX::RANGE inputs: [w2], bits: 32, outputs: []
     BRILLIG CALL func: 0, inputs: [w1], outputs: [w3]
     EXPR 0 = w1*w3 - 1
     BRILLIG CALL func: 1, inputs: [w0, w1], outputs: [w4, w5]
-    BLACKBOX::RANGE [w4]:32 bits []
-    BLACKBOX::RANGE [w5]:32 bits []
+    BLACKBOX::RANGE inputs: [w4], bits: 32, outputs: []
+    BLACKBOX::RANGE inputs: [w5], bits: 32, outputs: []
     EXPR w6 = w1 - w5 - 1
-    BLACKBOX::RANGE [w6]:32 bits []
+    BLACKBOX::RANGE inputs: [w6], bits: 32, outputs: []
     EXPR w5 = -w1*w4 + w0
     EXPR w4 = w2
     BRILLIG CALL func: 0, inputs: [w2], outputs: [w7]
     EXPR 0 = w2*w7 - 1
     BRILLIG CALL func: 1, inputs: [w1, w2], outputs: [w8, w9]
-    BLACKBOX::RANGE [w9]:32 bits []
+    BLACKBOX::RANGE inputs: [w9], bits: 32, outputs: []
     EXPR w10 = w2 - w9 - 1
-    BLACKBOX::RANGE [w10]:32 bits []
+    BLACKBOX::RANGE inputs: [w10], bits: 32, outputs: []
     EXPR w9 = -w2*w8 + w1
     EXPR w8 = 1
 
@@ -234,28 +234,28 @@ fn brillig_stdlib_calls_with_regular_brillig_call() {
     private parameters: [w0, w1, w2]
     public parameters: []
     return values: []
-    BLACKBOX::RANGE [w0]:32 bits []
-    BLACKBOX::RANGE [w1]:32 bits []
-    BLACKBOX::RANGE [w2]:32 bits []
+    BLACKBOX::RANGE inputs: [w0], bits: 32, outputs: []
+    BLACKBOX::RANGE inputs: [w1], bits: 32, outputs: []
+    BLACKBOX::RANGE inputs: [w2], bits: 32, outputs: []
     BRILLIG CALL func: 1, inputs: [w1], outputs: [w3]
     EXPR 0 = w1*w3 - 1
     BRILLIG CALL func: 2, inputs: [w0, w1], outputs: [w4, w5]
-    BLACKBOX::RANGE [w4]:32 bits []
-    BLACKBOX::RANGE [w5]:32 bits []
+    BLACKBOX::RANGE inputs: [w4], bits: 32, outputs: []
+    BLACKBOX::RANGE inputs: [w5], bits: 32, outputs: []
     EXPR w6 = w1 - w5 - 1
-    BLACKBOX::RANGE [w6]:32 bits []
+    BLACKBOX::RANGE inputs: [w6], bits: 32, outputs: []
     EXPR w5 = -w1*w4 + w0
     EXPR w4 = w2
     BRILLIG CALL func: 0, inputs: [w0, w1], outputs: [w7]
-    BLACKBOX::RANGE [w7]:32 bits []
+    BLACKBOX::RANGE inputs: [w7], bits: 32, outputs: []
     BRILLIG CALL func: 0, inputs: [w0, w1], outputs: [w8]
-    BLACKBOX::RANGE [w8]:32 bits []
+    BLACKBOX::RANGE inputs: [w8], bits: 32, outputs: []
     BRILLIG CALL func: 1, inputs: [w2], outputs: [w9]
     EXPR 0 = w2*w9 - 1
     BRILLIG CALL func: 2, inputs: [w1, w2], outputs: [w10, w11]
-    BLACKBOX::RANGE [w11]:32 bits []
+    BLACKBOX::RANGE inputs: [w11], bits: 32, outputs: []
     EXPR w12 = w2 - w11 - 1
-    BLACKBOX::RANGE [w12]:32 bits []
+    BLACKBOX::RANGE inputs: [w12], bits: 32, outputs: []
     EXPR w11 = -w2*w10 + w1
     EXPR w10 = 1
 
@@ -367,29 +367,29 @@ fn brillig_stdlib_calls_with_multiple_acir_calls() {
     private parameters: [w0, w1, w2]
     public parameters: []
     return values: []
-    BLACKBOX::RANGE [w0]:32 bits []
-    BLACKBOX::RANGE [w1]:32 bits []
-    BLACKBOX::RANGE [w2]:32 bits []
+    BLACKBOX::RANGE inputs: [w0], bits: 32, outputs: []
+    BLACKBOX::RANGE inputs: [w1], bits: 32, outputs: []
+    BLACKBOX::RANGE inputs: [w2], bits: 32, outputs: []
     BRILLIG CALL func: 1, inputs: [w1], outputs: [w3]
     EXPR 0 = w1*w3 - 1
     BRILLIG CALL func: 2, inputs: [w0, w1], outputs: [w4, w5]
-    BLACKBOX::RANGE [w4]:32 bits []
-    BLACKBOX::RANGE [w5]:32 bits []
+    BLACKBOX::RANGE inputs: [w4], bits: 32, outputs: []
+    BLACKBOX::RANGE inputs: [w5], bits: 32, outputs: []
     EXPR w6 = w1 - w5 - 1
-    BLACKBOX::RANGE [w6]:32 bits []
+    BLACKBOX::RANGE inputs: [w6], bits: 32, outputs: []
     EXPR w5 = -w1*w4 + w0
     EXPR w4 = w2
     BRILLIG CALL func: 0, inputs: [w0, w1], outputs: [w7]
-    BLACKBOX::RANGE [w7]:32 bits []
+    BLACKBOX::RANGE inputs: [w7], bits: 32, outputs: []
     BRILLIG CALL func: 0, inputs: [w0, w1], outputs: [w8]
-    BLACKBOX::RANGE [w8]:32 bits []
+    BLACKBOX::RANGE inputs: [w8], bits: 32, outputs: []
     CALL func: 1, predicate: 1, inputs: [w0, w1], outputs: [w9]
     BRILLIG CALL func: 1, inputs: [w2], outputs: [w10]
     EXPR 0 = w2*w10 - 1
     BRILLIG CALL func: 2, inputs: [w1, w2], outputs: [w11, w12]
-    BLACKBOX::RANGE [w12]:32 bits []
+    BLACKBOX::RANGE inputs: [w12], bits: 32, outputs: []
     EXPR w13 = w2 - w12 - 1
-    BLACKBOX::RANGE [w13]:32 bits []
+    BLACKBOX::RANGE inputs: [w13], bits: 32, outputs: []
     EXPR w12 = -w2*w11 + w1
     EXPR w11 = 1
 
@@ -397,8 +397,8 @@ fn brillig_stdlib_calls_with_multiple_acir_calls() {
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
-    BLACKBOX::RANGE [w0]:32 bits []
-    BLACKBOX::RANGE [w1]:32 bits []
+    BLACKBOX::RANGE inputs: [w0], bits: 32, outputs: []
+    BLACKBOX::RANGE inputs: [w1], bits: 32, outputs: []
     EXPR w3 = w0 - w1
     BRILLIG CALL func: 1, inputs: [w3], outputs: [w4]
     EXPR w5 = -w3*w4 + 1

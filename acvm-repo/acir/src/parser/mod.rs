@@ -363,14 +363,14 @@ impl<'a> Parser<'a> {
                 let key = self.try_extract_tail::<16, _>(&mut inputs, "key")?;
                 let iv = self.try_extract_tail::<16, _>(&mut inputs, "IV")?;
 
-                let outputs = self.parse_witness_vector()?;
+                let outputs = self.parse_blackbox_outputs()?;
 
                 BlackBoxFuncCall::AES128Encrypt { inputs, iv, key, outputs }
             }
             BlackBoxFunc::AND => {
                 let inputs = self.parse_blackbox_inputs()?;
                 let num_bits = self.parse_blackbox_bit_size()?;
-                let outputs = self.parse_witness_vector()?;
+                let outputs = self.parse_blackbox_outputs()?;
 
                 self.expect_len(&inputs, 2, "AND", false)?;
                 self.expect_len(&outputs, 1, "AND", true)?;
@@ -385,7 +385,7 @@ impl<'a> Parser<'a> {
             BlackBoxFunc::XOR => {
                 let inputs = self.parse_blackbox_inputs()?;
                 let num_bits = self.parse_blackbox_bit_size()?;
-                let outputs = self.parse_witness_vector()?;
+                let outputs = self.parse_blackbox_outputs()?;
 
                 self.expect_len(&inputs, 2, "XOR", false)?;
                 self.expect_len(&outputs, 1, "XOR", true)?;
@@ -400,7 +400,7 @@ impl<'a> Parser<'a> {
             BlackBoxFunc::RANGE => {
                 let inputs = self.parse_blackbox_inputs()?;
                 let num_bits = self.parse_blackbox_bit_size()?;
-                let outputs = self.parse_witness_vector()?;
+                let outputs = self.parse_blackbox_outputs()?;
 
                 self.expect_len(&inputs, 1, "RANGE", false)?;
                 self.expect_len(&outputs, 0, "RANGE", true)?;
@@ -409,14 +409,14 @@ impl<'a> Parser<'a> {
             }
             BlackBoxFunc::Blake2s => {
                 let inputs = self.parse_blackbox_inputs()?;
-                let outputs = self.parse_witness_vector()?;
+                let outputs = self.parse_blackbox_outputs()?;
                 let outputs = self.try_vec_to_array::<32, _>(outputs, "Blake2s", true)?;
 
                 BlackBoxFuncCall::Blake2s { inputs, outputs }
             }
             BlackBoxFunc::Blake3 => {
                 let inputs = self.parse_blackbox_inputs()?;
-                let outputs = self.parse_witness_vector()?;
+                let outputs = self.parse_blackbox_outputs()?;
                 let outputs = self.try_vec_to_array::<32, _>(outputs, "Blake3", true)?;
 
                 BlackBoxFuncCall::Blake3 { inputs, outputs }
@@ -431,7 +431,7 @@ impl<'a> Parser<'a> {
                 let public_key_y = self.try_extract_tail::<32, _>(&mut inputs, "public_key_y")?;
                 let public_key_x = self.try_extract_tail::<32, _>(&mut inputs, "public_key_x")?;
 
-                let outputs = self.parse_witness_vector()?;
+                let outputs = self.parse_blackbox_outputs()?;
                 self.expect_len(&outputs, 1, "EcdsaSecp256k1", true)?;
                 let output = outputs[0];
 
@@ -454,7 +454,7 @@ impl<'a> Parser<'a> {
                 let public_key_y = self.try_extract_tail::<32, _>(&mut inputs, "public_key_y")?;
                 let public_key_x = self.try_extract_tail::<32, _>(&mut inputs, "public_key_x")?;
 
-                let outputs = self.parse_witness_vector()?;
+                let outputs = self.parse_blackbox_outputs()?;
                 self.expect_len(&outputs, 1, "EcdsaSecp256r1", true)?;
                 let output = outputs[0];
 
@@ -471,7 +471,7 @@ impl<'a> Parser<'a> {
             BlackBoxFunc::Keccakf1600 => {
                 let inputs = self.parse_blackbox_inputs()?;
                 let inputs = self.try_vec_to_array::<25, _>(inputs, "Keccakf1600 inputs", false)?;
-                let outputs = self.parse_witness_vector()?;
+                let outputs = self.parse_blackbox_outputs()?;
                 let outputs =
                     self.try_vec_to_array::<25, _>(outputs, "Keccakf1600 outputs", true)?;
 
@@ -485,7 +485,7 @@ impl<'a> Parser<'a> {
                 let predicate = self.try_extract_tail::<1, _>(&mut inputs, "predicate")?[0];
                 let input2 = self.try_extract_tail::<3, _>(&mut inputs, "EC add input2")?;
                 let input1 = self.try_extract_tail::<3, _>(&mut inputs, "EC add input1")?;
-                let outputs = self.parse_witness_vector()?;
+                let outputs = self.parse_blackbox_outputs()?;
                 self.expect_len(&outputs, 3, "EmbeddedCurveAdd", true)?;
 
                 BlackBoxFuncCall::EmbeddedCurveAdd {
@@ -497,9 +497,7 @@ impl<'a> Parser<'a> {
             }
             BlackBoxFunc::Poseidon2Permutation => {
                 let inputs = self.parse_blackbox_inputs()?;
-
-                let outputs = self.parse_witness_vector()?;
-
+                let outputs = self.parse_blackbox_outputs()?;
                 BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs }
             }
             BlackBoxFunc::Sha256Compression => {
@@ -508,7 +506,7 @@ impl<'a> Parser<'a> {
                 let hash_values = self.try_extract_tail::<8, _>(&mut inputs, "hash_values")?;
                 let inputs = self.try_extract_tail::<16, _>(&mut inputs, "inputs")?;
 
-                let outputs = self.parse_witness_vector()?;
+                let outputs = self.parse_blackbox_outputs()?;
                 let outputs =
                     self.try_vec_to_array::<8, _>(outputs, "Sha256Compression outputs", true)?;
 
@@ -519,6 +517,8 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_blackbox_inputs(&mut self) -> ParseResult<Vec<FunctionInput<FieldElement>>> {
+        self.eat_keyword_or_error(Keyword::Inputs)?;
+        self.eat_or_error(Token::Colon)?;
         self.eat_or_error(Token::LeftBracket)?;
 
         let mut inputs = Vec::new();
@@ -551,13 +551,26 @@ impl<'a> Parser<'a> {
             self.eat(Token::Comma)?;
         }
 
+        // bits or outputs always follow blackbox inputs
+        self.eat_or_error(Token::Comma)?;
+
         Ok(inputs)
     }
 
+    fn parse_blackbox_outputs(&mut self) -> ParseResult<Vec<Witness>> {
+        self.eat_keyword_or_error(Keyword::Outputs)?;
+        self.eat_or_error(Token::Colon)?;
+        self.parse_witness_vector()
+    }
+
     fn parse_blackbox_bit_size(&mut self) -> ParseResult<u32> {
+        self.eat_keyword_or_error(Keyword::Bits)?;
         self.eat_or_error(Token::Colon)?;
         let num_bits = self.eat_u32_or_error()?;
-        self.eat_expected_ident("bits")?;
+
+        // outputs will always follow bits
+        self.eat_or_error(Token::Comma)?;
+
         Ok(num_bits)
     }
 
@@ -664,14 +677,14 @@ impl<'a> Parser<'a> {
         let predicate = self.eat_predicate()?;
 
         // Parse inputs
-        self.eat_expected_ident("inputs")?;
+        self.eat_keyword_or_error(Keyword::Inputs)?;
         self.eat_or_error(Token::Colon)?;
         let inputs = self.parse_brillig_inputs()?;
 
         self.eat_or_error(Token::Comma)?; // between inputs and outputs
 
         // Parse outputs
-        self.eat_expected_ident("outputs")?;
+        self.eat_keyword_or_error(Keyword::Outputs)?;
         self.eat_or_error(Token::Colon)?;
         let outputs = self.parse_brillig_outputs()?;
 
@@ -750,12 +763,12 @@ impl<'a> Parser<'a> {
         self.eat_or_error(Token::Comma)?;
         let predicate = self.eat_predicate()?;
 
-        self.eat_expected_ident("inputs")?;
+        self.eat_keyword_or_error(Keyword::Inputs)?;
         self.eat_or_error(Token::Colon)?;
         let inputs = self.parse_witness_vector()?;
 
         self.eat_or_error(Token::Comma)?;
-        self.eat_expected_ident("outputs")?;
+        self.eat_keyword_or_error(Keyword::Outputs)?;
         self.eat_or_error(Token::Colon)?;
         let outputs = self.parse_witness_vector()?;
 
