@@ -35,9 +35,7 @@ fn ssa_to_acir_program(src: &str) -> Program<FieldElement> {
 }
 
 fn ssa_to_acir_program_with_debug_info(src: &str) -> (Program<FieldElement>, Vec<DebugInfo>) {
-    let mut ssa = Ssa::from_str(src).unwrap();
-    ssa.normalize_ids();
-    println!("{}", ssa.print_with(None));
+    let ssa = Ssa::from_str(src).unwrap();
     let arg_size_and_visibilities = ssa
         .functions
         .iter()
