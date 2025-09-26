@@ -130,7 +130,7 @@ fn range_check() {
     private parameters: []
     public parameters: []
     return values: []
-    BLACKBOX::RANGE inputs: [w0], bits: 32, outputs: []
+    BLACKBOX::RANGE input: w0, bits: 32
     ";
     assert_circuit_roundtrip(src);
 }
@@ -141,8 +141,8 @@ fn xor() {
     private parameters: [w0]
     public parameters: [w1]
     return values: []
-    BLACKBOX::RANGE inputs: [w0], bits: 32, outputs: []
-    BLACKBOX::RANGE inputs: [w1], bits: 32, outputs: []
+    BLACKBOX::RANGE input: w0, bits: 32
+    BLACKBOX::RANGE input: w1, bits: 32
     BLACKBOX::XOR inputs: [w0, w1], bits: 32, outputs: [w2]
     EXPR w2 = 15
     ";
@@ -156,66 +156,66 @@ fn aes128_encrypt() {
     private parameters: [w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25, w26, w27, w28, w29, w30, w31, w32, w33, w34, w35, w36, w37, w38, w39, w40, w41, w42, w43]
     public parameters: [w44, w45, w46, w47, w48, w49, w50, w51, w52, w53, w54, w55, w56, w57, w58, w59]
     return values: []
-    BLACKBOX::RANGE inputs: [w0], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w1], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w2], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w3], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w4], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w5], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w6], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w7], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w8], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w9], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w10], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w11], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w12], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w13], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w14], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w15], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w16], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w17], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w18], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w19], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w20], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w21], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w22], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w23], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w24], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w25], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w26], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w27], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w28], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w29], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w30], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w31], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w32], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w33], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w34], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w35], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w36], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w37], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w38], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w39], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w40], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w41], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w42], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w43], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w44], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w45], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w46], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w47], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w48], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w49], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w50], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w51], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w52], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w53], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w54], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w55], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w56], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w57], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w58], bits: 8, outputs: []
-    BLACKBOX::RANGE inputs: [w59], bits: 8, outputs: []
+    BLACKBOX::RANGE input: w0, bits: 8
+    BLACKBOX::RANGE input: w1, bits: 8
+    BLACKBOX::RANGE input: w2, bits: 8
+    BLACKBOX::RANGE input: w3, bits: 8
+    BLACKBOX::RANGE input: w4, bits: 8
+    BLACKBOX::RANGE input: w5, bits: 8
+    BLACKBOX::RANGE input: w6, bits: 8
+    BLACKBOX::RANGE input: w7, bits: 8
+    BLACKBOX::RANGE input: w8, bits: 8
+    BLACKBOX::RANGE input: w9, bits: 8
+    BLACKBOX::RANGE input: w10, bits: 8
+    BLACKBOX::RANGE input: w11, bits: 8
+    BLACKBOX::RANGE input: w12, bits: 8
+    BLACKBOX::RANGE input: w13, bits: 8
+    BLACKBOX::RANGE input: w14, bits: 8
+    BLACKBOX::RANGE input: w15, bits: 8
+    BLACKBOX::RANGE input: w16, bits: 8
+    BLACKBOX::RANGE input: w17, bits: 8
+    BLACKBOX::RANGE input: w18, bits: 8
+    BLACKBOX::RANGE input: w19, bits: 8
+    BLACKBOX::RANGE input: w20, bits: 8
+    BLACKBOX::RANGE input: w21, bits: 8
+    BLACKBOX::RANGE input: w22, bits: 8
+    BLACKBOX::RANGE input: w23, bits: 8
+    BLACKBOX::RANGE input: w24, bits: 8
+    BLACKBOX::RANGE input: w25, bits: 8
+    BLACKBOX::RANGE input: w26, bits: 8
+    BLACKBOX::RANGE input: w27, bits: 8
+    BLACKBOX::RANGE input: w28, bits: 8
+    BLACKBOX::RANGE input: w29, bits: 8
+    BLACKBOX::RANGE input: w30, bits: 8
+    BLACKBOX::RANGE input: w31, bits: 8
+    BLACKBOX::RANGE input: w32, bits: 8
+    BLACKBOX::RANGE input: w33, bits: 8
+    BLACKBOX::RANGE input: w34, bits: 8
+    BLACKBOX::RANGE input: w35, bits: 8
+    BLACKBOX::RANGE input: w36, bits: 8
+    BLACKBOX::RANGE input: w37, bits: 8
+    BLACKBOX::RANGE input: w38, bits: 8
+    BLACKBOX::RANGE input: w39, bits: 8
+    BLACKBOX::RANGE input: w40, bits: 8
+    BLACKBOX::RANGE input: w41, bits: 8
+    BLACKBOX::RANGE input: w42, bits: 8
+    BLACKBOX::RANGE input: w43, bits: 8
+    BLACKBOX::RANGE input: w44, bits: 8
+    BLACKBOX::RANGE input: w45, bits: 8
+    BLACKBOX::RANGE input: w46, bits: 8
+    BLACKBOX::RANGE input: w47, bits: 8
+    BLACKBOX::RANGE input: w48, bits: 8
+    BLACKBOX::RANGE input: w49, bits: 8
+    BLACKBOX::RANGE input: w50, bits: 8
+    BLACKBOX::RANGE input: w51, bits: 8
+    BLACKBOX::RANGE input: w52, bits: 8
+    BLACKBOX::RANGE input: w53, bits: 8
+    BLACKBOX::RANGE input: w54, bits: 8
+    BLACKBOX::RANGE input: w55, bits: 8
+    BLACKBOX::RANGE input: w56, bits: 8
+    BLACKBOX::RANGE input: w57, bits: 8
+    BLACKBOX::RANGE input: w58, bits: 8
+    BLACKBOX::RANGE input: w59, bits: 8
     BLACKBOX::AES128_ENCRYPT inputs: [w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25, w26, w27, w28, w29, w30, w31, w32, w33, w34, w35, w36, w37, w38, w39, w40, w41, w42, w43], outputs: [w60, w61, w62, w63, w64, w65, w66, w67, w68, w69, w70, w71, w72, w73, w74, w75]
     EXPR w60 = w44
     EXPR w61 = w45
@@ -559,25 +559,25 @@ fn array_dynamic() {
     private parameters: [w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18]
     public parameters: []
     return values: []
-    BLACKBOX::RANGE inputs: [w0], bits: 32, outputs: []
-    BLACKBOX::RANGE inputs: [w1], bits: 32, outputs: []
-    BLACKBOX::RANGE inputs: [w2], bits: 32, outputs: []
-    BLACKBOX::RANGE inputs: [w3], bits: 32, outputs: []
-    BLACKBOX::RANGE inputs: [w4], bits: 32, outputs: []
+    BLACKBOX::RANGE input: w0, bits: 32
+    BLACKBOX::RANGE input: w1, bits: 32
+    BLACKBOX::RANGE input: w2, bits: 32
+    BLACKBOX::RANGE input: w3, bits: 32
+    BLACKBOX::RANGE input: w4, bits: 32
     INIT id: 0, len: 5, witnesses: [w0, w1, w2, w3, w4]
-    BLACKBOX::RANGE inputs: [w5], bits: 32, outputs: []
-    BLACKBOX::RANGE inputs: [w6], bits: 32, outputs: []
+    BLACKBOX::RANGE input: w5, bits: 32
+    BLACKBOX::RANGE input: w6, bits: 32
     INIT id: 1, len: 5, witnesses: [w7, w8, w9, w10, w11]
-    BLACKBOX::RANGE inputs: [w12], bits: 32, outputs: []
-    BLACKBOX::RANGE inputs: [w13], bits: 32, outputs: []
-    BLACKBOX::RANGE inputs: [w14], bits: 32, outputs: []
-    BLACKBOX::RANGE inputs: [w15], bits: 32, outputs: []
-    BLACKBOX::RANGE inputs: [w16], bits: 32, outputs: []
-    BLACKBOX::RANGE inputs: [w17], bits: 32, outputs: []
+    BLACKBOX::RANGE input: w12, bits: 32
+    BLACKBOX::RANGE input: w13, bits: 32
+    BLACKBOX::RANGE input: w14, bits: 32
+    BLACKBOX::RANGE input: w15, bits: 32
+    BLACKBOX::RANGE input: w16, bits: 32
+    BLACKBOX::RANGE input: w17, bits: 32
     EXPR w19 = 5*w6
-    BLACKBOX::RANGE inputs: [w19], bits: 32, outputs: []
+    BLACKBOX::RANGE input: w19, bits: 32
     EXPR w20 = w5 - w19
-    BLACKBOX::RANGE inputs: [w20], bits: 32, outputs: []
+    BLACKBOX::RANGE input: w20, bits: 32
     EXPR w21 = w20 - 5
     EXPR w22 = w21 - 3
     MEM id: 0, read at: w21, value: w23
@@ -585,7 +585,7 @@ fn array_dynamic() {
     MEM id: 0, read at: w22, value: w24
     EXPR w24 = 101
     BRILLIG CALL func: 0, inputs: [w22 + 4294967291, 4294967296], outputs: [w25, w26]
-    BLACKBOX::RANGE inputs: [w26], bits: 32, outputs: []
+    BLACKBOX::RANGE input: w26, bits: 32
     EXPR w26 = w22 - 4294967296*w25 + 4294967291
     EXPR w25 = 0
     EXPR w27 = 0
@@ -596,16 +596,16 @@ fn array_dynamic() {
     MEM id: 0, read at: w29, value: w30
     EXPR w30 = 0
     BRILLIG CALL func: 0, inputs: [w21 + 4294967286, 4294967296], outputs: [w31, w32]
-    BLACKBOX::RANGE inputs: [w31], bits: 1, outputs: []
-    BLACKBOX::RANGE inputs: [w32], bits: 32, outputs: []
+    BLACKBOX::RANGE input: w31, bits: 1
+    BLACKBOX::RANGE input: w32, bits: 32
     EXPR w32 = w21 - 4294967296*w31 + 4294967286
     EXPR w33 = -w21*w31 + w21
     MEM id: 0, read at: w33, value: w34
     EXPR w35 = -w31*w34 + 2*w31 + w34 - 2
-    BLACKBOX::RANGE inputs: [w35], bits: 32, outputs: []
+    BLACKBOX::RANGE input: w35, bits: 32
     BRILLIG CALL func: 0, inputs: [w21 + 4294967291, 4294967296], outputs: [w36, w37]
-    BLACKBOX::RANGE inputs: [w36], bits: 1, outputs: []
-    BLACKBOX::RANGE inputs: [w37], bits: 32, outputs: []
+    BLACKBOX::RANGE input: w36, bits: 1
+    BLACKBOX::RANGE input: w37, bits: 32
     EXPR w37 = w21 - 4294967296*w36 + 4294967291
     EXPR w36 = w31*w36
     EXPR w38 = -w21*w31 + w21
@@ -646,22 +646,22 @@ fn array_dynamic() {
     BRILLIG CALL func: 1, inputs: [w62 + w63 + w64 + w65 + w66], outputs: [w67]
     EXPR 0 = w62*w67 + w63*w67 + w64*w67 + w65*w67 + w66*w67 - 1
     BRILLIG CALL func: 0, inputs: [w18, 4294967296], outputs: [w68, w69]
-    BLACKBOX::RANGE inputs: [w68], bits: 222, outputs: []
-    BLACKBOX::RANGE inputs: [w69], bits: 32, outputs: []
+    BLACKBOX::RANGE input: w68, bits: 222
+    BLACKBOX::RANGE input: w69, bits: 32
     EXPR w69 = w18 - 4294967296*w68
     EXPR w70 = -w68 + 5096253676302562286669017222071363378443840053029366383258766538131
-    BLACKBOX::RANGE inputs: [w70], bits: 222, outputs: []
+    BLACKBOX::RANGE input: w70, bits: 222
     BRILLIG CALL func: 1, inputs: [-w68 + 5096253676302562286669017222071363378443840053029366383258766538131], outputs: [w71]
     EXPR w72 = w68*w71 - 5096253676302562286669017222071363378443840053029366383258766538131*w71 + 1
     EXPR 0 = -w68*w72 + 5096253676302562286669017222071363378443840053029366383258766538131*w72
     EXPR w73 = w69*w72 + 268435455*w72
-    BLACKBOX::RANGE inputs: [w73], bits: 32, outputs: []
+    BLACKBOX::RANGE input: w73, bits: 32
     BRILLIG CALL func: 0, inputs: [-w69 + 4294967299, 4294967296], outputs: [w74, w75]
-    BLACKBOX::RANGE inputs: [w74], bits: 1, outputs: []
-    BLACKBOX::RANGE inputs: [w75], bits: 32, outputs: []
+    BLACKBOX::RANGE input: w74, bits: 1
+    BLACKBOX::RANGE input: w75, bits: 32
     EXPR w75 = -w69 - 4294967296*w74 + 4294967299
     EXPR w76 = -w17*w74 + w17 - 3*w74 + 3
-    BLACKBOX::RANGE inputs: [w76], bits: 32, outputs: []
+    BLACKBOX::RANGE input: w76, bits: 32
     EXPR w77 = -w74*w76 + w76
     MEM id: 1, read at: w77, value: w78
     EXPR w78 = -w15*w74 + w74*w78 + w15

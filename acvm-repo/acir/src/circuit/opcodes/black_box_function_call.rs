@@ -436,28 +436,28 @@ impl<F: std::fmt::Display + Copy> std::fmt::Display for BlackBoxFuncCall<F> {
         write!(f, "BLACKBOX::{uppercase_name} ")?;
 
         // inputs
-        let inputs_str = &self
-            .get_inputs_vec()
-            .iter()
-            .map(|i| i.to_string())
-            .collect::<Vec<String>>()
-            .join(", ");
-        write!(f, "inputs: [{inputs_str}], ")?;
+        let inputs = &self.get_inputs_vec();
+        let inputs_str = inputs.iter().map(|i| i.to_string()).collect::<Vec<String>>().join(", ");
+        if inputs.len() == 1 {
+            write!(f, "input: {inputs_str}")?;
+        } else {
+            write!(f, "inputs: [{inputs_str}]")?;
+        }
 
         // bits
         if let Some(bit_size) = self.bit_size() {
-            write!(f, "bits: {bit_size}, ")?;
+            write!(f, ", bits: {bit_size}")?;
         }
 
         // outputs
-        let outputs_str = &self
-            .get_outputs_vec()
-            .iter()
-            .map(ToString::to_string)
-            .collect::<Vec<String>>()
-            .join(", ");
+        let outputs = &self.get_outputs_vec();
+        if !outputs.is_empty() {
+            let outputs_str =
+                outputs.iter().map(ToString::to_string).collect::<Vec<String>>().join(", ");
+            write!(f, ", outputs: [{outputs_str}]")?;
+        }
 
-        write!(f, "outputs: [{outputs_str}]")
+        Ok(())
     }
 }
 

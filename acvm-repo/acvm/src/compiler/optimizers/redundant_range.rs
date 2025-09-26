@@ -280,8 +280,8 @@ mod tests {
         private parameters: []
         public parameters: []
         return values: []
-        BLACKBOX::RANGE inputs: [w1], bits :32, outputs: []
-        BLACKBOX::RANGE inputs: [w1], bits :16, outputs: []
+        BLACKBOX::RANGE input: w1, bits: 32
+        BLACKBOX::RANGE input: w1, bits: 16
         ";
         let circuit = Circuit::from_str(src).unwrap();
 
@@ -303,7 +303,7 @@ mod tests {
         private parameters: []
         public parameters: []
         return values: []
-        BLACKBOX::RANGE inputs: [w1], bits: 16, outputs: []
+        BLACKBOX::RANGE input: w1, bits: 16
         ");
     }
 
@@ -314,10 +314,10 @@ mod tests {
         private parameters: []
         public parameters: []
         return values: []
-        BLACKBOX::RANGE inputs: [w1], bits :16, outputs: []
-        BLACKBOX::RANGE inputs: [w1], bits :16, outputs: []
-        BLACKBOX::RANGE inputs: [w2], bits :23, outputs: []
-        BLACKBOX::RANGE inputs: [w2], bits :23, outputs: []
+        BLACKBOX::RANGE input: w1, bits: 16
+        BLACKBOX::RANGE input: w1, bits: 16
+        BLACKBOX::RANGE input: w2, bits: 23
+        BLACKBOX::RANGE input: w2, bits: 23
         ";
         let circuit = Circuit::from_str(src).unwrap();
 
@@ -329,8 +329,8 @@ mod tests {
         private parameters: []
         public parameters: []
         return values: []
-        BLACKBOX::RANGE inputs: [w1], bits: 16, outputs: []
-        BLACKBOX::RANGE inputs: [w2], bits: 23, outputs: []
+        BLACKBOX::RANGE input: w1, bits: 16
+        BLACKBOX::RANGE input: w2, bits: 23
         ");
     }
 
@@ -342,8 +342,8 @@ mod tests {
         private parameters: []
         public parameters: []
         return values: []
-        BLACKBOX::RANGE inputs: [w1], bits: 16, outputs: []
-        BLACKBOX::RANGE inputs: [w1], bits: 16, outputs: []
+        BLACKBOX::RANGE input: w1, bits: 16
+        BLACKBOX::RANGE input: w1, bits: 16
         EXPR 0 = 0
         EXPR 0 = 0
         EXPR 0 = 0
@@ -359,7 +359,7 @@ mod tests {
         private parameters: []
         public parameters: []
         return values: []
-        BLACKBOX::RANGE inputs: [w1], bits: 16, outputs: []
+        BLACKBOX::RANGE input: w1, bits: 16
         EXPR 0 = 0
         EXPR 0 = 0
         EXPR 0 = 0
@@ -374,7 +374,7 @@ mod tests {
         private parameters: []
         public parameters: []
         return values: []
-        BLACKBOX::RANGE inputs: [w1], bits: 16, outputs: []
+        BLACKBOX::RANGE input: w1, bits: 16
         EXPR w1 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
@@ -398,17 +398,17 @@ mod tests {
         private parameters: []
         public parameters: []
         return values: []
-        BLACKBOX::RANGE inputs: [w1], bits: 32, outputs: []
+        BLACKBOX::RANGE input: w1, bits: 32
 
         // Call brillig with w2
         BRILLIG CALL func: 0, inputs: [w2], outputs: []
-        BLACKBOX::RANGE inputs: [w1], bits: 16, outputs: []
+        BLACKBOX::RANGE input: w1, bits: 16
 
         // Another call
         BRILLIG CALL func: 0, inputs: [w2], outputs: []
 
         // One more constraint, but this is redundant.
-        BLACKBOX::RANGE inputs: [w1], bits: 64, outputs: []
+        BLACKBOX::RANGE input: w1, bits: 64
 
         // assert w1 == 0
         EXPR w1 = 0
@@ -430,9 +430,9 @@ mod tests {
         private parameters: []
         public parameters: []
         return values: []
-        BLACKBOX::RANGE inputs: [w1], bits: 32, outputs: []
+        BLACKBOX::RANGE input: w1, bits: 32
         BRILLIG CALL func: 0, inputs: [w2], outputs: []
-        BLACKBOX::RANGE inputs: [w1], bits: 16, outputs: []
+        BLACKBOX::RANGE input: w1, bits: 16
         BRILLIG CALL func: 0, inputs: [w2], outputs: []
         EXPR w1 = 0
         ");
@@ -451,7 +451,7 @@ mod tests {
         private parameters: []
         public parameters: []
         return values: []
-        BLACKBOX::RANGE inputs: [w1], bits: 16, outputs: []
+        BLACKBOX::RANGE input: w1, bits: 16
         INIT id: 0, len: 8, witnesses: [w0, w0, w0, w0, w0, w0, w0, w0]
         MEM id: 0, read at: w1, value: w2
         ";

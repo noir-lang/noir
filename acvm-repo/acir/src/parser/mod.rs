@@ -398,12 +398,11 @@ impl<'a> Parser<'a> {
                 }
             }
             BlackBoxFunc::RANGE => {
-                let inputs = self.parse_blackbox_inputs()?;
+                self.eat_keyword_or_error(Keyword::Input)?;
+                self.eat_or_error(Token::Colon)?;
+                let input = self.parse_blackbox_input()?;
+                let inputs = vec![input];
                 let num_bits = self.parse_blackbox_bit_size()?;
-                let outputs = self.parse_blackbox_outputs()?;
-
-                self.expect_len(&inputs, 1, "RANGE", false)?;
-                self.expect_len(&outputs, 0, "RANGE", true)?;
 
                 BlackBoxFuncCall::RANGE { input: inputs[0], num_bits }
             }
@@ -524,26 +523,7 @@ impl<'a> Parser<'a> {
         let mut inputs = Vec::new();
 
         while !self.eat(Token::RightBracket)? {
-            let input = match self.token.token() {
-                Token::Int(value) => {
-                    let value = *value;
-                    self.bump()?;
-                    FunctionInput::Constant(value)
-                }
-                Token::Witness(index) => {
-                    let witness = *index;
-                    self.bump()?;
-                    FunctionInput::Witness(Witness(witness))
-                }
-                other => {
-                    return Err(ParserError::ExpectedOneOfTokens {
-                        tokens: vec![Token::Int(FieldElement::zero()), Token::Witness(0)],
-                        found: other.clone(),
-                        span: self.token.span(),
-                    });
-                }
-            };
-
+            let input = self.parse_blackbox_input()?;
             inputs.push(input);
 
             // Eat a comma if there is another input, but do not error if there is no comma
@@ -551,25 +531,43 @@ impl<'a> Parser<'a> {
             self.eat(Token::Comma)?;
         }
 
-        // bits or outputs always follow blackbox inputs
-        self.eat_or_error(Token::Comma)?;
-
         Ok(inputs)
     }
 
+    fn parse_blackbox_input(&mut self) -> Result<FunctionInput<FieldElement>, ParserError> {
+        Ok(match self.token.token() {
+            Token::Int(value) => {
+                let value = *value;
+                self.bump()?;
+                FunctionInput::Constant(value)
+            }
+            Token::Witness(index) => {
+                let witness = *index;
+                self.bump()?;
+                FunctionInput::Witness(Witness(witness))
+            }
+            other => {
+                return Err(ParserError::ExpectedOneOfTokens {
+                    tokens: vec![Token::Int(FieldElement::zero()), Token::Witness(0)],
+                    found: other.clone(),
+                    span: self.token.span(),
+                });
+            }
+        })
+    }
+
     fn parse_blackbox_outputs(&mut self) -> ParseResult<Vec<Witness>> {
+        self.eat_or_error(Token::Comma)?;
         self.eat_keyword_or_error(Keyword::Outputs)?;
         self.eat_or_error(Token::Colon)?;
         self.parse_witness_vector()
     }
 
     fn parse_blackbox_bit_size(&mut self) -> ParseResult<u32> {
+        self.eat_or_error(Token::Comma)?;
         self.eat_keyword_or_error(Keyword::Bits)?;
         self.eat_or_error(Token::Colon)?;
         let num_bits = self.eat_u32_or_error()?;
-
-        // outputs will always follow bits
-        self.eat_or_error(Token::Comma)?;
 
         Ok(num_bits)
     }

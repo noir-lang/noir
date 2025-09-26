@@ -155,8 +155,8 @@ fn generates_predicated_index_for_dynamic_read() {
     public parameters: []
     return values: []
     INIT id: 0, len: 3, witnesses: [w0, w1, w2]
-    BLACKBOX::RANGE inputs: [w3], bits: 32, outputs: []
-    BLACKBOX::RANGE inputs: [w4], bits: 1, outputs: []
+    BLACKBOX::RANGE input: w3, bits: 32
+    BLACKBOX::RANGE input: w4, bits: 1
     EXPR w5 = w3*w4
     MEM id: 0, read at: w5, value: w6
     EXPR w6 = 10
@@ -192,8 +192,8 @@ fn generates_predicated_index_and_dummy_value_for_dynamic_write() {
     public parameters: []
     return values: [w5, w6, w7]
     INIT id: 0, len: 3, witnesses: [w0, w1, w2]
-    BLACKBOX::RANGE inputs: [w3], bits: 32, outputs: []
-    BLACKBOX::RANGE inputs: [w4], bits: 1, outputs: []
+    BLACKBOX::RANGE input: w3, bits: 32
+    BLACKBOX::RANGE input: w4, bits: 1
     EXPR w8 = w3*w4
     MEM id: 0, read at: w8, value: w9
     INIT id: 1, len: 3, witnesses: [w0, w1, w2]

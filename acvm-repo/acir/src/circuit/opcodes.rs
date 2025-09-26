@@ -265,7 +265,7 @@ mod tests {
 
         insta::assert_snapshot!(
             range.to_string(),
-            @"BLACKBOX::RANGE inputs: [w0], bits: 32, outputs: []"
+            @"BLACKBOX::RANGE input: w0, bits: 32"
         );
     }
 }

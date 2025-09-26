@@ -92,8 +92,8 @@ fn unchecked_mul_should_not_have_range_check() {
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
-    BLACKBOX::RANGE inputs: [w0], bits: 32, outputs: []
-    BLACKBOX::RANGE inputs: [w1], bits: 32, outputs: []
+    BLACKBOX::RANGE input: w0, bits: 32
+    BLACKBOX::RANGE input: w1, bits: 32
     EXPR w2 = w0*w1
     ");
 }
