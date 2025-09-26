@@ -117,7 +117,6 @@ impl Function {
         revisit_hoisted: bool,
         interpreter: &mut Option<Interpreter<Empty>>,
     ) {
-        println!("\nconstant_fold({})", self.id());
         let mut context = Context::new(use_constraint_info, revisit_hoisted);
         let mut dom = DominatorTree::with_function(self);
         context.block_queue.push_back(self.entry_block());
@@ -203,7 +202,6 @@ impl Context {
         block_id: BasicBlockId,
         interpreter: &mut Option<Interpreter<Empty>>,
     ) {
-        println!("fold_constants_in_block({block_id})");
         let instructions = dfg[block_id].take_instructions();
 
         // Default side effect condition variable with an enabled state.
@@ -217,12 +215,7 @@ impl Context {
         for instruction_id in instructions {
             let instruction = &mut dfg[instruction_id];
 
-            println!(
-                "  fold_constants_into_instruction(block = {block_id}, id = {instruction_id}):"
-            );
-            println!("    - instruction before: {instruction:?}");
             instruction.replace_values(&self.values_to_replace);
-            println!("    - instruction after:  {instruction:?}");
 
             self.fold_constants_into_instruction(
                 dfg,
@@ -259,7 +252,6 @@ impl Context {
 
         // Register any block on which this block depends in terms of reused instructions.
         for origin in &origins.reused {
-            println!("  register reuse from {origin} in {block_id}");
             self.cache_reuses.entry(*origin).or_default().insert(block_id);
         }
 
@@ -268,8 +260,6 @@ impl Context {
         if self.revisit_hoisted && !origins.reused.is_empty() {
             if let Some(dependant_blocks) = self.cache_reuses.get(&block_id) {
                 for id in dependant_blocks {
-                    println!("  scheduling revisit of dependant {id}");
-
                     self.block_queue.clear_visited(&id);
                     self.block_queue.push_back(*id);
                 }
@@ -285,11 +275,9 @@ impl Context {
         // this block, to take advantage of further hoisting opportunities.
         // Do this before any other blocks in the queue, so we minimize revisits.
         if self.revisit_hoisted && !origins.hoisted.is_empty() {
-            println!("scheduling a revisit of {block_id}");
             self.block_queue.clear_visited(&block_id);
             self.block_queue.push_front(block_id);
             for origin in origins.hoisted.into_iter().rev() {
-                println!("  scheduling a revisit of origin {origin}");
                 self.block_queue.clear_visited(&origin);
                 self.block_queue.push_front(origin);
             }
@@ -326,13 +314,8 @@ impl Context {
             match cache_result {
                 CacheResult::Cached { instruction_id, .. } if instruction_id == id => {
                     // This is a revisit, we just need to reinsert the instruction as-is.
-                    println!("    found self in cache");
                 }
-                CacheResult::Cached { origin, instruction_id, results: cached } => {
-                    println!(
-                        "    can reuse {instruction_id} results {cached:?} from block {origin} for {old_results:?}"
-                    );
-
+                CacheResult::Cached { origin, results: cached, .. } => {
                     // We track whether we may mutate `MakeArray` instructions before we deduplicate
                     // them but we still need to issue an extra inc_rc in case they're mutated afterward.
                     //
@@ -363,7 +346,6 @@ impl Context {
                     return;
                 }
                 CacheResult::NeedToHoistToCommonBlock { origin, dominator } => {
-                    println!("    need to hoist from {origin} to {dominator}");
                     // Just change the block to insert in the common dominator instead.
                     // This will only move the current instance of the instruction right now.
                     // When constant folding is run a second time later on, it'll catch
@@ -378,8 +360,6 @@ impl Context {
                     origins.reused.insert(dominator);
                 }
             }
-        } else {
-            println!("    nothing in cache");
         };
 
         // First try to inline a call to a brillig function with all constant arguments.
