@@ -2127,22 +2127,22 @@ mod tests {
         brillig(inline_always) fn apply f6 {
           b0(v0: Field):
             v2 = eq v0, Field 1
-            jmpif v2 then: b3, else: b2
+            jmpif v2 then: b2, else: b1
           b1():
-            return
-          b2():
             v5 = eq v0, Field 2
-            jmpif v5 then: b5, else: b4
-          b3():
+            jmpif v5 then: b4, else: b3
+          b2():
             call f1()
-            jmp b1()
-          b4():
+            jmp b5()
+          b3():
             constrain v0 == Field 5
             call f5()
-            jmp b1()
-          b5():
+            jmp b5()
+          b4():
             call f2()
-            jmp b1()
+            jmp b5()
+          b5():
+            return
         }
         ");
     }
