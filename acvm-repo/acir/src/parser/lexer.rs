@@ -64,6 +64,12 @@ impl<'a> Lexer<'a> {
             ',' => self.single_char_token(Token::Comma),
             ':' => self.single_char_token(Token::Colon),
             ';' => self.single_char_token(Token::Semicolon),
+            '+' => self.single_char_token(Token::Plus),
+            '-' if self.peek_char().is_none_or(|char| !char.is_ascii_digit()) => {
+                self.single_char_token(Token::Minus)
+            }
+            '*' => self.single_char_token(Token::Star),
+            '=' => self.single_char_token(Token::Equal),
             'w' if self.peek_char().is_some_and(|char| char.is_ascii_digit()) => {
                 let start = self.position;
 
