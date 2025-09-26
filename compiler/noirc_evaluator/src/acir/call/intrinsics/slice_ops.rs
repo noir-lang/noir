@@ -1,6 +1,6 @@
 use crate::acir::{AcirDynamicArray, AcirType, AcirValue};
 use crate::errors::RuntimeError;
-use crate::ssa::ir::{dfg::DataFlowGraph, instruction::Intrinsic, value::ValueId};
+use crate::ssa::ir::{dfg::DataFlowGraph, value::ValueId};
 use acvm::{AcirField, FieldElement};
 
 use super::Context;
