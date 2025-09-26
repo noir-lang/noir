@@ -4,13 +4,13 @@ use serde::{Deserialize, Serialize};
 use std::hash::Hash;
 
 use acvm::{
-    AcirField, FieldElement,
+    AcirField,
     acir::{BlackBoxFunc, circuit::ErrorSelector},
 };
 use iter_extended::vecmap;
 use noirc_frontend::hir_def::types::Type as HirType;
 
-use crate::ssa::opt::pure::Purity;
+use crate::ssa::{ir::integer::IntegerConstant, opt::pure::Purity};
 
 use super::{
     basic_block::BasicBlockId,
@@ -545,14 +545,13 @@ impl Instruction {
                     }
 
                     // For signed types, division or modulo by -1 can overflow.
-                    let NumericType::Signed { bit_size } =
-                        dfg.type_of_value(binary.rhs).unwrap_numeric()
-                    else {
+                    let typ = dfg.type_of_value(binary.rhs).unwrap_numeric();
+                    let NumericType::Signed { bit_size } = typ else {
                         return false;
                     };
 
-                    let minus_one_as_field = FieldElement::from((1_u128 << bit_size) - 1);
-                    if rhs == minus_one_as_field {
+                    let minus_one = IntegerConstant::Signed { value: -1, bit_size };
+                    if IntegerConstant::from_numeric_constant(rhs, typ) == Some(minus_one) {
                         return true;
                     }
 
