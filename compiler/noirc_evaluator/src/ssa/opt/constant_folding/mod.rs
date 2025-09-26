@@ -101,8 +101,7 @@ impl Ssa {
         };
 
         for function in self.functions.values_mut() {
-            // Using revisits here causes massive slowdown in some tests.
-            function.constant_fold(false, false, &mut interpreter);
+            function.constant_fold(false, true, &mut interpreter);
         }
 
         self
@@ -337,6 +336,9 @@ impl Context {
                     }
 
                     return;
+                }
+                CacheResult::NeedToHoistToCommonBlock { dominator, .. } if dominator == block => {
+                    // This is a revisit; we seem to want to hoist into self from a dominated block, which could cause an infinite loop of trying.
                 }
                 CacheResult::NeedToHoistToCommonBlock { origin, dominator } => {
                     // Just change the block to insert in the common dominator instead.
