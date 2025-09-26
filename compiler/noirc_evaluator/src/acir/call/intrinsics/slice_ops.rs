@@ -449,7 +449,7 @@ impl Context<'_> {
     ///   - If the index is below the remove index, copy directly.  
     ///   - If the index is at or beyond the removed element, fetch the value from `index + popped_elements_size`
     ///     in the original slice and write it to the current index.  
-    ///   - If `index + popped_elements_size` would exceed the slice length, we do nothing. This ensures safe access at the tail of the array
+    ///   - If `index + popped_elements_size` would exceed the slice length we do nothing. This ensures safe access at the tail of the array
     ///     and is safe to do as we are decreasing the slice length which gates slice accesses.
     /// 4. Initialize a new memory block for the resulting slice, ensuring its type information is preserved.  
     fn convert_slice_remove(
