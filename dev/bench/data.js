@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1758881598400,
+  "lastUpdate": 1758881875661,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -21951,48 +21951,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "8bc8c101fad9fa56881eb46648429da984a395c5",
-          "message": "fix(acir_gen): Fix entry point indices (#9881)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-09-17T13:18:37Z",
-          "tree_id": "b825e8da2d104b9014caa5f9ca9a6428955bc3c1",
-          "url": "https://github.com/noir-lang/noir/commit/8bc8c101fad9fa56881eb46648429da984a395c5"
-        },
-        "date": 1758116484075,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 250563,
-            "range": "± 2124",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 224016,
-            "range": "± 3344",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2816879,
-            "range": "± 1318",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -24044,6 +24002,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2780089,
             "range": "± 6027",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b03d2e2d8026db52102357075a92bacda92700fc",
+          "message": "chore(ACIR): show all expressions as polynomials (#10007)",
+          "timestamp": "2025-09-26T09:49:44Z",
+          "tree_id": "7a5009166df66be53b4301e319808b8429135529",
+          "url": "https://github.com/noir-lang/noir/commit/b03d2e2d8026db52102357075a92bacda92700fc"
+        },
+        "date": 1758881855593,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 245380,
+            "range": "± 4131",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 219050,
+            "range": "± 4375",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2748177,
+            "range": "± 38773",
             "unit": "ns/iter"
           }
         ]
