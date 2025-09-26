@@ -42,7 +42,21 @@ pub(crate) struct ParsedFunction {
     pub(crate) purity: Option<Purity>,
     pub(crate) external_name: String,
     pub(crate) internal_name: String,
+    pub(crate) data_bus: ParsedDataBus,
     pub(crate) blocks: Vec<ParsedBlock>,
+}
+
+#[derive(Debug)]
+pub(crate) struct ParsedDataBus {
+    pub(crate) call_data: Vec<ParsedCallData>,
+    pub(crate) return_data: Option<ParsedValue>,
+}
+
+#[derive(Debug)]
+pub(crate) struct ParsedCallData {
+    pub(crate) call_data_id: u32,
+    pub(crate) array: ParsedValue,
+    pub(crate) index_map: Vec<(ParsedValue, usize)>,
 }
 
 #[derive(Debug)]
