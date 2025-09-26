@@ -615,6 +615,20 @@ impl<'f> PerFunctionContext<'f> {
                         .extend(references.get_aliases_for_value(*arg).iter());
                 }
                 self.mark_all_unknown(arguments, references);
+
+                // Call results might be aliases of their arguments, if they are references
+                let results = self.inserter.function.dfg.instruction_results(instruction);
+                let results_contains_references = results.iter().any(|result| {
+                    self.inserter.function.dfg.type_of_value(*result).contains_reference()
+                });
+
+                // Instead of aliasing results to arguments, because values might be nested references
+                // we'll just consider all arguments and references as now having unknown aliases.
+                if results_contains_references {
+                    for value in arguments.iter().chain(results) {
+                        self.clear_aliases(references, *value);
+                    }
+                }
             }
             Instruction::MakeArray { elements, typ } => {
                 // If `array` is an array constant that contains reference types, then insert each element
@@ -676,6 +690,22 @@ impl<'f> PerFunctionContext<'f> {
             references.expressions.entry(address).or_insert(Expression::Other(address));
         let aliases = references.aliases.entry(*expression).or_default();
         *aliases = new_aliases;
+    }
+
+    fn clear_aliases(&self, references: &mut Block, value: ValueId) {
+        if !self.inserter.function.dfg.type_of_value(value).contains_reference() {
+            return;
+        }
+
+        if let Some(expression) = references.expressions.get(&value) {
+            references.aliases.remove(expression);
+        }
+
+        if let Some((values, _)) = self.inserter.function.dfg.get_array_constant(value) {
+            for value in values {
+                self.clear_aliases(references, value);
+            }
+        }
     }
 
     fn mark_all_unknown(&self, values: &[ValueId], references: &mut Block) {
@@ -2390,5 +2420,78 @@ mod tests {
             return g10
         }
         ");
+    }
+
+    #[test]
+    fn correctly_aliases_references_in_call_return_values_to_arguments_with_simple_values() {
+        // Here v2 could be an alias of v1, and in fact it is, so the second store to v1
+        // should invalidate the value at v2.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = allocate -> &mut Field
+            store v0 at v1
+            v2 = call f1(v1) -> &mut Field
+            store Field 1 at v2
+            store Field 2 at v1
+            v8 = load v2 -> Field
+            constrain v8 == Field 2
+            return
+        }
+        acir(inline) fn helper f1 {
+          b0(v0: &mut Field):
+            return v0
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    #[test]
+    fn correctly_aliases_references_in_call_return_values_to_arguments_with_arrays() {
+        // Similar to the previous test except that arrays with references are passed and returned
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = allocate -> &mut Field
+            store v0 at v1
+            v3 = make_array [v1] : [&mut Field; 1]
+            v4 = call f1(v3) -> [&mut Field; 1]
+            v5 = array_get v4, index u32 0 -> &mut Field
+            store Field 1 at v5
+            store Field 2 at v1
+            v8 = load v5 -> Field
+            constrain v8 == Field 2
+            return
+        }
+        acir(inline) fn helper f1 {
+          b0(v0: [&mut Field; 1]):
+            return v0
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    #[test]
+    fn correctly_aliases_references_in_call_return_values_to_arguments_with_existing_aliases() {
+        // Here v0 and v1 are aliases of each other. When we pass v1 to the call v2 could be
+        // an alias of v1. Then when storing to v2 we should invalidate the value at v1 but also
+        // at v0.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: &mut Field, v1: &mut Field):
+            store Field 0 at v1
+            v2 = call f1(v1) -> &mut Field
+            store Field 1 at v2
+            store Field 2 at v0
+            v8 = load v2 -> Field
+            constrain v8 == Field 2
+            return
+        }
+        acir(inline) fn helper f1 {
+          b0(v0: &mut Field):
+            return v0
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 }
