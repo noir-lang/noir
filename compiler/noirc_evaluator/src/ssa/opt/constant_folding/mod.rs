@@ -101,7 +101,8 @@ impl Ssa {
         };
 
         for function in self.functions.values_mut() {
-            function.constant_fold(false, true, &mut interpreter);
+            // Using revisits here causes massive slowdown in some tests.
+            function.constant_fold(false, false, &mut interpreter);
         }
 
         self
