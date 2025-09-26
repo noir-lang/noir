@@ -127,30 +127,30 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         SsaPass::new(Ssa::expand_signed_checks, "expand signed checks"),
         SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
         SsaPass::new(Ssa::defunctionalize, "Defunctionalization"),
-        SsaPass::new_try(Ssa::inline_simple_functions, "Inlining simple functions")
-            .and_then(Ssa::remove_unreachable_functions),
+        // SsaPass::new_try(Ssa::inline_simple_functions, "Inlining simple functions")
+            // .and_then(Ssa::remove_unreachable_functions),
         // BUG: Enabling this mem2reg causes test failures in aztec-nr; specifically `state_vars::private_mutable::test::initialize_and_get_pending`
         // SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
         SsaPass::new(Ssa::remove_paired_rc, "Removing Paired rc_inc & rc_decs"),
         SsaPass::new(Ssa::purity_analysis, "Purity Analysis"),
-        SsaPass::new_try(
-            move |ssa| {
-                ssa.preprocess_functions(
-                    options.inliner_aggressiveness,
-                    options.small_function_max_instruction,
-                )
-            },
-            "Preprocessing Functions",
-        ),
-        SsaPass::new_try(
-            move |ssa| {
-                ssa.inline_functions(
-                    options.inliner_aggressiveness,
-                    options.small_function_max_instruction,
-                )
-            },
-            "Inlining",
-        ),
+        // SsaPass::new_try(
+        //     move |ssa| {
+        //         ssa.preprocess_functions(
+        //             options.inliner_aggressiveness,
+        //             options.small_function_max_instruction,
+        //         )
+        //     },
+        //     "Preprocessing Functions",
+        // ),
+        // SsaPass::new_try(
+        //     move |ssa| {
+        //         ssa.inline_functions(
+        //             options.inliner_aggressiveness,
+        //             options.small_function_max_instruction,
+        //         )
+        //     },
+        //     "Inlining",
+        // ),
         // Run mem2reg with the CFG separated into blocks
         SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
         // Running DIE here might remove some unused instructions mem2reg could not eliminate.
@@ -182,15 +182,15 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         // Before flattening is run, we treat functions marked with the `InlineType::NoPredicates` as an entry point.
         // This pass must come immediately following `mem2reg` as the succeeding passes
         // may create an SSA which inlining fails to handle.
-        SsaPass::new_try(
-            move |ssa| {
-                ssa.inline_functions_with_no_predicates(
-                    options.inliner_aggressiveness,
-                    options.small_function_max_instruction,
-                )
-            },
-            "Inlining",
-        ),
+        // SsaPass::new_try(
+        //     move |ssa| {
+        //         ssa.inline_functions_with_no_predicates(
+        //             options.inliner_aggressiveness,
+        //             options.small_function_max_instruction,
+        //         )
+        //     },
+        //     "Inlining",
+        // ),
         SsaPass::new_try(Ssa::remove_if_else, "Remove IfElse"),
         SsaPass::new(Ssa::purity_analysis, "Purity Analysis"),
         SsaPass::new(Ssa::fold_constants, "Constant Folding"),
