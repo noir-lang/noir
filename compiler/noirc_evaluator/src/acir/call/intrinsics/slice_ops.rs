@@ -6,24 +6,6 @@ use acvm::{AcirField, FieldElement};
 use super::Context;
 
 impl Context<'_> {
-    pub(super) fn convert_slice_intrinsic(
-        &mut self,
-        intrinsic: Intrinsic,
-        arguments: &[ValueId],
-        dfg: &DataFlowGraph,
-        result_ids: &[ValueId],
-    ) -> Result<Vec<AcirValue>, RuntimeError> {
-        match intrinsic {
-            Intrinsic::SlicePushBack => self.convert_slice_push_back(arguments, dfg),
-            Intrinsic::SlicePushFront => self.convert_slice_push_front(arguments, dfg),
-            Intrinsic::SlicePopBack => self.convert_slice_pop_back(arguments, dfg, result_ids),
-            Intrinsic::SlicePopFront => self.convert_slice_pop_front(arguments, dfg, result_ids),
-            Intrinsic::SliceInsert => self.convert_slice_insert(arguments, dfg, result_ids),
-            Intrinsic::SliceRemove => self.convert_slice_remove(arguments, dfg, result_ids),
-            _ => unreachable!("ICE: Non-slice intrinsic passed to convert_slice_intrinsic"),
-        }
-    }
-
     /// Pushes one or more elements to the back of a non-nested slice.
     ///
     /// # Arguments
@@ -37,7 +19,7 @@ impl Context<'_> {
     /// A vector of [AcirValue]s containing:
     /// 1. Updated slice length (incremented by one)
     /// 2. New slice with elements appended
-    fn convert_slice_push_back(
+    pub(super) fn convert_slice_push_back(
         &mut self,
         arguments: &[ValueId],
         dfg: &DataFlowGraph,
@@ -77,7 +59,7 @@ impl Context<'_> {
     /// A vector of [AcirValue]s containing:
     /// 1. Updated slice length (incremented by one)
     /// 2. New slice with elements prepended
-    fn convert_slice_push_front(
+    pub(super) fn convert_slice_push_front(
         &mut self,
         arguments: &[ValueId],
         dfg: &DataFlowGraph,
@@ -132,7 +114,7 @@ impl Context<'_> {
     ///
     /// The `result_ids` provided by the SSA to fetch the appropriate type information to be popped.
     /// The `result_ids` encode the type/shape of the removed element.
-    fn convert_slice_pop_back(
+    pub(super) fn convert_slice_pop_back(
         &mut self,
         arguments: &[ValueId],
         dfg: &DataFlowGraph,
@@ -197,7 +179,7 @@ impl Context<'_> {
     /// the underlying array is logically truncated at the *front* rather than
     /// the back. The `result_ids` ensure that this logical shift is applied
     /// consistently with the element’s type.
-    fn convert_slice_pop_front(
+    pub(super) fn convert_slice_pop_front(
         &mut self,
         arguments: &[ValueId],
         dfg: &DataFlowGraph,
@@ -279,7 +261,7 @@ impl Context<'_> {
     ///    - If within the insertion window, write values from `flattened_elements`.  
     ///    - If above the window, shift elements upward by the size of the inserted data.  
     /// 4. Initialize a new memory block for the resulting slice, ensuring its type information is preserved.  
-    fn convert_slice_insert(
+    pub(super) fn convert_slice_insert(
         &mut self,
         arguments: &[ValueId],
         dfg: &DataFlowGraph,
@@ -452,7 +434,7 @@ impl Context<'_> {
     ///   - If `index + popped_elements_size` would exceed the slice length we do nothing. This ensures safe access at the tail of the array
     ///     and is safe to do as we are decreasing the slice length which gates slice accesses.
     /// 4. Initialize a new memory block for the resulting slice, ensuring its type information is preserved.  
-    fn convert_slice_remove(
+    pub(super) fn convert_slice_remove(
         &mut self,
         arguments: &[ValueId],
         dfg: &DataFlowGraph,
