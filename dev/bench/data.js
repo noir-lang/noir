@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1758878723204,
+  "lastUpdate": 1758880002256,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -21906,48 +21906,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "f86ba42b2786734e32965a3aef2b494bd2f387a9",
-          "message": "fix(ssa): Simplify always-fail range constraint (#9885)",
-          "timestamp": "2025-09-17T11:43:46Z",
-          "tree_id": "ce42c7c6f57dc5379cbee7273d50434bef549c9a",
-          "url": "https://github.com/noir-lang/noir/commit/f86ba42b2786734e32965a3aef2b494bd2f387a9"
-        },
-        "date": 1758111161964,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 256500,
-            "range": "± 1343",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 230018,
-            "range": "± 851",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2820293,
-            "range": "± 1373",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -23999,6 +23957,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2779724,
             "range": "± 3286",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "fda596f2669205bcdde91ae913a2c9b4790ffd3e",
+          "message": "chore(ci): fix docs breaking JS releases (#10010)",
+          "timestamp": "2025-09-26T10:43:48+01:00",
+          "tree_id": "195b9b10c6136fb0db942611ad39ab4e36b8ada8",
+          "url": "https://github.com/noir-lang/noir/commit/fda596f2669205bcdde91ae913a2c9b4790ffd3e"
+        },
+        "date": 1758879980546,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 250615,
+            "range": "± 202",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 236638,
+            "range": "± 3350",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2781228,
+            "range": "± 2063",
             "unit": "ns/iter"
           }
         ]
