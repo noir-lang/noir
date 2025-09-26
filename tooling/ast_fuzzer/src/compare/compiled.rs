@@ -206,11 +206,15 @@ impl Comparable for NargoErrorWithTypes {
             (
                 SolvingError(OpcodeResolutionError::UnsatisfiedConstrain { .. }, _),
                 AssertionFailed(_, _, _),
-            ) => msg2.as_ref().is_some_and(|msg| msg.contains("divide by zero")),
+            ) => msg2.as_ref().is_some_and(|msg| {
+                msg.contains("divide by zero") || msg.contains("divisor of zero")
+            }),
             (
                 AssertionFailed(_, _, _),
                 SolvingError(OpcodeResolutionError::UnsatisfiedConstrain { .. }, _),
-            ) => msg1.is_some_and(|msg| msg.contains("divide by zero")),
+            ) => msg1.is_some_and(|msg| {
+                msg.contains("divide by zero") || msg.contains("divisor of zero")
+            }),
             (
                 SolvingError(OpcodeResolutionError::IndexOutOfBounds { .. }, _),
                 AssertionFailed(_, _, _),
