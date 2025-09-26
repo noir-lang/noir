@@ -596,7 +596,10 @@ impl Parser<'_> {
 
         let expression = self.parse_expression_except_constructor_or_error();
 
-        self.eat_left_brace();
+        if !self.eat_left_bracket() {
+            self.expected_token(Token::LeftBrace);
+            return Some(ExpressionKind::Error);
+        }
 
         let rules = self.parse_many(
             "match cases",
@@ -607,7 +610,7 @@ impl Parser<'_> {
         Some(ExpressionKind::Match(Box::new(MatchExpression { expression, rules })))
     }
 
-    /// MatchRule = Expression '->' (Block ','?) | (Expression ',')
+    /// MatchRule = Expression '=>' (Block ','?) | (Expression ',')
     fn parse_match_rule(&mut self) -> Option<(Expression, Expression)> {
         let pattern = self.parse_expression()?;
         self.eat_or_error(Token::FatArrow);
@@ -1042,6 +1045,7 @@ mod tests {
             ArrayLiteral, BinaryOpKind, ConstrainKind, Expression, ExpressionKind, Literal,
             StatementKind, UnaryOp, UnresolvedTypeData,
         },
+        parse_program_with_dummy_file,
         parser::{
             Parser, ParserErrorReason,
             parser::tests::{
@@ -2220,5 +2224,20 @@ mod tests {
 
         let reason = get_single_error_reason(&parser.errors, span);
         assert!(matches!(reason, ParserErrorReason::ConstrainDeprecated));
+    }
+
+    #[test]
+    fn errors_on_match_without_left_brace_after_expression() {
+        let src = "
+        fn main()  {
+            if true {
+                match c _ => {
+                    match d _ => 0,                     
+                }
+            }
+        } } } 
+        ";
+        let (_, errors) = parse_program_with_dummy_file(src);
+        assert!(!errors.is_empty());
     }
 }
