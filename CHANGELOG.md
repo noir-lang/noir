@@ -1,5 +1,34 @@
 # Changelog
 
+## [1.0.0-beta.14](https://github.com/noir-lang/noir/compare/v1.0.0-beta.13...v1.0.0-beta.14) (2025-09-26)
+
+
+### ⚠ BREAKING CHANGES
+
+* several ACIR serialisation changes ([#8134](https://github.com/noir-lang/noir/issues/8134))
+
+### Features
+
+* **cli:** Visualize the Control Flow Graph ([#9867](https://github.com/noir-lang/noir/issues/9867)) ([f355e1d](https://github.com/noir-lang/noir/commit/f355e1d0e2e5db8eeb597b2abcd2028d38b43521))
+* No need to use dummy slice values in remove_if_else ([#9928](https://github.com/noir-lang/noir/issues/9928)) ([dd83075](https://github.com/noir-lang/noir/commit/dd83075be5758cf8c6a3a28e7c4a08a32fc9fde5))
+
+
+### Bug Fixes
+
+* Correct max_bit_size when left-shifting ([#9770](https://github.com/noir-lang/noir/issues/9770)) ([773e286](https://github.com/noir-lang/noir/commit/773e2868ed451787429bba24389c685468822b32))
+* Correctly handle unusual radices in `ToRadix` decompositions ([#9941](https://github.com/noir-lang/noir/issues/9941)) ([b9b8210](https://github.com/noir-lang/noir/commit/b9b8210ce3ca93b2ac439906932c57548782af5c))
+* Disable early mem2reg ([#9987](https://github.com/noir-lang/noir/issues/9987)) ([4eb2a5c](https://github.com/noir-lang/noir/commit/4eb2a5c83a4951f0cc7cc6e53fa093f81b8932be))
+* **fuzz:** Handle divisor of zero msg in error comparison ([#9995](https://github.com/noir-lang/noir/issues/9995)) ([c60257c](https://github.com/noir-lang/noir/commit/c60257cb22c685c6d560879bd18de03c018fd3bb))
+* **parser:** Enforce left brace after match expression ([#10018](https://github.com/noir-lang/noir/issues/10018)) ([f666b6e](https://github.com/noir-lang/noir/commit/f666b6eb4299fce03f85ca556b183ed3481b73ab))
+* Signed division by -1 can overflow ([#9976](https://github.com/noir-lang/noir/issues/9976)) ([8ca4af7](https://github.com/noir-lang/noir/commit/8ca4af784ce805900a8d5472830c9c28e92562b8))
+* **ssa:** Handle OOB indexing of slice literals in `remove_unreachalbe_instructions` ([#9999](https://github.com/noir-lang/noir/issues/9999)) ([88bf540](https://github.com/noir-lang/noir/commit/88bf5402b734dfdb1d6315fe181c0a9770144ff9))
+* **ssa:** Start with checked operations in index calculations ([#9888](https://github.com/noir-lang/noir/issues/9888)) ([852d0fb](https://github.com/noir-lang/noir/commit/852d0fb96c3abe67f34b0ec594ab0307b760509c))
+
+
+### Miscellaneous Chores
+
+* Several ACIR serialisation changes ([#8134](https://github.com/noir-lang/noir/issues/8134)) ([05a61db](https://github.com/noir-lang/noir/commit/05a61db551b445ac824fb6319cefcd7ece96b6b7))
+
 ## [1.0.0-beta.13](https://github.com/noir-lang/noir/compare/v1.0.0-beta.12...v1.0.0-beta.13) (2025-09-19)
 
 
