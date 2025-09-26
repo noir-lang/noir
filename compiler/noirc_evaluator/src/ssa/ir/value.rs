@@ -93,6 +93,8 @@ impl ValueMapping {
     }
 
     pub(crate) fn batch_insert(&mut self, from: &[ValueId], to: &[ValueId]) {
+        println!("    batch_insert(from = {from:?}, to = {to:?})");
+
         debug_assert_eq!(
             from.len(),
             to.len(),

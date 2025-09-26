@@ -117,6 +117,7 @@ impl Function {
         revisit_hoisted: bool,
         interpreter: &mut Option<Interpreter<Empty>>,
     ) {
+        println!("\nconstant_fold({})", self.id());
         let mut context = Context::new(use_constraint_info, revisit_hoisted);
         let mut dom = DominatorTree::with_function(self);
         context.block_queue.push_back(self.entry_block());
@@ -173,6 +174,13 @@ struct Context {
 
     /// Maps pre-folded ValueIds to the new ValueIds obtained by re-inserting the instruction.
     values_to_replace: ValueMapping,
+
+    /// Map the origin of a reused instruction to all the blocks which reused it and got their
+    /// duplicate instructions replaced by the results of the original. We use this information
+    /// to schedule revisits if, after revising the original, some instructions get replaced by
+    /// instructions that got hoisted, and we need to update the absence of such instructions in
+    /// dependant blocks.
+    cache_reuses: HashMap<BasicBlockId, BTreeSet<BasicBlockId>>,
 }
 
 impl Context {
@@ -184,6 +192,7 @@ impl Context {
             constraint_simplification_mappings: Default::default(),
             cached_instruction_results: Default::default(),
             values_to_replace: Default::default(),
+            cache_reuses: Default::default(),
         }
     }
 
@@ -194,6 +203,7 @@ impl Context {
         block_id: BasicBlockId,
         interpreter: &mut Option<Interpreter<Empty>>,
     ) {
+        println!("fold_constants_in_block({block_id})");
         let instructions = dfg[block_id].take_instructions();
 
         // Default side effect condition variable with an enabled state.
@@ -202,11 +212,17 @@ impl Context {
 
         // Collect any block we hoisted instructions from. They will have instructions
         // which can subsequently be deduplicated, potentially unlocking new opportunities.
-        let mut hoisted_from = BTreeSet::new();
+        let mut origins = CacheOrigins::default();
 
         for instruction_id in instructions {
             let instruction = &mut dfg[instruction_id];
+
+            println!(
+                "  fold_constants_into_instruction(block = {block_id}, id = {instruction_id}):"
+            );
+            println!("    - instruction before: {instruction:?}");
             instruction.replace_values(&self.values_to_replace);
+            println!("    - instruction after:  {instruction:?}");
 
             self.fold_constants_into_instruction(
                 dfg,
@@ -214,7 +230,7 @@ impl Context {
                 block_id,
                 instruction_id,
                 &mut side_effects_enabled_var,
-                &mut hoisted_from,
+                &mut origins,
                 interpreter,
             );
         }
@@ -241,18 +257,44 @@ impl Context {
         dfg[block_id].set_terminator(terminator);
         dfg.data_bus.map_values_mut(resolve_cache);
 
-        if self.revisit_hoisted && !hoisted_from.is_empty() {
-            // If we hoisted from blocks, revisit them, to deduplicate what was hoisted,
-            // and potentially replace the values in the next instructions, then revisit
-            // this block, to take advantage of further hoisting opportunities.
+        // Register any block on which this block depends in terms of reused instructions.
+        for origin in &origins.reused {
+            println!("  register reuse from {origin} in {block_id}");
+            self.cache_reuses.entry(*origin).or_default().insert(block_id);
+        }
+
+        // If this is a potential revisit and we removed some instructions from this block,
+        // we potentially have to update them in dependant blocks.
+        if self.revisit_hoisted && !origins.reused.is_empty() {
+            if let Some(dependant_blocks) = self.cache_reuses.get(&block_id) {
+                for id in dependant_blocks {
+                    println!("  scheduling revisit of dependant {id}");
+
+                    self.block_queue.clear_visited(&id);
+                    self.block_queue.push_back(*id);
+                }
+            }
+        }
+
+        // Clear out the reuses of instructions from this block.
+        // If anything gets reused again, they will re-register.
+        self.cache_reuses.remove(&block_id);
+
+        // If we hoisted from blocks, revisit them, to deduplicate what was hoisted,
+        // and potentially replace the values in the next instructions, then revisit
+        // this block, to take advantage of further hoisting opportunities.
+        // Do this before any other blocks in the queue, so we minimize revisits.
+        if self.revisit_hoisted && !origins.hoisted.is_empty() {
+            println!("scheduling a revisit of {block_id}");
             self.block_queue.clear_visited(&block_id);
             self.block_queue.push_front(block_id);
-            for origin in hoisted_from.into_iter().rev() {
+            for origin in origins.hoisted.into_iter().rev() {
+                println!("  scheduling a revisit of origin {origin}");
                 self.block_queue.clear_visited(&origin);
                 self.block_queue.push_front(origin);
             }
         } else {
-            // Otherwise proceed to the successors.
+            // Otherwise proceed to the (yet to be visited) successors.
             self.block_queue.extend(dfg[block_id].successors());
         }
     }
@@ -264,7 +306,7 @@ impl Context {
         mut block: BasicBlockId,
         id: InstructionId,
         side_effects_enabled_var: &mut ValueId,
-        hoisted_from: &mut BTreeSet<BasicBlockId>,
+        origins: &mut CacheOrigins,
         interpreter: &mut Option<Interpreter<Empty>>,
     ) {
         let constraint_simplification_mapping =
@@ -282,7 +324,15 @@ impl Context {
             self.cached_instruction_results.get(dfg, dom, id, &instruction, predicate, block)
         {
             match cache_result {
-                CacheResult::Cached { results: cached } => {
+                CacheResult::Cached { instruction_id, .. } if instruction_id == id => {
+                    // This is a revisit, we just need to reinsert the instruction as-is.
+                    println!("    found self in cache");
+                }
+                CacheResult::Cached { origin, instruction_id, results: cached } => {
+                    println!(
+                        "    can reuse {instruction_id} results {cached:?} from block {origin} for {old_results:?}"
+                    );
+
                     // We track whether we may mutate `MakeArray` instructions before we deduplicate
                     // them but we still need to issue an extra inc_rc in case they're mutated afterward.
                     //
@@ -304,19 +354,32 @@ impl Context {
                     }
 
                     self.values_to_replace.batch_insert(&old_results, cached);
+
+                    // Because we removed some instruction from this block, we will have to (re)visit its successors.
+                    if origin != block {
+                        origins.reused.insert(origin);
+                    }
+
                     return;
                 }
-                CacheResult::NeedToHoistToCommonBlock { dominator, origin } => {
+                CacheResult::NeedToHoistToCommonBlock { origin, dominator } => {
+                    println!("    need to hoist from {origin} to {dominator}");
                     // Just change the block to insert in the common dominator instead.
                     // This will only move the current instance of the instruction right now.
                     // When constant folding is run a second time later on, it'll catch
                     // that the previous instance can be deduplicated to this instance.
                     // Another effect is going to be that the cache should be updated to
                     // point at the dominator, so subsequent blocks can use the result.
-                    hoisted_from.insert(origin);
                     block = dominator;
+
+                    // Because we hoisted an instruction, we can revisit the origin to deduplicate.
+                    origins.hoisted.insert(origin);
+                    // Effectively we will be reusing a result from the dominator, becoming dependant on it.
+                    origins.reused.insert(dominator);
                 }
             }
+        } else {
+            println!("    nothing in cache");
         };
 
         // First try to inline a call to a brillig function with all constant arguments.
@@ -334,6 +397,7 @@ impl Context {
         self.values_to_replace.batch_insert(&old_results, &new_results);
 
         self.cache_instruction(
+            id,
             &instruction,
             new_results,
             dfg,
@@ -398,6 +462,7 @@ impl Context {
 
     fn cache_instruction(
         &mut self,
+        instruction_id: InstructionId,
         instruction: &Instruction,
         instruction_results: Vec<ValueId>,
         dfg: &DataFlowGraph,
@@ -436,7 +501,14 @@ impl Context {
             let array_get = Instruction::ArrayGet { array: instruction_results[0], index: *index };
 
             // If we encounter an array_get for this address, we know what the result will be.
-            self.cached_instruction_results.cache(dom, array_get, predicate, block, vec![*value]);
+            self.cached_instruction_results.cache(
+                dom,
+                instruction_id,
+                array_get,
+                predicate,
+                block,
+                vec![*value],
+            );
         }
 
         self.cached_instruction_results
@@ -455,6 +527,7 @@ impl Context {
             // If we see this make_array again, we can reuse the current result.
             self.cached_instruction_results.cache(
                 dom,
+                instruction_id,
                 instruction.clone(),
                 predicate,
                 block,
@@ -509,6 +582,18 @@ fn resolve_cache(
         }
         None => value_id,
     }
+}
+
+/// Blocks from which we reused cached instruction results.
+///
+/// In both cases we need to revisit some blocks after.
+#[derive(Default)]
+struct CacheOrigins {
+    /// Blocks that contain duplicates of instructions we hoisted into the dominator.
+    hoisted: BTreeSet<BasicBlockId>,
+    /// Blocks that dominated this block and we could reuse their instructions as-is,
+    /// removing the instruction from the current block.
+    reused: BTreeSet<BasicBlockId>,
 }
 
 #[derive(Debug)]
@@ -1180,8 +1265,7 @@ mod test {
         let mut ssa = Ssa::from_str(src).unwrap();
         ssa.main_mut().constant_fold(false, true, &mut None);
 
-        // Duplicate `array_get` and `cast` hoisted into b0,
-        // but not the `add` because it can fail.
+        // Duplicated array_get and cast are hoisted to b0.
         assert_ssa_snapshot!(ssa, @r#"
         g0 = make_array [] : [u1; 0]
         g1 = make_array [] : [u1; 0]
@@ -1215,6 +1299,169 @@ mod test {
             jmp b3(v16)
           b3(v5: [u1; 0]):
             return v5
+        }
+        "#);
+    }
+
+    #[test]
+    fn avoid_unmapped_instructions_during_revisit() {
+        // We have program calling `lambdas_in_array_literal(x)` and `lambdas_in_array_literal(x-1)`,
+        // with 1 of the 2 potential lambdas called in `lambdas_in_array_literal` based on the index.
+        let src = r#"
+          brillig(inline) predicate_pure fn main f0 {
+            b0(v0: u32):
+              v8 = sub v0, u32 1
+              v13 = make_array [Field 2, Field 3, Field 4, Field 5] : [(Field, Field); 2]
+              v15 = lt v8, u32 2
+              constrain v15 == u1 1, "Index out of bounds"
+              v17 = unchecked_mul v8, u32 2
+              v18 = unchecked_add v17, u32 1
+              v19 = array_get v13, index v18 -> Field
+              v20 = eq v19, Field 2
+              jmpif v20 then: b1, else: b2
+            b1():
+              v32 = make_array b"ABC"
+              jmp b3(v32)
+            b2():
+              v21 = eq v19, Field 3
+              jmpif v21 then: b4, else: b5
+            b3(v1: [u8; 3]):
+              v33 = make_array [Field 2, Field 3, Field 4, Field 5] : [(Field, Field); 2]
+              v34 = lt v0, u32 2
+              constrain v34 == u1 1, "Index out of bounds"
+              v35 = unchecked_mul v0, u32 2
+              v36 = unchecked_add v35, u32 1
+              v37 = array_get v33, index v36 -> Field
+              v38 = eq v37, Field 2
+              jmpif v38 then: b6, else: b7
+            b4():
+              v31 = make_array b"ABC"
+              jmp b8(v31)
+            b5():
+              v22 = eq v19, Field 4
+              jmpif v22 then: b9, else: b10
+            b6():
+              v44 = make_array b"ABC"
+              jmp b11(v44)
+            b7():
+              v39 = eq v37, Field 3
+              jmpif v39 then: b12, else: b13
+            b8(v2: [u8; 3]):
+              jmp b3(v2)
+            b9():
+              v27 = make_array b"DEF"
+              jmp b14(v27)
+            b10():
+              constrain v19 == Field 5
+              v26 = make_array b"DEF"
+              jmp b14(v26)
+            b11(v3: [u8; 3]):
+              return v1, v3
+            b12():
+              v43 = make_array b"ABC"
+              jmp b15(v43)
+            b13():
+              v40 = eq v37, Field 4
+              jmpif v40 then: b16, else: b17
+            b14(v4: [u8; 3]):
+              jmp b8(v4)
+            b15(v5: [u8; 3]):
+              jmp b11(v5)
+            b16():
+              v42 = make_array b"DEF"
+              jmp b18(v42)
+            b17():
+              constrain v37 == Field 5
+              v41 = make_array b"DEF"
+              jmp b18(v41)
+            b18(v6: [u8; 3]):
+              jmp b15(v6)
+          }
+        "#;
+
+        let mut ssa = Ssa::from_str(src).unwrap();
+        ssa.main_mut().constant_fold(false, true, &mut None);
+
+        // The hoisting of "DEF" will happen in multiple stages:
+        // * Appears first in b9
+        // * Duplicate of b9 in b10 -> hoisted from b10 to b5
+        // * Revisited in b9 -> reused from b5
+        // * Duplicate of b5 in b16 -> hoisted from b16 to b0
+        // * Revisited in b5 -> reused from b0
+        // * Duplicate of b0 in b17 -> reused from b0
+        // The crucial bit is that b9 and b10 has to be revisited as well, as they contain a reuse from b5,
+        // which needs to be updated to point at b0 instead, otherwise trying to normalize the IDs will panic.
+
+        // All make_array hoisted into b0
+        assert_ssa_snapshot!(ssa, @r#"
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            v8 = sub v0, u32 1
+            v13 = make_array [Field 2, Field 3, Field 4, Field 5] : [(Field, Field); 2]
+            v15 = lt v8, u32 2
+            constrain v15 == u1 1, "Index out of bounds"
+            v17 = unchecked_mul v8, u32 2
+            v18 = unchecked_add v17, u32 1
+            v19 = array_get v13, index v18 -> Field
+            v20 = eq v19, Field 2
+            v24 = make_array b"ABC"
+            v28 = make_array b"DEF"
+            jmpif v20 then: b1, else: b2
+          b1():
+            inc_rc v24
+            jmp b3(v24)
+          b2():
+            v29 = eq v19, Field 3
+            jmpif v29 then: b4, else: b5
+          b3(v1: [u8; 3]):
+            inc_rc v13
+            v31 = lt v0, u32 2
+            constrain v31 == u1 1, "Index out of bounds"
+            v32 = unchecked_mul v0, u32 2
+            v33 = unchecked_add v32, u32 1
+            v34 = array_get v13, index v33 -> Field
+            v35 = eq v34, Field 2
+            jmpif v35 then: b6, else: b7
+          b4():
+            jmp b8(v24)
+          b5():
+            v30 = eq v19, Field 4
+            inc_rc v28
+            jmpif v30 then: b9, else: b10
+          b6():
+            inc_rc v24
+            jmp b11(v24)
+          b7():
+            v36 = eq v34, Field 3
+            jmpif v36 then: b12, else: b13
+          b8(v2: [u8; 3]):
+            jmp b3(v2)
+          b9():
+            inc_rc v28
+            jmp b14(v28)
+          b10():
+            constrain v19 == Field 5
+            jmp b14(v28)
+          b11(v3: [u8; 3]):
+            return v1, v3
+          b12():
+            inc_rc v24
+            jmp b15(v24)
+          b13():
+            v37 = eq v34, Field 4
+            jmpif v37 then: b16, else: b17
+          b14(v4: [u8; 3]):
+            jmp b8(v4)
+          b15(v5: [u8; 3]):
+            jmp b11(v5)
+          b16():
+            jmp b18(v28)
+          b17():
+            constrain v34 == Field 5
+            inc_rc v28
+            jmp b18(v28)
+          b18(v6: [u8; 3]):
+            jmp b15(v6)
         }
         "#);
     }
