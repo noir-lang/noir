@@ -596,7 +596,7 @@ impl Parser<'_> {
 
         let expression = self.parse_expression_except_constructor_or_error();
 
-        if !self.eat_left_bracket() {
+        if !self.eat_left_brace() {
             self.expected_token(Token::LeftBrace);
             return Some(ExpressionKind::Error);
         }
