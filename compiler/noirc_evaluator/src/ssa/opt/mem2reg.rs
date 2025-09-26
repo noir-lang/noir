@@ -2443,10 +2443,6 @@ mod tests {
             return v0
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.mem2reg();
-        println!("{}", ssa);
-
         assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
@@ -2472,7 +2468,6 @@ mod tests {
             return v0
         }
         ";
-
         assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
@@ -2497,7 +2492,6 @@ mod tests {
             return v0
         }
         ";
-
         assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 }
