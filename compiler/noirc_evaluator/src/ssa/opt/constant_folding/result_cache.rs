@@ -47,7 +47,7 @@ impl InstructionResultCache {
             // We explicitly check that the cached result values are of the same type as expected by the instruction
             // being checked against the cache and reject if they differ.
             // They can also be the exact same value after a re-visit, which we don't want as it creates a cycle.
-            if let CacheResult::Cached(results) = results {
+            if let CacheResult::Cached { results, .. } = results {
                 let old_results = dfg.instruction_results(id).to_vec();
 
                 results.len() == old_results.len()
@@ -188,7 +188,7 @@ impl ResultCache {
     ) -> Option<CacheResult> {
         self.result.as_ref().and_then(|(origin, results)| {
             if dom.dominates(*origin, block) {
-                Some(CacheResult::Cached(results))
+                Some(CacheResult::Cached { results })
             } else if !has_side_effects {
                 // Insert a copy of this instruction in the common dominator
                 let dominator = dom.common_dominator(*origin, block);
@@ -205,7 +205,7 @@ pub(super) enum CacheResult<'a> {
     /// The result of an earlier instruction can be readily reused, because it was found
     /// in a block that dominates the one where the current instruction is. We can drop
     /// the current instruction and redefine its results in terms of the existing values.
-    Cached(&'a [ValueId]),
+    Cached { results: &'a [ValueId] },
     /// We found an identical instruction in a non-dominating block, so we cannot directly
     /// reuse its results, because they are not visible in the current block. However, we
     /// can hoist the instruction into the common dominator, and deduplicate later.

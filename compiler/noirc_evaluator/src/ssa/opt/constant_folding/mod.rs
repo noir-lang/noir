@@ -282,7 +282,7 @@ impl Context {
             self.cached_instruction_results.get(dfg, dom, id, &instruction, predicate, block)
         {
             match cache_result {
-                CacheResult::Cached(cached) => {
+                CacheResult::Cached { results: cached } => {
                     // We track whether we may mutate `MakeArray` instructions before we deduplicate
                     // them but we still need to issue an extra inc_rc in case they're mutated afterward.
                     //
@@ -1125,6 +1125,98 @@ mod test {
             return v9
         }
         ");
+    }
+
+    #[test]
+    fn avoid_cycles_during_revisits() {
+        // We have program structure like this:
+        // `if a { A[(b[0].0 + b[0].0]) % 2 } else { A[(b[0].0 + b[0].0]) % 2 }`
+        // so the 'then' and the 'else' are the same and instructions are repeated within the block.
+        let src = r#"
+          g0 = make_array [] : [u1; 0]
+          g1 = make_array [] : [u1; 0]
+          g2 = make_array [g0, g1] : [[u1; 0]; 2]
+
+          brillig(inline) predicate_pure fn main f0 {
+            b0(v3: u1, v4: [(u1, u1, u1, [u8; 2]); 4]):
+              jmpif v3 then: b1, else: b2
+            b1():
+              v20 = array_get v4, index u32 0 -> u1
+              v21 = array_get v4, index u32 3 -> [u8; 2]
+              inc_rc v21
+              v22 = cast v20 as u32
+              v23 = array_get v4, index u32 0 -> u1
+              v24 = array_get v4, index u32 3 -> [u8; 2]
+              inc_rc v24
+              v25 = cast v23 as u32
+              v26 = add v22, v25
+              v27 = truncate v26 to 1 bits, max_bit_size: 32
+              v28 = lt v27, u32 2
+              constrain v28 == u1 1, "Index out of bounds"
+              v29 = array_get g2, index v27 -> [u1; 0]
+              inc_rc v29
+              jmp b3(v29)
+            b2():
+              v7 = array_get v4, index u32 0 -> u1
+              v9 = array_get v4, index u32 3 -> [u8; 2]
+              inc_rc v9
+              v10 = cast v7 as u32
+              v11 = array_get v4, index u32 0 -> u1
+              v12 = array_get v4, index u32 3 -> [u8; 2]
+              inc_rc v12
+              v13 = cast v11 as u32
+              v14 = add v10, v13
+              v15 = truncate v14 to 1 bits, max_bit_size: 32
+              v17 = lt v15, u32 2
+              constrain v17 == u1 1, "Index out of bounds"
+              v19 = array_get g2, index v15 -> [u1; 0]
+              inc_rc v19
+              jmp b3(v19)
+            b3(v5: [u1; 0]):
+              return v5
+          }
+        "#;
+
+        let mut ssa = Ssa::from_str(src).unwrap();
+        ssa.main_mut().constant_fold(false, true, &mut None);
+
+        // Duplicate `array_get` and `cast` hoisted into b0,
+        // but not the `add` because it can fail.
+        assert_ssa_snapshot!(ssa, @r#"
+        g0 = make_array [] : [u1; 0]
+        g1 = make_array [] : [u1; 0]
+        g2 = make_array [g0, g1] : [[u1; 0]; 2]
+
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v3: u1, v4: [(u1, u1, u1, [u8; 2]); 4]):
+            v7 = array_get v4, index u32 0 -> u1
+            v9 = array_get v4, index u32 3 -> [u8; 2]
+            v10 = cast v7 as u32
+            jmpif v3 then: b1, else: b2
+          b1():
+            inc_rc v9
+            inc_rc v9
+            v17 = add v10, v10
+            v18 = truncate v17 to 1 bits, max_bit_size: 32
+            v19 = lt v18, u32 2
+            constrain v19 == u1 1, "Index out of bounds"
+            v20 = array_get g2, index v18 -> [u1; 0]
+            inc_rc v20
+            jmp b3(v20)
+          b2():
+            inc_rc v9
+            inc_rc v9
+            v11 = add v10, v10
+            v12 = truncate v11 to 1 bits, max_bit_size: 32
+            v14 = lt v12, u32 2
+            constrain v14 == u1 1, "Index out of bounds"
+            v16 = array_get g2, index v12 -> [u1; 0]
+            inc_rc v16
+            jmp b3(v16)
+          b3(v5: [u1; 0]):
+            return v5
+        }
+        "#);
     }
 
     #[test]
