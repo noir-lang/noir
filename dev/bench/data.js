@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1758903283383,
+  "lastUpdate": 1758903286950,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -9315,80 +9315,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "5524470351b946d21d5b21609c2bb25c0f994eaa",
-          "message": "fix(acir_gen): Handle flattening of numeric types when an `Array` contains a `DynamicArray` (#9887)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
-          "timestamp": "2025-09-18T12:59:02Z",
-          "tree_id": "eae7ec80a83719465dbc52f974b9a5e83ba6ab09",
-          "url": "https://github.com/noir-lang/noir/commit/5524470351b946d21d5b21609c2bb25c0f994eaa"
-        },
-        "date": 1758202896872,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.018,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.162,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.01,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.266,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.168,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 14.2,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.002,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.004,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.019,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 0.096,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -13678,6 +13604,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 0.053,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "8ca4af784ce805900a8d5472830c9c28e92562b8",
+          "message": "fix: signed division by -1 can overflow (#9976)",
+          "timestamp": "2025-09-26T15:39:39Z",
+          "tree_id": "fc6c14c9dcb3a83c72dcaa1aba2454f7953b162d",
+          "url": "https://github.com/noir-lang/noir/commit/8ca4af784ce805900a8d5472830c9c28e92562b8"
+        },
+        "date": 1758903266605,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.013,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.161,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.01,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 0.003,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 0.002,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 0.004,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 0.004,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 14.1,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 12.7,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.004,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 0.31,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 0.252,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 0.002,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.036,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.052,
             "unit": "s"
           }
         ]
