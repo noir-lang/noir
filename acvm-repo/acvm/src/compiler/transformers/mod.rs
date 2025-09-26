@@ -1,3 +1,30 @@
+/// This module applies backend specific transformation to a [`Circuit`].
+///
+/// ## CSAT: transforms AssertZero opcodes into  AssertZero opcodes having the required width.
+///
+/// For instance, if the width is 4, the AssertZero opcode x1 + x2 + x3 + x4 + x5 - y = 0 will be transformed using 2 intermediate variables (z1,z2):
+/// x1 + x2 + x3 = z1
+/// x4 + x5 = z2
+/// z1 + z2 - y = 0
+/// If x1,..x5 are inputs to the program, they are taggeg as 'solvable', and would be used to compute the value of y.
+/// If we generate the intermediate variable x4 + x5 - y = z3, we get an unsolvable circuit because this AssertZero opcode will have two unkwnon values: y and z3
+/// So the CSAT transformation keep track of which witness would be solved for each opcode in order to only generate solvable intermediat variables.
+///
+/// ## eliminate intermediate variables
+/// The 'eliminate intermediate variables' pass will remove any intermediate variables (for instance created by the previous transformation)
+/// that are used in exactly two AssertZero opcodes.
+/// This results in arithmetic opcodes having linear combinations of potentially large width.
+/// For instance if the intermediate variable is z1 is only used in y:
+/// z1 = x1 + x2 +x3
+/// y = z1 + x4
+/// We remove it, undoing the work done during the CSAT transformation: y = x1 + x2 + x3 + x4
+///
+/// We do this because the backend is expected to handle linear combinations of 'unbounded width' in a more efficient way
+/// than the 'CSAT transformation'.
+/// However, it is worth to compute intermediate variables if they are used in more than one other opcode.
+///
+/// ## redundant_range
+/// The 'range optimization' pass, from the optimizers module will remove any redundant range opcodes again.
 use std::collections::BTreeMap;
 
 use acir::{
@@ -96,19 +123,12 @@ pub(super) fn transform_internal<F: AcirField>(
     (acir, acir_opcode_positions)
 }
 
-/// Applies backend specific optimizations to a [`Circuit`].
-///
 /// Accepts an injected `acir_opcode_positions` to allow transformations to be applied directly after optimizations.
 ///
 /// If the width is unbounded, it does nothing.
 /// If it is bounded, it first performs the 'CSAT transformation' in one pass, by creating intermediate variables when necessary.
-/// This results in arithmetic opcodes having the required width.
-/// Then the 'eliminate intermediate variables' pass will remove any intermediate variables (for instance created by the previous transformation)
-/// that are used in exactly two arithmetic opcodes.
-/// This results in arithmetic opcodes having linear combinations of potentially large width.
-/// Finally, the 'range optimization' pass will remove any redundant range opcodes.
-/// The backend is expected to handle linear combinations of 'unbounded width' in a more efficient way
-/// than the 'CSAT transformation'.
+/// Then it performs `eliminate_intermediate_variable()` which (re-)combine intermediate variables used only once.
+/// It concludes with a round of `replace_redundant_ranges()` which removes range checks made redundant by the previous pass.
 #[tracing::instrument(
     level = "trace",
     name = "transform_acir_once",

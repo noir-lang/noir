@@ -27,26 +27,29 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
         }
     }
     /// This pass analyzes the circuit and identifies intermediate variables that are
-    /// only used in two arithmetic opcodes. It then merges the opcode which produces the
+    /// only used in two AssertZero opcodes. It then merges the opcode which produces the
     /// intermediate variable into the second one that uses it
-    /// Note: This pass is only relevant for backends that can handle unlimited width
     ///
     /// The first pass maps witnesses to the index of the opcodes using them.
     /// Public inputs are not considered because they cannot be simplified.
     /// Witnesses used by MemoryInit opcodes are put in a separate map and marked as used by a Brillig call
     /// if the memory block is an input to the call.
     ///
-    /// The second pass looks for arithmetic opcodes having a witness which is only used by another arithmetic opcode.
+    /// The second pass looks for AssertZero opcodes having a witness which is only used by another arithmetic opcode.
     /// In that case, the opcode with the smallest index is merged into the other one via Gaussian elimination.
     /// For instance, if we have 'w1' used only by these two opcodes,
-    /// where `_{value}` refers to a witness and `{value}` refers to a constant:
-    /// [(1, w2,w3), (2, w2), (2, w1), (1, w3)]
-    /// [(2, w3, w4), (2,w1), (1, w4)]
+    /// where `(5,w2,w3)` refers the expression `5*w2*w3` and `(2, w1)` refers to the expression `2*w1`:
+    /// [(1, w2,w3), (2, w2), (2, w1), (1, w3)] // This opcode 'defines' the variable w1
+    /// [(2, w3, w4), (2,w1), (1, w4)]          // which is only used here
     /// We will remove the first one and modify the second one like this:
     /// [(2, w3, w4), (1, w4), (-1, w2), (-1/2, w3), (-1/2, w2, w3)]
     ///
     /// This transformation is relevant for Plonk-ish backends although they have a limited width because
     /// they can potentially handle expressions with large linear combinations using 'big-add' gates.
+    ///
+    /// Pre-condition:
+    /// - This pass is only relevant for backends that can handle unlimited width
+    /// - CSAT pass should have been run prior to this one.
     pub(crate) fn eliminate_intermediate_variable(
         &mut self,
         circuit: &Circuit<F>,

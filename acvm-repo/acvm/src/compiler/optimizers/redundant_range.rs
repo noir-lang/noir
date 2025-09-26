@@ -71,12 +71,13 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 /// Information gathered about witnesses which are subject to range constraints.
 struct RangeInfo {
-    /// Opcode positions at which stricter bit size information becomes available.
+    /// Opcode positions which updated this RangeInfo, i.e
+    /// at which stricter bit size information becomes available.
     switch_points: BTreeSet<usize>,
     /// Strictest constraint on bit size so far.
     num_bits: u32,
-    /// Indicate whether the bit size comes from an assertion, in which case we
-    /// can save an equivalent range constraint.
+    /// Indicate whether the bit size comes from an assertion or from array indexing,
+    /// in which cases we can save an equivalent range constraint.
     is_implied: bool,
 }
 
@@ -181,6 +182,13 @@ impl<'a, F: AcirField> RangeOptimizer<'a, F> {
     /// Returns a `Circuit` where each Witness is only range constrained
     /// a minimal number of times that still allows us to avoid executing
     /// any new side effects due to their removal.
+    ///
+    /// The idea is to keep only the RANGE opcodes that have stricly smaller bit-size requirements
+    /// than before, i.e the ones that are at a 'switch point'.
+    /// Furthermore, we only keep the switch points that are last before
+    /// a 'side-effect' opcode (i.e a Brillig call).
+    /// As a result, we simply do a backward pass on the opcodes, so that the last Brillig call
+    /// is known before reaching a RANGE opcode.
     pub(crate) fn replace_redundant_ranges(
         self,
         order_list: Vec<usize>,
