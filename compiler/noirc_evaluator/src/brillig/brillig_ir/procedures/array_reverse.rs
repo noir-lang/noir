@@ -15,8 +15,9 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         pointer: MemoryAddress,
         size: MemoryAddress,
     ) {
-        let source_pointer = MemoryAddress::direct(ScratchSpace::start());
-        let size_register = MemoryAddress::direct(ScratchSpace::start() + 1);
+        let scratch_start = ScratchSpace::start();
+        let source_pointer = MemoryAddress::direct(scratch_start);
+        let size_register = MemoryAddress::direct(scratch_start + 1);
 
         self.mov_instruction(source_pointer, pointer);
         self.mov_instruction(size_register, size);
@@ -28,8 +29,9 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 pub(super) fn compile_array_reverse_procedure<F: AcirField + DebugToString>(
     brillig_context: &mut BrilligContext<F, ScratchSpace>,
 ) {
-    let source_pointer = MemoryAddress::direct(ScratchSpace::start());
-    let size_register = MemoryAddress::direct(ScratchSpace::start() + 1);
+    let scratch_start = brillig_context.registers.start();
+    let source_pointer = MemoryAddress::direct(scratch_start);
+    let size_register = MemoryAddress::direct(scratch_start + 1);
 
     brillig_context.set_allocated_registers(vec![source_pointer, size_register]);
 

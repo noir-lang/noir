@@ -26,11 +26,12 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         item_push_count: usize,
         back: bool,
     ) {
-        let source_vector_length_arg = MemoryAddress::direct(ScratchSpace::start());
-        let source_vector_pointer_arg = MemoryAddress::direct(ScratchSpace::start() + 1);
-        let item_push_count_arg = MemoryAddress::direct(ScratchSpace::start() + 2);
-        let new_vector_pointer_return = MemoryAddress::direct(ScratchSpace::start() + 3);
-        let write_pointer_return = MemoryAddress::direct(ScratchSpace::start() + 4);
+        let scratch_start = ScratchSpace::start();
+        let source_vector_length_arg = MemoryAddress::direct(scratch_start);
+        let source_vector_pointer_arg = MemoryAddress::direct(scratch_start + 1);
+        let item_push_count_arg = MemoryAddress::direct(scratch_start + 2);
+        let new_vector_pointer_return = MemoryAddress::direct(scratch_start + 3);
+        let write_pointer_return = MemoryAddress::direct(scratch_start + 4);
 
         self.mov_instruction(source_vector_length_arg, source_len.address);
         self.mov_instruction(source_vector_pointer_arg, source_vector.pointer);
@@ -47,11 +48,12 @@ pub(super) fn compile_prepare_vector_push_procedure<F: AcirField + DebugToString
     brillig_context: &mut BrilligContext<F, ScratchSpace>,
     push_back: bool,
 ) {
-    let source_vector_length_arg = MemoryAddress::direct(ScratchSpace::start());
-    let source_vector_pointer_arg = MemoryAddress::direct(ScratchSpace::start() + 1);
-    let item_push_count_arg = MemoryAddress::direct(ScratchSpace::start() + 2);
-    let new_vector_pointer_return = MemoryAddress::direct(ScratchSpace::start() + 3);
-    let write_pointer_return = MemoryAddress::direct(ScratchSpace::start() + 4);
+    let scratch_start = brillig_context.registers.start();
+    let source_vector_length_arg = MemoryAddress::direct(scratch_start);
+    let source_vector_pointer_arg = MemoryAddress::direct(scratch_start + 1);
+    let item_push_count_arg = MemoryAddress::direct(scratch_start + 2);
+    let new_vector_pointer_return = MemoryAddress::direct(scratch_start + 3);
+    let write_pointer_return = MemoryAddress::direct(scratch_start + 4);
 
     brillig_context.set_allocated_registers(vec![
         source_vector_length_arg,

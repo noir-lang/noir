@@ -30,6 +30,7 @@ pub(crate) use instructions::BrilligBinaryOp;
 use noirc_errors::call_stack::CallStackId;
 use registers::{RegisterAllocator, ScratchSpace};
 
+pub(crate) use self::registers::LayoutConfig;
 use self::{artifact::BrilligArtifact, debug_show::DebugToString, registers::Stack};
 use acvm::{
     AcirField,
@@ -101,9 +102,12 @@ pub(crate) struct BrilligContext<F, Registers> {
     count_arrays_copied: bool,
 
     globals_memory_size: Option<usize>,
+
+    /// Memory layout information
+    layout: LayoutConfig,
 }
 
-impl<F, R> BrilligContext<F, R> {
+impl<F, R: RegisterAllocator> BrilligContext<F, R> {
     /// Enable the insertion of bytecode with extra assertions during testing.
     pub(crate) fn enable_debug_assertions(&self) -> bool {
         self.enable_debug_assertions
@@ -118,7 +122,7 @@ impl<F, R> BrilligContext<F, R> {
         );
 
         // The copy counter is always put in the first global slot
-        MemoryAddress::Direct(GlobalSpace::start())
+        MemoryAddress::Direct(GlobalSpace::start_with_layout(&self.registers.layout()))
     }
 
     pub(crate) fn count_array_copies(&self) -> bool {
@@ -145,7 +149,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         obj.name = function_name.to_owned();
         BrilligContext {
             obj,
-            registers: Stack::new(),
+            registers: Stack::new(options.layout),
             context_label: Label::entrypoint(),
             current_section: 0,
             next_section: 1,
@@ -154,6 +158,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
             count_arrays_copied: options.enable_array_copy_counter,
             can_call_procedures: true,
             globals_memory_size: None,
+            layout: options.layout,
         }
     }
 }
@@ -267,7 +272,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, ScratchSpace> {
         obj.procedure = Some(procedure_id);
         BrilligContext {
             obj,
-            registers: ScratchSpace::new(),
+            registers: ScratchSpace::new(options.layout),
             context_label: Label::entrypoint(),
             current_section: 0,
             next_section: 1,
@@ -276,6 +281,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, ScratchSpace> {
             count_arrays_copied: options.enable_array_copy_counter,
             can_call_procedures: false,
             globals_memory_size: None,
+            layout: options.layout,
         }
     }
 }
@@ -288,7 +294,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, GlobalSpace> {
     ) -> BrilligContext<F, GlobalSpace> {
         BrilligContext {
             obj: BrilligArtifact::default(),
-            registers: GlobalSpace::new(),
+            registers: GlobalSpace::new(options.layout),
             context_label: Label::globals_init(entry_point),
             current_section: 0,
             next_section: 1,
@@ -297,12 +303,13 @@ impl<F: AcirField + DebugToString> BrilligContext<F, GlobalSpace> {
             count_arrays_copied: options.enable_array_copy_counter,
             can_call_procedures: false,
             globals_memory_size: None,
+            layout: options.layout,
         }
     }
 
     pub(crate) fn global_space_size(&self) -> usize {
-        // `GlobalSpace::start()` is inclusive so we must add one to get the accurate total global memory size
-        (self.registers.max_memory_address() + 1) - GlobalSpace::start()
+        // `GlobalSpace::start` is inclusive so we must add one to get the accurate total global memory size
+        (self.registers.max_memory_address() + 1) - self.registers.start()
     }
 }
 
@@ -389,6 +396,7 @@ pub(crate) mod tests {
             enable_debug_trace: true,
             enable_debug_assertions: true,
             enable_array_copy_counter: false,
+            ..Default::default()
         };
         let mut context = BrilligContext::new("test", &options);
         context.enter_context(Label::function(id));
@@ -404,6 +412,7 @@ pub(crate) mod tests {
             enable_debug_trace: false,
             enable_debug_assertions: context.enable_debug_assertions,
             enable_array_copy_counter: context.count_arrays_copied,
+            ..Default::default()
         };
         let artifact = context.artifact();
         let mut entry_point_artifact = BrilligContext::new_entry_point_artifact(
@@ -459,6 +468,7 @@ pub(crate) mod tests {
             enable_debug_trace: true,
             enable_debug_assertions: true,
             enable_array_copy_counter: false,
+            ..Default::default()
         };
         let mut context = BrilligContext::new("test", &options);
         let r_stack = ReservedRegisters::free_memory_pointer();
