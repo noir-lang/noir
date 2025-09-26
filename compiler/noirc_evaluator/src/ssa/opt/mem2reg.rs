@@ -618,21 +618,30 @@ impl<'f> PerFunctionContext<'f> {
 
                 // Call results might be aliases of their arguments, if they are references
                 let results = self.inserter.function.dfg.instruction_results(instruction);
-                for result in results {
-                    if self.inserter.function.dfg.type_of_value(*result).contains_reference() {
-                        for arg in arguments {
-                            if self.inserter.function.dfg.type_of_value(*arg).contains_reference() {
-                                let expression = Expression::Other(*arg);
-                                let aliases = references.aliases.entry(expression).or_default();
-                                aliases.insert(*result);
-
-                                let expression = Expression::Other(*result);
-                                let aliases = references.aliases.entry(expression).or_default();
-                                aliases.insert(*arg);
-                            }
-                        }
+                let results_contains_references = results.iter().any(|result| {
+                    self.inserter.function.dfg.type_of_value(*result).contains_reference()
+                });
+                if results_contains_references {
+                    for value in arguments.iter().chain(results) {
+                        self.clear_aliases(references, *value);
                     }
                 }
+
+                // for result in results {
+                //     if self.inserter.function.dfg.type_of_value(*result).contains_reference() {
+                //         for arg in arguments {
+                //             if self.inserter.function.dfg.type_of_value(*arg).contains_reference() {
+                //                 let expression = Expression::Other(*arg);
+                //                 let aliases = references.aliases.entry(expression).or_default();
+                //                 aliases.insert(*result);
+
+                //                 let expression = Expression::Other(*result);
+                //                 let aliases = references.aliases.entry(expression).or_default();
+                //                 aliases.insert(*arg);
+                //             }
+                //         }
+                //     }
+                // }
             }
             Instruction::MakeArray { elements, typ } => {
                 // If `array` is an array constant that contains reference types, then insert each element
@@ -694,6 +703,22 @@ impl<'f> PerFunctionContext<'f> {
             references.expressions.entry(address).or_insert(Expression::Other(address));
         let aliases = references.aliases.entry(*expression).or_default();
         *aliases = new_aliases;
+    }
+
+    fn clear_aliases(&self, references: &mut Block, value: ValueId) {
+        if !self.inserter.function.dfg.type_of_value(value).contains_reference() {
+            return;
+        }
+
+        if let Some(expression) = references.expressions.get(&value) {
+            references.aliases.remove(expression);
+        }
+
+        if let Some((values, _)) = self.inserter.function.dfg.get_array_constant(value) {
+            for value in values {
+                self.clear_aliases(references, value);
+            }
+        }
     }
 
     fn mark_all_unknown(&self, values: &[ValueId], references: &mut Block) {
@@ -2411,7 +2436,7 @@ mod tests {
     }
 
     #[test]
-    fn correctly_aliases_references_in_call_return_values_to_arguments() {
+    fn correctly_aliases_references_in_call_return_values_to_arguments_with_simple_values() {
         let src = "
         acir(inline) fn main f0 {
           b0(v0: Field):
@@ -2426,6 +2451,34 @@ mod tests {
         }
         acir(inline) fn helper f1 {
           b0(v0: &mut Field):
+            return v0
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        println!("{}", ssa);
+
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    #[test]
+    fn correctly_aliases_references_in_call_return_values_to_arguments_with_arrays() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = allocate -> &mut Field
+            store v0 at v1
+            v3 = make_array [v1] : [&mut Field; 1]
+            v4 = call f1(v3) -> [&mut Field; 1]
+            v5 = array_get v4, index u32 0 -> &mut Field
+            store Field 1 at v5
+            store Field 2 at v1
+            v8 = load v5 -> Field
+            constrain v8 == Field 2
+            return
+        }
+        acir(inline) fn helper f1 {
+          b0(v0: [&mut Field; 1]):
             return v0
         }
         ";
