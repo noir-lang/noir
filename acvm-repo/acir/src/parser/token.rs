@@ -119,7 +119,7 @@ pub(crate) enum Keyword {
     Brillig,
     /// CALL
     Call,
-    /// PREDICATE
+    /// predicate
     Predicate,
     /// CALLDATA
     CallData,
@@ -144,7 +144,7 @@ impl Keyword {
             "INIT" => Keyword::MemoryInit,
             "BRILLIG" => Keyword::Brillig,
             "CALL" => Keyword::Call,
-            "PREDICATE" => Keyword::Predicate,
+            "predicate" => Keyword::Predicate,
             "CALLDATA" => Keyword::CallData,
             "RETURNDATA" => Keyword::ReturnData,
             "func" => Keyword::Function,
@@ -169,7 +169,7 @@ impl std::fmt::Display for Keyword {
             Keyword::MemoryInit => write!(f, "INIT"),
             Keyword::Brillig => write!(f, "BRILLIG"),
             Keyword::Call => write!(f, "CALL"),
-            Keyword::Predicate => write!(f, "PREDICATE"),
+            Keyword::Predicate => write!(f, "predicate"),
             Keyword::CallData => write!(f, "CALLDATA"),
             Keyword::ReturnData => write!(f, "RETURNDATA"),
             Keyword::Function => write!(f, "func"),

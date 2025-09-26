@@ -512,7 +512,7 @@ fn brillig_call_with_predicate() {
     private parameters: [w0, w1, w2]
     public parameters: []
     return values: []
-    BRILLIG CALL func 0: PREDICATE: 1
+    BRILLIG CALL func 0: predicate: 1
     inputs: [w0 - w1], outputs: [w3]
     EXPR 0 = w0*w3 - w1*w3 - 1
     EXPR w2 = w0
@@ -548,7 +548,7 @@ fn call_with_predicate() {
     private parameters: [w0]
     public parameters: [w1]
     return values: []
-    CALL func 1: PREDICATE: 1
+    CALL func 1: predicate: 1
     inputs: [w0, w1], outputs: [w2]
     ";
     assert_circuit_roundtrip(src);
@@ -678,7 +678,7 @@ fn fold_basic() {
     private parameters: [w0]
     public parameters: [w1]
     return values: []
-    CALL func 1: PREDICATE: 1
+    CALL func 1: predicate: 1
     inputs: [w0, w1], outputs: [w2]
 
     func 1
@@ -699,7 +699,7 @@ fn fold_basic_mismatched_ids() {
     private parameters: [w0]
     public parameters: [w1]
     return values: []
-    CALL func 1: PREDICATE: 1
+    CALL func 1: predicate: 1
     inputs: [w0, w1], outputs: [w2]
 
     func 2

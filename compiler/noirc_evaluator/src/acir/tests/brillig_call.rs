@@ -383,7 +383,7 @@ fn brillig_stdlib_calls_with_multiple_acir_calls() {
     BLACKBOX::RANGE [w7]:32 bits []
     BRILLIG CALL func 0: inputs: [w0, w1], outputs: [w8]
     BLACKBOX::RANGE [w8]:32 bits []
-    CALL func 1: PREDICATE: 1
+    CALL func 1: predicate: 1
     inputs: [w0, w1], outputs: [w9]
     BRILLIG CALL func 1: inputs: [w2], outputs: [w10]
     EXPR 0 = w2*w10 - 1

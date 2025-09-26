@@ -176,7 +176,7 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
             Opcode::BrilligCall { id, inputs, outputs, predicate } => {
                 write!(f, "BRILLIG CALL func {id}: ")?;
                 if let Some(pred) = predicate {
-                    writeln!(f, "PREDICATE: {pred}")?;
+                    writeln!(f, "predicate: {pred}")?;
                 }
 
                 let inputs = inputs
@@ -196,7 +196,7 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
             Opcode::Call { id, inputs, outputs, predicate } => {
                 write!(f, "CALL func {id}: ")?;
                 if let Some(pred) = predicate {
-                    writeln!(f, "PREDICATE: {pred}")?;
+                    writeln!(f, "predicate: {pred}")?;
                 }
                 let inputs =
                     inputs.iter().map(|w| format!("{w}")).collect::<Vec<String>>().join(", ");
