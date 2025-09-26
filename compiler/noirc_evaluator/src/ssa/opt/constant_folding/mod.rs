@@ -70,7 +70,7 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn fold_constants_using_constraints(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            function.constant_fold(true, true, &mut None);
+            function.constant_fold(true, false, &mut None);
         }
         self
     }
@@ -117,6 +117,13 @@ impl Function {
         revisit_hoisted: bool,
         interpreter: &mut Option<Interpreter<Empty>>,
     ) {
+        // Trying to revisit blocks when using constraint info can lead to constraints being removed.
+        // For example if we see `constrain v1 == 5`, then if we visit this block again it would be
+        // resolved to `constrain 5 == 5`
+        assert!(
+            !use_constraint_info || !revisit_hoisted,
+            "Don't revisit blocks when using constraints."
+        );
         let mut context = Context::new(use_constraint_info, revisit_hoisted);
         let mut dom = DominatorTree::with_function(self);
         context.block_queue.push_back(self.entry_block());
