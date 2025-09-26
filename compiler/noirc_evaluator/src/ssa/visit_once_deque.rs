@@ -43,6 +43,11 @@ impl<T: Hash + Eq + Copy> VisitOnceDeque<T> {
     pub(crate) fn clear_visited(&mut self, item: &T) {
         self.visited_blocks.remove(item);
     }
+
+    /// Forget all visits.
+    pub(crate) fn clear_all_visited(&mut self) {
+        self.visited_blocks.clear();
+    }
 }
 
 impl<T: Hash + Eq + Copy> Default for VisitOnceDeque<T> {

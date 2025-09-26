@@ -15,7 +15,7 @@
 //! This is the only pass which removes duplicated pure [`Instruction`]s however and so is needed when
 //! different blocks are merged, i.e. after the [`flatten_cfg`][super::flatten_cfg] pass.
 use std::{
-    collections::{BTreeMap, BTreeSet},
+    collections::{BTreeMap, BTreeSet, HashSet},
     io::Empty,
 };
 
@@ -157,6 +157,9 @@ struct Context {
     /// instructions that can be deduplicated and unlock further opportunities.
     revisit_hoisted: bool,
 
+    /// All blocks we ever visited, to detect revisits.
+    blocks_visited: HashSet<BasicBlockId>,
+
     /// Contains sets of values which are constrained to be equivalent to each other.
     ///
     /// The mapping's structure is `side_effects_enabled_var => (constrained_value => simplified_value)`.
@@ -173,13 +176,6 @@ struct Context {
 
     /// Maps pre-folded ValueIds to the new ValueIds obtained by re-inserting the instruction.
     values_to_replace: ValueMapping,
-
-    /// Map the origin of a reused instruction to all the blocks which reused it and got their
-    /// duplicate instructions replaced by the results of the original. We use this information
-    /// to schedule revisits if, after revising the original, some instructions get replaced by
-    /// instructions that got hoisted, and we need to update the absence of such instructions in
-    /// dependant blocks.
-    cache_reuses: HashMap<BasicBlockId, BTreeSet<BasicBlockId>>,
 }
 
 impl Context {
@@ -187,11 +183,11 @@ impl Context {
         Self {
             use_constraint_info,
             revisit_hoisted,
+            blocks_visited: Default::default(),
             block_queue: Default::default(),
             constraint_simplification_mappings: Default::default(),
             cached_instruction_results: Default::default(),
             values_to_replace: Default::default(),
-            cache_reuses: Default::default(),
         }
     }
 
@@ -202,6 +198,7 @@ impl Context {
         block_id: BasicBlockId,
         interpreter: &mut Option<Interpreter<Empty>>,
     ) {
+        let is_revisit = !self.blocks_visited.insert(block_id);
         let instructions = dfg[block_id].take_instructions();
 
         // Default side effect condition variable with an enabled state.
@@ -250,25 +247,12 @@ impl Context {
         dfg[block_id].set_terminator(terminator);
         dfg.data_bus.map_values_mut(resolve_cache);
 
-        // Register any block on which this block depends in terms of reused instructions.
-        for origin in &origins.reused {
-            self.cache_reuses.entry(*origin).or_default().insert(block_id);
+        // If we replaced an instruction in this block with something from the cache,
+        // we have to potentially update the values in all of the blocks this one dominates.
+        // For simplicity, just forget everything we visited, and go through successors.
+        if is_revisit && !origins.reused.is_empty() {
+            self.block_queue.clear_all_visited();
         }
-
-        // If this is a potential revisit and we removed some instructions from this block,
-        // we potentially have to update them in dependant blocks.
-        if self.revisit_hoisted && !origins.reused.is_empty() {
-            if let Some(dependant_blocks) = self.cache_reuses.get(&block_id) {
-                for id in dependant_blocks {
-                    self.block_queue.clear_visited(id);
-                    self.block_queue.push_back(*id);
-                }
-            }
-        }
-
-        // Clear out the reuses of instructions from this block.
-        // If anything gets reused again, they will re-register.
-        self.cache_reuses.remove(&block_id);
 
         // If we hoisted from blocks, revisit them, to deduplicate what was hoisted,
         // and potentially replace the values in the next instructions, then revisit
@@ -1418,41 +1402,47 @@ mod test {
           b5():
             v30 = eq v19, Field 4
             inc_rc v28
-            jmpif v30 then: b9, else: b10
+            jmpif v30 then: b9, else: b11
           b6():
             inc_rc v24
-            jmp b11(v24)
+            jmp b13(v24)
           b7():
             v36 = eq v34, Field 3
-            jmpif v36 then: b12, else: b13
+            jmpif v36 then: b14, else: b15
           b8(v2: [u8; 3]):
             jmp b3(v2)
           b9():
             inc_rc v28
-            jmp b14(v28)
+            jmp b10()
           b10():
+            inc_rc v28
+            jmp b16(v28)
+          b11():
             constrain v19 == Field 5
-            jmp b14(v28)
-          b11(v3: [u8; 3]):
-            return v1, v3
+            jmp b12()
           b12():
+            inc_rc v28
+            jmp b16(v28)
+          b13(v3: [u8; 3]):
+            return v1, v3
+          b14():
             inc_rc v24
-            jmp b15(v24)
-          b13():
+            jmp b17(v24)
+          b15():
             v37 = eq v34, Field 4
-            jmpif v37 then: b16, else: b17
-          b14(v4: [u8; 3]):
+            jmpif v37 then: b18, else: b19
+          b16(v4: [u8; 3]):
             jmp b8(v4)
-          b15(v5: [u8; 3]):
-            jmp b11(v5)
-          b16():
-            jmp b18(v28)
-          b17():
+          b17(v5: [u8; 3]):
+            jmp b13(v5)
+          b18():
+            jmp b20(v28)
+          b19():
             constrain v34 == Field 5
             inc_rc v28
-            jmp b18(v28)
-          b18(v6: [u8; 3]):
-            jmp b15(v6)
+            jmp b20(v28)
+          b20(v6: [u8; 3]):
+            jmp b17(v6)
         }
         "#);
     }
