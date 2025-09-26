@@ -46,14 +46,14 @@ impl InstructionResultCache {
             // This is a hacky solution to https://github.com/noir-lang/noir/issues/9477
             // We explicitly check that the cached result values are of the same type as expected by the instruction
             // being checked against the cache and reject if they differ.
-            // They can also be the exact same value after a re-visit, which we don't want as it creates a cycle.
             if let CacheResult::Cached { results, .. } = results {
                 let old_results = dfg.instruction_results(id).to_vec();
 
                 results.len() == old_results.len()
-                    && old_results.iter().zip(results.iter()).all(|(old, new)| {
-                        new != old && dfg.type_of_value(*old) == dfg.type_of_value(*new)
-                    })
+                    && old_results
+                        .iter()
+                        .zip(results.iter())
+                        .all(|(old, new)| dfg.type_of_value(*old) == dfg.type_of_value(*new))
             } else {
                 true
             }
@@ -216,7 +216,12 @@ pub(super) enum CacheResult<'a> {
     /// The result of an earlier instruction can be readily reused, because it was found
     /// in a block that dominates the one where the current instruction is. We can drop
     /// the current instruction and redefine its results in terms of the existing values.
-    Cached { origin: BasicBlockId, instruction_id: InstructionId, results: &'a [ValueId] },
+    Cached {
+        #[allow(unused)]
+        origin: BasicBlockId,
+        instruction_id: InstructionId,
+        results: &'a [ValueId],
+    },
     /// We found an identical instruction in a non-dominating block, so we cannot directly
     /// reuse its results, because they are not visible in the current block. However, we
     /// can hoist the instruction into the common dominator, and deduplicate later.

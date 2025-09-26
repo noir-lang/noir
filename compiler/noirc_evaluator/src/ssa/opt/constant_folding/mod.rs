@@ -15,7 +15,7 @@
 //! This is the only pass which removes duplicated pure [`Instruction`]s however and so is needed when
 //! different blocks are merged, i.e. after the [`flatten_cfg`][super::flatten_cfg] pass.
 use std::{
-    collections::{BTreeMap, BTreeSet, HashSet},
+    collections::{BTreeMap, BTreeSet},
     io::Empty,
 };
 
@@ -47,9 +47,8 @@ use interpret::try_interpret_call;
 use result_cache::{CacheResult, InstructionResultCache};
 use simplification_cache::{ConstraintSimplificationCache, SimplificationCache};
 
-/// Maximum number of times we can trigger revisiting other blocks
-/// after hoisting an instruction from a given block.
-const MAX_REVISIT_TRIGGER_PER_BLOCK: usize = 3;
+/// Maximum number of folding iterations.
+const DEFAULT_MAX_FOLD_ITER: usize = 5;
 
 impl Ssa {
     /// Performs constant folding on each instruction.
@@ -61,7 +60,7 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn fold_constants(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            function.constant_fold(false, true, &mut None);
+            function.constant_fold(false, DEFAULT_MAX_FOLD_ITER, &mut None);
         }
         self
     }
@@ -74,7 +73,7 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn fold_constants_using_constraints(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            function.constant_fold(true, false, &mut None);
+            function.constant_fold(true, DEFAULT_MAX_FOLD_ITER, &mut None);
         }
         self
     }
@@ -105,7 +104,7 @@ impl Ssa {
         };
 
         for function in self.functions.values_mut() {
-            function.constant_fold(false, true, &mut interpreter);
+            function.constant_fold(false, DEFAULT_MAX_FOLD_ITER, &mut interpreter);
         }
 
         self
@@ -118,26 +117,46 @@ impl Function {
     pub(crate) fn constant_fold(
         &mut self,
         use_constraint_info: bool,
-        revisit_hoisted: bool,
+        max_fold_iter: usize,
         interpreter: &mut Option<Interpreter<Empty>>,
     ) {
-        // Trying to revisit blocks when using constraint info can lead to constraints being removed.
-        // For example if we see `constrain v1 == 5`, then if we visit this block again it would be
-        // resolved to `constrain 5 == 5`
-        assert!(
-            !use_constraint_info || !revisit_hoisted,
-            "Don't revisit blocks when using constraints."
-        );
-        let mut context = Context::new(use_constraint_info, revisit_hoisted);
         let mut dom = DominatorTree::with_function(self);
+        let mut context = Context::new(use_constraint_info);
         context.block_queue.push_back(self.entry_block());
 
-        while let Some(block) = context.block_queue.pop_front() {
-            context.fold_constants_in_block(&mut self.dfg, &mut dom, block, interpreter);
-        }
+        let mut fold_iter = 0;
+        loop {
+            if fold_iter >= max_fold_iter {
+                break;
+            }
 
-        #[cfg(debug_assertions)]
-        constant_folding_post_check(&context, &self.dfg);
+            while let Some(block) = context.block_queue.pop_front() {
+                context.fold_constants_in_block(&mut self.dfg, &mut dom, block, interpreter);
+                context.block_queue.extend(self.dfg[block].successors());
+            }
+
+            #[cfg(debug_assertions)]
+            constant_folding_post_check(&context, &self.dfg);
+
+            // See if there are blocks that we need to revisit.
+            let origins = std::mem::take(&mut context.origins);
+
+            // In order to deduplicate, we need to rebuild the cache by revisiting every
+            // block from the common dominator to each block we wanted to retry.
+            // Sorting the origins by dominance is not enough, we need the in-between ones as well,
+            // otherwise they might be change after something they dominate, and cause instructions to disappear.
+            let common_dominator = origins.into_iter().reduce(|a, b| dom.common_dominator(a, b));
+
+            // If nothing got hoisted, we are done.
+            let Some(start) = common_dominator else {
+                break;
+            };
+
+            // Create a fresh context, so values cached so far are not visible to earlier blocks.
+            context = Context::new(use_constraint_info);
+            context.block_queue.push_back(start);
+            fold_iter += 1;
+        }
     }
 }
 
@@ -153,6 +172,9 @@ struct Context {
     /// Keeps track of visited blocks and blocks to visit.
     block_queue: VisitOnceDeque,
 
+    /// Blocks which we hoisted into or have duplicates of hoisted instructions.
+    origins: BTreeSet<BasicBlockId>,
+
     /// Whether to use [constraints][Instruction::Constrain] to inform simplifications later on in the program.
     ///
     /// For example, this allows simplifying the instructions below to determine that `v2 == Field 3` without
@@ -163,16 +185,6 @@ struct Context {
     /// v2 = add v1, Field 2
     /// ```
     use_constraint_info: bool,
-
-    /// Whether to revisit blocks we hoist cached instruction from, looking for new
-    /// instructions that can be deduplicated and unlock further opportunities.
-    revisit_hoisted: bool,
-
-    /// Number of times we triggered a revisit of an origin after hoisting from a block.
-    revisit_triggered: HashMap<BasicBlockId, usize>,
-
-    /// All blocks we ever visited, to detect revisits.
-    blocks_visited: HashSet<BasicBlockId>,
 
     /// Contains sets of values which are constrained to be equivalent to each other.
     ///
@@ -193,16 +205,14 @@ struct Context {
 }
 
 impl Context {
-    fn new(use_constraint_info: bool, revisit_hoisted: bool) -> Self {
+    fn new(use_constraint_info: bool) -> Self {
         Self {
             use_constraint_info,
-            revisit_hoisted,
-            revisit_triggered: Default::default(),
-            blocks_visited: Default::default(),
             block_queue: Default::default(),
             constraint_simplification_mappings: Default::default(),
             cached_instruction_results: Default::default(),
             values_to_replace: Default::default(),
+            origins: Default::default(),
         }
     }
 
@@ -213,16 +223,11 @@ impl Context {
         block_id: BasicBlockId,
         interpreter: &mut Option<Interpreter<Empty>>,
     ) {
-        let is_revisit = !self.blocks_visited.insert(block_id);
         let instructions = dfg[block_id].take_instructions();
 
         // Default side effect condition variable with an enabled state.
         let mut side_effects_enabled_var =
             dfg.make_constant(FieldElement::one(), NumericType::bool());
-
-        // Collect any block we hoisted instructions from. They will have instructions
-        // which can subsequently be deduplicated, potentially unlocking new opportunities.
-        let mut origins = CacheOrigins::default();
 
         for instruction_id in instructions {
             let instruction = &mut dfg[instruction_id];
@@ -235,7 +240,6 @@ impl Context {
                 block_id,
                 instruction_id,
                 &mut side_effects_enabled_var,
-                &mut origins,
                 interpreter,
             );
         }
@@ -261,43 +265,8 @@ impl Context {
         terminator.map_values_mut(&mut resolve_cache);
         dfg[block_id].set_terminator(terminator);
         dfg.data_bus.map_values_mut(resolve_cache);
-
-        // If we replaced an instruction in this block with something from the cache,
-        // we have to potentially update the values in all of the blocks this one dominates.
-        // For simplicity, just forget everything we visited, and go through successors.
-        if is_revisit && !origins.reused.is_empty() {
-            self.block_queue.clear_all_visited();
-        }
-
-        // If we hoisted from blocks, revisit them, to deduplicate what was hoisted,
-        // and potentially replace the values in the next instructions, then revisit
-        // this block, to take advantage of further hoisting opportunities.
-        // Do this before any other blocks in the queue, so we minimize revisits.
-        if self.revisit_hoisted
-            && !origins.hoisted.is_empty()
-            && self.can_revisit_after_hoist(block_id)
-        {
-            self.block_queue.clear_visited(&block_id);
-            self.block_queue.push_front(block_id);
-            for origin in origins.hoisted.into_iter().rev() {
-                self.block_queue.clear_visited(&origin);
-                self.block_queue.push_front(origin);
-            }
-        } else {
-            // Otherwise proceed to the (yet to be visited) successors.
-            self.block_queue.extend(dfg[block_id].successors());
-        }
     }
 
-    /// Check if
-    fn can_revisit_after_hoist(&mut self, block_id: BasicBlockId) -> bool {
-        let num_triggers = self.revisit_triggered.entry(block_id).or_default();
-        let can_trigger = *num_triggers < MAX_REVISIT_TRIGGER_PER_BLOCK;
-        *num_triggers += 1;
-        can_trigger
-    }
-
-    #[allow(clippy::too_many_arguments)]
     fn fold_constants_into_instruction(
         &mut self,
         dfg: &mut DataFlowGraph,
@@ -305,7 +274,6 @@ impl Context {
         mut block: BasicBlockId,
         id: InstructionId,
         side_effects_enabled_var: &mut ValueId,
-        origins: &mut CacheOrigins,
         interpreter: &mut Option<Interpreter<Empty>>,
     ) {
         let constraint_simplification_mapping =
@@ -324,9 +292,9 @@ impl Context {
         {
             match cache_result {
                 CacheResult::Cached { instruction_id, .. } if instruction_id == id => {
-                    // This is a revisit, we just need to reinsert the instruction as-is.
+                    unreachable!("shouldn't revisit instructions")
                 }
-                CacheResult::Cached { origin, results: cached, .. } => {
+                CacheResult::Cached { results: cached, .. } => {
                     // We track whether we may mutate `MakeArray` instructions before we deduplicate
                     // them but we still need to issue an extra inc_rc in case they're mutated afterward.
                     //
@@ -349,15 +317,11 @@ impl Context {
 
                     self.values_to_replace.batch_insert(&old_results, cached);
 
-                    // Because we removed some instruction from this block, we will have to (re)visit its successors.
-                    if origin != block {
-                        origins.reused.insert(origin);
-                    }
-
                     return;
                 }
                 CacheResult::NeedToHoistToCommonBlock { dominator, .. } if dominator == block => {
-                    // This is a revisit; we seem to want to hoist into self from a dominated block, which could cause an infinite loop of trying.
+                    // We found an instruction to cached in an origin that this block dominates.
+                    // Just insert the instruction we already have.
                 }
                 CacheResult::NeedToHoistToCommonBlock { origin, dominator } => {
                     // Just change the block to insert in the common dominator instead.
@@ -368,10 +332,10 @@ impl Context {
                     // point at the dominator, so subsequent blocks can use the result.
                     block = dominator;
 
-                    // Because we hoisted an instruction, we can revisit the origin to deduplicate.
-                    origins.hoisted.insert(origin);
-                    // Effectively we will be reusing a result from the dominator, becoming dependant on it.
-                    origins.reused.insert(dominator);
+                    // We can revisit the origin to deduplicate with the dominator.
+                    self.origins.insert(origin);
+                    // We will also need to revisit the dominator to prime the cache.
+                    self.origins.insert(dominator);
                 }
             }
         };
@@ -577,18 +541,6 @@ fn resolve_cache(
         }
         None => value_id,
     }
-}
-
-/// Blocks from which we reused cached instruction results.
-///
-/// In both cases we need to revisit some blocks after.
-#[derive(Default)]
-struct CacheOrigins {
-    /// Blocks that contain duplicates of instructions we hoisted into the dominator.
-    hoisted: BTreeSet<BasicBlockId>,
-    /// Blocks that dominated this block and we could reuse their instructions as-is,
-    /// removing the instruction from the current block.
-    reused: BTreeSet<BasicBlockId>,
 }
 
 #[derive(Debug)]
@@ -1059,7 +1011,7 @@ mod test {
             }
         ";
         let mut ssa = Ssa::from_str(src).unwrap();
-        ssa.main_mut().constant_fold(true, false, &mut None);
+        ssa.main_mut().constant_fold(true, 1, &mut None);
 
         // v4 has been hoisted, although:
         // - v5 has not yet been removed since it was encountered earlier in the program
@@ -1131,7 +1083,7 @@ mod test {
         let mut ssa = Ssa::from_str(src).unwrap();
 
         // First demonstrate what happens if we don't revisit.
-        ssa.main_mut().constant_fold(false, false, &mut None);
+        ssa.main_mut().constant_fold(false, 1, &mut None);
 
         // 1. v9 is a duplicate of v5 -> hoisted to b0
         // 2. v13 is a duplicate of v9 -> immediately deduplicated because it's now in b0
@@ -1257,8 +1209,8 @@ mod test {
           }
         "#;
 
-        let mut ssa = Ssa::from_str(src).unwrap();
-        ssa.main_mut().constant_fold(false, true, &mut None);
+        let ssa: Ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants();
 
         // Duplicated array_get and cast are hoisted to b0.
         assert_ssa_snapshot!(ssa, @r#"
@@ -1380,21 +1332,21 @@ mod test {
           }
         "#;
 
-        let mut ssa = Ssa::from_str(src).unwrap();
-        ssa.main_mut().constant_fold(false, true, &mut None);
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants();
 
         // The hoisting of "DEF" will happen in multiple stages:
         // * Appears first in b9
         // * Duplicate of b9 in b10 -> hoisted from b10 to b5
-        // * Revisited in b9 -> reused from b5
         // * Duplicate of b5 in b16 -> hoisted from b16 to b0
-        // * Revisited in b5 -> reused from b0
         // * Duplicate of b0 in b17 -> reused from b0
+        // * Find the common dominator of [b10, b5, b16, b0, b17]
+        // * Start another loop from b0
         // The crucial bit is that b9 and b10 has to be revisited as well, as they contain a reuse from b5,
         // which needs to be updated to point at b0 instead, otherwise trying to normalize the IDs will panic.
-        // Another tripwire is b19 and b20: they refer to values in b9 and b10, and so if we revisit those
-        // and update the IDs after hoisting from b5 to b0, we also have to revisit their successors, even
-        // though they did not interact with the cache per-se.
+        // Also b19 and b20: they refer to values in b9 and b10, and so if we revisit those and update the IDs
+        // after hoisting from b5 to b0, we also have to revisit their successors, even though they did not
+        // interact with the cache per-se, we have to run resolution again.
 
         // All make_array hoisted into b0
         assert_ssa_snapshot!(ssa, @r#"

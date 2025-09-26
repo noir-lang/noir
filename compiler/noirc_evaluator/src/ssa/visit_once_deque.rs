@@ -21,10 +21,6 @@ impl<T: Hash + Eq + Copy> VisitOnceDeque<T> {
         self.block_queue.push_back(item);
     }
 
-    pub(crate) fn push_front(&mut self, item: T) {
-        self.block_queue.push_front(item);
-    }
-
     pub(crate) fn extend(&mut self, items: impl IntoIterator<Item = T>) {
         self.block_queue.extend(items);
     }
@@ -37,16 +33,6 @@ impl<T: Hash + Eq + Copy> VisitOnceDeque<T> {
     pub(crate) fn pop_back(&mut self) -> Option<T> {
         let item = self.block_queue.pop_back()?;
         if self.visited_blocks.insert(item) { Some(item) } else { self.pop_back() }
-    }
-
-    /// Forget whether we visited a specific item.
-    pub(crate) fn clear_visited(&mut self, item: &T) {
-        self.visited_blocks.remove(item);
-    }
-
-    /// Forget all visits.
-    pub(crate) fn clear_all_visited(&mut self) {
-        self.visited_blocks.clear();
     }
 }
 
@@ -70,20 +56,5 @@ mod tests {
         assert_eq!(deque.pop_front(), Some(2));
         assert_eq!(deque.pop_front(), None);
         assert_eq!(deque.pop_back(), None);
-    }
-
-    #[test]
-    fn can_clear_visited() {
-        let mut deque = VisitOnceDeque::default();
-        deque.extend([0, 1, 2]);
-
-        assert_eq!(deque.pop_front(), Some(0));
-        deque.push_front(0);
-        assert_eq!(deque.pop_front(), Some(1));
-        deque.clear_visited(&1);
-        deque.push_front(1);
-        assert_eq!(deque.pop_front(), Some(1));
-        assert_eq!(deque.pop_front(), Some(2));
-        assert_eq!(deque.pop_front(), None);
     }
 }
