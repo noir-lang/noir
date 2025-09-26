@@ -45,7 +45,6 @@ fn constant_array_access_out_of_bounds() {
     // This means memory checks will be laid down and array access OOB checks will be handled there.
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w3
     private parameters: []
     public parameters: []
     return values: []
@@ -91,7 +90,6 @@ fn generates_memory_op_for_dynamic_read() {
 
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w4
     private parameters: [w0, w1, w2, w3]
     public parameters: []
     return values: []
@@ -115,7 +113,6 @@ fn generates_memory_op_for_dynamic_write() {
     // All logic after the write is expected as we generate new witnesses for return values
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w13
     private parameters: [w0, w1, w2, w3]
     public parameters: []
     return values: [w4, w5, w6]
@@ -154,7 +151,6 @@ fn generates_predicated_index_for_dynamic_read() {
     // w5 is then used as the index which we use to read from the memory block
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w6
     private parameters: [w0, w1, w2, w3, w4]
     public parameters: []
     return values: []
@@ -192,7 +188,6 @@ fn generates_predicated_index_and_dummy_value_for_dynamic_write() {
     // As expected, we then store `w10` at the predicated index `w8`.
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w16
     private parameters: [w0, w1, w2, w3, w4]
     public parameters: []
     return values: [w5, w6, w7]
@@ -233,7 +228,6 @@ fn zero_length_array_constant() {
     // We expect ever expression to equal zero when executed. Thus, this circuit will always fail.
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w0
     private parameters: []
     public parameters: []
     return values: []
@@ -260,7 +254,6 @@ fn zero_length_array_dynamic_predicate() {
     // However, we must gate it by the predicate in case the branch is inactive.
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w0
     private parameters: [w0]
     public parameters: []
     return values: []

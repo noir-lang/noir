@@ -326,8 +326,6 @@ impl<F: AcirField + for<'a> Deserialize<'a>> Program<F> {
 
 impl<F: AcirField> std::fmt::Display for Circuit<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "current witness: w{}", self.current_witness_index)?;
-
         let write_witness_indices =
             |f: &mut std::fmt::Formatter<'_>, indices: &[u32]| -> Result<(), std::fmt::Error> {
                 write!(f, "[")?;
@@ -540,7 +538,6 @@ mod tests {
         insta::assert_snapshot!(
             circuit.to_string(),
             @r"
-        current witness: w3
         private parameters: []
         public parameters: [w2]
         return values: [w2]

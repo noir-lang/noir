@@ -54,20 +54,8 @@ fn assert_program_roundtrip(src: &str) {
 }
 
 #[test]
-fn current_witness() {
-    let src = "
-    current witness: w1
-    private parameters: []
-    public parameters: []
-    return values: []
-    ";
-    assert_circuit_roundtrip(src);
-}
-
-#[test]
 fn private_parameters() {
     let src = "
-    current witness: w4
     private parameters: [w0, w1, w2, w3, w4]
     public parameters: []
     return values: []
@@ -78,7 +66,6 @@ fn private_parameters() {
 #[test]
 fn public_parameters() {
     let src = "
-    current witness: w9
     private parameters: [w0, w1, w2, w3, w4]
     public parameters: [w5, w6, w7, w8, w9]
     return values: []
@@ -89,7 +76,6 @@ fn public_parameters() {
 #[test]
 fn return_values() {
     let src = "
-    current witness: w12
     private parameters: [w0, w1, w2, w3, w4]
     public parameters: [w5, w6, w7, w8, w9]
     return values: [w10, w11, w12]
@@ -98,9 +84,19 @@ fn return_values() {
 }
 
 #[test]
+fn computed_current_witness() {
+    let src = "
+    private parameters: [w0, w1]
+    public parameters: [w3]
+    return values: [w2]
+    ";
+    let circuit = Circuit::from_str(src).unwrap();
+    assert_eq!(circuit.current_witness_index, 3);
+}
+
+#[test]
 fn assert_zero_opcodes() {
     let src = "
-    current witness: w9
     private parameters: [w0, w1, w2, w3, w4]
     public parameters: [w5, w6, w7, w8, w9]
     return values: []
@@ -116,7 +112,6 @@ fn assert_zero_opcodes() {
 #[test]
 fn assert_zero_with_mul_terms() {
     let src = "
-    current witness: w6
     private parameters: [w0, w1, w2]
     public parameters: []
     return values: []
@@ -132,7 +127,6 @@ fn assert_zero_with_mul_terms() {
 #[test]
 fn range_check() {
     let src = "
-    current witness: w5
     private parameters: []
     public parameters: []
     return values: []
@@ -144,7 +138,6 @@ fn range_check() {
 #[test]
 fn xor() {
     let src = "
-    current witness: w2
     private parameters: [w0]
     public parameters: [w1]
     return values: []
@@ -160,7 +153,6 @@ fn xor() {
 fn aes128_encrypt() {
     // This ACIR represents an accurately constrained aes128 encryption in ACIR
     let src = "
-    current witness: w75
     private parameters: [w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25, w26, w27, w28, w29, w30, w31, w32, w33, w34, w35, w36, w37, w38, w39, w40, w41, w42, w43]
     public parameters: [w44, w45, w46, w47, w48, w49, w50, w51, w52, w53, w54, w55, w56, w57, w58, w59]
     return values: []
@@ -248,7 +240,6 @@ fn aes128_encrypt() {
 #[test]
 fn blake2s() {
     let src = "
-    current witness: w68
     private parameters: [w0, w1, w2, w3, w4]
     public parameters: [w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25, w26, w27, w28, w29, w30, w31, w32, w33, w34, w35, w36]
     return values: []
@@ -260,7 +251,6 @@ fn blake2s() {
 #[test]
 fn blake3() {
     let src = "
-    current witness: w37
     private parameters: [w0, w1, w2, w3, w4]
     public parameters: []
     return values: []
@@ -276,7 +266,6 @@ fn ecdsa_secp256k1() {
 
     let src = format!(
         "
-    current witness: w161
     private parameters: []
     public parameters: []
     return values: []
@@ -294,7 +283,6 @@ fn ecdsa_secp256k1_missing_inputs() {
 
     let src = format!(
         "
-    current witness: w100
     private parameters: []
     public parameters: []
     return values: []
@@ -311,7 +299,6 @@ fn ecdsa_secp256r1() {
 
     let src = format!(
         "
-    current witness: w161
     private parameters: []
     public parameters: []
     return values: []
@@ -329,7 +316,6 @@ fn ecdsa_secp256r1_missing_inputs() {
 
     let src = format!(
         "
-    current witness: w100
     private parameters: []
     public parameters: []
     return values: []
@@ -349,7 +335,6 @@ fn keccakf1600() {
 
     let src = format!(
         "
-    current witness: w50
     private parameters: []
     public parameters: []
     return values: []
@@ -370,7 +355,6 @@ fn keccakf1600_missing_inputs() {
 
     let src = format!(
         "
-        current witness: w49
         private parameters: []
         public parameters: []
         return values: []
@@ -383,7 +367,6 @@ fn keccakf1600_missing_inputs() {
 #[test]
 fn embedded_curve_add() {
     let src = "
-    current witness: w9
     private parameters: []
     public parameters: []
     return values: []
@@ -396,7 +379,6 @@ fn embedded_curve_add() {
 #[should_panic]
 fn embedded_curve_add_wrong_output_count() {
     let src = "
-        current witness: w9
         private parameters: []
         public parameters: []
         return values: []
@@ -408,7 +390,6 @@ fn embedded_curve_add_wrong_output_count() {
 #[test]
 fn poseidon2_permutation() {
     let src = "
-    current witness: w5
     private parameters: []
     public parameters: []
     return values: []
@@ -427,7 +408,6 @@ fn sha256_compression() {
 
     let src = format!(
         "
-    current witness: w31
     private parameters: []
     public parameters: []
     return values: []
@@ -448,7 +428,6 @@ fn sha256_compression_missing_outputs() {
 
     let src = format!(
         "
-        current witness: w31
         private parameters: []
         public parameters: []
         return values: []
@@ -461,7 +440,6 @@ fn sha256_compression_missing_outputs() {
 #[test]
 fn memory_read() {
     let src = "
-    current witness: w1
     private parameters: []
     public parameters: []
     return values: []
@@ -473,7 +451,6 @@ fn memory_read() {
 #[test]
 fn memory_write() {
     let src = "
-    current witness: w1
     private parameters: []
     public parameters: []
     return values: []
@@ -485,7 +462,6 @@ fn memory_write() {
 #[test]
 fn memory_init() {
     let src = "
-    current witness: w4
     private parameters: []
     public parameters: []
     return values: []
@@ -497,7 +473,6 @@ fn memory_init() {
 #[test]
 fn memory_init_duplicate_witness() {
     let src = "
-    current witness: w4
     private parameters: []
     public parameters: []
     return values: []
@@ -509,7 +484,6 @@ fn memory_init_duplicate_witness() {
 #[test]
 fn memory_databus() {
     let src = "
-    current witness: w5
     private parameters: [w0, w1, w2, w3, w4, w5]
     public parameters: []
     return values: []
@@ -522,7 +496,6 @@ fn memory_databus() {
 #[test]
 fn brillig_call() {
     let src = "
-    current witness: w2
     private parameters: [w0, w1, w2]
     public parameters: []
     return values: []
@@ -536,7 +509,6 @@ fn brillig_call() {
 #[test]
 fn brillig_call_with_predicate() {
     let src = "
-    current witness: w2
     private parameters: [w0, w1, w2]
     public parameters: []
     return values: []
@@ -551,7 +523,6 @@ fn brillig_call_with_predicate() {
 #[test]
 fn brillig_call_with_memory_array_input() {
     let src = "
-    current witness: w2
     private parameters: [w0, w1, w2]
     public parameters: []
     return values: []
@@ -563,7 +534,6 @@ fn brillig_call_with_memory_array_input() {
 #[test]
 fn call() {
     let src = "
-    current witness: w2
     private parameters: [w0]
     public parameters: [w1]
     return values: []
@@ -575,7 +545,6 @@ fn call() {
 #[test]
 fn call_with_predicate() {
     let src = "
-    current witness: w2
     private parameters: [w0]
     public parameters: [w1]
     return values: []
@@ -589,7 +558,6 @@ fn call_with_predicate() {
 #[test]
 fn array_dynamic() {
     let src = "
-    current witness: w78
     private parameters: [w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18]
     public parameters: []
     return values: []
@@ -707,7 +675,6 @@ fn array_dynamic() {
 fn fold_basic() {
     let src = "
     func 0
-    current witness: w2
     private parameters: [w0]
     public parameters: [w1]
     return values: []
@@ -715,7 +682,6 @@ fn fold_basic() {
     inputs: [w0, w1], outputs: [w2]
 
     func 1
-    current witness: w3
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
@@ -730,7 +696,6 @@ fn fold_basic() {
 fn fold_basic_mismatched_ids() {
     let src = "
     func 0
-    current witness: w2
     private parameters: [w0]
     public parameters: [w1]
     return values: []
@@ -738,7 +703,6 @@ fn fold_basic_mismatched_ids() {
     inputs: [w0, w1], outputs: [w2]
 
     func 2
-    current witness: w3
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
@@ -757,7 +721,6 @@ fn fold_basic_mismatched_ids() {
 #[test]
 fn assert_zero_equation() {
     let src = "
-    current witness: w9
     private parameters: [w0, w1, w2, w2]
     public parameters: []
     return values: []
@@ -765,7 +728,6 @@ fn assert_zero_equation() {
     ";
     let circuit = Circuit::from_str(src).unwrap();
     assert_snapshot!(circuit.to_string(), @r"
-    current witness: w9
     private parameters: [w0, w1, w2]
     public parameters: []
     return values: []
@@ -776,7 +738,6 @@ fn assert_zero_equation() {
 #[test]
 fn does_not_negate_when_equal_to_zero() {
     let src = "
-    current witness: w9
     private parameters: [w0, w1, w2]
     public parameters: []
     return values: []
@@ -784,7 +745,6 @@ fn does_not_negate_when_equal_to_zero() {
     ";
     let circuit = Circuit::from_str(src).unwrap();
     assert_snapshot!(circuit.to_string(), @r"
-    current witness: w9
     private parameters: [w0, w1, w2]
     public parameters: []
     return values: []

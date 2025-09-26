@@ -114,12 +114,13 @@ impl Circuit<FieldElement> {
 struct Parser<'a> {
     lexer: Lexer<'a>,
     token: SpannedToken,
+    max_witness_index: u32,
 }
 
 impl<'a> Parser<'a> {
     fn new(source: &'a str) -> ParseResult<Self> {
         let lexer = Lexer::new(source);
-        let mut parser = Self { lexer, token: eof_spanned_token() };
+        let mut parser = Self { lexer, token: eof_spanned_token(), max_witness_index: 0 };
         parser.token = parser.read_token_internal()?;
         Ok(parser)
     }
@@ -153,7 +154,8 @@ impl<'a> Parser<'a> {
     }
 
     pub(crate) fn parse_circuit(&mut self) -> ParseResult<Circuit<FieldElement>> {
-        let current_witness_index = self.parse_current_witness_index()?;
+        self.max_witness_index = 0;
+
         let private_parameters = self.parse_private_parameters()?;
         let public_parameters = PublicInputs(self.parse_public_parameters()?);
         let return_values = PublicInputs(self.parse_return_values()?);
@@ -161,21 +163,13 @@ impl<'a> Parser<'a> {
         let opcodes = self.parse_opcodes()?;
 
         Ok(Circuit {
-            current_witness_index,
+            current_witness_index: self.max_witness_index,
             opcodes,
             private_parameters,
             public_parameters,
             return_values,
             ..Default::default()
         })
-    }
-
-    fn parse_current_witness_index(&mut self) -> ParseResult<u32> {
-        self.eat_keyword_or_error(Keyword::Current)?;
-        self.eat_keyword_or_error(Keyword::Witness)?;
-        self.eat_or_error(Token::Colon)?;
-
-        Ok(self.eat_witness_or_error()?.0)
     }
 
     fn parse_private_parameters(&mut self) -> ParseResult<BTreeSet<Witness>> {
@@ -870,7 +864,12 @@ impl<'a> Parser<'a> {
         if is_witness_type {
             let token = self.bump()?;
             match token.into_token() {
-                Token::Witness(witness) => Ok(Some(Witness(witness))),
+                Token::Witness(witness) => {
+                    if witness > self.max_witness_index {
+                        self.max_witness_index = witness;
+                    }
+                    Ok(Some(Witness(witness)))
+                }
                 _ => unreachable!(),
             }
         } else {

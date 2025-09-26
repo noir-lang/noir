@@ -41,7 +41,6 @@ fn multiple_brillig_calls_one_bytecode() {
 
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w7
     private parameters: [w0, w1]
     public parameters: []
     return values: []
@@ -145,7 +144,6 @@ fn multiple_brillig_stdlib_calls() {
 
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w10
     private parameters: [w0, w1, w2]
     public parameters: []
     return values: []
@@ -233,7 +231,6 @@ fn brillig_stdlib_calls_with_regular_brillig_call() {
     // Brillig stdlib IDs are expected to always come at the end of the Brillig functions list.
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w12
     private parameters: [w0, w1, w2]
     public parameters: []
     return values: []
@@ -367,7 +364,6 @@ fn brillig_stdlib_calls_with_multiple_acir_calls() {
     // `CALL func 2` in `func 0` is incorrect.
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w13
     private parameters: [w0, w1, w2]
     public parameters: []
     return values: []
@@ -399,7 +395,6 @@ fn brillig_stdlib_calls_with_multiple_acir_calls() {
     EXPR w11 = 1
 
     func 1
-    current witness: w5
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]

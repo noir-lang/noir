@@ -299,7 +299,6 @@ mod tests {
     #[test]
     fn does_not_eliminate_witnesses_returned_from_brillig() {
         let src = "
-        current witness: w1
         private parameters: [w0]
         public parameters: []
         return values: []
@@ -315,7 +314,6 @@ mod tests {
     #[test]
     fn does_not_eliminate_witnesses_returned_from_circuit() {
         let src = "
-        current witness: w2
         private parameters: [w0]
         public parameters: []
         return values: [w1, w2]
@@ -330,7 +328,6 @@ mod tests {
     #[test]
     fn does_not_attempt_to_merge_into_previous_opcodes() {
         let src = "
-        current witness: w5
         private parameters: [w0, w1]
         public parameters: []
         return values: []
@@ -344,7 +341,6 @@ mod tests {
 
         let optimized_circuit = merge_expressions(circuit);
         assert_circuit_snapshot!(optimized_circuit, @r"
-        current witness: w5
         private parameters: [w0, w1]
         public parameters: []
         return values: []
@@ -361,7 +357,6 @@ mod tests {
         // We would then merge the final two opcodes losing the check that the brillig call must match
         // with `w0 ^ w1`.
         let src = "
-        current witness: w7
         private parameters: [w0, w1]
         public parameters: []
         return values: [w2]

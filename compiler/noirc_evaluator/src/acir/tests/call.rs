@@ -56,7 +56,6 @@ fn basic_call_with_outputs_assert(inline_type: InlineType) {
     let program = ssa_to_acir_program(src);
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w3
     private parameters: [w0, w1]
     public parameters: []
     return values: []
@@ -67,7 +66,6 @@ fn basic_call_with_outputs_assert(inline_type: InlineType) {
     EXPR w3 = w2
 
     func 1
-    current witness: w2
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
@@ -99,7 +97,6 @@ fn call_output_as_next_call_input(inline_type: InlineType) {
     // the input witnesses of the `Call` opcodes will be different. The differences can discerned from the output below.
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w3
     private parameters: [w0, w1]
     public parameters: []
     return values: []
@@ -110,7 +107,6 @@ fn call_output_as_next_call_input(inline_type: InlineType) {
     EXPR w3 = w2
 
     func 1
-    current witness: w2
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
@@ -146,7 +142,6 @@ fn basic_nested_call(inline_type: InlineType) {
     let program = ssa_to_acir_program(src);
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w3
     private parameters: [w0, w1]
     public parameters: []
     return values: []
@@ -157,7 +152,6 @@ fn basic_nested_call(inline_type: InlineType) {
     EXPR w3 = w2
 
     func 1
-    current witness: w4
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
@@ -167,7 +161,6 @@ fn basic_nested_call(inline_type: InlineType) {
     EXPR w4 = w2
 
     func 2
-    current witness: w2
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]

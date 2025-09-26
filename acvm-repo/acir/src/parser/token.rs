@@ -95,10 +95,6 @@ impl std::fmt::Display for Token {
 /// ACIR human readable text format keywords
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum Keyword {
-    /// current
-    Current,
-    /// witness
-    Witness,
     /// private
     Private,
     /// parameters
@@ -136,8 +132,6 @@ pub(crate) enum Keyword {
 impl Keyword {
     pub(super) fn lookup_keyword(word: &str) -> Option<Token> {
         let keyword = match word {
-            "current" => Keyword::Current,
-            "witness" => Keyword::Witness,
             "private" => Keyword::Private,
             "parameters" => Keyword::Parameters,
             "public" => Keyword::Public,
@@ -163,8 +157,6 @@ impl Keyword {
 impl std::fmt::Display for Keyword {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Keyword::Current => write!(f, "current"),
-            Keyword::Witness => write!(f, "witness"),
             Keyword::Private => write!(f, "private"),
             Keyword::Parameters => write!(f, "parameters"),
             Keyword::Public => write!(f, "public"),

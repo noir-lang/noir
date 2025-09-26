@@ -277,7 +277,6 @@ mod tests {
     fn retain_lowest_range_size() {
         // The optimizer should keep the lowest bit size range constraint
         let src = "
-        current witness: w1
         private parameters: []
         public parameters: []
         return values: []
@@ -301,7 +300,6 @@ mod tests {
 
         let (optimized_circuit, _) = optimizer.replace_redundant_ranges(acir_opcode_positions);
         assert_circuit_snapshot!(optimized_circuit, @r"
-        current witness: w1
         private parameters: []
         public parameters: []
         return values: []
@@ -313,7 +311,6 @@ mod tests {
     fn remove_duplicates() {
         // The optimizer should remove all duplicate range opcodes.
         let src = "
-        current witness: w1
         private parameters: []
         public parameters: []
         return values: []
@@ -329,7 +326,6 @@ mod tests {
         let optimizer = RangeOptimizer::new(circuit, &brillig_side_effects);
         let (optimized_circuit, _) = optimizer.replace_redundant_ranges(acir_opcode_positions);
         assert_circuit_snapshot!(optimized_circuit, @r"
-        current witness: w1
         private parameters: []
         public parameters: []
         return values: []
@@ -343,7 +339,6 @@ mod tests {
         // The optimizer should not remove or change non-range opcodes
         // The four AssertZero opcodes should remain unchanged.
         let src = "
-        current witness: w1
         private parameters: []
         public parameters: []
         return values: []
@@ -361,7 +356,6 @@ mod tests {
         let optimizer = RangeOptimizer::new(circuit, &brillig_side_effects);
         let (optimized_circuit, _) = optimizer.replace_redundant_ranges(acir_opcode_positions);
         assert_circuit_snapshot!(optimized_circuit, @r"
-        current witness: w1
         private parameters: []
         public parameters: []
         return values: []
@@ -377,7 +371,6 @@ mod tests {
     fn constant_implied_ranges() {
         // The optimizer should use knowledge about constant witness assignments to remove range opcodes.
         let src = "
-        current witness: w1
         private parameters: []
         public parameters: []
         return values: []
@@ -391,7 +384,6 @@ mod tests {
         let optimizer = RangeOptimizer::new(circuit, &brillig_side_effects);
         let (optimized_circuit, _) = optimizer.replace_redundant_ranges(acir_opcode_positions);
         assert_circuit_snapshot!(optimized_circuit, @r"
-        current witness: w1
         private parameters: []
         public parameters: []
         return values: []
@@ -403,7 +395,6 @@ mod tests {
     fn potential_side_effects() {
         // The optimizer should not remove range constraints if doing so might allow invalid side effects to go through.
         let src = "
-        current witness: w1
         private parameters: []
         public parameters: []
         return values: []
@@ -436,7 +427,6 @@ mod tests {
 
         // `BLACKBOX::RANGE [w1]:32 bits []` remains: The minimum does not propagate backwards.
         assert_circuit_snapshot!(optimized_circuit, @r"
-        current witness: w1
         private parameters: []
         public parameters: []
         return values: []
@@ -458,7 +448,6 @@ mod tests {
     fn array_implied_ranges() {
         // The optimizer should use knowledge about array lengths and witnesses used to index these to remove range opcodes.
         let src = "
-        current witness: w1
         private parameters: []
         public parameters: []
         return values: []
@@ -473,7 +462,6 @@ mod tests {
         let optimizer = RangeOptimizer::new(circuit, &brillig_side_effects);
         let (optimized_circuit, _) = optimizer.replace_redundant_ranges(acir_opcode_positions);
         assert_circuit_snapshot!(optimized_circuit, @r"
-        current witness: w1
         private parameters: []
         public parameters: []
         return values: []

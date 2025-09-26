@@ -89,7 +89,6 @@ fn unchecked_mul_should_not_have_range_check() {
     // Check that range checks only exist on the function parameters
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w2
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
