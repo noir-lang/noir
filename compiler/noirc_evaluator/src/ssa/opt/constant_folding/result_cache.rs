@@ -177,7 +177,7 @@ impl ResultCache {
         };
 
         if overwrite {
-            self.result = Some((block, instruction_id, results))
+            self.result = Some((block, instruction_id, results));
         }
     }
 

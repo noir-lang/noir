@@ -260,7 +260,7 @@ impl Context {
         if self.revisit_hoisted && !origins.reused.is_empty() {
             if let Some(dependant_blocks) = self.cache_reuses.get(&block_id) {
                 for id in dependant_blocks {
-                    self.block_queue.clear_visited(&id);
+                    self.block_queue.clear_visited(id);
                     self.block_queue.push_back(*id);
                 }
             }
@@ -287,6 +287,7 @@ impl Context {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn fold_constants_into_instruction(
         &mut self,
         dfg: &mut DataFlowGraph,
@@ -440,6 +441,7 @@ impl Context {
         new_results
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn cache_instruction(
         &mut self,
         instruction_id: InstructionId,
