@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1758833857384,
+  "lastUpdate": 1758876751451,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -21871,48 +21871,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "cb571e1ce6a837289bb602e16d043f763cdd8465",
-          "message": "chore(fuzz): Refactor logging in the AST fuzzer (#9884)",
-          "timestamp": "2025-09-17T11:00:40Z",
-          "tree_id": "abf1d14d379e680bfe24678bd3b3ec16edec1e3f",
-          "url": "https://github.com/noir-lang/noir/commit/cb571e1ce6a837289bb602e16d043f763cdd8465"
-        },
-        "date": 1758109210758,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 254008,
-            "range": "± 587",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 227745,
-            "range": "± 2897",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2800278,
-            "range": "± 2318",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "f86ba42b2786734e32965a3aef2b494bd2f387a9",
           "message": "fix(ssa): Simplify always-fail range constraint (#9885)",
           "timestamp": "2025-09-17T11:43:46Z",
@@ -23954,6 +23912,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2784392,
             "range": "± 13675",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "84741533+defkit@users.noreply.github.com",
+            "name": "defkit",
+            "username": "defkit"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "9c8ff277fdb0da61395303581292dbc0259affc7",
+          "message": "chore(ssa_fuzzer): add external coverage registration  (#9974)",
+          "timestamp": "2025-09-26T08:22:56Z",
+          "tree_id": "0a6f14be6a16515c3554f75f6a032d04956f1e24",
+          "url": "https://github.com/noir-lang/noir/commit/9c8ff277fdb0da61395303581292dbc0259affc7"
+        },
+        "date": 1758876729770,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 251998,
+            "range": "± 568",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 222102,
+            "range": "± 3245",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2779724,
+            "range": "± 3286",
             "unit": "ns/iter"
           }
         ]
