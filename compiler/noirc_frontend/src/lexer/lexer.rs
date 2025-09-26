@@ -73,6 +73,10 @@ impl<'a> Lexer<'a> {
         self
     }
 
+    pub fn set_skip_whitespaces_flag(&mut self, flag: bool) {
+        self.skip_whitespaces = flag;
+    }
+
     /// Iterates the cursor and returns the char at the new cursor position
     fn next_char(&mut self) -> Option<char> {
         let (position, ch) = self.chars.next()?;
