@@ -143,7 +143,7 @@ fn xor() {
     return values: []
     BLACKBOX::RANGE input: w0, bits: 32
     BLACKBOX::RANGE input: w1, bits: 32
-    BLACKBOX::XOR inputs: [w0, w1], bits: 32, outputs: [w2]
+    BLACKBOX::XOR inputs: [w0, w1], bits: 32, output: w2
     EXPR w2 = 15
     ";
     assert_circuit_roundtrip(src);
@@ -269,7 +269,7 @@ fn ecdsa_secp256k1() {
     private parameters: []
     public parameters: []
     return values: []
-    BLACKBOX::ECDSA_SECP256K1 inputs: [{inputs_str}], outputs: [w161]
+    BLACKBOX::ECDSA_SECP256K1 inputs: [{inputs_str}], output: w161
     "
     );
     assert_circuit_roundtrip(&src);
@@ -286,7 +286,7 @@ fn ecdsa_secp256k1_missing_inputs() {
     private parameters: []
     public parameters: []
     return values: []
-    BLACKBOX::ECDSA_SECP256K1 inputs: [{inputs_str}], outputs: [w100]
+    BLACKBOX::ECDSA_SECP256K1 inputs: [{inputs_str}], output: w100
     "
     );
     let _ = Circuit::from_str(&src).unwrap();
@@ -302,7 +302,7 @@ fn ecdsa_secp256r1() {
     private parameters: []
     public parameters: []
     return values: []
-    BLACKBOX::ECDSA_SECP256R1 inputs: [{inputs_str}], outputs: [w161]
+    BLACKBOX::ECDSA_SECP256R1 inputs: [{inputs_str}], output: w161
     "
     );
     assert_circuit_roundtrip(&src);

@@ -252,7 +252,7 @@ mod tests {
 
         insta::assert_snapshot!(
             xor.to_string(),
-            @"BLACKBOX::XOR inputs: [w0, w1], bits: 32, outputs: [w3]"
+            @"BLACKBOX::XOR inputs: [w0, w1], bits: 32, output: w3"
         );
     }
 

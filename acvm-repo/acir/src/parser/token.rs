@@ -131,6 +131,8 @@ pub(crate) enum Keyword {
     Input,
     /// inputs
     Inputs,
+    /// output
+    Output,
     /// outputs
     Outputs,
     /// bits
@@ -158,6 +160,7 @@ impl Keyword {
             "func" => Keyword::Function,
             "input" => Keyword::Input,
             "inputs" => Keyword::Inputs,
+            "output" => Keyword::Output,
             "outputs" => Keyword::Outputs,
             "bits" => Keyword::Bits,
             _ => return None,
@@ -187,6 +190,7 @@ impl std::fmt::Display for Keyword {
             Keyword::Function => write!(f, "func"),
             Keyword::Input => write!(f, "input"),
             Keyword::Inputs => write!(f, "inputs"),
+            Keyword::Output => write!(f, "output"),
             Keyword::Outputs => write!(f, "outputs"),
             Keyword::Bits => write!(f, "bits"),
         }

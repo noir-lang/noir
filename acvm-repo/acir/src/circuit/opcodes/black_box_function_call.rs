@@ -454,7 +454,11 @@ impl<F: std::fmt::Display + Copy> std::fmt::Display for BlackBoxFuncCall<F> {
         if !outputs.is_empty() {
             let outputs_str =
                 outputs.iter().map(ToString::to_string).collect::<Vec<String>>().join(", ");
-            write!(f, ", outputs: [{outputs_str}]")?;
+            if outputs.len() == 1 {
+                write!(f, ", output: {outputs_str}")?;
+            } else {
+                write!(f, ", outputs: [{outputs_str}]")?;
+            }
         }
 
         Ok(())
