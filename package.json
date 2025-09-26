@@ -45,5 +45,5 @@
     "@types/estree": "1.0.6",
     "@types/mocha": "10.0.10"
   },
-  "packageManager": "yarn@4.5.2"
+  "packageManager": "yarn@4.10.3"
 }
