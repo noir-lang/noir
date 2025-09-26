@@ -47,6 +47,10 @@ use interpret::try_interpret_call;
 use result_cache::{CacheResult, InstructionResultCache};
 use simplification_cache::{ConstraintSimplificationCache, SimplificationCache};
 
+/// Maximum number of times we can trigger revisiting other blocks
+/// after hoisting an instruction from a given block.
+const MAX_REVISIT_TRIGGER_PER_BLOCK: usize = 3;
+
 impl Ssa {
     /// Performs constant folding on each instruction.
     ///
@@ -164,6 +168,9 @@ struct Context {
     /// instructions that can be deduplicated and unlock further opportunities.
     revisit_hoisted: bool,
 
+    /// Number of times we triggered a revisit of an origin after hoisting from a block.
+    revisit_triggered: HashMap<BasicBlockId, usize>,
+
     /// All blocks we ever visited, to detect revisits.
     blocks_visited: HashSet<BasicBlockId>,
 
@@ -190,6 +197,7 @@ impl Context {
         Self {
             use_constraint_info,
             revisit_hoisted,
+            revisit_triggered: Default::default(),
             blocks_visited: Default::default(),
             block_queue: Default::default(),
             constraint_simplification_mappings: Default::default(),
@@ -265,7 +273,10 @@ impl Context {
         // and potentially replace the values in the next instructions, then revisit
         // this block, to take advantage of further hoisting opportunities.
         // Do this before any other blocks in the queue, so we minimize revisits.
-        if self.revisit_hoisted && !origins.hoisted.is_empty() {
+        if self.revisit_hoisted
+            && !origins.hoisted.is_empty()
+            && self.can_revisit_after_hoist(block_id)
+        {
             self.block_queue.clear_visited(&block_id);
             self.block_queue.push_front(block_id);
             for origin in origins.hoisted.into_iter().rev() {
@@ -276,6 +287,14 @@ impl Context {
             // Otherwise proceed to the (yet to be visited) successors.
             self.block_queue.extend(dfg[block_id].successors());
         }
+    }
+
+    /// Check if
+    fn can_revisit_after_hoist(&mut self, block_id: BasicBlockId) -> bool {
+        let num_triggers = self.revisit_triggered.entry(block_id).or_default();
+        let can_trigger = *num_triggers < MAX_REVISIT_TRIGGER_PER_BLOCK;
+        *num_triggers += 1;
+        can_trigger
     }
 
     #[allow(clippy::too_many_arguments)]
