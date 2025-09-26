@@ -52,8 +52,7 @@ impl Function {
                 unreachable!("AsSlice called with non-array {}", array_typ);
             };
 
-            let call_returns = context.dfg.instruction_results(instruction_id);
-            let original_slice_length = call_returns[0];
+            let [original_slice_length, _] = context.dfg.instruction_result(instruction_id);
             let known_length = context.dfg.make_constant(length.into(), NumericType::length_type());
             context.replace_value(original_slice_length, known_length);
         });

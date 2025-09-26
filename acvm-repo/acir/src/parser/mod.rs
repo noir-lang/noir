@@ -235,7 +235,7 @@ impl<'a> Parser<'a> {
         while let Some(keyword) = self.peek_keyword() {
             match keyword {
                 Keyword::Expression => {
-                    let expr = self.parse_arithmetic_expression()?;
+                    let expr = self.parse_assert_zero_expression()?;
                     opcodes.push(Opcode::AssertZero(expr));
                 }
                 Keyword::BlackBoxFuncCall => {
@@ -258,6 +258,86 @@ impl<'a> Parser<'a> {
         }
 
         Ok(opcodes)
+    }
+
+    fn parse_assert_zero_expression(&mut self) -> ParseResult<Expression<FieldElement>> {
+        // 'EXPR'
+        self.eat_keyword_or_error(Keyword::Expression)?;
+
+        // Parse the left-hand side terms
+        let lhs_terms = self.parse_terms_or_error()?;
+
+        // '='
+        self.eat_or_error(Token::Equal)?;
+
+        // Parse the right-hand side terms
+        let rhs_terms = self.parse_terms_or_error()?;
+
+        // If we have something like `0 = ...` or `... = 0`, just consider the expressions
+        // on the non-zero side. Otherwise we could be "moving" terms to the other side and
+        // negating them, which won't accurately reflect the original expression.
+        let expression = if is_zero_term(&lhs_terms) {
+            build_expression_from_terms(rhs_terms.into_iter())
+        } else if is_zero_term(&rhs_terms) {
+            build_expression_from_terms(lhs_terms.into_iter())
+        } else {
+            // "Move" the terms to the left by negating them
+            let rhs_terms = rhs_terms.into_iter().map(|term| term.negate()).collect::<Vec<_>>();
+            build_expression_from_terms(lhs_terms.into_iter().chain(rhs_terms))
+        };
+
+        Ok(expression)
+    }
+
+    fn parse_terms_or_error(&mut self) -> ParseResult<Vec<Term>> {
+        let mut terms = Vec::new();
+        let mut negative = self.eat(Token::Minus)?;
+        loop {
+            let term = self.parse_term_or_error()?;
+            let term = if negative { term.negate() } else { term };
+            terms.push(term);
+
+            if self.eat(Token::Plus)? {
+                negative = false;
+                continue;
+            }
+
+            if self.eat(Token::Minus)? {
+                negative = true;
+                continue;
+            }
+
+            break;
+        }
+        Ok(terms)
+    }
+
+    fn parse_term_or_error(&mut self) -> ParseResult<Term> {
+        if let Some(coefficient) = self.eat_field_element()? {
+            if self.eat(Token::Star)? {
+                let w1 = self.eat_witness_or_error()?;
+                self.parse_linear_or_multiplication_term(coefficient, w1)
+            } else {
+                Ok(Term::Constant(coefficient))
+            }
+        } else if let Some(w1) = self.eat_witness()? {
+            self.parse_linear_or_multiplication_term(FieldElement::one(), w1)
+        } else {
+            self.expected_term()
+        }
+    }
+
+    fn parse_linear_or_multiplication_term(
+        &mut self,
+        coefficient: FieldElement,
+        w1: Witness,
+    ) -> Result<Term, ParserError> {
+        if self.eat(Token::Star)? {
+            let w2 = self.eat_witness_or_error()?;
+            Ok(Term::Multiplication(coefficient, w1, w2))
+        } else {
+            Ok(Term::Linear(coefficient, w1))
+        }
     }
 
     fn parse_arithmetic_expression(&mut self) -> ParseResult<Expression<FieldElement>> {
@@ -308,9 +388,8 @@ impl<'a> Parser<'a> {
             }
         }
 
-        let Some(q_c) = constant else {
-            return Err(ParserError::MissingConstantTerm { span: self.token.span() });
-        };
+        // If a constant isn't provided, we default it to zero
+        let q_c = constant.unwrap_or_default();
 
         Ok(Expression { mul_terms, linear_combinations, q_c })
     }
@@ -977,6 +1056,13 @@ impl<'a> Parser<'a> {
         })
     }
 
+    fn expected_term<T>(&mut self) -> ParseResult<T> {
+        Err(ParserError::ExpectedTerm {
+            found: self.token.token().clone(),
+            span: self.token.span(),
+        })
+    }
+
     fn expected_token<T>(&mut self, token: Token) -> ParseResult<T> {
         Err(ParserError::ExpectedToken {
             token,
@@ -994,8 +1080,46 @@ impl<'a> Parser<'a> {
     }
 }
 
+fn build_expression_from_terms(terms: impl Iterator<Item = Term>) -> Expression<FieldElement> {
+    // Gather all terms, summing the constants
+    let mut q_c = FieldElement::zero();
+    let mut linear_combinations = Vec::new();
+    let mut mul_terms = Vec::new();
+
+    for term in terms {
+        match term {
+            Term::Constant(c) => q_c += c,
+            Term::Linear(c, w) => linear_combinations.push((c, w)),
+            Term::Multiplication(c, w1, w2) => mul_terms.push((c, w1, w2)),
+        }
+    }
+
+    Expression { mul_terms, linear_combinations, q_c }
+}
+
+fn is_zero_term(terms: &[Term]) -> bool {
+    terms.len() == 1 && matches!(terms[0], Term::Constant(c) if c.is_zero())
+}
+
 fn eof_spanned_token() -> SpannedToken {
     SpannedToken::new(Token::Eof, Default::default())
+}
+
+#[derive(Debug, Clone, Copy)]
+enum Term {
+    Constant(FieldElement),
+    Linear(FieldElement, Witness),
+    Multiplication(FieldElement, Witness, Witness),
+}
+
+impl Term {
+    fn negate(self) -> Self {
+        match self {
+            Term::Constant(c) => Term::Constant(-c),
+            Term::Linear(c, w) => Term::Linear(-c, w),
+            Term::Multiplication(c, w1, w2) => Term::Multiplication(-c, w1, w2),
+        }
+    }
 }
 
 type ParseResult<T> = Result<T, ParserError>;
@@ -1014,10 +1138,10 @@ pub(crate) enum ParserError {
     ExpectedFieldElement { found: Token, span: Span },
     #[error("Expected a witness index, found '{found}'")]
     ExpectedWitness { found: Token, span: Span },
+    #[error("Expected a term, found '{found}'")]
+    ExpectedTerm { found: Token, span: Span },
     #[error("Duplicate constant term in native Expression")]
     DuplicatedConstantTerm { found: Token, span: Span },
-    #[error("Missing constant term in native Expression")]
-    MissingConstantTerm { span: Span },
     #[error("Expected valid black box function name, found '{found}'")]
     ExpectedBlackBoxFuncName { found: Token, span: Span },
     #[error("Number does not fit in u32, got: '{number}'")]
@@ -1042,8 +1166,8 @@ impl ParserError {
             | ExpectedIdentifier { span, .. }
             | ExpectedFieldElement { span, .. }
             | ExpectedWitness { span, .. }
+            | ExpectedTerm { span, .. }
             | DuplicatedConstantTerm { span, .. }
-            | MissingConstantTerm { span }
             | ExpectedBlackBoxFuncName { span, .. }
             | IntegerLargerThanU32 { span, .. }
             | IncorrectInputLength { span, .. }
