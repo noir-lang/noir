@@ -319,7 +319,14 @@ impl DataFlowGraph {
             | SimplifyResult::SimplifiedToInstructionMultiple(_)
             | SimplifyResult::None) => {
                 let is_simplified = match &result {
-                    SimplifyResult::SimplifiedToInstruction(i) => *i != instruction,
+                    SimplifyResult::SimplifiedToInstruction(i) => {
+                        // Binary can simplify to itself instead of None
+                        *i != instruction
+                    }
+                    SimplifyResult::SimplifiedToInstructionMultiple(is) => {
+                        // Constrain can simplify to a multiple of with a single item of itself.
+                        is.len() != 1 || is[0] != instruction
+                    }
                     SimplifyResult::None => false,
                     _ => true,
                 };
