@@ -1332,10 +1332,16 @@ mod test {
               jmp b3(v2)
             b9():
               v27 = make_array b"DEF"
+              jmp b19()
+            b19():
+              inc_rc v27
               jmp b14(v27)
             b10():
               constrain v19 == Field 5
               v26 = make_array b"DEF"
+              jmp b20()
+            b20():
+              inc_rc v26
               jmp b14(v26)
             b11(v3: [u8; 3]):
               return v1, v3
@@ -1373,6 +1379,9 @@ mod test {
         // * Duplicate of b0 in b17 -> reused from b0
         // The crucial bit is that b9 and b10 has to be revisited as well, as they contain a reuse from b5,
         // which needs to be updated to point at b0 instead, otherwise trying to normalize the IDs will panic.
+        // Another tripwire is b19 and b20: they refer to values in b9 and b10, and so if we revisit those
+        // and update the IDs after hoisting from b5 to b0, we also have to revisit their successors, even
+        // though they did not interact with the cache per-se.
 
         // All make_array hoisted into b0
         assert_ssa_snapshot!(ssa, @r#"
