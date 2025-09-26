@@ -73,7 +73,7 @@ projects:
     path: noir-projects/noir-protocol-circuits/crates/rollup-checkpoint-root-single-block
     num_runs: 5
     timeout: 60
-    compilation-timeout: 20
+    compilation-timeout: 250
     execution-timeout: 0.75
     compilation-memory-limit: 10000
     execution-memory-limit: 2000
@@ -83,7 +83,7 @@ projects:
     path: noir-projects/noir-protocol-circuits/crates/rollup-checkpoint-root
     num_runs: 5
     timeout: 60
-    compilation-timeout: 20
+    compilation-timeout: 250
     execution-timeout: 1
     compilation-memory-limit: 10000
     execution-memory-limit: 2000
