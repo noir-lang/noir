@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1758881124721,
+  "lastUpdate": 1758881126820,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4808,90 +4808,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "f86ba42b2786734e32965a3aef2b494bd2f387a9",
-          "message": "fix(ssa): Simplify always-fail range constraint (#9885)",
-          "timestamp": "2025-09-17T11:43:46Z",
-          "tree_id": "ce42c7c6f57dc5379cbee7273d50434bef549c9a",
-          "url": "https://github.com/noir-lang/noir/commit/f86ba42b2786734e32965a3aef2b494bd2f387a9"
-        },
-        "date": 1758111618116,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.778,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.906,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.44,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 19.34,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 16.8,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 19.18,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 199,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 211,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.458,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.6,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.797,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.798,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -9196,6 +9112,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.583,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "fda596f2669205bcdde91ae913a2c9b4790ffd3e",
+          "message": "chore(ci): fix docs breaking JS releases (#10010)",
+          "timestamp": "2025-09-26T10:43:48+01:00",
+          "tree_id": "195b9b10c6136fb0db942611ad39ab4e36b8ada8",
+          "url": "https://github.com/noir-lang/noir/commit/fda596f2669205bcdde91ae913a2c9b4790ffd3e"
+        },
+        "date": 1758881106119,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.732,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 8.1,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.384,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 1.536,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 1.5,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1.5,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 1.438,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.516,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 20.68,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 74.02,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 1.394,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.833,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.71,
             "unit": "s"
           }
         ]
