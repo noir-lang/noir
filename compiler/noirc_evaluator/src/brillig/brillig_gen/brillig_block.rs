@@ -339,10 +339,11 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         );
         match instruction {
             Instruction::Binary(binary) => {
+                let [result_value] = dfg.instruction_result(instruction_id);
                 let result_var = self.variables.define_single_addr_variable(
                     self.function_context,
                     self.brillig_context,
-                    dfg.instruction_results(instruction_id)[0],
+                    result_value,
                     dfg,
                 );
                 self.convert_ssa_binary(binary, dfg, result_var);
@@ -411,7 +412,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             }
 
             Instruction::Allocate => {
-                let result_value = dfg.instruction_results(instruction_id)[0];
+                let [result_value] = dfg.instruction_result(instruction_id);
                 let pointer = self.variables.define_single_addr_variable(
                     self.function_context,
                     self.brillig_context,
@@ -428,10 +429,12 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     .store_instruction(address_var.address, source_variable.extract_register());
             }
             Instruction::Load { address } => {
+                let [result_value] = dfg.instruction_result(instruction_id);
+
                 let target_variable = self.variables.define_variable(
                     self.function_context,
                     self.brillig_context,
-                    dfg.instruction_results(instruction_id)[0],
+                    result_value,
                     dfg,
                 );
 
@@ -441,11 +444,12 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     .load_instruction(target_variable.extract_register(), address_variable.address);
             }
             Instruction::Not(value) => {
+                let [result_value] = dfg.instruction_result(instruction_id);
                 let condition_register = self.convert_ssa_single_addr_value(*value, dfg);
                 let result_register = self.variables.define_single_addr_variable(
                     self.function_context,
                     self.brillig_context,
-                    dfg.instruction_results(instruction_id)[0],
+                    result_value,
                     dfg,
                 );
                 self.brillig_context.not_instruction(condition_register, result_register);
@@ -538,10 +542,11 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     // can't automatically insert any missing cases
                     match intrinsic {
                         Intrinsic::ArrayLen => {
+                            let [result_value] = dfg.instruction_result(instruction_id);
                             let result_variable = self.variables.define_single_addr_variable(
                                 self.function_context,
                                 self.brillig_context,
-                                dfg.instruction_results(instruction_id)[0],
+                                result_value,
                                 dfg,
                             );
                             let param_id = arguments[0];
@@ -630,7 +635,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                             );
                         }
                         Intrinsic::ToBits(endianness) => {
-                            let results = dfg.instruction_results(instruction_id);
+                            let [result] = dfg.instruction_result(instruction_id);
 
                             let source = self.convert_ssa_single_addr_value(arguments[0], dfg);
 
@@ -639,7 +644,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                                 .define_variable(
                                     self.function_context,
                                     self.brillig_context,
-                                    results[0],
+                                    result,
                                     dfg,
                                 )
                                 .extract_array();
@@ -660,7 +665,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                         }
 
                         Intrinsic::ToRadix(endianness) => {
-                            let results = dfg.instruction_results(instruction_id);
+                            let [result] = dfg.instruction_result(instruction_id);
 
                             let source = self.convert_ssa_single_addr_value(arguments[0], dfg);
                             let radix = self.convert_ssa_single_addr_value(arguments[1], dfg);
@@ -670,7 +675,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                                 .define_variable(
                                     self.function_context,
                                     self.brillig_context,
-                                    results[0],
+                                    result,
                                     dfg,
                                 )
                                 .extract_array();
@@ -755,13 +760,13 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                             let rhs = self.convert_ssa_single_addr_value(arguments[1], dfg);
                             assert!(rhs.bit_size == FieldElement::max_num_bits());
 
-                            let results = dfg.instruction_results(instruction_id);
+                            let [result] = dfg.instruction_result(instruction_id);
                             let destination = self
                                 .variables
                                 .define_variable(
                                     self.function_context,
                                     self.brillig_context,
-                                    results[0],
+                                    result,
                                     dfg,
                                 )
                                 .extract_single_addr();
@@ -776,7 +781,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                         }
                         Intrinsic::ArrayRefCount => {
                             let array = self.convert_ssa_value(arguments[0], dfg);
-                            let result = dfg.instruction_results(instruction_id)[0];
+                            let [result] = dfg.instruction_result(instruction_id);
 
                             let destination = self.variables.define_variable(
                                 self.function_context,
@@ -790,7 +795,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                         }
                         Intrinsic::SliceRefCount => {
                             let array = self.convert_ssa_value(arguments[1], dfg);
-                            let result = dfg.instruction_results(instruction_id)[0];
+                            let [result] = dfg.instruction_result(instruction_id);
 
                             let destination = self.variables.define_variable(
                                 self.function_context,
@@ -821,11 +826,11 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 }
             },
             Instruction::Truncate { value, bit_size, .. } => {
-                let result_ids = dfg.instruction_results(instruction_id);
+                let [result_id] = dfg.instruction_result(instruction_id);
                 let destination_register = self.variables.define_single_addr_variable(
                     self.function_context,
                     self.brillig_context,
-                    result_ids[0],
+                    result_id,
                     dfg,
                 );
                 let source_register = self.convert_ssa_single_addr_value(*value, dfg);
@@ -836,22 +841,22 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 );
             }
             Instruction::Cast(value, _) => {
-                let result_ids = dfg.instruction_results(instruction_id);
+                let [result_id] = dfg.instruction_result(instruction_id);
                 let destination_variable = self.variables.define_single_addr_variable(
                     self.function_context,
                     self.brillig_context,
-                    result_ids[0],
+                    result_id,
                     dfg,
                 );
                 let source_variable = self.convert_ssa_single_addr_value(*value, dfg);
                 self.convert_cast(destination_variable, source_variable);
             }
             Instruction::ArrayGet { array, index } => {
-                let result_ids = dfg.instruction_results(instruction_id);
+                let [result_id] = dfg.instruction_result(instruction_id);
                 let destination_variable = self.variables.define_variable(
                     self.function_context,
                     self.brillig_context,
-                    result_ids[0],
+                    result_id,
                     dfg,
                 );
 
@@ -978,10 +983,11 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 let then_condition = self.convert_ssa_single_addr_value(*then_condition, dfg);
                 let then_value = self.convert_ssa_value(*then_value, dfg);
                 let else_value = self.convert_ssa_value(*else_value, dfg);
+                let [result_value] = dfg.instruction_result(instruction_id);
                 let result = self.variables.define_variable(
                     self.function_context,
                     self.brillig_context,
-                    dfg.instruction_results(instruction_id)[0],
+                    result_value,
                     dfg,
                 );
                 match (then_value, else_value) {
