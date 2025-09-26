@@ -116,14 +116,13 @@ impl Context<'_> {
 
                 Ok(vec![AcirValue::Var(slice_length, AcirType::field()), AcirValue::Array(result)])
             }
-            Intrinsic::SlicePushBack
-            | Intrinsic::SlicePushFront
-            | Intrinsic::SlicePopBack
-            | Intrinsic::SlicePopFront
-            | Intrinsic::SliceInsert
-            | Intrinsic::SliceRemove => {
-                self.convert_slice_intrinsic(intrinsic, arguments, dfg, result_ids)
-            }
+
+            Intrinsic::SlicePushBack => self.convert_slice_push_back(arguments, dfg),
+            Intrinsic::SlicePushFront => self.convert_slice_push_front(arguments, dfg),
+            Intrinsic::SlicePopBack => self.convert_slice_pop_back(arguments, dfg, result_ids),
+            Intrinsic::SlicePopFront => self.convert_slice_pop_front(arguments, dfg, result_ids),
+            Intrinsic::SliceInsert => self.convert_slice_insert(arguments, dfg, result_ids),
+            Intrinsic::SliceRemove => self.convert_slice_remove(arguments, dfg, result_ids),
 
             Intrinsic::AsWitness => {
                 let arg = arguments[0];
