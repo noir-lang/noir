@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1758890429767,
+  "lastUpdate": 1758902771195,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22156,48 +22156,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "5524470351b946d21d5b21609c2bb25c0f994eaa",
-          "message": "fix(acir_gen): Handle flattening of numeric types when an `Array` contains a `DynamicArray` (#9887)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
-          "timestamp": "2025-09-18T12:59:02Z",
-          "tree_id": "eae7ec80a83719465dbc52f974b9a5e83ba6ab09",
-          "url": "https://github.com/noir-lang/noir/commit/5524470351b946d21d5b21609c2bb25c0f994eaa"
-        },
-        "date": 1758201639930,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 270731,
-            "range": "± 646",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 242575,
-            "range": "± 6226",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2824436,
-            "range": "± 3195",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -24249,6 +24207,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2777850,
             "range": "± 6099",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "8ca4af784ce805900a8d5472830c9c28e92562b8",
+          "message": "fix: signed division by -1 can overflow (#9976)",
+          "timestamp": "2025-09-26T15:39:39Z",
+          "tree_id": "fc6c14c9dcb3a83c72dcaa1aba2454f7953b162d",
+          "url": "https://github.com/noir-lang/noir/commit/8ca4af784ce805900a8d5472830c9c28e92562b8"
+        },
+        "date": 1758902750701,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 251566,
+            "range": "± 1107",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 222720,
+            "range": "± 1455",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2781636,
+            "range": "± 2135",
             "unit": "ns/iter"
           }
         ]
