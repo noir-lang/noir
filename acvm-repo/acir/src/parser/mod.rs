@@ -369,42 +369,29 @@ impl<'a> Parser<'a> {
             }
             BlackBoxFunc::AND => {
                 let inputs = self.parse_blackbox_inputs()?;
-                let num_bits = self.parse_blackbox_bit_size()?;
-                let outputs = self.parse_blackbox_output()?;
-
                 self.expect_len(&inputs, 2, "AND", false)?;
-                self.expect_len(&outputs, 1, "AND", true)?;
 
-                BlackBoxFuncCall::AND {
-                    lhs: inputs[0],
-                    rhs: inputs[1],
-                    num_bits,
-                    output: outputs[0],
-                }
+                let num_bits = self.parse_blackbox_bit_size()?;
+                let output = self.parse_blackbox_output()?;
+
+                BlackBoxFuncCall::AND { lhs: inputs[0], rhs: inputs[1], num_bits, output }
             }
             BlackBoxFunc::XOR => {
                 let inputs = self.parse_blackbox_inputs()?;
-                let num_bits = self.parse_blackbox_bit_size()?;
-                let outputs = self.parse_blackbox_output()?;
-
                 self.expect_len(&inputs, 2, "XOR", false)?;
-                self.expect_len(&outputs, 1, "XOR", true)?;
 
-                BlackBoxFuncCall::XOR {
-                    lhs: inputs[0],
-                    rhs: inputs[1],
-                    num_bits,
-                    output: outputs[0],
-                }
+                let num_bits = self.parse_blackbox_bit_size()?;
+                let output = self.parse_blackbox_output()?;
+
+                BlackBoxFuncCall::XOR { lhs: inputs[0], rhs: inputs[1], num_bits, output }
             }
             BlackBoxFunc::RANGE => {
                 self.eat_keyword_or_error(Keyword::Input)?;
                 self.eat_or_error(Token::Colon)?;
                 let input = self.parse_blackbox_input()?;
-                let inputs = vec![input];
                 let num_bits = self.parse_blackbox_bit_size()?;
 
-                BlackBoxFuncCall::RANGE { input: inputs[0], num_bits }
+                BlackBoxFuncCall::RANGE { input, num_bits }
             }
             BlackBoxFunc::Blake2s => {
                 let inputs = self.parse_blackbox_inputs()?;
@@ -429,10 +416,7 @@ impl<'a> Parser<'a> {
                 let signature = self.try_extract_tail::<64, _>(&mut inputs, "signature")?;
                 let public_key_y = self.try_extract_tail::<32, _>(&mut inputs, "public_key_y")?;
                 let public_key_x = self.try_extract_tail::<32, _>(&mut inputs, "public_key_x")?;
-
-                let outputs = self.parse_blackbox_output()?;
-                self.expect_len(&outputs, 1, "EcdsaSecp256k1", true)?;
-                let output = outputs[0];
+                let output = self.parse_blackbox_output()?;
 
                 BlackBoxFuncCall::EcdsaSecp256k1 {
                     public_key_x,
@@ -452,10 +436,7 @@ impl<'a> Parser<'a> {
                 let signature = self.try_extract_tail::<64, _>(&mut inputs, "signature")?;
                 let public_key_y = self.try_extract_tail::<32, _>(&mut inputs, "public_key_y")?;
                 let public_key_x = self.try_extract_tail::<32, _>(&mut inputs, "public_key_x")?;
-
-                let outputs = self.parse_blackbox_output()?;
-                self.expect_len(&outputs, 1, "EcdsaSecp256r1", true)?;
-                let output = outputs[0];
+                let output = self.parse_blackbox_output()?;
 
                 BlackBoxFuncCall::EcdsaSecp256r1 {
                     public_key_x,
@@ -556,13 +537,12 @@ impl<'a> Parser<'a> {
         })
     }
 
-    fn parse_blackbox_output(&mut self) -> ParseResult<Vec<Witness>> {
+    fn parse_blackbox_output(&mut self) -> ParseResult<Witness> {
         self.eat_or_error(Token::Comma)?;
         self.eat_keyword_or_error(Keyword::Output)?;
         self.eat_or_error(Token::Colon)?;
         let witness = self.eat_witness_or_error()?;
-        let outputs = vec![witness];
-        Ok(outputs)
+        Ok(witness)
     }
 
     fn parse_blackbox_outputs(&mut self) -> ParseResult<Vec<Witness>> {
