@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1758881479760,
+  "lastUpdate": 1758881598400,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -21951,48 +21951,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "1320c407988f74d754564d1d7b788429057e70ff",
-          "message": "chore: move `ram_blowup_regression` to be a compile-only test (#9874)",
-          "timestamp": "2025-09-17T12:35:05Z",
-          "tree_id": "5a954ff87a5525214f21cfe83111fff4284e7aa1",
-          "url": "https://github.com/noir-lang/noir/commit/1320c407988f74d754564d1d7b788429057e70ff"
-        },
-        "date": 1758114090409,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 252037,
-            "range": "± 986",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 224762,
-            "range": "± 3412",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2794632,
-            "range": "± 17595",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -24044,6 +24002,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2781228,
             "range": "± 2063",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "17c97e8180fae2e16ab05f47bfa29fea23207cd7",
+          "message": "chore: remove unused feature flag (#9993)",
+          "timestamp": "2025-09-26T09:46:03Z",
+          "tree_id": "c8abd6df0768a054f2a5c7fadc830f86ad3b94b9",
+          "url": "https://github.com/noir-lang/noir/commit/17c97e8180fae2e16ab05f47bfa29fea23207cd7"
+        },
+        "date": 1758881577842,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 251527,
+            "range": "± 651",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 221633,
+            "range": "± 6032",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2780089,
+            "range": "± 6027",
             "unit": "ns/iter"
           }
         ]
