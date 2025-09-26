@@ -410,11 +410,11 @@ mod tests {
         BLACKBOX::RANGE [w1]:32 bits []
 
         // Call brillig with w2
-        BRILLIG CALL func 0: inputs: [EXPR [ (1, w2) 0 ]], outputs: []
+        BRILLIG CALL func 0: inputs: [w2], outputs: []
         BLACKBOX::RANGE [w1]:16 bits []
 
         // Another call
-        BRILLIG CALL func 0: inputs: [EXPR [ (1, w2) 0 ]], outputs: []
+        BRILLIG CALL func 0: inputs: [w2], outputs: []
 
         // One more constraint, but this is redundant.
         BLACKBOX::RANGE [w1]:64 bits []

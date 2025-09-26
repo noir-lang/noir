@@ -6,7 +6,7 @@ use super::brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs};
 pub mod function_id;
 pub use function_id::AcirFunctionId;
 
-use crate::native_types::{Expression, Witness};
+use crate::native_types::{Expression, Witness, display_expression};
 use acir_field::AcirField;
 use serde::{Deserialize, Serialize};
 
@@ -148,85 +148,7 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
         match self {
             Opcode::AssertZero(expr) => {
                 write!(f, "EXPR ")?;
-
-                // This is set to an index if we show this expression "as a witness assignment", meaning
-                // that the linear combination at this index must not be printed again.
-                let mut assignment_witness: Option<usize> = None;
-
-                // If true, negate all coefficients when printing.
-                // This is set to true if we show this expression "as a witness assignment", and the witness
-                // had a coefficient of 1 and we "moved" everything to the right of the equal sign.
-                let mut negate_coefficients = false;
-
-                // Find a linear combination with a coefficient of 1 or -1 and, if there are many,
-                // keep the one with the largest witness.
-                let linear_witness_one = expr
-                    .linear_combinations
-                    .iter()
-                    .enumerate()
-                    .filter(|(_, (coefficient, _))| {
-                        coefficient.is_one() || (-*coefficient).is_one()
-                    })
-                    .max_by_key(|(_, (_, witness))| witness);
-
-                // If we find one, show the expression as equaling this witness to everything else
-                // (this is likely to happen as in ACIR gen we tend to equate a witness to previous expressions)
-                if let Some((index, (coefficient, witness))) = linear_witness_one {
-                    assignment_witness = Some(index);
-                    negate_coefficients = coefficient.is_one();
-                    write!(f, "{witness} = ")?;
-                } else {
-                    write!(f, "0 = ")?;
-                }
-
-                let mut printed_term = false;
-
-                for (coefficient, witness1, witness2) in &expr.mul_terms {
-                    let witnesses = [*witness1, *witness2];
-                    display_term(*coefficient, witnesses, printed_term, negate_coefficients, f)?;
-                    printed_term = true;
-                }
-
-                for (index, (coefficient, witness)) in expr.linear_combinations.iter().enumerate() {
-                    if assignment_witness
-                        .is_some_and(|show_as_assignment_index| show_as_assignment_index == index)
-                    {
-                        // We already printed this term as part of the assignment
-                        continue;
-                    }
-
-                    let witnesses = [*witness];
-                    display_term(*coefficient, witnesses, printed_term, negate_coefficients, f)?;
-                    printed_term = true;
-                }
-
-                if expr.q_c.is_zero() {
-                    if !printed_term {
-                        write!(f, "0")?;
-                    }
-                } else {
-                    let coefficient = expr.q_c;
-                    let coefficient = if negate_coefficients { -coefficient } else { coefficient };
-                    let coefficient_as_string = coefficient.to_string();
-                    let coefficient_is_negative = coefficient_as_string.starts_with('-');
-
-                    if printed_term {
-                        if coefficient_is_negative {
-                            write!(f, " - ")?;
-                        } else {
-                            write!(f, " + ")?;
-                        }
-                    }
-
-                    let coefficient = if printed_term && coefficient_is_negative {
-                        -coefficient
-                    } else {
-                        coefficient
-                    };
-                    write!(f, "{coefficient}")?;
-                }
-
-                Ok(())
+                display_expression(expr, true, f)
             }
             Opcode::BlackBoxFuncCall(g) => g.fmt(f),
             Opcode::MemoryOp { block_id, op } => {
@@ -286,46 +208,6 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
             }
         }
     }
-}
-
-fn display_term<F: AcirField, const N: usize>(
-    coefficient: F,
-    witnesses: [Witness; N],
-    printed_term: bool,
-    negate_coefficients: bool,
-    f: &mut std::fmt::Formatter<'_>,
-) -> std::fmt::Result {
-    let coefficient = if negate_coefficients { -coefficient } else { coefficient };
-    let coefficient_as_string = coefficient.to_string();
-    let coefficient_is_negative = coefficient_as_string.starts_with('-');
-
-    if printed_term {
-        if coefficient_is_negative {
-            write!(f, " - ")?;
-        } else {
-            write!(f, " + ")?;
-        }
-    }
-
-    let coefficient =
-        if printed_term && coefficient_is_negative { -coefficient } else { coefficient };
-
-    if coefficient.is_one() {
-        // Don't print the coefficient
-    } else if (-coefficient).is_one() {
-        write!(f, "-")?;
-    } else {
-        write!(f, "{coefficient}*")?;
-    }
-
-    for (index, witness) in witnesses.iter().enumerate() {
-        if index != 0 {
-            write!(f, "*")?;
-        }
-        write!(f, "{witness}")?;
-    }
-
-    Ok(())
 }
 
 impl<F: AcirField> std::fmt::Debug for Opcode<F> {

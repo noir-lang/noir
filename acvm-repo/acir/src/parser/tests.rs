@@ -459,25 +459,6 @@ fn sha256_compression_missing_outputs() {
 }
 
 #[test]
-fn memory_read_expr() {
-    let src = "
-    current witness: w1
-    private parameters: []
-    public parameters: []
-    return values: []
-    MEM id: 0, read at: EXPR [ (1, w0) ], value: EXPR [ (1, w1) ]
-    ";
-    let circuit = Circuit::from_str(src).unwrap();
-    assert_snapshot!(circuit.to_string(), @r"
-    current witness: w1
-    private parameters: []
-    public parameters: []
-    return values: []
-    MEM id: 0, read at: w0, value: w1
-    ");
-}
-
-#[test]
 fn memory_read() {
     let src = "
     current witness: w1
@@ -487,25 +468,6 @@ fn memory_read() {
     MEM id: 0, read at: w0, value: w1
     ";
     assert_circuit_roundtrip(src);
-}
-
-#[test]
-fn memory_write_expr() {
-    let src = "
-    current witness: w1
-    private parameters: []
-    public parameters: []
-    return values: []
-    MEM id: 3, write: EXPR [ (1, w0) ] at: EXPR [ (1, w1) ]
-    ";
-    let circuit = Circuit::from_str(src).unwrap();
-    assert_snapshot!(circuit.to_string(), @r"
-    current witness: w1
-    private parameters: []
-    public parameters: []
-    return values: []
-    MEM id: 3, write: w0 at: w1
-    ");
 }
 
 #[test]
@@ -564,7 +526,7 @@ fn brillig_call() {
     private parameters: [w0, w1, w2]
     public parameters: []
     return values: []
-    BRILLIG CALL func 0: inputs: [EXPR [ (1, w0) (-1, w1) ]], outputs: [w3]
+    BRILLIG CALL func 0: inputs: [w0 - w1], outputs: [w3]
     EXPR 0 = w0*w3 - w1*w3 - 1
     EXPR w2 = w0
     ";
@@ -578,8 +540,8 @@ fn brillig_call_with_predicate() {
     private parameters: [w0, w1, w2]
     public parameters: []
     return values: []
-    BRILLIG CALL func 0: PREDICATE: EXPR [ 1 ]
-    inputs: [EXPR [ (1, w0) (-1, w1) ]], outputs: [w3]
+    BRILLIG CALL func 0: PREDICATE: 1
+    inputs: [w0 - w1], outputs: [w3]
     EXPR 0 = w0*w3 - w1*w3 - 1
     EXPR w2 = w0
     ";
@@ -593,7 +555,7 @@ fn brillig_call_with_memory_array_input() {
     private parameters: [w0, w1, w2]
     public parameters: []
     return values: []
-    BRILLIG CALL func 0: inputs: [EXPR [ 2 ], MemoryArray(0)], outputs: []
+    BRILLIG CALL func 0: inputs: [2, MemoryArray(0)], outputs: []
     ";
     assert_circuit_roundtrip(src);
 }
@@ -617,7 +579,7 @@ fn call_with_predicate() {
     private parameters: [w0]
     public parameters: [w1]
     return values: []
-    CALL func 1: PREDICATE: EXPR [ 1 ]
+    CALL func 1: PREDICATE: 1
     inputs: [w0, w1], outputs: [w2]
     ";
     assert_circuit_roundtrip(src);
@@ -656,7 +618,7 @@ fn array_dynamic() {
     EXPR w23 = 111
     MEM id: 0, read at: w22, value: w24
     EXPR w24 = 101
-    BRILLIG CALL func 0: inputs: [EXPR [ (1, w22) 4294967291 ], EXPR [ 4294967296 ]], outputs: [w25, w26]
+    BRILLIG CALL func 0: inputs: [w22 + 4294967291, 4294967296], outputs: [w25, w26]
     BLACKBOX::RANGE [w26]:32 bits []
     EXPR w26 = w22 - 4294967296*w25 + 4294967291
     EXPR w25 = 0
@@ -667,7 +629,7 @@ fn array_dynamic() {
     EXPR w29 = 1
     MEM id: 0, read at: w29, value: w30
     EXPR w30 = 0
-    BRILLIG CALL func 0: inputs: [EXPR [ (1, w21) 4294967286 ], EXPR [ 4294967296 ]], outputs: [w31, w32]
+    BRILLIG CALL func 0: inputs: [w21 + 4294967286, 4294967296], outputs: [w31, w32]
     BLACKBOX::RANGE [w31]:1 bits []
     BLACKBOX::RANGE [w32]:32 bits []
     EXPR w32 = w21 - 4294967296*w31 + 4294967286
@@ -675,7 +637,7 @@ fn array_dynamic() {
     MEM id: 0, read at: w33, value: w34
     EXPR w35 = -w31*w34 + 2*w31 + w34 - 2
     BLACKBOX::RANGE [w35]:32 bits []
-    BRILLIG CALL func 0: inputs: [EXPR [ (1, w21) 4294967291 ], EXPR [ 4294967296 ]], outputs: [w36, w37]
+    BRILLIG CALL func 0: inputs: [w21 + 4294967291, 4294967296], outputs: [w36, w37]
     BLACKBOX::RANGE [w36]:1 bits []
     BLACKBOX::RANGE [w37]:32 bits []
     EXPR w37 = w21 - 4294967296*w36 + 4294967291
@@ -715,20 +677,20 @@ fn array_dynamic() {
     MEM id: 4, read at: w9, value: w64
     MEM id: 4, read at: w10, value: w65
     MEM id: 4, read at: w11, value: w66
-    BRILLIG CALL func 1: inputs: [EXPR [ (1, w62) (1, w63) (1, w64) (1, w65) (1, w66) ]], outputs: [w67]
+    BRILLIG CALL func 1: inputs: [w62 + w63 + w64 + w65 + w66], outputs: [w67]
     EXPR 0 = w62*w67 + w63*w67 + w64*w67 + w65*w67 + w66*w67 - 1
-    BRILLIG CALL func 0: inputs: [w18, EXPR [ 4294967296 ]], outputs: [w68, w69]
+    BRILLIG CALL func 0: inputs: [w18, 4294967296], outputs: [w68, w69]
     BLACKBOX::RANGE [w68]:222 bits []
     BLACKBOX::RANGE [w69]:32 bits []
     EXPR w69 = w18 - 4294967296*w68
     EXPR w70 = -w68 + 5096253676302562286669017222071363378443840053029366383258766538131
     BLACKBOX::RANGE [w70]:222 bits []
-    BRILLIG CALL func 1: inputs: [EXPR [ (-1, w68) 5096253676302562286669017222071363378443840053029366383258766538131 ]], outputs: [w71]
+    BRILLIG CALL func 1: inputs: [-w68 + 5096253676302562286669017222071363378443840053029366383258766538131], outputs: [w71]
     EXPR w72 = w68*w71 - 5096253676302562286669017222071363378443840053029366383258766538131*w71 + 1
     EXPR 0 = -w68*w72 + 5096253676302562286669017222071363378443840053029366383258766538131*w72
     EXPR w73 = w69*w72 + 268435455*w72
     BLACKBOX::RANGE [w73]:32 bits []
-    BRILLIG CALL func 0: inputs: [EXPR [ (-1, w69) 4294967299 ], EXPR [ 4294967296 ]], outputs: [w74, w75]
+    BRILLIG CALL func 0: inputs: [-w69 + 4294967299, 4294967296], outputs: [w74, w75]
     BLACKBOX::RANGE [w74]:1 bits []
     BLACKBOX::RANGE [w75]:32 bits []
     EXPR w75 = -w69 - 4294967296*w74 + 4294967299
@@ -749,7 +711,7 @@ fn fold_basic() {
     private parameters: [w0]
     public parameters: [w1]
     return values: []
-    CALL func 1: PREDICATE: EXPR [ 1 ]
+    CALL func 1: PREDICATE: 1
     inputs: [w0, w1], outputs: [w2]
 
     func 1
@@ -757,7 +719,7 @@ fn fold_basic() {
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
-    BRILLIG CALL func 0: inputs: [EXPR [ (1, w0) (-1, w1) ]], outputs: [w3]
+    BRILLIG CALL func 0: inputs: [w0 - w1], outputs: [w3]
     EXPR 0 = w0*w3 - w1*w3 - 1
     EXPR w2 = w0
     ";
@@ -772,7 +734,7 @@ fn fold_basic_mismatched_ids() {
     private parameters: [w0]
     public parameters: [w1]
     return values: []
-    CALL func 1: PREDICATE: EXPR [ 1 ]
+    CALL func 1: PREDICATE: 1
     inputs: [w0, w1], outputs: [w2]
 
     func 2
@@ -780,7 +742,7 @@ fn fold_basic_mismatched_ids() {
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
-    BRILLIG CALL func 0: inputs: [EXPR [ (1, w0) (-1, w1) ]], outputs: [w3]
+    BRILLIG CALL func 0: inputs: [w0 - w1], outputs: [w3]
     EXPR w0*w3 - w1*w3 - 1 = 0
     EXPR w0 = w2
     ";
