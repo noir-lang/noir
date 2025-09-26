@@ -118,7 +118,7 @@ fn generates_memory_op_for_dynamic_write() {
     return values: [w4, w5, w6]
     INIT id: 1, len: 3, witnesses: [w0, w1, w2]
     EXPR w7 = 10
-    MEM id: 1, write: w7 at: w3
+    MEM id: 1, write: w7, at: w3
     EXPR w8 = 0
     MEM id: 1, read at: w8, value: w9
     EXPR w10 = 1
@@ -198,7 +198,7 @@ fn generates_predicated_index_and_dummy_value_for_dynamic_write() {
     MEM id: 0, read at: w8, value: w9
     INIT id: 1, len: 3, witnesses: [w0, w1, w2]
     EXPR w10 = -w4*w9 + 10*w4 + w9
-    MEM id: 1, write: w10 at: w8
+    MEM id: 1, write: w10, at: w8
     EXPR w11 = 0
     MEM id: 1, read at: w11, value: w12
     EXPR w13 = 1

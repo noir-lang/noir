@@ -158,7 +158,7 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
                 if is_read {
                     write!(f, "id: {}, read at: {}, value: {}", block_id.0, op.index, op.value)
                 } else {
-                    write!(f, "id: {}, write: {} at: {}", block_id.0, op.value, op.index)
+                    write!(f, "id: {}, write: {}, at: {}", block_id.0, op.value, op.index)
                 }
             }
             Opcode::MemoryInit { block_id, init, block_type: databus } => {

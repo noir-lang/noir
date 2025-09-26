@@ -454,7 +454,7 @@ fn memory_write() {
     private parameters: []
     public parameters: []
     return values: []
-    MEM id: 3, write: w0 at: w1
+    MEM id: 3, write: w0, at: w1
     ";
     assert_circuit_roundtrip(src);
 }
@@ -589,7 +589,7 @@ fn array_dynamic() {
     EXPR w26 = w22 - 4294967296*w25 + 4294967291
     EXPR w25 = 0
     EXPR w27 = 0
-    MEM id: 0, write: w27 at: w22
+    MEM id: 0, write: w27, at: w22
     MEM id: 0, read at: w21, value: w28
     EXPR w28 = 111
     EXPR w29 = 1
@@ -620,14 +620,14 @@ fn array_dynamic() {
     MEM id: 0, read at: w46, value: w47
     INIT id: 3, len: 5, witnesses: [w40, w41, w43, w45, w47]
     EXPR w48 = -w31*w35 + w31*w39 + w35
-    MEM id: 3, write: w48 at: w38
+    MEM id: 3, write: w48, at: w38
     MEM id: 3, read at: w46, value: w49
     MEM id: 0, read at: w46, value: w50
     EXPR 0 = -w31*w36
     EXPR w51 = w21*w31
     MEM id: 0, read at: w51, value: w52
     EXPR w53 = -w31*w52 + w52
-    MEM id: 0, write: w53 at: w51
+    MEM id: 0, write: w53, at: w51
     MEM id: 0, read at: w46, value: w54
     EXPR w55 = -w31 + 1
     EXPR w56 = -w31*w49 + w31*w50 + w49

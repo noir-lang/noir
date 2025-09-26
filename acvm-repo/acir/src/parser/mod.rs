@@ -589,9 +589,10 @@ impl<'a> Parser<'a> {
                 (Expression::zero(), index, value)
             }
             "write" => {
-                // write: <expr> at: <expr>
+                // write: <expr>, at: <expr>
                 self.eat_or_error(Token::Colon)?;
                 let value = self.parse_arithmetic_expression()?;
+                self.eat_or_error(Token::Comma)?;
                 self.eat_expected_ident("at")?;
                 self.eat_or_error(Token::Colon)?;
                 let index = self.parse_arithmetic_expression()?;
