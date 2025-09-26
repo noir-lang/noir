@@ -14,7 +14,10 @@
 //!
 //! This is the only pass which removes duplicated pure [`Instruction`]s however and so is needed when
 //! different blocks are merged, i.e. after the [`flatten_cfg`][super::flatten_cfg] pass.
-use std::{collections::BTreeMap, io::Empty};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    io::Empty,
+};
 
 use acvm::{FieldElement, acir::AcirField};
 use iter_extended::vecmap;
@@ -44,6 +47,9 @@ use interpret::try_interpret_call;
 use result_cache::{CacheResult, InstructionResultCache};
 use simplification_cache::{ConstraintSimplificationCache, SimplificationCache};
 
+/// Maximum number of folding iterations.
+const DEFAULT_MAX_FOLD_ITER: usize = 5;
+
 impl Ssa {
     /// Performs constant folding on each instruction.
     ///
@@ -54,7 +60,7 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn fold_constants(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            function.constant_fold(false, &mut None);
+            function.constant_fold(false, DEFAULT_MAX_FOLD_ITER, &mut None);
         }
         self
     }
@@ -67,7 +73,7 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn fold_constants_using_constraints(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            function.constant_fold(true, &mut None);
+            function.constant_fold(true, DEFAULT_MAX_FOLD_ITER, &mut None);
         }
         self
     }
@@ -98,7 +104,7 @@ impl Ssa {
         };
 
         for function in self.functions.values_mut() {
-            function.constant_fold(false, &mut interpreter);
+            function.constant_fold(false, DEFAULT_MAX_FOLD_ITER, &mut interpreter);
         }
 
         self
@@ -111,18 +117,46 @@ impl Function {
     pub(crate) fn constant_fold(
         &mut self,
         use_constraint_info: bool,
+        max_fold_iter: usize,
         interpreter: &mut Option<Interpreter<Empty>>,
     ) {
-        let mut context = Context::new(use_constraint_info);
         let mut dom = DominatorTree::with_function(self);
+        let mut context = Context::new(use_constraint_info);
         context.block_queue.push_back(self.entry_block());
 
-        while let Some(block) = context.block_queue.pop_front() {
-            context.fold_constants_in_block(&mut self.dfg, &mut dom, block, interpreter);
-        }
+        let mut fold_iter = 0;
+        loop {
+            if fold_iter >= max_fold_iter {
+                break;
+            }
 
-        #[cfg(debug_assertions)]
-        constant_folding_post_check(&context, &self.dfg);
+            while let Some(block) = context.block_queue.pop_front() {
+                context.fold_constants_in_block(&mut self.dfg, &mut dom, block, interpreter);
+                context.block_queue.extend(self.dfg[block].successors());
+            }
+
+            #[cfg(debug_assertions)]
+            constant_folding_post_check(&context, &self.dfg);
+
+            // See if there are blocks that we need to revisit.
+            let origins = std::mem::take(&mut context.origins);
+
+            // In order to deduplicate, we need to rebuild the cache by revisiting every
+            // block from the common dominator to each block we wanted to retry.
+            // Sorting the origins by dominance is not enough, we need the in-between ones as well,
+            // otherwise they might be change after something they dominate, and cause instructions to disappear.
+            let common_dominator = origins.into_iter().reduce(|a, b| dom.common_dominator(a, b));
+
+            // If nothing got hoisted, we are done.
+            let Some(start) = common_dominator else {
+                break;
+            };
+
+            // Create a fresh context, so values cached so far are not visible to earlier blocks.
+            context = Context::new(use_constraint_info);
+            context.block_queue.push_back(start);
+            fold_iter += 1;
+        }
     }
 }
 
@@ -137,6 +171,9 @@ fn constant_folding_post_check(context: &Context, dfg: &DataFlowGraph) {
 struct Context {
     /// Keeps track of visited blocks and blocks to visit.
     block_queue: VisitOnceDeque,
+
+    /// Blocks which we hoisted into or have duplicates of hoisted instructions.
+    origins: BTreeSet<BasicBlockId>,
 
     /// Whether to use [constraints][Instruction::Constrain] to inform simplifications later on in the program.
     ///
@@ -175,6 +212,7 @@ impl Context {
             constraint_simplification_mappings: Default::default(),
             cached_instruction_results: Default::default(),
             values_to_replace: Default::default(),
+            origins: Default::default(),
         }
     }
 
@@ -193,6 +231,7 @@ impl Context {
 
         for instruction_id in instructions {
             let instruction = &mut dfg[instruction_id];
+
             instruction.replace_values(&self.values_to_replace);
 
             self.fold_constants_into_instruction(
@@ -226,8 +265,6 @@ impl Context {
         terminator.map_values_mut(&mut resolve_cache);
         dfg[block_id].set_terminator(terminator);
         dfg.data_bus.map_values_mut(resolve_cache);
-
-        self.block_queue.extend(dfg[block_id].successors());
     }
 
     fn fold_constants_into_instruction(
@@ -254,7 +291,10 @@ impl Context {
             self.cached_instruction_results.get(dfg, dom, id, &instruction, predicate, block)
         {
             match cache_result {
-                CacheResult::Cached(cached) => {
+                CacheResult::Cached { instruction_id, .. } if instruction_id == id => {
+                    unreachable!("shouldn't revisit instructions")
+                }
+                CacheResult::Cached { results: cached, .. } => {
                     // We track whether we may mutate `MakeArray` instructions before we deduplicate
                     // them but we still need to issue an extra inc_rc in case they're mutated afterward.
                     //
@@ -276,14 +316,26 @@ impl Context {
                     }
 
                     self.values_to_replace.batch_insert(&old_results, cached);
+
                     return;
                 }
-                CacheResult::NeedToHoistToCommonBlock(dominator) => {
+                CacheResult::NeedToHoistToCommonBlock { dominator, .. } if dominator == block => {
+                    // We found an instruction to cached in an origin that this block dominates.
+                    // Just insert the instruction we already have.
+                }
+                CacheResult::NeedToHoistToCommonBlock { origin, dominator } => {
                     // Just change the block to insert in the common dominator instead.
                     // This will only move the current instance of the instruction right now.
                     // When constant folding is run a second time later on, it'll catch
                     // that the previous instance can be deduplicated to this instance.
+                    // Another effect is going to be that the cache should be updated to
+                    // point at the dominator, so subsequent blocks can use the result.
                     block = dominator;
+
+                    // We can revisit the origin to deduplicate with the dominator.
+                    self.origins.insert(origin);
+                    // We will also need to revisit the dominator to prime the cache.
+                    self.origins.insert(dominator);
                 }
             }
         };
@@ -302,7 +354,15 @@ impl Context {
 
         self.values_to_replace.batch_insert(&old_results, &new_results);
 
-        self.cache_instruction(&instruction, new_results, dfg, *side_effects_enabled_var, block);
+        self.cache_instruction(
+            id,
+            &instruction,
+            new_results,
+            dfg,
+            dom,
+            *side_effects_enabled_var,
+            block,
+        );
 
         // If we just inserted an `Instruction::EnableSideEffectsIf`, we need to update `side_effects_enabled_var`
         // so that we use the correct set of constrained values in future.
@@ -358,11 +418,14 @@ impl Context {
         new_results
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn cache_instruction(
         &mut self,
+        instruction_id: InstructionId,
         instruction: &Instruction,
         instruction_results: Vec<ValueId>,
         dfg: &DataFlowGraph,
+        dom: &mut DominatorTree,
         side_effects_enabled_var: ValueId,
         block: BasicBlockId,
     ) {
@@ -397,7 +460,14 @@ impl Context {
             let array_get = Instruction::ArrayGet { array: instruction_results[0], index: *index };
 
             // If we encounter an array_get for this address, we know what the result will be.
-            self.cached_instruction_results.cache(array_get, predicate, block, vec![*value]);
+            self.cached_instruction_results.cache(
+                dom,
+                instruction_id,
+                array_get,
+                predicate,
+                block,
+                vec![*value],
+            );
         }
 
         self.cached_instruction_results
@@ -415,6 +485,8 @@ impl Context {
             let predicate = self.cache_predicate(side_effects_enabled_var, instruction, dfg);
             // If we see this make_array again, we can reuse the current result.
             self.cached_instruction_results.cache(
+                dom,
+                instruction_id,
                 instruction.clone(),
                 predicate,
                 block,
@@ -471,6 +543,7 @@ fn resolve_cache(
     }
 }
 
+#[derive(Debug)]
 enum CanBeDeduplicated {
     /// This instruction has no side effects so we can substitute the results for those of the same instruction elsewhere.
     Always,
@@ -825,6 +898,10 @@ mod test {
         let instructions = main.dfg[main.entry_block()].instructions();
         assert_eq!(instructions.len(), 15);
 
+        // The `array_get` instructions after `enable_side_effects v1` is deduplicated
+        // with the one under `enable_side_effects v0` because it doesn't require a predicate,
+        // but the `array_set` is not, because it does require a predicate, and the subsequent
+        // `array_get` uses a different input, so it's not a duplicate of anything.
         let expected = "
             acir(inline) fn main f0 {
               b0(v0: u1, v1: u1, v2: [Field; 2]):
@@ -933,8 +1010,8 @@ mod test {
                 return
             }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.fold_constants_using_constraints();
+        let mut ssa = Ssa::from_str(src).unwrap();
+        ssa.main_mut().constant_fold(true, 1, &mut None);
 
         // v4 has been hoisted, although:
         // - v5 has not yet been removed since it was encountered earlier in the program
@@ -961,6 +1038,394 @@ mod test {
             return
         }
         ");
+    }
+
+    #[test]
+    fn repeatedly_hoist_and_deduplicate() {
+        // Repeating the same block 3x times.
+        let src = "
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: u1, v1: i8):
+            v2 = allocate -> &mut i8
+            store i8 0 at v2
+            jmpif v0 then: b1, else: b2
+          b1():
+            v5 = unchecked_mul v1, i8 127
+            v6 = cast v5 as u16
+            v7 = truncate v6 to 8 bits, max_bit_size: 16
+            v8 = cast v7 as i8
+            store v8 at v2
+            jmp b2()
+          b2():
+            jmpif v0 then: b3, else: b4
+          b3():
+            v9 = unchecked_mul v1, i8 127
+            v10 = cast v9 as u16
+            v11 = truncate v10 to 8 bits, max_bit_size: 16
+            v12 = cast v11 as i8
+            store v12 at v2
+            jmp b4()
+          b4():
+            jmpif v0 then: b5, else: b6
+          b5():
+            v13 = unchecked_mul v1, i8 127
+            v14 = cast v13 as u16
+            v15 = truncate v14 to 8 bits, max_bit_size: 16
+            v16 = cast v15 as i8
+            store v16 at v2
+            jmp b6()
+          b6():
+            v17 = load v2 -> i8
+            return v17
+          }
+        ";
+
+        let mut ssa = Ssa::from_str(src).unwrap();
+
+        // First demonstrate what happens if we don't revisit.
+        ssa.main_mut().constant_fold(false, 1, &mut None);
+
+        // 1. v9 is a duplicate of v5 -> hoisted to b0
+        // 2. v13 is a duplicate of v9 -> immediately deduplicated because it's now in b0
+        // 3. v14 is a duplicate of v10 -> hoisted to b2
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: u1, v1: i8):
+            v2 = allocate -> &mut i8
+            store i8 0 at v2
+            v5 = unchecked_mul v1, i8 127
+            jmpif v0 then: b1, else: b2
+          b1():
+            v6 = unchecked_mul v1, i8 127
+            v7 = cast v6 as u16
+            v8 = truncate v7 to 8 bits, max_bit_size: 16
+            v9 = cast v8 as i8
+            store v9 at v2
+            jmp b2()
+          b2():
+            v10 = cast v5 as u16
+            jmpif v0 then: b3, else: b4
+          b3():
+            v11 = cast v5 as u16
+            v12 = truncate v11 to 8 bits, max_bit_size: 16
+            v13 = cast v12 as i8
+            store v13 at v2
+            jmp b4()
+          b4():
+            jmpif v0 then: b5, else: b6
+          b5():
+            v14 = truncate v10 to 8 bits, max_bit_size: 16
+            v15 = cast v14 as i8
+            store v15 at v2
+            jmp b6()
+          b6():
+            v16 = load v2 -> i8
+            return v16
+        }
+        ");
+
+        // Now with revisit.
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants();
+
+        // All duplicates hoisted into b0.
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: u1, v1: i8):
+            v2 = allocate -> &mut i8
+            store i8 0 at v2
+            v5 = unchecked_mul v1, i8 127
+            v6 = cast v5 as u16
+            v7 = truncate v6 to 8 bits, max_bit_size: 16
+            v8 = cast v7 as i8
+            jmpif v0 then: b1, else: b2
+          b1():
+            store v8 at v2
+            jmp b2()
+          b2():
+            jmpif v0 then: b3, else: b4
+          b3():
+            store v8 at v2
+            jmp b4()
+          b4():
+            jmpif v0 then: b5, else: b6
+          b5():
+            store v8 at v2
+            jmp b6()
+          b6():
+            v9 = load v2 -> i8
+            return v9
+        }
+        ");
+    }
+
+    #[test]
+    fn avoid_cycles_during_revisits() {
+        // We have program structure like this:
+        // `if a { A[(b[0].0 + b[0].0]) % 2 } else { A[(b[0].0 + b[0].0]) % 2 }`
+        // so the 'then' and the 'else' are the same and instructions are repeated within the block.
+        let src = r#"
+          g0 = make_array [] : [u1; 0]
+          g1 = make_array [] : [u1; 0]
+          g2 = make_array [g0, g1] : [[u1; 0]; 2]
+
+          brillig(inline) predicate_pure fn main f0 {
+            b0(v3: u1, v4: [(u1, u1, u1, [u8; 2]); 4]):
+              jmpif v3 then: b1, else: b2
+            b1():
+              v20 = array_get v4, index u32 0 -> u1
+              v21 = array_get v4, index u32 3 -> [u8; 2]
+              inc_rc v21
+              v22 = cast v20 as u32
+              v23 = array_get v4, index u32 0 -> u1
+              v24 = array_get v4, index u32 3 -> [u8; 2]
+              inc_rc v24
+              v25 = cast v23 as u32
+              v26 = add v22, v25
+              v27 = truncate v26 to 1 bits, max_bit_size: 32
+              v28 = lt v27, u32 2
+              constrain v28 == u1 1, "Index out of bounds"
+              v29 = array_get g2, index v27 -> [u1; 0]
+              inc_rc v29
+              jmp b3(v29)
+            b2():
+              v7 = array_get v4, index u32 0 -> u1
+              v9 = array_get v4, index u32 3 -> [u8; 2]
+              inc_rc v9
+              v10 = cast v7 as u32
+              v11 = array_get v4, index u32 0 -> u1
+              v12 = array_get v4, index u32 3 -> [u8; 2]
+              inc_rc v12
+              v13 = cast v11 as u32
+              v14 = add v10, v13
+              v15 = truncate v14 to 1 bits, max_bit_size: 32
+              v17 = lt v15, u32 2
+              constrain v17 == u1 1, "Index out of bounds"
+              v19 = array_get g2, index v15 -> [u1; 0]
+              inc_rc v19
+              jmp b3(v19)
+            b3(v5: [u1; 0]):
+              return v5
+          }
+        "#;
+
+        let ssa: Ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants();
+
+        // Duplicated array_get and cast are hoisted to b0.
+        assert_ssa_snapshot!(ssa, @r#"
+        g0 = make_array [] : [u1; 0]
+        g1 = make_array [] : [u1; 0]
+        g2 = make_array [g0, g1] : [[u1; 0]; 2]
+
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v3: u1, v4: [(u1, u1, u1, [u8; 2]); 4]):
+            v7 = array_get v4, index u32 0 -> u1
+            v9 = array_get v4, index u32 3 -> [u8; 2]
+            v10 = cast v7 as u32
+            jmpif v3 then: b1, else: b2
+          b1():
+            inc_rc v9
+            inc_rc v9
+            v17 = add v10, v10
+            v18 = truncate v17 to 1 bits, max_bit_size: 32
+            v19 = lt v18, u32 2
+            constrain v19 == u1 1, "Index out of bounds"
+            v20 = array_get g2, index v18 -> [u1; 0]
+            inc_rc v20
+            jmp b3(v20)
+          b2():
+            inc_rc v9
+            inc_rc v9
+            v11 = add v10, v10
+            v12 = truncate v11 to 1 bits, max_bit_size: 32
+            v14 = lt v12, u32 2
+            constrain v14 == u1 1, "Index out of bounds"
+            v16 = array_get g2, index v12 -> [u1; 0]
+            inc_rc v16
+            jmp b3(v16)
+          b3(v5: [u1; 0]):
+            return v5
+        }
+        "#);
+    }
+
+    #[test]
+    fn avoid_unmapped_instructions_during_revisit() {
+        // We have program calling `lambdas_in_array_literal(x)` and `lambdas_in_array_literal(x-1)`,
+        // with 1 of the 2 potential lambdas called in `lambdas_in_array_literal` based on the index.
+        let src = r#"
+          brillig(inline) predicate_pure fn main f0 {
+            b0(v0: u32):
+              v8 = sub v0, u32 1
+              v13 = make_array [Field 2, Field 3, Field 4, Field 5] : [(Field, Field); 2]
+              v15 = lt v8, u32 2
+              constrain v15 == u1 1, "Index out of bounds"
+              v17 = unchecked_mul v8, u32 2
+              v18 = unchecked_add v17, u32 1
+              v19 = array_get v13, index v18 -> Field
+              v20 = eq v19, Field 2
+              jmpif v20 then: b1, else: b2
+            b1():
+              v32 = make_array b"ABC"
+              jmp b3(v32)
+            b2():
+              v21 = eq v19, Field 3
+              jmpif v21 then: b4, else: b5
+            b3(v1: [u8; 3]):
+              v33 = make_array [Field 2, Field 3, Field 4, Field 5] : [(Field, Field); 2]
+              v34 = lt v0, u32 2
+              constrain v34 == u1 1, "Index out of bounds"
+              v35 = unchecked_mul v0, u32 2
+              v36 = unchecked_add v35, u32 1
+              v37 = array_get v33, index v36 -> Field
+              v38 = eq v37, Field 2
+              jmpif v38 then: b6, else: b7
+            b4():
+              v31 = make_array b"ABC"
+              jmp b8(v31)
+            b5():
+              v22 = eq v19, Field 4
+              jmpif v22 then: b9, else: b10
+            b6():
+              v44 = make_array b"ABC"
+              jmp b11(v44)
+            b7():
+              v39 = eq v37, Field 3
+              jmpif v39 then: b12, else: b13
+            b8(v2: [u8; 3]):
+              jmp b3(v2)
+            b9():
+              v27 = make_array b"DEF"
+              jmp b19()
+            b19():
+              inc_rc v27
+              jmp b14(v27)
+            b10():
+              constrain v19 == Field 5
+              v26 = make_array b"DEF"
+              jmp b20()
+            b20():
+              inc_rc v26
+              jmp b14(v26)
+            b11(v3: [u8; 3]):
+              return v1, v3
+            b12():
+              v43 = make_array b"ABC"
+              jmp b15(v43)
+            b13():
+              v40 = eq v37, Field 4
+              jmpif v40 then: b16, else: b17
+            b14(v4: [u8; 3]):
+              jmp b8(v4)
+            b15(v5: [u8; 3]):
+              jmp b11(v5)
+            b16():
+              v42 = make_array b"DEF"
+              jmp b18(v42)
+            b17():
+              constrain v37 == Field 5
+              v41 = make_array b"DEF"
+              jmp b18(v41)
+            b18(v6: [u8; 3]):
+              jmp b15(v6)
+          }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants();
+
+        // The hoisting of "DEF" will happen in multiple stages:
+        // * Appears first in b9
+        // * Duplicate of b9 in b10 -> hoisted from b10 to b5
+        // * Duplicate of b5 in b16 -> hoisted from b16 to b0
+        // * Duplicate of b0 in b17 -> reused from b0
+        // * Find the common dominator of [b10, b5, b16, b0, b17]
+        // * Start another loop from b0
+        // The crucial bit is that b9 and b10 has to be revisited as well, as they contain a reuse from b5,
+        // which needs to be updated to point at b0 instead, otherwise trying to normalize the IDs will panic.
+        // Also b19 and b20: they refer to values in b9 and b10, and so if we revisit those and update the IDs
+        // after hoisting from b5 to b0, we also have to revisit their successors, even though they did not
+        // interact with the cache per-se, we have to run resolution again.
+
+        // All make_array hoisted into b0
+        assert_ssa_snapshot!(ssa, @r#"
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            v8 = sub v0, u32 1
+            v13 = make_array [Field 2, Field 3, Field 4, Field 5] : [(Field, Field); 2]
+            v15 = lt v8, u32 2
+            constrain v15 == u1 1, "Index out of bounds"
+            v17 = unchecked_mul v8, u32 2
+            v18 = unchecked_add v17, u32 1
+            v19 = array_get v13, index v18 -> Field
+            v20 = eq v19, Field 2
+            v24 = make_array b"ABC"
+            v28 = make_array b"DEF"
+            jmpif v20 then: b1, else: b2
+          b1():
+            inc_rc v24
+            jmp b3(v24)
+          b2():
+            v29 = eq v19, Field 3
+            jmpif v29 then: b4, else: b5
+          b3(v1: [u8; 3]):
+            inc_rc v13
+            v31 = lt v0, u32 2
+            constrain v31 == u1 1, "Index out of bounds"
+            v32 = unchecked_mul v0, u32 2
+            v33 = unchecked_add v32, u32 1
+            v34 = array_get v13, index v33 -> Field
+            v35 = eq v34, Field 2
+            jmpif v35 then: b6, else: b7
+          b4():
+            jmp b8(v24)
+          b5():
+            v30 = eq v19, Field 4
+            inc_rc v28
+            jmpif v30 then: b9, else: b11
+          b6():
+            inc_rc v24
+            jmp b13(v24)
+          b7():
+            v36 = eq v34, Field 3
+            jmpif v36 then: b14, else: b15
+          b8(v2: [u8; 3]):
+            jmp b3(v2)
+          b9():
+            inc_rc v28
+            jmp b10()
+          b10():
+            inc_rc v28
+            jmp b16(v28)
+          b11():
+            constrain v19 == Field 5
+            jmp b12()
+          b12():
+            inc_rc v28
+            jmp b16(v28)
+          b13(v3: [u8; 3]):
+            return v1, v3
+          b14():
+            inc_rc v24
+            jmp b17(v24)
+          b15():
+            v37 = eq v34, Field 4
+            jmpif v37 then: b18, else: b19
+          b16(v4: [u8; 3]):
+            jmp b8(v4)
+          b17(v5: [u8; 3]):
+            jmp b13(v5)
+          b18():
+            jmp b20(v28)
+          b19():
+            constrain v34 == Field 5
+            inc_rc v28
+            jmp b20(v28)
+          b20(v6: [u8; 3]):
+            jmp b17(v6)
+        }
+        "#);
     }
 
     #[test]
@@ -1496,19 +1961,23 @@ mod test {
           b0(v0: Field):
             v1 = call to_le_radix(v0, u32 256) -> [u8; 2]
             v2 = call to_le_radix(v0, u32 256) -> [u8; 3]
-            v3 = call to_le_radix(v0, u32 256) -> [u8; 2]
+            v3 = call to_le_radix(v0, u32 256) -> [u8; 3]
+            v4 = call to_le_radix(v0, u32 256) -> [u8; 2]
             return
         }
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
+        // These intrinsic calls can only be deduplicated when using constraints.
         let ssa = ssa.fold_constants_using_constraints();
 
+        // Only the first one is cached at the moment.
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: Field):
             v3 = call to_le_radix(v0, u32 256) -> [u8; 2]
             v4 = call to_le_radix(v0, u32 256) -> [u8; 3]
+            v5 = call to_le_radix(v0, u32 256) -> [u8; 3]
             inc_rc v3
             return
         }

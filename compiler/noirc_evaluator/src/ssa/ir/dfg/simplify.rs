@@ -27,6 +27,7 @@ pub(crate) use call::constant_to_radix;
 
 /// Contains the result to Instruction::simplify, specifying how the instruction
 /// should be simplified.
+#[derive(Debug)]
 pub(crate) enum SimplifyResult {
     /// Replace this function's result with the given value
     SimplifiedTo(ValueId),
