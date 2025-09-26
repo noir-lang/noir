@@ -341,57 +341,9 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_arithmetic_expression(&mut self) -> ParseResult<Expression<FieldElement>> {
-        self.eat_keyword_or_error(Keyword::Expression)?;
-        self.eat_or_error(Token::LeftBracket)?;
-
-        let mut linear_combinations = Vec::new();
-        let mut mul_terms = Vec::new();
-        let mut constant: Option<FieldElement> = None;
-
-        while !self.eat(Token::RightBracket)? {
-            match self.token.token() {
-                Token::LeftParen => {
-                    // Eat '('
-                    self.bump()?;
-                    let coeff = self.eat_field_or_error()?;
-                    self.eat_or_error(Token::Comma)?;
-
-                    let w1 = self.eat_witness_or_error()?;
-
-                    if self.eat(Token::Comma)? {
-                        // This is a mul term
-                        let w2 = self.eat_witness_or_error()?;
-                        self.eat_or_error(Token::RightParen)?;
-                        mul_terms.push((coeff, w1, w2));
-                    } else {
-                        // This is a linear term
-                        self.eat_or_error(Token::RightParen)?;
-                        linear_combinations.push((coeff, w1));
-                    }
-                }
-                Token::Int(_) => {
-                    if constant.is_some() {
-                        return Err(ParserError::DuplicatedConstantTerm {
-                            found: self.token.token().clone(),
-                            span: self.token.span(),
-                        });
-                    }
-                    constant = Some(self.eat_field_or_error()?);
-                }
-                _ => {
-                    return Err(ParserError::ExpectedOneOfTokens {
-                        tokens: vec![Token::LeftParen, Token::Int(FieldElement::zero())],
-                        found: self.token.token().clone(),
-                        span: self.token.span(),
-                    });
-                }
-            }
-        }
-
-        // If a constant isn't provided, we default it to zero
-        let q_c = constant.unwrap_or_default();
-
-        Ok(Expression { mul_terms, linear_combinations, q_c })
+        let terms = self.parse_terms_or_error()?;
+        let expression = build_expression_from_terms(terms.into_iter());
+        Ok(expression)
     }
 
     // TODO: Convert all assertions on input/output lengths to real errors
@@ -618,8 +570,6 @@ impl<'a> Parser<'a> {
     fn parse_memory_op(&mut self) -> ParseResult<Opcode<FieldElement>> {
         self.eat_keyword_or_error(Keyword::MemoryOp)?;
 
-        self.eat_or_error(Token::LeftParen)?;
-
         // Parse `id: <int>`
         self.eat_expected_ident("id")?;
         self.eat_or_error(Token::Colon)?;
@@ -645,7 +595,8 @@ impl<'a> Parser<'a> {
                 (Expression::zero(), index, value)
             }
             "write" => {
-                // write <expr> at: <expr>
+                // write: <expr> at: <expr>
+                self.eat_or_error(Token::Colon)?;
                 let value = self.parse_arithmetic_expression()?;
                 self.eat_expected_ident("at")?;
                 self.eat_or_error(Token::Colon)?;
@@ -660,8 +611,6 @@ impl<'a> Parser<'a> {
                 ]);
             }
         };
-
-        self.eat_or_error(Token::RightParen)?;
 
         Ok(Opcode::MemoryOp { block_id: BlockId(block_id), op: MemOp { index, value, operation } })
     }
@@ -681,8 +630,6 @@ impl<'a> Parser<'a> {
             _ => BlockType::Memory,
         };
 
-        self.eat_or_error(Token::LeftParen)?;
-
         // Parse `id: <int>`
         self.eat_expected_ident("id")?;
         self.eat_or_error(Token::Colon)?;
@@ -699,7 +646,6 @@ impl<'a> Parser<'a> {
         self.eat_expected_ident("witnesses")?;
         self.eat_or_error(Token::Colon)?;
         let init = self.parse_witness_vector()?;
-        self.eat_or_error(Token::RightParen)?;
 
         if init.len() != len as usize {
             return Err(ParserError::InitLengthMismatch {
@@ -759,16 +705,9 @@ impl<'a> Parser<'a> {
                     self.eat_or_error(Token::RightParen)?;
                     BrilligInputs::MemoryArray(BlockId(block_id))
                 }
-                Token::Keyword(Keyword::Expression) => {
+                _ => {
                     let expr = self.parse_arithmetic_expression()?;
                     BrilligInputs::Single(expr)
-                }
-                _ => {
-                    return self.expected_one_of_tokens(&[
-                        Token::LeftBracket,
-                        Token::Ident("MemoryArray".into()),
-                        Token::Keyword(Keyword::Expression),
-                    ]);
                 }
             };
 
@@ -1140,8 +1079,6 @@ pub(crate) enum ParserError {
     ExpectedWitness { found: Token, span: Span },
     #[error("Expected a term, found '{found}'")]
     ExpectedTerm { found: Token, span: Span },
-    #[error("Duplicate constant term in native Expression")]
-    DuplicatedConstantTerm { found: Token, span: Span },
     #[error("Expected valid black box function name, found '{found}'")]
     ExpectedBlackBoxFuncName { found: Token, span: Span },
     #[error("Number does not fit in u32, got: '{number}'")]
@@ -1167,7 +1104,6 @@ impl ParserError {
             | ExpectedFieldElement { span, .. }
             | ExpectedWitness { span, .. }
             | ExpectedTerm { span, .. }
-            | DuplicatedConstantTerm { span, .. }
             | ExpectedBlackBoxFuncName { span, .. }
             | IntegerLargerThanU32 { span, .. }
             | IncorrectInputLength { span, .. }
