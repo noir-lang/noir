@@ -59,10 +59,8 @@ fn basic_call_with_outputs_assert(inline_type: InlineType) {
     private parameters: [w0, w1]
     public parameters: []
     return values: []
-    CALL func 1: predicate: 1
-    inputs: [w0, w1], outputs: [w2]
-    CALL func 1: predicate: 1
-    inputs: [w0, w1], outputs: [w3]
+    CALL func: 1, predicate: 1, inputs: [w0, w1], outputs: [w2]
+    CALL func: 1, predicate: 1, inputs: [w0, w1], outputs: [w3]
     EXPR w3 = w2
 
     func 1
@@ -100,10 +98,8 @@ fn call_output_as_next_call_input(inline_type: InlineType) {
     private parameters: [w0, w1]
     public parameters: []
     return values: []
-    CALL func 1: predicate: 1
-    inputs: [w0, w1], outputs: [w2]
-    CALL func 1: predicate: 1
-    inputs: [w2, w1], outputs: [w3]
+    CALL func: 1, predicate: 1, inputs: [w0, w1], outputs: [w2]
+    CALL func: 1, predicate: 1, inputs: [w2, w1], outputs: [w3]
     EXPR w3 = w2
 
     func 1
@@ -145,10 +141,8 @@ fn basic_nested_call(inline_type: InlineType) {
     private parameters: [w0, w1]
     public parameters: []
     return values: []
-    CALL func 1: predicate: 1
-    inputs: [w0, w1], outputs: [w2]
-    CALL func 1: predicate: 1
-    inputs: [w0, w1], outputs: [w3]
+    CALL func: 1, predicate: 1, inputs: [w0, w1], outputs: [w2]
+    CALL func: 1, predicate: 1, inputs: [w0, w1], outputs: [w3]
     EXPR w3 = w2
 
     func 1
@@ -156,8 +150,7 @@ fn basic_nested_call(inline_type: InlineType) {
     public parameters: []
     return values: [w2]
     EXPR w3 = w0 + 2
-    CALL func 2: predicate: 1
-    inputs: [w3, w1], outputs: [w4]
+    CALL func: 2, predicate: 1, inputs: [w3, w1], outputs: [w4]
     EXPR w4 = w2
 
     func 2

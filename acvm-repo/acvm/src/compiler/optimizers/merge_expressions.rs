@@ -302,7 +302,7 @@ mod tests {
         private parameters: [w0]
         public parameters: []
         return values: []
-        BRILLIG CALL func 0: inputs: [], outputs: [w1]
+        BRILLIG CALL func: 0, inputs: [], outputs: [w1]
         EXPR 2*w0 + 3*w1 + w2 + 1 = 0
         EXPR 2*w0 + 2*w1 + w5 + 1 = 0
         ";
@@ -360,7 +360,7 @@ mod tests {
         private parameters: [w0, w1]
         public parameters: []
         return values: [w2]
-        BRILLIG CALL func 0: inputs: [], outputs: [w3]
+        BRILLIG CALL func: 0, inputs: [], outputs: [w3]
         BLACKBOX::AND [w0, w1]:8 bits [w4]
         EXPR w3 - w4 = 0
         EXPR -w2 + w4 = 0

@@ -656,8 +656,9 @@ impl<'a> Parser<'a> {
         self.eat_keyword_or_error(Keyword::Brillig)?;
         self.eat_keyword_or_error(Keyword::Call)?;
         self.eat_keyword_or_error(Keyword::Function)?;
-        let func_id = self.eat_u32_or_error()?;
         self.eat_or_error(Token::Colon)?;
+        let func_id = self.eat_u32_or_error()?;
+        self.eat_or_error(Token::Comma)?;
 
         let predicate = self.eat_predicate()?;
 
@@ -743,8 +744,9 @@ impl<'a> Parser<'a> {
     fn parse_call(&mut self) -> ParseResult<Opcode<FieldElement>> {
         self.eat_keyword_or_error(Keyword::Call)?;
         self.eat_keyword_or_error(Keyword::Function)?;
-        let id = self.eat_u32_or_error()?;
         self.eat_or_error(Token::Colon)?;
+        let id = self.eat_u32_or_error()?;
+        self.eat_or_error(Token::Comma)?;
         let predicate = self.eat_predicate()?;
 
         self.eat_expected_ident("inputs")?;
@@ -763,6 +765,7 @@ impl<'a> Parser<'a> {
         let mut predicate = None;
         if self.eat_keyword(Keyword::Predicate)? && self.eat(Token::Colon)? {
             let expr = self.parse_arithmetic_expression()?;
+            self.eat_or_error(Token::Comma)?;
             predicate = Some(expr);
         }
         Ok(predicate)

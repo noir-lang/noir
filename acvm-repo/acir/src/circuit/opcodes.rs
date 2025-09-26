@@ -174,9 +174,9 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
             // We keep the display for a BrilligCall and circuit Call separate as they
             // are distinct in their functionality and we should maintain this separation for debugging.
             Opcode::BrilligCall { id, inputs, outputs, predicate } => {
-                write!(f, "BRILLIG CALL func {id}: ")?;
+                write!(f, "BRILLIG CALL func: {id}, ")?;
                 if let Some(pred) = predicate {
-                    writeln!(f, "predicate: {pred}")?;
+                    write!(f, "predicate: {pred}, ")?;
                 }
 
                 let inputs = inputs
@@ -194,9 +194,9 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
                 write!(f, "outputs: [{outputs}]")
             }
             Opcode::Call { id, inputs, outputs, predicate } => {
-                write!(f, "CALL func {id}: ")?;
+                write!(f, "CALL func: {id}, ")?;
                 if let Some(pred) = predicate {
-                    writeln!(f, "predicate: {pred}")?;
+                    write!(f, "predicate: {pred}, ")?;
                 }
                 let inputs =
                     inputs.iter().map(|w| format!("{w}")).collect::<Vec<String>>().join(", ");
