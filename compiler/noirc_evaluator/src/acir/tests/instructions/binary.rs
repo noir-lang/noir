@@ -399,6 +399,88 @@ fn div_u8_with_predicate() {
 }
 
 #[test]
+fn div_i8_by_var() {
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: i8, v1: i8):
+        v2 = div v0, v1
+        return v2
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    // - w3 and w4 are the quotient and remainder of dividing w1 by 128
+    // - w5 and w6 are the quotient and remainder of dividing w0 by 128
+    // - the two witnesses above will help to deduce the sign of w0 and w1,
+    //   as positive numbers are in the range 0..127 while negative ones are in 128..255
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    current witness: w25
+    private parameters: [w0, w1]
+    public parameters: []
+    return values: [w2]
+    BLACKBOX::RANGE [w0]:8 bits []
+    BLACKBOX::RANGE [w1]:8 bits []
+    BRILLIG CALL func 0: inputs: [w1, 128], outputs: [w3, w4]
+    BLACKBOX::RANGE [w3]:1 bits []
+    BLACKBOX::RANGE [w4]:7 bits []
+    EXPR w4 = w1 - 128*w3
+    BRILLIG CALL func 0: inputs: [w0, 128], outputs: [w5, w6]
+    BLACKBOX::RANGE [w5]:1 bits []
+    BLACKBOX::RANGE [w6]:7 bits []
+    EXPR w6 = w0 - 128*w5
+    BRILLIG CALL func 1: inputs: [-2*w1*w3 + w1 + 256*w3], outputs: [w7]
+    EXPR w8 = -2*w1*w3 + w1 + 256*w3
+    EXPR 0 = w7*w8 - 1
+    BRILLIG CALL func 0: inputs: [-2*w0*w5 + w0 + 256*w5, w8], outputs: [w9, w10]
+    BLACKBOX::RANGE [w9]:8 bits []
+    BLACKBOX::RANGE [w10]:8 bits []
+    EXPR w11 = w8 - w10 - 1
+    BLACKBOX::RANGE [w11]:8 bits []
+    EXPR w10 = -2*w0*w5 - w8*w9 + w0 + 256*w5
+    EXPR w12 = -w9 + 128
+    EXPR w13 = -2*w3*w5 + w3 + w5
+    BRILLIG CALL func 1: inputs: [w9], outputs: [w14]
+    EXPR w15 = -w9*w14 + 1
+    EXPR 0 = w9*w15
+    EXPR w16 = 2*w12*w13 + w9
+    EXPR w17 = -w15 + 1
+    BRILLIG CALL func 1: inputs: [w10], outputs: [w18]
+    EXPR w19 = -w10*w18 + 1
+    EXPR 0 = w10*w19
+    EXPR w20 = -2*w5*w10 + 256*w5 + w10
+    EXPR w21 = -w19 + 1
+    BRILLIG CALL func 1: PREDICATE: -w13 + 1
+    inputs: [w16*w17 - 128], outputs: [w22]
+    EXPR w23 = w16*w17 - 128
+    EXPR w24 = w22*w23
+    EXPR w25 = -w13 + 1
+    EXPR w25 = w24*w25
+    EXPR w2 = w16*w17
+
+    unconstrained func 0: directive_integer_quotient
+    0: @10 = const u32 2
+    1: @11 = const u32 0
+    2: @0 = calldata copy [@11; @10]
+    3: @2 = field int_div @0, @1
+    4: @1 = field mul @2, @1
+    5: @1 = field sub @0, @1
+    6: @0 = @2
+    7: stop &[@11; @10]
+    unconstrained func 1: directive_invert
+    0: @21 = const u32 1
+    1: @20 = const u32 0
+    2: @0 = calldata copy [@20; @21]
+    3: @2 = const field 0
+    4: @3 = field eq @0, @2
+    5: jump if @3 to 8
+    6: @1 = const field 1
+    7: @0 = field field_div @1, @0
+    8: stop &[@20; @21]
+    ");
+}
+
+#[test]
 fn mod_u8_no_predicate() {
     let src = "
     acir(inline) fn main f0 {
