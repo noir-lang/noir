@@ -495,6 +495,7 @@ fn or_u8() {
     ";
     let program = ssa_to_acir_program(src);
 
+    // x | y = !!(x | y) = !(!x & !y)
     assert_circuit_snapshot!(program, @r"
     func 0
     current witness: w5
