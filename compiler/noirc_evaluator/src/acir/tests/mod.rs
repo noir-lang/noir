@@ -94,7 +94,7 @@ fn unchecked_mul_should_not_have_range_check() {
     return values: [w2]
     BLACKBOX::RANGE input: w0, bits: 32
     BLACKBOX::RANGE input: w1, bits: 32
-    EXPR w2 = w0*w1
+    CONSTRAIN w2 = w0*w1
     ");
 }
 

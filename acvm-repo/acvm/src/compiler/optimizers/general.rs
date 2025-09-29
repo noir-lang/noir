@@ -92,7 +92,7 @@ mod tests {
         return values: []
 
         // The first multiplication should be removed
-        EXPR 0*w0*w1 + w0*w1 = 0
+        CONSTRAIN 0*w0*w1 + w0*w1 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
         let optimized_circuit = optimize(circuit);
@@ -100,7 +100,7 @@ mod tests {
         private parameters: [w0, w1]
         public parameters: []
         return values: []
-        EXPR 0 = w0*w1
+        CONSTRAIN 0 = w0*w1
         ");
     }
 
@@ -112,7 +112,7 @@ mod tests {
         return values: []
 
         // The first linear combination should be removed
-        EXPR 0*w0 + w1 = 0
+        CONSTRAIN 0*w0 + w1 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
         let optimized_circuit = optimize(circuit);
@@ -120,7 +120,7 @@ mod tests {
         private parameters: [w0, w1]
         public parameters: []
         return values: []
-        EXPR w1 = 0
+        CONSTRAIN w1 = 0
         ");
     }
 
@@ -133,7 +133,7 @@ mod tests {
 
         // There are all mul terms with the same variables so we should end up with just one
         // that is the sum of all the coefficients
-        EXPR 2*w0*w1 + 3*w1*w0 + 4*w0*w1 = 0
+        CONSTRAIN 2*w0*w1 + 3*w1*w0 + 4*w0*w1 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
         let optimized_circuit = optimize(circuit);
@@ -141,7 +141,7 @@ mod tests {
         private parameters: [w0, w1]
         public parameters: []
         return values: []
-        EXPR 0 = 9*w0*w1
+        CONSTRAIN 0 = 9*w0*w1
         ");
     }
 
@@ -151,7 +151,7 @@ mod tests {
         private parameters: [w0, w1]
         public parameters: []
         return values: []
-        EXPR 2*w0*w1 + 3*w1*w0 - 5*w0*w1 = 0
+        CONSTRAIN 2*w0*w1 + 3*w1*w0 - 5*w0*w1 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
         let optimized_circuit = optimize(circuit);
@@ -159,7 +159,7 @@ mod tests {
         private parameters: [w0, w1]
         public parameters: []
         return values: []
-        EXPR 0 = 0
+        CONSTRAIN 0 = 0
         ");
     }
 
@@ -172,7 +172,7 @@ mod tests {
 
         // These are all linear terms with the same variable so we should end up with just one
         // that is the sum of all the coefficients
-        EXPR w0 + 2*w0 + 3*w0 = 0
+        CONSTRAIN w0 + 2*w0 + 3*w0 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
         let optimized_circuit = optimize(circuit);
@@ -180,7 +180,7 @@ mod tests {
         private parameters: [w0, w1]
         public parameters: []
         return values: []
-        EXPR 0 = 6*w0
+        CONSTRAIN 0 = 6*w0
         ");
     }
 
@@ -190,7 +190,7 @@ mod tests {
         private parameters: [w0, w1]
         public parameters: []
         return values: []
-        EXPR w0 + 2*w0 - 3*w0 = 0
+        CONSTRAIN w0 + 2*w0 - 3*w0 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
         let optimized_circuit = optimize(circuit);
@@ -198,7 +198,7 @@ mod tests {
         private parameters: [w0, w1]
         public parameters: []
         return values: []
-        EXPR 0 = 0
+        CONSTRAIN 0 = 0
         ");
     }
 }

@@ -27,7 +27,7 @@ impl SpannedToken {
 pub(crate) enum Token {
     /// Identifier such as `RANGE`, `AND`, etc.
     Ident(String),
-    /// Reserved identifiers such as `EXPR`.
+    /// Reserved identifiers such as `CONSTRAIN`.
     /// Most words in ACIR's human readable are expected to be keywords
     Keyword(Keyword),
     /// Witness index, like `w42`
@@ -110,8 +110,8 @@ pub(crate) enum Keyword {
     Value,
     /// values
     Values,
-    /// EXPR
-    Expression,
+    /// CONSTRAIN
+    Constrain,
     /// BLACKBOX
     BlackBoxFuncCall,
     /// INIT
@@ -153,7 +153,7 @@ impl Keyword {
             "return" => Keyword::Return,
             "value" => Keyword::Value,
             "values" => Keyword::Values,
-            "EXPR" => Keyword::Expression,
+            "CONSTRAIN" => Keyword::Constrain,
             "BLACKBOX" => Keyword::BlackBoxFuncCall,
             "INIT" => Keyword::MemoryInit,
             "READ" => Keyword::MemoryRead,
@@ -184,7 +184,7 @@ impl std::fmt::Display for Keyword {
             Keyword::Return => write!(f, "return"),
             Keyword::Value => write!(f, "value"),
             Keyword::Values => write!(f, "values"),
-            Keyword::Expression => write!(f, "EXPR"),
+            Keyword::Constrain => write!(f, "CONSTRAIN"),
             Keyword::BlackBoxFuncCall => write!(f, "BLACKBOX"),
             Keyword::MemoryInit => write!(f, "INIT"),
             Keyword::MemoryRead => write!(f, "READ"),
