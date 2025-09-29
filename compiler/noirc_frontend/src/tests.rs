@@ -4358,6 +4358,20 @@ fn attempt_to_divide_by_zero_at_comptime() {
 }
 
 #[test]
+fn attempt_to_modulo_by_zero_at_comptime() {
+    let src = r#"
+        fn main() -> pub u8 {
+            comptime {
+                255 as u8 % 0
+                ^^^^^^^^^^^^^ Attempt to calculate the remainder with a divisor of zero
+            }
+        }
+
+        "#;
+    check_errors!(src);
+}
+
+#[test]
 fn same_name_in_types_and_values_namespace_works() {
     let src = "
     struct foo {}

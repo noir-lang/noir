@@ -5,9 +5,7 @@ use super::{
     ir::{
         dfg::DataFlowGraph,
         function::{Function, FunctionId, RuntimeType},
-        instruction::{
-            ArrayOffset, Binary, BinaryOp, ConstrainError, Instruction, TerminatorInstruction,
-        },
+        instruction::{Binary, BinaryOp, ConstrainError, Instruction, TerminatorInstruction},
         types::Type,
         value::ValueId,
     },
@@ -73,7 +71,7 @@ impl CallContext {
 }
 
 type IResult<T> = Result<T, InterpreterError>;
-type IResults = IResult<Vec<Value>>;
+pub type IResults = IResult<Vec<Value>>;
 
 #[allow(unused)]
 impl Ssa {
@@ -585,19 +583,17 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 self.side_effects_enabled = self.lookup_bool(*condition, "enable_side_effects")?;
                 Ok(())
             }
-            Instruction::ArrayGet { array, index, offset } => {
-                self.interpret_array_get(*array, *index, *offset, results[0], side_effects_enabled)
+            Instruction::ArrayGet { array, index } => {
+                self.interpret_array_get(*array, *index, results[0], side_effects_enabled)
             }
-            Instruction::ArraySet { array, index, value, mutable, offset } => self
-                .interpret_array_set(
-                    *array,
-                    *index,
-                    *value,
-                    *mutable,
-                    *offset,
-                    results[0],
-                    side_effects_enabled,
-                ),
+            Instruction::ArraySet { array, index, value, mutable } => self.interpret_array_set(
+                *array,
+                *index,
+                *value,
+                *mutable,
+                results[0],
+                side_effects_enabled,
+            ),
             Instruction::IncrementRc { value } => self.interpret_inc_rc(*value),
             Instruction::DecrementRc { value } => self.interpret_dec_rc(*value),
             Instruction::IfElse { then_condition, then_value, else_condition, else_value } => self
@@ -892,10 +888,10 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         &mut self,
         array: ValueId,
         index: ValueId,
-        offset: ArrayOffset,
         result: ValueId,
         side_effects_enabled: bool,
     ) -> IResult<()> {
+        let offset = self.dfg().array_offset(array, index);
         let array = self.lookup_array_or_slice(array, "array get")?;
         let index = self.lookup_u32(index, "array get index")?;
         let mut index = index - offset.to_u32();
@@ -959,10 +955,10 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         index: ValueId,
         value: ValueId,
         mutable: bool,
-        offset: ArrayOffset,
         result: ValueId,
         side_effects_enabled: bool,
     ) -> IResult<()> {
+        let offset = self.dfg().array_offset(array, index);
         let array = self.lookup_array_or_slice(array, "array set")?;
 
         let result_array = if side_effects_enabled {
@@ -1342,30 +1338,20 @@ fn evaluate_binary(
         BinaryOp::Mul { unchecked: true } => {
             apply_int_binop!(lhs, rhs, binary, num_traits::WrappingMul::wrapping_mul)
         }
-        BinaryOp::Div => {
-            apply_int_binop_opt!(
-                lhs,
-                rhs,
-                binary,
-                num_traits::CheckedDiv::checked_div,
-                display_binary
-            )
-        }
-        BinaryOp::Mod => match (lhs, rhs) {
-            (NumericValue::I8(i8::MIN), NumericValue::I8(-1)) => NumericValue::I8(0),
-            (NumericValue::I16(i16::MIN), NumericValue::I16(-1)) => NumericValue::I16(0),
-            (NumericValue::I32(i32::MIN), NumericValue::I32(-1)) => NumericValue::I32(0),
-            (NumericValue::I64(i64::MIN), NumericValue::I64(-1)) => NumericValue::I64(0),
-            _ => {
-                apply_int_binop_opt!(
-                    lhs,
-                    rhs,
-                    binary,
-                    num_traits::CheckedRem::checked_rem,
-                    display_binary
-                )
-            }
-        },
+        BinaryOp::Div => apply_int_binop_opt!(
+            lhs,
+            rhs,
+            binary,
+            num_traits::CheckedDiv::checked_div,
+            display_binary
+        ),
+        BinaryOp::Mod => apply_int_binop_opt!(
+            lhs,
+            rhs,
+            binary,
+            num_traits::CheckedRem::checked_rem,
+            display_binary
+        ),
         BinaryOp::Eq => apply_int_comparison_op!(lhs, rhs, binary, |a, b| a == b),
         BinaryOp::Lt => apply_int_comparison_op!(lhs, rhs, binary, |a, b| a < b),
         BinaryOp::And => {

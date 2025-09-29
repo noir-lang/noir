@@ -2,6 +2,7 @@ use std::{borrow::Cow, sync::Arc};
 
 use crate::ssa::{
     function_builder::data_bus::DataBus,
+    ir::instruction::ArrayOffset,
     opt::pure::{FunctionPurities, Purity},
 };
 
@@ -107,6 +108,9 @@ pub(crate) struct DataFlowGraph {
 
     #[serde(skip)]
     pub(crate) function_purities: Arc<FunctionPurities>,
+
+    /// Indicate whether the Brillig array index offset optimizations have been performed.
+    pub(crate) brillig_arrays_offset: bool,
 }
 
 /// The GlobalsGraph contains the actual global data.
@@ -529,7 +533,7 @@ impl DataFlowGraph {
             Value::Instruction { instruction, .. } => {
                 let value_bit_size = self.type_of_value(value).bit_size();
                 if let Instruction::Cast(original_value, _) = self[instruction] {
-                    let original_bit_size = self.type_of_value(original_value).bit_size();
+                    let original_bit_size = self.get_value_max_num_bits(original_value);
                     // We might have cast e.g. `u1` to `u8` to be able to do arithmetic,
                     // in which case we want to recover the original smaller bit size;
                     // OTOH if we cast down, then we don't need the higher original size.
@@ -553,6 +557,19 @@ impl DataFlowGraph {
     /// Returns all of result values which are attached to this instruction.
     pub(crate) fn instruction_results(&self, instruction_id: InstructionId) -> &[ValueId] {
         self.results.get(&instruction_id).expect("expected a list of Values").as_slice()
+    }
+
+    /// Returns N results, asserting that there are exactly N items.
+    pub(crate) fn instruction_result<const N: usize>(
+        &self,
+        instruction_id: InstructionId,
+    ) -> [ValueId; N] {
+        let results = self.instruction_results(instruction_id);
+        if results.len() != N {
+            let instruction = &self[instruction_id];
+            panic!("expected {instruction:?} to have {N} results; got {}", results.len());
+        }
+        std::array::from_fn(|i| results[i])
     }
 
     /// Remove an instruction by replacing it with a `Noop` instruction.
@@ -599,17 +616,12 @@ impl DataFlowGraph {
         }
     }
 
-    /// Returns the Value::Array associated with this ValueId if it refers to an array constant.
+    /// Returns the item values in with this ValueId if it refers to an array constant, along with the type of the array item.
     /// Otherwise, this returns None.
     pub(crate) fn get_array_constant(&self, value: ValueId) -> Option<(im::Vector<ValueId>, Type)> {
-        if let Some(instruction) = self.get_local_or_global_instruction(value) {
-            match instruction {
-                Instruction::MakeArray { elements, typ } => Some((elements.clone(), typ.clone())),
-                _ => None,
-            }
-        } else {
-            // Arrays are shared, so cloning them is cheap
-            None
+        match self.get_local_or_global_instruction(value)? {
+            Instruction::MakeArray { elements, typ } => Some((elements.clone(), typ.clone())),
+            _ => None,
         }
     }
 
@@ -765,6 +777,21 @@ impl DataFlowGraph {
 
     pub(crate) fn purity_of(&self, function: FunctionId) -> Option<Purity> {
         self.function_purities.get(&function).copied()
+    }
+
+    /// Determine the appropriate [ArrayOffset] to use for indexing an array or slice.
+    pub(crate) fn array_offset(&self, array: ValueId, index: ValueId) -> ArrayOffset {
+        if !self.runtime.is_brillig()
+            || !self.brillig_arrays_offset
+            || self.get_numeric_constant(index).is_none()
+        {
+            return ArrayOffset::None;
+        }
+        match self.type_of_value(array) {
+            Type::Array(_, _) => ArrayOffset::Array,
+            Type::Slice(_) => ArrayOffset::Slice,
+            _ => ArrayOffset::None,
+        }
     }
 }
 

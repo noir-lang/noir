@@ -522,7 +522,7 @@ impl DependencyContext {
                     // For array get operations, we check the Brillig calls for
                     // results involving the array in question, to properly
                     // populate the array element tainted sets
-                    Instruction::ArrayGet { array, index, offset: _ } => {
+                    Instruction::ArrayGet { array, index } => {
                         self.process_array_get(*array, *index, &results, function);
                         // Record all the used arguments as parents of the results
                         self.update_children(&arguments, &results);

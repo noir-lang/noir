@@ -5,7 +5,6 @@ use noirc_driver::{CompileOptions, CompiledProgram};
 use noirc_evaluator::ssa::function_builder::FunctionBuilder;
 use noirc_evaluator::ssa::ir::basic_block::BasicBlockId;
 use noirc_evaluator::ssa::ir::function::{Function, RuntimeType};
-use noirc_evaluator::ssa::ir::instruction::ArrayOffset;
 use noirc_evaluator::ssa::ir::instruction::BinaryOp;
 use noirc_evaluator::ssa::ir::map::Id;
 use noirc_evaluator::ssa::ir::types::Type as SsaType;
@@ -465,7 +464,6 @@ impl FuzzerBuilder {
             let byte = self.builder.insert_array_get(
                 array.value_id,
                 index,
-                ArrayOffset::None,
                 SsaType::Numeric(NumericType::U8.into()),
             );
             let byte_as_field = self.builder.insert_cast(byte, NumericType::Field.into());
@@ -703,7 +701,6 @@ impl FuzzerBuilder {
         let res = self.builder.insert_array_get(
             array.value_id,
             index.value_id,
-            ArrayOffset::None,
             element_type.clone().into(),
         );
         TypedValue::new(res, element_type)
@@ -731,13 +728,8 @@ impl FuzzerBuilder {
         } else {
             index
         };
-        let res = self.builder.insert_array_set(
-            array.value_id,
-            index.value_id,
-            value.value_id,
-            false,
-            ArrayOffset::None,
-        );
+        let res =
+            self.builder.insert_array_set(array.value_id, index.value_id, value.value_id, false);
         TypedValue::new(res, Type::Array(array_type.clone(), array_length))
     }
 
@@ -799,18 +791,8 @@ impl FuzzerBuilder {
         let result = result[0];
         let x_idx = self.builder.numeric_constant(0_u32, NumericType::U32.into());
         let y_idx = self.builder.numeric_constant(1_u32, NumericType::U32.into());
-        let x = self.builder.insert_array_get(
-            result,
-            x_idx,
-            ArrayOffset::None,
-            field_type.clone().into(),
-        );
-        let y = self.builder.insert_array_get(
-            result,
-            y_idx,
-            ArrayOffset::None,
-            field_type.clone().into(),
-        );
+        let x = self.builder.insert_array_get(result, x_idx, field_type.clone().into());
+        let y = self.builder.insert_array_get(result, y_idx, field_type.clone().into());
         Point {
             x: TypedValue::new(x, field_type.clone()),
             y: TypedValue::new(y, field_type),
@@ -886,24 +868,10 @@ impl FuzzerBuilder {
         let x_idx = self.builder.numeric_constant(0_u32, NumericType::U32.into());
         let y_idx = self.builder.numeric_constant(1_u32, NumericType::U32.into());
         let is_infinite_idx = self.builder.numeric_constant(2_u32, NumericType::U32.into());
-        let x = self.builder.insert_array_get(
-            result,
-            x_idx,
-            ArrayOffset::None,
-            field_type.clone().into(),
-        );
-        let y = self.builder.insert_array_get(
-            result,
-            y_idx,
-            ArrayOffset::None,
-            field_type.clone().into(),
-        );
-        let is_infinite = self.builder.insert_array_get(
-            result,
-            is_infinite_idx,
-            ArrayOffset::None,
-            boolean_type.clone().into(),
-        );
+        let x = self.builder.insert_array_get(result, x_idx, field_type.clone().into());
+        let y = self.builder.insert_array_get(result, y_idx, field_type.clone().into());
+        let is_infinite =
+            self.builder.insert_array_get(result, is_infinite_idx, boolean_type.clone().into());
         Point {
             x: TypedValue::new(x, field_type.clone()),
             y: TypedValue::new(y, field_type),
@@ -935,24 +903,10 @@ impl FuzzerBuilder {
         let x_idx = self.builder.numeric_constant(0_u32, NumericType::U32.into());
         let y_idx = self.builder.numeric_constant(1_u32, NumericType::U32.into());
         let is_infinite_idx = self.builder.numeric_constant(2_u32, NumericType::U32.into());
-        let x = self.builder.insert_array_get(
-            result,
-            x_idx,
-            ArrayOffset::None,
-            field_type.clone().into(),
-        );
-        let y = self.builder.insert_array_get(
-            result,
-            y_idx,
-            ArrayOffset::None,
-            field_type.clone().into(),
-        );
-        let is_infinite = self.builder.insert_array_get(
-            result,
-            is_infinite_idx,
-            ArrayOffset::None,
-            boolean_type.clone().into(),
-        );
+        let x = self.builder.insert_array_get(result, x_idx, field_type.clone().into());
+        let y = self.builder.insert_array_get(result, y_idx, field_type.clone().into());
+        let is_infinite =
+            self.builder.insert_array_get(result, is_infinite_idx, boolean_type.clone().into());
         Point {
             x: TypedValue::new(x, field_type.clone()),
             y: TypedValue::new(y, field_type),

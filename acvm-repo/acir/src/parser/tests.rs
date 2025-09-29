@@ -1,3 +1,5 @@
+use insta::assert_snapshot;
+
 use crate::{
     circuit::{Circuit, Program},
     parser::ParserError,
@@ -102,11 +104,11 @@ fn assert_zero_opcodes() {
     private parameters: [w0, w1, w2, w3, w4]
     public parameters: [w5, w6, w7, w8, w9]
     return values: []
-    EXPR [ (1, w0) (-1, w5) 0 ]
-    EXPR [ (1, w1) (-1, w6) 0 ]
-    EXPR [ (1, w2) (-1, w7) 0 ]
-    EXPR [ (1, w3) (-1, w8) 0 ]
-    EXPR [ (1, w4) (-1, w9) 0 ]    
+    EXPR w5 = w0
+    EXPR w6 = w1
+    EXPR w7 = w2
+    EXPR w8 = w3
+    EXPR w9 = w4
     ";
     assert_circuit_roundtrip(src);
 }
@@ -118,11 +120,11 @@ fn assert_zero_with_mul_terms() {
     private parameters: [w0, w1, w2]
     public parameters: []
     return values: []
-    EXPR [ (1, w0, w1) (-1, w3) 0 ]
-    EXPR [ (1, w3, w3) (-1, w4) 0 ]
-    EXPR [ (1, w4, w4) (-1, w5) 0 ]
-    EXPR [ (1, w5, w5) (-1, w6) 0 ]
-    EXPR [ (-1, w2) (1, w6) 0 ]
+    EXPR w3 = w0*w1
+    EXPR w4 = w3*w3
+    EXPR w5 = w4*w4
+    EXPR w6 = w5*w5
+    EXPR w6 = w2
     ";
     assert_circuit_roundtrip(src);
 }
@@ -149,7 +151,7 @@ fn xor() {
     BLACKBOX::RANGE [w0]:32 bits []
     BLACKBOX::RANGE [w1]:32 bits []
     BLACKBOX::XOR [w0, w1]:32 bits [w2]
-    EXPR [ (1, w2) -15 ]
+    EXPR w2 = 15
     ";
     assert_circuit_roundtrip(src);
 }
@@ -223,22 +225,22 @@ fn aes128_encrypt() {
     BLACKBOX::RANGE [w58]:8 bits []
     BLACKBOX::RANGE [w59]:8 bits []
     BLACKBOX::AES128_ENCRYPT [w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25, w26, w27, w28, w29, w30, w31, w32, w33, w34, w35, w36, w37, w38, w39, w40, w41, w42, w43] [w60, w61, w62, w63, w64, w65, w66, w67, w68, w69, w70, w71, w72, w73, w74, w75]
-    EXPR [ (-1, w44) (1, w60) 0 ]
-    EXPR [ (-1, w45) (1, w61) 0 ]
-    EXPR [ (-1, w46) (1, w62) 0 ]
-    EXPR [ (-1, w47) (1, w63) 0 ]
-    EXPR [ (-1, w48) (1, w64) 0 ]
-    EXPR [ (-1, w49) (1, w65) 0 ]
-    EXPR [ (-1, w50) (1, w66) 0 ]
-    EXPR [ (-1, w51) (1, w67) 0 ]
-    EXPR [ (-1, w52) (1, w68) 0 ]
-    EXPR [ (-1, w53) (1, w69) 0 ]
-    EXPR [ (-1, w54) (1, w70) 0 ]
-    EXPR [ (-1, w55) (1, w71) 0 ]
-    EXPR [ (-1, w56) (1, w72) 0 ]
-    EXPR [ (-1, w57) (1, w73) 0 ]
-    EXPR [ (-1, w58) (1, w74) 0 ]
-    EXPR [ (-1, w59) (1, w75) 0 ]
+    EXPR w60 = w44
+    EXPR w61 = w45
+    EXPR w62 = w46
+    EXPR w63 = w47
+    EXPR w64 = w48
+    EXPR w65 = w49
+    EXPR w66 = w50
+    EXPR w67 = w51
+    EXPR w68 = w52
+    EXPR w69 = w53
+    EXPR w70 = w54
+    EXPR w71 = w55
+    EXPR w72 = w56
+    EXPR w73 = w57
+    EXPR w74 = w58
+    EXPR w75 = w59
     ";
     assert_circuit_roundtrip(src);
 }
@@ -463,7 +465,7 @@ fn memory_read() {
     private parameters: []
     public parameters: []
     return values: []
-    MEM (id: 0, read at: EXPR [ (1, w0) 0 ], value: EXPR [ (1, w1) 0 ]) 
+    MEM id: 0, read at: w0, value: w1
     ";
     assert_circuit_roundtrip(src);
 }
@@ -475,7 +477,7 @@ fn memory_write() {
     private parameters: []
     public parameters: []
     return values: []
-    MEM (id: 3, write EXPR [ (1, w0) 0 ] at: EXPR [ (1, w1) 0 ])
+    MEM id: 3, write: w0 at: w1
     ";
     assert_circuit_roundtrip(src);
 }
@@ -487,7 +489,7 @@ fn memory_init() {
     private parameters: []
     public parameters: []
     return values: []
-    INIT (id: 4, len: 5, witnesses: [w0, w1, w2, w3, w4])
+    INIT id: 4, len: 5, witnesses: [w0, w1, w2, w3, w4]
     ";
     assert_circuit_roundtrip(src);
 }
@@ -499,7 +501,7 @@ fn memory_init_duplicate_witness() {
     private parameters: []
     public parameters: []
     return values: []
-    INIT (id: 4, len: 2, witnesses: [w0, w0])
+    INIT id: 4, len: 2, witnesses: [w0, w0]
     ";
     assert_circuit_roundtrip(src);
 }
@@ -511,8 +513,8 @@ fn memory_databus() {
     private parameters: [w0, w1, w2, w3, w4, w5]
     public parameters: []
     return values: []
-    INIT CALLDATA 0 (id: 1, len: 5, witnesses: [w1, w2, w3, w4, w5])
-    INIT RETURNDATA (id: 2, len: 1, witnesses: [w6])
+    INIT CALLDATA 0 id: 1, len: 5, witnesses: [w1, w2, w3, w4, w5]
+    INIT RETURNDATA id: 2, len: 1, witnesses: [w6]
     ";
     assert_circuit_roundtrip(src);
 }
@@ -524,9 +526,9 @@ fn brillig_call() {
     private parameters: [w0, w1, w2]
     public parameters: []
     return values: []
-    BRILLIG CALL func 0: inputs: [EXPR [ (1, w0) (-1, w1) 0 ]], outputs: [w3]
-    EXPR [ (1, w0, w3) (-1, w1, w3) -1 ]
-    EXPR [ (-1, w0) (1, w2) 0 ]
+    BRILLIG CALL func 0: inputs: [w0 - w1], outputs: [w3]
+    EXPR 0 = w0*w3 - w1*w3 - 1
+    EXPR w2 = w0
     ";
     assert_circuit_roundtrip(src);
 }
@@ -538,10 +540,10 @@ fn brillig_call_with_predicate() {
     private parameters: [w0, w1, w2]
     public parameters: []
     return values: []
-    BRILLIG CALL func 0: PREDICATE: EXPR [ 1 ]
-    inputs: [EXPR [ (1, w0) (-1, w1) 0 ]], outputs: [w3]
-    EXPR [ (1, w0, w3) (-1, w1, w3) -1 ]
-    EXPR [ (-1, w0) (1, w2) 0 ]
+    BRILLIG CALL func 0: PREDICATE: 1
+    inputs: [w0 - w1], outputs: [w3]
+    EXPR 0 = w0*w3 - w1*w3 - 1
+    EXPR w2 = w0
     ";
     assert_circuit_roundtrip(src);
 }
@@ -553,7 +555,7 @@ fn brillig_call_with_memory_array_input() {
     private parameters: [w0, w1, w2]
     public parameters: []
     return values: []
-    BRILLIG CALL func 0: inputs: [EXPR [ 2 ], MemoryArray(0)], outputs: []
+    BRILLIG CALL func 0: inputs: [2, MemoryArray(0)], outputs: []
     ";
     assert_circuit_roundtrip(src);
 }
@@ -577,7 +579,7 @@ fn call_with_predicate() {
     private parameters: [w0]
     public parameters: [w1]
     return values: []
-    CALL func 1: PREDICATE: EXPR [ 1 ]
+    CALL func 1: PREDICATE: 1
     inputs: [w0, w1], outputs: [w2]
     ";
     assert_circuit_roundtrip(src);
@@ -596,107 +598,107 @@ fn array_dynamic() {
     BLACKBOX::RANGE [w2]:32 bits []
     BLACKBOX::RANGE [w3]:32 bits []
     BLACKBOX::RANGE [w4]:32 bits []
-    INIT (id: 0, len: 5, witnesses: [w0, w1, w2, w3, w4])
+    INIT id: 0, len: 5, witnesses: [w0, w1, w2, w3, w4]
     BLACKBOX::RANGE [w5]:32 bits []
     BLACKBOX::RANGE [w6]:32 bits []
-    INIT (id: 1, len: 5, witnesses: [w7, w8, w9, w10, w11])
+    INIT id: 1, len: 5, witnesses: [w7, w8, w9, w10, w11]
     BLACKBOX::RANGE [w12]:32 bits []
     BLACKBOX::RANGE [w13]:32 bits []
     BLACKBOX::RANGE [w14]:32 bits []
     BLACKBOX::RANGE [w15]:32 bits []
     BLACKBOX::RANGE [w16]:32 bits []
     BLACKBOX::RANGE [w17]:32 bits []
-    EXPR [ (5, w6) (-1, w19) 0 ]
+    EXPR w19 = 5*w6
     BLACKBOX::RANGE [w19]:32 bits []
-    EXPR [ (1, w5) (-1, w19) (-1, w20) 0 ]
+    EXPR w20 = w5 - w19
     BLACKBOX::RANGE [w20]:32 bits []
-    EXPR [ (1, w20) (-1, w21) -5 ]
-    EXPR [ (1, w21) (-1, w22) -3 ]
-    MEM (id: 0, read at: EXPR [ (1, w21) 0 ], value: EXPR [ (1, w23) 0 ]) 
-    EXPR [ (1, w23) -111 ]
-    MEM (id: 0, read at: EXPR [ (1, w22) 0 ], value: EXPR [ (1, w24) 0 ]) 
-    EXPR [ (1, w24) -101 ]
-    BRILLIG CALL func 0: inputs: [EXPR [ (1, w22) 4294967291 ], EXPR [ 4294967296 ]], outputs: [w25, w26]
+    EXPR w21 = w20 - 5
+    EXPR w22 = w21 - 3
+    MEM id: 0, read at: w21, value: w23
+    EXPR w23 = 111
+    MEM id: 0, read at: w22, value: w24
+    EXPR w24 = 101
+    BRILLIG CALL func 0: inputs: [w22 + 4294967291, 4294967296], outputs: [w25, w26]
     BLACKBOX::RANGE [w26]:32 bits []
-    EXPR [ (1, w22) (-4294967296, w25) (-1, w26) 4294967291 ]
-    EXPR [ (-1, w25) 0 ]
-    EXPR [ (-1, w27) 0 ]
-    MEM (id: 0, write EXPR [ (1, w27) 0 ] at: EXPR [ (1, w22) 0 ]) 
-    MEM (id: 0, read at: EXPR [ (1, w21) 0 ], value: EXPR [ (1, w28) 0 ]) 
-    EXPR [ (1, w28) -111 ]
-    EXPR [ (-1, w29) 1 ]
-    MEM (id: 0, read at: EXPR [ (1, w29) 0 ], value: EXPR [ (1, w30) 0 ]) 
-    EXPR [ (1, w30) 0 ]
-    BRILLIG CALL func 0: inputs: [EXPR [ (1, w21) 4294967286 ], EXPR [ 4294967296 ]], outputs: [w31, w32]
+    EXPR w26 = w22 - 4294967296*w25 + 4294967291
+    EXPR w25 = 0
+    EXPR w27 = 0
+    MEM id: 0, write: w27 at: w22
+    MEM id: 0, read at: w21, value: w28
+    EXPR w28 = 111
+    EXPR w29 = 1
+    MEM id: 0, read at: w29, value: w30
+    EXPR w30 = 0
+    BRILLIG CALL func 0: inputs: [w21 + 4294967286, 4294967296], outputs: [w31, w32]
     BLACKBOX::RANGE [w31]:1 bits []
     BLACKBOX::RANGE [w32]:32 bits []
-    EXPR [ (1, w21) (-4294967296, w31) (-1, w32) 4294967286 ]
-    EXPR [ (-1, w21, w31) (1, w21) (-1, w33) 0 ]
-    MEM (id: 0, read at: EXPR [ (1, w33) 0 ], value: EXPR [ (1, w34) 0 ]) 
-    EXPR [ (-1, w31, w34) (2, w31) (1, w34) (-1, w35) -2 ]
+    EXPR w32 = w21 - 4294967296*w31 + 4294967286
+    EXPR w33 = -w21*w31 + w21
+    MEM id: 0, read at: w33, value: w34
+    EXPR w35 = -w31*w34 + 2*w31 + w34 - 2
     BLACKBOX::RANGE [w35]:32 bits []
-    BRILLIG CALL func 0: inputs: [EXPR [ (1, w21) 4294967291 ], EXPR [ 4294967296 ]], outputs: [w36, w37]
+    BRILLIG CALL func 0: inputs: [w21 + 4294967291, 4294967296], outputs: [w36, w37]
     BLACKBOX::RANGE [w36]:1 bits []
     BLACKBOX::RANGE [w37]:32 bits []
-    EXPR [ (1, w21) (-4294967296, w36) (-1, w37) 4294967291 ]
-    EXPR [ (1, w31, w36) (-1, w36) 0 ]
-    EXPR [ (-1, w21, w31) (1, w21) (-1, w38) 0 ]
-    MEM (id: 0, read at: EXPR [ (1, w38) 0 ], value: EXPR [ (1, w39) 0 ]) 
-    MEM (id: 0, read at: EXPR [ (1, w27) 0 ], value: EXPR [ (1, w40) 0 ]) 
-    MEM (id: 0, read at: EXPR [ (1, w29) 0 ], value: EXPR [ (1, w41) 0 ]) 
-    EXPR [ (-1, w42) 2 ]
-    MEM (id: 0, read at: EXPR [ (1, w42) 0 ], value: EXPR [ (1, w43) 0 ]) 
-    EXPR [ (-1, w44) 3 ]
-    MEM (id: 0, read at: EXPR [ (1, w44) 0 ], value: EXPR [ (1, w45) 0 ]) 
-    EXPR [ (-1, w46) 4 ]
-    MEM (id: 0, read at: EXPR [ (1, w46) 0 ], value: EXPR [ (1, w47) 0 ]) 
-    INIT (id: 3, len: 5, witnesses: [w40, w41, w43, w45, w47])
-    EXPR [ (-1, w31, w35) (1, w31, w39) (1, w35) (-1, w48) 0 ]
-    MEM (id: 3, write EXPR [ (1, w48) 0 ] at: EXPR [ (1, w38) 0 ]) 
-    MEM (id: 3, read at: EXPR [ (1, w46) 0 ], value: EXPR [ (1, w49) 0 ]) 
-    MEM (id: 0, read at: EXPR [ (1, w46) 0 ], value: EXPR [ (1, w50) 0 ]) 
-    EXPR [ (-1, w31, w36) 0 ]
-    EXPR [ (1, w21, w31) (-1, w51) 0 ]
-    MEM (id: 0, read at: EXPR [ (1, w51) 0 ], value: EXPR [ (1, w52) 0 ]) 
-    EXPR [ (-1, w31, w52) (1, w52) (-1, w53) 0 ]
-    MEM (id: 0, write EXPR [ (1, w53) 0 ] at: EXPR [ (1, w51) 0 ]) 
-    MEM (id: 0, read at: EXPR [ (1, w46) 0 ], value: EXPR [ (1, w54) 0 ]) 
-    EXPR [ (-1, w31) (-1, w55) 1 ]
-    EXPR [ (-1, w31, w49) (1, w31, w50) (1, w49) (-1, w56) 0 ]
-    EXPR [ (1, w31, w54) (1, w55, w56) -109 ]
-    EXPR [ (-1, w57) 246 ]
-    EXPR [ (-1, w58) 159 ]
-    EXPR [ (-1, w59) 32 ]
-    EXPR [ (-1, w60) 176 ]
-    EXPR [ (-1, w61) 8 ]
-    INIT (id: 4, len: 5, witnesses: [w57, w58, w59, w60, w61])
-    MEM (id: 4, read at: EXPR [ (1, w7) 0 ], value: EXPR [ (1, w62) 0 ]) 
-    MEM (id: 4, read at: EXPR [ (1, w8) 0 ], value: EXPR [ (1, w63) 0 ]) 
-    MEM (id: 4, read at: EXPR [ (1, w9) 0 ], value: EXPR [ (1, w64) 0 ]) 
-    MEM (id: 4, read at: EXPR [ (1, w10) 0 ], value: EXPR [ (1, w65) 0 ]) 
-    MEM (id: 4, read at: EXPR [ (1, w11) 0 ], value: EXPR [ (1, w66) 0 ]) 
-    BRILLIG CALL func 1: inputs: [EXPR [ (1, w62) (1, w63) (1, w64) (1, w65) (1, w66) 0 ]], outputs: [w67]
-    EXPR [ (1, w62, w67) (1, w63, w67) (1, w64, w67) (1, w65, w67) (1, w66, w67) -1 ]
-    BRILLIG CALL func 0: inputs: [EXPR [ (1, w18) 0 ], EXPR [ 4294967296 ]], outputs: [w68, w69]
+    EXPR w37 = w21 - 4294967296*w36 + 4294967291
+    EXPR w36 = w31*w36
+    EXPR w38 = -w21*w31 + w21
+    MEM id: 0, read at: w38, value: w39
+    MEM id: 0, read at: w27, value: w40
+    MEM id: 0, read at: w29, value: w41
+    EXPR w42 = 2
+    MEM id: 0, read at: w42, value: w43
+    EXPR w44 = 3
+    MEM id: 0, read at: w44, value: w45
+    EXPR w46 = 0
+    MEM id: 0, read at: w46, value: w47
+    INIT id: 3, len: 5, witnesses: [w40, w41, w43, w45, w47]
+    EXPR w48 = -w31*w35 + w31*w39 + w35
+    MEM id: 3, write: w48 at: w38
+    MEM id: 3, read at: w46, value: w49
+    MEM id: 0, read at: w46, value: w50
+    EXPR 0 = -w31*w36
+    EXPR w51 = w21*w31
+    MEM id: 0, read at: w51, value: w52
+    EXPR w53 = -w31*w52 + w52
+    MEM id: 0, write: w53 at: w51
+    MEM id: 0, read at: w46, value: w54
+    EXPR w55 = -w31 + 1
+    EXPR w56 = -w31*w49 + w31*w50 + w49
+    EXPR 0 = w31*w54 + w55*w56 - 109
+    EXPR w57 = 246
+    EXPR w58 = 159
+    EXPR w59 = 32
+    EXPR w60 = 176
+    EXPR w61 = 8
+    INIT id: 4, len: 5, witnesses: [w57, w58, w59, w60, w61]
+    MEM id: 4, read at: w7, value: w62
+    MEM id: 4, read at: w8, value: w63
+    MEM id: 4, read at: w9, value: w64
+    MEM id: 4, read at: w10, value: w65
+    MEM id: 4, read at: w11, value: w66
+    BRILLIG CALL func 1: inputs: [w62 + w63 + w64 + w65 + w66], outputs: [w67]
+    EXPR 0 = w62*w67 + w63*w67 + w64*w67 + w65*w67 + w66*w67 - 1
+    BRILLIG CALL func 0: inputs: [w18, 4294967296], outputs: [w68, w69]
     BLACKBOX::RANGE [w68]:222 bits []
     BLACKBOX::RANGE [w69]:32 bits []
-    EXPR [ (1, w18) (-4294967296, w68) (-1, w69) 0 ]
-    EXPR [ (-1, w68) (-1, w70) 5096253676302562286669017222071363378443840053029366383258766538131 ]
+    EXPR w69 = w18 - 4294967296*w68
+    EXPR w70 = -w68 + 5096253676302562286669017222071363378443840053029366383258766538131
     BLACKBOX::RANGE [w70]:222 bits []
-    BRILLIG CALL func 1: inputs: [EXPR [ (-1, w68) 5096253676302562286669017222071363378443840053029366383258766538131 ]], outputs: [w71]
-    EXPR [ (-1, w68, w71) (5096253676302562286669017222071363378443840053029366383258766538131, w71) (1, w72) -1 ]
-    EXPR [ (-1, w68, w72) (5096253676302562286669017222071363378443840053029366383258766538131, w72) 0 ]
-    EXPR [ (1, w69, w72) (268435455, w72) (-1, w73) 0 ]
+    BRILLIG CALL func 1: inputs: [-w68 + 5096253676302562286669017222071363378443840053029366383258766538131], outputs: [w71]
+    EXPR w72 = w68*w71 - 5096253676302562286669017222071363378443840053029366383258766538131*w71 + 1
+    EXPR 0 = -w68*w72 + 5096253676302562286669017222071363378443840053029366383258766538131*w72
+    EXPR w73 = w69*w72 + 268435455*w72
     BLACKBOX::RANGE [w73]:32 bits []
-    BRILLIG CALL func 0: inputs: [EXPR [ (-1, w69) 4294967299 ], EXPR [ 4294967296 ]], outputs: [w74, w75]
+    BRILLIG CALL func 0: inputs: [-w69 + 4294967299, 4294967296], outputs: [w74, w75]
     BLACKBOX::RANGE [w74]:1 bits []
     BLACKBOX::RANGE [w75]:32 bits []
-    EXPR [ (-1, w69) (-4294967296, w74) (-1, w75) 4294967299 ]
-    EXPR [ (-1, w17, w74) (1, w17) (-3, w74) (-1, w76) 3 ]
+    EXPR w75 = -w69 - 4294967296*w74 + 4294967299
+    EXPR w76 = -w17*w74 + w17 - 3*w74 + 3
     BLACKBOX::RANGE [w76]:32 bits []
-    EXPR [ (-1, w74, w76) (1, w76) (-1, w77) 0 ]
-    MEM (id: 1, read at: EXPR [ (1, w77) 0 ], value: EXPR [ (1, w78) 0 ]) 
-    EXPR [ (1, w15, w74) (-1, w74, w78) (-1, w15) (1, w78) 0 ]
+    EXPR w77 = -w74*w76 + w76
+    MEM id: 1, read at: w77, value: w78
+    EXPR w78 = -w15*w74 + w74*w78 + w15
     ";
     assert_circuit_roundtrip(src);
 }
@@ -709,17 +711,17 @@ fn fold_basic() {
     private parameters: [w0]
     public parameters: [w1]
     return values: []
-    CALL func 1: PREDICATE: EXPR [ 1 ]
+    CALL func 1: PREDICATE: 1
     inputs: [w0, w1], outputs: [w2]
-    
+
     func 1
     current witness: w3
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
-    BRILLIG CALL func 0: inputs: [EXPR [ (1, w0) (-1, w1) 0 ]], outputs: [w3]
-    EXPR [ (1, w0, w3) (-1, w1, w3) -1 ]
-    EXPR [ (-1, w0) (1, w2) 0 ]
+    BRILLIG CALL func 0: inputs: [w0 - w1], outputs: [w3]
+    EXPR 0 = w0*w3 - w1*w3 - 1
+    EXPR w2 = w0
     ";
     assert_program_roundtrip(src);
 }
@@ -732,17 +734,17 @@ fn fold_basic_mismatched_ids() {
     private parameters: [w0]
     public parameters: [w1]
     return values: []
-    CALL func 1: PREDICATE: EXPR [ 1 ]
+    CALL func 1: PREDICATE: 1
     inputs: [w0, w1], outputs: [w2]
-    
+
     func 2
     current witness: w3
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
-    BRILLIG CALL func 0: inputs: [EXPR [ (1, w0) (-1, w1) 0 ]], outputs: [w3]
-    EXPR [ (1, w0, w3) (-1, w1, w3) -1 ]
-    EXPR [ (-1, w0) (1, w2) 0 ]
+    BRILLIG CALL func 0: inputs: [w0 - w1], outputs: [w3]
+    EXPR w0*w3 - w1*w3 - 1 = 0
+    EXPR w0 = w2
     ";
     let result = Program::from_str(src).err().unwrap();
     let ParserError::UnexpectedFunctionId { expected, found, .. } = result.get_error() else {
@@ -750,4 +752,42 @@ fn fold_basic_mismatched_ids() {
     };
     assert_eq!(expected, 1);
     assert_eq!(found, 2);
+}
+
+#[test]
+fn assert_zero_equation() {
+    let src = "
+    current witness: w9
+    private parameters: [w0, w1, w2, w2]
+    public parameters: []
+    return values: []
+    EXPR -w0 + w1 - 10 + 20 + w0*w2 = w2 - w3 + w0*w1 - w1*w2 - 30
+    ";
+    let circuit = Circuit::from_str(src).unwrap();
+    assert_snapshot!(circuit.to_string(), @r"
+    current witness: w9
+    private parameters: [w0, w1, w2]
+    public parameters: []
+    return values: []
+    EXPR w3 = -w0*w2 + w0*w1 - w1*w2 + w0 - w1 + w2 - 40
+    ");
+}
+
+#[test]
+fn does_not_negate_when_equal_to_zero() {
+    let src = "
+    current witness: w9
+    private parameters: [w0, w1, w2]
+    public parameters: []
+    return values: []
+    EXPR w0*w1 + w0*w2 = 0
+    ";
+    let circuit = Circuit::from_str(src).unwrap();
+    assert_snapshot!(circuit.to_string(), @r"
+    current witness: w9
+    private parameters: [w0, w1, w2]
+    public parameters: []
+    return values: []
+    EXPR 0 = w0*w1 + w0*w2
+    ");
 }

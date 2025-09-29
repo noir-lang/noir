@@ -307,8 +307,8 @@ mod tests {
         public parameters: []
         return values: []
         BRILLIG CALL func 0: inputs: [], outputs: [w1]
-        EXPR [ (2, w0) (3, w1) (1, w2) 1 ]
-        EXPR [ (2, w0) (2, w1) (1, w5) 1 ]
+        EXPR 2*w0 + 3*w1 + w2 + 1 = 0
+        EXPR 2*w0 + 2*w1 + w5 + 1 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
         let optimized_circuit = merge_expressions(circuit.clone());
@@ -322,8 +322,8 @@ mod tests {
         private parameters: [w0]
         public parameters: []
         return values: [w1, w2]
-        EXPR [ (-1, w0, w0) (1, w1) 0 ]
-        EXPR [ (-1, w1) (1, w2) 0 ]
+        EXPR -w0*w0 + w1 = 0
+        EXPR -w1 + w2 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
         let optimized_circuit = merge_expressions(circuit.clone());
@@ -337,10 +337,10 @@ mod tests {
         private parameters: [w0, w1]
         public parameters: []
         return values: []
-        EXPR [ (1, w0, w0) (-1, w4) 0 ]
-        EXPR [ (1, w0, w1) (1, w5) 0 ]
-        EXPR [ (-1, w2) (1, w4) (1, w5) 0 ]
-        EXPR [ (1, w2) (-1, w3) (1, w4) (1, w5) 0 ]
+        EXPR w0*w0 - w4 = 0
+        EXPR w0*w1 + w5 = 0
+        EXPR -w2 + w4 + w5 = 0
+        EXPR w2 - w3 + w4 + w5 = 0
         BLACKBOX::RANGE [w3]:32 bits []
         ";
         let circuit = Circuit::from_str(src).unwrap();
@@ -351,8 +351,8 @@ mod tests {
         private parameters: [w0, w1]
         public parameters: []
         return values: []
-        EXPR [ (1, w0, w1) (1, w5) 0 ]
-        EXPR [ (2, w0, w0) (-1, w3) (2, w5) 0 ]
+        EXPR w5 = -w0*w1
+        EXPR w3 = 2*w0*w0 + 2*w5
         BLACKBOX::RANGE [w3]:32 bits []
         ");
     }
@@ -370,8 +370,8 @@ mod tests {
         return values: [w2]
         BRILLIG CALL func 0: inputs: [], outputs: [w3]
         BLACKBOX::AND [w0, w1]:8 bits [w4]
-        EXPR [ (1, w3) (-1, w4) 0 ]
-        EXPR [ (-1, w2) (1, w4) 0 ]
+        EXPR w3 - w4 = 0
+        EXPR -w2 + w4 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
         let optimized_circuit = merge_expressions(circuit.clone());
