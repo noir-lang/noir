@@ -217,9 +217,12 @@ pub(super) enum CacheResult<'a> {
     /// in a block that dominates the one where the current instruction is. We can drop
     /// the current instruction and redefine its results in terms of the existing values.
     Cached {
+        /// The block which contains the instruction we can reuse.
         #[allow(unused)]
         origin: BasicBlockId,
+        /// The ID of the original instruction that created the results.
         instruction_id: InstructionId,
+        /// The value IDs we can reuse.
         results: &'a [ValueId],
     },
     /// We found an identical instruction in a non-dominating block, so we cannot directly
@@ -227,6 +230,7 @@ pub(super) enum CacheResult<'a> {
     /// can hoist the instruction into the common dominator, and deduplicate later.
     NeedToHoistToCommonBlock {
         /// The block in which we found the identical instruction.
+        #[allow(unused)]
         origin: BasicBlockId,
         /// The common dominator where we can hoist the current instruction.
         dominator: BasicBlockId,

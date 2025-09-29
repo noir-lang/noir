@@ -132,16 +132,17 @@ impl Function {
             #[cfg(debug_assertions)]
             constant_folding_post_check(&context, &self.dfg);
 
-            // See if there are blocks that we need to revisit.
-            let origins = std::mem::take(&mut context.origins);
+            // See if there are blocks that we need to revisit, ie. did anything get hoisted in this iteration.
+            let blocks_to_revisit = std::mem::take(&mut context.blocks_to_revisit);
 
             // In order to deduplicate, we need to rebuild the cache by revisiting every
             // block from the common dominator to each block we wanted to retry.
-            // Sorting the origins by dominance and visiting them alone is not enough,
+            // Sorting the blocks by dominance and visiting them alone is not enough,
             // we need the in-between ones and descendants as well, because if we replace
             // an instruction in a block with the results of another, we need to re-resolve
             // all instructions in subsequent blocks where the replaced instructions were used.
-            let common_dominator = origins.into_iter().reduce(|a, b| dom.common_dominator(a, b));
+            let common_dominator =
+                blocks_to_revisit.into_iter().reduce(|a, b| dom.common_dominator(a, b));
 
             // If nothing got hoisted, we are done.
             let Some(start) = common_dominator else {
@@ -169,8 +170,11 @@ struct Context {
     /// Keeps track of visited blocks and blocks to visit.
     block_queue: VisitOnceDeque,
 
-    /// Blocks which we hoisted into or have duplicates of hoisted instructions.
-    origins: BTreeSet<BasicBlockId>,
+    /// Blocks which we hoisted instructions into. We can make another folding iteration
+    /// starting from these blocks and revisiting all their descendants to:
+    /// 1. Deduplicate the original instruction we found in the cache
+    /// 2. Unlock further instructions that can be hoisted after deduplication.
+    blocks_to_revisit: BTreeSet<BasicBlockId>,
 
     /// Whether to use [constraints][Instruction::Constrain] to inform simplifications later on in the program.
     ///
@@ -209,7 +213,7 @@ impl Context {
             constraint_simplification_mappings: Default::default(),
             cached_instruction_results: Default::default(),
             values_to_replace: Default::default(),
-            origins: Default::default(),
+            blocks_to_revisit: Default::default(),
         }
     }
 
@@ -320,7 +324,7 @@ impl Context {
                     // We found an instruction to cached in an origin that this block dominates.
                     // Just insert the instruction we already have.
                 }
-                CacheResult::NeedToHoistToCommonBlock { origin, dominator } => {
+                CacheResult::NeedToHoistToCommonBlock { dominator, .. } => {
                     // Just change the block to insert in the common dominator instead.
                     // This will only move the current instance of the instruction right now.
                     // When constant folding is run a second time later on, it'll catch
@@ -330,9 +334,8 @@ impl Context {
                     block = dominator;
 
                     // We can revisit the origin to deduplicate with the dominator.
-                    self.origins.insert(origin);
-                    // We will also need to revisit the dominator to prime the cache.
-                    self.origins.insert(dominator);
+                    // To do so we will have to start with the dominator to rebuild the cache.
+                    self.blocks_to_revisit.insert(dominator);
                 }
             }
         };
