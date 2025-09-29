@@ -461,6 +461,29 @@ fn lt_u8() {
 }
 
 #[test]
+fn and_u1() {
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u1, v1: u1):
+        v2 = and v0, v1
+        return v2
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    current witness: w2
+    private parameters: [w0, w1]
+    public parameters: []
+    return values: [w2]
+    BLACKBOX::RANGE [w0]:1 bits []
+    BLACKBOX::RANGE [w1]:1 bits []
+    EXPR w2 = w0*w1
+    ");
+}
+
+#[test]
 fn and_u8() {
     let src = "
     acir(inline) fn main f0 {
@@ -481,6 +504,32 @@ fn and_u8() {
     BLACKBOX::RANGE [w1]:8 bits []
     BLACKBOX::AND [w0, w1]:8 bits [w3]
     EXPR w3 = w2
+    ");
+}
+
+#[test]
+fn or_u1() {
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u1, v1: u1):
+        v2 = or v0, v1
+        return v2
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    // - If both w0 and w1 are 0, all terms are zero so w2 must be 0
+    // - If either w0 or w1 is 1 but not both, `-w0*w1` is zero so w2 = w0 + w1 then w2 must be 1
+    // - If both w0 and w1 are 1 w2 must be 1 too
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    current witness: w2
+    private parameters: [w0, w1]
+    public parameters: []
+    return values: [w2]
+    BLACKBOX::RANGE [w0]:1 bits []
+    BLACKBOX::RANGE [w1]:1 bits []
+    EXPR w2 = -w0*w1 + w0 + w1
     ");
 }
 
@@ -508,6 +557,32 @@ fn or_u8() {
     EXPR w4 = -w1 + 255
     BLACKBOX::AND [w3, w4]:8 bits [w5]
     EXPR w5 = -w2 + 255
+    ");
+}
+
+#[test]
+fn xor_u1() {
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u1, v1: u1):
+        v2 = xor v0, v1
+        return v2
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    // - If both w0 and w1 are 0, all terms are zero so w2 must be 0
+    // - If either w0 or w1 is 1 but not both, `-2*w0*w1` is zero so w2 = w0 + w1 then w2 must be 1
+    // - If both w0 and w1 are 1, `-2*w0*w1` is -2, then w2 must be 0
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    current witness: w2
+    private parameters: [w0, w1]
+    public parameters: []
+    return values: [w2]
+    BLACKBOX::RANGE [w0]:1 bits []
+    BLACKBOX::RANGE [w1]:1 bits []
+    EXPR w2 = -2*w0*w1 + w0 + w1
     ");
 }
 
