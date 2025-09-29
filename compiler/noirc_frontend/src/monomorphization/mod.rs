@@ -8,7 +8,6 @@
 //!
 //! The entry point to this pass is the `monomorphize` function which, starting from a given
 //! function, will monomorphize the entire reachable program.
-use crate::NamedGeneric;
 use crate::ast::{FunctionKind, IntegerBitSize, ItemVisibility, UnaryOp};
 use crate::hir::comptime::InterpreterError;
 use crate::hir::type_check::{NoMatchingImplFoundError, TypeCheckError};
@@ -26,6 +25,7 @@ use crate::{
     },
     node_interner::{self, DefinitionKind, NodeInterner, StmtId, TraitImplKind},
 };
+use crate::{NamedGeneric, TypeVariable, TypeVariableId};
 use acvm::{FieldElement, acir::AcirField};
 use ast::{GlobalId, IdentId, While};
 use iter_extended::{btree_map, try_vecmap, vecmap};
@@ -95,7 +95,7 @@ pub struct Monomorphizer<'interner> {
     finished_functions: BTreeMap<FuncId, Function>,
 
     /// Used to reference existing definitions in the HIR
-    pub interner: &'interner mut NodeInterner,
+    interner: &'interner mut NodeInterner,
 
     lambda_envs_stack: Vec<LambdaContext>,
 
@@ -220,16 +220,12 @@ impl<'interner> Monomorphizer<'interner> {
         Ok(())
     }
 
-    pub fn peek_queue(&self) -> Option<&(
-        node_interner::FuncId,
-        FuncId,
-        TypeBindings,
-        Option<TraitItemId>,
-        bool,
-        Location,
-    )> {
+    pub fn peek_queue(
+        &self,
+    ) -> Option<&(node_interner::FuncId, FuncId, TypeBindings, Option<TraitItemId>, bool, Location)>
+    {
         self.queue.front()
-    } 
+    }
 
     pub fn finished_globals(&self) -> &HashMap<GlobalId, (String, ast::Type, ast::Expression)> {
         &self.finished_globals
@@ -245,6 +241,10 @@ impl<'interner> Monomorphizer<'interner> {
 
     pub fn return_location(&self) -> Option<Location> {
         self.return_location.clone()
+    }
+
+    pub fn interner(&self) -> &NodeInterner {
+        &self.interner
     }
 
     pub fn into_program(self, function_sig: FunctionSignature) -> Program {
@@ -2006,10 +2006,32 @@ impl<'interner> Monomorphizer<'interner> {
         Expression::Literal(Literal::Slice(arr_literal))
     }
 
-    pub fn queue_function(
+    fn queue_function(
         &mut self,
         id: node_interner::FuncId,
         expr_id: ExprId,
+        function_type: HirType,
+        turbofish_generics: Vec<HirType>,
+        trait_method: Option<TraitItemId>,
+    ) -> FuncId {
+        let location = self.interner.expr_location(&expr_id);
+        let bindings = self.interner.get_instantiation_bindings(expr_id);
+        let bindings = self.follow_bindings(bindings);
+        self.queue_function_with_bindings(
+            id,
+            location,
+            bindings,
+            function_type,
+            turbofish_generics,
+            trait_method,
+        )
+    }
+
+    pub fn queue_function_with_bindings(
+        &mut self,
+        id: node_interner::FuncId,
+        expr_location: Location,
+        bindings: HashMap<TypeVariableId, (TypeVariable, Kind, Type)>,
         function_type: HirType,
         turbofish_generics: Vec<HirType>,
         trait_method: Option<TraitItemId>,
@@ -2025,10 +2047,7 @@ impl<'interner> Monomorphizer<'interner> {
             new_id,
         );
 
-        let location = self.interner.expr_location(&expr_id);
-        let bindings = self.interner.get_instantiation_bindings(expr_id);
-        let bindings = self.follow_bindings(bindings);
-        self.queue.push_back((id, new_id, bindings, trait_method, is_unconstrained, location));
+        self.queue.push_back((id, new_id, bindings, trait_method, is_unconstrained, expr_location));
         new_id
     }
 
@@ -2039,7 +2058,7 @@ impl<'interner> Monomorphizer<'interner> {
     /// Without this, a monomorphized type may fail to propagate passed more than 2
     /// function calls deep since it is possible for a previous link in the chain to
     /// unbind a type variable that was previously bound.
-    fn follow_bindings(&self, bindings: &TypeBindings) -> TypeBindings {
+    pub fn follow_bindings(&self, bindings: &TypeBindings) -> TypeBindings {
         bindings
             .iter()
             .map(|(id, (var, kind, binding))| {
