@@ -89,7 +89,7 @@ fn div_field() {
     EXPR 0 = w1*w3 - 1
     EXPR w2 = w0*w3
 
-    unconstrained func 0
+    unconstrained func 0: directive_invert
     0: @21 = const u32 1
     1: @20 = const u32 0
     2: @0 = calldata copy [@20; @21]
@@ -127,7 +127,7 @@ fn eq_field() {
     EXPR 0 = w3*w5
     EXPR w5 = w2
 
-    unconstrained func 0
+    unconstrained func 0: directive_invert
     0: @21 = const u32 1
     1: @20 = const u32 0
     2: @0 = calldata copy [@20; @21]
@@ -224,7 +224,7 @@ fn div_u8() {
     EXPR w5 = -w1*w4 + w0
     EXPR w4 = w2
 
-    unconstrained func 0
+    unconstrained func 0: directive_invert
     0: @21 = const u32 1
     1: @20 = const u32 0
     2: @0 = calldata copy [@20; @21]
@@ -234,7 +234,7 @@ fn div_u8() {
     6: @1 = const field 1
     7: @0 = field field_div @1, @0
     8: stop &[@20; @21]
-    unconstrained func 1
+    unconstrained func 1: directive_integer_quotient
     0: @10 = const u32 2
     1: @11 = const u32 0
     2: @0 = calldata copy [@11; @10]
