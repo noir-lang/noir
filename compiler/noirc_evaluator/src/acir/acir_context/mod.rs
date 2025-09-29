@@ -288,7 +288,6 @@ impl<F: AcirField> AcirContext<F> {
         let results = self.stdlib_brillig_call(
             predicate,
             BrilligStdlibFunc::Inverse,
-            &self.brillig_stdlib.get_code(BrilligStdlibFunc::Inverse).clone(),
             vec![AcirValue::Var(var, AcirType::field())],
             vec![AcirType::field()],
         )?;
@@ -882,7 +881,6 @@ impl<F: AcirField> AcirContext<F> {
             .stdlib_brillig_call(
                 predicate,
                 BrilligStdlibFunc::Quotient,
-                &self.brillig_stdlib.get_code(BrilligStdlibFunc::Quotient).clone(),
                 vec![
                     AcirValue::Var(lhs, AcirType::unsigned(bit_size)),
                     AcirValue::Var(rhs, AcirType::unsigned(bit_size)),
