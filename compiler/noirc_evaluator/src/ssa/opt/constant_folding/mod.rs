@@ -116,19 +116,14 @@ impl Function {
     pub(crate) fn constant_fold(
         &mut self,
         use_constraint_info: bool,
-        max_fold_iter: usize,
+        max_iter: usize,
         interpreter: &mut Option<Interpreter<Empty>>,
     ) {
         let mut dom = DominatorTree::with_function(self);
         let mut context = Context::new(use_constraint_info);
         context.block_queue.push_back(self.entry_block());
 
-        let mut fold_iter = 0;
-        loop {
-            if fold_iter >= max_fold_iter {
-                break;
-            }
-
+        for _ in 0..max_iter {
             while let Some(block) = context.block_queue.pop_front() {
                 context.fold_constants_in_block(&mut self.dfg, &mut dom, block, interpreter);
                 context.block_queue.extend(self.dfg[block].successors());
@@ -151,10 +146,11 @@ impl Function {
                 break;
             };
 
-            // Create a fresh context, so values cached so far are not visible to earlier blocks.
+            // Create a fresh context, so values cached towards the end are not visible to blocks during a revisit.
+            // For example reusing the cache could be problematic when using constraint info, as it could make the
+            // original content simplify out based on its own prior assertion of a value being a constant.
             context = Context::new(use_constraint_info);
             context.block_queue.push_back(start);
-            fold_iter += 1;
         }
     }
 }
