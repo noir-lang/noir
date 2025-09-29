@@ -252,9 +252,8 @@ fn handle_array_get_group(
     let mut unused_count = 1;
     let mut group_count = 1;
 
-    // We need to go
-    for i in index + 1..=max_index {
-        let next_instruction = &function.dfg[instructions[i]];
+    for (i, next_id) in instructions.iter().enumerate().take(max_index + 1).skip(index + 1) {
+        let next_instruction = &function.dfg[*next_id];
         match next_instruction {
             // Skip `Add`
             Instruction::Binary(Binary { operator: BinaryOp::Add { .. }, .. }) => {
