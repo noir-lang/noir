@@ -182,7 +182,7 @@ pub struct CompileOptions {
     pub inliner_aggressiveness: i64,
 
     /// Maximum number of iterations to do in constant folding, as long as new values are being hoisted.
-    /// A value of 0 effectively disables constant folding
+    /// A value of 0 effectively disables constant folding.
     #[arg(long, hide = true, allow_hyphen_values = true, default_value_t = CONSTANT_FOLDING_MAX_ITER)]
     pub constant_folding_max_iter: usize,
 

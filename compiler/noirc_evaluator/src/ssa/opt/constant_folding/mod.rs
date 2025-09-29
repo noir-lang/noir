@@ -137,8 +137,10 @@ impl Function {
 
             // In order to deduplicate, we need to rebuild the cache by revisiting every
             // block from the common dominator to each block we wanted to retry.
-            // Sorting the origins by dominance is not enough, we need the in-between ones as well,
-            // otherwise they might be change after something they dominate, and cause instructions to disappear.
+            // Sorting the origins by dominance and visiting them alone is not enough,
+            // we need the in-between ones and descendants as well, because if we replace
+            // an instruction in a block with the results of another, we need to re-resolve
+            // all instructions in subsequent blocks where the replaced instructions were used.
             let common_dominator = origins.into_iter().reduce(|a, b| dom.common_dominator(a, b));
 
             // If nothing got hoisted, we are done.
