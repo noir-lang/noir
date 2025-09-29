@@ -569,7 +569,7 @@ impl<'a> Context<'a> {
             Instruction::MakeArray { elements, typ: _ } => {
                 let elements = elements.iter().map(|element| self.convert_value(*element, dfg));
                 let value = AcirValue::Array(elements.collect());
-                let result = dfg.instruction_results(instruction_id)[0];
+                let [result] = dfg.instruction_result(instruction_id);
                 self.ssa_values.insert(result, value);
             }
             Instruction::Noop => (),
@@ -586,8 +586,8 @@ impl<'a> Context<'a> {
         instruction: InstructionId,
         result: AcirValue,
     ) {
-        let result_ids = dfg.instruction_results(instruction);
-        self.ssa_values.insert(result_ids[0], result);
+        let [result_id] = dfg.instruction_result(instruction);
+        self.ssa_values.insert(result_id, result);
     }
 
     /// Remember the result of instruction returning a single numeric value
@@ -597,8 +597,8 @@ impl<'a> Context<'a> {
         instruction: InstructionId,
         result: AcirVar,
     ) {
-        let result_ids = dfg.instruction_results(instruction);
-        let typ = dfg.type_of_value(result_ids[0]).into();
+        let [result_id] = dfg.instruction_result(instruction);
+        let typ = dfg.type_of_value(result_id).into();
         self.define_result(dfg, instruction, AcirValue::Var(result, typ));
     }
 

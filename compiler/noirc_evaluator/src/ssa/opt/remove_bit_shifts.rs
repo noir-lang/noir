@@ -114,7 +114,7 @@ impl Function {
 
             context.remove_current_instruction();
 
-            let old_result = *context.dfg.instruction_results(instruction_id).first().unwrap();
+            let [old_result] = context.dfg.instruction_result(instruction_id);
 
             let mut bitshift_context = Context { context };
             bitshift_context.enforce_bitshift_rhs_lt_bit_size(rhs);

@@ -201,8 +201,7 @@ impl Context {
                         else_value,
                     )?;
 
-                    let results = context.dfg.instruction_results(instruction_id);
-                    let result = results[0];
+                    let [result] = context.dfg.instruction_result(instruction_id);
 
                     context.remove_current_instruction();
                     // The `IfElse` instruction is replaced by the merge done with the `ValueMerger`
@@ -231,8 +230,7 @@ impl Context {
                 }
                 // Track slice sizes through array set instructions
                 Instruction::ArraySet { array, .. } => {
-                    let results = context.dfg.instruction_results(instruction_id);
-                    let result = results[0];
+                    let [result] = context.dfg.instruction_result(instruction_id);
                     self.set_capacity(context.dfg, *array, result, |c| c);
                 }
                 _ => (),
@@ -273,7 +271,7 @@ impl Context {
                 }
                 // Check if the item was made by a MakeArray instruction, which can create slices as well.
                 if let Some((array, typ)) = dfg.get_array_constant(value) {
-                    let length = array.len() / typ.element_types().len();
+                    let length = array.len() / typ.element_size();
                     return *entry.insert(length as u32);
                 }
                 // For non-constant slices we can't tell the size, which would mean we can't merge it.
