@@ -5408,6 +5408,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "sancov"
+version = "0.1.0"
+source = "git+https://github.com/noir-lang/sancov.git#44c006ddc2f2cb35825d334353acd6d03194e041"
+dependencies = [
+ "rustc-hash",
+ "sancov-sys",
+]
+
+[[package]]
+name = "sancov-sys"
+version = "0.1.0"
+source = "git+https://github.com/noir-lang/sancov.git#44c006ddc2f2cb35825d334353acd6d03194e041"
+
+[[package]]
 name = "schannel"
 version = "0.1.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5864,6 +5878,7 @@ dependencies = [
  "base64",
  "bincode",
  "env_logger",
+ "flate2",
  "k256",
  "lazy_static",
  "libfuzzer-sys",
@@ -5877,6 +5892,7 @@ dependencies = [
  "rand 0.8.5",
  "redis",
  "reqwest",
+ "sancov",
  "serde",
  "serde_json",
  "sha1",

@@ -349,10 +349,10 @@ mod tests {
         return values: []
         BLACKBOX::RANGE [w1]:16 bits []
         BLACKBOX::RANGE [w1]:16 bits []
-        EXPR [ 0 ]
-        EXPR [ 0 ]
-        EXPR [ 0 ]
-        EXPR [ 0 ]
+        EXPR 0 = 0
+        EXPR 0 = 0
+        EXPR 0 = 0
+        EXPR 0 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
 
@@ -366,10 +366,10 @@ mod tests {
         public parameters: []
         return values: []
         BLACKBOX::RANGE [w1]:16 bits []
-        EXPR [ 0 ]
-        EXPR [ 0 ]
-        EXPR [ 0 ]
-        EXPR [ 0 ]
+        EXPR 0 = 0
+        EXPR 0 = 0
+        EXPR 0 = 0
+        EXPR 0 = 0
         ");
     }
 
@@ -382,7 +382,7 @@ mod tests {
         public parameters: []
         return values: []
         BLACKBOX::RANGE [w1]:16 bits []
-        EXPR [ (1, w1) 0 ]
+        EXPR w1 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
 
@@ -395,7 +395,7 @@ mod tests {
         private parameters: []
         public parameters: []
         return values: []
-        EXPR [ (1, w1) 0 ]
+        EXPR w1 = 0
         ");
     }
 
@@ -410,17 +410,17 @@ mod tests {
         BLACKBOX::RANGE [w1]:32 bits []
 
         // Call brillig with w2
-        BRILLIG CALL func 0: inputs: [EXPR [ (1, w2) 0 ]], outputs: []
+        BRILLIG CALL func 0: inputs: [w2], outputs: []
         BLACKBOX::RANGE [w1]:16 bits []
 
         // Another call
-        BRILLIG CALL func 0: inputs: [EXPR [ (1, w2) 0 ]], outputs: []
+        BRILLIG CALL func 0: inputs: [w2], outputs: []
 
         // One more constraint, but this is redundant.
         BLACKBOX::RANGE [w1]:64 bits []
 
         // assert w1 == 0
-        EXPR [ (1, w1) 0 ]
+        EXPR w1 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
 
@@ -441,10 +441,10 @@ mod tests {
         public parameters: []
         return values: []
         BLACKBOX::RANGE [w1]:32 bits []
-        BRILLIG CALL func 0: inputs: [EXPR [ (1, w2) 0 ]], outputs: []
+        BRILLIG CALL func 0: inputs: [w2], outputs: []
         BLACKBOX::RANGE [w1]:16 bits []
-        BRILLIG CALL func 0: inputs: [EXPR [ (1, w2) 0 ]], outputs: []
-        EXPR [ (1, w1) 0 ]
+        BRILLIG CALL func 0: inputs: [w2], outputs: []
+        EXPR w1 = 0
         ");
 
         // Applying again should have no effect (despite the range having the same bit size as the assert).
@@ -463,8 +463,8 @@ mod tests {
         public parameters: []
         return values: []
         BLACKBOX::RANGE [w1]:16 bits []
-        INIT (id: 0, len: 8, witnesses: [w0, w0, w0, w0, w0, w0, w0, w0])
-        MEM (id: 0, read at: EXPR [ (1, w1) 0 ], value: EXPR [ (1, w2) 0 ])
+        INIT id: 0, len: 8, witnesses: [w0, w0, w0, w0, w0, w0, w0, w0]
+        MEM id: 0, read at: w1, value: w2
         ";
         let circuit = Circuit::from_str(src).unwrap();
 
@@ -477,8 +477,8 @@ mod tests {
         private parameters: []
         public parameters: []
         return values: []
-        INIT (id: 0, len: 8, witnesses: [w0, w0, w0, w0, w0, w0, w0, w0])
-        MEM (id: 0, read at: EXPR [ (1, w1) 0 ], value: EXPR [ (1, w2) 0 ])
+        INIT id: 0, len: 8, witnesses: [w0, w0, w0, w0, w0, w0, w0, w0]
+        MEM id: 0, read at: w1, value: w2
         ");
     }
 }
