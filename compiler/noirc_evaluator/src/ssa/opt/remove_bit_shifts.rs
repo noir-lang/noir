@@ -17,7 +17,7 @@
 //! ```
 //!
 //! If the shift amount is not a constant, 2^N is computed via square&multiply,
-//! using the bits decomposition of exponent.
+//! using the bits decomposition of the exponent.
 //!
 //! Pseudo-code of the computation:
 //!
@@ -33,7 +33,7 @@
 //!
 //! ## Unsigned shift-left
 //!
-//! Shifting an unsigned integer to the right by N is the same as multiplying by 2^N.
+//! Shifting an unsigned integer to the left by N is the same as multiplying by 2^N.
 //! However, since that can overflow the target bit size, the operation is done using
 //! Field, then truncated to the target bit size.
 //!
@@ -113,7 +113,7 @@ impl Function {
 
             context.remove_current_instruction();
 
-            let old_result = *context.dfg.instruction_results(instruction_id).first().unwrap();
+            let [old_result] = context.dfg.instruction_result(instruction_id);
 
             let mut bitshift_context = Context { context };
             bitshift_context.enforce_bitshift_rhs_lt_bit_size(rhs);
@@ -137,8 +137,8 @@ struct Context<'m, 'dfg, 'mapping> {
 }
 
 impl Context<'_, '_, '_> {
-    /// Insert ssa instructions which computes lhs << rhs by doing lhs*2^rhs
-    /// and truncate the result to bit_size
+    /// Insert SSA instructions which computes lhs << rhs by doing lhs*2^rhs
+    /// and truncate the result to `bit_size`.
     fn insert_wrapping_shift_left(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
         let typ = self.context.dfg.type_of_value(lhs).unwrap_numeric();
         let max_lhs_bits = self.context.dfg.get_value_max_num_bits(lhs);
@@ -146,7 +146,15 @@ impl Context<'_, '_, '_> {
             || {
                 // If we don't know `rhs`'s value then it could be anything up to the number
                 // of bits in the type, e.g. u32 means shifting by up to 32 bits as otherwise we get overflow.
-                self.context.dfg.get_value_max_num_bits(rhs)
+                // get_value_max_num_bits might indicate that the underlying type actually has less
+                // bits than the RHS; e.g. because it was upcast from a u1 to a u32.
+                // The maximum value we can get would be `2^bits - 1`, but `u1` is the only interesting case,
+                // because even for u8 the max value is 255, larger than anything we get based on type.
+                if self.context.dfg.get_value_max_num_bits(rhs) == 1 {
+                    1
+                } else {
+                    self.context.dfg.type_of_value(rhs).bit_size()
+                }
             },
             |rhs_constant| {
                 // Happy case is that we know precisely by how many bits we're shifting by.
@@ -178,7 +186,7 @@ impl Context<'_, '_, '_> {
             let result = self.insert_truncate(result, typ.bit_size(), max_bit);
             self.insert_cast(result, typ)
         } else {
-            // Otherwise, the result might not bit in a FieldElement.
+            // Otherwise, the result might not fit in a FieldElement.
             // For this, if we have to do `lhs << rhs` we can first shift by half of `rhs`, truncate,
             // then shift by `rhs - half_of_rhs` and truncate again.
             assert!(typ.bit_size() <= 128);
@@ -188,12 +196,12 @@ impl Context<'_, '_, '_> {
             // rhs_divided_by_two = rhs / 2
             let rhs_divided_by_two = self.insert_binary(rhs, BinaryOp::Div, two);
 
-            // rhs_remainder = rhs - rhs_remainder
+            // rhs_remainder = rhs - rhs_divided_by_two
             let rhs_remainder =
                 self.insert_binary(rhs, BinaryOp::Sub { unchecked: true }, rhs_divided_by_two);
 
             // pow1 = 2^rhs_divided_by_two
-            // pow2 = r^rhs_remainder
+            // pow2 = 2^rhs_remainder
             let pow1 = self.two_pow(rhs_divided_by_two);
             let pow2 = self.two_pow(rhs_remainder);
 
@@ -208,9 +216,29 @@ impl Context<'_, '_, '_> {
         }
     }
 
-    /// Insert ssa instructions which computes lhs >> rhs by doing lhs/2^rhs
-    /// For negative signed integers, we do the division on the 1-complement representation of lhs,
-    /// before converting back the result to the 2-complement representation.
+    /// Insert SSA instructions which computes lhs >> rhs by doing lhs/2^rhs
+    ///
+    /// For negative signed integers, we do the shifting using a technique based on how dividing a
+    /// 2-complement value can be done by converting to the 1-complement representation of lhs,
+    /// shifting, then converting back the result to the 2-complement representation.
+    ///
+    /// To understand the algorithm, take a look at how division works on pages 7-8 of
+    /// <https://dspace.mit.edu/bitstream/handle/1721.1/6090/AIM-378.pdf>
+    ///
+    /// Division for a negative number represented as a 2-complement is implemented by the following steps:
+    /// 1. Convert to 1-complement by subtracting 1 from the value
+    /// 2. Shift right by the number of bits corresponding to the divisor
+    /// 3. Convert back to 2-complement by adding 1 to the result
+    ///
+    /// That's division in terms of shifting; we need shifting in terms of division. The following steps show how:
+    /// * `DIV(a) = SHR(a-1)+1`
+    /// * `SHR(a-1) = DIV(a)-1`
+    /// * `SHR(a) = DIV(a+1)-1`
+    ///
+    /// Hence we handle negative values in shifting by:
+    /// 1. Adding 1 to the value
+    /// 2. Dividing by 2^rhs
+    /// 3. Subtracting 1 from the result
     fn insert_shift_right(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
         let lhs_typ = self.context.dfg.type_of_value(lhs).unwrap_numeric();
 
@@ -226,24 +254,24 @@ impl Context<'_, '_, '_> {
                 // Get the sign of the operand; positive signed operand will just do a division as well
                 let zero =
                     self.numeric_constant(FieldElement::zero(), NumericType::signed(bit_size));
+                // The sign will be 0 for positive numbers and 1 for negatives, so it covers both cases.
                 let lhs_sign = self.insert_binary(lhs, BinaryOp::Lt, zero);
                 let lhs_sign_as_field = self.insert_cast(lhs_sign, NumericType::NativeField);
                 let lhs_as_field = self.insert_cast(lhs, NumericType::NativeField);
-                // For negative numbers, convert to 1-complement using wrapping addition of a + 1
-                // Unchecked add as these are fields
+                // For negative numbers, we prepare for the division using a wrapping addition of a + 1. Unchecked add as these are fields.
                 let add = BinaryOp::Add { unchecked: true };
-                let one_complement = self.insert_binary(lhs_sign_as_field, add, lhs_as_field);
-                let one_complement = self.insert_truncate(one_complement, bit_size, bit_size + 1);
-                let one_complement =
-                    self.insert_cast(one_complement, NumericType::signed(bit_size));
-                // Performs the division on the 1-complement (or the operand if positive)
-                let shifted_complement = self.insert_binary(one_complement, BinaryOp::Div, pow);
-                // Convert back to 2-complement representation if operand is negative
+                let div_complement = self.insert_binary(lhs_sign_as_field, add, lhs_as_field);
+                let div_complement = self.insert_truncate(div_complement, bit_size, bit_size + 1);
+                let div_complement =
+                    self.insert_cast(div_complement, NumericType::signed(bit_size));
+                // Performs the division on the adjusted complement (or the operand if positive)
+                let shifted_complement = self.insert_binary(div_complement, BinaryOp::Div, pow);
+                // For negative numbers, convert back to 2-complement by subtracting 1.
                 let lhs_sign_as_int = self.insert_cast(lhs_sign, lhs_typ);
 
                 // The requirements for this to underflow are all of these:
                 // - lhs < 0
-                // - ones_complement(lhs) / (2^rhs) == 0
+                // - div_complement(lhs) / (2^rhs) == 0
                 // As the upper bit is set for the ones complement of negative numbers we'd need 2^rhs
                 // to be larger than the lhs bitsize for this to overflow.
                 let sub = BinaryOp::Sub { unchecked: true };
@@ -257,6 +285,7 @@ impl Context<'_, '_, '_> {
 
     /// Computes 2^exponent via square&multiply, using the bits decomposition of exponent
     /// Pseudo-code of the computation:
+    /// ```text
     /// let mut r = 1;
     /// let exponent_bits = to_bits(exponent);
     /// for i in 1 .. bit_size + 1 {
@@ -264,6 +293,7 @@ impl Context<'_, '_, '_> {
     ///     let b = exponent_bits[bit_size - i];
     ///     r = if b { 2 * r_squared } else { r_squared };
     /// }
+    /// ```
     fn two_pow(&mut self, exponent: ValueId) -> ValueId {
         // Require that exponent < bit_size, ensuring that `pow` returns a value consistent with `lhs`'s type.
         let max_bit_size = self.context.dfg.type_of_value(exponent).bit_size();
@@ -464,15 +494,16 @@ mod tests {
             let ssa = Ssa::from_str(src).unwrap();
             let ssa = ssa.remove_bit_shifts();
             assert_ssa_snapshot!(ssa, @r"
-        acir(inline) fn main f0 {
-          b0(v0: u32):
-            v1 = cast v0 as Field
-            v3 = mul v1, Field 4
-            v4 = truncate v3 to 32 bits, max_bit_size: 34
-            v5 = cast v4 as u32
-            return v5
-        }
-        ");
+            acir(inline) fn main f0 {
+              b0(v0: u32):
+                v1 = cast v0 as Field
+                v3 = mul v1, Field 4
+                v4 = truncate v3 to 32 bits, max_bit_size: 34
+                v5 = cast v4 as u32
+                return v5
+            }
+            "
+            );
         }
 
         #[test]
@@ -541,6 +572,123 @@ mod tests {
                 v58 = truncate v57 to 32 bits, max_bit_size: 64
                 v59 = cast v58 as u32
                 return v59
+            }
+            "#);
+        }
+
+        #[test]
+        fn removes_shl_with_non_constant_rhs_casted_from_smaller_type() {
+            let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u32, v1: u8):
+                v2 = cast v1 as u32
+                v3 = shl v0, v2
+                return v3
+            }
+            ";
+            let ssa = Ssa::from_str(src).unwrap();
+            let ssa = ssa.remove_bit_shifts();
+
+            // `max_bit_size` in `truncate` has to be 64, because even though `u8` is just 8 bits,
+            // the maximum value can be 255, which would clearly overflow, as anything over 32 would.
+            assert_ssa_snapshot!(ssa, @r#"
+            acir(inline) fn main f0 {
+              b0(v0: u32, v1: u8):
+                v2 = cast v1 as u32
+                v4 = lt v2, u32 32
+                constrain v4 == u1 1, "attempt to bit-shift with overflow"
+                v6 = cast v1 as Field
+                v8 = call to_le_bits(v6) -> [u1; 5]
+                v10 = array_get v8, index u32 4 -> u1
+                v11 = not v10
+                v12 = cast v10 as Field
+                v13 = cast v11 as Field
+                v15 = mul Field 2, v12
+                v16 = add v13, v15
+                v18 = array_get v8, index u32 3 -> u1
+                v19 = not v18
+                v20 = cast v18 as Field
+                v21 = cast v19 as Field
+                v22 = mul v16, v16
+                v23 = mul v22, v21
+                v24 = mul v22, Field 2
+                v25 = mul v24, v20
+                v26 = add v23, v25
+                v28 = array_get v8, index u32 2 -> u1
+                v29 = not v28
+                v30 = cast v28 as Field
+                v31 = cast v29 as Field
+                v32 = mul v26, v26
+                v33 = mul v32, v31
+                v34 = mul v32, Field 2
+                v35 = mul v34, v30
+                v36 = add v33, v35
+                v38 = array_get v8, index u32 1 -> u1
+                v39 = not v38
+                v40 = cast v38 as Field
+                v41 = cast v39 as Field
+                v42 = mul v36, v36
+                v43 = mul v42, v41
+                v44 = mul v42, Field 2
+                v45 = mul v44, v40
+                v46 = add v43, v45
+                v48 = array_get v8, index u32 0 -> u1
+                v49 = not v48
+                v50 = cast v48 as Field
+                v51 = cast v49 as Field
+                v52 = mul v46, v46
+                v53 = mul v52, v51
+                v54 = mul v52, Field 2
+                v55 = mul v54, v50
+                v56 = add v53, v55
+                v57 = cast v0 as Field
+                v58 = mul v57, v56
+                v59 = truncate v58 to 32 bits, max_bit_size: 64
+                v60 = cast v59 as u32
+                return v60
+            }
+            "#);
+        }
+
+        #[test]
+        fn removes_shl_with_non_constant_rhs_casted_from_u1() {
+            let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u64, v1: u1):
+                v2 = cast v1 as u8
+                v3 = cast v2 as u32
+                v4 = cast v3 as u64
+                v5 = shl v0, v4
+                return v5
+            }
+            ";
+            let ssa = Ssa::from_str(src).unwrap();
+            let ssa = ssa.remove_bit_shifts();
+
+            // What we are casting with can originally be only 1 bit,
+            // so in the truncate we expect to shift with less than
+            // if only considered the 64 bits based on the type.
+            assert_ssa_snapshot!(ssa, @r#"
+            acir(inline) fn main f0 {
+              b0(v0: u64, v1: u1):
+                v2 = cast v1 as u8
+                v3 = cast v2 as u32
+                v4 = cast v3 as u64
+                v6 = lt v4, u64 64
+                constrain v6 == u1 1, "attempt to bit-shift with overflow"
+                v8 = cast v3 as Field
+                v10 = call to_le_bits(v8) -> [u1; 1]
+                v12 = array_get v10, index u32 0 -> u1
+                v13 = not v12
+                v14 = cast v12 as Field
+                v15 = cast v13 as Field
+                v17 = mul Field 2, v14
+                v18 = add v15, v17
+                v19 = cast v0 as Field
+                v20 = mul v19, v18
+                v21 = truncate v20 to 64 bits, max_bit_size: 65
+                v22 = cast v21 as u64
+                return v22
             }
             "#);
         }

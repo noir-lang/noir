@@ -182,6 +182,15 @@ impl<'f> Validator<'f> {
                 if !array_type.contains_an_array() {
                     panic!("ArrayGet/ArraySet must operate on an array; got {array_type}");
                 }
+                assert!(!array_type.is_nested_slice(), "ICE: Nested slice type is not supported");
+                let instruction_results = dfg.instruction_results(instruction);
+                for result in instruction_results {
+                    let return_type = dfg.type_of_value(*result);
+                    assert!(
+                        !return_type.is_nested_slice(),
+                        "ICE: Nested slice type is not supported"
+                    );
+                }
             }
             Instruction::Call { func, arguments } => {
                 self.type_check_call(instruction, func, arguments);

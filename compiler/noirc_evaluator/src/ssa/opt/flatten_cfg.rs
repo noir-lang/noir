@@ -163,7 +163,6 @@ use crate::ssa::{
 };
 
 mod branch_analysis;
-pub(crate) mod value_merger;
 
 impl Ssa {
     /// Flattens the control flow graph of main such that the function is left with a
@@ -2272,19 +2271,18 @@ mod test {
             v3 = add u32 42, v1
             enable_side_effects v0
             v4 = cast v0 as u32
-            v5 = cast v0 as u32
-            v6 = unchecked_mul v3, v5
-            range_check v6 to 16 bits
-            v7 = not v0
-            enable_side_effects v7
-            v9 = add u32 3, v3
+            v5 = unchecked_mul v3, v4
+            range_check v5 to 16 bits
+            v6 = not v0
+            enable_side_effects v6
+            v8 = add u32 3, v3
             enable_side_effects u1 1
-            v11 = cast v0 as u32
-            v12 = cast v7 as u32
-            v13 = unchecked_mul v11, v3
-            v14 = unchecked_mul v12, v9
-            v15 = unchecked_add v13, v14
-            return v15
+            v10 = cast v0 as u32
+            v11 = cast v6 as u32
+            v12 = unchecked_mul v10, v3
+            v13 = unchecked_mul v11, v8
+            v14 = unchecked_add v12, v13
+            return v14
         }
         ");
     }
