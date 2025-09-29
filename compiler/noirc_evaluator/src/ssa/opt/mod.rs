@@ -11,7 +11,7 @@ mod brillig_array_get_and_set;
 pub(crate) mod brillig_entry_points;
 mod check_u128_mul_overflow;
 mod checked_to_unchecked;
-pub mod constant_folding;
+mod constant_folding;
 mod defunctionalize;
 mod die;
 mod evaluate_static_assert_and_assert_constant;
@@ -19,7 +19,7 @@ mod expand_signed_checks;
 pub(crate) mod flatten_cfg;
 mod hint;
 mod inline_simple_functions;
-pub mod inlining;
+mod inlining;
 mod loop_invariant;
 mod make_constrain_not_equal;
 mod mem2reg;
@@ -36,6 +36,9 @@ mod remove_unreachable_instructions;
 mod simple_optimization;
 mod simplify_cfg;
 mod unrolling;
+
+pub use constant_folding::DEFAULT_MAX_ITER as CONSTANT_FOLDING_MAX_ITER;
+pub use inlining::MAX_INSTRUCTIONS as INLINING_MAX_INSTRUCTIONS;
 
 /// Asserts that the given SSA, after normalizing its IDs and printing it,
 /// is equal to the expected string. Normalization is done so the IDs don't
