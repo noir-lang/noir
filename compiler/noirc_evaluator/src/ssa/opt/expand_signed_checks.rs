@@ -61,7 +61,7 @@ impl Function {
             // We remove the current instruction, as we will need to replace it with multiple new instructions.
             context.remove_current_instruction();
 
-            let old_result = *context.dfg.instruction_results(instruction_id).first().unwrap();
+            let [old_result] = context.dfg.instruction_result(instruction_id);
 
             let mut expansion_context = Context { context };
             let new_result = match operator {
