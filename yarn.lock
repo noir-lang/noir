@@ -13226,6 +13226,19 @@ __metadata:
   languageName: node
   linkType: hard
 
+"browser_example@workspace:examples/browser":
+  version: 0.0.0-use.local
+  resolution: "browser_example@workspace:examples/browser"
+  dependencies:
+    "@aztec/bb.js": "npm:v3.0.0-nightly.20250916"
+    "@noir-lang/noir_js": "workspace:*"
+    "@playwright/test": "npm:^1.49.0"
+    "@types/node": "npm:^20.0.0"
+    typescript: "npm:^5.8.3"
+    vite: "npm:^7.0.6"
+  languageName: unknown
+  linkType: soft
+
 "browserify-fs@npm:^1.0.0":
   version: 1.0.0
   resolution: "browserify-fs@npm:1.0.0"
@@ -15732,19 +15745,6 @@ __metadata:
     typedoc-plugin-markdown: "npm:4.4.2"
     typedoc-plugin-merge-modules: "npm:^6.1.0"
     typescript: "npm:^5.8.3"
-  languageName: unknown
-  linkType: soft
-
-"docs_tutorials_browser@workspace:examples/browser":
-  version: 0.0.0-use.local
-  resolution: "docs_tutorials_browser@workspace:examples/browser"
-  dependencies:
-    "@aztec/bb.js": "npm:v3.0.0-nightly.20250916"
-    "@noir-lang/noir_js": "workspace:*"
-    "@playwright/test": "npm:^1.49.0"
-    "@types/node": "npm:^20.0.0"
-    typescript: "npm:^5.8.3"
-    vite: "npm:^7.0.6"
   languageName: unknown
   linkType: soft
 

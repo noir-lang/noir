@@ -1166,8 +1166,10 @@ impl<F: AcirField> AcirContext<F> {
         let assert_message =
             self.generate_assertion_message_payload("Attempt to divide with overflow".to_string());
         let unsigned = self.not_var(q_sign, AcirType::unsigned(1))?;
-        // We just use `unsigned` for the predicate of assert_neq_var because if the `predicate` is false, the quotient
-        // we get from the unsigned division under the predicate will not be 2^{bit_size-1} anyways.
+
+        // This overflow check must also be under the predicate
+        let unsigned = self.mul_var(unsigned, predicate)?;
+
         self.assert_neq_var(quotient, max_power_of_two, unsigned, Some(assert_message))?;
 
         Ok((quotient, remainder))

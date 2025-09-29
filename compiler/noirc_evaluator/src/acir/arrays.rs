@@ -14,9 +14,9 @@
 //! ACIR generation use twos different array types for representing arrays:
 //!
 //! [Constant arrays][AcirValue::Array]
-//!   - Known at compile time.  
+//!   - Known at compile time.
 //!   - Reads and writes may be folded into an [AcirValue] where possible.
-//!   - Useful for optimization (e.g., constant element lookups do not require laying down opcodes)  
+//!   - Useful for optimization (e.g., constant element lookups do not require laying down opcodes)
 //!
 //! [Dynamic arrays][AcirValue::DynamicArray]
 //!   - Referenced by a [unique identifier][BlockId]
@@ -562,8 +562,8 @@ impl Context<'_> {
         index_side_effect: bool,
     ) -> Result<(), RuntimeError> {
         let block_id = self.ensure_array_is_initialized(array, dfg)?;
-        let results = dfg.instruction_results(instruction);
-        let res_typ = dfg.type_of_value(results[0]);
+        let [result] = dfg.instruction_result(instruction);
+        let res_typ = dfg.type_of_value(result);
 
         let value = self.load_array_value(array, block_id, var_index, &res_typ, dfg)?;
 

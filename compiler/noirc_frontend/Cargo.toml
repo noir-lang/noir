@@ -45,4 +45,3 @@ insta.workspace = true
 bn254 = []
 bls12_381 = []
 test_utils = []
-nextest = []
