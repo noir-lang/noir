@@ -10,8 +10,8 @@
 //! # Transformers
 //! - CSAT: create intermediate variables so that AssertZero opcodes have the correct Circuit's `ExpressionWidth`.
 //!
-//! ACIR generation is performed by calling the [Ssa::into_acir] method, providing any necessary brillig bytecode.
-//! The compiled program will be returned as an [`Artifacts`] type.
+//! ACIR generation is performed by calling the `Ssa::into_acir` method, providing any necessary brillig bytecode.
+//! The compiled program will be returned as an `Artifacts` type.
 //!
 
 use std::collections::{BTreeMap, HashMap};
