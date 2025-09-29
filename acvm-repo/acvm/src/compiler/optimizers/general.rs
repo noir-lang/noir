@@ -7,6 +7,7 @@ use indexmap::IndexMap;
 /// The `GeneralOptimizer` processes all [`Expression`]s to:
 /// - remove any zero-coefficient terms.
 /// - merge any quadratic terms containing the same two witnesses.
+///
 /// This pass does not depend on any other pass and should be the first one in a set of optimizing passes.
 pub(crate) struct GeneralOptimizer;
 
