@@ -243,7 +243,7 @@ fn checked_mul_u8_with_predicate() {
 }
 
 #[test]
-fn div_u8_no_predicate() {
+fn div_u8_no_predicate_by_var() {
     let src = "
     acir(inline) fn main f0 {
       b0(v0: u8, v1: u8):
@@ -288,6 +288,47 @@ fn div_u8_no_predicate() {
     7: @0 = field field_div @1, @0
     8: stop &[@20; @21]
     unconstrained func 1: directive_integer_quotient
+    0: @10 = const u32 2
+    1: @11 = const u32 0
+    2: @0 = calldata copy [@11; @10]
+    3: @2 = field int_div @0, @1
+    4: @1 = field mul @2, @1
+    5: @1 = field sub @0, @1
+    6: @0 = @2
+    7: stop &[@11; @10]
+    ");
+}
+
+#[test]
+fn div_u8_no_predicate_by_constant() {
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u8):
+        v1 = div v0, u8 7
+        return v1
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    // - Note how w2, w3 and w4 are range-checked with less bits than 8
+    // - with `w4 = w3 + 1` and the next range check we ensure that 0 <= w3 < 8
+    // - `w3 = w0 - 7*w2` can be read as `w0 = 7*w2 + w3` which is the definition of divmod
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    current witness: w4
+    private parameters: [w0]
+    public parameters: []
+    return values: [w1]
+    BLACKBOX::RANGE [w0]:8 bits []
+    BRILLIG CALL func 0: inputs: [w0, 7], outputs: [w2, w3]
+    BLACKBOX::RANGE [w2]:6 bits []
+    BLACKBOX::RANGE [w3]:3 bits []
+    EXPR w4 = w3 + 1
+    BLACKBOX::RANGE [w4]:3 bits []
+    EXPR w3 = w0 - 7*w2
+    EXPR w2 = w1
+
+    unconstrained func 0: directive_integer_quotient
     0: @10 = const u32 2
     1: @11 = const u32 0
     2: @0 = calldata copy [@11; @10]
