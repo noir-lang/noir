@@ -47,8 +47,7 @@ use interpret::try_interpret_call;
 use result_cache::{CacheResult, InstructionResultCache};
 use simplification_cache::{ConstraintSimplificationCache, SimplificationCache};
 
-/// Maximum number of folding iterations.
-const DEFAULT_MAX_FOLD_ITER: usize = 5;
+pub const DEFAULT_MAX_ITER: usize = 5;
 
 impl Ssa {
     /// Performs constant folding on each instruction.
@@ -58,9 +57,9 @@ impl Ssa {
     ///
     /// See [`constant_folding`][self] module for more information.
     #[tracing::instrument(level = "trace", skip(self))]
-    pub(crate) fn fold_constants(mut self) -> Ssa {
+    pub(crate) fn fold_constants(mut self, max_iter: usize) -> Ssa {
         for function in self.functions.values_mut() {
-            function.constant_fold(false, DEFAULT_MAX_FOLD_ITER, &mut None);
+            function.constant_fold(false, max_iter, &mut None);
         }
         self
     }
@@ -71,9 +70,9 @@ impl Ssa {
     ///
     /// See [`constant_folding`][self] module for more information.
     #[tracing::instrument(level = "trace", skip(self))]
-    pub(crate) fn fold_constants_using_constraints(mut self) -> Ssa {
+    pub(crate) fn fold_constants_using_constraints(mut self, max_iter: usize) -> Ssa {
         for function in self.functions.values_mut() {
-            function.constant_fold(true, DEFAULT_MAX_FOLD_ITER, &mut None);
+            function.constant_fold(true, max_iter, &mut None);
         }
         self
     }
@@ -81,7 +80,7 @@ impl Ssa {
     /// Performs constant folding on each instruction while also replacing calls to brillig functions
     /// with all constant arguments by trying to evaluate those calls.
     #[tracing::instrument(level = "trace", skip(self))]
-    pub fn fold_constants_with_brillig(mut self) -> Ssa {
+    pub fn fold_constants_with_brillig(mut self, max_iter: usize) -> Ssa {
         // Collect all brillig functions so that later we can find them when processing a call instruction
         let mut brillig_functions: BTreeMap<FunctionId, Function> = BTreeMap::new();
         for (func_id, func) in &self.functions {
@@ -104,7 +103,7 @@ impl Ssa {
         };
 
         for function in self.functions.values_mut() {
-            function.constant_fold(false, DEFAULT_MAX_FOLD_ITER, &mut interpreter);
+            function.constant_fold(false, max_iter, &mut interpreter);
         }
 
         self
@@ -646,9 +645,15 @@ mod test {
             Ssa,
             interpreter::value::Value,
             ir::{types::NumericType, value::ValueMapping},
-            opt::{assert_normalized_ssa_equals, assert_ssa_does_not_change},
+            opt::{
+                assert_normalized_ssa_equals, assert_ssa_does_not_change,
+                constant_folding::DEFAULT_MAX_ITER,
+            },
         },
     };
+
+    // Do just 1 iteration in tests where we want to minimize the expected changes in the SSA.
+    const MIN_ITER: usize = 1;
 
     #[test]
     fn simple_constant_fold() {
@@ -682,7 +687,7 @@ mod test {
                 return Field 9
             }
             ";
-        let ssa = ssa.fold_constants();
+        let ssa = ssa.fold_constants(MIN_ITER);
         assert_normalized_ssa_equals(ssa, expected);
     }
 
@@ -723,7 +728,7 @@ mod test {
             }
             ";
 
-        let ssa = ssa.fold_constants();
+        let ssa = ssa.fold_constants(MIN_ITER);
         assert_normalized_ssa_equals(ssa, expected);
     }
 
@@ -765,7 +770,7 @@ mod test {
             }
             ";
 
-        let ssa = ssa.fold_constants();
+        let ssa = ssa.fold_constants(MIN_ITER);
         assert_normalized_ssa_equals(ssa, expected);
     }
 
@@ -781,7 +786,7 @@ mod test {
                 return v3
             }
             ";
-        assert_ssa_does_not_change(src, Ssa::fold_constants);
+        assert_ssa_does_not_change(src, |ssa| ssa.fold_constants(MIN_ITER));
     }
 
     #[test]
@@ -808,7 +813,7 @@ mod test {
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.fold_constants();
+        let ssa = ssa.fold_constants(MIN_ITER);
         assert_normalized_ssa_equals(ssa, expected);
     }
 
@@ -843,7 +848,7 @@ mod test {
             ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.fold_constants();
+        let ssa = ssa.fold_constants(MIN_ITER);
         assert_normalized_ssa_equals(ssa, expected);
     }
 
@@ -866,7 +871,7 @@ mod test {
             return
         }
         ";
-        assert_ssa_does_not_change(src, Ssa::fold_constants);
+        assert_ssa_does_not_change(src, |ssa| ssa.fold_constants(MIN_ITER));
     }
 
     #[test]
@@ -919,7 +924,7 @@ mod test {
             }
             ";
 
-        let ssa = ssa.fold_constants_using_constraints();
+        let ssa = ssa.fold_constants_using_constraints(MIN_ITER);
         assert_normalized_ssa_equals(ssa, expected);
     }
 
@@ -945,7 +950,7 @@ mod test {
         let starting_instruction_count = instructions.len();
         assert_eq!(starting_instruction_count, 4);
 
-        let ssa = ssa.fold_constants();
+        let ssa = ssa.fold_constants(MIN_ITER);
 
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
@@ -973,7 +978,7 @@ mod test {
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.fold_constants_using_constraints();
+        let ssa = ssa.fold_constants_using_constraints(MIN_ITER);
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: u1):
@@ -1010,8 +1015,8 @@ mod test {
                 return
             }
         ";
-        let mut ssa = Ssa::from_str(src).unwrap();
-        ssa.main_mut().constant_fold(true, 1, &mut None);
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants_using_constraints(MIN_ITER);
 
         // v4 has been hoisted, although:
         // - v5 has not yet been removed since it was encountered earlier in the program
@@ -1126,7 +1131,7 @@ mod test {
 
         // Now with revisit.
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.fold_constants();
+        let ssa = ssa.fold_constants(DEFAULT_MAX_ITER);
 
         // All duplicates hoisted into b0.
         assert_ssa_snapshot!(ssa, @r"
@@ -1210,7 +1215,7 @@ mod test {
         "#;
 
         let ssa: Ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.fold_constants();
+        let ssa = ssa.fold_constants(DEFAULT_MAX_ITER);
 
         // Duplicated array_get and cast are hoisted to b0.
         assert_ssa_snapshot!(ssa, @r#"
@@ -1333,7 +1338,7 @@ mod test {
         "#;
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.fold_constants();
+        let ssa = ssa.fold_constants(DEFAULT_MAX_ITER);
 
         // The hoisting of "DEF" will happen in multiple stages:
         // * Appears first in b9
@@ -1445,7 +1450,7 @@ mod test {
             ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.fold_constants_with_brillig();
+        let ssa = ssa.fold_constants_with_brillig(MIN_ITER);
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -1472,7 +1477,7 @@ mod test {
             ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.fold_constants_with_brillig();
+        let ssa = ssa.fold_constants_with_brillig(MIN_ITER);
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -1500,7 +1505,7 @@ mod test {
             ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.fold_constants_with_brillig();
+        let ssa = ssa.fold_constants_with_brillig(MIN_ITER);
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -1527,7 +1532,7 @@ mod test {
             ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.fold_constants_with_brillig();
+        let ssa = ssa.fold_constants_with_brillig(MIN_ITER);
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -1555,7 +1560,7 @@ mod test {
             ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.fold_constants_with_brillig();
+        let ssa = ssa.fold_constants_with_brillig(MIN_ITER);
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -1587,7 +1592,7 @@ mod test {
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.fold_constants_with_brillig();
+        let ssa = ssa.fold_constants_with_brillig(MIN_ITER);
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -1617,7 +1622,7 @@ mod test {
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.fold_constants_with_brillig();
+        let ssa = ssa.fold_constants_with_brillig(MIN_ITER);
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         g0 = Field 2
@@ -1654,7 +1659,7 @@ mod test {
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.fold_constants_with_brillig();
+        let ssa = ssa.fold_constants_with_brillig(MIN_ITER);
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         g0 = Field 2
@@ -1686,7 +1691,7 @@ mod test {
                 return
             }
             ";
-        assert_ssa_does_not_change(src, Ssa::fold_constants_using_constraints);
+        assert_ssa_does_not_change(src, |ssa| ssa.fold_constants_using_constraints(MIN_ITER));
     }
 
     #[test]
@@ -1709,7 +1714,7 @@ mod test {
                 return
             }
             ";
-        assert_ssa_does_not_change(src, Ssa::fold_constants_using_constraints);
+        assert_ssa_does_not_change(src, |ssa| ssa.fold_constants_using_constraints(MIN_ITER));
     }
 
     #[test]
@@ -1734,7 +1739,7 @@ mod test {
                 return
             }
             ";
-        assert_ssa_does_not_change(src, Ssa::fold_constants_using_constraints);
+        assert_ssa_does_not_change(src, |ssa| ssa.fold_constants_using_constraints(MIN_ITER));
     }
 
     #[test]
@@ -1756,7 +1761,7 @@ mod test {
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.fold_constants_using_constraints();
+        let ssa = ssa.fold_constants_using_constraints(MIN_ITER);
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: Field, v1: Field, v2: u1):
@@ -1785,7 +1790,7 @@ mod test {
             return v6
         }
         ";
-        assert_ssa_does_not_change(src, Ssa::fold_constants_using_constraints);
+        assert_ssa_does_not_change(src, |ssa| ssa.fold_constants_using_constraints(MIN_ITER));
     }
 
     #[test]
@@ -1801,7 +1806,7 @@ mod test {
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.fold_constants_using_constraints();
+        let ssa = ssa.fold_constants_using_constraints(MIN_ITER);
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: [Field; 3], v1: u32, v2: Field):
@@ -1830,7 +1835,7 @@ mod test {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.purity_analysis().fold_constants_using_constraints();
+        let ssa = ssa.purity_analysis().fold_constants_using_constraints(MIN_ITER);
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) predicate_pure fn main f0 {
           b0(v0: Field):
@@ -1860,7 +1865,7 @@ mod test {
             return
         }
         ";
-        assert_ssa_does_not_change(src, Ssa::fold_constants);
+        assert_ssa_does_not_change(src, |ssa| ssa.fold_constants(MIN_ITER));
     }
 
     #[test]
@@ -1877,7 +1882,7 @@ mod test {
             return
         }
         ";
-        assert_ssa_does_not_change(src, Ssa::fold_constants);
+        assert_ssa_does_not_change(src, |ssa| ssa.fold_constants(MIN_ITER));
     }
 
     #[test]
@@ -1894,7 +1899,7 @@ mod test {
             return
         }
         ";
-        assert_ssa_does_not_change(src, Ssa::fold_constants);
+        assert_ssa_does_not_change(src, |ssa| ssa.fold_constants(MIN_ITER));
     }
 
     #[test]
@@ -1911,7 +1916,7 @@ mod test {
             return
         }
         ";
-        assert_ssa_does_not_change(src, Ssa::fold_constants);
+        assert_ssa_does_not_change(src, |ssa| ssa.fold_constants(MIN_ITER));
     }
 
     #[test]
@@ -1928,7 +1933,7 @@ mod test {
             return
         }
         ";
-        assert_ssa_does_not_change(src, Ssa::fold_constants);
+        assert_ssa_does_not_change(src, |ssa| ssa.fold_constants(MIN_ITER));
     }
 
     #[test]
@@ -1947,7 +1952,7 @@ mod test {
                 return v2
             }
         ";
-        assert_ssa_does_not_change(src, Ssa::fold_constants_with_brillig);
+        assert_ssa_does_not_change(src, |ssa| ssa.fold_constants_using_constraints(MIN_ITER));
     }
 
     #[test]
@@ -1969,7 +1974,7 @@ mod test {
 
         let ssa = Ssa::from_str(src).unwrap();
         // These intrinsic calls can only be deduplicated when using constraints.
-        let ssa = ssa.fold_constants_using_constraints();
+        let ssa = ssa.fold_constants_using_constraints(MIN_ITER);
 
         // Only the first one is cached at the moment.
         assert_ssa_snapshot!(ssa, @r"
@@ -2017,7 +2022,7 @@ mod test {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.fold_constants_using_constraints();
+        let ssa = ssa.fold_constants_using_constraints(MIN_ITER);
 
         // The terminators of b1 and b2 should now have constant arguments
         assert_ssa_snapshot!(ssa, @r"
@@ -2121,7 +2126,7 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
 
         let result_before = ssa.interpret(vec![]);
-        let ssa = ssa.fold_constants_using_constraints();
+        let ssa = ssa.fold_constants_using_constraints(MIN_ITER);
         let result_after = ssa.interpret(vec![]);
         assert_eq!(result_before, result_after);
     }
@@ -2163,7 +2168,7 @@ mod test {
         ssa.interpret(vec![Value::from_constant(1_u32.into(), NumericType::unsigned(32)).unwrap()])
             .unwrap();
 
-        let ssa = ssa.fold_constants_using_constraints();
+        let ssa = ssa.fold_constants_using_constraints(MIN_ITER);
         ssa.interpret(vec![Value::from_constant(1_u32.into(), NumericType::unsigned(32)).unwrap()])
             .unwrap();
     }
@@ -2195,7 +2200,7 @@ mod test {
         ssa.interpret(vec![Value::from_constant(0_u32.into(), NumericType::unsigned(32)).unwrap()])
             .unwrap();
 
-        let ssa = ssa.fold_constants_using_constraints();
+        let ssa = ssa.fold_constants_using_constraints(MIN_ITER);
         ssa.interpret(vec![Value::from_constant(0_u32.into(), NumericType::unsigned(32)).unwrap()])
             .unwrap();
     }

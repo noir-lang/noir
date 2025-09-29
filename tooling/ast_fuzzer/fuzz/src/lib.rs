@@ -6,7 +6,8 @@ use noir_ast_fuzzer::compare::{
     CompareInterpretedResult, HasPrograms,
 };
 use noirc_abi::input_parser::Format;
-use noirc_evaluator::ssa::opt::inlining::MAX_INSTRUCTIONS;
+use noirc_evaluator::ssa::opt::constant_folding;
+use noirc_evaluator::ssa::opt::inlining;
 use noirc_evaluator::ssa::{SsaPass, primary_passes};
 use noirc_evaluator::{
     brillig::BrilligOptions,
@@ -36,7 +37,8 @@ pub fn default_ssa_options() -> SsaEvaluatorOptions {
         skip_brillig_constraints_check: true,
         enable_brillig_constraints_check_lookback: false,
         inliner_aggressiveness: 0,
-        small_function_max_instruction: MAX_INSTRUCTIONS,
+        constant_folding_max_iter: constant_folding::DEFAULT_MAX_ITER,
+        small_function_max_instruction: inlining::MAX_INSTRUCTIONS,
         max_bytecode_increase_percent: None,
         skip_passes: Default::default(),
     }

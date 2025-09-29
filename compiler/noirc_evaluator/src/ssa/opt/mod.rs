@@ -11,7 +11,7 @@ mod brillig_array_get_and_set;
 pub(crate) mod brillig_entry_points;
 mod check_u128_mul_overflow;
 mod checked_to_unchecked;
-mod constant_folding;
+pub mod constant_folding;
 mod defunctionalize;
 mod die;
 mod evaluate_static_assert_and_assert_constant;

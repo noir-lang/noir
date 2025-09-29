@@ -107,7 +107,10 @@ pub struct SsaEvaluatorOptions {
     /// The higher the value, the more inlined Brillig functions will be.
     pub inliner_aggressiveness: i64,
 
-    //// The higher the value, the more Brillig functions will be set to always be inlined.
+    /// Maximum number iterations to do in constant folding, as long as new values are hoisted.
+    pub constant_folding_max_iter: usize,
+
+    /// The higher the value, the more Brillig functions will be set to always be inlined.
     pub small_function_max_instruction: usize,
 
     /// Maximum accepted percentage increase in the Brillig bytecode size after unrolling loops.
@@ -193,10 +196,16 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         ),
         SsaPass::new_try(Ssa::remove_if_else, "Remove IfElse"),
         SsaPass::new(Ssa::purity_analysis, "Purity Analysis"),
-        SsaPass::new(Ssa::fold_constants, "Constant Folding"),
+        SsaPass::new(
+            |ssa| ssa.fold_constants(options.constant_folding_max_iter),
+            "Constant Folding",
+        ),
         SsaPass::new(Ssa::flatten_basic_conditionals, "Simplify conditionals for unconstrained"),
         SsaPass::new(Ssa::remove_enable_side_effects, "EnableSideEffectsIf removal"),
-        SsaPass::new(Ssa::fold_constants_using_constraints, "Constant Folding using constraints"),
+        SsaPass::new(
+            |ssa| ssa.fold_constants_using_constraints(options.constant_folding_max_iter),
+            "Constant Folding using constraints",
+        ),
         SsaPass::new_try(
             move |ssa| ssa.unroll_loops_iteratively(options.max_bytecode_increase_percent),
             "Unrolling",
@@ -221,7 +230,10 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new(Ssa::remove_truncate_after_range_check, "Removing Truncate after RangeCheck"),
         SsaPass::new(Ssa::checked_to_unchecked, "Checked to unchecked"),
-        SsaPass::new(Ssa::fold_constants_with_brillig, "Inlining Brillig Calls"),
+        SsaPass::new(
+            |ssa| ssa.fold_constants_with_brillig(options.constant_folding_max_iter),
+            "Inlining Brillig Calls",
+        ),
         SsaPass::new(Ssa::remove_unreachable_instructions, "Remove Unreachable Instructions")
             .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination")
