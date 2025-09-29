@@ -50,9 +50,9 @@ fn constant_array_access_out_of_bounds() {
     return values: []
     EXPR w0 = 0
     EXPR w1 = 1
-    INIT id: 0, len: 2, witnesses: [w0, w1]
+    INIT b0 = [w0, w1]
     EXPR w2 = 5
-    MEM id: 0, read at: w2, value: w3
+    READ w3 = b0[w2]
     EXPR w3 = 0
     ");
 }
@@ -93,8 +93,8 @@ fn generates_memory_op_for_dynamic_read() {
     private parameters: [w0, w1, w2, w3]
     public parameters: []
     return values: []
-    INIT id: 0, len: 3, witnesses: [w0, w1, w2]
-    MEM id: 0, read at: w3, value: w4
+    INIT b0 = [w0, w1, w2]
+    READ w4 = b0[w3]
     EXPR w4 = 10
     ");
 }
@@ -116,15 +116,15 @@ fn generates_memory_op_for_dynamic_write() {
     private parameters: [w0, w1, w2, w3]
     public parameters: []
     return values: [w4, w5, w6]
-    INIT id: 1, len: 3, witnesses: [w0, w1, w2]
+    INIT b1 = [w0, w1, w2]
     EXPR w7 = 10
-    MEM id: 1, write: w7, at: w3
+    WRITE b1[w3] = w7
     EXPR w8 = 0
-    MEM id: 1, read at: w8, value: w9
+    READ w9 = b1[w8]
     EXPR w10 = 1
-    MEM id: 1, read at: w10, value: w11
+    READ w11 = b1[w10]
     EXPR w12 = 2
-    MEM id: 1, read at: w12, value: w13
+    READ w13 = b1[w12]
     EXPR w9 = w4
     EXPR w11 = w5
     EXPR w13 = w6
@@ -154,11 +154,11 @@ fn generates_predicated_index_for_dynamic_read() {
     private parameters: [w0, w1, w2, w3, w4]
     public parameters: []
     return values: []
-    INIT id: 0, len: 3, witnesses: [w0, w1, w2]
+    INIT b0 = [w0, w1, w2]
     BLACKBOX::RANGE input: w3, bits: 32
     BLACKBOX::RANGE input: w4, bits: 1
     EXPR w5 = w3*w4
-    MEM id: 0, read at: w5, value: w6
+    READ w6 = b0[w5]
     EXPR w6 = 10
     ");
 }
@@ -191,20 +191,20 @@ fn generates_predicated_index_and_dummy_value_for_dynamic_write() {
     private parameters: [w0, w1, w2, w3, w4]
     public parameters: []
     return values: [w5, w6, w7]
-    INIT id: 0, len: 3, witnesses: [w0, w1, w2]
+    INIT b0 = [w0, w1, w2]
     BLACKBOX::RANGE input: w3, bits: 32
     BLACKBOX::RANGE input: w4, bits: 1
     EXPR w8 = w3*w4
-    MEM id: 0, read at: w8, value: w9
-    INIT id: 1, len: 3, witnesses: [w0, w1, w2]
+    READ w9 = b0[w8]
+    INIT b1 = [w0, w1, w2]
     EXPR w10 = -w4*w9 + 10*w4 + w9
-    MEM id: 1, write: w10, at: w8
+    WRITE b1[w8] = w10
     EXPR w11 = 0
-    MEM id: 1, read at: w11, value: w12
+    READ w12 = b1[w11]
     EXPR w13 = 1
-    MEM id: 1, read at: w13, value: w14
+    READ w14 = b1[w13]
     EXPR w15 = 2
-    MEM id: 1, read at: w15, value: w16
+    READ w16 = b1[w15]
     EXPR w12 = w5
     EXPR w14 = w6
     EXPR w16 = w7

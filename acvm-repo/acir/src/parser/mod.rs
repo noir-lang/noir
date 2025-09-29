@@ -235,11 +235,14 @@ impl<'a> Parser<'a> {
                 Keyword::BlackBoxFuncCall => {
                     opcodes.push(Opcode::BlackBoxFuncCall(self.parse_blackbox_func_call()?));
                 }
-                Keyword::MemoryOp => {
-                    opcodes.push(self.parse_memory_op()?);
-                }
                 Keyword::MemoryInit => {
                     opcodes.push(self.parse_memory_init()?);
+                }
+                Keyword::MemoryRead => {
+                    opcodes.push(self.parse_memory_read()?);
+                }
+                Keyword::MemoryWrite => {
+                    opcodes.push(self.parse_memory_write()?);
                 }
                 Keyword::Brillig => {
                     opcodes.push(self.parse_brillig_call()?);
@@ -561,55 +564,6 @@ impl<'a> Parser<'a> {
         Ok(num_bits)
     }
 
-    fn parse_memory_op(&mut self) -> ParseResult<Opcode<FieldElement>> {
-        self.eat_keyword_or_error(Keyword::MemoryOp)?;
-
-        // Parse `id: <int>`
-        self.eat_expected_ident("id")?;
-        self.eat_or_error(Token::Colon)?;
-        let block_id = self.eat_u32_or_error()?;
-        self.eat_or_error(Token::Comma)?;
-
-        // Next token: read/write/op
-        let op_token = self.eat_ident_or_error()?;
-
-        let (operation, index, value) = match op_token.as_str() {
-            "read" => {
-                // read at: <expr>
-                self.eat_expected_ident("at")?;
-                self.eat_or_error(Token::Colon)?;
-                let index = self.parse_arithmetic_expression()?;
-
-                // value will be parsed next after comma
-                self.eat_or_error(Token::Comma)?;
-                self.eat_keyword_or_error(Keyword::Value)?;
-                self.eat_or_error(Token::Colon)?;
-                let value = self.parse_arithmetic_expression()?;
-
-                (Expression::zero(), index, value)
-            }
-            "write" => {
-                // write: <expr>, at: <expr>
-                self.eat_or_error(Token::Colon)?;
-                let value = self.parse_arithmetic_expression()?;
-                self.eat_or_error(Token::Comma)?;
-                self.eat_expected_ident("at")?;
-                self.eat_or_error(Token::Colon)?;
-                let index = self.parse_arithmetic_expression()?;
-
-                (Expression::one(), index, value)
-            }
-            _ => {
-                return self.expected_one_of_tokens(&[
-                    Token::Ident("read".into()),
-                    Token::Ident("write".into()),
-                ]);
-            }
-        };
-
-        Ok(Opcode::MemoryOp { block_id: BlockId(block_id), op: MemOp { index, value, operation } })
-    }
-
     fn parse_memory_init(&mut self) -> ParseResult<Opcode<FieldElement>> {
         self.eat_keyword_or_error(Keyword::MemoryInit)?;
 
@@ -625,32 +579,44 @@ impl<'a> Parser<'a> {
             _ => BlockType::Memory,
         };
 
-        // Parse `id: <int>`
-        self.eat_expected_ident("id")?;
-        self.eat_or_error(Token::Colon)?;
-        let block_id = BlockId(self.eat_u32_or_error()?);
-        self.eat_or_error(Token::Comma)?;
-
-        // Parse `len: <int>`
-        self.eat_expected_ident("len")?;
-        self.eat_or_error(Token::Colon)?;
-        let len = self.eat_u32_or_error()?;
-        self.eat_or_error(Token::Comma)?;
-
-        // Parse `witnesses: [_0, _1, ...]`
-        self.eat_expected_ident("witnesses")?;
-        self.eat_or_error(Token::Colon)?;
+        // blockId = [witness1, witness2, ...]
+        let block_id = self.eat_block_id_or_error()?;
+        self.eat_or_error(Token::Equal)?;
         let init = self.parse_witness_vector()?;
 
-        if init.len() != len as usize {
-            return Err(ParserError::InitLengthMismatch {
-                expected: len as usize,
-                found: init.len(),
-                span: self.token.span(),
-            });
-        }
-
         Ok(Opcode::MemoryInit { block_id, init, block_type })
+    }
+
+    fn parse_memory_read(&mut self) -> ParseResult<Opcode<FieldElement>> {
+        self.eat_keyword_or_error(Keyword::MemoryRead)?;
+
+        // value = blockId[index]
+        let value = self.parse_arithmetic_expression()?;
+        self.eat_or_error(Token::Equal)?;
+        let block_id = self.eat_block_id_or_error()?;
+        self.eat_or_error(Token::LeftBracket)?;
+        let index = self.parse_arithmetic_expression()?;
+        self.eat_or_error(Token::RightBracket)?;
+
+        let operation = Expression::zero();
+
+        Ok(Opcode::MemoryOp { block_id, op: MemOp { index, value, operation } })
+    }
+
+    fn parse_memory_write(&mut self) -> ParseResult<Opcode<FieldElement>> {
+        self.eat_keyword_or_error(Keyword::MemoryWrite)?;
+
+        // blockId[index] = value
+        let block_id = self.eat_block_id_or_error()?;
+        self.eat_or_error(Token::LeftBracket)?;
+        let index = self.parse_arithmetic_expression()?;
+        self.eat_or_error(Token::RightBracket)?;
+        self.eat_or_error(Token::Equal)?;
+        let value = self.parse_arithmetic_expression()?;
+
+        let operation = Expression::one();
+
+        Ok(Opcode::MemoryOp { block_id, op: MemOp { index, value, operation } })
     }
 
     fn parse_brillig_call(&mut self) -> ParseResult<Opcode<FieldElement>> {
@@ -792,14 +758,6 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn eat_expected_ident(&mut self, expected: &str) -> ParseResult<()> {
-        let label = self.eat_ident_or_error()?;
-        if label != expected {
-            self.expected_token(Token::Ident(expected.to_string()))?;
-        }
-        Ok(())
-    }
-
     fn eat_field_element(&mut self) -> ParseResult<Option<FieldElement>> {
         if let Token::Int(_) = self.token.token() {
             let token = self.bump()?;
@@ -883,6 +841,23 @@ impl<'a> Parser<'a> {
 
     fn eat_witness_or_error(&mut self) -> ParseResult<Witness> {
         if let Some(int) = self.eat_witness()? { Ok(int) } else { self.expected_witness() }
+    }
+
+    fn eat_block_id(&mut self) -> ParseResult<Option<BlockId>> {
+        let is_block_type = matches!(self.token.token(), Token::Block(_));
+        if is_block_type {
+            let token = self.bump()?;
+            match token.into_token() {
+                Token::Block(block) => Ok(Some(BlockId(block))),
+                _ => unreachable!(),
+            }
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn eat_block_id_or_error(&mut self) -> ParseResult<BlockId> {
+        if let Some(int) = self.eat_block_id()? { Ok(int) } else { self.expected_block_id() }
     }
 
     fn eat_or_error(&mut self, token: Token) -> ParseResult<()> {
@@ -998,6 +973,13 @@ impl<'a> Parser<'a> {
         })
     }
 
+    fn expected_block_id<T>(&mut self) -> ParseResult<T> {
+        Err(ParserError::ExpectedBlockId {
+            found: self.token.token().clone(),
+            span: self.token.span(),
+        })
+    }
+
     fn expected_term<T>(&mut self) -> ParseResult<T> {
         Err(ParserError::ExpectedTerm {
             found: self.token.token().clone(),
@@ -1080,6 +1062,8 @@ pub(crate) enum ParserError {
     ExpectedFieldElement { found: Token, span: Span },
     #[error("Expected a witness index, found '{found}'")]
     ExpectedWitness { found: Token, span: Span },
+    #[error("Expected a block ID, found '{found}'")]
+    ExpectedBlockId { found: Token, span: Span },
     #[error("Expected a term, found '{found}'")]
     ExpectedTerm { found: Token, span: Span },
     #[error("Expected valid black box function name, found '{found}'")]
@@ -1090,8 +1074,6 @@ pub(crate) enum ParserError {
     IncorrectInputLength { expected: usize, found: usize, name: String, span: Span },
     #[error("Expected {expected} outputs for {name}, found {found}")]
     IncorrectOutputLength { expected: usize, found: usize, name: String, span: Span },
-    #[error("Expected {expected} witnesses for INIT, found {found}")]
-    InitLengthMismatch { expected: usize, found: usize, span: Span },
     #[error("Expected function id {expected}, found {found}")]
     UnexpectedFunctionId { expected: u32, found: u32, span: Span },
 }
@@ -1106,12 +1088,12 @@ impl ParserError {
             | ExpectedIdentifier { span, .. }
             | ExpectedFieldElement { span, .. }
             | ExpectedWitness { span, .. }
+            | ExpectedBlockId { span, .. }
             | ExpectedTerm { span, .. }
             | ExpectedBlackBoxFuncName { span, .. }
             | IntegerLargerThanU32 { span, .. }
             | IncorrectInputLength { span, .. }
             | IncorrectOutputLength { span, .. }
-            | InitLengthMismatch { span, .. }
             | UnexpectedFunctionId { span, .. } => *span,
         }
     }

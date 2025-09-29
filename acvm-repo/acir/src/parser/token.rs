@@ -30,8 +30,10 @@ pub(crate) enum Token {
     /// Reserved identifiers such as `EXPR`.
     /// Most words in ACIR's human readable are expected to be keywords
     Keyword(Keyword),
-    /// Witness index, like `_42`
+    /// Witness index, like `w42`
     Witness(u32),
+    /// Block index, like `b42`
+    Block(u32),
     /// Integer value represented using the underlying native field element
     Int(FieldElement),
     /// :
@@ -74,7 +76,8 @@ impl std::fmt::Display for Token {
         match self {
             Token::Ident(ident) => write!(f, "{ident}"),
             Token::Keyword(keyword) => write!(f, "{keyword}"),
-            Token::Witness(index) => write!(f, "_{index}"),
+            Token::Witness(index) => write!(f, "w{index}"),
+            Token::Block(index) => write!(f, "b{index}"),
             Token::Int(int) => write!(f, "{int}"),
             Token::Colon => write!(f, ":"),
             Token::Semicolon => write!(f, ";"),
@@ -111,10 +114,12 @@ pub(crate) enum Keyword {
     Expression,
     /// BLACKBOX
     BlackBoxFuncCall,
-    /// MEM
-    MemoryOp,
     /// INIT
     MemoryInit,
+    /// READ
+    MemoryRead,
+    /// WRITE
+    MemoryWrite,
     /// BRILLIG
     Brillig,
     /// CALL
@@ -150,8 +155,9 @@ impl Keyword {
             "values" => Keyword::Values,
             "EXPR" => Keyword::Expression,
             "BLACKBOX" => Keyword::BlackBoxFuncCall,
-            "MEM" => Keyword::MemoryOp,
             "INIT" => Keyword::MemoryInit,
+            "READ" => Keyword::MemoryRead,
+            "WRITE" => Keyword::MemoryWrite,
             "BRILLIG" => Keyword::Brillig,
             "CALL" => Keyword::Call,
             "predicate" => Keyword::Predicate,
@@ -180,8 +186,9 @@ impl std::fmt::Display for Keyword {
             Keyword::Values => write!(f, "values"),
             Keyword::Expression => write!(f, "EXPR"),
             Keyword::BlackBoxFuncCall => write!(f, "BLACKBOX"),
-            Keyword::MemoryOp => write!(f, "MEM"),
             Keyword::MemoryInit => write!(f, "INIT"),
+            Keyword::MemoryRead => write!(f, "READ"),
+            Keyword::MemoryWrite => write!(f, "WRITE"),
             Keyword::Brillig => write!(f, "BRILLIG"),
             Keyword::Call => write!(f, "CALL"),
             Keyword::Predicate => write!(f, "predicate"),

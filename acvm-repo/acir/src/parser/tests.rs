@@ -443,7 +443,7 @@ fn memory_read() {
     private parameters: []
     public parameters: []
     return values: []
-    MEM id: 0, read at: w0, value: w1
+    READ w1 = b0[w0]
     ";
     assert_circuit_roundtrip(src);
 }
@@ -454,7 +454,7 @@ fn memory_write() {
     private parameters: []
     public parameters: []
     return values: []
-    MEM id: 3, write: w0, at: w1
+    WRITE b3[w1] = w0
     ";
     assert_circuit_roundtrip(src);
 }
@@ -465,7 +465,7 @@ fn memory_init() {
     private parameters: []
     public parameters: []
     return values: []
-    INIT id: 4, len: 5, witnesses: [w0, w1, w2, w3, w4]
+    INIT b4 = [w0, w1, w2, w3, w4]
     ";
     assert_circuit_roundtrip(src);
 }
@@ -476,7 +476,7 @@ fn memory_init_duplicate_witness() {
     private parameters: []
     public parameters: []
     return values: []
-    INIT id: 4, len: 2, witnesses: [w0, w0]
+    INIT b4 = [w0, w0]
     ";
     assert_circuit_roundtrip(src);
 }
@@ -487,8 +487,8 @@ fn memory_databus() {
     private parameters: [w0, w1, w2, w3, w4, w5]
     public parameters: []
     return values: []
-    INIT CALLDATA 0 id: 1, len: 5, witnesses: [w1, w2, w3, w4, w5]
-    INIT RETURNDATA id: 2, len: 1, witnesses: [w6]
+    INIT CALLDATA 0 b1 = [w1, w2, w3, w4, w5]
+    INIT RETURNDATA b2 = [w6]
     ";
     assert_circuit_roundtrip(src);
 }
@@ -564,10 +564,10 @@ fn array_dynamic() {
     BLACKBOX::RANGE input: w2, bits: 32
     BLACKBOX::RANGE input: w3, bits: 32
     BLACKBOX::RANGE input: w4, bits: 32
-    INIT id: 0, len: 5, witnesses: [w0, w1, w2, w3, w4]
+    INIT b0 = [w0, w1, w2, w3, w4]
     BLACKBOX::RANGE input: w5, bits: 32
     BLACKBOX::RANGE input: w6, bits: 32
-    INIT id: 1, len: 5, witnesses: [w7, w8, w9, w10, w11]
+    INIT b1 = [w7, w8, w9, w10, w11]
     BLACKBOX::RANGE input: w12, bits: 32
     BLACKBOX::RANGE input: w13, bits: 32
     BLACKBOX::RANGE input: w14, bits: 32
@@ -580,27 +580,27 @@ fn array_dynamic() {
     BLACKBOX::RANGE input: w20, bits: 32
     EXPR w21 = w20 - 5
     EXPR w22 = w21 - 3
-    MEM id: 0, read at: w21, value: w23
+    READ w23 = b0[w21]
     EXPR w23 = 111
-    MEM id: 0, read at: w22, value: w24
+    READ w24 = b0[w22]
     EXPR w24 = 101
     BRILLIG CALL func: 0, inputs: [w22 + 4294967291, 4294967296], outputs: [w25, w26]
     BLACKBOX::RANGE input: w26, bits: 32
     EXPR w26 = w22 - 4294967296*w25 + 4294967291
     EXPR w25 = 0
     EXPR w27 = 0
-    MEM id: 0, write: w27, at: w22
-    MEM id: 0, read at: w21, value: w28
+    WRITE b0[w22] = w27
+    READ w28 = b0[w21]
     EXPR w28 = 111
     EXPR w29 = 1
-    MEM id: 0, read at: w29, value: w30
+    READ w30 = b0[w29]
     EXPR w30 = 0
     BRILLIG CALL func: 0, inputs: [w21 + 4294967286, 4294967296], outputs: [w31, w32]
     BLACKBOX::RANGE input: w31, bits: 1
     BLACKBOX::RANGE input: w32, bits: 32
     EXPR w32 = w21 - 4294967296*w31 + 4294967286
     EXPR w33 = -w21*w31 + w21
-    MEM id: 0, read at: w33, value: w34
+    READ w34 = b0[w33]
     EXPR w35 = -w31*w34 + 2*w31 + w34 - 2
     BLACKBOX::RANGE input: w35, bits: 32
     BRILLIG CALL func: 0, inputs: [w21 + 4294967291, 4294967296], outputs: [w36, w37]
@@ -609,26 +609,26 @@ fn array_dynamic() {
     EXPR w37 = w21 - 4294967296*w36 + 4294967291
     EXPR w36 = w31*w36
     EXPR w38 = -w21*w31 + w21
-    MEM id: 0, read at: w38, value: w39
-    MEM id: 0, read at: w27, value: w40
-    MEM id: 0, read at: w29, value: w41
+    READ w39 = b0[w38]
+    READ w40 = b0[w27]
+    READ w41 = b0[w29]
     EXPR w42 = 2
-    MEM id: 0, read at: w42, value: w43
+    READ w43 = b0[w42]
     EXPR w44 = 3
-    MEM id: 0, read at: w44, value: w45
+    READ w45 = b0[w44]
     EXPR w46 = 0
-    MEM id: 0, read at: w46, value: w47
-    INIT id: 3, len: 5, witnesses: [w40, w41, w43, w45, w47]
+    READ w47 = b0[w46]
+    INIT b3 = [w40, w41, w43, w45, w47]
     EXPR w48 = -w31*w35 + w31*w39 + w35
-    MEM id: 3, write: w48, at: w38
-    MEM id: 3, read at: w46, value: w49
-    MEM id: 0, read at: w46, value: w50
+    WRITE b3[w38] = w48
+    READ w49 = b3[w46]
+    READ w50 = b0[w46]
     EXPR 0 = -w31*w36
     EXPR w51 = w21*w31
-    MEM id: 0, read at: w51, value: w52
+    READ w52 = b0[w51]
     EXPR w53 = -w31*w52 + w52
-    MEM id: 0, write: w53, at: w51
-    MEM id: 0, read at: w46, value: w54
+    WRITE b0[w51] = w53
+    READ w54 = b0[w46]
     EXPR w55 = -w31 + 1
     EXPR w56 = -w31*w49 + w31*w50 + w49
     EXPR 0 = w31*w54 + w55*w56 - 109
@@ -637,12 +637,12 @@ fn array_dynamic() {
     EXPR w59 = 32
     EXPR w60 = 176
     EXPR w61 = 8
-    INIT id: 4, len: 5, witnesses: [w57, w58, w59, w60, w61]
-    MEM id: 4, read at: w7, value: w62
-    MEM id: 4, read at: w8, value: w63
-    MEM id: 4, read at: w9, value: w64
-    MEM id: 4, read at: w10, value: w65
-    MEM id: 4, read at: w11, value: w66
+    INIT b4 = [w57, w58, w59, w60, w61]
+    READ w62 = b4[w7]
+    READ w63 = b4[w8]
+    READ w64 = b4[w9]
+    READ w65 = b4[w10]
+    READ w66 = b4[w11]
     BRILLIG CALL func: 1, inputs: [w62 + w63 + w64 + w65 + w66], outputs: [w67]
     EXPR 0 = w62*w67 + w63*w67 + w64*w67 + w65*w67 + w66*w67 - 1
     BRILLIG CALL func: 0, inputs: [w18, 4294967296], outputs: [w68, w69]
@@ -663,7 +663,7 @@ fn array_dynamic() {
     EXPR w76 = -w17*w74 + w17 - 3*w74 + 3
     BLACKBOX::RANGE input: w76, bits: 32
     EXPR w77 = -w74*w76 + w76
-    MEM id: 1, read at: w77, value: w78
+    READ w78 = b1[w77]
     EXPR w78 = -w15*w74 + w74*w78 + w15
     ";
     assert_circuit_roundtrip(src);
