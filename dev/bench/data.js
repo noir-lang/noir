@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1759144670382,
+  "lastUpdate": 1759157436359,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22481,48 +22481,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "ee41aad6a14c79ef24f6369f43cdd7ffdaf6e9f4",
-          "message": "chore: validate SSA intrinsics arguments and return types (#9892)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-09-18T14:27:06Z",
-          "tree_id": "01be88738fda702ce4da0ebc3815b879361692bf",
-          "url": "https://github.com/noir-lang/noir/commit/ee41aad6a14c79ef24f6369f43cdd7ffdaf6e9f4"
-        },
-        "date": 1758207358811,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 269698,
-            "range": "± 1073",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 241754,
-            "range": "± 7118",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2817669,
-            "range": "± 19484",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -24574,6 +24532,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2778702,
             "range": "± 3252",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "28daf02aaaa426525340f3fd6d31ff6cc5c8e13a",
+          "message": "feat: optimize out noop casts on constants (#10024)",
+          "timestamp": "2025-09-29T14:22:38Z",
+          "tree_id": "7c82396d4d291401fea95063c0e5cb9322c70201",
+          "url": "https://github.com/noir-lang/noir/commit/28daf02aaaa426525340f3fd6d31ff6cc5c8e13a"
+        },
+        "date": 1759157415501,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 251825,
+            "range": "± 940",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 223572,
+            "range": "± 4861",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2783115,
+            "range": "± 9159",
             "unit": "ns/iter"
           }
         ]
