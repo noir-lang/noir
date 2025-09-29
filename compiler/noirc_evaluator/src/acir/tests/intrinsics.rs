@@ -191,7 +191,7 @@ fn slice_insert() {
     // Insert does comparisons on every index for the value that should be written into the resulting slice
     // You can see how w1 is asserted to equal 4
     // Memory block 1 is our original slice
-    // Memory block 2 is our temporary slice while shifting. You can see it starts as all w5 (which is equal to 0)
+    // Memory block 2 is our temporary slice while shifting. You can see it starts as all w6 (which is equal to 0)
     // TODO(https://github.com/noir-lang/noir/issues/10015): Memory block 3 is our final slice which remains three elements. This is incorrect.
     // The Brillig calls are to our stdlib quotient directive
     assert_circuit_snapshot!(program, @r"
