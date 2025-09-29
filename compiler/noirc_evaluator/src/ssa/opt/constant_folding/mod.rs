@@ -132,20 +132,20 @@ impl Function {
             #[cfg(debug_assertions)]
             constant_folding_post_check(&context, &self.dfg);
 
-            // See if there are blocks that we need to revisit, ie. did anything get hoisted in this iteration.
+            // In order to deduplicate and hoist new instructions, we need rebuild the cache starting from the
+            // blocks we hoisted into, revisiting all descendants.
             let blocks_to_revisit = std::mem::take(&mut context.blocks_to_revisit);
 
-            // In order to deduplicate, we need to rebuild the cache by revisiting every
-            // block from the common dominator to each block we wanted to retry.
-            // Sorting the blocks by dominance and visiting them alone is not enough,
-            // we need the in-between ones and descendants as well, because if we replace
-            // an instruction in a block with the results of another, we need to re-resolve
-            // all instructions in subsequent blocks where the replaced instructions were used.
-            let common_dominator =
-                blocks_to_revisit.into_iter().reduce(|a, b| dom.common_dominator(a, b));
+            // Find blocks which are not dominated by anything other than themselves; these are our independent starting points.
+            // Alternatively we could reduce all blocks to their common dominator.
+            let blocks_to_revisit = blocks_to_revisit
+                .iter()
+                .filter(|b| blocks_to_revisit.iter().all(|a| *a == **b || !dom.dominates(*a, **b)))
+                .copied()
+                .collect::<Vec<_>>();
 
             // If nothing got hoisted, we are done.
-            let Some(start) = common_dominator else {
+            if blocks_to_revisit.is_empty() {
                 break;
             };
 
@@ -153,7 +153,7 @@ impl Function {
             // For example reusing the cache could be problematic when using constraint info, as it could make the
             // original content simplify out based on its own prior assertion of a value being a constant.
             context = Context::new(use_constraint_info);
-            context.block_queue.push_back(start);
+            context.block_queue.extend(blocks_to_revisit);
         }
     }
 }
