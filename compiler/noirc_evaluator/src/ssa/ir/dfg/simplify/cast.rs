@@ -18,15 +18,17 @@ pub(super) fn simplify_cast(
 ) -> SimplifyResult {
     use SimplifyResult::*;
 
+    if Type::Numeric(dst_typ) == dfg.type_of_value(value) {
+        return SimplifiedTo(value);
+    }
+
     if let Value::Instruction { instruction, .. } = &dfg[value] {
         if let Instruction::Cast(original_value, _) = &dfg[*instruction] {
             return SimplifiedToInstruction(Instruction::Cast(*original_value, dst_typ));
         }
     }
 
-    if Type::Numeric(dst_typ) == dfg.type_of_value(value) {
-        SimplifiedTo(value)
-    } else if let Some(constant) = dfg.get_numeric_constant(value) {
+    if let Some(constant) = dfg.get_numeric_constant(value) {
         let src_typ = dfg.type_of_value(value).unwrap_numeric();
         match (src_typ, dst_typ) {
             (
