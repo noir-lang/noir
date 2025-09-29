@@ -61,26 +61,19 @@ impl Function {
     }
 }
 
-// TODO: move these comments to max_non_overflowing_const_arg?
-// /// MAX_NON_OVERFLOWING_CONST_ARG is expected to be [p/U],
-// /// where U=U128::max() and p is the field modulus.
-// ///
-// /// Then x<[p/u]<=p/U, so x*U<p
-// static MAX_NON_OVERFLOWING_CONST_ARG: std::cell::LazyCell<u128> = std::cell::LazyCell::new(|| {
-//     let max_non_overflowing_const_arg = u128::try_from(FieldElement::modulus() / u128::MAX)
-//         .expect("expected max_const_value_that_does_not_overflow to fit into a u128");
-//     assert!(BigUint::from(u128::MAX) * max_non_overflowing_const_arg < FieldElement::modulus());
-//     max_non_overflowing_const_arg
-// });
-
-fn max_non_overflowing_const_arg() -> u128 {
-    // TODO: WIP
-    // *MAX_NON_OVERFLOWING_CONST_ARG
-
+/// MAX_NON_OVERFLOWING_CONST_ARG is expected to be [p/U],
+/// where U=U128::max() and p is the field modulus.
+///
+/// Then x<[p/u]<=p/U, so x*U<p
+static MAX_NON_OVERFLOWING_CONST_ARG: std::sync::LazyLock<u128> = std::sync::LazyLock::new(|| {
     let max_non_overflowing_const_arg = u128::try_from(FieldElement::modulus() / u128::MAX)
         .expect("expected max_const_value_that_does_not_overflow to fit into a u128");
     assert!(BigUint::from(u128::MAX) * max_non_overflowing_const_arg < FieldElement::modulus());
     max_non_overflowing_const_arg
+});
+
+fn max_non_overflowing_const_arg() -> u128 {
+    *MAX_NON_OVERFLOWING_CONST_ARG
 }
 
 fn check_u128_mul_overflow(
@@ -101,9 +94,8 @@ fn check_u128_mul_overflow(
         "expected rhs_value to fit in a u128, but found {rhs_value:?}"
     );
 
-    let max_non_overflowing_const_arg = max_non_overflowing_const_arg();
-    if lhs_value.is_some_and(|value| value.to_u128() <= max_non_overflowing_const_arg)
-        || rhs_value.is_some_and(|value| value.to_u128() <= max_non_overflowing_const_arg)
+    if lhs_value.is_some_and(|value| value.to_u128() <= max_non_overflowing_const_arg())
+        || rhs_value.is_some_and(|value| value.to_u128() <= max_non_overflowing_const_arg())
     {
         return;
     }
