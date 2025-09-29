@@ -73,7 +73,6 @@ fn div_field() {
     ";
     let program = ssa_to_acir_program(src);
 
-    // Here:
     // - w0 is v0
     // - w1 is v1
     // - w2 is v2
@@ -199,7 +198,6 @@ fn div_u8() {
     ";
     let program = ssa_to_acir_program(src);
 
-    // Here:
     // - w3 is 1/w1
     // - we check `0 = w1*w3 - 1` to ensure that an inverse must exist (so that w1 != 0)
     // - w4 is w0/w1
@@ -235,6 +233,56 @@ fn div_u8() {
     7: @0 = field field_div @1, @0
     8: stop &[@20; @21]
     unconstrained func 1: directive_integer_quotient
+    0: @10 = const u32 2
+    1: @11 = const u32 0
+    2: @0 = calldata copy [@11; @10]
+    3: @2 = field int_div @0, @1
+    4: @1 = field mul @2, @1
+    5: @1 = field sub @0, @1
+    6: @0 = @2
+    7: stop &[@11; @10]
+    ");
+}
+
+// No test for eq_u8 as it's similar to eq_field
+
+#[test]
+fn lt_u8() {
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u8, v1: u8):
+        v2 = lt v0, v1
+        return v2
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    // `w0 - w1 + 256` will be:
+    // - in [0, 255] if w0 < w1
+    // - in [256, 511] if w0 >= w1
+    // then dividing that by 256 will given:
+    // - 0 if w0 < w1
+    // - 1 if w0 >= w1
+    //
+    // `w4 = ...` checks the divmod relationship between w0, w1, w3 and w4
+    //
+    // Finally, `w3 = -w2 + 1` is just the opposite of `w2`, since above
+    // we saw that we get 1 when `w0 >= w1`.
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    current witness: w4
+    private parameters: [w0, w1]
+    public parameters: []
+    return values: [w2]
+    BLACKBOX::RANGE [w0]:8 bits []
+    BLACKBOX::RANGE [w1]:8 bits []
+    BRILLIG CALL func 0: inputs: [w0 - w1 + 256, 256], outputs: [w3, w4]
+    BLACKBOX::RANGE [w3]:1 bits []
+    BLACKBOX::RANGE [w4]:8 bits []
+    EXPR w4 = w0 - w1 - 256*w3 + 256
+    EXPR w3 = -w2 + 1
+
+    unconstrained func 0: directive_integer_quotient
     0: @10 = const u32 2
     1: @11 = const u32 0
     2: @0 = calldata copy [@11; @10]
