@@ -186,7 +186,7 @@ mod tests {
         ]));
 
         let init = vec![Witness(1), Witness(2)];
-
+        // Write the value '2' at index '1', and then read from index '1' into witness 4
         let trace = vec![
             MemOp::write_to_mem_index(FieldElement::from(1u128).into(), Witness(3).into()),
             MemOp::read_at_mem_index(FieldElement::one().into(), Witness(4)),
@@ -213,7 +213,7 @@ mod tests {
         ]));
 
         let init = vec![Witness(1), Witness(2)];
-
+        // Write at index '1', and then read at index '2' on an array of size 2.
         let invalid_trace = vec![
             MemOp::write_to_mem_index(FieldElement::from(1u128).into(), Witness(3).into()),
             MemOp::read_at_mem_index(FieldElement::from(2u128).into(), Witness(4)),
@@ -240,6 +240,7 @@ mod tests {
     }
 
     #[test]
+    // TODO: to review after the serialisation changes are merged because it will remove the predicate.
     fn test_predicate_on_read() {
         let mut initial_witness = WitnessMap::from(BTreeMap::from_iter([
             (Witness(1), FieldElement::from(1u128)),
@@ -276,6 +277,7 @@ mod tests {
     }
 
     #[test]
+    // TODO: to review after the serialisation changes are merged because it will remove the predicate.
     fn test_predicate_on_write() {
         let mut initial_witness = WitnessMap::from(BTreeMap::from_iter([
             (Witness(1), FieldElement::from(1u128)),
