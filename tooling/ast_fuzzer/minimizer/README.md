@@ -29,11 +29,18 @@ and we need a single line of the error message we are looking to preserve from i
 With that, we need to invoke the `minimize.sh` script as follows:
 
 ```shell
-tooling/ast_fuzzer/minimizer/scripts/minimize.sh "<error-message>" execute path/to/main.nr
+tooling/ast_fuzzer/minimizer/scripts/minimize.sh "<error-message>" execute [compile options...] path/to/main.nr
 ```
 
 The command can be `compile` or `execute`. The latter needs a `Prover.toml` file, which can be given following
 the path to `main.nr`, or it is assumed to be in the parent directory of `main.nr`, like a regular Noir project.
+
+You can also supply `nargo` compilation options. This is useful for cases where we want to minimize a program
+that only fails under certain compilation conditions (e.g., experimental features, different compilation pipeline). Example usage:
+
+```shell
+tooling/ast_fuzzer/minimizer/scripts/minimize.sh "<error-message>" execute -Zenums --minimal-ssa path/to/main.nr
+```
 
 The script makes a `main.nr.bkp` backup file, because the tool will minimize the Noir code in-place.
 

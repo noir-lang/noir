@@ -10,7 +10,7 @@ use acvm::{
 use iter_extended::vecmap;
 use noirc_frontend::hir_def::types::Type as HirType;
 
-use crate::ssa::opt::pure::Purity;
+use crate::ssa::{ir::integer::IntegerConstant, opt::pure::Purity};
 
 use super::{
     basic_block::BasicBlockId,
@@ -355,14 +355,12 @@ pub enum Instruction {
     EnableSideEffectsIf { condition: ValueId },
 
     /// Retrieve a value from an array at the given index
-    /// `offset` determines whether the index has been shifted by some offset.
-    ArrayGet { array: ValueId, index: ValueId, offset: ArrayOffset },
+    ArrayGet { array: ValueId, index: ValueId },
 
     /// Creates a new array with the new value at the given index. All other elements are identical
     /// to those in the given array. This will not modify the original array unless `mutable` is
     /// set. This flag is off by default and only enabled when optimizations determine it is safe.
-    /// `offset` determines whether the index has been shifted by some offset.
-    ArraySet { array: ValueId, index: ValueId, value: ValueId, mutable: bool, offset: ArrayOffset },
+    ArraySet { array: ValueId, index: ValueId, value: ValueId, mutable: bool },
 
     /// An instruction to increment the reference count of a value.
     ///
@@ -453,7 +451,7 @@ impl Instruction {
         match self {
             Instruction::Binary(binary) => binary.requires_acir_gen_predicate(dfg),
 
-            Instruction::ArrayGet { array, index, offset: _ } => {
+            Instruction::ArrayGet { array, index } => {
                 // `ArrayGet`s which read from "known good" indices from an array should not need a predicate.
                 // This extra out of bounds (OOB) check is only inserted in the ACIR runtime.
                 // Thus, in Brillig an `ArrayGet` is always a pure operation in isolation and
@@ -536,7 +534,28 @@ impl Instruction {
                     !matches!(typ, Type::Numeric(NumericType::NativeField))
                 }
                 BinaryOp::Div | BinaryOp::Mod => {
-                    dfg.get_numeric_constant(binary.rhs).is_none_or(|c| c.is_zero())
+                    // If we don't know rhs at compile time, it might be zero or -1
+                    let Some(rhs) = dfg.get_numeric_constant(binary.rhs) else {
+                        return true;
+                    };
+
+                    // Div or mod by zero is a side effect (failure)
+                    if rhs.is_zero() {
+                        return true;
+                    }
+
+                    // For signed types, division or modulo by -1 can overflow.
+                    let typ = dfg.type_of_value(binary.rhs).unwrap_numeric();
+                    let NumericType::Signed { bit_size } = typ else {
+                        return false;
+                    };
+
+                    let minus_one = IntegerConstant::Signed { value: -1, bit_size };
+                    if IntegerConstant::from_numeric_constant(rhs, typ) == Some(minus_one) {
+                        return true;
+                    }
+
+                    false
                 }
                 BinaryOp::Shl | BinaryOp::Shr => {
                     // Bit-shifts which are known to be by a number of bits less than the bit size of the type have no side effects.
@@ -567,7 +586,7 @@ impl Instruction {
             // used in the wrong context. Since we use this information to decide whether to hoist
             // instructions during deduplication, we consider unsafe values as potentially having
             // indirect side effects.
-            ArrayGet { array, index, offset: _ } => !dfg.is_safe_index(*index, *array),
+            ArrayGet { array, index } => !dfg.is_safe_index(*index, *array),
 
             // ArraySet has side effects
             ArraySet { .. } => true,
@@ -642,18 +661,15 @@ impl Instruction {
             Instruction::EnableSideEffectsIf { condition } => {
                 Instruction::EnableSideEffectsIf { condition: f(*condition) }
             }
-            Instruction::ArrayGet { array, index, offset } => {
-                Instruction::ArrayGet { array: f(*array), index: f(*index), offset: *offset }
+            Instruction::ArrayGet { array, index } => {
+                Instruction::ArrayGet { array: f(*array), index: f(*index) }
             }
-            Instruction::ArraySet { array, index, value, mutable, offset } => {
-                Instruction::ArraySet {
-                    array: f(*array),
-                    index: f(*index),
-                    value: f(*value),
-                    mutable: *mutable,
-                    offset: *offset,
-                }
-            }
+            Instruction::ArraySet { array, index, value, mutable } => Instruction::ArraySet {
+                array: f(*array),
+                index: f(*index),
+                value: f(*value),
+                mutable: *mutable,
+            },
             Instruction::IncrementRc { value } => Instruction::IncrementRc { value: f(*value) },
             Instruction::DecrementRc { value } => Instruction::DecrementRc { value: f(*value) },
             Instruction::RangeCheck { value, max_bit_size, assert_message } => {
@@ -716,11 +732,11 @@ impl Instruction {
             Instruction::EnableSideEffectsIf { condition } => {
                 *condition = f(*condition);
             }
-            Instruction::ArrayGet { array, index, offset: _ } => {
+            Instruction::ArrayGet { array, index } => {
                 *array = f(*array);
                 *index = f(*index);
             }
-            Instruction::ArraySet { array, index, value, mutable: _, offset: _ } => {
+            Instruction::ArraySet { array, index, value, mutable: _ } => {
                 *array = f(*array);
                 *index = f(*index);
                 *value = f(*value);
@@ -782,11 +798,11 @@ impl Instruction {
                 f(*value);
             }
             Instruction::Allocate => (),
-            Instruction::ArrayGet { array, index, offset: _ } => {
+            Instruction::ArrayGet { array, index } => {
                 f(*array);
                 f(*index);
             }
-            Instruction::ArraySet { array, index, value, mutable: _, offset: _ } => {
+            Instruction::ArraySet { array, index, value, mutable: _ } => {
                 f(*array);
                 f(*index);
                 f(*value);

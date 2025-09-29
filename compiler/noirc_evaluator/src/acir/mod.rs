@@ -27,11 +27,8 @@ pub(crate) mod ssa;
 mod tests;
 mod types;
 
+use crate::brillig::Brillig;
 use crate::brillig::brillig_gen::gen_brillig_for;
-use crate::brillig::{
-    Brillig, brillig_gen::brillig_fn::FunctionContext as BrilligFunctionContext,
-    brillig_ir::artifact::BrilligParameter,
-};
 use crate::errors::{InternalError, InternalWarning, RuntimeError, SsaReport};
 use crate::ssa::{
     function_builder::data_bus::DataBus,
@@ -85,21 +82,14 @@ struct Context<'a> {
     /// Each acir memory block corresponds to a different SSA array.
     memory_blocks: HashMap<Id<Value>, BlockId>,
 
-    /// Maps SSA values to a BlockId used internally
+    /// Maps SSA values to a BlockId used internally for computing the accurate flattened
+    /// index of non-homogenous arrays.
+    /// See [arrays] for more information about the purpose of the type sizes array.
+    ///
     /// A BlockId is an ACIR structure which identifies a memory block
     /// Each memory blocks corresponds to a different SSA value
     /// which utilizes this internal memory for ACIR generation.
-    internal_memory_blocks: HashMap<Id<Value>, BlockId>,
-
-    /// Maps an internal memory block to its length
-    ///
-    /// This is necessary to keep track of an internal memory block's size.
-    /// We do not need a separate map to keep track of `memory_blocks` as
-    /// the length is set when we construct a `AcirValue::DynamicArray` and is tracked
-    /// as part of the `AcirValue` in the `ssa_values` map.
-    /// The length of an internal memory block is determined before an array operation
-    /// takes place thus we track it separate here in this map.
-    internal_mem_block_lengths: HashMap<BlockId, usize>,
+    element_type_sizes_blocks: HashMap<Id<Value>, BlockId>,
 
     /// Number of the next BlockId, it is used to construct
     /// a new BlockId
@@ -134,8 +124,7 @@ impl<'a> Context<'a> {
             acir_context,
             initialized_arrays: HashSet::default(),
             memory_blocks: HashMap::default(),
-            internal_memory_blocks: HashMap::default(),
-            internal_mem_block_lengths: HashMap::default(),
+            element_type_sizes_blocks: HashMap::default(),
             max_block_id: 0,
             data_bus: DataBus::default(),
             shared_context,
@@ -256,6 +245,9 @@ impl<'a> Context<'a> {
         warnings.extend(return_warnings);
         warnings.extend(self.acir_context.warnings.clone());
 
+        #[cfg(debug_assertions)]
+        acir_post_check(&self, &self.acir_context.acir_ir);
+
         // Add the warnings from the alter Ssa passes
         Ok(self.acir_context.finish(
             input_witness,
@@ -330,8 +322,8 @@ impl<'a> Context<'a> {
     ) -> Result<Vec<Witness>, RuntimeError> {
         // The first witness (if any) is the next one
         let start_witness = self.acir_context.current_witness_index().0;
-        for param_id in params {
-            let typ = dfg.type_of_value(*param_id);
+        for &param_id in params {
+            let typ = dfg.type_of_value(param_id);
             let value = self.convert_ssa_block_param(&typ)?;
             match &value {
                 AcirValue::Var(_, _) => (),
@@ -353,7 +345,7 @@ impl<'a> Context<'a> {
                     "The dynamic array type is created in Acir gen and therefore cannot be a block parameter"
                 ),
             }
-            self.ssa_values.insert(*param_id, value);
+            self.ssa_values.insert(param_id, value);
         }
         let end_witness = self.acir_context.current_witness_index().0;
         let witnesses = (start_witness..=end_witness).map(Witness::from).collect();
@@ -577,7 +569,7 @@ impl<'a> Context<'a> {
             Instruction::MakeArray { elements, typ: _ } => {
                 let elements = elements.iter().map(|element| self.convert_value(*element, dfg));
                 let value = AcirValue::Array(elements.collect());
-                let result = dfg.instruction_results(instruction_id)[0];
+                let [result] = dfg.instruction_result(instruction_id);
                 self.ssa_values.insert(result, value);
             }
             Instruction::Noop => (),
@@ -587,40 +579,6 @@ impl<'a> Context<'a> {
         Ok(warnings)
     }
 
-    fn gen_brillig_parameters(
-        &self,
-        values: &[ValueId],
-        dfg: &DataFlowGraph,
-    ) -> Vec<BrilligParameter> {
-        values
-            .iter()
-            .map(|&value_id| {
-                let typ = dfg.type_of_value(value_id);
-                if let Type::Slice(item_types) = typ {
-                    let len = match self
-                        .ssa_values
-                        .get(&value_id)
-                        .expect("ICE: Unknown slice input to brillig")
-                    {
-                        AcirValue::DynamicArray(AcirDynamicArray { len, .. }) => *len,
-                        AcirValue::Array(array) => array.len(),
-                        _ => unreachable!("ICE: Slice value is not an array"),
-                    };
-
-                    BrilligParameter::Slice(
-                        item_types
-                            .iter()
-                            .map(BrilligFunctionContext::ssa_type_to_parameter)
-                            .collect(),
-                        len / item_types.len(),
-                    )
-                } else {
-                    BrilligFunctionContext::ssa_type_to_parameter(&typ)
-                }
-            })
-            .collect()
-    }
-
     /// Remember the result of an instruction returning a single value
     fn define_result(
         &mut self,
@@ -628,8 +586,8 @@ impl<'a> Context<'a> {
         instruction: InstructionId,
         result: AcirValue,
     ) {
-        let result_ids = dfg.instruction_results(instruction);
-        self.ssa_values.insert(result_ids[0], result);
+        let [result_id] = dfg.instruction_result(instruction);
+        self.ssa_values.insert(result_id, result);
     }
 
     /// Remember the result of instruction returning a single numeric value
@@ -639,8 +597,8 @@ impl<'a> Context<'a> {
         instruction: InstructionId,
         result: AcirVar,
     ) {
-        let result_ids = dfg.instruction_results(instruction);
-        let typ = dfg.type_of_value(result_ids[0]).into();
+        let [result_id] = dfg.instruction_result(instruction);
+        let typ = dfg.type_of_value(result_id).into();
         self.define_result(dfg, instruction, AcirValue::Var(result, typ));
     }
 
@@ -943,5 +901,27 @@ impl<'a> Context<'a> {
         };
 
         self.acir_context.truncate_var(var, bit_size, max_bit_size)
+    }
+}
+
+/// Check post ACIR generation properties
+/// * No memory opcodes should be laid down that write to the internal type sizes array.
+///   See [arrays] for more information on the type sizes array.
+#[cfg(debug_assertions)]
+fn acir_post_check(context: &Context<'_>, acir: &GeneratedAcir<FieldElement>) {
+    use acvm::acir::circuit::Opcode;
+    for opcode in acir.opcodes() {
+        let Opcode::MemoryOp { block_id, op } = opcode else {
+            continue;
+        };
+        if op.operation.is_one() {
+            // Check that we have no writes to the type size arrays
+            let is_type_sizes_array =
+                context.element_type_sizes_blocks.values().any(|id| id == block_id);
+            assert!(
+                !is_type_sizes_array,
+                "ICE: Writes to the internal type sizes array are forbidden"
+            );
+        }
     }
 }
