@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1759165216938,
+  "lastUpdate": 1759167732462,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22666,48 +22666,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "b9b06c0e59e1fda40f64d10b9c0dc845fcf50393",
-          "message": "chore(ssa): Validate array operands (#9932)",
-          "timestamp": "2025-09-19T17:20:43Z",
-          "tree_id": "a59906283010d8b4729d7423ed895be947e27532",
-          "url": "https://github.com/noir-lang/noir/commit/b9b06c0e59e1fda40f64d10b9c0dc845fcf50393"
-        },
-        "date": 1758304089334,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 253721,
-            "range": "± 1208",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 226471,
-            "range": "± 5664",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2795566,
-            "range": "± 3155",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -24759,6 +24717,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2783036,
             "range": "± 1500",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "cf7dbf1659809f13a556ab42bb57e9fbe3b2f1e0",
+          "message": "chore: green light for ACVM optimisation (#10002)",
+          "timestamp": "2025-09-29T17:18:33Z",
+          "tree_id": "91419cd1ee9907cb06272c9decf7363c7a11e792",
+          "url": "https://github.com/noir-lang/noir/commit/cf7dbf1659809f13a556ab42bb57e9fbe3b2f1e0"
+        },
+        "date": 1759167711741,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 252164,
+            "range": "± 799",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 222480,
+            "range": "± 1951",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2779961,
+            "range": "± 1770",
             "unit": "ns/iter"
           }
         ]
