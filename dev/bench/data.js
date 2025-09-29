@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1759158098004,
+  "lastUpdate": 1759158287976,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4943,90 +4943,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "ee41aad6a14c79ef24f6369f43cdd7ffdaf6e9f4",
-          "message": "chore: validate SSA intrinsics arguments and return types (#9892)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-09-18T14:27:06Z",
-          "tree_id": "01be88738fda702ce4da0ebc3815b879361692bf",
-          "url": "https://github.com/noir-lang/noir/commit/ee41aad6a14c79ef24f6369f43cdd7ffdaf6e9f4"
-        },
-        "date": 1758208318847,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.858,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.944,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.444,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 17.64,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 17.56,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 18.84,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 208,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 206,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.396,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.572,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.827,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.955,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -9441,6 +9357,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.708,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "28daf02aaaa426525340f3fd6d31ff6cc5c8e13a",
+          "message": "feat: optimize out noop casts on constants (#10024)",
+          "timestamp": "2025-09-29T14:22:38Z",
+          "tree_id": "7c82396d4d291401fea95063c0e5cb9322c70201",
+          "url": "https://github.com/noir-lang/noir/commit/28daf02aaaa426525340f3fd6d31ff6cc5c8e13a"
+        },
+        "date": 1759158267093,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.772,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.558,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.346,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 1.484,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 1.37,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1.45,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 1.42,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 189,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 203,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.556,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 25.28,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 77.06,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 1.464,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.801,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.748,
             "unit": "s"
           }
         ]
