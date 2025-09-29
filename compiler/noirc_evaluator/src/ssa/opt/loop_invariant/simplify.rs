@@ -36,7 +36,7 @@ impl LoopInvariantContext<'_> {
 
                 if left {
                     // If the induction variable is on the LHS, we're dividing with a constant.
-                    if !value.is_zero() {
+                    if !value.is_zero() && !value.is_minus_one() {
                         return true;
                     }
                 } else {
@@ -80,10 +80,8 @@ impl LoopInvariantContext<'_> {
         // Simplify the instruction and update it in the DFG.
         match self.simplify_induction_variable(loop_context, block_context, instruction_id) {
             SimplifyResult::SimplifiedTo(id) => {
-                let results =
-                    self.inserter.function.dfg.instruction_results(instruction_id).to_vec();
-                assert!(results.len() == 1);
-                self.inserter.map_value(results[0], id);
+                let [result] = self.inserter.function.dfg.instruction_result(instruction_id);
+                self.inserter.map_value(result, id);
                 true
             }
             SimplifyResult::SimplifiedToInstruction(instruction) => {

@@ -6,11 +6,11 @@ on:
       noir-ref:
         description: The noir reference to checkout
         required: false
-        default: 'master'
+        default: "master"
       npm-tag:
         description: Repository Tag to publish under
         required: false
-        default: 'nightly'
+        default: "nightly"
 
 run-name: Publish ES Packages from ${{ inputs.noir-ref }} under @${{ inputs.npm-tag }} tag.
 
@@ -120,6 +120,10 @@ jobs:
   publish-es-packages:
     runs-on: ubuntu-22.04
     needs: [build-acvm_js, build-noirc_abi_wasm, build-noir_wasm]
+    permissions:
+      contents: read
+      id-token: write # Necessary for NPM provenance: https://docs.npmjs.com/generating-provenance-statements
+      issues: write # To alert on failure
     steps:
       - name: Checkout sources
         uses: actions/checkout@v5
@@ -142,7 +146,7 @@ jobs:
           path: tooling/noirc_abi_wasm
 
       - name: Install Yarn dependencies
-        run: yarn install
+        uses: ./.github/actions/setup
 
       - name: Build ES Packages
         run: yarn build:js:only
@@ -156,7 +160,7 @@ jobs:
         run: "echo npmAuthToken: ${{ secrets.NPM_TOKEN }} > ~/.yarnrc.yml"
 
       - name: Publish ES Packages
-        run: yarn publish:all --access public --tag ${{ inputs.npm-tag }}
+        run: yarn publish:all --provenance --access public --tag ${{ inputs.npm-tag }}
 
       # Raise an issue if any package failed to publish
       - name: Alert on failed publish
