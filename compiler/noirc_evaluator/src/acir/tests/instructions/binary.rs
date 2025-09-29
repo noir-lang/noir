@@ -63,6 +63,46 @@ fn mul_field() {
 }
 
 #[test]
+fn div_field() {
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: Field, v1: Field):
+        v2 = div v0, v1
+        return v2
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    // Here:
+    // - w0 is v0
+    // - w1 is v1
+    // - w2 is v2
+    // - w3 is 1/w1
+    // - then w2 is w0 * w3 = w0 * 1 / w1 = w0 / w1 = v0 / v1
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    current witness: w3
+    private parameters: [w0, w1]
+    public parameters: []
+    return values: [w2]
+    BRILLIG CALL func 0: inputs: [w1], outputs: [w3]
+    EXPR 0 = w1*w3 - 1
+    EXPR w2 = w0*w3
+
+    unconstrained func 0
+    0: @21 = const u32 1
+    1: @20 = const u32 0
+    2: @0 = calldata copy [@20; @21]
+    3: @2 = const field 0
+    4: @3 = field eq @0, @2
+    5: jump if @3 to 8
+    6: @1 = const field 1
+    7: @0 = field field_div @1, @0
+    8: stop &[@20; @21]
+    ");
+}
+
+#[test]
 fn eq_field() {
     let src = "
     acir(inline) fn main f0 {
@@ -71,10 +111,10 @@ fn eq_field() {
         return v2
     }
     ";
+    let program = ssa_to_acir_program(src);
 
     // See noirc_evaluator::acir::acir_context::generated_acir::GeneratedAcir::is_zero
     // for an explanation of how equality is implemented.
-    let program = ssa_to_acir_program(src);
     assert_circuit_snapshot!(program, @r"
     func 0
     current witness: w5
