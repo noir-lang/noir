@@ -70,9 +70,7 @@ static MAX_NON_OVERFLOWING_CONST_ARG: std::sync::LazyLock<u128> = std::sync::Laz
         .expect("expected max_const_value_that_does_not_overflow to fit into a u128");
     assert!(BigUint::from(u128::MAX) * max_non_overflowing_const_arg < FieldElement::modulus());
     assert!(
-        max_non_overflowing_const_arg
-            .checked_mul(max_non_overflowing_const_arg)
-            .is_none(),
+        max_non_overflowing_const_arg.checked_mul(max_non_overflowing_const_arg).is_none(),
         "expected max_non_overflowing_const_arg * max_non_overflowing_const_arg to overflow u128"
     );
     max_non_overflowing_const_arg
