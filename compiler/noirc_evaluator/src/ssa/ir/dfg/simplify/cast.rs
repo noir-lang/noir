@@ -24,13 +24,11 @@ pub(super) fn simplify_cast(
         }
     }
 
-    if let Some(constant) = dfg.get_numeric_constant(value) {
+    if Type::Numeric(dst_typ) == dfg.type_of_value(value) {
+        SimplifiedTo(value)
+    } else if let Some(constant) = dfg.get_numeric_constant(value) {
         let src_typ = dfg.type_of_value(value).unwrap_numeric();
         match (src_typ, dst_typ) {
-            (NumericType::NativeField, NumericType::NativeField) => {
-                // Field -> Field: use src value
-                SimplifiedTo(value)
-            }
             (
                 NumericType::Unsigned { .. } | NumericType::Signed { .. },
                 NumericType::NativeField,
@@ -71,9 +69,10 @@ pub(super) fn simplify_cast(
                     None
                 }
             }
+            (NumericType::NativeField, NumericType::NativeField) => {
+                unreachable!("This should be covered in previous if-branch")
+            }
         }
-    } else if Type::Numeric(dst_typ) == dfg.type_of_value(value) {
-        SimplifiedTo(value)
     } else {
         None
     }
@@ -127,6 +126,26 @@ mod tests {
           b0():
             constrain u1 1 == u1 0
             return i8 44
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_out_cast_to_input_type() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: i8):
+            v1 = cast u128 340282366920938463463374607431768211455 as u128
+            v2 = cast v0 as i8
+            return
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: i8):
+            return
         }
         ");
     }
