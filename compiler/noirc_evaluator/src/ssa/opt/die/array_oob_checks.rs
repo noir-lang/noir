@@ -259,16 +259,22 @@ fn handle_array_get_group(
             Instruction::Binary(Binary { operator: BinaryOp::Add { .. }, .. }) => {
                 continue;
             }
-            Instruction::ArrayGet { array: next_array, .. } if next_array == array => {
+            Instruction::ArrayGet { array: next_array, index: next_index }
+                if next_array == array =>
+            {
                 // Still reading the same array.
+                // There is a chance that *this* instruction is safe, which means the one before it
+                // needs to be replaced with a constraint, even if this does not.
+                if function.dfg.is_safe_index(*next_index, *next_array) {
+                    break;
+                }
+                // This instruction is also OOB, so it belongs to the same group.
                 group_count += 1;
-                // Check if this result is also OOB and unused.
+                // Check if this result is also unused.
                 *next_out_of_bounds_index = possible_index_out_of_bounds_indexes.pop();
                 let Some(out_of_bounds_index) = *next_out_of_bounds_index else {
-                    // The next item was not recorded as OOB and unused, so we don't need to insert
-                    // a constraint to replace the whole group.
-                    // XXX: This assumes that we don't have an unused+unsafe followed by a used+safe
-                    // of the same array, which could still result in the OOB check being removed.
+                    // This ArrayGet is not recorded as a potential OOB; we know it's OOB, so this means it's not unused.
+                    // That means we can let the built-in OOB check take care of it.
                     break;
                 };
                 if out_of_bounds_index == i {
