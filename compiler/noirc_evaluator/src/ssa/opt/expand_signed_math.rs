@@ -93,7 +93,7 @@ impl Context<'_, '_, '_> {
 
         // It can be shown that the result is given by xor'ing the two results above:
         // - if lhs and rhs have the same sign (different_sign is 0):
-        //   - if both are positive then the unsigned comparison is correct, xoring it with 0 gives
+        //   - if both are positive then the unsigned comparison is correct, xor'ing it with 0 gives
         //     same result
         //   - if both are negative then the unsigned comparison is also correct, as, for example,
         //     for i8, -128 i8 is Field 128 and -1 i8 is Field 255 and `-128 < -1` and `128 < 255`
