@@ -270,6 +270,35 @@ fn signed_div_overflow() {
     assert!(matches!(acir_execution_result, (ACVMStatus::Failure(_), _)));
 }
 
+#[test]
+fn databus() {
+    let src = "
+    acir(inline) predicate_pure fn main f0 {
+        b0(v0: u32, v1: u32):
+            v2 = cast v0 as Field
+            v3 = make_array [v2] : [Field; 1]
+            constrain v0 == u32 0
+            v4 = add v0, v1
+            return v4
+        }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    // Check that w0 is not replaced
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    current witness: w3
+    private parameters: [w0, w1]
+    public parameters: []
+    return values: [w2]
+    BLACKBOX::RANGE [w1]:32 bits []
+    EXPR w0 = 0
+    EXPR w3 = w0 + w1
+    BLACKBOX::RANGE [w3]:32 bits []
+    EXPR w3 = w2
+    ");
+}
+
 /// Convert the SSA input into ACIR and use ACVM to execute it
 /// Returns the ACVM execution status and the value of the 'output' witness value,
 /// unless the provided output is None or the ACVM fails during execution.

@@ -133,6 +133,13 @@ impl<F: AcirField> AcirContext<F> {
             return Ok(());
         }
 
+        if let Some(w) = self.var_to_expression(lhs)?.to_witness() {
+            if self.acir_ir.input_witnesses.contains(&w) {
+                //Input witnesses are not replaced
+                return Ok(());
+            }
+        }
+
         let lhs_data = self.vars.remove(&lhs).ok_or_else(|| InternalError::UndeclaredAcirVar {
             call_stack: self.get_call_stack(),
         })?;
@@ -1480,11 +1487,9 @@ impl<F: AcirField> AcirContext<F> {
     /// Terminates the context and takes the resulting `GeneratedAcir`
     pub(crate) fn finish(
         mut self,
-        inputs: Vec<Witness>,
         return_values: Vec<Witness>,
         warnings: Vec<SsaReport>,
     ) -> GeneratedAcir<F> {
-        self.acir_ir.input_witnesses = inputs;
         self.acir_ir.return_witnesses = return_values;
         self.acir_ir.warnings = warnings;
         self.acir_ir
