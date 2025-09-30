@@ -1,3 +1,19 @@
+//! The `compiler` module contains several pass to transform an ACIR program.
+//! Roughly, the passes are spearated into the `optimizers` which try to reduce the number of opcodes
+//! and the `transformers` which adapt the opcodes to the proving backend.
+//!
+//! # Optimizers
+//! - GeneralOptimizer: simple pass which simplify AssertZero opcodes when possible (e.g remove terms with null coeficient)
+//! - UnusedMemoryOptimizer: simple pass which removes MemoryInit opcodes when they are not used (e.g no corresponding MemoryOp opcode)
+//! - RangeOptimizer: forward pass to collect range check information, and backward pass to remove the ones that are redundant.
+//!
+//! # Transformers
+//! - CSAT: create intermediate variables so that AssertZero opcodes have the correct Circuit's `ExpressionWidth`.
+//!
+//! ACIR generation is performed by calling the `Ssa::into_acir` method, providing any necessary brillig bytecode.
+//! The compiled program will be returned as an `Artifacts` type.
+//!
+
 use std::collections::{BTreeMap, HashMap};
 
 use acir::{
@@ -19,8 +35,12 @@ pub use simulator::CircuitSimulator;
 use transformers::transform_internal;
 pub use transformers::{MIN_EXPRESSION_WIDTH, transform};
 
-/// This module moves and decomposes acir opcodes. The transformation map allows consumers of this module to map
+/// This module can move and decompose acir opcodes into multiple opcodes. The transformation map allows consumers of this module to map
 /// metadata they had about the opcodes to the new opcode structure generated after the transformation.
+/// ACIR opcodes are stored inside a vector of opcodes. A transformation pass will generate a new vector of opcodes,
+/// but each opcode is the result of the transformation of an opcode in the original vector.
+/// So we simply keep track of the relation:  index of the original opcode -> index of the new opcode in the new vector
+/// However we need a vector of new indexes for the map values in the case the old opcode is decomposed into multiple opcodes.
 #[derive(Debug)]
 pub struct AcirTransformationMap {
     /// Maps the old acir indices to the new acir indices
@@ -31,6 +51,15 @@ impl AcirTransformationMap {
     /// Builds a map from a vector of pointers to the old acir opcodes.
     /// The index in the vector is the new opcode index.
     /// The value of the vector is the old opcode index pointed.
+    /// E.g: If acir_opcode_positions = 0,1,2,4,5,5,6
+    /// that means that old index  0,1,2,4,5,5,6 are mapped to the new indexes: 0,1,2,3,4,5,6
+    /// This gives the following map:
+    /// 0 -> 0
+    /// 1 -> 1
+    /// 2 -> 2
+    /// 4 -> 3
+    /// 5 -> [4, 5]
+    /// 6 -> 6
     fn new(acir_opcode_positions: &[usize]) -> Self {
         let mut old_indices_to_new_indices = HashMap::with_capacity(acir_opcode_positions.len());
         for (new_index, old_index) in acir_opcode_positions.iter().copied().enumerate() {
@@ -40,6 +69,11 @@ impl AcirTransformationMap {
     }
 
     /// Returns the new opcode location(s) corresponding to the old opcode.
+    /// An OpcodeLocation contains the index of the opcode in the vector of opcodes
+    /// This function returns the new OpcodeLocation by 'updating' the index within the given OpcodeLocation
+    /// using the AcirTransformationMap. In fact it does not update the given OpcodeLocation 'in-memory' but rather
+    /// returns a new one, and even a vector of OpcodeLocation in case there are multiple new indexes corresponding
+    /// to the old opcode index.
     pub fn new_locations(
         &self,
         old_location: OpcodeLocation,
@@ -61,6 +95,8 @@ impl AcirTransformationMap {
         )
     }
 
+    /// This function is similar to `new_locations()`, but only deal with
+    /// the AcirOpcodeLocation variant
     pub fn new_acir_locations(
         &self,
         old_location: AcirOpcodeLocation,
@@ -91,7 +127,15 @@ fn transform_assert_messages<F: Clone>(
 
 /// Applies backend specific optimizations to a [`Circuit`].
 ///
-/// Runs multiple passes until the output stabilizes.
+/// optimize_internal:
+/// - General optimizer: canonalize AssertZero opcodes.
+/// - Unused Memory: remove unused MemoryInit opcodes.
+/// - Redundant Ranges: remove RANGE opcodes that are redundant.
+///
+/// transform_internal: run multiple times (up to 3) until the output stabilizes.
+/// - CSAT: limit AssertZero opcodes to the Circuit's width.
+/// - Eliminate intermediate variables: Combine AssertZero opcodes used only once.
+/// - Redundant Ranges: some RANGEs may be redundant as a side effect of the previous pass.
 pub fn compile<F: AcirField>(
     acir: Circuit<F>,
     expression_width: ExpressionWidth,
