@@ -78,15 +78,17 @@ impl Context<'_, '_, '_> {
         let lhs_unsigned = self.insert_cast(lhs, unsigned_typ);
         let rhs_unsigned = self.insert_cast(rhs, unsigned_typ);
 
-        // Check if lhs and rhs are positive or negative, respectively
+        // Check if lhs and rhs are positive or negative, respectively.
+        // Values greater than or equal to 2^(bit_size-1) are negative so dividing by that would
+        // give 0 (positive) or 1 (negative).
         let pow_last = self.numeric_constant(1_u128 << (bit_size - 1), unsigned_typ);
-        let lhs_is_positive = self.insert_binary(lhs_unsigned, BinaryOp::Div, pow_last);
-        let lhs_is_positive = self.insert_cast(lhs_is_positive, NumericType::bool());
-        let rhs_is_positive = self.insert_binary(rhs_unsigned, BinaryOp::Div, pow_last);
-        let rhs_is_positive = self.insert_cast(rhs_is_positive, NumericType::bool());
+        let lhs_is_negative = self.insert_binary(lhs_unsigned, BinaryOp::Div, pow_last);
+        let lhs_is_negative = self.insert_cast(lhs_is_negative, NumericType::bool());
+        let rhs_is_negative = self.insert_binary(rhs_unsigned, BinaryOp::Div, pow_last);
+        let rhs_is_negative = self.insert_cast(rhs_is_negative, NumericType::bool());
 
         // Do rhs and lhs have a different sign?
-        let different_sign = self.insert_binary(lhs_is_positive, BinaryOp::Xor, rhs_is_positive);
+        let different_sign = self.insert_binary(lhs_is_negative, BinaryOp::Xor, rhs_is_negative);
 
         // Check lhs < rhs using their unsigned equivalents
         let unsigned_lt = self.insert_binary(lhs_unsigned, BinaryOp::Lt, rhs_unsigned);
