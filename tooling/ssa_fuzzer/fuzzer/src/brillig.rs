@@ -363,16 +363,18 @@ libfuzzer_sys::fuzz_target!(
     // You can disable some instructions with bugs that are not fixed yet
     let modes = vec![FuzzerMode::NonConstant];
     let instruction_options = InstructionOptions {
-        array_get_enabled: false,
-        array_set_enabled: false,
+        // https://github.com/AztecProtocol/aztec-packages/issues/17182
+        // all of them use to_le_radix
         ecdsa_secp256k1_enabled: false,
         ecdsa_secp256r1_enabled: false,
         blake2s_hash_enabled: false,
         blake3_hash_enabled: false,
         aes128_encrypt_enabled: false,
         field_to_bytes_to_field_enabled: false,
+        // https://github.com/AztecProtocol/aztec-packages/issues/16948
         point_add_enabled: false,
         multi_scalar_mul_enabled: false,
+        // https://github.com/AztecProtocol/aztec-packages/issues/16944
         shl_enabled: false,
         shr_enabled: false,
         ..InstructionOptions::default()
