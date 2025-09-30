@@ -131,7 +131,7 @@ pub enum Intrinsic {
     /// in constrained context, it will be 0.
     ArrayRefCount,
     /// SliceRefCount - Gives the reference count of the slice
-    /// argument: slice (value id)
+    /// arguments: slice length, slice contents (value id)
     /// result: reference count of `slice`. In unconstrained context, the reference count is stored alongside the slice.
     /// in constrained context, it will be 0.
     SliceRefCount,
