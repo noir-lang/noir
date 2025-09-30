@@ -157,6 +157,9 @@ impl Context<'_, '_, '_> {
         };
         self.insert_constrain(min_overflow, zero, Some(message.into()));
 
+        // What about checking that the divisor is not zero? We don't need to explicitly check
+        // this here because it'll be check when doing the unsigned div/mod.
+
         // Check if lhs and rhs are positive or negative, respectively.
         // Values greater than or equal to 2^(bit_size-1) are negative so dividing by that would
         // give 0 (positive) or 1 (negative).
