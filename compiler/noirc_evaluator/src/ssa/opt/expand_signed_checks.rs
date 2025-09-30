@@ -43,7 +43,8 @@ impl Function {
                 operator:
                     operator @ (BinaryOp::Add { unchecked: false }
                     | BinaryOp::Sub { unchecked: false }
-                    | BinaryOp::Mul { unchecked: false }),
+                    | BinaryOp::Mul { unchecked: false }
+                    | BinaryOp::Lt),
             }) = instruction
             else {
                 return;
@@ -68,6 +69,7 @@ impl Function {
                 BinaryOp::Add { .. } => expansion_context.insert_add(lhs, rhs),
                 BinaryOp::Sub { .. } => expansion_context.insert_sub(lhs, rhs),
                 BinaryOp::Mul { .. } => expansion_context.insert_mul(lhs, rhs),
+                BinaryOp::Lt => expansion_context.insert_lt(lhs, rhs),
                 _ => unreachable!("ICE: expand_signed_checks called on non-add/sub/mul"),
             };
 
@@ -134,6 +136,40 @@ impl Context<'_, '_, '_> {
             bit_size,
         );
         self.insert_cast(truncated, self.context.dfg.type_of_value(lhs).unwrap_numeric())
+    }
+
+    fn insert_lt(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
+        // First cast lhs and rhs to their unsigned equivalents
+        let bit_size = self.context.dfg.type_of_value(lhs).bit_size();
+        let unsigned_typ = NumericType::unsigned(bit_size);
+        let lhs_unsigned = self.insert_cast(lhs, unsigned_typ);
+        let rhs_unsigned = self.insert_cast(rhs, unsigned_typ);
+
+        // Check if lhs and rhs are positive or negative, respectively
+        let pow_last = self.numeric_constant(1_u128 << (bit_size - 1), unsigned_typ);
+        let lhs_is_positive = self.insert_binary(lhs_unsigned, BinaryOp::Div, pow_last);
+        let lhs_is_positive = self.insert_cast(lhs_is_positive, NumericType::bool());
+        let rhs_is_positive = self.insert_binary(rhs_unsigned, BinaryOp::Div, pow_last);
+        let rhs_is_positive = self.insert_cast(rhs_is_positive, NumericType::bool());
+
+        // Do rhs and lhs have a different sign?
+        let different_sign = self.insert_binary(lhs_is_positive, BinaryOp::Xor, rhs_is_positive);
+
+        // Check lhs < rhs using their unsigned equivalents
+        let unsigned_lt = self.insert_binary(lhs_unsigned, BinaryOp::Lt, rhs_unsigned);
+
+        // It can be shown that the result is given by xor'ing the two results above:
+        // - if lhs and rhs have the same sign (different_sign is 0):
+        //   - if both are positive then the unsigned comparison is correct, xoring it with 0 gives
+        //     same result
+        //   - if both are negative then the unsigned comparison is also correct, as, for example,
+        //     for i8, -128 i8 is Field 128 and -1 i8 is Field 255 and `-128 < -1` and `128 < 255`
+        // - if lhs and rhs have different signs (different_sign is 1):
+        //   - if lhs is positive and rhs is negative then, as fields, rhs will be greater, but
+        //     the result is the opposite (so xor'ing with 1 gives the correct result)
+        //   - if lhs is negative and rhs is positive then, as fields, lhs will be greater, but
+        //     the result is the opposite (so xor'ing with 1 gives the correct result)
+        self.insert_binary(different_sign, BinaryOp::Xor, unsigned_lt)
     }
 
     /// Insert constraints ensuring that the operation does not overflow the bit size of the result
@@ -625,5 +661,33 @@ mod tests {
         }
         ";
         assert_ssa_does_not_change(src, Ssa::expand_signed_checks);
+    }
+
+    #[test]
+    fn expands_signed_lt() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: i8, v1: i8):
+            v2 = lt v0, v1
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.expand_signed_checks();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: i8, v1: i8):
+            v2 = cast v0 as u8
+            v3 = cast v1 as u8
+            v5 = div v2, u8 128
+            v6 = cast v5 as u1
+            v7 = div v3, u8 128
+            v8 = cast v7 as u1
+            v9 = xor v6, v8
+            v10 = lt v2, v3
+            v11 = xor v9, v10
+            return v11
+        }
+        ");
     }
 }
