@@ -125,7 +125,6 @@ pub struct ArtifactsAndWarnings(pub Artifacts, pub Vec<SsaReport>);
 pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
     vec![
         SsaPass::new(Ssa::expand_signed_checks, "expand signed checks"),
-        SsaPass::new(Ssa::expand_signed_math, "expand signed math"),
         SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
         SsaPass::new(Ssa::defunctionalize, "Defunctionalization"),
         SsaPass::new_try(Ssa::inline_simple_functions, "Inlining simple functions")
@@ -175,8 +174,8 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
         SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
         SsaPass::new(Ssa::remove_bit_shifts, "Removing Bit Shifts"),
-        // TODO: don't run this pass again. Right now it's needed because "Remove Bit Shifts"
-        // might insert new signed divisions, but ideally it shouldn't.
+        // Expand signed lt/div/mod after "Removing Bit Shifts" because that pass might
+        // introduce signed divisions.
         SsaPass::new(Ssa::expand_signed_math, "Expand signed math"),
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
         SsaPass::new(Ssa::flatten_cfg, "Flattening"),
