@@ -252,12 +252,21 @@ impl SimulatorProcess {
         let gz_decode_step = Instant::now();
         let mut gz_decoder = GzDecoder::new(response_line_gzip.as_slice());
         let mut response_line = Vec::new();
-        let result = gz_decoder
+        match gz_decoder
             .read_to_end(&mut response_line)
-            .map_err(|e| format!("Failed to read simulator response: {e}"));
-        if result.is_err() {
-            panic!("Failed to read simulator response, gzip decoder: {}", result.err().unwrap());
-        }
+            .map_err(|e| format!("Failed to read simulator response: {e}"))
+        {
+            Ok(_) => (),
+            Err(e) => {
+                if e.to_string().contains("unexpected end of file") {
+                    log::warn!("Unexpected end of file, recreating simulator");
+                    recreate_simulator().expect("Failed to recreate simulator");
+                    return self.execute(bytecode, inputs);
+                } else {
+                    panic!("Failed to decode simulator response: {e}");
+                }
+            }
+        };
         let response_line = String::from_utf8(response_line).unwrap();
         log::debug!("Gz decoding response time {:?}", gz_decode_step.elapsed());
         log::debug!("Decoding response time {:?}", decode_step.elapsed());
