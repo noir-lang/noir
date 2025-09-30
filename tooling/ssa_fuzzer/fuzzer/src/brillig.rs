@@ -238,7 +238,15 @@ impl SimulatorProcess {
         .map_err(|e| format!("Failed to decode simulator response from base64: {e}"))
         {
             Ok(response_line) => response_line,
-            Err(e) => panic!("Failed to decode simulator response: {e}"),
+            Err(e) => {
+                if e.to_string().contains("unexpected end of file") {
+                    log::warn!("Unexpected end of file, recreating simulator");
+                    recreate_simulator().expect("Failed to recreate simulator");
+                    return self.execute(bytecode, inputs);
+                } else {
+                    panic!("Failed to decode simulator response: {e}");
+                }
+            }
         };
 
         let gz_decode_step = Instant::now();
