@@ -81,10 +81,10 @@ impl Context<'_, '_, '_> {
         // Check if lhs and rhs are positive or negative, respectively.
         // Values greater than or equal to 2^(bit_size-1) are negative so dividing by that would
         // give 0 (positive) or 1 (negative).
-        let pow_last = self.numeric_constant(1_u128 << (bit_size - 1), unsigned_typ);
-        let lhs_is_negative = self.insert_binary(lhs_unsigned, BinaryOp::Div, pow_last);
+        let first_negative_value = self.numeric_constant(1_u128 << (bit_size - 1), unsigned_typ);
+        let lhs_is_negative = self.insert_binary(lhs_unsigned, BinaryOp::Div, first_negative_value);
         let lhs_is_negative = self.insert_cast(lhs_is_negative, NumericType::bool());
-        let rhs_is_negative = self.insert_binary(rhs_unsigned, BinaryOp::Div, pow_last);
+        let rhs_is_negative = self.insert_binary(rhs_unsigned, BinaryOp::Div, first_negative_value);
         let rhs_is_negative = self.insert_cast(rhs_is_negative, NumericType::bool());
 
         // Do rhs and lhs have a different sign?
