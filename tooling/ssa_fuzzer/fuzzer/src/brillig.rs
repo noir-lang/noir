@@ -386,6 +386,9 @@ libfuzzer_sys::fuzz_target!(
         // https://github.com/AztecProtocol/aztec-packages/issues/16944
         shl_enabled: false,
         shr_enabled: false,
+
+        //https://github.com/noir-lang/noir/issues/10035
+        unsafe_get_set_enabled: false,
         ..InstructionOptions::default()
     };
     let fuzzer_command_options =

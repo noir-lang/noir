@@ -106,14 +106,14 @@ impl FuzzerOutput {
                 if self.get_return_witnesses().is_empty() {
                     CompareResults::BothFailed
                 } else {
-                    CompareResults::LeftCompilationFailed
+                    CompareResults::RightCompilationFailed
                 }
             }
             (false, true) => {
                 if other.get_return_witnesses().is_empty() {
                     CompareResults::BothFailed
                 } else {
-                    CompareResults::RightCompilationFailed
+                    CompareResults::LeftCompilationFailed
                 }
             }
             (true, true) => {
