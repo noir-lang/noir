@@ -25,8 +25,8 @@ impl Ssa {
 
 impl Function {
     /// The structure of this pass is simple:
-    /// Go through each block and re-insert all instructions, decomposing any checked signed
-    /// "less than" and "div" operations to be done using unsigned types, but only if this
+    /// Go through each block and re-insert all instructions, decomposing any signed
+    /// "less than", "div" and "mod" operations to be done using unsigned types, but only if this
     /// is an ACIR function.
     fn expand_signed_math(&mut self) {
         if !self.dfg.runtime().is_acir() {
@@ -41,7 +41,7 @@ impl Function {
             let Instruction::Binary(Binary {
                 lhs,
                 rhs,
-                operator: operator @ (BinaryOp::Lt | BinaryOp::Div),
+                operator: operator @ (BinaryOp::Lt | BinaryOp::Div | BinaryOp::Mod),
             }) = instruction
             else {
                 return;
@@ -65,7 +65,8 @@ impl Function {
             let new_result = match operator {
                 BinaryOp::Lt => expansion_context.insert_lt(lhs, rhs),
                 BinaryOp::Div => expansion_context.insert_div(lhs, rhs),
-                _ => unreachable!("ICE: expand_signed_math called on non-lt/div"),
+                BinaryOp::Mod => expansion_context.insert_mod(lhs, rhs),
+                _ => unreachable!("ICE: expand_signed_math called on non-lt/div/mod"),
             };
 
             context.replace_value(old_result, new_result);
@@ -118,6 +119,16 @@ impl Context<'_, '_, '_> {
     }
 
     fn insert_div(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
+        let is_division = true;
+        self.insert_div_or_mod(lhs, rhs, is_division)
+    }
+
+    fn insert_mod(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
+        let is_division = false;
+        self.insert_div_or_mod(lhs, rhs, is_division)
+    }
+
+    fn insert_div_or_mod(&mut self, lhs: ValueId, rhs: ValueId, is_division: bool) -> ValueId {
         // First cast lhs and rhs to their unsigned equivalents
         let bit_size = self.context.dfg.type_of_value(lhs).bit_size();
         let unsigned_typ = NumericType::unsigned(bit_size);
@@ -139,7 +150,11 @@ impl Context<'_, '_, '_> {
         );
 
         let zero = self.numeric_constant(0_u128, NumericType::bool());
-        let message = "Attempt to divide with overflow".to_string();
+        let message = if is_division {
+            "Attempt to divide with overflow".to_string()
+        } else {
+            "Attempt to calculate the remainder with overflow".to_string()
+        };
         self.insert_constrain(min_overflow, zero, Some(message.into()));
 
         // Check if lhs and rhs are positive or negative, respectively.
@@ -154,38 +169,49 @@ impl Context<'_, '_, '_> {
         let rhs_absolute =
             self.two_complement(rhs_unsigned, rhs_is_negative, unsigned_typ, bit_size);
 
-        // We then perform the division using the absolute values
-        let absolute_div = self.insert_binary(lhs_absolute, BinaryOp::Div, rhs_absolute);
+        // We then perform the division (or modulo) using the absolute values
+        let operator = if is_division { BinaryOp::Div } else { BinaryOp::Mod };
+        let absolute_result = self.insert_binary(lhs_absolute, operator, rhs_absolute);
 
-        // Do rhs and lhs have a different sign?
         let lhs_is_negative = self.insert_cast(lhs_is_negative, NumericType::bool());
-        let rhs_is_negative = self.insert_cast(rhs_is_negative, NumericType::bool());
-        let different_sign = self.insert_binary(lhs_is_negative, BinaryOp::Xor, rhs_is_negative);
-        let different_sign = self.insert_cast(different_sign, unsigned_typ);
 
-        // Finally we return the 2-complement again if lhs and rhs have different signs, with the
+        // The result changes slightly depending on whether we are doing division or modulo.
+        let result_is_negative = if is_division {
+            // For division, the result is negative if lhs and rhs have different signs.
+            let rhs_is_negative = self.insert_cast(rhs_is_negative, NumericType::bool());
+            self.insert_binary(lhs_is_negative, BinaryOp::Xor, rhs_is_negative)
+        } else {
+            // For modulo, the result has the same sign as lhs
+            lhs_is_negative
+        };
+        let result_is_negative = self.insert_cast(result_is_negative, unsigned_typ);
+
+        // We return the 2-complement again if lhs and rhs have different signs, with the
         // intention of making the result be negative.
-        let div_unsigned =
-            self.two_complement(absolute_div, different_sign, unsigned_typ, bit_size);
+        let result_unsigned =
+            self.two_complement(absolute_result, result_is_negative, unsigned_typ, bit_size);
 
         // If we divide, for example 4 i8 by -5, the absolute division will give 0.
         // Because the signs are different, if we do the two complement of 0 we'll get 256, which
         // is out of range. Here we take this case into account: if absolute_div is zero the result
         // should be zero, otherwise it should be that result.
         // Then, we need to multiply div_unsigned by `absolute_div != 0`.
+        //
+        // The same is true for modul: -4 i8 mod 4 is 0, but taking its two-complement would give 256.
         let zero = self.numeric_constant(0_u128, unsigned_typ);
-        let absolute_div_is_zero = self.insert_binary(absolute_div, BinaryOp::Eq, zero);
-        let absolute_div_is_not_zero = self.insert_not(absolute_div_is_zero);
-        let absolute_div_is_not_zero = self.insert_cast(absolute_div_is_not_zero, unsigned_typ);
+        let absolute_result_is_zero = self.insert_binary(absolute_result, BinaryOp::Eq, zero);
+        let absolute_result_is_not_zero = self.insert_not(absolute_result_is_zero);
+        let absolute_result_is_not_zero =
+            self.insert_cast(absolute_result_is_not_zero, unsigned_typ);
 
-        let div_unsigned = self.insert_binary(
-            div_unsigned,
+        let result_unsigned = self.insert_binary(
+            result_unsigned,
             BinaryOp::Mul { unchecked: true },
-            absolute_div_is_not_zero,
+            absolute_result_is_not_zero,
         );
 
         // Make sure we return the signed type
-        self.insert_cast(div_unsigned, NumericType::signed(bit_size))
+        self.insert_cast(result_unsigned, NumericType::signed(bit_size))
     }
 
     /// Returns the 2-complement of `value`, given `value_is_negative` is 1 if the value is negative,
@@ -199,7 +225,7 @@ impl Context<'_, '_, '_> {
     ///
     /// result = value + 2*(128 - value)*value_is_negative
     ///
-    /// Let's assume the value is positive, so value_is_negative = 0:
+    /// If the value is positive, so value_is_negative = 0:
     ///
     /// result = value
     ///
@@ -390,6 +416,65 @@ mod tests {
         brillig(inline) fn main f0 {
           b0(v0: i8, v1: i8):
             v2 = div v0, v1
+            return v2
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::expand_signed_math);
+    }
+
+    #[test]
+    fn expands_signed_mod_in_acir() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: i8, v1: i8):
+            v2 = mod v0, v1
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.expand_signed_math();
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) fn main f0 {
+          b0(v0: i8, v1: i8):
+            v2 = cast v0 as u8
+            v3 = cast v1 as u8
+            v5 = eq v2, u8 128
+            v7 = eq v3, u8 255
+            v8 = unchecked_mul v5, v7
+            constrain v8 == u1 0, "Attempt to calculate the remainder with overflow"
+            v10 = div v2, u8 128
+            v11 = div v3, u8 128
+            v12 = unchecked_sub u8 128, v2
+            v13 = unchecked_mul v12, v10
+            v15 = unchecked_mul v13, u8 2
+            v16 = unchecked_add v2, v15
+            v17 = unchecked_sub u8 128, v3
+            v18 = unchecked_mul v17, v11
+            v19 = unchecked_mul v18, u8 2
+            v20 = unchecked_add v3, v19
+            v21 = mod v16, v20
+            v22 = cast v10 as u1
+            v23 = cast v10 as u8
+            v24 = unchecked_sub u8 128, v21
+            v25 = unchecked_mul v24, v23
+            v26 = unchecked_mul v25, u8 2
+            v27 = unchecked_add v21, v26
+            v29 = eq v21, u8 0
+            v30 = not v29
+            v31 = cast v30 as u8
+            v32 = unchecked_mul v27, v31
+            v33 = cast v32 as i8
+            return v33
+        }
+        "#);
+    }
+
+    #[test]
+    fn does_not_expands_signed_mod_in_brillig() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: i8, v1: i8):
+            v2 = mod v0, v1
             return v2
         }
         ";
