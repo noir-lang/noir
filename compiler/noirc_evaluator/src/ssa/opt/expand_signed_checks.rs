@@ -55,6 +55,11 @@ impl Function {
                 return;
             }
 
+            // Don't expand "lt" in Brillig as that is supported natively.
+            if *operator == BinaryOp::Lt && context.dfg.runtime().is_brillig() {
+                return;
+            }
+
             let lhs = *lhs;
             let rhs = *rhs;
             let operator = *operator;
@@ -664,7 +669,7 @@ mod tests {
     }
 
     #[test]
-    fn expands_signed_lt() {
+    fn expands_signed_lt_in_acir() {
         let src = "
         acir(inline) fn main f0 {
           b0(v0: i8, v1: i8):
@@ -689,5 +694,17 @@ mod tests {
             return v11
         }
         ");
+    }
+
+    #[test]
+    fn does_not_expand_signed_lt_in_brillig() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: i8, v1: i8):
+            v2 = lt v0, v1
+            return v2
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::expand_signed_checks);
     }
 }
