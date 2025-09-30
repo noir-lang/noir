@@ -125,6 +125,7 @@ pub struct ArtifactsAndWarnings(pub Artifacts, pub Vec<SsaReport>);
 pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
     vec![
         SsaPass::new(Ssa::expand_signed_checks, "expand signed checks"),
+        SsaPass::new(Ssa::expand_signed_math, "expand signed math"),
         SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
         SsaPass::new(Ssa::defunctionalize, "Defunctionalization"),
         SsaPass::new_try(Ssa::inline_simple_functions, "Inlining simple functions")
@@ -252,6 +253,7 @@ pub fn minimal_passes() -> Vec<SsaPass<'static>> {
     vec![
         // Signed integer operations need to be expanded in order to have the appropriate overflow checks applied.
         SsaPass::new(Ssa::expand_signed_checks, "expand signed checks"),
+        SsaPass::new(Ssa::expand_signed_math, "expand signed math"),
         // We need to get rid of function pointer parameters, otherwise they cause panic in Brillig generation.
         SsaPass::new(Ssa::defunctionalize, "Defunctionalization"),
         // Even the initial SSA generation can result in optimizations that leave a function
