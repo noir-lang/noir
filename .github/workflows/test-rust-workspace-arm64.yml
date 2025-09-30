@@ -63,7 +63,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        partition: [1, 2, 3, 4]
+        partition: [1, 2, 3, 4, 5, 6, 7, 8]
     steps:
       - uses: actions/checkout@v5
 
@@ -85,7 +85,7 @@ jobs:
         run: |
           RUST_MIN_STACK=8388608 \
           cargo nextest run --archive-file nextest-archive-arm64.tar.zst \
-            --partition count:${{ matrix.partition }}/4 \
+            --partition count:${{ matrix.partition }}/8 \
             --profile ci-master
 
   # This is a job which depends on all test jobs and reports the overall status.
