@@ -437,7 +437,43 @@ fn mod_u8_no_predicate() {
     ");
 }
 
-// No test for eq_u8 as it's similar to eq_field
+#[test]
+fn eq_u8() {
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u8, v1: u8):
+        v2 = eq v0, v1
+        return v2
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    // This ends up being similar to eq_field with the addition of range checks on the inputs
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0, w1]
+    public parameters: []
+    return values: [w2]
+    BLACKBOX::RANGE input: w0, bits: 8
+    BLACKBOX::RANGE input: w1, bits: 8
+    ASSERT w3 = w0 - w1
+    BRILLIG CALL func: 0, inputs: [w3], outputs: [w4]
+    ASSERT w5 = -w3*w4 + 1
+    ASSERT 0 = w3*w5
+    ASSERT w5 = w2
+
+    unconstrained func 0: directive_invert
+    0: @21 = const u32 1
+    1: @20 = const u32 0
+    2: @0 = calldata copy [@20; @21]
+    3: @2 = const field 0
+    4: @3 = field eq @0, @2
+    5: jump if @3 to 8
+    6: @1 = const field 1
+    7: @0 = field field_div @1, @0
+    8: stop &[@20; @21]
+    ");
+}
 
 #[test]
 fn lt_u8() {
