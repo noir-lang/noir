@@ -347,6 +347,29 @@ mod tests {
         ";
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.expand_signed_math();
+
+        // Check that the expanded code works as expected
+        let test_cases = [
+            (10, 20, true),
+            (20, 10, false),
+            (-20, -10, true),
+            (-10, -20, false),
+            (-20, 10, true),
+            (-10, 20, true),
+            (10, -20, false),
+            (20, -10, false),
+        ];
+        for (lhs, rhs, expected) in test_cases {
+            let result = ssa.interpret(vec![
+                Value::Numeric(NumericValue::I8(lhs)),
+                Value::Numeric(NumericValue::I8(rhs)),
+            ]);
+            assert!(result.is_ok());
+            let result = result.unwrap();
+            assert_eq!(result.len(), 1);
+            assert_eq!(result[0], Value::Numeric(NumericValue::U1(expected)));
+        }
+
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: i8, v1: i8):
@@ -387,6 +410,21 @@ mod tests {
         ";
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.expand_signed_math();
+
+        // Check that -128 i8 / -1 i8 overflows
+        let result = ssa.interpret(vec![
+            Value::Numeric(NumericValue::I8(-128)),
+            Value::Numeric(NumericValue::I8(-1)),
+        ]);
+        assert!(result.is_err());
+
+        // Check that 10 i8 / 0 i8 overflows
+        let result = ssa.interpret(vec![
+            Value::Numeric(NumericValue::I8(10)),
+            Value::Numeric(NumericValue::I8(0)),
+        ]);
+        assert!(result.is_err());
+
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) fn main f0 {
           b0(v0: i8, v1: i8):
@@ -426,33 +464,6 @@ mod tests {
     }
 
     #[test]
-    fn signed_div_expansion_checks_overflows() {
-        let src = "
-        acir(inline) fn main f0 {
-          b0(v0: i8, v1: i8):
-            v2 = div v0, v1
-            return v2
-        }
-        ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.expand_signed_math();
-
-        // Check that -128 i8 / -1 i8 overflows
-        let result = ssa.interpret(vec![
-            Value::Numeric(NumericValue::I8(-128)),
-            Value::Numeric(NumericValue::I8(-1)),
-        ]);
-        assert!(result.is_err());
-
-        // Check that 10 i8 / 0 i8 overflows
-        let result = ssa.interpret(vec![
-            Value::Numeric(NumericValue::I8(10)),
-            Value::Numeric(NumericValue::I8(0)),
-        ]);
-        assert!(result.is_err());
-    }
-
-    #[test]
     fn does_not_expands_signed_div_in_brillig() {
         let src = "
         brillig(inline) fn main f0 {
@@ -475,6 +486,21 @@ mod tests {
         ";
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.expand_signed_math();
+
+        // Check that -128 i8 / -1 i8 overflows
+        let result = ssa.interpret(vec![
+            Value::Numeric(NumericValue::I8(-128)),
+            Value::Numeric(NumericValue::I8(-1)),
+        ]);
+        assert!(result.is_err());
+
+        // Check that 10 i8 / 0 i8 overflows
+        let result = ssa.interpret(vec![
+            Value::Numeric(NumericValue::I8(10)),
+            Value::Numeric(NumericValue::I8(0)),
+        ]);
+        assert!(result.is_err());
+
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) fn main f0 {
           b0(v0: i8, v1: i8):
