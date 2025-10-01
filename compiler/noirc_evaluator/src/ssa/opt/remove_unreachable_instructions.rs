@@ -1385,4 +1385,32 @@ mod test {
         }
         "#);
     }
+
+    #[test]
+    fn replaces_databus_return_data_with_default_in_unreachable() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          return_data: v3
+          b0(v0: u32):
+            constrain u1 0 == u1 1
+            v1 = sub v0, u32 10
+            v2 = cast v1 as Field
+            v3 = make_array [v2] : [Field; 1]
+            return v3
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_unreachable_instructions();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          return_data: v4
+          b0(v0: u32):
+            constrain u1 0 == u1 1
+            v4 = make_array [Field 0] : [Field; 1]
+            unreachable
+        }
+        ");
+    }
 }
