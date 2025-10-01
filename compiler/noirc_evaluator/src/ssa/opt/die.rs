@@ -1197,4 +1197,17 @@ mod test {
         }
         "#);
     }
+
+    #[test]
+    fn keeps_unused_databus_return_value() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          return_data: v0
+          b0():
+            v0 = make_array [Field 0] : [Field; 1]
+            unreachable
+        }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
+    }
 }
