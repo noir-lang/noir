@@ -1,3 +1,9 @@
+/// An SSA pass for ACIR functions that transforms a "less than" operation on signed integers
+/// into an equivalent sequence of operations that rely on unsigned integers.
+///
+/// The purpose of this pass is to avoid ACIR having to handle signed integers "less than"
+/// comparisons, while also allowing further optimizations to be done during subsequent
+/// SSA passes on the expanded instructions.
 use acvm::FieldElement;
 
 use crate::ssa::{
@@ -14,6 +20,8 @@ use super::simple_optimization::SimpleOptimizationContext;
 
 impl Ssa {
     /// Expands signed "less than" operations in ACIR to be done using unsigned operations.
+    ///
+    /// See [`expand_signed_math`][self] module for more information.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn expand_signed_math(mut self) -> Ssa {
         for function in self.functions.values_mut() {
@@ -96,7 +104,7 @@ impl Context<'_, '_, '_> {
         // It can be shown that the result is given by xor'ing the two results above:
         // - if lhs and rhs have the same sign (different_sign is 0):
         //   - if both are positive then the unsigned comparison is correct, xor'ing it with 0 gives
-        //     same result
+        //     the same result
         //   - if both are negative then the unsigned comparison is also correct, as, for example,
         //     for i8, -128 i8 is Field 128 and -1 i8 is Field 255 and `-128 < -1` and `128 < 255`
         // - if lhs and rhs have different signs (different_sign is 1):
