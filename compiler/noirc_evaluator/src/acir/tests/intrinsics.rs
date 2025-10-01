@@ -294,9 +294,9 @@ fn slice_remove() {
     // You can see how w1 is asserted to equal 2
     //
     // Memory block 1 is our original slice
-    // Memory block 2 is our final slice which remains three elements. You can see that it is initialized to contain the same values as b1.
-    // Two writes to b2 and two reads from b1 at the shifted indices is what we expect as we skip the removal window when reading from
-    // the initial slice input. This logic protects against OOB errors from the skipping the removal window.
+    // Memory block 2 is our final slice which is one less element than our initial slice.
+    // You can see that it is initialized to contain all zeroes. It is then written to appropriately.
+    // We expect two writes to b2 and two reads from b1 at the shifted indices as we skip the removal window when reading from the initial slice input.
     // We only expect as many writes to b2 and reads b1 as there are elements in the final slice.
     //
     // As we have marked the `array_set` as `mut` we then write directly into that slice.
@@ -318,7 +318,7 @@ fn slice_remove() {
     READ w10 = b1[w9]
     READ w11 = b1[w3]
     READ w12 = b1[w1]
-    INIT b2 = [w8, w10, w11]
+    INIT b2 = [w7, w7]
     READ w13 = b1[w9]
     BRILLIG CALL func: 0, inputs: [-w1 + 18446744073709551616, 18446744073709551616], outputs: [w14, w15]
     BLACKBOX::RANGE input: w14, bits: 1

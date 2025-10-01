@@ -463,11 +463,10 @@ impl Context<'_> {
 
         let slice_size = super::arrays::flattened_value_size(&slice);
 
-        let new_slice = self.read_array(slice)?;
-
+        let flat_slice = self.flatten(&slice)?;
         // Compiler sanity check
         assert_eq!(
-            new_slice.len(),
+            flat_slice.len(),
             slice_size,
             "ICE: The read flattened slice should match the computed size"
         );
@@ -502,61 +501,57 @@ impl Context<'_> {
         //    we skip shifting because there is no element to move.
         //    This prevents out-of-bounds reads from the original slice.
         let result_block_id = self.block_id(result_ids[1]);
-        self.initialize_array(
-            result_block_id,
-            slice_size,
-            Some(AcirValue::Array(new_slice.clone())),
-        )?;
-        for i in 0..slice_size {
+        let result_size = slice_size.saturating_sub(popped_elements_size);
+        self.initialize_array(result_block_id, result_size, None)?;
+        // We expect a preceding check to have been laid down that the remove index is within bounds.
+        // In practice `popped_elements_size` should never exceed the `slice_size` but we are
+        for (i, (current_value, _)) in flat_slice.iter().enumerate().take(result_size) {
             let current_index = self.acir_context.add_constant(i);
 
-            let value_current_index = &new_slice[i].borrow_var()?;
+            let shifted_index = self.acir_context.add_constant(i + popped_elements_size);
 
-            if (i + popped_elements_size) < slice_size {
-                let shifted_index = self.acir_context.add_constant(i + popped_elements_size);
+            // Fetch the value from the initial slice
+            let value_shifted_index =
+                self.acir_context.read_from_memory(block_id, &shifted_index)?;
 
-                let value_shifted_index =
-                    self.acir_context.read_from_memory(block_id, &shifted_index)?;
+            let use_shifted_value =
+                self.acir_context.more_than_eq_var(current_index, flat_user_index, 64)?;
 
-                let use_shifted_value =
-                    self.acir_context.more_than_eq_var(current_index, flat_user_index, 64)?;
+            let shifted_value_pred =
+                self.acir_context.mul_var(value_shifted_index, use_shifted_value)?;
+            let not_pred = self.acir_context.sub_var(one, use_shifted_value)?;
+            let current_value_pred = self.acir_context.mul_var(not_pred, *current_value)?;
 
-                let shifted_value_pred =
-                    self.acir_context.mul_var(value_shifted_index, use_shifted_value)?;
-                let not_pred = self.acir_context.sub_var(one, use_shifted_value)?;
-                let current_value_pred =
-                    self.acir_context.mul_var(not_pred, *value_current_index)?;
+            let new_value = self.acir_context.add_var(shifted_value_pred, current_value_pred)?;
 
-                let new_value =
-                    self.acir_context.add_var(shifted_value_pred, current_value_pred)?;
-
-                self.acir_context.write_to_memory(result_block_id, &current_index, &new_value)?;
-            };
+            self.acir_context.write_to_memory(result_block_id, &current_index, &new_value)?;
         }
 
-        let new_slice_val = AcirValue::Array(new_slice);
         let element_type_sizes =
             if super::arrays::array_has_constant_element_size(&slice_typ).is_none() {
                 Some(self.init_element_type_sizes_array(
                     &slice_typ,
                     slice_contents,
-                    Some(&new_slice_val),
+                    Some(&slice),
                     dfg,
                 )?)
             } else {
                 None
             };
 
-        let value_types = new_slice_val.flat_numeric_types();
+        let mut value_types = slice.flat_numeric_types();
+        // We can safely remove the value types based upon the popped elements size =
+        // as we expect the types to be the same for each element.
+        value_types.drain(0..popped_elements_size);
         assert_eq!(
             value_types.len(),
-            slice_size,
+            result_size,
             "ICE: Value types array must match new slice size"
         );
 
         let result = AcirValue::DynamicArray(AcirDynamicArray {
             block_id: result_block_id,
-            len: slice_size,
+            len: result_size,
             value_types,
             element_type_sizes,
         });
