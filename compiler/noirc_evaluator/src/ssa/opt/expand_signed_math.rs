@@ -1,9 +1,9 @@
-/// An SSA pass for ACIR functions that transforms a "less than" operation on signed integers
-/// into an equivalent sequence of operations that rely on unsigned integers.
+/// An SSA pass for ACIR functions that transforms "less than", "div" and "mod" operation on
+/// signed integers into equivalent sequences of operations that rely on unsigned integers.
 ///
-/// The purpose of this pass is to avoid ACIR having to handle signed integers "less than"
-/// comparisons, while also allowing further optimizations to be done during subsequent
-/// SSA passes on the expanded instructions.
+/// The purpose of this pass is to avoid ACIR having to handle signed integers "less than",
+/// "div" and "mod" operations (for simplicity), while also allowing further optimizations to
+/// be done during subsequent SSA passes on the expanded instructions.
 use acvm::FieldElement;
 
 use crate::ssa::{
@@ -19,7 +19,8 @@ use crate::ssa::{
 use super::simple_optimization::SimpleOptimizationContext;
 
 impl Ssa {
-    /// Expands signed "less than" operations in ACIR to be done using unsigned operations.
+    /// Expands signed "less than", "div" and "mod" operations in ACIR to be done using
+    /// unsigned operations.
     ///
     /// See [`expand_signed_math`][self] module for more information.
     #[tracing::instrument(level = "trace", skip(self))]
