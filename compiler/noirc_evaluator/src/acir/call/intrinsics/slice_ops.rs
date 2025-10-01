@@ -501,10 +501,10 @@ impl Context<'_> {
         //    we skip shifting because there is no element to move.
         //    This prevents out-of-bounds reads from the original slice.
         let result_block_id = self.block_id(result_ids[1]);
-        let result_size = slice_size.saturating_sub(popped_elements_size);
         self.initialize_array(result_block_id, result_size, None)?;
         // We expect a preceding check to have been laid down that the remove index is within bounds.
-        // In practice `popped_elements_size` should never exceed the `slice_size` but we are
+        // In practice `popped_elements_size` should never exceed the `slice_size` but we do a saturating sub to be safe.
+        let result_size = slice_size.saturating_sub(popped_elements_size);
         for (i, (current_value, _)) in flat_slice.iter().enumerate().take(result_size) {
             let current_index = self.acir_context.add_constant(i);
 
