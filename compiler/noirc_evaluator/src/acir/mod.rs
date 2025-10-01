@@ -813,16 +813,6 @@ impl<'a> Context<'a> {
     ///
     /// In Noir, binary operands should have the same type due to the language
     /// semantics.
-    ///
-    /// There are some edge cases to consider:
-    /// - Constants are not explicitly type casted, so we need to check for this and
-    ///   return the type of the other operand, if we have a constant.
-    /// - 0 is not seen as `Field 0` but instead as `Unit 0`
-    ///
-    /// TODO: The latter seems like a bug, if we cannot differentiate between a function returning
-    /// TODO nothing and a 0.
-    ///
-    /// TODO: This constant coercion should ideally be done in the type checker.
     fn type_of_binary_operation(&self, binary: &Binary, dfg: &DataFlowGraph) -> Type {
         let lhs_type = dfg.type_of_value(binary.lhs);
         let rhs_type = dfg.type_of_value(binary.rhs);
@@ -842,10 +832,6 @@ impl<'a> Context<'a> {
             (_, Type::Slice(..)) | (Type::Slice(..), _) => {
                 unreachable!("Arrays are invalid in binary operations")
             }
-            // If either side is a Field constant then, we coerce into the type
-            // of the other operand
-            (Type::Numeric(NumericType::NativeField), typ)
-            | (typ, Type::Numeric(NumericType::NativeField)) => typ,
             // If either side is a numeric type, then we expect their types to be
             // the same.
             (Type::Numeric(lhs_type), Type::Numeric(rhs_type)) => {

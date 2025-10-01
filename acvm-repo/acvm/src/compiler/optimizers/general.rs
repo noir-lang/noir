@@ -7,6 +7,8 @@ use indexmap::IndexMap;
 /// The `GeneralOptimizer` processes all [`Expression`]s to:
 /// - remove any zero-coefficient terms.
 /// - merge any quadratic terms containing the same two witnesses.
+///
+/// This pass does not depend on any other pass and should be the first one in a set of optimizing passes.
 pub(crate) struct GeneralOptimizer;
 
 impl GeneralOptimizer {
@@ -17,8 +19,12 @@ impl GeneralOptimizer {
     }
 }
 
-// Simplifies all mul terms with the same bi-variate variables while also removing
-// terms that end up with a zero coefficient.
+/// Simplifies all mul terms of the form `(scale, w_l, w_r)` with the same bi-variate variables
+/// while also removing terms that end up with a zero coefficient.
+///
+/// For instance, mul terms `(0,1,1), (2,2,1) (-1,2,1) (-1,1,2)` will return an
+/// empty vector, because: (2,1) and (1,2) are the same bi-variate variable
+/// and the resulting scale is `2-1-1 = 0`
 fn simplify_mul_terms<F: AcirField>(mut gate: Expression<F>) -> Expression<F> {
     let mut hash_map: IndexMap<(Witness, Witness), F> = IndexMap::new();
 
