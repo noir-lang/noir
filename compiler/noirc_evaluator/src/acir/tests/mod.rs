@@ -89,13 +89,12 @@ fn unchecked_mul_should_not_have_range_check() {
     // Check that range checks only exist on the function parameters
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w2
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
-    BLACKBOX::RANGE [w0]:32 bits []
-    BLACKBOX::RANGE [w1]:32 bits []
-    EXPR w2 = w0*w1
+    BLACKBOX::RANGE input: w0, bits: 32
+    BLACKBOX::RANGE input: w1, bits: 32
+    ASSERT w2 = w0*w1
     ");
 }
 
