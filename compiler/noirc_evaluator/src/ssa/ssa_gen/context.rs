@@ -371,7 +371,7 @@ impl<'a> FunctionContext<'a> {
     /// Compared to `self.builder.insert_cast`, this version will automatically truncate `value` to be a valid `typ`.
     pub(super) fn insert_safe_cast(
         &mut self,
-        mut value: ValueId,
+        value: ValueId,
         typ: NumericType,
         location: Location,
     ) -> ValueId {
@@ -463,10 +463,10 @@ impl<'a> FunctionContext<'a> {
             ) => {
                 // If target size is smaller, we do a truncation
                 if target_type_size < *incoming_type_size {
-                    value =
-                        self.builder.insert_truncate(value, target_type_size, *incoming_type_size);
+                    self.builder.insert_truncate(value, target_type_size, *incoming_type_size)
+                } else {
+                    value
                 }
-                value
             }
             // When casting a signed value to u1 we can truncate then cast
             (
@@ -481,26 +481,20 @@ impl<'a> FunctionContext<'a> {
                 NumericType::Unsigned { bit_size: target_type_size },
             ) => {
                 if *incoming_type_size != target_type_size {
-                    value = self.insert_safe_cast(
-                        value,
-                        NumericType::signed(target_type_size),
-                        location,
-                    );
+                    self.insert_safe_cast(value, NumericType::signed(target_type_size), location)
+                } else {
+                    value
                 }
-                value
             }
             (
                 Type::Numeric(NumericType::Unsigned { bit_size: incoming_type_size }),
                 NumericType::Signed { bit_size: target_type_size },
             ) => {
                 if *incoming_type_size != target_type_size {
-                    value = self.insert_safe_cast(
-                        value,
-                        NumericType::unsigned(target_type_size),
-                        location,
-                    );
+                    self.insert_safe_cast(value, NumericType::unsigned(target_type_size), location)
+                } else {
+                    value
                 }
-                value
             }
             (
                 Type::Numeric(NumericType::NativeField),
