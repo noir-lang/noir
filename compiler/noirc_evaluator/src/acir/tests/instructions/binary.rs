@@ -304,7 +304,8 @@ fn div_u8_no_predicate_by_constant() {
 
     // - Note how w2, w3 and w4 are range-checked with less bits than 8
     // - with `w4 = w3 + 1` and the next range check we ensure that 0 <= w3 < 8
-    // - `w3 = w0 - 7*w2` can be read as `w0 = 7*w2 + w3` which is the definition of divmod
+    // - `w3 = w0 - 7*w2` can be read as `w0 = 7*w2 + w3` where w2 is the division quotient
+    //   and w3 is the remainder.
     assert_circuit_snapshot!(program, @r"
     func 0
     private parameters: [w0]
@@ -495,7 +496,7 @@ fn lt_u8() {
     // - 0 if w0 < w1
     // - 1 if w0 >= w1
     //
-    // `w4 = ...` checks the divmod relationship between w0, w1, w3 and w4
+    // `w4 = ...` checks the quotient/remainder relationship between w0, w1, w3 and w4
     //
     // Finally, `w3 = -w2 + 1` is just the opposite of `w2`, since above
     // we saw that we get 1 when `w0 >= w1`.
