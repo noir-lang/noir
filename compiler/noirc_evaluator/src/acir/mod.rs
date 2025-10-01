@@ -511,34 +511,31 @@ impl<'a> Context<'a> {
         dfg: &DataFlowGraph,
         assert_message: &Option<ConstrainError>,
     ) -> Result<Option<AssertionPayload<FieldElement>>, RuntimeError> {
-        let assert_payload = if let Some(error) = assert_message {
-            match error {
-                ConstrainError::StaticString(string) => {
-                    Some(self.acir_context.generate_assertion_message_payload(string.clone()))
-                }
-                ConstrainError::Dynamic(error_selector, is_string_type, values) => {
-                    if let Some(constant_string) =
-                        try_to_extract_string_from_error_payload(*is_string_type, values, dfg)
-                    {
-                        Some(self.acir_context.generate_assertion_message_payload(constant_string))
-                    } else {
-                        let acir_vars: Vec<_> =
-                            values.iter().map(|value| self.convert_value(*value, dfg)).collect();
+        let Some(error) = assert_message else {
+            return Ok(None);
+        };
 
-                        let expressions_or_memory =
-                            self.acir_context.vars_to_expressions_or_memory(&acir_vars)?;
+        let assert_payload = match error {
+            ConstrainError::StaticString(string) => {
+                self.acir_context.generate_assertion_message_payload(string.clone())
+            }
+            ConstrainError::Dynamic(error_selector, is_string_type, values) => {
+                if let Some(constant_string) =
+                    try_to_extract_string_from_error_payload(*is_string_type, values, dfg)
+                {
+                    self.acir_context.generate_assertion_message_payload(constant_string)
+                } else {
+                    let acir_vars: Vec<_> = vecmap(values, |value| self.convert_value(*value, dfg));
 
-                        Some(AssertionPayload {
-                            error_selector: error_selector.as_u64(),
-                            payload: expressions_or_memory,
-                        })
-                    }
+                    let expressions_or_memory =
+                        self.acir_context.vars_to_expressions_or_memory(&acir_vars)?;
+
+                    let error_selector = error_selector.as_u64();
+                    AssertionPayload { error_selector, payload: expressions_or_memory }
                 }
             }
-        } else {
-            None
         };
-        Ok(assert_payload)
+        Ok(Some(assert_payload))
     }
 
     /// Remember the result of an instruction returning a single value
