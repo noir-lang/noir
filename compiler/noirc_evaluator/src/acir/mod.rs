@@ -425,89 +425,15 @@ impl<'a> Context<'a> {
             Instruction::Constrain(lhs, rhs, assert_message) => {
                 let lhs = self.convert_numeric_value(*lhs, dfg)?;
                 let rhs = self.convert_numeric_value(*rhs, dfg)?;
-
-                let assert_payload = if let Some(error) = assert_message {
-                    match error {
-                        ConstrainError::StaticString(string) => Some(
-                            self.acir_context.generate_assertion_message_payload(string.clone()),
-                        ),
-                        ConstrainError::Dynamic(error_selector, is_string_type, values) => {
-                            if let Some(constant_string) = try_to_extract_string_from_error_payload(
-                                *is_string_type,
-                                values,
-                                dfg,
-                            ) {
-                                Some(
-                                    self.acir_context
-                                        .generate_assertion_message_payload(constant_string),
-                                )
-                            } else {
-                                let acir_vars: Vec<_> = values
-                                    .iter()
-                                    .map(|value| self.convert_value(*value, dfg))
-                                    .collect();
-
-                                let expressions_or_memory =
-                                    self.acir_context.vars_to_expressions_or_memory(&acir_vars)?;
-
-                                Some(AssertionPayload {
-                                    error_selector: error_selector.as_u64(),
-                                    payload: expressions_or_memory,
-                                })
-                            }
-                        }
-                    }
-                } else {
-                    None
-                };
-
+                let assert_payload = self.convert_constrain_error(dfg, assert_message)?;
                 self.acir_context.assert_eq_var(lhs, rhs, assert_payload)?;
             }
             Instruction::ConstrainNotEqual(lhs, rhs, assert_message) => {
                 let lhs = self.convert_numeric_value(*lhs, dfg)?;
                 let rhs = self.convert_numeric_value(*rhs, dfg)?;
-
-                let assert_payload = if let Some(error) = assert_message {
-                    match error {
-                        ConstrainError::StaticString(string) => Some(
-                            self.acir_context.generate_assertion_message_payload(string.clone()),
-                        ),
-                        ConstrainError::Dynamic(error_selector, is_string_type, values) => {
-                            if let Some(constant_string) = try_to_extract_string_from_error_payload(
-                                *is_string_type,
-                                values,
-                                dfg,
-                            ) {
-                                Some(
-                                    self.acir_context
-                                        .generate_assertion_message_payload(constant_string),
-                                )
-                            } else {
-                                let acir_vars: Vec<_> = values
-                                    .iter()
-                                    .map(|value| self.convert_value(*value, dfg))
-                                    .collect();
-
-                                let expressions_or_memory =
-                                    self.acir_context.vars_to_expressions_or_memory(&acir_vars)?;
-
-                                Some(AssertionPayload {
-                                    error_selector: error_selector.as_u64(),
-                                    payload: expressions_or_memory,
-                                })
-                            }
-                        }
-                    }
-                } else {
-                    None
-                };
-
-                self.acir_context.assert_neq_var(
-                    lhs,
-                    rhs,
-                    self.current_side_effects_enabled_var,
-                    assert_payload,
-                )?;
+                let assert_payload = self.convert_constrain_error(dfg, assert_message)?;
+                let predicate = self.current_side_effects_enabled_var;
+                self.acir_context.assert_neq_var(lhs, rhs, predicate, assert_payload)?;
             }
             Instruction::Cast(value_id, _) => {
                 let acir_var = self.convert_numeric_value(*value_id, dfg)?;
@@ -577,6 +503,39 @@ impl<'a> Context<'a> {
 
         self.acir_context.set_call_stack(CallStack::new());
         Ok(warnings)
+    }
+
+    /// Converts an optional constrain error message into an ACIR assertion payload
+    fn convert_constrain_error(
+        &mut self,
+        dfg: &DataFlowGraph,
+        assert_message: &Option<ConstrainError>,
+    ) -> Result<Option<AssertionPayload<FieldElement>>, RuntimeError> {
+        let Some(error) = assert_message else {
+            return Ok(None);
+        };
+
+        let assert_payload = match error {
+            ConstrainError::StaticString(string) => {
+                self.acir_context.generate_assertion_message_payload(string.clone())
+            }
+            ConstrainError::Dynamic(error_selector, is_string_type, values) => {
+                if let Some(constant_string) =
+                    try_to_extract_string_from_error_payload(*is_string_type, values, dfg)
+                {
+                    self.acir_context.generate_assertion_message_payload(constant_string)
+                } else {
+                    let acir_vars: Vec<_> = vecmap(values, |value| self.convert_value(*value, dfg));
+
+                    let expressions_or_memory =
+                        self.acir_context.vars_to_expressions_or_memory(&acir_vars)?;
+
+                    let error_selector = error_selector.as_u64();
+                    AssertionPayload { error_selector, payload: expressions_or_memory }
+                }
+            }
+        };
+        Ok(Some(assert_payload))
     }
 
     /// Remember the result of an instruction returning a single value
