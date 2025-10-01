@@ -895,3 +895,84 @@ fn illegal_offset_in_acir_function() {
     ";
     let _ = Ssa::from_str_no_validation(src).unwrap();
 }
+
+#[test]
+fn call_data_and_return_data() {
+    let src = "
+    acir(inline) predicate_pure fn main f0 {
+      call_data(0): array: v18, indices: [v2: 1]
+      call_data(1): array: v22, indices: [v3: 1, v4: 3]
+      call_data(2): array: v22, indices: []
+      return_data: v22
+      b0(v0: u32, v1: u32, v2: [u32; 4], v3: [Field; 4], v4: [Field; 4]):
+        v5 = cast v1 as Field
+        v7 = array_get v2, index u32 0 -> u32
+        v8 = cast v7 as Field
+        v10 = array_get v2, index u32 1 -> u32
+        v11 = cast v10 as Field
+        v13 = array_get v2, index u32 2 -> u32
+        v14 = cast v13 as Field
+        v16 = array_get v2, index u32 3 -> u32
+        v17 = cast v16 as Field
+        v18 = make_array [v5, v8, v11, v14, v17] : [Field; 5]
+        v19 = array_get v2, index v0 -> u32
+        v20 = add v19, u32 1
+        v21 = cast v20 as Field
+        v22 = make_array [v21] : [Field; 1]
+        return v22
+    }
+    ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
+fn call_data_without_return_data() {
+    let src = "
+    acir(inline) predicate_pure fn main f0 {
+      call_data(0): array: v16, indices: [v2: 1]
+      b0(v0: u32, v1: u32, v2: [u32; 4]):
+        v3 = cast v1 as Field
+        v5 = array_get v2, index u32 0 -> u32
+        v6 = cast v5 as Field
+        v8 = array_get v2, index u32 1 -> u32
+        v9 = cast v8 as Field
+        v11 = array_get v2, index u32 2 -> u32
+        v12 = cast v11 as Field
+        v14 = array_get v2, index u32 3 -> u32
+        v15 = cast v14 as Field
+        v16 = make_array [v3, v6, v9, v12, v15] : [Field; 5]
+        v17 = array_get v2, index v0 -> u32
+        v18 = add v17, u32 1
+        v19 = cast v18 as Field
+        v20 = make_array [v19] : [Field; 1]
+        return v20
+    }
+    ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
+fn return_data_without_call_data() {
+    let src = "
+    acir(inline) predicate_pure fn main f0 {
+      return_data: v20
+      b0(v0: u32, v1: u32, v2: [u32; 4]):
+        v3 = cast v1 as Field
+        v5 = array_get v2, index u32 0 -> u32
+        v6 = cast v5 as Field
+        v8 = array_get v2, index u32 1 -> u32
+        v9 = cast v8 as Field
+        v11 = array_get v2, index u32 2 -> u32
+        v12 = cast v11 as Field
+        v14 = array_get v2, index u32 3 -> u32
+        v15 = cast v14 as Field
+        v16 = make_array [v3, v6, v9, v12, v15] : [Field; 5]
+        v17 = array_get v2, index v0 -> u32
+        v18 = add v17, u32 1
+        v19 = cast v18 as Field
+        v20 = make_array [v19] : [Field; 1]
+        return v20
+    }
+    ";
+    assert_ssa_roundtrip(src);
+}
