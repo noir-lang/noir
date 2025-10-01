@@ -893,9 +893,7 @@ impl<'a> Context<'a> {
     ///
     /// Flattens an [AcirValue] into a vector of `(AcirVar, AcirType)`.
     ///
-    /// This is an extension of [AcirValue::flatten] that also supports
-    /// [AcirValue::DynamicArray]. Dynamic arrays are fully read out so that
-    /// the returned vector contains the element values paired with their types.
+    /// This is an extension of [AcirValue::flatten] that also supports [AcirValue::DynamicArray].
     fn flatten(&mut self, value: &AcirValue) -> Result<Vec<(AcirVar, NumericType)>, RuntimeError> {
         Ok(match value {
             AcirValue::Var(var, typ) => vec![(*var, typ.to_numeric_type())],
