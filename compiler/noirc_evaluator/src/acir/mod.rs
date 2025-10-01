@@ -432,12 +432,8 @@ impl<'a> Context<'a> {
                 let lhs = self.convert_numeric_value(*lhs, dfg)?;
                 let rhs = self.convert_numeric_value(*rhs, dfg)?;
                 let assert_payload = self.convert_constrain_error(dfg, assert_message)?;
-                self.acir_context.assert_neq_var(
-                    lhs,
-                    rhs,
-                    self.current_side_effects_enabled_var,
-                    assert_payload,
-                )?;
+                let predicate = self.current_side_effects_enabled_var;
+                self.acir_context.assert_neq_var(lhs, rhs, predicate, assert_payload)?;
             }
             Instruction::Cast(value_id, _) => {
                 let acir_var = self.convert_numeric_value(*value_id, dfg)?;
