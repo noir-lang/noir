@@ -763,7 +763,7 @@ impl<'a> Context<'a> {
             BinaryOp::Eq => self.acir_context.eq_var(lhs, rhs),
             BinaryOp::Lt => match binary_type {
                 AcirType::NumericType(NumericType::Signed { .. }) => {
-                    self.acir_context.less_than_signed(lhs, rhs, bit_count)
+                    panic!("ICE - signed less than should have been removed before ACIRgen")
                 }
                 _ => self.acir_context.less_than_var(lhs, rhs, bit_count),
             },
