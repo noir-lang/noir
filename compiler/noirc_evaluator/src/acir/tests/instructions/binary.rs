@@ -244,6 +244,8 @@ fn div_u8_no_predicate_by_witness() {
     ";
     let program = ssa_to_acir_program(src);
 
+    // - w0 is v0
+    // - w1 is v1
     // - w3 is 1/w1
     // - we check `0 = w1*w3 - 1` to ensure that an inverse must exist (so that w1 != 0)
     // - w4 is w0/w1
