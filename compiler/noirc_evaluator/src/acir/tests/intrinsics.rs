@@ -251,7 +251,7 @@ fn slice_insert() {
     ASSERT w34 = 20
     WRITE b3[w0] = w34
 
-    unconstrained func 0
+    unconstrained func 0: directive_integer_quotient
     0: @10 = const u32 2
     1: @11 = const u32 0
     2: @0 = calldata copy [@11; @10]
@@ -326,7 +326,7 @@ fn slice_remove() {
     ASSERT w24 = 20
     WRITE b3[w0] = w24
 
-    unconstrained func 0
+    unconstrained func 0: directive_integer_quotient
     0: @10 = const u32 2
     1: @11 = const u32 0
     2: @0 = calldata copy [@11; @10]

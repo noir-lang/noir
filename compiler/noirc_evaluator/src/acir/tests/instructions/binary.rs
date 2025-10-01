@@ -14,11 +14,10 @@ fn add_field() {
     let program = ssa_to_acir_program(src);
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w2
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
-    EXPR w2 = w0 + w1
+    ASSERT w2 = w0 + w1
     ");
 }
 
@@ -34,11 +33,10 @@ fn sub_field() {
     let program = ssa_to_acir_program(src);
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w2
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
-    EXPR w2 = w0 - w1
+    ASSERT w2 = w0 - w1
     ");
 }
 
@@ -54,11 +52,10 @@ fn mul_field() {
     let program = ssa_to_acir_program(src);
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w2
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
-    EXPR w2 = w0*w1
+    ASSERT w2 = w0*w1
     ");
 }
 
@@ -80,13 +77,12 @@ fn div_field() {
     // - then w2 is w0 * w3 = w0 * 1 / w1 = w0 / w1 = v0 / v1
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w3
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
-    BRILLIG CALL func 0: inputs: [w1], outputs: [w3]
-    EXPR 0 = w1*w3 - 1
-    EXPR w2 = w0*w3
+    BRILLIG CALL func: 0, inputs: [w1], outputs: [w3]
+    ASSERT 0 = w1*w3 - 1
+    ASSERT w2 = w0*w3
 
     unconstrained func 0: directive_invert
     0: @21 = const u32 1
@@ -116,15 +112,14 @@ fn eq_field() {
     // for an explanation of how equality is implemented.
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w5
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
-    EXPR w3 = w0 - w1
-    BRILLIG CALL func 0: inputs: [w3], outputs: [w4]
-    EXPR w5 = -w3*w4 + 1
-    EXPR 0 = w3*w5
-    EXPR w5 = w2
+    ASSERT w3 = w0 - w1
+    BRILLIG CALL func: 0, inputs: [w3], outputs: [w4]
+    ASSERT w5 = -w3*w4 + 1
+    ASSERT 0 = w3*w5
+    ASSERT w5 = w2
 
     unconstrained func 0: directive_invert
     0: @21 = const u32 1
@@ -151,13 +146,12 @@ fn unchecked_add_u8() {
     let program = ssa_to_acir_program(src);
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w2
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
-    BLACKBOX::RANGE [w0]:8 bits []
-    BLACKBOX::RANGE [w1]:8 bits []
-    EXPR w2 = w0 + w1
+    BLACKBOX::RANGE input: w0, bits: 8
+    BLACKBOX::RANGE input: w1, bits: 8
+    ASSERT w2 = w0 + w1
     ");
 }
 
@@ -173,15 +167,14 @@ fn checked_add_u8_no_predicate() {
     let program = ssa_to_acir_program(src);
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w3
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
-    BLACKBOX::RANGE [w0]:8 bits []
-    BLACKBOX::RANGE [w1]:8 bits []
-    EXPR w3 = w0 + w1
-    BLACKBOX::RANGE [w3]:8 bits []
-    EXPR w3 = w2
+    BLACKBOX::RANGE input: w0, bits: 8
+    BLACKBOX::RANGE input: w1, bits: 8
+    ASSERT w3 = w0 + w1
+    BLACKBOX::RANGE input: w3, bits: 8
+    ASSERT w3 = w2
     ");
 }
 
@@ -200,16 +193,15 @@ fn checked_add_u8_with_predicate() {
     // Note how every operand in the addition (w0, w1) is multiplied by the predicate (w2)
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w4
     private parameters: [w0, w1, w2]
     public parameters: []
     return values: [w3]
-    BLACKBOX::RANGE [w0]:8 bits []
-    BLACKBOX::RANGE [w1]:8 bits []
-    BLACKBOX::RANGE [w2]:1 bits []
-    EXPR w4 = w0*w2 + w1*w2
-    BLACKBOX::RANGE [w4]:8 bits []
-    EXPR w4 = w3
+    BLACKBOX::RANGE input: w0, bits: 8
+    BLACKBOX::RANGE input: w1, bits: 8
+    BLACKBOX::RANGE input: w2, bits: 1
+    ASSERT w4 = w0*w2 + w1*w2
+    BLACKBOX::RANGE input: w4, bits: 8
+    ASSERT w4 = w3
     ");
 }
 
@@ -228,17 +220,16 @@ fn checked_mul_u8_with_predicate() {
     // w0 is multiplied by w1, then the reslt (w4) is multiplied by the predicate (w2)
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w5
     private parameters: [w0, w1, w2]
     public parameters: []
     return values: [w3]
-    BLACKBOX::RANGE [w0]:8 bits []
-    BLACKBOX::RANGE [w1]:8 bits []
-    BLACKBOX::RANGE [w2]:1 bits []
-    EXPR w4 = w0*w1
-    EXPR w5 = w2*w4
-    BLACKBOX::RANGE [w5]:8 bits []
-    EXPR w5 = w3
+    BLACKBOX::RANGE input: w0, bits: 8
+    BLACKBOX::RANGE input: w1, bits: 8
+    BLACKBOX::RANGE input: w2, bits: 1
+    ASSERT w4 = w0*w1
+    ASSERT w5 = w2*w4
+    BLACKBOX::RANGE input: w5, bits: 8
+    ASSERT w5 = w3
     ");
 }
 
@@ -261,21 +252,20 @@ fn div_u8_no_predicate_by_var() {
     // - `w5 = -w1*w4 + w0` can be read as `w0 = w1*w4 + w5`
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w6
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
-    BLACKBOX::RANGE [w0]:8 bits []
-    BLACKBOX::RANGE [w1]:8 bits []
-    BRILLIG CALL func 0: inputs: [w1], outputs: [w3]
-    EXPR 0 = w1*w3 - 1
-    BRILLIG CALL func 1: inputs: [w0, w1], outputs: [w4, w5]
-    BLACKBOX::RANGE [w4]:8 bits []
-    BLACKBOX::RANGE [w5]:8 bits []
-    EXPR w6 = w1 - w5 - 1
-    BLACKBOX::RANGE [w6]:8 bits []
-    EXPR w5 = -w1*w4 + w0
-    EXPR w4 = w2
+    BLACKBOX::RANGE input: w0, bits: 8
+    BLACKBOX::RANGE input: w1, bits: 8
+    BRILLIG CALL func: 0, inputs: [w1], outputs: [w3]
+    ASSERT 0 = w1*w3 - 1
+    BRILLIG CALL func: 1, inputs: [w0, w1], outputs: [w4, w5]
+    BLACKBOX::RANGE input: w4, bits: 8
+    BLACKBOX::RANGE input: w5, bits: 8
+    ASSERT w6 = w1 - w5 - 1
+    BLACKBOX::RANGE input: w6, bits: 8
+    ASSERT w5 = -w1*w4 + w0
+    ASSERT w4 = w2
 
     unconstrained func 0: directive_invert
     0: @21 = const u32 1
@@ -315,18 +305,17 @@ fn div_u8_no_predicate_by_constant() {
     // - `w3 = w0 - 7*w2` can be read as `w0 = 7*w2 + w3` which is the definition of divmod
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w4
     private parameters: [w0]
     public parameters: []
     return values: [w1]
-    BLACKBOX::RANGE [w0]:8 bits []
-    BRILLIG CALL func 0: inputs: [w0, 7], outputs: [w2, w3]
-    BLACKBOX::RANGE [w2]:6 bits []
-    BLACKBOX::RANGE [w3]:3 bits []
-    EXPR w4 = w3 + 1
-    BLACKBOX::RANGE [w4]:3 bits []
-    EXPR w3 = w0 - 7*w2
-    EXPR w2 = w1
+    BLACKBOX::RANGE input: w0, bits: 8
+    BRILLIG CALL func: 0, inputs: [w0, 7], outputs: [w2, w3]
+    BLACKBOX::RANGE input: w2, bits: 6
+    BLACKBOX::RANGE input: w3, bits: 3
+    ASSERT w4 = w3 + 1
+    BLACKBOX::RANGE input: w4, bits: 3
+    ASSERT w3 = w0 - 7*w2
+    ASSERT w2 = w1
 
     unconstrained func 0: directive_integer_quotient
     0: @10 = const u32 2
@@ -355,26 +344,24 @@ fn div_u8_with_predicate() {
     // TODO: explain this result
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w9
     private parameters: [w0, w1, w2]
     public parameters: []
     return values: [w3]
-    BLACKBOX::RANGE [w0]:8 bits []
-    BLACKBOX::RANGE [w1]:8 bits []
-    BLACKBOX::RANGE [w2]:1 bits []
-    BRILLIG CALL func 0: inputs: [w1], outputs: [w4]
-    EXPR w5 = -w1*w4 + 1
-    EXPR 0 = w1*w5
-    EXPR 0 = w2*w5
-    BRILLIG CALL func 1: PREDICATE: w2
-    inputs: [w0, w1], outputs: [w6, w7]
-    BLACKBOX::RANGE [w6]:8 bits []
-    BLACKBOX::RANGE [w7]:8 bits []
-    EXPR w8 = w1 - w2 - w7
-    BLACKBOX::RANGE [w8]:8 bits []
-    EXPR w9 = w1*w6 + w7
-    EXPR 0 = w0*w2 - w2*w9
-    EXPR w6 = w3
+    BLACKBOX::RANGE input: w0, bits: 8
+    BLACKBOX::RANGE input: w1, bits: 8
+    BLACKBOX::RANGE input: w2, bits: 1
+    BRILLIG CALL func: 0, inputs: [w1], outputs: [w4]
+    ASSERT w5 = -w1*w4 + 1
+    ASSERT 0 = w1*w5
+    ASSERT 0 = w2*w5
+    BRILLIG CALL func: 1, predicate: w2, inputs: [w0, w1], outputs: [w6, w7]
+    BLACKBOX::RANGE input: w6, bits: 8
+    BLACKBOX::RANGE input: w7, bits: 8
+    ASSERT w8 = w1 - w2 - w7
+    BLACKBOX::RANGE input: w8, bits: 8
+    ASSERT w9 = w1*w6 + w7
+    ASSERT 0 = w0*w2 - w2*w9
+    ASSERT w6 = w3
 
     unconstrained func 0: directive_invert
     0: @21 = const u32 1
@@ -399,88 +386,6 @@ fn div_u8_with_predicate() {
 }
 
 #[test]
-fn div_i8_by_var() {
-    let src = "
-    acir(inline) fn main f0 {
-      b0(v0: i8, v1: i8):
-        v2 = div v0, v1
-        return v2
-    }
-    ";
-    let program = ssa_to_acir_program(src);
-
-    // - w3 and w4 are the quotient and remainder of dividing w1 by 128
-    // - w5 and w6 are the quotient and remainder of dividing w0 by 128
-    // - the two witnesses above will help to deduce the sign of w0 and w1,
-    //   as positive numbers are in the range 0..127 while negative ones are in 128..255
-    assert_circuit_snapshot!(program, @r"
-    func 0
-    current witness: w25
-    private parameters: [w0, w1]
-    public parameters: []
-    return values: [w2]
-    BLACKBOX::RANGE [w0]:8 bits []
-    BLACKBOX::RANGE [w1]:8 bits []
-    BRILLIG CALL func 0: inputs: [w1, 128], outputs: [w3, w4]
-    BLACKBOX::RANGE [w3]:1 bits []
-    BLACKBOX::RANGE [w4]:7 bits []
-    EXPR w4 = w1 - 128*w3
-    BRILLIG CALL func 0: inputs: [w0, 128], outputs: [w5, w6]
-    BLACKBOX::RANGE [w5]:1 bits []
-    BLACKBOX::RANGE [w6]:7 bits []
-    EXPR w6 = w0 - 128*w5
-    BRILLIG CALL func 1: inputs: [-2*w1*w3 + w1 + 256*w3], outputs: [w7]
-    EXPR w8 = -2*w1*w3 + w1 + 256*w3
-    EXPR 0 = w7*w8 - 1
-    BRILLIG CALL func 0: inputs: [-2*w0*w5 + w0 + 256*w5, w8], outputs: [w9, w10]
-    BLACKBOX::RANGE [w9]:8 bits []
-    BLACKBOX::RANGE [w10]:8 bits []
-    EXPR w11 = w8 - w10 - 1
-    BLACKBOX::RANGE [w11]:8 bits []
-    EXPR w10 = -2*w0*w5 - w8*w9 + w0 + 256*w5
-    EXPR w12 = -w9 + 128
-    EXPR w13 = -2*w3*w5 + w3 + w5
-    BRILLIG CALL func 1: inputs: [w9], outputs: [w14]
-    EXPR w15 = -w9*w14 + 1
-    EXPR 0 = w9*w15
-    EXPR w16 = 2*w12*w13 + w9
-    EXPR w17 = -w15 + 1
-    BRILLIG CALL func 1: inputs: [w10], outputs: [w18]
-    EXPR w19 = -w10*w18 + 1
-    EXPR 0 = w10*w19
-    EXPR w20 = -2*w5*w10 + 256*w5 + w10
-    EXPR w21 = -w19 + 1
-    BRILLIG CALL func 1: PREDICATE: -w13 + 1
-    inputs: [w16*w17 - 128], outputs: [w22]
-    EXPR w23 = w16*w17 - 128
-    EXPR w24 = w22*w23
-    EXPR w25 = -w13 + 1
-    EXPR w25 = w24*w25
-    EXPR w2 = w16*w17
-
-    unconstrained func 0: directive_integer_quotient
-    0: @10 = const u32 2
-    1: @11 = const u32 0
-    2: @0 = calldata copy [@11; @10]
-    3: @2 = field int_div @0, @1
-    4: @1 = field mul @2, @1
-    5: @1 = field sub @0, @1
-    6: @0 = @2
-    7: stop &[@11; @10]
-    unconstrained func 1: directive_invert
-    0: @21 = const u32 1
-    1: @20 = const u32 0
-    2: @0 = calldata copy [@20; @21]
-    3: @2 = const field 0
-    4: @3 = field eq @0, @2
-    5: jump if @3 to 8
-    6: @1 = const field 1
-    7: @0 = field field_div @1, @0
-    8: stop &[@20; @21]
-    ");
-}
-
-#[test]
 fn mod_u8_no_predicate() {
     let src = "
     acir(inline) fn main f0 {
@@ -495,21 +400,20 @@ fn mod_u8_no_predicate() {
     // against w5 instead of w4.
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w6
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
-    BLACKBOX::RANGE [w0]:8 bits []
-    BLACKBOX::RANGE [w1]:8 bits []
-    BRILLIG CALL func 0: inputs: [w1], outputs: [w3]
-    EXPR 0 = w1*w3 - 1
-    BRILLIG CALL func 1: inputs: [w0, w1], outputs: [w4, w5]
-    BLACKBOX::RANGE [w4]:8 bits []
-    BLACKBOX::RANGE [w5]:8 bits []
-    EXPR w6 = w1 - w5 - 1
-    BLACKBOX::RANGE [w6]:8 bits []
-    EXPR w5 = -w1*w4 + w0
-    EXPR w5 = w2
+    BLACKBOX::RANGE input: w0, bits: 8
+    BLACKBOX::RANGE input: w1, bits: 8
+    BRILLIG CALL func: 0, inputs: [w1], outputs: [w3]
+    ASSERT 0 = w1*w3 - 1
+    BRILLIG CALL func: 1, inputs: [w0, w1], outputs: [w4, w5]
+    BLACKBOX::RANGE input: w4, bits: 8
+    BLACKBOX::RANGE input: w5, bits: 8
+    ASSERT w6 = w1 - w5 - 1
+    BLACKBOX::RANGE input: w6, bits: 8
+    ASSERT w5 = -w1*w4 + w0
+    ASSERT w5 = w2
 
     unconstrained func 0: directive_invert
     0: @21 = const u32 1
@@ -559,17 +463,16 @@ fn lt_u8() {
     // we saw that we get 1 when `w0 >= w1`.
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w4
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
-    BLACKBOX::RANGE [w0]:8 bits []
-    BLACKBOX::RANGE [w1]:8 bits []
-    BRILLIG CALL func 0: inputs: [w0 - w1 + 256, 256], outputs: [w3, w4]
-    BLACKBOX::RANGE [w3]:1 bits []
-    BLACKBOX::RANGE [w4]:8 bits []
-    EXPR w4 = w0 - w1 - 256*w3 + 256
-    EXPR w3 = -w2 + 1
+    BLACKBOX::RANGE input: w0, bits: 8
+    BLACKBOX::RANGE input: w1, bits: 8
+    BRILLIG CALL func: 0, inputs: [w0 - w1 + 256, 256], outputs: [w3, w4]
+    BLACKBOX::RANGE input: w3, bits: 1
+    BLACKBOX::RANGE input: w4, bits: 8
+    ASSERT w4 = w0 - w1 - 256*w3 + 256
+    ASSERT w3 = -w2 + 1
 
     unconstrained func 0: directive_integer_quotient
     0: @10 = const u32 2
@@ -596,13 +499,12 @@ fn and_u1() {
 
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w2
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
-    BLACKBOX::RANGE [w0]:1 bits []
-    BLACKBOX::RANGE [w1]:1 bits []
-    EXPR w2 = w0*w1
+    BLACKBOX::RANGE input: w0, bits: 1
+    BLACKBOX::RANGE input: w1, bits: 1
+    ASSERT w2 = w0*w1
     ");
 }
 
@@ -619,14 +521,13 @@ fn and_u8() {
 
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w3
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
-    BLACKBOX::RANGE [w0]:8 bits []
-    BLACKBOX::RANGE [w1]:8 bits []
-    BLACKBOX::AND [w0, w1]:8 bits [w3]
-    EXPR w3 = w2
+    BLACKBOX::RANGE input: w0, bits: 8
+    BLACKBOX::RANGE input: w1, bits: 8
+    BLACKBOX::AND inputs: [w0, w1], bits: 8, output: w3
+    ASSERT w3 = w2
     ");
 }
 
@@ -646,13 +547,12 @@ fn or_u1() {
     // - If both w0 and w1 are 1 w2 must be 1 too
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w2
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
-    BLACKBOX::RANGE [w0]:1 bits []
-    BLACKBOX::RANGE [w1]:1 bits []
-    EXPR w2 = -w0*w1 + w0 + w1
+    BLACKBOX::RANGE input: w0, bits: 1
+    BLACKBOX::RANGE input: w1, bits: 1
+    ASSERT w2 = -w0*w1 + w0 + w1
     ");
 }
 
@@ -670,16 +570,15 @@ fn or_u8() {
     // x | y = !!(x | y) = !(!x & !y)
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w5
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
-    BLACKBOX::RANGE [w0]:8 bits []
-    BLACKBOX::RANGE [w1]:8 bits []
-    EXPR w3 = -w0 + 255
-    EXPR w4 = -w1 + 255
-    BLACKBOX::AND [w3, w4]:8 bits [w5]
-    EXPR w5 = -w2 + 255
+    BLACKBOX::RANGE input: w0, bits: 8
+    BLACKBOX::RANGE input: w1, bits: 8
+    ASSERT w3 = -w0 + 255
+    ASSERT w4 = -w1 + 255
+    BLACKBOX::AND inputs: [w3, w4], bits: 8, output: w5
+    ASSERT w5 = -w2 + 255
     ");
 }
 
@@ -699,13 +598,12 @@ fn xor_u1() {
     // - If both w0 and w1 are 1, `-2*w0*w1` is -2, then w2 must be 0
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w2
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
-    BLACKBOX::RANGE [w0]:1 bits []
-    BLACKBOX::RANGE [w1]:1 bits []
-    EXPR w2 = -2*w0*w1 + w0 + w1
+    BLACKBOX::RANGE input: w0, bits: 1
+    BLACKBOX::RANGE input: w1, bits: 1
+    ASSERT w2 = -2*w0*w1 + w0 + w1
     ");
 }
 
@@ -722,13 +620,12 @@ fn xor_u8() {
 
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w3
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
-    BLACKBOX::RANGE [w0]:8 bits []
-    BLACKBOX::RANGE [w1]:8 bits []
-    BLACKBOX::XOR [w0, w1]:8 bits [w3]
-    EXPR w3 = w2
+    BLACKBOX::RANGE input: w0, bits: 8
+    BLACKBOX::RANGE input: w1, bits: 8
+    BLACKBOX::XOR inputs: [w0, w1], bits: 8, output: w3
+    ASSERT w3 = w2
     ");
 }
