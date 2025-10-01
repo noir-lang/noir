@@ -38,11 +38,15 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
     /// The second pass looks for AssertZero opcodes having a witness which is only used by another arithmetic opcode.
     /// In that case, the opcode with the smallest index is merged into the other one via Gaussian elimination.
     /// For instance, if we have 'w1' used only by these two opcodes,
-    /// where `(5,w2,w3)` refers the expression `5*w2*w3` and `(2, w1)` refers to the expression `2*w1`:
-    /// [(1, w2,w3), (2, w2), (2, w1), (1, w3)] // This opcode 'defines' the variable w1
-    /// [(2, w3, w4), (2,w1), (1, w4)]          // which is only used here
-    /// We will remove the first one and modify the second one like this:
-    /// [(2, w3, w4), (1, w4), (-1, w2), (-1/2, w3), (-1/2, w2, w3)]
+    /// `5*w2*w3` and `w1`:
+    /// w2*w3 + 2*w2 + w1 + w3 = 0   // This opcode 'defines' the variable w1
+    /// 2*w3*w4 + w1 + w4 = 0        // which is only used here
+    ///
+    /// For w1 we can say:
+    /// w1 = -1/2*w2*w3 - w2 - 1/2*w3
+    ///
+    /// Then we will remove the first one and modify the second one like this:
+    /// 2*w3*w4 + w4 - w2 - 1/2*w3 - 1/2*w2*w3 = 0
     ///
     /// This transformation is relevant for Plonk-ish backends although they have a limited width because
     /// they can potentially handle expressions with large linear combinations using 'big-add' gates.
