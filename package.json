@@ -9,7 +9,6 @@
     "tooling/noir_js",
     "tooling/noir_codegen",
     "acvm-repo/acvm_js",
-    "docs",
     "examples/browser"
   ],
   "scripts": {

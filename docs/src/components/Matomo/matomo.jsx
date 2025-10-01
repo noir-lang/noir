@@ -23,12 +23,22 @@ export default function useMatomo() {
   const [showBanner, setShowBanner] = useState(false);
   const location = useLocation();
 
-  const env = siteConfig.customFields.ENV;
+  const env = siteConfig.customFields.ENV || 'dev';
   const urlBase = "https://noirlang.matomo.cloud/";
   const trackerUrl = `${urlBase}matomo.php`;
   const srcUrl = `${urlBase}matomo.js`;
 
   window._paq = window._paq || [];
+
+  // Debug logging
+  if (typeof window !== 'undefined' && env !== 'prod') {
+    console.log('🔍 Matomo Debug:', {
+      env,
+      siteId: getSiteId(env),
+      trackerUrl,
+      consentGiven: localStorage.getItem("matomoConsent")
+    });
+  }
 
   useEffect(() => {
     const storedConsent = localStorage.getItem("matomoConsent");
