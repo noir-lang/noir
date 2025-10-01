@@ -253,7 +253,6 @@ pub fn minimal_passes() -> Vec<SsaPass<'static>> {
     vec![
         // Signed integer operations need to be expanded in order to have the appropriate overflow checks applied.
         SsaPass::new(Ssa::expand_signed_checks, "expand signed checks"),
-        SsaPass::new(Ssa::expand_signed_math, "expand signed math"),
         // We need to get rid of function pointer parameters, otherwise they cause panic in Brillig generation.
         SsaPass::new(Ssa::defunctionalize, "Defunctionalization"),
         // Even the initial SSA generation can result in optimizations that leave a function
