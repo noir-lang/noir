@@ -25,10 +25,12 @@
 //!     multiple unused array accesses. As to avoid redundant OOB checks, we search for "array get groups"
 //!     and only insert a single OOB check for an array get group.
 //!   - [Store][Instruction::Store] instructions can only be removed if the `flattened` flag is set.
+//!   - Instructions that create the value which is returned in the databus (if present) is not removed.
 //! - Brillig
 //!   - Array operations are explicit and thus it is expected separate OOB checks
 //!     have been laid down. Thus, no extra instructions are inserted for unused array accesses.
 //!   - [Store][Instruction::Store] instructions are never removed.
+//!   - The databus is never used to return values, so instructions to create a Field array to return are never generated.
 //!
 //! ## Preconditions
 //! - ACIR: By default the pass must be run after [mem2reg][crate::ssa::opt::mem2reg] and [CFG flattening][crate::ssa::opt::flatten_cfg].
