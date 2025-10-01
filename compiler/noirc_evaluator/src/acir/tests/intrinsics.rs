@@ -172,7 +172,6 @@ fn slice_pop_front() {
     ");
 }
 
-// TODO(https://github.com/noir-lang/noir/issues/10015)
 #[test]
 fn slice_insert() {
     let src = "
@@ -182,21 +181,24 @@ fn slice_insert() {
         v6 = array_set v4, index v0, value Field 4
         v10, v11 = call slice_insert(u32 3, v6, v1, Field 10) -> (u32, [Field])
         constrain v10 == v1
-        v13 = array_set v11, index v0, value Field 20
+        v13 = array_set mut v11, index v0, value Field 20
         return
     }
     ";
     let program = ssa_to_acir_program(src);
 
     // Insert does comparisons on every index for the value that should be written into the resulting slice
+    //
     // You can see how w1 is asserted to equal 4
     // Memory block 1 is our original slice
-    // Memory block 2 is our temporary slice while shifting. You can see its contents are all w6 (which is equal to 0).
-    // TODO(https://github.com/noir-lang/noir/issues/10015): Memory block 3 is our final slice which remains three elements. This is incorrect.
+    // Memory block 2 is our slice created by our insert operation. You can see its contents all start as w6 (which is equal to 0).
+    // We then write into b2 four times at the appropriate shifted indices.
+    //
+    // As we have marked the `array_set` as `mut` we then write directly into that slice.
     // The Brillig calls are to our stdlib quotient directive
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w34
+    current witness: w39
     private parameters: [w0, w1]
     public parameters: []
     return values: []
@@ -208,7 +210,7 @@ fn slice_insert() {
     EXPR w5 = 4
     MEM id: 1, write: w5 at: w0
     EXPR w6 = 0
-    INIT id: 2, len: 3, witnesses: [w6, w6, w6]
+    INIT id: 2, len: 4, witnesses: [w6, w6, w6, w6]
     BRILLIG CALL func 0: inputs: [-w1 + 18446744073709551616, 18446744073709551616], outputs: [w7, w8]
     BLACKBOX::RANGE [w7]:1 bits []
     BLACKBOX::RANGE [w8]:64 bits []
@@ -248,13 +250,22 @@ fn slice_insert() {
     EXPR w29 = w23*w25 - w23 + 1
     EXPR w30 = -10*w23*w25 + w28*w29 + 10*w23
     MEM id: 2, write: w30 at: w2
+    BRILLIG CALL func 0: inputs: [-w1 + 18446744073709551619, 18446744073709551616], outputs: [w31, w32]
+    BLACKBOX::RANGE [w31]:1 bits []
+    BLACKBOX::RANGE [w32]:64 bits []
+    EXPR w32 = -w1 - 18446744073709551616*w31 + 18446744073709551619
+    BRILLIG CALL func 0: inputs: [-w1 + 18446744073709551618, 18446744073709551616], outputs: [w33, w34]
+    BLACKBOX::RANGE [w33]:1 bits []
+    BLACKBOX::RANGE [w34]:64 bits []
+    EXPR w34 = -w1 - 18446744073709551616*w33 + 18446744073709551618
+    EXPR w35 = -w31 + 3
+    MEM id: 1, read at: w35, value: w36
+    EXPR w37 = w31*w33 - w31 + 1
+    EXPR w38 = -10*w31*w33 + w36*w37 + 10*w31
+    MEM id: 2, write: w38 at: w3
     EXPR w1 = 4
-    MEM id: 2, read at: w6, value: w31
-    MEM id: 2, read at: w21, value: w32
-    MEM id: 2, read at: w2, value: w33
-    INIT id: 3, len: 3, witnesses: [w31, w32, w33]
-    EXPR w34 = 20
-    MEM id: 3, write: w34 at: w0
+    EXPR w39 = 20
+    MEM id: 2, write: w39 at: w0
     
     unconstrained func 0
     0: @10 = const u32 2
@@ -278,21 +289,26 @@ fn slice_remove() {
         v11, v12, v13 = call slice_remove(u32 3, v8, v1) -> (u32, [Field], Field)
         constrain v11 == v1
         constrain v13 == v2
-        v15 = array_set v12, index v0, value Field 20
+        v15 = array_set mut v12, index v0, value Field 20
         return
     }
     ";
     let program = ssa_to_acir_program(src);
 
     // Remove does comparisons on every index for the value that should be written into the resulting slice
-    // You can see how w1 is asserted to equal 4
+    // You can see how w1 is asserted to equal 2
+    //
     // Memory block 1 is our original slice
-    // Memory block 2 is our temporary slice while shifting.
-    // Memory block 3 is our final slice which remains three elements.
+    // Memory block 2 is our final slice which remains three elements. You can see that it is initialized to contain the same values as b1.
+    // Two writes to b2 and two reads from b1 at the shifted indices is what we expect as we skip the removal window when reading from
+    // the initial slice input. This logic protects against OOB errors from the skipping the removal window.
+    // We only expect as many writes to b2 and reads b1 as there are elements in the final slice.
+    //
+    // As we have marked the `array_set` as `mut` we then write directly into that slice.
     // The Brillig calls are to our stdlib quotient directive
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w24
+    current witness: w21
     private parameters: [w0, w1, w2]
     public parameters: []
     return values: []
@@ -325,12 +341,8 @@ fn slice_remove() {
     MEM id: 2, write: w20 at: w9
     EXPR w1 = 2
     EXPR w12 = w2
-    MEM id: 2, read at: w7, value: w21
-    MEM id: 2, read at: w9, value: w22
-    MEM id: 2, read at: w3, value: w23
-    INIT id: 3, len: 3, witnesses: [w21, w22, w23]
-    EXPR w24 = 20
-    MEM id: 3, write: w24 at: w0
+    EXPR w21 = 20
+    MEM id: 2, write: w21 at: w0
     
     unconstrained func 0
     0: @10 = const u32 2
