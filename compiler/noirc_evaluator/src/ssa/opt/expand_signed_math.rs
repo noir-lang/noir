@@ -321,7 +321,11 @@ fn expand_signed_math_post_check(func: &Function) {
 mod tests {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{opt::assert_ssa_does_not_change, ssa_gen::Ssa},
+        ssa::{
+            interpreter::value::{NumericValue, Value},
+            opt::assert_ssa_does_not_change,
+            ssa_gen::Ssa,
+        },
     };
 
     #[test]
@@ -411,6 +415,33 @@ mod tests {
             return v35
         }
         "#);
+    }
+
+    #[test]
+    fn signed_div_expansion_checks_overflows() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: i8, v1: i8):
+            v2 = div v0, v1
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.expand_signed_math();
+
+        // Check that -128 i8 / -1 i8 overflows
+        let result = ssa.interpret(vec![
+            Value::Numeric(NumericValue::I8(-128)),
+            Value::Numeric(NumericValue::I8(-1)),
+        ]);
+        assert!(result.is_err());
+
+        // Check that 10 i8 / 0 i8 overflows
+        let result = ssa.interpret(vec![
+            Value::Numeric(NumericValue::I8(10)),
+            Value::Numeric(NumericValue::I8(0)),
+        ]);
+        assert!(result.is_err());
     }
 
     #[test]
