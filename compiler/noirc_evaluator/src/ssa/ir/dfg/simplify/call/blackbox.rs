@@ -309,7 +309,7 @@ pub(super) fn simplify_hash(
 }
 
 type ECDSASignatureVerifier = fn(
-    hashed_msg: &[u8],
+    hashed_msg: &[u8; 32],
     public_key_x: &[u8; 32],
     public_key_y: &[u8; 32],
     signature: &[u8; 64],
@@ -350,7 +350,9 @@ pub(super) fn simplify_signature(
                 .expect("ECDSA public key fields are 32 bytes");
             let signature: [u8; 64] =
                 to_u8_vec(dfg, signature).try_into().expect("ECDSA signatures are 64 bytes");
-            let hashed_message: Vec<u8> = to_u8_vec(dfg, hashed_message);
+            let hashed_message: [u8; 32] = to_u8_vec(dfg, hashed_message)
+                .try_into()
+                .expect("ECDSA message hashes are 32 bytes");
 
             let valid_signature =
                 signature_verifier(&hashed_message, &public_key_x, &public_key_y, &signature)

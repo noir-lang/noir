@@ -191,9 +191,18 @@ impl<W: Write> Interpreter<'_, W> {
                             size: s_len,
                         })
                     })?;
+                    let m_len = m.len();
+                    let m_array: &[u8; 32] = &m.try_into().map_err(|_| {
+                        InterpreterError::Internal(InternalError::InvalidInputSize {
+                            expected_size: 32,
+                            size: m_len,
+                        })
+                    })?;
                     let result = if predicate {
-                        acvm::blackbox_solver::ecdsa_secp256k1_verify(&m, x_array, y_array, s_array)
-                            .map_err(Self::convert_error)?
+                        acvm::blackbox_solver::ecdsa_secp256k1_verify(
+                            m_array, x_array, y_array, s_array,
+                        )
+                        .map_err(Self::convert_error)?
                     } else {
                         true
                     };
@@ -230,10 +239,19 @@ impl<W: Write> Interpreter<'_, W> {
                             size: s_len,
                         })
                     })?;
+                    let m_len = m.len();
+                    let m_array: &[u8; 32] = &m.try_into().map_err(|_| {
+                        InterpreterError::Internal(InternalError::InvalidInputSize {
+                            expected_size: 32,
+                            size: m_len,
+                        })
+                    })?;
 
                     let result = if predicate {
-                        acvm::blackbox_solver::ecdsa_secp256r1_verify(&m, x_array, y_array, s_array)
-                            .map_err(Self::convert_error)?
+                        acvm::blackbox_solver::ecdsa_secp256r1_verify(
+                            m_array, x_array, y_array, s_array,
+                        )
+                        .map_err(Self::convert_error)?
                     } else {
                         true
                     };

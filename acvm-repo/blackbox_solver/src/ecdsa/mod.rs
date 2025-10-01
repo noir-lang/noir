@@ -4,7 +4,7 @@ mod secp256k1;
 mod secp256r1;
 
 pub fn ecdsa_secp256k1_verify(
-    hashed_msg: &[u8],
+    hashed_msg: &[u8; 32],
     public_key_x: &[u8; 32],
     public_key_y: &[u8; 32],
     signature: &[u8; 64],
@@ -13,7 +13,7 @@ pub fn ecdsa_secp256k1_verify(
 }
 
 pub fn ecdsa_secp256r1_verify(
-    hashed_msg: &[u8],
+    hashed_msg: &[u8; 32],
     public_key_x: &[u8; 32],
     public_key_y: &[u8; 32],
     signature: &[u8; 64],
