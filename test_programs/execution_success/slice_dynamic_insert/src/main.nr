@@ -16,7 +16,6 @@ fn insert(x: u32, array: [Field; 5]) {
 }
 
 fn insert_dynamic_array(x: u32, array: [Field; 5]) {
-
     let mut value_to_insert = array;
     value_to_insert[x - 1] = 10;
     let mut slice = &[array, array, array];
