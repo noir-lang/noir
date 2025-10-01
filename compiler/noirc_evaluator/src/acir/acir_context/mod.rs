@@ -597,10 +597,8 @@ impl<F: AcirField> AcirContext<F> {
                     self.euclidean_division_var(lhs, rhs, bit_size, predicate)?;
                 Ok(quotient_var)
             }
-            NumericType::Signed { bit_size } => {
-                let (quotient_var, _remainder_var) =
-                    self.signed_division_var(lhs, rhs, bit_size, predicate)?;
-                Ok(quotient_var)
+            NumericType::Signed { .. } => {
+                unreachable!("Signed division should have been removed before ACIRgen")
             }
         }
     }
@@ -1083,96 +1081,6 @@ impl<F: AcirField> AcirContext<F> {
         Ok(())
     }
 
-    // Returns the 2-complement of lhs, using the provided sign bit in 'leading'
-    // if leading is zero, it returns lhs
-    // if leading is one, it returns 2^bit_size-lhs
-    fn two_complement(
-        &mut self,
-        lhs: AcirVar,
-        leading: AcirVar,
-        max_bit_size: u32,
-    ) -> Result<AcirVar, RuntimeError> {
-        let max_power_of_two = self.add_constant(power_of_two::<F>(max_bit_size - 1));
-
-        let intermediate = self.sub_var(max_power_of_two, lhs)?;
-        let intermediate = self.mul_var(intermediate, leading)?;
-
-        self.add_mul_var(lhs, F::from(2_u128), intermediate)
-    }
-
-    /// Returns the quotient and remainder such that lhs = rhs * quotient + remainder
-    /// and |remainder| < |rhs|
-    /// and remainder has the same sign than lhs
-    /// Note that this is not the euclidean division, where we have instead remainder < |rhs|
-    fn signed_division_var(
-        &mut self,
-        lhs: AcirVar,
-        rhs: AcirVar,
-        bit_size: u32,
-        predicate: AcirVar,
-    ) -> Result<(AcirVar, AcirVar), RuntimeError> {
-        // We derive the signed division from the unsigned euclidean division.
-        // note that this is not euclidean division!
-        // If `x` is a signed integer, then `sign(x)x >= 0`
-        // so if `a` and `b` are signed integers, we can do the unsigned division:
-        // `sign(a)a = q1*sign(b)b + r1`
-        // => `a = sign(a)sign(b)q1*b + sign(a)r1`
-        // => `a = qb+r`, with `|r|<|b|` and `a` and `r` have the same sign.
-
-        assert_ne!(bit_size, 0, "signed integer should have at least one bit");
-
-        // 2^{max_bit size-1}
-        let max_power_of_two = self.add_constant(power_of_two::<F>(bit_size - 1));
-        let zero = self.add_constant(F::zero());
-        let one = self.add_constant(F::one());
-
-        // Get the sign bit of rhs by computing rhs / max_power_of_two
-        let (rhs_leading, _) = self.euclidean_division_var(rhs, max_power_of_two, bit_size, one)?;
-
-        // Get the sign bit of lhs by computing lhs / max_power_of_two
-        let (lhs_leading, _) = self.euclidean_division_var(lhs, max_power_of_two, bit_size, one)?;
-
-        // Signed to unsigned:
-        let unsigned_lhs = self.two_complement(lhs, lhs_leading, bit_size)?;
-        let unsigned_rhs = self.two_complement(rhs, rhs_leading, bit_size)?;
-
-        // Performs the division using the unsigned values of lhs and rhs
-        let (q1, r1) =
-            self.euclidean_division_var(unsigned_lhs, unsigned_rhs, bit_size, predicate)?;
-
-        // Unsigned to signed: derive q and r from q1,r1 and the signs of lhs and rhs
-        // Quotient sign is lhs sign * rhs sign, whose resulting sign bit is the XOR of the sign bits
-        let q_sign = self.xor_var(lhs_leading, rhs_leading, AcirType::unsigned(1))?;
-        let quotient = self.two_complement(q1, q_sign, bit_size)?;
-        let remainder = self.two_complement(r1, lhs_leading, bit_size)?;
-
-        // Issue #5129 - When q1 is zero and quotient sign is -1, we compute -0=2^{bit_size},
-        // which is not valid because we do not wrap integer operations
-        // Similar case can happen with the remainder.
-        let q_is_0 = self.eq_var(q1, zero)?;
-        let q_is_not_0 = self.not_var(q_is_0, AcirType::unsigned(1))?;
-        let quotient = self.mul_var(quotient, q_is_not_0)?;
-        let r_is_0 = self.eq_var(r1, zero)?;
-        let r_is_not_0 = self.not_var(r_is_0, AcirType::unsigned(1))?;
-        let remainder = self.mul_var(remainder, r_is_not_0)?;
-
-        // The quotient must be a valid signed integer.
-        // For instance -128/-1 = 128, but 128 is not a valid i8
-        // Because it is the only possible overflow that can happen due to signed representation,
-        // we simply check for this case: quotient is negative, or distinct from 2^{bit_size-1}
-        // Indeed, negative quotient cannot 'overflow' because the division will not increase its absolute value
-        let assert_message =
-            self.generate_assertion_message_payload("Attempt to divide with overflow".to_string());
-        let unsigned = self.not_var(q_sign, AcirType::unsigned(1))?;
-
-        // This overflow check must also be under the predicate
-        let unsigned = self.mul_var(unsigned, predicate)?;
-
-        self.assert_neq_var(quotient, max_power_of_two, unsigned, Some(assert_message))?;
-
-        Ok((quotient, remainder))
-    }
-
     /// Returns a variable which is constrained to be `lhs mod rhs`
     pub(crate) fn modulo_var(
         &mut self,
@@ -1190,8 +1098,8 @@ impl<F: AcirField> AcirContext<F> {
         };
 
         let (_, remainder_var) = match numeric_type {
-            NumericType::Signed { bit_size } => {
-                self.signed_division_var(lhs, rhs, bit_size, predicate)?
+            NumericType::Signed { .. } => {
+                unreachable!("Signed modulo should have been removed before ACIRgen")
             }
             _ => self.euclidean_division_var(lhs, rhs, bit_size, predicate)?,
         };
