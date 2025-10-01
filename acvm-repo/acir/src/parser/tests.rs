@@ -642,9 +642,9 @@ fn array_dynamic() {
     READ w63 = b4[w8]
     READ w64 = b4[w9]
     READ w65 = b4[w10]
-    READ w66 = b4[w11]
-    BRILLIG CALL func: 1, inputs: [w62 + w63 + w64 + w65 + w66], outputs: [w67]
-    ASSERT 0 = w62*w67 + w63*w67 + w64*w67 + w65*w67 + w66*w67 - 1
+    READ w999 = b4[w11]
+    BRILLIG CALL func: 1, inputs: [w62 + w63 + w64 + w65 + w999], outputs: [w67]
+    ASSERT 0 = w62*w67 + w63*w67 + w64*w67 + w65*w67 + w999*w67 - 1
     BRILLIG CALL func: 0, inputs: [w18, 4294967296], outputs: [w68, w69]
     BLACKBOX::RANGE input: w68, bits: 222
     BLACKBOX::RANGE input: w69, bits: 32
@@ -666,6 +666,10 @@ fn array_dynamic() {
     READ w78 = b1[w77]
     ASSERT w78 = -w15*w74 + w74*w78 + w15
     ";
+
+    let circuit = Circuit::from_str(src).unwrap();
+    assert_eq!(circuit.current_witness_index, 999);
+
     assert_circuit_roundtrip(src);
 }
 
