@@ -158,7 +158,7 @@ impl Context<'_, '_, '_> {
         self.insert_constrain(min_overflow, zero, Some(message.into()));
 
         // What about checking that the divisor is not zero? We don't need to explicitly check
-        // this here because it'll be check when doing the unsigned div/mod.
+        // this here because it'll be checked when doing the unsigned div/mod.
 
         // Check if lhs and rhs are positive or negative, respectively.
         // Values greater than or equal to 2^(bit_size-1) are negative so dividing by that would
@@ -198,9 +198,9 @@ impl Context<'_, '_, '_> {
         // Because the signs are different, if we do the two complement of 0 we'll get 256, which
         // is out of range. Here we take this case into account: if absolute_div is zero the result
         // should be zero, otherwise it should be that result.
-        // Then, we need to multiply div_unsigned by `absolute_div != 0`.
+        // Then, we need to multiply result_unsigned by `absolute_div != 0`.
         //
-        // The same is true for modul: -4 i8 mod 4 is 0, but taking its two-complement would give 256.
+        // The same is true for modulo: -4 i8 mod 4 is 0, but taking its two-complement would give 256.
         let zero = self.numeric_constant(0_u128, unsigned_typ);
         let absolute_result_is_zero = self.insert_binary(absolute_result, BinaryOp::Eq, zero);
         let absolute_result_is_not_zero = self.insert_not(absolute_result_is_zero);
