@@ -217,7 +217,7 @@ fn checked_mul_u8_with_predicate() {
     ";
     let program = ssa_to_acir_program(src);
 
-    // w0 is multiplied by w1, then the reslt (w4) is multiplied by the predicate (w2)
+    // w0 is multiplied by w1, then the result (w4) is multiplied by the predicate (w2)
     assert_circuit_snapshot!(program, @r"
     func 0
     private parameters: [w0, w1, w2]
@@ -234,7 +234,7 @@ fn checked_mul_u8_with_predicate() {
 }
 
 #[test]
-fn div_u8_no_predicate_by_var() {
+fn div_u8_no_predicate_by_witness() {
     let src = "
     acir(inline) fn main f0 {
       b0(v0: u8, v1: u8):
@@ -543,7 +543,7 @@ fn or_u1() {
     let program = ssa_to_acir_program(src);
 
     // - If both w0 and w1 are 0, all terms are zero so w2 must be 0
-    // - If either w0 or w1 is 1 but not both, `-w0*w1` is zero so w2 = w0 + w1 then w2 must be 1
+    // - If either w0 or w1 is 1 but not both, `-w0*w1` is zero. Thus, w2 = w0 + w1 and w2 must be 1
     // - If both w0 and w1 are 1 w2 must be 1 too
     assert_circuit_snapshot!(program, @r"
     func 0
@@ -594,7 +594,7 @@ fn xor_u1() {
     let program = ssa_to_acir_program(src);
 
     // - If both w0 and w1 are 0, all terms are zero so w2 must be 0
-    // - If either w0 or w1 is 1 but not both, `-2*w0*w1` is zero so w2 = w0 + w1 then w2 must be 1
+    // - If either w0 or w1 is 1 but not both, `-2*w0*w1` is zero. Thus, w2 = w0 + w1 and w2 must be 1
     // - If both w0 and w1 are 1, `-2*w0*w1` is -2, then w2 must be 0
     assert_circuit_snapshot!(program, @r"
     func 0
