@@ -888,6 +888,41 @@ impl<'a> Context<'a> {
 
         self.acir_context.truncate_var(var, bit_size, max_bit_size)
     }
+
+    /// Fetch a flat list of ([AcirVar], [AcirType]).
+    ///
+    /// Flattens an [AcirValue] into a vector of `(AcirVar, AcirType)`.
+    ///
+    /// This is an extension of [AcirValue::flatten] that also supports
+    /// [AcirValue::DynamicArray]. Dynamic arrays are fully read out so that
+    /// the returned vector contains the element values paired with their types.
+    fn flatten(
+        &mut self,
+        value: &AcirValue,
+    ) -> Result<Vec<(AcirVar, NumericType)>, RuntimeError> {
+        Ok(match value {
+            AcirValue::Var(var, typ) => vec![(*var, typ.to_numeric_type())],
+            AcirValue::Array(array) => {
+                let mut result = Vec::new();
+                for elem in array {
+                    result.extend(self.flatten(elem)?);
+                }
+                result
+            }
+            AcirValue::DynamicArray(AcirDynamicArray { block_id, len, .. }) => {
+                let elements = self.read_dynamic_array(*block_id, *len)?;
+                let mut result = Vec::new();
+
+                for value in elements {
+                    match value {
+                        AcirValue::Var(var, typ) => result.push((var, typ.to_numeric_type())),
+                        _ => unreachable!("ICE: Dynamic memory should already be flat"),
+                    }
+                }
+                result
+            }
+        })
+    }
 }
 
 /// Check post ACIR generation properties
