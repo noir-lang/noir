@@ -344,7 +344,8 @@ impl Context {
 
         if can_be_eliminated_if_unused(instruction, function, self.flattened) {
             let results = function.dfg.instruction_results(instruction_id);
-            results.iter().all(|result| !self.used_values.contains(result))
+            let results_unused = results.iter().all(|result| !self.used_values.contains(result));
+            results_unused && !function.dfg.is_returned_in_databus(instruction_id)
         } else if let Instruction::Call { func, arguments } = instruction {
             // TODO: make this more general for instructions which don't have results but have side effects "sometimes" like `Intrinsic::AsWitness`
             let as_witness_id = function.dfg.get_intrinsic(Intrinsic::AsWitness);

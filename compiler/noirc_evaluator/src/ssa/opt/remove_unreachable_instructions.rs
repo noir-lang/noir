@@ -189,7 +189,17 @@ impl Function {
             }
 
             if current_block_reachability == Reachability::Unreachable {
-                context.remove_current_instruction();
+                if context.dfg.is_returned_in_databus(context.instruction_id) {
+                    // We have to keep databus assignments at the end of the ACIR main function alive,
+                    // otherwise we can't print the SSA, as it will crash trying to normalize values
+                    // that no longer get created in the SSA.
+                    // The reason it is enough to this only for unreachable blocks without worrying
+                    // about their successors is that databus is only used in ACIR, and we only remove
+                    // unreachable instructions after flattening, so there is only one block.
+                    remove_and_replace_with_defaults(context, func_id, block_id);
+                } else {
+                    context.remove_current_instruction();
+                }
                 return;
             }
 
