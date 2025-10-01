@@ -279,11 +279,16 @@ impl Context {
                     return;
                 }
                 CacheResult::NeedToHoistToCommonBlock(dominator) => {
-                    // Just change the block to insert in the common dominator instead.
-                    // This will only move the current instance of the instruction right now.
+                    // Insert a copy of the instruction in the common dominator.
                     // When constant folding is run a second time later on, it'll catch
-                    // that the previous instance can be deduplicated to this instance.
-                    block = dominator;
+                    // that the previous instances can be deduplicated to this instance.
+                    let call_stack = dfg.get_instruction_call_stack_id(id);
+                    dfg.insert_instruction_and_results(
+                        instruction.clone(),
+                        dominator,
+                        None,
+                        call_stack,
+                    );
                 }
             }
         };
@@ -938,8 +943,9 @@ mod test {
 
         // v4 has been hoisted, although:
         // - v5 has not yet been removed since it was encountered earlier in the program
-        // - v8 hasn't been recognized as a duplicate of v6 yet since they still reference v4 and
-        //   v5 respectively
+        // - v8 has not yet been removed since v4 was not in the cache
+        // - v9 hasn't been recognized as a duplicate of v6 yet since they still reference v5 and
+        //   v8 respectively
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: u32):
@@ -949,6 +955,56 @@ mod test {
           b1():
             v5 = shl v0, u32 1
             v6 = lt v0, v5
+            constrain v6 == u1 1
+            jmp b2()
+          b2():
+            jmpif v2 then: b3, else: b4
+          b3():
+            v8 = shl v0, u32 1
+            v9 = lt v0, v8
+            constrain v9 == u1 1
+            jmp b4()
+          b4():
+            return
+        }
+        ");
+
+        // src is equal to the previous output
+        let src = "
+               brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v2 = lt u32 1000, v0
+            v4 = shl v0, u32 1
+            jmpif v2 then: b1, else: b2
+          b1():
+            v5 = shl v0, u32 1
+            v6 = lt v0, v5
+            constrain v6 == u1 1
+            jmp b2()
+          b2():
+            jmpif v2 then: b3, else: b4
+          b3():
+            v8 = shl v0, u32 1
+            v9 = lt v0, v8
+            constrain v9 == u1 1
+            jmp b4()
+          b4():
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants_using_constraints();
+        // Another round of folding has fully deduplicated the shl
+        // v6 and v8 are now ready to be deduplicated by v5
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v2 = lt u32 1000, v0
+            v4 = shl v0, u32 1
+            v5 = lt v0, v4
+            jmpif v2 then: b1, else: b2
+          b1():
+            v6 = lt v0, v4
             constrain v6 == u1 1
             jmp b2()
           b2():
