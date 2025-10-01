@@ -10,7 +10,7 @@ use acir::{
     native_types::{Expression, Witness},
 };
 
-use crate::compiler::CircuitSimulator;
+use crate::compiler::{CircuitSimulator, optimizers::GeneralOptimizer};
 
 pub(crate) struct MergeExpressionsOptimizer<F: AcirField> {
     resolved_blocks: HashMap<BlockId, BTreeSet<Witness>>,
@@ -114,6 +114,7 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
                             let (source, target) = if op1 < op2 { (op1, op2) } else { (op2, op1) };
                             let source_opcode = self.get_opcode(source, circuit);
                             let target_opcode = self.get_opcode(target, circuit);
+
                             if let (
                                 Some(Opcode::AssertZero(expr_use)),
                                 Some(Opcode::AssertZero(expr_define)),
@@ -261,7 +262,9 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
             if k.1 == w {
                 for i in &expr.linear_combinations {
                     if i.1 == w {
-                        return Some(target.add_mul(-(k.0 / i.0), expr));
+                        let expr = target.add_mul(-(k.0 / i.0), expr);
+                        let expr = GeneralOptimizer::optimize(expr);
+                        return Some(expr);
                     }
                 }
             }
@@ -301,6 +304,25 @@ mod tests {
         // check that the circuit is still valid after optimization
         assert!(CircuitSimulator::default().check_circuit(&optimized_circuit).is_none());
         optimized_circuit
+    }
+
+    #[test]
+    fn merges_expressions() {
+        let src = "
+        private parameters: [w0]
+        public parameters: []
+        return values: [w2]
+        ASSERT 2*w1 = w0 + 5
+        ASSERT w2 = 4*w1 + 4
+        ";
+        let circuit = Circuit::from_str(src).unwrap();
+        let optimized_circuit = merge_expressions(circuit.clone());
+        assert_circuit_snapshot!(optimized_circuit, @r"
+        private parameters: [w0]
+        public parameters: []
+        return values: [w2]
+        ASSERT w2 = 2*w0 + 14
+        ");
     }
 
     #[test]
