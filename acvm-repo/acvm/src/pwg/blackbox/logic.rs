@@ -72,3 +72,54 @@ fn solve_logic_opcode<F: AcirField>(
     }
     insert_value(&result, assignment, initial_witness)
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::pwg::blackbox::{and, xor};
+    use acir::{
+        FieldElement,
+        circuit::opcodes::FunctionInput,
+        native_types::{Witness, WitnessMap},
+    };
+    use std::collections::BTreeMap;
+
+    #[test]
+    fn test_and() {
+        let lhs = FunctionInput::Witness(Witness(1));
+        let rhs = FunctionInput::Witness(Witness(2));
+
+        let mut initial_witness = WitnessMap::from(BTreeMap::from_iter([
+            (Witness(1), FieldElement::from(5u128)),
+            (Witness(2), FieldElement::from(8u128)),
+        ]));
+        and(&mut initial_witness, &lhs, &rhs, 8, &Witness(3), false).unwrap();
+        assert_eq!(initial_witness[&Witness(3)], FieldElement::from(0u128));
+
+        let mut initial_witness = WitnessMap::from(BTreeMap::from_iter([
+            (Witness(1), FieldElement::from(26u128)),
+            (Witness(2), FieldElement::from(34u128)),
+        ]));
+        and(&mut initial_witness, &lhs, &rhs, 8, &Witness(3), false).unwrap();
+        assert_eq!(initial_witness[&Witness(3)], FieldElement::from(2u128));
+    }
+
+    #[test]
+    fn test_xor() {
+        let lhs = FunctionInput::Witness(Witness(1));
+        let rhs = FunctionInput::Witness(Witness(2));
+
+        let mut initial_witness = WitnessMap::from(BTreeMap::from_iter([
+            (Witness(1), FieldElement::from(5u128)),
+            (Witness(2), FieldElement::from(8u128)),
+        ]));
+        xor(&mut initial_witness, &lhs, &rhs, 8, &Witness(3), false).unwrap();
+        assert_eq!(initial_witness[&Witness(3)], FieldElement::from(13u128));
+
+        let mut initial_witness = WitnessMap::from(BTreeMap::from_iter([
+            (Witness(1), FieldElement::from(26u128)),
+            (Witness(2), FieldElement::from(34u128)),
+        ]));
+        xor(&mut initial_witness, &lhs, &rhs, 8, &Witness(3), false).unwrap();
+        assert_eq!(initial_witness[&Witness(3)], FieldElement::from(56u128));
+    }
+}
