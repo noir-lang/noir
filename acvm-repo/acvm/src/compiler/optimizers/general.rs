@@ -98,7 +98,7 @@ mod tests {
         return values: []
 
         // The first multiplication should be removed
-        CONSTRAIN 0*w0*w1 + w0*w1 = 0
+        ASSERT 0*w0*w1 + w0*w1 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
         let optimized_circuit = optimize(circuit);
@@ -106,7 +106,7 @@ mod tests {
         private parameters: [w0, w1]
         public parameters: []
         return values: []
-        CONSTRAIN 0 = w0*w1
+        ASSERT 0 = w0*w1
         ");
     }
 
@@ -118,7 +118,7 @@ mod tests {
         return values: []
 
         // The first linear combination should be removed
-        CONSTRAIN 0*w0 + w1 = 0
+        ASSERT 0*w0 + w1 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
         let optimized_circuit = optimize(circuit);
@@ -126,7 +126,7 @@ mod tests {
         private parameters: [w0, w1]
         public parameters: []
         return values: []
-        CONSTRAIN w1 = 0
+        ASSERT w1 = 0
         ");
     }
 
@@ -139,7 +139,7 @@ mod tests {
 
         // There are all mul terms with the same variables so we should end up with just one
         // that is the sum of all the coefficients
-        CONSTRAIN 2*w0*w1 + 3*w1*w0 + 4*w0*w1 = 0
+        ASSERT 2*w0*w1 + 3*w1*w0 + 4*w0*w1 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
         let optimized_circuit = optimize(circuit);
@@ -147,7 +147,7 @@ mod tests {
         private parameters: [w0, w1]
         public parameters: []
         return values: []
-        CONSTRAIN 0 = 9*w0*w1
+        ASSERT 0 = 9*w0*w1
         ");
     }
 
@@ -157,7 +157,7 @@ mod tests {
         private parameters: [w0, w1]
         public parameters: []
         return values: []
-        CONSTRAIN 2*w0*w1 + 3*w1*w0 - 5*w0*w1 = 0
+        ASSERT 2*w0*w1 + 3*w1*w0 - 5*w0*w1 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
         let optimized_circuit = optimize(circuit);
@@ -165,7 +165,7 @@ mod tests {
         private parameters: [w0, w1]
         public parameters: []
         return values: []
-        CONSTRAIN 0 = 0
+        ASSERT 0 = 0
         ");
     }
 
@@ -178,7 +178,7 @@ mod tests {
 
         // These are all linear terms with the same variable so we should end up with just one
         // that is the sum of all the coefficients
-        CONSTRAIN w0 + 2*w0 + 3*w0 = 0
+        ASSERT w0 + 2*w0 + 3*w0 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
         let optimized_circuit = optimize(circuit);
@@ -186,7 +186,7 @@ mod tests {
         private parameters: [w0, w1]
         public parameters: []
         return values: []
-        CONSTRAIN 0 = 6*w0
+        ASSERT 0 = 6*w0
         ");
     }
 
@@ -196,7 +196,7 @@ mod tests {
         private parameters: [w0, w1]
         public parameters: []
         return values: []
-        CONSTRAIN w0 + 2*w0 - 3*w0 = 0
+        ASSERT w0 + 2*w0 - 3*w0 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
         let optimized_circuit = optimize(circuit);
@@ -204,7 +204,7 @@ mod tests {
         private parameters: [w0, w1]
         public parameters: []
         return values: []
-        CONSTRAIN 0 = 0
+        ASSERT 0 = 0
         ");
     }
 }

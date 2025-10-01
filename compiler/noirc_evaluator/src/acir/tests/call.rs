@@ -61,14 +61,14 @@ fn basic_call_with_outputs_assert(inline_type: InlineType) {
     return values: []
     CALL func: 1, predicate: 1, inputs: [w0, w1], outputs: [w2]
     CALL func: 1, predicate: 1, inputs: [w0, w1], outputs: [w3]
-    CONSTRAIN w3 = w2
+    ASSERT w3 = w2
 
     func 1
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
-    CONSTRAIN w1 = w0
-    CONSTRAIN w2 = w0
+    ASSERT w1 = w0
+    ASSERT w2 = w0
     ");
 }
 
@@ -100,14 +100,14 @@ fn call_output_as_next_call_input(inline_type: InlineType) {
     return values: []
     CALL func: 1, predicate: 1, inputs: [w0, w1], outputs: [w2]
     CALL func: 1, predicate: 1, inputs: [w2, w1], outputs: [w3]
-    CONSTRAIN w3 = w2
+    ASSERT w3 = w2
 
     func 1
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
-    CONSTRAIN w1 = w0
-    CONSTRAIN w2 = w0
+    ASSERT w1 = w0
+    ASSERT w2 = w0
     ");
 }
 
@@ -143,21 +143,21 @@ fn basic_nested_call(inline_type: InlineType) {
     return values: []
     CALL func: 1, predicate: 1, inputs: [w0, w1], outputs: [w2]
     CALL func: 1, predicate: 1, inputs: [w0, w1], outputs: [w3]
-    CONSTRAIN w3 = w2
+    ASSERT w3 = w2
 
     func 1
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
-    CONSTRAIN w3 = w0 + 2
+    ASSERT w3 = w0 + 2
     CALL func: 2, predicate: 1, inputs: [w3, w1], outputs: [w4]
-    CONSTRAIN w4 = w2
+    ASSERT w4 = w2
 
     func 2
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
-    CONSTRAIN w1 = w0
-    CONSTRAIN w2 = w0
+    ASSERT w1 = w0
+    ASSERT w2 = w0
     ");
 }

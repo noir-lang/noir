@@ -84,7 +84,7 @@ fn return_values() {
 }
 
 #[test]
-fn computed_current_witness() {
+fn computes_current_witness() {
     let src = "
     private parameters: [w0, w1]
     public parameters: [w3]
@@ -100,11 +100,11 @@ fn assert_zero_opcodes() {
     private parameters: [w0, w1, w2, w3, w4]
     public parameters: [w5, w6, w7, w8, w9]
     return values: []
-    CONSTRAIN w5 = w0
-    CONSTRAIN w6 = w1
-    CONSTRAIN w7 = w2
-    CONSTRAIN w8 = w3
-    CONSTRAIN w9 = w4
+    ASSERT w5 = w0
+    ASSERT w6 = w1
+    ASSERT w7 = w2
+    ASSERT w8 = w3
+    ASSERT w9 = w4
     ";
     assert_circuit_roundtrip(src);
 }
@@ -115,11 +115,11 @@ fn assert_zero_with_mul_terms() {
     private parameters: [w0, w1, w2]
     public parameters: []
     return values: []
-    CONSTRAIN w3 = w0*w1
-    CONSTRAIN w4 = w3*w3
-    CONSTRAIN w5 = w4*w4
-    CONSTRAIN w6 = w5*w5
-    CONSTRAIN w6 = w2
+    ASSERT w3 = w0*w1
+    ASSERT w4 = w3*w3
+    ASSERT w5 = w4*w4
+    ASSERT w6 = w5*w5
+    ASSERT w6 = w2
     ";
     assert_circuit_roundtrip(src);
 }
@@ -144,7 +144,7 @@ fn xor() {
     BLACKBOX::RANGE input: w0, bits: 32
     BLACKBOX::RANGE input: w1, bits: 32
     BLACKBOX::XOR inputs: [w0, w1], bits: 32, output: w2
-    CONSTRAIN w2 = 15
+    ASSERT w2 = 15
     ";
     assert_circuit_roundtrip(src);
 }
@@ -217,22 +217,22 @@ fn aes128_encrypt() {
     BLACKBOX::RANGE input: w58, bits: 8
     BLACKBOX::RANGE input: w59, bits: 8
     BLACKBOX::AES128_ENCRYPT inputs: [w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25, w26, w27, w28, w29, w30, w31, w32, w33, w34, w35, w36, w37, w38, w39, w40, w41, w42, w43], outputs: [w60, w61, w62, w63, w64, w65, w66, w67, w68, w69, w70, w71, w72, w73, w74, w75]
-    CONSTRAIN w60 = w44
-    CONSTRAIN w61 = w45
-    CONSTRAIN w62 = w46
-    CONSTRAIN w63 = w47
-    CONSTRAIN w64 = w48
-    CONSTRAIN w65 = w49
-    CONSTRAIN w66 = w50
-    CONSTRAIN w67 = w51
-    CONSTRAIN w68 = w52
-    CONSTRAIN w69 = w53
-    CONSTRAIN w70 = w54
-    CONSTRAIN w71 = w55
-    CONSTRAIN w72 = w56
-    CONSTRAIN w73 = w57
-    CONSTRAIN w74 = w58
-    CONSTRAIN w75 = w59
+    ASSERT w60 = w44
+    ASSERT w61 = w45
+    ASSERT w62 = w46
+    ASSERT w63 = w47
+    ASSERT w64 = w48
+    ASSERT w65 = w49
+    ASSERT w66 = w50
+    ASSERT w67 = w51
+    ASSERT w68 = w52
+    ASSERT w69 = w53
+    ASSERT w70 = w54
+    ASSERT w71 = w55
+    ASSERT w72 = w56
+    ASSERT w73 = w57
+    ASSERT w74 = w58
+    ASSERT w75 = w59
     ";
     assert_circuit_roundtrip(src);
 }
@@ -500,8 +500,8 @@ fn brillig_call() {
     public parameters: []
     return values: []
     BRILLIG CALL func: 0, inputs: [w0 - w1], outputs: [w3]
-    CONSTRAIN 0 = w0*w3 - w1*w3 - 1
-    CONSTRAIN w2 = w0
+    ASSERT 0 = w0*w3 - w1*w3 - 1
+    ASSERT w2 = w0
     ";
     assert_circuit_roundtrip(src);
 }
@@ -513,8 +513,8 @@ fn brillig_call_with_predicate() {
     public parameters: []
     return values: []
     BRILLIG CALL func: 0, predicate: 1, inputs: [w0 - w1], outputs: [w3]
-    CONSTRAIN 0 = w0*w3 - w1*w3 - 1
-    CONSTRAIN w2 = w0
+    ASSERT 0 = w0*w3 - w1*w3 - 1
+    ASSERT w2 = w0
     ";
     assert_circuit_roundtrip(src);
 }
@@ -574,69 +574,69 @@ fn array_dynamic() {
     BLACKBOX::RANGE input: w15, bits: 32
     BLACKBOX::RANGE input: w16, bits: 32
     BLACKBOX::RANGE input: w17, bits: 32
-    CONSTRAIN w19 = 5*w6
+    ASSERT w19 = 5*w6
     BLACKBOX::RANGE input: w19, bits: 32
-    CONSTRAIN w20 = w5 - w19
+    ASSERT w20 = w5 - w19
     BLACKBOX::RANGE input: w20, bits: 32
-    CONSTRAIN w21 = w20 - 5
-    CONSTRAIN w22 = w21 - 3
+    ASSERT w21 = w20 - 5
+    ASSERT w22 = w21 - 3
     READ w23 = b0[w21]
-    CONSTRAIN w23 = 111
+    ASSERT w23 = 111
     READ w24 = b0[w22]
-    CONSTRAIN w24 = 101
+    ASSERT w24 = 101
     BRILLIG CALL func: 0, inputs: [w22 + 4294967291, 4294967296], outputs: [w25, w26]
     BLACKBOX::RANGE input: w26, bits: 32
-    CONSTRAIN w26 = w22 - 4294967296*w25 + 4294967291
-    CONSTRAIN w25 = 0
-    CONSTRAIN w27 = 0
+    ASSERT w26 = w22 - 4294967296*w25 + 4294967291
+    ASSERT w25 = 0
+    ASSERT w27 = 0
     WRITE b0[w22] = w27
     READ w28 = b0[w21]
-    CONSTRAIN w28 = 111
-    CONSTRAIN w29 = 1
+    ASSERT w28 = 111
+    ASSERT w29 = 1
     READ w30 = b0[w29]
-    CONSTRAIN w30 = 0
+    ASSERT w30 = 0
     BRILLIG CALL func: 0, inputs: [w21 + 4294967286, 4294967296], outputs: [w31, w32]
     BLACKBOX::RANGE input: w31, bits: 1
     BLACKBOX::RANGE input: w32, bits: 32
-    CONSTRAIN w32 = w21 - 4294967296*w31 + 4294967286
-    CONSTRAIN w33 = -w21*w31 + w21
+    ASSERT w32 = w21 - 4294967296*w31 + 4294967286
+    ASSERT w33 = -w21*w31 + w21
     READ w34 = b0[w33]
-    CONSTRAIN w35 = -w31*w34 + 2*w31 + w34 - 2
+    ASSERT w35 = -w31*w34 + 2*w31 + w34 - 2
     BLACKBOX::RANGE input: w35, bits: 32
     BRILLIG CALL func: 0, inputs: [w21 + 4294967291, 4294967296], outputs: [w36, w37]
     BLACKBOX::RANGE input: w36, bits: 1
     BLACKBOX::RANGE input: w37, bits: 32
-    CONSTRAIN w37 = w21 - 4294967296*w36 + 4294967291
-    CONSTRAIN w36 = w31*w36
-    CONSTRAIN w38 = -w21*w31 + w21
+    ASSERT w37 = w21 - 4294967296*w36 + 4294967291
+    ASSERT w36 = w31*w36
+    ASSERT w38 = -w21*w31 + w21
     READ w39 = b0[w38]
     READ w40 = b0[w27]
     READ w41 = b0[w29]
-    CONSTRAIN w42 = 2
+    ASSERT w42 = 2
     READ w43 = b0[w42]
-    CONSTRAIN w44 = 3
+    ASSERT w44 = 3
     READ w45 = b0[w44]
-    CONSTRAIN w46 = 0
+    ASSERT w46 = 0
     READ w47 = b0[w46]
     INIT b3 = [w40, w41, w43, w45, w47]
-    CONSTRAIN w48 = -w31*w35 + w31*w39 + w35
+    ASSERT w48 = -w31*w35 + w31*w39 + w35
     WRITE b3[w38] = w48
     READ w49 = b3[w46]
     READ w50 = b0[w46]
-    CONSTRAIN 0 = -w31*w36
-    CONSTRAIN w51 = w21*w31
+    ASSERT 0 = -w31*w36
+    ASSERT w51 = w21*w31
     READ w52 = b0[w51]
-    CONSTRAIN w53 = -w31*w52 + w52
+    ASSERT w53 = -w31*w52 + w52
     WRITE b0[w51] = w53
     READ w54 = b0[w46]
-    CONSTRAIN w55 = -w31 + 1
-    CONSTRAIN w56 = -w31*w49 + w31*w50 + w49
-    CONSTRAIN 0 = w31*w54 + w55*w56 - 109
-    CONSTRAIN w57 = 246
-    CONSTRAIN w58 = 159
-    CONSTRAIN w59 = 32
-    CONSTRAIN w60 = 176
-    CONSTRAIN w61 = 8
+    ASSERT w55 = -w31 + 1
+    ASSERT w56 = -w31*w49 + w31*w50 + w49
+    ASSERT 0 = w31*w54 + w55*w56 - 109
+    ASSERT w57 = 246
+    ASSERT w58 = 159
+    ASSERT w59 = 32
+    ASSERT w60 = 176
+    ASSERT w61 = 8
     INIT b4 = [w57, w58, w59, w60, w61]
     READ w62 = b4[w7]
     READ w63 = b4[w8]
@@ -644,27 +644,27 @@ fn array_dynamic() {
     READ w65 = b4[w10]
     READ w66 = b4[w11]
     BRILLIG CALL func: 1, inputs: [w62 + w63 + w64 + w65 + w66], outputs: [w67]
-    CONSTRAIN 0 = w62*w67 + w63*w67 + w64*w67 + w65*w67 + w66*w67 - 1
+    ASSERT 0 = w62*w67 + w63*w67 + w64*w67 + w65*w67 + w66*w67 - 1
     BRILLIG CALL func: 0, inputs: [w18, 4294967296], outputs: [w68, w69]
     BLACKBOX::RANGE input: w68, bits: 222
     BLACKBOX::RANGE input: w69, bits: 32
-    CONSTRAIN w69 = w18 - 4294967296*w68
-    CONSTRAIN w70 = -w68 + 5096253676302562286669017222071363378443840053029366383258766538131
+    ASSERT w69 = w18 - 4294967296*w68
+    ASSERT w70 = -w68 + 5096253676302562286669017222071363378443840053029366383258766538131
     BLACKBOX::RANGE input: w70, bits: 222
     BRILLIG CALL func: 1, inputs: [-w68 + 5096253676302562286669017222071363378443840053029366383258766538131], outputs: [w71]
-    CONSTRAIN w72 = w68*w71 - 5096253676302562286669017222071363378443840053029366383258766538131*w71 + 1
-    CONSTRAIN 0 = -w68*w72 + 5096253676302562286669017222071363378443840053029366383258766538131*w72
-    CONSTRAIN w73 = w69*w72 + 268435455*w72
+    ASSERT w72 = w68*w71 - 5096253676302562286669017222071363378443840053029366383258766538131*w71 + 1
+    ASSERT 0 = -w68*w72 + 5096253676302562286669017222071363378443840053029366383258766538131*w72
+    ASSERT w73 = w69*w72 + 268435455*w72
     BLACKBOX::RANGE input: w73, bits: 32
     BRILLIG CALL func: 0, inputs: [-w69 + 4294967299, 4294967296], outputs: [w74, w75]
     BLACKBOX::RANGE input: w74, bits: 1
     BLACKBOX::RANGE input: w75, bits: 32
-    CONSTRAIN w75 = -w69 - 4294967296*w74 + 4294967299
-    CONSTRAIN w76 = -w17*w74 + w17 - 3*w74 + 3
+    ASSERT w75 = -w69 - 4294967296*w74 + 4294967299
+    ASSERT w76 = -w17*w74 + w17 - 3*w74 + 3
     BLACKBOX::RANGE input: w76, bits: 32
-    CONSTRAIN w77 = -w74*w76 + w76
+    ASSERT w77 = -w74*w76 + w76
     READ w78 = b1[w77]
-    CONSTRAIN w78 = -w15*w74 + w74*w78 + w15
+    ASSERT w78 = -w15*w74 + w74*w78 + w15
     ";
     assert_circuit_roundtrip(src);
 }
@@ -683,8 +683,8 @@ fn fold_basic() {
     public parameters: []
     return values: [w2]
     BRILLIG CALL func: 0, inputs: [w0 - w1], outputs: [w3]
-    CONSTRAIN 0 = w0*w3 - w1*w3 - 1
-    CONSTRAIN w2 = w0
+    ASSERT 0 = w0*w3 - w1*w3 - 1
+    ASSERT w2 = w0
     ";
     assert_program_roundtrip(src);
 }
@@ -703,8 +703,8 @@ fn fold_basic_mismatched_ids() {
     public parameters: []
     return values: [w2]
     BRILLIG CALL func: 0, inputs: [w0 - w1], outputs: [w3]
-    CONSTRAIN w0*w3 - w1*w3 - 1 = 0
-    CONSTRAIN w0 = w2
+    ASSERT w0*w3 - w1*w3 - 1 = 0
+    ASSERT w0 = w2
     ";
     let result = Program::from_str(src).err().unwrap();
     let ParserError::UnexpectedFunctionId { expected, found, .. } = result.get_error() else {
@@ -720,14 +720,14 @@ fn assert_zero_equation() {
     private parameters: [w0, w1, w2, w2]
     public parameters: []
     return values: []
-    CONSTRAIN -w0 + w1 - 10 + 20 + w0*w2 = w2 - w3 + w0*w1 - w1*w2 - 30
+    ASSERT -w0 + w1 - 10 + 20 + w0*w2 = w2 - w3 + w0*w1 - w1*w2 - 30
     ";
     let circuit = Circuit::from_str(src).unwrap();
     assert_snapshot!(circuit.to_string(), @r"
     private parameters: [w0, w1, w2]
     public parameters: []
     return values: []
-    CONSTRAIN w3 = -w0*w2 + w0*w1 - w1*w2 + w0 - w1 + w2 - 40
+    ASSERT w3 = -w0*w2 + w0*w1 - w1*w2 + w0 - w1 + w2 - 40
     ");
 }
 
@@ -737,13 +737,13 @@ fn does_not_negate_when_equal_to_zero() {
     private parameters: [w0, w1, w2]
     public parameters: []
     return values: []
-    CONSTRAIN w0*w1 + w0*w2 = 0
+    ASSERT w0*w1 + w0*w2 = 0
     ";
     let circuit = Circuit::from_str(src).unwrap();
     assert_snapshot!(circuit.to_string(), @r"
     private parameters: [w0, w1, w2]
     public parameters: []
     return values: []
-    CONSTRAIN 0 = w0*w1 + w0*w2
+    ASSERT 0 = w0*w1 + w0*w2
     ");
 }

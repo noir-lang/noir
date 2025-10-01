@@ -352,10 +352,10 @@ mod tests {
         return values: []
         BLACKBOX::RANGE input: w1, bits: 16
         BLACKBOX::RANGE input: w1, bits: 16
-        CONSTRAIN 0 = 0
-        CONSTRAIN 0 = 0
-        CONSTRAIN 0 = 0
-        CONSTRAIN 0 = 0
+        ASSERT 0 = 0
+        ASSERT 0 = 0
+        ASSERT 0 = 0
+        ASSERT 0 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
 
@@ -368,10 +368,10 @@ mod tests {
         public parameters: []
         return values: []
         BLACKBOX::RANGE input: w1, bits: 16
-        CONSTRAIN 0 = 0
-        CONSTRAIN 0 = 0
-        CONSTRAIN 0 = 0
-        CONSTRAIN 0 = 0
+        ASSERT 0 = 0
+        ASSERT 0 = 0
+        ASSERT 0 = 0
+        ASSERT 0 = 0
         ");
     }
 
@@ -383,7 +383,7 @@ mod tests {
         public parameters: []
         return values: []
         BLACKBOX::RANGE input: w1, bits: 16
-        CONSTRAIN w1 = 0
+        ASSERT w1 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
 
@@ -395,7 +395,7 @@ mod tests {
         private parameters: []
         public parameters: []
         return values: []
-        CONSTRAIN w1 = 0
+        ASSERT w1 = 0
         ");
     }
 
@@ -419,7 +419,7 @@ mod tests {
         BLACKBOX::RANGE input: w1, bits: 64
 
         // assert w1 == 0
-        CONSTRAIN w1 = 0
+        ASSERT w1 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
 
@@ -442,7 +442,7 @@ mod tests {
         BRILLIG CALL func: 0, inputs: [w2], outputs: []
         BLACKBOX::RANGE input: w1, bits: 16
         BRILLIG CALL func: 0, inputs: [w2], outputs: []
-        CONSTRAIN w1 = 0
+        ASSERT w1 = 0
         ");
 
         // Applying again should have no effect (despite the range having the same bit size as the assert).

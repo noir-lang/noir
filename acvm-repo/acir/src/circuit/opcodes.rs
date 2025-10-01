@@ -147,7 +147,7 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Opcode::AssertZero(expr) => {
-                write!(f, "CONSTRAIN ")?;
+                write!(f, "ASSERT ")?;
                 display_expression(expr, true, f)
             }
             Opcode::BlackBoxFuncCall(g) => g.fmt(f),

@@ -110,8 +110,8 @@ pub(crate) enum Keyword {
     Value,
     /// values
     Values,
-    /// CONSTRAIN
-    Constrain,
+    /// ASSERT
+    Assert,
     /// BLACKBOX
     BlackBoxFuncCall,
     /// INIT
@@ -153,7 +153,7 @@ impl Keyword {
             "return" => Keyword::Return,
             "value" => Keyword::Value,
             "values" => Keyword::Values,
-            "CONSTRAIN" => Keyword::Constrain,
+            "ASSERT" => Keyword::Assert,
             "BLACKBOX" => Keyword::BlackBoxFuncCall,
             "INIT" => Keyword::MemoryInit,
             "READ" => Keyword::MemoryRead,
@@ -184,7 +184,7 @@ impl std::fmt::Display for Keyword {
             Keyword::Return => write!(f, "return"),
             Keyword::Value => write!(f, "value"),
             Keyword::Values => write!(f, "values"),
-            Keyword::Constrain => write!(f, "CONSTRAIN"),
+            Keyword::Assert => write!(f, "ASSERT"),
             Keyword::BlackBoxFuncCall => write!(f, "BLACKBOX"),
             Keyword::MemoryInit => write!(f, "INIT"),
             Keyword::MemoryRead => write!(f, "READ"),

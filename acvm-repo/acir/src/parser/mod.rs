@@ -228,7 +228,7 @@ impl<'a> Parser<'a> {
 
         while let Some(keyword) = self.peek_keyword() {
             match keyword {
-                Keyword::Constrain => {
+                Keyword::Assert => {
                     let expr = self.parse_assert_zero_expression()?;
                     opcodes.push(Opcode::AssertZero(expr));
                 }
@@ -259,7 +259,7 @@ impl<'a> Parser<'a> {
 
     fn parse_assert_zero_expression(&mut self) -> ParseResult<Expression<FieldElement>> {
         // 'CONSTRAIN'
-        self.eat_keyword_or_error(Keyword::Constrain)?;
+        self.eat_keyword_or_error(Keyword::Assert)?;
 
         // Parse the left-hand side terms
         let lhs_terms = self.parse_terms_or_error()?;

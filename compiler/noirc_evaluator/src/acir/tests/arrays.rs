@@ -48,12 +48,12 @@ fn constant_array_access_out_of_bounds() {
     private parameters: []
     public parameters: []
     return values: []
-    CONSTRAIN w0 = 0
-    CONSTRAIN w1 = 1
+    ASSERT w0 = 0
+    ASSERT w1 = 1
     INIT b0 = [w0, w1]
-    CONSTRAIN w2 = 5
+    ASSERT w2 = 5
     READ w3 = b0[w2]
-    CONSTRAIN w3 = 0
+    ASSERT w3 = 0
     ");
 }
 
@@ -95,7 +95,7 @@ fn generates_memory_op_for_dynamic_read() {
     return values: []
     INIT b0 = [w0, w1, w2]
     READ w4 = b0[w3]
-    CONSTRAIN w4 = 10
+    ASSERT w4 = 10
     ");
 }
 
@@ -117,17 +117,17 @@ fn generates_memory_op_for_dynamic_write() {
     public parameters: []
     return values: [w4, w5, w6]
     INIT b1 = [w0, w1, w2]
-    CONSTRAIN w7 = 10
+    ASSERT w7 = 10
     WRITE b1[w3] = w7
-    CONSTRAIN w8 = 0
+    ASSERT w8 = 0
     READ w9 = b1[w8]
-    CONSTRAIN w10 = 1
+    ASSERT w10 = 1
     READ w11 = b1[w10]
-    CONSTRAIN w12 = 2
+    ASSERT w12 = 2
     READ w13 = b1[w12]
-    CONSTRAIN w9 = w4
-    CONSTRAIN w11 = w5
-    CONSTRAIN w13 = w6
+    ASSERT w9 = w4
+    ASSERT w11 = w5
+    ASSERT w13 = w6
     ");
 }
 
@@ -157,9 +157,9 @@ fn generates_predicated_index_for_dynamic_read() {
     INIT b0 = [w0, w1, w2]
     BLACKBOX::RANGE input: w3, bits: 32
     BLACKBOX::RANGE input: w4, bits: 1
-    CONSTRAIN w5 = w3*w4
+    ASSERT w5 = w3*w4
     READ w6 = b0[w5]
-    CONSTRAIN w6 = 10
+    ASSERT w6 = 10
     ");
 }
 
@@ -181,7 +181,7 @@ fn generates_predicated_index_and_dummy_value_for_dynamic_write() {
     // The original value we want to write is `Field 10` and our predicate is `w4`.
     // We read the value at the predicated index into `w9`. This is our dummy value.
     // We can then see how we form our new store value with:
-    // `CONSTRAIN -w4*w9 + 10*w4 + w9 - w10 = 0` -> (predicate*value + (1-predicate)*dummy)
+    // `ASSERT -w4*w9 + 10*w4 + w9 - w10 = 0` -> (predicate*value + (1-predicate)*dummy)
     // `10*w4` -> predicate*value
     // `-w4*w9` -> (-predicate * dummy)
     // `w9` -> dummy
@@ -194,20 +194,20 @@ fn generates_predicated_index_and_dummy_value_for_dynamic_write() {
     INIT b0 = [w0, w1, w2]
     BLACKBOX::RANGE input: w3, bits: 32
     BLACKBOX::RANGE input: w4, bits: 1
-    CONSTRAIN w8 = w3*w4
+    ASSERT w8 = w3*w4
     READ w9 = b0[w8]
     INIT b1 = [w0, w1, w2]
-    CONSTRAIN w10 = -w4*w9 + 10*w4 + w9
+    ASSERT w10 = -w4*w9 + 10*w4 + w9
     WRITE b1[w8] = w10
-    CONSTRAIN w11 = 0
+    ASSERT w11 = 0
     READ w12 = b1[w11]
-    CONSTRAIN w13 = 1
+    ASSERT w13 = 1
     READ w14 = b1[w13]
-    CONSTRAIN w15 = 2
+    ASSERT w15 = 2
     READ w16 = b1[w15]
-    CONSTRAIN w12 = w5
-    CONSTRAIN w14 = w6
-    CONSTRAIN w16 = w7
+    ASSERT w12 = w5
+    ASSERT w14 = w6
+    ASSERT w16 = w7
     ");
 }
 
@@ -231,7 +231,7 @@ fn zero_length_array_constant() {
     private parameters: []
     public parameters: []
     return values: []
-    CONSTRAIN 0 = 1
+    ASSERT 0 = 1
     ");
 }
 
@@ -257,6 +257,6 @@ fn zero_length_array_dynamic_predicate() {
     private parameters: [w0]
     public parameters: []
     return values: []
-    CONSTRAIN w0 = 0
+    ASSERT w0 = 0
     ");
 }

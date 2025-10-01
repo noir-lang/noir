@@ -306,8 +306,8 @@ mod tests {
         public parameters: []
         return values: []
         BRILLIG CALL func: 0, inputs: [], outputs: [w1]
-        CONSTRAIN 2*w0 + 3*w1 + w2 + 1 = 0
-        CONSTRAIN 2*w0 + 2*w1 + w5 + 1 = 0
+        ASSERT 2*w0 + 3*w1 + w2 + 1 = 0
+        ASSERT 2*w0 + 2*w1 + w5 + 1 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
         let optimized_circuit = merge_expressions(circuit.clone());
@@ -320,8 +320,8 @@ mod tests {
         private parameters: [w0]
         public parameters: []
         return values: [w1, w2]
-        CONSTRAIN -w0*w0 + w1 = 0
-        CONSTRAIN -w1 + w2 = 0
+        ASSERT -w0*w0 + w1 = 0
+        ASSERT -w1 + w2 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
         let optimized_circuit = merge_expressions(circuit.clone());
@@ -334,10 +334,10 @@ mod tests {
         private parameters: [w0, w1]
         public parameters: []
         return values: []
-        CONSTRAIN w0*w0 - w4 = 0
-        CONSTRAIN w0*w1 + w5 = 0
-        CONSTRAIN -w2 + w4 + w5 = 0
-        CONSTRAIN w2 - w3 + w4 + w5 = 0
+        ASSERT w0*w0 - w4 = 0
+        ASSERT w0*w1 + w5 = 0
+        ASSERT -w2 + w4 + w5 = 0
+        ASSERT w2 - w3 + w4 + w5 = 0
         BLACKBOX::RANGE input: w3, bits: 32
         ";
         let circuit = Circuit::from_str(src).unwrap();
@@ -347,8 +347,8 @@ mod tests {
         private parameters: [w0, w1]
         public parameters: []
         return values: []
-        CONSTRAIN w5 = -w0*w1
-        CONSTRAIN w3 = 2*w0*w0 + 2*w5
+        ASSERT w5 = -w0*w1
+        ASSERT w3 = 2*w0*w0 + 2*w5
         BLACKBOX::RANGE input: w3, bits: 32
         ");
     }
@@ -365,8 +365,8 @@ mod tests {
         return values: [w2]
         BRILLIG CALL func: 0, inputs: [], outputs: [w3]
         BLACKBOX::AND inputs: [w0, w1], bits: 8, output: w4
-        CONSTRAIN w3 - w4 = 0
-        CONSTRAIN -w2 + w4 = 0
+        ASSERT w3 - w4 = 0
+        ASSERT -w2 + w4 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
         let optimized_circuit = merge_expressions(circuit.clone());
