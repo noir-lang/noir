@@ -116,7 +116,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
         acvm.with_brillig_fuzzing(self.brillig_branch_to_feature_map);
 
         loop {
-            let solver_status = acvm.solve();
+            let solver_status = acvm.solve().clone();
 
             match solver_status {
                 ACVMStatus::Solved => break,
@@ -159,7 +159,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
                     };
 
                     return Err(NargoError::ExecutionError(execution_error_from(
-                        error,
+                        error.clone(),
                         &self.call_stack,
                     )));
                 }

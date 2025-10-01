@@ -50,7 +50,7 @@ fn bls12_381_circuit() {
     let mut acvm = ACVM::new(&solver, &opcodes, witness_assignments, &[], &[]);
     // use the partial witness generation solver with our acir program
     let solver_status = acvm.solve();
-    assert_eq!(solver_status, ACVMStatus::Solved, "should be fully solved");
+    assert_eq!(solver_status, &ACVMStatus::Solved, "should be fully solved");
 
     // ACVM should be able to be finalized in `Solved` state.
     let witness_stack = acvm.finalize();
@@ -192,7 +192,7 @@ fn inversion_brillig_oracle_equivalence() {
 
     // After filling data request, continue solving
     let solver_status = acvm.solve();
-    assert_eq!(solver_status, ACVMStatus::Solved, "should be fully solved");
+    assert_eq!(solver_status, &ACVMStatus::Solved, "should be fully solved");
 
     // ACVM should be able to be finalized in `Solved` state.
     acvm.finalize();
@@ -372,7 +372,7 @@ fn double_inversion_brillig_oracle() {
 
     // After filling data request, continue solving
     let solver_status = acvm.solve();
-    assert_eq!(solver_status, ACVMStatus::Solved, "should be fully solved");
+    assert_eq!(solver_status, &ACVMStatus::Solved, "should be fully solved");
 
     // ACVM should be able to be finalized in `Solved` state.
     acvm.finalize();
@@ -524,7 +524,7 @@ fn oracle_dependent_execution() {
 
     // After filling data request, continue solving
     let solver_status = acvm.solve();
-    assert_eq!(solver_status, ACVMStatus::Solved, "should be fully solved");
+    assert_eq!(solver_status, &ACVMStatus::Solved, "should be fully solved");
 
     // ACVM should be able to be finalized in `Solved` state.
     acvm.finalize();
@@ -606,7 +606,7 @@ fn brillig_oracle_predicate() {
     let unconstrained_functions = vec![brillig_bytecode];
     let mut acvm = ACVM::new(&solver, &opcodes, witness_assignments, &unconstrained_functions, &[]);
     let solver_status = acvm.solve();
-    assert_eq!(solver_status, ACVMStatus::Solved, "should be fully solved");
+    assert_eq!(solver_status, &ACVMStatus::Solved, "should be fully solved");
 
     // ACVM should be able to be finalized in `Solved` state.
     acvm.finalize();
@@ -644,7 +644,7 @@ fn unsatisfied_opcode_resolved() {
     let solver_status = acvm.solve();
     assert_eq!(
         solver_status,
-        ACVMStatus::Failure(OpcodeResolutionError::UnsatisfiedConstrain {
+        &ACVMStatus::Failure(OpcodeResolutionError::UnsatisfiedConstrain {
             opcode_location: ErrorLocation::Resolved(OpcodeLocation::Acir(0)),
             payload: None
         }),
@@ -769,7 +769,7 @@ fn unsatisfied_opcode_resolved_brillig() {
     let solver_status = acvm.solve();
     assert_eq!(
         solver_status,
-        ACVMStatus::Failure(OpcodeResolutionError::BrilligFunctionFailed {
+        &ACVMStatus::Failure(OpcodeResolutionError::BrilligFunctionFailed {
             function_id: BrilligFunctionId(0),
             payload: None,
             call_stack: vec![OpcodeLocation::Brillig { acir_index: 0, brillig_index: 6 }]
@@ -815,7 +815,7 @@ fn memory_operations() {
     let unconstrained_functions = vec![];
     let mut acvm = ACVM::new(&solver, &opcodes, initial_witness, &unconstrained_functions, &[]);
     let solver_status = acvm.solve();
-    assert_eq!(solver_status, ACVMStatus::Solved);
+    assert_eq!(solver_status, &ACVMStatus::Solved);
     let witness_map = acvm.finalize();
 
     assert_eq!(witness_map[&Witness(8)], FieldElement::from(6u128));
@@ -894,7 +894,7 @@ where
     let unconstrained_functions = vec![];
     let mut acvm = ACVM::new(&solver, &opcodes, initial_witness, &unconstrained_functions, &[]);
     let solver_status = acvm.solve();
-    assert_eq!(solver_status, ACVMStatus::Solved);
+    assert_eq!(solver_status, &ACVMStatus::Solved);
     let witness_map = acvm.finalize();
 
     Ok(outputs
@@ -940,7 +940,7 @@ fn solve_blackbox_func_call(
     let unconstrained_functions = vec![];
     let mut acvm = ACVM::new(&solver, &opcodes, initial_witness, &unconstrained_functions, &[]);
     let solver_status = acvm.solve();
-    assert_eq!(solver_status, ACVMStatus::Solved);
+    assert_eq!(solver_status, &ACVMStatus::Solved);
     let witness_map = acvm.finalize();
 
     Ok(witness_map[&Witness(3)])
