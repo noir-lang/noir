@@ -74,7 +74,7 @@ impl<'a> Lexer<'a> {
                 let start = self.position;
 
                 // Witness token format is 'w' followed by digits.
-                // Block token format is 'b' followed by digits>
+                // Block token format is 'b' followed by digits.
                 let digits = self.eat_while(None, |ch| ch.is_ascii_digit());
                 let end = self.position;
 
