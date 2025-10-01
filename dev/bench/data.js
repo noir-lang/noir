@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1759338765132,
+  "lastUpdate": 1759338835378,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22756,48 +22756,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "ca32861f78f9668371ac49e47edbbb7c9aae0984",
-          "message": "chore(ci): only send slack notifications during the week (#9946)",
-          "timestamp": "2025-09-22T15:21:56Z",
-          "tree_id": "c3637aa4a0fb6c8f8074e3780f4e94dc9d5ad7d0",
-          "url": "https://github.com/noir-lang/noir/commit/ca32861f78f9668371ac49e47edbbb7c9aae0984"
-        },
-        "date": 1758556922835,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 254677,
-            "range": "± 643",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 223165,
-            "range": "± 1861",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2809714,
-            "range": "± 39094",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -24849,6 +24807,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2781516,
             "range": "± 6110",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7e4e32ff58c663e1963778d95990d95f126fa21c",
+          "message": "chore(ACIR): expand signed lt, div and mod in SSA (#10036)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2025-10-01T16:49:25Z",
+          "tree_id": "ff0d79eed04f627b84bc860d7ff9cb138d599302",
+          "url": "https://github.com/noir-lang/noir/commit/7e4e32ff58c663e1963778d95990d95f126fa21c"
+        },
+        "date": 1759338814579,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 251893,
+            "range": "± 722",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 222108,
+            "range": "± 3370",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2781441,
+            "range": "± 7039",
             "unit": "ns/iter"
           }
         ]
