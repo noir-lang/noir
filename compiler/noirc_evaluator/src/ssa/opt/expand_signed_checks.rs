@@ -499,8 +499,7 @@ mod tests {
             v12 = eq v11, v8
             v13 = unchecked_mul v12, v10
             constrain v13 == v10, "attempt to add with overflow"
-            v14 = cast v3 as i32
-            return v14
+            return v3
         }
         "#);
     }
@@ -532,8 +531,7 @@ mod tests {
             v13 = eq v12, v8
             v14 = unchecked_mul v13, v11
             constrain v14 == v11, "attempt to subtract with overflow"
-            v15 = cast v3 as i32
-            return v15
+            return v3
         }
         "#);
     }

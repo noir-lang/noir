@@ -676,7 +676,7 @@ mod tests {
                 v4 = cast v3 as u64
                 v6 = lt v4, u64 64
                 constrain v6 == u1 1, "attempt to bit-shift with overflow"
-                v8 = cast v3 as Field
+                v8 = cast v1 as Field
                 v10 = call to_le_bits(v8) -> [u1; 1]
                 v12 = array_get v10, index u32 0 -> u1
                 v13 = not v12
