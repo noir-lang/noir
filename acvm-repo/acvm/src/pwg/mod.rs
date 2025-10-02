@@ -104,7 +104,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ACVMStatus<F> {
-    /// All witness have been sucessfully computed, execution is complete.
+    /// All witnesses have been computed and all opcodes have been successfully resolved. Execution is complete.
     Solved,
 
     /// The ACVM is processing the circuit, i.e solving the opcodes. This status is used to resume execution after it has been paused.
