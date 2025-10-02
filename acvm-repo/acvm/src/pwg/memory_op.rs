@@ -27,16 +27,13 @@ impl<F: AcirField> MemoryOpSolver<F> {
     /// Convert a field element into a memory index
     /// Only 32 bits values are valid memory indices
     fn index_from_field(&self, index: F) -> Result<MemoryIndex, OpcodeResolutionError<F>> {
-        if index.num_bits() <= 32 {
-            let memory_index = index.try_to_u64().unwrap() as MemoryIndex;
-            Ok(memory_index)
-        } else {
-            Err(OpcodeResolutionError::IndexOutOfBounds {
+        index.try_to_u32().ok_or_else({
+            || OpcodeResolutionError::IndexOutOfBounds {
                 opcode_location: ErrorLocation::Unresolved,
                 index,
                 array_size: self.block_len,
-            })
-        }
+            }
+        })
     }
 
     /// Update the 'block_value' map with the provided index/value
@@ -73,7 +70,7 @@ impl<F: AcirField> MemoryOpSolver<F> {
         init: &[Witness],
         initial_witness: &WitnessMap<F>,
     ) -> Result<(), OpcodeResolutionError<F>> {
-        self.block_len = init.len() as u32;
+        self.block_len = u32::try_from(init.len()).expect("expected a length that fits into a u32");
         for (memory_index, witness) in init.iter().enumerate() {
             self.write_memory_index(
                 memory_index as MemoryIndex,
@@ -122,6 +119,16 @@ impl<F: AcirField> MemoryOpSolver<F> {
 
         // `operation == 0` implies a read operation. (`operation == 1` implies write operation).
         let is_read_operation = operation.is_zero();
+        if pedantic_solving {
+            // We expect that the 'operation' should resolve to either 0 or 1.
+            if !is_read_operation && !operation.is_one() {
+                let opcode_location = ErrorLocation::Unresolved;
+                return Err(OpcodeResolutionError::MemoryOperationLargerThanOne {
+                    opcode_location,
+                    operation,
+                });
+            }
+        }
 
         // Fetch whether or not the predicate is false (e.g. equal to zero)
         let opcode_location = ErrorLocation::Unresolved;
