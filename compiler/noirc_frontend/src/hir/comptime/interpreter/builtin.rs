@@ -33,7 +33,7 @@ use crate::{
             value::{ExprValue, TypedExpr},
         },
         def_collector::dc_crate::CollectedItems,
-        def_map::ModuleDefId,
+        def_map::{ModuleDefId, ModuleId},
         type_check::generics::TraitGenerics,
     },
     hir_def::{
@@ -156,12 +156,14 @@ impl Interpreter<'_, '_> {
             }
             "function_def_visibility" => function_def_visibility(interner, arguments, location),
             "module_add_item" => module_add_item(self, arguments, location),
+            "module_child_modules" => module_child_modules(self, arguments, location),
             "module_eq" => module_eq(arguments, location),
             "module_functions" => module_functions(self, arguments, location),
             "module_has_named_attribute" => module_has_named_attribute(self, arguments, location),
             "module_hash" => module_hash(arguments, location),
             "module_is_contract" => module_is_contract(self, arguments, location),
             "module_name" => module_name(interner, arguments, location),
+            "module_parent" => module_parent(self, arguments, return_type, location),
             "module_structs" => module_structs(self, arguments, location),
             "modulus_be_bits" => modulus_be_bits(arguments, location),
             "modulus_be_bytes" => modulus_be_bytes(arguments, location),
@@ -2871,6 +2873,27 @@ fn module_add_item(
     Ok(Value::Unit)
 }
 
+// fn child_modules(self) -> [Module]
+fn module_child_modules(
+    interpreter: &Interpreter,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let module_id = get_module(self_argument)?;
+    let module_data = interpreter.elaborator.get_module(module_id);
+
+    let children = module_data
+        .child_declaration_order
+        .iter()
+        .copied()
+        .map(|local_id| Value::ModuleDefinition(ModuleId { local_id, krate: module_id.krate }))
+        .collect();
+
+    let slice_type = Type::Slice(Box::new(Type::Quoted(QuotedType::Module)));
+    Ok(Value::Slice(children, slice_type))
+}
+
 fn module_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
     hash_item(arguments, location, get_module)
 }
@@ -2903,6 +2926,24 @@ fn module_functions(
 
     let slice_type = Type::Slice(Box::new(Type::Quoted(QuotedType::FunctionDefinition)));
     Ok(Value::Slice(func_ids, slice_type))
+}
+
+// fn parent(self) -> Option<Module>
+fn module_parent(
+    interpreter: &Interpreter,
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let module_id = get_module(self_argument)?;
+    let module_data = interpreter.elaborator.get_module(module_id);
+
+    let value = module_data.parent.map(|local_id| {
+        let id = ModuleId { krate: module_id.krate, local_id };
+        Value::ModuleDefinition(id)
+    });
+    Ok(option(return_type, value, location))
 }
 
 // fn structs(self) -> [TypeDefinition]

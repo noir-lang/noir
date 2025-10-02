@@ -453,8 +453,15 @@ impl<W: Write> Interpreter<'_, W> {
                 Ok(vec![Value::bool(lhs < rhs)])
             }
             Intrinsic::ArrayRefCount | Intrinsic::SliceRefCount => {
-                let array = self.lookup_array_or_slice(args[0], "array/slice ref count")?;
-                let rc = *array.rc.borrow();
+                // `slice_refcount` receives `[length, array]` as input. `array_refcount` gets just `[array]`
+                let idx = if matches!(intrinsic, Intrinsic::SliceRefCount) { 1 } else { 0 };
+                let array = self.lookup_array_or_slice(args[idx], "array/slice ref count")?;
+                let mut rc = *array.rc.borrow();
+                // ACIR always returns 0 for the refcounts, and we expect that IncRc and DecRc don't appear in constrained SSA.
+                // The interpreter starts with a default ref-count value of 1. If it did not change, treat it as zero to match ACIR.
+                if !self.in_unconstrained_context() && rc == 1 {
+                    rc = 0;
+                }
                 Ok(vec![Value::from_constant(rc.into(), NumericType::unsigned(32))?])
             }
         }

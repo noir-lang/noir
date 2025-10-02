@@ -253,8 +253,7 @@ impl Context<'_> {
     ///
     /// 1. Compute the flattened insert index:  
     ///    - Multiply the logical insert index by the element size.  
-    ///    - Adjust for non-homogenous structures via [Self::get_flattened_index]. We multiple by the element size
-    ///      as `get_flattened_index` is also used for generating ACIR for SSA array accesses which follow this scheme.
+    ///    - Adjust for non-homogenous structures via [Self::get_flattened_index].
     /// 2. Flatten the new elements (`flattened_elements`)
     /// 3. For each position in the result slice:  
     ///    - If below the insert index, copy from the original slice.  
@@ -279,26 +278,29 @@ impl Context<'_> {
         let one = self.acir_context.add_constant(FieldElement::one());
         let new_slice_length = self.acir_context.add_var(slice_length, one)?;
 
-        let slice_size = super::super::arrays::flattened_value_size(&slice);
+        let mut slice_size = super::arrays::flattened_value_size(&slice);
 
         // Fetch the flattened index from the user provided index argument.
-        let element_size = slice_typ.element_size();
-        let element_size_var = self.acir_context.add_constant(element_size);
-        let flat_insert_index = self.acir_context.mul_var(insert_index, element_size_var)?;
         let flat_user_index =
-            self.get_flattened_index(&slice_typ, slice_contents, flat_insert_index, dfg)?;
+            self.get_flattened_index(&slice_typ, slice_contents, insert_index, dfg)?;
 
         let elements_to_insert = &arguments[3..];
         // Determine the elements we need to write into our resulting dynamic array.
         // We need to a fully flat list of AcirVar's as a dynamic array is represented with flat memory.
         let mut inner_elem_size_usize = 0;
         let mut flattened_elements = Vec::new();
+        let mut new_value_types = Vec::new();
         for elem in elements_to_insert {
             let element = self.convert_value(*elem, dfg);
-            let elem_size = super::super::super::arrays::flattened_value_size(&element);
+            // Flatten into (AcirVar, NumericType) pairs
+            let flat_element = self.flatten(&element)?;
+            let elem_size = flat_element.len();
             inner_elem_size_usize += elem_size;
-            let mut flat_elem = element.flatten().into_iter().map(|(var, _)| var).collect();
-            flattened_elements.append(&mut flat_elem);
+            slice_size += elem_size;
+            for (var, typ) in flat_element {
+                flattened_elements.push(var);
+                new_value_types.push(typ);
+            }
         }
         let inner_elem_size = self.acir_context.add_constant(inner_elem_size_usize);
         // Set the maximum flattened index at which a new element should be inserted.
@@ -318,10 +320,10 @@ impl Context<'_> {
             let current_index = self.acir_context.add_constant(i);
 
             // Check that we are above the lower bound of the insertion index
-            let greater_eq_than_idx =
+            let is_after_insert =
                 self.acir_context.more_than_eq_var(current_index, flat_user_index, 64)?;
             // Check that we are below the upper bound of the insertion index
-            let less_than_idx =
+            let is_before_insert =
                 self.acir_context.less_than_var(current_index, max_flat_user_index, 64)?;
 
             // Read from the original slice the value we want to insert into our new slice.
@@ -335,9 +337,9 @@ impl Context<'_> {
                     self.acir_context.add_constant(i - inner_elem_size_usize);
 
                 let use_shifted_index_pred =
-                    self.acir_context.mul_var(index_minus_elem_size, greater_eq_than_idx)?;
+                    self.acir_context.mul_var(index_minus_elem_size, is_after_insert)?;
 
-                let not_pred = self.acir_context.sub_var(one, greater_eq_than_idx)?;
+                let not_pred = self.acir_context.sub_var(one, is_after_insert)?;
                 let use_current_index_pred = self.acir_context.mul_var(not_pred, current_index)?;
 
                 self.acir_context.add_var(use_shifted_index_pred, use_current_index_pred)?
@@ -348,7 +350,7 @@ impl Context<'_> {
 
             // Final predicate to determine whether we are within the insertion bounds
             let should_insert_value_pred =
-                self.acir_context.mul_var(greater_eq_than_idx, less_than_idx)?;
+                self.acir_context.mul_var(is_after_insert, is_before_insert)?;
             let insert_value_pred = self
                 .acir_context
                 .mul_var(flattened_elements[current_insert_index], should_insert_value_pred)?;
@@ -378,7 +380,9 @@ impl Context<'_> {
                 None
             };
 
-        let value_types = slice.flat_numeric_types();
+        let mut value_types = slice.flat_numeric_types();
+        // We can safely append the value types to the end as we expect the types to be the same for each element.
+        value_types.append(&mut new_value_types);
         assert_eq!(
             value_types.len(),
             slice_size,
@@ -420,8 +424,7 @@ impl Context<'_> {
     ///
     /// 1. Compute the flattened remove index:  
     ///    - Multiply the logical remove index by the element size.  
-    ///    - Adjust for non-homogenous structures via [Self::get_flattened_index]. We multiple by the element size
-    ///      as `get_flattened_index` is also used for generating ACIR for SSA array accesses which follow this scheme.
+    ///    - Adjust for non-homogenous structures via [Self::get_flattened_index].
     /// 2. Read out the element(s) to be removed:  
     ///    - Iterate over `result_ids[2..(2 + element_size)]`
     ///    - `element_size` refers to the result of [crate::ssa::ir::types::Type::element_size].
@@ -453,23 +456,19 @@ impl Context<'_> {
         let one = self.acir_context.add_constant(FieldElement::one());
         let new_slice_length = self.acir_context.sub_var(slice_length, one)?;
 
-        let slice_size = super::super::arrays::flattened_value_size(&slice);
+        let slice_size = super::arrays::flattened_value_size(&slice);
 
-        let new_slice = self.read_array(slice)?;
-
+        let flat_slice = self.flatten(&slice)?;
         // Compiler sanity check
         assert_eq!(
-            new_slice.len(),
+            flat_slice.len(),
             slice_size,
             "ICE: The read flattened slice should match the computed size"
         );
 
         // Fetch the flattened index from the user provided index argument.
-        let element_size = slice_typ.element_size();
-        let element_size_var = self.acir_context.add_constant(element_size);
-        let flat_remove_index = self.acir_context.mul_var(remove_index, element_size_var)?;
         let flat_user_index =
-            self.get_flattened_index(&slice_typ, slice_contents, flat_remove_index, dfg)?;
+            self.get_flattened_index(&slice_typ, slice_contents, remove_index, dfg)?;
 
         // Fetch the values we are remove from the slice.
         // As we fetch the values we can determine the size of the removed values
@@ -479,10 +478,11 @@ impl Context<'_> {
         // Set a temp index just for fetching from the original slice as `array_get_value` mutates
         // the index internally.
         let mut temp_index = flat_user_index;
+        let element_size = slice_typ.element_size();
         for res in &result_ids[2..(2 + element_size)] {
             let element =
                 self.array_get_value(&dfg.type_of_value(*res), block_id, &mut temp_index)?;
-            let elem_size = super::super::arrays::flattened_value_size(&element);
+            let elem_size = super::arrays::flattened_value_size(&element);
             popped_elements_size += elem_size;
             popped_elements.push(element);
         }
@@ -494,61 +494,57 @@ impl Context<'_> {
         //    we skip shifting because there is no element to move.
         //    This prevents out-of-bounds reads from the original slice.
         let result_block_id = self.block_id(result_ids[1]);
-        self.initialize_array(
-            result_block_id,
-            slice_size,
-            Some(AcirValue::Array(new_slice.clone())),
-        )?;
-        for i in 0..slice_size {
+        // We expect a preceding check to have been laid down that the remove index is within bounds.
+        // In practice `popped_elements_size` should never exceed the `slice_size` but we do a saturating sub to be safe.
+        let result_size = slice_size.saturating_sub(popped_elements_size);
+        self.initialize_array(result_block_id, result_size, None)?;
+        for (i, (current_value, _)) in flat_slice.iter().enumerate().take(result_size) {
             let current_index = self.acir_context.add_constant(i);
 
-            let value_current_index = &new_slice[i].borrow_var()?;
+            let shifted_index = self.acir_context.add_constant(i + popped_elements_size);
 
-            if (i + popped_elements_size) < slice_size {
-                let shifted_index = self.acir_context.add_constant(i + popped_elements_size);
+            // Fetch the value from the initial slice
+            let value_shifted_index =
+                self.acir_context.read_from_memory(block_id, &shifted_index)?;
 
-                let value_shifted_index =
-                    self.acir_context.read_from_memory(block_id, &shifted_index)?;
+            let use_shifted_value =
+                self.acir_context.more_than_eq_var(current_index, flat_user_index, 64)?;
 
-                let use_shifted_value =
-                    self.acir_context.more_than_eq_var(current_index, flat_user_index, 64)?;
+            let shifted_value_pred =
+                self.acir_context.mul_var(value_shifted_index, use_shifted_value)?;
+            let not_pred = self.acir_context.sub_var(one, use_shifted_value)?;
+            let current_value_pred = self.acir_context.mul_var(not_pred, *current_value)?;
 
-                let shifted_value_pred =
-                    self.acir_context.mul_var(value_shifted_index, use_shifted_value)?;
-                let not_pred = self.acir_context.sub_var(one, use_shifted_value)?;
-                let current_value_pred =
-                    self.acir_context.mul_var(not_pred, *value_current_index)?;
+            let new_value = self.acir_context.add_var(shifted_value_pred, current_value_pred)?;
 
-                let new_value =
-                    self.acir_context.add_var(shifted_value_pred, current_value_pred)?;
-
-                self.acir_context.write_to_memory(result_block_id, &current_index, &new_value)?;
-            };
+            self.acir_context.write_to_memory(result_block_id, &current_index, &new_value)?;
         }
 
-        let new_slice_val = AcirValue::Array(new_slice);
         let element_type_sizes =
-            if super::super::arrays::array_has_constant_element_size(&slice_typ).is_none() {
+            if super::arrays::array_has_constant_element_size(&slice_typ).is_none() {
                 Some(self.init_element_type_sizes_array(
                     &slice_typ,
                     slice_contents,
-                    Some(&new_slice_val),
+                    Some(&slice),
                     dfg,
                 )?)
             } else {
                 None
             };
 
-        let value_types = new_slice_val.flat_numeric_types();
+        let mut value_types = slice.flat_numeric_types();
+        // We can safely remove the value types based upon the popped elements size =
+        // as we expect the types to be the same for each element.
+        value_types.truncate(value_types.len() - popped_elements_size);
         assert_eq!(
             value_types.len(),
-            slice_size,
+            result_size,
             "ICE: Value types array must match new slice size"
         );
 
         let result = AcirValue::DynamicArray(AcirDynamicArray {
             block_id: result_block_id,
-            len: slice_size,
+            len: result_size,
             value_types,
             element_type_sizes,
         });
