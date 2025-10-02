@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1759406542798,
+  "lastUpdate": 1759407542766,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22896,48 +22896,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "045089b33f7a8fc50dc8da3ef10a3e07661ce139",
-          "message": "chore(ssa): Remove `offset` from `ArrayGet` and `ArraySet` (#9956)",
-          "timestamp": "2025-09-23T13:24:15Z",
-          "tree_id": "b496a9cc9714483edcc978bb47216e7f3c887234",
-          "url": "https://github.com/noir-lang/noir/commit/045089b33f7a8fc50dc8da3ef10a3e07661ce139"
-        },
-        "date": 1758635884106,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 251528,
-            "range": "± 1948",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 222801,
-            "range": "± 4625",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2781489,
-            "range": "± 1470",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -24989,6 +24947,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2783880,
             "range": "± 6347",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3c29fd74e5251e3ec826e2953c22d596a4e3edac",
+          "message": "chore(fuzz): Remove `is_frontend_friendly` from the AST fuzzer (#10046)",
+          "timestamp": "2025-10-02T11:50:20Z",
+          "tree_id": "867417e15ae791b85cc398d2ec47987947d60f8a",
+          "url": "https://github.com/noir-lang/noir/commit/3c29fd74e5251e3ec826e2953c22d596a4e3edac"
+        },
+        "date": 1759407521495,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 251231,
+            "range": "± 477",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 221989,
+            "range": "± 6333",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2779486,
+            "range": "± 4830",
             "unit": "ns/iter"
           }
         ]
