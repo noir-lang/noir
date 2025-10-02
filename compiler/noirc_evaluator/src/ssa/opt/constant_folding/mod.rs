@@ -343,7 +343,15 @@ impl Context {
                     return;
                 }
                 CacheResult::NeedToHoistToCommonBlock { dominator, .. } => {
-                    assert_ne!(block, dominator, "found dominated block in the cache");
+                    // We can revisit the origin to deduplicate with the dominator.
+                    // To do so we will have to start with the dominator to rebuild the cache.
+                    // In some cases (currently happens in the noir_bigcurve library) we might
+                    // find the cached instruction in a block we dominate. If that's the case
+                    // we can just insert without revisiting self.
+                    if dominator != block {
+                        self.blocks_to_revisit.insert(dominator);
+                    }
+
                     // Just change the block to insert in the common dominator instead.
                     // This will only move the current instance of the instruction right now.
                     // When constant folding is run a second time later on, it'll catch
@@ -351,10 +359,6 @@ impl Context {
                     // Another effect is going to be that the cache should be updated to
                     // point at the dominator, so subsequent blocks can use the result.
                     block = dominator;
-
-                    // We can revisit the origin to deduplicate with the dominator.
-                    // To do so we will have to start with the dominator to rebuild the cache.
-                    self.blocks_to_revisit.insert(dominator);
                 }
             }
         };
