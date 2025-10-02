@@ -344,7 +344,15 @@ fn div_u8_with_predicate() {
     ";
     let program = ssa_to_acir_program(src);
 
-    // TODO: explain this result
+    // - w0, w1 and w2 are v0, v1 and v2 respectively
+    // - w4 is 1/w1 (field inverse)
+    // - in the first Brillig call and the follow three asserts we assert that w1 is not zero
+    //   and the predicate (w2) is active
+    // - `ASSERT w8 = w1 - w2 - w7` subtracts `rhs - predicate - remainder`. If the remainder is
+    //   greater than the rhs the following range constraint will fail.
+    //   See `bound_constraint_with_offset` for more info.
+    // - Finally, the last three ASSERTs are the definition of integer division with predication
+    //   (`a * predicate == (b * q + r) * predicate`) and the return witness creation.
     assert_circuit_snapshot!(program, @r"
     func 0
     private parameters: [w0, w1, w2]
