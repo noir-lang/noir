@@ -234,7 +234,7 @@ impl Context {
         &mut self,
         dfg: &mut DataFlowGraph,
         dom: &mut DominatorTree,
-        mut block: BasicBlockId,
+        block: BasicBlockId,
         id: InstructionId,
         side_effects_enabled_var: &mut ValueId,
         interpreter: &mut Option<Interpreter<Empty>>,
@@ -246,6 +246,7 @@ impl Context {
             Self::resolve_instruction(id, block, dfg, dom, constraint_simplification_mapping);
 
         let old_results = dfg.instruction_results(id).to_vec();
+        let mut target_block = block;
 
         // If a copy of this instruction exists earlier in the block, then reuse the previous results.
         let runtime_is_brillig = dfg.runtime().is_brillig();
@@ -259,61 +260,77 @@ impl Context {
                     // them but we still need to issue an extra inc_rc in case they're mutated afterward.
                     //
                     // This also applies to calls that return arrays.
-                    if runtime_is_brillig
-                        && matches!(
-                            instruction,
-                            Instruction::MakeArray { .. } | Instruction::Call { .. }
-                        )
-                    {
-                        let call_stack = dfg.get_instruction_call_stack_id(id);
-                        for &value in cached {
-                            let value_type = dfg.type_of_value(value);
-                            if value_type.is_array() {
-                                let inc_rc = Instruction::IncrementRc { value };
-                                dfg.insert_instruction_and_results(inc_rc, block, None, call_stack);
-                            }
-                        }
+                    if runtime_is_brillig {
+                        Self::increase_rc(id, cached, block, dfg);
                     }
 
                     self.values_to_replace.batch_insert(&old_results, cached);
                     return;
                 }
                 CacheResult::NeedToHoistToCommonBlock(dominator) => {
-                    // Insert a copy of the instruction in the common dominator.
+                    // Just change the block to insert in the common dominator instead.
+                    // This will only move the current instance of the instruction right now.
                     // When constant folding is run a second time later on, it'll catch
-                    // that the previous instances can be deduplicated to this instance.
-                    let call_stack = dfg.get_instruction_call_stack_id(id);
-                    dfg.insert_instruction_and_results(
-                        instruction.clone(),
-                        dominator,
-                        None,
-                        call_stack,
-                    );
+                    // that the previous instance can be deduplicated to this instance.
+                    target_block = dominator;
                 }
             }
         };
 
         // First try to inline a call to a brillig function with all constant arguments.
         let new_results = if runtime_is_brillig {
-            Self::push_instruction(id, instruction.clone(), &old_results, block, dfg)
+            Self::push_instruction(id, instruction.clone(), &old_results, target_block, dfg)
         } else {
             // We only want to try to inline Brillig calls for Brillig entry points (functions called from an ACIR runtime).
-            try_interpret_call(&instruction, block, dfg, interpreter.as_mut())
+            try_interpret_call(&instruction, target_block, dfg, interpreter.as_mut())
                 // Otherwise, try inserting the instruction again to apply any optimizations using the newly resolved inputs.
                 .unwrap_or_else(|| {
-                    Self::push_instruction(id, instruction.clone(), &old_results, block, dfg)
+                    Self::push_instruction(id, instruction.clone(), &old_results, target_block, dfg)
                 })
         };
+        // If the target_block is distinct than the original block
+        // that means that the current instruction is not added in the orignal block
+        // so it is deduplicated by the one in the target block.
+        // In case it refers to an array that is mutated, we need to increment
+        // its reference count.
+        if target_block != block && runtime_is_brillig {
+            Self::increase_rc(id, &new_results, block, dfg);
+        }
 
         self.values_to_replace.batch_insert(&old_results, &new_results);
 
-        self.cache_instruction(&instruction, new_results, dfg, *side_effects_enabled_var, block);
+        self.cache_instruction(
+            &instruction,
+            new_results,
+            dfg,
+            *side_effects_enabled_var,
+            target_block,
+        );
 
         // If we just inserted an `Instruction::EnableSideEffectsIf`, we need to update `side_effects_enabled_var`
         // so that we use the correct set of constrained values in future.
         if let Instruction::EnableSideEffectsIf { condition } = instruction {
             *side_effects_enabled_var = condition;
         };
+    }
+
+    fn increase_rc(
+        id: InstructionId,
+        results: &[ValueId],
+        block: BasicBlockId,
+        dfg: &mut DataFlowGraph,
+    ) {
+        let instruction = &dfg[id];
+        if matches!(instruction, Instruction::MakeArray { .. } | Instruction::Call { .. }) {
+            let call_stack = dfg.get_instruction_call_stack_id(id);
+            for value in results {
+                let value_type = dfg.type_of_value(*value);
+                if value_type.is_array() {
+                    let inc_rc = Instruction::IncrementRc { value: *value };
+                    dfg.insert_instruction_and_results(inc_rc, block, None, call_stack);
+                }
+            }
+        }
     }
 
     /// Fetches an [`Instruction`] by its [`InstructionId`] and fully resolves its inputs.
@@ -943,9 +960,8 @@ mod test {
 
         // v4 has been hoisted, although:
         // - v5 has not yet been removed since it was encountered earlier in the program
-        // - v8 has not yet been removed since v4 was not in the cache
-        // - v9 hasn't been recognized as a duplicate of v6 yet since they still reference v5 and
-        //   v8 respectively
+        // - v8 hasn't been recognized as a duplicate of v6 yet since they still reference v4 and
+        //   v5 respectively
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: u32):
@@ -955,56 +971,6 @@ mod test {
           b1():
             v5 = shl v0, u32 1
             v6 = lt v0, v5
-            constrain v6 == u1 1
-            jmp b2()
-          b2():
-            jmpif v2 then: b3, else: b4
-          b3():
-            v8 = shl v0, u32 1
-            v9 = lt v0, v8
-            constrain v9 == u1 1
-            jmp b4()
-          b4():
-            return
-        }
-        ");
-
-        // src is equal to the previous output
-        let src = "
-               brillig(inline) fn main f0 {
-          b0(v0: u32):
-            v2 = lt u32 1000, v0
-            v4 = shl v0, u32 1
-            jmpif v2 then: b1, else: b2
-          b1():
-            v5 = shl v0, u32 1
-            v6 = lt v0, v5
-            constrain v6 == u1 1
-            jmp b2()
-          b2():
-            jmpif v2 then: b3, else: b4
-          b3():
-            v8 = shl v0, u32 1
-            v9 = lt v0, v8
-            constrain v9 == u1 1
-            jmp b4()
-          b4():
-            return
-        }
-        ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.fold_constants_using_constraints();
-        // Another round of folding has fully deduplicated the shl
-        // v6 and v8 are now ready to be deduplicated by v5
-        assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
-          b0(v0: u32):
-            v2 = lt u32 1000, v0
-            v4 = shl v0, u32 1
-            v5 = lt v0, v4
-            jmpif v2 then: b1, else: b2
-          b1():
-            v6 = lt v0, v4
             constrain v6 == u1 1
             jmp b2()
           b2():
@@ -1016,6 +982,54 @@ mod test {
           b4():
             return
         }
+        ");
+    }
+
+    #[test]
+    fn increment_rc_on_make_array_deduplication() {
+        let src = "
+            brillig(inline) fn main f0 {
+              b0(v0: u32):
+                v2 = lt u32 1000, v0
+                jmpif v2 then: b1, else: b2
+              b1():
+                v4 = make_array [u1 0] : [u1; 1]
+                v5 = array_get v4, index u32 0 -> u1
+                jmp b3(v5)
+              b2():
+                v7 = make_array [u1 0] : [u1; 1]
+                v8 = array_get v7, index u32 0 -> u1
+                jmp b3(v8)
+              b3(v9: u1):
+                constrain v9 == u1 0
+                jmp b4()
+              b4():
+                return
+            }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants_using_constraints();
+
+        // v7 has been replaced by a v5, and its reference count is increased
+        // v6 is not yet replaced but will be in a subsequent constant folding run
+        assert_ssa_snapshot!(ssa, @r"
+            brillig(inline) fn main f0 {
+              b0(v0: u32):
+                v3 = lt u32 1000, v0
+                v5 = make_array [u1 0] : [u1; 1]
+                jmpif v3 then: b1, else: b2
+              b1():
+                v6 = make_array [u1 0] : [u1; 1]
+                jmp b3(u1 0)
+              b2():
+                inc_rc v5
+                jmp b3(u1 0)
+              b3(v1: u1):
+                constrain v1 == u1 0
+                jmp b4()
+              b4():
+                return
+            }
         ");
     }
 
