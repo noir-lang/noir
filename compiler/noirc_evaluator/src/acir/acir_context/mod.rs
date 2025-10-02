@@ -1365,15 +1365,14 @@ impl<F: AcirField> AcirContext<F> {
         index: &AcirVar,
     ) -> Result<AcirVar, InternalError> {
         // Fetch the witness corresponding to the index
-        let index_var = self.get_or_create_witness_var(*index)?;
-        let index_witness = self.var_to_witness(index_var)?;
+        let index_expression = self.maybe_constant_var_to_expression(index)?;
 
         // Create a Variable to hold the result of the read and extract the corresponding Witness
         let value_read_var = self.add_variable();
         let value_read_witness = self.var_to_witness(value_read_var)?;
 
         // Add the memory read operation to the list of opcodes
-        let op = MemOp::read_at_mem_index(index_witness.into(), value_read_witness);
+        let op = MemOp::read_at_mem_index(index_expression, value_read_witness);
         self.acir_ir.push_opcode(Opcode::MemoryOp { block_id, op });
 
         Ok(value_read_var)
@@ -1387,18 +1386,32 @@ impl<F: AcirField> AcirContext<F> {
         value: &AcirVar,
     ) -> Result<(), InternalError> {
         // Fetch the witness corresponding to the index
-        let index_var = self.get_or_create_witness_var(*index)?;
-        let index_witness = self.var_to_witness(index_var)?;
+        let index_expression = self.maybe_constant_var_to_expression(index)?;
 
         // Fetch the witness corresponding to the value to be written
-        let value_write_var = self.get_or_create_witness_var(*value)?;
-        let value_write_witness = self.var_to_witness(value_write_var)?;
+        let value_write_expression = self.maybe_constant_var_to_expression(value)?;
 
         // Add the memory write operation to the list of opcodes
-        let op = MemOp::write_to_mem_index(index_witness.into(), value_write_witness.into());
+        let op = MemOp::write_to_mem_index(index_expression, value_write_expression);
         self.acir_ir.push_opcode(Opcode::MemoryOp { block_id, op });
 
         Ok(())
+    }
+
+    /// If var is a constant, returns an expression that is that constant.
+    /// Otherwise, create a witness for that variable and returns an expression that is that witness.
+    fn maybe_constant_var_to_expression(
+        &mut self,
+        var: &AcirVar,
+    ) -> Result<Expression<F>, InternalError> {
+        if self.is_constant(var) {
+            let constant = *self.constant(*var);
+            Ok(constant.into())
+        } else {
+            let index_var = self.get_or_create_witness_var(*var)?;
+            let index_witness = self.var_to_witness(index_var)?;
+            Ok(index_witness.into())
+        }
     }
 
     /// Insert the MemoryInit for the Return Data array, using the provided witnesses

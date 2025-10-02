@@ -51,9 +51,8 @@ fn constant_array_access_out_of_bounds() {
     ASSERT w0 = 0
     ASSERT w1 = 1
     INIT b0 = [w0, w1]
-    ASSERT w2 = 5
-    READ w3 = b0[w2]
-    ASSERT w3 = 0
+    READ w2 = b0[5]
+    ASSERT w2 = 0
     ");
 }
 
@@ -117,17 +116,13 @@ fn generates_memory_op_for_dynamic_write() {
     public parameters: []
     return values: [w4, w5, w6]
     INIT b1 = [w0, w1, w2]
-    ASSERT w7 = 10
-    WRITE b1[w3] = w7
-    ASSERT w8 = 0
-    READ w9 = b1[w8]
-    ASSERT w10 = 1
-    READ w11 = b1[w10]
-    ASSERT w12 = 2
-    READ w13 = b1[w12]
-    ASSERT w9 = w4
-    ASSERT w11 = w5
-    ASSERT w13 = w6
+    WRITE b1[w3] = 10
+    READ w7 = b1[0]
+    READ w8 = b1[1]
+    READ w9 = b1[2]
+    ASSERT w7 = w4
+    ASSERT w8 = w5
+    ASSERT w9 = w6
     ");
 }
 
@@ -199,15 +194,12 @@ fn generates_predicated_index_and_dummy_value_for_dynamic_write() {
     INIT b1 = [w0, w1, w2]
     ASSERT w10 = -w4*w9 + 10*w4 + w9
     WRITE b1[w8] = w10
-    ASSERT w11 = 0
-    READ w12 = b1[w11]
-    ASSERT w13 = 1
-    READ w14 = b1[w13]
-    ASSERT w15 = 2
-    READ w16 = b1[w15]
-    ASSERT w12 = w5
-    ASSERT w14 = w6
-    ASSERT w16 = w7
+    READ w11 = b1[0]
+    READ w12 = b1[1]
+    READ w13 = b1[2]
+    ASSERT w11 = w5
+    ASSERT w12 = w6
+    ASSERT w13 = w7
     ");
 }
 
