@@ -48,8 +48,12 @@ pub struct LayoutConfig {
 }
 
 impl LayoutConfig {
-    pub(crate) fn new(max_stack_frame_size: usize, max_scratch_space: usize) -> Self {
-        let max_stack_size = NUM_STACK_FRAMES * max_stack_frame_size;
+    pub(crate) fn new(
+        max_stack_frame_size: usize,
+        num_stack_frames: usize,
+        max_scratch_space: usize,
+    ) -> Self {
+        let max_stack_size = num_stack_frames * max_stack_frame_size;
         Self { max_stack_frame_size, max_stack_size, max_scratch_space }
     }
 
@@ -85,7 +89,7 @@ pub(crate) const MAX_SCRATCH_SPACE: usize = 64;
 
 impl Default for LayoutConfig {
     fn default() -> Self {
-        Self::new(MAX_STACK_FRAME_SIZE, MAX_SCRATCH_SPACE)
+        Self::new(MAX_STACK_FRAME_SIZE, NUM_STACK_FRAMES, MAX_SCRATCH_SPACE)
     }
 }
 

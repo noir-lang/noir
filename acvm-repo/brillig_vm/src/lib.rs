@@ -435,6 +435,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
     ///   The stack frame for function calls is handled during codegen.
     fn process_opcode_internal(&mut self) -> VMStatus<F> {
         let opcode = &self.bytecode[self.program_counter];
+        // println!("{opcode}");
         match opcode {
             Opcode::BinaryFieldOp { op, lhs, rhs, destination: result } => {
                 if let Err(error) = self.process_binary_field_op(*op, *lhs, *rhs, *result) {
@@ -478,12 +479,16 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
             }
             Opcode::CalldataCopy { destination_address, size_address, offset_address } => {
                 let size = self.memory.read(*size_address).to_usize();
+                dbg!("got size");
                 let offset = self.memory.read(*offset_address).to_usize();
+                dbg!("got offset");
                 let values: Vec<_> = self.calldata[offset..(offset + size)]
                     .iter()
                     .map(|value| MemoryValue::new_field(*value))
                     .collect();
+                dbg!(destination_address);
                 self.memory.write_slice(*destination_address, &values);
+                dbg!("wrote call data");
                 self.increment_program_counter()
             }
             Opcode::Return => {

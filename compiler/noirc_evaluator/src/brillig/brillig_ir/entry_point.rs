@@ -75,11 +75,12 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         );
 
         let return_data_start = self.return_data_start_offset(calldata_size);
+
         // The heap begins after the end of the stack.
-        // Set initial value of free memory pointer: `return_data_start + return_data_size + self.layout.max_stack_frame_size()`
+        // Set initial value of free memory pointer: `return_data_start + return_data_size + self.layout.max_stack_size()`
         self.const_instruction(
             SingleAddrVariable::new_usize(ReservedRegisters::free_memory_pointer()),
-            (return_data_start + return_data_size + self.layout.max_stack_frame_size()).into(),
+            (return_data_start + return_data_size + self.layout.max_stack_size()).into(),
         );
 
         // The stack begins after the calldata region (calldata + return data)
