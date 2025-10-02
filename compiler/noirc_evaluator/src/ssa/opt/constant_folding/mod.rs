@@ -38,7 +38,6 @@ use crate::ssa::{
     visit_once_deque::VisitOnceDeque,
 };
 use rustc_hash::FxHashMap as HashMap;
-use rustc_hash::FxHashSet as HashSet;
 
 mod interpret;
 mod result_cache;
@@ -133,14 +132,19 @@ impl Function {
             #[cfg(debug_assertions)]
             constant_folding_post_check(&context, &self.dfg);
 
-            // To deduplicate and hoist new instructions, we need rebuild the cache starting from the blocks we hoisted into, revisiting all descendants.
-            // Find blocks which are not dominated by anything other than themselves; these are our independent starting points.
-            // Alternatively we could reduce all blocks to their common dominator.
-            let blocks_to_revisit =
-                collect_blocks_not_dominated_by_others(&mut dom, &context.blocks_to_revisit);
+            // Rebuild the cache and deduplicate the blocks we hoisted into with the origins.
+            // We need to start from the common dominator of all blocks to ensure correct revisit order and cache build.
+            //
+            // NOTE: We could potentially start from multiple blocks that aren't dominated by another if we had a
+            // priority queue to visit in topological order, but without that, we might end up visiting a descendant
+            // before an ancestor that dominates it, and if something changes then it could leave it descendants invalid.
+            // An example of that was found in tests::previous_kernel_validator_builder::validate_common::private_log_length_exceeds_max__private_tail
+            // in private_kernel_lib in aztec-packages/noir-projects/noir-protocol-circuits
+            let common_dominator =
+                context.blocks_to_revisit.into_iter().reduce(|a, b| dom.common_dominator(a, b));
 
             // If nothing got hoisted, we are done.
-            if blocks_to_revisit.is_empty() {
+            let Some(common_dominator) = common_dominator else {
                 break;
             };
 
@@ -148,7 +152,7 @@ impl Function {
             // For example reusing the cache could be problematic when using constraint info, as it could make the
             // original content simplify out based on its own prior assertion of a value being a constant.
             context = Context::new(use_constraint_info);
-            context.block_queue.extend(blocks_to_revisit);
+            context.block_queue.push_back(common_dominator);
         }
     }
 }
@@ -159,36 +163,6 @@ fn constant_folding_post_check(context: &Context, dfg: &DataFlowGraph) {
         context.values_to_replace.value_types_are_consistent(dfg),
         "Constant folding should not map a ValueId to another of a different type"
     );
-}
-
-/// Find all blocks in a set of blocks in the CFG which are not dominated by any block other than themselves.
-fn collect_blocks_not_dominated_by_others(
-    dom: &mut DominatorTree,
-    blocks: &BTreeSet<BasicBlockId>,
-) -> Vec<BasicBlockId> {
-    // Equivalent to the following, but avoids the O(n*n*n) complexity coming from the fact that `dominates` may walk up the tree:
-    // blocks.filter(|b| blocks.all(|a| *a == **b || !dom.dominates(*a, **b)))
-    let mut has_dominator = HashSet::default();
-    let mut no_dominator = Vec::new();
-    for block in blocks {
-        let mut dominator = *block;
-        let mut path = vec![dominator];
-        let mut found_dominator = false;
-        while let Some(next) = dom.immediate_dominator(dominator) {
-            if has_dominator.contains(&next) || blocks.contains(&next) {
-                found_dominator = true;
-                break;
-            }
-            path.push(next);
-            dominator = next;
-        }
-        if found_dominator {
-            has_dominator.extend(path);
-        } else {
-            no_dominator.push(*block);
-        }
-    }
-    no_dominator
 }
 
 struct Context {
