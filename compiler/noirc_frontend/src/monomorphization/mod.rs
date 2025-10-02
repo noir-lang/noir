@@ -521,7 +521,9 @@ impl<'interner> Monomorphizer<'interner> {
                     self.repeated_array(expr, repeated_element, length, true)?
                 }
             },
-            HirExpression::Literal(HirLiteral::Unit) => ast::Expression::Block(vec![]),
+            // TODO: WIP
+            // ast::Expression::Block(vec![]),
+            HirExpression::Literal(HirLiteral::Unit) => ast::Expression::Tuple(vec![]),
             HirExpression::Block(block) => self.block(block.statements)?,
             HirExpression::Unsafe(block) => self.block(block.statements)?,
 
@@ -1327,7 +1329,9 @@ impl<'interner> Monomorphizer<'interner> {
                     Box::new(Self::convert_type_helper(fields.as_ref(), location, seen_types)?);
                 ast::Type::FmtString(size, fields)
             }
-            HirType::Unit => ast::Type::Unit,
+            // TODO: WIP
+            // ast::Type::Unit,
+            HirType::Unit => ast::Type::Tuple(vec![]),
             HirType::Array(length, element) => {
                 let element =
                     Box::new(Self::convert_type_helper(element.as_ref(), location, seen_types)?);
@@ -1463,7 +1467,8 @@ impl<'interner> Monomorphizer<'interner> {
                 let make_function = |is_unconstrained, args, ret, env| {
                     use ast::Type::*;
                     match &env {
-                        Unit => Function(args, ret, Box::new(env), is_unconstrained),
+                        // TODO: WIP
+                        // Unit => Function(args, ret, Box::new(env), is_unconstrained),
                         Tuple(_) => Tuple(vec![
                             env.clone(),
                             Function(args, ret, Box::new(env), is_unconstrained),
@@ -2096,7 +2101,7 @@ impl<'interner> Monomorphizer<'interner> {
         let typ = ast::Type::Function(
             parameter_types,
             Box::new(ret_type),
-            Box::new(ast::Type::Unit),
+            Box::new(ast::Type::Tuple(vec![])),
             false,
         );
 
@@ -2336,7 +2341,8 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Expression::Literal(ast::Literal::Integer(zero, typ, location))
             }
             ast::Type::Bool => ast::Expression::Literal(ast::Literal::Bool(false)),
-            ast::Type::Unit => ast::Expression::Literal(ast::Literal::Unit),
+            // TODO: WIP
+            // ast::Type::Unit => ast::Expression::Literal(ast::Expression::Tuple(vec![])),
             ast::Type::Array(length, element_type) => {
                 let element = self.zeroed_value_of_type(element_type.as_ref(), location);
                 ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral {
@@ -2559,10 +2565,12 @@ impl<'interner> Monomorphizer<'interner> {
     }
 }
 
+// TODO: WIP
 fn unwrap_tuple_type(typ: &HirType) -> Vec<HirType> {
     match typ.follow_bindings() {
         HirType::Tuple(fields) => fields.clone(),
-        other => unreachable!("unwrap_tuple_type: expected tuple, found {:?}", other),
+        HirType::Unit => vec![],
+        other => unreachable!("unwrap_tuple_type: expected tuple or unit, found {:?}", other),
     }
 }
 

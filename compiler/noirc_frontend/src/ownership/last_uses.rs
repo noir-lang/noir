@@ -315,7 +315,9 @@ impl LastUseContext {
 
     fn track_variables_in_literal(&mut self, literal: &Literal) {
         match literal {
-            Literal::Integer(..) | Literal::Bool(_) | Literal::Unit | Literal::Str(_) => (),
+            // TODO: WIP
+            // Literal::Integer(..) | Literal::Bool(_) | Literal::Unit | Literal::Str(_) => (),
+            Literal::Integer(..) | Literal::Bool(_) | Literal::Str(_) => (),
 
             Literal::FmtStr(_, _, captures) => self.track_variables_in_expression(captures),
 

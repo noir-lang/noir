@@ -283,7 +283,8 @@ impl FunctionContext<'_> {
 
                 Ok(Tree::Branch(vec![string, field_count.into(), fields]))
             }
-            ast::Literal::Unit => Ok(Self::unit_value()),
+            // TODO: WIP
+            // ast::Literal::Unit => Ok(Self::unit_value()),
         }
     }
 
@@ -410,8 +411,13 @@ impl FunctionContext<'_> {
         match expr {
             Expression::Ident(ident) => Ok(self.codegen_ident_reference(ident)),
             Expression::ExtractTupleField(tuple, index) => {
+                // TODO: WIP
                 let tuple = self.codegen_reference(tuple)?;
-                Ok(Self::get_field(tuple, *index))
+                if tuple.is_leaf() {
+                    Ok(tuple)
+                } else {
+                    Ok(Self::get_field(tuple, *index))
+                }
             }
             other => self.codegen_expression(other),
         }
@@ -1035,8 +1041,14 @@ impl FunctionContext<'_> {
         tuple: &Expression,
         field_index: usize,
     ) -> Result<Values, RuntimeError> {
-        let tuple = self.codegen_expression(tuple)?;
-        Ok(Self::get_field(tuple, field_index))
+        // TODO: WIP
+        let tuple = self.codegen_reference(tuple)?;
+        if tuple.is_leaf() {
+            Ok(tuple)
+        } else {
+            // TODO: NOTE: there's another Self::get_field case in codegen_reference
+            Ok(Self::get_field(tuple, field_index))
+        }
     }
 
     /// Generate SSA for a function call. Note that calls to built-in functions

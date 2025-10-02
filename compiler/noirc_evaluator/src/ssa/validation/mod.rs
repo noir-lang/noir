@@ -274,6 +274,13 @@ impl<'f> Validator<'f> {
                 let called_function = &self.ssa.functions[func_id];
 
                 let parameter_types = called_function.view().parameter_types();
+
+                // TODO: WIP
+                let argument_types = arguments.iter().map(|arg| {
+                    dfg.type_of_value(*arg)
+                }).collect::<Vec<_>>();
+                dbg!(&called_function, &arguments, &parameter_types, argument_types);
+
                 assert_eq!(
                     arguments.len(),
                     parameter_types.len(),

@@ -183,6 +183,15 @@ impl Type {
                 }
             }
 
+            // TODO: WIP
+            (Tuple(elements), Unit) | (Unit, Tuple(elements)) => {
+                if elements.len() == 0 {
+                    Ok(())
+                } else {
+                    Err(UnificationError)
+                }
+            }
+
             // No recursive try_unify call for struct fields. Don't want
             // to mutate shared type variables within struct definitions.
             // This isn't possible currently but will be once noir gets generic types
