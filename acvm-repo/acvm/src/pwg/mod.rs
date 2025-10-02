@@ -604,12 +604,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
                 }
                 ExpressionOrMemory::Memory(block_id) => {
                     let memory_block = self.block_solvers.get(block_id)?;
-                    fields.extend((0..memory_block.block_len).map(|memory_index| {
-                        *memory_block
-                            .block_value
-                            .get(&memory_index)
-                            .expect("All memory is initialized on creation")
-                    }));
+                    fields.extend(&memory_block.block_value);
                 }
             }
         }

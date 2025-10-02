@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use acir::{
     AcirField,
     circuit::opcodes::MemOp,
@@ -17,13 +15,16 @@ type MemoryIndex = u32;
 #[derive(Default)]
 pub(crate) struct MemoryOpSolver<F> {
     /// Known values of the memory block, based on the index
-    /// This map evolves as we process the opcodes
-    pub(super) block_value: HashMap<MemoryIndex, F>,
-    /// Length of the block, i.e the number of elements stored into the memory block.
-    pub(super) block_len: u32,
+    /// This vec starts as big as it needs to, when initialized,
+    /// then evolves as we process the opcodes.
+    pub(super) block_value: Vec<F>,
 }
 
 impl<F: AcirField> MemoryOpSolver<F> {
+    fn length(&self) -> u32 {
+        self.block_value.len() as u32
+    }
+
     /// Convert a field element into a memory index
     /// Only 32 bits values are valid memory indices
     fn index_from_field(&self, index: F) -> Result<MemoryIndex, OpcodeResolutionError<F>> {
@@ -34,7 +35,7 @@ impl<F: AcirField> MemoryOpSolver<F> {
             Err(OpcodeResolutionError::IndexOutOfBounds {
                 opcode_location: ErrorLocation::Unresolved,
                 index,
-                array_size: self.block_len,
+                array_size: self.length(),
             })
         }
     }
@@ -46,25 +47,28 @@ impl<F: AcirField> MemoryOpSolver<F> {
         index: MemoryIndex,
         value: F,
     ) -> Result<(), OpcodeResolutionError<F>> {
-        if index >= self.block_len {
+        if index >= self.length() {
             return Err(OpcodeResolutionError::IndexOutOfBounds {
                 opcode_location: ErrorLocation::Unresolved,
                 index: F::from(u128::from(index)),
-                array_size: self.block_len,
+                array_size: self.length(),
             });
         }
-        self.block_value.insert(index, value);
+
+        self.block_value[index as usize] = value;
         Ok(())
     }
 
     /// Returns the value stored in the 'block_value' map for the provided index
     /// Returns an 'IndexOutOfBounds' error if the index is not in the map.
     fn read_memory_index(&self, index: MemoryIndex) -> Result<F, OpcodeResolutionError<F>> {
-        self.block_value.get(&index).copied().ok_or(OpcodeResolutionError::IndexOutOfBounds {
-            opcode_location: ErrorLocation::Unresolved,
-            index: F::from(u128::from(index)),
-            array_size: self.block_len,
-        })
+        self.block_value.get(index as usize).copied().ok_or(
+            OpcodeResolutionError::IndexOutOfBounds {
+                opcode_location: ErrorLocation::Unresolved,
+                index: F::from(u128::from(index)),
+                array_size: self.length(),
+            },
+        )
     }
 
     /// Set the block_value from a MemoryInit opcode
@@ -73,13 +77,10 @@ impl<F: AcirField> MemoryOpSolver<F> {
         init: &[Witness],
         initial_witness: &WitnessMap<F>,
     ) -> Result<(), OpcodeResolutionError<F>> {
-        self.block_len = init.len() as u32;
-        for (memory_index, witness) in init.iter().enumerate() {
-            self.write_memory_index(
-                memory_index as MemoryIndex,
-                *witness_to_value(initial_witness, *witness)?,
-            )?;
-        }
+        self.block_value = init
+            .iter()
+            .map(|witness| witness_to_value(initial_witness, *witness).copied())
+            .collect::<Result<Vec<_>, _>>()?;
         Ok(())
     }
 
