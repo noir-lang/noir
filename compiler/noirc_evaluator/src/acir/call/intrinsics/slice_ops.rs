@@ -253,8 +253,7 @@ impl Context<'_> {
     ///
     /// 1. Compute the flattened insert index:  
     ///    - Multiply the logical insert index by the element size.  
-    ///    - Adjust for non-homogenous structures via [Self::get_flattened_index]. We multiple by the element size
-    ///      as `get_flattened_index` is also used for generating ACIR for SSA array accesses which follow this scheme.
+    ///    - Adjust for non-homogenous structures via [Self::get_flattened_index].
     /// 2. Flatten the new elements (`flattened_elements`)
     /// 3. For each position in the result slice:  
     ///    - If below the insert index, copy from the original slice.  
@@ -282,11 +281,8 @@ impl Context<'_> {
         let mut slice_size = super::arrays::flattened_value_size(&slice);
 
         // Fetch the flattened index from the user provided index argument.
-        let element_size = slice_typ.element_size();
-        let element_size_var = self.acir_context.add_constant(element_size);
-        let flat_insert_index = self.acir_context.mul_var(insert_index, element_size_var)?;
         let flat_user_index =
-            self.get_flattened_index(&slice_typ, slice_contents, flat_insert_index, dfg)?;
+            self.get_flattened_index(&slice_typ, slice_contents, insert_index, dfg)?;
 
         let elements_to_insert = &arguments[3..];
         // Determine the elements we need to write into our resulting dynamic array.
@@ -428,8 +424,7 @@ impl Context<'_> {
     ///
     /// 1. Compute the flattened remove index:  
     ///    - Multiply the logical remove index by the element size.  
-    ///    - Adjust for non-homogenous structures via [Self::get_flattened_index]. We multiple by the element size
-    ///      as `get_flattened_index` is also used for generating ACIR for SSA array accesses which follow this scheme.
+    ///    - Adjust for non-homogenous structures via [Self::get_flattened_index].
     /// 2. Read out the element(s) to be removed:  
     ///    - Iterate over `result_ids[2..(2 + element_size)]`
     ///    - `element_size` refers to the result of [crate::ssa::ir::types::Type::element_size].
@@ -473,10 +468,8 @@ impl Context<'_> {
 
         // Fetch the flattened index from the user provided index argument.
         let element_size = slice_typ.element_size();
-        let element_size_var = self.acir_context.add_constant(element_size);
-        let flat_remove_index = self.acir_context.mul_var(remove_index, element_size_var)?;
         let flat_user_index =
-            self.get_flattened_index(&slice_typ, slice_contents, flat_remove_index, dfg)?;
+            self.get_flattened_index(&slice_typ, slice_contents, remove_index, dfg)?;
 
         // Fetch the values we are remove from the slice.
         // As we fetch the values we can determine the size of the removed values
