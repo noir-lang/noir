@@ -131,3 +131,11 @@ projects:
     execution-timeout: 5
     compilation-memory-limit: 450
     execution-memory-limit: 400
+  ecdsa-k-account-contract:
+    repo: noir-lang/noir
+    path: test_programs/benchmarks/ecdsa_k_account_contract
+    num_runs: 10
+    compilation-timeout: 10
+    execution-timeout: 5
+    compilation-memory-limit: 450
+    execution-memory-limit: 400

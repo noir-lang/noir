@@ -1,0 +1,10 @@
+[package]
+name = "private_token_contract"
+authors = [""]
+compiler_version = ">=0.25.0"
+type = "contract"
+
+[dependencies]
+aztec = {tag = "v3.0.0-nightly.20250922", git = "https://github.com/aztecprotocol/aztec-packages/", directory = "noir-projects/aztec-nr/aztec" }
+value_note = {tag = "v3.0.0-nightly.20250922", git = "https://github.com/aztecprotocol/aztec-packages/", directory = "noir-projects/aztec-nr/value-note" }
+easy_private_state = {tag = "v3.0.0-nightly.20250922", git = "https://github.com/aztecprotocol/aztec-packages/", directory = "noir-projects/aztec-nr/easy-private-state" }

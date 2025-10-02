@@ -1,0 +1,10 @@
+[package]
+name = "ecdsa_k_account_contract"
+authors = [""]
+compiler_version = ">=0.25.0"
+type = "contract"
+
+[dependencies]
+aztec = {tag = "v3.0.0-nightly.20250922", git = "https://github.com/aztecprotocol/aztec-packages/", directory = "noir-projects/aztec-nr/aztec" }
+ecdsa_public_key_note = {tag = "v3.0.0-nightly.20250922", git = "https://github.com/aztecprotocol/aztec-packages/", directory = "noir-projects/noir-contracts/contracts/libs/ecdsa_public_key_note" }
+sha256 = { git = "https://github.com/noir-lang/sha256", tag = "v0.2.0" }
