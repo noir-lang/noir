@@ -81,6 +81,7 @@ impl Brillig {
         &self,
         function_label: Label,
         options: &BrilligOptions,
+        stack_start: usize,
     ) -> Option<Cow<BrilligArtifact<FieldElement>>> {
         match function_label.label_type {
             LabelType::Function(function_id, _) => {
@@ -88,7 +89,7 @@ impl Brillig {
             }
             // Procedures are compiled as needed
             LabelType::Procedure(procedure_id) => {
-                Some(Cow::Owned(compile_procedure(procedure_id, options)))
+                Some(Cow::Owned(compile_procedure(procedure_id, options, stack_start)))
             }
             LabelType::GlobalInit(function_id) => self.globals.get(&function_id).map(Cow::Borrowed),
             _ => unreachable!("ICE: Expected a function or procedure label"),

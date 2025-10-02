@@ -53,7 +53,7 @@ fn multiple_brillig_calls_one_bytecode() {
 
     unconstrained func 0: foo
      0: @2 = const u32 1
-     1: @1 = const u32 2119
+     1: @1 = const u32 32839
      2: @0 = const u32 71
      3: sp[3] = const u32 2
      4: sp[4] = const u32 0
@@ -83,7 +83,7 @@ fn multiple_brillig_calls_one_bytecode() {
     28: return
     unconstrained func 1: foo
      0: @2 = const u32 1
-     1: @1 = const u32 2119
+     1: @1 = const u32 32839
      2: @0 = const u32 71
      3: sp[3] = const u32 2
      4: sp[4] = const u32 0
@@ -263,7 +263,7 @@ fn brillig_stdlib_calls_with_regular_brillig_call() {
 
     unconstrained func 0: foo
      0: @2 = const u32 1
-     1: @1 = const u32 2119
+     1: @1 = const u32 32839
      2: @0 = const u32 71
      3: sp[3] = const u32 2
      4: sp[4] = const u32 0
@@ -410,7 +410,7 @@ fn brillig_stdlib_calls_with_multiple_acir_calls() {
 
     unconstrained func 0: foo
      0: @2 = const u32 1
-     1: @1 = const u32 2119
+     1: @1 = const u32 32839
      2: @0 = const u32 71
      3: sp[3] = const u32 2
      4: sp[4] = const u32 0

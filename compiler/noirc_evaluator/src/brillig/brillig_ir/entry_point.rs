@@ -22,12 +22,12 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         globals_memory_size: usize,
         name: &str,
         options: &BrilligOptions,
-    ) -> BrilligArtifact<F> {
+    ) -> (BrilligArtifact<F>, usize) {
         let mut context = BrilligContext::new(name, options);
 
         context.set_globals_memory_size(Some(globals_memory_size));
 
-        context.codegen_entry_point(&arguments, &return_parameters);
+        let stack_start = context.codegen_entry_point(&arguments, &return_parameters);
 
         if globals_init {
             context.add_globals_init_instruction(target_function);
@@ -36,7 +36,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         context.add_external_call_instruction(target_function);
 
         context.codegen_exit_point(&arguments, &return_parameters);
-        context.artifact()
+        (context.artifact(), stack_start)
     }
 
     fn calldata_start_offset(&self) -> usize {
@@ -57,11 +57,16 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
     ///
     /// Memory layout for entry points:
     /// {reserved} {scratch} {globals} {entry point (call data + return data)} {stack} {heap}
+    ///
+    /// # Returns
+    /// The start of the stack memory region. The start of the stack is determined by the globals compiled as well as
+    /// the amount of call data and return data. We return this information so that the [max stack depth check][super::ProcedureId::CheckMaxStackDepth]
+    /// can check against the appropriate constant represented the max stack pointer we can have in memory.
     fn codegen_entry_point(
         &mut self,
         arguments: &[BrilligParameter],
         return_parameters: &[BrilligParameter],
-    ) {
+    ) -> usize {
         // We need to allocate the variable for every argument first so any register allocation doesn't mangle the expected order.
         let mut argument_variables = self.allocate_function_arguments(arguments);
 
@@ -85,9 +90,10 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
 
         // The stack begins after the calldata region (calldata + return data)
         // Set initial value of the stack pointer: `return_data_start + return_data_size`
+        let stack_start = return_data_start + return_data_size;
         self.const_instruction(
             SingleAddrVariable::new_usize(ReservedRegisters::stack_pointer()),
-            (return_data_start + return_data_size).into(),
+            stack_start.into(),
         );
 
         // Copy calldata
@@ -137,6 +143,8 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
                 _ => unreachable!("ICE: cannot match variables against arguments"),
             }
         }
+
+        stack_start
     }
 
     fn allocate_function_arguments(

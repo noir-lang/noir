@@ -415,7 +415,7 @@ pub(crate) mod tests {
             ..Default::default()
         };
         let artifact = context.artifact();
-        let mut entry_point_artifact = BrilligContext::new_entry_point_artifact(
+        let (mut entry_point_artifact, stack_start) = BrilligContext::new_entry_point_artifact(
             arguments,
             returns,
             FunctionId::test_new(0),
@@ -430,7 +430,7 @@ pub(crate) mod tests {
             let LabelType::Procedure(procedure_id) = unresolved_fn_label.label_type else {
                 panic!("Test functions cannot be linked with other functions");
             };
-            let procedure_artifact = compile_procedure(procedure_id, &options);
+            let procedure_artifact = compile_procedure(procedure_id, &options, stack_start);
             entry_point_artifact.link_with(&procedure_artifact);
         }
         entry_point_artifact.finish()
