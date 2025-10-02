@@ -318,7 +318,11 @@ impl Context {
                 block_id,
                 &mut possible_index_out_of_bounds_indexes,
             );
-            // There's a slight chance we didn't insert any checks, so we could proceed with DIE.
+            // There's a chance we didn't insert any checks, so we could proceed with DIE.
+            // This can happen for example with arrays of a complex type, where one part
+            // of the complex type is used, while the other is not, in which case no constraint
+            // is inserted, because the use itself will cause an OOB error.
+            // By proceeding, the unused access will be removed.
             if inserted_check {
                 return true;
             }
@@ -1162,5 +1166,32 @@ mod test {
         // If `inc_rc v3` were removed, we risk it later being mutated in `v19 = array_set v18, index u32 0, value Field 1`.
         // Thus, when we later go to do `v22 = array_set v21, index u32 0, value v3` once more, we will be writing [1] rather than [2].
         assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
+    }
+
+    #[test]
+    fn replaces_oob_followed_by_safe_access_with_constraint() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v2 = make_array b"KO"
+            v4 = make_array [u1 0, v2] : [(u1, [u8; 2]); 1]
+            v6 = array_get v4, index u32 20 -> u1
+            v8 = array_get v4, index u32 1 -> [u8; 2]
+            return v8
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.dead_instruction_elimination();
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v2 = make_array b"KO"
+            v4 = make_array [u1 0, v2] : [(u1, [u8; 2]); 1]
+            constrain u1 0 == u1 1, "Index out of bounds"
+            v7 = array_get v4, index u32 1 -> [u8; 2]
+            return v7
+        }
+        "#);
     }
 }
