@@ -293,23 +293,31 @@ mod tests {
                         // The only other opcodes which have constants dependent upon the stack size are those laid down by the `CheckMaxStackDepth` procedure.
                         if *dest_default == ReservedRegisters::free_memory_pointer() {
                             // Stack is 2048 * 16 = 32768
-                            // Scratch space is 64
                             // Three reserved registers
-                            // And register in the global space
+                            // Scratch space is 64
+                            // And a register in the global space
+                            // And a register of call data
                             assert_eq!(value_default.to_u128(), 32837);
                             // 65605 - 32837 = 32768
                             // We have doubled the stack
                             assert_eq!(value_4096.to_u128(), 65605);
                         } else {
+                            // Three reserved registers
+                            // Scratch space is 64
+                            // And a register in the global space
+                            // And a register of call data
+                            let stack_start = ReservedRegisters::len() + 1 + MAX_SCRATCH_SPACE + 1;
                             let max_stack_depth_bound = options.layout.max_stack_size()
-                                - options.layout.max_stack_frame_size();
+                                - options.layout.max_stack_frame_size()
+                                + stack_start;
                             assert_eq!(
                                 value_default.to_u128(),
                                 max_stack_depth_bound.try_into().unwrap()
                             );
                             let max_stack_depth_bound =
                                 stack_frame_4096_options.layout.max_stack_size()
-                                    - stack_frame_4096_options.layout.max_stack_frame_size();
+                                    - stack_frame_4096_options.layout.max_stack_frame_size()
+                                    + stack_start;
                             assert_eq!(
                                 value_4096.to_u128(),
                                 max_stack_depth_bound.try_into().unwrap()
@@ -411,23 +419,31 @@ mod tests {
                         // The only other opcodes which have constants dependent upon the stack size are those laid down by the `CheckMaxStackDepth` procedure.
                         if *dest_default == ReservedRegisters::free_memory_pointer() {
                             // Stack is 2048 * 16 = 32768
-                            // Scratch space is 64
                             // Three reserved registers
-                            // And register in the global space
+                            // Scratch space is 64
+                            // And a register in the global space
+                            // And a register of call data
                             assert_eq!(value_default.to_u128(), 32837);
                             // 65605 - 32837 = 32768
                             // We have doubled the stack
                             assert_eq!(value_32.to_u128(), 65605);
                         } else {
+                            // Three reserved registers
+                            // Scratch space is 64
+                            // And a register in the global space
+                            // And a register of call data
+                            let stack_start = ReservedRegisters::len() + 1 + MAX_SCRATCH_SPACE + 1;
                             let max_stack_depth_bound = options.layout.max_stack_size()
-                                - options.layout.max_stack_frame_size();
+                                - options.layout.max_stack_frame_size()
+                                + stack_start;
                             assert_eq!(
                                 value_default.to_u128(),
                                 max_stack_depth_bound.try_into().unwrap()
                             );
                             let max_stack_depth_bound =
                                 stack_frames_32_options.layout.max_stack_size()
-                                    - stack_frames_32_options.layout.max_stack_frame_size();
+                                    - stack_frames_32_options.layout.max_stack_frame_size()
+                                    + stack_start;
                             assert_eq!(
                                 value_32.to_u128(),
                                 max_stack_depth_bound.try_into().unwrap()
