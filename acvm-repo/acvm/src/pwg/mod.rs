@@ -65,7 +65,7 @@
 //! corresponding Brillig bytecode and instantiate a Brillig VM with the value of the input. This value was just computed before.
 //! Executing the Brillig VM on this input will give us the output which is the value for `w7`, that we add to `initial_witness`.
 //! The next opcode is again an AssertZero: `w6 * w7 + w8 - 1 = 0`, which computes the value of `w8`.
-//! The two next opcode are AssertZero without any unknown witnesses: `w6 * w8 = 0` and `w1 * w8 = 0`
+//! The two next opcodes are AssertZero without any unknown witnesses: `w6 * w8 = 0` and `w1 * w8 = 0`
 //! Solving such opcodes means that we compute `w6 * w8 ` and `w1 * w8` using the known values, and check that they evaluate to 0.
 //! If not, we would return an error.
 //! Finally, the last AssertZero computes `w9` which is the last witness. All of the witnesses have now been computed; execution is complete.
