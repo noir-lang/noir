@@ -16,6 +16,7 @@ mod defunctionalize;
 mod die;
 mod evaluate_static_assert_and_assert_constant;
 mod expand_signed_checks;
+mod expand_signed_math;
 pub(crate) mod flatten_cfg;
 mod hint;
 mod inline_simple_functions;

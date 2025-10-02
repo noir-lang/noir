@@ -73,3 +73,77 @@ impl<F: AcirField> UnusedMemoryOptimizer<F> {
         (Circuit { opcodes: optimized_opcodes, ..self.circuit }, new_order_list)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use acir::{
+        FieldElement,
+        circuit::opcodes::BlockType,
+        native_types::{Expression, Witness},
+    };
+
+    #[test]
+    fn unused_memory_is_removed() {
+        let src = "
+        private parameters: [w0, w1]
+        public parameters: []
+        return values: [w2]
+        ";
+        let mut circuit = Circuit::from_str(src).unwrap();
+        // MEMORYINIT [w0, w1]
+        // EXPR [ (1, w0) (-1, w1) (-1, w2) 0 ]
+        circuit.opcodes = vec![
+            Opcode::MemoryInit {
+                block_id: BlockId(0),
+                init: vec![Witness(0), Witness(1)],
+                block_type: BlockType::Memory,
+            },
+            Opcode::AssertZero(Expression {
+                mul_terms: Vec::new(),
+                linear_combinations: vec![
+                    (FieldElement::from(1_u128), Witness(0)),
+                    (FieldElement::from(-1_i128), Witness(1)),
+                    (FieldElement::from(-1_i128), Witness(2)),
+                ],
+                q_c: FieldElement::from(0u128),
+            }),
+        ];
+        let unused_memory = UnusedMemoryOptimizer::new(circuit);
+        assert_eq!(unused_memory.unused_memory_initializations.len(), 1);
+        let (circuit, _) = unused_memory.remove_unused_memory_initializations(vec![0, 1]);
+        assert_eq!(circuit.opcodes.len(), 1);
+    }
+
+    #[test]
+    fn databus_is_not_removed() {
+        let src = "
+        private parameters: [w0, w1]
+        public parameters: []
+        return values: [w2]
+        ";
+        let mut circuit = Circuit::from_str(src).unwrap();
+        // MEMORYINIT [w0, w1]
+        // EXPR [ (1, w0) (-1, w1) (-1, w2) 0 ]
+        circuit.opcodes = vec![
+            Opcode::MemoryInit {
+                block_id: BlockId(0),
+                init: vec![Witness(0), Witness(1)],
+                block_type: BlockType::ReturnData,
+            },
+            Opcode::AssertZero(Expression {
+                mul_terms: Vec::new(),
+                linear_combinations: vec![
+                    (FieldElement::from(1_u128), Witness(0)),
+                    (FieldElement::from(-1_i128), Witness(1)),
+                    (FieldElement::from(-1_i128), Witness(2)),
+                ],
+                q_c: FieldElement::from(0u128),
+            }),
+        ];
+        let unused_memory = UnusedMemoryOptimizer::new(circuit);
+        assert_eq!(unused_memory.unused_memory_initializations.len(), 1);
+        let (circuit, _) = unused_memory.remove_unused_memory_initializations(vec![0, 1]);
+        assert_eq!(circuit.opcodes.len(), 2);
+    }
+}

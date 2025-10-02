@@ -151,7 +151,8 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         vec![All],
     );
     ssa_pass_builder.attach_pass_to_last(Ssa::remove_unreachable_functions, vec![All]);
-    ssa_pass_builder.add_pass(Ssa::mem2reg, "Mem2Reg", vec![All, Debug]);
+    // BUG: Enabling this mem2reg causes test failures in aztec-nr; specifically `state_vars::private_mutable::test::initialize_and_get_pending`
+    // ssa_pass_builder.add_pass(Ssa::mem2reg, "Mem2Reg", vec![All, Debug]);
     ssa_pass_builder.add_pass(
         Ssa::remove_paired_rc,
         "Removing Paired rc_inc & rc_decs",
@@ -216,6 +217,9 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
     ssa_pass_builder.add_pass(Ssa::simplify_cfg, "Simplifying", vec![All, Debug]);
     ssa_pass_builder.add_pass(Ssa::mem2reg, "Mem2Reg", vec![All, Debug]);
     ssa_pass_builder.add_pass(Ssa::remove_bit_shifts, "Removing Bit Shifts", vec![All, Debug]);
+    // Expand signed lt/div/mod after "Removing Bit Shifts" because that pass might
+    // introduce signed divisions.
+    ssa_pass_builder.add_pass(Ssa::expand_signed_math, "Expand signed math", vec![All, Debug]);
     ssa_pass_builder.add_pass(Ssa::simplify_cfg, "Simplifying", vec![All, Debug]);
     ssa_pass_builder.add_pass(Ssa::flatten_cfg, "Flattening", vec![All]);
     // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores

@@ -1,10 +1,10 @@
 {
-  "name": "docs_tutorials_browser",
+  "name": "browser_example",
   "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "nargo compile && vite build",
+    "build": "vite build",
     "test": "yarn build && playwright test browser.test.ts"
   },
   "dependencies": {

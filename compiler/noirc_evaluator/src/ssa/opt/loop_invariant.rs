@@ -432,8 +432,8 @@ impl<'f> LoopInvariantContext<'f> {
                     // If we are hoisting a MakeArray instruction,
                     // we need to issue an extra inc_rc in case they are mutated afterward.
                     if insert_rc {
-                        let result =
-                            self.inserter.function.dfg.instruction_results(instruction_id)[0];
+                        let [result] =
+                            self.inserter.function.dfg.instruction_result(instruction_id);
                         let inc_rc = Instruction::IncrementRc { value: result };
                         let call_stack = self
                             .inserter
@@ -2375,6 +2375,35 @@ mod test {
               jmp b4(v10)
             b6():
               v8 = unchecked_add v0, u32 1
+              jmp b1(v8)
+          }
+        "#;
+
+        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
+    }
+
+    #[test]
+    fn do_not_hoist_signed_div_by_minus_one_from_non_executed_nested_loop() {
+        let src = r#"
+          brillig(inline) predicate_pure fn main f0 {
+            b0():
+              jmp b1(i32 0)
+            b1(v0: i32):
+              v4 = lt v0, i32 10
+              jmpif v4 then: b2, else: b3
+            b2():
+              jmp b4(i32 10)
+            b3():
+              return
+            b4(v1: i32):
+              v6 = lt v1, i32 10
+              jmpif v6 then: b5, else: b6
+            b5():
+              v9 = div v0, i32 -1
+              v10 = unchecked_add v1, i32 1
+              jmp b4(v10)
+            b6():
+              v8 = unchecked_add v0, i32 1
               jmp b1(v8)
           }
         "#;
