@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1759423268589,
+  "lastUpdate": 1759424623253,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22981,48 +22981,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "197cee04c3a0feee5e59ac24026d601a30a1aa12",
-          "message": "chore(acir): More arrays refactors  (#9962)",
-          "timestamp": "2025-09-24T16:46:24Z",
-          "tree_id": "1136b7953cc952098337eda684a5ce4587ef28c9",
-          "url": "https://github.com/noir-lang/noir/commit/197cee04c3a0feee5e59ac24026d601a30a1aa12"
-        },
-        "date": 1758733727808,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 253253,
-            "range": "± 1110",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 226728,
-            "range": "± 5576",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2788197,
-            "range": "± 3993",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "84741533+defkit@users.noreply.github.com",
             "name": "defkit",
             "username": "defkit"
@@ -25074,6 +25032,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2768032,
             "range": "± 15052",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "5e75f23559479aa4e2e95168b9c128bbce2fb622",
+          "message": "chore: take truncate into account for bit size (#10059)",
+          "timestamp": "2025-10-02T16:37:29Z",
+          "tree_id": "e0d5898b35629d3cd6dc2ef83492711683777307",
+          "url": "https://github.com/noir-lang/noir/commit/5e75f23559479aa4e2e95168b9c128bbce2fb622"
+        },
+        "date": 1759424602074,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 252758,
+            "range": "± 354",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 223559,
+            "range": "± 1020",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2780381,
+            "range": "± 1825",
             "unit": "ns/iter"
           }
         ]
