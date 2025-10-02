@@ -25,10 +25,12 @@
 //!     multiple unused array accesses. As to avoid redundant OOB checks, we search for "array get groups"
 //!     and only insert a single OOB check for an array get group.
 //!   - [Store][Instruction::Store] instructions can only be removed if the `flattened` flag is set.
+//!   - Instructions that create the value which is returned in the databus (if present) is not removed.
 //! - Brillig
 //!   - Array operations are explicit and thus it is expected separate OOB checks
 //!     have been laid down. Thus, no extra instructions are inserted for unused array accesses.
 //!   - [Store][Instruction::Store] instructions are never removed.
+//!   - The databus is never used to return values, so instructions to create a Field array to return are never generated.
 //!
 //! ## Preconditions
 //! - ACIR: By default the pass must be run after [mem2reg][crate::ssa::opt::mem2reg] and [CFG flattening][crate::ssa::opt::flatten_cfg].
@@ -344,7 +346,8 @@ impl Context {
 
         if can_be_eliminated_if_unused(instruction, function, self.flattened) {
             let results = function.dfg.instruction_results(instruction_id);
-            results.iter().all(|result| !self.used_values.contains(result))
+            let results_unused = results.iter().all(|result| !self.used_values.contains(result));
+            results_unused && !function.dfg.is_returned_in_databus(instruction_id)
         } else if let Instruction::Call { func, arguments } = instruction {
             // TODO: make this more general for instructions which don't have results but have side effects "sometimes" like `Intrinsic::AsWitness`
             let as_witness_id = function.dfg.get_intrinsic(Intrinsic::AsWitness);
@@ -1193,5 +1196,18 @@ mod test {
             return v7
         }
         "#);
+    }
+
+    #[test]
+    fn keeps_unused_databus_return_value() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          return_data: v0
+          b0():
+            v0 = make_array [Field 0] : [Field; 1]
+            unreachable
+        }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
     }
 }

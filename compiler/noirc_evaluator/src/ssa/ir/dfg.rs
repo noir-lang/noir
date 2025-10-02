@@ -793,6 +793,17 @@ impl DataFlowGraph {
             _ => ArrayOffset::None,
         }
     }
+
+    /// Check if the results of an instruction are used in the databus to return a value..
+    ///
+    /// This only applies to ACIR, as in Brillig the databus will always be empty.
+    pub(crate) fn is_returned_in_databus(&self, instruction_id: InstructionId) -> bool {
+        let Some(return_data) = self.data_bus.return_data else {
+            return false;
+        };
+        let results = self.instruction_results(instruction_id);
+        results.iter().any(|id| *id == return_data)
+    }
 }
 
 impl std::ops::Index<InstructionId> for DataFlowGraph {
