@@ -169,19 +169,26 @@ fn collect_blocks_not_dominated_by_others(
     // Equivalent to the following, but avoids the O(n*n*n) complexity coming from the fact that `dominates` may walk up the tree:
     // blocks.filter(|b| blocks.all(|a| *a == **b || !dom.dominates(*a, **b)))
     let mut has_dominator = HashSet::default();
+    let mut no_dominator = Vec::new();
     for block in blocks {
         let mut dominator = *block;
         let mut path = vec![dominator];
+        let mut found_dominator = false;
         while let Some(next) = dom.immediate_dominator(dominator) {
             if has_dominator.contains(&next) || blocks.contains(&next) {
-                has_dominator.extend(path);
+                found_dominator = true;
                 break;
             }
             path.push(next);
             dominator = next;
         }
+        if found_dominator {
+            has_dominator.extend(path);
+        } else {
+            no_dominator.push(*block);
+        }
     }
-    blocks.iter().filter(|b| !has_dominator.contains(b)).copied().collect()
+    no_dominator
 }
 
 struct Context {
