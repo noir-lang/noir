@@ -51,7 +51,7 @@ fn multiple_brillig_calls_one_bytecode() {
     BRILLIG CALL func: 0, inputs: [w0, w1], outputs: [w6]
     BRILLIG CALL func: 1, inputs: [w0, w1], outputs: [w7]
 
-    unconstrained func 0
+    unconstrained func 0: foo
      0: @2 = const u32 1
      1: @1 = const u32 2119
      2: @0 = const u32 71
@@ -81,7 +81,7 @@ fn multiple_brillig_calls_one_bytecode() {
     26: @1 = indirect const u64 15764276373176857197
     27: trap &[@1; @2]
     28: return
-    unconstrained func 1
+    unconstrained func 1: foo
      0: @2 = const u32 1
      1: @1 = const u32 2119
      2: @0 = const u32 71
@@ -170,7 +170,7 @@ fn multiple_brillig_stdlib_calls() {
     ASSERT w9 = -w2*w8 + w1
     ASSERT w8 = 1
 
-    unconstrained func 0
+    unconstrained func 0: directive_invert
     0: @21 = const u32 1
     1: @20 = const u32 0
     2: @0 = calldata copy [@20; @21]
@@ -180,7 +180,7 @@ fn multiple_brillig_stdlib_calls() {
     6: @1 = const field 1
     7: @0 = field field_div @1, @0
     8: stop &[@20; @21]
-    unconstrained func 1
+    unconstrained func 1: directive_integer_quotient
     0: @10 = const u32 2
     1: @11 = const u32 0
     2: @0 = calldata copy [@11; @10]
@@ -261,7 +261,7 @@ fn brillig_stdlib_calls_with_regular_brillig_call() {
     ASSERT w11 = -w2*w10 + w1
     ASSERT w10 = 1
 
-    unconstrained func 0
+    unconstrained func 0: foo
      0: @2 = const u32 1
      1: @1 = const u32 2119
      2: @0 = const u32 71
@@ -293,7 +293,7 @@ fn brillig_stdlib_calls_with_regular_brillig_call() {
     28: @1 = indirect const u64 15764276373176857197
     29: trap &[@1; @2]
     30: return
-    unconstrained func 1
+    unconstrained func 1: directive_invert
     0: @21 = const u32 1
     1: @20 = const u32 0
     2: @0 = calldata copy [@20; @21]
@@ -303,7 +303,7 @@ fn brillig_stdlib_calls_with_regular_brillig_call() {
     6: @1 = const field 1
     7: @0 = field field_div @1, @0
     8: stop &[@20; @21]
-    unconstrained func 2
+    unconstrained func 2: directive_integer_quotient
     0: @10 = const u32 2
     1: @11 = const u32 0
     2: @0 = calldata copy [@11; @10]
@@ -408,7 +408,7 @@ fn brillig_stdlib_calls_with_multiple_acir_calls() {
     ASSERT w5 = 0
     ASSERT w2 = w0
 
-    unconstrained func 0
+    unconstrained func 0: foo
      0: @2 = const u32 1
      1: @1 = const u32 2119
      2: @0 = const u32 71
@@ -440,7 +440,7 @@ fn brillig_stdlib_calls_with_multiple_acir_calls() {
     28: @1 = indirect const u64 15764276373176857197
     29: trap &[@1; @2]
     30: return
-    unconstrained func 1
+    unconstrained func 1: directive_invert
     0: @21 = const u32 1
     1: @20 = const u32 0
     2: @0 = calldata copy [@20; @21]
@@ -450,7 +450,7 @@ fn brillig_stdlib_calls_with_multiple_acir_calls() {
     6: @1 = const field 1
     7: @0 = field field_div @1, @0
     8: stop &[@20; @21]
-    unconstrained func 2
+    unconstrained func 2: directive_integer_quotient
     0: @10 = const u32 2
     1: @11 = const u32 0
     2: @0 = calldata copy [@11; @10]
