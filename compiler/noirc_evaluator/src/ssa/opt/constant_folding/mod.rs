@@ -15,7 +15,7 @@
 //! This is the only pass which removes duplicated pure [`Instruction`]s however and so is needed when
 //! different blocks are merged, i.e. after the [`flatten_cfg`][super::flatten_cfg] pass.
 use std::{
-    collections::{BTreeMap, BTreeSet},
+    collections::{BTreeMap, BTreeSet, HashSet},
     io::Empty,
 };
 
@@ -132,17 +132,11 @@ impl Function {
             #[cfg(debug_assertions)]
             constant_folding_post_check(&context, &self.dfg);
 
-            // In order to deduplicate and hoist new instructions, we need rebuild the cache starting from the
-            // blocks we hoisted into, revisiting all descendants.
-            let blocks_to_revisit = std::mem::take(&mut context.blocks_to_revisit);
-
+            // T deduplicate and hoist new instructions, we need rebuild the cache starting from the blocks we hoisted into, revisiting all descendants.
             // Find blocks which are not dominated by anything other than themselves; these are our independent starting points.
             // Alternatively we could reduce all blocks to their common dominator.
-            let blocks_to_revisit = blocks_to_revisit
-                .iter()
-                .filter(|b| blocks_to_revisit.iter().all(|a| *a == **b || !dom.dominates(*a, **b)))
-                .copied()
-                .collect::<Vec<_>>();
+            let blocks_to_revisit =
+                collect_blocks_not_dominated_by_others(&mut dom, &context.blocks_to_revisit);
 
             // If nothing got hoisted, we are done.
             if blocks_to_revisit.is_empty() {
@@ -164,6 +158,29 @@ fn constant_folding_post_check(context: &Context, dfg: &DataFlowGraph) {
         context.values_to_replace.value_types_are_consistent(dfg),
         "Constant folding should not map a ValueId to another of a different type"
     );
+}
+
+/// Find all blocks in a set of blocks in the CFG which are not dominated by any block other than themselves.
+fn collect_blocks_not_dominated_by_others(
+    dom: &mut DominatorTree,
+    blocks: &BTreeSet<BasicBlockId>,
+) -> Vec<BasicBlockId> {
+    // Equivalent to following, but avoids the O(n*n*n) complexity coming from the fact that `dominates` may walk up the tree:
+    // blocks.filter(|b| blocks.all(|a| *a == **b || !dom.dominates(*a, **b)))
+    let mut has_dominator = HashSet::new();
+    for block in blocks {
+        let mut dominator = *block;
+        let mut path = vec![dominator];
+        while let Some(next) = dom.immediate_dominator(dominator) {
+            if has_dominator.contains(&next) || blocks.contains(&next) {
+                has_dominator.extend(path);
+                break;
+            }
+            path.push(next);
+            dominator = next;
+        }
+    }
+    blocks.iter().filter(|b| !has_dominator.contains(b)).copied().collect()
 }
 
 struct Context {

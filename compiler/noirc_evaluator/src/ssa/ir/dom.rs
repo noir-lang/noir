@@ -104,7 +104,7 @@ impl DominatorTree {
         mut block_b_id: BasicBlockId,
     ) -> bool {
         // Walk up the dominator tree from "b" until we encounter or pass "a". Doing the
-        // comparison on the reverse post-order may allows to test whether we have passed "a"
+        // comparison on the reverse post-order may allow to test whether we have passed "a"
         // without waiting until we reach the root of the tree.
         loop {
             match self.reverse_post_order_cmp(block_a_id, block_b_id) {
