@@ -434,31 +434,34 @@ impl<F: std::fmt::Display + Copy> std::fmt::Display for BlackBoxFuncCall<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let uppercase_name = self.name().to_uppercase();
         write!(f, "BLACKBOX::{uppercase_name} ")?;
-        // INPUTS
 
-        let inputs_str = &self
-            .get_inputs_vec()
-            .iter()
-            .map(|i| i.to_string())
-            .collect::<Vec<String>>()
-            .join(", ");
-
-        write!(f, "[{inputs_str}]")?;
-        if let Some(bit_size) = self.bit_size() {
-            write!(f, ":{bit_size} bits")?;
+        // inputs
+        let inputs = &self.get_inputs_vec();
+        let inputs_str = inputs.iter().map(|i| i.to_string()).collect::<Vec<String>>().join(", ");
+        if inputs.len() == 1 {
+            write!(f, "input: {inputs_str}")?;
+        } else {
+            write!(f, "inputs: [{inputs_str}]")?;
         }
-        write!(f, " ")?;
 
-        // OUTPUTS
+        // bits
+        if let Some(bit_size) = self.bit_size() {
+            write!(f, ", bits: {bit_size}")?;
+        }
 
-        let outputs_str = &self
-            .get_outputs_vec()
-            .iter()
-            .map(ToString::to_string)
-            .collect::<Vec<String>>()
-            .join(", ");
+        // outputs
+        let outputs = &self.get_outputs_vec();
+        if !outputs.is_empty() {
+            let outputs_str =
+                outputs.iter().map(ToString::to_string).collect::<Vec<String>>().join(", ");
+            if outputs.len() == 1 {
+                write!(f, ", output: {outputs_str}")?;
+            } else {
+                write!(f, ", outputs: [{outputs_str}]")?;
+            }
+        }
 
-        write!(f, "[{outputs_str}]")
+        Ok(())
     }
 }
 
