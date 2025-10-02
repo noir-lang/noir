@@ -19,11 +19,11 @@ impl GeneralOptimizer {
     }
 }
 
-/// Simplifies all mul terms of the form `(scale, w_l, w_r)` with the same bi-variate variables
+/// Simplifies all mul terms of the form `scale*w1*w2` with the same bi-variate variables
 /// while also removing terms that end up with a zero coefficient.
 ///
-/// For instance, mul terms `(0,1,1), (2,2,1) (-1,2,1) (-1,1,2)` will return an
-/// empty vector, because: (2,1) and (1,2) are the same bi-variate variable
+/// For instance, mul terms `0*w1*w1 + 2*w2*w1 - w2*w1 - w1*w2` will return an
+/// empty vector, because: w1*w2 and w2*w1 are the same bi-variate variable
 /// and the resulting scale is `2-1-1 = 0`
 fn simplify_mul_terms<F: AcirField>(mut gate: Expression<F>) -> Expression<F> {
     let mut hash_map: IndexMap<(Witness, Witness), F> = IndexMap::new();
