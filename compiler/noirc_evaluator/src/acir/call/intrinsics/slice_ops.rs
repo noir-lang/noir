@@ -467,7 +467,6 @@ impl Context<'_> {
         );
 
         // Fetch the flattened index from the user provided index argument.
-        let element_size = slice_typ.element_size();
         let flat_user_index =
             self.get_flattened_index(&slice_typ, slice_contents, remove_index, dfg)?;
 
@@ -479,6 +478,7 @@ impl Context<'_> {
         // Set a temp index just for fetching from the original slice as `array_get_value` mutates
         // the index internally.
         let mut temp_index = flat_user_index;
+        let element_size = slice_typ.element_size();
         for res in &result_ids[2..(2 + element_size)] {
             let element =
                 self.array_get_value(&dfg.type_of_value(*res), block_id, &mut temp_index)?;
