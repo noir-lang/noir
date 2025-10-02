@@ -133,9 +133,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
                     let memory_block = memory
                         .get(block_id)
                         .ok_or(OpcodeNotSolvable::MissingMemoryBlock(block_id.0))?;
-                    for memory_value in memory_block.block_value.iter() {
-                        calldata.push(*memory_value);
-                    }
+                    calldata.extend(&memory_block.block_value);
                 }
             }
         }
