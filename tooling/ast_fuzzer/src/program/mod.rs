@@ -175,7 +175,6 @@ impl Context {
             self.config.max_depth,
             true,
             false,
-            false,
             self.config.comptime_friendly,
             true,
         )?;
@@ -227,7 +226,6 @@ impl Context {
             self.config.max_depth,
             false,
             is_main || is_abi,
-            false,
             self.config.comptime_friendly,
             true,
         )?;
@@ -266,7 +264,6 @@ impl Context {
                     self.config.max_depth,
                     false,
                     is_main || is_abi,
-                    false,
                     self.config.comptime_friendly,
                     true,
                 )?
@@ -417,13 +414,6 @@ impl Context {
     /// functions.
     ///
     /// With a `max_depth` of 0 only leaf types are created.
-    ///
-    /// With `is_frontend_friendly` we try to only consider types which are less likely to result
-    /// in literals that the frontend does not like when it has to infer their types. For example
-    /// without further constraints on the type, the frontend expects integer literals to be `u32`.
-    /// It also cannot infer the type of empty array literals, e.g. `let x = [];` would not compile.
-    /// When we generate types for e.g. function parameters, where the type is going to be declared
-    /// along with the variable name, this is not a concern.
     #[allow(clippy::too_many_arguments)]
     fn gen_type(
         &mut self,
@@ -431,7 +421,6 @@ impl Context {
         max_depth: usize,
         is_global: bool,
         is_main: bool,
-        is_frontend_friendly: bool,
         is_comptime_friendly: bool,
         is_slice_allowed: bool,
     ) -> arbitrary::Result<Type> {
@@ -443,7 +432,6 @@ impl Context {
                 .filter(|typ| !is_global || types::can_be_global(typ))
                 .filter(|typ| !is_main || types::can_be_main(typ))
                 .filter(|typ| types::type_depth(typ) <= max_depth)
-                .filter(|typ| !is_frontend_friendly || !self.should_avoid_literals(typ))
                 .filter(|typ| is_slice_allowed || !types::contains_slice(typ))
                 .collect::<Vec<_>>();
 
@@ -462,7 +450,6 @@ impl Context {
                 max_depth - 1,
                 is_global,
                 is_main,
-                is_frontend_friendly,
                 is_comptime_friendly,
                 is_slice_allowed,
             )
@@ -476,17 +463,11 @@ impl Context {
                 1 => Type::Field,
                 2 => {
                     // i1 is deprecated, and i128 does not exist yet
-                    let sign = if is_frontend_friendly {
-                        Signedness::Unsigned
-                    } else {
-                        *u.choose(&[Signedness::Signed, Signedness::Unsigned])?
-                    };
+                    let sign = *u.choose(&[Signedness::Signed, Signedness::Unsigned])?;
                     let sizes = IntegerBitSize::iter()
                         .filter(|bs| {
                             // i1 and i128 are rejected by the frontend
                             (!sign.is_signed() || (bs.bit_size() != 1 && bs.bit_size() != 128)) &&
-                            // The frontend doesn't like non-u32 literals
-                            (!is_frontend_friendly || bs.bit_size() <= 32) &&
                             // Comptime doesn't allow for u1 either
                             (!is_comptime_friendly || bs.bit_size() != 1)
                         })
@@ -508,7 +489,7 @@ impl Context {
                     Type::Slice(Box::new(typ))
                 }
                 6 | 7 => {
-                    let min_size = if is_frontend_friendly { 1 } else { 0 };
+                    let min_size = 0;
                     let size = u.int_in_range(min_size..=self.config.max_array_size)?;
                     let typ = gen_inner_type(self, u, false)?;
                     Type::Array(size as u32, Box::new(typ))
@@ -532,23 +513,6 @@ impl Context {
         self.types.insert(typ.clone());
 
         Ok(typ)
-    }
-
-    /// Is a type likely to cause type inference problems in the frontend when standing alone.
-    fn should_avoid_literals(&self, typ: &Type) -> bool {
-        match typ {
-            Type::Integer(sign, size) => {
-                // The frontend expects u32 literals.
-                sign.is_signed() && self.config.avoid_negative_int_literals
-                    || size.bit_size() > 32 && self.config.avoid_large_int_literals
-            }
-            Type::Array(0, _) => {
-                // With 0 length arrays we run the risk of ending up with `let x = [];`,
-                // or similar expressions returning `[]`, the type fo which the fronted could not infer.
-                true
-            }
-            _ => false,
-        }
     }
 }
 
