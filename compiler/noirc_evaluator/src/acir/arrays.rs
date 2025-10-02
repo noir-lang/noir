@@ -949,7 +949,7 @@ impl Context<'_> {
         }
     }
 
-    fn read_dynamic_array(
+    pub(super) fn read_dynamic_array(
         &mut self,
         source: BlockId,
         array_len: usize,

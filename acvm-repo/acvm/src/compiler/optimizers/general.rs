@@ -93,130 +93,118 @@ mod tests {
     #[test]
     fn removes_zero_coefficients_from_mul_terms() {
         let src = "
-        current witness: w1
         private parameters: [w0, w1]
         public parameters: []
         return values: []
 
         // The first multiplication should be removed
-        EXPR 0*w0*w1 + w0*w1 = 0
+        ASSERT 0*w0*w1 + w0*w1 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
         let optimized_circuit = optimize(circuit);
         assert_circuit_snapshot!(optimized_circuit, @r"
-        current witness: w1
         private parameters: [w0, w1]
         public parameters: []
         return values: []
-        EXPR 0 = w0*w1
+        ASSERT 0 = w0*w1
         ");
     }
 
     #[test]
     fn removes_zero_coefficients_from_linear_terms() {
         let src = "
-        current witness: w1
         private parameters: [w0, w1]
         public parameters: []
         return values: []
 
         // The first linear combination should be removed
-        EXPR 0*w0 + w1 = 0
+        ASSERT 0*w0 + w1 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
         let optimized_circuit = optimize(circuit);
         assert_circuit_snapshot!(optimized_circuit, @r"
-        current witness: w1
         private parameters: [w0, w1]
         public parameters: []
         return values: []
-        EXPR w1 = 0
+        ASSERT w1 = 0
         ");
     }
 
     #[test]
     fn simplifies_mul_terms() {
         let src = "
-        current witness: w1
         private parameters: [w0, w1]
         public parameters: []
         return values: []
 
         // There are all mul terms with the same variables so we should end up with just one
         // that is the sum of all the coefficients
-        EXPR 2*w0*w1 + 3*w1*w0 + 4*w0*w1 = 0
+        ASSERT 2*w0*w1 + 3*w1*w0 + 4*w0*w1 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
         let optimized_circuit = optimize(circuit);
         assert_circuit_snapshot!(optimized_circuit, @r"
-        current witness: w1
         private parameters: [w0, w1]
         public parameters: []
         return values: []
-        EXPR 0 = 9*w0*w1
+        ASSERT 0 = 9*w0*w1
         ");
     }
 
     #[test]
     fn removes_zero_coefficients_after_simplifying_mul_terms() {
         let src = "
-        current witness: w1
         private parameters: [w0, w1]
         public parameters: []
         return values: []
-        EXPR 2*w0*w1 + 3*w1*w0 - 5*w0*w1 = 0
+        ASSERT 2*w0*w1 + 3*w1*w0 - 5*w0*w1 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
         let optimized_circuit = optimize(circuit);
         assert_circuit_snapshot!(optimized_circuit, @r"
-        current witness: w1
         private parameters: [w0, w1]
         public parameters: []
         return values: []
-        EXPR 0 = 0
+        ASSERT 0 = 0
         ");
     }
 
     #[test]
     fn simplifies_linear_terms() {
         let src = "
-        current witness: w1
         private parameters: [w0, w1]
         public parameters: []
         return values: []
 
         // These are all linear terms with the same variable so we should end up with just one
         // that is the sum of all the coefficients
-        EXPR w0 + 2*w0 + 3*w0 = 0
+        ASSERT w0 + 2*w0 + 3*w0 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
         let optimized_circuit = optimize(circuit);
         assert_circuit_snapshot!(optimized_circuit, @r"
-        current witness: w1
         private parameters: [w0, w1]
         public parameters: []
         return values: []
-        EXPR 0 = 6*w0
+        ASSERT 0 = 6*w0
         ");
     }
 
     #[test]
     fn removes_zero_coefficients_after_simplifying_linear_terms() {
         let src = "
-        current witness: w1
         private parameters: [w0, w1]
         public parameters: []
         return values: []
-        EXPR w0 + 2*w0 - 3*w0 = 0
+        ASSERT w0 + 2*w0 - 3*w0 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
         let optimized_circuit = optimize(circuit);
         assert_circuit_snapshot!(optimized_circuit, @r"
-        current witness: w1
         private parameters: [w0, w1]
         public parameters: []
         return values: []
-        EXPR 0 = 0
+        ASSERT 0 = 0
         ");
     }
 }
