@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1759418048540,
+  "lastUpdate": 1759419630883,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22941,48 +22941,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "574eba8f02c5d764f971d043634d200c24543107",
-          "message": "chore: remove_if_else docs and refactors (#9929)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
-          "timestamp": "2025-09-24T11:30:35Z",
-          "tree_id": "6f04c431d6eee31bb2049f4900e966e56ab6eb2e",
-          "url": "https://github.com/noir-lang/noir/commit/574eba8f02c5d764f971d043634d200c24543107"
-        },
-        "date": 1758715382073,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 251261,
-            "range": "± 5514",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 222816,
-            "range": "± 6230",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2781286,
-            "range": "± 8456",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "michaeljklein@users.noreply.github.com",
             "name": "Michael J Klein",
             "username": "michaeljklein"
@@ -25034,6 +24992,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2779214,
             "range": "± 9159",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "michaeljklein@users.noreply.github.com",
+            "name": "Michael J Klein",
+            "username": "michaeljklein"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b3098ac32752eb3acf4445f7ab1bcb6d7e5cf055",
+          "message": "chore: update check for field overflow in `check_u128_mul_overflow` (#9968)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-10-02T15:14:55Z",
+          "tree_id": "d71d3c2df92148bbb6dcb003d4917d2e189c5656",
+          "url": "https://github.com/noir-lang/noir/commit/b3098ac32752eb3acf4445f7ab1bcb6d7e5cf055"
+        },
+        "date": 1759419608935,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 254798,
+            "range": "± 2015",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 230154,
+            "range": "± 6263",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2787734,
+            "range": "± 3947",
             "unit": "ns/iter"
           }
         ]
