@@ -342,12 +342,11 @@ impl Context {
 
                     return;
                 }
-                CacheResult::NeedToHoistToCommonBlock { dominator, .. } => {
-                    // We can revisit the origin to deduplicate with the dominator.
-                    // To do so we will have to start with the dominator to rebuild the cache.
-                    // In some cases (currently happens in the noir_bigcurve library) we might
-                    // find the cached instruction in a block we dominate. If that's the case
-                    // we can just insert without revisiting self.
+                CacheResult::NeedToHoistToCommonBlock { dominator } => {
+                    // During revisits we can visit a block which dominates something we already cached instructions from,
+                    // if we restarted from a hoist point that this block also dominates. Most likely it is pointless to
+                    // schedule a revisit of *this* block after again, because something must have prevented this instruction
+                    // from being reused already (e.g. an array mutation).
                     if dominator != block {
                         self.blocks_to_revisit.insert(dominator);
                     }
@@ -1364,6 +1363,80 @@ mod test {
             jmp b17(v6)
         }
         "#);
+    }
+
+    #[test]
+    fn revisit_block_which_dominates_cache() {
+        // This test demonstrates how we can, during a follow-up iteration,
+        // visit blocks in an order where we see a cached instruction in
+        // an origin that the current block dominates.
+        let src = r#"
+          brillig(inline) predicate_pure fn main f0 {
+            b0(v0: u1):
+              v1 = make_array [u8 0]: [u8; 1] // this array appears multiple times
+              v2 = allocate -> &mut [u8; 1]
+              store v1 at v2                  // removes v1 from the cache
+              jmp b1(u32 0)
+            b1(v3: u32):                      // loop header
+              v4 = make_array [u8 0]: [u8; 1] // cannot be deduplicated with v1, it's not in the cache
+              v5 = array_set v4, index u32 0, value u8 1  // removes v3 from the cache
+              v6 = lt v3, u32 5
+              jmpif v6 then: b2, else: b6     // iterate the body or exit
+            b2():                             // loop body
+              jmpif v0 then: b3, else: b4     // if-then-else with then and else sharing instructions
+            b3():
+              v7 = make_array [u8 0]: [u8; 1] // v3 not in cache; stays in place
+              jmp b5()
+            b4():
+              v8 = make_array [u8 0]: [u8; 1] // duplicate of v7; hoisted into b2 which dominates b3 and b4
+              jmp b5()
+            b5():
+              v9 = unchecked_add v3, u32 1
+              jmp b1(v9)                      // loop back-edge
+            b6():
+              return
+    }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants(DEFAULT_MAX_ITER);
+
+        // In the 2nd iteration we will restart from b2, which we hoisted into,
+        // and revisit b3, b4 and b5, then its successor b1, which will see the
+        // make_array now exists in b2.
+        // Because we used `array_set` in this example, constant folding figured
+        // out that it can create a new array with the updated contents, so we
+        // could actually deduplicate the one in b2 with that in b1, but currently
+        // we decided we won't be rescheduling a visit to b1, so b2 is not visited
+        // again to see this opportunity.
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            v3 = make_array [u8 0] : [u8; 1]
+            v4 = allocate -> &mut [u8; 1]
+            store v3 at v4
+            jmp b1(u32 0)
+          b1(v1: u32):
+            v6 = make_array [u8 0] : [u8; 1]
+            v8 = make_array [u8 1] : [u8; 1]
+            v10 = lt v1, u32 5
+            jmpif v10 then: b2, else: b6
+          b2():
+            v11 = make_array [u8 0] : [u8; 1]
+            jmpif v0 then: b3, else: b4
+          b3():
+            inc_rc v11
+            jmp b5()
+          b4():
+            jmp b5()
+          b5():
+            v13 = unchecked_add v1, u32 1
+            jmp b1(v13)
+          b6():
+            return
+        }
+        ");
     }
 
     #[test]
