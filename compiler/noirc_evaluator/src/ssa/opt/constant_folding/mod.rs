@@ -1168,8 +1168,18 @@ mod test {
 
     #[test]
     fn avoid_unmapped_instructions_during_revisit() {
-        // We have program calling `lambdas_in_array_literal(x)` and `lambdas_in_array_literal(x-1)`,
-        // with 1 of the 2 potential lambdas called in `lambdas_in_array_literal` based on the index.
+        // This SSA is based on the `lambda_from_array` integration test, with the Noir code simplified to,
+        // and then some extra blocks inserted manually:
+        //
+        // unconstrained fn main(x: u32) -> pub (str<3>, str<3>) {
+        //     let a = lambdas_in_array_literal(x - 1);
+        //     let b = lambdas_in_array_literal(x);
+        //     (a, b)
+        // }
+        // unconstrained fn lambdas_in_array_literal(x: u32) -> str<3> {
+        //     let xs = [|| "ABC", || "DEF"];
+        //     (xs[x])()
+        // }
         let src = r#"
           brillig(inline) predicate_pure fn main f0 {
             b0(v0: u32):
