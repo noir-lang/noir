@@ -238,18 +238,35 @@ impl SimulatorProcess {
         .map_err(|e| format!("Failed to decode simulator response from base64: {e}"))
         {
             Ok(response_line) => response_line,
-            Err(e) => panic!("Failed to decode simulator response: {e}"),
+            Err(e) => {
+                if e.to_string().contains("unexpected end of file") {
+                    log::warn!("Unexpected end of file, recreating simulator");
+                    recreate_simulator().expect("Failed to recreate simulator");
+                    return self.execute(bytecode, inputs);
+                } else {
+                    panic!("Failed to decode simulator response: {e}");
+                }
+            }
         };
 
         let gz_decode_step = Instant::now();
         let mut gz_decoder = GzDecoder::new(response_line_gzip.as_slice());
         let mut response_line = Vec::new();
-        let result = gz_decoder
+        match gz_decoder
             .read_to_end(&mut response_line)
-            .map_err(|e| format!("Failed to read simulator response: {e}"));
-        if result.is_err() {
-            panic!("Failed to read simulator response, gzip decoder: {}", result.err().unwrap());
-        }
+            .map_err(|e| format!("Failed to read simulator response: {e}"))
+        {
+            Ok(_) => (),
+            Err(e) => {
+                if e.to_string().contains("unexpected end of file") {
+                    log::warn!("Unexpected end of file, recreating simulator");
+                    recreate_simulator().expect("Failed to recreate simulator");
+                    return self.execute(bytecode, inputs);
+                } else {
+                    panic!("Failed to decode simulator response: {e}");
+                }
+            }
+        };
         let response_line = String::from_utf8(response_line).unwrap();
         log::debug!("Gz decoding response time {:?}", gz_decode_step.elapsed());
         log::debug!("Decoding response time {:?}", decode_step.elapsed());
@@ -355,18 +372,23 @@ libfuzzer_sys::fuzz_target!(
     // You can disable some instructions with bugs that are not fixed yet
     let modes = vec![FuzzerMode::NonConstant];
     let instruction_options = InstructionOptions {
-        array_get_enabled: false,
-        array_set_enabled: false,
+        // https://github.com/AztecProtocol/aztec-packages/issues/17182
+        // all of them use to_le_radix
         ecdsa_secp256k1_enabled: false,
         ecdsa_secp256r1_enabled: false,
         blake2s_hash_enabled: false,
         blake3_hash_enabled: false,
         aes128_encrypt_enabled: false,
         field_to_bytes_to_field_enabled: false,
+        // https://github.com/AztecProtocol/aztec-packages/issues/16948
         point_add_enabled: false,
         multi_scalar_mul_enabled: false,
+        // https://github.com/AztecProtocol/aztec-packages/issues/16944
         shl_enabled: false,
         shr_enabled: false,
+
+        //https://github.com/noir-lang/noir/issues/10035
+        unsafe_get_set_enabled: false,
         ..InstructionOptions::default()
     };
     let fuzzer_command_options =

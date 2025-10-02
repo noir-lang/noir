@@ -64,7 +64,7 @@ impl Function {
 /// MAX_NON_OVERFLOWING_CONST_ARG is expected to be [p/U],
 /// where U=U128::max() and p is the field modulus.
 ///
-/// Then x<[p/u]<=p/U, so x*U<p
+/// Then x<=[p/U]<p/U, so x*U<p
 static MAX_NON_OVERFLOWING_CONST_ARG: std::sync::LazyLock<u128> = std::sync::LazyLock::new(|| {
     let max_non_overflowing_const_arg = u128::try_from(FieldElement::modulus() / u128::MAX)
         .expect("expected max_const_value_that_does_not_overflow to fit into a u128");

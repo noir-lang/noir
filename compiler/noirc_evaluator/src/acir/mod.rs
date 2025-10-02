@@ -425,89 +425,15 @@ impl<'a> Context<'a> {
             Instruction::Constrain(lhs, rhs, assert_message) => {
                 let lhs = self.convert_numeric_value(*lhs, dfg)?;
                 let rhs = self.convert_numeric_value(*rhs, dfg)?;
-
-                let assert_payload = if let Some(error) = assert_message {
-                    match error {
-                        ConstrainError::StaticString(string) => Some(
-                            self.acir_context.generate_assertion_message_payload(string.clone()),
-                        ),
-                        ConstrainError::Dynamic(error_selector, is_string_type, values) => {
-                            if let Some(constant_string) = try_to_extract_string_from_error_payload(
-                                *is_string_type,
-                                values,
-                                dfg,
-                            ) {
-                                Some(
-                                    self.acir_context
-                                        .generate_assertion_message_payload(constant_string),
-                                )
-                            } else {
-                                let acir_vars: Vec<_> = values
-                                    .iter()
-                                    .map(|value| self.convert_value(*value, dfg))
-                                    .collect();
-
-                                let expressions_or_memory =
-                                    self.acir_context.vars_to_expressions_or_memory(&acir_vars)?;
-
-                                Some(AssertionPayload {
-                                    error_selector: error_selector.as_u64(),
-                                    payload: expressions_or_memory,
-                                })
-                            }
-                        }
-                    }
-                } else {
-                    None
-                };
-
+                let assert_payload = self.convert_constrain_error(dfg, assert_message)?;
                 self.acir_context.assert_eq_var(lhs, rhs, assert_payload)?;
             }
             Instruction::ConstrainNotEqual(lhs, rhs, assert_message) => {
                 let lhs = self.convert_numeric_value(*lhs, dfg)?;
                 let rhs = self.convert_numeric_value(*rhs, dfg)?;
-
-                let assert_payload = if let Some(error) = assert_message {
-                    match error {
-                        ConstrainError::StaticString(string) => Some(
-                            self.acir_context.generate_assertion_message_payload(string.clone()),
-                        ),
-                        ConstrainError::Dynamic(error_selector, is_string_type, values) => {
-                            if let Some(constant_string) = try_to_extract_string_from_error_payload(
-                                *is_string_type,
-                                values,
-                                dfg,
-                            ) {
-                                Some(
-                                    self.acir_context
-                                        .generate_assertion_message_payload(constant_string),
-                                )
-                            } else {
-                                let acir_vars: Vec<_> = values
-                                    .iter()
-                                    .map(|value| self.convert_value(*value, dfg))
-                                    .collect();
-
-                                let expressions_or_memory =
-                                    self.acir_context.vars_to_expressions_or_memory(&acir_vars)?;
-
-                                Some(AssertionPayload {
-                                    error_selector: error_selector.as_u64(),
-                                    payload: expressions_or_memory,
-                                })
-                            }
-                        }
-                    }
-                } else {
-                    None
-                };
-
-                self.acir_context.assert_neq_var(
-                    lhs,
-                    rhs,
-                    self.current_side_effects_enabled_var,
-                    assert_payload,
-                )?;
+                let assert_payload = self.convert_constrain_error(dfg, assert_message)?;
+                let predicate = self.current_side_effects_enabled_var;
+                self.acir_context.assert_neq_var(lhs, rhs, predicate, assert_payload)?;
             }
             Instruction::Cast(value_id, _) => {
                 let acir_var = self.convert_numeric_value(*value_id, dfg)?;
@@ -577,6 +503,39 @@ impl<'a> Context<'a> {
 
         self.acir_context.set_call_stack(CallStack::new());
         Ok(warnings)
+    }
+
+    /// Converts an optional constrain error message into an ACIR assertion payload
+    fn convert_constrain_error(
+        &mut self,
+        dfg: &DataFlowGraph,
+        assert_message: &Option<ConstrainError>,
+    ) -> Result<Option<AssertionPayload<FieldElement>>, RuntimeError> {
+        let Some(error) = assert_message else {
+            return Ok(None);
+        };
+
+        let assert_payload = match error {
+            ConstrainError::StaticString(string) => {
+                self.acir_context.generate_assertion_message_payload(string.clone())
+            }
+            ConstrainError::Dynamic(error_selector, is_string_type, values) => {
+                if let Some(constant_string) =
+                    try_to_extract_string_from_error_payload(*is_string_type, values, dfg)
+                {
+                    self.acir_context.generate_assertion_message_payload(constant_string)
+                } else {
+                    let acir_vars: Vec<_> = vecmap(values, |value| self.convert_value(*value, dfg));
+
+                    let expressions_or_memory =
+                        self.acir_context.vars_to_expressions_or_memory(&acir_vars)?;
+
+                    let error_selector = error_selector.as_u64();
+                    AssertionPayload { error_selector, payload: expressions_or_memory }
+                }
+            }
+        };
+        Ok(Some(assert_payload))
     }
 
     /// Remember the result of an instruction returning a single value
@@ -763,7 +722,7 @@ impl<'a> Context<'a> {
             BinaryOp::Eq => self.acir_context.eq_var(lhs, rhs),
             BinaryOp::Lt => match binary_type {
                 AcirType::NumericType(NumericType::Signed { .. }) => {
-                    self.acir_context.less_than_signed(lhs, rhs, bit_count)
+                    panic!("ICE - signed less than should have been removed before ACIRgen")
                 }
                 _ => self.acir_context.less_than_var(lhs, rhs, bit_count),
             },
@@ -813,16 +772,6 @@ impl<'a> Context<'a> {
     ///
     /// In Noir, binary operands should have the same type due to the language
     /// semantics.
-    ///
-    /// There are some edge cases to consider:
-    /// - Constants are not explicitly type casted, so we need to check for this and
-    ///   return the type of the other operand, if we have a constant.
-    /// - 0 is not seen as `Field 0` but instead as `Unit 0`
-    ///
-    /// TODO: The latter seems like a bug, if we cannot differentiate between a function returning
-    /// TODO nothing and a 0.
-    ///
-    /// TODO: This constant coercion should ideally be done in the type checker.
     fn type_of_binary_operation(&self, binary: &Binary, dfg: &DataFlowGraph) -> Type {
         let lhs_type = dfg.type_of_value(binary.lhs);
         let rhs_type = dfg.type_of_value(binary.rhs);
@@ -842,10 +791,6 @@ impl<'a> Context<'a> {
             (_, Type::Slice(..)) | (Type::Slice(..), _) => {
                 unreachable!("Arrays are invalid in binary operations")
             }
-            // If either side is a Field constant then, we coerce into the type
-            // of the other operand
-            (Type::Numeric(NumericType::NativeField), typ)
-            | (typ, Type::Numeric(NumericType::NativeField)) => typ,
             // If either side is a numeric type, then we expect their types to be
             // the same.
             (Type::Numeric(lhs_type), Type::Numeric(rhs_type)) => {
@@ -901,6 +846,36 @@ impl<'a> Context<'a> {
         };
 
         self.acir_context.truncate_var(var, bit_size, max_bit_size)
+    }
+
+    /// Fetch a flat list of ([AcirVar], [AcirType]).
+    ///
+    /// Flattens an [AcirValue] into a vector of `(AcirVar, AcirType)`.
+    ///
+    /// This is an extension of [AcirValue::flatten] that also supports [AcirValue::DynamicArray].
+    fn flatten(&mut self, value: &AcirValue) -> Result<Vec<(AcirVar, NumericType)>, RuntimeError> {
+        Ok(match value {
+            AcirValue::Var(var, typ) => vec![(*var, typ.to_numeric_type())],
+            AcirValue::Array(array) => {
+                let mut result = Vec::new();
+                for elem in array {
+                    result.extend(self.flatten(elem)?);
+                }
+                result
+            }
+            AcirValue::DynamicArray(AcirDynamicArray { block_id, len, .. }) => {
+                let elements = self.read_dynamic_array(*block_id, *len)?;
+                let mut result = Vec::new();
+
+                for value in elements {
+                    match value {
+                        AcirValue::Var(var, typ) => result.push((var, typ.to_numeric_type())),
+                        _ => unreachable!("ICE: Dynamic memory should already be flat"),
+                    }
+                }
+                result
+            }
+        })
     }
 }
 
