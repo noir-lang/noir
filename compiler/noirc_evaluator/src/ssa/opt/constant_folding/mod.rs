@@ -317,11 +317,8 @@ impl Context {
 
                     return;
                 }
-                CacheResult::NeedToHoistToCommonBlock { dominator, .. } if dominator == block => {
-                    // We found an instruction to cached in an origin that this block dominates.
-                    // Just insert the instruction we already have.
-                }
                 CacheResult::NeedToHoistToCommonBlock { dominator, .. } => {
+                    assert_ne!(block, dominator, "found dominated block in the cache");
                     // Just change the block to insert in the common dominator instead.
                     // This will only move the current instance of the instruction right now.
                     // When constant folding is run a second time later on, it'll catch
