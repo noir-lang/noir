@@ -302,13 +302,12 @@ mod tests {
     #[test]
     fn does_not_eliminate_witnesses_returned_from_brillig() {
         let src = "
-        current witness: w1
         private parameters: [w0]
         public parameters: []
         return values: []
-        BRILLIG CALL func 0: inputs: [], outputs: [w1]
-        EXPR 2*w0 + 3*w1 + w2 + 1 = 0
-        EXPR 2*w0 + 2*w1 + w5 + 1 = 0
+        BRILLIG CALL func: 0, inputs: [], outputs: [w1]
+        ASSERT 2*w0 + 3*w1 + w2 + 1 = 0
+        ASSERT 2*w0 + 2*w1 + w5 + 1 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
         let optimized_circuit = merge_expressions(circuit.clone());
@@ -318,12 +317,11 @@ mod tests {
     #[test]
     fn does_not_eliminate_witnesses_returned_from_circuit() {
         let src = "
-        current witness: w2
         private parameters: [w0]
         public parameters: []
         return values: [w1, w2]
-        EXPR -w0*w0 + w1 = 0
-        EXPR -w1 + w2 = 0
+        ASSERT -w0*w0 + w1 = 0
+        ASSERT -w1 + w2 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
         let optimized_circuit = merge_expressions(circuit.clone());
@@ -333,27 +331,25 @@ mod tests {
     #[test]
     fn does_not_attempt_to_merge_into_previous_opcodes() {
         let src = "
-        current witness: w5
         private parameters: [w0, w1]
         public parameters: []
         return values: []
-        EXPR w0*w0 - w4 = 0
-        EXPR w0*w1 + w5 = 0
-        EXPR -w2 + w4 + w5 = 0
-        EXPR w2 - w3 + w4 + w5 = 0
-        BLACKBOX::RANGE [w3]:32 bits []
+        ASSERT w0*w0 - w4 = 0
+        ASSERT w0*w1 + w5 = 0
+        ASSERT -w2 + w4 + w5 = 0
+        ASSERT w2 - w3 + w4 + w5 = 0
+        BLACKBOX::RANGE input: w3, bits: 32
         ";
         let circuit = Circuit::from_str(src).unwrap();
 
         let optimized_circuit = merge_expressions(circuit);
         assert_circuit_snapshot!(optimized_circuit, @r"
-        current witness: w5
         private parameters: [w0, w1]
         public parameters: []
         return values: []
-        EXPR w5 = -w0*w1
-        EXPR w3 = 2*w0*w0 + 2*w5
-        BLACKBOX::RANGE [w3]:32 bits []
+        ASSERT w5 = -w0*w1
+        ASSERT w3 = 2*w0*w0 + 2*w5
+        BLACKBOX::RANGE input: w3, bits: 32
         ");
     }
 
@@ -364,14 +360,13 @@ mod tests {
         // We would then merge the final two opcodes losing the check that the brillig call must match
         // with `w0 ^ w1`.
         let src = "
-        current witness: w7
         private parameters: [w0, w1]
         public parameters: []
         return values: [w2]
-        BRILLIG CALL func 0: inputs: [], outputs: [w3]
-        BLACKBOX::AND [w0, w1]:8 bits [w4]
-        EXPR w3 - w4 = 0
-        EXPR -w2 + w4 = 0
+        BRILLIG CALL func: 0, inputs: [], outputs: [w3]
+        BLACKBOX::AND inputs: [w0, w1], bits: 8, output: w4
+        ASSERT w3 - w4 = 0
+        ASSERT -w2 + w4 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
         let optimized_circuit = merge_expressions(circuit.clone());

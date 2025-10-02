@@ -279,7 +279,7 @@ impl Context<'_> {
         let one = self.acir_context.add_constant(FieldElement::one());
         let new_slice_length = self.acir_context.add_var(slice_length, one)?;
 
-        let slice_size = super::super::arrays::flattened_value_size(&slice);
+        let mut slice_size = super::arrays::flattened_value_size(&slice);
 
         // Fetch the flattened index from the user provided index argument.
         let element_size = slice_typ.element_size();
@@ -293,12 +293,18 @@ impl Context<'_> {
         // We need to a fully flat list of AcirVar's as a dynamic array is represented with flat memory.
         let mut inner_elem_size_usize = 0;
         let mut flattened_elements = Vec::new();
+        let mut new_value_types = Vec::new();
         for elem in elements_to_insert {
             let element = self.convert_value(*elem, dfg);
-            let elem_size = super::super::super::arrays::flattened_value_size(&element);
+            // Flatten into (AcirVar, NumericType) pairs
+            let flat_element = self.flatten(&element)?;
+            let elem_size = flat_element.len();
             inner_elem_size_usize += elem_size;
-            let mut flat_elem = element.flatten().into_iter().map(|(var, _)| var).collect();
-            flattened_elements.append(&mut flat_elem);
+            slice_size += elem_size;
+            for (var, typ) in flat_element {
+                flattened_elements.push(var);
+                new_value_types.push(typ);
+            }
         }
         let inner_elem_size = self.acir_context.add_constant(inner_elem_size_usize);
         // Set the maximum flattened index at which a new element should be inserted.
@@ -318,10 +324,10 @@ impl Context<'_> {
             let current_index = self.acir_context.add_constant(i);
 
             // Check that we are above the lower bound of the insertion index
-            let greater_eq_than_idx =
+            let is_after_insert =
                 self.acir_context.more_than_eq_var(current_index, flat_user_index, 64)?;
             // Check that we are below the upper bound of the insertion index
-            let less_than_idx =
+            let is_before_insert =
                 self.acir_context.less_than_var(current_index, max_flat_user_index, 64)?;
 
             // Read from the original slice the value we want to insert into our new slice.
@@ -335,9 +341,9 @@ impl Context<'_> {
                     self.acir_context.add_constant(i - inner_elem_size_usize);
 
                 let use_shifted_index_pred =
-                    self.acir_context.mul_var(index_minus_elem_size, greater_eq_than_idx)?;
+                    self.acir_context.mul_var(index_minus_elem_size, is_after_insert)?;
 
-                let not_pred = self.acir_context.sub_var(one, greater_eq_than_idx)?;
+                let not_pred = self.acir_context.sub_var(one, is_after_insert)?;
                 let use_current_index_pred = self.acir_context.mul_var(not_pred, current_index)?;
 
                 self.acir_context.add_var(use_shifted_index_pred, use_current_index_pred)?
@@ -348,7 +354,7 @@ impl Context<'_> {
 
             // Final predicate to determine whether we are within the insertion bounds
             let should_insert_value_pred =
-                self.acir_context.mul_var(greater_eq_than_idx, less_than_idx)?;
+                self.acir_context.mul_var(is_after_insert, is_before_insert)?;
             let insert_value_pred = self
                 .acir_context
                 .mul_var(flattened_elements[current_insert_index], should_insert_value_pred)?;
@@ -378,7 +384,9 @@ impl Context<'_> {
                 None
             };
 
-        let value_types = slice.flat_numeric_types();
+        let mut value_types = slice.flat_numeric_types();
+        // We can safely append the value types to the end as we expect the types to be the same for each element.
+        value_types.append(&mut new_value_types);
         assert_eq!(
             value_types.len(),
             slice_size,
@@ -453,7 +461,7 @@ impl Context<'_> {
         let one = self.acir_context.add_constant(FieldElement::one());
         let new_slice_length = self.acir_context.sub_var(slice_length, one)?;
 
-        let slice_size = super::super::arrays::flattened_value_size(&slice);
+        let slice_size = super::arrays::flattened_value_size(&slice);
 
         let new_slice = self.read_array(slice)?;
 
@@ -482,7 +490,7 @@ impl Context<'_> {
         for res in &result_ids[2..(2 + element_size)] {
             let element =
                 self.array_get_value(&dfg.type_of_value(*res), block_id, &mut temp_index)?;
-            let elem_size = super::super::arrays::flattened_value_size(&element);
+            let elem_size = super::arrays::flattened_value_size(&element);
             popped_elements_size += elem_size;
             popped_elements.push(element);
         }
@@ -528,7 +536,7 @@ impl Context<'_> {
 
         let new_slice_val = AcirValue::Array(new_slice);
         let element_type_sizes =
-            if super::super::arrays::array_has_constant_element_size(&slice_typ).is_none() {
+            if super::arrays::array_has_constant_element_size(&slice_typ).is_none() {
                 Some(self.init_element_type_sizes_array(
                     &slice_typ,
                     slice_contents,

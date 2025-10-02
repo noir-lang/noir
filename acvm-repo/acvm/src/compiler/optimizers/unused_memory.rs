@@ -86,7 +86,6 @@ mod tests {
     #[test]
     fn unused_memory_is_removed() {
         let src = "
-        current witness: w3
         private parameters: [w0, w1]
         public parameters: []
         return values: [w2]
@@ -119,7 +118,6 @@ mod tests {
     #[test]
     fn databus_is_not_removed() {
         let src = "
-        current witness: w3
         private parameters: [w0, w1]
         public parameters: []
         return values: [w2]
