@@ -132,7 +132,7 @@ impl Function {
             #[cfg(debug_assertions)]
             constant_folding_post_check(&context, &self.dfg);
 
-            // T deduplicate and hoist new instructions, we need rebuild the cache starting from the blocks we hoisted into, revisiting all descendants.
+            // To deduplicate and hoist new instructions, we need rebuild the cache starting from the blocks we hoisted into, revisiting all descendants.
             // Find blocks which are not dominated by anything other than themselves; these are our independent starting points.
             // Alternatively we could reduce all blocks to their common dominator.
             let blocks_to_revisit =
@@ -165,7 +165,7 @@ fn collect_blocks_not_dominated_by_others(
     dom: &mut DominatorTree,
     blocks: &BTreeSet<BasicBlockId>,
 ) -> Vec<BasicBlockId> {
-    // Equivalent to following, but avoids the O(n*n*n) complexity coming from the fact that `dominates` may walk up the tree:
+    // Equivalent to the following, but avoids the O(n*n*n) complexity coming from the fact that `dominates` may walk up the tree:
     // blocks.filter(|b| blocks.all(|a| *a == **b || !dom.dominates(*a, **b)))
     let mut has_dominator = HashSet::new();
     for block in blocks {
@@ -905,7 +905,7 @@ mod test {
         let instructions = main.dfg[main.entry_block()].instructions();
         assert_eq!(instructions.len(), 15);
 
-        // The `array_get` instructions after `enable_side_effects v1` is deduplicated
+        // The `array_get` instruction after `enable_side_effects v1` is deduplicated
         // with the one under `enable_side_effects v0` because it doesn't require a predicate,
         // but the `array_set` is not, because it does require a predicate, and the subsequent
         // `array_get` uses a different input, so it's not a duplicate of anything.
