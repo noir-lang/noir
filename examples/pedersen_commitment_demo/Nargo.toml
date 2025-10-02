@@ -1,0 +1,5 @@
+[package]
+name = "pedersen_commitment_demo"
+type = "bin"
+authors = ["Jasekeee"]
+compiler_version = ">=0.19.0"
