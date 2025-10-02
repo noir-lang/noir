@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1759408531961,
+  "lastUpdate": 1759413553869,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22916,48 +22916,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "fabd2af0f388ccd72e18136233ad087b77b0490d",
-          "message": "chore: checked_to_unchecked enhancements from audit review (#9958)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-09-23T13:49:47Z",
-          "tree_id": "f10bf94948cf2aceefa74fdd97a7bd97147ccb95",
-          "url": "https://github.com/noir-lang/noir/commit/fabd2af0f388ccd72e18136233ad087b77b0490d"
-        },
-        "date": 1758636818607,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 252086,
-            "range": "± 789",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 223499,
-            "range": "± 1708",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2783923,
-            "range": "± 1923",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25009,6 +24967,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2779486,
             "range": "± 4830",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2e78193a001642b734c77a1285a5e68634288e67",
+          "message": "fix(fuzzer): Mark DivisionByZero with different types as equivalent (#10066)",
+          "timestamp": "2025-10-02T13:32:32Z",
+          "tree_id": "5793f2083bf6b6488cdc7cbb618f9c346764d4ea",
+          "url": "https://github.com/noir-lang/noir/commit/2e78193a001642b734c77a1285a5e68634288e67"
+        },
+        "date": 1759413532709,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 252628,
+            "range": "± 464",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 223225,
+            "range": "± 3795",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2786897,
+            "range": "± 2193",
             "unit": "ns/iter"
           }
         ]
