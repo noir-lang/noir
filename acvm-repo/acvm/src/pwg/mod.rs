@@ -52,21 +52,20 @@
 //! Example:
 // Compiled ACIR for main (non-transformed):
 // func 0
-// current witness: w9
 // private parameters: [w0, w1, w2, w3, w4]
 // public parameters: []
 // return values: [w9]
-// BLACKBOX::RANGE [w0]:32 bits []
-// BLACKBOX::RANGE [w1]:32 bits []
-// BLACKBOX::RANGE [w2]:32 bits []
-// BLACKBOX::RANGE [w3]:32 bits []
-// BLACKBOX::RANGE [w4]:32 bits []
-// EXPR [ (1, w0) (-1, w1) (-1, w6) 0 ]
-// BRILLIG CALL func 0: inputs: [EXPR [ (1, w6) 0 ]], outputs: [w7]
-// EXPR [ (1, w6, w7) (1, w8) -1 ]
-// EXPR [ (1, w6, w8) 0 ]
-// EXPR [ (1, w1, w8) 0 ]
-// EXPR [ (1, w0) (-1, w2) (-1, w9) 0 ]
+// BLACKBOX::RANGE input: w0, bits: 32
+// BLACKBOX::RANGE input: w1, bits: 32
+// BLACKBOX::RANGE input: w2, bits: 32
+// BLACKBOX::RANGE input: w3, bits: 32
+// BLACKBOX::RANGE input: w4, bits: 32
+// ASSERT w0 - w1 - w6 = 0
+// BRILLIG CALL func: 0, inputs: [w6], outputs: [w7]
+// ASSERT w6*w7 + w8 - 1 = 0
+// ASSERT w6*w8 = 0
+// ASSERT w1*w8 = 0
+// ASSERT w0 - w2 - w9 = 0
 //!
 //! This ACIR program defines the 'main' function and indicates it is 'non-transformed'.
 //! Indeed, some ACIR pass can transform the ACIR program in order to apply optimisations,
@@ -81,7 +80,7 @@
 //! The first ACIR opcodes are RANGE opcodes which ensure the inputs have the expected range (as specified in the Noir source code).
 //! Solving this black-box simply means to validate that the values (from `initial_witness`) are indeed 32 bits for w0, w1, w2, w3, w4
 //! If `initial_witness` does not have values for w0, w1, w2, w3, w4, or if the values are over 32 bits, the execution will fail.
-//! The next opcode is an AssertZero opcode: EXPR [ (1, w0) (-1, w1) (-1, w6) 0 ], which indicates that `w0 - w1 - w6` should be equal to 0.
+//! The next opcode is an AssertZero opcode: ASSERT w0 - w1 - w6 = 0, which indicates that `w0 - w1 - w6` should be equal to 0.
 //! Since we know the values of `w0, w1` from `initial_witness`, we can compute `w6 = w0 + w1` so that the AssertZero is satified.
 //! Solving AssertZero means computing the unknown witness and adding the result to `initial_witness`, which now contains the value for `w6`.
 //! The next opcode is a Brillig Call where input is `w6` and output is `w7`. From the function id of the opcode, the solver will retrieve the

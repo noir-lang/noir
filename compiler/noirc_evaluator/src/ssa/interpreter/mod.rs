@@ -381,8 +381,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
     }
 
     fn lookup_bytes(&self, value_id: ValueId, instruction: &'static str) -> IResult<Vec<u8>> {
-        let array =
-            self.lookup_helper(value_id, instruction, "array or slice", Value::as_array_or_slice)?;
+        let array = self.lookup_array_or_slice(value_id, instruction)?;
         let array = array.elements.borrow();
         array
             .iter()
@@ -400,8 +399,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
     }
 
     fn lookup_vec_u32(&self, value_id: ValueId, instruction: &'static str) -> IResult<Vec<u32>> {
-        let array =
-            self.lookup_helper(value_id, instruction, "array or slice", Value::as_array_or_slice)?;
+        let array = self.lookup_array_or_slice(value_id, instruction)?;
         let array = array.elements.borrow();
         array
             .iter()
@@ -419,8 +417,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
     }
 
     fn lookup_vec_u64(&self, value_id: ValueId, instruction: &'static str) -> IResult<Vec<u64>> {
-        let array =
-            self.lookup_helper(value_id, instruction, "array or slice", Value::as_array_or_slice)?;
+        let array = self.lookup_array_or_slice(value_id, instruction)?;
         let array = array.elements.borrow();
         array
             .iter()
@@ -442,8 +439,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         value_id: ValueId,
         instruction: &'static str,
     ) -> IResult<Vec<FieldElement>> {
-        let array =
-            self.lookup_helper(value_id, instruction, "array or slice", Value::as_array_or_slice)?;
+        let array = self.lookup_array_or_slice(value_id, instruction)?;
         let array = array.elements.borrow();
         array
             .iter()
