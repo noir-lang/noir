@@ -518,7 +518,10 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
                 solver.init(init, &self.witness_map)
             }
             Opcode::MemoryOp { block_id, op } => {
-                let solver = self.block_solvers.entry(*block_id).or_default();
+                let solver = self
+                    .block_solvers
+                    .get_mut(block_id)
+                    .expect("Memory block should have been initialized before use");
                 solver.solve_memory_op(
                     op,
                     &mut self.witness_map,
