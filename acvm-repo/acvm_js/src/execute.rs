@@ -241,7 +241,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ProgramExecutor<'a, B> {
             );
 
             loop {
-                let solver_status = acvm.solve().clone();
+                let solver_status = acvm.solve();
 
                 match solver_status {
                     ACVMStatus::Solved => break,

@@ -291,7 +291,7 @@ fn execute_ssa(
         &brillig_functions,
         &[],
     );
-    let status = acvm.solve().clone();
+    let status = acvm.solve();
     if status == ACVMStatus::Solved {
         (status, output.map(|o| acvm.witness_map()[o]))
     } else {

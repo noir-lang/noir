@@ -164,7 +164,8 @@ pub enum OpcodeNotSolvable<F> {
     ExpressionHasTooManyUnknowns(Expression<F>),
 }
 
-/// Allowed to point to a specific opcode as an error's cause.
+/// Used by errors to point to a specific opcode as that error's cause
+///
 /// Some errors don't have a specific opcode associated with them, or are created without one and added later.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
 pub enum ErrorLocation {
@@ -471,11 +472,11 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
     /// 1. All opcodes have been executed successfully.
     /// 2. The circuit has been found to be unsatisfiable.
     /// 2. A Brillig [foreign call][`ForeignCallWaitInfo`] has been encountered and must be resolved.
-    pub fn solve(&mut self) -> &ACVMStatus<F> {
+    pub fn solve(&mut self) -> ACVMStatus<F> {
         while self.status == ACVMStatus::InProgress {
             self.solve_opcode();
         }
-        &self.status
+        self.status.clone()
     }
 
     fn current_opcode(&self) -> &'a Opcode<F> {
@@ -993,7 +994,7 @@ mod tests {
         let empty1 = Vec::new();
         let empty2 = Vec::new();
         let mut acvm = ACVM::new(&backend, &opcodes, initial_witness, &empty1, &empty2);
-        assert_eq!(acvm.solve(), &ACVMStatus::Solved);
+        assert_eq!(acvm.solve(), ACVMStatus::Solved);
         assert_eq!(acvm.witness_map()[&Witness(5)], FieldElement::from(0u128));
     }
 }
