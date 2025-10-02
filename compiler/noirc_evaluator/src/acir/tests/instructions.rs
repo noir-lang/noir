@@ -207,7 +207,7 @@ fn truncate_u16_to_6_bits() {
 }
 
 #[test]
-fn truncate_field_to_8_bits() {
+fn truncate_field_to_6_bits() {
     let src = "
     acir(inline) fn main f0 {
       b0(v0: Field):
