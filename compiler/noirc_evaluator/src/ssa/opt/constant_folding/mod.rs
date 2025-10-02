@@ -15,7 +15,7 @@
 //! This is the only pass which removes duplicated pure [`Instruction`]s however and so is needed when
 //! different blocks are merged, i.e. after the [`flatten_cfg`][super::flatten_cfg] pass.
 use std::{
-    collections::{BTreeMap, BTreeSet, HashSet},
+    collections::{BTreeMap, BTreeSet},
     io::Empty,
 };
 
@@ -38,6 +38,7 @@ use crate::ssa::{
     visit_once_deque::VisitOnceDeque,
 };
 use rustc_hash::FxHashMap as HashMap;
+use rustc_hash::FxHashSet as HashSet;
 
 mod interpret;
 mod result_cache;
@@ -167,7 +168,7 @@ fn collect_blocks_not_dominated_by_others(
 ) -> Vec<BasicBlockId> {
     // Equivalent to following, but avoids the O(n*n*n) complexity coming from the fact that `dominates` may walk up the tree:
     // blocks.filter(|b| blocks.all(|a| *a == **b || !dom.dominates(*a, **b)))
-    let mut has_dominator = HashSet::new();
+    let mut has_dominator = HashSet::default();
     for block in blocks {
         let mut dominator = *block;
         let mut path = vec![dominator];
