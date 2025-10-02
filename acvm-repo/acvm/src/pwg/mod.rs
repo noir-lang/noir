@@ -46,7 +46,7 @@
 // EXPR [ (1, w0) (-1, w2) (-1, w9) 0 ]
 //!
 //! This ACIR program defines the 'main' function and indicates it is 'non-transformed'.
-//! Indeed, some ACIR pass can transform the ACIR program in order to apply optimisations,
+//! Indeed, some ACIR pass can transform the ACIR program in order to apply optimizations,
 //! or to make it compatible with a specific proving system.
 //! However, ACIR execution is expected to work on any ACIR program (transformed or not).
 //! Then the program indicates the 'current witness', which is the last witness used in the program.
