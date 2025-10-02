@@ -63,18 +63,17 @@ impl InstructionResultCache {
     pub(super) fn cache(
         &mut self,
         dom: &mut DominatorTree,
-        instruction_id: InstructionId,
         instruction: Instruction,
         predicate: Option<ValueId>,
         block: BasicBlockId,
         results: Vec<ValueId>,
     ) {
-        self.0.entry(instruction).or_default().entry(predicate).or_default().cache(
-            block,
-            dom,
-            instruction_id,
-            results,
-        );
+        self.0
+            .entry(instruction)
+            .or_default()
+            .entry(predicate)
+            .or_default()
+            .cache(block, dom, results);
     }
 
     pub(super) fn remove(
@@ -160,24 +159,18 @@ impl InstructionResultCache {
 /// For more information see [`InstructionResultCache`].
 #[derive(Default, Debug)]
 pub(super) struct ResultCache {
-    result: Option<(BasicBlockId, InstructionId, Vec<ValueId>)>,
+    result: Option<(BasicBlockId, Vec<ValueId>)>,
 }
 impl ResultCache {
     /// Records that an `Instruction` in block `block` produced the result values `results`.
-    fn cache(
-        &mut self,
-        block: BasicBlockId,
-        dom: &mut DominatorTree,
-        instruction_id: InstructionId,
-        results: Vec<ValueId>,
-    ) {
+    fn cache(&mut self, block: BasicBlockId, dom: &mut DominatorTree, results: Vec<ValueId>) {
         let overwrite = match self.result {
             None => true,
-            Some((origin, _, _)) => origin != block && dom.dominates(block, origin),
+            Some((origin, _)) => origin != block && dom.dominates(block, origin),
         };
 
         if overwrite {
-            self.result = Some((block, instruction_id, results));
+            self.result = Some((block, results));
         }
     }
 
@@ -193,9 +186,9 @@ impl ResultCache {
         dom: &mut DominatorTree,
         has_side_effects: bool,
     ) -> Option<CacheResult> {
-        self.result.as_ref().and_then(|(origin, instruction_id, results)| {
+        self.result.as_ref().and_then(|(origin, results)| {
             if dom.dominates(*origin, block) {
-                Some(CacheResult::Cached { instruction_id: *instruction_id, results })
+                Some(CacheResult::Cached { results })
             } else if !has_side_effects {
                 // Insert a copy of this instruction in the common dominator
                 let dominator = dom.common_dominator(*origin, block);
@@ -213,8 +206,6 @@ pub(super) enum CacheResult<'a> {
     /// in a block that dominates the one where the current instruction is. We can drop
     /// the current instruction and redefine its results in terms of the existing values.
     Cached {
-        /// The ID of the original instruction that created the results.
-        instruction_id: InstructionId,
         /// The value IDs we can reuse.
         results: &'a [ValueId],
     },

@@ -292,9 +292,6 @@ impl Context {
             self.cached_instruction_results.get(dfg, dom, id, &instruction, predicate, block)
         {
             match cache_result {
-                CacheResult::Cached { instruction_id, .. } if instruction_id == id => {
-                    unreachable!("shouldn't revisit instructions")
-                }
                 CacheResult::Cached { results: cached, .. } => {
                     // We track whether we may mutate `MakeArray` instructions before we deduplicate
                     // them but we still need to issue an extra inc_rc in case they're mutated afterward.
@@ -355,7 +352,6 @@ impl Context {
         self.values_to_replace.batch_insert(&old_results, &new_results);
 
         self.cache_instruction(
-            id,
             &instruction,
             new_results,
             dfg,
@@ -421,7 +417,6 @@ impl Context {
     #[allow(clippy::too_many_arguments)]
     fn cache_instruction(
         &mut self,
-        instruction_id: InstructionId,
         instruction: &Instruction,
         instruction_results: Vec<ValueId>,
         dfg: &DataFlowGraph,
@@ -460,14 +455,7 @@ impl Context {
             let array_get = Instruction::ArrayGet { array: instruction_results[0], index: *index };
 
             // If we encounter an array_get for this address, we know what the result will be.
-            self.cached_instruction_results.cache(
-                dom,
-                instruction_id,
-                array_get,
-                predicate,
-                block,
-                vec![*value],
-            );
+            self.cached_instruction_results.cache(dom, array_get, predicate, block, vec![*value]);
         }
 
         self.cached_instruction_results
@@ -486,7 +474,6 @@ impl Context {
             // If we see this make_array again, we can reuse the current result.
             self.cached_instruction_results.cache(
                 dom,
-                instruction_id,
                 instruction.clone(),
                 predicate,
                 block,
