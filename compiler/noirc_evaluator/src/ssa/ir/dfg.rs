@@ -328,7 +328,7 @@ impl DataFlowGraph {
                         is.len() != 1 || is[0] != instruction
                     }
                     SimplifyResult::None => false,
-                    _ => true,
+                    _ => unreachable!("matched specific SimplifyResult types"),
                 };
                 if !is_simplified {
                     if let Some(id) = existing_id {
