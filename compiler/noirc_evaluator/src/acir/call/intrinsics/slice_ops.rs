@@ -542,7 +542,7 @@ impl Context<'_> {
         let mut value_types = slice.flat_numeric_types();
         // We can safely remove the value types based upon the popped elements size =
         // as we expect the types to be the same for each element.
-        value_types.drain(0..popped_elements_size);
+        value_types.truncate(value_types.len() - popped_elements_size);
         assert_eq!(
             value_types.len(),
             result_size,
