@@ -275,9 +275,9 @@ fn slice_remove() {
     // You can see how w1 is asserted to equal 2
     //
     // Memory block 1 is our original slice
-    // Memory block 2 is our final slice which remains three elements. You can see that it is initialized to contain the same values as b1.
-    // Two writes to b2 and two reads from b1 at the shifted indices is what we expect as we skip the removal window when reading from
-    // the initial slice input. This logic protects against OOB errors from the skipping the removal window.
+    // Memory block 2 is our final slice which is one less element than our initial slice.
+    // You can see that it is initialized to contain all zeroes. It is then written to appropriately.
+    // We expect two writes to b2 and two reads from b1 at the shifted indices as we skip the removal window when reading from the initial slice input.
     // We only expect as many writes to b2 and reads b1 as there are elements in the final slice.
     //
     // As we have marked the `array_set` as `mut` we then write directly into that slice.
@@ -296,21 +296,22 @@ fn slice_remove() {
     READ w7 = b1[1]
     READ w8 = b1[2]
     READ w9 = b1[w1]
-    INIT b2 = [w6, w7, w8]
-    READ w10 = b1[1]
-    BRILLIG CALL func: 0, inputs: [-w1 + 18446744073709551616, 18446744073709551616], outputs: [w11, w12]
-    BLACKBOX::RANGE input: w11, bits: 1
-    BLACKBOX::RANGE input: w12, bits: 64
-    ASSERT w12 = -w1 - 18446744073709551616*w11 + 18446744073709551616
-    ASSERT w13 = w10*w11 - w6*w11 + w6
-    WRITE b2[0] = w13
-    READ w14 = b1[2]
-    BRILLIG CALL func: 0, inputs: [-w1 + 18446744073709551617, 18446744073709551616], outputs: [w15, w16]
-    BLACKBOX::RANGE input: w15, bits: 1
-    BLACKBOX::RANGE input: w16, bits: 64
-    ASSERT w16 = -w1 - 18446744073709551616*w15 + 18446744073709551617
-    ASSERT w17 = w14*w15 - w7*w15 + w7
-    WRITE b2[1] = w17
+    ASSERT w10 = 0
+    INIT b2 = [w10, w10]
+    READ w11 = b1[1]
+    BRILLIG CALL func: 0, inputs: [-w1 + 18446744073709551616, 18446744073709551616], outputs: [w12, w13]
+    BLACKBOX::RANGE input: w12, bits: 1
+    BLACKBOX::RANGE input: w13, bits: 64
+    ASSERT w13 = -w1 - 18446744073709551616*w12 + 18446744073709551616
+    ASSERT w14 = w11*w12 - w6*w12 + w6
+    WRITE b2[0] = w14
+    READ w15 = b1[2]
+    BRILLIG CALL func: 0, inputs: [-w1 + 18446744073709551617, 18446744073709551616], outputs: [w16, w17]
+    BLACKBOX::RANGE input: w16, bits: 1
+    BLACKBOX::RANGE input: w17, bits: 64
+    ASSERT w17 = -w1 - 18446744073709551616*w16 + 18446744073709551617
+    ASSERT w18 = w15*w16 - w7*w16 + w7
+    WRITE b2[1] = w18
     ASSERT w1 = 2
     ASSERT w9 = w2
     WRITE b2[w0] = 20
