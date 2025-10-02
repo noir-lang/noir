@@ -12,7 +12,6 @@ use super::{
 type MemoryIndex = u32;
 
 /// Maintains the state for solving [`MemoryInit`][`acir::circuit::Opcode::MemoryInit`] and [`MemoryOp`][`acir::circuit::Opcode::MemoryOp`] opcodes.
-#[derive(Default)]
 pub(crate) struct MemoryOpSolver<F> {
     /// Known values of the memory block, based on the index
     /// This vec starts as big as it needs to, when initialized,
@@ -21,6 +20,19 @@ pub(crate) struct MemoryOpSolver<F> {
 }
 
 impl<F: AcirField> MemoryOpSolver<F> {
+    /// Creates a new MemoryOpSolver with the values given in `init`.
+    pub(crate) fn new(
+        init: &[Witness],
+        initial_witness: &WitnessMap<F>,
+    ) -> Result<Self, OpcodeResolutionError<F>> {
+        Ok(Self {
+            block_value: init
+                .iter()
+                .map(|witness| witness_to_value(initial_witness, *witness).copied())
+                .collect::<Result<Vec<_>, _>>()?,
+        })
+    }
+
     fn length(&self) -> u32 {
         self.block_value.len() as u32
     }
@@ -69,19 +81,6 @@ impl<F: AcirField> MemoryOpSolver<F> {
                 array_size: self.length(),
             },
         )
-    }
-
-    /// Set the block_value from a MemoryInit opcode
-    pub(crate) fn init(
-        &mut self,
-        init: &[Witness],
-        initial_witness: &WitnessMap<F>,
-    ) -> Result<(), OpcodeResolutionError<F>> {
-        self.block_value = init
-            .iter()
-            .map(|witness| witness_to_value(initial_witness, *witness).copied())
-            .collect::<Result<Vec<_>, _>>()?;
-        Ok(())
     }
 
     /// Update the 'block_values' by processing the provided Memory opcode
@@ -193,8 +192,7 @@ mod tests {
             MemOp::read_at_mem_index(FieldElement::one().into(), Witness(4)),
         ];
 
-        let mut block_solver = MemoryOpSolver::default();
-        block_solver.init(&init, &initial_witness).unwrap();
+        let mut block_solver = MemoryOpSolver::new(&init, &initial_witness).unwrap();
 
         for op in trace {
             block_solver
@@ -219,8 +217,7 @@ mod tests {
             MemOp::write_to_mem_index(FieldElement::from(1u128).into(), Witness(3).into()),
             MemOp::read_at_mem_index(FieldElement::from(2u128).into(), Witness(4)),
         ];
-        let mut block_solver = MemoryOpSolver::default();
-        block_solver.init(&init, &initial_witness).unwrap();
+        let mut block_solver = MemoryOpSolver::new(&init, &initial_witness).unwrap();
         let mut err = None;
         for op in invalid_trace {
             if err.is_none() {
@@ -255,8 +252,7 @@ mod tests {
             MemOp::write_to_mem_index(FieldElement::from(1u128).into(), Witness(3).into()),
             MemOp::read_at_mem_index(FieldElement::from(2u128).into(), Witness(4)),
         ];
-        let mut block_solver = MemoryOpSolver::default();
-        block_solver.init(&init, &initial_witness).unwrap();
+        let mut block_solver = MemoryOpSolver::new(&init, &initial_witness).unwrap();
         let mut err = None;
         for op in invalid_trace {
             if err.is_none() {
@@ -293,8 +289,7 @@ mod tests {
             MemOp::read_at_mem_index(FieldElement::from(0u128).into(), Witness(4)),
             MemOp::read_at_mem_index(FieldElement::from(1u128).into(), Witness(5)),
         ];
-        let mut block_solver = MemoryOpSolver::default();
-        block_solver.init(&init, &initial_witness).unwrap();
+        let mut block_solver = MemoryOpSolver::new(&init, &initial_witness).unwrap();
         let mut err = None;
         for op in invalid_trace {
             if err.is_none() {
