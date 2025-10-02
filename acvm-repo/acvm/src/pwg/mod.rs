@@ -21,7 +21,7 @@
 //!
 //! Returns: [`ACVMStatus`]
 //!
-//! Each opcode is solved independently. In general we require its inputs to be already known, i.e previoulsy solved,
+//! Each opcode is solved independently. In general we require its inputs to be already known, i.e previously solved,
 //! and the output is simply computed from the inputs, and then the output becomes 'known' for the subsequent opcodes.
 //!
 //! See [`acir::circuit::Opcode`] for more details.
