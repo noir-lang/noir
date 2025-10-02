@@ -295,8 +295,8 @@ mod tests {
                             // Stack is 2048 * 16 = 32768
                             // Three reserved registers
                             // Scratch space is 64
-                            // And a register in the global space
-                            // And a register of call data
+                            // A register in the global space
+                            // A register of call data
                             assert_eq!(value_default.to_u128(), 32837);
                             // 65605 - 32837 = 32768
                             // We have doubled the stack
@@ -304,9 +304,9 @@ mod tests {
                         } else {
                             // Three reserved registers
                             // Scratch space is 64
-                            // And a register in the global space
-                            // And a register of call data
-                            let stack_start = ReservedRegisters::len() + 1 + MAX_SCRATCH_SPACE + 1;
+                            // A register in the global space
+                            // A register of call data
+                            let stack_start = ReservedRegisters::len() + MAX_SCRATCH_SPACE + 1 + 1;
                             let max_stack_depth_bound = options.layout.max_stack_size()
                                 - options.layout.max_stack_frame_size()
                                 + stack_start;
@@ -421,8 +421,8 @@ mod tests {
                             // Stack is 2048 * 16 = 32768
                             // Three reserved registers
                             // Scratch space is 64
-                            // And a register in the global space
-                            // And a register of call data
+                            // A register in the global space
+                            // A register of call data
                             assert_eq!(value_default.to_u128(), 32837);
                             // 65605 - 32837 = 32768
                             // We have doubled the stack
@@ -430,9 +430,9 @@ mod tests {
                         } else {
                             // Three reserved registers
                             // Scratch space is 64
-                            // And a register in the global space
-                            // And a register of call data
-                            let stack_start = ReservedRegisters::len() + 1 + MAX_SCRATCH_SPACE + 1;
+                            // A register in the global space
+                            // A register of call data
+                            let stack_start = ReservedRegisters::len() + MAX_SCRATCH_SPACE + 1 + 1;
                             let max_stack_depth_bound = options.layout.max_stack_size()
                                 - options.layout.max_stack_frame_size()
                                 + stack_start;
