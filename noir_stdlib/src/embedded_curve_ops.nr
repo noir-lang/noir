@@ -193,24 +193,27 @@ pub fn embedded_curve_add(
         let double_predicate = (x_coordinates_match & y_coordinates_match);
         // If the abscissae are the same, but not the ordinates, then one point is the opposite of the other
         let infinity_predicate = (x_coordinates_match & !y_coordinates_match);
-        let point1_1 = EmbeddedCurvePoint {
-            x: point1.x + (x_coordinates_match as Field),
-            y: point1.y,
-            is_infinite: false,
-        };
-        let point2_1 = EmbeddedCurvePoint { x: point2.x, y: point2.y, is_infinite: false };
-        // point1_1 is guaranteed to have a different abscissa than point2:
-        // - if x_coordinates_match is 0, that means point1.x != point2.x, and point1_1.x = point1.x + 0
-        // - if x_coordinates_match is 1, that means point1.x = point2.x, but point1_1.x = point1.x + 1 in this case
-        // Because the abscissa is different, the addition formula is guaranteed to succeed, so we can safely use `embedded_curve_add_unsafe`
-        // Note that this computation may be garbage: if x_coordinates_match is 1, or if one of the input is the point at infinity.
-        let mut result = embedded_curve_add_unsafe(point1_1, point2_1);
 
-        // `embedded_curve_add_unsafe` is doing a doubling if the input is the same variable, because in this case it is guaranteed (at 'compile time') that the input is the same.
-        let double = embedded_curve_add_unsafe(point1, point1);
         // `embedded_curve_add_unsafe` would not perform doubling, even if the inputs point1 and point2 are the same, because it cannot know this without adding some logic (and some constraints)
         // However we did this logic when we computed `double_predicate`, so we set the result to 2*point1 if point1 and point2 are the same
-        result = if double_predicate { double } else { result };
+        let mut result = if double_predicate {
+            // `embedded_curve_add_unsafe` is doing a doubling if the input is the same variable, because in this case it is guaranteed (at 'compile time') that the input is the same.
+            embedded_curve_add_unsafe(point1, point1)
+        } else {
+            let point1_1 = EmbeddedCurvePoint {
+                x: point1.x + (x_coordinates_match as Field),
+                y: point1.y,
+                is_infinite: false,
+            };
+            let point2_1 = EmbeddedCurvePoint { x: point2.x, y: point2.y, is_infinite: false };
+            // point1_1 is guaranteed to have a different abscissa than point2:
+            // - if x_coordinates_match is 0, that means point1.x != point2.x, and point1_1.x = point1.x + 0
+            // - if x_coordinates_match is 1, that means point1.x = point2.x, but point1_1.x = point1.x + 1 in this case
+            // Because the abscissa is different, the addition formula is guaranteed to succeed, so we can safely use `embedded_curve_add_unsafe`
+            // Note that this computation may be garbage: if x_coordinates_match is 1, or if one of the input is the point at infinity.
+            // therefore we only want to do this if we need the result, otherwise it needs to be eliminated as a dead instruction, lest we want the circuit to fail.
+            embedded_curve_add_unsafe(point1_1, point2_1)
+        };
 
         // Same logic as above for unconstrained context, we set the proper result when one of the inputs is the infinity point
         if point1.is_infinite {
