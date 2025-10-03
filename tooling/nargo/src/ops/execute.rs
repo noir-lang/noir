@@ -1,9 +1,10 @@
 use acvm::acir::circuit::brillig::BrilligBytecode;
 use acvm::acir::circuit::{OpcodeLocation, Program};
 use acvm::acir::native_types::WitnessStack;
-use acvm::brillig_vm::BranchToFeatureMap;
+use acvm::brillig_vm::{BranchToFeatureMap, Memory, MemoryValue, VM};
 use acvm::pwg::{
-    ACVM, ACVMStatus, ErrorLocation, OpcodeNotSolvable, OpcodeResolutionError, ProfilingSamples,
+    ACVM, ACVMStatus, BrilligSolver, ErrorLocation, OpcodeNotSolvable, OpcodeResolutionError,
+    ProfilingSamples,
 };
 use acvm::{AcirField, BlackBoxFunctionSolver};
 type NargoErrorAndCoverage<F> = (NargoError<F>, Option<Vec<u32>>);
@@ -19,6 +20,8 @@ struct ProgramExecutor<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: Foreig
     functions: &'a [Circuit<F>],
 
     unconstrained_functions: &'a [BrilligBytecode<F>],
+
+    unconstrained_global_memory: &'a [MemoryValue<F>],
 
     // This gets built as we run through the program looking at each function call
     witness_stack: WitnessStack<F>,
@@ -62,6 +65,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
     fn new(
         functions: &'a [Circuit<F>],
         unconstrained_functions: &'a [BrilligBytecode<F>],
+        unconstrained_global_memory: &'a [MemoryValue<F>],
         blackbox_solver: &'a B,
         foreign_call_executor: &'a mut E,
         profiling_active: bool,
@@ -69,6 +73,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
         ProgramExecutor {
             functions,
             unconstrained_functions,
+            unconstrained_global_memory,
             witness_stack: WitnessStack::default(),
             blackbox_solver,
             foreign_call_executor,
@@ -110,6 +115,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
             &circuit.opcodes,
             initial_witness,
             self.unconstrained_functions,
+            self.unconstrained_global_memory,
             &circuit.assert_messages,
         );
         acvm.with_profiler(self.profiling_active);
@@ -266,9 +272,23 @@ pub(crate) fn execute_program_with_brillig_fuzzing<
     foreign_call_executor: &mut E,
     brillig_branch_to_feature_map: Option<&BranchToFeatureMap>,
 ) -> Result<WitnessAndCoverage<F>, NargoErrorAndCoverage<F>> {
+    let unconstrained_global_memory = if let Some(globals) = &program.unconstrained_global_memory {
+        let mut vm = VM::new(vec![], &globals.bytecode, &[], blackbox_solver, false, None);
+        let status = vm.process_opcodes();
+        // Any other status indicates a failure during code gen of the globals initialization byte code
+        assert!(
+            status.is_finished(),
+            "We expect no status other than success for global initialization"
+        );
+        vm.take_memory()
+    } else {
+        vec![]
+    };
+
     let mut executor = ProgramExecutor::new(
         &program.functions,
         &program.unconstrained_functions,
+        &unconstrained_global_memory,
         blackbox_solver,
         foreign_call_executor,
         false,
@@ -296,9 +316,23 @@ pub(crate) fn execute_program_with_acir_fuzzing<
     blackbox_solver: &B,
     foreign_call_executor: &mut E,
 ) -> Result<WitnessStack<F>, NargoErrorAndWitnessStack<F>> {
+    let unconstrained_global_memory = if let Some(globals) = &program.unconstrained_global_memory {
+        let mut vm = VM::new(vec![], &globals.bytecode, &[], blackbox_solver, false, None);
+        let status = vm.process_opcodes();
+        // Any other status indicates a failure during code gen of the globals initialization byte code
+        assert!(
+            status.is_finished(),
+            "We expect no status other than success for global initialization"
+        );
+        vm.take_memory()
+    } else {
+        vec![]
+    };
+
     let mut executor = ProgramExecutor::new(
         &program.functions,
         &program.unconstrained_functions,
+        &unconstrained_global_memory,
         blackbox_solver,
         foreign_call_executor,
         false,
@@ -331,9 +365,31 @@ fn execute_program_inner<F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignC
     foreign_call_executor: &mut E,
     profiling_active: bool,
 ) -> Result<(WitnessStack<F>, ProfilingSamples), NargoError<F>> {
+    let unconstrained_global_memory = if let Some(globals) = &program.unconstrained_global_memory {
+        // TODO: we can 
+        if globals.bytecode.is_empty() {
+            vec![]
+        } else {
+            let mut vm =
+                VM::new(vec![], &globals.bytecode, &[], blackbox_solver, profiling_active, None);
+            let _status = vm.process_opcodes();
+            // dbg!(status.clone());
+            // Any other status indicates a failure during code gen of the globals initialization byte code
+            // TODO: handle return opcode w/ empty call stack
+            // assert!(
+            //     status.is_finished(),
+            //     "We expect no status other than success for global initialization"
+            // );
+            vm.take_memory()
+        }
+    } else {
+        vec![]
+    };
+    // dbg!(unconstrained_global_memory.clone());
     let mut executor = ProgramExecutor::new(
         &program.functions,
         &program.unconstrained_functions,
+        &unconstrained_global_memory,
         blackbox_solver,
         foreign_call_executor,
         profiling_active,

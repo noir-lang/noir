@@ -301,27 +301,39 @@ impl<F: AcirField> TryFrom<MemoryValue<F>> for u128 {
 /// Memory is internally represented as a vector of values.
 /// We grow the memory when values past the end are set, extending with 0s.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct Memory<F> {
+pub struct Memory<'a, F> {
     // Internal memory representation
     inner: Vec<MemoryValue<F>>,
+    // Shared read-only memory, never written to or copied
+    globals: &'a [MemoryValue<F>],
 }
 
-impl<F: AcirField> Memory<F> {
+impl<'a, F: AcirField> Memory<'a, F> {
+    /// Creates a new Memory instance with read-only globals
+    pub fn with_globals(globals: &'a [MemoryValue<F>]) -> Self {
+        Self { inner: Vec::new(), globals }
+    }
+
     fn get_stack_pointer(&self) -> usize {
         self.read(MemoryAddress::Direct(0)).to_usize()
     }
 
+    /// Resolves an address for **reading**, including globals
     fn resolve(&self, address: MemoryAddress) -> usize {
         match address {
-            MemoryAddress::Direct(address) => address,
+            MemoryAddress::Direct(addr) => addr,
             MemoryAddress::Relative(offset) => self.get_stack_pointer() + offset,
+            MemoryAddress::Global(addr) => addr,
         }
     }
 
-    /// Gets the value at address
+    /// Gets the value at address (handles globals automatically)
     pub fn read(&self, address: MemoryAddress) -> MemoryValue<F> {
         let resolved_addr = self.resolve(address);
-        self.inner.get(resolved_addr).copied().unwrap_or_default()
+        match address {
+            MemoryAddress::Global(_) => self.globals[resolved_addr],
+            _ => self.inner.get(resolved_addr).copied().unwrap_or_default(),
+        }
     }
 
     pub fn read_ref(&self, ptr: MemoryAddress) -> MemoryAddress {
@@ -335,15 +347,24 @@ impl<F: AcirField> Memory<F> {
         if len == 0 {
             return &[];
         }
-        let resolved_addr = self.resolve(addr);
-        &self.inner[resolved_addr..(resolved_addr + len)]
+        match addr {
+            MemoryAddress::Global(_) => {
+                let start = self.resolve(addr);
+                // Safe because `globals` never mutates
+                &self.globals[start..(start + len)]
+            }
+            _ => {
+                let resolved_addr = self.resolve(addr);
+                &self.inner[resolved_addr..(resolved_addr + len)]
+            }
+        }
     }
 
     /// Sets the value at `address` to `value`
     pub fn write(&mut self, address: MemoryAddress, value: MemoryValue<F>) {
-        let resolved_ptr = self.resolve(address);
-        self.resize_to_fit(resolved_ptr + 1);
-        self.inner[resolved_ptr] = value;
+        let resolved = self.resolve(address);
+        self.resize_to_fit(resolved + 1);
+        self.inner[resolved] = value;
     }
 
     fn resize_to_fit(&mut self, size: usize) {
@@ -363,5 +384,10 @@ impl<F: AcirField> Memory<F> {
     /// Returns the values of the memory
     pub fn values(&self) -> &[MemoryValue<F>] {
         &self.inner
+    }
+
+    /// Takes the values of the memory
+    pub fn take_values(self) -> Vec<MemoryValue<F>> {
+        self.inner
     }
 }

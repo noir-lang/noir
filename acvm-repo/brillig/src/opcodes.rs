@@ -1,4 +1,4 @@
-use crate::black_box::BlackBoxOp;
+use crate::black_box::{self, BlackBoxOp};
 use acir_field::AcirField;
 use serde::{Deserialize, Serialize};
 
@@ -15,6 +15,8 @@ pub enum MemoryAddress {
     ///
     /// It is resolved as the current stack pointer plus the offset stored here.
     Relative(usize),
+    /// Specifies an exact index in the VM's shared read-only global memory.
+    Global(usize),
 }
 
 impl MemoryAddress {
@@ -24,18 +26,28 @@ impl MemoryAddress {
     pub fn relative(offset: usize) -> Self {
         MemoryAddress::Relative(offset)
     }
+    pub fn global(address: usize) -> Self {
+        MemoryAddress::Global(address)
+    }
 
     pub fn unwrap_direct(self) -> usize {
         match self {
             MemoryAddress::Direct(address) => address,
-            MemoryAddress::Relative(_) => panic!("Expected direct memory address"),
+            _ => panic!("Expected direct memory address"),
         }
     }
 
     pub fn unwrap_relative(self) -> usize {
         match self {
-            MemoryAddress::Direct(_) => panic!("Expected relative memory address"),
             MemoryAddress::Relative(offset) => offset,
+            _ => panic!("Expected relative memory address"),
+        }
+    }
+
+    pub fn unwrap_global(self) -> usize {
+        match self {
+            MemoryAddress::Global(address) => address,
+            _ => panic!("Expected global memory address"),
         }
     }
 
@@ -43,13 +55,14 @@ impl MemoryAddress {
         match self {
             MemoryAddress::Direct(address) => address,
             MemoryAddress::Relative(offset) => offset,
+            MemoryAddress::Global(address) => address,
         }
     }
 
     pub fn is_relative(&self) -> bool {
         match self {
             MemoryAddress::Relative(_) => true,
-            MemoryAddress::Direct(_) => false,
+            MemoryAddress::Direct(_) | MemoryAddress::Global(_) => false,
         }
     }
 
@@ -57,6 +70,7 @@ impl MemoryAddress {
         match self {
             MemoryAddress::Direct(address) => MemoryAddress::Direct(address + amount),
             MemoryAddress::Relative(offset) => MemoryAddress::Relative(offset + amount),
+            MemoryAddress::Global(address) => MemoryAddress::Global(address + amount),
         }
     }
 }
@@ -66,6 +80,7 @@ impl std::fmt::Display for MemoryAddress {
         match self {
             MemoryAddress::Direct(address) => write!(f, "@{address}"),
             MemoryAddress::Relative(offset) => write!(f, "sp[{offset}]"),
+            MemoryAddress::Global(address) => write!(f, "g{address}"),
         }
     }
 }
@@ -173,6 +188,15 @@ impl std::fmt::Display for HeapArray {
     }
 }
 
+impl HeapArray {
+    pub(super) fn map_memory_addresses(
+        &mut self,
+        mut f: impl FnMut(MemoryAddress) -> MemoryAddress,
+    ) {
+        self.pointer = f(self.pointer);
+    }
+}
+
 /// A memory-sized vector passed starting from a Brillig memory location and with a memory-held size
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy, Hash)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
@@ -184,6 +208,16 @@ pub struct HeapVector {
 impl std::fmt::Display for HeapVector {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "&[{}; {}]", self.pointer, self.size)
+    }
+}
+
+impl HeapVector {
+    pub(super) fn map_memory_addresses(
+        &mut self,
+        mut f: impl FnMut(MemoryAddress) -> MemoryAddress,
+    ) {
+        self.pointer = f(self.pointer);
+        self.size = f(self.size);
     }
 }
 
@@ -536,6 +570,92 @@ impl<F: std::fmt::Display> std::fmt::Display for BrilligOpcode<F> {
             BrilligOpcode::Stop { return_data } => {
                 write!(f, "stop {return_data}")
             }
+        }
+    }
+}
+
+impl<F> BrilligOpcode<F> {
+    /// Applies a function to all MemoryAddresses contained within this opcode.
+    pub fn map_memory_addresses(&mut self, mut f: impl FnMut(MemoryAddress) -> MemoryAddress) {
+        use BrilligOpcode::*;
+        match self {
+            BinaryFieldOp { destination, lhs, rhs, .. } => {
+                *destination = f(*destination);
+                *lhs = f(*lhs);
+                *rhs = f(*rhs);
+            }
+            BinaryIntOp { destination, lhs, rhs, .. } => {
+                *destination = f(*destination);
+                *lhs = f(*lhs);
+                *rhs = f(*rhs);
+            }
+            Not { destination, source, .. } => {
+                *destination = f(*destination);
+                *source = f(*source);
+            }
+            Cast { destination, source, .. } => {
+                *destination = f(*destination);
+                *source = f(*source);
+            }
+            JumpIf { condition, .. } => {
+                *condition = f(*condition);
+            }
+            CalldataCopy { destination_address, size_address, offset_address } => {
+                *destination_address = f(*destination_address);
+                *size_address = f(*size_address);
+                *offset_address = f(*offset_address);
+            }
+            Const { destination, .. } | IndirectConst { destination_pointer: destination, .. } => {
+                *destination = f(*destination);
+            }
+            Mov { destination, source } => {
+                *destination = f(*destination);
+                *source = f(*source);
+            }
+            ConditionalMov { destination, source_a, source_b, condition } => {
+                *destination = f(*destination);
+                *source_a = f(*source_a);
+                *source_b = f(*source_b);
+                *condition = f(*condition);
+            }
+            Load { destination, source_pointer }
+            | Store { destination_pointer: source_pointer, source: destination } => {
+                *destination = f(*destination);
+                *source_pointer = f(*source_pointer);
+            }
+            ForeignCall { destinations, inputs, .. } => {
+                for dest in destinations.iter_mut() {
+                    if let ValueOrArray::MemoryAddress(addr) = dest {
+                        *addr = f(*addr);
+                    } else if let ValueOrArray::HeapVector(vec) = dest {
+                        vec.map_memory_addresses(&mut f);
+                    } else if let ValueOrArray::HeapArray(arr) = dest {
+                        arr.map_memory_addresses(&mut f);
+                    }
+                }
+                for inp in inputs.iter_mut() {
+                    if let ValueOrArray::MemoryAddress(addr) = inp {
+                        *addr = f(*addr);
+                    } else if let ValueOrArray::HeapVector(vec) = inp {
+                        vec.map_memory_addresses(&mut f);
+                    } else if let ValueOrArray::HeapArray(arr) = inp {
+                        arr.map_memory_addresses(&mut f);
+                    }
+                }
+            }
+            Trap { revert_data } => {
+                revert_data.pointer = f(revert_data.pointer);
+                revert_data.size = f(revert_data.size);
+            }
+            Stop { return_data } => {
+                return_data.pointer = f(return_data.pointer);
+                return_data.size = f(return_data.size);
+            }
+            BlackBox(black_box) => {
+                black_box.map_memory_addresses(f);
+            }
+            // Jump, Call, Return, have no MemoryAddress to patch
+            Jump { .. } | Call { .. } | Return => {}
         }
     }
 }

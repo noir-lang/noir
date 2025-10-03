@@ -251,6 +251,7 @@ impl<F> ProtoCodec<brillig::MemoryAddress, MemoryAddress> for ProtoSchema<F> {
         let value = match value {
             brillig::MemoryAddress::Direct(addr) => Value::Direct(Self::encode(addr)),
             brillig::MemoryAddress::Relative(addr) => Value::Relative(Self::encode(addr)),
+            brillig::MemoryAddress::Global(addr) => Value::Global(Self::encode(addr)),
         };
         MemoryAddress { value: Some(value) }
     }
@@ -262,6 +263,7 @@ impl<F> ProtoCodec<brillig::MemoryAddress, MemoryAddress> for ProtoSchema<F> {
             Value::Relative(v) => {
                 Self::decode_wrap(v, "relative").map(brillig::MemoryAddress::Relative)
             }
+            Value::Global(v) => Self::decode_wrap(v, "global").map(brillig::MemoryAddress::Global),
         })
     }
 }

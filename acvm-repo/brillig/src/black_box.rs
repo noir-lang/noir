@@ -145,3 +145,69 @@ impl std::fmt::Display for BlackBoxOp {
         }
     }
 }
+
+impl BlackBoxOp {
+    pub fn map_memory_addresses(&mut self, mut f: impl FnMut(MemoryAddress) -> MemoryAddress) {
+        use BlackBoxOp::*;
+        match self {
+            AES128Encrypt { inputs, iv, key, outputs } => {
+                inputs.map_memory_addresses(&mut f);
+                iv.map_memory_addresses(&mut f);
+                key.map_memory_addresses(&mut f);
+                outputs.map_memory_addresses(&mut f);
+            }
+            Blake2s { message, output }
+            | Blake3 { message, output }
+            | Poseidon2Permutation { message, output } => {
+                message.map_memory_addresses(&mut f);
+                output.map_memory_addresses(&mut f);
+            }
+            Keccakf1600 { input, output } => {
+                input.map_memory_addresses(&mut f);
+                output.map_memory_addresses(&mut f);
+            }
+            Sha256Compression { input, hash_values, output } => {
+                input.map_memory_addresses(&mut f);
+                hash_values.map_memory_addresses(&mut f);
+                output.map_memory_addresses(&mut f);
+            }
+            EcdsaSecp256k1 { hashed_msg, public_key_x, public_key_y, signature, result }
+            | EcdsaSecp256r1 { hashed_msg, public_key_x, public_key_y, signature, result } => {
+                hashed_msg.map_memory_addresses(&mut f);
+                public_key_x.map_memory_addresses(&mut f);
+                public_key_y.map_memory_addresses(&mut f);
+                signature.map_memory_addresses(&mut f);
+                *result = f(*result);
+            }
+            MultiScalarMul { points, scalars, outputs } => {
+                points.map_memory_addresses(&mut f);
+                scalars.map_memory_addresses(&mut f);
+                outputs.map_memory_addresses(&mut f);
+            }
+            EmbeddedCurveAdd {
+                input1_x,
+                input1_y,
+                input1_infinite,
+                input2_x,
+                input2_y,
+                input2_infinite,
+                result,
+            } => {
+                *input1_x = f(*input1_x);
+                *input1_y = f(*input1_y);
+                *input1_infinite = f(*input1_infinite);
+                *input2_x = f(*input2_x);
+                *input2_y = f(*input2_y);
+                *input2_infinite = f(*input2_infinite);
+                result.map_memory_addresses(&mut f);
+            }
+            ToRadix { input, radix, output_pointer, num_limbs, output_bits } => {
+                *input = f(*input);
+                *radix = f(*radix);
+                *output_pointer = f(*output_pointer);
+                *num_limbs = f(*num_limbs);
+                *output_bits = f(*output_bits);
+            }
+        }
+    }
+}

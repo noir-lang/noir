@@ -44,13 +44,10 @@ pub(crate) fn gen_brillig_for(
     arguments: Vec<BrilligParameter>,
     brillig: &Brillig,
     options: &BrilligOptions,
+    globals_in_linear_memory: bool,
 ) -> Result<GeneratedBrillig<FieldElement>, InternalError> {
     // Create the entry point artifact
-    let globals_memory_size = brillig
-        .globals_memory_size
-        .get(&func.id())
-        .copied()
-        .expect("Should have the globals memory size specified for an entry point");
+    let globals_memory_size = brillig.globals_memory_size;
 
     let options = BrilligOptions { enable_debug_trace: false, ..*options };
 
@@ -58,7 +55,7 @@ pub(crate) fn gen_brillig_for(
         arguments,
         FunctionContext::return_values(func),
         func.id(),
-        true,
+        globals_in_linear_memory,
         globals_memory_size,
         func.name(),
         &options,
@@ -87,6 +84,11 @@ pub(crate) fn gen_brillig_for(
                 .insert(procedure_id.clone(), (previous_num_opcodes, num_opcodes - 1));
         }
     }
+
+    if globals_in_linear_memory {
+        entry_point.linearize_globals(&options.layout);
+    }
+
     // Generate the final bytecode
     Ok(entry_point.finish())
 }

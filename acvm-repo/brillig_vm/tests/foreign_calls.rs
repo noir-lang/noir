@@ -16,7 +16,7 @@ fn run_foreign_call_test<F: AcirField>(
 ) {
     let calldata: Vec<F> = vec![];
     let solver = StubbedBlackBoxSolver::default();
-    let mut vm = VM::new(calldata, opcodes, &solver, false, None);
+    let mut vm = VM::new(calldata, opcodes, &[], &solver, false, None);
 
     let status = vm.process_opcodes();
     assert_eq!(status, expected_foreign_call_status);
