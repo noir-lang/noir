@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1759512430844,
+  "lastUpdate": 1759512999273,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23165,48 +23165,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "9559138b29c554cae2caead93cfb2d1b44f7981a",
-          "message": "chore: Add `DataFlowGraph::instruction_result` for getting a known number of results (#9989)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-09-25T15:15:34Z",
-          "tree_id": "c1552b3bf9060697dfdc6017862147d1a9480a70",
-          "url": "https://github.com/noir-lang/noir/commit/9559138b29c554cae2caead93cfb2d1b44f7981a"
-        },
-        "date": 1758815167197,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 250893,
-            "range": "± 1420",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 222139,
-            "range": "± 5503",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2782698,
-            "range": "± 22250",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "88bf5402b734dfdb1d6315fe181c0a9770144ff9",
           "message": "fix(ssa): Handle OOB indexing of slice literals in `remove_unreachalbe_instructions` (#9999)",
@@ -25249,6 +25207,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2782822,
             "range": "± 5966",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "1ffaa3bd53928f170a746d87caadac2e346fc077",
+          "message": "chore: remove unused predicate from mem-op solver (#10079)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
+          "timestamp": "2025-10-03T17:15:15Z",
+          "tree_id": "f69a156b96a2c4357de6e6149de5fd69c6f0c70d",
+          "url": "https://github.com/noir-lang/noir/commit/1ffaa3bd53928f170a746d87caadac2e346fc077"
+        },
+        "date": 1759512976225,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 252234,
+            "range": "± 339",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 228895,
+            "range": "± 2577",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2791069,
+            "range": "± 1640",
             "unit": "ns/iter"
           }
         ]
