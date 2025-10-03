@@ -251,7 +251,7 @@ mod memory_layout {
                             assert_eq!(val2.to_u128(), bound2 as u128);
                         }
                     }
-                    _ => panic!("Unexpected opcode difference {:?} != {:?}", op1, op2),
+                    _ => panic!("Unexpected opcode difference {op1} != {op2}"),
                 }
             }
         }
