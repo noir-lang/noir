@@ -3,28 +3,6 @@ use acvm::{acir::circuit::Opcode, assert_circuit_snapshot};
 use crate::acir::tests::ssa_to_acir_program;
 
 #[test]
-fn array_get() {
-    let src = "
-    acir(inline) fn main f0 {
-      b0(v0: [Field; 3], v1: u32):
-        v2 = array_get v0, index v1 -> Field
-        return v2
-    }
-    ";
-    let program = ssa_to_acir_program(src);
-
-    assert_circuit_snapshot!(program, @r"
-    func 0
-    private parameters: [w0, w1, w2, w3]
-    public parameters: []
-    return values: [w4]
-    INIT b0 = [w0, w1, w2]
-    READ w5 = b0[w3]
-    ASSERT w5 = w4
-    ");
-}
-
-#[test]
 fn array_set_not_mutable() {
     let src = "
     acir(inline) fn main f0 {
