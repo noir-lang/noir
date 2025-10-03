@@ -637,7 +637,7 @@ fn constrain_not_equal() {
 
 #[test]
 fn constrain_not_equal_not_disabled_by_enable_side_effects() {
-    expect_error(
+    executes_with_no_errors(
         "
         acir(inline) fn main f0 {
           b0():
