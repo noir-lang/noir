@@ -35,7 +35,7 @@ use crate::ssa::{
     },
     opt::pure::Purity,
     ssa_gen::Ssa,
-    visit_once_deque::VisitOnceDeque,
+    visit_once_priority_queue::VisitOncePriorityQueue,
 };
 use rustc_hash::FxHashMap as HashMap;
 use rustc_hash::FxHashSet as HashSet;
@@ -122,7 +122,10 @@ impl Function {
     ) {
         let mut dom = DominatorTree::with_function(self);
         let mut context = Context::new(use_constraint_info);
-        context.block_queue.push_back(self.entry_block());
+
+        let rank = |dom: &DominatorTree, block| dom.reverse_post_order_idx(block).unwrap();
+        let entry = self.entry_block();
+        context.block_queue.push(rank(&dom, entry), entry);
 
         println!("folding function {}:", self.id());
 
@@ -134,7 +137,9 @@ impl Function {
                 for s in self.dfg[block].successors() {
                     println!("      - enqueue block {s}");
                 }
-                context.block_queue.extend(self.dfg[block].successors());
+                context
+                    .block_queue
+                    .extend(self.dfg[block].successors().map(|s| (rank(&dom, s), s)));
             }
 
             #[cfg(debug_assertions)]
@@ -159,7 +164,7 @@ impl Function {
             // For example reusing the cache could be problematic when using constraint info, as it could make the
             // original content simplify out based on its own prior assertion of a value being a constant.
             context = Context::new(use_constraint_info);
-            context.block_queue.extend(blocks_to_revisit);
+            context.block_queue.extend(blocks_to_revisit.into_iter().map(|b| (rank(&dom, b), b)));
         }
     }
 }
@@ -204,7 +209,9 @@ fn collect_blocks_not_dominated_by_others(
 
 struct Context {
     /// Keeps track of visited blocks and blocks to visit.
-    block_queue: VisitOnceDeque,
+    /// Prioritizes them based on their Reverse Post Order rank, which ensures
+    /// that we see them in a consistent order even during restarts.
+    block_queue: VisitOncePriorityQueue<u32, BasicBlockId>,
 
     /// Blocks which we hoisted instructions into. We can make another folding iteration
     /// starting from these blocks and revisiting all their descendants to:
@@ -1558,6 +1565,7 @@ mod test {
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: u1, v1: u1):
+            v3 = make_array [u8 0] : [u8; 1]
             jmpif v0 then: b1, else: b10
           b1():
             jmp b2()
@@ -1570,46 +1578,45 @@ mod test {
           b5():
             jmp b6()
           b6():
+            v8 = make_array [u8 2] : [u8; 1]
             jmpif v1 then: b7, else: b8
           b7():
-            v10 = make_array [u8 0] : [u8; 1]
-            v11 = make_array [u8 2] : [u8; 1]
+            v9 = make_array [u8 0] : [u8; 1]
             jmp b9()
           b8():
-            v9 = make_array [u8 2] : [u8; 1]
+            inc_rc v8
             jmp b9()
           b9():
             jmp b16()
           b10():
+            v5 = make_array [u8 1] : [u8; 1]
             jmpif v1 then: b11, else: b12
           b11():
-            v5 = make_array [u8 0] : [u8; 1]
-            v6 = make_array [u8 1] : [u8; 1]
+            inc_rc v3
             jmp b13()
           b12():
-            v3 = make_array [u8 1] : [u8; 1]
+            inc_rc v5
             jmp b13()
           b13():
             jmp b14()
           b14():
             jmp b15()
           b15():
-            v7 = allocate -> &mut [u8; 1]
-            store v5 at v7
+            v6 = allocate -> &mut [u8; 1]
+            store v3 at v6
             jmp b16()
           b16():
-            v12 = make_array [u8 0] : [u8; 1]
-            v13 = allocate -> &mut [u8; 1]
-            store v12 at v13
+            v10 = allocate -> &mut [u8; 1]
+            store v3 at v10
             jmp b17()
           b17():
-            inc_rc v12
+            inc_rc v3
+            v12 = make_array [u8 3] : [u8; 1]
             jmpif v1 then: b18, else: b19
           b18():
-            v16 = make_array [u8 3] : [u8; 1]
             jmp b20()
           b19():
-            v15 = make_array [u8 3] : [u8; 1]
+            inc_rc v12
             jmp b20()
           b20():
             return
