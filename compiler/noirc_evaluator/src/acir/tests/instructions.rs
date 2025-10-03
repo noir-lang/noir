@@ -150,7 +150,8 @@ fn truncate_field_to_6_bits() {
     let program = ssa_to_acir_program(src);
 
     // Truncating to 8 bits is the same as dividing by 2^6 = 64.
-    // TODO: explain what overflow we try to avoid in the rest of the opcodes
+    // There's more ACIR opcodes here compared to the u16 case as we need to ensure
+    // `q*b+r < 2^max_q_bits*2^max_rhs_bits`. See the last thing done in `euclidean_division_varz`.
     assert_circuit_snapshot!(program, @r"
     func 0
     private parameters: [w0]
