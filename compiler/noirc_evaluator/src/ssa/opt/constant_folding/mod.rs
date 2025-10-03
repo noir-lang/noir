@@ -1322,7 +1322,6 @@ mod test {
             v28 = make_array b"DEF"
             jmpif v20 then: b1, else: b2
           b1():
-            inc_rc v24
             jmp b3(v24)
           b2():
             v29 = eq v19, Field 3
@@ -1337,6 +1336,7 @@ mod test {
             v35 = eq v34, Field 2
             jmpif v35 then: b6, else: b7
           b4():
+            inc_rc v24
             jmp b8(v24)
           b5():
             v30 = eq v19, Field 4
@@ -1351,13 +1351,13 @@ mod test {
           b8(v2: [u8; 3]):
             jmp b3(v2)
           b9():
-            inc_rc v28
             jmp b10()
           b10():
             inc_rc v28
             jmp b16(v28)
           b11():
             constrain v19 == Field 5
+            inc_rc v28
             jmp b12()
           b12():
             inc_rc v28
@@ -1375,10 +1375,10 @@ mod test {
           b17(v5: [u8; 3]):
             jmp b13(v5)
           b18():
+            inc_rc v28
             jmp b20(v28)
           b19():
             constrain v34 == Field 5
-            inc_rc v28
             jmp b20(v28)
           b20(v6: [u8; 3]):
             jmp b17(v6)
@@ -1447,9 +1447,9 @@ mod test {
             v11 = make_array [u8 0] : [u8; 1]
             jmpif v0 then: b3, else: b4
           b3():
-            inc_rc v11
             jmp b5()
           b4():
+            inc_rc v11
             jmp b5()
           b5():
             v13 = unchecked_add v1, u32 1
