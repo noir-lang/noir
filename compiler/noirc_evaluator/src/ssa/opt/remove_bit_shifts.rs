@@ -252,10 +252,15 @@ impl Context<'_, '_, '_> {
             }
             NumericType::Signed { bit_size } => {
                 // Get the sign of the operand; positive signed operand will just do a division as well
-                let zero =
-                    self.numeric_constant(FieldElement::zero(), NumericType::signed(bit_size));
+                let unsigned_typ = NumericType::unsigned(bit_size);
+                let lhs_as_unsigned = self.insert_cast(lhs, unsigned_typ);
+
                 // The sign will be 0 for positive numbers and 1 for negatives, so it covers both cases.
-                let lhs_sign = self.insert_binary(lhs, BinaryOp::Lt, zero);
+                // To compute this we check if the value, as a Field, is greater or equal than the maximum
+                // value that is considered positive, that is, 2^(bit_size-1)-1: 2^(bit_size-1)-1 < lhs_as_field
+                let max_positive = (1_u128 << (bit_size - 1)) - 1;
+                let max_positive = self.numeric_constant(max_positive, unsigned_typ);
+                let lhs_sign = self.insert_binary(max_positive, BinaryOp::Lt, lhs_as_unsigned);
                 let lhs_sign_as_field = self.insert_cast(lhs_sign, NumericType::NativeField);
                 let lhs_as_field = self.insert_cast(lhs, NumericType::NativeField);
                 // For negative numbers, we prepare for the division using a wrapping addition of a + 1. Unchecked add as these are fields.
@@ -914,17 +919,18 @@ mod tests {
             assert_ssa_snapshot!(ssa, @r"
             acir(inline) fn main f0 {
               b0(v0: i32):
-                v2 = lt v0, i32 0
-                v3 = cast v2 as Field
-                v4 = cast v0 as Field
-                v5 = add v3, v4
-                v6 = truncate v5 to 32 bits, max_bit_size: 33
-                v7 = cast v6 as i32
-                v9 = div v7, i32 4
-                v10 = cast v2 as i32
-                v11 = unchecked_sub v9, v10
-                v12 = truncate v11 to 32 bits, max_bit_size: 33
-                return v12
+                v1 = cast v0 as u32
+                v3 = lt u32 2147483647, v1
+                v4 = cast v3 as Field
+                v5 = cast v0 as Field
+                v6 = add v4, v5
+                v7 = truncate v6 to 32 bits, max_bit_size: 33
+                v8 = cast v7 as i32
+                v10 = div v8, i32 4
+                v11 = cast v3 as i32
+                v12 = unchecked_sub v10, v11
+                v13 = truncate v12 to 32 bits, max_bit_size: 33
+                return v13
             }
             ");
         }
@@ -992,17 +998,18 @@ mod tests {
                 v55 = mul v54, v50
                 v56 = add v53, v55
                 v57 = cast v56 as i32
-                v59 = lt v0, i32 0
-                v60 = cast v59 as Field
-                v61 = cast v0 as Field
-                v62 = add v60, v61
-                v63 = truncate v62 to 32 bits, max_bit_size: 33
-                v64 = cast v63 as i32
-                v65 = div v64, v57
-                v66 = cast v59 as i32
-                v67 = unchecked_sub v65, v66
-                v68 = truncate v67 to 32 bits, max_bit_size: 33
-                return v68
+                v58 = cast v0 as u32
+                v60 = lt u32 2147483647, v58
+                v61 = cast v60 as Field
+                v62 = cast v0 as Field
+                v63 = add v61, v62
+                v64 = truncate v63 to 32 bits, max_bit_size: 33
+                v65 = cast v64 as i32
+                v66 = div v65, v57
+                v67 = cast v60 as i32
+                v68 = unchecked_sub v66, v67
+                v69 = truncate v68 to 32 bits, max_bit_size: 33
+                return v69
             }
             "#);
         }

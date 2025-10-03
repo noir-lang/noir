@@ -134,7 +134,7 @@ mod tests {
     use crate::{
         brillig::{
             BrilligOptions,
-            brillig_ir::{BrilligContext, artifact::Label, registers::Stack},
+            brillig_ir::{BrilligContext, LayoutConfig, artifact::Label, registers::Stack},
         },
         ssa::ir::function::FunctionId,
     };
@@ -211,6 +211,7 @@ mod tests {
             enable_debug_trace: true,
             enable_debug_assertions: true,
             enable_array_copy_counter: false,
+            layout: LayoutConfig::default(),
         };
         let mut context = BrilligContext::new("test", &options);
         context.enter_context(Label::function(FunctionId::test_new(0)));

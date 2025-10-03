@@ -304,7 +304,10 @@ impl DataFlowGraph {
             return InsertInstructionResult::InstructionRemoved;
         }
 
-        match simplify(&instruction, self, block, ctrl_typevars.clone(), call_stack) {
+        let simplify_result =
+            simplify(&instruction, self, block, ctrl_typevars.clone(), call_stack);
+
+        match simplify_result {
             SimplifyResult::SimplifiedTo(simplification) => {
                 InsertInstructionResult::SimplifiedTo(simplification)
             }
@@ -315,8 +318,19 @@ impl DataFlowGraph {
             result @ (SimplifyResult::SimplifiedToInstruction(_)
             | SimplifyResult::SimplifiedToInstructionMultiple(_)
             | SimplifyResult::None) => {
-                let instructions = result.instructions();
-                if instructions.is_none() {
+                let is_simplified = match &result {
+                    SimplifyResult::SimplifiedToInstruction(i) => {
+                        // `Binary` can simplify to itself instead of None.
+                        *i != instruction
+                    }
+                    SimplifyResult::SimplifiedToInstructionMultiple(is) => {
+                        // `Constrain` can simplify to a Multiple, with a single item of itself.
+                        is.len() != 1 || is[0] != instruction
+                    }
+                    SimplifyResult::None => false,
+                    _ => unreachable!("matched specific SimplifyResult types"),
+                };
+                if !is_simplified {
                     if let Some(id) = existing_id {
                         if self[id] == instruction {
                             // Just (re)insert into the block, no need to redefine.
@@ -328,7 +342,7 @@ impl DataFlowGraph {
                         }
                     }
                 }
-                let mut instructions = instructions.unwrap_or(vec![instruction]);
+                let mut instructions = result.instructions().unwrap_or(vec![instruction]);
                 assert!(
                     !instructions.is_empty(),
                     "`SimplifyResult::SimplifiedToInstructionMultiple` must not return empty vector"
