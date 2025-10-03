@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use acir::{
     AcirField,
     circuit::opcodes::MemOp,
@@ -14,16 +12,31 @@ use super::{
 type MemoryIndex = u32;
 
 /// Maintains the state for solving [`MemoryInit`][`acir::circuit::Opcode::MemoryInit`] and [`MemoryOp`][`acir::circuit::Opcode::MemoryOp`] opcodes.
-#[derive(Default)]
 pub(crate) struct MemoryOpSolver<F> {
     /// Known values of the memory block, based on the index
-    /// This map evolves as we process the opcodes
-    pub(super) block_value: HashMap<MemoryIndex, F>,
-    /// Length of the block, i.e the number of elements stored into the memory block.
-    pub(super) block_len: u32,
+    /// This vec starts as big as it needs to, when initialized,
+    /// then evolves as we process the opcodes.
+    pub(super) block_value: Vec<F>,
 }
 
 impl<F: AcirField> MemoryOpSolver<F> {
+    /// Creates a new MemoryOpSolver with the values given in `init`.
+    pub(crate) fn new(
+        init: &[Witness],
+        initial_witness: &WitnessMap<F>,
+    ) -> Result<Self, OpcodeResolutionError<F>> {
+        Ok(Self {
+            block_value: init
+                .iter()
+                .map(|witness| witness_to_value(initial_witness, *witness).copied())
+                .collect::<Result<Vec<_>, _>>()?,
+        })
+    }
+
+    fn len(&self) -> u32 {
+        self.block_value.len() as u32
+    }
+
     /// Convert a field element into a memory index
     /// Only 32 bits values are valid memory indices
     fn index_from_field(&self, index: F) -> Result<MemoryIndex, OpcodeResolutionError<F>> {
@@ -34,7 +47,7 @@ impl<F: AcirField> MemoryOpSolver<F> {
             Err(OpcodeResolutionError::IndexOutOfBounds {
                 opcode_location: ErrorLocation::Unresolved,
                 index,
-                array_size: self.block_len,
+                array_size: self.len(),
             })
         }
     }
@@ -46,41 +59,28 @@ impl<F: AcirField> MemoryOpSolver<F> {
         index: MemoryIndex,
         value: F,
     ) -> Result<(), OpcodeResolutionError<F>> {
-        if index >= self.block_len {
+        if index >= self.len() {
             return Err(OpcodeResolutionError::IndexOutOfBounds {
                 opcode_location: ErrorLocation::Unresolved,
                 index: F::from(u128::from(index)),
-                array_size: self.block_len,
+                array_size: self.len(),
             });
         }
-        self.block_value.insert(index, value);
+
+        self.block_value[index as usize] = value;
         Ok(())
     }
 
     /// Returns the value stored in the 'block_value' map for the provided index
     /// Returns an 'IndexOutOfBounds' error if the index is not in the map.
     fn read_memory_index(&self, index: MemoryIndex) -> Result<F, OpcodeResolutionError<F>> {
-        self.block_value.get(&index).copied().ok_or(OpcodeResolutionError::IndexOutOfBounds {
-            opcode_location: ErrorLocation::Unresolved,
-            index: F::from(u128::from(index)),
-            array_size: self.block_len,
-        })
-    }
-
-    /// Set the block_value from a MemoryInit opcode
-    pub(crate) fn init(
-        &mut self,
-        init: &[Witness],
-        initial_witness: &WitnessMap<F>,
-    ) -> Result<(), OpcodeResolutionError<F>> {
-        self.block_len = init.len() as u32;
-        for (memory_index, witness) in init.iter().enumerate() {
-            self.write_memory_index(
-                memory_index as MemoryIndex,
-                *witness_to_value(initial_witness, *witness)?,
-            )?;
-        }
-        Ok(())
+        self.block_value.get(index as usize).copied().ok_or(
+            OpcodeResolutionError::IndexOutOfBounds {
+                opcode_location: ErrorLocation::Unresolved,
+                index: F::from(u128::from(index)),
+                array_size: self.len(),
+            },
+        )
     }
 
     /// Update the 'block_values' by processing the provided Memory opcode
@@ -192,8 +192,7 @@ mod tests {
             MemOp::read_at_mem_index(FieldElement::one().into(), Witness(4)),
         ];
 
-        let mut block_solver = MemoryOpSolver::default();
-        block_solver.init(&init, &initial_witness).unwrap();
+        let mut block_solver = MemoryOpSolver::new(&init, &initial_witness).unwrap();
 
         for op in trace {
             block_solver
@@ -218,8 +217,7 @@ mod tests {
             MemOp::write_to_mem_index(FieldElement::from(1u128).into(), Witness(3).into()),
             MemOp::read_at_mem_index(FieldElement::from(2u128).into(), Witness(4)),
         ];
-        let mut block_solver = MemoryOpSolver::default();
-        block_solver.init(&init, &initial_witness).unwrap();
+        let mut block_solver = MemoryOpSolver::new(&init, &initial_witness).unwrap();
         let mut err = None;
         for op in invalid_trace {
             if err.is_none() {
@@ -240,7 +238,7 @@ mod tests {
     }
 
     #[test]
-    // TODO: to review after the serialisation changes are merged because it will remove the predicate.
+    // TODO: to review after the serialization changes are merged because it will remove the predicate.
     fn test_predicate_on_read() {
         let mut initial_witness = WitnessMap::from(BTreeMap::from_iter([
             (Witness(1), FieldElement::from(1u128)),
@@ -254,8 +252,7 @@ mod tests {
             MemOp::write_to_mem_index(FieldElement::from(1u128).into(), Witness(3).into()),
             MemOp::read_at_mem_index(FieldElement::from(2u128).into(), Witness(4)),
         ];
-        let mut block_solver = MemoryOpSolver::default();
-        block_solver.init(&init, &initial_witness).unwrap();
+        let mut block_solver = MemoryOpSolver::new(&init, &initial_witness).unwrap();
         let mut err = None;
         for op in invalid_trace {
             if err.is_none() {
@@ -277,7 +274,7 @@ mod tests {
     }
 
     #[test]
-    // TODO: to review after the serialisation changes are merged because it will remove the predicate.
+    // TODO: to review after the serialization changes are merged because it will remove the predicate.
     fn test_predicate_on_write() {
         let mut initial_witness = WitnessMap::from(BTreeMap::from_iter([
             (Witness(1), FieldElement::from(1u128)),
@@ -292,8 +289,7 @@ mod tests {
             MemOp::read_at_mem_index(FieldElement::from(0u128).into(), Witness(4)),
             MemOp::read_at_mem_index(FieldElement::from(1u128).into(), Witness(5)),
         ];
-        let mut block_solver = MemoryOpSolver::default();
-        block_solver.init(&init, &initial_witness).unwrap();
+        let mut block_solver = MemoryOpSolver::new(&init, &initial_witness).unwrap();
         let mut err = None;
         for op in invalid_trace {
             if err.is_none() {

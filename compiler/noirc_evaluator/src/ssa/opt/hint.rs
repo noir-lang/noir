@@ -7,7 +7,8 @@ mod tests {
         brillig::BrilligOptions,
         errors::RuntimeError,
         ssa::{
-            Ssa, SsaBuilder, SsaEvaluatorOptions, SsaLogging, opt::inlining::MAX_INSTRUCTIONS,
+            Ssa, SsaBuilder, SsaEvaluatorOptions, SsaLogging,
+            opt::{constant_folding, inlining},
             primary_passes,
         },
     };
@@ -23,7 +24,8 @@ mod tests {
             enable_brillig_constraints_check_lookback: false,
             skip_brillig_constraints_check: true,
             inliner_aggressiveness: 0,
-            small_function_max_instruction: MAX_INSTRUCTIONS,
+            constant_folding_max_iter: constant_folding::DEFAULT_MAX_ITER,
+            small_function_max_instruction: inlining::MAX_INSTRUCTIONS,
             max_bytecode_increase_percent: None,
             skip_passes: Default::default(),
         };
