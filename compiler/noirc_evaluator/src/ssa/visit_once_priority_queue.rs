@@ -19,6 +19,7 @@ impl<P: Ord, T: Ord + Copy> VisitOncePriorityQueue<P, T> {
         }
     }
 
+    #[allow(unused)]
     pub(crate) fn extend(&mut self, items: impl IntoIterator<Item = (P, T)>) {
         for (p, i) in items {
             self.push(p, i);
