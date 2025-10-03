@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1759511188277,
+  "lastUpdate": 1759511190470,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4968,95 +4968,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "59a0066dba69a441b517ae2776e00ac35eebcf24",
-          "message": "chore(ssa_gen): Do not generate out of bounds checks for array assignments in ACIR (#9992)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-09-25T14:44:58Z",
-          "tree_id": "c0e1ba6bb1c514a58ea73a0e6ef4b1c2a301e2ee",
-          "url": "https://github.com/noir-lang/noir/commit/59a0066dba69a441b517ae2776e00ac35eebcf24"
-        },
-        "date": 1758815160330,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.814,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.498,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.376,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 1.428,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 1.38,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1.52,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 1.516,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.562,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 22.2,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 79.42,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 1.442,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.831,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.648,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "df33c62973315386a972e45ab56333967f19258c",
           "message": "chore(ast_fuzzer): Allow passing compilation options to cvise tool (#9996)",
           "timestamp": "2025-09-25T15:05:57Z",
@@ -9781,6 +9692,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.693,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5bbec696bd059053af69b6c01180e6a8d380ae8c",
+          "message": "fix: remove generic length from ECDSA message hash in stdlib (#10043)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2025-10-03T16:25:13Z",
+          "tree_id": "9a4ee4452fbd498c458c92e9d5b396dec2a59c0c",
+          "url": "https://github.com/noir-lang/noir/commit/5bbec696bd059053af69b6c01180e6a8d380ae8c"
+        },
+        "date": 1759511165791,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.892,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.65,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.382,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 1.374,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 1.39,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1.57,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 1.43,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 191,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 188,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.476,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 17.56,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 80.84,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 1.406,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.79,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.637,
             "unit": "s"
           }
         ]
