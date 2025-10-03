@@ -314,6 +314,7 @@ pub(super) struct DebugContext<'a, B: BlackBoxFunctionSolver<FieldElement>> {
 
     circuits: &'a [Circuit<FieldElement>],
     unconstrained_functions: &'a [BrilligBytecode<FieldElement>],
+    unconstrained_globals_memory: &'a [MemoryValue<FieldElement>],
 
     acir_opcode_addresses: AddressMap,
     initial_witness: WitnessMap<FieldElement>,
@@ -333,6 +334,8 @@ fn initialize_acvm<'a, B: BlackBoxFunctionSolver<FieldElement>>(
         &initial_circuit.opcodes,
         initial_witness,
         unconstrained_functions,
+        // TODO: unconstrained_globals_memory
+        &[],
         &initial_circuit.assert_messages,
     )
 }
@@ -361,6 +364,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
             source_to_locations: source_to_opcodes,
             circuits,
             unconstrained_functions,
+            unconstrained_globals_memory: &[],
             acir_opcode_addresses,
             initial_witness: initial_witness.clone(), // we keep it so the context can restart itself
             acvm: initialize_acvm(
@@ -683,6 +687,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
             &callee_circuit.opcodes,
             callee_witness_map,
             self.unconstrained_functions,
+            self.unconstrained_globals_memory,
             &callee_circuit.assert_messages,
         );
         let caller_acvm = std::mem::replace(&mut self.acvm, callee_acvm);

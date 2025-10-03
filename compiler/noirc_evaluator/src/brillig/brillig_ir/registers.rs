@@ -280,17 +280,18 @@ pub(crate) struct GlobalSpace {
 
 impl GlobalSpace {
     pub(crate) fn new(layout: LayoutConfig) -> Self {
-        let start = Self::start_with_layout(&layout);
+        // Global memory is its own distinct memory regions
+        let start = 0;
         Self { storage: DeallocationListAllocator::new(start), max_memory_address: start, layout }
     }
 
     fn is_within_bounds(&self, register: MemoryAddress) -> bool {
-        let index = register.unwrap_direct();
+        let index = register.unwrap_global();
         index >= self.start()
     }
 
     fn update_max_address(&mut self, register: MemoryAddress) {
-        let index = register.unwrap_direct();
+        let index = register.unwrap_global();
         assert!(index >= self.start(), "Global space malformed");
         if index > self.max_memory_address {
             self.max_memory_address = index;
@@ -309,7 +310,7 @@ impl GlobalSpace {
 
 impl RegisterAllocator for GlobalSpace {
     fn start(&self) -> usize {
-        Self::start_with_layout(&self.layout)
+        0
     }
 
     fn end(&self) -> usize {
@@ -317,18 +318,18 @@ impl RegisterAllocator for GlobalSpace {
     }
 
     fn allocate_register(&mut self) -> MemoryAddress {
-        let allocated = MemoryAddress::direct(self.storage.allocate_register());
+        let allocated = MemoryAddress::global(self.storage.allocate_register());
         self.update_max_address(allocated);
         allocated
     }
 
     fn deallocate_register(&mut self, register_index: MemoryAddress) {
-        self.storage.deallocate_register(register_index.unwrap_direct());
+        self.storage.deallocate_register(register_index.unwrap_global());
     }
 
     fn ensure_register_is_allocated(&mut self, register: MemoryAddress) {
         self.update_max_address(register);
-        self.storage.ensure_register_is_allocated(register.unwrap_direct());
+        self.storage.ensure_register_is_allocated(register.unwrap_global());
     }
 
     fn from_preallocated_registers(
@@ -343,7 +344,7 @@ impl RegisterAllocator for GlobalSpace {
         Self {
             storage: DeallocationListAllocator::from_preallocated_registers(
                 mock.start(),
-                vecmap(preallocated_registers, |r| r.unwrap_direct()),
+                vecmap(preallocated_registers, |r| r.unwrap_global()),
             ),
             max_memory_address: mock.start(),
             layout,
@@ -351,7 +352,7 @@ impl RegisterAllocator for GlobalSpace {
     }
 
     fn empty_registers_start(&self) -> MemoryAddress {
-        MemoryAddress::direct(self.storage.empty_registers_start(self.start()))
+        MemoryAddress::global(self.storage.empty_registers_start(self.start()))
     }
 
     fn layout(&self) -> LayoutConfig {

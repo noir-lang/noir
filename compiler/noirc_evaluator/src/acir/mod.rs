@@ -275,8 +275,13 @@ impl<'a> Context<'a> {
         let outputs: Vec<AcirType> =
             vecmap(returns, |result_id| dfg.type_of_value(*result_id).into());
 
-        let code =
-            gen_brillig_for(main_func, arguments.clone(), self.brillig, self.brillig_options)?;
+        let code = gen_brillig_for(
+            main_func,
+            arguments.clone(),
+            self.brillig,
+            self.brillig_options,
+            true,
+        )?;
 
         // We specifically do not attempt execution of the brillig code being generated as this can result in it being
         // replaced with constraints on witnesses to the program outputs.

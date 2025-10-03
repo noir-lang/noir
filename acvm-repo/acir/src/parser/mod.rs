@@ -150,7 +150,7 @@ impl<'a> Parser<'a> {
 
         // We don't support parsing unconstrained Brillig bytecode blocks
         let unconstrained_functions = Vec::new();
-        Ok(Program { functions, unconstrained_functions })
+        Ok(Program { functions, unconstrained_functions, unconstrained_global_memory: None })
     }
 
     pub(crate) fn parse_circuit(&mut self) -> ParseResult<Circuit<FieldElement>> {

@@ -40,6 +40,7 @@ fn sample_program(num_opcodes: usize) -> Program<FieldElement> {
             assert_messages: Vec::new(),
         }],
         unconstrained_functions: Vec::new(),
+        unconstrained_global_memory: None,
     }
 }
 

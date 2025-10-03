@@ -20,10 +20,15 @@ impl SsaProgramArtifact {
     pub fn new(
         functions: Vec<SsaCircuitArtifact>,
         unconstrained_functions: Vec<BrilligBytecode<FieldElement>>,
+        unconstrained_global_memory: Option<BrilligBytecode<FieldElement>>,
         error_types: BTreeMap<ErrorSelector, ErrorType>,
         warnings: Vec<SsaReport>,
     ) -> Self {
-        let program = Program { functions: Vec::default(), unconstrained_functions };
+        let program = Program {
+            functions: Vec::default(),
+            unconstrained_functions,
+            unconstrained_global_memory,
+        };
         let mut this = Self { program, debug: Vec::default(), warnings, error_types };
 
         for function in functions {

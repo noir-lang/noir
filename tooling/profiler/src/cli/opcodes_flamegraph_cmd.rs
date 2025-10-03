@@ -267,6 +267,7 @@ mod tests {
                         bytecode: Vec::default(),
                     },
                 ],
+                unconstrained_global_memory: None,
             },
             debug_symbols: ProgramDebugInfo { debug_infos: vec![DebugInfo::default()] },
             file_map: BTreeMap::default(),

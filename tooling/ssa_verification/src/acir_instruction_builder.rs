@@ -250,7 +250,7 @@ fn ssa_to_acir_program(ssa: Ssa) -> AcirProgram<FieldElement> {
         enable_brillig_constraints_check_lookback: false,
         skip_passes: vec![],
     };
-    let (acir_functions, brillig, _) = match optimize_ssa_builder_into_acir(
+    let (acir_functions, brillig, globals, _) = match optimize_ssa_builder_into_acir(
         builder,
         &ssa_evaluator_options,
         &primary_passes(&ssa_evaluator_options),
@@ -276,7 +276,11 @@ fn ssa_to_acir_program(ssa: Ssa) -> AcirProgram<FieldElement> {
         };
         functions.push(circuit);
     }
-    AcirProgram { functions, unconstrained_functions: brillig }
+    AcirProgram {
+        functions,
+        unconstrained_functions: brillig,
+        unconstrained_global_memory: globals,
+    }
 }
 
 /// Creates an SSA function for binary operations

@@ -34,6 +34,7 @@ impl DebugToString for MemoryAddress {
             match self {
                 MemoryAddress::Direct(address) => format!("M{address}"),
                 MemoryAddress::Relative(offset) => format!("S{offset}"),
+                MemoryAddress::Global(address) => format!("G{address}"),
             }
         }
     }

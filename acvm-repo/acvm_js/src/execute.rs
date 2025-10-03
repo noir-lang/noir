@@ -237,6 +237,8 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ProgramExecutor<'a, B> {
                 &circuit.opcodes,
                 initial_witness,
                 self.unconstrained_functions,
+                // TODO: use global memory here
+                &[],
                 &circuit.assert_messages,
             );
 
