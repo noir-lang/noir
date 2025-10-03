@@ -111,6 +111,7 @@ impl std::fmt::Display for ProcedureId {
 pub(crate) fn compile_procedure<F: AcirField + DebugToString>(
     procedure_id: ProcedureId,
     options: &BrilligOptions,
+    stack_start: usize,
 ) -> BrilligArtifact<F> {
     let mut brillig_context = BrilligContext::new_for_procedure(procedure_id.clone(), options);
     brillig_context.enter_context(Label::procedure(procedure_id.clone()));
@@ -134,7 +135,7 @@ pub(crate) fn compile_procedure<F: AcirField + DebugToString>(
         }
         ProcedureId::VectorRemove => compile_vector_remove_procedure(&mut brillig_context),
         ProcedureId::CheckMaxStackDepth => {
-            compile_check_max_stack_depth_procedure(&mut brillig_context);
+            compile_check_max_stack_depth_procedure(&mut brillig_context, stack_start);
         }
         ProcedureId::RevertWithString(revert_string) => {
             compile_revert_with_string_procedure(&mut brillig_context, revert_string);
