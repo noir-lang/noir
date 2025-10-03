@@ -30,6 +30,7 @@ impl<P: Ord, T: Ord + Copy> VisitOncePriorityQueue<P, T> {
         if self.visited.insert(item) { Some(item) } else { self.pop_front() }
     }
 
+    #[allow(unused)]
     pub(crate) fn pop_back(&mut self) -> Option<T> {
         let (_, item) = self.queue.pop_last()?;
         if self.visited.insert(item) { Some(item) } else { self.pop_back() }
