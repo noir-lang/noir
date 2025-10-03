@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1759510098461,
+  "lastUpdate": 1759510215880,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23126,48 +23126,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "59a0066dba69a441b517ae2776e00ac35eebcf24",
-          "message": "chore(ssa_gen): Do not generate out of bounds checks for array assignments in ACIR (#9992)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-09-25T14:44:58Z",
-          "tree_id": "c0e1ba6bb1c514a58ea73a0e6ef4b1c2a301e2ee",
-          "url": "https://github.com/noir-lang/noir/commit/59a0066dba69a441b517ae2776e00ac35eebcf24"
-        },
-        "date": 1758813681176,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 252546,
-            "range": "± 370",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 223768,
-            "range": "± 6365",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2780180,
-            "range": "± 1911",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "df33c62973315386a972e45ab56333967f19258c",
           "message": "chore(ast_fuzzer): Allow passing compilation options to cvise tool (#9996)",
           "timestamp": "2025-09-25T15:05:57Z",
@@ -25209,6 +25167,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2820773,
             "range": "± 4754",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5bbec696bd059053af69b6c01180e6a8d380ae8c",
+          "message": "fix: remove generic length from ECDSA message hash in stdlib (#10043)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2025-10-03T16:25:13Z",
+          "tree_id": "9a4ee4452fbd498c458c92e9d5b396dec2a59c0c",
+          "url": "https://github.com/noir-lang/noir/commit/5bbec696bd059053af69b6c01180e6a8d380ae8c"
+        },
+        "date": 1759510193942,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 265832,
+            "range": "± 1095",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 233542,
+            "range": "± 4925",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2794000,
+            "range": "± 10448",
             "unit": "ns/iter"
           }
         ]
