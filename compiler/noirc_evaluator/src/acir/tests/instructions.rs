@@ -150,8 +150,19 @@ fn truncate_field_to_6_bits() {
     let program = ssa_to_acir_program(src);
 
     // Truncating to 8 bits is the same as dividing by 2^6 = 64.
+    //
     // There's more ACIR opcodes here compared to the u16 case as we need to ensure
-    // `q*b+r < 2^max_q_bits*2^max_rhs_bits`. See the final check done in `euclidean_division_var`.
+    // `q*b+r < 2^max_q_bits*2^max_rhs_bits`.
+    //
+    // Refer to the final check done in `euclidean_division_var`.
+    //
+    // Starting from `BLACKBOX::RANGE input: w4, bits: 248` and up to `ASSERT 0 = -w2*w6 + ...`
+    // is a set up to check that `q = q0`.
+    //
+    // `ASSERT w7 = w3*w6` and the following range check is the actual binding of the remainder
+    // with `bound_constraint_with_offset`.
+    //
+    // The last opcode is the generation of the return witness.
     assert_circuit_snapshot!(program, @r"
     func 0
     private parameters: [w0]
