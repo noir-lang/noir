@@ -33,7 +33,7 @@ impl<F: AcirField> MemoryOpSolver<F> {
         })
     }
 
-    fn length(&self) -> u32 {
+    fn len(&self) -> u32 {
         self.block_value.len() as u32
     }
 
@@ -47,7 +47,7 @@ impl<F: AcirField> MemoryOpSolver<F> {
             Err(OpcodeResolutionError::IndexOutOfBounds {
                 opcode_location: ErrorLocation::Unresolved,
                 index,
-                array_size: self.length(),
+                array_size: self.len(),
             })
         }
     }
@@ -59,11 +59,11 @@ impl<F: AcirField> MemoryOpSolver<F> {
         index: MemoryIndex,
         value: F,
     ) -> Result<(), OpcodeResolutionError<F>> {
-        if index >= self.length() {
+        if index >= self.len() {
             return Err(OpcodeResolutionError::IndexOutOfBounds {
                 opcode_location: ErrorLocation::Unresolved,
                 index: F::from(u128::from(index)),
-                array_size: self.length(),
+                array_size: self.len(),
             });
         }
 
@@ -78,7 +78,7 @@ impl<F: AcirField> MemoryOpSolver<F> {
             OpcodeResolutionError::IndexOutOfBounds {
                 opcode_location: ErrorLocation::Unresolved,
                 index: F::from(u128::from(index)),
-                array_size: self.length(),
+                array_size: self.len(),
             },
         )
     }
