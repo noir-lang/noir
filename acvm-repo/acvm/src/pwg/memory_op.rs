@@ -84,7 +84,7 @@ impl<F: AcirField> MemoryOpSolver<F> {
     /// Update the 'block_values' by processing the provided Memory opcode
     /// The opcode 'op' contains the index and value of the operation and the type
     /// of the operation.
-    /// They are all stored as an [Expression]
+    /// They are all stored as an [acir::native_types::Expression]
     /// The type of 'operation' is '0' for a read and '1' for a write. It must be a constant
     /// expression.
     /// Index is not required to be constant but it must reduce to a known value
