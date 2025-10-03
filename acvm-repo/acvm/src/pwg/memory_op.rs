@@ -238,7 +238,7 @@ mod tests {
     }
 
     #[test]
-    // TODO: to review after the serialisation changes are merged because it will remove the predicate.
+    // TODO: to review after the serialization changes are merged because it will remove the predicate.
     fn test_predicate_on_read() {
         let mut initial_witness = WitnessMap::from(BTreeMap::from_iter([
             (Witness(1), FieldElement::from(1u128)),
@@ -274,7 +274,7 @@ mod tests {
     }
 
     #[test]
-    // TODO: to review after the serialisation changes are merged because it will remove the predicate.
+    // TODO: to review after the serialization changes are merged because it will remove the predicate.
     fn test_predicate_on_write() {
         let mut initial_witness = WitnessMap::from(BTreeMap::from_iter([
             (Witness(1), FieldElement::from(1u128)),

@@ -20,17 +20,17 @@
 //!  - `assertion_payloads`: additional information used to provide feedback to the user when an assertion fails.
 //!
 //! Returns: ACVM Status
-//! - `Solved`: all witness have been sucessfully computed, execution is complete.
+//! - `Solved`: all witness have been successfully computed, execution is complete.
 //! - `InProgress`: The ACVM is processing the circuit, i.e solving the opcodes. This status is used to resume execution after it has been paused.
 //! - `Failure(OpcodeResolutionError<F>)`: Error, execution is stopped.
 //! - `RequiresForeignCall(ForeignCallWaitInfo<F>)`: Execution is paused until the result of a foreign call is provided
 //! - `RequiresAcirCall(AcirCallWaitInfo<F>)`: Execution is paused until the result of an ACIR call is provided
 //!
-//! Each opcode is solved independently. In general we require its inputs to be already known, i.e previoulsy solved,
+//! Each opcode is solved independently. In general we require its inputs to be already known, i.e previously solved,
 //! and the output is simply computed from the inputs, and then the output becomes 'known' for the subsequent opcodes.
 //!
-//! - AssertZero opcode: The arithmetic expression of the opcode is solved for one unknwon witness.
-//!   It will fail if there is more than one unkwnown witness in the expression.
+//! - AssertZero opcode: The arithmetic expression of the opcode is solved for one unknown witness.
+//!   It will fail if there is more than one unknown witness in the expression.
 //!
 //! - BlackBoxFuncCall opcode: The blackbox module knows how to compute the result of the function when all its input are known.
 //!
@@ -68,7 +68,7 @@
 // ASSERT w0 - w2 - w9 = 0
 //!
 //! This ACIR program defines the 'main' function and indicates it is 'non-transformed'.
-//! Indeed, some ACIR pass can transform the ACIR program in order to apply optimisations,
+//! Indeed, some ACIR pass can transform the ACIR program in order to apply optimizations,
 //! or to make it compatible with a specific proving system.
 //! However, ACIR execution is expected to work on any ACIR program (transformed or not).
 //! Then the program indicates the 'current witness', which is the lasted witness used in the program.
@@ -81,13 +81,13 @@
 //! Solving this black-box simply means to validate that the values (from `initial_witness`) are indeed 32 bits for w0, w1, w2, w3, w4
 //! If `initial_witness` does not have values for w0, w1, w2, w3, w4, or if the values are over 32 bits, the execution will fail.
 //! The next opcode is an AssertZero opcode: ASSERT w0 - w1 - w6 = 0, which indicates that `w0 - w1 - w6` should be equal to 0.
-//! Since we know the values of `w0, w1` from `initial_witness`, we can compute `w6 = w0 + w1` so that the AssertZero is satified.
+//! Since we know the values of `w0, w1` from `initial_witness`, we can compute `w6 = w0 + w1` so that the AssertZero is satisfied.
 //! Solving AssertZero means computing the unknown witness and adding the result to `initial_witness`, which now contains the value for `w6`.
 //! The next opcode is a Brillig Call where input is `w6` and output is `w7`. From the function id of the opcode, the solver will retrieve the
 //! corresponding Brillig bytecode and instantiate a Brillig VM with the value of the input. This value was just computed before.
 //! Executing the Brillig VM on this input will give us the output which is the value for `w7`, that we add to `initial_witness`.
 //! The next opcode is again an AssertZero: `w6 * w7 + w8 - 1 = 0`, which computes the value of `w8`.
-//! The two next opcode are AssertZero without any unkwown witness: `w6 * w8 = 0` and `w1 * w8 = 0`
+//! The two next opcode are AssertZero without any unknown witness: `w6 * w8 = 0` and `w1 * w8 = 0`
 //! Solving such opcodes means that we compute `w6 * w8 ` and `w1 * w8` using the known values, and check that it is 0.
 //! If not, we would return an error.
 //! Finally, the last AssertZero computes `w9` which is the last witness. All the witness have now been computed; execution is complete.
