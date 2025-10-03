@@ -128,7 +128,6 @@ fn multiple_brillig_stdlib_calls() {
         return
     }";
     let (program, debug) = ssa_to_acir_program_with_debug_info(src);
-    println!("{program}");
 
     // We expect two brillig functions:
     //   - Quotient (shared between both divisions)

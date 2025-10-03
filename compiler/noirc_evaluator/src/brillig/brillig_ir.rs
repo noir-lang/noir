@@ -103,7 +103,7 @@ pub(crate) struct BrilligContext<F, Registers> {
 
     globals_memory_size: Option<usize>,
 
-    /// Memory layout information
+    /// Memory layout information. See [self::registers] for more information about the memory layout.
     layout: LayoutConfig,
 }
 

@@ -189,7 +189,7 @@ impl Ssa {
 }
 
 #[cfg(test)]
-mod tests {
+mod memory_layout {
     use acvm::{AcirField, acir::brillig::Opcode};
 
     use crate::{
@@ -205,136 +205,82 @@ mod tests {
         ssa::ssa_gen::Ssa,
     };
 
-    #[test]
-    fn same_program_bytecode_with_different_stack_frame_size() {
-        let src = r#"
-        brillig(inline) predicate_pure fn main f0 {
-          b0(v0: u32):
-            v7 = make_array [u32 1, u32 2, u32 3, u32 4, u32 5] : [u32; 5]
-            v8 = allocate -> &mut [u32; 5]
-            store v7 at v8
-            v9 = lt v0, u32 5
-            jmp b1(u32 0)
-          b1(v1: u32):
-            v11 = lt v1, u32 5
-            jmpif v11 then: b2, else: b3
-          b2():
-            v15 = load v8 -> [u32; 5]
-            constrain v9 == u1 1, "Index out of bounds"
-            v16 = array_set v15, index v0, value v1
-            store v16 at v8
-            v17 = unchecked_add v1, u32 1
-            jmp b1(v17)
-          b3():
-            v12 = load v8 -> [u32; 5]
-            constrain v9 == u1 1, "Index out of bounds"
-            v14 = array_get v12, index v0 -> u32
-            constrain v14 == u32 4
-            return
-        }
-        "#;
-        let ssa = Ssa::from_str(src).unwrap();
-        let main = ssa.main();
-        let options = BrilligOptions::default();
-        let brillig_default_mem_layout = ssa.to_brillig(&options);
+    fn assert_equivalent_bytecode<F: AcirField>(
+        bytecode1: &[Opcode<F>],
+        bytecode2: &[Opcode<F>],
+        options1: &BrilligOptions,
+        options2: &BrilligOptions,
+    ) {
+        assert_eq!(bytecode1.len(), bytecode2.len());
 
-        let layout = LayoutConfig::new(4096, NUM_STACK_FRAMES, MAX_SCRATCH_SPACE);
-        let stack_frame_4096_options = BrilligOptions { layout, ..Default::default() };
-        let brillig_4096_stack_frame = ssa.to_brillig(&stack_frame_4096_options);
+        // Offset where stack starts
+        // This assumes the same SSA where we have a single global register and a single call data argument.
+        let stack_start = ReservedRegisters::len() + MAX_SCRATCH_SPACE + 1 + 1;
 
-        let byte_code_default =
-            &brillig_default_mem_layout.ssa_function_to_brillig[&ssa.main_id].byte_code;
-        let byte_code_4096_stack_frame =
-            &brillig_4096_stack_frame.ssa_function_to_brillig[&ssa.main_id].byte_code;
-
-        assert_eq!(byte_code_default.len(), byte_code_4096_stack_frame.len());
-        // We could assert on the byte code vectors directly but if this test were to fail we want to see the exact opcodes that differ
-        for (opcode_default, opcode_4096) in
-            byte_code_default.iter().zip(byte_code_4096_stack_frame)
-        {
-            assert_eq!(opcode_default, opcode_4096);
-        }
-
-        // Now let's check the final entry point instead of just the individual Brillig artifact
-        let arguments = vec![BrilligParameter::SingleAddr(32)];
-        let default_mem_layout_entry_point =
-            gen_brillig_for(main, arguments, &brillig_default_mem_layout, &options).unwrap();
-
-        let arguments = vec![BrilligParameter::SingleAddr(32)];
-        let stack_frame_4096_entry_point =
-            gen_brillig_for(main, arguments, &brillig_4096_stack_frame, &stack_frame_4096_options)
-                .unwrap();
-
-        let byte_code_default = &default_mem_layout_entry_point.byte_code;
-        let byte_code_4096_stack_frame = &stack_frame_4096_entry_point.byte_code;
-
-        assert_eq!(byte_code_default.len(), byte_code_4096_stack_frame.len());
-        // We could assert on the byte code vectors directly but if this test were to fail we want to see the exact opcodes that differ
-        for (opcode_default, opcode_4096) in
-            byte_code_default.iter().zip(byte_code_4096_stack_frame)
-        {
-            if opcode_default != opcode_4096 {
-                match (opcode_default, opcode_4096) {
+        for (op1, op2) in bytecode1.iter().zip(bytecode2) {
+            if op1 != op2 {
+                match (op1, op2) {
+                    // All opcodes are expected to be stable across memory layouts except for a few that rely
+                    // on the max stack size and stack frame size (e.g., setting of the `free_memory_pointer` and stack bounds checks).
                     (
-                        Opcode::Const {
-                            destination: dest_default,
-                            bit_size: bit_size_default,
-                            value: value_default,
-                        },
-                        Opcode::Const {
-                            destination: dest_4096,
-                            bit_size: bit_size_4096,
-                            value: value_4096,
-                        },
+                        Opcode::Const { destination: dest1, bit_size: bits1, value: val1 },
+                        Opcode::Const { destination: dest2, bit_size: bits2, value: val2 },
                     ) => {
-                        assert_eq!(dest_default, dest_4096);
-                        assert_eq!(bit_size_default, bit_size_4096);
-                        // The heap starts at the end of the stack and is thus affected by a change in the stack size.
-                        // The only other opcodes which have constants dependent upon the stack size are those laid down by the `CheckMaxStackDepth` procedure.
-                        if *dest_default == ReservedRegisters::free_memory_pointer() {
-                            // Stack is 2048 * 16 = 32768
-                            // Three reserved registers
-                            // Scratch space is 64
-                            // A register in the global space
-                            // A register of call data
-                            assert_eq!(value_default.to_u128(), 32837);
-                            // 65605 - 32837 = 32768
-                            // We have doubled the stack
-                            assert_eq!(value_4096.to_u128(), 65605);
+                        assert_eq!(dest1, dest2);
+                        assert_eq!(bits1, bits2);
+
+                        if *dest1 == ReservedRegisters::free_memory_pointer() {
+                            // free_memory_pointer depends on max_stack_size + stack_start
+                            // This is where the heap begins.
+                            let expected1 = options1.layout.max_stack_size() + stack_start;
+                            let expected2 = options2.layout.max_stack_size() + stack_start;
+
+                            assert_eq!(val1.to_u128(), expected1 as u128);
+                            assert_eq!(val2.to_u128(), expected2 as u128);
                         } else {
-                            // Three reserved registers
-                            // Scratch space is 64
-                            // A register in the global space
-                            // A register of call data
-                            let stack_start = ReservedRegisters::len() + MAX_SCRATCH_SPACE + 1 + 1;
-                            let max_stack_depth_bound = options.layout.max_stack_size()
-                                - options.layout.max_stack_frame_size()
+                            // Stack depth bound check
+                            // This is done by the CheckMaxStackDepth procedure
+                            let bound1 = options1.layout.max_stack_size()
+                                - options1.layout.max_stack_frame_size()
                                 + stack_start;
-                            assert_eq!(
-                                value_default.to_u128(),
-                                max_stack_depth_bound.try_into().unwrap()
-                            );
-                            let max_stack_depth_bound =
-                                stack_frame_4096_options.layout.max_stack_size()
-                                    - stack_frame_4096_options.layout.max_stack_frame_size()
-                                    + stack_start;
-                            assert_eq!(
-                                value_4096.to_u128(),
-                                max_stack_depth_bound.try_into().unwrap()
-                            );
+                            let bound2 = options2.layout.max_stack_size()
+                                - options2.layout.max_stack_frame_size()
+                                + stack_start;
+
+                            assert_eq!(val1.to_u128(), bound1 as u128);
+                            assert_eq!(val2.to_u128(), bound2 as u128);
                         }
                     }
-                    _ => panic!(
-                        "We only expect the setting of the free memory pointer to differ as the stack has grown"
-                    ),
+                    _ => panic!("Unexpected opcode difference {:?} != {:?}", op1, op2),
                 }
             }
         }
     }
 
-    #[test]
-    fn same_program_with_different_num_stack_frames() {
-        let src = r#"
+    fn compiles_to_equivalent_bytecode(
+        ssa: &Ssa,
+        options1: BrilligOptions,
+        options2: BrilligOptions,
+    ) {
+        let main = ssa.main();
+
+        let brillig1 = ssa.to_brillig(&options1);
+        let brillig2 = ssa.to_brillig(&options2);
+
+        // SSA function level comparison
+        let code1 = &brillig1.ssa_function_to_brillig[&ssa.main_id].byte_code;
+        let code2 = &brillig2.ssa_function_to_brillig[&ssa.main_id].byte_code;
+        assert_equivalent_bytecode(code1, code2, &options1, &options2);
+
+        // Entry point level comparison
+        let args = vec![BrilligParameter::SingleAddr(32)];
+        let entry1 = gen_brillig_for(main, args.clone(), &brillig1, &options1).unwrap();
+        let entry2 = gen_brillig_for(main, args, &brillig2, &options2).unwrap();
+
+        assert_equivalent_bytecode(&entry1.byte_code, &entry2.byte_code, &options1, &options2);
+    }
+
+    const SRC: &str = r#"
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: u32):
             v7 = make_array [u32 1, u32 2, u32 3, u32 4, u32 5] : [u32; 5]
@@ -360,101 +306,26 @@ mod tests {
             return
         }
         "#;
-        let ssa = Ssa::from_str(src).unwrap();
-        let main = ssa.main();
 
-        let options = BrilligOptions::default();
-        let brillig_default_mem_layout = ssa.to_brillig(&options);
+    #[test]
+    fn same_program_bytecode_with_different_stack_frame_size() {
+        let ssa = Ssa::from_str(SRC).unwrap();
 
+        let options1 = BrilligOptions::default();
+        let layout = LayoutConfig::new(4096, NUM_STACK_FRAMES, MAX_SCRATCH_SPACE);
+        let options2 = BrilligOptions { layout, ..Default::default() };
+
+        compiles_to_equivalent_bytecode(&ssa, options1, options2);
+    }
+
+    #[test]
+    fn same_program_with_different_num_stack_frames() {
+        let ssa = Ssa::from_str(SRC).unwrap();
+
+        let options1 = BrilligOptions::default();
         let layout = LayoutConfig::new(MAX_STACK_FRAME_SIZE, 32, MAX_SCRATCH_SPACE);
-        let stack_frames_32_options = BrilligOptions { layout, ..Default::default() };
-        let brillig_32_stack_frames = ssa.to_brillig(&stack_frames_32_options);
+        let options2 = BrilligOptions { layout, ..Default::default() };
 
-        let byte_code_default =
-            &brillig_default_mem_layout.ssa_function_to_brillig[&ssa.main_id].byte_code;
-        let byte_code_32_stack_frames =
-            &brillig_32_stack_frames.ssa_function_to_brillig[&ssa.main_id].byte_code;
-
-        assert_eq!(byte_code_default.len(), byte_code_32_stack_frames.len());
-        // We could assert on the byte code vectors directly but if this test were to fail we want to see the exact opcodes that differ
-        for (opcode_default, opcode_32_stack_frames) in
-            byte_code_default.iter().zip(byte_code_32_stack_frames)
-        {
-            assert_eq!(opcode_default, opcode_32_stack_frames);
-        }
-
-        // Now let's check the final entry point instead of just the individual Brillig artifact
-        let arguments = vec![BrilligParameter::SingleAddr(32)];
-        let default_mem_layout_entry_point =
-            gen_brillig_for(main, arguments, &brillig_default_mem_layout, &options).unwrap();
-
-        let arguments = vec![BrilligParameter::SingleAddr(32)];
-        let stack_frames_32_entry_point =
-            gen_brillig_for(main, arguments, &brillig_32_stack_frames, &stack_frames_32_options)
-                .unwrap();
-
-        let byte_code_default = &default_mem_layout_entry_point.byte_code;
-        let byte_code_32_stack_frames = &stack_frames_32_entry_point.byte_code;
-
-        assert_eq!(byte_code_default.len(), byte_code_32_stack_frames.len());
-        // We could assert on the byte code vectors directly but if this test were to fail we want to see the exact opcodes that differ
-        for (opcode_default, opcode_32) in byte_code_default.iter().zip(byte_code_32_stack_frames) {
-            if opcode_default != opcode_32 {
-                match (opcode_default, opcode_32) {
-                    (
-                        Opcode::Const {
-                            destination: dest_default,
-                            bit_size: bit_size_default,
-                            value: value_default,
-                        },
-                        Opcode::Const {
-                            destination: dest_32,
-                            bit_size: bit_size_32,
-                            value: value_32,
-                        },
-                    ) => {
-                        assert_eq!(dest_default, dest_32);
-                        assert_eq!(bit_size_default, bit_size_32);
-                        // The heap starts at the end of the stack and is thus affected by a change in the stack size.
-                        // The only other opcodes which have constants dependent upon the stack size are those laid down by the `CheckMaxStackDepth` procedure.
-                        if *dest_default == ReservedRegisters::free_memory_pointer() {
-                            // Stack is 2048 * 16 = 32768
-                            // Three reserved registers
-                            // Scratch space is 64
-                            // A register in the global space
-                            // A register of call data
-                            assert_eq!(value_default.to_u128(), 32837);
-                            // 65605 - 32837 = 32768
-                            // We have doubled the stack
-                            assert_eq!(value_32.to_u128(), 65605);
-                        } else {
-                            // Three reserved registers
-                            // Scratch space is 64
-                            // A register in the global space
-                            // A register of call data
-                            let stack_start = ReservedRegisters::len() + MAX_SCRATCH_SPACE + 1 + 1;
-                            let max_stack_depth_bound = options.layout.max_stack_size()
-                                - options.layout.max_stack_frame_size()
-                                + stack_start;
-                            assert_eq!(
-                                value_default.to_u128(),
-                                max_stack_depth_bound.try_into().unwrap()
-                            );
-                            let max_stack_depth_bound =
-                                stack_frames_32_options.layout.max_stack_size()
-                                    - stack_frames_32_options.layout.max_stack_frame_size()
-                                    + stack_start;
-                            assert_eq!(
-                                value_32.to_u128(),
-                                max_stack_depth_bound.try_into().unwrap()
-                            );
-                        }
-                    }
-                    _ => panic!(
-                        "We only expect the setting of the free memory pointer to differ as the stack has grown"
-                    ),
-                }
-            }
-        }
+        compiles_to_equivalent_bytecode(&ssa, options1, options2);
     }
 }
