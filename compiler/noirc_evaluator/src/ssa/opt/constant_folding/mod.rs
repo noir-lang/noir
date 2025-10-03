@@ -124,9 +124,16 @@ impl Function {
         let mut context = Context::new(use_constraint_info);
         context.block_queue.push_back(self.entry_block());
 
-        for _ in 0..max_iter {
+        println!("folding function {}:", self.id());
+
+        for i in 0..max_iter {
+            println!("  folding iter {i}:");
             while let Some(block) = context.block_queue.pop_front() {
+                println!("    folding block {block}:");
                 context.fold_constants_in_block(&mut self.dfg, &mut dom, block, interpreter);
+                for s in self.dfg[block].successors() {
+                    println!("      - enqueue block {s}");
+                }
                 context.block_queue.extend(self.dfg[block].successors());
             }
 
@@ -138,6 +145,10 @@ impl Function {
             // Alternatively we could reduce all blocks to their common dominator.
             let blocks_to_revisit =
                 collect_blocks_not_dominated_by_others(&mut dom, &context.blocks_to_revisit);
+
+            for b in &blocks_to_revisit {
+                println!("    - revisit {b}");
+            }
 
             // If nothing got hoisted, we are done.
             if blocks_to_revisit.is_empty() {
@@ -318,6 +329,7 @@ impl Context {
         {
             match cache_result {
                 CacheResult::Cached { results: cached, .. } => {
+                    println!("      replace {instruction:?} with cached results");
                     // We track whether we may mutate `MakeArray` instructions before we deduplicate
                     // them but we still need to issue an extra inc_rc in case they're mutated afterward.
                     //
@@ -343,6 +355,8 @@ impl Context {
                     return;
                 }
                 CacheResult::NeedToHoistToCommonBlock { dominator } => {
+                    println!("      hoist {instruction:?} into {dominator}");
+
                     // During revisits we can visit a block which dominates something we already cached instructions from,
                     // if we restarted from a hoist point that this block also dominates. Most likely it is pointless to
                     // schedule a revisit of *this* block after again, because something must have prevented this instruction
@@ -1395,7 +1409,7 @@ mod test {
               jmp b1(v9)                      // loop back-edge
             b6():
               return
-    }
+        }
         "#;
 
         let ssa = Ssa::from_str(src).unwrap();
@@ -1434,6 +1448,170 @@ mod test {
             v13 = unchecked_add v1, u32 1
             jmp b1(v13)
           b6():
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn start_revisit_from_common_dominator() {
+        // This test simulates a phenomenon from `tests::previous_kernel_validator_builder::validate_common::private_log_length_exceeds_max__private_tail`
+        // in private_kernel_lib in aztec-packages/noir-projects/noir-protocol-circuits where starting a second iteration from multiple blocks
+        // lead to instructions going unmapped, resulting in:
+        //   internal error: entered unreachable code: Unmapped value with id v12: Instruction { instruction: Id(8), position: 0, typ: Array([Numeric(Unsigned { bit_size: 8 })], 1) }
+        //                   from instruction: MakeArray { elements: [Id(4)], typ: Array([Numeric(Unsigned { bit_size: 8 })], 1) }, from function: f0
+        //
+        // Say have a CFG like this:
+        //                                 b7
+        //                                /  \
+        //     b1 - b2 - b3 - b4 - b5 - b6    b9
+        //    /                           \  /  \         b18
+        //   /                             b8   \        /   \
+        // b0                                   b16 - b17     b20
+        //   \     b11                          /        \   /
+        //    \   /   \                        /          b19
+        //     b10     b13 - b14 - b15 -------/
+        //        \   /
+        //         b12
+        //
+        // The idea to provoke the error is as follows:
+        // * First iteration:
+        //   * We will have 3 hoists of the different make_arrays, going into b6, b10 and b17.
+        //   * We have `make_array [u8 0]` appear in b11, b7 and b16, but they don't get deduplicated because:
+        //     * We visit b11 first, but the array is removed from the cache in b15, because it's stored into a ref
+        //     * Then we visit b16 where it's created, but immediately removed from the cache because it's stored
+        //     * Finally we visit b7 because of the long delay getting from b1 to b6, and nothing happens as it's not cached.
+        // * Second iteration:
+        //   * We start from b6, b10 and b17, as none of them dominate each other
+        //   * We reach b7 first this time and cache the instruction
+        //   * We reach b11 next, and hoist the instruction into b0
+        //   * Due to the delay getting from b13 to b15, it remains cached in b0
+        //   * We reach b16 via b9 and reuse the results from b0
+        //   * We reach b15 and remove the instruction from the cache, but it's too late, b16 was changed.
+        //   * We don't revisit b17 after updating b16, so the `inc_rc` which referred to the one in b16
+        //     is not updated to point at b0, and leads to the error during normalization.
+
+        let src = r#"
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: u1, v1: u1):
+            jmpif v0 then: b1, else: b10
+          b1():
+            jmp b2()
+          b2():
+            jmp b3()
+          b3():
+            jmp b4()
+          b4():
+            jmp b5()
+          b5():
+            jmp b6()
+          b6():
+            jmpif v1 then: b7, else: b8
+          b7():
+            v2 = make_array [u8 0] : [u8; 1]
+            v3 = make_array [u8 2] : [u8; 1]
+            jmp b9()
+          b8():
+            v4 = make_array [u8 2] : [u8; 1]
+            jmp b9()
+          b9():
+            jmp b16()
+          b10():
+            jmpif v1 then: b11, else: b12
+          b11():
+            v5 = make_array [u8 0] : [u8; 1]
+            v7 = make_array [u8 1] : [u8; 1]
+            jmp b13()
+          b12():
+            v8 = make_array [u8 1] : [u8; 1]
+            jmp b13()
+          b13():
+            jmp b14()
+          b14():
+            jmp b15()
+          b15():
+            v6 = allocate -> &mut [u8; 1]
+            store v5 at v6
+            jmp b16()
+          b16():
+            v9 = make_array [u8 0] : [u8; 1]
+            v10 = allocate -> &mut [u8; 1]
+            store v9 at v10
+            jmp b17()
+          b17():
+            inc_rc v9
+            jmpif v1 then: b18, else: b19
+          b18():
+            v11 = make_array [u8 3] : [u8; 1]
+            jmp b20()
+          b19():
+            v12 = make_array [u8 3] : [u8; 1]
+            jmp b20()
+          b20():
+            return
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants(2);
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: u1, v1: u1):
+            jmpif v0 then: b1, else: b10
+          b1():
+            jmp b2()
+          b2():
+            jmp b3()
+          b3():
+            jmp b4()
+          b4():
+            jmp b5()
+          b5():
+            jmp b6()
+          b6():
+            jmpif v1 then: b7, else: b8
+          b7():
+            v10 = make_array [u8 0] : [u8; 1]
+            v11 = make_array [u8 2] : [u8; 1]
+            jmp b9()
+          b8():
+            v9 = make_array [u8 2] : [u8; 1]
+            jmp b9()
+          b9():
+            jmp b16()
+          b10():
+            jmpif v1 then: b11, else: b12
+          b11():
+            v5 = make_array [u8 0] : [u8; 1]
+            v6 = make_array [u8 1] : [u8; 1]
+            jmp b13()
+          b12():
+            v3 = make_array [u8 1] : [u8; 1]
+            jmp b13()
+          b13():
+            jmp b14()
+          b14():
+            jmp b15()
+          b15():
+            v7 = allocate -> &mut [u8; 1]
+            store v5 at v7
+            jmp b16()
+          b16():
+            v12 = make_array [u8 0] : [u8; 1]
+            v13 = allocate -> &mut [u8; 1]
+            store v12 at v13
+            jmp b17()
+          b17():
+            inc_rc v12
+            jmpif v1 then: b18, else: b19
+          b18():
+            v16 = make_array [u8 3] : [u8; 1]
+            jmp b20()
+          b19():
+            v15 = make_array [u8 3] : [u8; 1]
+            jmp b20()
+          b20():
             return
         }
         ");
