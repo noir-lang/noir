@@ -313,13 +313,9 @@ fn expand_signed_math_post_check(func: &Function) {
         let instruction_ids = func.dfg[block_id].instructions();
         for instruction_id in instruction_ids {
             if let Instruction::Binary(binary) = &func.dfg[*instruction_id] {
-                if func.dfg.type_of_value(binary.lhs).is_signed() {
-                    match binary.operator {
-                        BinaryOp::Lt => {
-                            panic!("Checked signed 'less than' has not been removed")
-                        }
-                        _ => (),
-                    }
+                if func.dfg.type_of_value(binary.lhs).is_signed() && binary.operator == BinaryOp::Lt
+                {
+                    panic!("Checked signed 'less than' has not been removed")
                 }
             }
         }
