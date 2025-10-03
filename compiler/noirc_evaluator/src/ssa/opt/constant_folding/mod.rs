@@ -127,16 +127,9 @@ impl Function {
         let entry = self.entry_block();
         context.block_queue.push(rank(&dom, entry), entry);
 
-        println!("folding function {}:", self.id());
-
-        for i in 0..max_iter {
-            println!("  folding iter {i}:");
+        for _ in 0..max_iter {
             while let Some(block) = context.block_queue.pop_front() {
-                println!("    folding block {block}:");
                 context.fold_constants_in_block(&mut self.dfg, &mut dom, block, interpreter);
-                for s in self.dfg[block].successors() {
-                    println!("      - enqueue block {s}");
-                }
                 context
                     .block_queue
                     .extend(self.dfg[block].successors().map(|s| (rank(&dom, s), s)));
@@ -150,10 +143,6 @@ impl Function {
             // Alternatively we could reduce all blocks to their common dominator.
             let blocks_to_revisit =
                 collect_blocks_not_dominated_by_others(&mut dom, &context.blocks_to_revisit);
-
-            for b in &blocks_to_revisit {
-                println!("    - revisit {b}");
-            }
 
             // If nothing got hoisted, we are done.
             if blocks_to_revisit.is_empty() {
@@ -336,7 +325,6 @@ impl Context {
         {
             match cache_result {
                 CacheResult::Cached { results: cached, .. } => {
-                    println!("      replace {instruction:?} with cached results");
                     // We track whether we may mutate `MakeArray` instructions before we deduplicate
                     // them but we still need to issue an extra inc_rc in case they're mutated afterward.
                     //
@@ -362,8 +350,6 @@ impl Context {
                     return;
                 }
                 CacheResult::NeedToHoistToCommonBlock { dominator } => {
-                    println!("      hoist {instruction:?} into {dominator}");
-
                     // During revisits we can visit a block which dominates something we already cached instructions from,
                     // if we restarted from a hoist point that this block also dominates. Most likely it is pointless to
                     // schedule a revisit of *this* block after again, because something must have prevented this instruction
