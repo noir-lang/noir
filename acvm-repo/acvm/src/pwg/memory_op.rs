@@ -119,7 +119,6 @@ impl<F: AcirField> MemoryOpSolver<F> {
         // `operation == 0` implies a read operation. (`operation == 1` implies write operation).
         let is_read_operation = operation.is_zero();
 
-        // Fetch whether or not the predicate is false (e.g. equal to zero)
         if is_read_operation {
             // `value_read = arr[memory_index]`
             //
@@ -129,8 +128,6 @@ impl<F: AcirField> MemoryOpSolver<F> {
                 "Memory must be read into a specified witness index, encountered an Expression",
             );
 
-            // A zero predicate indicates that we should skip the read operation
-            // and zero out the operation's output.
             let value_in_array = self.read_memory_index(memory_index)?;
             insert_value(&value_read_witness, value_in_array, initial_witness)
         } else {
@@ -212,65 +209,5 @@ mod tests {
                 array_size: 2
             }) if index == FieldElement::from(2u128)
         ));
-    }
-
-    #[test]
-    // TODO: to review after the serialization changes are merged because it will remove the predicate.
-    fn test_predicate_on_read() {
-        let mut initial_witness = WitnessMap::from(BTreeMap::from_iter([
-            (Witness(1), FieldElement::from(1u128)),
-            (Witness(2), FieldElement::from(1u128)),
-            (Witness(3), FieldElement::from(2u128)),
-        ]));
-
-        let init = vec![Witness(1), Witness(2)];
-
-        let invalid_trace = vec![
-            MemOp::write_to_mem_index(FieldElement::from(1u128).into(), Witness(3).into()),
-            MemOp::read_at_mem_index(FieldElement::from(2u128).into(), Witness(4)),
-        ];
-        let mut block_solver = MemoryOpSolver::new(&init, &initial_witness).unwrap();
-        let mut err = None;
-        for op in invalid_trace {
-            if err.is_none() {
-                err = block_solver.solve_memory_op(&op, &mut initial_witness).err();
-            }
-        }
-
-        // Should have no index out of bounds error where predicate is zero
-        assert_eq!(err, None);
-        // The result of a read under a zero predicate should be zero
-        assert_eq!(initial_witness[&Witness(4)], FieldElement::from(0u128));
-    }
-
-    #[test]
-    // TODO: to review after the serialization changes are merged because it will remove the predicate.
-    fn test_predicate_on_write() {
-        let mut initial_witness = WitnessMap::from(BTreeMap::from_iter([
-            (Witness(1), FieldElement::from(1u128)),
-            (Witness(2), FieldElement::from(1u128)),
-            (Witness(3), FieldElement::from(2u128)),
-        ]));
-
-        let init = vec![Witness(1), Witness(2)];
-
-        let invalid_trace = vec![
-            MemOp::write_to_mem_index(FieldElement::from(2u128).into(), Witness(3).into()),
-            MemOp::read_at_mem_index(FieldElement::from(0u128).into(), Witness(4)),
-            MemOp::read_at_mem_index(FieldElement::from(1u128).into(), Witness(5)),
-        ];
-        let mut block_solver = MemoryOpSolver::new(&init, &initial_witness).unwrap();
-        let mut err = None;
-        for op in invalid_trace {
-            if err.is_none() {
-                err = block_solver.solve_memory_op(&op, &mut initial_witness).err();
-            }
-        }
-
-        // Should have no index out of bounds error where predicate is zero
-        assert_eq!(err, None);
-        // The memory under a zero predicate should be zeroed out
-        assert_eq!(initial_witness[&Witness(4)], FieldElement::from(0u128));
-        assert_eq!(initial_witness[&Witness(5)], FieldElement::from(0u128));
     }
 }
