@@ -133,13 +133,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
                     let memory_block = memory
                         .get(block_id)
                         .ok_or(OpcodeNotSolvable::MissingMemoryBlock(block_id.0))?;
-                    for memory_index in 0..memory_block.block_len {
-                        let memory_value = memory_block
-                            .block_value
-                            .get(&memory_index)
-                            .expect("All memory is initialized on creation");
-                        calldata.push(*memory_value);
-                    }
+                    calldata.extend(&memory_block.block_value);
                 }
             }
         }

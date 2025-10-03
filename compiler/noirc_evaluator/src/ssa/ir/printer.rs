@@ -8,6 +8,7 @@ use iter_extended::vecmap;
 
 use crate::ssa::{
     Ssa,
+    function_builder::data_bus::DataBus,
     ir::{
         instruction::ArrayOffset,
         types::{NumericType, Type},
@@ -93,10 +94,34 @@ fn display_function(
         writeln!(f, "{} fn {} {} {{", function.runtime(), function.name(), function.id())?;
     }
 
+    display_databus(&function.dfg.data_bus, &function.dfg, f)?;
+
     for block_id in function.reachable_blocks() {
         display_block(&function.dfg, block_id, files, f)?;
     }
     write!(f, "}}")
+}
+
+fn display_databus(data_bus: &DataBus, dfg: &DataFlowGraph, f: &mut Formatter) -> Result {
+    for call_data in &data_bus.call_data {
+        write!(
+            f,
+            "  call_data({}): array: {}, indices: [",
+            call_data.call_data_id,
+            value(dfg, call_data.array_id),
+        )?;
+        for (i, (value_id, index)) in call_data.index_map.iter().enumerate() {
+            if i != 0 {
+                write!(f, ", ")?;
+            }
+            write!(f, "{}: {}", value(dfg, *value_id), index)?;
+        }
+        writeln!(f, "]")?;
+    }
+    if let Some(return_data) = data_bus.return_data {
+        writeln!(f, "  return_data: {}", value(dfg, return_data))?;
+    }
+    Ok(())
 }
 
 /// Display a single block. This will not display the block's successors.

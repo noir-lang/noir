@@ -1283,7 +1283,7 @@ mod test {
     fn brillig_global_constants_keep_same_value_ids() {
         let src = "
         g0 = Field 1
-    
+
         brillig(inline) fn main f0 {
           b0():
             v0 = call f1() -> Field
@@ -1310,7 +1310,7 @@ mod test {
 
         assert_ssa_snapshot!(ssa, @r"
         g0 = Field 1
-        
+
         brillig(inline) fn main f0 {
           b0():
             return Field 1

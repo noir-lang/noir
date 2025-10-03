@@ -74,10 +74,15 @@ impl DominatorTree {
 
     /// Compare two blocks relative to the reverse post-order.
     pub(crate) fn reverse_post_order_cmp(&self, a: BasicBlockId, b: BasicBlockId) -> Ordering {
-        match (self.nodes.get(&a), self.nodes.get(&b)) {
-            (Some(a), Some(b)) => a.reverse_post_order_idx.cmp(&b.reverse_post_order_idx),
+        match (self.reverse_post_order_idx(a), self.reverse_post_order_idx(b)) {
+            (Some(a), Some(b)) => a.cmp(&b),
             _ => unreachable!("Post order for unreachable block is undefined"),
         }
+    }
+
+    /// Position in the Reverse Post-Order.
+    pub(crate) fn reverse_post_order_idx(&self, block_id: BasicBlockId) -> Option<u32> {
+        self.nodes.get(&block_id).map(|n| n.reverse_post_order_idx)
     }
 
     /// Returns `true` if `block_a_id` dominates `block_b_id`.
@@ -104,7 +109,7 @@ impl DominatorTree {
         mut block_b_id: BasicBlockId,
     ) -> bool {
         // Walk up the dominator tree from "b" until we encounter or pass "a". Doing the
-        // comparison on the reverse post-order may allows to test whether we have passed "a"
+        // comparison on the reverse post-order may allow to test whether we have passed "a"
         // without waiting until we reach the root of the tree.
         loop {
             match self.reverse_post_order_cmp(block_a_id, block_b_id) {
