@@ -151,7 +151,7 @@ fn truncate_field_to_6_bits() {
 
     // Truncating to 8 bits is the same as dividing by 2^6 = 64.
     // There's more ACIR opcodes here compared to the u16 case as we need to ensure
-    // `q*b+r < 2^max_q_bits*2^max_rhs_bits`. See the last thing done in `euclidean_division_varz`.
+    // `q*b+r < 2^max_q_bits*2^max_rhs_bits`. See the final check done in `euclidean_division_var`.
     assert_circuit_snapshot!(program, @r"
     func 0
     private parameters: [w0]
