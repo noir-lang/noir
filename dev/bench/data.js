@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1759494194217,
+  "lastUpdate": 1759495179128,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23036,48 +23036,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "6de9f211997147489ac611e949870e90503a834a",
-          "message": "chore(ssa): Nits in `remove_bit_shift` and `remove_if_else` (#9965)",
-          "timestamp": "2025-09-24T18:25:37Z",
-          "tree_id": "69ad54adad695a3ef04094fee67698be74132523",
-          "url": "https://github.com/noir-lang/noir/commit/6de9f211997147489ac611e949870e90503a834a"
-        },
-        "date": 1758739658009,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 252401,
-            "range": "± 969",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 223334,
-            "range": "± 4649",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2783185,
-            "range": "± 3510",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -25129,6 +25087,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2779132,
             "range": "± 1700",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2fd19e8ec12b12806cb4e66d5c8c62159477ac67",
+          "message": "chore(ACVM): use Vec instead of Hash for memory blocks (#10072)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-10-03T12:14:24Z",
+          "tree_id": "1f455a1d1ade5b984f8ab1c2098d87c6e4672533",
+          "url": "https://github.com/noir-lang/noir/commit/2fd19e8ec12b12806cb4e66d5c8c62159477ac67"
+        },
+        "date": 1759495157940,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 257158,
+            "range": "± 2560",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 228265,
+            "range": "± 4629",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2801110,
+            "range": "± 3821",
             "unit": "ns/iter"
           }
         ]
