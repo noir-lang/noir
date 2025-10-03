@@ -38,7 +38,7 @@
 //! unconstrained fn inner_func(x: Field, y: Field) {
 //!     let z = THREE + x + y;
 //!     assert(z == 4);
-//! }Pre
+//! }
 //! ```
 //! The two entry points will have different global allocation maps:
 //! ```noir
