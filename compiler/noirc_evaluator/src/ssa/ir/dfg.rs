@@ -304,7 +304,10 @@ impl DataFlowGraph {
             return InsertInstructionResult::InstructionRemoved;
         }
 
-        match simplify(&instruction, self, block, ctrl_typevars.clone(), call_stack) {
+        let simplify_result =
+            simplify(&instruction, self, block, ctrl_typevars.clone(), call_stack);
+
+        match simplify_result {
             SimplifyResult::SimplifiedTo(simplification) => {
                 InsertInstructionResult::SimplifiedTo(simplification)
             }
@@ -315,8 +318,19 @@ impl DataFlowGraph {
             result @ (SimplifyResult::SimplifiedToInstruction(_)
             | SimplifyResult::SimplifiedToInstructionMultiple(_)
             | SimplifyResult::None) => {
-                let instructions = result.instructions();
-                if instructions.is_none() {
+                let is_simplified = match &result {
+                    SimplifyResult::SimplifiedToInstruction(i) => {
+                        // `Binary` can simplify to itself instead of None.
+                        *i != instruction
+                    }
+                    SimplifyResult::SimplifiedToInstructionMultiple(is) => {
+                        // `Constrain` can simplify to a Multiple, with a single item of itself.
+                        is.len() != 1 || is[0] != instruction
+                    }
+                    SimplifyResult::None => false,
+                    _ => unreachable!("matched specific SimplifyResult types"),
+                };
+                if !is_simplified {
                     if let Some(id) = existing_id {
                         if self[id] == instruction {
                             // Just (re)insert into the block, no need to redefine.
@@ -328,7 +342,7 @@ impl DataFlowGraph {
                         }
                     }
                 }
-                let mut instructions = instructions.unwrap_or(vec![instruction]);
+                let mut instructions = result.instructions().unwrap_or(vec![instruction]);
                 assert!(
                     !instructions.is_empty(),
                     "`SimplifyResult::SimplifiedToInstructionMultiple` must not return empty vector"
@@ -559,6 +573,19 @@ impl DataFlowGraph {
         self.results.get(&instruction_id).expect("expected a list of Values").as_slice()
     }
 
+    /// Returns N results, asserting that there are exactly N items.
+    pub(crate) fn instruction_result<const N: usize>(
+        &self,
+        instruction_id: InstructionId,
+    ) -> [ValueId; N] {
+        let results = self.instruction_results(instruction_id);
+        if results.len() != N {
+            let instruction = &self[instruction_id];
+            panic!("expected {instruction:?} to have {N} results; got {}", results.len());
+        }
+        std::array::from_fn(|i| results[i])
+    }
+
     /// Remove an instruction by replacing it with a `Noop` instruction.
     /// Doing this avoids shifting over each instruction after this one in its block's instructions vector.
     #[allow(unused)]
@@ -603,17 +630,12 @@ impl DataFlowGraph {
         }
     }
 
-    /// Returns the Value::Array associated with this ValueId if it refers to an array constant.
+    /// Returns the item values in with this ValueId if it refers to an array constant, along with the type of the array item.
     /// Otherwise, this returns None.
     pub(crate) fn get_array_constant(&self, value: ValueId) -> Option<(im::Vector<ValueId>, Type)> {
-        if let Some(instruction) = self.get_local_or_global_instruction(value) {
-            match instruction {
-                Instruction::MakeArray { elements, typ } => Some((elements.clone(), typ.clone())),
-                _ => None,
-            }
-        } else {
-            // Arrays are shared, so cloning them is cheap
-            None
+        match self.get_local_or_global_instruction(value)? {
+            Instruction::MakeArray { elements, typ } => Some((elements.clone(), typ.clone())),
+            _ => None,
         }
     }
 

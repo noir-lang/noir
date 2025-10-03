@@ -141,6 +141,7 @@
         "Guillaume",
         "gzipped",
         "hasher",
+        "hashers",
         "hashset",
         "heaptrack",
         "hexdigit",

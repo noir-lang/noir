@@ -14,9 +14,9 @@
 //! ACIR generation use twos different array types for representing arrays:
 //!
 //! [Constant arrays][AcirValue::Array]
-//!   - Known at compile time.  
+//!   - Known at compile time.
 //!   - Reads and writes may be folded into an [AcirValue] where possible.
-//!   - Useful for optimization (e.g., constant element lookups do not require laying down opcodes)  
+//!   - Useful for optimization (e.g., constant element lookups do not require laying down opcodes)
 //!
 //! [Dynamic arrays][AcirValue::DynamicArray]
 //!   - Referenced by a [unique identifier][BlockId]
@@ -136,29 +136,24 @@ use super::{
 impl Context<'_> {
     /// Get the BlockId corresponding to the ValueId
     /// If there is no matching BlockId, we create a new one.
-    pub(super) fn block_id(&mut self, value: &ValueId) -> BlockId {
-        if let Some(block_id) = self.memory_blocks.get(value) {
-            return *block_id;
-        }
-        let block_id = BlockId(self.max_block_id);
-        self.max_block_id += 1;
-        self.memory_blocks.insert(*value, block_id);
-        block_id
+    pub(super) fn block_id(&mut self, value: ValueId) -> BlockId {
+        *self.memory_blocks.entry(value).or_insert_with(|| {
+            let block_id = BlockId(self.max_block_id);
+            self.max_block_id += 1;
+            block_id
+        })
     }
 
-    /// Get the next BlockId for internal memory
-    /// used during ACIR generation.
+    /// Get the next BlockId for the internal element type sizes array.
     /// This is useful for referencing information that can
-    /// only be computed dynamically, such as the type structure
+    /// only be accessed dynamically, such as the type structure
     /// of non-homogenous arrays.
-    fn internal_block_id(&mut self, value: &ValueId) -> BlockId {
-        if let Some(block_id) = self.element_type_sizes_blocks.get(value) {
-            return *block_id;
-        }
-        let block_id = BlockId(self.max_block_id);
-        self.max_block_id += 1;
-        self.element_type_sizes_blocks.insert(*value, block_id);
-        block_id
+    fn type_sizes_block_id(&mut self, value: ValueId) -> BlockId {
+        *self.element_type_sizes_blocks.entry(value).or_insert_with(|| {
+            let block_id = BlockId(self.max_block_id);
+            self.max_block_id += 1;
+            block_id
+        })
     }
 
     pub(super) fn initialize_databus(
@@ -168,7 +163,7 @@ impl Context<'_> {
     ) -> Result<(), RuntimeError> {
         // Initialize return_data using provided witnesses
         if let Some(return_data) = self.data_bus.return_data {
-            let block_id = self.block_id(&return_data);
+            let block_id = self.block_id(return_data);
             let already_initialized = self.initialized_arrays.contains(&block_id);
             if !already_initialized {
                 // We hijack ensure_array_is_initialized() because we want the return data to use the return value witnesses,
@@ -197,14 +192,11 @@ impl Context<'_> {
         instruction: InstructionId,
         dfg: &DataFlowGraph,
     ) -> Result<(), RuntimeError> {
-        let mut mutable_array_set = false;
-
         // Pass the instruction between array methods rather than the internal fields themselves
-        let (array, index, store_value) = match dfg[instruction] {
-            Instruction::ArrayGet { array, index } => (array, index, None),
+        let (array, index, store_value, mutable) = match dfg[instruction] {
+            Instruction::ArrayGet { array, index } => (array, index, None, false),
             Instruction::ArraySet { array, index, value, mutable } => {
-                mutable_array_set = mutable;
-                (array, index, Some(value))
+                (array, index, Some(value), mutable)
             }
             _ => {
                 return Err(InternalError::Unexpected {
@@ -216,60 +208,16 @@ impl Context<'_> {
             }
         };
 
-        let array_typ = dfg.type_of_value(array);
-        // Compiler sanity checks
-        assert!(!array_typ.is_nested_slice(), "ICE: Nested slice type has reached ACIR generation");
-        let (Type::Array(_, _) | Type::Slice(_)) = &array_typ else {
-            unreachable!("ICE: expected array or slice type");
-        };
-
-        // For 0-length arrays and slices, even the disabled memory operations would cause runtime failures.
-        // Set the result to a zero value that matches the type then bypass the rest of the operation,
-        // leaving an assertion that the side effect variable must be false.
-        if self.has_zero_length(array, dfg) {
-            // Zero result.
-            let result_ids = dfg.instruction_results(instruction);
-            for result_id in result_ids {
-                let res_typ = dfg.type_of_value(*result_id);
-                let zero_value = self.array_zero_value(&res_typ)?;
-                self.ssa_values.insert(*result_id, zero_value);
-            }
-            // Make sure this code is disabled, or fail with "Index out of bounds".
-            let msg = "Index out of bounds, array has size 0".to_string();
-            let msg = self.acir_context.generate_assertion_message_payload(msg);
-            let zero = self.acir_context.add_constant(FieldElement::zero());
-            return self.acir_context.assert_eq_var(
-                self.current_side_effects_enabled_var,
-                zero,
-                Some(msg),
-            );
+        if self.handle_zero_length_array(array, dfg, instruction)? {
+            return Ok(());
         }
 
         if self.handle_constant_index_wrapper(instruction, dfg, array, index, store_value)? {
             return Ok(());
         }
 
-        // Get an offset such that the type of the array at the offset is the same as the type at the 'index'
-        // If we find one, we will use it when computing the index under the enable_side_effect predicate
-        // If not, array_get(..) will use a fallback costing one multiplication in the worst case.
-        // cf. https://github.com/noir-lang/noir/pull/4971
-        // For simplicity we compute the offset only for simple arrays
-        let is_simple_array = dfg.instruction_results(instruction).len() == 1
-            && (array_has_constant_element_size(&array_typ) == Some(1));
-
-        let offset = if is_simple_array {
-            let result_type = dfg.type_of_value(dfg.instruction_results(instruction)[0]);
-            match array_typ {
-                Type::Array(item_type, _) | Type::Slice(item_type) => item_type
-                    .iter()
-                    .enumerate()
-                    .find_map(|(index, typ)| (result_type == *typ).then_some(index)),
-                _ => None,
-            }
-        } else {
-            None
-        };
-
+        let array_typ = dfg.type_of_value(array);
+        let offset = self.compute_offset(instruction, dfg, &array_typ);
         let (new_index, new_value) = self.convert_array_operation_inputs(
             array,
             dfg,
@@ -279,7 +227,7 @@ impl Context<'_> {
         )?;
 
         if let Some(new_value) = new_value {
-            self.array_set(instruction, new_index, new_value, dfg, mutable_array_set)?;
+            self.array_set(instruction, new_index, new_value, dfg, mutable)?;
         } else {
             self.array_get(instruction, array, new_index, dfg, offset.is_none())?;
         }
@@ -287,11 +235,47 @@ impl Context<'_> {
         Ok(())
     }
 
+    /// For 0-length arrays and slices, even the disabled memory operations would cause runtime failures.
+    /// Set the result to a zero value that matches the type then bypass the rest of the operation,
+    /// leaving an assertion that the side effect variable must be false.
+    ///
+    /// # Returns
+    /// `true` if we have a zero length array
+    /// `false` if we do not have a zero length array
+    fn handle_zero_length_array(
+        &mut self,
+        array: ValueId,
+        dfg: &DataFlowGraph,
+        instruction: InstructionId,
+    ) -> Result<bool, RuntimeError> {
+        if !self.has_zero_length(array, dfg) {
+            return Ok(false);
+        }
+
+        // Zero result.
+        let result_ids = dfg.instruction_results(instruction);
+        for result_id in result_ids {
+            let res_typ = dfg.type_of_value(*result_id);
+            let zero_value = self.array_zero_value(&res_typ)?;
+            self.ssa_values.insert(*result_id, zero_value);
+        }
+        // Make sure this code is disabled, or fail with "Index out of bounds".
+        let msg = "Index out of bounds, array has size 0".to_string();
+        let msg = self.acir_context.generate_assertion_message_payload(msg);
+        let zero = self.acir_context.add_constant(FieldElement::zero());
+        self.acir_context.assert_eq_var(self.current_side_effects_enabled_var, zero, Some(msg))?;
+        Ok(true)
+    }
+
     /// Attempts a compile-time read/write from an array.
     ///
     /// This relies on all previous operations on this array being done at known indices so that the `AcirValue` at each
     /// position is known (even if the value of this `AcirValue` is unknown). This can then be done only for
     /// `AcirValue::Array` as an `AcirValue::DynamicArray` has been mutated at an unknown index.
+    ///
+    /// # Returns
+    /// `true` if we performed a compile-time read/write
+    /// `false` if we did not perform a compile-time read/write
     fn handle_constant_index_wrapper(
         &mut self,
         instruction: InstructionId,
@@ -375,9 +359,36 @@ impl Context<'_> {
         }
     }
 
+    /// Get an offset such that the type of the array at the offset is the same as the type at the 'index'
+    /// If we find one, we will use it when computing the index under the enable_side_effect predicate
+    /// If not, array_get(..) will use a fallback costing one multiplication in the worst case.
+    /// cf. <https://github.com/noir-lang/noir/pull/4971>
+    /// For simplicity we compute the offset only for simple arrays
+    fn compute_offset(
+        &mut self,
+        instruction: InstructionId,
+        dfg: &DataFlowGraph,
+        array_typ: &Type,
+    ) -> Option<usize> {
+        let is_simple_array = dfg.instruction_results(instruction).len() == 1
+            && (array_has_constant_element_size(array_typ) == Some(1));
+        if is_simple_array {
+            let result_type = dfg.type_of_value(dfg.instruction_results(instruction)[0]);
+            match array_typ {
+                Type::Array(item_type, _) | Type::Slice(item_type) => item_type
+                    .iter()
+                    .enumerate()
+                    .find_map(|(index, typ)| (result_type == *typ).then_some(index)),
+                _ => None,
+            }
+        } else {
+            None
+        }
+    }
+
     /// We need to properly setup the inputs for array operations in ACIR.
     /// From the original SSA values we compute the following AcirVars:
-    /// - `index_var` is the index of the array. ACIR memory operations work with a flat memory, so we fully flattened the specified index
+    /// - `index_var` is the index of the array. ACIR memory operations work with a flat memory, so we fully flat the specified index
     ///   in case we have a nested array. The index for SSA array operations only represents the flattened index of the current array.
     ///   Thus internal array element type sizes need to be computed to accurately transform the index.
     ///
@@ -500,13 +511,7 @@ impl Context<'_> {
                     "ICE: The store value and dummy must have the same number of inner values"
                 );
 
-                let values = try_vecmap(0..*len, |i| {
-                    let index_var = self.acir_context.add_constant(i);
-
-                    let read = self.acir_context.read_from_memory(*block_id, &index_var)?;
-                    Ok::<AcirValue, RuntimeError>(AcirValue::Var(read, AcirType::field()))
-                })?;
-
+                let values = self.read_dynamic_array(*block_id, *len)?;
                 let mut elements = im::Vector::new();
                 for (val, dummy_val) in values.iter().zip(dummy_values) {
                     elements.push_back(self.convert_array_set_store_value(val, &dummy_val)?);
@@ -514,8 +519,8 @@ impl Context<'_> {
 
                 Ok(AcirValue::Array(elements))
             }
-            (AcirValue::DynamicArray(_), AcirValue::DynamicArray(_)) => {
-                unimplemented!("ICE: setting a dynamic array not supported");
+            (_, AcirValue::DynamicArray(_)) => {
+                unimplemented!("ICE: setting a dummy dynamic array not supported");
             }
             _ => {
                 unreachable!("ICE: The store value and dummy value must match");
@@ -552,32 +557,57 @@ impl Context<'_> {
         &mut self,
         instruction: InstructionId,
         array: ValueId,
-        mut var_index: AcirVar,
+        var_index: AcirVar,
         dfg: &DataFlowGraph,
-        mut index_side_effect: bool,
-    ) -> Result<AcirValue, RuntimeError> {
+        index_side_effect: bool,
+    ) -> Result<(), RuntimeError> {
         let block_id = self.ensure_array_is_initialized(array, dfg)?;
-        let results = dfg.instruction_results(instruction);
-        let res_typ = dfg.type_of_value(results[0]);
-        // Get operations to call-data parameters are replaced by a get to the call-data-bus array
-        let call_data =
-            self.data_bus.call_data.iter().find(|cd| cd.index_map.contains_key(&array)).cloned();
-        let mut value = if let Some(call_data) = call_data {
-            let call_data_block = self.ensure_array_is_initialized(call_data.array_id, dfg)?;
-            let bus_index = self
-                .acir_context
-                .add_constant(FieldElement::from(call_data.index_map[&array] as i128));
-            let mut current_index = self.acir_context.add_var(bus_index, var_index)?;
-            self.get_from_call_data(&mut current_index, call_data_block, &res_typ)?
-        } else {
-            // Compiler sanity check
-            assert!(
-                !res_typ.contains_slice_element(),
-                "ICE: Nested slice result found during ACIR generation"
-            );
-            self.array_get_value(&res_typ, block_id, &mut var_index)?
-        };
+        let [result] = dfg.instruction_result(instruction);
+        let res_typ = dfg.type_of_value(result);
 
+        let value = self.load_array_value(array, block_id, var_index, &res_typ, dfg)?;
+
+        let value = self.apply_index_side_effects(array, value, index_side_effect, dfg)?;
+
+        self.define_result(dfg, instruction, value);
+        Ok(())
+    }
+
+    /// Loads a value either from call-data bus or from memory.
+    fn load_array_value(
+        &mut self,
+        array: ValueId,
+        block_id: BlockId,
+        mut var_index: AcirVar,
+        res_typ: &Type,
+        dfg: &DataFlowGraph,
+    ) -> Result<AcirValue, RuntimeError> {
+        // Get operations to call-data parameters are replaced by a get to the call-data-bus array
+        let call_data_info = self
+            .data_bus
+            .call_data
+            .iter()
+            .find_map(|cd| cd.index_map.get(&array).map(|idx| (cd.array_id, *idx)));
+        if let Some((array_id, bus_index)) = call_data_info {
+            let call_data_block = self.ensure_array_is_initialized(array_id, dfg)?;
+            let bus_index = self.acir_context.add_constant(FieldElement::from(bus_index as i128));
+            let mut current_index = self.acir_context.add_var(bus_index, var_index)?;
+            self.get_from_call_data(&mut current_index, call_data_block, res_typ)
+        } else {
+            self.array_get_value(res_typ, block_id, &mut var_index)
+        }
+    }
+
+    /// Applies predication logic on the result in case the read under a false predicate
+    /// returns a value with a larger type that may later trigger an overflow.
+    /// Ensures values read under false predicate are zeroed out if types don’t align.
+    fn apply_index_side_effects(
+        &mut self,
+        array: ValueId,
+        mut value: AcirValue,
+        mut index_side_effect: bool,
+        dfg: &DataFlowGraph,
+    ) -> Result<AcirValue, RuntimeError> {
         if let AcirValue::Var(value_var, typ) = &value {
             let array_typ = dfg.type_of_value(array);
             if let (Type::Numeric(numeric_type), AcirType::NumericType(num)) =
@@ -589,18 +619,13 @@ impl Context<'_> {
                 }
             }
 
-            // Fallback to multiplication if the index side_effects have not already been handled
             if index_side_effect {
-                // Set the value to 0 if current_side_effects is 0, to ensure it fits in any value type
                 value = AcirValue::Var(
                     self.acir_context.mul_var(*value_var, self.current_side_effects_enabled_var)?,
                     typ.clone(),
                 );
             }
         }
-
-        self.define_result(dfg, instruction, value.clone());
-
         Ok(value)
     }
 
@@ -689,60 +714,39 @@ impl Context<'_> {
             }
         };
 
-        let block_id = self.ensure_array_is_initialized(array, dfg)?;
-
-        // Every array has a length in its type, so we fetch that from
-        // the SSA IR.
-        //
-        // A slice's size must be fetched from the SSA value that represents the slice.
-        // However, this size is simply the capacity of a slice. The capacity is dependent upon the witness
-        // and may contain data for which we want to restrict access. The true slice length is tracked in a
-        // a separate SSA value and restrictions on slice indices should be generated elsewhere in the SSA.
-        let array_typ = dfg.type_of_value(array);
-        let array_len = self.flattened_size(array, dfg);
-
-        // Since array_set creates a new array, we create a new block ID for this
-        // array, unless map_array is true. In that case, we operate directly on block_id
-        // and we do not create a new block ID.
-        let result_id = dfg
+        let result_id = *dfg
             .instruction_results(instruction)
             .first()
             .expect("Array set does not have one result");
-        let result_block_id;
-        if mutate_array {
-            self.memory_blocks.insert(*result_id, block_id);
-            result_block_id = block_id;
-        } else {
-            // Initialize the new array with the values from the old array
-            result_block_id = self.block_id(result_id);
-            self.copy_array(array, result_block_id, dfg)?;
-        }
+        let block_id = self.resolve_array_set_block(array, result_id, dfg, mutate_array)?;
 
-        self.array_set_value(&store_value, result_block_id, &mut var_index)?;
+        self.array_set_value(&store_value, block_id, &mut var_index)?;
 
-        let element_type_sizes = if array_has_constant_element_size(&array_typ).is_none() {
-            let acir_value = self.convert_value(array, dfg);
-            Some(self.init_element_type_sizes_array(&array_typ, array, Some(&acir_value), dfg)?)
-        } else {
-            None
-        };
+        let result_value = self.make_array_set_result_value(array, block_id, dfg)?;
 
-        let value_types = self.convert_value(array, dfg).flat_numeric_types();
-        // Compiler sanity check
-        assert_eq!(
-            value_types.len(),
-            array_len,
-            "ICE: The length of the flattened type array should match the length of the dynamic array"
-        );
-
-        let result_value = AcirValue::DynamicArray(AcirDynamicArray {
-            block_id: result_block_id,
-            len: array_len,
-            value_types,
-            element_type_sizes,
-        });
         self.define_result(dfg, instruction, result_value);
         Ok(())
+    }
+
+    // Since array_set creates a new array, we create a new block ID for this
+    // array, unless mutate_array is true. In that case, we operate directly on block_id
+    // and we do not create a new block ID.
+    fn resolve_array_set_block(
+        &mut self,
+        array: ValueId,
+        result: ValueId,
+        dfg: &DataFlowGraph,
+        mutate_array: bool,
+    ) -> Result<BlockId, RuntimeError> {
+        let block_id = self.ensure_array_is_initialized(array, dfg)?;
+        if mutate_array {
+            self.memory_blocks.insert(result, block_id);
+            Ok(block_id)
+        } else {
+            let new_block = self.block_id(result);
+            self.copy_array(array, new_block, dfg)?;
+            Ok(new_block)
+        }
     }
 
     pub(super) fn array_set_value(
@@ -777,6 +781,63 @@ impl Context<'_> {
         Ok(())
     }
 
+    /// Construct the [AcirValue::DynamicArray] that represents the result of an [Instruction::ArraySet].
+    ///
+    /// In SSA, an array set always yields a new array value (even if the operation
+    /// mutates in place). At the ACIR level, this corresponds to a [AcirValue::DynamicArray] whose
+    /// memory block has already been resolved by [Self::resolve_array_set_block].
+    ///
+    /// # Purpose
+    /// - Initializes the optional [AcirDynamicArray::element_type_sizes] helper array for when elements are non-homogenous.
+    /// - Populates the `value_types` vector. See [AcirDynamicArray::value_types] for more information.
+    fn make_array_set_result_value(
+        &mut self,
+        array: ValueId,
+        block_id: BlockId,
+        dfg: &DataFlowGraph,
+    ) -> Result<AcirValue, RuntimeError> {
+        // Every array has a length in its type, so we fetch that from
+        // the SSA IR.
+        //
+        // A slice's size must be fetched from the SSA value that represents the slice.
+        // However, this size is simply the capacity of a slice. The capacity is dependent upon the witness
+        // and may contain data for which we want to restrict access. The true slice length is tracked in a
+        // a separate SSA value and restrictions on slice indices should be generated elsewhere in the SSA.
+        let array_typ = dfg.type_of_value(array);
+        let len = self.flattened_size(array, dfg);
+
+        let element_type_sizes = if array_has_constant_element_size(&array_typ).is_none() {
+            let acir_value = self.convert_value(array, dfg);
+            Some(self.init_element_type_sizes_array(&array_typ, array, Some(&acir_value), dfg)?)
+        } else {
+            None
+        };
+
+        let value_types = self.convert_value(array, dfg).flat_numeric_types();
+        // Compiler sanity check
+        assert_eq!(
+            value_types.len(),
+            len,
+            "ICE: The length of the flattened type array should match the length of the dynamic array"
+        );
+
+        Ok(AcirValue::DynamicArray(AcirDynamicArray {
+            block_id,
+            len,
+            value_types,
+            element_type_sizes,
+        }))
+    }
+
+    /// Initializes the element types sizes array to enable indexing of non-homogenous SSA arrays
+    /// in a flat memory environment.
+    ///
+    /// ACIR memory is flat, while SSA arrays may be multi-dimensional or
+    /// contain elements of varying size (we refer to these are non-homogenous arrays).
+    /// To reconcile this, each element's "flattened index" is computed relative to the array’s base pointer.
+    /// In some cases this requires consulting a side "element type sizes"
+    /// array to calculate offsets when elements have a non-homogenous layout
+    /// See [self] for a more concrete example of how this types sizes array is used.
     pub(super) fn init_element_type_sizes_array(
         &mut self,
         array_typ: &Type,
@@ -784,7 +845,7 @@ impl Context<'_> {
         supplied_acir_value: Option<&AcirValue>,
         dfg: &DataFlowGraph,
     ) -> Result<BlockId, RuntimeError> {
-        let element_type_sizes = self.internal_block_id(&array_id);
+        let element_type_sizes = self.type_sizes_block_id(array_id);
         // Check whether an internal type sizes array has already been initialized
         // Need to look into how to optimize for slices as this could lead to different element type sizes
         // for different slices that do not have consistent sizes
@@ -897,7 +958,7 @@ impl Context<'_> {
         }
     }
 
-    fn read_dynamic_array(
+    pub(super) fn read_dynamic_array(
         &mut self,
         source: BlockId,
         array_len: usize,
@@ -922,6 +983,14 @@ impl Context<'_> {
         Ok(())
     }
 
+    /// Convert an SSA array index into a flat ACIR array index.
+    ///
+    /// ACIR memory is flat, while SSA arrays may be multi-dimensional or
+    /// contain elements of varying size (we refer to these are non-homogenous arrays).
+    /// To reconcile this, each element's "flattened index" is computed relative to the array’s base pointer.
+    /// In some cases this requires consulting a side ["element type sizes"][Self::init_element_type_sizes_array]
+    /// array to calculate offsets when elements have a non-homogenous layout
+    /// See [self] for a more concrete example of how flattened indices are computed.
     pub(super) fn get_flattened_index(
         &mut self,
         array_typ: &Type,
@@ -1000,7 +1069,7 @@ impl Context<'_> {
         dfg: &DataFlowGraph,
     ) -> Result<BlockId, RuntimeError> {
         // Use the SSA ID to get or create its block ID
-        let block_id = self.block_id(&array);
+        let block_id = self.block_id(array);
 
         // Check if the array has already been initialized in ACIR gen
         // if not, we initialize it using the values from SSA
@@ -1036,12 +1105,12 @@ impl Context<'_> {
     ) -> Result<(), InternalError> {
         let mut databus = BlockType::Memory;
         if self.data_bus.return_data.is_some()
-            && self.block_id(&self.data_bus.return_data.unwrap()) == array
+            && self.block_id(self.data_bus.return_data.unwrap()) == array
         {
             databus = BlockType::ReturnData;
         }
         for (call_data_id, array_id) in self.data_bus.call_data_array() {
-            if self.block_id(&array_id) == array {
+            if self.block_id(array_id) == array {
                 assert!(databus == BlockType::Memory);
                 databus = BlockType::CallData(call_data_id);
                 break;

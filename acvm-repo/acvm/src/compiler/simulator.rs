@@ -10,6 +10,12 @@ use acir::{
 use std::collections::{BTreeSet, HashSet};
 
 /// Simulate a symbolic solve for a circuit
+/// Instead of evaluating witness values from the inputs, like the PWG module is doing,
+/// this pass simply mark the witness that can be evaluated, from the known inputs,
+/// and incrementally from the previously marked witnesses.
+/// This avoid any computation on a big field which makes the process efficient.
+/// When all the witness of an opcode are marked as solvable, it means that the
+/// opcode is solvable.
 #[derive(Default)]
 pub struct CircuitSimulator {
     /// Track the witnesses that can be solved

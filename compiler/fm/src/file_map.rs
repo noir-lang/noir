@@ -53,7 +53,7 @@ impl FileId {
         self.0
     }
 
-    pub fn dummy() -> FileId {
+    pub const fn dummy() -> FileId {
         FileId(0)
     }
 }

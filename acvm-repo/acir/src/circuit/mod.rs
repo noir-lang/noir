@@ -326,8 +326,6 @@ impl<F: AcirField + for<'a> Deserialize<'a>> Program<F> {
 
 impl<F: AcirField> std::fmt::Display for Circuit<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "current witness: w{}", self.current_witness_index)?;
-
         let write_witness_indices =
             |f: &mut std::fmt::Formatter<'_>, indices: &[u32]| -> Result<(), std::fmt::Error> {
                 write!(f, "[")?;
@@ -376,7 +374,7 @@ impl<F: AcirField> std::fmt::Display for Program<F> {
             writeln!(f, "{function}")?;
         }
         for (func_index, function) in self.unconstrained_functions.iter().enumerate() {
-            writeln!(f, "unconstrained func {func_index}")?;
+            writeln!(f, "unconstrained func {func_index}: {}", function.function_name)?;
             let width = function.bytecode.len().to_string().len();
             for (index, opcode) in function.bytecode.iter().enumerate() {
                 writeln!(f, "{index:>width$}: {opcode}")?;
@@ -540,14 +538,13 @@ mod tests {
         insta::assert_snapshot!(
             circuit.to_string(),
             @r"
-        current witness: w3
         private parameters: []
         public parameters: [w2]
         return values: [w2]
-        EXPR [ (2, w1) 8 ]
-        BLACKBOX::RANGE [w1]:8 bits []
-        BLACKBOX::AND [w1, w2]:4 bits [w3]
-        BLACKBOX::KECCAKF1600 [w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25] [w26, w27, w28, w29, w30, w31, w32, w33, w34, w35, w36, w37, w38, w39, w40, w41, w42, w43, w44, w45, w46, w47, w48, w49, w50]
+        ASSERT 0 = 2*w1 + 8
+        BLACKBOX::RANGE input: w1, bits: 8
+        BLACKBOX::AND inputs: [w1, w2], bits: 4, output: w3
+        BLACKBOX::KECCAKF1600 inputs: [w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25], outputs: [w26, w27, w28, w29, w30, w31, w32, w33, w34, w35, w36, w37, w38, w39, w40, w41, w42, w43, w44, w45, w46, w47, w48, w49, w50]
         "
         );
     }

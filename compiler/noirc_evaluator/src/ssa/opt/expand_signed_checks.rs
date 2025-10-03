@@ -1,3 +1,9 @@
+/// An SSA pass that transforms the checked signed arithmetic operations add, sub and mul
+/// into unchecked operations followed by explicit overflow checks.
+///
+/// The purpose of this pass is to avoid ACIR and Brillig having to handle checked signed arithmetic
+/// operations, while also allowing further optimizations to be done during subsequent
+/// SSA passes on the expanded instructions.
 use acvm::{FieldElement, acir::AcirField};
 
 use crate::ssa::{
@@ -29,7 +35,7 @@ impl Function {
     /// The structure of this pass is simple:
     /// Go through each block and re-insert all instructions, decomposing any checked signed arithmetic to have explicit
     /// overflow checks.
-    pub(crate) fn expand_signed_checks(&mut self) {
+    fn expand_signed_checks(&mut self) {
         // TODO: consider whether we can implement this more efficiently in brillig.
 
         self.simple_optimization(|context| {
@@ -61,7 +67,7 @@ impl Function {
             // We remove the current instruction, as we will need to replace it with multiple new instructions.
             context.remove_current_instruction();
 
-            let old_result = *context.dfg.instruction_results(instruction_id).first().unwrap();
+            let [old_result] = context.dfg.instruction_result(instruction_id);
 
             let mut expansion_context = Context { context };
             let new_result = match operator {
