@@ -429,7 +429,7 @@ pub(crate) fn display_expression<F: AcirField>(
     }
 
     if expr.q_c.is_zero() {
-        if as_equal_to_zero && !printed_term {
+        if !printed_term {
             write!(f, "0")?;
         }
     } else {
