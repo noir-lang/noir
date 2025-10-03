@@ -59,9 +59,7 @@
 <a href="#58" id="58">58</a>
 <a href="#59" id="59">59</a>
 <a href="#60" id="60">60</a>
-<a href="#61" id="61">61</a>
-<a href="#62" id="62">62</a>
-<a href="#63" id="63">63</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
+<a href="#61" id="61">61</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
     OpcodeResolutionError,
     pwg::{ErrorLocation, input_to_value},
 };
@@ -70,13 +68,11 @@
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>solve_range_opcode&lt;F: AcirField&gt;(
     initial_witness: <span class="kw-2">&amp;</span>WitnessMap&lt;F&gt;,
     input: <span class="kw-2">&amp;</span>FunctionInput&lt;F&gt;,
-    pedantic_solving: bool,
+    num_bits: u32,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;(), OpcodeResolutionError&lt;F&gt;&gt; {
-    <span class="comment">// TODO(https://github.com/noir-lang/noir/issues/5985):
-    // re-enable bitsize checks by default
-    </span><span class="kw">let </span>skip_bitsize_checks = !pedantic_solving;
-    <span class="kw">let </span>w_value = input_to_value(initial_witness, <span class="kw-2">*</span>input, skip_bitsize_checks)<span class="question-mark">?</span>;
-    <span class="kw">if </span>w_value.num_bits() &gt; input.num_bits() {
+    <span class="kw">let </span>w_value = input_to_value(initial_witness, <span class="kw-2">*</span>input)<span class="question-mark">?</span>;
+
+    <span class="kw">if </span>w_value.num_bits() &gt; num_bits {
         <span class="kw">return </span><span class="prelude-val">Err</span>(OpcodeResolutionError::UnsatisfiedConstrain {
             opcode_location: ErrorLocation::Unresolved,
             payload: <span class="prelude-val">None</span>,
@@ -101,15 +97,15 @@
     </span><span class="kw">fn </span>rejects_too_large_inputs() {
         <span class="kw">let </span>witness_map =
             WitnessMap::from(BTreeMap::from([(Witness(<span class="number">0</span>), FieldElement::from(<span class="number">256u32</span>))]));
-        <span class="kw">let </span>input: FunctionInput&lt;FieldElement&gt; = FunctionInput::witness(Witness(<span class="number">0</span>), <span class="number">8</span>);
-        <span class="macro">assert!</span>(solve_range_opcode(<span class="kw-2">&amp;</span>witness_map, <span class="kw-2">&amp;</span>input, <span class="bool-val">false</span>).is_err());
+        <span class="kw">let </span>input: FunctionInput&lt;FieldElement&gt; = FunctionInput::Witness(Witness(<span class="number">0</span>));
+        <span class="macro">assert!</span>(solve_range_opcode(<span class="kw-2">&amp;</span>witness_map, <span class="kw-2">&amp;</span>input, <span class="number">8</span>).is_err());
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>accepts_zero_for_zero_bits() {
         <span class="kw">let </span>witness_map = WitnessMap::from(BTreeMap::from([(Witness(<span class="number">0</span>), FieldElement::zero())]));
-        <span class="kw">let </span>input: FunctionInput&lt;FieldElement&gt; = FunctionInput::witness(Witness(<span class="number">0</span>), <span class="number">0</span>);
-        <span class="macro">assert!</span>(solve_range_opcode(<span class="kw-2">&amp;</span>witness_map, <span class="kw-2">&amp;</span>input, <span class="bool-val">false</span>).is_ok());
+        <span class="kw">let </span>input: FunctionInput&lt;FieldElement&gt; = FunctionInput::Witness(Witness(<span class="number">0</span>));
+        <span class="macro">assert!</span>(solve_range_opcode(<span class="kw-2">&amp;</span>witness_map, <span class="kw-2">&amp;</span>input, <span class="number">0</span>).is_ok());
     }
 
     <span class="attr">#[test]
@@ -119,8 +115,8 @@
         <span class="kw">for </span>value <span class="kw">in </span>values {
             <span class="kw">let </span>witness_map =
                 WitnessMap::from(BTreeMap::from([(Witness(<span class="number">0</span>), FieldElement::from(value))]));
-            <span class="kw">let </span>input: FunctionInput&lt;FieldElement&gt; = FunctionInput::witness(Witness(<span class="number">0</span>), <span class="number">8</span>);
-            <span class="macro">assert!</span>(solve_range_opcode(<span class="kw-2">&amp;</span>witness_map, <span class="kw-2">&amp;</span>input, <span class="bool-val">false</span>).is_ok());
+            <span class="kw">let </span>input: FunctionInput&lt;FieldElement&gt; = FunctionInput::Witness(Witness(<span class="number">0</span>));
+            <span class="macro">assert!</span>(solve_range_opcode(<span class="kw-2">&amp;</span>witness_map, <span class="kw-2">&amp;</span>input, <span class="number">8</span>).is_ok());
         }
     }
 }

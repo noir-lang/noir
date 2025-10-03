@@ -73,15 +73,7 @@
 <a href="#72" id="72">72</a>
 <a href="#73" id="73">73</a>
 <a href="#74" id="74">74</a>
-<a href="#75" id="75">75</a>
-<a href="#76" id="76">76</a>
-<a href="#77" id="77">77</a>
-<a href="#78" id="78">78</a>
-<a href="#79" id="79">79</a>
-<a href="#80" id="80">80</a>
-<a href="#81" id="81">81</a>
-<a href="#82" id="82">82</a>
-<a href="#83" id="83">83</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::BlackBoxFunc;
+<a href="#75" id="75">75</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::BlackBoxFunc;
 
 <span class="kw">use </span><span class="kw">crate</span>::BlackBoxResolutionError;
 
@@ -106,11 +98,7 @@
         input2_y: <span class="kw-2">&amp;</span>F,
         input2_infinite: <span class="kw-2">&amp;</span>F,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(F, F, F), BlackBoxResolutionError&gt;;
-    <span class="kw">fn </span>poseidon2_permutation(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        inputs: <span class="kw-2">&amp;</span>[F],
-        len: u32,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;F&gt;, BlackBoxResolutionError&gt;;
+    <span class="kw">fn </span>poseidon2_permutation(<span class="kw-2">&amp;</span><span class="self">self</span>, inputs: <span class="kw-2">&amp;</span>[F]) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;F&gt;, BlackBoxResolutionError&gt;;
 }
 
 <span class="comment">// pedantic_solving: bool
@@ -156,11 +144,7 @@
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(F, F, F), BlackBoxResolutionError&gt; {
         <span class="prelude-val">Err</span>(<span class="self">Self</span>::fail(BlackBoxFunc::EmbeddedCurveAdd))
     }
-    <span class="kw">fn </span>poseidon2_permutation(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        _inputs: <span class="kw-2">&amp;</span>[F],
-        _len: u32,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;F&gt;, BlackBoxResolutionError&gt; {
+    <span class="kw">fn </span>poseidon2_permutation(<span class="kw-2">&amp;</span><span class="self">self</span>, _inputs: <span class="kw-2">&amp;</span>[F]) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;F&gt;, BlackBoxResolutionError&gt; {
         <span class="prelude-val">Err</span>(<span class="self">Self</span>::fail(BlackBoxFunc::Poseidon2Permutation))
     }
 }

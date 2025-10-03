@@ -477,13 +477,7 @@
 <a href="#476" id="476">476</a>
 <a href="#477" id="477">477</a>
 <a href="#478" id="478">478</a>
-<a href="#479" id="479">479</a>
-<a href="#480" id="480">480</a>
-<a href="#481" id="481">481</a>
-<a href="#482" id="482">482</a>
-<a href="#483" id="483">483</a>
-<a href="#484" id="484">484</a>
-<a href="#485" id="485">485</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::hash::BuildHasher;
+<a href="#479" id="479">479</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::hash::BuildHasher;
 <span class="kw">use </span>std::io::{Read, Write};
 <span class="kw">use </span>std::path::Path;
 <span class="kw">use </span>std::time::Duration;
@@ -724,16 +718,10 @@
         <span class="comment">// If the compiled program is the same as the cached one, we don't apply transformations again, unless the target width has changed.
         // The transformations might not be idempotent, which would risk creating witnesses that don't work with earlier versions,
         // based on which we might have generated a verifier already.
-        </span><span class="kw">if </span>cached_hash == <span class="prelude-val">Some</span>(rustc_hash::FxBuildHasher.hash_one(<span class="kw-2">&amp;</span>program)) {
-            <span class="kw">let </span>width_matches = program
-                .program
-                .functions
-                .iter()
-                .all(|circuit| circuit.expression_width == target_width);
-
-            <span class="kw">if </span>width_matches {
-                <span class="kw">return </span><span class="prelude-val">Ok</span>(((), warnings));
-            }
+        </span><span class="kw">if </span>cached_hash == <span class="prelude-val">Some</span>(rustc_hash::FxBuildHasher.hash_one(<span class="kw-2">&amp;</span>program))
+            &amp;&amp; program.expression_width == target_width
+        {
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(((), warnings));
         }
         <span class="comment">// Run ACVM optimizations and set the target width.
         </span><span class="kw">let </span>program = nargo::ops::transform_program(program, target_width);

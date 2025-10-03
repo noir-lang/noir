@@ -1300,7 +1300,417 @@
 <a href="#1299" id="1299">1299</a>
 <a href="#1300" id="1300">1300</a>
 <a href="#1301" id="1301">1301</a>
-<a href="#1302" id="1302">1302</a></pre></div><pre class="rust"><code><span class="doccomment">//! Validator that checks whether a function is well formed.
+<a href="#1302" id="1302">1302</a>
+<a href="#1303" id="1303">1303</a>
+<a href="#1304" id="1304">1304</a>
+<a href="#1305" id="1305">1305</a>
+<a href="#1306" id="1306">1306</a>
+<a href="#1307" id="1307">1307</a>
+<a href="#1308" id="1308">1308</a>
+<a href="#1309" id="1309">1309</a>
+<a href="#1310" id="1310">1310</a>
+<a href="#1311" id="1311">1311</a>
+<a href="#1312" id="1312">1312</a>
+<a href="#1313" id="1313">1313</a>
+<a href="#1314" id="1314">1314</a>
+<a href="#1315" id="1315">1315</a>
+<a href="#1316" id="1316">1316</a>
+<a href="#1317" id="1317">1317</a>
+<a href="#1318" id="1318">1318</a>
+<a href="#1319" id="1319">1319</a>
+<a href="#1320" id="1320">1320</a>
+<a href="#1321" id="1321">1321</a>
+<a href="#1322" id="1322">1322</a>
+<a href="#1323" id="1323">1323</a>
+<a href="#1324" id="1324">1324</a>
+<a href="#1325" id="1325">1325</a>
+<a href="#1326" id="1326">1326</a>
+<a href="#1327" id="1327">1327</a>
+<a href="#1328" id="1328">1328</a>
+<a href="#1329" id="1329">1329</a>
+<a href="#1330" id="1330">1330</a>
+<a href="#1331" id="1331">1331</a>
+<a href="#1332" id="1332">1332</a>
+<a href="#1333" id="1333">1333</a>
+<a href="#1334" id="1334">1334</a>
+<a href="#1335" id="1335">1335</a>
+<a href="#1336" id="1336">1336</a>
+<a href="#1337" id="1337">1337</a>
+<a href="#1338" id="1338">1338</a>
+<a href="#1339" id="1339">1339</a>
+<a href="#1340" id="1340">1340</a>
+<a href="#1341" id="1341">1341</a>
+<a href="#1342" id="1342">1342</a>
+<a href="#1343" id="1343">1343</a>
+<a href="#1344" id="1344">1344</a>
+<a href="#1345" id="1345">1345</a>
+<a href="#1346" id="1346">1346</a>
+<a href="#1347" id="1347">1347</a>
+<a href="#1348" id="1348">1348</a>
+<a href="#1349" id="1349">1349</a>
+<a href="#1350" id="1350">1350</a>
+<a href="#1351" id="1351">1351</a>
+<a href="#1352" id="1352">1352</a>
+<a href="#1353" id="1353">1353</a>
+<a href="#1354" id="1354">1354</a>
+<a href="#1355" id="1355">1355</a>
+<a href="#1356" id="1356">1356</a>
+<a href="#1357" id="1357">1357</a>
+<a href="#1358" id="1358">1358</a>
+<a href="#1359" id="1359">1359</a>
+<a href="#1360" id="1360">1360</a>
+<a href="#1361" id="1361">1361</a>
+<a href="#1362" id="1362">1362</a>
+<a href="#1363" id="1363">1363</a>
+<a href="#1364" id="1364">1364</a>
+<a href="#1365" id="1365">1365</a>
+<a href="#1366" id="1366">1366</a>
+<a href="#1367" id="1367">1367</a>
+<a href="#1368" id="1368">1368</a>
+<a href="#1369" id="1369">1369</a>
+<a href="#1370" id="1370">1370</a>
+<a href="#1371" id="1371">1371</a>
+<a href="#1372" id="1372">1372</a>
+<a href="#1373" id="1373">1373</a>
+<a href="#1374" id="1374">1374</a>
+<a href="#1375" id="1375">1375</a>
+<a href="#1376" id="1376">1376</a>
+<a href="#1377" id="1377">1377</a>
+<a href="#1378" id="1378">1378</a>
+<a href="#1379" id="1379">1379</a>
+<a href="#1380" id="1380">1380</a>
+<a href="#1381" id="1381">1381</a>
+<a href="#1382" id="1382">1382</a>
+<a href="#1383" id="1383">1383</a>
+<a href="#1384" id="1384">1384</a>
+<a href="#1385" id="1385">1385</a>
+<a href="#1386" id="1386">1386</a>
+<a href="#1387" id="1387">1387</a>
+<a href="#1388" id="1388">1388</a>
+<a href="#1389" id="1389">1389</a>
+<a href="#1390" id="1390">1390</a>
+<a href="#1391" id="1391">1391</a>
+<a href="#1392" id="1392">1392</a>
+<a href="#1393" id="1393">1393</a>
+<a href="#1394" id="1394">1394</a>
+<a href="#1395" id="1395">1395</a>
+<a href="#1396" id="1396">1396</a>
+<a href="#1397" id="1397">1397</a>
+<a href="#1398" id="1398">1398</a>
+<a href="#1399" id="1399">1399</a>
+<a href="#1400" id="1400">1400</a>
+<a href="#1401" id="1401">1401</a>
+<a href="#1402" id="1402">1402</a>
+<a href="#1403" id="1403">1403</a>
+<a href="#1404" id="1404">1404</a>
+<a href="#1405" id="1405">1405</a>
+<a href="#1406" id="1406">1406</a>
+<a href="#1407" id="1407">1407</a>
+<a href="#1408" id="1408">1408</a>
+<a href="#1409" id="1409">1409</a>
+<a href="#1410" id="1410">1410</a>
+<a href="#1411" id="1411">1411</a>
+<a href="#1412" id="1412">1412</a>
+<a href="#1413" id="1413">1413</a>
+<a href="#1414" id="1414">1414</a>
+<a href="#1415" id="1415">1415</a>
+<a href="#1416" id="1416">1416</a>
+<a href="#1417" id="1417">1417</a>
+<a href="#1418" id="1418">1418</a>
+<a href="#1419" id="1419">1419</a>
+<a href="#1420" id="1420">1420</a>
+<a href="#1421" id="1421">1421</a>
+<a href="#1422" id="1422">1422</a>
+<a href="#1423" id="1423">1423</a>
+<a href="#1424" id="1424">1424</a>
+<a href="#1425" id="1425">1425</a>
+<a href="#1426" id="1426">1426</a>
+<a href="#1427" id="1427">1427</a>
+<a href="#1428" id="1428">1428</a>
+<a href="#1429" id="1429">1429</a>
+<a href="#1430" id="1430">1430</a>
+<a href="#1431" id="1431">1431</a>
+<a href="#1432" id="1432">1432</a>
+<a href="#1433" id="1433">1433</a>
+<a href="#1434" id="1434">1434</a>
+<a href="#1435" id="1435">1435</a>
+<a href="#1436" id="1436">1436</a>
+<a href="#1437" id="1437">1437</a>
+<a href="#1438" id="1438">1438</a>
+<a href="#1439" id="1439">1439</a>
+<a href="#1440" id="1440">1440</a>
+<a href="#1441" id="1441">1441</a>
+<a href="#1442" id="1442">1442</a>
+<a href="#1443" id="1443">1443</a>
+<a href="#1444" id="1444">1444</a>
+<a href="#1445" id="1445">1445</a>
+<a href="#1446" id="1446">1446</a>
+<a href="#1447" id="1447">1447</a>
+<a href="#1448" id="1448">1448</a>
+<a href="#1449" id="1449">1449</a>
+<a href="#1450" id="1450">1450</a>
+<a href="#1451" id="1451">1451</a>
+<a href="#1452" id="1452">1452</a>
+<a href="#1453" id="1453">1453</a>
+<a href="#1454" id="1454">1454</a>
+<a href="#1455" id="1455">1455</a>
+<a href="#1456" id="1456">1456</a>
+<a href="#1457" id="1457">1457</a>
+<a href="#1458" id="1458">1458</a>
+<a href="#1459" id="1459">1459</a>
+<a href="#1460" id="1460">1460</a>
+<a href="#1461" id="1461">1461</a>
+<a href="#1462" id="1462">1462</a>
+<a href="#1463" id="1463">1463</a>
+<a href="#1464" id="1464">1464</a>
+<a href="#1465" id="1465">1465</a>
+<a href="#1466" id="1466">1466</a>
+<a href="#1467" id="1467">1467</a>
+<a href="#1468" id="1468">1468</a>
+<a href="#1469" id="1469">1469</a>
+<a href="#1470" id="1470">1470</a>
+<a href="#1471" id="1471">1471</a>
+<a href="#1472" id="1472">1472</a>
+<a href="#1473" id="1473">1473</a>
+<a href="#1474" id="1474">1474</a>
+<a href="#1475" id="1475">1475</a>
+<a href="#1476" id="1476">1476</a>
+<a href="#1477" id="1477">1477</a>
+<a href="#1478" id="1478">1478</a>
+<a href="#1479" id="1479">1479</a>
+<a href="#1480" id="1480">1480</a>
+<a href="#1481" id="1481">1481</a>
+<a href="#1482" id="1482">1482</a>
+<a href="#1483" id="1483">1483</a>
+<a href="#1484" id="1484">1484</a>
+<a href="#1485" id="1485">1485</a>
+<a href="#1486" id="1486">1486</a>
+<a href="#1487" id="1487">1487</a>
+<a href="#1488" id="1488">1488</a>
+<a href="#1489" id="1489">1489</a>
+<a href="#1490" id="1490">1490</a>
+<a href="#1491" id="1491">1491</a>
+<a href="#1492" id="1492">1492</a>
+<a href="#1493" id="1493">1493</a>
+<a href="#1494" id="1494">1494</a>
+<a href="#1495" id="1495">1495</a>
+<a href="#1496" id="1496">1496</a>
+<a href="#1497" id="1497">1497</a>
+<a href="#1498" id="1498">1498</a>
+<a href="#1499" id="1499">1499</a>
+<a href="#1500" id="1500">1500</a>
+<a href="#1501" id="1501">1501</a>
+<a href="#1502" id="1502">1502</a>
+<a href="#1503" id="1503">1503</a>
+<a href="#1504" id="1504">1504</a>
+<a href="#1505" id="1505">1505</a>
+<a href="#1506" id="1506">1506</a>
+<a href="#1507" id="1507">1507</a>
+<a href="#1508" id="1508">1508</a>
+<a href="#1509" id="1509">1509</a>
+<a href="#1510" id="1510">1510</a>
+<a href="#1511" id="1511">1511</a>
+<a href="#1512" id="1512">1512</a>
+<a href="#1513" id="1513">1513</a>
+<a href="#1514" id="1514">1514</a>
+<a href="#1515" id="1515">1515</a>
+<a href="#1516" id="1516">1516</a>
+<a href="#1517" id="1517">1517</a>
+<a href="#1518" id="1518">1518</a>
+<a href="#1519" id="1519">1519</a>
+<a href="#1520" id="1520">1520</a>
+<a href="#1521" id="1521">1521</a>
+<a href="#1522" id="1522">1522</a>
+<a href="#1523" id="1523">1523</a>
+<a href="#1524" id="1524">1524</a>
+<a href="#1525" id="1525">1525</a>
+<a href="#1526" id="1526">1526</a>
+<a href="#1527" id="1527">1527</a>
+<a href="#1528" id="1528">1528</a>
+<a href="#1529" id="1529">1529</a>
+<a href="#1530" id="1530">1530</a>
+<a href="#1531" id="1531">1531</a>
+<a href="#1532" id="1532">1532</a>
+<a href="#1533" id="1533">1533</a>
+<a href="#1534" id="1534">1534</a>
+<a href="#1535" id="1535">1535</a>
+<a href="#1536" id="1536">1536</a>
+<a href="#1537" id="1537">1537</a>
+<a href="#1538" id="1538">1538</a>
+<a href="#1539" id="1539">1539</a>
+<a href="#1540" id="1540">1540</a>
+<a href="#1541" id="1541">1541</a>
+<a href="#1542" id="1542">1542</a>
+<a href="#1543" id="1543">1543</a>
+<a href="#1544" id="1544">1544</a>
+<a href="#1545" id="1545">1545</a>
+<a href="#1546" id="1546">1546</a>
+<a href="#1547" id="1547">1547</a>
+<a href="#1548" id="1548">1548</a>
+<a href="#1549" id="1549">1549</a>
+<a href="#1550" id="1550">1550</a>
+<a href="#1551" id="1551">1551</a>
+<a href="#1552" id="1552">1552</a>
+<a href="#1553" id="1553">1553</a>
+<a href="#1554" id="1554">1554</a>
+<a href="#1555" id="1555">1555</a>
+<a href="#1556" id="1556">1556</a>
+<a href="#1557" id="1557">1557</a>
+<a href="#1558" id="1558">1558</a>
+<a href="#1559" id="1559">1559</a>
+<a href="#1560" id="1560">1560</a>
+<a href="#1561" id="1561">1561</a>
+<a href="#1562" id="1562">1562</a>
+<a href="#1563" id="1563">1563</a>
+<a href="#1564" id="1564">1564</a>
+<a href="#1565" id="1565">1565</a>
+<a href="#1566" id="1566">1566</a>
+<a href="#1567" id="1567">1567</a>
+<a href="#1568" id="1568">1568</a>
+<a href="#1569" id="1569">1569</a>
+<a href="#1570" id="1570">1570</a>
+<a href="#1571" id="1571">1571</a>
+<a href="#1572" id="1572">1572</a>
+<a href="#1573" id="1573">1573</a>
+<a href="#1574" id="1574">1574</a>
+<a href="#1575" id="1575">1575</a>
+<a href="#1576" id="1576">1576</a>
+<a href="#1577" id="1577">1577</a>
+<a href="#1578" id="1578">1578</a>
+<a href="#1579" id="1579">1579</a>
+<a href="#1580" id="1580">1580</a>
+<a href="#1581" id="1581">1581</a>
+<a href="#1582" id="1582">1582</a>
+<a href="#1583" id="1583">1583</a>
+<a href="#1584" id="1584">1584</a>
+<a href="#1585" id="1585">1585</a>
+<a href="#1586" id="1586">1586</a>
+<a href="#1587" id="1587">1587</a>
+<a href="#1588" id="1588">1588</a>
+<a href="#1589" id="1589">1589</a>
+<a href="#1590" id="1590">1590</a>
+<a href="#1591" id="1591">1591</a>
+<a href="#1592" id="1592">1592</a>
+<a href="#1593" id="1593">1593</a>
+<a href="#1594" id="1594">1594</a>
+<a href="#1595" id="1595">1595</a>
+<a href="#1596" id="1596">1596</a>
+<a href="#1597" id="1597">1597</a>
+<a href="#1598" id="1598">1598</a>
+<a href="#1599" id="1599">1599</a>
+<a href="#1600" id="1600">1600</a>
+<a href="#1601" id="1601">1601</a>
+<a href="#1602" id="1602">1602</a>
+<a href="#1603" id="1603">1603</a>
+<a href="#1604" id="1604">1604</a>
+<a href="#1605" id="1605">1605</a>
+<a href="#1606" id="1606">1606</a>
+<a href="#1607" id="1607">1607</a>
+<a href="#1608" id="1608">1608</a>
+<a href="#1609" id="1609">1609</a>
+<a href="#1610" id="1610">1610</a>
+<a href="#1611" id="1611">1611</a>
+<a href="#1612" id="1612">1612</a>
+<a href="#1613" id="1613">1613</a>
+<a href="#1614" id="1614">1614</a>
+<a href="#1615" id="1615">1615</a>
+<a href="#1616" id="1616">1616</a>
+<a href="#1617" id="1617">1617</a>
+<a href="#1618" id="1618">1618</a>
+<a href="#1619" id="1619">1619</a>
+<a href="#1620" id="1620">1620</a>
+<a href="#1621" id="1621">1621</a>
+<a href="#1622" id="1622">1622</a>
+<a href="#1623" id="1623">1623</a>
+<a href="#1624" id="1624">1624</a>
+<a href="#1625" id="1625">1625</a>
+<a href="#1626" id="1626">1626</a>
+<a href="#1627" id="1627">1627</a>
+<a href="#1628" id="1628">1628</a>
+<a href="#1629" id="1629">1629</a>
+<a href="#1630" id="1630">1630</a>
+<a href="#1631" id="1631">1631</a>
+<a href="#1632" id="1632">1632</a>
+<a href="#1633" id="1633">1633</a>
+<a href="#1634" id="1634">1634</a>
+<a href="#1635" id="1635">1635</a>
+<a href="#1636" id="1636">1636</a>
+<a href="#1637" id="1637">1637</a>
+<a href="#1638" id="1638">1638</a>
+<a href="#1639" id="1639">1639</a>
+<a href="#1640" id="1640">1640</a>
+<a href="#1641" id="1641">1641</a>
+<a href="#1642" id="1642">1642</a>
+<a href="#1643" id="1643">1643</a>
+<a href="#1644" id="1644">1644</a>
+<a href="#1645" id="1645">1645</a>
+<a href="#1646" id="1646">1646</a>
+<a href="#1647" id="1647">1647</a>
+<a href="#1648" id="1648">1648</a>
+<a href="#1649" id="1649">1649</a>
+<a href="#1650" id="1650">1650</a>
+<a href="#1651" id="1651">1651</a>
+<a href="#1652" id="1652">1652</a>
+<a href="#1653" id="1653">1653</a>
+<a href="#1654" id="1654">1654</a>
+<a href="#1655" id="1655">1655</a>
+<a href="#1656" id="1656">1656</a>
+<a href="#1657" id="1657">1657</a>
+<a href="#1658" id="1658">1658</a>
+<a href="#1659" id="1659">1659</a>
+<a href="#1660" id="1660">1660</a>
+<a href="#1661" id="1661">1661</a>
+<a href="#1662" id="1662">1662</a>
+<a href="#1663" id="1663">1663</a>
+<a href="#1664" id="1664">1664</a>
+<a href="#1665" id="1665">1665</a>
+<a href="#1666" id="1666">1666</a>
+<a href="#1667" id="1667">1667</a>
+<a href="#1668" id="1668">1668</a>
+<a href="#1669" id="1669">1669</a>
+<a href="#1670" id="1670">1670</a>
+<a href="#1671" id="1671">1671</a>
+<a href="#1672" id="1672">1672</a>
+<a href="#1673" id="1673">1673</a>
+<a href="#1674" id="1674">1674</a>
+<a href="#1675" id="1675">1675</a>
+<a href="#1676" id="1676">1676</a>
+<a href="#1677" id="1677">1677</a>
+<a href="#1678" id="1678">1678</a>
+<a href="#1679" id="1679">1679</a>
+<a href="#1680" id="1680">1680</a>
+<a href="#1681" id="1681">1681</a>
+<a href="#1682" id="1682">1682</a>
+<a href="#1683" id="1683">1683</a>
+<a href="#1684" id="1684">1684</a>
+<a href="#1685" id="1685">1685</a>
+<a href="#1686" id="1686">1686</a>
+<a href="#1687" id="1687">1687</a>
+<a href="#1688" id="1688">1688</a>
+<a href="#1689" id="1689">1689</a>
+<a href="#1690" id="1690">1690</a>
+<a href="#1691" id="1691">1691</a>
+<a href="#1692" id="1692">1692</a>
+<a href="#1693" id="1693">1693</a>
+<a href="#1694" id="1694">1694</a>
+<a href="#1695" id="1695">1695</a>
+<a href="#1696" id="1696">1696</a>
+<a href="#1697" id="1697">1697</a>
+<a href="#1698" id="1698">1698</a>
+<a href="#1699" id="1699">1699</a>
+<a href="#1700" id="1700">1700</a>
+<a href="#1701" id="1701">1701</a>
+<a href="#1702" id="1702">1702</a>
+<a href="#1703" id="1703">1703</a>
+<a href="#1704" id="1704">1704</a>
+<a href="#1705" id="1705">1705</a>
+<a href="#1706" id="1706">1706</a>
+<a href="#1707" id="1707">1707</a>
+<a href="#1708" id="1708">1708</a>
+<a href="#1709" id="1709">1709</a>
+<a href="#1710" id="1710">1710</a>
+<a href="#1711" id="1711">1711</a>
+<a href="#1712" id="1712">1712</a></pre></div><pre class="rust"><code><span class="doccomment">//! Validator that checks whether a function is well formed.
 //!
 //! It validates:
 //!
@@ -1323,7 +1733,7 @@
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>dynamic_array_indices;
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
-    ir::{dfg::DataFlowGraph, instruction::TerminatorInstruction},
+    ir::{basic_block::BasicBlockId, dfg::DataFlowGraph, instruction::TerminatorInstruction},
     ssa_gen::Ssa,
 };
 
@@ -1474,416 +1884,28 @@
                     <span class="macro">panic!</span>(<span class="string">"Cannot use `{operator}` with field elements"</span>);
                 };
             }
-            Instruction::ArrayGet { index, .. } | Instruction::ArraySet { index, .. } =&gt; {
+            Instruction::ArrayGet { array, index, .. }
+            | Instruction::ArraySet { array, index, .. } =&gt; {
                 <span class="kw">let </span>index_type = dfg.type_of_value(<span class="kw-2">*</span>index);
                 <span class="kw">if </span>!<span class="macro">matches!</span>(index_type, Type::Numeric(NumericType::Unsigned { bit_size: <span class="number">32 </span>})) {
                     <span class="macro">panic!</span>(<span class="string">"ArrayGet/ArraySet index must be u32"</span>);
                 }
+                <span class="kw">let </span>array_type = dfg.type_of_value(<span class="kw-2">*</span>array);
+                <span class="kw">if </span>!array_type.contains_an_array() {
+                    <span class="macro">panic!</span>(<span class="string">"ArrayGet/ArraySet must operate on an array; got {array_type}"</span>);
+                }
+                <span class="macro">assert!</span>(!array_type.is_nested_slice(), <span class="string">"ICE: Nested slice type is not supported"</span>);
+                <span class="kw">let </span>instruction_results = dfg.instruction_results(instruction);
+                <span class="kw">for </span>result <span class="kw">in </span>instruction_results {
+                    <span class="kw">let </span>return_type = dfg.type_of_value(<span class="kw-2">*</span>result);
+                    <span class="macro">assert!</span>(
+                        !return_type.is_nested_slice(),
+                        <span class="string">"ICE: Nested slice type is not supported"
+                    </span>);
+                }
             }
             Instruction::Call { func, arguments } =&gt; {
-                <span class="kw">match </span><span class="kw-2">&amp;</span>dfg[<span class="kw-2">*</span>func] {
-                    Value::Intrinsic(intrinsic) =&gt; {
-                        <span class="kw">match </span>intrinsic {
-                            Intrinsic::ToRadix(<span class="kw">_</span>) =&gt; {
-                                assert_arguments_length(arguments, <span class="number">2</span>, <span class="string">"ToRadix"</span>);
-
-                                <span class="kw">let </span>value_type = dfg.type_of_value(arguments[<span class="number">0</span>]);
-                                assert_field(<span class="kw-2">&amp;</span>value_type, <span class="string">"ToRadix value"</span>);
-
-                                <span class="kw">let </span>radix_type = dfg.type_of_value(arguments[<span class="number">1</span>]);
-                                assert_u32(<span class="kw-2">&amp;</span>radix_type, <span class="string">"ToRadix radix"</span>);
-                            }
-                            Intrinsic::ToBits(<span class="kw">_</span>) =&gt; {
-                                <span class="comment">// Intrinsic::ToBits always has a set radix
-                                </span>assert_arguments_length(arguments, <span class="number">1</span>, <span class="string">"ToBits"</span>);
-
-                                <span class="kw">let </span>value_type = dfg.type_of_value(arguments[<span class="number">0</span>]);
-                                assert_field(<span class="kw-2">&amp;</span>value_type, <span class="string">"ToBits value"</span>);
-                            }
-                            Intrinsic::BlackBox(blackbox) =&gt; <span class="kw">match </span>blackbox {
-                                BlackBoxFunc::AND | BlackBoxFunc::XOR =&gt; {
-                                    <span class="macro">assert_eq!</span>(arguments.len(), <span class="number">2</span>);
-                                    <span class="kw">let </span>value_typ = dfg.type_of_value(arguments[<span class="number">0</span>]);
-                                    <span class="macro">assert!</span>(
-                                        <span class="macro">matches!</span>(
-                                            value_typ,
-                                            Type::Numeric(
-                                                NumericType::Unsigned { .. }
-                                                    | NumericType::Signed { .. }
-                                            )
-                                        ),
-                                        <span class="string">"Bitwise operation performed on non-integer type"
-                                    </span>);
-                                }
-                                BlackBoxFunc::AES128Encrypt =&gt; {
-                                    <span class="comment">// fn aes128_encrypt&lt;let N: u32&gt;(
-                                    //     input: [u8; N],
-                                    //     iv: [u8; 16],
-                                    //     key: [u8; 16],
-                                    // ) -&gt; [u8; N + 16 - N % 16] {}
-                                    </span>assert_arguments_length(arguments, <span class="number">3</span>, <span class="string">"aes128_encrypt"</span>);
-
-                                    <span class="kw">let </span>input = arguments[<span class="number">0</span>];
-                                    <span class="kw">let </span>input_type = dfg.type_of_value(input);
-                                    <span class="kw">let </span>input_length =
-                                        assert_u8_array(<span class="kw-2">&amp;</span>input_type, <span class="string">"aes128_encrypt input"</span>);
-
-                                    <span class="kw">let </span>iv = arguments[<span class="number">1</span>];
-                                    <span class="kw">let </span>iv_type = dfg.type_of_value(iv);
-                                    <span class="kw">let </span>iv_length = assert_u8_array(<span class="kw-2">&amp;</span>iv_type, <span class="string">"aes128_encrypt iv"</span>);
-                                    assert_array_length(iv_length, <span class="number">16</span>, <span class="string">"aes128_encrypt iv"</span>);
-
-                                    <span class="kw">let </span>key = arguments[<span class="number">2</span>];
-                                    <span class="kw">let </span>key_type = dfg.type_of_value(key);
-                                    <span class="kw">let </span>key_length =
-                                        assert_u8_array(<span class="kw-2">&amp;</span>key_type, <span class="string">"aes128_encrypt key"</span>);
-                                    assert_array_length(key_length, <span class="number">16</span>, <span class="string">"aes128_encrypt key"</span>);
-
-                                    <span class="kw">let </span>results = dfg.instruction_results(instruction);
-                                    <span class="macro">assert_eq!</span>(results.len(), <span class="number">1</span>, <span class="string">"Expected one result"</span>,);
-                                    <span class="kw">let </span>result_type = dfg.type_of_value(results[<span class="number">0</span>]);
-                                    <span class="kw">let </span>result_length =
-                                        assert_u8_array(<span class="kw-2">&amp;</span>result_type, <span class="string">"aes128_encrypt output"</span>);
-                                    <span class="macro">assert_eq!</span>(
-                                        result_length,
-                                        input_length + <span class="number">16 </span>- input_length % <span class="number">16</span>,
-                                        <span class="string">"aes128_encrypt output length mismatch"
-                                    </span>);
-                                }
-                                BlackBoxFunc::BigIntAdd
-                                | BlackBoxFunc::BigIntSub
-                                | BlackBoxFunc::BigIntMul
-                                | BlackBoxFunc::BigIntDiv
-                                | BlackBoxFunc::BigIntFromLeBytes
-                                | BlackBoxFunc::BigIntToLeBytes =&gt; {}
-                                BlackBoxFunc::Blake2s | BlackBoxFunc::Blake3 =&gt; {
-                                    <span class="comment">// fn blake2s&lt;let N: u32&gt;(input: [u8; N]) -&gt; [u8; 32]
-                                    // fn __blake3&lt;let N: u32&gt;(input: [u8; N]) -&gt; [u8; 32] {}
-                                    </span>assert_arguments_length(arguments, <span class="number">1</span>, <span class="string">"blake"</span>);
-
-                                    <span class="kw">let </span>input = arguments[<span class="number">0</span>];
-                                    <span class="kw">let </span>input_type = dfg.type_of_value(input);
-                                    assert_u8_array(<span class="kw-2">&amp;</span>input_type, <span class="string">"blake input"</span>);
-
-                                    <span class="kw">let </span>results = dfg.instruction_results(instruction);
-                                    <span class="macro">assert_eq!</span>(results.len(), <span class="number">1</span>, <span class="string">"Expected one result"</span>);
-                                    <span class="kw">let </span>result_type = dfg.type_of_value(results[<span class="number">0</span>]);
-                                    <span class="kw">let </span>result_length =
-                                        assert_u8_array(<span class="kw-2">&amp;</span>result_type, <span class="string">"blake output"</span>);
-                                    assert_array_length(result_length, <span class="number">32</span>, <span class="string">"blake output"</span>);
-                                }
-                                BlackBoxFunc::EcdsaSecp256k1 | BlackBoxFunc::EcdsaSecp256r1 =&gt; {
-                                    <span class="comment">// fn verify_signature&lt;let N: u32&gt;(
-                                    //     public_key_x: [u8; 32],
-                                    //     public_key_y: [u8; 32],
-                                    //     signature: [u8; 64],
-                                    //     message_hash: [u8; N],
-                                    // ) -&gt; bool
-                                    </span>assert_arguments_length(arguments, <span class="number">4</span>, <span class="string">"ecdsa_secp_256"</span>);
-
-                                    <span class="kw">let </span>public_key_x = arguments[<span class="number">0</span>];
-                                    <span class="kw">let </span>public_key_x_type = dfg.type_of_value(public_key_x);
-                                    <span class="kw">let </span>public_key_x_length = assert_u8_array(
-                                        <span class="kw-2">&amp;</span>public_key_x_type,
-                                        <span class="string">"ecdsa_secp256 public_key_x"</span>,
-                                    );
-                                    assert_array_length(
-                                        public_key_x_length,
-                                        <span class="number">32</span>,
-                                        <span class="string">"ecdsa_secp256 public_key_x"</span>,
-                                    );
-
-                                    <span class="kw">let </span>public_key_y = arguments[<span class="number">1</span>];
-                                    <span class="kw">let </span>public_key_y_type = dfg.type_of_value(public_key_y);
-                                    <span class="kw">let </span>public_key_y_length = assert_u8_array(
-                                        <span class="kw-2">&amp;</span>public_key_y_type,
-                                        <span class="string">"ecdsa_secp256 public_key_y"</span>,
-                                    );
-                                    assert_array_length(
-                                        public_key_y_length,
-                                        <span class="number">32</span>,
-                                        <span class="string">"ecdsa_secp256 public_key_y"</span>,
-                                    );
-
-                                    <span class="kw">let </span>signature = arguments[<span class="number">2</span>];
-                                    <span class="kw">let </span>signature_type = dfg.type_of_value(signature);
-                                    <span class="kw">let </span>signature_length =
-                                        assert_u8_array(<span class="kw-2">&amp;</span>signature_type, <span class="string">"ecdsa_secp256 signature"</span>);
-                                    assert_array_length(
-                                        signature_length,
-                                        <span class="number">64</span>,
-                                        <span class="string">"ecdsa_secp256 signature"</span>,
-                                    );
-
-                                    <span class="kw">let </span>message_hash = arguments[<span class="number">3</span>];
-                                    <span class="kw">let </span>message_hash_type = dfg.type_of_value(message_hash);
-                                    assert_array(<span class="kw-2">&amp;</span>message_hash_type, <span class="string">"ecdsa_secp256 message_hash"</span>);
-
-                                    <span class="kw">let </span>results = dfg.instruction_results(instruction);
-                                    <span class="macro">assert_eq!</span>(results.len(), <span class="number">1</span>, <span class="string">"Expected one result"</span>);
-                                    <span class="kw">let </span>result_type = dfg.type_of_value(results[<span class="number">0</span>]);
-                                    assert_u1(<span class="kw-2">&amp;</span>result_type, <span class="string">"ecdsa_secp256 result"</span>);
-                                }
-                                BlackBoxFunc::EmbeddedCurveAdd =&gt; {
-                                    <span class="comment">// fn embedded_curve_add_array_return(
-                                    //     _point1: EmbeddedCurvePoint,
-                                    //     _point2: EmbeddedCurvePoint,
-                                    // ) -&gt; [EmbeddedCurvePoint; 1] {}
-                                    //
-                                    // struct EmbeddedCurvePoint {
-                                    //     x: Field,
-                                    //     y: Field,
-                                    //     is_infinite: bool,
-                                    // }
-                                    </span>assert_arguments_length(arguments, <span class="number">6</span>, <span class="string">"embedded_curve_add"</span>);
-
-                                    assert_embedded_curve_point(
-                                        arguments,
-                                        <span class="number">0</span>,
-                                        dfg,
-                                        <span class="string">"embedded_curve_add _point1"</span>,
-                                    );
-                                    assert_embedded_curve_point(
-                                        arguments,
-                                        <span class="number">3</span>,
-                                        dfg,
-                                        <span class="string">"embedded_curve_add _point2"</span>,
-                                    );
-
-                                    <span class="kw">let </span>results = dfg.instruction_results(instruction);
-                                    <span class="macro">assert_eq!</span>(results.len(), <span class="number">1</span>, <span class="string">"Expected one result"</span>);
-                                    <span class="kw">let </span>result_type = dfg.type_of_value(results[<span class="number">0</span>]);
-                                    <span class="kw">let </span>(result_elements, result_length) =
-                                        assert_array(<span class="kw-2">&amp;</span>result_type, <span class="string">"embedded_curve_add result"</span>);
-                                    assert_array_length(
-                                        result_length,
-                                        <span class="number">1</span>,
-                                        <span class="string">"embedded_curve_add result length"</span>,
-                                    );
-                                    <span class="macro">assert_eq!</span>(
-                                        result_elements.len(),
-                                        <span class="number">3</span>,
-                                        <span class="string">"Expected embedded_curve_add result element types length to be 3, got: {}"</span>,
-                                        result_elements.len(),
-                                    );
-                                    assert_field(
-                                        <span class="kw-2">&amp;</span>result_elements[<span class="number">0</span>],
-                                        <span class="string">"embedded_curve_add result x"</span>,
-                                    );
-                                    assert_field(
-                                        <span class="kw-2">&amp;</span>result_elements[<span class="number">1</span>],
-                                        <span class="string">"embedded_curve_add result y"</span>,
-                                    );
-                                    assert_u1(
-                                        <span class="kw-2">&amp;</span>result_elements[<span class="number">2</span>],
-                                        <span class="string">"embedded_curve_add result is_infinite"</span>,
-                                    );
-                                }
-                                BlackBoxFunc::Keccakf1600 =&gt; {
-                                    <span class="comment">// fn keccakf1600(input: [u64; 25]) -&gt; [u64; 25] {}
-                                    </span><span class="macro">assert_eq!</span>(arguments.len(), <span class="number">1</span>);
-
-                                    <span class="kw">let </span>input = arguments[<span class="number">0</span>];
-                                    <span class="kw">let </span>input_type = dfg.type_of_value(input);
-                                    <span class="kw">let </span>input_length =
-                                        assert_u64_array(<span class="kw-2">&amp;</span>input_type, <span class="string">"keccakf1600 input"</span>);
-                                    assert_array_length(input_length, <span class="number">25</span>, <span class="string">"keccakf1600 input"</span>);
-
-                                    <span class="kw">let </span>results = dfg.instruction_results(instruction);
-                                    <span class="macro">assert_eq!</span>(results.len(), <span class="number">1</span>);
-                                    <span class="kw">let </span>result_type = dfg.type_of_value(results[<span class="number">0</span>]);
-                                    <span class="kw">let </span>result_length =
-                                        assert_u64_array(<span class="kw-2">&amp;</span>result_type, <span class="string">"keccakf1600 result"</span>);
-                                    assert_array_length(result_length, <span class="number">25</span>, <span class="string">"keccakf1600 result"</span>);
-                                }
-                                BlackBoxFunc::MultiScalarMul =&gt; {
-                                    <span class="comment">//  fn multi_scalar_mul_array_return&lt;let N: u32&gt;(
-                                    //     points: [EmbeddedCurvePoint; N],
-                                    //     scalars: [EmbeddedCurveScalar; N],
-                                    // ) -&gt; [EmbeddedCurvePoint; 1] {}
-                                    </span>assert_arguments_length(arguments, <span class="number">2</span>, <span class="string">"multi_scalar_mul"</span>);
-
-                                    <span class="kw">let </span>points_type = dfg.type_of_value(arguments[<span class="number">0</span>]);
-                                    <span class="kw">let </span>scalars_type = dfg.type_of_value(arguments[<span class="number">1</span>]);
-
-                                    <span class="kw">let </span>(points_elements, points_length) =
-                                        assert_array(<span class="kw-2">&amp;</span>points_type, <span class="string">"multi_scalar_mul points"</span>);
-                                    <span class="macro">assert_eq!</span>(
-                                        points_elements.len(),
-                                        <span class="number">3</span>,
-                                        <span class="string">"Expected multi_scalar_mul points element types length to be 3, got: {}"</span>,
-                                        points_elements.len()
-                                    );
-                                    assert_field(<span class="kw-2">&amp;</span>points_elements[<span class="number">0</span>], <span class="string">"multi_scalar_mul points x"</span>);
-                                    assert_field(<span class="kw-2">&amp;</span>points_elements[<span class="number">1</span>], <span class="string">"multi_scalar_mul points y"</span>);
-                                    assert_u1(
-                                        <span class="kw-2">&amp;</span>points_elements[<span class="number">2</span>],
-                                        <span class="string">"multi_scalar_mul points is_infinite"</span>,
-                                    );
-
-                                    <span class="kw">let </span>(scalars_elements, scalars_length) =
-                                        assert_array(<span class="kw-2">&amp;</span>scalars_type, <span class="string">"multi_scalar_mul scalars"</span>);
-                                    <span class="macro">assert_eq!</span>(
-                                        scalars_elements.len(),
-                                        <span class="number">2</span>,
-                                        <span class="string">"Expected multi_scalar_mul scalars element types length to be 2, got: {}"</span>,
-                                        scalars_elements.len()
-                                    );
-                                    assert_field(
-                                        <span class="kw-2">&amp;</span>scalars_elements[<span class="number">0</span>],
-                                        <span class="string">"multi_scalar_mul scalars lo"</span>,
-                                    );
-                                    assert_field(
-                                        <span class="kw-2">&amp;</span>scalars_elements[<span class="number">1</span>],
-                                        <span class="string">"multi_scalar_mul scalars hi"</span>,
-                                    );
-
-                                    <span class="macro">assert_eq!</span>(
-                                        points_length, scalars_length,
-                                        <span class="string">"MSM input array lengths mismatch"
-                                    </span>);
-                                }
-                                BlackBoxFunc::Poseidon2Permutation =&gt; {
-                                    <span class="comment">// fn poseidon2_permutation&lt;let N: u32&gt;(_input: [Field; N], _state_length: u32) -&gt; [Field; N] {}
-                                    </span>assert_arguments_length(arguments, <span class="number">2</span>, <span class="string">"poseidon2_permutation"</span>);
-
-                                    <span class="kw">let </span>input = arguments[<span class="number">0</span>];
-                                    <span class="kw">let </span>input_type = dfg.type_of_value(input);
-                                    <span class="kw">let </span>input_length = assert_field_array(
-                                        <span class="kw-2">&amp;</span>input_type,
-                                        <span class="string">"poseidon2_permutation _input"</span>,
-                                    );
-
-                                    <span class="kw">let </span>state_length = arguments[<span class="number">1</span>];
-                                    <span class="kw">let </span>state_length_type = dfg.type_of_value(state_length);
-                                    assert_u32(
-                                        <span class="kw-2">&amp;</span>state_length_type,
-                                        <span class="string">"poseidon2_permutation _state_length"</span>,
-                                    );
-
-                                    <span class="kw">let </span>results = dfg.instruction_results(instruction);
-                                    <span class="macro">assert_eq!</span>(results.len(), <span class="number">1</span>, <span class="string">"Expected one result"</span>);
-                                    <span class="kw">let </span>result_type = dfg.type_of_value(results[<span class="number">0</span>]);
-                                    <span class="kw">let </span>result_length = assert_field_array(
-                                        <span class="kw-2">&amp;</span>result_type,
-                                        <span class="string">"poseidon2_permutation result"</span>,
-                                    );
-                                    <span class="macro">assert_eq!</span>(
-                                        result_length, input_length,
-                                        <span class="string">"poseidon2_permutation input/output length mismatch"
-                                    </span>);
-                                }
-                                BlackBoxFunc::RANGE =&gt; {}
-                                BlackBoxFunc::RecursiveAggregation =&gt; {
-                                    <span class="comment">// fn verify_proof_internal&lt;let N: u32, let M: u32, let K: u32&gt;(
-                                    //     verification_key: [Field; N],
-                                    //     proof: [Field; M],
-                                    //     public_inputs: [Field; K],
-                                    //     key_hash: Field,
-                                    //     proof_type: u32,
-                                    // ) {}
-                                    </span>assert_arguments_length(arguments, <span class="number">5</span>, <span class="string">"recursive_aggregation"</span>);
-
-                                    <span class="kw">let </span>verification_key = arguments[<span class="number">0</span>];
-                                    <span class="kw">let </span>verification_key_type = dfg.type_of_value(verification_key);
-                                    assert_field_array(
-                                        <span class="kw-2">&amp;</span>verification_key_type,
-                                        <span class="string">"recursive_aggregation verification_key"</span>,
-                                    );
-
-                                    <span class="kw">let </span>proof = arguments[<span class="number">1</span>];
-                                    <span class="kw">let </span>proof_type = dfg.type_of_value(proof);
-                                    assert_field_array(<span class="kw-2">&amp;</span>proof_type, <span class="string">"recursive_aggregation proof"</span>);
-
-                                    <span class="kw">let </span>public_inputs = arguments[<span class="number">2</span>];
-                                    <span class="kw">let </span>public_inputs_type = dfg.type_of_value(public_inputs);
-                                    assert_field_array(
-                                        <span class="kw-2">&amp;</span>public_inputs_type,
-                                        <span class="string">"recursive_aggregation public_inputs"</span>,
-                                    );
-
-                                    <span class="kw">let </span>key_hash = arguments[<span class="number">3</span>];
-                                    <span class="kw">let </span>key_hash_type = dfg.type_of_value(key_hash);
-                                    assert_field(<span class="kw-2">&amp;</span>key_hash_type, <span class="string">"recursive_aggregation key_hash"</span>);
-
-                                    <span class="kw">let </span>proof_type = arguments[<span class="number">4</span>];
-                                    <span class="kw">let </span>proof_type_type = dfg.type_of_value(proof_type);
-                                    assert_u32(
-                                        <span class="kw-2">&amp;</span>proof_type_type,
-                                        <span class="string">"recursive_aggregation proof_type"</span>,
-                                    );
-                                }
-                                BlackBoxFunc::Sha256Compression =&gt; {
-                                    <span class="comment">// fn sha256_compression(input: [u32; 16], state: [u32; 8]) -&gt; [u32; 8] {}
-                                    </span>assert_arguments_length(arguments, <span class="number">2</span>, <span class="string">"sha256_compression"</span>);
-
-                                    <span class="kw">let </span>input = arguments[<span class="number">0</span>];
-                                    <span class="kw">let </span>input_type = dfg.type_of_value(input);
-                                    <span class="kw">let </span>input_length =
-                                        assert_u32_array(<span class="kw-2">&amp;</span>input_type, <span class="string">"sha256_compression input"</span>);
-                                    assert_array_length(
-                                        input_length,
-                                        <span class="number">16</span>,
-                                        <span class="string">"sha256_compression input"</span>,
-                                    );
-
-                                    <span class="kw">let </span>state = arguments[<span class="number">1</span>];
-                                    <span class="kw">let </span>state_type = dfg.type_of_value(state);
-                                    <span class="kw">let </span>state_length =
-                                        assert_u32_array(<span class="kw-2">&amp;</span>state_type, <span class="string">"sha256_compression state"</span>);
-                                    assert_array_length(
-                                        state_length,
-                                        <span class="number">8</span>,
-                                        <span class="string">"sha256_compression state"</span>,
-                                    );
-
-                                    <span class="kw">let </span>results = dfg.instruction_results(instruction);
-                                    <span class="macro">assert_eq!</span>(results.len(), <span class="number">1</span>, <span class="string">"Expected one result"</span>);
-                                    <span class="kw">let </span>result_type = dfg.type_of_value(results[<span class="number">0</span>]);
-                                    <span class="kw">let </span>result_length =
-                                        assert_u32_array(<span class="kw-2">&amp;</span>result_type, <span class="string">"sha256_compression result"</span>);
-                                    assert_array_length(
-                                        result_length,
-                                        <span class="number">8</span>,
-                                        <span class="string">"sha256_compression result"</span>,
-                                    );
-                                }
-                            },
-                            <span class="kw">_ </span>=&gt; {}
-                        }
-                    }
-                    Value::Function(func_id) =&gt; {
-                        <span class="kw">let </span>called_function = <span class="kw-2">&amp;</span><span class="self">self</span>.ssa.functions[func_id];
-                        <span class="kw">if let </span><span class="prelude-val">Some</span>(returns) = called_function.returns() {
-                            <span class="kw">let </span>instruction_results = dfg.instruction_results(instruction);
-                            <span class="kw">if </span>instruction_results.len() != returns.len() {
-                                <span class="macro">panic!</span>(
-                                    <span class="string">"Function call to {} expected {} return values, but got {}"</span>,
-                                    func_id,
-                                    instruction_results.len(),
-                                    returns.len(),
-                                );
-                            }
-                            <span class="kw">for </span>(index, (instruction_result, return_value)) <span class="kw">in
-                                </span>instruction_results.iter().zip(returns).enumerate()
-                            {
-                                <span class="kw">let </span>return_type = called_function.dfg.type_of_value(<span class="kw-2">*</span>return_value);
-                                <span class="kw">let </span>instruction_result_type =
-                                    dfg.type_of_value(<span class="kw-2">*</span>instruction_result);
-                                <span class="kw">if </span>return_type != instruction_result_type {
-                                    <span class="macro">panic!</span>(
-                                        <span class="string">"Function call to {} expected return type {}, but got {} (at position {})"</span>,
-                                        func_id,
-                                        instruction_result_type,
-                                        return_type,
-                                        index + <span class="number">1
-                                    </span>);
-                                }
-                            }
-                        }
-                    }
-                    <span class="kw">_ </span>=&gt; (),
-                }
+                <span class="self">self</span>.type_check_call(instruction, func, arguments);
             }
             Instruction::Constrain(lhs, rhs, <span class="kw">_</span>) | Instruction::ConstrainNotEqual(lhs, rhs, <span class="kw">_</span>) =&gt; {
                 <span class="kw">let </span>lhs_type = dfg.type_of_value(<span class="kw-2">*</span>lhs);
@@ -1895,10 +1917,7 @@
                 }
             }
             Instruction::MakeArray { elements, typ: <span class="kw">_ </span>} =&gt; {
-                <span class="kw">let </span>results = dfg.instruction_results(instruction);
-                <span class="macro">assert_eq!</span>(results.len(), <span class="number">1</span>, <span class="string">"MakeArray must return exactly one value"</span>);
-
-                <span class="kw">let </span>result_type = dfg.type_of_value(results[<span class="number">0</span>]);
+                <span class="kw">let </span>result_type = <span class="self">self</span>.assert_one_result(instruction, <span class="string">"MakeArray"</span>);
 
                 <span class="kw">let </span>composite_type = <span class="kw">match </span>result_type {
                     Type::Array(composite_type, length) =&gt; {
@@ -1957,6 +1976,641 @@
         }
     }
 
+    <span class="kw">fn </span>type_check_call(<span class="kw-2">&amp;</span><span class="self">self</span>, instruction: InstructionId, func: <span class="kw-2">&amp;</span>ValueId, arguments: <span class="kw-2">&amp;</span>[ValueId]) {
+        <span class="kw">let </span>dfg = <span class="kw-2">&amp;</span><span class="self">self</span>.function.dfg;
+        <span class="kw">match </span><span class="kw-2">&amp;</span>dfg[<span class="kw-2">*</span>func] {
+            Value::Intrinsic(intrinsic) =&gt; {
+                <span class="self">self</span>.type_check_intrinsic(instruction, arguments, intrinsic);
+            }
+            Value::Function(func_id) =&gt; {
+                <span class="kw">let </span>called_function = <span class="kw-2">&amp;</span><span class="self">self</span>.ssa.functions[func_id];
+
+                <span class="kw">let </span>parameter_types = called_function.view().parameter_types();
+                <span class="macro">assert_eq!</span>(
+                    arguments.len(),
+                    parameter_types.len(),
+                    <span class="string">"Function call to {func_id} expected {} parameters, but got {}"</span>,
+                    parameter_types.len(),
+                    arguments.len()
+                );
+
+                <span class="kw">for </span>(index, (argument, parameter_type)) <span class="kw">in
+                    </span>arguments.iter().zip(parameter_types).enumerate()
+                {
+                    <span class="kw">let </span>argument_type = dfg.type_of_value(<span class="kw-2">*</span>argument);
+                    <span class="kw">if </span>argument_type != parameter_type {
+                        <span class="macro">panic!</span>(
+                            <span class="string">"Argument #{} to {func_id} has type {parameter_type}, but {argument_type} was given"</span>,
+                            index + <span class="number">1</span>,
+                        );
+                    }
+                }
+
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(returns) = called_function.returns() {
+                    <span class="kw">let </span>instruction_results = dfg.instruction_results(instruction);
+                    <span class="kw">if </span>instruction_results.len() != returns.len() {
+                        <span class="macro">panic!</span>(
+                            <span class="string">"Function call to {} expected {} return values, but got {}"</span>,
+                            func_id,
+                            instruction_results.len(),
+                            returns.len(),
+                        );
+                    }
+                    <span class="kw">for </span>(index, (instruction_result, return_value)) <span class="kw">in
+                        </span>instruction_results.iter().zip(returns).enumerate()
+                    {
+                        <span class="kw">let </span>return_type = called_function.dfg.type_of_value(<span class="kw-2">*</span>return_value);
+                        <span class="kw">let </span>instruction_result_type = dfg.type_of_value(<span class="kw-2">*</span>instruction_result);
+                        <span class="kw">if </span>return_type != instruction_result_type {
+                            <span class="macro">panic!</span>(
+                                <span class="string">"Function call to {} expected return type {}, but got {} (at position {})"</span>,
+                                func_id,
+                                instruction_result_type,
+                                return_type,
+                                index + <span class="number">1
+                            </span>);
+                        }
+                    }
+                }
+            }
+            <span class="kw">_ </span>=&gt; (),
+        }
+    }
+
+    <span class="kw">fn </span>type_check_intrinsic(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        instruction: InstructionId,
+        arguments: <span class="kw-2">&amp;</span>[ValueId],
+        intrinsic: <span class="kw-2">&amp;</span>Intrinsic,
+    ) {
+        <span class="kw">match </span>intrinsic {
+            Intrinsic::ToRadix(<span class="kw">_</span>) =&gt; {
+                <span class="comment">// fn __to_le_radix&lt;let N: u32&gt;(value: Field, radix: u32) -&gt; [u8; N] {}
+                // fn __to_be_radix&lt;let N: u32&gt;(value: Field, radix: u32) -&gt; [u8; N] {}
+                </span><span class="kw">let </span>(value_type, radix_type) = <span class="self">self</span>.assert_two_arguments(arguments, <span class="string">"ToRadix"</span>);
+                assert_field(<span class="kw-2">&amp;</span>value_type, <span class="string">"ToRadix value"</span>);
+                assert_u32(<span class="kw-2">&amp;</span>radix_type, <span class="string">"ToRadix radix"</span>);
+
+                <span class="kw">let </span>result_type = <span class="self">self</span>.assert_one_result(instruction, <span class="string">"ToRadix"</span>);
+                assert_u8_array(<span class="kw-2">&amp;</span>result_type, <span class="string">"to_radix output"</span>);
+            }
+            Intrinsic::ToBits(<span class="kw">_</span>) =&gt; {
+                <span class="comment">// fn __to_le_bits&lt;let N: u32&gt;(value: Field) -&gt; [u1; N] {}
+                // fn __to_be_bits&lt;let N: u32&gt;(value: Field) -&gt; [u1; N] {}
+                </span><span class="kw">let </span>value_type = <span class="self">self</span>.assert_one_argument(arguments, <span class="string">"ToBits"</span>);
+                assert_field(<span class="kw-2">&amp;</span>value_type, <span class="string">"ToBits value"</span>);
+
+                <span class="kw">let </span>result_type = <span class="self">self</span>.assert_one_result(instruction, <span class="string">"ToBits"</span>);
+                assert_u1_array(<span class="kw-2">&amp;</span>result_type, <span class="string">"to_bits output"</span>);
+            }
+            Intrinsic::ArrayLen =&gt; {
+                <span class="comment">// fn len(self: [T; N]) -&gt; u32 {}
+                </span><span class="kw">let </span>argument_type = <span class="self">self</span>.assert_one_argument(arguments, <span class="string">"ArrayLen"</span>);
+                assert_array(<span class="kw-2">&amp;</span>argument_type, <span class="string">"ArrayLen argument"</span>);
+
+                <span class="kw">let </span>result_type = <span class="self">self</span>.assert_one_result(instruction, <span class="string">"ArrayLen"</span>);
+                assert_u32(<span class="kw-2">&amp;</span>result_type, <span class="string">"ArrayLen return"</span>);
+            }
+            Intrinsic::ArrayAsStrUnchecked =&gt; {
+                <span class="comment">// fn as_str_unchecked(self: [u8; N]) -&gt; str&lt;N&gt; {}
+                </span><span class="kw">let </span>argument_type = <span class="self">self</span>.assert_one_argument(arguments, <span class="string">"ArrayAsStrUnchecked"</span>);
+                <span class="kw">let </span>array_length = assert_u8_array(<span class="kw-2">&amp;</span>argument_type, <span class="string">"ArrayAsStrUnchecked argument"</span>);
+
+                <span class="kw">let </span>result_type = <span class="self">self</span>.assert_one_result(instruction, <span class="string">"ArrayAsStrUnchecked"</span>);
+                <span class="kw">let </span>string_length = assert_u8_array(<span class="kw-2">&amp;</span>result_type, <span class="string">"ArrayAsStrUnchecked argument"</span>);
+                <span class="macro">assert_eq!</span>(
+                    array_length, string_length,
+                    <span class="string">"ArrayAsStrUnchecked array length must match string length"
+                </span>);
+            }
+            Intrinsic::AsSlice =&gt; {
+                <span class="comment">// fn as_slice(self: [T; N]) -&gt; [T] {}
+                </span><span class="kw">let </span>argument_type = <span class="self">self</span>.assert_one_argument(arguments, <span class="string">"AsSlice"</span>);
+                <span class="kw">let </span>(array_types, _array_length) = assert_array(<span class="kw-2">&amp;</span>argument_type, <span class="string">"AsSlice argument"</span>);
+
+                <span class="kw">let </span>results = <span class="self">self</span>.function.dfg.instruction_results(instruction);
+                <span class="macro">assert_eq!</span>(results.len(), <span class="number">2</span>, <span class="string">"Expected two results for AsSlice"</span>,);
+
+                <span class="kw">let </span>length_type = <span class="self">self</span>.function.dfg.type_of_value(results[<span class="number">0</span>]);
+                assert_u32(<span class="kw-2">&amp;</span>length_type, <span class="string">"AsSlice length"</span>);
+
+                <span class="kw">let </span>slice_type = <span class="self">self</span>.function.dfg.type_of_value(results[<span class="number">1</span>]);
+                <span class="kw">let </span>slice_types = assert_slice(<span class="kw-2">&amp;</span>slice_type, <span class="string">"AsSlice return"</span>);
+                <span class="macro">assert_eq!</span>(
+                    array_types, slice_types,
+                    <span class="string">"AsSlice input array element types must match output slice element types"
+                </span>);
+            }
+            Intrinsic::AssertConstant =&gt; {
+                <span class="comment">// fn assert_constant&lt;T&gt;(x: T) {}
+                </span><span class="self">self</span>.assert_no_results(instruction, <span class="string">"AssertConstant"</span>);
+            }
+            Intrinsic::StaticAssert =&gt; {
+                <span class="comment">// fn static_assert&lt;T&gt;(predicate: bool, message: T) {}
+                </span><span class="macro">assert!</span>(!arguments.is_empty(), <span class="string">"StaticAssert must have at least one argument"</span>);
+
+                <span class="kw">let </span>predicate_type = <span class="self">self</span>.function.dfg.type_of_value(arguments[<span class="number">0</span>]);
+                assert_u1(<span class="kw-2">&amp;</span>predicate_type, <span class="string">"StaticAssert predicate"</span>);
+
+                <span class="self">self</span>.assert_no_results(instruction, <span class="string">"StaticAssert"</span>);
+            }
+            Intrinsic::SlicePushBack | Intrinsic::SlicePushFront =&gt; {
+                <span class="comment">// fn push_back(self: [T], elem: T) -&gt; Self {}
+                // fn push_front(self: [T], elem: T) -&gt; Self {}
+                </span><span class="macro">assert!</span>(arguments.len() &gt;= <span class="number">2</span>, <span class="string">"SlicePush must have at least two arguments"</span>);
+
+                <span class="kw">let </span>slice_length_type = <span class="self">self</span>.function.dfg.type_of_value(arguments[<span class="number">0</span>]);
+                assert_u32(<span class="kw-2">&amp;</span>slice_length_type, <span class="string">"SlicePush self length"</span>);
+
+                <span class="kw">let </span>slice_type = <span class="self">self</span>.function.dfg.type_of_value(arguments[<span class="number">1</span>]);
+                <span class="kw">let </span>slice_element_types = assert_slice(<span class="kw-2">&amp;</span>slice_type, <span class="string">"SlicePush self slice"</span>);
+
+                <span class="kw">let </span>(returned_slice_length_type, returned_slice_type) =
+                    <span class="self">self</span>.assert_two_results(instruction, <span class="string">"SlicePush"</span>);
+                assert_u32(<span class="kw-2">&amp;</span>returned_slice_length_type, <span class="string">"SlicePush returned length"</span>);
+                <span class="kw">let </span>returned_slice_element_types =
+                    assert_slice(<span class="kw-2">&amp;</span>returned_slice_type, <span class="string">"SlicePush returned slice"</span>);
+                <span class="macro">assert_eq!</span>(
+                    slice_element_types, returned_slice_element_types,
+                    <span class="string">"SlicePush self slice element types must match returned slice element types"
+                </span>);
+            }
+            Intrinsic::SlicePopBack =&gt; {
+                <span class="comment">// fn pop_back(self: [T]) -&gt; (Self, T) {}
+                </span><span class="kw">let </span>(slice_length_type, slice_type) =
+                    <span class="self">self</span>.assert_two_arguments(arguments, <span class="string">"SlicePopBack"</span>);
+                assert_u32(<span class="kw-2">&amp;</span>slice_length_type, <span class="string">"SlicePopBack self length"</span>);
+                <span class="kw">let </span>slice_element_types = assert_slice(<span class="kw-2">&amp;</span>slice_type, <span class="string">"SlicePopBack self slice"</span>);
+
+                <span class="kw">let </span>results = <span class="self">self</span>.function.dfg.instruction_results(instruction);
+                <span class="macro">assert!</span>(results.len() &gt;= <span class="number">2</span>, <span class="string">"Expected at least two results for SlicePopBack"</span>);
+
+                <span class="kw">let </span>returned_slice_length_type = <span class="self">self</span>.function.dfg.type_of_value(results[<span class="number">0</span>]);
+                assert_u32(<span class="kw-2">&amp;</span>returned_slice_length_type, <span class="string">"SlicePopBack returned length"</span>);
+
+                <span class="kw">let </span>returned_slice_type = <span class="self">self</span>.function.dfg.type_of_value(results[<span class="number">1</span>]);
+                <span class="kw">let </span>returned_slice_element_types =
+                    assert_slice(<span class="kw-2">&amp;</span>returned_slice_type, <span class="string">"SlicePopBack returned slice"</span>);
+                <span class="macro">assert_eq!</span>(
+                    slice_element_types, returned_slice_element_types,
+                    <span class="string">"SlicePopBack self slice element types must match returned slice element types"
+                </span>);
+            }
+            Intrinsic::SlicePopFront =&gt; {
+                <span class="comment">// fn pop_front(self: [T]) -&gt; (T, Self) {}
+                </span><span class="kw">let </span>(slice_length_type, slice_type) =
+                    <span class="self">self</span>.assert_two_arguments(arguments, <span class="string">"SlicePopFront"</span>);
+                assert_u32(<span class="kw-2">&amp;</span>slice_length_type, <span class="string">"SlicePopFront self length"</span>);
+                <span class="kw">let </span>slice_element_types = assert_slice(<span class="kw-2">&amp;</span>slice_type, <span class="string">"SlicePopFront self slice"</span>);
+
+                <span class="kw">let </span>results = <span class="self">self</span>.function.dfg.instruction_results(instruction);
+                <span class="macro">assert!</span>(results.len() &gt;= <span class="number">2</span>, <span class="string">"Expected at least two results for SlicePopFront"</span>);
+
+                <span class="kw">let </span>returned_slice_type =
+                    <span class="self">self</span>.function.dfg.type_of_value(results[results.len() - <span class="number">1</span>]);
+                <span class="kw">let </span>returned_slice_element_types =
+                    assert_slice(<span class="kw-2">&amp;</span>returned_slice_type, <span class="string">"SlicePopFront returned slice"</span>);
+                <span class="macro">assert_eq!</span>(
+                    slice_element_types, returned_slice_element_types,
+                    <span class="string">"SlicePopFront self slice element types must match returned slice element types"
+                </span>);
+
+                <span class="kw">let </span>returned_slice_length_type =
+                    <span class="self">self</span>.function.dfg.type_of_value(results[results.len() - <span class="number">2</span>]);
+                assert_u32(<span class="kw-2">&amp;</span>returned_slice_length_type, <span class="string">"SlicePopFront returned length"</span>);
+            }
+            Intrinsic::SliceInsert =&gt; {
+                <span class="comment">// fn insert(self: [T], index: u32, elem: T) -&gt; Self {}
+                </span><span class="macro">assert!</span>(arguments.len() &gt;= <span class="number">3</span>, <span class="string">"SliceInsert must have at least three arguments"</span>);
+
+                <span class="kw">let </span>slice_length_type = <span class="self">self</span>.function.dfg.type_of_value(arguments[<span class="number">0</span>]);
+                assert_u32(<span class="kw-2">&amp;</span>slice_length_type, <span class="string">"SliceInsert self length"</span>);
+
+                <span class="kw">let </span>slice_type = <span class="self">self</span>.function.dfg.type_of_value(arguments[<span class="number">1</span>]);
+                <span class="kw">let </span>slice_element_types = assert_slice(<span class="kw-2">&amp;</span>slice_type, <span class="string">"SliceInsert self slice"</span>);
+
+                <span class="kw">let </span>index_type = <span class="self">self</span>.function.dfg.type_of_value(arguments[<span class="number">2</span>]);
+                assert_u32(<span class="kw-2">&amp;</span>index_type, <span class="string">"SliceInsert index"</span>);
+
+                <span class="kw">let </span>(returned_slice_length_type, returned_slice_type) =
+                    <span class="self">self</span>.assert_two_results(instruction, <span class="string">"SliceInsert"</span>);
+                assert_u32(<span class="kw-2">&amp;</span>returned_slice_length_type, <span class="string">"SliceInsert returned length"</span>);
+                <span class="kw">let </span>returned_slice_element_types =
+                    assert_slice(<span class="kw-2">&amp;</span>returned_slice_type, <span class="string">"SliceInsert returned slice"</span>);
+                <span class="macro">assert_eq!</span>(
+                    slice_element_types, returned_slice_element_types,
+                    <span class="string">"SliceInsert self slice element types must match returned slice element types"
+                </span>);
+            }
+            Intrinsic::SliceRemove =&gt; {
+                <span class="comment">// fn remove(self: [T], index: u32) -&gt; (Self, T) {}
+                </span><span class="kw">let </span>(slice_length_type, slice_type, index_type) =
+                    <span class="self">self</span>.assert_three_arguments(arguments, <span class="string">"SliceRemove"</span>);
+
+                assert_u32(<span class="kw-2">&amp;</span>slice_length_type, <span class="string">"SliceRemove self length"</span>);
+
+                <span class="kw">let </span>slice_element_types = assert_slice(<span class="kw-2">&amp;</span>slice_type, <span class="string">"SliceRemove self slice"</span>);
+
+                assert_u32(<span class="kw-2">&amp;</span>index_type, <span class="string">"SliceRemove index"</span>);
+
+                <span class="kw">let </span>results = <span class="self">self</span>.function.dfg.instruction_results(instruction);
+                <span class="macro">assert!</span>(results.len() &gt;= <span class="number">2</span>, <span class="string">"Expected at least two results for SliceRemove"</span>);
+
+                <span class="kw">let </span>returned_slice_length_type = <span class="self">self</span>.function.dfg.type_of_value(results[<span class="number">0</span>]);
+                assert_u32(<span class="kw-2">&amp;</span>returned_slice_length_type, <span class="string">"SliceRemove returned length"</span>);
+
+                <span class="kw">let </span>returned_slice_type = <span class="self">self</span>.function.dfg.type_of_value(results[<span class="number">1</span>]);
+                <span class="kw">let </span>returned_slice_element_types =
+                    assert_slice(<span class="kw-2">&amp;</span>returned_slice_type, <span class="string">"SliceRemove returned slice"</span>);
+                <span class="macro">assert_eq!</span>(
+                    slice_element_types, returned_slice_element_types,
+                    <span class="string">"SliceRemove self slice element types must match returned slice element types"
+                </span>);
+            }
+            Intrinsic::ApplyRangeConstraint =&gt; {
+                <span class="comment">// fn __assert_max_bit_size(value: Field, bit_size: u32) {}
+                </span><span class="kw">let </span>(value_type, bit_size_type) =
+                    <span class="self">self</span>.assert_two_arguments(arguments, <span class="string">"ApplyRangeConstraint"</span>);
+                assert_field(<span class="kw-2">&amp;</span>value_type, <span class="string">"ApplyRangeConstraint value"</span>);
+                assert_u32(<span class="kw-2">&amp;</span>bit_size_type, <span class="string">"ApplyRangeConstraint bit size"</span>);
+            }
+            Intrinsic::StrAsBytes =&gt; {
+                <span class="comment">// fn as_bytes(self: str&lt;N&gt;) -&gt; [u8; N] {}
+                </span><span class="kw">let </span>argument_type = <span class="self">self</span>.assert_one_argument(arguments, <span class="string">"StrAsBytes"</span>);
+                <span class="kw">let </span>string_length = assert_u8_array(<span class="kw-2">&amp;</span>argument_type, <span class="string">"StrAsBytes argument"</span>);
+
+                <span class="kw">let </span>result_type = <span class="self">self</span>.assert_one_result(instruction, <span class="string">"StrAsBytes"</span>);
+                <span class="kw">let </span>array_length = assert_u8_array(<span class="kw-2">&amp;</span>result_type, <span class="string">"StrAsBytes argument"</span>);
+                <span class="macro">assert_eq!</span>(
+                    string_length, array_length,
+                    <span class="string">"StrAsBytes string length must match array length"
+                </span>);
+            }
+            Intrinsic::Hint(<span class="kw">_</span>) =&gt; {
+                <span class="comment">// fn black_box&lt;T&gt;(value: T) -&gt; T {}
+                // Not much we can do here (T might be `()` so arguments aren't guaranteed)
+            </span>}
+            Intrinsic::AsWitness =&gt; {
+                <span class="comment">// fn as_witness(x: Field) {}
+                </span><span class="kw">let </span>argument_type = <span class="self">self</span>.assert_one_argument(arguments, <span class="string">"AsWitness"</span>);
+                assert_field(<span class="kw-2">&amp;</span>argument_type, <span class="string">"AsWitness argument"</span>);
+
+                <span class="self">self</span>.assert_no_results(instruction, <span class="string">"AsWitness"</span>);
+            }
+            Intrinsic::IsUnconstrained =&gt; {
+                <span class="comment">// fn is_unconstrained() -&gt; bool {}
+                </span>assert_arguments_length(arguments, <span class="number">0</span>, <span class="string">"IsUnconstrained"</span>);
+
+                <span class="kw">let </span>result_type = <span class="self">self</span>.assert_one_result(instruction, <span class="string">"IsUnconstrained"</span>);
+                assert_u1(<span class="kw-2">&amp;</span>result_type, <span class="string">"IsUnconstrained result"</span>);
+            }
+            Intrinsic::DerivePedersenGenerators =&gt; {
+                <span class="comment">// fn __derive_generators&lt;let N: u32, let M: u32&gt;(
+                //     domain_separator_bytes: [u8; M],
+                //     starting_index: u32,
+                // ) -&gt; [EmbeddedCurvePoint; N] {}
+                </span><span class="kw">let </span>(domain_separator_bytes_type, starting_index_type) =
+                    <span class="self">self</span>.assert_two_arguments(arguments, <span class="string">"DerivePedersenGenerators"</span>);
+                assert_u8_array(
+                    <span class="kw-2">&amp;</span>domain_separator_bytes_type,
+                    <span class="string">"DerivePedersenGenerators domain_separator_bytes"</span>,
+                );
+                assert_u32(<span class="kw-2">&amp;</span>starting_index_type, <span class="string">"DerivePedersenGenerators starting_index"</span>);
+
+                <span class="kw">let </span>result_type = <span class="self">self</span>.assert_one_result(instruction, <span class="string">"DerivePedersenGenerators"</span>);
+                <span class="kw">let </span>(result_elements, _array_length) =
+                    assert_array(<span class="kw-2">&amp;</span>result_type, <span class="string">"DerivePedersenGenerators result"</span>);
+                <span class="macro">assert_eq!</span>(
+                    result_elements.len(),
+                    <span class="number">3</span>,
+                    <span class="string">"Expected embedded_curve_add result element types length to be 3, got: {}"</span>,
+                    result_elements.len(),
+                );
+                assert_field(<span class="kw-2">&amp;</span>result_elements[<span class="number">0</span>], <span class="string">"embedded_curve_add result x"</span>);
+                assert_field(<span class="kw-2">&amp;</span>result_elements[<span class="number">1</span>], <span class="string">"embedded_curve_add result y"</span>);
+                assert_u1(<span class="kw-2">&amp;</span>result_elements[<span class="number">2</span>], <span class="string">"embedded_curve_add result is_infinite"</span>);
+            }
+            Intrinsic::FieldLessThan =&gt; {
+                <span class="comment">// fn __field_less_than(x: Field, y: Field) -&gt; bool {}
+                </span><span class="kw">let </span>(x_type, y_type) = <span class="self">self</span>.assert_two_arguments(arguments, <span class="string">"FieldLessThan"</span>);
+                assert_field(<span class="kw-2">&amp;</span>x_type, <span class="string">"FieldLessThan x"</span>);
+                assert_field(<span class="kw-2">&amp;</span>y_type, <span class="string">"FieldLessThan y"</span>);
+
+                <span class="kw">let </span>result_type = <span class="self">self</span>.assert_one_result(instruction, <span class="string">"FieldLessThan"</span>);
+                assert_u1(<span class="kw-2">&amp;</span>result_type, <span class="string">"FieldLessThan result"</span>);
+            }
+            Intrinsic::ArrayRefCount =&gt; {
+                <span class="comment">// fn array_refcount&lt;T, let N: u32&gt;(array: [T; N]) -&gt; u32 {}
+                </span><span class="kw">let </span>array_type = <span class="self">self</span>.assert_one_argument(arguments, <span class="string">"ArrayRefCount"</span>);
+                assert_array(<span class="kw-2">&amp;</span>array_type, <span class="string">"ArrayRefCount array"</span>);
+
+                <span class="kw">let </span>result_type = <span class="self">self</span>.assert_one_result(instruction, <span class="string">"ArrayRefCount"</span>);
+                assert_u32(<span class="kw-2">&amp;</span>result_type, <span class="string">"ArrayRefCount result"</span>);
+            }
+            Intrinsic::SliceRefCount =&gt; {
+                <span class="comment">// fn slice_refcount&lt;T&gt;(slice: [T]) -&gt; u32 {}
+                </span><span class="kw">let </span>(slice_length_type, slice_type) =
+                    <span class="self">self</span>.assert_two_arguments(arguments, <span class="string">"SliceRefCount"</span>);
+                assert_u32(<span class="kw-2">&amp;</span>slice_length_type, <span class="string">"SliceRefCount length"</span>);
+                assert_slice(<span class="kw-2">&amp;</span>slice_type, <span class="string">"SliceRefCount slice"</span>);
+
+                <span class="kw">let </span>result_type = <span class="self">self</span>.assert_one_result(instruction, <span class="string">"SliceRefCount"</span>);
+                assert_u32(<span class="kw-2">&amp;</span>result_type, <span class="string">"SliceRefCount result"</span>);
+            }
+            Intrinsic::BlackBox(blackbox) =&gt; {
+                <span class="self">self</span>.type_check_black_box(instruction, arguments, blackbox);
+            }
+        }
+    }
+
+    <span class="kw">fn </span>type_check_black_box(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        instruction: InstructionId,
+        arguments: <span class="kw-2">&amp;</span>[ValueId],
+        blackbox: <span class="kw-2">&amp;</span>BlackBoxFunc,
+    ) {
+        <span class="kw">let </span>dfg = <span class="kw-2">&amp;</span><span class="self">self</span>.function.dfg;
+        <span class="kw">match </span>blackbox {
+            BlackBoxFunc::AND | BlackBoxFunc::XOR =&gt; {
+                <span class="macro">assert_eq!</span>(arguments.len(), <span class="number">2</span>);
+                <span class="kw">let </span>value_typ = dfg.type_of_value(arguments[<span class="number">0</span>]);
+                <span class="macro">assert!</span>(
+                    <span class="macro">matches!</span>(
+                        value_typ,
+                        Type::Numeric(NumericType::Unsigned { .. } | NumericType::Signed { .. })
+                    ),
+                    <span class="string">"Bitwise operation performed on non-integer type"
+                </span>);
+            }
+            BlackBoxFunc::AES128Encrypt =&gt; {
+                <span class="comment">// fn aes128_encrypt&lt;let N: u32&gt;(
+                //     input: [u8; N],
+                //     iv: [u8; 16],
+                //     key: [u8; 16],
+                // ) -&gt; [u8; N + 16 - N % 16] {}
+                </span><span class="kw">let </span>(input_type, iv_type, key_type) =
+                    <span class="self">self</span>.assert_three_arguments(arguments, <span class="string">"aes128_encrypt"</span>);
+
+                <span class="kw">let </span>input_length = assert_u8_array(<span class="kw-2">&amp;</span>input_type, <span class="string">"aes128_encrypt input"</span>);
+
+                <span class="kw">let </span>iv_length = assert_u8_array(<span class="kw-2">&amp;</span>iv_type, <span class="string">"aes128_encrypt iv"</span>);
+                assert_array_length(iv_length, <span class="number">16</span>, <span class="string">"aes128_encrypt iv"</span>);
+
+                <span class="kw">let </span>key_length = assert_u8_array(<span class="kw-2">&amp;</span>key_type, <span class="string">"aes128_encrypt key"</span>);
+                assert_array_length(key_length, <span class="number">16</span>, <span class="string">"aes128_encrypt key"</span>);
+
+                <span class="kw">let </span>result_type = <span class="self">self</span>.assert_one_result(instruction, <span class="string">"aes128_encrypt"</span>);
+                <span class="kw">let </span>result_length = assert_u8_array(<span class="kw-2">&amp;</span>result_type, <span class="string">"aes128_encrypt output"</span>);
+                <span class="macro">assert_eq!</span>(
+                    result_length,
+                    input_length + <span class="number">16 </span>- input_length % <span class="number">16</span>,
+                    <span class="string">"aes128_encrypt output length mismatch"
+                </span>);
+            }
+            BlackBoxFunc::Blake2s | BlackBoxFunc::Blake3 =&gt; {
+                <span class="comment">// fn blake2s&lt;let N: u32&gt;(input: [u8; N]) -&gt; [u8; 32]
+                // fn __blake3&lt;let N: u32&gt;(input: [u8; N]) -&gt; [u8; 32] {}
+                </span><span class="kw">let </span>input_type = <span class="self">self</span>.assert_one_argument(arguments, <span class="string">"blake"</span>);
+                assert_u8_array(<span class="kw-2">&amp;</span>input_type, <span class="string">"blake input"</span>);
+
+                <span class="kw">let </span>result_type = <span class="self">self</span>.assert_one_result(instruction, <span class="string">"blake"</span>);
+                <span class="kw">let </span>result_length = assert_u8_array(<span class="kw-2">&amp;</span>result_type, <span class="string">"blake output"</span>);
+                assert_array_length(result_length, <span class="number">32</span>, <span class="string">"blake output"</span>);
+            }
+            BlackBoxFunc::EcdsaSecp256k1 | BlackBoxFunc::EcdsaSecp256r1 =&gt; {
+                <span class="comment">// fn verify_signature&lt;let N: u32&gt;(
+                //     public_key_x: [u8; 32],
+                //     public_key_y: [u8; 32],
+                //     signature: [u8; 64],
+                //     message_hash: [u8; N],
+                //     predicate: bool,
+                // ) -&gt; bool
+                </span>assert_arguments_length(arguments, <span class="number">5</span>, <span class="string">"ecdsa_secp_256"</span>);
+
+                <span class="kw">let </span>public_key_x = arguments[<span class="number">0</span>];
+                <span class="kw">let </span>public_key_x_type = dfg.type_of_value(public_key_x);
+                <span class="kw">let </span>public_key_x_length =
+                    assert_u8_array(<span class="kw-2">&amp;</span>public_key_x_type, <span class="string">"ecdsa_secp256 public_key_x"</span>);
+                assert_array_length(public_key_x_length, <span class="number">32</span>, <span class="string">"ecdsa_secp256 public_key_x"</span>);
+
+                <span class="kw">let </span>public_key_y = arguments[<span class="number">1</span>];
+                <span class="kw">let </span>public_key_y_type = dfg.type_of_value(public_key_y);
+                <span class="kw">let </span>public_key_y_length =
+                    assert_u8_array(<span class="kw-2">&amp;</span>public_key_y_type, <span class="string">"ecdsa_secp256 public_key_y"</span>);
+                assert_array_length(public_key_y_length, <span class="number">32</span>, <span class="string">"ecdsa_secp256 public_key_y"</span>);
+
+                <span class="kw">let </span>signature = arguments[<span class="number">2</span>];
+                <span class="kw">let </span>signature_type = dfg.type_of_value(signature);
+                <span class="kw">let </span>signature_length = assert_u8_array(<span class="kw-2">&amp;</span>signature_type, <span class="string">"ecdsa_secp256 signature"</span>);
+                assert_array_length(signature_length, <span class="number">64</span>, <span class="string">"ecdsa_secp256 signature"</span>);
+
+                <span class="kw">let </span>message_hash = arguments[<span class="number">3</span>];
+                <span class="kw">let </span>message_hash_type = dfg.type_of_value(message_hash);
+                assert_array(<span class="kw-2">&amp;</span>message_hash_type, <span class="string">"ecdsa_secp256 message_hash"</span>);
+
+                <span class="kw">let </span>predicate_type = dfg.type_of_value(arguments[<span class="number">4</span>]);
+                assert_u1(<span class="kw-2">&amp;</span>predicate_type, <span class="string">"ecdsa_secp256 predicate"</span>);
+
+                <span class="kw">let </span>results = dfg.instruction_results(instruction);
+                <span class="macro">assert_eq!</span>(results.len(), <span class="number">1</span>, <span class="string">"Expected one result"</span>);
+                <span class="kw">let </span>result_type = dfg.type_of_value(results[<span class="number">0</span>]);
+                assert_u1(<span class="kw-2">&amp;</span>result_type, <span class="string">"ecdsa_secp256 result"</span>);
+            }
+            BlackBoxFunc::EmbeddedCurveAdd =&gt; {
+                <span class="comment">// fn embedded_curve_add_array_return(
+                //     _point1: EmbeddedCurvePoint,
+                //     _point2: EmbeddedCurvePoint,
+                //     _predicate: bool,
+                // ) -&gt; [EmbeddedCurvePoint; 1] {}
+                //
+                // struct EmbeddedCurvePoint {
+                //     x: Field,
+                //     y: Field,
+                //     is_infinite: bool,
+                // }
+                </span>assert_arguments_length(arguments, <span class="number">7</span>, <span class="string">"embedded_curve_add"</span>);
+
+                assert_embedded_curve_point(arguments, <span class="number">0</span>, dfg, <span class="string">"embedded_curve_add _point1"</span>);
+                assert_embedded_curve_point(arguments, <span class="number">3</span>, dfg, <span class="string">"embedded_curve_add _point2"</span>);
+
+                <span class="kw">let </span>predicate_type = dfg.type_of_value(arguments[<span class="number">6</span>]);
+                assert_u1(<span class="kw-2">&amp;</span>predicate_type, <span class="string">"embedded_curve_add _predicate"</span>);
+
+                <span class="kw">let </span>result_type = <span class="self">self</span>.assert_one_result(instruction, <span class="string">"embedded_curve_add"</span>);
+                <span class="kw">let </span>(result_elements, result_length) =
+                    assert_array(<span class="kw-2">&amp;</span>result_type, <span class="string">"embedded_curve_add result"</span>);
+                assert_array_length(result_length, <span class="number">1</span>, <span class="string">"embedded_curve_add result length"</span>);
+                <span class="macro">assert_eq!</span>(
+                    result_elements.len(),
+                    <span class="number">3</span>,
+                    <span class="string">"Expected embedded_curve_add result element types length to be 3, got: {}"</span>,
+                    result_elements.len(),
+                );
+                assert_field(<span class="kw-2">&amp;</span>result_elements[<span class="number">0</span>], <span class="string">"embedded_curve_add result x"</span>);
+                assert_field(<span class="kw-2">&amp;</span>result_elements[<span class="number">1</span>], <span class="string">"embedded_curve_add result y"</span>);
+                assert_u1(<span class="kw-2">&amp;</span>result_elements[<span class="number">2</span>], <span class="string">"embedded_curve_add result is_infinite"</span>);
+            }
+            BlackBoxFunc::Keccakf1600 =&gt; {
+                <span class="comment">// fn keccakf1600(input: [u64; 25]) -&gt; [u64; 25] {}
+                </span><span class="kw">let </span>input_type = <span class="self">self</span>.assert_one_argument(arguments, <span class="string">"keccakf1600"</span>);
+                <span class="kw">let </span>input_length = assert_u64_array(<span class="kw-2">&amp;</span>input_type, <span class="string">"keccakf1600 input"</span>);
+                assert_array_length(input_length, <span class="number">25</span>, <span class="string">"keccakf1600 input"</span>);
+
+                <span class="kw">let </span>results = dfg.instruction_results(instruction);
+                <span class="macro">assert_eq!</span>(results.len(), <span class="number">1</span>);
+                <span class="kw">let </span>result_type = dfg.type_of_value(results[<span class="number">0</span>]);
+                <span class="kw">let </span>result_length = assert_u64_array(<span class="kw-2">&amp;</span>result_type, <span class="string">"keccakf1600 result"</span>);
+                assert_array_length(result_length, <span class="number">25</span>, <span class="string">"keccakf1600 result"</span>);
+            }
+            BlackBoxFunc::MultiScalarMul =&gt; {
+                <span class="comment">//  fn multi_scalar_mul_array_return&lt;let N: u32&gt;(
+                //     points: [EmbeddedCurvePoint; N],
+                //     scalars: [EmbeddedCurveScalar; N],
+                //     predicate: bool,
+                // ) -&gt; [EmbeddedCurvePoint; 1] {}
+                </span><span class="kw">let </span>(points_type, scalars_type, predicate_type) =
+                    <span class="self">self</span>.assert_three_arguments(arguments, <span class="string">"multi_scalar_mul"</span>);
+
+                <span class="kw">let </span>(points_elements, points_length) =
+                    assert_array(<span class="kw-2">&amp;</span>points_type, <span class="string">"multi_scalar_mul points"</span>);
+                <span class="macro">assert_eq!</span>(
+                    points_elements.len(),
+                    <span class="number">3</span>,
+                    <span class="string">"Expected multi_scalar_mul points element types length to be 3, got: {}"</span>,
+                    points_elements.len()
+                );
+                assert_field(<span class="kw-2">&amp;</span>points_elements[<span class="number">0</span>], <span class="string">"multi_scalar_mul points x"</span>);
+                assert_field(<span class="kw-2">&amp;</span>points_elements[<span class="number">1</span>], <span class="string">"multi_scalar_mul points y"</span>);
+                assert_u1(<span class="kw-2">&amp;</span>points_elements[<span class="number">2</span>], <span class="string">"multi_scalar_mul points is_infinite"</span>);
+
+                <span class="kw">let </span>(scalars_elements, scalars_length) =
+                    assert_array(<span class="kw-2">&amp;</span>scalars_type, <span class="string">"multi_scalar_mul scalars"</span>);
+                <span class="macro">assert_eq!</span>(
+                    scalars_elements.len(),
+                    <span class="number">2</span>,
+                    <span class="string">"Expected multi_scalar_mul scalars element types length to be 2, got: {}"</span>,
+                    scalars_elements.len()
+                );
+                assert_field(<span class="kw-2">&amp;</span>scalars_elements[<span class="number">0</span>], <span class="string">"multi_scalar_mul scalars lo"</span>);
+                assert_field(<span class="kw-2">&amp;</span>scalars_elements[<span class="number">1</span>], <span class="string">"multi_scalar_mul scalars hi"</span>);
+
+                <span class="macro">assert_eq!</span>(points_length, scalars_length, <span class="string">"MSM input array lengths mismatch"</span>);
+
+                assert_u1(<span class="kw-2">&amp;</span>predicate_type, <span class="string">"multi_scalar_mul predicate"</span>);
+            }
+            BlackBoxFunc::Poseidon2Permutation =&gt; {
+                <span class="comment">// fn poseidon2_permutation&lt;let N: u32&gt;(_input: [Field; N]) -&gt; [Field; N] {}
+                </span><span class="kw">let </span>input_type = <span class="self">self</span>.assert_one_argument(arguments, <span class="string">"poseidon2_permutation"</span>);
+                <span class="kw">let </span>input_length = assert_field_array(<span class="kw-2">&amp;</span>input_type, <span class="string">"poseidon2_permutation _input"</span>);
+
+                <span class="kw">let </span>result_type = <span class="self">self</span>.assert_one_result(instruction, <span class="string">"poseidon2_permutation"</span>);
+                <span class="kw">let </span>result_length =
+                    assert_field_array(<span class="kw-2">&amp;</span>result_type, <span class="string">"poseidon2_permutation result"</span>);
+                <span class="macro">assert_eq!</span>(
+                    result_length, input_length,
+                    <span class="string">"poseidon2_permutation input/output length mismatch"
+                </span>);
+            }
+            BlackBoxFunc::RANGE =&gt; {}
+            BlackBoxFunc::RecursiveAggregation =&gt; {
+                <span class="comment">// fn verify_proof_internal&lt;let N: u32, let M: u32, let K: u32&gt;(
+                //     verification_key: [Field; N],
+                //     proof: [Field; M],
+                //     public_inputs: [Field; K],
+                //     key_hash: Field,
+                //     proof_type: u32,
+                // ) {}
+                </span>assert_arguments_length(arguments, <span class="number">5</span>, <span class="string">"recursive_aggregation"</span>);
+
+                <span class="kw">let </span>verification_key = arguments[<span class="number">0</span>];
+                <span class="kw">let </span>verification_key_type = dfg.type_of_value(verification_key);
+                assert_field_array(
+                    <span class="kw-2">&amp;</span>verification_key_type,
+                    <span class="string">"recursive_aggregation verification_key"</span>,
+                );
+
+                <span class="kw">let </span>proof = arguments[<span class="number">1</span>];
+                <span class="kw">let </span>proof_type = dfg.type_of_value(proof);
+                assert_field_array(<span class="kw-2">&amp;</span>proof_type, <span class="string">"recursive_aggregation proof"</span>);
+
+                <span class="kw">let </span>public_inputs = arguments[<span class="number">2</span>];
+                <span class="kw">let </span>public_inputs_type = dfg.type_of_value(public_inputs);
+                assert_field_array(<span class="kw-2">&amp;</span>public_inputs_type, <span class="string">"recursive_aggregation public_inputs"</span>);
+
+                <span class="kw">let </span>key_hash = arguments[<span class="number">3</span>];
+                <span class="kw">let </span>key_hash_type = dfg.type_of_value(key_hash);
+                assert_field(<span class="kw-2">&amp;</span>key_hash_type, <span class="string">"recursive_aggregation key_hash"</span>);
+
+                <span class="kw">let </span>proof_type = arguments[<span class="number">4</span>];
+                <span class="kw">let </span>proof_type_type = dfg.type_of_value(proof_type);
+                assert_u32(<span class="kw-2">&amp;</span>proof_type_type, <span class="string">"recursive_aggregation proof_type"</span>);
+
+                <span class="self">self</span>.assert_no_results(instruction, <span class="string">"recursive_aggregation"</span>);
+            }
+            BlackBoxFunc::Sha256Compression =&gt; {
+                <span class="comment">// fn sha256_compression(input: [u32; 16], state: [u32; 8]) -&gt; [u32; 8] {}
+                </span><span class="kw">let </span>(input_type, state_type) =
+                    <span class="self">self</span>.assert_two_arguments(arguments, <span class="string">"sha256_compression"</span>);
+
+                <span class="kw">let </span>input_length = assert_u32_array(<span class="kw-2">&amp;</span>input_type, <span class="string">"sha256_compression input"</span>);
+                assert_array_length(input_length, <span class="number">16</span>, <span class="string">"sha256_compression input"</span>);
+
+                <span class="kw">let </span>state_length = assert_u32_array(<span class="kw-2">&amp;</span>state_type, <span class="string">"sha256_compression state"</span>);
+                assert_array_length(state_length, <span class="number">8</span>, <span class="string">"sha256_compression state"</span>);
+
+                <span class="kw">let </span>result_type = <span class="self">self</span>.assert_one_result(instruction, <span class="string">"sha256_compression"</span>);
+                <span class="kw">let </span>result_length = assert_u32_array(<span class="kw-2">&amp;</span>result_type, <span class="string">"sha256_compression result"</span>);
+                assert_array_length(result_length, <span class="number">8</span>, <span class="string">"sha256_compression result"</span>);
+            }
+        }
+    }
+
+    <span class="kw">fn </span>assert_one_argument(<span class="kw-2">&amp;</span><span class="self">self</span>, arguments: <span class="kw-2">&amp;</span>[ValueId], object: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str) -&gt; Type {
+        assert_arguments_length(arguments, <span class="number">1</span>, object);
+
+        <span class="self">self</span>.function.dfg.type_of_value(arguments[<span class="number">0</span>])
+    }
+
+    <span class="kw">fn </span>assert_two_arguments(<span class="kw-2">&amp;</span><span class="self">self</span>, arguments: <span class="kw-2">&amp;</span>[ValueId], object: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str) -&gt; (Type, Type) {
+        assert_arguments_length(arguments, <span class="number">2</span>, object);
+
+        (
+            <span class="self">self</span>.function.dfg.type_of_value(arguments[<span class="number">0</span>]),
+            <span class="self">self</span>.function.dfg.type_of_value(arguments[<span class="number">1</span>]),
+        )
+    }
+
+    <span class="kw">fn </span>assert_three_arguments(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        arguments: <span class="kw-2">&amp;</span>[ValueId],
+        object: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str,
+    ) -&gt; (Type, Type, Type) {
+        assert_arguments_length(arguments, <span class="number">3</span>, object);
+
+        (
+            <span class="self">self</span>.function.dfg.type_of_value(arguments[<span class="number">0</span>]),
+            <span class="self">self</span>.function.dfg.type_of_value(arguments[<span class="number">1</span>]),
+            <span class="self">self</span>.function.dfg.type_of_value(arguments[<span class="number">2</span>]),
+        )
+    }
+
+    <span class="kw">fn </span>assert_no_results(<span class="kw-2">&amp;</span><span class="self">self</span>, instruction: InstructionId, object: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str) {
+        <span class="kw">let </span>results = <span class="self">self</span>.function.dfg.instruction_results(instruction);
+        <span class="macro">assert_eq!</span>(results.len(), <span class="number">0</span>, <span class="string">"Expected zero result for {object}"</span>,);
+    }
+
+    <span class="kw">fn </span>assert_one_result(<span class="kw-2">&amp;</span><span class="self">self</span>, instruction: InstructionId, object: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str) -&gt; Type {
+        <span class="kw">let </span>results = <span class="self">self</span>.function.dfg.instruction_results(instruction);
+        <span class="macro">assert_eq!</span>(results.len(), <span class="number">1</span>, <span class="string">"Expected one result for {object}"</span>,);
+        <span class="self">self</span>.function.dfg.type_of_value(results[<span class="number">0</span>])
+    }
+
+    <span class="kw">fn </span>assert_two_results(<span class="kw-2">&amp;</span><span class="self">self</span>, instruction: InstructionId, object: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str) -&gt; (Type, Type) {
+        <span class="kw">let </span>results = <span class="self">self</span>.function.dfg.instruction_results(instruction);
+        <span class="macro">assert_eq!</span>(results.len(), <span class="number">2</span>, <span class="string">"Expected two results for {object}"</span>,);
+        (<span class="self">self</span>.function.dfg.type_of_value(results[<span class="number">0</span>]), <span class="self">self</span>.function.dfg.type_of_value(results[<span class="number">1</span>]))
+    }
+
     <span class="doccomment">/// Validates that acir functions are not called from unconstrained code.
     </span><span class="kw">fn </span>check_calls_in_unconstrained(<span class="kw-2">&amp;</span><span class="self">self</span>, instruction: InstructionId) {
         <span class="kw">if </span><span class="self">self</span>.function.runtime().is_brillig() {
@@ -1981,6 +2635,26 @@
         }
     }
 
+    <span class="kw">fn </span>validate_block_terminator(<span class="kw-2">&amp;</span><span class="self">self</span>, block: BasicBlockId) {
+        <span class="kw">let </span>terminator = <span class="self">self</span>.function.dfg[block]
+            .terminator()
+            .expect(<span class="string">"Block is expected to have a terminator instruction"</span>);
+
+        <span class="kw">match </span>terminator {
+            TerminatorInstruction::JmpIf { condition, .. } =&gt; {
+                <span class="kw">let </span>condition_type = <span class="self">self</span>.function.dfg.type_of_value(<span class="kw-2">*</span>condition);
+                <span class="macro">assert_eq!</span>(
+                    condition_type,
+                    Type::bool(),
+                    <span class="string">"JmpIf conditions should have boolean type"
+                </span>);
+            }
+            TerminatorInstruction::Jmp { .. }
+            | TerminatorInstruction::Return { .. }
+            | TerminatorInstruction::Unreachable { .. } =&gt; (),
+        }
+    }
+
     <span class="kw">fn </span>run(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="self">self</span>.type_check_globals();
         <span class="self">self</span>.validate_single_return_block();
@@ -1991,6 +2665,7 @@
                 <span class="self">self</span>.type_check_instruction(<span class="kw-2">*</span>instruction);
                 <span class="self">self</span>.check_calls_in_unconstrained(<span class="kw-2">*</span>instruction);
             }
+            <span class="self">self</span>.validate_block_terminator(block);
         }
     }
 }
@@ -2038,11 +2713,30 @@
     }
 }
 
+<span class="kw">fn </span>assert_slice&lt;<span class="lifetime">'a</span>&gt;(typ: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>Type, object: <span class="kw-2">&amp;</span>str) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'a </span>Arc&lt;Vec&lt;Type&gt;&gt; {
+    <span class="kw">let </span>Type::Slice(elements) = typ <span class="kw">else </span>{
+        <span class="macro">panic!</span>(<span class="string">"{object} must be a slice"</span>);
+    };
+    elements
+}
+
 <span class="kw">fn </span>assert_array&lt;<span class="lifetime">'a</span>&gt;(typ: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>Type, object: <span class="kw-2">&amp;</span>str) -&gt; (<span class="kw-2">&amp;</span><span class="lifetime">'a </span>Arc&lt;Vec&lt;Type&gt;&gt;, u32) {
     <span class="kw">let </span>Type::Array(elements, length) = typ <span class="kw">else </span>{
         <span class="macro">panic!</span>(<span class="string">"{object} must be an array"</span>);
     };
     (elements, <span class="kw-2">*</span>length)
+}
+
+<span class="kw">fn </span>assert_u1_array(typ: <span class="kw-2">&amp;</span>Type, object: <span class="kw-2">&amp;</span>str) -&gt; u32 {
+    <span class="kw">let </span>(elements, length) = assert_array(typ, object);
+    <span class="macro">assert_eq!</span>(
+        elements.len(),
+        <span class="number">1</span>,
+        <span class="string">"Expected {object} to be an array of length 1, not {}"</span>,
+        elements.len()
+    );
+    assert_u1(<span class="kw-2">&amp;</span>elements[<span class="number">0</span>], <span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{object} array element"</span>));
+    length
 }
 
 <span class="kw">fn </span>assert_u8_array(typ: <span class="kw-2">&amp;</span>Type, object: <span class="kw-2">&amp;</span>str) -&gt; u32 {
@@ -2398,6 +3092,42 @@
     }
 
     <span class="attr">#[test]
+    #[should_panic(expected = <span class="string">"Function call to f1 expected 1 parameters, but got 0"</span>)]
+    </span><span class="kw">fn </span>call_has_wrong_parameter_count() {
+        <span class="kw">let </span>src = <span class="string">"
+        acir(inline) fn main f0 {
+          b0():
+            call f1()
+            return
+        }
+
+        acir(inline) fn foo f1 {
+          b0(v0: Field):
+            return
+        }
+        "</span>;
+        <span class="kw">let _ </span>= Ssa::from_str(src).unwrap();
+    }
+
+    <span class="attr">#[test]
+    #[should_panic(expected = <span class="string">"Argument #1 to f1 has type Field, but u32 was given"</span>)]
+    </span><span class="kw">fn </span>call_has_wrong_argument_type() {
+        <span class="kw">let </span>src = <span class="string">"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            call f1(v0)
+            return
+        }
+
+        acir(inline) fn foo f1 {
+          b0(v0: Field):
+            return
+        }
+        "</span>;
+        <span class="kw">let _ </span>= Ssa::from_str(src).unwrap();
+    }
+
+    <span class="attr">#[test]
     #[should_panic(expected = <span class="string">"Function call to f1 expected 2 return values, but got 1"</span>)]
     </span><span class="kw">fn </span>call_has_wrong_return_count() {
         <span class="kw">let </span>src = <span class="string">"
@@ -2575,9 +3305,9 @@
     </span><span class="kw">fn </span>msm_has_incorrect_type() {
         <span class="kw">let </span>src = <span class="string">"
         acir(inline) fn main f0 {
-          b0(v0: [(Field, Field, Field); 3], v1: [(Field, Field); 3]):
-            v2 = call multi_scalar_mul(v0, v1) -&gt; [(Field, Field, u1); 1]
-            return v2
+          b0(v0: [(Field, Field, Field); 3], v1: [(Field, Field); 3], v2: u1):
+            v3 = call multi_scalar_mul(v0, v1, v2) -&gt; [(Field, Field, u1); 1]
+            return v3
         }
         "</span>;
         <span class="kw">let _ </span>= Ssa::from_str(src).unwrap();
@@ -2599,6 +3329,96 @@
             return
         }
         "</span>;
+        <span class="kw">let _ </span>= Ssa::from_str(src).unwrap();
+    }
+
+    <span class="attr">#[test]
+    #[should_panic(expected = <span class="string">"JmpIf conditions should have boolean type"</span>)]
+    </span><span class="kw">fn </span>disallows_non_boolean_jmpif_condition() {
+        <span class="kw">let </span>src = <span class="string">"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            jmpif v0 then: b1, else: b2
+          b1():
+            jmp b2()
+          b2():
+            return
+
+        }
+
+        "</span>;
+        <span class="kw">let _ </span>= Ssa::from_str(src).unwrap();
+    }
+
+    <span class="attr">#[test]
+    #[should_panic(expected = <span class="string">"AsSlice argument must be an array"</span>)]
+    </span><span class="kw">fn </span>as_slice_length_on_slice_type() {
+        <span class="kw">let </span>src = <span class="string">"
+        acir(inline) fn main f0 {
+            b0():
+              v3 = make_array [Field 1, Field 2, Field 3] : [Field]
+              v4 = call f1(v3) -&gt; u32
+              return v4
+        }
+
+        acir(inline) fn foo f1 {
+            b0(v0: [Field]):
+              v2, v3 = call as_slice(v0) -&gt; (u32, [Field])
+              return v2
+        }
+        "</span>;
+        <span class="kw">let _ </span>= Ssa::from_str(src).unwrap();
+    }
+
+    <span class="attr">#[test]
+    #[should_panic(expected = <span class="string">"AsSlice argument must be an array"</span>)]
+    </span><span class="kw">fn </span>as_slice_length_on_numeric_type() {
+        <span class="kw">let </span>src = <span class="string">"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v2, v3 = call as_slice(v0) -&gt; (u32, [Field])
+            return v2
+        }
+        "</span>;
+        <span class="kw">let _ </span>= Ssa::from_str(src).unwrap();
+    }
+
+    <span class="attr">#[test]
+    #[should_panic(
+        expected = <span class="string">"assertion `left == right` failed: Expected AsSlice to have 1 arguments, got 0\n  left: 0\n right: 1"
+    </span>)]
+    </span><span class="kw">fn </span>as_slice_wrong_number_of_arguments() {
+        <span class="kw">let </span>src = <span class="string">"
+        acir(inline) fn main f0 {
+          b0():
+            v1, v2 = call as_slice() -&gt; (u32, [Field])
+            return v1
+        }
+        "</span>;
+        <span class="kw">let _ </span>= Ssa::from_str(src).unwrap();
+    }
+
+    <span class="attr">#[test]
+    #[should_panic(expected = <span class="string">"ArrayGet/ArraySet index must be u32"</span>)]
+    </span><span class="kw">fn </span>array_get_wrong_index_type() {
+        <span class="kw">let </span>src = <span class="string">"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: [u8; 3], v1: u64):
+            v2 = array_get v0, index v1 -&gt; u32
+            return v2
+        }"</span>;
+        <span class="kw">let _ </span>= Ssa::from_str(src).unwrap();
+    }
+
+    <span class="attr">#[test]
+    #[should_panic(expected = <span class="string">"ArrayGet/ArraySet must operate on an array"</span>)]
+    </span><span class="kw">fn </span>array_get_wrong_array_type() {
+        <span class="kw">let </span>src = <span class="string">"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32, v1: u32):
+            v2 = array_get v0, index v1 -&gt; u32
+            return v2
+        }"</span>;
         <span class="kw">let _ </span>= Ssa::from_str(src).unwrap();
     }
 }

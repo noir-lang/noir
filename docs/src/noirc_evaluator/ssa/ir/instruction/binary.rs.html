@@ -459,7 +459,24 @@
 <a href="#458" id="458">458</a>
 <a href="#459" id="459">459</a>
 <a href="#460" id="460">460</a>
-<a href="#461" id="461">461</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
+<a href="#461" id="461">461</a>
+<a href="#462" id="462">462</a>
+<a href="#463" id="463">463</a>
+<a href="#464" id="464">464</a>
+<a href="#465" id="465">465</a>
+<a href="#466" id="466">466</a>
+<a href="#467" id="467">467</a>
+<a href="#468" id="468">468</a>
+<a href="#469" id="469">469</a>
+<a href="#470" id="470">470</a>
+<a href="#471" id="471">471</a>
+<a href="#472" id="472">472</a>
+<a href="#473" id="473">473</a>
+<a href="#474" id="474">474</a>
+<a href="#475" id="475">475</a>
+<a href="#476" id="476">476</a>
+<a href="#477" id="477">477</a>
+<a href="#478" id="478">478</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
 <span class="kw">use </span>num_traits::ToPrimitive <span class="kw">as _</span>;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 
@@ -607,7 +624,7 @@
             </span><span class="kw">if </span>operator == BinaryOp::Shl || operator == BinaryOp::Shr {
                 <span class="kw">let </span>op = <span class="string">"bit-shift"</span>;
 
-                <span class="kw">if </span>rhs &gt;= bit_size <span class="kw">as </span>u128 {
+                <span class="kw">if </span>rhs &gt;= u128::from(bit_size) {
                     <span class="kw">return </span>Failure(<span class="macro">format!</span>(<span class="string">"attempt to {op} with overflow"</span>));
                 }
             }
@@ -653,6 +670,24 @@
             <span class="kw">let </span><span class="prelude-val">Some</span>(rhs) = try_convert_field_element_to_signed_integer(rhs, bit_size) <span class="kw">else </span>{
                 <span class="kw">return </span>CouldNotEvaluate;
             };
+
+            <span class="kw">let </span>two_pow_bit_size_minus_one = <span class="number">1i128 </span>&lt;&lt; (bit_size - <span class="number">1</span>);
+
+            <span class="comment">// Because we always perform signed operations using i128, an operation like `-128_i8 / -1`
+            // will not overflow as it'll actually be done via `-128_i128 / -1`. Thus we need to
+            // manually check this specific case.
+            </span><span class="kw">if </span><span class="macro">matches!</span>(operator, BinaryOp::Div | BinaryOp::Mod) &amp;&amp; rhs == -<span class="number">1 </span>{
+                <span class="macro">assert!</span>(bit_size &lt; <span class="number">128</span>);
+                <span class="kw">let </span>min_value = -two_pow_bit_size_minus_one;
+                <span class="kw">if </span>lhs == min_value {
+                    <span class="kw">return </span>Failure(<span class="kw">if </span>operator == BinaryOp::Div {
+                        <span class="string">"attempt to divide with overflow"</span>.to_string()
+                    } <span class="kw">else </span>{
+                        <span class="string">"attempt to calculate the remainder with overflow"</span>.to_string()
+                    });
+                }
+            }
+
             <span class="kw">let </span>result = function(lhs, rhs);
 
             <span class="kw">let </span>result = {
@@ -665,7 +700,7 @@
                         // and the operation should be handled by ACIR generation.
                         </span><span class="kw">return </span>Failure(<span class="string">"attempt to divide by zero"</span>.to_string());
                     }
-                    BinaryOp::Shr | BinaryOp::Shl <span class="kw">if </span>rhs &gt;= bit_size <span class="kw">as </span>i128 =&gt; {
+                    BinaryOp::Shr | BinaryOp::Shl <span class="kw">if </span>rhs &gt;= i128::from(bit_size) =&gt; {
                         <span class="kw">let </span>op = binary_op_function_name(operator);
                         <span class="kw">return </span>Failure(<span class="macro">format!</span>(<span class="string">"attempt to {op} with overflow"</span>));
                     }
@@ -673,8 +708,7 @@
                 }
 
                 <span class="comment">// Check for overflow
-                </span><span class="kw">let </span>two_pow_bit_size_minus_one = <span class="number">1i128 </span>&lt;&lt; (bit_size - <span class="number">1</span>);
-                <span class="kw">let </span><span class="prelude-val">Some</span>(result) = result <span class="kw">else </span>{
+                </span><span class="kw">let </span><span class="prelude-val">Some</span>(result) = result <span class="kw">else </span>{
                     <span class="kw">if let </span>BinaryOp::Shl = operator {
                         <span class="kw">return </span>CouldNotEvaluate;
                     }
@@ -751,10 +785,10 @@
         </span>FieldElement::from(int <span class="kw">as </span>u128)
     } <span class="kw">else </span>{
         <span class="kw">let </span>two_complement = <span class="kw">match </span>bit_size {
-            <span class="number">8 </span>=&gt; ((int <span class="kw">as </span>i8) <span class="kw">as </span>u8) <span class="kw">as </span>u128,
-            <span class="number">16 </span>=&gt; ((int <span class="kw">as </span>i16) <span class="kw">as </span>u16) <span class="kw">as </span>u128,
-            <span class="number">32 </span>=&gt; ((int <span class="kw">as </span>i32) <span class="kw">as </span>u32) <span class="kw">as </span>u128,
-            <span class="number">64 </span>=&gt; ((int <span class="kw">as </span>i64) <span class="kw">as </span>u64) <span class="kw">as </span>u128,
+            <span class="number">8 </span>=&gt; u128::from((int <span class="kw">as </span>i8) <span class="kw">as </span>u8),
+            <span class="number">16 </span>=&gt; u128::from((int <span class="kw">as </span>i16) <span class="kw">as </span>u16),
+            <span class="number">32 </span>=&gt; u128::from((int <span class="kw">as </span>i32) <span class="kw">as </span>u32),
+            <span class="number">64 </span>=&gt; u128::from((int <span class="kw">as </span>i64) <span class="kw">as </span>u64),
             <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE - invalid bit size {bit_size} for signed integer"</span>),
         };
         FieldElement::from(two_complement)
@@ -826,8 +860,8 @@
             BinaryOp::And =&gt; |x, y| <span class="prelude-val">Some</span>(x &amp; y),
             BinaryOp::Or =&gt; |x, y| <span class="prelude-val">Some</span>(x | y),
             BinaryOp::Xor =&gt; |x, y| <span class="prelude-val">Some</span>(x ^ y),
-            BinaryOp::Eq =&gt; |x, y| <span class="prelude-val">Some</span>((x == y) <span class="kw">as </span>u128),
-            BinaryOp::Lt =&gt; |x, y| <span class="prelude-val">Some</span>((x &lt; y) <span class="kw">as </span>u128),
+            BinaryOp::Eq =&gt; |x, y| <span class="prelude-val">Some</span>(u128::from(x == y)),
+            BinaryOp::Lt =&gt; |x, y| <span class="prelude-val">Some</span>(u128::from(x &lt; y)),
             BinaryOp::Shl =&gt; |x, y| y.to_u32().and_then(|y| x.checked_shl(y)),
             BinaryOp::Shr =&gt; |x, y| y.to_u32().and_then(|y| x.checked_shr(y)),
         }
@@ -843,8 +877,8 @@
             BinaryOp::And =&gt; |x, y| <span class="prelude-val">Some</span>(x &amp; y),
             BinaryOp::Or =&gt; |x, y| <span class="prelude-val">Some</span>(x | y),
             BinaryOp::Xor =&gt; |x, y| <span class="prelude-val">Some</span>(x ^ y),
-            BinaryOp::Eq =&gt; |x, y| <span class="prelude-val">Some</span>((x == y) <span class="kw">as </span>i128),
-            BinaryOp::Lt =&gt; |x, y| <span class="prelude-val">Some</span>((x &lt; y) <span class="kw">as </span>i128),
+            BinaryOp::Eq =&gt; |x, y| <span class="prelude-val">Some</span>(i128::from(x == y)),
+            BinaryOp::Lt =&gt; |x, y| <span class="prelude-val">Some</span>(i128::from(x &lt; y)),
             BinaryOp::Shl =&gt; |x, y| y.to_u32().and_then(|y| x.checked_shl(y)),
             BinaryOp::Shr =&gt; |x, y| y.to_u32().and_then(|y| x.checked_shr(y)),
         }
@@ -915,7 +949,7 @@
         <span class="kw">for </span>(i, u) <span class="kw">in </span>[(-<span class="number">1i64</span>, u64::MAX), (-<span class="number">2i64</span>, u64::MAX - <span class="number">1</span>), (<span class="number">1i64</span>, <span class="number">1u64</span>)] {
             <span class="kw">let </span>i: i128 = i.into();
             <span class="kw">let </span>f = convert_signed_integer_to_field_element(i, <span class="number">64</span>);
-            <span class="macro">assert_eq!</span>(f.to_u128(), u <span class="kw">as </span>u128);
+            <span class="macro">assert_eq!</span>(f.to_u128(), u128::from(u));
             <span class="macro">assert_eq!</span>(i, try_convert_field_element_to_signed_integer(f, <span class="number">64</span>).unwrap());
         }
     }

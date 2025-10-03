@@ -983,7 +983,319 @@
 <a href="#982" id="982">982</a>
 <a href="#983" id="983">983</a>
 <a href="#984" id="984">984</a>
-<a href="#985" id="985">985</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::{circuit::opcodes::BlockType, native_types::Witness};
+<a href="#985" id="985">985</a>
+<a href="#986" id="986">986</a>
+<a href="#987" id="987">987</a>
+<a href="#988" id="988">988</a>
+<a href="#989" id="989">989</a>
+<a href="#990" id="990">990</a>
+<a href="#991" id="991">991</a>
+<a href="#992" id="992">992</a>
+<a href="#993" id="993">993</a>
+<a href="#994" id="994">994</a>
+<a href="#995" id="995">995</a>
+<a href="#996" id="996">996</a>
+<a href="#997" id="997">997</a>
+<a href="#998" id="998">998</a>
+<a href="#999" id="999">999</a>
+<a href="#1000" id="1000">1000</a>
+<a href="#1001" id="1001">1001</a>
+<a href="#1002" id="1002">1002</a>
+<a href="#1003" id="1003">1003</a>
+<a href="#1004" id="1004">1004</a>
+<a href="#1005" id="1005">1005</a>
+<a href="#1006" id="1006">1006</a>
+<a href="#1007" id="1007">1007</a>
+<a href="#1008" id="1008">1008</a>
+<a href="#1009" id="1009">1009</a>
+<a href="#1010" id="1010">1010</a>
+<a href="#1011" id="1011">1011</a>
+<a href="#1012" id="1012">1012</a>
+<a href="#1013" id="1013">1013</a>
+<a href="#1014" id="1014">1014</a>
+<a href="#1015" id="1015">1015</a>
+<a href="#1016" id="1016">1016</a>
+<a href="#1017" id="1017">1017</a>
+<a href="#1018" id="1018">1018</a>
+<a href="#1019" id="1019">1019</a>
+<a href="#1020" id="1020">1020</a>
+<a href="#1021" id="1021">1021</a>
+<a href="#1022" id="1022">1022</a>
+<a href="#1023" id="1023">1023</a>
+<a href="#1024" id="1024">1024</a>
+<a href="#1025" id="1025">1025</a>
+<a href="#1026" id="1026">1026</a>
+<a href="#1027" id="1027">1027</a>
+<a href="#1028" id="1028">1028</a>
+<a href="#1029" id="1029">1029</a>
+<a href="#1030" id="1030">1030</a>
+<a href="#1031" id="1031">1031</a>
+<a href="#1032" id="1032">1032</a>
+<a href="#1033" id="1033">1033</a>
+<a href="#1034" id="1034">1034</a>
+<a href="#1035" id="1035">1035</a>
+<a href="#1036" id="1036">1036</a>
+<a href="#1037" id="1037">1037</a>
+<a href="#1038" id="1038">1038</a>
+<a href="#1039" id="1039">1039</a>
+<a href="#1040" id="1040">1040</a>
+<a href="#1041" id="1041">1041</a>
+<a href="#1042" id="1042">1042</a>
+<a href="#1043" id="1043">1043</a>
+<a href="#1044" id="1044">1044</a>
+<a href="#1045" id="1045">1045</a>
+<a href="#1046" id="1046">1046</a>
+<a href="#1047" id="1047">1047</a>
+<a href="#1048" id="1048">1048</a>
+<a href="#1049" id="1049">1049</a>
+<a href="#1050" id="1050">1050</a>
+<a href="#1051" id="1051">1051</a>
+<a href="#1052" id="1052">1052</a>
+<a href="#1053" id="1053">1053</a>
+<a href="#1054" id="1054">1054</a>
+<a href="#1055" id="1055">1055</a>
+<a href="#1056" id="1056">1056</a>
+<a href="#1057" id="1057">1057</a>
+<a href="#1058" id="1058">1058</a>
+<a href="#1059" id="1059">1059</a>
+<a href="#1060" id="1060">1060</a>
+<a href="#1061" id="1061">1061</a>
+<a href="#1062" id="1062">1062</a>
+<a href="#1063" id="1063">1063</a>
+<a href="#1064" id="1064">1064</a>
+<a href="#1065" id="1065">1065</a>
+<a href="#1066" id="1066">1066</a>
+<a href="#1067" id="1067">1067</a>
+<a href="#1068" id="1068">1068</a>
+<a href="#1069" id="1069">1069</a>
+<a href="#1070" id="1070">1070</a>
+<a href="#1071" id="1071">1071</a>
+<a href="#1072" id="1072">1072</a>
+<a href="#1073" id="1073">1073</a>
+<a href="#1074" id="1074">1074</a>
+<a href="#1075" id="1075">1075</a>
+<a href="#1076" id="1076">1076</a>
+<a href="#1077" id="1077">1077</a>
+<a href="#1078" id="1078">1078</a>
+<a href="#1079" id="1079">1079</a>
+<a href="#1080" id="1080">1080</a>
+<a href="#1081" id="1081">1081</a>
+<a href="#1082" id="1082">1082</a>
+<a href="#1083" id="1083">1083</a>
+<a href="#1084" id="1084">1084</a>
+<a href="#1085" id="1085">1085</a>
+<a href="#1086" id="1086">1086</a>
+<a href="#1087" id="1087">1087</a>
+<a href="#1088" id="1088">1088</a>
+<a href="#1089" id="1089">1089</a>
+<a href="#1090" id="1090">1090</a>
+<a href="#1091" id="1091">1091</a>
+<a href="#1092" id="1092">1092</a>
+<a href="#1093" id="1093">1093</a>
+<a href="#1094" id="1094">1094</a>
+<a href="#1095" id="1095">1095</a>
+<a href="#1096" id="1096">1096</a>
+<a href="#1097" id="1097">1097</a>
+<a href="#1098" id="1098">1098</a>
+<a href="#1099" id="1099">1099</a>
+<a href="#1100" id="1100">1100</a>
+<a href="#1101" id="1101">1101</a>
+<a href="#1102" id="1102">1102</a>
+<a href="#1103" id="1103">1103</a>
+<a href="#1104" id="1104">1104</a>
+<a href="#1105" id="1105">1105</a>
+<a href="#1106" id="1106">1106</a>
+<a href="#1107" id="1107">1107</a>
+<a href="#1108" id="1108">1108</a>
+<a href="#1109" id="1109">1109</a>
+<a href="#1110" id="1110">1110</a>
+<a href="#1111" id="1111">1111</a>
+<a href="#1112" id="1112">1112</a>
+<a href="#1113" id="1113">1113</a>
+<a href="#1114" id="1114">1114</a>
+<a href="#1115" id="1115">1115</a>
+<a href="#1116" id="1116">1116</a>
+<a href="#1117" id="1117">1117</a>
+<a href="#1118" id="1118">1118</a>
+<a href="#1119" id="1119">1119</a>
+<a href="#1120" id="1120">1120</a>
+<a href="#1121" id="1121">1121</a>
+<a href="#1122" id="1122">1122</a>
+<a href="#1123" id="1123">1123</a>
+<a href="#1124" id="1124">1124</a>
+<a href="#1125" id="1125">1125</a>
+<a href="#1126" id="1126">1126</a>
+<a href="#1127" id="1127">1127</a>
+<a href="#1128" id="1128">1128</a>
+<a href="#1129" id="1129">1129</a>
+<a href="#1130" id="1130">1130</a>
+<a href="#1131" id="1131">1131</a>
+<a href="#1132" id="1132">1132</a>
+<a href="#1133" id="1133">1133</a>
+<a href="#1134" id="1134">1134</a>
+<a href="#1135" id="1135">1135</a>
+<a href="#1136" id="1136">1136</a>
+<a href="#1137" id="1137">1137</a>
+<a href="#1138" id="1138">1138</a>
+<a href="#1139" id="1139">1139</a>
+<a href="#1140" id="1140">1140</a>
+<a href="#1141" id="1141">1141</a>
+<a href="#1142" id="1142">1142</a>
+<a href="#1143" id="1143">1143</a>
+<a href="#1144" id="1144">1144</a>
+<a href="#1145" id="1145">1145</a>
+<a href="#1146" id="1146">1146</a>
+<a href="#1147" id="1147">1147</a>
+<a href="#1148" id="1148">1148</a>
+<a href="#1149" id="1149">1149</a>
+<a href="#1150" id="1150">1150</a>
+<a href="#1151" id="1151">1151</a>
+<a href="#1152" id="1152">1152</a>
+<a href="#1153" id="1153">1153</a>
+<a href="#1154" id="1154">1154</a>
+<a href="#1155" id="1155">1155</a>
+<a href="#1156" id="1156">1156</a>
+<a href="#1157" id="1157">1157</a>
+<a href="#1158" id="1158">1158</a>
+<a href="#1159" id="1159">1159</a>
+<a href="#1160" id="1160">1160</a>
+<a href="#1161" id="1161">1161</a>
+<a href="#1162" id="1162">1162</a>
+<a href="#1163" id="1163">1163</a>
+<a href="#1164" id="1164">1164</a>
+<a href="#1165" id="1165">1165</a>
+<a href="#1166" id="1166">1166</a>
+<a href="#1167" id="1167">1167</a>
+<a href="#1168" id="1168">1168</a>
+<a href="#1169" id="1169">1169</a>
+<a href="#1170" id="1170">1170</a>
+<a href="#1171" id="1171">1171</a>
+<a href="#1172" id="1172">1172</a>
+<a href="#1173" id="1173">1173</a>
+<a href="#1174" id="1174">1174</a>
+<a href="#1175" id="1175">1175</a>
+<a href="#1176" id="1176">1176</a>
+<a href="#1177" id="1177">1177</a>
+<a href="#1178" id="1178">1178</a>
+<a href="#1179" id="1179">1179</a></pre></div><pre class="rust"><code><span class="doccomment">//! Array handling in ACIR.
+//!
+//! This modules how Noir's SSA array semantics are lowered into ACIR's flat memory model.
+//! Arrays in SSA can appear as constants or dynamically allocated blocks.
+//! Our responsibility here is to preserve correctness while ensuring memory access is efficient.
+//!
+//! ## Design
+//!
+//! ACIR does not have a first-class array type. Instead, all arrays are
+//! represented as contiguous regions in linear memory, identified by a
+//! [BlockId]. This module provides helpers for translating SSA array
+//! operations into ACIR memory reads and writes.
+//!
+//! ACIR generation use twos different array types for representing arrays:
+//!
+//! [Constant arrays][AcirValue::Array]
+//!   - Known at compile time.
+//!   - Reads and writes may be folded into an [AcirValue] where possible.
+//!   - Useful for optimization (e.g., constant element lookups do not require laying down opcodes)
+//!
+//! [Dynamic arrays][AcirValue::DynamicArray]
+//!   - Referenced by a [unique identifier][BlockId]
+//!   - Must be explicitly initialized using an [opcode][acvm::acir::circuit::opcodes::Opcode::MemoryInit]
+//!   - Reads and writes must lower to at least an explicit [memory opcode][acvm::acir::circuit::opcodes::Opcode::MemoryOp].
+//!   - Required for arrays accessed by dynamic indices (witness inputs) or function parameters (the array is itself a witness)
+//!
+//! ### Array Flattening
+//!
+//! ACIR memory is flat, while SSA arrays may be multi-dimensional or
+//! contain elements of varying size (we refer to these are non-homogenous arrays).
+//! To reconcile this, each element's "flattened index" is computed relative to the array’s base pointer.
+//! In some cases this requires consulting a side "element type sizes"
+//! array to calculate offsets when elements have a non-homogenous layout.
+//!
+//! The following Noir program:
+//! ```noir
+//! struct Bar {
+//!     inner: [Field; 3],
+//! }
+//! struct Foo {
+//!     a: Field,
+//!     b: [Field; 3],
+//!     bar: Bar,
+//! }
+//! fn main(x: [Foo; 4]) -&gt; pub [Field; 3] {
+//!     x[3].bar.inner
+//! }
+//! ```
+//! Will produce the following SSA:
+//! ```text
+//! acir(inline) pure fn main f0 {
+//!   b0(v0: [(Field, [Field; 3], [Field; 3]); 4]):
+//!     v2 = array_get v0, index u32 11 -&gt; [Field; 3]
+//!     return v2
+//! }
+//! ```
+//! In the SSA above we see that we have an index of `11`. However, with a flat memory
+//! the true starting index of `x[3].bar.inner` is `25`.
+//!
+//! We can determine what the starting offset of the outer array object `x[3]` is by first dividing the index by the element size.
+//! In this case we have `11 / 3 = 3`. To get the flattened outer offset we will multiply `3` by the flattened size of a single element.
+//! We can see that `Foo` contains `7` elements, thus we multiply by `7`. So now we have a flattened index of `21`.
+//!
+//! We could use the modulo of `11 % 3 = 2` to determine which object within x we are attempting to access.
+//! However, since we have a flattened structure we cannot simply add `2` to `21`. Instead we generate an array that holds the
+//! respective inner offset for accessing each element.
+//!
+//! In the example above we will generate this internal type array: [0, 1, 4].
+//! The start of `bar` in `Foo` is the fourth flattened index. We then use the modulo we previously computed to access
+//! the type array and fetch `4`. Finally we can do `21 + 4 = 25` to get the true starting index of `x[3].bar.inner`.
+//! We then use the resulting type to increment the index appropriately and fetch ever element of `bar.inner`.
+//!
+//! This element type sizes array is dynamic as we still need to access it based upon the index which itself can be dynamic.
+//! The module will also attempt to not create this array when possible (e.g., we have a simple homogenous array).
+//!
+//! ### Side effects and Predication
+//!
+//! This module uses the special [side effects variable][Context::current_side_effects_enabled_var] to guard
+//! array operations that may not always be executed. This variable acts as a predicate.
+//!
+//! The goal is to preserve SSA semantics where some array operations are dominated by a branch condition.
+//! We predicate the following:
+//!
+//! #### Index Predication
+//!
+//! Array indices themselves are guarded by the side-effect predicate.
+//! If an SSA array operation is executed at runtime, then we must ensure any arithmetic that computes the index
+//! and any memory reads/writes implied by that index are safe even when the predicate is false.
+//! The only array operations not left to runtime are those with safe indices (constant index under the array length).
+//!
+//! To achieve this we compute a predicated index value (`predicate_index`) with the formula:
+//! ```text
+//! predicate_index = predicate * index + (1 - predicate) * offset
+//! ```
+//! where `offset` is a safe fallback index (chosen so the element type at that
+//! offset matches the requested element type).
+//! The offset is necessary to match the correct result type for array reads.
+//!
+//! #### Writes
+//!
+//! When the predicate is not a constant one, instead of actually overwriting memory, we compute a "dummy value".
+//! The dummy value is fetched from the same array at the requested `predicate_index`.
+//! The store value of an array write is then converted from a `store_value` to `predicate * store_value + (1 - predicate) * dummy`
+//! This ensures the memory remains unchanged when the write is disabled. In the case of a false predicate, the value stored will be itself.
+//!
+//! #### Reads
+//!
+//! If we perform an array read under a false predicate we will read from `offset`. As arrays are not always homogenous
+//! the result at index `offset` may contain a value that will overflow the resulting type of the array read.
+//! When we read a value from a non-homogenous array we multiply any resulting [AcirValue::Var] by the predicate
+//! to avoid any possible mismatch. In the case of a false predicate, the value will now be zero.
+//! For homogenous arrays, the fallback `offset` will produce a value with a compatible type.
+//!
+//! ### Zero-Length Arrays
+//!
+//! Arrays of length 0 are valid in the SSA but must never generate ACIR
+//! memory operations as they may produce runtime errors. These operations are special cased to always fail with an
+//! index out of bounds error (with respect to side effects) and ensures they do not produce illegal memory accesses.
+</span><span class="kw">use </span>acvm::acir::{circuit::opcodes::BlockType, native_types::Witness};
 <span class="kw">use </span>acvm::{FieldElement, acir::AcirField, acir::circuit::opcodes::BlockId};
 <span class="kw">use </span>iter_extended::{try_vecmap, vecmap};
 
@@ -1003,29 +1315,24 @@
 <span class="kw">impl </span>Context&lt;<span class="lifetime">'_</span>&gt; {
     <span class="doccomment">/// Get the BlockId corresponding to the ValueId
     /// If there is no matching BlockId, we create a new one.
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>block_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: <span class="kw-2">&amp;</span>ValueId) -&gt; BlockId {
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(block_id) = <span class="self">self</span>.memory_blocks.get(value) {
-            <span class="kw">return </span><span class="kw-2">*</span>block_id;
-        }
-        <span class="kw">let </span>block_id = BlockId(<span class="self">self</span>.max_block_id);
-        <span class="self">self</span>.max_block_id += <span class="number">1</span>;
-        <span class="self">self</span>.memory_blocks.insert(<span class="kw-2">*</span>value, block_id);
-        block_id
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>block_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: ValueId) -&gt; BlockId {
+        <span class="kw-2">*</span><span class="self">self</span>.memory_blocks.entry(value).or_insert_with(|| {
+            <span class="kw">let </span>block_id = BlockId(<span class="self">self</span>.max_block_id);
+            <span class="self">self</span>.max_block_id += <span class="number">1</span>;
+            block_id
+        })
     }
 
-    <span class="doccomment">/// Get the next BlockId for internal memory
-    /// used during ACIR generation.
+    <span class="doccomment">/// Get the next BlockId for the internal element type sizes array.
     /// This is useful for referencing information that can
-    /// only be computed dynamically, such as the type structure
+    /// only be accessed dynamically, such as the type structure
     /// of non-homogenous arrays.
-    </span><span class="kw">fn </span>internal_block_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: <span class="kw-2">&amp;</span>ValueId) -&gt; BlockId {
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(block_id) = <span class="self">self</span>.internal_memory_blocks.get(value) {
-            <span class="kw">return </span><span class="kw-2">*</span>block_id;
-        }
-        <span class="kw">let </span>block_id = BlockId(<span class="self">self</span>.max_block_id);
-        <span class="self">self</span>.max_block_id += <span class="number">1</span>;
-        <span class="self">self</span>.internal_memory_blocks.insert(<span class="kw-2">*</span>value, block_id);
-        block_id
+    </span><span class="kw">fn </span>type_sizes_block_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: ValueId) -&gt; BlockId {
+        <span class="kw-2">*</span><span class="self">self</span>.element_type_sizes_blocks.entry(value).or_insert_with(|| {
+            <span class="kw">let </span>block_id = BlockId(<span class="self">self</span>.max_block_id);
+            <span class="self">self</span>.max_block_id += <span class="number">1</span>;
+            block_id
+        })
     }
 
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>initialize_databus(
@@ -1035,7 +1342,7 @@
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), RuntimeError&gt; {
         <span class="comment">// Initialize return_data using provided witnesses
         </span><span class="kw">if let </span><span class="prelude-val">Some</span>(return_data) = <span class="self">self</span>.data_bus.return_data {
-            <span class="kw">let </span>block_id = <span class="self">self</span>.block_id(<span class="kw-2">&amp;</span>return_data);
+            <span class="kw">let </span>block_id = <span class="self">self</span>.block_id(return_data);
             <span class="kw">let </span>already_initialized = <span class="self">self</span>.initialized_arrays.contains(<span class="kw-2">&amp;</span>block_id);
             <span class="kw">if </span>!already_initialized {
                 <span class="comment">// We hijack ensure_array_is_initialized() because we want the return data to use the return value witnesses,
@@ -1064,14 +1371,11 @@
         instruction: InstructionId,
         dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), RuntimeError&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>mutable_array_set = <span class="bool-val">false</span>;
-
         <span class="comment">// Pass the instruction between array methods rather than the internal fields themselves
-        </span><span class="kw">let </span>(array, index, store_value) = <span class="kw">match </span>dfg[instruction] {
-            Instruction::ArrayGet { array, index, offset: <span class="kw">_ </span>} =&gt; (array, index, <span class="prelude-val">None</span>),
-            Instruction::ArraySet { array, index, value, mutable, offset: <span class="kw">_ </span>} =&gt; {
-                mutable_array_set = mutable;
-                (array, index, <span class="prelude-val">Some</span>(value))
+        </span><span class="kw">let </span>(array, index, store_value, mutable) = <span class="kw">match </span>dfg[instruction] {
+            Instruction::ArrayGet { array, index } =&gt; (array, index, <span class="prelude-val">None</span>, <span class="bool-val">false</span>),
+            Instruction::ArraySet { array, index, value, mutable } =&gt; {
+                (array, index, <span class="prelude-val">Some</span>(value), mutable)
             }
             <span class="kw">_ </span>=&gt; {
                 <span class="kw">return </span><span class="prelude-val">Err</span>(InternalError::Unexpected {
@@ -1083,60 +1387,16 @@
             }
         };
 
-        <span class="kw">let </span>array_typ = dfg.type_of_value(array);
-        <span class="comment">// Compiler sanity checks
-        </span><span class="macro">assert!</span>(!array_typ.is_nested_slice(), <span class="string">"ICE: Nested slice type has reached ACIR generation"</span>);
-        <span class="kw">let </span>(Type::Array(<span class="kw">_</span>, <span class="kw">_</span>) | Type::Slice(<span class="kw">_</span>)) = <span class="kw-2">&amp;</span>array_typ <span class="kw">else </span>{
-            <span class="macro">unreachable!</span>(<span class="string">"ICE: expected array or slice type"</span>);
-        };
-
-        <span class="comment">// For 0-length arrays and slices, even the disabled memory operations would cause runtime failures.
-        // Set rhe result to a zero value that matches the type then bypass the rest of the operation,
-        // leaving an assertion that the side effect variable must be false.
-        </span><span class="kw">if </span><span class="self">self</span>.has_zero_length(array, dfg) {
-            <span class="comment">// Zero result.
-            </span><span class="kw">let </span>result_ids = dfg.instruction_results(instruction);
-            <span class="kw">for </span>result_id <span class="kw">in </span>result_ids {
-                <span class="kw">let </span>res_typ = dfg.type_of_value(<span class="kw-2">*</span>result_id);
-                <span class="kw">let </span>zero_value = <span class="self">self</span>.array_zero_value(<span class="kw-2">&amp;</span>res_typ)<span class="question-mark">?</span>;
-                <span class="self">self</span>.ssa_values.insert(<span class="kw-2">*</span>result_id, zero_value);
-            }
-            <span class="comment">// Make sure this code is disabled, or fail with "Index out of bounds".
-            </span><span class="kw">let </span>msg = <span class="string">"Index out of bounds, array has size 0"</span>.to_string();
-            <span class="kw">let </span>msg = <span class="self">self</span>.acir_context.generate_assertion_message_payload(msg);
-            <span class="kw">let </span>zero = <span class="self">self</span>.acir_context.add_constant(FieldElement::zero());
-            <span class="kw">return </span><span class="self">self</span>.acir_context.assert_eq_var(
-                <span class="self">self</span>.current_side_effects_enabled_var,
-                zero,
-                <span class="prelude-val">Some</span>(msg),
-            );
+        <span class="kw">if </span><span class="self">self</span>.handle_zero_length_array(array, dfg, instruction)<span class="question-mark">? </span>{
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(());
         }
 
         <span class="kw">if </span><span class="self">self</span>.handle_constant_index_wrapper(instruction, dfg, array, index, store_value)<span class="question-mark">? </span>{
             <span class="kw">return </span><span class="prelude-val">Ok</span>(());
         }
 
-        <span class="comment">// Get an offset such that the type of the array at the offset is the same as the type at the 'index'
-        // If we find one, we will use it when computing the index under the enable_side_effect predicate
-        // If not, array_get(..) will use a fallback costing one multiplication in the worst case.
-        // cf. https://github.com/noir-lang/noir/pull/4971
-        // For simplicity we compute the offset only for simple arrays
-        </span><span class="kw">let </span>is_simple_array = dfg.instruction_results(instruction).len() == <span class="number">1
-            </span>&amp;&amp; (array_has_constant_element_size(<span class="kw-2">&amp;</span>array_typ) == <span class="prelude-val">Some</span>(<span class="number">1</span>));
-
-        <span class="kw">let </span>offset = <span class="kw">if </span>is_simple_array {
-            <span class="kw">let </span>result_type = dfg.type_of_value(dfg.instruction_results(instruction)[<span class="number">0</span>]);
-            <span class="kw">match </span>array_typ {
-                Type::Array(item_type, <span class="kw">_</span>) | Type::Slice(item_type) =&gt; item_type
-                    .iter()
-                    .enumerate()
-                    .find_map(|(index, typ)| (result_type == <span class="kw-2">*</span>typ).then_some(index)),
-                <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
-            }
-        } <span class="kw">else </span>{
-            <span class="prelude-val">None
-        </span>};
-
+        <span class="kw">let </span>array_typ = dfg.type_of_value(array);
+        <span class="kw">let </span>offset = <span class="self">self</span>.compute_offset(instruction, dfg, <span class="kw-2">&amp;</span>array_typ);
         <span class="kw">let </span>(new_index, new_value) = <span class="self">self</span>.convert_array_operation_inputs(
             array,
             dfg,
@@ -1146,7 +1406,7 @@
         )<span class="question-mark">?</span>;
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(new_value) = new_value {
-            <span class="self">self</span>.array_set(instruction, new_index, new_value, dfg, mutable_array_set)<span class="question-mark">?</span>;
+            <span class="self">self</span>.array_set(instruction, new_index, new_value, dfg, mutable)<span class="question-mark">?</span>;
         } <span class="kw">else </span>{
             <span class="self">self</span>.array_get(instruction, array, new_index, dfg, offset.is_none())<span class="question-mark">?</span>;
         }
@@ -1154,7 +1414,48 @@
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">fn </span>handle_constant_index_wrapper(
+    <span class="doccomment">/// For 0-length arrays and slices, even the disabled memory operations would cause runtime failures.
+    /// Set the result to a zero value that matches the type then bypass the rest of the operation,
+    /// leaving an assertion that the side effect variable must be false.
+    ///
+    /// # Returns
+    /// `true` if we have a zero length array
+    /// `false` if we do not have a zero length array
+    </span><span class="kw">fn </span>handle_zero_length_array(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        array: ValueId,
+        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
+        instruction: InstructionId,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;bool, RuntimeError&gt; {
+        <span class="kw">if </span>!<span class="self">self</span>.has_zero_length(array, dfg) {
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="bool-val">false</span>);
+        }
+
+        <span class="comment">// Zero result.
+        </span><span class="kw">let </span>result_ids = dfg.instruction_results(instruction);
+        <span class="kw">for </span>result_id <span class="kw">in </span>result_ids {
+            <span class="kw">let </span>res_typ = dfg.type_of_value(<span class="kw-2">*</span>result_id);
+            <span class="kw">let </span>zero_value = <span class="self">self</span>.array_zero_value(<span class="kw-2">&amp;</span>res_typ)<span class="question-mark">?</span>;
+            <span class="self">self</span>.ssa_values.insert(<span class="kw-2">*</span>result_id, zero_value);
+        }
+        <span class="comment">// Make sure this code is disabled, or fail with "Index out of bounds".
+        </span><span class="kw">let </span>msg = <span class="string">"Index out of bounds, array has size 0"</span>.to_string();
+        <span class="kw">let </span>msg = <span class="self">self</span>.acir_context.generate_assertion_message_payload(msg);
+        <span class="kw">let </span>zero = <span class="self">self</span>.acir_context.add_constant(FieldElement::zero());
+        <span class="self">self</span>.acir_context.assert_eq_var(<span class="self">self</span>.current_side_effects_enabled_var, zero, <span class="prelude-val">Some</span>(msg))<span class="question-mark">?</span>;
+        <span class="prelude-val">Ok</span>(<span class="bool-val">true</span>)
+    }
+
+    <span class="doccomment">/// Attempts a compile-time read/write from an array.
+    ///
+    /// This relies on all previous operations on this array being done at known indices so that the `AcirValue` at each
+    /// position is known (even if the value of this `AcirValue` is unknown). This can then be done only for
+    /// `AcirValue::Array` as an `AcirValue::DynamicArray` has been mutated at an unknown index.
+    ///
+    /// # Returns
+    /// `true` if we performed a compile-time read/write
+    /// `false` if we did not perform a compile-time read/write
+    </span><span class="kw">fn </span>handle_constant_index_wrapper(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         instruction: InstructionId,
         dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
@@ -1179,12 +1480,16 @@
                     <span class="prelude-val">Ok</span>(<span class="bool-val">false</span>)
                 }
             }
-            AcirValue::DynamicArray(<span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(<span class="bool-val">false</span>),
+            AcirValue::DynamicArray(<span class="kw">_</span>) =&gt; {
+                <span class="comment">// We do not perform any compile-time reads/writes to dynamic arrays as we'd need to promote this into
+                // a regular array by reading all of its elements. It's then better to defer to the dynamic index
+                // codepath so we just issue a single read/write.
+                </span><span class="prelude-val">Ok</span>(<span class="bool-val">false</span>)
+            }
         }
     }
 
-    <span class="doccomment">/// Handle constant index: if there is no predicate and we have the array values,
-    /// we can perform the operation directly on the array
+    <span class="doccomment">/// See [Self::handle_constant_index_wrapper]
     </span><span class="kw">fn </span>handle_constant_index(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         instruction: InstructionId,
@@ -1225,32 +1530,52 @@
             }
         } <span class="kw">else </span>{
             <span class="comment">// If the index is not out of range, we can optimistically perform the read at compile time
-            // as if the predicate were true. This is as if the predicate were to resolve to false then
+            // as if the predicate were true. If the predicate were to resolve to false then
             // the result should not affect the rest of circuit execution.
             </span><span class="kw">let </span>value = array[index].clone();
-            <span class="comment">// An `Array` might contain a `DynamicArray`, however if we define the result this way,
-            // we would bypass the array initialization and the handling of dynamic values that
-            // happens in `array_get_value`. Rather than repeat it here, let the non-special-case
-            // handling take over by returning `false`.
-            </span><span class="kw">if </span><span class="macro">matches!</span>(value, AcirValue::DynamicArray(<span class="kw">_</span>)) {
-                <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="bool-val">false</span>);
-            }
             <span class="self">self</span>.define_result(dfg, instruction, value);
             <span class="prelude-val">Ok</span>(<span class="bool-val">true</span>)
         }
     }
 
+    <span class="doccomment">/// Get an offset such that the type of the array at the offset is the same as the type at the 'index'
+    /// If we find one, we will use it when computing the index under the enable_side_effect predicate
+    /// If not, array_get(..) will use a fallback costing one multiplication in the worst case.
+    /// cf. &lt;https://github.com/noir-lang/noir/pull/4971&gt;
+    /// For simplicity we compute the offset only for simple arrays
+    </span><span class="kw">fn </span>compute_offset(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        instruction: InstructionId,
+        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
+        array_typ: <span class="kw-2">&amp;</span>Type,
+    ) -&gt; <span class="prelude-ty">Option</span>&lt;usize&gt; {
+        <span class="kw">let </span>is_simple_array = dfg.instruction_results(instruction).len() == <span class="number">1
+            </span>&amp;&amp; (array_has_constant_element_size(array_typ) == <span class="prelude-val">Some</span>(<span class="number">1</span>));
+        <span class="kw">if </span>is_simple_array {
+            <span class="kw">let </span>result_type = dfg.type_of_value(dfg.instruction_results(instruction)[<span class="number">0</span>]);
+            <span class="kw">match </span>array_typ {
+                Type::Array(item_type, <span class="kw">_</span>) | Type::Slice(item_type) =&gt; item_type
+                    .iter()
+                    .enumerate()
+                    .find_map(|(index, typ)| (result_type == <span class="kw-2">*</span>typ).then_some(index)),
+                <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+            }
+        } <span class="kw">else </span>{
+            <span class="prelude-val">None
+        </span>}
+    }
+
     <span class="doccomment">/// We need to properly setup the inputs for array operations in ACIR.
     /// From the original SSA values we compute the following AcirVars:
-    /// - new_index is the index of the array. ACIR memory operations work with a flat memory, so we fully flattened the specified index
+    /// - `index_var` is the index of the array. ACIR memory operations work with a flat memory, so we fully flat the specified index
     ///   in case we have a nested array. The index for SSA array operations only represents the flattened index of the current array.
     ///   Thus internal array element type sizes need to be computed to accurately transform the index.
     ///
-    /// - predicate_index is offset, or the index if the predicate is true
+    /// - If the predicate is known to be true or the array access is guaranteed to be safe, we can directly return `index_var`
+    ///   Otherwise, `predicate_index` is a fallback offset set by [Self::predicated_index].
     ///
-    /// - new_value is the optional value when the operation is an array_set
-    ///   When there is a predicate, it is predicate*value + (1-predicate)*dummy, where dummy is the value of the array at the requested index.
-    ///   It is a dummy value because in the case of a false predicate, the value stored at the requested index will be itself.
+    /// - `new_value` is the optional value when the operation is an array_set.
+    ///   The value used in an array_set is also dependent upon the predicate and is set in [Self::predicated_store_value]
     </span><span class="kw">fn </span>convert_array_operation_inputs(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         array_id: ValueId,
@@ -1265,42 +1590,57 @@
         <span class="kw">let </span>index_var = <span class="self">self</span>.convert_numeric_value(index, dfg)<span class="question-mark">?</span>;
         <span class="kw">let </span>index_var = <span class="self">self</span>.get_flattened_index(<span class="kw-2">&amp;</span>array_typ, array_id, index_var, dfg)<span class="question-mark">?</span>;
 
-        <span class="kw">let </span>predicate_index = <span class="kw">if </span>dfg.is_safe_index(index, array_id) {
-            index_var
+        <span class="comment">// Side-effects are always enabled so we do not need to do any predication
+        </span><span class="kw">if </span><span class="self">self</span>.acir_context.is_constant_one(<span class="kw-2">&amp;</span><span class="self">self</span>.current_side_effects_enabled_var) {
+            <span class="kw">let </span>store_value = store_value.map(|store| <span class="self">self</span>.convert_value(store, dfg));
+            <span class="kw">return </span><span class="prelude-val">Ok</span>((index_var, store_value));
+        }
+
+        <span class="kw">let </span>predicate_index = <span class="self">self</span>.predicated_index(index_var, index, array_id, dfg, offset)<span class="question-mark">?</span>;
+
+        <span class="comment">// Handle the predicated store value
+        </span><span class="kw">let </span>new_value = store_value
+            .map(|store| <span class="self">self</span>.predicated_store_value(store, dfg, block_id, predicate_index))
+            .transpose()<span class="question-mark">?</span>;
+
+        <span class="prelude-val">Ok</span>((predicate_index, new_value))
+    }
+
+    <span class="doccomment">/// Computes the predicated index for an array access.
+    /// If the index is always safe, it is returned directly.
+    /// Otherwise, we compute `predicate * index + (1 - predicate) * offset`.
+    </span><span class="kw">fn </span>predicated_index(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        index_var: AcirVar,
+        index: ValueId,
+        array_id: ValueId,
+        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
+        offset: usize,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;AcirVar, RuntimeError&gt; {
+        <span class="kw">if </span>dfg.is_safe_index(index, array_id) {
+            <span class="prelude-val">Ok</span>(index_var)
         } <span class="kw">else </span>{
-            <span class="comment">// index*predicate + (1-predicate)*offset
-            </span><span class="kw">let </span>offset = <span class="self">self</span>.acir_context.add_constant(offset);
+            <span class="kw">let </span>offset = <span class="self">self</span>.acir_context.add_constant(offset);
             <span class="kw">let </span>sub = <span class="self">self</span>.acir_context.sub_var(index_var, offset)<span class="question-mark">?</span>;
             <span class="kw">let </span>pred = <span class="self">self</span>.acir_context.mul_var(sub, <span class="self">self</span>.current_side_effects_enabled_var)<span class="question-mark">?</span>;
-            <span class="self">self</span>.acir_context.add_var(pred, offset)<span class="question-mark">?
-        </span>};
+            <span class="self">self</span>.acir_context.add_var(pred, offset)
+        }
+    }
 
-        <span class="kw">let </span>new_value = <span class="kw">if let </span><span class="prelude-val">Some</span>(store) = store_value {
-            <span class="kw">let </span>store_value = <span class="self">self</span>.convert_value(store, dfg);
-            <span class="kw">if </span><span class="self">self</span>.acir_context.is_constant_one(<span class="kw-2">&amp;</span><span class="self">self</span>.current_side_effects_enabled_var) {
-                <span class="prelude-val">Some</span>(store_value)
-            } <span class="kw">else </span>{
-                <span class="kw">let </span>store_type = dfg.type_of_value(store);
-
-                <span class="kw">let </span><span class="kw-2">mut </span>dummy_predicate_index = predicate_index;
-                <span class="comment">// We must setup the dummy value to match the type of the value we wish to store
-                </span><span class="kw">let </span>dummy =
-                    <span class="self">self</span>.array_get_value(<span class="kw-2">&amp;</span>store_type, block_id, <span class="kw-2">&amp;mut </span>dummy_predicate_index)<span class="question-mark">?</span>;
-
-                <span class="prelude-val">Some</span>(<span class="self">self</span>.convert_array_set_store_value(<span class="kw-2">&amp;</span>store_value, <span class="kw-2">&amp;</span>dummy)<span class="question-mark">?</span>)
-            }
-        } <span class="kw">else </span>{
-            <span class="prelude-val">None
-        </span>};
-
-        <span class="kw">let </span>new_index = <span class="kw">if </span><span class="self">self</span>.acir_context.is_constant_one(<span class="kw-2">&amp;</span><span class="self">self</span>.current_side_effects_enabled_var)
-        {
-            index_var
-        } <span class="kw">else </span>{
-            predicate_index
-        };
-
-        <span class="prelude-val">Ok</span>((new_index, new_value))
+    <span class="doccomment">/// When there is a predicate, the store value is predicate*value + (1-predicate)*dummy, where dummy is the value of the array at the requested index.
+    /// It is a dummy value because in the case of a false predicate, the value stored at the requested index will be itself.
+    </span><span class="kw">fn </span>predicated_store_value(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        store: ValueId,
+        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
+        block_id: BlockId,
+        <span class="kw-2">mut </span>dummy_predicate_index: AcirVar,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;AcirValue, RuntimeError&gt; {
+        <span class="kw">let </span>store_value = <span class="self">self</span>.convert_value(store, dfg);
+        <span class="kw">let </span>store_type = dfg.type_of_value(store);
+        <span class="comment">// We must setup the dummy value to match the type of the value we wish to store
+        </span><span class="kw">let </span>dummy = <span class="self">self</span>.array_get_value(<span class="kw-2">&amp;</span>store_type, block_id, <span class="kw-2">&amp;mut </span>dummy_predicate_index)<span class="question-mark">?</span>;
+        <span class="self">self</span>.convert_array_set_store_value(<span class="kw-2">&amp;</span>store_value, <span class="kw-2">&amp;</span>dummy)
     }
 
     <span class="kw">fn </span>convert_array_set_store_value(
@@ -1350,13 +1690,7 @@
                     <span class="string">"ICE: The store value and dummy must have the same number of inner values"
                 </span>);
 
-                <span class="kw">let </span>values = try_vecmap(<span class="number">0</span>..<span class="kw-2">*</span>len, |i| {
-                    <span class="kw">let </span>index_var = <span class="self">self</span>.acir_context.add_constant(i);
-
-                    <span class="kw">let </span>read = <span class="self">self</span>.acir_context.read_from_memory(<span class="kw-2">*</span>block_id, <span class="kw-2">&amp;</span>index_var)<span class="question-mark">?</span>;
-                    <span class="prelude-val">Ok</span>::&lt;AcirValue, RuntimeError&gt;(AcirValue::Var(read, AcirType::field()))
-                })<span class="question-mark">?</span>;
-
+                <span class="kw">let </span>values = <span class="self">self</span>.read_dynamic_array(<span class="kw-2">*</span>block_id, <span class="kw-2">*</span>len)<span class="question-mark">?</span>;
                 <span class="kw">let </span><span class="kw-2">mut </span>elements = im::Vector::new();
                 <span class="kw">for </span>(val, dummy_val) <span class="kw">in </span>values.iter().zip(dummy_values) {
                     elements.push_back(<span class="self">self</span>.convert_array_set_store_value(val, <span class="kw-2">&amp;</span>dummy_val)<span class="question-mark">?</span>);
@@ -1364,8 +1698,8 @@
 
                 <span class="prelude-val">Ok</span>(AcirValue::Array(elements))
             }
-            (AcirValue::DynamicArray(<span class="kw">_</span>), AcirValue::DynamicArray(<span class="kw">_</span>)) =&gt; {
-                <span class="macro">unimplemented!</span>(<span class="string">"ICE: setting a dynamic array not supported"</span>);
+            (<span class="kw">_</span>, AcirValue::DynamicArray(<span class="kw">_</span>)) =&gt; {
+                <span class="macro">unimplemented!</span>(<span class="string">"ICE: setting a dummy dynamic array not supported"</span>);
             }
             <span class="kw">_ </span>=&gt; {
                 <span class="macro">unreachable!</span>(<span class="string">"ICE: The store value and dummy value must match"</span>);
@@ -1402,32 +1736,57 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         instruction: InstructionId,
         array: ValueId,
-        <span class="kw-2">mut </span>var_index: AcirVar,
+        var_index: AcirVar,
         dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
-        <span class="kw-2">mut </span>index_side_effect: bool,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;AcirValue, RuntimeError&gt; {
+        index_side_effect: bool,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), RuntimeError&gt; {
         <span class="kw">let </span>block_id = <span class="self">self</span>.ensure_array_is_initialized(array, dfg)<span class="question-mark">?</span>;
-        <span class="kw">let </span>results = dfg.instruction_results(instruction);
-        <span class="kw">let </span>res_typ = dfg.type_of_value(results[<span class="number">0</span>]);
-        <span class="comment">// Get operations to call-data parameters are replaced by a get to the call-data-bus array
-        </span><span class="kw">let </span>call_data =
-            <span class="self">self</span>.data_bus.call_data.iter().find(|cd| cd.index_map.contains_key(<span class="kw-2">&amp;</span>array)).cloned();
-        <span class="kw">let </span><span class="kw-2">mut </span>value = <span class="kw">if let </span><span class="prelude-val">Some</span>(call_data) = call_data {
-            <span class="kw">let </span>call_data_block = <span class="self">self</span>.ensure_array_is_initialized(call_data.array_id, dfg)<span class="question-mark">?</span>;
-            <span class="kw">let </span>bus_index = <span class="self">self
-                </span>.acir_context
-                .add_constant(FieldElement::from(call_data.index_map[<span class="kw-2">&amp;</span>array] <span class="kw">as </span>i128));
-            <span class="kw">let </span><span class="kw-2">mut </span>current_index = <span class="self">self</span>.acir_context.add_var(bus_index, var_index)<span class="question-mark">?</span>;
-            <span class="self">self</span>.get_from_call_data(<span class="kw-2">&amp;mut </span>current_index, call_data_block, <span class="kw-2">&amp;</span>res_typ)<span class="question-mark">?
-        </span>} <span class="kw">else </span>{
-            <span class="comment">// Compiler sanity check
-            </span><span class="macro">assert!</span>(
-                !res_typ.contains_slice_element(),
-                <span class="string">"ICE: Nested slice result found during ACIR generation"
-            </span>);
-            <span class="self">self</span>.array_get_value(<span class="kw-2">&amp;</span>res_typ, block_id, <span class="kw-2">&amp;mut </span>var_index)<span class="question-mark">?
-        </span>};
+        <span class="kw">let </span>[result] = dfg.instruction_result(instruction);
+        <span class="kw">let </span>res_typ = dfg.type_of_value(result);
 
+        <span class="kw">let </span>value = <span class="self">self</span>.load_array_value(array, block_id, var_index, <span class="kw-2">&amp;</span>res_typ, dfg)<span class="question-mark">?</span>;
+
+        <span class="kw">let </span>value = <span class="self">self</span>.apply_index_side_effects(array, value, index_side_effect, dfg)<span class="question-mark">?</span>;
+
+        <span class="self">self</span>.define_result(dfg, instruction, value);
+        <span class="prelude-val">Ok</span>(())
+    }
+
+    <span class="doccomment">/// Loads a value either from call-data bus or from memory.
+    </span><span class="kw">fn </span>load_array_value(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        array: ValueId,
+        block_id: BlockId,
+        <span class="kw-2">mut </span>var_index: AcirVar,
+        res_typ: <span class="kw-2">&amp;</span>Type,
+        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;AcirValue, RuntimeError&gt; {
+        <span class="comment">// Get operations to call-data parameters are replaced by a get to the call-data-bus array
+        </span><span class="kw">let </span>call_data_info = <span class="self">self
+            </span>.data_bus
+            .call_data
+            .iter()
+            .find_map(|cd| cd.index_map.get(<span class="kw-2">&amp;</span>array).map(|idx| (cd.array_id, <span class="kw-2">*</span>idx)));
+        <span class="kw">if let </span><span class="prelude-val">Some</span>((array_id, bus_index)) = call_data_info {
+            <span class="kw">let </span>call_data_block = <span class="self">self</span>.ensure_array_is_initialized(array_id, dfg)<span class="question-mark">?</span>;
+            <span class="kw">let </span>bus_index = <span class="self">self</span>.acir_context.add_constant(FieldElement::from(bus_index <span class="kw">as </span>i128));
+            <span class="kw">let </span><span class="kw-2">mut </span>current_index = <span class="self">self</span>.acir_context.add_var(bus_index, var_index)<span class="question-mark">?</span>;
+            <span class="self">self</span>.get_from_call_data(<span class="kw-2">&amp;mut </span>current_index, call_data_block, res_typ)
+        } <span class="kw">else </span>{
+            <span class="self">self</span>.array_get_value(res_typ, block_id, <span class="kw-2">&amp;mut </span>var_index)
+        }
+    }
+
+    <span class="doccomment">/// Applies predication logic on the result in case the read under a false predicate
+    /// returns a value with a larger type that may later trigger an overflow.
+    /// Ensures values read under false predicate are zeroed out if types don’t align.
+    </span><span class="kw">fn </span>apply_index_side_effects(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        array: ValueId,
+        <span class="kw-2">mut </span>value: AcirValue,
+        <span class="kw-2">mut </span>index_side_effect: bool,
+        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;AcirValue, RuntimeError&gt; {
         <span class="kw">if let </span>AcirValue::Var(value_var, typ) = <span class="kw-2">&amp;</span>value {
             <span class="kw">let </span>array_typ = dfg.type_of_value(array);
             <span class="kw">if let </span>(Type::Numeric(numeric_type), AcirType::NumericType(num)) =
@@ -1439,18 +1798,13 @@
                 }
             }
 
-            <span class="comment">// Fallback to multiplication if the index side_effects have not already been handled
-            </span><span class="kw">if </span>index_side_effect {
-                <span class="comment">// Set the value to 0 if current_side_effects is 0, to ensure it fits in any value type
-                </span>value = AcirValue::Var(
+            <span class="kw">if </span>index_side_effect {
+                value = AcirValue::Var(
                     <span class="self">self</span>.acir_context.mul_var(<span class="kw-2">*</span>value_var, <span class="self">self</span>.current_side_effects_enabled_var)<span class="question-mark">?</span>,
                     typ.clone(),
                 );
             }
         }
-
-        <span class="self">self</span>.define_result(dfg, instruction, value.clone());
-
         <span class="prelude-val">Ok</span>(value)
     }
 
@@ -1539,60 +1893,39 @@
             }
         };
 
-        <span class="kw">let </span>block_id = <span class="self">self</span>.ensure_array_is_initialized(array, dfg)<span class="question-mark">?</span>;
-
-        <span class="comment">// Every array has a length in its type, so we fetch that from
-        // the SSA IR.
-        //
-        // A slice's size must be fetched from the SSA value that represents the slice.
-        // However, this size is simply the capacity of a slice. The capacity is dependent upon the witness
-        // and may contain data for which we want to restrict access. The true slice length is tracked in a
-        // a separate SSA value and restrictions on slice indices should be generated elsewhere in the SSA.
-        </span><span class="kw">let </span>array_typ = dfg.type_of_value(array);
-        <span class="kw">let </span>array_len = <span class="self">self</span>.flattened_size(array, dfg);
-
-        <span class="comment">// Since array_set creates a new array, we create a new block ID for this
-        // array, unless map_array is true. In that case, we operate directly on block_id
-        // and we do not create a new block ID.
-        </span><span class="kw">let </span>result_id = dfg
+        <span class="kw">let </span>result_id = <span class="kw-2">*</span>dfg
             .instruction_results(instruction)
             .first()
             .expect(<span class="string">"Array set does not have one result"</span>);
-        <span class="kw">let </span>result_block_id;
-        <span class="kw">if </span>mutate_array {
-            <span class="self">self</span>.memory_blocks.insert(<span class="kw-2">*</span>result_id, block_id);
-            result_block_id = block_id;
-        } <span class="kw">else </span>{
-            <span class="comment">// Initialize the new array with the values from the old array
-            </span>result_block_id = <span class="self">self</span>.block_id(result_id);
-            <span class="self">self</span>.copy_array(array, result_block_id, dfg)<span class="question-mark">?</span>;
-        }
+        <span class="kw">let </span>block_id = <span class="self">self</span>.resolve_array_set_block(array, result_id, dfg, mutate_array)<span class="question-mark">?</span>;
 
-        <span class="self">self</span>.array_set_value(<span class="kw-2">&amp;</span>store_value, result_block_id, <span class="kw-2">&amp;mut </span>var_index)<span class="question-mark">?</span>;
+        <span class="self">self</span>.array_set_value(<span class="kw-2">&amp;</span>store_value, block_id, <span class="kw-2">&amp;mut </span>var_index)<span class="question-mark">?</span>;
 
-        <span class="kw">let </span>element_type_sizes = <span class="kw">if </span>array_has_constant_element_size(<span class="kw-2">&amp;</span>array_typ).is_none() {
-            <span class="kw">let </span>acir_value = <span class="self">self</span>.convert_value(array, dfg);
-            <span class="prelude-val">Some</span>(<span class="self">self</span>.init_element_type_sizes_array(<span class="kw-2">&amp;</span>array_typ, array, <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>acir_value), dfg)<span class="question-mark">?</span>)
-        } <span class="kw">else </span>{
-            <span class="prelude-val">None
-        </span>};
+        <span class="kw">let </span>result_value = <span class="self">self</span>.make_array_set_result_value(array, block_id, dfg)<span class="question-mark">?</span>;
 
-        <span class="kw">let </span>value_types = <span class="self">self</span>.convert_value(array, dfg).flat_numeric_types();
-        <span class="comment">// Compiler sanity check
-        </span><span class="macro">assert_eq!</span>(
-            value_types.len(),
-            array_len,
-            <span class="string">"ICE: The length of the flattened type array should match the length of the dynamic array"
-        </span>);
-
-        <span class="kw">let </span>result_value = AcirValue::DynamicArray(AcirDynamicArray {
-            block_id: result_block_id,
-            len: array_len,
-            value_types,
-            element_type_sizes,
-        });
         <span class="self">self</span>.define_result(dfg, instruction, result_value);
         <span class="prelude-val">Ok</span>(())
+    }
+
+    <span class="comment">// Since array_set creates a new array, we create a new block ID for this
+    // array, unless mutate_array is true. In that case, we operate directly on block_id
+    // and we do not create a new block ID.
+    </span><span class="kw">fn </span>resolve_array_set_block(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        array: ValueId,
+        result: ValueId,
+        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
+        mutate_array: bool,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;BlockId, RuntimeError&gt; {
+        <span class="kw">let </span>block_id = <span class="self">self</span>.ensure_array_is_initialized(array, dfg)<span class="question-mark">?</span>;
+        <span class="kw">if </span>mutate_array {
+            <span class="self">self</span>.memory_blocks.insert(result, block_id);
+            <span class="prelude-val">Ok</span>(block_id)
+        } <span class="kw">else </span>{
+            <span class="kw">let </span>new_block = <span class="self">self</span>.block_id(result);
+            <span class="self">self</span>.copy_array(array, new_block, dfg)<span class="question-mark">?</span>;
+            <span class="prelude-val">Ok</span>(new_block)
+        }
     }
 
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>array_set_value(
@@ -1627,14 +1960,71 @@
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>init_element_type_sizes_array(
+    <span class="doccomment">/// Construct the [AcirValue::DynamicArray] that represents the result of an [Instruction::ArraySet].
+    ///
+    /// In SSA, an array set always yields a new array value (even if the operation
+    /// mutates in place). At the ACIR level, this corresponds to a [AcirValue::DynamicArray] whose
+    /// memory block has already been resolved by [Self::resolve_array_set_block].
+    ///
+    /// # Purpose
+    /// - Initializes the optional [AcirDynamicArray::element_type_sizes] helper array for when elements are non-homogenous.
+    /// - Populates the `value_types` vector. See [AcirDynamicArray::value_types] for more information.
+    </span><span class="kw">fn </span>make_array_set_result_value(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        array: ValueId,
+        block_id: BlockId,
+        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;AcirValue, RuntimeError&gt; {
+        <span class="comment">// Every array has a length in its type, so we fetch that from
+        // the SSA IR.
+        //
+        // A slice's size must be fetched from the SSA value that represents the slice.
+        // However, this size is simply the capacity of a slice. The capacity is dependent upon the witness
+        // and may contain data for which we want to restrict access. The true slice length is tracked in a
+        // a separate SSA value and restrictions on slice indices should be generated elsewhere in the SSA.
+        </span><span class="kw">let </span>array_typ = dfg.type_of_value(array);
+        <span class="kw">let </span>len = <span class="self">self</span>.flattened_size(array, dfg);
+
+        <span class="kw">let </span>element_type_sizes = <span class="kw">if </span>array_has_constant_element_size(<span class="kw-2">&amp;</span>array_typ).is_none() {
+            <span class="kw">let </span>acir_value = <span class="self">self</span>.convert_value(array, dfg);
+            <span class="prelude-val">Some</span>(<span class="self">self</span>.init_element_type_sizes_array(<span class="kw-2">&amp;</span>array_typ, array, <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>acir_value), dfg)<span class="question-mark">?</span>)
+        } <span class="kw">else </span>{
+            <span class="prelude-val">None
+        </span>};
+
+        <span class="kw">let </span>value_types = <span class="self">self</span>.convert_value(array, dfg).flat_numeric_types();
+        <span class="comment">// Compiler sanity check
+        </span><span class="macro">assert_eq!</span>(
+            value_types.len(),
+            len,
+            <span class="string">"ICE: The length of the flattened type array should match the length of the dynamic array"
+        </span>);
+
+        <span class="prelude-val">Ok</span>(AcirValue::DynamicArray(AcirDynamicArray {
+            block_id,
+            len,
+            value_types,
+            element_type_sizes,
+        }))
+    }
+
+    <span class="doccomment">/// Initializes the element types sizes array to enable indexing of non-homogenous SSA arrays
+    /// in a flat memory environment.
+    ///
+    /// ACIR memory is flat, while SSA arrays may be multi-dimensional or
+    /// contain elements of varying size (we refer to these are non-homogenous arrays).
+    /// To reconcile this, each element's "flattened index" is computed relative to the array’s base pointer.
+    /// In some cases this requires consulting a side "element type sizes"
+    /// array to calculate offsets when elements have a non-homogenous layout
+    /// See [self] for a more concrete example of how this types sizes array is used.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>init_element_type_sizes_array(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         array_typ: <span class="kw-2">&amp;</span>Type,
         array_id: ValueId,
         supplied_acir_value: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>AcirValue&gt;,
         dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;BlockId, RuntimeError&gt; {
-        <span class="kw">let </span>element_type_sizes = <span class="self">self</span>.internal_block_id(<span class="kw-2">&amp;</span>array_id);
+        <span class="kw">let </span>element_type_sizes = <span class="self">self</span>.type_sizes_block_id(array_id);
         <span class="comment">// Check whether an internal type sizes array has already been initialized
         // Need to look into how to optimize for slices as this could lead to different element type sizes
         // for different slices that do not have consistent sizes
@@ -1680,7 +2070,6 @@
                     <span class="prelude-val">Some</span>(AcirValue::Array(init_values.into())),
                 )<span class="question-mark">?</span>;
 
-                <span class="self">self</span>.internal_mem_block_lengths.insert(element_type_sizes, element_type_sizes_len);
                 <span class="prelude-val">Ok</span>(element_type_sizes)
             }
 
@@ -1701,19 +2090,10 @@
                     </span><span class="macro">unreachable!</span>(<span class="string">"ICE: element type size arrays are expected to be initialized"</span>);
                 }
 
-                <span class="kw">let </span>type_sizes_array_len = <span class="kw-2">*</span><span class="self">self</span>.internal_mem_block_lengths.get(inner_elem_type_sizes).ok_or_else(||
-                                            InternalError::General {
-                                                message: <span class="macro">format!</span>(<span class="string">"Array {array_id}'s inner element type sizes array does not have a tracked length"</span>),
-                                                call_stack: <span class="self">self</span>.acir_context.get_call_stack(),
-                                            }
-                                        )<span class="question-mark">?</span>;
-                <span class="self">self</span>.copy_dynamic_array(
-                    <span class="kw-2">*</span>inner_elem_type_sizes,
-                    element_type_sizes,
-                    type_sizes_array_len,
-                )<span class="question-mark">?</span>;
-                <span class="self">self</span>.internal_mem_block_lengths.insert(element_type_sizes, type_sizes_array_len);
-                <span class="prelude-val">Ok</span>(element_type_sizes)
+                <span class="comment">// We can safely overwrite the memory block from the initial call to `self.internal_block_id(&amp;array_id)` here.
+                // The type sizes array is never mutated so we can re-use it.
+                </span><span class="self">self</span>.element_type_sizes_blocks.insert(array_id, <span class="kw-2">*</span>inner_elem_type_sizes);
+                <span class="prelude-val">Ok</span>(<span class="kw-2">*</span>inner_elem_type_sizes)
             }
             <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(InternalError::Unexpected {
                 expected: <span class="string">"AcirValue::DynamicArray or AcirValue::Array"</span>.to_owned(),
@@ -1757,7 +2137,7 @@
         }
     }
 
-    <span class="kw">fn </span>read_dynamic_array(
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>read_dynamic_array(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         source: BlockId,
         array_len: usize,
@@ -1782,7 +2162,15 @@
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>get_flattened_index(
+    <span class="doccomment">/// Convert an SSA array index into a flat ACIR array index.
+    ///
+    /// ACIR memory is flat, while SSA arrays may be multi-dimensional or
+    /// contain elements of varying size (we refer to these are non-homogenous arrays).
+    /// To reconcile this, each element's "flattened index" is computed relative to the array’s base pointer.
+    /// In some cases this requires consulting a side ["element type sizes"][Self::init_element_type_sizes_array]
+    /// array to calculate offsets when elements have a non-homogenous layout
+    /// See [self] for a more concrete example of how flattened indices are computed.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>get_flattened_index(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         array_typ: <span class="kw-2">&amp;</span>Type,
         array_id: ValueId,
@@ -1860,7 +2248,7 @@
         dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;BlockId, RuntimeError&gt; {
         <span class="comment">// Use the SSA ID to get or create its block ID
-        </span><span class="kw">let </span>block_id = <span class="self">self</span>.block_id(<span class="kw-2">&amp;</span>array);
+        </span><span class="kw">let </span>block_id = <span class="self">self</span>.block_id(array);
 
         <span class="comment">// Check if the array has already been initialized in ACIR gen
         // if not, we initialize it using the values from SSA
@@ -1896,12 +2284,12 @@
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), InternalError&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>databus = BlockType::Memory;
         <span class="kw">if </span><span class="self">self</span>.data_bus.return_data.is_some()
-            &amp;&amp; <span class="self">self</span>.block_id(<span class="kw-2">&amp;</span><span class="self">self</span>.data_bus.return_data.unwrap()) == array
+            &amp;&amp; <span class="self">self</span>.block_id(<span class="self">self</span>.data_bus.return_data.unwrap()) == array
         {
             databus = BlockType::ReturnData;
         }
         <span class="kw">for </span>(call_data_id, array_id) <span class="kw">in </span><span class="self">self</span>.data_bus.call_data_array() {
-            <span class="kw">if </span><span class="self">self</span>.block_id(<span class="kw-2">&amp;</span>array_id) == array {
+            <span class="kw">if </span><span class="self">self</span>.block_id(array_id) == array {
                 <span class="macro">assert!</span>(databus == BlockType::Memory);
                 databus = BlockType::CallData(call_data_id);
                 <span class="kw">break</span>;

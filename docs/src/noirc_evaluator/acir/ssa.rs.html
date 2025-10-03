@@ -94,14 +94,7 @@
 <a href="#93" id="93">93</a>
 <a href="#94" id="94">94</a>
 <a href="#95" id="95">95</a>
-<a href="#96" id="96">96</a>
-<a href="#97" id="97">97</a>
-<a href="#98" id="98">98</a>
-<a href="#99" id="99">99</a>
-<a href="#100" id="100">100</a>
-<a href="#101" id="101">101</a>
-<a href="#102" id="102">102</a>
-<a href="#103" id="103">103</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#96" id="96">96</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 
 <span class="kw">use </span>acvm::{
     FieldElement,
@@ -120,7 +113,6 @@
 <span class="kw">pub type </span>Artifacts = (
     Vec&lt;GeneratedAcir&lt;FieldElement&gt;&gt;,
     Vec&lt;BrilligBytecode&lt;FieldElement&gt;&gt;,
-    Vec&lt;String&gt;,
     BTreeMap&lt;ErrorSelector, HirType&gt;,
 );
 
@@ -148,11 +140,7 @@
     <span class="kw">let </span>used_globals = ssa.used_globals_in_functions();
 
     <span class="comment">// TODO: can we parallelize this?
-    </span><span class="kw">let </span><span class="kw-2">mut </span>shared_context = SharedContext {
-        brillig_stdlib: brillig_stdlib.clone(),
-        used_globals,
-        ..SharedContext::default()
-    };
+    </span><span class="kw">let </span><span class="kw-2">mut </span>shared_context = SharedContext::new(brillig_stdlib.clone(), used_globals);
 
     <span class="kw">for </span>function <span class="kw">in </span>ssa.functions.values() {
         <span class="kw">let </span>context = Context::new(
@@ -180,9 +168,7 @@
             }
 
             <span class="comment">// Fetch the Brillig stdlib calls to resolve for this function
-            </span><span class="kw">if let </span><span class="prelude-val">Some</span>(calls_to_resolve) =
-                shared_context.brillig_stdlib_calls_to_resolve.get(<span class="kw-2">&amp;</span>function.id())
-            {
+            </span><span class="kw">if let </span><span class="prelude-val">Some</span>(calls_to_resolve) = shared_context.get_call_to_resolve(function.id()) {
                 <span class="comment">// Resolve the Brillig stdlib calls
                 // We have to do a separate loop as the generated ACIR cannot be borrowed as mutable after an immutable borrow
                 </span><span class="kw">for </span>(opcode_location, brillig_function_pointer) <span class="kw">in </span>calls_to_resolve {
@@ -196,12 +182,12 @@
         }
     }
 
-    <span class="kw">let </span>(brillig_bytecode, brillig_names) = shared_context
-        .generated_brillig
+    <span class="kw">let </span>generated_brillig = shared_context.finish();
+    <span class="kw">let </span>brillig_bytecode = generated_brillig
         .into_iter()
-        .map(|brillig| (BrilligBytecode { bytecode: brillig.byte_code }, brillig.name))
-        .unzip();
+        .map(|brillig| BrilligBytecode { function_name: brillig.name, bytecode: brillig.byte_code })
+        .collect();
 
-    <span class="prelude-val">Ok</span>((acirs, brillig_bytecode, brillig_names, ssa.error_selector_to_type))
+    <span class="prelude-val">Ok</span>((acirs, brillig_bytecode, ssa.error_selector_to_type))
 }
 </code></pre></div></section></main></body></html>

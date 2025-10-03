@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["circuit","native_types","proto","serialization"],"trait":["AcirField"],"type":["FieldElement"]};
+window.SIDEBAR_ITEMS = {"mod":["circuit","native_types","parser","proto","serialization"],"trait":["AcirField"],"type":["FieldElement"]};

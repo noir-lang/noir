@@ -504,7 +504,34 @@
 <a href="#503" id="503">503</a>
 <a href="#504" id="504">504</a>
 <a href="#505" id="505">505</a>
-<a href="#506" id="506">506</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file is for pretty-printing the SSA IR in a human-readable form for debugging.
+<a href="#506" id="506">506</a>
+<a href="#507" id="507">507</a>
+<a href="#508" id="508">508</a>
+<a href="#509" id="509">509</a>
+<a href="#510" id="510">510</a>
+<a href="#511" id="511">511</a>
+<a href="#512" id="512">512</a>
+<a href="#513" id="513">513</a>
+<a href="#514" id="514">514</a>
+<a href="#515" id="515">515</a>
+<a href="#516" id="516">516</a>
+<a href="#517" id="517">517</a>
+<a href="#518" id="518">518</a>
+<a href="#519" id="519">519</a>
+<a href="#520" id="520">520</a>
+<a href="#521" id="521">521</a>
+<a href="#522" id="522">522</a>
+<a href="#523" id="523">523</a>
+<a href="#524" id="524">524</a>
+<a href="#525" id="525">525</a>
+<a href="#526" id="526">526</a>
+<a href="#527" id="527">527</a>
+<a href="#528" id="528">528</a>
+<a href="#529" id="529">529</a>
+<a href="#530" id="530">530</a>
+<a href="#531" id="531">531</a>
+<a href="#532" id="532">532</a>
+<a href="#533" id="533">533</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file is for pretty-printing the SSA IR in a human-readable form for debugging.
 </span><span class="kw">use </span>std::fmt::{Display, Formatter, <span class="prelude-ty">Result</span>};
 
 <span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
@@ -514,6 +541,7 @@
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
     Ssa,
+    function_builder::data_bus::DataBus,
     ir::{
         instruction::ArrayOffset,
         types::{NumericType, Type},
@@ -599,10 +627,34 @@
         <span class="macro">writeln!</span>(f, <span class="string">"{} fn {} {} {{"</span>, function.runtime(), function.name(), function.id())<span class="question-mark">?</span>;
     }
 
+    display_databus(<span class="kw-2">&amp;</span>function.dfg.data_bus, <span class="kw-2">&amp;</span>function.dfg, f)<span class="question-mark">?</span>;
+
     <span class="kw">for </span>block_id <span class="kw">in </span>function.reachable_blocks() {
         display_block(<span class="kw-2">&amp;</span>function.dfg, block_id, files, f)<span class="question-mark">?</span>;
     }
     <span class="macro">write!</span>(f, <span class="string">"}}"</span>)
+}
+
+<span class="kw">fn </span>display_databus(data_bus: <span class="kw-2">&amp;</span>DataBus, dfg: <span class="kw-2">&amp;</span>DataFlowGraph, f: <span class="kw-2">&amp;mut </span>Formatter) -&gt; <span class="prelude-ty">Result</span> {
+    <span class="kw">for </span>call_data <span class="kw">in </span><span class="kw-2">&amp;</span>data_bus.call_data {
+        <span class="macro">write!</span>(
+            f,
+            <span class="string">"  call_data({}): array: {}, indices: ["</span>,
+            call_data.call_data_id,
+            value(dfg, call_data.array_id),
+        )<span class="question-mark">?</span>;
+        <span class="kw">for </span>(i, (value_id, index)) <span class="kw">in </span>call_data.index_map.iter().enumerate() {
+            <span class="kw">if </span>i != <span class="number">0 </span>{
+                <span class="macro">write!</span>(f, <span class="string">", "</span>)<span class="question-mark">?</span>;
+            }
+            <span class="macro">write!</span>(f, <span class="string">"{}: {}"</span>, value(dfg, <span class="kw-2">*</span>value_id), index)<span class="question-mark">?</span>;
+        }
+        <span class="macro">writeln!</span>(f, <span class="string">"]"</span>)<span class="question-mark">?</span>;
+    }
+    <span class="kw">if let </span><span class="prelude-val">Some</span>(return_data) = data_bus.return_data {
+        <span class="macro">writeln!</span>(f, <span class="string">"  return_data: {}"</span>, value(dfg, return_data))<span class="question-mark">?</span>;
+    }
+    <span class="prelude-val">Ok</span>(())
 }
 
 <span class="doccomment">/// Display a single block. This will not display the block's successors.
@@ -844,17 +896,19 @@
         Instruction::EnableSideEffectsIf { condition } =&gt; {
             <span class="macro">write!</span>(f, <span class="string">"enable_side_effects {}"</span>, show(<span class="kw-2">*</span>condition))
         }
-        Instruction::ArrayGet { array, index, offset } =&gt; {
+        Instruction::ArrayGet { array, index } =&gt; {
+            <span class="kw">let </span>offset = dfg.array_offset(<span class="kw-2">*</span>array, <span class="kw-2">*</span>index);
             <span class="macro">write!</span>(
                 f,
                 <span class="string">"array_get {}, index {}{}{}"</span>,
                 show(<span class="kw-2">*</span>array),
                 show(<span class="kw-2">*</span>index),
-                display_array_offset(offset),
+                display_array_offset(<span class="kw-2">&amp;</span>offset),
                 result_types(dfg, results)
             )
         }
-        Instruction::ArraySet { array, index, value, mutable, offset } =&gt; {
+        Instruction::ArraySet { array, index, value, mutable } =&gt; {
+            <span class="kw">let </span>offset = dfg.array_offset(<span class="kw-2">*</span>array, <span class="kw-2">*</span>index);
             <span class="kw">let </span>array = show(<span class="kw-2">*</span>array);
             <span class="kw">let </span>index = show(<span class="kw-2">*</span>index);
             <span class="kw">let </span>value = show(<span class="kw-2">*</span>value);
@@ -865,7 +919,7 @@
                 mutable,
                 array,
                 index,
-                display_array_offset(offset),
+                display_array_offset(<span class="kw-2">&amp;</span>offset),
                 value
             )
         }

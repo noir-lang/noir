@@ -199,15 +199,20 @@
 <a href="#198" id="198">198</a>
 <a href="#199" id="199">199</a>
 <a href="#200" id="200">200</a>
-<a href="#201" id="201">201</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::AcirField;
+<a href="#201" id="201">201</a>
+<a href="#202" id="202">202</a>
+<a href="#203" id="203">203</a>
+<a href="#204" id="204">204</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::AcirField;
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
 <span class="kw">use </span>noirc_errors::debug_info::DebugVarId;
 <span class="kw">use </span>noirc_printable_type::PrintableType;
 
+<span class="kw">use </span><span class="kw">crate</span>::ast::IntegerBitSize;
 <span class="kw">use </span><span class="kw">crate</span>::debug::{SourceFieldId, SourceVarId};
 <span class="kw">use </span><span class="kw">crate</span>::hir_def::expr::<span class="kw-2">*</span>;
 <span class="kw">use </span><span class="kw">crate</span>::node_interner::ExprId;
+<span class="kw">use </span><span class="kw">crate</span>::shared::Signedness;
 <span class="kw">use </span><span class="kw">crate</span>::signed_field::SignedField;
 
 <span class="kw">use </span><span class="kw">super</span>::ast::{Expression, Ident};
@@ -382,7 +387,8 @@
         <span class="kw">let </span>value = SignedField::positive(var_id.<span class="number">0</span>);
         <span class="kw">let </span>var_id_literal = HirLiteral::Integer(value);
         <span class="kw">let </span>expr_id = <span class="self">self</span>.interner.push_expr(HirExpression::Literal(var_id_literal));
-        <span class="self">self</span>.interner.push_expr_type(expr_id, <span class="kw">crate</span>::Type::FieldElement);
+        <span class="kw">let </span>u32 = <span class="kw">crate</span>::Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
+        <span class="self">self</span>.interner.push_expr_type(expr_id, u32);
         <span class="self">self</span>.interner.push_expr_location(expr_id, <span class="kw-2">*</span>location);
         expr_id
     }

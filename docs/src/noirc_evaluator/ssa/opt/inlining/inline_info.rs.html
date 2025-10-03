@@ -594,7 +594,33 @@
 <a href="#593" id="593">593</a>
 <a href="#594" id="594">594</a>
 <a href="#595" id="595">595</a>
-<a href="#596" id="596">596</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeMap, VecDeque};
+<a href="#596" id="596">596</a>
+<a href="#597" id="597">597</a>
+<a href="#598" id="598">598</a>
+<a href="#599" id="599">599</a>
+<a href="#600" id="600">600</a>
+<a href="#601" id="601">601</a>
+<a href="#602" id="602">602</a>
+<a href="#603" id="603">603</a>
+<a href="#604" id="604">604</a>
+<a href="#605" id="605">605</a>
+<a href="#606" id="606">606</a>
+<a href="#607" id="607">607</a>
+<a href="#608" id="608">608</a>
+<a href="#609" id="609">609</a>
+<a href="#610" id="610">610</a>
+<a href="#611" id="611">611</a>
+<a href="#612" id="612">612</a>
+<a href="#613" id="613">613</a>
+<a href="#614" id="614">614</a>
+<a href="#615" id="615">615</a>
+<a href="#616" id="616">616</a>
+<a href="#617" id="617">617</a>
+<a href="#618" id="618">618</a>
+<a href="#619" id="619">619</a>
+<a href="#620" id="620">620</a>
+<a href="#621" id="621">621</a>
+<a href="#622" id="622">622</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeMap, VecDeque};
 
 <span class="kw">use </span>im::HashMap;
 <span class="kw">use </span>petgraph::graph::NodeIndex <span class="kw">as </span>PetGraphIndex;
@@ -609,6 +635,16 @@
     },
     ssa_gen::Ssa,
 };
+
+<span class="doccomment">/// The maximum number of instructions chosen below is an expert estimation of a "small" function
+/// in our SSA IR. Generally, inlining small functions with no control flow should enable further optimizations
+/// in the compiler while avoiding code size bloat.
+///
+/// For example, a common "simple" function is writing into a mutable reference.
+/// When that function has no control flow, it generally means we can expect all loads and stores within the
+/// function to be resolved upon inlining. Inlining this type of basic function both reduces the number of
+/// loads/stores to be executed and enables the compiler to continue optimizing at the inline site.
+</span><span class="kw">pub const </span>MAX_INSTRUCTIONS: usize = <span class="number">10</span>;
 
 <span class="doccomment">/// Information about a function to aid the decision about whether to inline it or not.
 /// The final decision depends on what we're inlining it into.
@@ -654,6 +690,7 @@
     ssa: <span class="kw-2">&amp;</span>Ssa,
     call_graph: <span class="kw-2">&amp;</span>CallGraph,
     inline_no_predicates_functions: bool,
+    small_function_max_instructions: usize,
     aggressiveness: i64,
 ) -&gt; InlineInfos {
     <span class="kw">let </span><span class="kw-2">mut </span>inline_infos = InlineInfos::default();
@@ -691,11 +728,13 @@
     <span class="kw">let </span>times_called = call_graph.times_called();
     <span class="comment">// Find mutual recursion in our call graph
     </span><span class="kw">let </span>recursive_functions = call_graph.get_recursive_functions();
+    <span class="kw">let </span>small_function_max_instructions = small_function_max_instructions <span class="kw">as </span>i64;
     <span class="kw">for </span>recursive_func <span class="kw">in </span>recursive_functions.iter() {
         inline_infos.entry(<span class="kw-2">*</span>recursive_func).or_default().is_recursive = <span class="bool-val">true</span>;
         compute_function_should_be_inlined(
             ssa,
             inline_no_predicates_functions,
+            small_function_max_instructions,
             aggressiveness,
             <span class="kw-2">&amp;</span>times_called,
             <span class="kw-2">&amp;mut </span>inline_infos,
@@ -713,6 +752,7 @@
         compute_function_should_be_inlined(
             ssa,
             inline_no_predicates_functions,
+            small_function_max_instructions,
             aggressiveness,
             <span class="kw-2">&amp;</span>times_called,
             <span class="kw-2">&amp;mut </span>inline_infos,
@@ -742,9 +782,11 @@
 /// A function's net cost is then (cost of inlining - cost of retaining).
 /// The net cost is then compared against the inliner aggressiveness setting. If the net cost is less than the aggressiveness,
 /// we inline the function (granted there are not other restrictions such as recursion).
+</span><span class="attr">#[allow(clippy::too_many_arguments)]
 </span><span class="kw">fn </span>compute_function_should_be_inlined(
     ssa: <span class="kw-2">&amp;</span>Ssa,
     inline_no_predicates_functions: bool,
+    small_function_max_instructions: i64,
     aggressiveness: i64,
     times_called: <span class="kw-2">&amp;</span>HashMap&lt;FunctionId, usize&gt;,
     inline_infos: <span class="kw-2">&amp;mut </span>InlineInfos,
@@ -795,6 +837,7 @@
 
     <span class="kw">let </span>neighbors = call_graph.graph().neighbors(index);
     <span class="kw">let </span><span class="kw-2">mut </span>total_weight = compute_function_own_weight(function) <span class="kw">as </span>i64;
+    <span class="kw">let </span>instruction_weight = total_weight;
     <span class="kw">for </span>neighbor_index <span class="kw">in </span>neighbors {
         <span class="kw">let </span>callee = call_graph.indices_to_ids()[<span class="kw-2">&amp;</span>neighbor_index];
         <span class="kw">if </span>inline_infos.get(<span class="kw-2">&amp;</span>callee).is_some_and(|info| info.should_inline) {
@@ -812,9 +855,17 @@
     info.weight = total_weight;
     info.cost = net_cost;
 
-    <span class="kw">let </span>should_inline = (net_cost &lt; aggressiveness)
+    <span class="kw">let </span>entry_block_id = function.entry_block();
+    <span class="kw">let </span>entry_block = <span class="kw-2">&amp;</span>function.dfg[entry_block_id];
+    <span class="kw">let </span>should_inline_no_pred_function =
+        runtime.is_no_predicates() &amp;&amp; inline_no_predicates_functions;
+    <span class="kw">let </span>is_simple_function = entry_block.successors().next().is_none()
+        &amp;&amp; instruction_weight &lt; small_function_max_instructions;
+
+    <span class="kw">let </span>should_inline = is_simple_function
+        || net_cost &lt; aggressiveness
         || runtime.is_inline_always()
-        || (runtime.is_no_predicates() &amp;&amp; inline_no_predicates_functions)
+        || should_inline_no_pred_function
         || contains_static_assertion
         || runtime.is_acir();
 
@@ -929,7 +980,7 @@
 </span><span class="kw">mod </span>tests {
     <span class="kw">use </span><span class="kw">crate</span>::ssa::{
         ir::{call_graph::CallGraph, map::Id},
-        opt::inlining::inline_info::compute_bottom_up_order,
+        opt::inlining::{MAX_INSTRUCTIONS, inline_info::compute_bottom_up_order},
         ssa_gen::Ssa,
     };
 
@@ -962,7 +1013,8 @@
 
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
         <span class="kw">let </span>call_graph = CallGraph::from_ssa_weighted(<span class="kw-2">&amp;</span>ssa);
-        <span class="kw">let </span>inline_infos = compute_inline_infos(<span class="kw-2">&amp;</span>ssa, <span class="kw-2">&amp;</span>call_graph, <span class="bool-val">false</span>, i64::MAX);
+        <span class="kw">let </span>inline_infos =
+            compute_inline_infos(<span class="kw-2">&amp;</span>ssa, <span class="kw-2">&amp;</span>call_graph, <span class="bool-val">false</span>, MAX_INSTRUCTIONS, i64::MAX);
 
         <span class="kw">let </span>func_0 = inline_infos.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)).expect(<span class="string">"Should have computed inline info"</span>);
         <span class="macro">assert!</span>(!func_0.is_recursive);
@@ -1086,7 +1138,7 @@
 
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
         <span class="kw">let </span>call_graph = CallGraph::from_ssa_weighted(<span class="kw-2">&amp;</span>ssa);
-        <span class="kw">let </span>infos = compute_inline_infos(<span class="kw-2">&amp;</span>ssa, <span class="kw-2">&amp;</span>call_graph, <span class="bool-val">false</span>, <span class="number">0</span>);
+        <span class="kw">let </span>infos = compute_inline_infos(<span class="kw-2">&amp;</span>ssa, <span class="kw-2">&amp;</span>call_graph, <span class="bool-val">false</span>, MAX_INSTRUCTIONS, <span class="number">0</span>);
 
         <span class="kw">let </span>f1 = infos.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">1</span>)).expect(<span class="string">"f1 should be analyzed"</span>);
         <span class="macro">assert!</span>(
@@ -1112,36 +1164,36 @@
 
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
         <span class="kw">let </span>call_graph = CallGraph::from_ssa_weighted(<span class="kw-2">&amp;</span>ssa);
-        <span class="kw">let </span>infos = compute_inline_infos(<span class="kw-2">&amp;</span>ssa, <span class="kw-2">&amp;</span>call_graph, <span class="bool-val">false</span>, i64::MIN);
+        <span class="kw">let </span>infos = compute_inline_infos(<span class="kw-2">&amp;</span>ssa, <span class="kw-2">&amp;</span>call_graph, <span class="bool-val">false</span>, MAX_INSTRUCTIONS, i64::MIN);
         <span class="kw">let </span>f1 = infos.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">1</span>)).expect(<span class="string">"Should analyze f1"</span>);
         <span class="macro">assert!</span>(
             !f1.should_inline,
             <span class="string">"no_predicates functions should NOT be inlined if the flag is false"
         </span>);
 
-        <span class="kw">let </span>infos = compute_inline_infos(<span class="kw-2">&amp;</span>ssa, <span class="kw-2">&amp;</span>call_graph, <span class="bool-val">false</span>, <span class="number">0</span>);
+        <span class="kw">let </span>infos = compute_inline_infos(<span class="kw-2">&amp;</span>ssa, <span class="kw-2">&amp;</span>call_graph, <span class="bool-val">false</span>, MAX_INSTRUCTIONS, <span class="number">0</span>);
         <span class="kw">let </span>f1 = infos.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">1</span>)).expect(<span class="string">"Should analyze f1"</span>);
         <span class="macro">assert!</span>(
             !f1.should_inline,
             <span class="string">"no_predicates functions should NOT be inlined if the flag is false"
         </span>);
 
-        <span class="kw">let </span>infos = compute_inline_infos(<span class="kw-2">&amp;</span>ssa, <span class="kw-2">&amp;</span>call_graph, <span class="bool-val">false</span>, i64::MAX);
+        <span class="kw">let </span>infos = compute_inline_infos(<span class="kw-2">&amp;</span>ssa, <span class="kw-2">&amp;</span>call_graph, <span class="bool-val">false</span>, MAX_INSTRUCTIONS, i64::MAX);
         <span class="kw">let </span>f1 = infos.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">1</span>)).expect(<span class="string">"Should analyze f1"</span>);
         <span class="macro">assert!</span>(
             !f1.should_inline,
             <span class="string">"no_predicates functions should NOT be inlined if the flag is false"
         </span>);
 
-        <span class="kw">let </span>infos = compute_inline_infos(<span class="kw-2">&amp;</span>ssa, <span class="kw-2">&amp;</span>call_graph, <span class="bool-val">true</span>, i64::MIN);
+        <span class="kw">let </span>infos = compute_inline_infos(<span class="kw-2">&amp;</span>ssa, <span class="kw-2">&amp;</span>call_graph, <span class="bool-val">true</span>, MAX_INSTRUCTIONS, i64::MIN);
         <span class="kw">let </span>f1 = infos.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">1</span>)).expect(<span class="string">"Should analyze f1"</span>);
         <span class="macro">assert!</span>(f1.should_inline, <span class="string">"no_predicates functions should be inlined if the flag is true"</span>);
 
-        <span class="kw">let </span>infos = compute_inline_infos(<span class="kw-2">&amp;</span>ssa, <span class="kw-2">&amp;</span>call_graph, <span class="bool-val">true</span>, <span class="number">0</span>);
+        <span class="kw">let </span>infos = compute_inline_infos(<span class="kw-2">&amp;</span>ssa, <span class="kw-2">&amp;</span>call_graph, <span class="bool-val">true</span>, MAX_INSTRUCTIONS, <span class="number">0</span>);
         <span class="kw">let </span>f1 = infos.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">1</span>)).expect(<span class="string">"Should analyze f1"</span>);
         <span class="macro">assert!</span>(f1.should_inline, <span class="string">"no_predicates functions should be inlined if the flag is true"</span>);
 
-        <span class="kw">let </span>infos = compute_inline_infos(<span class="kw-2">&amp;</span>ssa, <span class="kw-2">&amp;</span>call_graph, <span class="bool-val">true</span>, i64::MAX);
+        <span class="kw">let </span>infos = compute_inline_infos(<span class="kw-2">&amp;</span>ssa, <span class="kw-2">&amp;</span>call_graph, <span class="bool-val">true</span>, MAX_INSTRUCTIONS, i64::MAX);
         <span class="kw">let </span>f1 = infos.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">1</span>)).expect(<span class="string">"Should analyze f1"</span>);
         <span class="macro">assert!</span>(f1.should_inline, <span class="string">"no_predicates functions should be inlined if the flag is true"</span>);
     }
@@ -1163,7 +1215,7 @@
 
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
         <span class="kw">let </span>call_graph = CallGraph::from_ssa_weighted(<span class="kw-2">&amp;</span>ssa);
-        <span class="kw">let </span>infos = compute_inline_infos(<span class="kw-2">&amp;</span>ssa, <span class="kw-2">&amp;</span>call_graph, <span class="bool-val">false</span>, <span class="number">0</span>);
+        <span class="kw">let </span>infos = compute_inline_infos(<span class="kw-2">&amp;</span>ssa, <span class="kw-2">&amp;</span>call_graph, <span class="bool-val">false</span>, MAX_INSTRUCTIONS, <span class="number">0</span>);
 
         <span class="kw">let </span>f1 = infos.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">1</span>)).expect(<span class="string">"Should analyze f1"</span>);
         <span class="macro">assert!</span>(f1.should_inline, <span class="string">"inline_always functions should be inlined"</span>);
@@ -1184,7 +1236,7 @@
         "</span>;
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
         <span class="kw">let </span>call_graph = CallGraph::from_ssa_weighted(<span class="kw-2">&amp;</span>ssa);
-        <span class="kw">let </span>infos = compute_inline_infos(<span class="kw-2">&amp;</span>ssa, <span class="kw-2">&amp;</span>call_graph, <span class="bool-val">false</span>, <span class="number">0</span>);
+        <span class="kw">let </span>infos = compute_inline_infos(<span class="kw-2">&amp;</span>ssa, <span class="kw-2">&amp;</span>call_graph, <span class="bool-val">false</span>, MAX_INSTRUCTIONS, <span class="number">0</span>);
 
         <span class="kw">let </span>f1 = infos.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">1</span>)).expect(<span class="string">"Should analyze f1"</span>);
         <span class="macro">assert!</span>(!f1.should_inline, <span class="string">"Brillig entry points should never be inlined"</span>);

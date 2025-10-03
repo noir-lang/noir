@@ -62,23 +62,37 @@
 <a href="#61" id="61">61</a>
 <a href="#62" id="62">62</a>
 <a href="#63" id="63">63</a>
-<a href="#64" id="64">64</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
+<a href="#64" id="64">64</a>
+<a href="#65" id="65">65</a>
+<a href="#66" id="66">66</a>
+<a href="#67" id="67">67</a>
+<a href="#68" id="68">68</a>
+<a href="#69" id="69">69</a>
+<a href="#70" id="70">70</a>
+<a href="#71" id="71">71</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
     FieldElement,
     acir::{
         circuit::Program,
         native_types::{Witness, WitnessMap, WitnessStack},
     },
 };
-<span class="kw">use </span>noir_ssa_executor::runner::execute_single;
+<span class="kw">use </span>noir_ssa_executor::{runner::SsaExecutionError, runner::execute_single};
 <span class="kw">use </span>std::collections::BTreeSet;
 
 <span class="attr">#[derive(Debug)]
 </span><span class="kw">pub enum </span>CompareResults {
-    Agree(WitnessStack&lt;FieldElement&gt;),
+    Agree(WitnessStack&lt;FieldElement&gt;, WitnessStack&lt;FieldElement&gt;),
     Disagree(WitnessStack&lt;FieldElement&gt;, WitnessStack&lt;FieldElement&gt;),
     BothFailed(String, String),
     AcirFailed(String, WitnessStack&lt;FieldElement&gt;),
     BrilligFailed(String, WitnessStack&lt;FieldElement&gt;),
+}
+
+<span class="kw">pub fn </span>execute(
+    program: <span class="kw-2">&amp;</span>Program&lt;FieldElement&gt;,
+    initial_witness: WitnessMap&lt;FieldElement&gt;,
+) -&gt; <span class="prelude-ty">Result</span>&lt;WitnessStack&lt;FieldElement&gt;, SsaExecutionError&gt; {
+    execute_single(program, initial_witness)
 }
 
 <span class="doccomment">/// High level function to execute the given ACIR and Brillig programs with the given initial witness
@@ -110,7 +124,7 @@
             <span class="kw">let </span>brillig_results = return_witness_brillig.iter().map(|w| brillig_witness_map[w]);
             <span class="kw">let </span>results_equal = acir_results.eq(brillig_results);
             <span class="kw">if </span>results_equal {
-                CompareResults::Agree(acir_witness)
+                CompareResults::Agree(acir_witness, brillig_witness)
             } <span class="kw">else </span>{
                 CompareResults::Disagree(acir_witness, brillig_witness)
             }

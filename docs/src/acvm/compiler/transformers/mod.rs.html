@@ -508,12 +508,53 @@
 <a href="#507" id="507">507</a>
 <a href="#508" id="508">508</a>
 <a href="#509" id="509">509</a>
-<a href="#510" id="510">510</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#510" id="510">510</a>
+<a href="#511" id="511">511</a>
+<a href="#512" id="512">512</a>
+<a href="#513" id="513">513</a>
+<a href="#514" id="514">514</a>
+<a href="#515" id="515">515</a>
+<a href="#516" id="516">516</a>
+<a href="#517" id="517">517</a>
+<a href="#518" id="518">518</a>
+<a href="#519" id="519">519</a>
+<a href="#520" id="520">520</a>
+<a href="#521" id="521">521</a>
+<a href="#522" id="522">522</a>
+<a href="#523" id="523">523</a>
+<a href="#524" id="524">524</a></pre></div><pre class="rust"><code><span class="doccomment">/// This module applies backend specific transformation to a [`Circuit`].
+///
+/// ## CSAT: transforms AssertZero opcodes into  AssertZero opcodes having the required width.
+///
+/// For instance, if the width is 4, the AssertZero opcode x1 + x2 + x3 + x4 + x5 - y = 0 will be transformed using 2 intermediate variables (z1,z2):
+/// x1 + x2 + x3 = z1
+/// x4 + x5 = z2
+/// z1 + z2 - y = 0
+/// If x1,..x5 are inputs to the program, they are taggeg as 'solvable', and would be used to compute the value of y.
+/// If we generate the intermediate variable x4 + x5 - y = z3, we get an unsolvable circuit because this AssertZero opcode will have two unkwnon values: y and z3
+/// So the CSAT transformation keep track of which witness would be solved for each opcode in order to only generate solvable intermediat variables.
+///
+/// ## eliminate intermediate variables
+/// The 'eliminate intermediate variables' pass will remove any intermediate variables (for instance created by the previous transformation)
+/// that are used in exactly two AssertZero opcodes.
+/// This results in arithmetic opcodes having linear combinations of potentially large width.
+/// For instance if the intermediate variable is z1 is only used in y:
+/// z1 = x1 + x2 +x3
+/// y = z1 + x4
+/// We remove it, undoing the work done during the CSAT transformation: y = x1 + x2 + x3 + x4
+///
+/// We do this because the backend is expected to handle linear combinations of 'unbounded width' in a more efficient way
+/// than the 'CSAT transformation'.
+/// However, it is worth to compute intermediate variables if they are used in more than one other opcode.
+///
+/// ## redundant_range
+/// The 'range optimization' pass, from the optimizers module will remove any redundant range opcodes again.
+</span><span class="kw">use </span>std::collections::BTreeMap;
 
 <span class="kw">use </span>acir::{
     AcirField,
     circuit::{
-        <span class="self">self</span>, Circuit, ExpressionWidth, Opcode,
+        Circuit, ExpressionWidth, Opcode,
         brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
         opcodes::{BlackBoxFuncCall, FunctionInput, MemOp},
     },
@@ -606,19 +647,12 @@
     (acir, acir_opcode_positions)
 }
 
-<span class="doccomment">/// Applies backend specific optimizations to a [`Circuit`].
-///
-/// Accepts an injected `acir_opcode_positions` to allow transformations to be applied directly after optimizations.
+<span class="doccomment">/// Accepts an injected `acir_opcode_positions` to allow transformations to be applied directly after optimizations.
 ///
 /// If the width is unbounded, it does nothing.
 /// If it is bounded, it first performs the 'CSAT transformation' in one pass, by creating intermediate variables when necessary.
-/// This results in arithmetic opcodes having the required width.
-/// Then the 'eliminate intermediate variables' pass will remove any intermediate variables (for instance created by the previous transformation)
-/// that are used in exactly two arithmetic opcodes.
-/// This results in arithmetic opcodes having linear combinations of potentially large width.
-/// Finally, the 'range optimization' pass will remove any redundant range opcodes.
-/// The backend is expected to handle linear combinations of 'unbounded width' in a more efficient way
-/// than the 'CSAT transformation'.
+/// Then it performs `eliminate_intermediate_variable()` which (re-)combine intermediate variables used only once.
+/// It concludes with a round of `replace_redundant_ranges()` which removes range checks made redundant by the previous pass.
 </span><span class="attr">#[tracing::instrument(
     level = <span class="string">"trace"</span>,
     name = <span class="string">"transform_acir_once"</span>,
@@ -740,7 +774,6 @@
 
     acir = Circuit {
         current_witness_index,
-        expression_width,
         opcodes: transformed_opcodes,
         <span class="comment">// The transformer does not add new public inputs
         </span>..acir
@@ -827,14 +860,11 @@
                 <span class="self">self</span>.fold_expr(expr);
             }
             Opcode::BlackBoxFuncCall(call) =&gt; <span class="self">self</span>.fold_blackbox(call),
-            Opcode::MemoryOp { block_id: <span class="kw">_</span>, op, predicate } =&gt; {
+            Opcode::MemoryOp { block_id: <span class="kw">_</span>, op } =&gt; {
                 <span class="kw">let </span>MemOp { operation, index, value } = op;
                 <span class="self">self</span>.fold_expr(operation);
                 <span class="self">self</span>.fold_expr(index);
                 <span class="self">self</span>.fold_expr(value);
-                <span class="kw">if let </span><span class="prelude-val">Some</span>(pred) = predicate {
-                    <span class="self">self</span>.fold_expr(pred);
-                }
             }
             Opcode::MemoryInit { block_id: <span class="kw">_</span>, init, block_type: <span class="kw">_ </span>} =&gt; {
                 <span class="kw">for </span>w <span class="kw">in </span>init {
@@ -900,30 +930,30 @@
     <span class="kw">fn </span>fold_blackbox&lt;F: AcirField&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, call: <span class="kw-2">&amp;</span>BlackBoxFuncCall&lt;F&gt;) {
         <span class="kw">match </span>call {
             BlackBoxFuncCall::AES128Encrypt { inputs, iv, key, outputs } =&gt; {
-                <span class="self">self</span>.fold_function_inputs(inputs.as_slice());
-                <span class="self">self</span>.fold_function_inputs(iv.as_slice());
-                <span class="self">self</span>.fold_function_inputs(key.as_slice());
+                <span class="self">self</span>.fold_inputs(inputs.as_slice());
+                <span class="self">self</span>.fold_inputs(iv.as_slice());
+                <span class="self">self</span>.fold_inputs(key.as_slice());
                 <span class="self">self</span>.fold_many(outputs.iter());
             }
-            BlackBoxFuncCall::AND { lhs, rhs, output } =&gt; {
-                <span class="self">self</span>.fold_function_input(lhs);
-                <span class="self">self</span>.fold_function_input(rhs);
+            BlackBoxFuncCall::AND { lhs, rhs, output, .. } =&gt; {
+                <span class="self">self</span>.fold_input(lhs);
+                <span class="self">self</span>.fold_input(rhs);
                 <span class="self">self</span>.fold(<span class="kw-2">*</span>output);
             }
-            BlackBoxFuncCall::XOR { lhs, rhs, output } =&gt; {
-                <span class="self">self</span>.fold_function_input(lhs);
-                <span class="self">self</span>.fold_function_input(rhs);
+            BlackBoxFuncCall::XOR { lhs, rhs, output, .. } =&gt; {
+                <span class="self">self</span>.fold_input(lhs);
+                <span class="self">self</span>.fold_input(rhs);
                 <span class="self">self</span>.fold(<span class="kw-2">*</span>output);
             }
-            BlackBoxFuncCall::RANGE { input } =&gt; {
-                <span class="self">self</span>.fold_function_input(input);
+            BlackBoxFuncCall::RANGE { input, .. } =&gt; {
+                <span class="self">self</span>.fold_input(input);
             }
             BlackBoxFuncCall::Blake2s { inputs, outputs } =&gt; {
-                <span class="self">self</span>.fold_function_inputs(inputs.as_slice());
+                <span class="self">self</span>.fold_inputs(inputs.as_slice());
                 <span class="self">self</span>.fold_many(outputs.iter());
             }
             BlackBoxFuncCall::Blake3 { inputs, outputs } =&gt; {
-                <span class="self">self</span>.fold_function_inputs(inputs.as_slice());
+                <span class="self">self</span>.fold_inputs(inputs.as_slice());
                 <span class="self">self</span>.fold_many(outputs.iter());
             }
             BlackBoxFuncCall::EcdsaSecp256k1 {
@@ -932,12 +962,14 @@
                 signature,
                 hashed_message,
                 output,
+                predicate,
             } =&gt; {
-                <span class="self">self</span>.fold_function_inputs(public_key_x.as_slice());
-                <span class="self">self</span>.fold_function_inputs(public_key_y.as_slice());
-                <span class="self">self</span>.fold_function_inputs(signature.as_slice());
-                <span class="self">self</span>.fold_function_inputs(hashed_message.as_slice());
+                <span class="self">self</span>.fold_inputs(public_key_x.as_slice());
+                <span class="self">self</span>.fold_inputs(public_key_y.as_slice());
+                <span class="self">self</span>.fold_inputs(signature.as_slice());
+                <span class="self">self</span>.fold_inputs(hashed_message.as_slice());
                 <span class="self">self</span>.fold(<span class="kw-2">*</span>output);
+                <span class="self">self</span>.fold_input(predicate);
             }
             BlackBoxFuncCall::EcdsaSecp256r1 {
                 public_key_x,
@@ -945,31 +977,35 @@
                 signature,
                 hashed_message,
                 output,
+                predicate,
             } =&gt; {
-                <span class="self">self</span>.fold_function_inputs(public_key_x.as_slice());
-                <span class="self">self</span>.fold_function_inputs(public_key_y.as_slice());
-                <span class="self">self</span>.fold_function_inputs(signature.as_slice());
-                <span class="self">self</span>.fold_function_inputs(hashed_message.as_slice());
+                <span class="self">self</span>.fold_inputs(public_key_x.as_slice());
+                <span class="self">self</span>.fold_inputs(public_key_y.as_slice());
+                <span class="self">self</span>.fold_inputs(signature.as_slice());
+                <span class="self">self</span>.fold_inputs(hashed_message.as_slice());
                 <span class="self">self</span>.fold(<span class="kw-2">*</span>output);
+                <span class="self">self</span>.fold_input(predicate);
             }
-            BlackBoxFuncCall::MultiScalarMul { points, scalars, outputs } =&gt; {
-                <span class="self">self</span>.fold_function_inputs(points.as_slice());
-                <span class="self">self</span>.fold_function_inputs(scalars.as_slice());
+            BlackBoxFuncCall::MultiScalarMul { points, scalars, predicate, outputs } =&gt; {
+                <span class="self">self</span>.fold_inputs(points.as_slice());
+                <span class="self">self</span>.fold_inputs(scalars.as_slice());
+                <span class="self">self</span>.fold_input(predicate);
                 <span class="kw">let </span>(x, y, i) = outputs;
                 <span class="self">self</span>.fold(<span class="kw-2">*</span>x);
                 <span class="self">self</span>.fold(<span class="kw-2">*</span>y);
                 <span class="self">self</span>.fold(<span class="kw-2">*</span>i);
             }
-            BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, outputs } =&gt; {
-                <span class="self">self</span>.fold_function_inputs(input1.as_slice());
-                <span class="self">self</span>.fold_function_inputs(input2.as_slice());
+            BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, predicate, outputs } =&gt; {
+                <span class="self">self</span>.fold_inputs(input1.as_slice());
+                <span class="self">self</span>.fold_inputs(input2.as_slice());
+                <span class="self">self</span>.fold_input(predicate);
                 <span class="kw">let </span>(x, y, i) = outputs;
                 <span class="self">self</span>.fold(<span class="kw-2">*</span>x);
                 <span class="self">self</span>.fold(<span class="kw-2">*</span>y);
                 <span class="self">self</span>.fold(<span class="kw-2">*</span>i);
             }
             BlackBoxFuncCall::Keccakf1600 { inputs, outputs } =&gt; {
-                <span class="self">self</span>.fold_function_inputs(inputs.as_slice());
+                <span class="self">self</span>.fold_inputs(inputs.as_slice());
                 <span class="self">self</span>.fold_many(outputs.iter());
             }
             BlackBoxFuncCall::RecursiveAggregation {
@@ -978,43 +1014,35 @@
                 public_inputs,
                 key_hash,
                 proof_type: <span class="kw">_</span>,
+                predicate,
             } =&gt; {
-                <span class="self">self</span>.fold_function_inputs(verification_key.as_slice());
-                <span class="self">self</span>.fold_function_inputs(proof.as_slice());
-                <span class="self">self</span>.fold_function_inputs(public_inputs.as_slice());
-                <span class="self">self</span>.fold_function_input(key_hash);
+                <span class="self">self</span>.fold_inputs(verification_key.as_slice());
+                <span class="self">self</span>.fold_inputs(proof.as_slice());
+                <span class="self">self</span>.fold_inputs(public_inputs.as_slice());
+                <span class="self">self</span>.fold_input(key_hash);
+                <span class="self">self</span>.fold_input(predicate);
             }
-            BlackBoxFuncCall::BigIntAdd { .. }
-            | BlackBoxFuncCall::BigIntSub { .. }
-            | BlackBoxFuncCall::BigIntMul { .. }
-            | BlackBoxFuncCall::BigIntDiv { .. } =&gt; {}
-            BlackBoxFuncCall::BigIntFromLeBytes { inputs, modulus: <span class="kw">_</span>, output: <span class="kw">_ </span>} =&gt; {
-                <span class="self">self</span>.fold_function_inputs(inputs.as_slice());
-            }
-            BlackBoxFuncCall::BigIntToLeBytes { input: <span class="kw">_</span>, outputs } =&gt; {
-                <span class="self">self</span>.fold_many(outputs.iter());
-            }
-            BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs, len: <span class="kw">_ </span>} =&gt; {
-                <span class="self">self</span>.fold_function_inputs(inputs.as_slice());
+            BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs } =&gt; {
+                <span class="self">self</span>.fold_inputs(inputs.as_slice());
                 <span class="self">self</span>.fold_many(outputs.iter());
             }
             BlackBoxFuncCall::Sha256Compression { inputs, hash_values, outputs } =&gt; {
-                <span class="self">self</span>.fold_function_inputs(inputs.as_slice());
-                <span class="self">self</span>.fold_function_inputs(hash_values.as_slice());
+                <span class="self">self</span>.fold_inputs(inputs.as_slice());
+                <span class="self">self</span>.fold_inputs(hash_values.as_slice());
                 <span class="self">self</span>.fold_many(outputs.iter());
             }
         }
     }
 
-    <span class="kw">fn </span>fold_function_input&lt;F: AcirField&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, input: <span class="kw-2">&amp;</span>FunctionInput&lt;F&gt;) {
-        <span class="kw">if let </span>circuit::opcodes::ConstantOrWitnessEnum::Witness(witness) = input.input() {
-            <span class="self">self</span>.fold(witness);
+    <span class="kw">fn </span>fold_inputs&lt;F: AcirField&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, inputs: <span class="kw-2">&amp;</span>[FunctionInput&lt;F&gt;]) {
+        <span class="kw">for </span>input <span class="kw">in </span>inputs {
+            <span class="self">self</span>.fold_input(input);
         }
     }
 
-    <span class="kw">fn </span>fold_function_inputs&lt;F: AcirField&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, inputs: <span class="kw-2">&amp;</span>[FunctionInput&lt;F&gt;]) {
-        <span class="kw">for </span>input <span class="kw">in </span>inputs {
-            <span class="self">self</span>.fold_function_input(input);
+    <span class="kw">fn </span>fold_input&lt;F: AcirField&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, input: <span class="kw-2">&amp;</span>FunctionInput&lt;F&gt;) {
+        <span class="kw">if let </span>FunctionInput::Witness(witness) = input {
+            <span class="self">self</span>.fold(<span class="kw-2">*</span>witness);
         }
     }
 }

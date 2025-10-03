@@ -131,7 +131,28 @@
 <a href="#130" id="130">130</a>
 <a href="#131" id="131">131</a>
 <a href="#132" id="132">132</a>
-<a href="#133" id="133">133</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
+<a href="#133" id="133">133</a>
+<a href="#134" id="134">134</a>
+<a href="#135" id="135">135</a>
+<a href="#136" id="136">136</a>
+<a href="#137" id="137">137</a>
+<a href="#138" id="138">138</a>
+<a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a>
+<a href="#141" id="141">141</a>
+<a href="#142" id="142">142</a>
+<a href="#143" id="143">143</a>
+<a href="#144" id="144">144</a>
+<a href="#145" id="145">145</a>
+<a href="#146" id="146">146</a>
+<a href="#147" id="147">147</a>
+<a href="#148" id="148">148</a>
+<a href="#149" id="149">149</a>
+<a href="#150" id="150">150</a>
+<a href="#151" id="151">151</a>
+<a href="#152" id="152">152</a>
+<a href="#153" id="153">153</a>
+<a href="#154" id="154">154</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
 <span class="kw">use </span>num_bigint::BigUint;
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
@@ -151,6 +172,10 @@
 ) -&gt; SimplifyResult {
     <span class="kw">use </span>SimplifyResult::<span class="kw-2">*</span>;
 
+    <span class="kw">if </span>Type::Numeric(dst_typ) == dfg.type_of_value(value) {
+        <span class="kw">return </span>SimplifiedTo(value);
+    }
+
     <span class="kw">if let </span>Value::Instruction { instruction, .. } = <span class="kw-2">&amp;</span>dfg[value] {
         <span class="kw">if let </span>Instruction::Cast(original_value, <span class="kw">_</span>) = <span class="kw-2">&amp;</span>dfg[<span class="kw-2">*</span>instruction] {
             <span class="kw">return </span>SimplifiedToInstruction(Instruction::Cast(<span class="kw-2">*</span>original_value, dst_typ));
@@ -160,10 +185,6 @@
     <span class="kw">if let </span><span class="prelude-val">Some</span>(constant) = dfg.get_numeric_constant(value) {
         <span class="kw">let </span>src_typ = dfg.type_of_value(value).unwrap_numeric();
         <span class="kw">match </span>(src_typ, dst_typ) {
-            (NumericType::NativeField, NumericType::NativeField) =&gt; {
-                <span class="comment">// Field -&gt; Field: use src value
-                </span>SimplifiedTo(value)
-            }
             (
                 NumericType::Unsigned { .. } | NumericType::Signed { .. },
                 NumericType::NativeField,
@@ -204,9 +225,10 @@
                     <span class="prelude-val">None
                 </span>}
             }
+            (NumericType::NativeField, NumericType::NativeField) =&gt; {
+                <span class="macro">unreachable!</span>(<span class="string">"This should be covered in previous if-branch"</span>)
+            }
         }
-    } <span class="kw">else if </span>Type::Numeric(dst_typ) == dfg.type_of_value(value) {
-        SimplifiedTo(value)
     } <span class="kw">else </span>{
         <span class="prelude-val">None
     </span>}
@@ -260,6 +282,26 @@
           b0():
             constrain u1 1 == u1 0
             return i8 44
+        }
+        "</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>simplifies_out_cast_to_input_type() {
+        <span class="kw">let </span>src = <span class="string">"
+        acir(inline) fn main f0 {
+          b0(v0: i8):
+            v1 = cast u128 340282366920938463463374607431768211455 as u128
+            v2 = cast v0 as i8
+            return
+        }
+        "</span>;
+        <span class="kw">let </span>ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+        acir(inline) fn main f0 {
+          b0(v0: i8):
+            return
         }
         "</span>);
     }

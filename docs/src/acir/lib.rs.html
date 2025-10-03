@@ -634,8 +634,7 @@
 <a href="#633" id="633">633</a>
 <a href="#634" id="634">634</a>
 <a href="#635" id="635">635</a>
-<a href="#636" id="636">636</a>
-<a href="#637" id="637">637</a></pre></div><pre class="rust"><code><span class="doccomment">//! C++ code generation for ACIR format, to be used by Barretenberg.
+<a href="#636" id="636">636</a></pre></div><pre class="rust"><code><span class="doccomment">//! C++ code generation for ACIR format, to be used by Barretenberg.
 //!
 //! To regenerate code run the following command:
 //! ```text
@@ -647,8 +646,7 @@
 #[doc = <span class="macro">include_str!</span>(<span class="string">"../README.md"</span>)]
 </span><span class="kw">pub mod </span>circuit;
 <span class="kw">pub mod </span>native_types;
-<span class="attr">#[cfg(test)]
-</span><span class="kw">mod </span>parser;
+<span class="kw">mod </span>parser;
 <span class="kw">mod </span>proto;
 <span class="kw">mod </span>serialization;
 
@@ -695,7 +693,7 @@
             AssertionPayload, Circuit, ExpressionOrMemory, ExpressionWidth, Opcode, OpcodeLocation,
             Program,
             brillig::{BrilligInputs, BrilligOutputs},
-            opcodes::{BlackBoxFuncCall, BlockType, ConstantOrWitnessEnum, FunctionInput},
+            opcodes::{BlackBoxFuncCall, BlockType, FunctionInput},
         },
         native_types::{Witness, WitnessMap, WitnessStack},
     };
@@ -726,7 +724,7 @@
         tracer.trace_simple_type::&lt;Opcode&lt;FieldElement&gt;&gt;().unwrap();
         tracer.trace_simple_type::&lt;OpcodeLocation&gt;().unwrap();
         tracer.trace_simple_type::&lt;BinaryFieldOp&gt;().unwrap();
-        tracer.trace_simple_type::&lt;ConstantOrWitnessEnum&lt;FieldElement&gt;&gt;().unwrap();
+        tracer.trace_simple_type::&lt;FunctionInput&lt;FieldElement&gt;&gt;().unwrap();
         tracer.trace_simple_type::&lt;FunctionInput&lt;FieldElement&gt;&gt;().unwrap();
         tracer.trace_simple_type::&lt;BlackBoxFuncCall&lt;FieldElement&gt;&gt;().unwrap();
         tracer.trace_simple_type::&lt;BrilligInputs&lt;FieldElement&gt;&gt;().unwrap();

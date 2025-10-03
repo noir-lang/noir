@@ -221,7 +221,9 @@
 <a href="#220" id="220">220</a>
 <a href="#221" id="221">221</a>
 <a href="#222" id="222">222</a>
-<a href="#223" id="223">223</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::{Path, PathBuf};
+<a href="#223" id="223">223</a>
+<a href="#224" id="224">224</a>
+<a href="#225" id="225">225</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::{Path, PathBuf};
 
 <span class="kw">use </span>acir::circuit::OpcodeLocation;
 <span class="kw">use </span>clap::Args;
@@ -289,10 +291,7 @@
     <span class="kw">let </span>backend_gates_response =
         gates_provider.get_gates(artifact_path).context(<span class="string">"Error querying backend for gates"</span>)<span class="question-mark">?</span>;
 
-    <span class="kw">let </span>function_names = std::mem::take(<span class="kw-2">&amp;mut </span>program.names);
-
     <span class="kw">let </span>bytecode = std::mem::take(<span class="kw-2">&amp;mut </span>program.bytecode);
-
     <span class="kw">let </span>debug_artifact: DebugArtifact = program.into();
 
     <span class="kw">let </span>num_functions = bytecode.functions.len();
@@ -302,9 +301,9 @@
         <span class="comment">// We can have repeated names if there are functions with the same name in different
         // modules or functions that use generics. Thus, add the unique function index as a suffix.
         </span><span class="kw">let </span>function_name = <span class="kw">if </span>num_functions &gt; <span class="number">1 </span>{
-            <span class="macro">format!</span>(<span class="string">"{}_{}"</span>, function_names[func_idx].as_str(), func_idx)
+            <span class="macro">format!</span>(<span class="string">"{}_{}"</span>, circuit.function_name.as_str(), func_idx)
         } <span class="kw">else </span>{
-            function_names[func_idx].to_owned()
+            circuit.function_name.to_owned()
         };
 
         <span class="macro">println!</span>(
@@ -408,11 +407,16 @@
             noir_version: <span class="string">"0.0.0"</span>.to_string(),
             hash: <span class="number">27</span>,
             abi: noirc_abi::Abi::default(),
-            bytecode: Program { functions: <span class="macro">vec!</span>[Circuit::default()], ..Program::default() },
+            bytecode: Program {
+                functions: <span class="macro">vec!</span>[Circuit {
+                    function_name: <span class="string">"main"</span>.to_string(),
+                    ..Circuit::default()
+                }],
+                ..Program::default()
+            },
             debug_symbols: ProgramDebugInfo { debug_infos: <span class="macro">vec!</span>[DebugInfo::default()] },
             file_map: BTreeMap::default(),
-            names: <span class="macro">vec!</span>[<span class="string">"main"</span>.to_string()],
-            brillig_names: Vec::new(),
+            expression_width: acir::circuit::ExpressionWidth::Bounded { width: <span class="number">4 </span>},
         };
 
         <span class="comment">// Write the artifact to a file

@@ -1,1 +1,92 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="API documentation for the Rust `arrays` mod in crate `noirc_evaluator`."><title>noirc_evaluator::acir::arrays - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-46132b98.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noirc_evaluator" data-themes="" data-resource-suffix="" data-rustdoc-version="1.85.0 (4d91de4e4 2025-02-17)" data-channel="1.85.0" data-search-js="search-75f5ac3e.js" data-settings-js="settings-0f613d39.js" ><script src="../../../static.files/storage-59e33391.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../noirc_evaluator/index.html">noirc_<wbr>evaluator</a><span class="version">1.0.0-beta.12</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module arrays</a></h2><h3><a href="#functions">Module Items</a></h3><ul class="block"><li><a href="#functions" title="Functions">Functions</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In noirc_<wbr>evaluator::<wbr>acir</a></h2></div></div></nav><div class="sidebar-resizer"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><span class="rustdoc-breadcrumbs"><a href="../../index.html">noirc_evaluator</a>::<wbr><a href="../index.html">acir</a></span><h1>Module <span>arrays</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../src/noirc_evaluator/acir/arrays.rs.html#1-985">Source</a> </span></div><h2 id="functions" class="section-header">Functions<a href="#functions" class="anchor">§</a></h2><ul class="item-table"><li><div class="item-name"><a class="fn" href="fn.array_has_constant_element_size.html" title="fn noirc_evaluator::acir::arrays::array_has_constant_element_size">array_<wbr>has_<wbr>constant_<wbr>element_<wbr>size</a><span title="Restricted Visibility">&nbsp;🔒</span> </div><div class="desc docblock-short">Returns whether the array’s elements have a constant size.</div></li><li><div class="item-name"><a class="fn" href="fn.calculate_element_type_sizes_array.html" title="fn noirc_evaluator::acir::arrays::calculate_element_type_sizes_array">calculate_<wbr>element_<wbr>type_<wbr>sizes_<wbr>array</a><span title="Restricted Visibility">&nbsp;🔒</span> </div></li><li><div class="item-name"><a class="fn" href="fn.flattened_value_size.html" title="fn noirc_evaluator::acir::arrays::flattened_value_size">flattened_<wbr>value_<wbr>size</a><span title="Restricted Visibility">&nbsp;🔒</span> </div></li></ul></section></div></main></body></html>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Array handling in ACIR."><title>noirc_evaluator::acir::arrays - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-46132b98.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noirc_evaluator" data-themes="" data-resource-suffix="" data-rustdoc-version="1.85.0 (4d91de4e4 2025-02-17)" data-channel="1.85.0" data-search-js="search-75f5ac3e.js" data-settings-js="settings-0f613d39.js" ><script src="../../../static.files/storage-59e33391.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../noirc_evaluator/index.html">noirc_<wbr>evaluator</a><span class="version">1.0.0-beta.13</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module arrays</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#design" title="Design">Design</a><ul><li><a href="#array-flattening" title="Array Flattening">Array Flattening</a></li><li><a href="#side-effects-and-predication" title="Side effects and Predication">Side effects and Predication</a></li><li><a href="#zero-length-arrays" title="Zero-Length Arrays">Zero-Length Arrays</a></li></ul></li></ul><h3><a href="#functions">Module Items</a></h3><ul class="block"><li><a href="#functions" title="Functions">Functions</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In noirc_<wbr>evaluator::<wbr>acir</a></h2></div></div></nav><div class="sidebar-resizer"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><span class="rustdoc-breadcrumbs"><a href="../../index.html">noirc_evaluator</a>::<wbr><a href="../index.html">acir</a></span><h1>Module <span>arrays</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../src/noirc_evaluator/acir/arrays.rs.html#1-1179">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Array handling in ACIR.</p>
+<p>This modules how Noir’s SSA array semantics are lowered into ACIR’s flat memory model.
+Arrays in SSA can appear as constants or dynamically allocated blocks.
+Our responsibility here is to preserve correctness while ensuring memory access is efficient.</p>
+<h3 id="design"><a class="doc-anchor" href="#design">§</a>Design</h3>
+<p>ACIR does not have a first-class array type. Instead, all arrays are
+represented as contiguous regions in linear memory, identified by a
+<a href="../../../acir/circuit/opcodes/memory_operation/struct.BlockId.html" title="struct acir::circuit::opcodes::memory_operation::BlockId">BlockId</a>. This module provides helpers for translating SSA array
+operations into ACIR memory reads and writes.</p>
+<p>ACIR generation use twos different array types for representing arrays:</p>
+<p><a href="../types/enum.AcirValue.html#variant.Array" title="variant noirc_evaluator::acir::types::AcirValue::Array">Constant arrays</a></p>
+<ul>
+<li>Known at compile time.</li>
+<li>Reads and writes may be folded into an <a href="../types/enum.AcirValue.html" title="enum noirc_evaluator::acir::types::AcirValue">AcirValue</a> where possible.</li>
+<li>Useful for optimization (e.g., constant element lookups do not require laying down opcodes)</li>
+</ul>
+<p><a href="../types/enum.AcirValue.html#variant.DynamicArray" title="variant noirc_evaluator::acir::types::AcirValue::DynamicArray">Dynamic arrays</a></p>
+<ul>
+<li>Referenced by a <a href="../../../acir/circuit/opcodes/memory_operation/struct.BlockId.html" title="struct acir::circuit::opcodes::memory_operation::BlockId">unique identifier</a></li>
+<li>Must be explicitly initialized using an <a href="../../../acir/circuit/opcodes/enum.Opcode.html#variant.MemoryInit" title="variant acir::circuit::opcodes::Opcode::MemoryInit">opcode</a></li>
+<li>Reads and writes must lower to at least an explicit <a href="../../../acir/circuit/opcodes/enum.Opcode.html#variant.MemoryOp" title="variant acir::circuit::opcodes::Opcode::MemoryOp">memory opcode</a>.</li>
+<li>Required for arrays accessed by dynamic indices (witness inputs) or function parameters (the array is itself a witness)</li>
+</ul>
+<h4 id="array-flattening"><a class="doc-anchor" href="#array-flattening">§</a>Array Flattening</h4>
+<p>ACIR memory is flat, while SSA arrays may be multi-dimensional or
+contain elements of varying size (we refer to these are non-homogenous arrays).
+To reconcile this, each element’s “flattened index” is computed relative to the array’s base pointer.
+In some cases this requires consulting a side “element type sizes”
+array to calculate offsets when elements have a non-homogenous layout.</p>
+<p>The following Noir program:</p>
+<div class="example-wrap"><pre class="language-noir"><code>struct Bar {
+    inner: [Field; 3],
+}
+struct Foo {
+    a: Field,
+    b: [Field; 3],
+    bar: Bar,
+}
+fn main(x: [Foo; 4]) -&gt; pub [Field; 3] {
+    x[3].bar.inner
+}</code></pre></div>
+<p>Will produce the following SSA:</p>
+<div class="example-wrap"><pre class="language-text"><code>acir(inline) pure fn main f0 {
+  b0(v0: [(Field, [Field; 3], [Field; 3]); 4]):
+    v2 = array_get v0, index u32 11 -&gt; [Field; 3]
+    return v2
+}</code></pre></div>
+<p>In the SSA above we see that we have an index of <code>11</code>. However, with a flat memory
+the true starting index of <code>x[3].bar.inner</code> is <code>25</code>.</p>
+<p>We can determine what the starting offset of the outer array object <code>x[3]</code> is by first dividing the index by the element size.
+In this case we have <code>11 / 3 = 3</code>. To get the flattened outer offset we will multiply <code>3</code> by the flattened size of a single element.
+We can see that <code>Foo</code> contains <code>7</code> elements, thus we multiply by <code>7</code>. So now we have a flattened index of <code>21</code>.</p>
+<p>We could use the modulo of <code>11 % 3 = 2</code> to determine which object within x we are attempting to access.
+However, since we have a flattened structure we cannot simply add <code>2</code> to <code>21</code>. Instead we generate an array that holds the
+respective inner offset for accessing each element.</p>
+<p>In the example above we will generate this internal type array: [0, 1, 4].
+The start of <code>bar</code> in <code>Foo</code> is the fourth flattened index. We then use the modulo we previously computed to access
+the type array and fetch <code>4</code>. Finally we can do <code>21 + 4 = 25</code> to get the true starting index of <code>x[3].bar.inner</code>.
+We then use the resulting type to increment the index appropriately and fetch ever element of <code>bar.inner</code>.</p>
+<p>This element type sizes array is dynamic as we still need to access it based upon the index which itself can be dynamic.
+The module will also attempt to not create this array when possible (e.g., we have a simple homogenous array).</p>
+<h4 id="side-effects-and-predication"><a class="doc-anchor" href="#side-effects-and-predication">§</a>Side effects and Predication</h4>
+<p>This module uses the special <a href="../struct.Context.html#structfield.current_side_effects_enabled_var" title="field noirc_evaluator::acir::Context::current_side_effects_enabled_var">side effects variable</a> to guard
+array operations that may not always be executed. This variable acts as a predicate.</p>
+<p>The goal is to preserve SSA semantics where some array operations are dominated by a branch condition.
+We predicate the following:</p>
+<h5 id="index-predication"><a class="doc-anchor" href="#index-predication">§</a>Index Predication</h5>
+<p>Array indices themselves are guarded by the side-effect predicate.
+If an SSA array operation is executed at runtime, then we must ensure any arithmetic that computes the index
+and any memory reads/writes implied by that index are safe even when the predicate is false.
+The only array operations not left to runtime are those with safe indices (constant index under the array length).</p>
+<p>To achieve this we compute a predicated index value (<code>predicate_index</code>) with the formula:</p>
+<div class="example-wrap"><pre class="language-text"><code>predicate_index = predicate * index + (1 - predicate) * offset</code></pre></div>
+<p>where <code>offset</code> is a safe fallback index (chosen so the element type at that
+offset matches the requested element type).
+The offset is necessary to match the correct result type for array reads.</p>
+<h5 id="writes"><a class="doc-anchor" href="#writes">§</a>Writes</h5>
+<p>When the predicate is not a constant one, instead of actually overwriting memory, we compute a “dummy value”.
+The dummy value is fetched from the same array at the requested <code>predicate_index</code>.
+The store value of an array write is then converted from a <code>store_value</code> to <code>predicate * store_value + (1 - predicate) * dummy</code>
+This ensures the memory remains unchanged when the write is disabled. In the case of a false predicate, the value stored will be itself.</p>
+<h5 id="reads"><a class="doc-anchor" href="#reads">§</a>Reads</h5>
+<p>If we perform an array read under a false predicate we will read from <code>offset</code>. As arrays are not always homogenous
+the result at index <code>offset</code> may contain a value that will overflow the resulting type of the array read.
+When we read a value from a non-homogenous array we multiply any resulting <a href="../types/enum.AcirValue.html#variant.Var" title="variant noirc_evaluator::acir::types::AcirValue::Var">AcirValue::Var</a> by the predicate
+to avoid any possible mismatch. In the case of a false predicate, the value will now be zero.
+For homogenous arrays, the fallback <code>offset</code> will produce a value with a compatible type.</p>
+<h4 id="zero-length-arrays"><a class="doc-anchor" href="#zero-length-arrays">§</a>Zero-Length Arrays</h4>
+<p>Arrays of length 0 are valid in the SSA but must never generate ACIR
+memory operations as they may produce runtime errors. These operations are special cased to always fail with an
+index out of bounds error (with respect to side effects) and ensures they do not produce illegal memory accesses.</p>
+</div></details><h2 id="functions" class="section-header">Functions<a href="#functions" class="anchor">§</a></h2><ul class="item-table"><li><div class="item-name"><a class="fn" href="fn.array_has_constant_element_size.html" title="fn noirc_evaluator::acir::arrays::array_has_constant_element_size">array_<wbr>has_<wbr>constant_<wbr>element_<wbr>size</a><span title="Restricted Visibility">&nbsp;🔒</span> </div><div class="desc docblock-short">Returns whether the array’s elements have a constant size.</div></li><li><div class="item-name"><a class="fn" href="fn.calculate_element_type_sizes_array.html" title="fn noirc_evaluator::acir::arrays::calculate_element_type_sizes_array">calculate_<wbr>element_<wbr>type_<wbr>sizes_<wbr>array</a><span title="Restricted Visibility">&nbsp;🔒</span> </div></li><li><div class="item-name"><a class="fn" href="fn.flattened_value_size.html" title="fn noirc_evaluator::acir::arrays::flattened_value_size">flattened_<wbr>value_<wbr>size</a><span title="Restricted Visibility">&nbsp;🔒</span> </div></li></ul></section></div></main></body></html>

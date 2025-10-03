@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["MAX_INSTRUCTIONS"]};
+window.SIDEBAR_ITEMS = {};

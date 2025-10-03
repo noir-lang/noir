@@ -434,7 +434,7 @@
         // correctness, it's enough if we make sure the flattened values match.
         </span><span class="kw">let </span>ssa_return = ssa_return.map(|ssa_return| {
             <span class="kw">let </span>main_function = <span class="kw-2">&amp;</span>ssa.functions[<span class="kw-2">&amp;</span>ssa.main_id];
-            <span class="kw">if </span>main_function.has_data_bus_return_data() {
+            <span class="kw">if </span>main_function.view().has_data_bus_return_data() {
                 <span class="kw">let </span>values = flatten_databus_values(ssa_return);
                 <span class="macro">vec!</span>[Value::array(values, <span class="macro">vec!</span>[Type::Numeric(NumericType::NativeField)])]
             } <span class="kw">else </span>{

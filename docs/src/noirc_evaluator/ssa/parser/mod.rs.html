@@ -1218,7 +1218,102 @@
 <a href="#1217" id="1217">1217</a>
 <a href="#1218" id="1218">1218</a>
 <a href="#1219" id="1219">1219</a>
-<a href="#1220" id="1220">1220</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#1220" id="1220">1220</a>
+<a href="#1221" id="1221">1221</a>
+<a href="#1222" id="1222">1222</a>
+<a href="#1223" id="1223">1223</a>
+<a href="#1224" id="1224">1224</a>
+<a href="#1225" id="1225">1225</a>
+<a href="#1226" id="1226">1226</a>
+<a href="#1227" id="1227">1227</a>
+<a href="#1228" id="1228">1228</a>
+<a href="#1229" id="1229">1229</a>
+<a href="#1230" id="1230">1230</a>
+<a href="#1231" id="1231">1231</a>
+<a href="#1232" id="1232">1232</a>
+<a href="#1233" id="1233">1233</a>
+<a href="#1234" id="1234">1234</a>
+<a href="#1235" id="1235">1235</a>
+<a href="#1236" id="1236">1236</a>
+<a href="#1237" id="1237">1237</a>
+<a href="#1238" id="1238">1238</a>
+<a href="#1239" id="1239">1239</a>
+<a href="#1240" id="1240">1240</a>
+<a href="#1241" id="1241">1241</a>
+<a href="#1242" id="1242">1242</a>
+<a href="#1243" id="1243">1243</a>
+<a href="#1244" id="1244">1244</a>
+<a href="#1245" id="1245">1245</a>
+<a href="#1246" id="1246">1246</a>
+<a href="#1247" id="1247">1247</a>
+<a href="#1248" id="1248">1248</a>
+<a href="#1249" id="1249">1249</a>
+<a href="#1250" id="1250">1250</a>
+<a href="#1251" id="1251">1251</a>
+<a href="#1252" id="1252">1252</a>
+<a href="#1253" id="1253">1253</a>
+<a href="#1254" id="1254">1254</a>
+<a href="#1255" id="1255">1255</a>
+<a href="#1256" id="1256">1256</a>
+<a href="#1257" id="1257">1257</a>
+<a href="#1258" id="1258">1258</a>
+<a href="#1259" id="1259">1259</a>
+<a href="#1260" id="1260">1260</a>
+<a href="#1261" id="1261">1261</a>
+<a href="#1262" id="1262">1262</a>
+<a href="#1263" id="1263">1263</a>
+<a href="#1264" id="1264">1264</a>
+<a href="#1265" id="1265">1265</a>
+<a href="#1266" id="1266">1266</a>
+<a href="#1267" id="1267">1267</a>
+<a href="#1268" id="1268">1268</a>
+<a href="#1269" id="1269">1269</a>
+<a href="#1270" id="1270">1270</a>
+<a href="#1271" id="1271">1271</a>
+<a href="#1272" id="1272">1272</a>
+<a href="#1273" id="1273">1273</a>
+<a href="#1274" id="1274">1274</a>
+<a href="#1275" id="1275">1275</a>
+<a href="#1276" id="1276">1276</a>
+<a href="#1277" id="1277">1277</a>
+<a href="#1278" id="1278">1278</a>
+<a href="#1279" id="1279">1279</a>
+<a href="#1280" id="1280">1280</a>
+<a href="#1281" id="1281">1281</a>
+<a href="#1282" id="1282">1282</a>
+<a href="#1283" id="1283">1283</a>
+<a href="#1284" id="1284">1284</a>
+<a href="#1285" id="1285">1285</a>
+<a href="#1286" id="1286">1286</a>
+<a href="#1287" id="1287">1287</a>
+<a href="#1288" id="1288">1288</a>
+<a href="#1289" id="1289">1289</a>
+<a href="#1290" id="1290">1290</a>
+<a href="#1291" id="1291">1291</a>
+<a href="#1292" id="1292">1292</a>
+<a href="#1293" id="1293">1293</a>
+<a href="#1294" id="1294">1294</a>
+<a href="#1295" id="1295">1295</a>
+<a href="#1296" id="1296">1296</a>
+<a href="#1297" id="1297">1297</a>
+<a href="#1298" id="1298">1298</a>
+<a href="#1299" id="1299">1299</a>
+<a href="#1300" id="1300">1300</a>
+<a href="#1301" id="1301">1301</a>
+<a href="#1302" id="1302">1302</a>
+<a href="#1303" id="1303">1303</a>
+<a href="#1304" id="1304">1304</a>
+<a href="#1305" id="1305">1305</a>
+<a href="#1306" id="1306">1306</a>
+<a href="#1307" id="1307">1307</a>
+<a href="#1308" id="1308">1308</a>
+<a href="#1309" id="1309">1309</a>
+<a href="#1310" id="1310">1310</a>
+<a href="#1311" id="1311">1311</a>
+<a href="#1312" id="1312">1312</a>
+<a href="#1313" id="1313">1313</a>
+<a href="#1314" id="1314">1314</a>
+<a href="#1315" id="1315">1315</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     fmt::{<span class="self">self</span>, Debug, Formatter},
     str::FromStr,
     sync::Arc,
@@ -1227,7 +1322,7 @@
 <span class="kw">use super</span>::{
     Ssa,
     ir::{
-        instruction::{ArrayOffset, BinaryOp},
+        instruction::BinaryOp,
         types::{NumericType, Type},
     },
     opt::pure::Purity,
@@ -1247,7 +1342,10 @@
 <span class="kw">use </span>thiserror::Error;
 <span class="kw">use </span>token::{Keyword, SpannedToken, Token};
 
-<span class="kw">use </span><span class="kw">crate</span>::ssa::{ir::function::RuntimeType, parser::ast::ParsedTerminator};
+<span class="kw">use </span><span class="kw">crate</span>::ssa::{
+    ir::{function::RuntimeType, instruction::ArrayOffset},
+    parser::ast::{ParsedCallData, ParsedDataBus, ParsedTerminator},
+};
 
 <span class="kw">mod </span>ast;
 <span class="kw">mod </span>into_ssa;
@@ -1350,6 +1448,8 @@
     </span>VariableAlreadyDefined(Identifier),
     <span class="attr">#[error(<span class="string">"Global '{0}' already defined"</span>)]
     </span>GlobalAlreadyDefined(Identifier),
+    <span class="attr">#[error(<span class="string">"Illegal use of offset in non-Brillig function '{0:?}'"</span>)]
+    </span>IllegalOffset(Identifier, ArrayOffset),
 }
 
 <span class="kw">impl </span>SsaError {
@@ -1361,7 +1461,8 @@
             | SsaError::UnknownBlock(identifier)
             | SsaError::VariableAlreadyDefined(identifier)
             | SsaError::GlobalAlreadyDefined(identifier)
-            | SsaError::UnknownFunction(identifier) =&gt; identifier.span,
+            | SsaError::UnknownFunction(identifier)
+            | SsaError::IllegalOffset(identifier, <span class="kw">_</span>) =&gt; identifier.span,
             SsaError::MismatchedReturnValues { returns, expected: <span class="kw">_ </span>} =&gt; returns[<span class="number">0</span>].span,
         }
     }
@@ -1429,11 +1530,12 @@
 
         <span class="self">self</span>.eat_or_error(Token::LeftBrace)<span class="question-mark">?</span>;
 
+        <span class="kw">let </span>data_bus = <span class="self">self</span>.parse_data_bus()<span class="question-mark">?</span>;
         <span class="kw">let </span>blocks = <span class="self">self</span>.parse_blocks()<span class="question-mark">?</span>;
 
         <span class="self">self</span>.eat_or_error(Token::RightBrace)<span class="question-mark">?</span>;
 
-        <span class="prelude-val">Ok</span>(ParsedFunction { runtime_type, purity, external_name, internal_name, blocks })
+        <span class="prelude-val">Ok</span>(ParsedFunction { runtime_type, purity, external_name, internal_name, data_bus, blocks })
     }
 
     <span class="kw">fn </span>parse_runtime_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; ParseResult&lt;RuntimeType&gt; {
@@ -1488,6 +1590,80 @@
                 Token::Keyword(Keyword::NoPredicates),
             ])
         }
+    }
+
+    <span class="kw">fn </span>parse_data_bus(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; ParseResult&lt;ParsedDataBus&gt; {
+        <span class="kw">let </span>call_data = <span class="self">self</span>.parse_call_data_vec()<span class="question-mark">?</span>;
+        <span class="kw">let </span>return_data = <span class="self">self</span>.parse_return_data()<span class="question-mark">?</span>;
+        <span class="prelude-val">Ok</span>(ParsedDataBus { call_data, return_data })
+    }
+
+    <span class="kw">fn </span>parse_call_data_vec(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; ParseResult&lt;Vec&lt;ParsedCallData&gt;&gt; {
+        <span class="kw">let </span><span class="kw-2">mut </span>call_data_vec = Vec::new();
+        <span class="kw">while let </span><span class="prelude-val">Some</span>(call_data) = <span class="self">self</span>.parse_call_data()<span class="question-mark">? </span>{
+            call_data_vec.push(call_data);
+        }
+        <span class="prelude-val">Ok</span>(call_data_vec)
+    }
+
+    <span class="kw">fn </span>parse_call_data(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; ParseResult&lt;<span class="prelude-ty">Option</span>&lt;ParsedCallData&gt;&gt; {
+        <span class="comment">// call_data(id):
+        </span><span class="kw">if </span>!<span class="self">self</span>.eat_keyword(Keyword::CallData)<span class="question-mark">? </span>{
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
+        }
+        <span class="self">self</span>.eat_or_error(Token::LeftParen)<span class="question-mark">?</span>;
+        <span class="kw">let </span>call_data_id_span = <span class="self">self</span>.token.span();
+        <span class="kw">let </span>call_data_id = <span class="self">self</span>.eat_int_or_error()<span class="question-mark">?</span>;
+        <span class="kw">let </span><span class="prelude-val">Some</span>(call_data_id) = call_data_id.try_to_unsigned::&lt;u32&gt;() <span class="kw">else </span>{
+            <span class="kw">return </span><span class="prelude-val">Err</span>(ParserError::ExpectedU32 { found: call_data_id, span: call_data_id_span });
+        };
+        <span class="self">self</span>.eat_or_error(Token::RightParen)<span class="question-mark">?</span>;
+        <span class="self">self</span>.eat_or_error(Token::Colon)<span class="question-mark">?</span>;
+
+        <span class="comment">// array: value,
+        </span><span class="self">self</span>.eat_keyword_or_error(Keyword::Array)<span class="question-mark">?</span>;
+        <span class="self">self</span>.eat_or_error(Token::Colon)<span class="question-mark">?</span>;
+        <span class="kw">let </span>array = <span class="self">self</span>.parse_value_or_error()<span class="question-mark">?</span>;
+        <span class="self">self</span>.eat_or_error(Token::Comma)<span class="question-mark">?</span>;
+
+        <span class="kw">let </span><span class="kw-2">mut </span>index_map = Vec::new();
+
+        <span class="comment">// indexes: [value: id, ...]
+        </span><span class="self">self</span>.eat_keyword_or_error(Keyword::Indices)<span class="question-mark">?</span>;
+        <span class="self">self</span>.eat_or_error(Token::Colon)<span class="question-mark">?</span>;
+        <span class="self">self</span>.eat_or_error(Token::LeftBracket)<span class="question-mark">?</span>;
+
+        <span class="kw">if </span>!<span class="self">self</span>.eat(Token::RightBracket)<span class="question-mark">? </span>{
+            <span class="kw">loop </span>{
+                <span class="kw">let </span>value = <span class="self">self</span>.parse_value_or_error()<span class="question-mark">?</span>;
+                <span class="self">self</span>.eat_or_error(Token::Colon)<span class="question-mark">?</span>;
+                <span class="kw">let </span>index_span = <span class="self">self</span>.token.span();
+                <span class="kw">let </span>index = <span class="self">self</span>.eat_int_or_error()<span class="question-mark">?</span>;
+                <span class="kw">let </span><span class="prelude-val">Some</span>(index) = index.try_to_unsigned::&lt;usize&gt;() <span class="kw">else </span>{
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(ParserError::ExpectedUSize { found: index, span: index_span });
+                };
+                index_map.push((value, index));
+
+                <span class="kw">if </span><span class="self">self</span>.eat(Token::Comma)<span class="question-mark">? </span>{
+                    <span class="kw">continue</span>;
+                }
+
+                <span class="self">self</span>.eat_or_error(Token::RightBracket)<span class="question-mark">?</span>;
+                <span class="kw">break</span>;
+            }
+        }
+
+        <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(ParsedCallData { call_data_id, array, index_map }))
+    }
+
+    <span class="kw">fn </span>parse_return_data(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; ParseResult&lt;<span class="prelude-ty">Option</span>&lt;ParsedValue&gt;&gt; {
+        <span class="kw">if </span>!<span class="self">self</span>.eat_keyword(Keyword::ReturnData)<span class="question-mark">? </span>{
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
+        }
+
+        <span class="self">self</span>.eat_or_error(Token::Colon)<span class="question-mark">?</span>;
+        <span class="kw">let </span>value = <span class="self">self</span>.parse_value_or_error()<span class="question-mark">?</span>;
+        <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(value))
     }
 
     <span class="kw">fn </span>parse_blocks(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; ParseResult&lt;Vec&lt;ParsedBlock&gt;&gt; {
@@ -1882,7 +2058,7 @@
                 .bytes()
                 .map(|byte| {
                     ParsedValue::NumericConstant(ParsedNumericConstant {
-                        value: FieldElement::from(byte <span class="kw">as </span>u128),
+                        value: FieldElement::from(u128::from(byte)),
                         typ: u8.clone(),
                     })
                 })
@@ -1895,7 +2071,7 @@
                 .bytes()
                 .map(|byte| {
                     ParsedValue::NumericConstant(ParsedNumericConstant {
-                        value: FieldElement::from(byte <span class="kw">as </span>u128),
+                        value: FieldElement::from(u128::from(byte)),
                         typ: u8.clone(),
                     })
                 })
@@ -2176,6 +2352,14 @@
         }
     }
 
+    <span class="kw">fn </span>eat_keyword_or_error(<span class="kw-2">&amp;mut </span><span class="self">self</span>, keyword: Keyword) -&gt; ParseResult&lt;()&gt; {
+        <span class="kw">if </span><span class="self">self</span>.eat_keyword(keyword)<span class="question-mark">? </span>{
+            <span class="prelude-val">Ok</span>(())
+        } <span class="kw">else </span>{
+            <span class="self">self</span>.expected_token(Token::Keyword(keyword))
+        }
+    }
+
     <span class="kw">fn </span>eat_ident(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; ParseResult&lt;<span class="prelude-ty">Option</span>&lt;String&gt;&gt; {
         <span class="kw">if </span>!<span class="macro">matches!</span>(<span class="self">self</span>.token.token(), Token::Ident(..)) {
             <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
@@ -2402,6 +2586,10 @@
         <span class="string">"Expected a global value (Field literal, integer literal or make_array), found '{found}'"
     </span>)]
     </span>ExpectedGlobalValue { found: Token, span: Span },
+    <span class="attr">#[error(<span class="string">"Expected a u32, found '{found}'"</span>)]
+    </span>ExpectedU32 { found: SignedField, span: Span },
+    <span class="attr">#[error(<span class="string">"Expected a usize, found '{found}'"</span>)]
+    </span>ExpectedUSize { found: SignedField, span: Span },
     <span class="attr">#[error(<span class="string">"Multiple return values only allowed for call"</span>)]
     </span>MultipleReturnValuesOnlyAllowedForCall { second_target: Identifier },
     <span class="attr">#[error(<span class="string">"Unexpected integer value for array_get offset"</span>)]
@@ -2425,6 +2613,8 @@
             | ParserError::ExpectedByteString { span, .. }
             | ParserError::ExpectedValue { span, .. }
             | ParserError::ExpectedGlobalValue { span, .. }
+            | ParserError::ExpectedU32 { span, .. }
+            | ParserError::ExpectedUSize { span, .. }
             | ParserError::UnexpectedOffset { span, .. }
             | ParserError::InvalidInteger { span, .. } =&gt; <span class="kw-2">*</span>span,
 

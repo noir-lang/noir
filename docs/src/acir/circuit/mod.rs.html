@@ -786,6 +786,9 @@
 </span><span class="attr">#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default, Hash)]
 #[cfg_attr(feature = <span class="string">"arb"</span>, derive(proptest_derive::Arbitrary))]
 </span><span class="kw">pub struct </span>Circuit&lt;F: AcirField&gt; {
+    <span class="doccomment">/// Name of the function represented by this circuit.
+    </span><span class="attr">#[serde(default)] </span><span class="comment">// For backwards compatibility
+    </span><span class="kw">pub </span>function_name: String,
     <span class="doccomment">/// current_witness_index is the highest witness index in the circuit. The next witness to be added to this circuit
     /// will take on this value. (The value is cached here as an optimization.)
     </span><span class="kw">pub </span>current_witness_index: u32,
@@ -794,8 +797,6 @@
     /// The opcodes should be further converted into a backend-specific circuit representation.
     /// When initial witness inputs are provided, these opcodes can also be used for generating an execution trace.
     </span><span class="kw">pub </span>opcodes: Vec&lt;Opcode&lt;F&gt;&gt;,
-    <span class="doccomment">/// Maximum width of the [expression][Expression]'s which will be constrained
-    </span><span class="kw">pub </span>expression_width: ExpressionWidth,
 
     <span class="doccomment">/// The set of private inputs to the circuit.
     </span><span class="kw">pub </span>private_parameters: BTreeSet&lt;Witness&gt;,
@@ -1057,13 +1058,11 @@
 
 <span class="kw">impl</span>&lt;F: AcirField&gt; std::fmt::Display <span class="kw">for </span>Circuit&lt;F&gt; {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
-        <span class="macro">writeln!</span>(f, <span class="string">"current witness index : _{}"</span>, <span class="self">self</span>.current_witness_index)<span class="question-mark">?</span>;
-
         <span class="kw">let </span>write_witness_indices =
             |f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;, indices: <span class="kw-2">&amp;</span>[u32]| -&gt; <span class="prelude-ty">Result</span>&lt;(), std::fmt::Error&gt; {
                 <span class="macro">write!</span>(f, <span class="string">"["</span>)<span class="question-mark">?</span>;
                 <span class="kw">for </span>(index, witness_index) <span class="kw">in </span>indices.iter().enumerate() {
-                    <span class="macro">write!</span>(f, <span class="string">"_{witness_index}"</span>)<span class="question-mark">?</span>;
+                    <span class="macro">write!</span>(f, <span class="string">"w{witness_index}"</span>)<span class="question-mark">?</span>;
                     <span class="kw">if </span>index != indices.len() - <span class="number">1 </span>{
                         <span class="macro">write!</span>(f, <span class="string">", "</span>)<span class="question-mark">?</span>;
                     }
@@ -1071,7 +1070,7 @@
                 <span class="macro">writeln!</span>(f, <span class="string">"]"</span>)
             };
 
-        <span class="macro">write!</span>(f, <span class="string">"private parameters indices : "</span>)<span class="question-mark">?</span>;
+        <span class="macro">write!</span>(f, <span class="string">"private parameters: "</span>)<span class="question-mark">?</span>;
         write_witness_indices(
             f,
             <span class="kw-2">&amp;</span><span class="self">self
@@ -1081,10 +1080,10 @@
                 .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;(),
         )<span class="question-mark">?</span>;
 
-        <span class="macro">write!</span>(f, <span class="string">"public parameters indices : "</span>)<span class="question-mark">?</span>;
+        <span class="macro">write!</span>(f, <span class="string">"public parameters: "</span>)<span class="question-mark">?</span>;
         write_witness_indices(f, <span class="kw-2">&amp;</span><span class="self">self</span>.public_parameters.indices())<span class="question-mark">?</span>;
 
-        <span class="macro">write!</span>(f, <span class="string">"return value indices : "</span>)<span class="question-mark">?</span>;
+        <span class="macro">write!</span>(f, <span class="string">"return values: "</span>)<span class="question-mark">?</span>;
         write_witness_indices(f, <span class="kw-2">&amp;</span><span class="self">self</span>.return_values.indices())<span class="question-mark">?</span>;
 
         <span class="kw">for </span>opcode <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.opcodes {
@@ -1107,8 +1106,11 @@
             <span class="macro">writeln!</span>(f, <span class="string">"{function}"</span>)<span class="question-mark">?</span>;
         }
         <span class="kw">for </span>(func_index, function) <span class="kw">in </span><span class="self">self</span>.unconstrained_functions.iter().enumerate() {
-            <span class="macro">writeln!</span>(f, <span class="string">"unconstrained func {func_index}"</span>)<span class="question-mark">?</span>;
-            <span class="macro">writeln!</span>(f, <span class="string">"{:?}"</span>, function.bytecode)<span class="question-mark">?</span>;
+            <span class="macro">writeln!</span>(f, <span class="string">"unconstrained func {func_index}: {}"</span>, function.function_name)<span class="question-mark">?</span>;
+            <span class="kw">let </span>width = function.bytecode.len().to_string().len();
+            <span class="kw">for </span>(index, opcode) <span class="kw">in </span>function.bytecode.iter().enumerate() {
+                <span class="macro">writeln!</span>(f, <span class="string">"{index:&gt;width$}: {opcode}"</span>)<span class="question-mark">?</span>;
+            }
         }
         <span class="prelude-val">Ok</span>(())
     }
@@ -1143,30 +1145,29 @@
         Circuit, Compression, Opcode, PublicInputs,
         opcodes::{BlackBoxFuncCall, FunctionInput},
     };
-    <span class="kw">use crate</span>::{
-        circuit::{ExpressionWidth, Program},
-        native_types::Witness,
-    };
+    <span class="kw">use crate</span>::{circuit::Program, native_types::Witness};
     <span class="kw">use </span>acir_field::{AcirField, FieldElement};
     <span class="kw">use </span>serde::{Deserialize, Serialize};
 
     <span class="kw">fn </span>and_opcode&lt;F: AcirField&gt;() -&gt; Opcode&lt;F&gt; {
         Opcode::BlackBoxFuncCall(BlackBoxFuncCall::AND {
-            lhs: FunctionInput::witness(Witness(<span class="number">1</span>), <span class="number">4</span>),
-            rhs: FunctionInput::witness(Witness(<span class="number">2</span>), <span class="number">4</span>),
+            lhs: FunctionInput::Witness(Witness(<span class="number">1</span>)),
+            rhs: FunctionInput::Witness(Witness(<span class="number">2</span>)),
+            num_bits: <span class="number">4</span>,
             output: Witness(<span class="number">3</span>),
         })
     }
 
     <span class="kw">fn </span>range_opcode&lt;F: AcirField&gt;() -&gt; Opcode&lt;F&gt; {
         Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
-            input: FunctionInput::witness(Witness(<span class="number">1</span>), <span class="number">8</span>),
+            input: FunctionInput::Witness(Witness(<span class="number">1</span>)),
+            num_bits: <span class="number">8</span>,
         })
     }
 
     <span class="kw">fn </span>keccakf1600_opcode&lt;F: AcirField&gt;() -&gt; Opcode&lt;F&gt; {
         <span class="kw">let </span>inputs: Box&lt;[FunctionInput&lt;F&gt;; <span class="number">25</span>]&gt; =
-            Box::new(std::array::from_fn(|i| FunctionInput::witness(Witness(i <span class="kw">as </span>u32 + <span class="number">1</span>), <span class="number">8</span>)));
+            Box::new(std::array::from_fn(|i| FunctionInput::Witness(Witness(i <span class="kw">as </span>u32 + <span class="number">1</span>))));
         <span class="kw">let </span>outputs: Box&lt;[Witness; <span class="number">25</span>]&gt; = Box::new(std::array::from_fn(|i| Witness(i <span class="kw">as </span>u32 + <span class="number">26</span>)));
 
         Opcode::BlackBoxFuncCall(BlackBoxFuncCall::Keccakf1600 { inputs, outputs })
@@ -1175,8 +1176,8 @@
     <span class="attr">#[test]
     </span><span class="kw">fn </span>serialization_roundtrip() {
         <span class="kw">let </span>circuit = Circuit {
+            function_name: <span class="string">"test"</span>.to_string(),
             current_witness_index: <span class="number">5</span>,
-            expression_width: ExpressionWidth::Unbounded,
             opcodes: <span class="macro">vec!</span>[and_opcode::&lt;FieldElement&gt;(), range_opcode()],
             private_parameters: BTreeSet::new(),
             public_parameters: PublicInputs(BTreeSet::from_iter(<span class="macro">vec!</span>[Witness(<span class="number">2</span>), Witness(<span class="number">12</span>)])),
@@ -1200,8 +1201,8 @@
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_serialize() {
         <span class="kw">let </span>circuit = Circuit {
+            function_name: <span class="string">"test"</span>.to_string(),
             current_witness_index: <span class="number">0</span>,
-            expression_width: ExpressionWidth::Unbounded,
             opcodes: <span class="macro">vec!</span>[
                 Opcode::AssertZero(<span class="kw">crate</span>::native_types::Expression {
                     mul_terms: <span class="macro">vec!</span>[],
@@ -1246,8 +1247,8 @@
     <span class="attr">#[test]
     </span><span class="kw">fn </span>circuit_display_snapshot() {
         <span class="kw">let </span>circuit = Circuit {
+            function_name: <span class="string">"test"</span>.to_string(),
             current_witness_index: <span class="number">3</span>,
-            expression_width: ExpressionWidth::Unbounded,
             opcodes: <span class="macro">vec!</span>[
                 Opcode::AssertZero(<span class="kw">crate</span>::native_types::Expression {
                     mul_terms: <span class="macro">vec!</span>[],
@@ -1269,15 +1270,14 @@
         </span><span class="macro">insta::assert_snapshot!</span>(
             circuit.to_string(),
             @<span class="string">r"
-            current witness index : _3
-            private parameters indices : []
-            public parameters indices : [_2]
-            return value indices : [_2]
-            EXPR [ (2, _1) 8 ]
-            BLACKBOX::RANGE [(_1, 8)] []
-            BLACKBOX::AND [(_1, 4), (_2, 4)] [_3]
-            BLACKBOX::KECCAKF1600 [(_1, 8), (_2, 8), (_3, 8), (_4, 8), (_5, 8), (_6, 8), (_7, 8), (_8, 8), (_9, 8), (_10, 8), (_11, 8), (_12, 8), (_13, 8), (_14, 8), (_15, 8), (_16, 8), (_17, 8), (_18, 8), (_19, 8), (_20, 8), (_21, 8), (_22, 8), (_23, 8), (_24, 8), (_25, 8)] [_26, _27, _28, _29, _30, _31, _32, _33, _34, _35, _36, _37, _38, _39, _40, _41, _42, _43, _44, _45, _46, _47, _48, _49, _50]
-            "
+        private parameters: []
+        public parameters: [w2]
+        return values: [w2]
+        ASSERT 0 = 2*w1 + 8
+        BLACKBOX::RANGE input: w1, bits: 8
+        BLACKBOX::AND inputs: [w1, w2], bits: 4, output: w3
+        BLACKBOX::KECCAKF1600 inputs: [w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25], outputs: [w26, w27, w28, w29, w30, w31, w32, w33, w34, w35, w36, w37, w38, w39, w40, w41, w42, w43, w44, w45, w46, w47, w48, w49, w50]
+        "
         </span>);
     }
 

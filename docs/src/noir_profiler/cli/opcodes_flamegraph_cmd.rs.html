@@ -289,7 +289,14 @@
 <a href="#288" id="288">288</a>
 <a href="#289" id="289">289</a>
 <a href="#290" id="290">290</a>
-<a href="#291" id="291">291</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::{Path, PathBuf};
+<a href="#291" id="291">291</a>
+<a href="#292" id="292">292</a>
+<a href="#293" id="293">293</a>
+<a href="#294" id="294">294</a>
+<a href="#295" id="295">295</a>
+<a href="#296" id="296">296</a>
+<a href="#297" id="297">297</a>
+<a href="#298" id="298">298</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::{Path, PathBuf};
 
 <span class="kw">use </span>acir::AcirField;
 <span class="kw">use </span>acir::circuit::brillig::BrilligFunctionId;
@@ -337,20 +344,16 @@
     <span class="kw">let </span><span class="kw-2">mut </span>program =
         read_program_from_file(artifact_path).context(<span class="string">"Error reading program from file"</span>)<span class="question-mark">?</span>;
 
-    <span class="kw">let </span>acir_names = std::mem::take(<span class="kw-2">&amp;mut </span>program.names);
-    <span class="kw">let </span>brillig_names = std::mem::take(<span class="kw-2">&amp;mut </span>program.brillig_names);
-
     <span class="kw">let </span>bytecode = std::mem::take(<span class="kw-2">&amp;mut </span>program.bytecode);
-
     <span class="kw">let </span>debug_artifact: DebugArtifact = program.into();
 
     <span class="kw">for </span>(func_idx, circuit) <span class="kw">in </span>bytecode.functions.iter().enumerate() {
         <span class="comment">// We can have repeated names if there are functions with the same name in different
         // modules or functions that use generics. Thus, add the unique function index as a suffix.
         </span><span class="kw">let </span>function_name = <span class="kw">if </span>bytecode.functions.len() &gt; <span class="number">1 </span>{
-            <span class="macro">format!</span>(<span class="string">"{}_{}"</span>, acir_names[func_idx].as_str(), func_idx)
+            <span class="macro">format!</span>(<span class="string">"{}_{}"</span>, circuit.function_name.as_str(), func_idx)
         } <span class="kw">else </span>{
-            acir_names[func_idx].to_owned()
+            circuit.function_name.to_owned()
         };
 
         <span class="macro">println!</span>(<span class="string">"Opcode count for {}: {}"</span>, function_name, circuit.opcodes.len());
@@ -393,7 +396,7 @@
         <span class="comment">// We can have repeated names if there are functions with the same name in different
         // modules or functions that use generics. Thus, add the unique function index as a suffix.
         </span><span class="kw">let </span>function_name =
-            <span class="macro">format!</span>(<span class="string">"{}_{}"</span>, brillig_names[brillig_fn_index].as_str(), brillig_fn_index);
+            <span class="macro">format!</span>(<span class="string">"{}_{}"</span>, brillig_bytecode.function_name.as_str(), brillig_fn_index);
 
         <span class="macro">println!</span>(<span class="string">"Opcode count for {}_brillig: {}"</span>, function_name, brillig_bytecode.bytecode.len());
 
@@ -448,7 +451,7 @@
     <span class="kw">use </span>acir::{
         FieldElement,
         circuit::{
-            Circuit, Opcode, Program,
+            Circuit, ExpressionWidth, Opcode, Program,
             brillig::{BrilligBytecode, BrilligFunctionId},
         },
     };
@@ -491,11 +494,16 @@
             noir_version: <span class="string">"0.0.0"</span>.to_string(),
             hash: <span class="number">27</span>,
             abi: noirc_abi::Abi::default(),
-            bytecode: Program { functions: <span class="macro">vec!</span>[Circuit::default()], ..Program::default() },
+            bytecode: Program {
+                functions: <span class="macro">vec!</span>[Circuit {
+                    function_name: <span class="string">"main"</span>.to_string(),
+                    ..Circuit::default()
+                }],
+                ..Program::default()
+            },
             debug_symbols: ProgramDebugInfo { debug_infos: <span class="macro">vec!</span>[DebugInfo::default()] },
             file_map: BTreeMap::default(),
-            names: <span class="macro">vec!</span>[<span class="string">"main"</span>.to_string()],
-            brillig_names: Vec::new(),
+            expression_width: ExpressionWidth::Bounded { width: <span class="number">4 </span>},
         };
 
         <span class="comment">// Write the artifact to a file
@@ -544,17 +552,23 @@
             hash: <span class="number">27</span>,
             abi: noirc_abi::Abi::default(),
             bytecode: Program {
-                functions: <span class="macro">vec!</span>[Circuit { opcodes: acir, ..Circuit::default() }],
+                functions: <span class="macro">vec!</span>[Circuit {
+                    function_name: <span class="string">"main"</span>.to_string(),
+                    opcodes: acir,
+                    ..Circuit::default()
+                }],
                 unconstrained_functions: <span class="macro">vec!</span>[
-                    BrilligBytecode::default(),
-                    BrilligBytecode::default(),
-                    BrilligBytecode::default(),
+                    BrilligBytecode { function_name: <span class="string">"main"</span>.to_string(), bytecode: Vec::default() },
+                    BrilligBytecode { function_name: <span class="string">"main"</span>.to_string(), bytecode: Vec::default() },
+                    BrilligBytecode {
+                        function_name: <span class="string">"main_1"</span>.to_string(),
+                        bytecode: Vec::default(),
+                    },
                 ],
             },
             debug_symbols: ProgramDebugInfo { debug_infos: <span class="macro">vec!</span>[DebugInfo::default()] },
             file_map: BTreeMap::default(),
-            names: <span class="macro">vec!</span>[<span class="string">"main"</span>.to_string()],
-            brillig_names: <span class="macro">vec!</span>[<span class="string">"main"</span>.to_string(), <span class="string">"main"</span>.to_string(), <span class="string">"main_1"</span>.to_string()],
+            expression_width: ExpressionWidth::Bounded { width: <span class="number">4 </span>},
         };
 
         <span class="comment">// Write the artifact to a file

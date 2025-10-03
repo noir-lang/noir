@@ -396,7 +396,30 @@
 <a href="#395" id="395">395</a>
 <a href="#396" id="396">396</a>
 <a href="#397" id="397">397</a>
-<a href="#398" id="398">398</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST compiled into bytecode and executed with the VM.
+<a href="#398" id="398">398</a>
+<a href="#399" id="399">399</a>
+<a href="#400" id="400">400</a>
+<a href="#401" id="401">401</a>
+<a href="#402" id="402">402</a>
+<a href="#403" id="403">403</a>
+<a href="#404" id="404">404</a>
+<a href="#405" id="405">405</a>
+<a href="#406" id="406">406</a>
+<a href="#407" id="407">407</a>
+<a href="#408" id="408">408</a>
+<a href="#409" id="409">409</a>
+<a href="#410" id="410">410</a>
+<a href="#411" id="411">411</a>
+<a href="#412" id="412">412</a>
+<a href="#413" id="413">413</a>
+<a href="#414" id="414">414</a>
+<a href="#415" id="415">415</a>
+<a href="#416" id="416">416</a>
+<a href="#417" id="417">417</a>
+<a href="#418" id="418">418</a>
+<a href="#419" id="419">419</a>
+<a href="#420" id="420">420</a>
+<a href="#421" id="421">421</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST compiled into bytecode and executed with the VM.
 </span><span class="kw">use </span>std::collections::BTreeMap;
 
 <span class="kw">use </span>acir::{FieldElement, native_types::WitnessStack};
@@ -409,7 +432,7 @@
 <span class="kw">use </span>noirc_evaluator::{ErrorType, ssa::SsaProgramArtifact};
 <span class="kw">use </span>noirc_frontend::monomorphization::ast::Program;
 
-<span class="kw">use crate</span>::{Config, arb_inputs, arb_program, program_abi};
+<span class="kw">use crate</span>::{Config, arb_inputs, arb_program, compare::logging, program_abi};
 
 <span class="kw">use super</span>::{Comparable, CompareOptions, CompareResult, FailedOutput, HasPrograms, PassedOutput};
 
@@ -558,7 +581,18 @@
                         || msg.contains(<span class="string">"division by zero"</span>)
                 })
                 || both(<span class="kw-2">&amp;</span>msg1, <span class="kw-2">&amp;</span>msg2, |msg| {
-                    msg.contains(<span class="string">"attempted to shift by"</span>) || msg.contains(<span class="string">"bit-shift with overflow"</span>)
+                    msg.contains(<span class="string">"attempted to shift by"</span>)
+                        || msg.contains(<span class="string">"shift with overflow"</span>)
+                        || msg.contains(<span class="string">"shift right with overflow"</span>)
+                        || msg.contains(<span class="string">"shift left with overflow"</span>)
+                })
+                || both(<span class="kw-2">&amp;</span>msg1, <span class="kw-2">&amp;</span>msg2, |msg| {
+                    <span class="comment">// In Brillig we have constraints protecting overflows,
+                    // while in ACIR we have checked multiplication unless we know its safe.
+                    </span>msg.contains(<span class="string">"multiply with overflow"</span>) || msg.contains(<span class="string">"index out of bounds"</span>)
+                })
+                || both(<span class="kw-2">&amp;</span>msg1, <span class="kw-2">&amp;</span>msg2, |msg| {
+                    msg.contains(<span class="string">"add with overflow"</span>) || msg.contains(<span class="string">"index out of bounds"</span>)
                 })
         } <span class="kw">else </span>{
             <span class="bool-val">false
@@ -593,11 +627,15 @@
             (
                 SolvingError(OpcodeResolutionError::UnsatisfiedConstrain { .. }, <span class="kw">_</span>),
                 AssertionFailed(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>),
-            ) =&gt; msg2.as_ref().is_some_and(|msg| msg.contains(<span class="string">"divide by zero"</span>)),
+            ) =&gt; msg2.as_ref().is_some_and(|msg| {
+                msg.contains(<span class="string">"divide by zero"</span>) || msg.contains(<span class="string">"divisor of zero"</span>)
+            }),
             (
                 AssertionFailed(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>),
                 SolvingError(OpcodeResolutionError::UnsatisfiedConstrain { .. }, <span class="kw">_</span>),
-            ) =&gt; msg1.is_some_and(|msg| msg.contains(<span class="string">"divide by zero"</span>)),
+            ) =&gt; msg1.is_some_and(|msg| {
+                msg.contains(<span class="string">"divide by zero"</span>) || msg.contains(<span class="string">"divisor of zero"</span>)
+            }),
             (
                 SolvingError(OpcodeResolutionError::IndexOutOfBounds { .. }, <span class="kw">_</span>),
                 AssertionFailed(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>),
@@ -619,7 +657,11 @@
 
 <span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>NargoErrorWithTypes {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
-        std::fmt::Display::fmt(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>, f)
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(msg) = <span class="self">self</span>.user_defined_failure_message() {
+            <span class="macro">write!</span>(f, <span class="string">"{}: {}"</span>, <span class="self">self</span>.<span class="number">0</span>, msg)
+        } <span class="kw">else </span>{
+            std::fmt::Display::fmt(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>, f)
+        }
     }
 }
 
@@ -637,13 +679,6 @@
     </span><span class="kw">pub fn </span>exec(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; eyre::Result&lt;CompareCompiledResult&gt; {
         <span class="kw">let </span>blackbox_solver = Bn254BlackBoxSolver(<span class="bool-val">false</span>);
         <span class="kw">let </span>initial_witness = <span class="self">self</span>.abi.encode(<span class="kw-2">&amp;</span><span class="self">self</span>.input_map, <span class="prelude-val">None</span>).wrap_err(<span class="string">"abi::encode"</span>)<span class="question-mark">?</span>;
-
-        <span class="macro">log::debug!</span>(
-            <span class="string">"ABI input:\n{}"</span>,
-            noirc_abi::input_parser::Format::Toml
-                .serialize(<span class="kw-2">&amp;</span><span class="self">self</span>.input_map, <span class="kw-2">&amp;</span><span class="self">self</span>.abi)
-                .unwrap_or_else(|e| <span class="macro">format!</span>(<span class="string">"failed to serialize inputs: {e}"</span>))
-        );
 
         <span class="kw">let </span>do_exec = |program| {
             <span class="kw">let </span><span class="kw-2">mut </span>print = Vec::new();
@@ -696,12 +731,17 @@
     ) -&gt; arbitrary::Result&lt;<span class="self">Self</span>&gt; {
         <span class="kw">let </span>program = arb_program(u, c)<span class="question-mark">?</span>;
         <span class="kw">let </span>abi = program_abi(<span class="kw-2">&amp;</span>program);
+        logging::log_program(<span class="kw-2">&amp;</span>program, <span class="string">""</span>);
 
         <span class="kw">let </span>ssa1 = CompareArtifact::from(f(u, program.clone())<span class="question-mark">?</span>);
         <span class="kw">let </span>ssa2 = CompareArtifact::from(g(u, program.clone())<span class="question-mark">?</span>);
 
+        logging::log_options(<span class="kw-2">&amp;</span>ssa1.options, <span class="string">"1st"</span>);
+        logging::log_options(<span class="kw-2">&amp;</span>ssa2.options, <span class="string">"2nd"</span>);
+
         <span class="kw">let </span>input_program = <span class="kw-2">&amp;</span>ssa1.artifact.program;
         <span class="kw">let </span>input_map = arb_inputs(u, input_program, <span class="kw-2">&amp;</span>abi)<span class="question-mark">?</span>;
+        logging::log_abi_inputs(<span class="kw-2">&amp;</span>abi, <span class="kw-2">&amp;</span>input_map);
 
         <span class="prelude-val">Ok</span>(<span class="self">Self </span>{ program, abi, input_map, ssa1, ssa2 })
     }
@@ -725,7 +765,12 @@
         g: <span class="kw">impl </span>Fn(Program, <span class="kw-2">&amp;</span>CompareOptions) -&gt; SsaProgramArtifact,
     ) -&gt; arbitrary::Result&lt;<span class="self">Self</span>&gt; {
         <span class="kw">let </span>program1 = arb_program(u, c)<span class="question-mark">?</span>;
+        logging::log_program(<span class="kw-2">&amp;</span>program1, <span class="string">"orig"</span>);
+
         <span class="kw">let </span>(program2, options) = f(u, program1.clone())<span class="question-mark">?</span>;
+        logging::log_program(<span class="kw-2">&amp;</span>program2, <span class="string">"morph"</span>);
+        logging::log_options(<span class="kw-2">&amp;</span>options, <span class="string">""</span>);
+
         <span class="kw">let </span>abi = program_abi(<span class="kw-2">&amp;</span>program1);
 
         <span class="kw">let </span>ssa1 = g(program1.clone(), <span class="kw-2">&amp;</span>options);
@@ -733,6 +778,7 @@
 
         <span class="kw">let </span>input_program = <span class="kw-2">&amp;</span>ssa1.program;
         <span class="kw">let </span>input_map = arb_inputs(u, input_program, <span class="kw-2">&amp;</span>abi)<span class="question-mark">?</span>;
+        logging::log_abi_inputs(<span class="kw-2">&amp;</span>abi, <span class="kw-2">&amp;</span>input_map);
 
         <span class="prelude-val">Ok</span>(<span class="self">Self </span>{
             program: (program1, program2),

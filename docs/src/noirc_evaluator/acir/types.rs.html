@@ -174,7 +174,18 @@
 <a href="#173" id="173">173</a>
 <a href="#174" id="174">174</a>
 <a href="#175" id="175">175</a>
-<a href="#176" id="176">176</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Debug;
+<a href="#176" id="176">176</a>
+<a href="#177" id="177">177</a>
+<a href="#178" id="178">178</a>
+<a href="#179" id="179">179</a>
+<a href="#180" id="180">180</a>
+<a href="#181" id="181">181</a>
+<a href="#182" id="182">182</a>
+<a href="#183" id="183">183</a>
+<a href="#184" id="184">184</a>
+<a href="#185" id="185">185</a>
+<a href="#186" id="186">186</a>
+<a href="#187" id="187">187</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Debug;
 
 <span class="kw">use </span>acvm::{AcirField, acir::circuit::opcodes::BlockId};
 
@@ -286,9 +297,10 @@
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>core::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; core::fmt::Result {
         <span class="macro">write!</span>(
             f,
-            <span class="string">"id: {}, len: {}, element_type_sizes: {:?}"</span>,
+            <span class="string">"id: {}, len: {}, value_types: {:?}, element_type_sizes: {:?}"</span>,
             <span class="self">self</span>.block_id.<span class="number">0</span>,
             <span class="self">self</span>.len,
+            <span class="self">self</span>.value_types,
             <span class="self">self</span>.element_type_sizes.map(|block_id| block_id.<span class="number">0</span>)
         )
     }
@@ -322,7 +334,14 @@
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>flatten(<span class="self">self</span>) -&gt; Vec&lt;(AcirVar, AcirType)&gt; {
+    <span class="doccomment">/// Fetch a flat list of ([AcirVar], [AcirType]).
+    ///
+    /// # Panics
+    /// If [AcirValue::DynamicArray] is supplied or an inner element of an [AcirValue::Array].
+    /// This is because an [AcirValue::DynamicArray] is simply a pointer to an array
+    /// and fetching its internal [AcirValue::Var] would require laying down opcodes to read its content.
+    /// This method should only be used where dynamic arrays are not a possible type.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>flatten(<span class="self">self</span>) -&gt; Vec&lt;(AcirVar, AcirType)&gt; {
         <span class="kw">match </span><span class="self">self </span>{
             AcirValue::Var(var, typ) =&gt; <span class="macro">vec!</span>[(var, typ)],
             AcirValue::Array(array) =&gt; array.into_iter().flat_map(AcirValue::flatten).collect(),
@@ -330,13 +349,16 @@
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>flat_numeric_types(<span class="self">self</span>) -&gt; Vec&lt;NumericType&gt; {
+    <span class="doccomment">/// Fetch a flat list of the [NumericType] contained within an array
+    /// An [AcirValue::DynamicArray] should already have a field representing
+    /// its types and should be supported here unlike [AcirValue::flatten]
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>flat_numeric_types(<span class="self">self</span>) -&gt; Vec&lt;NumericType&gt; {
         <span class="kw">match </span><span class="self">self </span>{
-            AcirValue::Array(<span class="kw">_</span>) =&gt; {
-                <span class="self">self</span>.flatten().into_iter().map(|(<span class="kw">_</span>, typ)| typ.to_numeric_type()).collect()
+            AcirValue::Array(array) =&gt; {
+                array.into_iter().flat_map(|elem| elem.flat_numeric_types()).collect()
             }
             AcirValue::DynamicArray(AcirDynamicArray { value_types, .. }) =&gt; value_types,
-            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"An AcirValue::Var cannot be used as an array value"</span>),
+            AcirValue::Var(<span class="kw">_</span>, typ) =&gt; <span class="macro">vec!</span>[typ.to_numeric_type()],
         }
     }
 }

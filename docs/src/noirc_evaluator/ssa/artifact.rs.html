@@ -50,19 +50,7 @@
 <a href="#49" id="49">49</a>
 <a href="#50" id="50">50</a>
 <a href="#51" id="51">51</a>
-<a href="#52" id="52">52</a>
-<a href="#53" id="53">53</a>
-<a href="#54" id="54">54</a>
-<a href="#55" id="55">55</a>
-<a href="#56" id="56">56</a>
-<a href="#57" id="57">57</a>
-<a href="#58" id="58">58</a>
-<a href="#59" id="59">59</a>
-<a href="#60" id="60">60</a>
-<a href="#61" id="61">61</a>
-<a href="#62" id="62">62</a>
-<a href="#63" id="63">63</a>
-<a href="#64" id="64">64</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#52" id="52">52</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 
 <span class="kw">use </span>acvm::{
     FieldElement,
@@ -77,29 +65,18 @@
     <span class="kw">pub </span>program: Program&lt;FieldElement&gt;,
     <span class="kw">pub </span>debug: Vec&lt;DebugInfo&gt;,
     <span class="kw">pub </span>warnings: Vec&lt;SsaReport&gt;,
-    <span class="kw">pub </span>names: Vec&lt;String&gt;,
-    <span class="kw">pub </span>brillig_names: Vec&lt;String&gt;,
     <span class="kw">pub </span>error_types: BTreeMap&lt;ErrorSelector, ErrorType&gt;,
 }
 
 <span class="kw">impl </span>SsaProgramArtifact {
     <span class="kw">pub fn </span>new(
         functions: Vec&lt;SsaCircuitArtifact&gt;,
-        brillig_names: Vec&lt;String&gt;,
         unconstrained_functions: Vec&lt;BrilligBytecode&lt;FieldElement&gt;&gt;,
         error_types: BTreeMap&lt;ErrorSelector, ErrorType&gt;,
         warnings: Vec&lt;SsaReport&gt;,
     ) -&gt; <span class="self">Self </span>{
-        <span class="macro">assert_eq!</span>(brillig_names.len(), unconstrained_functions.len());
         <span class="kw">let </span>program = Program { functions: Vec::default(), unconstrained_functions };
-        <span class="kw">let </span><span class="kw-2">mut </span>this = <span class="self">Self </span>{
-            program,
-            debug: Vec::default(),
-            warnings,
-            names: Vec::default(),
-            brillig_names,
-            error_types,
-        };
+        <span class="kw">let </span><span class="kw-2">mut </span>this = <span class="self">Self </span>{ program, debug: Vec::default(), warnings, error_types };
 
         <span class="kw">for </span>function <span class="kw">in </span>functions {
             this.add_circuit(function);
@@ -112,7 +89,6 @@
         <span class="self">self</span>.program.functions.push(circuit_artifact.circuit);
         <span class="self">self</span>.debug.push(circuit_artifact.debug_info);
         <span class="self">self</span>.warnings.append(<span class="kw-2">&amp;mut </span>circuit_artifact.warnings);
-        <span class="self">self</span>.names.push(circuit_artifact.name);
         <span class="comment">// Acir and brillig both generate new error types, so we need to merge them
         // With the ones found during ssa generation.
         </span><span class="self">self</span>.error_types.extend(circuit_artifact.error_types);

@@ -428,13 +428,7 @@
 <a href="#427" id="427">427</a>
 <a href="#428" id="428">428</a>
 <a href="#429" id="429">429</a>
-<a href="#430" id="430">430</a>
-<a href="#431" id="431">431</a>
-<a href="#432" id="432">432</a>
-<a href="#433" id="433">433</a>
-<a href="#434" id="434">434</a>
-<a href="#435" id="435">435</a>
-<a href="#436" id="436">436</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST compiled into SSA and executed with the
+<a href="#430" id="430">430</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST compiled into SSA and executed with the
 //! SSA interpreter at some stage of the SSA pipeline.
 
 </span><span class="kw">use </span>std::sync::{Arc, OnceLock};
@@ -452,7 +446,7 @@
 <span class="kw">use </span>noirc_frontend::{Shared, monomorphization::ast::Program};
 <span class="kw">use </span>regex::Regex;
 
-<span class="kw">use crate</span>::{Config, arb_program, input::arb_inputs_from_ssa, program_abi};
+<span class="kw">use crate</span>::{Config, arb_program, compare::logging, input::arb_inputs_from_ssa, program_abi};
 
 <span class="kw">use super</span>::{Comparable, CompareOptions, CompareResult, FailedOutput, PassedOutput};
 
@@ -506,43 +500,24 @@
     ) -&gt; arbitrary::Result&lt;<span class="self">Self</span>&gt; {
         <span class="kw">let </span>program = arb_program(u, c)<span class="question-mark">?</span>;
         <span class="kw">let </span>abi = program_abi(<span class="kw-2">&amp;</span>program);
+        logging::log_program(<span class="kw-2">&amp;</span>program, <span class="string">""</span>);
+
         <span class="kw">let </span>(options, ssa1, ssa2) = f(u, program.clone())<span class="question-mark">?</span>;
 
+        logging::log_options(<span class="kw-2">&amp;</span>options, <span class="string">""</span>);
+        logging::log_ssa(<span class="kw-2">&amp;</span>ssa1.ssa, <span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"after step {} - {}"</span>, ssa1.step, ssa1.msg));
+        logging::log_ssa(<span class="kw-2">&amp;</span>ssa2.ssa, <span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"after step {} - {}"</span>, ssa2.step, ssa2.msg));
+
         <span class="kw">let </span>input_map = arb_inputs_from_ssa(u, <span class="kw-2">&amp;</span>ssa1.ssa, <span class="kw-2">&amp;</span>abi)<span class="question-mark">?</span>;
+        logging::log_abi_inputs(<span class="kw-2">&amp;</span>abi, <span class="kw-2">&amp;</span>input_map);
+
         <span class="kw">let </span>ssa_args = input_values_to_ssa(<span class="kw-2">&amp;</span>abi, <span class="kw-2">&amp;</span>input_map);
+        logging::log_ssa_inputs(<span class="kw-2">&amp;</span>ssa_args);
 
         <span class="prelude-val">Ok</span>(<span class="self">Self </span>{ program, abi, input_map, ssa_args, options, ssa1, ssa2 })
     }
 
     <span class="kw">pub fn </span>exec(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; eyre::Result&lt;CompareInterpretedResult&gt; {
-        <span class="comment">// Debug prints up front in case the interpreter panics. Turn them on with `RUST_LOG=debug cargo test ...`
-        </span><span class="macro">log::debug!</span>(<span class="string">"Program: \n{}\n"</span>, <span class="kw">crate</span>::DisplayAstAsNoir(<span class="kw-2">&amp;</span><span class="self">self</span>.program));
-        <span class="macro">log::debug!</span>(
-            <span class="string">"ABI inputs: \n{}\n"</span>,
-            noirc_abi::input_parser::Format::Toml.serialize(<span class="kw-2">&amp;</span><span class="self">self</span>.input_map, <span class="kw-2">&amp;</span><span class="self">self</span>.abi).unwrap()
-        );
-        <span class="macro">log::debug!</span>(
-            <span class="string">"SSA inputs:\n{}\n"</span>,
-            <span class="self">self</span>.ssa_args
-                .iter()
-                .enumerate()
-                .map(|(i, v)| <span class="macro">format!</span>(<span class="string">"{i}: {v}"</span>))
-                .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;()
-                .join(<span class="string">"\n"</span>)
-        );
-        <span class="macro">log::debug!</span>(
-            <span class="string">"SSA after step {} ({}):\n{}\n"</span>,
-            <span class="self">self</span>.ssa1.step,
-            <span class="self">self</span>.ssa1.msg,
-            <span class="self">self</span>.ssa1.ssa.print_without_locations()
-        );
-        <span class="macro">log::debug!</span>(
-            <span class="string">"SSA after step {} ({}):\n{}\n"</span>,
-            <span class="self">self</span>.ssa2.step,
-            <span class="self">self</span>.ssa2.msg,
-            <span class="self">self</span>.ssa2.ssa.print_without_locations()
-        );
-
         <span class="comment">// Interpret an SSA with a fresh copy of the input values.
         </span><span class="kw">let </span>interpret = |ssa: <span class="kw-2">&amp;</span>Ssa| {
             <span class="kw">let </span><span class="kw-2">mut </span>output = Vec::new();
@@ -630,7 +605,11 @@
                 BinaryOp::Add { unchecked: <span class="bool-val">false </span>} =&gt; msg == <span class="string">"attempt to add with overflow"</span>,
                 BinaryOp::Sub { unchecked: <span class="bool-val">false </span>} =&gt; msg == <span class="string">"attempt to subtract with overflow"</span>,
                 BinaryOp::Mul { unchecked: <span class="bool-val">false </span>} =&gt; msg == <span class="string">"attempt to multiply with overflow"</span>,
-                BinaryOp::Shl | BinaryOp::Shr =&gt; msg == <span class="string">"attempt to bit-shift with overflow"</span>,
+                BinaryOp::Shl | BinaryOp::Shr =&gt; {
+                    msg == <span class="string">"attempt to bit-shift with overflow"
+                        </span>|| msg == <span class="string">"attempt to shift right with overflow"
+                        </span>|| msg == <span class="string">"attempt to shift left with overflow"
+                </span>}
                 <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
             },
             (
@@ -657,11 +636,20 @@
                 </span>msg2.as_ref().is_some_and(|msg| msg == msg1)
             }
             (DivisionByZero { .. }, ConstrainEqFailed { msg, .. }) =&gt; {
-                msg.as_ref().is_some_and(|msg| msg == <span class="string">"attempt to divide by zero"</span>)
+                msg.as_ref().is_some_and(|msg| {
+                    msg == <span class="string">"attempt to divide by zero" </span>|| msg.contains(<span class="string">"divisor of zero"</span>)
+                })
             }
+            (DivisionByZero { .. }, DivisionByZero { .. }) =&gt; {
+                <span class="comment">// Signed math in ACIR is expanded to unsigned math. We may have two different `DivisionByZero` errors due to differing types.
+                </span><span class="bool-val">true
+            </span>}
             (PoppedFromEmptySlice { .. }, ConstrainEqFailed { msg, .. }) =&gt; {
                 <span class="comment">// The removal of unreachable instructions can replace popping from an empty slice with an always-fail constraint.
                 </span>msg.as_ref().is_some_and(|msg| msg == <span class="string">"Index out of bounds"</span>)
+            }
+            (IndexOutOfBounds { .. }, ConstrainEqFailed { msg, .. }) =&gt; {
+                msg.as_ref().is_some_and(|msg| msg.contains(<span class="string">"Index out of bounds"</span>))
             }
             (e1, e2) =&gt; {
                 <span class="comment">// The format strings contain SSA instructions,

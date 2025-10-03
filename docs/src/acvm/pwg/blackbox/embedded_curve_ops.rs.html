@@ -84,11 +84,11 @@
     outputs: (Witness, Witness, Witness),
 ) -&gt; <span class="prelude-ty">Result</span>&lt;(), OpcodeResolutionError&lt;F&gt;&gt; {
     <span class="kw">let </span>points: <span class="prelude-ty">Result</span>&lt;Vec&lt;<span class="kw">_</span>&gt;, <span class="kw">_</span>&gt; =
-        points.iter().map(|input| input_to_value(initial_witness, <span class="kw-2">*</span>input, <span class="bool-val">false</span>)).collect();
+        points.iter().map(|input| input_to_value(initial_witness, <span class="kw-2">*</span>input)).collect();
     <span class="kw">let </span>points: Vec&lt;<span class="kw">_</span>&gt; = points<span class="question-mark">?</span>.into_iter().collect();
 
     <span class="kw">let </span>scalars: <span class="prelude-ty">Result</span>&lt;Vec&lt;<span class="kw">_</span>&gt;, <span class="kw">_</span>&gt; =
-        scalars.iter().map(|input| input_to_value(initial_witness, <span class="kw-2">*</span>input, <span class="bool-val">false</span>)).collect();
+        scalars.iter().map(|input| input_to_value(initial_witness, <span class="kw-2">*</span>input)).collect();
     <span class="kw">let </span><span class="kw-2">mut </span>scalars_lo = Vec::new();
     <span class="kw">let </span><span class="kw-2">mut </span>scalars_hi = Vec::new();
     <span class="kw">for </span>(i, scalar) <span class="kw">in </span>scalars<span class="question-mark">?</span>.into_iter().enumerate() {
@@ -116,12 +116,12 @@
     input2: [FunctionInput&lt;F&gt;; <span class="number">3</span>],
     outputs: (Witness, Witness, Witness),
 ) -&gt; <span class="prelude-ty">Result</span>&lt;(), OpcodeResolutionError&lt;F&gt;&gt; {
-    <span class="kw">let </span>input1_x = input_to_value(initial_witness, input1[<span class="number">0</span>], <span class="bool-val">false</span>)<span class="question-mark">?</span>;
-    <span class="kw">let </span>input1_y = input_to_value(initial_witness, input1[<span class="number">1</span>], <span class="bool-val">false</span>)<span class="question-mark">?</span>;
-    <span class="kw">let </span>input1_infinite = input_to_value(initial_witness, input1[<span class="number">2</span>], <span class="bool-val">false</span>)<span class="question-mark">?</span>;
-    <span class="kw">let </span>input2_x = input_to_value(initial_witness, input2[<span class="number">0</span>], <span class="bool-val">false</span>)<span class="question-mark">?</span>;
-    <span class="kw">let </span>input2_y = input_to_value(initial_witness, input2[<span class="number">1</span>], <span class="bool-val">false</span>)<span class="question-mark">?</span>;
-    <span class="kw">let </span>input2_infinite = input_to_value(initial_witness, input2[<span class="number">2</span>], <span class="bool-val">false</span>)<span class="question-mark">?</span>;
+    <span class="kw">let </span>input1_x = input_to_value(initial_witness, input1[<span class="number">0</span>])<span class="question-mark">?</span>;
+    <span class="kw">let </span>input1_y = input_to_value(initial_witness, input1[<span class="number">1</span>])<span class="question-mark">?</span>;
+    <span class="kw">let </span>input1_infinite = input_to_value(initial_witness, input1[<span class="number">2</span>])<span class="question-mark">?</span>;
+    <span class="kw">let </span>input2_x = input_to_value(initial_witness, input2[<span class="number">0</span>])<span class="question-mark">?</span>;
+    <span class="kw">let </span>input2_y = input_to_value(initial_witness, input2[<span class="number">1</span>])<span class="question-mark">?</span>;
+    <span class="kw">let </span>input2_infinite = input_to_value(initial_witness, input2[<span class="number">2</span>])<span class="question-mark">?</span>;
     <span class="kw">let </span>(res_x, res_y, res_infinite) = backend.ec_add(
         <span class="kw-2">&amp;</span>input1_x,
         <span class="kw-2">&amp;</span>input1_y,

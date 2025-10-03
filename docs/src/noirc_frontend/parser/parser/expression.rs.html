@@ -2222,7 +2222,26 @@
 <a href="#2221" id="2221">2221</a>
 <a href="#2222" id="2222">2222</a>
 <a href="#2223" id="2223">2223</a>
-<a href="#2224" id="2224">2224</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#2224" id="2224">2224</a>
+<a href="#2225" id="2225">2225</a>
+<a href="#2226" id="2226">2226</a>
+<a href="#2227" id="2227">2227</a>
+<a href="#2228" id="2228">2228</a>
+<a href="#2229" id="2229">2229</a>
+<a href="#2230" id="2230">2230</a>
+<a href="#2231" id="2231">2231</a>
+<a href="#2232" id="2232">2232</a>
+<a href="#2233" id="2233">2233</a>
+<a href="#2234" id="2234">2234</a>
+<a href="#2235" id="2235">2235</a>
+<a href="#2236" id="2236">2236</a>
+<a href="#2237" id="2237">2237</a>
+<a href="#2238" id="2238">2238</a>
+<a href="#2239" id="2239">2239</a>
+<a href="#2240" id="2240">2240</a>
+<a href="#2241" id="2241">2241</a>
+<a href="#2242" id="2242">2242</a>
+<a href="#2243" id="2243">2243</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
@@ -2820,7 +2839,10 @@
 
         <span class="kw">let </span>expression = <span class="self">self</span>.parse_expression_except_constructor_or_error();
 
-        <span class="self">self</span>.eat_left_brace();
+        <span class="kw">if </span>!<span class="self">self</span>.eat_left_brace() {
+            <span class="self">self</span>.expected_token(Token::LeftBrace);
+            <span class="kw">return </span><span class="prelude-val">Some</span>(ExpressionKind::Error);
+        }
 
         <span class="kw">let </span>rules = <span class="self">self</span>.parse_many(
             <span class="string">"match cases"</span>,
@@ -2831,7 +2853,7 @@
         <span class="prelude-val">Some</span>(ExpressionKind::Match(Box::new(MatchExpression { expression, rules })))
     }
 
-    <span class="doccomment">/// MatchRule = Expression '-&gt;' (Block ','?) | (Expression ',')
+    <span class="doccomment">/// MatchRule = Expression '=&gt;' (Block ','?) | (Expression ',')
     </span><span class="kw">fn </span>parse_match_rule(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;(Expression, Expression)&gt; {
         <span class="kw">let </span>pattern = <span class="self">self</span>.parse_expression()<span class="question-mark">?</span>;
         <span class="self">self</span>.eat_or_error(Token::FatArrow);
@@ -3266,6 +3288,7 @@
             ArrayLiteral, BinaryOpKind, ConstrainKind, Expression, ExpressionKind, Literal,
             StatementKind, UnaryOp, UnresolvedTypeData,
         },
+        parse_program_with_dummy_file,
         parser::{
             Parser, ParserErrorReason,
             parser::tests::{
@@ -4444,6 +4467,21 @@
 
         <span class="kw">let </span>reason = get_single_error_reason(<span class="kw-2">&amp;</span>parser.errors, span);
         <span class="macro">assert!</span>(<span class="macro">matches!</span>(reason, ParserErrorReason::ConstrainDeprecated));
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>errors_on_match_without_left_brace_after_expression() {
+        <span class="kw">let </span>src = <span class="string">"
+        fn main()  {
+            if true {
+                match c _ =&gt; {
+                    match d _ =&gt; 0,                     
+                }
+            }
+        } } } 
+        "</span>;
+        <span class="kw">let </span>(<span class="kw">_</span>, errors) = parse_program_with_dummy_file(src);
+        <span class="macro">assert!</span>(!errors.is_empty());
     }
 }
 </code></pre></div></section></main></body></html>

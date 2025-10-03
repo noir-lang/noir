@@ -44,8 +44,7 @@
 <a href="#43" id="43">43</a>
 <a href="#44" id="44">44</a>
 <a href="#45" id="45">45</a>
-<a href="#46" id="46">46</a>
-<a href="#47" id="47">47</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::BlackBoxFunctionSolver;
+<a href="#46" id="46">46</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::BlackBoxFunctionSolver;
 
 <span class="comment">// This is a struct that wraps a dynamically dispatched `BlackBoxFunctionSolver`
 // where we proxy the unimplemented stuff to the wrapped backend, but it
@@ -87,9 +86,8 @@
     <span class="kw">fn </span>poseidon2_permutation(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         inputs: <span class="kw-2">&amp;</span>[acvm::FieldElement],
-        len: u32,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;acvm::FieldElement&gt;, acvm::BlackBoxResolutionError&gt; {
-        <span class="self">self</span>.<span class="number">0</span>.poseidon2_permutation(inputs, len)
+        <span class="self">self</span>.<span class="number">0</span>.poseidon2_permutation(inputs)
     }
 }
 </code></pre></div></section></main></body></html>

@@ -298,7 +298,7 @@
 <span class="kw">fn </span>bit_size(typ: <span class="kw-2">&amp;</span>Type) -&gt; u32 {
     <span class="kw">match </span>typ {
         Type::FieldElement =&gt; FieldElement::max_num_bits(),
-        Type::Integer(<span class="kw">_</span>, bit_size) =&gt; bit_size.bit_size() <span class="kw">as </span>u32,
+        Type::Integer(<span class="kw">_</span>, bit_size) =&gt; u32::from(bit_size.bit_size()),
         Type::Bool =&gt; <span class="number">2</span>,
         <span class="kw">_ </span>=&gt; FieldElement::max_num_bits(),
     }
@@ -388,18 +388,18 @@
     <span class="prelude-val">Ok</span>(<span class="kw">match </span>value {
         Value::Field(value) <span class="kw">if </span>value.is_negative() =&gt; (-value.absolute_value(), <span class="bool-val">true</span>),
         Value::Field(value) =&gt; (value.absolute_value(), <span class="bool-val">false</span>),
-        Value::U1(value) =&gt; ((value <span class="kw">as </span>u128).into(), <span class="bool-val">false</span>),
-        Value::U8(value) =&gt; ((value <span class="kw">as </span>u128).into(), <span class="bool-val">false</span>),
-        Value::U16(value) =&gt; ((value <span class="kw">as </span>u128).into(), <span class="bool-val">false</span>),
-        Value::U32(value) =&gt; ((value <span class="kw">as </span>u128).into(), <span class="bool-val">false</span>),
-        Value::U64(value) =&gt; ((value <span class="kw">as </span>u128).into(), <span class="bool-val">false</span>),
+        Value::U1(value) =&gt; (u128::from(value).into(), <span class="bool-val">false</span>),
+        Value::U8(value) =&gt; (u128::from(value).into(), <span class="bool-val">false</span>),
+        Value::U16(value) =&gt; (u128::from(value).into(), <span class="bool-val">false</span>),
+        Value::U32(value) =&gt; (u128::from(value).into(), <span class="bool-val">false</span>),
+        Value::U64(value) =&gt; (u128::from(value).into(), <span class="bool-val">false</span>),
         Value::U128(value) =&gt; (value.into(), <span class="bool-val">false</span>),
         <span class="comment">// `is_negative` is only used for conversions to Field in which case
         // these should always be positive so that `-1 as i8 as Field == 255`
-        </span>Value::I8(value) =&gt; (FieldElement::from(value <span class="kw">as </span>u8 <span class="kw">as </span>i128), <span class="bool-val">false</span>),
-        Value::I16(value) =&gt; (FieldElement::from(value <span class="kw">as </span>u16 <span class="kw">as </span>i128), <span class="bool-val">false</span>),
-        Value::I32(value) =&gt; (FieldElement::from(value <span class="kw">as </span>u32 <span class="kw">as </span>i128), <span class="bool-val">false</span>),
-        Value::I64(value) =&gt; (FieldElement::from(value <span class="kw">as </span>u64 <span class="kw">as </span>i128), <span class="bool-val">false</span>),
+        </span>Value::I8(value) =&gt; (FieldElement::from(i128::from(value <span class="kw">as </span>u8)), <span class="bool-val">false</span>),
+        Value::I16(value) =&gt; (FieldElement::from(i128::from(value <span class="kw">as </span>u16)), <span class="bool-val">false</span>),
+        Value::I32(value) =&gt; (FieldElement::from(i128::from(value <span class="kw">as </span>u32)), <span class="bool-val">false</span>),
+        Value::I64(value) =&gt; (FieldElement::from(i128::from(value <span class="kw">as </span>u64)), <span class="bool-val">false</span>),
         Value::Bool(value) =&gt; (FieldElement::from(value), <span class="bool-val">false</span>),
         value =&gt; {
             <span class="kw">let </span>typ = value.get_type().into_owned();

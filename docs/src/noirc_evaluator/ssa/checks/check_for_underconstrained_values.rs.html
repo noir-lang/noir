@@ -1447,11 +1447,7 @@
 <a href="#1446" id="1446">1446</a>
 <a href="#1447" id="1447">1447</a>
 <a href="#1448" id="1448">1448</a>
-<a href="#1449" id="1449">1449</a>
-<a href="#1450" id="1450">1450</a>
-<a href="#1451" id="1451">1451</a>
-<a href="#1452" id="1452">1452</a>
-<a href="#1453" id="1453">1453</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines security SSA passes detecting constraint problems leading to possible
+<a href="#1449" id="1449">1449</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines security SSA passes detecting constraint problems leading to possible
 //! soundness vulnerabilities.
 //! The compiler informs the developer of these as bugs.
 </span><span class="kw">use </span><span class="kw">crate</span>::errors::{InternalBug, SsaReport};
@@ -1461,6 +1457,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::instruction::{Hint, Instruction, InstructionId, Intrinsic};
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::value::{Value, ValueId};
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ssa_gen::Ssa;
+<span class="kw">use </span><span class="kw">crate</span>::ssa::visit_once_deque::VisitOnceDeque;
 <span class="kw">use </span>im::HashMap;
 <span class="kw">use </span>noirc_errors::Location;
 <span class="kw">use </span>rayon::prelude::<span class="kw-2">*</span>;
@@ -1974,7 +1971,7 @@
                     <span class="comment">// For array get operations, we check the Brillig calls for
                     // results involving the array in question, to properly
                     // populate the array element tainted sets
-                    </span>Instruction::ArrayGet { array, index, offset: <span class="kw">_ </span>} =&gt; {
+                    </span>Instruction::ArrayGet { array, index } =&gt; {
                         <span class="self">self</span>.process_array_get(<span class="kw-2">*</span>array, <span class="kw-2">*</span>index, <span class="kw-2">&amp;</span>results, function);
                         <span class="comment">// Record all the used arguments as parents of the results
                         </span><span class="self">self</span>.update_children(<span class="kw-2">&amp;</span>arguments, <span class="kw-2">&amp;</span>results);
@@ -2103,8 +2100,7 @@
 
 <span class="attr">#[derive(Default)]
 </span><span class="kw">struct </span>Context {
-    visited_blocks: HashSet&lt;BasicBlockId&gt;,
-    block_queue: Vec&lt;BasicBlockId&gt;,
+    block_queue: VisitOnceDeque,
     value_sets: Vec&lt;BTreeSet&lt;ValueId&gt;&gt;,
     brillig_return_to_argument: HashMap&lt;ValueId, Vec&lt;ValueId&gt;&gt;,
     brillig_return_to_instruction_id: HashMap&lt;ValueId, InstructionId&gt;,
@@ -2120,12 +2116,8 @@
         all_functions: <span class="kw-2">&amp;</span>BTreeMap&lt;FunctionId, Function&gt;,
     ) {
         <span class="comment">// Go through each block in the function and create a list of sets of ValueIds connected by instructions
-        </span><span class="self">self</span>.block_queue.push(function.entry_block());
-        <span class="kw">while let </span><span class="prelude-val">Some</span>(block) = <span class="self">self</span>.block_queue.pop() {
-            <span class="kw">if </span><span class="self">self</span>.visited_blocks.contains(<span class="kw-2">&amp;</span>block) {
-                <span class="kw">continue</span>;
-            }
-            <span class="self">self</span>.visited_blocks.insert(block);
+        </span><span class="self">self</span>.block_queue.push_back(function.entry_block());
+        <span class="kw">while let </span><span class="prelude-val">Some</span>(block) = <span class="self">self</span>.block_queue.pop_back() {
             <span class="self">self</span>.connect_value_ids_in_block(function, block, all_functions);
         }
         <span class="comment">// Merge ValueIds into sets, where each original small set of ValueIds is merged with another set if they intersect

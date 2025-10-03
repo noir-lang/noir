@@ -635,29 +635,7 @@
 <a href="#634" id="634">634</a>
 <a href="#635" id="635">635</a>
 <a href="#636" id="636">636</a>
-<a href="#637" id="637">637</a>
-<a href="#638" id="638">638</a>
-<a href="#639" id="639">639</a>
-<a href="#640" id="640">640</a>
-<a href="#641" id="641">641</a>
-<a href="#642" id="642">642</a>
-<a href="#643" id="643">643</a>
-<a href="#644" id="644">644</a>
-<a href="#645" id="645">645</a>
-<a href="#646" id="646">646</a>
-<a href="#647" id="647">647</a>
-<a href="#648" id="648">648</a>
-<a href="#649" id="649">649</a>
-<a href="#650" id="650">650</a>
-<a href="#651" id="651">651</a>
-<a href="#652" id="652">652</a>
-<a href="#653" id="653">653</a>
-<a href="#654" id="654">654</a>
-<a href="#655" id="655">655</a>
-<a href="#656" id="656">656</a>
-<a href="#657" id="657">657</a>
-<a href="#658" id="658">658</a>
-<a href="#659" id="659">659</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::AcirField;
+<a href="#637" id="637">637</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::AcirField;
 <span class="kw">use </span>acvm_blackbox_solver::BlackBoxResolutionError;
 <span class="kw">use </span>lazy_static::lazy_static;
 
@@ -665,10 +643,9 @@
 
 <span class="kw">pub fn </span>poseidon2_permutation(
     inputs: <span class="kw-2">&amp;</span>[FieldElement],
-    len: u32,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;FieldElement&gt;, BlackBoxResolutionError&gt; {
     <span class="kw">let </span>poseidon = Poseidon2::new();
-    poseidon.permutation(inputs, len)
+    poseidon.permutation(inputs)
 }
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>Poseidon2&lt;<span class="lifetime">'a</span>&gt; {
@@ -1150,22 +1127,11 @@
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>permutation(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         inputs: <span class="kw-2">&amp;</span>[FieldElement],
-        len: u32,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;FieldElement&gt;, BlackBoxResolutionError&gt; {
-        <span class="kw">if </span>len <span class="kw">as </span>usize != inputs.len() {
+        <span class="kw">if </span>inputs.len() != <span class="self">self</span>.config.t <span class="kw">as </span>usize {
             <span class="kw">return </span><span class="prelude-val">Err</span>(BlackBoxResolutionError::Failed(
                 acir::BlackBoxFunc::Poseidon2Permutation,
-                <span class="macro">format!</span>(
-                    <span class="string">"the number of inputs does not match specified length. {} &gt; {}"</span>,
-                    inputs.len(),
-                    len
-                ),
-            ));
-        }
-        <span class="kw">if </span>len != <span class="self">self</span>.config.t {
-            <span class="kw">return </span><span class="prelude-val">Err</span>(BlackBoxResolutionError::Failed(
-                acir::BlackBoxFunc::Poseidon2Permutation,
-                <span class="macro">format!</span>(<span class="string">"Expected {} values but encountered {}"</span>, <span class="self">self</span>.config.t, len),
+                <span class="macro">format!</span>(<span class="string">"Expected {} values but encountered {}"</span>, <span class="self">self</span>.config.t, inputs.len()),
             ));
         }
         <span class="comment">// Read witness assignments
@@ -1202,23 +1168,13 @@
     }
 }
 
-<span class="doccomment">/// Performs a poseidon hash with a sponge construction equivalent to the one in poseidon2.nr
-///
-/// The `is_variable_length` parameter is there to so we can produce an equivalent hash with
-/// the Barretenberg implementation which distinguishes between variable and fixed length inputs.
-/// Set it to true if the input length matches the static size expected by the Noir function.
-</span><span class="kw">pub fn </span>poseidon_hash(
-    inputs: <span class="kw-2">&amp;</span>[FieldElement],
-    is_variable_length: bool,
-) -&gt; <span class="prelude-ty">Result</span>&lt;FieldElement, BlackBoxResolutionError&gt; {
+<span class="doccomment">/// Performs a poseidon hash with a sponge construction equivalent to the one in the Barretenberg proving system
+</span><span class="kw">pub fn </span>poseidon_hash(inputs: <span class="kw-2">&amp;</span>[FieldElement]) -&gt; <span class="prelude-ty">Result</span>&lt;FieldElement, BlackBoxResolutionError&gt; {
     <span class="kw">let </span>two_pow_64 = <span class="number">18446744073709551616_u128</span>.into();
     <span class="kw">let </span>iv = FieldElement::from(inputs.len()) * two_pow_64;
     <span class="kw">let </span><span class="kw-2">mut </span>sponge = Poseidon2Sponge::new(iv, <span class="number">3</span>);
     <span class="kw">for </span>input <span class="kw">in </span>inputs.iter() {
         sponge.absorb(<span class="kw-2">*</span>input)<span class="question-mark">?</span>;
-    }
-    <span class="kw">if </span>is_variable_length {
-        sponge.absorb(FieldElement::from(<span class="number">1u32</span>))<span class="question-mark">?</span>;
     }
     sponge.squeeze()
 }
@@ -1253,7 +1209,7 @@
         </span><span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..<span class="self">self</span>.rate {
             <span class="self">self</span>.state[i] += <span class="self">self</span>.cache[i];
         }
-        <span class="self">self</span>.state = <span class="self">self</span>.poseidon.permutation(<span class="kw-2">&amp;</span><span class="self">self</span>.state, <span class="number">4</span>)<span class="question-mark">?</span>;
+        <span class="self">self</span>.state = <span class="self">self</span>.poseidon.permutation(<span class="kw-2">&amp;</span><span class="self">self</span>.state)<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(())
     }
 
@@ -1290,7 +1246,7 @@
     <span class="attr">#[test]
     </span><span class="kw">fn </span>smoke_test() {
         <span class="kw">let </span>inputs = [FieldElement::zero(); <span class="number">4</span>];
-        <span class="kw">let </span>result = poseidon2_permutation(<span class="kw-2">&amp;</span>inputs, <span class="number">4</span>).expect(<span class="string">"should successfully permute"</span>);
+        <span class="kw">let </span>result = poseidon2_permutation(<span class="kw-2">&amp;</span>inputs).expect(<span class="string">"should successfully permute"</span>);
 
         <span class="kw">let </span>expected_result = [
             field_from_hex(<span class="string">"18DFB8DC9B82229CFF974EFEFC8DF78B1CE96D9D844236B496785C698BC6732E"</span>),
@@ -1309,7 +1265,7 @@
             FieldElement::from(<span class="number">3u128</span>),
             FieldElement::from(<span class="number">4u128</span>),
         ];
-        <span class="kw">let </span>result = <span class="kw">super</span>::poseidon_hash(<span class="kw-2">&amp;</span>fields, <span class="bool-val">false</span>).expect(<span class="string">"should hash successfully"</span>);
+        <span class="kw">let </span>result = <span class="kw">super</span>::poseidon_hash(<span class="kw-2">&amp;</span>fields).expect(<span class="string">"should hash successfully"</span>);
         <span class="macro">assert_eq!</span>(
             result,
             field_from_hex(<span class="string">"130bf204a32cac1f0ace56c78b731aa3809f06df2731ebcf6b3464a15788b1b9"</span>),

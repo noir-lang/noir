@@ -870,7 +870,9 @@
 <a href="#869" id="869">869</a>
 <a href="#870" id="870">870</a>
 <a href="#871" id="871">871</a>
-<a href="#872" id="872">872</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::io::Write;
+<a href="#872" id="872">872</a>
+<a href="#873" id="873">873</a>
+<a href="#874" id="874">874</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::io::Write;
 
 <span class="kw">use </span>acvm::{AcirField, BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
 <span class="kw">use </span>bn254_blackbox_solver::derive_generators;
@@ -998,7 +1000,7 @@
                     <span class="kw">let </span>result =
                         acvm::blackbox_solver::aes128_encrypt(<span class="kw-2">&amp;</span>inputs, iv_array, key_array)
                             .map_err(<span class="self">Self</span>::convert_error)<span class="question-mark">?</span>;
-                    <span class="kw">let </span>result = result.iter().map(|v| (<span class="kw-2">*</span>v <span class="kw">as </span>u128).into());
+                    <span class="kw">let </span>result = result.iter().map(|v| u128::from(<span class="kw-2">*</span>v).into());
                     <span class="kw">let </span>result = Value::array_from_iter(result, NumericType::unsigned(<span class="number">8</span>))<span class="question-mark">?</span>;
                     <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[result])
                 }
@@ -1022,7 +1024,7 @@
                     <span class="kw">let </span>inputs = <span class="self">self</span>.lookup_bytes(args[<span class="number">0</span>], <span class="string">"call Blake2s BlackBox"</span>)<span class="question-mark">?</span>;
                     <span class="kw">let </span>result =
                         acvm::blackbox_solver::blake2s(<span class="kw-2">&amp;</span>inputs).map_err(<span class="self">Self</span>::convert_error)<span class="question-mark">?</span>;
-                    <span class="kw">let </span>result = result.iter().map(|e| (<span class="kw-2">*</span>e <span class="kw">as </span>u128).into());
+                    <span class="kw">let </span>result = result.iter().map(|e| u128::from(<span class="kw-2">*</span>e).into());
                     <span class="kw">let </span>result = Value::array_from_iter(result, NumericType::unsigned(<span class="number">8</span>))<span class="question-mark">?</span>;
                     <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[result])
                 }
@@ -1031,16 +1033,17 @@
                     <span class="kw">let </span>inputs = <span class="self">self</span>.lookup_bytes(args[<span class="number">0</span>], <span class="string">"call Blake3 BlackBox"</span>)<span class="question-mark">?</span>;
                     <span class="kw">let </span>results =
                         acvm::blackbox_solver::blake3(<span class="kw-2">&amp;</span>inputs).map_err(<span class="self">Self</span>::convert_error)<span class="question-mark">?</span>;
-                    <span class="kw">let </span>results = results.iter().map(|e| (<span class="kw-2">*</span>e <span class="kw">as </span>u128).into());
+                    <span class="kw">let </span>results = results.iter().map(|e| u128::from(<span class="kw-2">*</span>e).into());
                     <span class="kw">let </span>results = Value::array_from_iter(results, NumericType::unsigned(<span class="number">8</span>))<span class="question-mark">?</span>;
                     <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[results])
                 }
                 acvm::acir::BlackBoxFunc::EcdsaSecp256k1 =&gt; {
-                    check_argument_count(args, <span class="number">4</span>, intrinsic)<span class="question-mark">?</span>;
+                    check_argument_count(args, <span class="number">5</span>, intrinsic)<span class="question-mark">?</span>;
                     <span class="kw">let </span>x = <span class="self">self</span>.lookup_bytes(args[<span class="number">0</span>], <span class="string">"call EcdsaSecp256k1 BlackBox"</span>)<span class="question-mark">?</span>;
                     <span class="kw">let </span>y = <span class="self">self</span>.lookup_bytes(args[<span class="number">1</span>], <span class="string">"call EcdsaSecp256k1 BlackBox"</span>)<span class="question-mark">?</span>;
                     <span class="kw">let </span>s = <span class="self">self</span>.lookup_bytes(args[<span class="number">2</span>], <span class="string">"call EcdsaSecp256k1 BlackBox"</span>)<span class="question-mark">?</span>;
                     <span class="kw">let </span>m = <span class="self">self</span>.lookup_bytes(args[<span class="number">3</span>], <span class="string">"call EcdsaSecp256k1 BlackBox"</span>)<span class="question-mark">?</span>;
+                    <span class="kw">let </span>predicate = <span class="self">self</span>.lookup_bool(args[<span class="number">4</span>], <span class="string">"call EcdsaSecp256k1 BlackBox"</span>)<span class="question-mark">?</span>;
                     <span class="kw">let </span>x_len = x.len();
                     <span class="kw">let </span>x_array: <span class="kw-2">&amp;</span>[u8; <span class="number">32</span>] = <span class="kw-2">&amp;</span>x.try_into().map_err(|<span class="kw">_</span>| {
                         InterpreterError::Internal(InternalError::InvalidInputSize {
@@ -1062,21 +1065,24 @@
                             size: s_len,
                         })
                     })<span class="question-mark">?</span>;
-                    <span class="kw">let </span>result = acvm::blackbox_solver::ecdsa_secp256k1_verify(
-                        <span class="kw-2">&amp;</span>m, x_array, y_array, s_array,
-                    )
-                    .map_err(<span class="self">Self</span>::convert_error)<span class="question-mark">?</span>;
+                    <span class="kw">let </span>result = <span class="kw">if </span>predicate {
+                        acvm::blackbox_solver::ecdsa_secp256k1_verify(<span class="kw-2">&amp;</span>m, x_array, y_array, s_array)
+                            .map_err(<span class="self">Self</span>::convert_error)<span class="question-mark">?
+                    </span>} <span class="kw">else </span>{
+                        <span class="bool-val">true
+                    </span>};
                     <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[Value::from_constant(
                         result.into(),
                         NumericType::Unsigned { bit_size: <span class="number">1 </span>},
                     )<span class="question-mark">?</span>])
                 }
                 acvm::acir::BlackBoxFunc::EcdsaSecp256r1 =&gt; {
-                    check_argument_count(args, <span class="number">4</span>, intrinsic)<span class="question-mark">?</span>;
+                    check_argument_count(args, <span class="number">5</span>, intrinsic)<span class="question-mark">?</span>;
                     <span class="kw">let </span>x = <span class="self">self</span>.lookup_bytes(args[<span class="number">0</span>], <span class="string">"call EcdsaSecp256r1 BlackBox"</span>)<span class="question-mark">?</span>;
                     <span class="kw">let </span>y = <span class="self">self</span>.lookup_bytes(args[<span class="number">1</span>], <span class="string">"call EcdsaSecp256r1 BlackBox"</span>)<span class="question-mark">?</span>;
                     <span class="kw">let </span>s = <span class="self">self</span>.lookup_bytes(args[<span class="number">2</span>], <span class="string">"call EcdsaSecp256r1 BlackBox"</span>)<span class="question-mark">?</span>;
                     <span class="kw">let </span>m = <span class="self">self</span>.lookup_bytes(args[<span class="number">3</span>], <span class="string">"call EcdsaSecp256r1 BlackBox"</span>)<span class="question-mark">?</span>;
+                    <span class="kw">let </span>predicate = <span class="self">self</span>.lookup_bool(args[<span class="number">4</span>], <span class="string">"call EcdsaSecp256r1 BlackBox"</span>)<span class="question-mark">?</span>;
                     <span class="kw">let </span>x_len = x.len();
                     <span class="kw">let </span>x_array: <span class="kw-2">&amp;</span>[u8; <span class="number">32</span>] = <span class="kw-2">&amp;</span>x.try_into().map_err(|<span class="kw">_</span>| {
                         InterpreterError::Internal(InternalError::InvalidInputSize {
@@ -1098,30 +1104,33 @@
                             size: s_len,
                         })
                     })<span class="question-mark">?</span>;
-                    <span class="kw">let </span>result = acvm::blackbox_solver::ecdsa_secp256r1_verify(
-                        <span class="kw-2">&amp;</span>m, x_array, y_array, s_array,
-                    )
-                    .map_err(<span class="self">Self</span>::convert_error)<span class="question-mark">?</span>;
+
+                    <span class="kw">let </span>result = <span class="kw">if </span>predicate {
+                        acvm::blackbox_solver::ecdsa_secp256r1_verify(<span class="kw-2">&amp;</span>m, x_array, y_array, s_array)
+                            .map_err(<span class="self">Self</span>::convert_error)<span class="question-mark">?
+                    </span>} <span class="kw">else </span>{
+                        <span class="bool-val">true
+                    </span>};
                     <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[Value::from_constant(
                         result.into(),
                         NumericType::Unsigned { bit_size: <span class="number">1 </span>},
                     )<span class="question-mark">?</span>])
                 }
                 acvm::acir::BlackBoxFunc::MultiScalarMul =&gt; {
-                    check_argument_count(args, <span class="number">2</span>, intrinsic)<span class="question-mark">?</span>;
+                    check_argument_count(args, <span class="number">3</span>, intrinsic)<span class="question-mark">?</span>;
                     <span class="kw">let </span>input_points =
                         <span class="self">self</span>.lookup_array_or_slice(args[<span class="number">0</span>], <span class="string">"call to MultiScalarMul blackbox"</span>)<span class="question-mark">?</span>;
                     <span class="kw">let </span><span class="kw-2">mut </span>points = Vec::new();
                     <span class="kw">for </span>(i, v) <span class="kw">in </span>input_points.elements.borrow().iter().enumerate() {
                         <span class="kw">if </span>i % <span class="number">3 </span>== <span class="number">2 </span>{
-                            points.push((v.as_bool().ok_or(
+                            points.push(u128::from(v.as_bool().ok_or(
                                 InterpreterError::Internal(InternalError::TypeError {
                                     value_id: args[<span class="number">0</span>],
                                     value: v.to_string(),
                                     expected_type: <span class="string">"bool"</span>,
                                     instruction: <span class="string">"retrieving is_infinite in call to MultiScalarMul blackbox"</span>,
                                 })
-                            )<span class="question-mark">? </span><span class="kw">as </span>u128).into());
+                            )<span class="question-mark">?</span>).into());
                         } <span class="kw">else </span>{
                             points.push(
                             v.as_field().ok_or(
@@ -1177,7 +1186,7 @@
                     })<span class="question-mark">?</span>;
                     <span class="kw">let </span>results = acvm::blackbox_solver::keccakf1600(inputs_array)
                         .map_err(<span class="self">Self</span>::convert_error)<span class="question-mark">?</span>;
-                    <span class="kw">let </span>results = results.iter().map(|e| (<span class="kw-2">*</span>e <span class="kw">as </span>u128).into());
+                    <span class="kw">let </span>results = results.iter().map(|e| u128::from(<span class="kw-2">*</span>e).into());
                     <span class="kw">let </span>results =
                         Value::array_from_iter(results, NumericType::Unsigned { bit_size: <span class="number">64 </span>})<span class="question-mark">?</span>;
                     <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[results])
@@ -1188,7 +1197,7 @@
                     </span><span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[])
                 }
                 acvm::acir::BlackBoxFunc::EmbeddedCurveAdd =&gt; {
-                    check_argument_count(args, <span class="number">6</span>, intrinsic)<span class="question-mark">?</span>;
+                    check_argument_count(args, <span class="number">7</span>, intrinsic)<span class="question-mark">?</span>;
                     <span class="kw">let </span>solver = bn254_blackbox_solver::Bn254BlackBoxSolver(<span class="bool-val">false</span>);
                     <span class="kw">let </span>lhs = (
                         <span class="self">self</span>.lookup_field(args[<span class="number">0</span>], <span class="string">"call EmbeddedCurveAdd BlackBox"</span>)<span class="question-mark">?</span>,
@@ -1206,26 +1215,14 @@
                     <span class="kw">let </span>result = new_embedded_curve_point(x, y, is_infinite)<span class="question-mark">?</span>;
                     <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[result])
                 }
-                acvm::acir::BlackBoxFunc::BigIntAdd
-                | acvm::acir::BlackBoxFunc::BigIntSub
-                | acvm::acir::BlackBoxFunc::BigIntMul
-                | acvm::acir::BlackBoxFunc::BigIntDiv
-                | acvm::acir::BlackBoxFunc::BigIntFromLeBytes
-                | acvm::acir::BlackBoxFunc::BigIntToLeBytes =&gt; {
-                    <span class="prelude-val">Err</span>(InterpreterError::Internal(InternalError::UnexpectedInstruction {
-                        reason: <span class="string">"unused BigInt BlackBox function"</span>,
-                    }))
-                }
+
                 acvm::acir::BlackBoxFunc::Poseidon2Permutation =&gt; {
-                    check_argument_count(args, <span class="number">2</span>, intrinsic)<span class="question-mark">?</span>;
+                    check_argument_count(args, <span class="number">1</span>, intrinsic)<span class="question-mark">?</span>;
                     <span class="kw">let </span>inputs = <span class="self">self
                         </span>.lookup_vec_field(args[<span class="number">0</span>], <span class="string">"call Poseidon2Permutation BlackBox (inputs)"</span>)<span class="question-mark">?</span>;
-                    <span class="kw">let </span>length =
-                        <span class="self">self</span>.lookup_u32(args[<span class="number">1</span>], <span class="string">"call Poseidon2Permutation BlackBox (length)"</span>)<span class="question-mark">?</span>;
                     <span class="kw">let </span>solver = bn254_blackbox_solver::Bn254BlackBoxSolver(<span class="bool-val">false</span>);
-                    <span class="kw">let </span>result = solver
-                        .poseidon2_permutation(<span class="kw-2">&amp;</span>inputs, length)
-                        .map_err(<span class="self">Self</span>::convert_error)<span class="question-mark">?</span>;
+                    <span class="kw">let </span>result =
+                        solver.poseidon2_permutation(<span class="kw-2">&amp;</span>inputs).map_err(<span class="self">Self</span>::convert_error)<span class="question-mark">?</span>;
                     <span class="kw">let </span>result = Value::array_from_iter(result, NumericType::NativeField)<span class="question-mark">?</span>;
                     <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[result])
                 }
@@ -1248,7 +1245,7 @@
                         })
                     })<span class="question-mark">?</span>;
                     acvm::blackbox_solver::sha256_compression(<span class="kw-2">&amp;mut </span>state, <span class="kw-2">&amp;</span>inputs);
-                    <span class="kw">let </span>result = state.iter().map(|e| (<span class="kw-2">*</span>e <span class="kw">as </span>u128).into());
+                    <span class="kw">let </span>result = state.iter().map(|e| u128::from(<span class="kw-2">*</span>e).into());
                     <span class="kw">let </span>result = Value::array_from_iter(result, NumericType::unsigned(<span class="number">32</span>))<span class="question-mark">?</span>;
                     <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[result])
                 }
@@ -1330,8 +1327,15 @@
                 <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[Value::bool(lhs &lt; rhs)])
             }
             Intrinsic::ArrayRefCount | Intrinsic::SliceRefCount =&gt; {
-                <span class="kw">let </span>array = <span class="self">self</span>.lookup_array_or_slice(args[<span class="number">0</span>], <span class="string">"array/slice ref count"</span>)<span class="question-mark">?</span>;
-                <span class="kw">let </span>rc = <span class="kw-2">*</span>array.rc.borrow();
+                <span class="comment">// `slice_refcount` receives `[length, array]` as input. `array_refcount` gets just `[array]`
+                </span><span class="kw">let </span>idx = <span class="kw">if </span><span class="macro">matches!</span>(intrinsic, Intrinsic::SliceRefCount) { <span class="number">1 </span>} <span class="kw">else </span>{ <span class="number">0 </span>};
+                <span class="kw">let </span>array = <span class="self">self</span>.lookup_array_or_slice(args[idx], <span class="string">"array/slice ref count"</span>)<span class="question-mark">?</span>;
+                <span class="kw">let </span><span class="kw-2">mut </span>rc = <span class="kw-2">*</span>array.rc.borrow();
+                <span class="comment">// ACIR always returns 0 for the refcounts, and we expect that IncRc and DecRc don't appear in constrained SSA.
+                // The interpreter starts with a default ref-count value of 1. If it did not change, treat it as zero to match ACIR.
+                </span><span class="kw">if </span>!<span class="self">self</span>.in_unconstrained_context() &amp;&amp; rc == <span class="number">1 </span>{
+                    rc = <span class="number">0</span>;
+                }
                 <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[Value::from_constant(rc.into(), NumericType::unsigned(<span class="number">32</span>))<span class="question-mark">?</span>])
             }
         }

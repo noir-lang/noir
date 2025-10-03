@@ -48,7 +48,7 @@
                 <span class="kw">let </span>call_stack =
                     compiled_program.debug[i].location_tree.get_call_stack(<span class="kw-2">*</span>call_stack);
                 CustomDiagnostic::from_message(
-                    <span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"Circuit \"{}\" is not solvable"</span>, compiled_program.names[i]),
+                    <span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"Circuit \"{}\" is not solvable"</span>, circuit.function_name),
                     call_stack[<span class="number">0</span>].file,
                 )
                 .with_call_stack(call_stack)
@@ -56,7 +56,7 @@
                 CustomDiagnostic::from_message(
                     <span class="kw-2">&amp;</span><span class="macro">format!</span>(
                         <span class="string">"Circuit \"{}\" is not solvable for opcode \"{}\""</span>,
-                        compiled_program.names[i], opcode
+                        circuit.function_name, opcode
                     ),
                     fm::FileId::dummy(),
                 )

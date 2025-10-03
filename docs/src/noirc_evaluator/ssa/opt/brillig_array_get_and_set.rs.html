@@ -280,7 +280,48 @@
 <a href="#279" id="279">279</a>
 <a href="#280" id="280">280</a>
 <a href="#281" id="281">281</a>
-<a href="#282" id="282">282</a></pre></div><pre class="rust"><code><span class="doccomment">//! This SSA pass adjusts constant indexes of array operations inside Brillig functions
+<a href="#282" id="282">282</a>
+<a href="#283" id="283">283</a>
+<a href="#284" id="284">284</a>
+<a href="#285" id="285">285</a>
+<a href="#286" id="286">286</a>
+<a href="#287" id="287">287</a>
+<a href="#288" id="288">288</a>
+<a href="#289" id="289">289</a>
+<a href="#290" id="290">290</a>
+<a href="#291" id="291">291</a>
+<a href="#292" id="292">292</a>
+<a href="#293" id="293">293</a>
+<a href="#294" id="294">294</a>
+<a href="#295" id="295">295</a>
+<a href="#296" id="296">296</a>
+<a href="#297" id="297">297</a>
+<a href="#298" id="298">298</a>
+<a href="#299" id="299">299</a>
+<a href="#300" id="300">300</a>
+<a href="#301" id="301">301</a>
+<a href="#302" id="302">302</a>
+<a href="#303" id="303">303</a>
+<a href="#304" id="304">304</a>
+<a href="#305" id="305">305</a>
+<a href="#306" id="306">306</a>
+<a href="#307" id="307">307</a>
+<a href="#308" id="308">308</a>
+<a href="#309" id="309">309</a>
+<a href="#310" id="310">310</a>
+<a href="#311" id="311">311</a>
+<a href="#312" id="312">312</a>
+<a href="#313" id="313">313</a>
+<a href="#314" id="314">314</a>
+<a href="#315" id="315">315</a>
+<a href="#316" id="316">316</a>
+<a href="#317" id="317">317</a>
+<a href="#318" id="318">318</a>
+<a href="#319" id="319">319</a>
+<a href="#320" id="320">320</a>
+<a href="#321" id="321">321</a>
+<a href="#322" id="322">322</a>
+<a href="#323" id="323">323</a></pre></div><pre class="rust"><code><span class="doccomment">//! This SSA pass adjusts constant indexes of array operations inside Brillig functions
 //! to avoid performing an extra binary operation.
 //!
 //! For example, if we have this SSA:
@@ -303,16 +344,16 @@
 //!   v1 = array_get v0, index u32 4 minus 1 -&gt; Field
 //! ```
 //!
-//! Now the index to retrieve is 4 and there's no need to offset it in Brillig,
-//! avoiding one addition.
 //! The "minus 1" part is just there so that readers can understand that the index
 //! was offset and that the actual element index is 3. On the Brillig side,
 //! array operations with constant indexes are always assumed to have already been
 //! shifted.
 //!
-//! In the case of slices, these are represented as Brillig vectors, where the items
-//! pointer instead starts at three rather than one.
-//! A Brillig vector is represented as [RC, Size, Capacity, ...items]. So for a slice
+//! Now the index to retrieve is 4 and there's no need to offset it in Brillig,
+//! avoiding one addition.
+//!
+//! In the case of slices, they are represented as Brillig vectors as [RC, Size, Capacity, ...items],
+//! thus the items pointer instead starts at three rather than one. So for a slice
 //! this pass will transform this:
 //!
 //! ```ssa
@@ -326,18 +367,22 @@
 //! b0(v0: [Field]):
 //!   v1 = array_get v0, index u32 6 minus 3 -&gt; Field
 //! ```
-</span><span class="kw">use </span>acvm::FieldElement;
+//!
+//! This pass must be the very last, just before generating ACIR and Brillig opcodes from the SSA.
+//! Shifting indexes can break some of the assumptions of earlier compiler operations, so this is
+//! done outside the normal SSA pipeline, as an internal step, and must be run only once.
+//!
+//! The main motivation behind this pass is to make it possible to reuse the same constants across
+//! Brillig opcodes without having to re-allocate another register for them every time they appear.
+//! For this to happen the constants need to be part of the DFG, where they can be hoisted and
+//! deduplicated across instructions. Doing this during Brillig codegen would be too late, as at
+//! that time we have a read-only DFG and we would be forced to generate more Brillig opcodes.
 
-<span class="kw">use crate</span>::{
+</span><span class="kw">use crate</span>::{
     brillig::brillig_ir::BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
     ssa::{
         Ssa,
-        ir::{
-            function::Function,
-            instruction::{ArrayOffset, Instruction},
-            types::{NumericType, Type},
-            value::ValueId,
-        },
+        ir::{function::Function, instruction::Instruction, types::NumericType, value::ValueId},
     },
 };
 
@@ -361,38 +406,30 @@
             <span class="kw">return</span>;
         }
 
+        <span class="macro">assert!</span>(!<span class="self">self</span>.dfg.brillig_arrays_offset, <span class="string">"Brillig arrays can be offset at most once!"</span>);
+        <span class="self">self</span>.dfg.brillig_arrays_offset = <span class="bool-val">true</span>;
+
         <span class="self">self</span>.simple_optimization(|context| {
             <span class="kw">let </span>instruction = context.instruction();
             <span class="kw">match </span>instruction {
-                Instruction::ArrayGet { array, index, offset } =&gt; {
-                    <span class="comment">// This pass should run at most once
-                    </span><span class="macro">assert!</span>(<span class="kw-2">*</span>offset == ArrayOffset::None);
-
+                Instruction::ArrayGet { array, index } =&gt; {
                     <span class="kw">let </span>array = <span class="kw-2">*</span>array;
                     <span class="kw">let </span>index = <span class="kw-2">*</span>index;
-                    <span class="kw">let </span><span class="prelude-val">Some</span>(constant_index) = context.dfg.get_numeric_constant(index) <span class="kw">else </span>{
+                    <span class="kw">let </span><span class="prelude-val">Some</span>(index) = compute_offset_index(context, array, index) <span class="kw">else </span>{
                         <span class="kw">return</span>;
                     };
-
-                    <span class="kw">let </span>(index, offset) = compute_index_and_offset(context, array, constant_index);
-                    <span class="kw">let </span>new_instruction = Instruction::ArrayGet { array, index, offset };
+                    <span class="kw">let </span>new_instruction = Instruction::ArrayGet { array, index };
                     context.replace_current_instruction_with(new_instruction);
                 }
-                Instruction::ArraySet { array, index, value, mutable, offset } =&gt; {
-                    <span class="comment">// This pass should run at most once
-                    </span><span class="macro">assert!</span>(<span class="kw-2">*</span>offset == ArrayOffset::None);
-
+                Instruction::ArraySet { array, index, value, mutable } =&gt; {
                     <span class="kw">let </span>array = <span class="kw-2">*</span>array;
                     <span class="kw">let </span>index = <span class="kw-2">*</span>index;
                     <span class="kw">let </span>value = <span class="kw-2">*</span>value;
                     <span class="kw">let </span>mutable = <span class="kw-2">*</span>mutable;
-                    <span class="kw">let </span><span class="prelude-val">Some</span>(constant_index) = context.dfg.get_numeric_constant(index) <span class="kw">else </span>{
+                    <span class="kw">let </span><span class="prelude-val">Some</span>(index) = compute_offset_index(context, array, index) <span class="kw">else </span>{
                         <span class="kw">return</span>;
                     };
-
-                    <span class="kw">let </span>(index, offset) = compute_index_and_offset(context, array, constant_index);
-                    <span class="kw">let </span>new_instruction =
-                        Instruction::ArraySet { array, index, value, mutable, offset };
+                    <span class="kw">let </span>new_instruction = Instruction::ArraySet { array, index, value, mutable };
                     context.replace_current_instruction_with(new_instruction);
                 }
                 <span class="kw">_ </span>=&gt; (),
@@ -401,23 +438,19 @@
     }
 }
 
-<span class="doccomment">/// Given an array or slice value and a constant index, returns an offset (shifted) index
-/// together with which type of [`ArrayOffset`] was used to shift it.
-</span><span class="kw">fn </span>compute_index_and_offset(
+<span class="doccomment">/// Given an array or slice value and a constant index, returns an offset (shifted) index.
+</span><span class="kw">fn </span>compute_offset_index(
     context: <span class="kw-2">&amp;mut </span>SimpleOptimizationContext,
     array_or_slice: ValueId,
-    constant_index: FieldElement,
-) -&gt; (ValueId, ArrayOffset) {
-    <span class="kw">let </span>offset = <span class="kw">if </span><span class="macro">matches!</span>(context.dfg.type_of_value(array_or_slice), Type::Array(..)) {
-        ArrayOffset::Array
-    } <span class="kw">else </span>{
-        ArrayOffset::Slice
-    };
+    index: ValueId,
+) -&gt; <span class="prelude-ty">Option</span>&lt;ValueId&gt; {
+    <span class="kw">let </span>constant_index = context.dfg.get_numeric_constant(index)<span class="question-mark">?</span>;
+    <span class="kw">let </span>offset = context.dfg.array_offset(array_or_slice, index);
     <span class="kw">let </span>index = context.dfg.make_constant(
         constant_index + offset.to_u32().into(),
         NumericType::unsigned(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
     );
-    (index, offset)
+    <span class="prelude-val">Some</span>(index)
 }
 
 <span class="attr">#[cfg(test)]
@@ -560,6 +593,55 @@
         }
         "</span>;
         assert_ssa_does_not_change(src, Ssa::brillig_array_get_and_set);
+    }
+
+    <span class="comment">// This test is here to demonstrate how trying to use the common machinery
+    // after this pass would lead to unexpected results.
+    </span><span class="attr">#[test]
+    </span><span class="kw">fn </span>is_safe_index_unexpected_after_pass() {
+        <span class="kw">let </span>src = <span class="string">"
+        brillig(inline) fn main f0 {
+          b0(v0: [Field; 1]):
+            v1 = array_get v0, index u32 0 -&gt; Field
+            return v1
+        }
+        "</span>;
+
+        <span class="kw">fn </span>has_side_effects(ssa: <span class="kw-2">&amp;</span>Ssa) -&gt; bool {
+            <span class="kw">let </span>func = ssa.main();
+            <span class="kw">let </span>b0 = <span class="kw-2">&amp;</span>func.dfg[func.entry_block()];
+            <span class="kw">let </span>instruction = <span class="kw-2">&amp;</span>func.dfg[b0.instructions()[<span class="number">0</span>]];
+            instruction.has_side_effects(<span class="kw-2">&amp;</span>func.dfg)
+        }
+
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+
+        <span class="macro">assert!</span>(
+            !has_side_effects(<span class="kw-2">&amp;</span>ssa),
+            <span class="string">"Indexing 1-element array with index 0 should be safe and have no side effects."
+        </span>);
+
+        <span class="kw">let </span>ssa = ssa.brillig_array_get_and_set();
+
+        <span class="macro">assert!</span>(
+            has_side_effects(<span class="kw-2">&amp;</span>ssa),
+            <span class="string">"It should have no side effects, but the index is now considered unsafe."
+        </span>);
+    }
+
+    <span class="attr">#[test]
+    #[should_panic(expected = <span class="string">"offset at most once"</span>)]
+    </span><span class="kw">fn </span>only_executes_once() {
+        <span class="kw">let </span>src = <span class="string">"
+        brillig(inline) fn main f0 {
+          b0(v0: [Field]):
+            v2 = array_get v0, index u32 3 minus 3 -&gt; Field
+            return v2
+        }
+        "</span>;
+
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        ssa.brillig_array_get_and_set();
     }
 }
 </code></pre></div></section></main></body></html>

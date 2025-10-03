@@ -129,7 +129,11 @@
 <a href="#128" id="128">128</a>
 <a href="#129" id="129">129</a>
 <a href="#130" id="130">130</a>
-<a href="#131" id="131">131</a></pre></div><pre class="rust"><code><span class="doccomment">//! This folder contains each optimization pass for the SSA IR.
+<a href="#131" id="131">131</a>
+<a href="#132" id="132">132</a>
+<a href="#133" id="133">133</a>
+<a href="#134" id="134">134</a>
+<a href="#135" id="135">135</a></pre></div><pre class="rust"><code><span class="doccomment">//! This folder contains each optimization pass for the SSA IR.
 //!
 //! Each pass is generally expected to mutate the SSA IR into a gradually
 //! simpler form until the IR only has a single function remaining with 1 block within it.
@@ -147,10 +151,11 @@
 <span class="kw">mod </span>die;
 <span class="kw">mod </span>evaluate_static_assert_and_assert_constant;
 <span class="kw">mod </span>expand_signed_checks;
+<span class="kw">mod </span>expand_signed_math;
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>flatten_cfg;
 <span class="kw">mod </span>hint;
 <span class="kw">mod </span>inline_simple_functions;
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>inlining;
+<span class="kw">mod </span>inlining;
 <span class="kw">mod </span>loop_invariant;
 <span class="kw">mod </span>make_constrain_not_equal;
 <span class="kw">mod </span>mem2reg;
@@ -167,6 +172,9 @@
 <span class="kw">mod </span>simple_optimization;
 <span class="kw">mod </span>simplify_cfg;
 <span class="kw">mod </span>unrolling;
+
+<span class="kw">pub use </span>constant_folding::DEFAULT_MAX_ITER <span class="kw">as </span>CONSTANT_FOLDING_MAX_ITER;
+<span class="kw">pub use </span>inlining::MAX_INSTRUCTIONS <span class="kw">as </span>INLINING_MAX_INSTRUCTIONS;
 
 <span class="doccomment">/// Asserts that the given SSA, after normalizing its IDs and printing it,
 /// is equal to the expected string. Normalization is done so the IDs don't

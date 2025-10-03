@@ -763,7 +763,25 @@
 <a href="#762" id="762">762</a>
 <a href="#763" id="763">763</a>
 <a href="#764" id="764">764</a>
-<a href="#765" id="765">765</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc, vec};
+<a href="#765" id="765">765</a>
+<a href="#766" id="766">766</a>
+<a href="#767" id="767">767</a>
+<a href="#768" id="768">768</a>
+<a href="#769" id="769">769</a>
+<a href="#770" id="770">770</a>
+<a href="#771" id="771">771</a>
+<a href="#772" id="772">772</a>
+<a href="#773" id="773">773</a>
+<a href="#774" id="774">774</a>
+<a href="#775" id="775">775</a>
+<a href="#776" id="776">776</a>
+<a href="#777" id="777">777</a>
+<a href="#778" id="778">778</a>
+<a href="#779" id="779">779</a>
+<a href="#780" id="780">780</a>
+<a href="#781" id="781">781</a>
+<a href="#782" id="782">782</a>
+<a href="#783" id="783">783</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc, vec};
 
 <span class="kw">use </span>im::Vector;
 <span class="kw">use </span>iter_extended::{try_vecmap, vecmap};
@@ -979,11 +997,11 @@
                 <span class="prelude-val">Some</span>(IntegerTypeSuffix::U1),
             )),
             Value::U8(value) =&gt; ExpressionKind::Literal(Literal::Integer(
-                SignedField::positive(value <span class="kw">as </span>u128),
+                SignedField::positive(u128::from(value)),
                 <span class="prelude-val">Some</span>(IntegerTypeSuffix::U8),
             )),
             Value::U16(value) =&gt; ExpressionKind::Literal(Literal::Integer(
-                SignedField::positive(value <span class="kw">as </span>u128),
+                SignedField::positive(u128::from(value)),
                 <span class="prelude-val">Some</span>(IntegerTypeSuffix::U16),
             )),
             Value::U32(value) =&gt; ExpressionKind::Literal(Literal::Integer(
@@ -1152,12 +1170,12 @@
             Value::U1(value) =&gt; {
                 HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value)))
             }
-            Value::U8(value) =&gt; {
-                HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value <span class="kw">as </span>u128)))
-            }
-            Value::U16(value) =&gt; {
-                HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value <span class="kw">as </span>u128)))
-            }
+            Value::U8(value) =&gt; HirExpression::Literal(HirLiteral::Integer(SignedField::positive(
+                u128::from(value),
+            ))),
+            Value::U16(value) =&gt; HirExpression::Literal(HirLiteral::Integer(
+                SignedField::positive(u128::from(value)),
+            )),
             Value::U32(value) =&gt; {
                 HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value)))
             }
@@ -1305,18 +1323,18 @@
             }
             Value::TypedExpr(TypedExpr::ExprId(expr_id)) =&gt; <span class="macro">vec!</span>[Token::UnquoteMarker(expr_id)],
             Value::Bool(bool) =&gt; <span class="macro">vec!</span>[Token::Bool(bool)],
-            Value::U1(bool) =&gt; <span class="macro">vec!</span>[Token::Int((bool <span class="kw">as </span>u128).into(), <span class="prelude-val">None</span>)],
+            Value::U1(bool) =&gt; <span class="macro">vec!</span>[Token::Int(u128::from(bool).into(), <span class="prelude-val">None</span>)],
             Value::U8(value) =&gt; {
-                <span class="macro">vec!</span>[Token::Int((value <span class="kw">as </span>u128).into(), <span class="prelude-val">None</span>)]
+                <span class="macro">vec!</span>[Token::Int(u128::from(value).into(), <span class="prelude-val">None</span>)]
             }
             Value::U16(value) =&gt; {
-                <span class="macro">vec!</span>[Token::Int((value <span class="kw">as </span>u128).into(), <span class="prelude-val">None</span>)]
+                <span class="macro">vec!</span>[Token::Int(u128::from(value).into(), <span class="prelude-val">None</span>)]
             }
             Value::U32(value) =&gt; {
-                <span class="macro">vec!</span>[Token::Int((value <span class="kw">as </span>u128).into(), <span class="prelude-val">None</span>)]
+                <span class="macro">vec!</span>[Token::Int(u128::from(value).into(), <span class="prelude-val">None</span>)]
             }
             Value::U64(value) =&gt; {
-                <span class="macro">vec!</span>[Token::Int((value <span class="kw">as </span>u128).into(), <span class="prelude-val">None</span>)]
+                <span class="macro">vec!</span>[Token::Int(u128::from(value).into(), <span class="prelude-val">None</span>)]
             }
             Value::U128(value) =&gt; <span class="macro">vec!</span>[Token::Int(value.into(), <span class="prelude-val">None</span>)],
             Value::I8(value) =&gt; {
@@ -1377,6 +1395,24 @@
                 | U64(<span class="kw">_</span>)
                 | U128(<span class="kw">_</span>)
         )
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_zero(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="kw">use </span>Value::<span class="kw-2">*</span>;
+        <span class="kw">match </span><span class="self">self </span>{
+            Field(value) =&gt; value.is_zero(),
+            I8(value) =&gt; <span class="kw-2">*</span>value == <span class="number">0</span>,
+            I16(value) =&gt; <span class="kw-2">*</span>value == <span class="number">0</span>,
+            I32(value) =&gt; <span class="kw-2">*</span>value == <span class="number">0</span>,
+            I64(value) =&gt; <span class="kw-2">*</span>value == <span class="number">0</span>,
+            U1(value) =&gt; !<span class="kw-2">*</span>value,
+            U8(value) =&gt; <span class="kw-2">*</span>value == <span class="number">0</span>,
+            U16(value) =&gt; <span class="kw-2">*</span>value == <span class="number">0</span>,
+            U32(value) =&gt; <span class="kw-2">*</span>value == <span class="number">0</span>,
+            U64(value) =&gt; <span class="kw-2">*</span>value == <span class="number">0</span>,
+            U128(value) =&gt; <span class="kw-2">*</span>value == <span class="number">0</span>,
+            <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
+        }
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>contains_function_or_closure(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
@@ -1441,10 +1477,10 @@
             <span class="self">Self</span>::I32(value) =&gt; (<span class="kw-2">*</span>value &gt;= <span class="number">0</span>).then_some((<span class="kw-2">*</span>value <span class="kw">as </span>u128).into()),
             <span class="self">Self</span>::I64(value) =&gt; (<span class="kw-2">*</span>value &gt;= <span class="number">0</span>).then_some((<span class="kw-2">*</span>value <span class="kw">as </span>u128).into()),
             <span class="self">Self</span>::U1(value) =&gt; <span class="prelude-val">Some</span>(<span class="kw">if </span><span class="kw-2">*</span>value { SignedField::one() } <span class="kw">else </span>{ SignedField::zero() }),
-            <span class="self">Self</span>::U8(value) =&gt; <span class="prelude-val">Some</span>((<span class="kw-2">*</span>value <span class="kw">as </span>u128).into()),
-            <span class="self">Self</span>::U16(value) =&gt; <span class="prelude-val">Some</span>((<span class="kw-2">*</span>value <span class="kw">as </span>u128).into()),
-            <span class="self">Self</span>::U32(value) =&gt; <span class="prelude-val">Some</span>((<span class="kw-2">*</span>value <span class="kw">as </span>u128).into()),
-            <span class="self">Self</span>::U64(value) =&gt; <span class="prelude-val">Some</span>((<span class="kw-2">*</span>value <span class="kw">as </span>u128).into()),
+            <span class="self">Self</span>::U8(value) =&gt; <span class="prelude-val">Some</span>(u128::from(<span class="kw-2">*</span>value).into()),
+            <span class="self">Self</span>::U16(value) =&gt; <span class="prelude-val">Some</span>(u128::from(<span class="kw-2">*</span>value).into()),
+            <span class="self">Self</span>::U32(value) =&gt; <span class="prelude-val">Some</span>(u128::from(<span class="kw-2">*</span>value).into()),
+            <span class="self">Self</span>::U64(value) =&gt; <span class="prelude-val">Some</span>(u128::from(<span class="kw-2">*</span>value).into()),
             <span class="self">Self</span>::U128(value) =&gt; <span class="prelude-val">Some</span>((<span class="kw-2">*</span>value).into()),
             <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
         }

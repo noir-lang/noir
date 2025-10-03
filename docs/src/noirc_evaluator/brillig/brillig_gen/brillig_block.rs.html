@@ -2291,7 +2291,24 @@
 <a href="#2290" id="2290">2290</a>
 <a href="#2291" id="2291">2291</a>
 <a href="#2292" id="2292">2292</a>
-<a href="#2293" id="2293">2293</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module containing Brillig-gen logic specific to an SSA function's basic blocks.
+<a href="#2293" id="2293">2293</a>
+<a href="#2294" id="2294">2294</a>
+<a href="#2295" id="2295">2295</a>
+<a href="#2296" id="2296">2296</a>
+<a href="#2297" id="2297">2297</a>
+<a href="#2298" id="2298">2298</a>
+<a href="#2299" id="2299">2299</a>
+<a href="#2300" id="2300">2300</a>
+<a href="#2301" id="2301">2301</a>
+<a href="#2302" id="2302">2302</a>
+<a href="#2303" id="2303">2303</a>
+<a href="#2304" id="2304">2304</a>
+<a href="#2305" id="2305">2305</a>
+<a href="#2306" id="2306">2306</a>
+<a href="#2307" id="2307">2307</a>
+<a href="#2308" id="2308">2308</a>
+<a href="#2309" id="2309">2309</a>
+<a href="#2310" id="2310">2310</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module containing Brillig-gen logic specific to an SSA function's basic blocks.
 </span><span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::artifact::Label;
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::brillig_variable::{
     BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable, type_to_heap_value_type,
@@ -2301,7 +2318,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::{
     BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, BrilligBinaryOp, BrilligContext, ReservedRegisters,
 };
-<span class="kw">use </span><span class="kw">crate</span>::ssa::ir::instruction::{ArrayOffset, ConstrainError, Hint};
+<span class="kw">use </span><span class="kw">crate</span>::ssa::ir::instruction::{ConstrainError, Hint};
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
     basic_block::BasicBlockId,
     dfg::DataFlowGraph,
@@ -2312,6 +2329,7 @@
     types::{NumericType, Type},
     value::{Value, ValueId},
 };
+<span class="kw">use </span>acvm::acir::BlackBoxFunc;
 <span class="kw">use </span>acvm::acir::brillig::{MemoryAddress, ValueOrArray};
 <span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
 <span class="kw">use </span>iter_extended::vecmap;
@@ -2631,10 +2649,11 @@
         );
         <span class="kw">match </span>instruction {
             Instruction::Binary(binary) =&gt; {
+                <span class="kw">let </span>[result_value] = dfg.instruction_result(instruction_id);
                 <span class="kw">let </span>result_var = <span class="self">self</span>.variables.define_single_addr_variable(
                     <span class="self">self</span>.function_context,
                     <span class="self">self</span>.brillig_context,
-                    dfg.instruction_results(instruction_id)[<span class="number">0</span>],
+                    result_value,
                     dfg,
                 );
                 <span class="self">self</span>.convert_ssa_binary(binary, dfg, result_var);
@@ -2703,7 +2722,7 @@
             }
 
             Instruction::Allocate =&gt; {
-                <span class="kw">let </span>result_value = dfg.instruction_results(instruction_id)[<span class="number">0</span>];
+                <span class="kw">let </span>[result_value] = dfg.instruction_result(instruction_id);
                 <span class="kw">let </span>pointer = <span class="self">self</span>.variables.define_single_addr_variable(
                     <span class="self">self</span>.function_context,
                     <span class="self">self</span>.brillig_context,
@@ -2720,10 +2739,12 @@
                     .store_instruction(address_var.address, source_variable.extract_register());
             }
             Instruction::Load { address } =&gt; {
+                <span class="kw">let </span>[result_value] = dfg.instruction_result(instruction_id);
+
                 <span class="kw">let </span>target_variable = <span class="self">self</span>.variables.define_variable(
                     <span class="self">self</span>.function_context,
                     <span class="self">self</span>.brillig_context,
-                    dfg.instruction_results(instruction_id)[<span class="number">0</span>],
+                    result_value,
                     dfg,
                 );
 
@@ -2733,11 +2754,12 @@
                     .load_instruction(target_variable.extract_register(), address_variable.address);
             }
             Instruction::Not(value) =&gt; {
+                <span class="kw">let </span>[result_value] = dfg.instruction_result(instruction_id);
                 <span class="kw">let </span>condition_register = <span class="self">self</span>.convert_ssa_single_addr_value(<span class="kw-2">*</span>value, dfg);
                 <span class="kw">let </span>result_register = <span class="self">self</span>.variables.define_single_addr_variable(
                     <span class="self">self</span>.function_context,
                     <span class="self">self</span>.brillig_context,
-                    dfg.instruction_results(instruction_id)[<span class="number">0</span>],
+                    result_value,
                     dfg,
                 );
                 <span class="self">self</span>.brillig_context.not_instruction(condition_register, result_register);
@@ -2830,10 +2852,11 @@
                     // can't automatically insert any missing cases
                     </span><span class="kw">match </span>intrinsic {
                         Intrinsic::ArrayLen =&gt; {
+                            <span class="kw">let </span>[result_value] = dfg.instruction_result(instruction_id);
                             <span class="kw">let </span>result_variable = <span class="self">self</span>.variables.define_single_addr_variable(
                                 <span class="self">self</span>.function_context,
                                 <span class="self">self</span>.brillig_context,
-                                dfg.instruction_results(instruction_id)[<span class="number">0</span>],
+                                result_value,
                                 dfg,
                             );
                             <span class="kw">let </span>param_id = arguments[<span class="number">0</span>];
@@ -2922,7 +2945,7 @@
                             );
                         }
                         Intrinsic::ToBits(endianness) =&gt; {
-                            <span class="kw">let </span>results = dfg.instruction_results(instruction_id);
+                            <span class="kw">let </span>[result] = dfg.instruction_result(instruction_id);
 
                             <span class="kw">let </span>source = <span class="self">self</span>.convert_ssa_single_addr_value(arguments[<span class="number">0</span>], dfg);
 
@@ -2931,7 +2954,7 @@
                                 .define_variable(
                                     <span class="self">self</span>.function_context,
                                     <span class="self">self</span>.brillig_context,
-                                    results[<span class="number">0</span>],
+                                    result,
                                     dfg,
                                 )
                                 .extract_array();
@@ -2952,7 +2975,7 @@
                         }
 
                         Intrinsic::ToRadix(endianness) =&gt; {
-                            <span class="kw">let </span>results = dfg.instruction_results(instruction_id);
+                            <span class="kw">let </span>[result] = dfg.instruction_result(instruction_id);
 
                             <span class="kw">let </span>source = <span class="self">self</span>.convert_ssa_single_addr_value(arguments[<span class="number">0</span>], dfg);
                             <span class="kw">let </span>radix = <span class="self">self</span>.convert_ssa_single_addr_value(arguments[<span class="number">1</span>], dfg);
@@ -2962,7 +2985,7 @@
                                 .define_variable(
                                     <span class="self">self</span>.function_context,
                                     <span class="self">self</span>.brillig_context,
-                                    results[<span class="number">0</span>],
+                                    result,
                                     dfg,
                                 )
                                 .extract_array();
@@ -3004,6 +3027,26 @@
                                 }
                             }
 
+                            <span class="kw">if </span><span class="macro">matches!</span>(
+                                bb_func,
+                                BlackBoxFunc::EcdsaSecp256k1
+                                    | BlackBoxFunc::EcdsaSecp256r1
+                                    | BlackBoxFunc::MultiScalarMul
+                                    | BlackBoxFunc::EmbeddedCurveAdd
+                            ) {
+                                <span class="comment">// Some black box functions have a predicate argument in SSA which we don't want to
+                                // use in the brillig VM. This is as we do not need to flatten the CFG in brillig
+                                // so we expect the predicate to always be true.
+                                </span><span class="kw">let </span>predicate = <span class="kw-2">&amp;</span>arguments_no_slice_len.pop().expect(
+                                    <span class="string">"ICE: ECDSA black box function must have a predicate argument"</span>,
+                                );
+                                <span class="macro">assert_eq!</span>(
+                                    dfg.get_numeric_constant_with_type(<span class="kw-2">*</span>predicate),
+                                    <span class="prelude-val">Some</span>((FieldElement::one(), NumericType::bool())),
+                                    <span class="string">"ICE: ECDSA black box function must have a predicate argument with value 1"
+                                </span>);
+                            }
+
                             <span class="kw">let </span>function_arguments = vecmap(<span class="kw-2">&amp;</span>arguments_no_slice_len, |arg| {
                                 <span class="self">self</span>.convert_ssa_value(<span class="kw-2">*</span>arg, dfg)
                             });
@@ -3027,13 +3070,13 @@
                             <span class="kw">let </span>rhs = <span class="self">self</span>.convert_ssa_single_addr_value(arguments[<span class="number">1</span>], dfg);
                             <span class="macro">assert!</span>(rhs.bit_size == FieldElement::max_num_bits());
 
-                            <span class="kw">let </span>results = dfg.instruction_results(instruction_id);
+                            <span class="kw">let </span>[result] = dfg.instruction_result(instruction_id);
                             <span class="kw">let </span>destination = <span class="self">self
                                 </span>.variables
                                 .define_variable(
                                     <span class="self">self</span>.function_context,
                                     <span class="self">self</span>.brillig_context,
-                                    results[<span class="number">0</span>],
+                                    result,
                                     dfg,
                                 )
                                 .extract_single_addr();
@@ -3048,7 +3091,7 @@
                         }
                         Intrinsic::ArrayRefCount =&gt; {
                             <span class="kw">let </span>array = <span class="self">self</span>.convert_ssa_value(arguments[<span class="number">0</span>], dfg);
-                            <span class="kw">let </span>result = dfg.instruction_results(instruction_id)[<span class="number">0</span>];
+                            <span class="kw">let </span>[result] = dfg.instruction_result(instruction_id);
 
                             <span class="kw">let </span>destination = <span class="self">self</span>.variables.define_variable(
                                 <span class="self">self</span>.function_context,
@@ -3062,7 +3105,7 @@
                         }
                         Intrinsic::SliceRefCount =&gt; {
                             <span class="kw">let </span>array = <span class="self">self</span>.convert_ssa_value(arguments[<span class="number">1</span>], dfg);
-                            <span class="kw">let </span>result = dfg.instruction_results(instruction_id)[<span class="number">0</span>];
+                            <span class="kw">let </span>[result] = dfg.instruction_result(instruction_id);
 
                             <span class="kw">let </span>destination = <span class="self">self</span>.variables.define_variable(
                                 <span class="self">self</span>.function_context,
@@ -3093,11 +3136,11 @@
                 }
             },
             Instruction::Truncate { value, bit_size, .. } =&gt; {
-                <span class="kw">let </span>result_ids = dfg.instruction_results(instruction_id);
+                <span class="kw">let </span>[result_id] = dfg.instruction_result(instruction_id);
                 <span class="kw">let </span>destination_register = <span class="self">self</span>.variables.define_single_addr_variable(
                     <span class="self">self</span>.function_context,
                     <span class="self">self</span>.brillig_context,
-                    result_ids[<span class="number">0</span>],
+                    result_id,
                     dfg,
                 );
                 <span class="kw">let </span>source_register = <span class="self">self</span>.convert_ssa_single_addr_value(<span class="kw-2">*</span>value, dfg);
@@ -3108,35 +3151,30 @@
                 );
             }
             Instruction::Cast(value, <span class="kw">_</span>) =&gt; {
-                <span class="kw">let </span>result_ids = dfg.instruction_results(instruction_id);
+                <span class="kw">let </span>[result_id] = dfg.instruction_result(instruction_id);
                 <span class="kw">let </span>destination_variable = <span class="self">self</span>.variables.define_single_addr_variable(
                     <span class="self">self</span>.function_context,
                     <span class="self">self</span>.brillig_context,
-                    result_ids[<span class="number">0</span>],
+                    result_id,
                     dfg,
                 );
                 <span class="kw">let </span>source_variable = <span class="self">self</span>.convert_ssa_single_addr_value(<span class="kw-2">*</span>value, dfg);
                 <span class="self">self</span>.convert_cast(destination_variable, source_variable);
             }
-            Instruction::ArrayGet { array, index, offset } =&gt; {
-                <span class="kw">let </span>result_ids = dfg.instruction_results(instruction_id);
+            Instruction::ArrayGet { array, index } =&gt; {
+                <span class="kw">let </span>[result_id] = dfg.instruction_result(instruction_id);
                 <span class="kw">let </span>destination_variable = <span class="self">self</span>.variables.define_variable(
                     <span class="self">self</span>.function_context,
                     <span class="self">self</span>.brillig_context,
-                    result_ids[<span class="number">0</span>],
+                    result_id,
                     dfg,
                 );
 
                 <span class="kw">let </span>array_variable = <span class="self">self</span>.convert_ssa_value(<span class="kw-2">*</span>array, dfg);
                 <span class="kw">let </span>index_variable = <span class="self">self</span>.convert_ssa_single_addr_value(<span class="kw-2">*</span>index, dfg);
 
-                <span class="kw">let </span>has_offset = <span class="kw">if </span>dfg.is_constant(<span class="kw-2">*</span>index) {
-                    <span class="comment">// For constant indices it must be the case that they have been offset during SSA
-                    </span><span class="macro">assert!</span>(<span class="kw-2">*</span>offset != ArrayOffset::None);
-                    <span class="bool-val">true
-                </span>} <span class="kw">else </span>{
-                    <span class="bool-val">false
-                </span>};
+                <span class="comment">// Constants are assumed to have been offset just before Brillig gen.
+                </span><span class="kw">let </span>has_offset = dfg.is_constant(<span class="kw-2">*</span>index);
 
                 <span class="self">self</span>.convert_ssa_array_get(
                     array_variable,
@@ -3145,7 +3183,7 @@
                     has_offset,
                 );
             }
-            Instruction::ArraySet { array, index, value, mutable, offset } =&gt; {
+            Instruction::ArraySet { array, index, value, mutable } =&gt; {
                 <span class="kw">let </span>source_variable = <span class="self">self</span>.convert_ssa_value(<span class="kw-2">*</span>array, dfg);
                 <span class="kw">let </span>index_register = <span class="self">self</span>.convert_ssa_single_addr_value(<span class="kw-2">*</span>index, dfg);
                 <span class="kw">let </span>value_variable = <span class="self">self</span>.convert_ssa_value(<span class="kw-2">*</span>value, dfg);
@@ -3158,13 +3196,8 @@
                     dfg,
                 );
 
-                <span class="kw">let </span>has_offset = <span class="kw">if </span>dfg.is_constant(<span class="kw-2">*</span>index) {
-                    <span class="comment">// For constant indices it must be the case that they have been offset during SSA
-                    </span><span class="macro">assert!</span>(<span class="kw-2">*</span>offset != ArrayOffset::None);
-                    <span class="bool-val">true
-                </span>} <span class="kw">else </span>{
-                    <span class="bool-val">false
-                </span>};
+                <span class="comment">// Constants are assumed to have been offset just before Brillig gen.
+                </span><span class="kw">let </span>has_offset = dfg.is_constant(<span class="kw-2">*</span>index);
 
                 <span class="self">self</span>.convert_ssa_array_set(
                     source_variable,
@@ -3260,10 +3293,11 @@
                 <span class="kw">let </span>then_condition = <span class="self">self</span>.convert_ssa_single_addr_value(<span class="kw-2">*</span>then_condition, dfg);
                 <span class="kw">let </span>then_value = <span class="self">self</span>.convert_ssa_value(<span class="kw-2">*</span>then_value, dfg);
                 <span class="kw">let </span>else_value = <span class="self">self</span>.convert_ssa_value(<span class="kw-2">*</span>else_value, dfg);
+                <span class="kw">let </span>[result_value] = dfg.instruction_result(instruction_id);
                 <span class="kw">let </span>result = <span class="self">self</span>.variables.define_variable(
                     <span class="self">self</span>.function_context,
                     <span class="self">self</span>.brillig_context,
-                    dfg.instruction_results(instruction_id)[<span class="number">0</span>],
+                    result_value,
                     dfg,
                 );
                 <span class="kw">match </span>(then_value, else_value) {

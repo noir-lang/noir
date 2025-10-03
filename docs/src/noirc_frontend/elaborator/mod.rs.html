@@ -2672,7 +2672,124 @@
 <a href="#2671" id="2671">2671</a>
 <a href="#2672" id="2672">2672</a>
 <a href="#2673" id="2673">2673</a>
-<a href="#2674" id="2674">2674</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#2674" id="2674">2674</a>
+<a href="#2675" id="2675">2675</a>
+<a href="#2676" id="2676">2676</a>
+<a href="#2677" id="2677">2677</a>
+<a href="#2678" id="2678">2678</a>
+<a href="#2679" id="2679">2679</a>
+<a href="#2680" id="2680">2680</a>
+<a href="#2681" id="2681">2681</a>
+<a href="#2682" id="2682">2682</a>
+<a href="#2683" id="2683">2683</a>
+<a href="#2684" id="2684">2684</a>
+<a href="#2685" id="2685">2685</a>
+<a href="#2686" id="2686">2686</a>
+<a href="#2687" id="2687">2687</a>
+<a href="#2688" id="2688">2688</a>
+<a href="#2689" id="2689">2689</a>
+<a href="#2690" id="2690">2690</a>
+<a href="#2691" id="2691">2691</a>
+<a href="#2692" id="2692">2692</a>
+<a href="#2693" id="2693">2693</a>
+<a href="#2694" id="2694">2694</a>
+<a href="#2695" id="2695">2695</a>
+<a href="#2696" id="2696">2696</a>
+<a href="#2697" id="2697">2697</a>
+<a href="#2698" id="2698">2698</a>
+<a href="#2699" id="2699">2699</a>
+<a href="#2700" id="2700">2700</a>
+<a href="#2701" id="2701">2701</a>
+<a href="#2702" id="2702">2702</a>
+<a href="#2703" id="2703">2703</a>
+<a href="#2704" id="2704">2704</a>
+<a href="#2705" id="2705">2705</a>
+<a href="#2706" id="2706">2706</a>
+<a href="#2707" id="2707">2707</a>
+<a href="#2708" id="2708">2708</a>
+<a href="#2709" id="2709">2709</a>
+<a href="#2710" id="2710">2710</a>
+<a href="#2711" id="2711">2711</a>
+<a href="#2712" id="2712">2712</a>
+<a href="#2713" id="2713">2713</a>
+<a href="#2714" id="2714">2714</a>
+<a href="#2715" id="2715">2715</a>
+<a href="#2716" id="2716">2716</a>
+<a href="#2717" id="2717">2717</a>
+<a href="#2718" id="2718">2718</a>
+<a href="#2719" id="2719">2719</a>
+<a href="#2720" id="2720">2720</a>
+<a href="#2721" id="2721">2721</a>
+<a href="#2722" id="2722">2722</a>
+<a href="#2723" id="2723">2723</a>
+<a href="#2724" id="2724">2724</a>
+<a href="#2725" id="2725">2725</a>
+<a href="#2726" id="2726">2726</a>
+<a href="#2727" id="2727">2727</a>
+<a href="#2728" id="2728">2728</a>
+<a href="#2729" id="2729">2729</a>
+<a href="#2730" id="2730">2730</a>
+<a href="#2731" id="2731">2731</a>
+<a href="#2732" id="2732">2732</a>
+<a href="#2733" id="2733">2733</a>
+<a href="#2734" id="2734">2734</a>
+<a href="#2735" id="2735">2735</a>
+<a href="#2736" id="2736">2736</a>
+<a href="#2737" id="2737">2737</a>
+<a href="#2738" id="2738">2738</a>
+<a href="#2739" id="2739">2739</a>
+<a href="#2740" id="2740">2740</a>
+<a href="#2741" id="2741">2741</a>
+<a href="#2742" id="2742">2742</a>
+<a href="#2743" id="2743">2743</a>
+<a href="#2744" id="2744">2744</a>
+<a href="#2745" id="2745">2745</a>
+<a href="#2746" id="2746">2746</a>
+<a href="#2747" id="2747">2747</a>
+<a href="#2748" id="2748">2748</a>
+<a href="#2749" id="2749">2749</a>
+<a href="#2750" id="2750">2750</a>
+<a href="#2751" id="2751">2751</a>
+<a href="#2752" id="2752">2752</a>
+<a href="#2753" id="2753">2753</a>
+<a href="#2754" id="2754">2754</a>
+<a href="#2755" id="2755">2755</a>
+<a href="#2756" id="2756">2756</a>
+<a href="#2757" id="2757">2757</a>
+<a href="#2758" id="2758">2758</a>
+<a href="#2759" id="2759">2759</a>
+<a href="#2760" id="2760">2760</a>
+<a href="#2761" id="2761">2761</a>
+<a href="#2762" id="2762">2762</a>
+<a href="#2763" id="2763">2763</a>
+<a href="#2764" id="2764">2764</a>
+<a href="#2765" id="2765">2765</a>
+<a href="#2766" id="2766">2766</a>
+<a href="#2767" id="2767">2767</a>
+<a href="#2768" id="2768">2768</a>
+<a href="#2769" id="2769">2769</a>
+<a href="#2770" id="2770">2770</a>
+<a href="#2771" id="2771">2771</a>
+<a href="#2772" id="2772">2772</a>
+<a href="#2773" id="2773">2773</a>
+<a href="#2774" id="2774">2774</a>
+<a href="#2775" id="2775">2775</a>
+<a href="#2776" id="2776">2776</a>
+<a href="#2777" id="2777">2777</a>
+<a href="#2778" id="2778">2778</a>
+<a href="#2779" id="2779">2779</a>
+<a href="#2780" id="2780">2780</a>
+<a href="#2781" id="2781">2781</a>
+<a href="#2782" id="2782">2782</a>
+<a href="#2783" id="2783">2783</a>
+<a href="#2784" id="2784">2784</a>
+<a href="#2785" id="2785">2785</a>
+<a href="#2786" id="2786">2786</a>
+<a href="#2787" id="2787">2787</a>
+<a href="#2788" id="2788">2788</a>
+<a href="#2789" id="2789">2789</a>
+<a href="#2790" id="2790">2790</a>
+<a href="#2791" id="2791">2791</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     cell::RefCell,
     collections::{BTreeMap, BTreeSet},
     rc::Rc,
@@ -2690,6 +2807,7 @@
     node_interner::{GlobalValue, QuotedTypeId},
     token::SecondaryAttributeKind,
     usage_tracker::UsageTracker,
+    validity::length_is_zero,
 };
 <span class="kw">use crate</span>::{
     EnumVariant, Shared, Type, TypeVariable,
@@ -3538,7 +3656,7 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         constraint: <span class="kw-2">&amp;</span>UnresolvedTraitConstraint,
     ) -&gt; <span class="prelude-ty">Option</span>&lt;TraitConstraint&gt; {
-        <span class="kw">let </span>wildcard_allowed = <span class="bool-val">true</span>;
+        <span class="kw">let </span>wildcard_allowed = <span class="bool-val">false</span>;
         <span class="kw">let </span>typ = <span class="self">self</span>.resolve_type(constraint.typ.clone(), wildcard_allowed);
         <span class="kw">let </span>trait_bound = <span class="self">self</span>.resolve_trait_bound(<span class="kw-2">&amp;</span>constraint.trait_bound)<span class="question-mark">?</span>;
         <span class="kw">let </span>location = constraint.trait_bound.trait_path.location;
@@ -3565,7 +3683,7 @@
         <span class="kw">let </span>the_trait = <span class="self">self</span>.lookup_trait_or_error(trait_path)<span class="question-mark">?</span>;
         <span class="kw">let </span>trait_id = the_trait.id;
         <span class="kw">let </span>location = bound.trait_path.location;
-        <span class="kw">let </span>wildcard_allowed = <span class="bool-val">true</span>;
+        <span class="kw">let </span>wildcard_allowed = <span class="bool-val">false</span>;
 
         <span class="kw">let </span>(ordered, named) = <span class="self">self</span>.resolve_type_args_inner(
             bound.trait_generics.clone(),
@@ -3694,6 +3812,16 @@
         }
 
         <span class="kw">let </span>return_type = Box::new(<span class="self">self</span>.use_type(func.return_type(), wildcard_allowed));
+
+        <span class="comment">// Temporary allow slices for contract functions, until contracts are re-factored.
+        </span><span class="kw">if </span>!func.attributes().has_contract_library_method() {
+            <span class="self">self</span>.check_if_type_is_valid_for_program_output(
+                <span class="kw-2">&amp;</span>return_type,
+                is_entry_point || is_test_or_fuzz,
+                has_inline_attribute,
+                location,
+            );
+        }
 
         <span class="kw">let </span><span class="kw-2">mut </span>typ = Type::Function(
             parameter_types,
@@ -3853,6 +3981,32 @@
                 <span class="self">self</span>.push_err(TypeCheckError::InvalidTypeForEntryPoint { invalid_type, location });
             }
         }
+    }
+
+    <span class="kw">fn </span>check_if_type_is_valid_for_program_output(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        typ: <span class="kw-2">&amp;</span>Type,
+        is_entry_point: bool,
+        has_inline_attribute: bool,
+        location: Location,
+    ) {
+        <span class="kw">match </span>typ {
+            Type::Unit =&gt; <span class="kw">return</span>,
+            Type::Array(length, <span class="kw">_</span>) | Type::String(length) =&gt; {
+                <span class="kw">if </span>length_is_zero(length) {
+                    <span class="comment">//returning zero length arrays is allowed
+                    </span><span class="kw">return</span>;
+                }
+            }
+            <span class="kw">_ </span>=&gt; (),
+        }
+
+        <span class="self">self</span>.check_if_type_is_valid_for_program_input(
+            typ,
+            is_entry_point,
+            has_inline_attribute,
+            location,
+        );
     }
 
     <span class="doccomment">/// True if the `pub` keyword is allowed on parameters in this function
@@ -4225,7 +4379,7 @@
         <span class="self">self</span>.local_module = module;
 
         <span class="kw">for </span>(generics, location, unresolved) <span class="kw">in </span>impls {
-            <span class="self">self</span>.check_generics_appear_in_type(generics, self_type);
+            <span class="self">self</span>.check_generics_appear_in_types(generics, <span class="kw-2">&amp;</span>[self_type], <span class="kw-2">&amp;</span>[]);
 
             <span class="kw">let </span>old_generic_count = <span class="self">self</span>.generics.len();
             <span class="self">self</span>.add_generics(generics);
@@ -4250,6 +4404,12 @@
                 location: self_type_location,
             });
         }
+
+        <span class="self">self</span>.check_generics_appear_in_types(
+            <span class="kw-2">&amp;</span>trait_impl.generics,
+            <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>trait_impl.r#trait, <span class="kw-2">&amp;</span>trait_impl.object_type],
+            <span class="kw-2">&amp;</span>trait_impl.where_clause,
+        );
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(trait_id) = trait_impl.trait_id {
             <span class="self">self</span>.generics = trait_impl.resolved_generics.clone();
@@ -5136,11 +5296,13 @@
             })
     }
 
-    <span class="doccomment">/// Check that all the generics show up in `self_type` (if they don't, we produce an error)
-    </span><span class="kw">fn </span>check_generics_appear_in_type(
+    <span class="doccomment">/// Check that all the generics show up in any of `types` (if they don't, we produce an error),
+    /// or in any of a where clause associated type binding.
+    </span><span class="kw">fn </span>check_generics_appear_in_types(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         generics: <span class="kw-2">&amp;</span>[UnresolvedGeneric],
-        self_type: <span class="kw-2">&amp;</span>UnresolvedType,
+        types: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>UnresolvedType],
+        where_clause: <span class="kw-2">&amp;</span>[UnresolvedTraitConstraint],
     ) {
         <span class="kw">if </span>generics.is_empty() {
             <span class="kw">return</span>;
@@ -5149,24 +5311,36 @@
         <span class="comment">// Turn each generic into an Ident
         </span><span class="kw">let </span><span class="kw-2">mut </span>idents = HashSet::new();
         <span class="kw">for </span>generic <span class="kw">in </span>generics {
-            <span class="kw">match </span>generic.ident() {
-                IdentOrQuotedType::Ident(ident) =&gt; {
-                    idents.insert(ident.clone());
-                }
-                IdentOrQuotedType::Quoted(quoted_type_id, location) =&gt; {
-                    <span class="kw">if let </span>Type::NamedGeneric(NamedGeneric { name, .. }) =
-                        <span class="self">self</span>.interner.get_quoted_type(<span class="kw-2">*</span>quoted_type_id).follow_bindings()
-                    {
-                        idents.insert(Ident::new(name.to_string(), <span class="kw-2">*</span>location));
+            <span class="kw">match </span>generic {
+                UnresolvedGeneric::Variable(ident, <span class="kw">_</span>)
+                | UnresolvedGeneric::Numeric { ident, typ: <span class="kw">_ </span>} =&gt; <span class="kw">match </span>ident {
+                    IdentOrQuotedType::Ident(ident) =&gt; {
+                        idents.insert(ident.clone());
                     }
-                }
+                    IdentOrQuotedType::Quoted(quoted_type_id, location) =&gt; {
+                        <span class="kw">if let </span>Type::NamedGeneric(NamedGeneric { name, .. }) =
+                            <span class="self">self</span>.interner.get_quoted_type(<span class="kw-2">*</span>quoted_type_id).follow_bindings()
+                        {
+                            idents.insert(Ident::new(name.to_string(), <span class="kw-2">*</span>location));
+                        }
+                    }
+                },
             }
         }
 
         <span class="comment">// Remove the ones that show up in `self_type`
         </span><span class="kw">let </span><span class="kw-2">mut </span>visitor =
             RemoveGenericsAppearingInTypeVisitor { interner: <span class="self">self</span>.interner, idents: <span class="kw-2">&amp;mut </span>idents };
-        self_type.accept(<span class="kw-2">&amp;mut </span>visitor);
+        <span class="kw">for </span>typ <span class="kw">in </span>types {
+            typ.accept(<span class="kw-2">&amp;mut </span>visitor);
+        }
+
+        <span class="comment">// Removes the ones that show up in associated type bindings in the where clause
+        </span><span class="kw">for </span>where_clause <span class="kw">in </span>where_clause {
+            <span class="kw">for </span>(_name, typ) <span class="kw">in </span><span class="kw-2">&amp;</span>where_clause.trait_bound.trait_generics.named_args {
+                typ.accept(<span class="kw-2">&amp;mut </span>visitor);
+            }
+        }
 
         <span class="comment">// The ones that remain are not mentioned in the impl: it's an error.
         </span><span class="kw">for </span>ident <span class="kw">in </span>idents {
@@ -5210,24 +5384,84 @@
     }
 }
 
-<span class="kw">struct </span>RemoveGenericsAppearingInTypeVisitor&lt;<span class="lifetime">'a</span>&gt; {
-    interner: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>NodeInterner,
-    idents: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>HashSet&lt;Ident&gt;,
+<span class="kw">struct </span>RemoveGenericsAppearingInTypeVisitor&lt;<span class="lifetime">'interner</span>, <span class="lifetime">'ident</span>&gt; {
+    interner: <span class="kw-2">&amp;</span><span class="lifetime">'interner </span>NodeInterner,
+    idents: <span class="kw-2">&amp;</span><span class="lifetime">'ident </span><span class="kw-2">mut </span>HashSet&lt;Ident&gt;,
 }
 
-<span class="kw">impl </span>Visitor <span class="kw">for </span>RemoveGenericsAppearingInTypeVisitor&lt;<span class="lifetime">'_</span>&gt; {
+<span class="kw">impl </span>RemoveGenericsAppearingInTypeVisitor&lt;<span class="lifetime">'_</span>, <span class="lifetime">'_</span>&gt; {
+    <span class="kw">fn </span>visit_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, typ: <span class="kw-2">&amp;</span>Type) {
+        <span class="kw">match </span>typ {
+            Type::Array(length, element) =&gt; {
+                <span class="self">self</span>.visit_type(length);
+                <span class="self">self</span>.visit_type(element);
+            }
+            Type::Slice(element) =&gt; {
+                <span class="self">self</span>.visit_type(element);
+            }
+            Type::FmtString(length, element) =&gt; {
+                <span class="self">self</span>.visit_type(length);
+                <span class="self">self</span>.visit_type(element);
+            }
+            Type::Tuple(items) | Type::DataType(<span class="kw">_</span>, items) | Type::Alias(<span class="kw">_</span>, items) =&gt; {
+                <span class="kw">for </span>item <span class="kw">in </span>items {
+                    <span class="self">self</span>.visit_type(item);
+                }
+            }
+            Type::TraitAsType(<span class="kw">_</span>, <span class="kw">_</span>, trait_generics) =&gt; {
+                <span class="kw">for </span>generic <span class="kw">in </span><span class="kw-2">&amp;</span>trait_generics.ordered {
+                    <span class="self">self</span>.visit_type(generic);
+                }
+                <span class="kw">for </span>named_type <span class="kw">in </span><span class="kw-2">&amp;</span>trait_generics.named {
+                    <span class="self">self</span>.visit_type(<span class="kw-2">&amp;</span>named_type.typ);
+                }
+            }
+            Type::NamedGeneric(named_generic) =&gt; {
+                <span class="kw">let </span>ident = Ident::new(named_generic.name.to_string(), Location::dummy());
+                <span class="self">self</span>.idents.remove(<span class="kw-2">&amp;</span>ident);
+            }
+            Type::CheckedCast { from, to } =&gt; {
+                <span class="self">self</span>.visit_type(from);
+                <span class="self">self</span>.visit_type(to);
+            }
+            Type::Function(args, ret, env, <span class="kw">_</span>) =&gt; {
+                <span class="kw">for </span>arg <span class="kw">in </span>args {
+                    <span class="self">self</span>.visit_type(arg);
+                }
+                <span class="self">self</span>.visit_type(ret);
+                <span class="self">self</span>.visit_type(env);
+            }
+            Type::Reference(typ, <span class="kw">_</span>) =&gt; {
+                <span class="self">self</span>.visit_type(typ);
+            }
+            Type::InfixExpr(lhs, <span class="kw">_</span>, rhs, <span class="kw">_</span>) =&gt; {
+                <span class="self">self</span>.visit_type(lhs);
+                <span class="self">self</span>.visit_type(rhs);
+            }
+            Type::Unit
+            | Type::Bool
+            | Type::Integer(..)
+            | Type::FieldElement
+            | Type::String(<span class="kw">_</span>)
+            | Type::Constant(..)
+            | Type::Quoted(<span class="kw">_</span>)
+            | Type::Forall(..)
+            | Type::TypeVariable(<span class="kw">_</span>)
+            | Type::Error =&gt; (),
+        }
+    }
+}
+
+<span class="kw">impl </span>Visitor <span class="kw">for </span>RemoveGenericsAppearingInTypeVisitor&lt;<span class="lifetime">'_</span>, <span class="lifetime">'_</span>&gt; {
     <span class="kw">fn </span>visit_path(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: <span class="kw-2">&amp;</span>Path) {
         <span class="kw">if let </span><span class="prelude-val">Some</span>(ident) = path.as_ident() {
             <span class="self">self</span>.idents.remove(ident);
         }
     }
 
-    <span class="kw">fn </span>visit_resolved_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: QuotedTypeId, location: Location) {
-        <span class="kw">if let </span>Type::NamedGeneric(NamedGeneric { name, .. }) =
-            <span class="self">self</span>.interner.get_quoted_type(id).follow_bindings()
-        {
-            <span class="self">self</span>.idents.remove(<span class="kw-2">&amp;</span>Ident::new(name.as_ref().clone(), location));
-        }
+    <span class="kw">fn </span>visit_resolved_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, quoted_type_id: QuotedTypeId, <span class="kw">_</span>: Location) {
+        <span class="kw">let </span>typ = <span class="self">self</span>.interner.get_quoted_type(quoted_type_id);
+        <span class="self">self</span>.visit_type(typ);
     }
 }
 

@@ -86,7 +86,7 @@
         .init();
 
     <span class="kw">if let </span><span class="prelude-val">Err</span>(e) = start_cli() {
-        <span class="macro">eprintln!</span>(<span class="string">"{e:?}"</span>);
+        <span class="macro">eprintln!</span>(<span class="string">"{e:#}"</span>);
         std::process::exit(<span class="number">1</span>);
     }
 }

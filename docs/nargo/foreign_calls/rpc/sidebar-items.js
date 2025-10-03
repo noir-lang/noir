@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["build_http_client"],"struct":["RPCForeignCallExecutor","ResolveForeignCallRequest"],"type":["ResolveForeignCallResult"]};
+window.SIDEBAR_ITEMS = {"fn":["build_http_client","prepare_foreign_call","receive_foreign_call_result"],"struct":["JSONSerializableFieldElement","RPCForeignCallExecutor","ResolveForeignCallRequest"],"type":["ResolveForeignCallResult"]};

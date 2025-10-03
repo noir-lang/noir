@@ -22,7 +22,7 @@
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>build_dictionary_from_ssa(ssa: <span class="kw-2">&amp;</span>Ssa) -&gt; BTreeSet&lt;FieldElement&gt; {
     <span class="kw">let </span><span class="kw-2">mut </span>constants = BTreeSet::new();
     <span class="kw">for </span>func <span class="kw">in </span>ssa.functions.values() {
-        <span class="kw">for </span>(constant, <span class="kw">_</span>) <span class="kw">in </span>func.constants() {
+        <span class="kw">for </span>(constant, <span class="kw">_</span>) <span class="kw">in </span>func.view().constants() {
             constants.insert(<span class="kw-2">*</span>constant);
         }
     }

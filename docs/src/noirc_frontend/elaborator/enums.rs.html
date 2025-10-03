@@ -2191,7 +2191,7 @@
             (<span class="macro-nonterminal">$value</span>:expr) =&gt; {{
                 <span class="kw">let </span>negative = <span class="macro-nonterminal">$value </span>&lt; <span class="number">0</span>;
                 <span class="comment">// Widen the value so that SignedType::MIN does not wrap to 0 when negated below
-                </span><span class="kw">let </span><span class="kw-2">mut </span>widened = <span class="macro-nonterminal">$value </span><span class="kw">as </span>i128;
+                </span><span class="kw">let </span><span class="kw-2">mut </span>widened = i128::from(<span class="macro-nonterminal">$value</span>);
                 <span class="kw">if </span>negative {
                     widened = -widened;
                 }
@@ -2207,8 +2207,8 @@
             Value::I32(value) =&gt; <span class="macro">signed_to_signed_field!</span>(value),
             Value::I64(value) =&gt; <span class="macro">signed_to_signed_field!</span>(value),
             Value::U1(value) =&gt; SignedField::positive(value),
-            Value::U8(value) =&gt; SignedField::positive(value <span class="kw">as </span>u128),
-            Value::U16(value) =&gt; SignedField::positive(value <span class="kw">as </span>u128),
+            Value::U8(value) =&gt; SignedField::positive(u128::from(value)),
+            Value::U16(value) =&gt; SignedField::positive(u128::from(value)),
             Value::U32(value) =&gt; SignedField::positive(value),
             Value::U64(value) =&gt; SignedField::positive(value),
             Value::U128(value) =&gt; SignedField::positive(value),

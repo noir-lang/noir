@@ -679,7 +679,7 @@
                 } <span class="kw">else </span>{
                     <span class="prelude-val">Err</span>(BrilligArithmeticError::BitshiftOverflow {
                         bit_size: <span class="number">8</span>,
-                        shift_size: rhs <span class="kw">as </span>u128,
+                        shift_size: u128::from(rhs),
                     })
                 }
             }
@@ -689,7 +689,7 @@
                 } <span class="kw">else </span>{
                     <span class="prelude-val">Err</span>(BrilligArithmeticError::BitshiftOverflow {
                         bit_size: <span class="number">16</span>,
-                        shift_size: rhs <span class="kw">as </span>u128,
+                        shift_size: u128::from(rhs),
                     })
                 }
             }
@@ -699,7 +699,7 @@
                 } <span class="kw">else </span>{
                     <span class="prelude-val">Err</span>(BrilligArithmeticError::BitshiftOverflow {
                         bit_size: <span class="number">32</span>,
-                        shift_size: rhs <span class="kw">as </span>u128,
+                        shift_size: u128::from(rhs),
                     })
                 }
             }
@@ -709,7 +709,7 @@
                 } <span class="kw">else </span>{
                     <span class="prelude-val">Err</span>(BrilligArithmeticError::BitshiftOverflow {
                         bit_size: <span class="number">64</span>,
-                        shift_size: rhs <span class="kw">as </span>u128,
+                        shift_size: u128::from(rhs),
                     })
                 }
             }

@@ -379,7 +379,11 @@
 <a href="#378" id="378">378</a>
 <a href="#379" id="379">379</a>
 <a href="#380" id="380">380</a>
-<a href="#381" id="381">381</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST executed as Noir with the comptime
+<a href="#381" id="381">381</a>
+<a href="#382" id="382">382</a>
+<a href="#383" id="383">383</a>
+<a href="#384" id="384">384</a>
+<a href="#385" id="385">385</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST executed as Noir with the comptime
 //! interpreter vs compiled into bytecode and ran through a VM.
 </span><span class="kw">use </span>std::path::Path;
 <span class="kw">use </span>std::rc::Rc;
@@ -408,6 +412,7 @@
 
 <span class="kw">use super</span>::{CompareArtifact, CompareCompiledResult, CompareOptions, HasPrograms};
 <span class="kw">use </span><span class="kw">crate</span>::compare::compiled::ExecResult;
+<span class="kw">use </span><span class="kw">crate</span>::compare::logging;
 <span class="kw">use crate</span>::{
     Config, DisplayAstAsNoirComptime, arb_program_comptime, program_abi, program_wrap_expression,
 };
@@ -509,8 +514,6 @@
             String::from_utf8(output).expect(<span class="string">"not UTF-8"</span>)
         };
 
-        <span class="comment">// Log source code before interpreting
-        </span><span class="macro">log::debug!</span>(<span class="string">"comptime src:\n{}"</span>, <span class="self">self</span>.source);
         <span class="kw">let </span>comptime_expr = <span class="kw">match </span>interpret(source.as_str(), output.clone()) {
             <span class="prelude-val">Ok</span>(expr) =&gt; expr,
             <span class="prelude-val">Err</span>(e) =&gt; {
@@ -563,8 +566,7 @@
             <span class="self">Self</span>::exec_bytecode(<span class="kw-2">&amp;</span><span class="self">self</span>.ssa.artifact.program, initial_witness.clone());
 
         <span class="comment">// Try to compile the 1st (comptime) version from string.
-        </span><span class="macro">log::debug!</span>(<span class="string">"comptime src:\n{}"</span>, <span class="self">self</span>.source);
-        <span class="kw">let </span>(program1, output1) = <span class="kw">match </span>prepare_and_compile_snippet(
+        </span><span class="kw">let </span>(program1, output1) = <span class="kw">match </span>prepare_and_compile_snippet(
             <span class="self">self</span>.source.clone(),
             <span class="self">self</span>.force_brillig,
             Vec::new(),
@@ -607,10 +609,13 @@
         <span class="kw">let </span>force_brillig = c.force_brillig;
         <span class="kw">let </span>program = arb_program_comptime(u, c)<span class="question-mark">?</span>;
         <span class="kw">let </span>abi = program_abi(<span class="kw-2">&amp;</span>program);
+        logging::log_program(<span class="kw-2">&amp;</span>program, <span class="string">""</span>);
 
         <span class="kw">let </span>ssa = CompareArtifact::from(f(program.clone())<span class="question-mark">?</span>);
+        logging::log_options(<span class="kw-2">&amp;</span>ssa.options, <span class="string">"compiled"</span>);
 
         <span class="kw">let </span>source = <span class="macro">format!</span>(<span class="string">"{}"</span>, DisplayAstAsNoirComptime(<span class="kw-2">&amp;</span>program));
+        logging::log_comptime(<span class="kw-2">&amp;</span>source, <span class="string">""</span>);
 
         <span class="prelude-val">Ok</span>(<span class="self">Self </span>{ program, abi, source, ssa, force_brillig })
     }
@@ -649,11 +654,14 @@
 
     <span class="doccomment">/// Check if a comptime error is due to some kind of arithmetic or constraint failure.
     </span><span class="kw">fn </span>is_assertion_diagnostic(e: <span class="kw-2">&amp;</span>CustomDiagnostic) -&gt; bool {
+        <span class="kw">let </span>msg = e.message.to_lowercase();
         e.secondaries.iter().any(|s| s.message == <span class="string">"Assertion failed"</span>)
-            || e.message.to_lowercase().contains(<span class="string">"overflow"</span>)
-            || e.message.to_lowercase().contains(<span class="string">"cannot fit into"</span>) <span class="comment">// covers signed overflows
-            </span>|| e.message.to_lowercase().contains(<span class="string">"divide by zero"</span>)
-            || e.message.to_lowercase().contains(<span class="string">"division by zero"</span>)
+            || msg.contains(<span class="string">"overflow"</span>)
+            || msg.contains(<span class="string">"cannot fit into"</span>) <span class="comment">// covers signed overflows
+            </span>|| msg.contains(<span class="string">"divide by zero"</span>)
+            || msg.contains(<span class="string">"division by zero"</span>)
+            || msg.contains(<span class="string">"the remainder with a divisor of zero"</span>)
+            || msg.contains(<span class="string">"out of bounds"</span>)
     }
 
     <span class="doccomment">/// Fabricate a result from a comptime `CustomDiagnostic` on the 1st side,

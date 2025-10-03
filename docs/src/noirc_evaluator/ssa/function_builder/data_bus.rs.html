@@ -285,11 +285,23 @@
 <a href="#284" id="284">284</a>
 <a href="#285" id="285">285</a>
 <a href="#286" id="286">286</a>
-<a href="#287" id="287">287</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::BTreeMap, sync::Arc};
+<a href="#287" id="287">287</a>
+<a href="#288" id="288">288</a>
+<a href="#289" id="289">289</a>
+<a href="#290" id="290">290</a>
+<a href="#291" id="291">291</a>
+<a href="#292" id="292">292</a>
+<a href="#293" id="293">293</a>
+<a href="#294" id="294">294</a>
+<a href="#295" id="295">295</a>
+<a href="#296" id="296">296</a>
+<a href="#297" id="297">297</a>
+<a href="#298" id="298">298</a>
+<a href="#299" id="299">299</a>
+<a href="#300" id="300">300</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::BTreeMap, sync::Arc};
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
     function::RuntimeType,
-    instruction::ArrayOffset,
     types::{NumericType, Type},
     value::{ValueId, ValueMapping},
 };
@@ -351,8 +363,19 @@
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>CallData {
     <span class="doccomment">/// The id to this calldata assigned by the user
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) call_data_id: u32,
-    <span class="kw">pub</span>(<span class="kw">crate</span>) array_id: ValueId,
-    <span class="kw">pub</span>(<span class="kw">crate</span>) index_map: HashMap&lt;ValueId, usize&gt;,
+    <span class="doccomment">/// The array to read from, when reading from a value in `index_map`
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) array_id: ValueId,
+    <span class="doccomment">/// When reading from a value in `index_map`, read it instead fom `array_id` at the offset
+    /// given by the value in the map.
+    ///
+    /// For example, if the call data is:
+    ///
+    /// ```ssa
+    /// call_data(0): array: v16, indexes: [v2: 1]
+    /// ```
+    ///
+    /// then when reading from `v2`, read from `v16` but with an offset of 1.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) index_map: HashMap&lt;ValueId, usize&gt;,
 }
 
 <span class="attr">#[derive(Clone, Default, Debug, Serialize, Deserialize)]
@@ -454,9 +477,7 @@
                         </span><span class="kw">if let </span>Type::Array(<span class="kw">_</span>, <span class="number">0</span>) = subitem_typ {
                             <span class="kw">continue</span>;
                         }
-                        <span class="kw">let </span>offset = ArrayOffset::None;
-                        <span class="kw">let </span>element =
-                            <span class="self">self</span>.insert_array_get(value, index_var, offset, subitem_typ.clone());
+                        <span class="kw">let </span>element = <span class="self">self</span>.insert_array_get(value, index_var, subitem_typ.clone());
                         index += <span class="kw">match </span>subitem_typ {
                             Type::Array(<span class="kw">_</span>, <span class="kw">_</span>) | Type::Slice(<span class="kw">_</span>) =&gt; subitem_typ.element_size(),
                             Type::Numeric(<span class="kw">_</span>) =&gt; <span class="number">1</span>,
@@ -539,6 +560,11 @@
             result.push(call_databus);
         }
         result
+    }
+
+    <span class="doccomment">/// Forcefully sets the databus of the current function.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>set_data_bus(<span class="kw-2">&amp;mut </span><span class="self">self</span>, data_bus: DataBus) {
+        <span class="self">self</span>.current_function.dfg.data_bus = data_bus;
     }
 
     <span class="doccomment">/// This function takes the flattened databus visibilities and generates the databus visibility for each ssa parameter

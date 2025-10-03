@@ -1523,7 +1523,12 @@
 <a href="#1522" id="1522">1522</a>
 <a href="#1523" id="1523">1523</a>
 <a href="#1524" id="1524">1524</a>
-<a href="#1525" id="1525">1525</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::foreign_calls::DebugForeignCallExecutor;
+<a href="#1525" id="1525">1525</a>
+<a href="#1526" id="1526">1526</a>
+<a href="#1527" id="1527">1527</a>
+<a href="#1528" id="1528">1528</a>
+<a href="#1529" id="1529">1529</a>
+<a href="#1530" id="1530">1530</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::foreign_calls::DebugForeignCallExecutor;
 <span class="kw">use </span>acvm::acir::brillig::BitSize;
 <span class="kw">use </span>acvm::acir::circuit::brillig::{BrilligBytecode, BrilligFunctionId};
 <span class="kw">use </span>acvm::acir::circuit::{Circuit, Opcode, OpcodeLocation};
@@ -2631,6 +2636,7 @@
         <span class="kw">let </span>w_x = Witness(<span class="number">1</span>);
 
         <span class="kw">let </span>brillig_bytecode = BrilligBytecode {
+            function_name: <span class="string">"clear_mock"</span>.into(),
             bytecode: <span class="macro">vec!</span>[
                 BrilligOpcode::Const {
                     destination: MemoryAddress::direct(<span class="number">1</span>),
@@ -2788,6 +2794,7 @@
 
         <span class="comment">// This Brillig block is equivalent to: z = x + y
         </span><span class="kw">let </span>brillig_bytecode = BrilligBytecode {
+            function_name: <span class="string">"add"</span>.into(),
             bytecode: <span class="macro">vec!</span>[
                 BrilligOpcode::Const {
                     destination: MemoryAddress::direct(<span class="number">0</span>),
@@ -2905,9 +2912,12 @@
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_address_debug_location_mapping() {
         <span class="kw">let </span>solver = StubbedBlackBoxSolver::default();
-        <span class="kw">let </span>brillig_one =
-            BrilligBytecode { bytecode: <span class="macro">vec!</span>[BrilligOpcode::Return, BrilligOpcode::Return] };
+        <span class="kw">let </span>brillig_one = BrilligBytecode {
+            function_name: <span class="string">"one"</span>.to_string(),
+            bytecode: <span class="macro">vec!</span>[BrilligOpcode::Return, BrilligOpcode::Return],
+        };
         <span class="kw">let </span>brillig_two = BrilligBytecode {
+            function_name: <span class="string">"two"</span>.to_string(),
             bytecode: <span class="macro">vec!</span>[BrilligOpcode::Return, BrilligOpcode::Return, BrilligOpcode::Return],
         };
 

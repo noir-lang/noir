@@ -903,10 +903,52 @@
 <a href="#902" id="902">902</a>
 <a href="#903" id="903">903</a>
 <a href="#904" id="904">904</a>
-<a href="#905" id="905">905</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, sync::Arc};
+<a href="#905" id="905">905</a>
+<a href="#906" id="906">906</a>
+<a href="#907" id="907">907</a>
+<a href="#908" id="908">908</a>
+<a href="#909" id="909">909</a>
+<a href="#910" id="910">910</a>
+<a href="#911" id="911">911</a>
+<a href="#912" id="912">912</a>
+<a href="#913" id="913">913</a>
+<a href="#914" id="914">914</a>
+<a href="#915" id="915">915</a>
+<a href="#916" id="916">916</a>
+<a href="#917" id="917">917</a>
+<a href="#918" id="918">918</a>
+<a href="#919" id="919">919</a>
+<a href="#920" id="920">920</a>
+<a href="#921" id="921">921</a>
+<a href="#922" id="922">922</a>
+<a href="#923" id="923">923</a>
+<a href="#924" id="924">924</a>
+<a href="#925" id="925">925</a>
+<a href="#926" id="926">926</a>
+<a href="#927" id="927">927</a>
+<a href="#928" id="928">928</a>
+<a href="#929" id="929">929</a>
+<a href="#930" id="930">930</a>
+<a href="#931" id="931">931</a>
+<a href="#932" id="932">932</a>
+<a href="#933" id="933">933</a>
+<a href="#934" id="934">934</a>
+<a href="#935" id="935">935</a>
+<a href="#936" id="936">936</a>
+<a href="#937" id="937">937</a>
+<a href="#938" id="938">938</a>
+<a href="#939" id="939">939</a>
+<a href="#940" id="940">940</a>
+<a href="#941" id="941">941</a>
+<a href="#942" id="942">942</a>
+<a href="#943" id="943">943</a>
+<a href="#944" id="944">944</a>
+<a href="#945" id="945">945</a>
+<a href="#946" id="946">946</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, sync::Arc};
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
     function_builder::data_bus::DataBus,
+    ir::instruction::ArrayOffset,
     opt::pure::{FunctionPurities, Purity},
 };
 
@@ -1012,6 +1054,9 @@
 
     <span class="attr">#[serde(skip)]
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) function_purities: Arc&lt;FunctionPurities&gt;,
+
+    <span class="doccomment">/// Indicate whether the Brillig array index offset optimizations have been performed.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) brillig_arrays_offset: bool,
 }
 
 <span class="doccomment">/// The GlobalsGraph contains the actual global data.
@@ -1205,7 +1250,10 @@
             </span><span class="kw">return </span>InsertInstructionResult::InstructionRemoved;
         }
 
-        <span class="kw">match </span>simplify(<span class="kw-2">&amp;</span>instruction, <span class="self">self</span>, block, ctrl_typevars.clone(), call_stack) {
+        <span class="kw">let </span>simplify_result =
+            simplify(<span class="kw-2">&amp;</span>instruction, <span class="self">self</span>, block, ctrl_typevars.clone(), call_stack);
+
+        <span class="kw">match </span>simplify_result {
             SimplifyResult::SimplifiedTo(simplification) =&gt; {
                 InsertInstructionResult::SimplifiedTo(simplification)
             }
@@ -1216,8 +1264,19 @@
             result @ (SimplifyResult::SimplifiedToInstruction(<span class="kw">_</span>)
             | SimplifyResult::SimplifiedToInstructionMultiple(<span class="kw">_</span>)
             | SimplifyResult::None) =&gt; {
-                <span class="kw">let </span>instructions = result.instructions();
-                <span class="kw">if </span>instructions.is_none() {
+                <span class="kw">let </span>is_simplified = <span class="kw">match </span><span class="kw-2">&amp;</span>result {
+                    SimplifyResult::SimplifiedToInstruction(i) =&gt; {
+                        <span class="comment">// `Binary` can simplify to itself instead of None.
+                        </span><span class="kw-2">*</span>i != instruction
+                    }
+                    SimplifyResult::SimplifiedToInstructionMultiple(is) =&gt; {
+                        <span class="comment">// `Constrain` can simplify to a Multiple, with a single item of itself.
+                        </span>is.len() != <span class="number">1 </span>|| is[<span class="number">0</span>] != instruction
+                    }
+                    SimplifyResult::None =&gt; <span class="bool-val">false</span>,
+                    <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"matched specific SimplifyResult types"</span>),
+                };
+                <span class="kw">if </span>!is_simplified {
                     <span class="kw">if let </span><span class="prelude-val">Some</span>(id) = existing_id {
                         <span class="kw">if </span><span class="self">self</span>[id] == instruction {
                             <span class="comment">// Just (re)insert into the block, no need to redefine.
@@ -1229,7 +1288,7 @@
                         }
                     }
                 }
-                <span class="kw">let </span><span class="kw-2">mut </span>instructions = instructions.unwrap_or(<span class="macro">vec!</span>[instruction]);
+                <span class="kw">let </span><span class="kw-2">mut </span>instructions = result.instructions().unwrap_or(<span class="macro">vec!</span>[instruction]);
                 <span class="macro">assert!</span>(
                     !instructions.is_empty(),
                     <span class="string">"`SimplifyResult::SimplifiedToInstructionMultiple` must not return empty vector"
@@ -1434,7 +1493,7 @@
             Value::Instruction { instruction, .. } =&gt; {
                 <span class="kw">let </span>value_bit_size = <span class="self">self</span>.type_of_value(value).bit_size();
                 <span class="kw">if let </span>Instruction::Cast(original_value, <span class="kw">_</span>) = <span class="self">self</span>[instruction] {
-                    <span class="kw">let </span>original_bit_size = <span class="self">self</span>.type_of_value(original_value).bit_size();
+                    <span class="kw">let </span>original_bit_size = <span class="self">self</span>.get_value_max_num_bits(original_value);
                     <span class="comment">// We might have cast e.g. `u1` to `u8` to be able to do arithmetic,
                     // in which case we want to recover the original smaller bit size;
                     // OTOH if we cast down, then we don't need the higher original size.
@@ -1458,6 +1517,19 @@
     <span class="doccomment">/// Returns all of result values which are attached to this instruction.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>instruction_results(<span class="kw-2">&amp;</span><span class="self">self</span>, instruction_id: InstructionId) -&gt; <span class="kw-2">&amp;</span>[ValueId] {
         <span class="self">self</span>.results.get(<span class="kw-2">&amp;</span>instruction_id).expect(<span class="string">"expected a list of Values"</span>).as_slice()
+    }
+
+    <span class="doccomment">/// Returns N results, asserting that there are exactly N items.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>instruction_result&lt;<span class="kw">const </span>N: usize&gt;(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        instruction_id: InstructionId,
+    ) -&gt; [ValueId; N] {
+        <span class="kw">let </span>results = <span class="self">self</span>.instruction_results(instruction_id);
+        <span class="kw">if </span>results.len() != N {
+            <span class="kw">let </span>instruction = <span class="kw-2">&amp;</span><span class="self">self</span>[instruction_id];
+            <span class="macro">panic!</span>(<span class="string">"expected {instruction:?} to have {N} results; got {}"</span>, results.len());
+        }
+        std::array::from_fn(|i| results[i])
     }
 
     <span class="doccomment">/// Remove an instruction by replacing it with a `Noop` instruction.
@@ -1504,18 +1576,13 @@
         }
     }
 
-    <span class="doccomment">/// Returns the Value::Array associated with this ValueId if it refers to an array constant.
+    <span class="doccomment">/// Returns the item values in with this ValueId if it refers to an array constant, along with the type of the array item.
     /// Otherwise, this returns None.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_array_constant(<span class="kw-2">&amp;</span><span class="self">self</span>, value: ValueId) -&gt; <span class="prelude-ty">Option</span>&lt;(im::Vector&lt;ValueId&gt;, Type)&gt; {
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(instruction) = <span class="self">self</span>.get_local_or_global_instruction(value) {
-            <span class="kw">match </span>instruction {
-                Instruction::MakeArray { elements, typ } =&gt; <span class="prelude-val">Some</span>((elements.clone(), typ.clone())),
-                <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
-            }
-        } <span class="kw">else </span>{
-            <span class="comment">// Arrays are shared, so cloning them is cheap
-            </span><span class="prelude-val">None
-        </span>}
+        <span class="kw">match </span><span class="self">self</span>.get_local_or_global_instruction(value)<span class="question-mark">? </span>{
+            Instruction::MakeArray { elements, typ } =&gt; <span class="prelude-val">Some</span>((elements.clone(), typ.clone())),
+            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+        }
     }
 
     <span class="doccomment">/// If this value is an array, return the length of the array as indicated by its type.
@@ -1550,7 +1617,7 @@
         <span class="attr">#[allow(clippy::match_like_matches_macro)]
         </span><span class="kw">match </span>(<span class="self">self</span>.type_of_value(array), <span class="self">self</span>.get_numeric_constant(index)) {
             (Type::Array(elements, len), <span class="prelude-val">Some</span>(index))
-                <span class="kw">if </span>index.to_u128() &lt; (len <span class="kw">as </span>u128 * elements.len() <span class="kw">as </span>u128) =&gt;
+                <span class="kw">if </span>index.to_u128() &lt; (u128::from(len) * elements.len() <span class="kw">as </span>u128) =&gt;
             {
                 <span class="bool-val">true
             </span>}
@@ -1670,6 +1737,21 @@
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>purity_of(<span class="kw-2">&amp;</span><span class="self">self</span>, function: FunctionId) -&gt; <span class="prelude-ty">Option</span>&lt;Purity&gt; {
         <span class="self">self</span>.function_purities.get(<span class="kw-2">&amp;</span>function).copied()
+    }
+
+    <span class="doccomment">/// Determine the appropriate [ArrayOffset] to use for indexing an array or slice.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>array_offset(<span class="kw-2">&amp;</span><span class="self">self</span>, array: ValueId, index: ValueId) -&gt; ArrayOffset {
+        <span class="kw">if </span>!<span class="self">self</span>.runtime.is_brillig()
+            || !<span class="self">self</span>.brillig_arrays_offset
+            || <span class="self">self</span>.get_numeric_constant(index).is_none()
+        {
+            <span class="kw">return </span>ArrayOffset::None;
+        }
+        <span class="kw">match </span><span class="self">self</span>.type_of_value(array) {
+            Type::Array(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; ArrayOffset::Array,
+            Type::Slice(<span class="kw">_</span>) =&gt; ArrayOffset::Slice,
+            <span class="kw">_ </span>=&gt; ArrayOffset::None,
+        }
     }
 }
 

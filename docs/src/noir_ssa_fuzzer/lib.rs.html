@@ -492,7 +492,7 @@
             run_and_compare(<span class="kw-2">&amp;</span>acir_program.program, <span class="kw-2">&amp;</span>brillig_program.program, initial_witness);
         <span class="comment">// If not agree throw panic, it is not intended to happen in tests
         </span><span class="kw">match </span>compare_results {
-            CompareResults::Agree(result) =&gt; result.peek().unwrap().witness[return_value],
+            CompareResults::Agree(result, <span class="kw">_</span>) =&gt; result.peek().unwrap().witness[return_value],
             CompareResults::Disagree(acir_result, brillig_result) =&gt; {
                 <span class="kw">let </span>acir_result = acir_result.peek().unwrap().witness[return_value];
                 <span class="kw">let </span>brillig_result = brillig_result.peek().unwrap().witness[return_value];

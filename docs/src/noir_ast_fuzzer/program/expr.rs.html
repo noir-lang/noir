@@ -499,8 +499,7 @@
 <a href="#498" id="498">498</a>
 <a href="#499" id="499">499</a>
 <a href="#500" id="500">500</a>
-<a href="#501" id="501">501</a>
-<a href="#502" id="502">502</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashSet;
+<a href="#501" id="501">501</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashSet;
 
 <span class="kw">use </span>acir::FieldElement;
 <span class="kw">use </span>nargo::errors::Location;
@@ -541,37 +540,36 @@
             Expression::Literal(Literal::Integer(field, Type::Field, Location::dummy()))
         }
         Type::Integer(signedness, integer_bit_size) =&gt; {
-            <span class="kw">let </span>(field, is_negative) =
-                <span class="kw">if </span>signedness.is_signed() {
-                    <span class="kw">match </span>integer_bit_size {
-                        One =&gt; bool::arbitrary(u).map(|n| (Field::from(n), n))<span class="question-mark">?</span>,
-                        Eight =&gt; i8::arbitrary(u)
-                            .map(|n| (Field::from(n.unsigned_abs() <span class="kw">as </span>u32), n &lt; <span class="number">0</span>))<span class="question-mark">?</span>,
-                        Sixteen =&gt; i16::arbitrary(u)
-                            .map(|n| (Field::from(n.unsigned_abs() <span class="kw">as </span>u32), n &lt; <span class="number">0</span>))<span class="question-mark">?</span>,
-                        ThirtyTwo =&gt; {
-                            i32::arbitrary(u).map(|n| (Field::from(n.unsigned_abs()), n &lt; <span class="number">0</span>))<span class="question-mark">?
-                        </span>}
-                        SixtyFour =&gt; {
-                            i64::arbitrary(u).map(|n| (Field::from(n.unsigned_abs()), n &lt; <span class="number">0</span>))<span class="question-mark">?
-                        </span>}
-                        HundredTwentyEight =&gt; {
-                            <span class="comment">// `ssa_gen::FunctionContext::checked_numeric_constant` doesn't allow negative
-                            // values with 128 bits, so let's stick to the positive range.
-                            </span>i128::arbitrary(u).map(|n| (Field::from(n.abs()), <span class="bool-val">false</span>))<span class="question-mark">?
-                        </span>}
-                    }
-                } <span class="kw">else </span>{
-                    <span class="kw">let </span>f = <span class="kw">match </span>integer_bit_size {
-                        One =&gt; Field::from(bool::arbitrary(u)<span class="question-mark">?</span>),
-                        Eight =&gt; Field::from(u8::arbitrary(u)<span class="question-mark">? </span><span class="kw">as </span>u32),
-                        Sixteen =&gt; Field::from(u16::arbitrary(u)<span class="question-mark">? </span><span class="kw">as </span>u32),
-                        ThirtyTwo =&gt; Field::from(u32::arbitrary(u)<span class="question-mark">?</span>),
-                        SixtyFour =&gt; Field::from(u64::arbitrary(u)<span class="question-mark">?</span>),
-                        HundredTwentyEight =&gt; Field::from(u128::arbitrary(u)<span class="question-mark">?</span>),
-                    };
-                    (f, <span class="bool-val">false</span>)
+            <span class="kw">let </span>(field, is_negative) = <span class="kw">if </span>signedness.is_signed() {
+                <span class="kw">match </span>integer_bit_size {
+                    One =&gt; bool::arbitrary(u).map(|n| (Field::from(n), n))<span class="question-mark">?</span>,
+                    Eight =&gt; i8::arbitrary(u)
+                        .map(|n| (Field::from(u32::from(n.unsigned_abs())), n &lt; <span class="number">0</span>))<span class="question-mark">?</span>,
+                    Sixteen =&gt; i16::arbitrary(u)
+                        .map(|n| (Field::from(u32::from(n.unsigned_abs())), n &lt; <span class="number">0</span>))<span class="question-mark">?</span>,
+                    ThirtyTwo =&gt; {
+                        i32::arbitrary(u).map(|n| (Field::from(n.unsigned_abs()), n &lt; <span class="number">0</span>))<span class="question-mark">?
+                    </span>}
+                    SixtyFour =&gt; {
+                        i64::arbitrary(u).map(|n| (Field::from(n.unsigned_abs()), n &lt; <span class="number">0</span>))<span class="question-mark">?
+                    </span>}
+                    HundredTwentyEight =&gt; {
+                        <span class="comment">// `ssa_gen::FunctionContext::checked_numeric_constant` doesn't allow negative
+                        // values with 128 bits, so let's stick to the positive range.
+                        </span>i128::arbitrary(u).map(|n| (Field::from(n.abs()), <span class="bool-val">false</span>))<span class="question-mark">?
+                    </span>}
+                }
+            } <span class="kw">else </span>{
+                <span class="kw">let </span>f = <span class="kw">match </span>integer_bit_size {
+                    One =&gt; Field::from(bool::arbitrary(u)<span class="question-mark">?</span>),
+                    Eight =&gt; Field::from(u32::from(u8::arbitrary(u)<span class="question-mark">?</span>)),
+                    Sixteen =&gt; Field::from(u32::from(u16::arbitrary(u)<span class="question-mark">?</span>)),
+                    ThirtyTwo =&gt; Field::from(u32::arbitrary(u)<span class="question-mark">?</span>),
+                    SixtyFour =&gt; Field::from(u64::arbitrary(u)<span class="question-mark">?</span>),
+                    HundredTwentyEight =&gt; Field::from(u128::arbitrary(u)<span class="question-mark">?</span>),
                 };
+                (f, <span class="bool-val">false</span>)
+            };
 
             Expression::Literal(Literal::Integer(
                 SignedField::new(field, is_negative),
@@ -641,15 +639,15 @@
                 Eight =&gt; {
                     <span class="kw">let </span>s = i8::arbitrary(u)<span class="question-mark">?</span>;
                     <span class="kw">let </span>e = s.saturating_add_unsigned(u.choose_index(max_size)<span class="question-mark">? </span><span class="kw">as </span>u8);
-                    <span class="kw">let </span>s = (Field::from(s.unsigned_abs() <span class="kw">as </span>u32), s &lt; <span class="number">0</span>);
-                    <span class="kw">let </span>e = (Field::from(e.unsigned_abs() <span class="kw">as </span>u32), e &lt; <span class="number">0</span>);
+                    <span class="kw">let </span>s = (Field::from(u32::from(s.unsigned_abs())), s &lt; <span class="number">0</span>);
+                    <span class="kw">let </span>e = (Field::from(u32::from(e.unsigned_abs())), e &lt; <span class="number">0</span>);
                     (s, e)
                 }
                 Sixteen =&gt; {
                     <span class="kw">let </span>s = i16::arbitrary(u)<span class="question-mark">?</span>;
                     <span class="kw">let </span>e = s.saturating_add_unsigned(u.choose_index(max_size)<span class="question-mark">? </span><span class="kw">as </span>u16);
-                    <span class="kw">let </span>s = (Field::from(s.unsigned_abs() <span class="kw">as </span>u32), s &lt; <span class="number">0</span>);
-                    <span class="kw">let </span>e = (Field::from(e.unsigned_abs() <span class="kw">as </span>u32), e &lt; <span class="number">0</span>);
+                    <span class="kw">let </span>s = (Field::from(u32::from(s.unsigned_abs())), s &lt; <span class="number">0</span>);
+                    <span class="kw">let </span>e = (Field::from(u32::from(e.unsigned_abs())), e &lt; <span class="number">0</span>);
                     (s, e)
                 }
                 ThirtyTwo =&gt; {
@@ -673,15 +671,15 @@
                 Eight =&gt; {
                     <span class="kw">let </span>s = u8::arbitrary(u)<span class="question-mark">?</span>;
                     <span class="kw">let </span>e = s.saturating_add(u.choose_index(max_size)<span class="question-mark">? </span><span class="kw">as </span>u8);
-                    <span class="kw">let </span>s = Field::from(s <span class="kw">as </span>u32);
-                    <span class="kw">let </span>e = Field::from(e <span class="kw">as </span>u32);
+                    <span class="kw">let </span>s = Field::from(u32::from(s));
+                    <span class="kw">let </span>e = Field::from(u32::from(e));
                     (s, e)
                 }
                 Sixteen =&gt; {
                     <span class="kw">let </span>s = u16::arbitrary(u)<span class="question-mark">?</span>;
                     <span class="kw">let </span>e = s.saturating_add(u.choose_index(max_size)<span class="question-mark">? </span><span class="kw">as </span>u16);
-                    <span class="kw">let </span>s = Field::from(s <span class="kw">as </span>u32);
-                    <span class="kw">let </span>e = Field::from(e <span class="kw">as </span>u32);
+                    <span class="kw">let </span>s = Field::from(u32::from(s));
+                    <span class="kw">let </span>e = Field::from(u32::from(e));
                     (s, e)
                 }
                 ThirtyTwo =&gt; {
@@ -768,7 +766,7 @@
 
 <span class="doccomment">/// 8-bit unsigned int literal, used in bit shifts.
 </span><span class="kw">pub fn </span>u8_literal(value: u8) -&gt; Expression {
-    int_literal(value <span class="kw">as </span>u32, <span class="bool-val">false</span>, types::U8)
+    int_literal(u32::from(value), <span class="bool-val">false</span>, types::U8)
 }
 
 <span class="doccomment">/// 32-bit unsigned int literal, used in indexing arrays.

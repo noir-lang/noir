@@ -124,14 +124,47 @@
 <a href="#123" id="123">123</a>
 <a href="#124" id="124">124</a>
 <a href="#125" id="125">125</a>
-<a href="#126" id="126">126</a></pre></div><pre class="rust"><code><span class="kw">pub mod </span>acir_vs_brillig;
+<a href="#126" id="126">126</a>
+<a href="#127" id="127">127</a>
+<a href="#128" id="128">128</a>
+<a href="#129" id="129">129</a>
+<a href="#130" id="130">130</a>
+<a href="#131" id="131">131</a>
+<a href="#132" id="132">132</a>
+<a href="#133" id="133">133</a>
+<a href="#134" id="134">134</a>
+<a href="#135" id="135">135</a>
+<a href="#136" id="136">136</a>
+<a href="#137" id="137">137</a>
+<a href="#138" id="138">138</a>
+<a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a>
+<a href="#141" id="141">141</a>
+<a href="#142" id="142">142</a></pre></div><pre class="rust"><code><span class="kw">use </span>arbitrary::Unstructured;
+<span class="kw">use </span>noir_ast_fuzzer::Config;
+
+<span class="kw">pub mod </span>acir_vs_brillig;
 <span class="kw">pub mod </span>comptime_vs_brillig_direct;
 <span class="kw">pub mod </span>comptime_vs_brillig_nargo;
 <span class="kw">pub mod </span>min_vs_full;
 <span class="kw">pub mod </span>orig_vs_morph;
 <span class="kw">pub mod </span>pass_vs_prev;
 
-<span class="attr">#[cfg(test)]
+<span class="doccomment">/// Create a default configuration instance, with some common flags randomized.
+</span><span class="kw">fn </span>default_config(u: <span class="kw-2">&amp;mut </span>Unstructured) -&gt; arbitrary::Result&lt;Config&gt; {
+    <span class="comment">// Some errors such as overflows and OOB are easy to trigger, so in half
+    // the cases we avoid all of them, to make sure they don't mask other errors.
+    </span><span class="kw">let </span>avoid_frequent_errors = u.arbitrary()<span class="question-mark">?</span>;
+    <span class="kw">let </span>config = Config {
+        avoid_overflow: avoid_frequent_errors,
+        avoid_index_out_of_bounds: avoid_frequent_errors,
+        ..Default::default()
+    };
+    <span class="prelude-val">Ok</span>(config)
+}
+
+<span class="doccomment">/// Common functions used in the test modules of targets.
+</span><span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
 
     <span class="kw">const </span>BUDGET: Duration = Duration::from_secs(<span class="number">20</span>);
@@ -178,7 +211,6 @@
     /// Run it with for example:
     /// ```ignore
     /// NOIR_AST_FUZZER_SEED=0x6819c61400001000 \
-    /// NOIR_AST_FUZZER_SHOW_AST=1 \
     /// cargo test -p noir_ast_fuzzer_fuzz acir_vs_brillig
     /// ```
     ///

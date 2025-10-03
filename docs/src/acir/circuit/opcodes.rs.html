@@ -267,12 +267,7 @@
 <a href="#266" id="266">266</a>
 <a href="#267" id="267">267</a>
 <a href="#268" id="268">268</a>
-<a href="#269" id="269">269</a>
-<a href="#270" id="270">270</a>
-<a href="#271" id="271">271</a>
-<a href="#272" id="272">272</a>
-<a href="#273" id="273">273</a>
-<a href="#274" id="274">274</a></pre></div><pre class="rust"><code><span class="doccomment">//! ACIR opcodes
+<a href="#269" id="269">269</a></pre></div><pre class="rust"><code><span class="doccomment">//! ACIR opcodes
 //!
 //! This module defines the core set opcodes used in ACIR.
 </span><span class="kw">use </span><span class="kw">super</span>::brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs};
@@ -280,16 +275,14 @@
 <span class="kw">pub mod </span>function_id;
 <span class="kw">pub use </span>function_id::AcirFunctionId;
 
-<span class="kw">use </span><span class="kw">crate</span>::native_types::{Expression, Witness};
+<span class="kw">use </span><span class="kw">crate</span>::native_types::{Expression, Witness, display_expression};
 <span class="kw">use </span>acir_field::AcirField;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 
 <span class="kw">mod </span>black_box_function_call;
 <span class="kw">mod </span>memory_operation;
 
-<span class="kw">pub use </span>black_box_function_call::{
-    BlackBoxFuncCall, ConstantOrWitnessEnum, FunctionInput, InvalidInputBitSize,
-};
+<span class="kw">pub use </span>black_box_function_call::{BlackBoxFuncCall, FunctionInput, InvalidInputBitSize};
 <span class="kw">pub use </span>memory_operation::{BlockId, MemOp};
 
 <span class="doccomment">/// Type for a memory block
@@ -376,9 +369,6 @@
         </span>block_id: BlockId,
         <span class="doccomment">/// Describe the memory operation to perform
         </span>op: MemOp&lt;F&gt;,
-        <span class="doccomment">/// Predicate of the memory operation - indicates if it should be skipped
-        /// Disables the execution of the opcode when the expression evaluates to zero
-        </span>predicate: <span class="prelude-ty">Option</span>&lt;Expression&lt;F&gt;&gt;,
     },
 
     <span class="doccomment">/// Initialize an ACIR array from a vector of witnesses.
@@ -425,19 +415,17 @@
 <span class="kw">impl</span>&lt;F: AcirField&gt; std::fmt::Display <span class="kw">for </span>Opcode&lt;F&gt; {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
         <span class="kw">match </span><span class="self">self </span>{
-            Opcode::AssertZero(expr) =&gt; expr.fmt(f),
+            Opcode::AssertZero(expr) =&gt; {
+                <span class="macro">write!</span>(f, <span class="string">"ASSERT "</span>)<span class="question-mark">?</span>;
+                display_expression(expr, <span class="bool-val">true</span>, f)
+            }
             Opcode::BlackBoxFuncCall(g) =&gt; g.fmt(f),
-            Opcode::MemoryOp { block_id, op, predicate } =&gt; {
-                <span class="macro">write!</span>(f, <span class="string">"MEM "</span>)<span class="question-mark">?</span>;
-                <span class="kw">if let </span><span class="prelude-val">Some</span>(pred) = predicate {
-                    <span class="macro">writeln!</span>(f, <span class="string">"PREDICATE: {pred}"</span>)<span class="question-mark">?</span>;
-                }
-
+            Opcode::MemoryOp { block_id, op } =&gt; {
                 <span class="kw">let </span>is_read = op.operation.is_zero();
                 <span class="kw">if </span>is_read {
-                    <span class="macro">write!</span>(f, <span class="string">"(id: {}, read at: {}, value: {}) "</span>, block_id.<span class="number">0</span>, op.index, op.value)
+                    <span class="macro">write!</span>(f, <span class="string">"READ {} = b{}[{}]"</span>, op.value, block_id.<span class="number">0</span>, op.index)
                 } <span class="kw">else </span>{
-                    <span class="macro">write!</span>(f, <span class="string">"(id: {}, write {} at: {}) "</span>, block_id.<span class="number">0</span>, op.value, op.index)
+                    <span class="macro">write!</span>(f, <span class="string">"WRITE b{}[{}] = {}"</span>, block_id.<span class="number">0</span>, op.index, op.value)
                 }
             }
             Opcode::MemoryInit { block_id, init, block_type: databus } =&gt; {
@@ -448,14 +436,14 @@
                 }
                 <span class="kw">let </span>witnesses =
                     init.iter().map(|w| <span class="macro">format!</span>(<span class="string">"{w}"</span>)).collect::&lt;Vec&lt;String&gt;&gt;().join(<span class="string">", "</span>);
-                <span class="macro">write!</span>(f, <span class="string">"(id: {}, len: {}, witnesses: [{witnesses}])"</span>, block_id.<span class="number">0</span>, init.len())
+                <span class="macro">write!</span>(f, <span class="string">"b{} = [{witnesses}]"</span>, block_id.<span class="number">0</span>)
             }
             <span class="comment">// We keep the display for a BrilligCall and circuit Call separate as they
             // are distinct in their functionality and we should maintain this separation for debugging.
             </span>Opcode::BrilligCall { id, inputs, outputs, predicate } =&gt; {
-                <span class="macro">write!</span>(f, <span class="string">"BRILLIG CALL func {id}: "</span>)<span class="question-mark">?</span>;
+                <span class="macro">write!</span>(f, <span class="string">"BRILLIG CALL func: {id}, "</span>)<span class="question-mark">?</span>;
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(pred) = predicate {
-                    <span class="macro">writeln!</span>(f, <span class="string">"PREDICATE: {pred}"</span>)<span class="question-mark">?</span>;
+                    <span class="macro">write!</span>(f, <span class="string">"predicate: {pred}, "</span>)<span class="question-mark">?</span>;
                 }
 
                 <span class="kw">let </span>inputs = inputs
@@ -473,9 +461,9 @@
                 <span class="macro">write!</span>(f, <span class="string">"outputs: [{outputs}]"</span>)
             }
             Opcode::Call { id, inputs, outputs, predicate } =&gt; {
-                <span class="macro">write!</span>(f, <span class="string">"CALL func {id}: "</span>)<span class="question-mark">?</span>;
+                <span class="macro">write!</span>(f, <span class="string">"CALL func: {id}, "</span>)<span class="question-mark">?</span>;
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(pred) = predicate {
-                    <span class="macro">writeln!</span>(f, <span class="string">"PREDICATE: {pred}"</span>)<span class="question-mark">?</span>;
+                    <span class="macro">write!</span>(f, <span class="string">"predicate: {pred}, "</span>)<span class="question-mark">?</span>;
                 }
                 <span class="kw">let </span>inputs =
                     inputs.iter().map(|w| <span class="macro">format!</span>(<span class="string">"{w}"</span>)).collect::&lt;Vec&lt;String&gt;&gt;().join(<span class="string">", "</span>);
@@ -516,33 +504,35 @@
 
         <span class="macro">insta::assert_snapshot!</span>(
             mem_init.to_string(),
-            @<span class="string">"INIT (id: 42, len: 10, witnesses: [_0, _1, _2, _3, _4, _5, _6, _7, _8, _9])"
+            @<span class="string">"INIT b42 = [w0, w1, w2, w3, w4, w5, w6, w7, w8, w9]"
         </span>);
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>blackbox_snapshot() {
         <span class="kw">let </span>xor: Opcode&lt;FieldElement&gt; = Opcode::BlackBoxFuncCall(BlackBoxFuncCall::XOR {
-            lhs: FunctionInput::witness(<span class="number">0</span>.into(), <span class="number">32</span>),
-            rhs: FunctionInput::witness(<span class="number">1</span>.into(), <span class="number">32</span>),
+            lhs: FunctionInput::Witness(<span class="number">0</span>.into()),
+            rhs: FunctionInput::Witness(<span class="number">1</span>.into()),
+            num_bits: <span class="number">32</span>,
             output: Witness(<span class="number">3</span>),
         });
 
         <span class="macro">insta::assert_snapshot!</span>(
             xor.to_string(),
-            @<span class="string">"BLACKBOX::XOR [(_0, 32), (_1, 32)] [_3]"
+            @<span class="string">"BLACKBOX::XOR inputs: [w0, w1], bits: 32, output: w3"
         </span>);
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>range_display_snapshot() {
         <span class="kw">let </span>range: Opcode&lt;FieldElement&gt; = Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
-            input: FunctionInput::witness(<span class="number">0</span>.into(), <span class="number">32</span>),
+            input: FunctionInput::Witness(<span class="number">0</span>.into()),
+            num_bits: <span class="number">32</span>,
         });
 
         <span class="macro">insta::assert_snapshot!</span>(
             range.to_string(),
-            @<span class="string">"BLACKBOX::RANGE [(_0, 32)] []"
+            @<span class="string">"BLACKBOX::RANGE input: w0, bits: 32"
         </span>);
     }
 }

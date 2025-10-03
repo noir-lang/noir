@@ -863,17 +863,17 @@
             NumericValue::Field(field) =&gt; <span class="kw-2">*</span>field,
             NumericValue::U1(boolean) <span class="kw">if </span><span class="kw-2">*</span>boolean =&gt; FieldElement::one(),
             NumericValue::U1(<span class="kw">_</span>) =&gt; FieldElement::zero(),
-            NumericValue::U8(value) =&gt; FieldElement::from(<span class="kw-2">*</span>value <span class="kw">as </span>u32),
-            NumericValue::U16(value) =&gt; FieldElement::from(<span class="kw-2">*</span>value <span class="kw">as </span>u32),
+            NumericValue::U8(value) =&gt; FieldElement::from(u32::from(<span class="kw-2">*</span>value)),
+            NumericValue::U16(value) =&gt; FieldElement::from(u32::from(<span class="kw-2">*</span>value)),
             NumericValue::U32(value) =&gt; FieldElement::from(<span class="kw-2">*</span>value),
             NumericValue::U64(value) =&gt; FieldElement::from(<span class="kw-2">*</span>value),
             NumericValue::U128(value) =&gt; FieldElement::from(<span class="kw-2">*</span>value),
             <span class="comment">// Need to cast possibly negative values to the unsigned variants
             // first to ensure they are zero-extended rather than sign-extended
-            </span>NumericValue::I8(value) =&gt; FieldElement::from(<span class="kw-2">*</span>value <span class="kw">as </span>u8 <span class="kw">as </span>i128),
-            NumericValue::I16(value) =&gt; FieldElement::from(<span class="kw-2">*</span>value <span class="kw">as </span>u16 <span class="kw">as </span>i128),
-            NumericValue::I32(value) =&gt; FieldElement::from(<span class="kw-2">*</span>value <span class="kw">as </span>u32 <span class="kw">as </span>i128),
-            NumericValue::I64(value) =&gt; FieldElement::from(<span class="kw-2">*</span>value <span class="kw">as </span>u64 <span class="kw">as </span>i128),
+            </span>NumericValue::I8(value) =&gt; FieldElement::from(i128::from(<span class="kw-2">*</span>value <span class="kw">as </span>u8)),
+            NumericValue::I16(value) =&gt; FieldElement::from(i128::from(<span class="kw-2">*</span>value <span class="kw">as </span>u16)),
+            NumericValue::I32(value) =&gt; FieldElement::from(i128::from(<span class="kw-2">*</span>value <span class="kw">as </span>u32)),
+            NumericValue::I64(value) =&gt; FieldElement::from(i128::from(<span class="kw-2">*</span>value <span class="kw">as </span>u64)),
         }
     }
 

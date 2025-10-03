@@ -316,7 +316,19 @@
 <a href="#315" id="315">315</a>
 <a href="#316" id="316">316</a>
 <a href="#317" id="317">317</a>
-<a href="#318" id="318">318</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
+<a href="#318" id="318">318</a>
+<a href="#319" id="319">319</a>
+<a href="#320" id="320">320</a>
+<a href="#321" id="321">321</a>
+<a href="#322" id="322">322</a>
+<a href="#323" id="323">323</a>
+<a href="#324" id="324">324</a>
+<a href="#325" id="325">325</a>
+<a href="#326" id="326">326</a>
+<a href="#327" id="327">327</a>
+<a href="#328" id="328">328</a>
+<a href="#329" id="329">329</a>
+<a href="#330" id="330">330</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
 
 <span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>noirc_errors::{Position, Span, Spanned};
@@ -429,12 +441,13 @@
     }
 }
 
-<span class="attr">#[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+<span class="attr">#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>Keyword {
     Acir,
     Add,
     Allocate,
     And,
+    Array,
     ArrayGet,
     ArraySet,
     As,
@@ -443,6 +456,7 @@
     Bool,
     Brillig,
     Call,
+    CallData,
     Cast,
     Constrain,
     Data,
@@ -461,6 +475,7 @@
     Impure,
     IncRc,
     Index,
+    Indices,
     Jmp,
     Jmpif,
     Load,
@@ -480,6 +495,7 @@
     Pure,
     RangeCheck,
     Return,
+    ReturnData,
     Shl,
     Shr,
     Store,
@@ -502,6 +518,7 @@
             <span class="string">"add" </span>=&gt; Keyword::Add,
             <span class="string">"allocate" </span>=&gt; Keyword::Allocate,
             <span class="string">"and" </span>=&gt; Keyword::And,
+            <span class="string">"array" </span>=&gt; Keyword::Array,
             <span class="string">"array_get" </span>=&gt; Keyword::ArrayGet,
             <span class="string">"array_set" </span>=&gt; Keyword::ArraySet,
             <span class="string">"as" </span>=&gt; Keyword::As,
@@ -510,6 +527,7 @@
             <span class="string">"bool" </span>=&gt; Keyword::Bool,
             <span class="string">"brillig" </span>=&gt; Keyword::Brillig,
             <span class="string">"call" </span>=&gt; Keyword::Call,
+            <span class="string">"call_data" </span>=&gt; Keyword::CallData,
             <span class="string">"cast" </span>=&gt; Keyword::Cast,
             <span class="string">"constrain" </span>=&gt; Keyword::Constrain,
             <span class="string">"data" </span>=&gt; Keyword::Data,
@@ -528,6 +546,7 @@
             <span class="string">"function" </span>=&gt; Keyword::Function,
             <span class="string">"inc_rc" </span>=&gt; Keyword::IncRc,
             <span class="string">"index" </span>=&gt; Keyword::Index,
+            <span class="string">"indices" </span>=&gt; Keyword::Indices,
             <span class="string">"jmp" </span>=&gt; Keyword::Jmp,
             <span class="string">"jmpif" </span>=&gt; Keyword::Jmpif,
             <span class="string">"load" </span>=&gt; Keyword::Load,
@@ -547,6 +566,7 @@
             <span class="string">"pure" </span>=&gt; Keyword::Pure,
             <span class="string">"range_check" </span>=&gt; Keyword::RangeCheck,
             <span class="string">"return" </span>=&gt; Keyword::Return,
+            <span class="string">"return_data" </span>=&gt; Keyword::ReturnData,
             <span class="string">"shl" </span>=&gt; Keyword::Shl,
             <span class="string">"shr" </span>=&gt; Keyword::Shr,
             <span class="string">"store" </span>=&gt; Keyword::Store,
@@ -573,6 +593,7 @@
             Keyword::Add =&gt; <span class="macro">write!</span>(f, <span class="string">"add"</span>),
             Keyword::Allocate =&gt; <span class="macro">write!</span>(f, <span class="string">"allocate"</span>),
             Keyword::And =&gt; <span class="macro">write!</span>(f, <span class="string">"and"</span>),
+            Keyword::Array =&gt; <span class="macro">write!</span>(f, <span class="string">"array"</span>),
             Keyword::ArrayGet =&gt; <span class="macro">write!</span>(f, <span class="string">"array_get"</span>),
             Keyword::ArraySet =&gt; <span class="macro">write!</span>(f, <span class="string">"array_set"</span>),
             Keyword::As =&gt; <span class="macro">write!</span>(f, <span class="string">"as"</span>),
@@ -581,6 +602,7 @@
             Keyword::Bool =&gt; <span class="macro">write!</span>(f, <span class="string">"bool"</span>),
             Keyword::Brillig =&gt; <span class="macro">write!</span>(f, <span class="string">"brillig"</span>),
             Keyword::Call =&gt; <span class="macro">write!</span>(f, <span class="string">"call"</span>),
+            Keyword::CallData =&gt; <span class="macro">write!</span>(f, <span class="string">"call_data"</span>),
             Keyword::Cast =&gt; <span class="macro">write!</span>(f, <span class="string">"cast"</span>),
             Keyword::Constrain =&gt; <span class="macro">write!</span>(f, <span class="string">"constrain"</span>),
             Keyword::Data =&gt; <span class="macro">write!</span>(f, <span class="string">"data"</span>),
@@ -597,6 +619,7 @@
             Keyword::Impure =&gt; <span class="macro">write!</span>(f, <span class="string">"impure"</span>),
             Keyword::IncRc =&gt; <span class="macro">write!</span>(f, <span class="string">"inc_rc"</span>),
             Keyword::Index =&gt; <span class="macro">write!</span>(f, <span class="string">"index"</span>),
+            Keyword::Indices =&gt; <span class="macro">write!</span>(f, <span class="string">"indices"</span>),
             Keyword::Inline =&gt; <span class="macro">write!</span>(f, <span class="string">"inline"</span>),
             Keyword::InlineAlways =&gt; <span class="macro">write!</span>(f, <span class="string">"inline_always"</span>),
             Keyword::Jmp =&gt; <span class="macro">write!</span>(f, <span class="string">"jmp"</span>),
@@ -618,6 +641,7 @@
             Keyword::Pure =&gt; <span class="macro">write!</span>(f, <span class="string">"pure"</span>),
             Keyword::RangeCheck =&gt; <span class="macro">write!</span>(f, <span class="string">"range_check"</span>),
             Keyword::Return =&gt; <span class="macro">write!</span>(f, <span class="string">"return"</span>),
+            Keyword::ReturnData =&gt; <span class="macro">write!</span>(f, <span class="string">"return_data"</span>),
             Keyword::Shl =&gt; <span class="macro">write!</span>(f, <span class="string">"shl"</span>),
             Keyword::Shr =&gt; <span class="macro">write!</span>(f, <span class="string">"shr"</span>),
             Keyword::Store =&gt; <span class="macro">write!</span>(f, <span class="string">"store"</span>),

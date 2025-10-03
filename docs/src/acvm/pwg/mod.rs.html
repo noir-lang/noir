@@ -871,7 +871,245 @@
 <a href="#870" id="870">870</a>
 <a href="#871" id="871">871</a>
 <a href="#872" id="872">872</a>
-<a href="#873" id="873">873</a></pre></div><pre class="rust"><code><span class="comment">// Re-usable methods that backends can use to implement their PWG
+<a href="#873" id="873">873</a>
+<a href="#874" id="874">874</a>
+<a href="#875" id="875">875</a>
+<a href="#876" id="876">876</a>
+<a href="#877" id="877">877</a>
+<a href="#878" id="878">878</a>
+<a href="#879" id="879">879</a>
+<a href="#880" id="880">880</a>
+<a href="#881" id="881">881</a>
+<a href="#882" id="882">882</a>
+<a href="#883" id="883">883</a>
+<a href="#884" id="884">884</a>
+<a href="#885" id="885">885</a>
+<a href="#886" id="886">886</a>
+<a href="#887" id="887">887</a>
+<a href="#888" id="888">888</a>
+<a href="#889" id="889">889</a>
+<a href="#890" id="890">890</a>
+<a href="#891" id="891">891</a>
+<a href="#892" id="892">892</a>
+<a href="#893" id="893">893</a>
+<a href="#894" id="894">894</a>
+<a href="#895" id="895">895</a>
+<a href="#896" id="896">896</a>
+<a href="#897" id="897">897</a>
+<a href="#898" id="898">898</a>
+<a href="#899" id="899">899</a>
+<a href="#900" id="900">900</a>
+<a href="#901" id="901">901</a>
+<a href="#902" id="902">902</a>
+<a href="#903" id="903">903</a>
+<a href="#904" id="904">904</a>
+<a href="#905" id="905">905</a>
+<a href="#906" id="906">906</a>
+<a href="#907" id="907">907</a>
+<a href="#908" id="908">908</a>
+<a href="#909" id="909">909</a>
+<a href="#910" id="910">910</a>
+<a href="#911" id="911">911</a>
+<a href="#912" id="912">912</a>
+<a href="#913" id="913">913</a>
+<a href="#914" id="914">914</a>
+<a href="#915" id="915">915</a>
+<a href="#916" id="916">916</a>
+<a href="#917" id="917">917</a>
+<a href="#918" id="918">918</a>
+<a href="#919" id="919">919</a>
+<a href="#920" id="920">920</a>
+<a href="#921" id="921">921</a>
+<a href="#922" id="922">922</a>
+<a href="#923" id="923">923</a>
+<a href="#924" id="924">924</a>
+<a href="#925" id="925">925</a>
+<a href="#926" id="926">926</a>
+<a href="#927" id="927">927</a>
+<a href="#928" id="928">928</a>
+<a href="#929" id="929">929</a>
+<a href="#930" id="930">930</a>
+<a href="#931" id="931">931</a>
+<a href="#932" id="932">932</a>
+<a href="#933" id="933">933</a>
+<a href="#934" id="934">934</a>
+<a href="#935" id="935">935</a>
+<a href="#936" id="936">936</a>
+<a href="#937" id="937">937</a>
+<a href="#938" id="938">938</a>
+<a href="#939" id="939">939</a>
+<a href="#940" id="940">940</a>
+<a href="#941" id="941">941</a>
+<a href="#942" id="942">942</a>
+<a href="#943" id="943">943</a>
+<a href="#944" id="944">944</a>
+<a href="#945" id="945">945</a>
+<a href="#946" id="946">946</a>
+<a href="#947" id="947">947</a>
+<a href="#948" id="948">948</a>
+<a href="#949" id="949">949</a>
+<a href="#950" id="950">950</a>
+<a href="#951" id="951">951</a>
+<a href="#952" id="952">952</a>
+<a href="#953" id="953">953</a>
+<a href="#954" id="954">954</a>
+<a href="#955" id="955">955</a>
+<a href="#956" id="956">956</a>
+<a href="#957" id="957">957</a>
+<a href="#958" id="958">958</a>
+<a href="#959" id="959">959</a>
+<a href="#960" id="960">960</a>
+<a href="#961" id="961">961</a>
+<a href="#962" id="962">962</a>
+<a href="#963" id="963">963</a>
+<a href="#964" id="964">964</a>
+<a href="#965" id="965">965</a>
+<a href="#966" id="966">966</a>
+<a href="#967" id="967">967</a>
+<a href="#968" id="968">968</a>
+<a href="#969" id="969">969</a>
+<a href="#970" id="970">970</a>
+<a href="#971" id="971">971</a>
+<a href="#972" id="972">972</a>
+<a href="#973" id="973">973</a>
+<a href="#974" id="974">974</a>
+<a href="#975" id="975">975</a>
+<a href="#976" id="976">976</a>
+<a href="#977" id="977">977</a>
+<a href="#978" id="978">978</a>
+<a href="#979" id="979">979</a>
+<a href="#980" id="980">980</a>
+<a href="#981" id="981">981</a>
+<a href="#982" id="982">982</a>
+<a href="#983" id="983">983</a>
+<a href="#984" id="984">984</a>
+<a href="#985" id="985">985</a>
+<a href="#986" id="986">986</a>
+<a href="#987" id="987">987</a>
+<a href="#988" id="988">988</a>
+<a href="#989" id="989">989</a>
+<a href="#990" id="990">990</a>
+<a href="#991" id="991">991</a>
+<a href="#992" id="992">992</a>
+<a href="#993" id="993">993</a>
+<a href="#994" id="994">994</a>
+<a href="#995" id="995">995</a>
+<a href="#996" id="996">996</a>
+<a href="#997" id="997">997</a>
+<a href="#998" id="998">998</a>
+<a href="#999" id="999">999</a>
+<a href="#1000" id="1000">1000</a>
+<a href="#1001" id="1001">1001</a>
+<a href="#1002" id="1002">1002</a>
+<a href="#1003" id="1003">1003</a>
+<a href="#1004" id="1004">1004</a>
+<a href="#1005" id="1005">1005</a>
+<a href="#1006" id="1006">1006</a>
+<a href="#1007" id="1007">1007</a>
+<a href="#1008" id="1008">1008</a>
+<a href="#1009" id="1009">1009</a>
+<a href="#1010" id="1010">1010</a>
+<a href="#1011" id="1011">1011</a>
+<a href="#1012" id="1012">1012</a>
+<a href="#1013" id="1013">1013</a>
+<a href="#1014" id="1014">1014</a>
+<a href="#1015" id="1015">1015</a>
+<a href="#1016" id="1016">1016</a>
+<a href="#1017" id="1017">1017</a>
+<a href="#1018" id="1018">1018</a>
+<a href="#1019" id="1019">1019</a></pre></div><pre class="rust"><code><span class="comment">// Re-usable methods that backends can use to implement their PWG
+
+</span><span class="doccomment">//! This module contains methods to implement the partial witness generation (PWG) of an ACIR program.
+//! The goal of ACIR execution is to compute the values of all the ACIR witnesses, or an error if it could not compute them all.
+//! A proving system will then be able to use the ACIR circuit and the values of the ACIR witnesses to generate a proof of this execution.
+//! The ACIR opcodes are not modified by the execution.
+//! Witness generation means getting valid values for the witnesses used by the ACIR opcodes of the program.
+//! They are called *partial* witness because a proving system may create additional witnesses on its own for
+//! generating the proof (and a corresponding low-level circuit). The PWG generates values for all the witnesses
+//! of the ACIR program, or returns an error if it cannot do it.
+//!
+//! Implementation details &amp; examples:
+//! It starts by instantiating an ACVM (ACIR Virtual Machine), which executes the given ACIR opcodes in the `solve()` function.
+//!
+//! Parameters: When instantiating the ACVM, it needs to be provided with:
+//!  - a `backend` implementing the `BlackBoxFunctionSolver` trait. Different implementation can be used depending on the EC used by the underlying proving system.
+//!  - `opcodes`: the ACIR opcodes of the program to solve.
+//!  - `initial_witness`: a mapping of initial witness values representing the inputs of the program. The ACVM will update this map as it solves the opcodes.
+//!  - `unconstrained_functions`: the Brillig bytecode of the unconstrained functions used by the program.
+//!  - `assertion_payloads`: additional information used to provide feedback to the user when an assertion fails.
+//!
+//! Returns: ACVM Status
+//! - `Solved`: all witness have been successfully computed, execution is complete.
+//! - `InProgress`: The ACVM is processing the circuit, i.e solving the opcodes. This status is used to resume execution after it has been paused.
+//! - `Failure(OpcodeResolutionError&lt;F&gt;)`: Error, execution is stopped.
+//! - `RequiresForeignCall(ForeignCallWaitInfo&lt;F&gt;)`: Execution is paused until the result of a foreign call is provided
+//! - `RequiresAcirCall(AcirCallWaitInfo&lt;F&gt;)`: Execution is paused until the result of an ACIR call is provided
+//!
+//! Each opcode is solved independently. In general we require its inputs to be already known, i.e previously solved,
+//! and the output is simply computed from the inputs, and then the output becomes 'known' for the subsequent opcodes.
+//!
+//! - AssertZero opcode: The arithmetic expression of the opcode is solved for one unknown witness.
+//!   It will fail if there is more than one unknown witness in the expression.
+//!
+//! - BlackBoxFuncCall opcode: The blackbox module knows how to compute the result of the function when all its input are known.
+//!
+//! - MemoryInit opcode: Instantiate a MemoryOpSolver for the opcode's array, using the given initial values.
+//!   Initial witness values must be known. The memory values will be updated later by MemoryOp opcodes.
+//!
+//! - MemoryOp opcode: Update the memory values of the opcode's array from the opcode witness values:
+//!   A read operation will solve the corresponding witness value, reading the memory value tracked by the MemoryOpSolver at the (known value) of the opcode index.
+//!   A write operation will update the memory value tracked by the MemoryOpSolver using the known values of the opcode index/value witnesses.
+//!
+//! - BrilligCall opcode: Calls an unconstrained Brillig function by instantiating a BrilligSolver (i.e a Brillig VM).
+//!   If the function is a foreign call, the `solve()` will halt and wait for the caller to resolve the foreign call.
+//!
+//! - Call opcode: Execute the ACIR call in a separate ACVM instance. The result of the ACIR call will be passed back to the ACVM using a
+//!   mechanism similar to the one for foreign calls.
+//!
+//!
+//!
+//! Example:
+</span><span class="comment">// Compiled ACIR for main (non-transformed):
+// func 0
+// private parameters: [w0, w1, w2, w3, w4]
+// public parameters: []
+// return values: [w9]
+// BLACKBOX::RANGE input: w0, bits: 32
+// BLACKBOX::RANGE input: w1, bits: 32
+// BLACKBOX::RANGE input: w2, bits: 32
+// BLACKBOX::RANGE input: w3, bits: 32
+// BLACKBOX::RANGE input: w4, bits: 32
+// ASSERT w0 - w1 - w6 = 0
+// BRILLIG CALL func: 0, inputs: [w6], outputs: [w7]
+// ASSERT w6*w7 + w8 - 1 = 0
+// ASSERT w6*w8 = 0
+// ASSERT w1*w8 = 0
+// ASSERT w0 - w2 - w9 = 0
+</span><span class="doccomment">//!
+//! This ACIR program defines the 'main' function and indicates it is 'non-transformed'.
+//! Indeed, some ACIR pass can transform the ACIR program in order to apply optimizations,
+//! or to make it compatible with a specific proving system.
+//! However, ACIR execution is expected to work on any ACIR program (transformed or not).
+//! Then the program indicates the 'current witness', which is the lasted witness used in the program.
+//! Any transformation that needs to add more witness will use it in order to not overlap with
+//! existing witnesses. This is not relevant for execution.
+//! Then we see the parameters of the program as public and private inputs.
+//! The `initial_witness` needs to contain values for these parameters before execution, else
+//! the execution will fail.
+//! The first ACIR opcodes are RANGE opcodes which ensure the inputs have the expected range (as specified in the Noir source code).
+//! Solving this black-box simply means to validate that the values (from `initial_witness`) are indeed 32 bits for w0, w1, w2, w3, w4
+//! If `initial_witness` does not have values for w0, w1, w2, w3, w4, or if the values are over 32 bits, the execution will fail.
+//! The next opcode is an AssertZero opcode: ASSERT w0 - w1 - w6 = 0, which indicates that `w0 - w1 - w6` should be equal to 0.
+//! Since we know the values of `w0, w1` from `initial_witness`, we can compute `w6 = w0 + w1` so that the AssertZero is satisfied.
+//! Solving AssertZero means computing the unknown witness and adding the result to `initial_witness`, which now contains the value for `w6`.
+//! The next opcode is a Brillig Call where input is `w6` and output is `w7`. From the function id of the opcode, the solver will retrieve the
+//! corresponding Brillig bytecode and instantiate a Brillig VM with the value of the input. This value was just computed before.
+//! Executing the Brillig VM on this input will give us the output which is the value for `w7`, that we add to `initial_witness`.
+//! The next opcode is again an AssertZero: `w6 * w7 + w8 - 1 = 0`, which computes the value of `w8`.
+//! The two next opcode are AssertZero without any unknown witness: `w6 * w8 = 0` and `w1 * w8 = 0`
+//! Solving such opcodes means that we compute `w6 * w8 ` and `w1 * w8` using the known values, and check that it is 0.
+//! If not, we would return an error.
+//! Finally, the last AssertZero computes `w9` which is the last witness. All the witness have now been computed; execution is complete.
 
 </span><span class="kw">use </span>std::collections::HashMap;
 
@@ -881,18 +1119,14 @@
     circuit::{
         AssertionPayload, ErrorSelector, ExpressionOrMemory, Opcode, OpcodeLocation,
         brillig::{BrilligBytecode, BrilligFunctionId},
-        opcodes::{
-            AcirFunctionId, BlockId, ConstantOrWitnessEnum, FunctionInput, InvalidInputBitSize,
-        },
+        opcodes::{AcirFunctionId, BlockId, FunctionInput, InvalidInputBitSize},
     },
     native_types::{Expression, Witness, WitnessMap},
 };
 <span class="kw">use </span>acvm_blackbox_solver::BlackBoxResolutionError;
 <span class="kw">use </span>brillig_vm::BranchToFeatureMap;
 
-<span class="kw">use </span><span class="self">self</span>::{
-    arithmetic::ExpressionSolver, blackbox::bigint::AcvmBigIntSolver, memory_op::MemoryOpSolver,
-};
+<span class="kw">use </span><span class="self">self</span>::{arithmetic::ExpressionSolver, memory_op::MemoryOpSolver};
 <span class="kw">use </span><span class="kw">crate</span>::BlackBoxFunctionSolver;
 
 <span class="kw">use </span>thiserror::Error;
@@ -1086,8 +1320,6 @@
     <span class="doccomment">/// Stores the solver for memory operations acting on blocks of memory disambiguated by [block][`BlockId`].
     </span>block_solvers: HashMap&lt;BlockId, MemoryOpSolver&lt;F&gt;&gt;,
 
-    bigint_solver: AcvmBigIntSolver,
-
     <span class="doccomment">/// A list of opcodes which are to be executed by the ACVM.
     </span>opcodes: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>[Opcode&lt;F&gt;],
     <span class="doccomment">/// Index of the next opcode to be executed.
@@ -1133,12 +1365,10 @@
         assertion_payloads: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>[(OpcodeLocation, AssertionPayload&lt;F&gt;)],
     ) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>status = <span class="kw">if </span>opcodes.is_empty() { ACVMStatus::Solved } <span class="kw">else </span>{ ACVMStatus::InProgress };
-        <span class="kw">let </span>bigint_solver = AcvmBigIntSolver::with_pedantic_solving(backend.pedantic_solving());
         ACVM {
             status,
             backend,
             block_solvers: HashMap::default(),
-            bigint_solver,
             opcodes,
             instruction_pointer: <span class="number">0</span>,
             witness_map: initial_witness,
@@ -1299,22 +1529,24 @@
         <span class="kw">let </span>opcode = <span class="kw-2">&amp;</span><span class="self">self</span>.opcodes[<span class="self">self</span>.instruction_pointer];
         <span class="kw">let </span>resolution = <span class="kw">match </span>opcode {
             Opcode::AssertZero(expr) =&gt; ExpressionSolver::solve(<span class="kw-2">&amp;mut </span><span class="self">self</span>.witness_map, expr),
-            Opcode::BlackBoxFuncCall(bb_func) =&gt; blackbox::solve(
-                <span class="self">self</span>.backend,
-                <span class="kw-2">&amp;mut </span><span class="self">self</span>.witness_map,
-                bb_func,
-                <span class="kw-2">&amp;mut </span><span class="self">self</span>.bigint_solver,
-            ),
-            Opcode::MemoryInit { block_id, init, .. } =&gt; {
-                <span class="kw">let </span>solver = <span class="self">self</span>.block_solvers.entry(<span class="kw-2">*</span>block_id).or_default();
-                solver.init(init, <span class="kw-2">&amp;</span><span class="self">self</span>.witness_map)
+            Opcode::BlackBoxFuncCall(bb_func) =&gt; {
+                blackbox::solve(<span class="self">self</span>.backend, <span class="kw-2">&amp;mut </span><span class="self">self</span>.witness_map, bb_func)
             }
-            Opcode::MemoryOp { block_id, op, predicate } =&gt; {
-                <span class="kw">let </span>solver = <span class="self">self</span>.block_solvers.entry(<span class="kw-2">*</span>block_id).or_default();
+            Opcode::MemoryInit { block_id, init, .. } =&gt; {
+                MemoryOpSolver::new(init, <span class="kw-2">&amp;</span><span class="self">self</span>.witness_map).map(|solver| {
+                    <span class="kw">let </span>existing_block_id = <span class="self">self</span>.block_solvers.insert(<span class="kw-2">*</span>block_id, solver);
+                    <span class="macro">assert!</span>(existing_block_id.is_none(), <span class="string">"Memory block already initialized"</span>);
+                })
+            }
+            Opcode::MemoryOp { block_id, op } =&gt; {
+                <span class="kw">let </span>solver = <span class="self">self
+                    </span>.block_solvers
+                    .get_mut(block_id)
+                    .expect(<span class="string">"Memory block should have been initialized before use"</span>);
                 solver.solve_memory_op(
                     op,
                     <span class="kw-2">&amp;mut </span><span class="self">self</span>.witness_map,
-                    predicate,
+                    <span class="kw-2">&amp;</span><span class="prelude-val">None</span>,
                     <span class="self">self</span>.backend.pedantic_solving(),
                 )
             }
@@ -1396,12 +1628,7 @@
                 }
                 ExpressionOrMemory::Memory(block_id) =&gt; {
                     <span class="kw">let </span>memory_block = <span class="self">self</span>.block_solvers.get(block_id)<span class="question-mark">?</span>;
-                    fields.extend((<span class="number">0</span>..memory_block.block_len).map(|memory_index| {
-                        <span class="kw-2">*</span>memory_block
-                            .block_value
-                            .get(<span class="kw-2">&amp;</span>memory_index)
-                            .expect(<span class="string">"All memory is initialized on creation"</span>)
-                    }));
+                    fields.extend(<span class="kw-2">&amp;</span>memory_block.block_value);
                 }
             }
         }
@@ -1631,27 +1858,33 @@
 </span><span class="kw">pub fn </span>input_to_value&lt;F: AcirField&gt;(
     initial_witness: <span class="kw-2">&amp;</span>WitnessMap&lt;F&gt;,
     input: FunctionInput&lt;F&gt;,
-    skip_bitsize_checks: bool,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;F, OpcodeResolutionError&lt;F&gt;&gt; {
-    <span class="kw">match </span>input.input() {
-        ConstantOrWitnessEnum::Witness(witness) =&gt; {
+    <span class="kw">match </span>input {
+        FunctionInput::Witness(witness) =&gt; {
             <span class="kw">let </span>initial_value = <span class="kw-2">*</span>witness_to_value(initial_witness, witness)<span class="question-mark">?</span>;
-            <span class="kw">if </span>skip_bitsize_checks || initial_value.num_bits() &lt;= input.num_bits() {
-                <span class="prelude-val">Ok</span>(initial_value)
-            } <span class="kw">else </span>{
-                <span class="kw">let </span>value_num_bits = initial_value.num_bits();
-                <span class="kw">let </span>value = initial_value.to_string();
-                <span class="prelude-val">Err</span>(OpcodeResolutionError::InvalidInputBitSize {
-                    opcode_location: ErrorLocation::Unresolved,
-                    invalid_input_bit_size: InvalidInputBitSize {
-                        value,
-                        value_num_bits,
-                        max_bits: input.num_bits(),
-                    },
-                })
-            }
+            <span class="prelude-val">Ok</span>(initial_value)
         }
-        ConstantOrWitnessEnum::Constant(value) =&gt; <span class="prelude-val">Ok</span>(value),
+        FunctionInput::Constant(value) =&gt; <span class="prelude-val">Ok</span>(value),
+    }
+}
+
+<span class="kw">pub fn </span>check_bit_size&lt;F: AcirField&gt;(
+    value: F,
+    num_bits: u32,
+) -&gt; <span class="prelude-ty">Result</span>&lt;(), OpcodeResolutionError&lt;F&gt;&gt; {
+    <span class="kw">if </span>value.num_bits() &lt;= num_bits {
+        <span class="prelude-val">Ok</span>(())
+    } <span class="kw">else </span>{
+        <span class="kw">let </span>value_num_bits = value.num_bits();
+        <span class="kw">let </span>value = value.to_string();
+        <span class="prelude-val">Err</span>(OpcodeResolutionError::InvalidInputBitSize {
+            opcode_location: ErrorLocation::Unresolved,
+            invalid_input_bit_size: InvalidInputBitSize {
+                value,
+                value_num_bits,
+                max_bits: num_bits,
+            },
+        })
     }
 }
 
@@ -1743,5 +1976,64 @@
     </span><span class="kw">pub </span>id: AcirFunctionId,
     <span class="doccomment">/// Initial witness for the given circuit to be called
     </span><span class="kw">pub </span>initial_witness: WitnessMap&lt;F&gt;,
+}
+
+<span class="attr">#[cfg(test)]
+</span><span class="kw">mod </span>tests {
+    <span class="kw">use </span>std::collections::BTreeMap;
+
+    <span class="kw">use </span>acir::{
+        FieldElement,
+        circuit::{
+            Opcode,
+            opcodes::{BlackBoxFuncCall, FunctionInput},
+        },
+        native_types::{Witness, WitnessMap},
+    };
+
+    <span class="kw">use </span><span class="kw">crate</span>::pwg::{ACVM, ACVMStatus};
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>solve_simple_circuit() {
+        <span class="kw">let </span>initial_witness = WitnessMap::from(BTreeMap::from_iter([
+            (Witness(<span class="number">1</span>), FieldElement::from(<span class="number">1u128</span>)),
+            (Witness(<span class="number">2</span>), FieldElement::from(<span class="number">1u128</span>)),
+            (Witness(<span class="number">3</span>), FieldElement::from(<span class="number">2u128</span>)),
+        ]));
+        <span class="kw">let </span>backend = acvm_blackbox_solver::StubbedBlackBoxSolver(<span class="bool-val">false</span>);
+        <span class="kw">let </span>opcodes = <span class="macro">vec!</span>[
+            Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
+                input: FunctionInput::Witness(Witness(<span class="number">1</span>)),
+                num_bits: <span class="number">32</span>,
+            }),
+            Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
+                input: FunctionInput::Witness(Witness(<span class="number">2</span>)),
+                num_bits: <span class="number">32</span>,
+            }),
+            Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
+                input: FunctionInput::Witness(Witness(<span class="number">3</span>)),
+                num_bits: <span class="number">32</span>,
+            }),
+            Opcode::AssertZero(acir::native_types::Expression {
+                mul_terms: <span class="macro">vec!</span>[],
+                linear_combinations: <span class="macro">vec!</span>[
+                    (FieldElement::from(<span class="number">2u128</span>), Witness(<span class="number">1</span>)),
+                    (FieldElement::from(-<span class="number">1_i128</span>), Witness(<span class="number">2</span>)),
+                    (FieldElement::from(-<span class="number">1_i128</span>), Witness(<span class="number">4</span>)),
+                ],
+                q_c: FieldElement::from(<span class="number">0u128</span>),
+            }),
+            Opcode::AssertZero(acir::native_types::Expression {
+                mul_terms: <span class="macro">vec!</span>[(FieldElement::from(<span class="number">1u128</span>), Witness(<span class="number">2</span>), Witness(<span class="number">4</span>))],
+                linear_combinations: <span class="macro">vec!</span>[(FieldElement::from(<span class="number">1u128</span>), Witness(<span class="number">5</span>))],
+                q_c: FieldElement::from(-<span class="number">1_i128</span>),
+            }),
+        ];
+        <span class="kw">let </span>empty1 = Vec::new();
+        <span class="kw">let </span>empty2 = Vec::new();
+        <span class="kw">let </span><span class="kw-2">mut </span>acvm = ACVM::new(<span class="kw-2">&amp;</span>backend, <span class="kw-2">&amp;</span>opcodes, initial_witness, <span class="kw-2">&amp;</span>empty1, <span class="kw-2">&amp;</span>empty2);
+        <span class="macro">assert_eq!</span>(acvm.solve(), ACVMStatus::Solved);
+        <span class="macro">assert_eq!</span>(acvm.witness_map()[<span class="kw-2">&amp;</span>Witness(<span class="number">5</span>)], FieldElement::from(<span class="number">0u128</span>));
+    }
 }
 </code></pre></div></section></main></body></html>

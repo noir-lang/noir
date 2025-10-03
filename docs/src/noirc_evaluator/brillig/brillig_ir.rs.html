@@ -516,7 +516,22 @@
 <a href="#515" id="515">515</a>
 <a href="#516" id="516">516</a>
 <a href="#517" id="517">517</a>
-<a href="#518" id="518">518</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module is an abstraction layer over `Brillig`.
+<a href="#518" id="518">518</a>
+<a href="#519" id="519">519</a>
+<a href="#520" id="520">520</a>
+<a href="#521" id="521">521</a>
+<a href="#522" id="522">522</a>
+<a href="#523" id="523">523</a>
+<a href="#524" id="524">524</a>
+<a href="#525" id="525">525</a>
+<a href="#526" id="526">526</a>
+<a href="#527" id="527">527</a>
+<a href="#528" id="528">528</a>
+<a href="#529" id="529">529</a>
+<a href="#530" id="530">530</a>
+<a href="#531" id="531">531</a>
+<a href="#532" id="532">532</a>
+<a href="#533" id="533">533</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module is an abstraction layer over `Brillig`.
 //! To allow for separation of concerns, it knows nothing
 //! about SSA types, and can therefore be tested independently.
 //! `brillig_gen` is therefore the module which combines both
@@ -744,11 +759,27 @@
             BrilligBinaryOp::Xor,
         );
 
-        <span class="comment">// If result has to be negative, perform two's complement
-        </span><span class="self">self</span>.codegen_if(result_is_negative.address, |ctx| {
-            <span class="kw">let </span>zero = ctx.make_constant_instruction(<span class="number">0_usize</span>.into(), result.bit_size);
-            ctx.binary_instruction(zero, result, result, BrilligBinaryOp::Sub);
-            ctx.deallocate_single_addr(zero);
+        <span class="self">self</span>.codegen_branch(result_is_negative.address, |ctx, is_negative| {
+            <span class="kw">if </span>is_negative {
+                <span class="comment">// If result has to be negative, perform two's complement
+                </span><span class="kw">let </span>zero = ctx.make_constant_instruction(<span class="number">0_usize</span>.into(), result.bit_size);
+                ctx.binary_instruction(zero, result, result, BrilligBinaryOp::Sub);
+                ctx.deallocate_single_addr(zero);
+            } <span class="kw">else </span>{
+                <span class="comment">// else the result is positive and so it must be less than '2**(bit_size-1)'
+                </span><span class="kw">let </span>max = <span class="number">1_u128 </span>&lt;&lt; (left.bit_size - <span class="number">1</span>);
+                <span class="kw">let </span>max = ctx.make_constant_instruction(max.into(), left.bit_size);
+                <span class="kw">let </span>no_overflow = SingleAddrVariable::new(ctx.allocate_register(), <span class="number">1</span>);
+                ctx.binary_instruction(result, max, no_overflow, BrilligBinaryOp::LessThan);
+                ctx.codegen_if_not(no_overflow.address, |ctx2| {
+                    ctx2.codegen_constrain(
+                        no_overflow,
+                        <span class="prelude-val">Some</span>(<span class="string">"Attempt to divide with overflow"</span>.to_string()),
+                    );
+                });
+                ctx.deallocate_single_addr(max);
+                ctx.deallocate_single_addr(no_overflow);
+            }
         });
 
         <span class="self">self</span>.deallocate_single_addr(left_is_negative);
@@ -881,7 +912,6 @@
         <span class="kw">fn </span>poseidon2_permutation(
             <span class="kw-2">&amp;</span><span class="self">self</span>,
             _inputs: <span class="kw-2">&amp;</span>[FieldElement],
-            _len: u32,
         ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;FieldElement&gt;, BlackBoxResolutionError&gt; {
             <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[<span class="number">0_u128</span>.into(), <span class="number">1_u128</span>.into(), <span class="number">2_u128</span>.into(), <span class="number">3_u128</span>.into()])
         }

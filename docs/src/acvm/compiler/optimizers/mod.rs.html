@@ -88,7 +88,17 @@
 <a href="#87" id="87">87</a>
 <a href="#88" id="88">88</a>
 <a href="#89" id="89">89</a>
-<a href="#90" id="90">90</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#90" id="90">90</a>
+<a href="#91" id="91">91</a>
+<a href="#92" id="92">92</a>
+<a href="#93" id="93">93</a>
+<a href="#94" id="94">94</a>
+<a href="#95" id="95">95</a>
+<a href="#96" id="96">96</a>
+<a href="#97" id="97">97</a>
+<a href="#98" id="98">98</a>
+<a href="#99" id="99">99</a>
+<a href="#100" id="100">100</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 
 <span class="kw">use </span>acir::{
     AcirField,
@@ -116,9 +126,15 @@
 ) -&gt; (Circuit&lt;F&gt;, AcirTransformationMap) {
     <span class="comment">// Track original acir opcode positions throughout the transformation passes of the compilation
     // by applying the modifications done to the circuit opcodes and also to the opcode_positions (delete and insert)
+    // For instance, here before any transformation, the old acir opcode positions have not changed.
+    // So acir_opcode_positions = 0, 1,...,n-1, representing the index of the opcode in Circuit.opcodes vector.
     </span><span class="kw">let </span>acir_opcode_positions = (<span class="number">0</span>..acir.opcodes.len()).collect();
 
-    <span class="kw">let </span>(<span class="kw-2">mut </span>acir, new_opcode_positions) =
+    <span class="comment">// `optimize_internal()` may change the circuit, and it returns a new one, as well the new_opcode_positions
+    // In the new circuit, the opcode at index `i` corresponds to the opcode at index `new_opcode_positions[i]` in the original circuit.
+    // For instance let's say it removed the opcode at index 3, and replaced the one at index 5 by two new opcodes
+    // The new_opcode_positions is now: 0,1,2,4,5,5,6,....n-1
+    </span><span class="kw">let </span>(<span class="kw-2">mut </span>acir, new_opcode_positions) =
         optimize_internal(acir, acir_opcode_positions, brillig_side_effects);
 
     <span class="kw">let </span>transformation_map = AcirTransformationMap::new(<span class="kw-2">&amp;</span>new_opcode_positions);
@@ -131,6 +147,10 @@
 <span class="doccomment">/// Applies backend independent optimizations to a [`Circuit`].
 ///
 /// Accepts an injected `acir_opcode_positions` to allow optimizations to be applied in a loop.
+/// It run the following passes:
+/// - General optimizer
+/// - Unused Memory optimization
+/// - Redundant Ranges optimization
 </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, name = <span class="string">"optimize_acir" </span>skip(acir, acir_opcode_positions))]
 </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>optimize_internal&lt;F: AcirField&gt;(
     acir: Circuit&lt;F&gt;,

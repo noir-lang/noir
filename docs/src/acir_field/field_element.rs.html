@@ -607,10 +607,7 @@
 <a href="#606" id="606">606</a>
 <a href="#607" id="607">607</a>
 <a href="#608" id="608">608</a>
-<a href="#609" id="609">609</a>
-<a href="#610" id="610">610</a>
-<a href="#611" id="611">611</a>
-<a href="#612" id="612">612</a></pre></div><pre class="rust"><code><span class="kw">use </span>ark_ff::PrimeField;
+<a href="#609" id="609">609</a></pre></div><pre class="rust"><code><span class="kw">use </span>ark_ff::PrimeField;
 <span class="kw">use </span>ark_ff::Zero;
 <span class="kw">use </span>ark_std::io::Write;
 <span class="kw">use </span>num_bigint::BigUint;
@@ -681,7 +678,7 @@
     <span class="kw">where
         </span>S: serde::Serializer,
     {
-        <span class="self">self</span>.to_hex().serialize(serializer)
+        <span class="self">self</span>.to_be_bytes().serialize(serializer)
     }
 }
 
@@ -690,11 +687,8 @@
     <span class="kw">where
         </span>D: serde::Deserializer&lt;<span class="lifetime">'de</span>&gt;,
     {
-        <span class="kw">let </span>s: Cow&lt;<span class="lifetime">'de</span>, str&gt; = Deserialize::deserialize(deserializer)<span class="question-mark">?</span>;
-        <span class="kw">match </span><span class="self">Self</span>::from_hex(<span class="kw-2">&amp;</span>s) {
-            <span class="prelude-val">Some</span>(value) =&gt; <span class="prelude-val">Ok</span>(value),
-            <span class="prelude-val">None </span>=&gt; <span class="prelude-val">Err</span>(serde::de::Error::custom(<span class="macro">format!</span>(<span class="string">"Invalid hex for FieldElement: {s}"</span>,))),
-        }
+        <span class="kw">let </span>s: Cow&lt;<span class="lifetime">'de</span>, [u8]&gt; = Deserialize::deserialize(deserializer)<span class="question-mark">?</span>;
+        <span class="prelude-val">Ok</span>(<span class="self">Self</span>::from_be_bytes_reduce(<span class="kw-2">&amp;</span>s))
     }
 }
 
@@ -739,7 +733,7 @@
         <span class="self">self</span>.<span class="number">0
     </span>}
 
-    <span class="kw">fn </span>fits_in_u128(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+    <span class="kw">pub fn </span>fits_in_u128(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
         <span class="self">self</span>.num_bits() &lt;= <span class="number">128
     </span>}
 
@@ -832,9 +826,9 @@
         <span class="kw">let </span>as_bigint = <span class="self">self</span>.<span class="number">0</span>.into_bigint();
         <span class="kw">let </span>limbs = as_bigint.as_ref();
 
-        <span class="kw">let </span><span class="kw-2">mut </span>result = limbs[<span class="number">0</span>] <span class="kw">as </span>u128;
+        <span class="kw">let </span><span class="kw-2">mut </span>result = u128::from(limbs[<span class="number">0</span>]);
         <span class="kw">if </span>limbs.len() &gt; <span class="number">1 </span>{
-            <span class="kw">let </span>high_limb = limbs[<span class="number">1</span>] <span class="kw">as </span>u128;
+            <span class="kw">let </span>high_limb = u128::from(limbs[<span class="number">1</span>]);
             result += high_limb &lt;&lt; <span class="number">64</span>;
         }
 

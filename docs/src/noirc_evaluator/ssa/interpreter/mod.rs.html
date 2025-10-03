@@ -1711,9 +1711,7 @@
     ir::{
         dfg::DataFlowGraph,
         function::{Function, FunctionId, RuntimeType},
-        instruction::{
-            ArrayOffset, Binary, BinaryOp, ConstrainError, Instruction, TerminatorInstruction,
-        },
+        instruction::{Binary, BinaryOp, ConstrainError, Instruction, TerminatorInstruction},
         types::Type,
         value::ValueId,
     },
@@ -1779,7 +1777,7 @@
 }
 
 <span class="kw">type </span>IResult&lt;T&gt; = <span class="prelude-ty">Result</span>&lt;T, InterpreterError&gt;;
-<span class="kw">type </span>IResults = IResult&lt;Vec&lt;Value&gt;&gt;;
+<span class="kw">pub type </span>IResults = IResult&lt;Vec&lt;Value&gt;&gt;;
 
 <span class="attr">#[allow(unused)]
 </span><span class="kw">impl </span>Ssa {
@@ -2089,8 +2087,7 @@
     }
 
     <span class="kw">fn </span>lookup_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>, value_id: ValueId, instruction: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str) -&gt; IResult&lt;Vec&lt;u8&gt;&gt; {
-        <span class="kw">let </span>array =
-            <span class="self">self</span>.lookup_helper(value_id, instruction, <span class="string">"array or slice"</span>, Value::as_array_or_slice)<span class="question-mark">?</span>;
+        <span class="kw">let </span>array = <span class="self">self</span>.lookup_array_or_slice(value_id, instruction)<span class="question-mark">?</span>;
         <span class="kw">let </span>array = array.elements.borrow();
         array
             .iter()
@@ -2108,8 +2105,7 @@
     }
 
     <span class="kw">fn </span>lookup_vec_u32(<span class="kw-2">&amp;</span><span class="self">self</span>, value_id: ValueId, instruction: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str) -&gt; IResult&lt;Vec&lt;u32&gt;&gt; {
-        <span class="kw">let </span>array =
-            <span class="self">self</span>.lookup_helper(value_id, instruction, <span class="string">"array or slice"</span>, Value::as_array_or_slice)<span class="question-mark">?</span>;
+        <span class="kw">let </span>array = <span class="self">self</span>.lookup_array_or_slice(value_id, instruction)<span class="question-mark">?</span>;
         <span class="kw">let </span>array = array.elements.borrow();
         array
             .iter()
@@ -2127,8 +2123,7 @@
     }
 
     <span class="kw">fn </span>lookup_vec_u64(<span class="kw-2">&amp;</span><span class="self">self</span>, value_id: ValueId, instruction: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str) -&gt; IResult&lt;Vec&lt;u64&gt;&gt; {
-        <span class="kw">let </span>array =
-            <span class="self">self</span>.lookup_helper(value_id, instruction, <span class="string">"array or slice"</span>, Value::as_array_or_slice)<span class="question-mark">?</span>;
+        <span class="kw">let </span>array = <span class="self">self</span>.lookup_array_or_slice(value_id, instruction)<span class="question-mark">?</span>;
         <span class="kw">let </span>array = array.elements.borrow();
         array
             .iter()
@@ -2150,8 +2145,7 @@
         value_id: ValueId,
         instruction: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str,
     ) -&gt; IResult&lt;Vec&lt;FieldElement&gt;&gt; {
-        <span class="kw">let </span>array =
-            <span class="self">self</span>.lookup_helper(value_id, instruction, <span class="string">"array or slice"</span>, Value::as_array_or_slice)<span class="question-mark">?</span>;
+        <span class="kw">let </span>array = <span class="self">self</span>.lookup_array_or_slice(value_id, instruction)<span class="question-mark">?</span>;
         <span class="kw">let </span>array = array.elements.borrow();
         array
             .iter()
@@ -2291,19 +2285,17 @@
                 <span class="self">self</span>.side_effects_enabled = <span class="self">self</span>.lookup_bool(<span class="kw-2">*</span>condition, <span class="string">"enable_side_effects"</span>)<span class="question-mark">?</span>;
                 <span class="prelude-val">Ok</span>(())
             }
-            Instruction::ArrayGet { array, index, offset } =&gt; {
-                <span class="self">self</span>.interpret_array_get(<span class="kw-2">*</span>array, <span class="kw-2">*</span>index, <span class="kw-2">*</span>offset, results[<span class="number">0</span>], side_effects_enabled)
+            Instruction::ArrayGet { array, index } =&gt; {
+                <span class="self">self</span>.interpret_array_get(<span class="kw-2">*</span>array, <span class="kw-2">*</span>index, results[<span class="number">0</span>], side_effects_enabled)
             }
-            Instruction::ArraySet { array, index, value, mutable, offset } =&gt; <span class="self">self
-                </span>.interpret_array_set(
-                    <span class="kw-2">*</span>array,
-                    <span class="kw-2">*</span>index,
-                    <span class="kw-2">*</span>value,
-                    <span class="kw-2">*</span>mutable,
-                    <span class="kw-2">*</span>offset,
-                    results[<span class="number">0</span>],
-                    side_effects_enabled,
-                ),
+            Instruction::ArraySet { array, index, value, mutable } =&gt; <span class="self">self</span>.interpret_array_set(
+                <span class="kw-2">*</span>array,
+                <span class="kw-2">*</span>index,
+                <span class="kw-2">*</span>value,
+                <span class="kw-2">*</span>mutable,
+                results[<span class="number">0</span>],
+                side_effects_enabled,
+            ),
             Instruction::IncrementRc { value } =&gt; <span class="self">self</span>.interpret_inc_rc(<span class="kw-2">*</span>value),
             Instruction::DecrementRc { value } =&gt; <span class="self">self</span>.interpret_dec_rc(<span class="kw-2">*</span>value),
             Instruction::IfElse { then_condition, then_value, else_condition, else_value } =&gt; <span class="self">self
@@ -2598,10 +2590,10 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         array: ValueId,
         index: ValueId,
-        offset: ArrayOffset,
         result: ValueId,
         side_effects_enabled: bool,
     ) -&gt; IResult&lt;()&gt; {
+        <span class="kw">let </span>offset = <span class="self">self</span>.dfg().array_offset(array, index);
         <span class="kw">let </span>array = <span class="self">self</span>.lookup_array_or_slice(array, <span class="string">"array get"</span>)<span class="question-mark">?</span>;
         <span class="kw">let </span>index = <span class="self">self</span>.lookup_u32(index, <span class="string">"array get index"</span>)<span class="question-mark">?</span>;
         <span class="kw">let </span><span class="kw-2">mut </span>index = index - offset.to_u32();
@@ -2634,7 +2626,25 @@
             <span class="kw">let </span>element = elements.get(index <span class="kw">as </span>usize).ok_or_else(|| {
                 InterpreterError::IndexOutOfBounds { index, length: elements.len() <span class="kw">as </span>u32 }
             })<span class="question-mark">?</span>;
-            element.clone()
+
+            <span class="comment">// Either return a fresh nested array (in constrained context) or just clone the element.
+            </span><span class="kw">if </span>!<span class="self">self</span>.in_unconstrained_context() {
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(array) = element.as_array_or_slice() {
+                    <span class="comment">// In the ACIR runtime we expect fresh arrays when accessing a nested array.
+                    // If we do not clone the elements here a mutable array set afterwards could mutate
+                    // not just this returned array but the array we are fetching from in this array get.
+                    </span>Value::ArrayOrSlice(ArrayValue {
+                        elements: Shared::new(array.elements.borrow().to_vec()),
+                        rc: array.rc,
+                        element_types: array.element_types,
+                        is_slice: array.is_slice,
+                    })
+                } <span class="kw">else </span>{
+                    element.clone()
+                }
+            } <span class="kw">else </span>{
+                element.clone()
+            }
         };
         <span class="self">self</span>.define(result, element)<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(())
@@ -2647,10 +2657,10 @@
         index: ValueId,
         value: ValueId,
         mutable: bool,
-        offset: ArrayOffset,
         result: ValueId,
         side_effects_enabled: bool,
     ) -&gt; IResult&lt;()&gt; {
+        <span class="kw">let </span>offset = <span class="self">self</span>.dfg().array_offset(array, index);
         <span class="kw">let </span>array = <span class="self">self</span>.lookup_array_or_slice(array, <span class="string">"array set"</span>)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>result_array = <span class="kw">if </span>side_effects_enabled {
@@ -3030,30 +3040,20 @@
         BinaryOp::Mul { unchecked: <span class="bool-val">true </span>} =&gt; {
             <span class="macro">apply_int_binop!</span>(lhs, rhs, binary, num_traits::WrappingMul::wrapping_mul)
         }
-        BinaryOp::Div =&gt; {
-            <span class="macro">apply_int_binop_opt!</span>(
-                lhs,
-                rhs,
-                binary,
-                num_traits::CheckedDiv::checked_div,
-                display_binary
-            )
-        }
-        BinaryOp::Mod =&gt; <span class="kw">match </span>(lhs, rhs) {
-            (NumericValue::I8(i8::MIN), NumericValue::I8(-<span class="number">1</span>)) =&gt; NumericValue::I8(<span class="number">0</span>),
-            (NumericValue::I16(i16::MIN), NumericValue::I16(-<span class="number">1</span>)) =&gt; NumericValue::I16(<span class="number">0</span>),
-            (NumericValue::I32(i32::MIN), NumericValue::I32(-<span class="number">1</span>)) =&gt; NumericValue::I32(<span class="number">0</span>),
-            (NumericValue::I64(i64::MIN), NumericValue::I64(-<span class="number">1</span>)) =&gt; NumericValue::I64(<span class="number">0</span>),
-            <span class="kw">_ </span>=&gt; {
-                <span class="macro">apply_int_binop_opt!</span>(
-                    lhs,
-                    rhs,
-                    binary,
-                    num_traits::CheckedRem::checked_rem,
-                    display_binary
-                )
-            }
-        },
+        BinaryOp::Div =&gt; <span class="macro">apply_int_binop_opt!</span>(
+            lhs,
+            rhs,
+            binary,
+            num_traits::CheckedDiv::checked_div,
+            display_binary
+        ),
+        BinaryOp::Mod =&gt; <span class="macro">apply_int_binop_opt!</span>(
+            lhs,
+            rhs,
+            binary,
+            num_traits::CheckedRem::checked_rem,
+            display_binary
+        ),
         BinaryOp::Eq =&gt; <span class="macro">apply_int_comparison_op!</span>(lhs, rhs, binary, |a, b| a == b),
         BinaryOp::Lt =&gt; <span class="macro">apply_int_comparison_op!</span>(lhs, rhs, binary, |a, b| a &lt; b),
         BinaryOp::And =&gt; {
@@ -3263,8 +3263,8 @@
             // (1, 0) -&gt; (division by 0)
             // (1, 1) -&gt; 1
             </span><span class="kw">if </span>!rhs {
-                <span class="kw">let </span>lhs = (lhs <span class="kw">as </span>u8).to_string();
-                <span class="kw">let </span>rhs = (rhs <span class="kw">as </span>u8).to_string();
+                <span class="kw">let </span>lhs = u8::from(lhs).to_string();
+                <span class="kw">let </span>rhs = u8::from(rhs).to_string();
                 <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::DivisionByZero { lhs_id, lhs, rhs_id, rhs });
             }
             lhs
@@ -3275,8 +3275,8 @@
             // (1, 0) -&gt; (division by 0)
             // (1, 1) -&gt; 0
             </span><span class="kw">if </span>!rhs {
-                <span class="kw">let </span>lhs = <span class="macro">format!</span>(<span class="string">"u1 {}"</span>, lhs <span class="kw">as </span>u8);
-                <span class="kw">let </span>rhs = <span class="macro">format!</span>(<span class="string">"u1 {}"</span>, rhs <span class="kw">as </span>u8);
+                <span class="kw">let </span>lhs = <span class="macro">format!</span>(<span class="string">"u1 {}"</span>, u8::from(lhs));
+                <span class="kw">let </span>rhs = <span class="macro">format!</span>(<span class="string">"u1 {}"</span>, u8::from(rhs));
                 <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::DivisionByZero { lhs_id, lhs, rhs_id, rhs });
             }
             <span class="bool-val">false

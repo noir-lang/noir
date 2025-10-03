@@ -70,12 +70,10 @@
 <a href="#69" id="69">69</a>
 <a href="#70" id="70">70</a>
 <a href="#71" id="71">71</a>
-<a href="#72" id="72">72</a>
-<a href="#73" id="73">73</a>
-<a href="#74" id="74">74</a>
-<a href="#75" id="75">75</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#72" id="72">72</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 
 <span class="kw">use </span>acvm::FieldElement;
+<span class="kw">use </span>acvm::acir::circuit::ExpressionWidth;
 <span class="kw">use </span>acvm::acir::circuit::Program;
 <span class="kw">use </span>fm::FileId;
 <span class="kw">use </span>noirc_abi::Abi;
@@ -112,10 +110,8 @@
 
     <span class="doccomment">/// Map of file Id to the source code so locations in debug info can be mapped to source code they point to.
     </span><span class="kw">pub </span>file_map: BTreeMap&lt;FileId, DebugFile&gt;,
-
-    <span class="kw">pub </span>names: Vec&lt;String&gt;,
-    <span class="doccomment">/// Names of the unconstrained functions in the program.
-    </span><span class="kw">pub </span>brillig_names: Vec&lt;String&gt;,
+    <span class="doccomment">/// Maximum width of the expressions which will be constrained
+    </span><span class="kw">pub </span>expression_width: ExpressionWidth,
 }
 
 <span class="kw">impl </span>From&lt;CompiledProgram&gt; <span class="kw">for </span>ProgramArtifact {
@@ -127,8 +123,7 @@
             bytecode: compiled_program.program,
             debug_symbols: ProgramDebugInfo { debug_infos: compiled_program.debug },
             file_map: compiled_program.file_map,
-            names: compiled_program.names,
-            brillig_names: compiled_program.brillig_names,
+            expression_width: compiled_program.expression_width,
         }
     }
 }
@@ -143,8 +138,7 @@
             debug: program.debug_symbols.debug_infos,
             file_map: program.file_map,
             warnings: <span class="macro">vec!</span>[],
-            names: program.names,
-            brillig_names: program.brillig_names,
+            expression_width: program.expression_width,
         }
     }
 }

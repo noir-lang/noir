@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["on_folding_range_request"],"mod":["comments_collector","nodes_collector"]};

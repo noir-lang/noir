@@ -2535,7 +2535,7 @@
             instructions
                 .filter(|i| <span class="macro">matches!</span>(<span class="kw-2">&amp;</span>function.dfg[<span class="kw-2">**</span>i], Instruction::Allocate))
                 <span class="comment">// Get the value into which the allocation was stored.
-                </span>.map(|i| function.dfg.instruction_results(<span class="kw-2">*</span>i)[<span class="number">0</span>])
+                </span>.map(|i| function.dfg.instruction_result::&lt;<span class="number">1</span>&gt;(<span class="kw-2">*</span>i)[<span class="number">0</span>])
         });
 
         <span class="comment">// Collect reference parameters of the function itself.
@@ -2575,7 +2575,7 @@
     </span><span class="kw">fn </span>count_all_instructions(<span class="kw-2">&amp;</span><span class="self">self</span>, function: <span class="kw-2">&amp;</span>Function) -&gt; usize {
         <span class="kw">let </span>iter = <span class="self">self</span>.blocks.iter().map(|block| {
             <span class="kw">let </span>block = <span class="kw-2">&amp;</span>function.dfg[<span class="kw-2">*</span>block];
-            block.instructions().len() + block.terminator().is_some() <span class="kw">as </span>usize
+            block.instructions().len() + usize::from(block.terminator().is_some())
         });
         iter.sum()
     }

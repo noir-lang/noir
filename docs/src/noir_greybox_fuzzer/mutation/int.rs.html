@@ -855,7 +855,7 @@
     update: i8,
 ) -&gt; FieldElement {
     <span class="kw">let </span>converted: T = T::from(<span class="kw-2">*</span>input).expect(<span class="string">"Primitive should convert"</span>);
-    <span class="kw">let </span>update_t: T = T::from(update <span class="kw">as </span>i128).expect(<span class="string">"Primitive should convert"</span>);
+    <span class="kw">let </span>update_t: T = T::from(i128::from(update)).expect(<span class="string">"Primitive should convert"</span>);
     <span class="kw">let </span>(after_update, <span class="kw">_</span>) = converted.overflowing_add(<span class="kw-2">&amp;</span>update_t);
     i128_to_field(after_update.as_(), T::BITS)
 }
@@ -866,7 +866,7 @@
     update: u8,
 ) -&gt; FieldElement {
     <span class="kw">let </span>converted: T = T::from(<span class="kw-2">*</span>input).expect(<span class="string">"Primitive should convert"</span>);
-    <span class="kw">let </span>update_t: T = T::from(update <span class="kw">as </span>u128).expect(<span class="string">"Primitive should convert"</span>);
+    <span class="kw">let </span>update_t: T = T::from(u128::from(update)).expect(<span class="string">"Primitive should convert"</span>);
     <span class="kw">let </span>after_update = converted.wrapping_add(<span class="kw-2">&amp;</span>update_t);
     u128_to_field(after_update.as_())
 }
@@ -877,7 +877,7 @@
     update: u8,
 ) -&gt; FieldElement {
     <span class="kw">let </span>converted: T = T::from(<span class="kw-2">*</span>input).expect(<span class="string">"Primitive should convert"</span>);
-    <span class="kw">let </span>update_t: T = T::from(update <span class="kw">as </span>u128).expect(<span class="string">"Primitive should convert"</span>);
+    <span class="kw">let </span>update_t: T = T::from(u128::from(update)).expect(<span class="string">"Primitive should convert"</span>);
     <span class="kw">let </span>after_update = converted.wrapping_sub(<span class="kw-2">&amp;</span>update_t);
     u128_to_field(after_update.as_())
 }
@@ -1077,10 +1077,10 @@
             FixedIntSubstitutionOptions::Pow2 =&gt; <span class="number">2i128</span>.pow(<span class="self">self</span>.prng.gen_range(<span class="number">0</span>..(width - <span class="number">1</span>))),
         };
         <span class="kw">let </span>checked_value = <span class="kw">match </span>width {
-            <span class="number">8 </span>=&gt; value.clamp(i8::MIN <span class="kw">as </span>i128, i8::MAX <span class="kw">as </span>i128),
-            <span class="number">16 </span>=&gt; value.clamp(i16::MIN <span class="kw">as </span>i128, i16::MAX <span class="kw">as </span>i128),
-            <span class="number">32 </span>=&gt; value.clamp(i32::MIN <span class="kw">as </span>i128, i32::MAX <span class="kw">as </span>i128),
-            <span class="number">64 </span>=&gt; value.clamp(i64::MIN <span class="kw">as </span>i128, i64::MAX <span class="kw">as </span>i128),
+            <span class="number">8 </span>=&gt; value.clamp(i128::from(i8::MIN), i128::from(i8::MAX)),
+            <span class="number">16 </span>=&gt; value.clamp(i128::from(i16::MIN), i128::from(i16::MAX)),
+            <span class="number">32 </span>=&gt; value.clamp(i128::from(i32::MIN), i128::from(i32::MAX)),
+            <span class="number">64 </span>=&gt; value.clamp(i128::from(i64::MIN), i128::from(i64::MAX)),
             <span class="number">128 </span>=&gt; value,
             <span class="kw">_ </span>=&gt; {
                 <span class="macro">panic!</span>(<span class="string">"Shouldn't be reachable"</span>)

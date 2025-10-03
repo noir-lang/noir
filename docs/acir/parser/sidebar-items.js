@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["ParserError","Term"],"fn":["build_expression_from_terms","eof_spanned_token","is_zero_term"],"mod":["lexer","token"],"struct":["AcirParserErrorWithSource","Parser"],"type":["ParseResult"]};

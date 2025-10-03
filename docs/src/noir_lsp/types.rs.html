@@ -287,7 +287,11 @@
 <a href="#286" id="286">286</a>
 <a href="#287" id="287">287</a>
 <a href="#288" id="288">288</a>
-<a href="#289" id="289">289</a></pre></div><pre class="rust"><code><span class="kw">use </span>async_lsp::lsp_types::{
+<a href="#289" id="289">289</a>
+<a href="#290" id="290">290</a>
+<a href="#291" id="291">291</a>
+<a href="#292" id="292">292</a>
+<a href="#293" id="293">293</a></pre></div><pre class="rust"><code><span class="kw">use </span>async_lsp::lsp_types::{
     CodeActionOptions, CompletionOptions, DeclarationCapability, DefinitionOptions,
     DocumentSymbolOptions, HoverOptions, InlayHintOptions, OneOf, ReferencesOptions, RenameOptions,
     SignatureHelpOptions, TextDocumentIdentifier, TypeDefinitionProviderCapability,
@@ -470,6 +474,10 @@
     <span class="doccomment">/// The server provides workspace symbol support.
     </span><span class="attr">#[serde(skip_serializing_if = <span class="string">"Option::is_none"</span>)]
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) workspace_symbol_provider: <span class="prelude-ty">Option</span>&lt;OneOf&lt;bool, WorkspaceSymbolOptions&gt;&gt;,
+
+    <span class="doccomment">/// The server provides folding range support.
+    </span><span class="attr">#[serde(skip_serializing_if = <span class="string">"Option::is_none"</span>)]
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) folding_range_provider: <span class="prelude-ty">Option</span>&lt;bool&gt;,
 }
 
 <span class="attr">#[derive(Debug, PartialEq, Clone, Default, Deserialize, Serialize)]

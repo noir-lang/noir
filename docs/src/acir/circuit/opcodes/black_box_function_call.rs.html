@@ -730,53 +730,15 @@
 <a href="#729" id="729">729</a>
 <a href="#730" id="730">730</a>
 <a href="#731" id="731">731</a>
-<a href="#732" id="732">732</a>
-<a href="#733" id="733">733</a>
-<a href="#734" id="734">734</a>
-<a href="#735" id="735">735</a>
-<a href="#736" id="736">736</a>
-<a href="#737" id="737">737</a>
-<a href="#738" id="738">738</a>
-<a href="#739" id="739">739</a>
-<a href="#740" id="740">740</a>
-<a href="#741" id="741">741</a>
-<a href="#742" id="742">742</a>
-<a href="#743" id="743">743</a>
-<a href="#744" id="744">744</a>
-<a href="#745" id="745">745</a>
-<a href="#746" id="746">746</a>
-<a href="#747" id="747">747</a>
-<a href="#748" id="748">748</a>
-<a href="#749" id="749">749</a>
-<a href="#750" id="750">750</a>
-<a href="#751" id="751">751</a>
-<a href="#752" id="752">752</a>
-<a href="#753" id="753">753</a>
-<a href="#754" id="754">754</a>
-<a href="#755" id="755">755</a>
-<a href="#756" id="756">756</a>
-<a href="#757" id="757">757</a>
-<a href="#758" id="758">758</a>
-<a href="#759" id="759">759</a>
-<a href="#760" id="760">760</a>
-<a href="#761" id="761">761</a>
-<a href="#762" id="762">762</a>
-<a href="#763" id="763">763</a>
-<a href="#764" id="764">764</a>
-<a href="#765" id="765">765</a>
-<a href="#766" id="766">766</a>
-<a href="#767" id="767">767</a>
-<a href="#768" id="768">768</a>
-<a href="#769" id="769">769</a>
-<a href="#770" id="770">770</a></pre></div><pre class="rust"><code><span class="doccomment">//! Black box functions are ACIR opcodes which rely on backends implementing
+<a href="#732" id="732">732</a></pre></div><pre class="rust"><code><span class="doccomment">//! Black box functions are ACIR opcodes which rely on backends implementing
 //! support for specialized constraints.
 //! This makes certain zk-snark unfriendly computations cheaper than if they were
 //! implemented in more basic constraints.
 
 </span><span class="kw">use </span>std::collections::BTreeSet;
 
+<span class="kw">use </span><span class="kw">crate</span>::BlackBoxFunc;
 <span class="kw">use </span><span class="kw">crate</span>::native_types::Witness;
-<span class="kw">use crate</span>::{AcirField, BlackBoxFunc};
 
 <span class="kw">use </span>serde::{Deserialize, Deserializer, Serialize, Serializer};
 <span class="kw">use </span>thiserror::Error;
@@ -784,51 +746,39 @@
 <span class="doccomment">/// Enumeration for black box function inputs
 </span><span class="attr">#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
 #[cfg_attr(feature = <span class="string">"arb"</span>, derive(proptest_derive::Arbitrary))]
-</span><span class="kw">pub enum </span>ConstantOrWitnessEnum&lt;F&gt; {
+</span><span class="kw">pub enum </span>FunctionInput&lt;F&gt; {
     <span class="doccomment">/// A constant field element
     </span>Constant(F),
     <span class="doccomment">/// A witness element, representing dynamic inputs
     </span>Witness(Witness),
 }
 
-<span class="doccomment">/// Input to a black box call
-</span><span class="attr">#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
-#[cfg_attr(feature = <span class="string">"arb"</span>, derive(proptest_derive::Arbitrary))]
-</span><span class="kw">pub struct </span>FunctionInput&lt;F&gt; {
-    <span class="doccomment">/// The actual input value
-    </span>input: ConstantOrWitnessEnum&lt;F&gt;,
-    <span class="doccomment">/// A constant representing the bit size of the input value
-    /// Some functions will not use all of the witness
-    /// So we need to supply how many bits of the witness is needed
-    </span>num_bits: u32,
+<span class="kw">impl</span>&lt;F: std::fmt::Display&gt; std::fmt::Display <span class="kw">for </span>FunctionInput&lt;F&gt; {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
+        <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self </span>{
+            FunctionInput::Constant(constant) =&gt; {
+                <span class="macro">write!</span>(f, <span class="string">"{constant}"</span>)
+            }
+            FunctionInput::Witness(witness) =&gt; {
+                <span class="macro">write!</span>(f, <span class="string">"w{}"</span>, witness.<span class="number">0</span>)
+            }
+        }
+    }
 }
 
 <span class="kw">impl</span>&lt;F&gt; FunctionInput&lt;F&gt; {
-    <span class="kw">pub fn </span>to_witness(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Witness {
-        <span class="kw">match </span><span class="self">self</span>.input {
-            ConstantOrWitnessEnum::Constant(<span class="kw">_</span>) =&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE - Expected Witness"</span>),
-            ConstantOrWitnessEnum::Witness(witness) =&gt; witness,
+    <span class="kw">pub fn </span>is_constant(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="kw">match </span><span class="self">self </span>{
+            FunctionInput::Constant(<span class="kw">_</span>) =&gt; <span class="bool-val">true</span>,
+            FunctionInput::Witness(<span class="kw">_</span>) =&gt; <span class="bool-val">false</span>,
         }
     }
 
-    <span class="kw">pub fn </span>input(<span class="self">self</span>) -&gt; ConstantOrWitnessEnum&lt;F&gt; {
-        <span class="self">self</span>.input
-    }
-
-    <span class="kw">pub fn </span>input_ref(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>ConstantOrWitnessEnum&lt;F&gt; {
-        <span class="kw-2">&amp;</span><span class="self">self</span>.input
-    }
-
-    <span class="kw">pub fn </span>num_bits(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u32 {
-        <span class="self">self</span>.num_bits
-    }
-
-    <span class="kw">pub fn </span>witness(witness: Witness, num_bits: u32) -&gt; FunctionInput&lt;F&gt; {
-        FunctionInput { input: ConstantOrWitnessEnum::Witness(witness), num_bits }
-    }
-
-    <span class="kw">pub fn </span>is_constant(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="macro">matches!</span>(<span class="self">self</span>.input, ConstantOrWitnessEnum::Constant(<span class="kw">_</span>))
+    <span class="kw">pub fn </span>to_witness(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Witness {
+        <span class="kw">match </span><span class="self">self </span>{
+            FunctionInput::Constant(<span class="kw">_</span>) =&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE - Expected Witness"</span>),
+            FunctionInput::Witness(witness) =&gt; <span class="kw-2">*</span>witness,
+        }
     }
 }
 
@@ -838,31 +788,6 @@
     <span class="kw">pub </span>value: String,
     <span class="kw">pub </span>value_num_bits: u32,
     <span class="kw">pub </span>max_bits: u32,
-}
-
-<span class="kw">impl</span>&lt;F: AcirField&gt; FunctionInput&lt;F&gt; {
-    <span class="kw">pub fn </span>constant(value: F, max_bits: u32) -&gt; <span class="prelude-ty">Result</span>&lt;FunctionInput&lt;F&gt;, InvalidInputBitSize&gt; {
-        <span class="kw">if </span>value.num_bits() &lt;= max_bits {
-            <span class="prelude-val">Ok</span>(FunctionInput { input: ConstantOrWitnessEnum::Constant(value), num_bits: max_bits })
-        } <span class="kw">else </span>{
-            <span class="kw">let </span>value_num_bits = value.num_bits();
-            <span class="kw">let </span>value = <span class="macro">format!</span>(<span class="string">"{value}"</span>);
-            <span class="prelude-val">Err</span>(InvalidInputBitSize { value, value_num_bits, max_bits })
-        }
-    }
-}
-
-<span class="kw">impl</span>&lt;F: std::fmt::Display&gt; std::fmt::Display <span class="kw">for </span>FunctionInput&lt;F&gt; {
-    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
-        <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.input {
-            ConstantOrWitnessEnum::Constant(constant) =&gt; {
-                <span class="macro">write!</span>(f, <span class="string">"({constant}, {})"</span>, <span class="self">self</span>.num_bits)
-            }
-            ConstantOrWitnessEnum::Witness(witness) =&gt; {
-                <span class="macro">write!</span>(f, <span class="string">"({}, {})"</span>, witness, <span class="self">self</span>.num_bits)
-            }
-        }
-    }
 }
 
 <span class="doccomment">/// These opcodes represent a specialized computation.
@@ -890,18 +815,18 @@
     /// - rhs: (witness, bit_size)
     /// - output: a witness whose value is constrained to be lhs AND rhs, as
     ///   bit_size bit integers
-    </span>AND { lhs: FunctionInput&lt;F&gt;, rhs: FunctionInput&lt;F&gt;, output: Witness },
+    </span>AND { lhs: FunctionInput&lt;F&gt;, rhs: FunctionInput&lt;F&gt;, num_bits: u32, output: Witness },
     <span class="doccomment">/// Performs the bitwise XOR of `lhs` and `rhs`. `bit_size` must be the same for
     /// both inputs.
     /// - lhs: (witness, bit_size)
     /// - rhs: (witness, bit_size)
     /// - output: a witness whose value is constrained to be lhs XOR rhs, as
     ///   bit_size bit integers
-    </span>XOR { lhs: FunctionInput&lt;F&gt;, rhs: FunctionInput&lt;F&gt;, output: Witness },
+    </span>XOR { lhs: FunctionInput&lt;F&gt;, rhs: FunctionInput&lt;F&gt;, num_bits: u32, output: Witness },
     <span class="doccomment">/// Range constraint to ensure that a witness
     /// can be represented in the specified number of bits.
     /// - input: (witness, bit_size)
-    </span>RANGE { input: FunctionInput&lt;F&gt; },
+    </span>RANGE { input: FunctionInput&lt;F&gt;, num_bits: u32 },
     <span class="doccomment">/// Computes the Blake2s hash of the inputs, as specified in
     /// &lt;https://tools.ietf.org/html/rfc7693&gt;
     /// - inputs are a byte array, i.e a vector of (witness, 8)
@@ -943,6 +868,7 @@
         </span>)]
         </span>signature: Box&lt;[FunctionInput&lt;F&gt;; <span class="number">64</span>]&gt;,
         hashed_message: Box&lt;[FunctionInput&lt;F&gt;; <span class="number">32</span>]&gt;,
+        predicate: FunctionInput&lt;F&gt;,
         output: Witness,
     },
     <span class="doccomment">/// Verifies a ECDSA signature over the secp256r1 curve.
@@ -957,6 +883,7 @@
         </span>)]
         </span>signature: Box&lt;[FunctionInput&lt;F&gt;; <span class="number">64</span>]&gt;,
         hashed_message: Box&lt;[FunctionInput&lt;F&gt;; <span class="number">32</span>]&gt;,
+        predicate: FunctionInput&lt;F&gt;,
         output: Witness,
     },
     <span class="doccomment">/// Multiple scalar multiplication (MSM) with a variable base/input point
@@ -978,6 +905,7 @@
     </span>MultiScalarMul {
         points: Vec&lt;FunctionInput&lt;F&gt;&gt;,
         scalars: Vec&lt;FunctionInput&lt;F&gt;&gt;,
+        predicate: FunctionInput&lt;F&gt;,
         outputs: (Witness, Witness, Witness),
     },
     <span class="doccomment">/// Addition over the embedded curve on which the witness is defined
@@ -992,6 +920,7 @@
     </span>EmbeddedCurveAdd {
         input1: Box&lt;[FunctionInput&lt;F&gt;; <span class="number">3</span>]&gt;,
         input2: Box&lt;[FunctionInput&lt;F&gt;; <span class="number">3</span>]&gt;,
+        predicate: FunctionInput&lt;F&gt;,
         outputs: (Witness, Witness, Witness),
     },
     <span class="doccomment">/// Keccak Permutation function of width 1600
@@ -1039,19 +968,9 @@
         /// In order for a backend to construct the correct recursive verifier
         /// it expects the user to specify a proof type.
         </span>proof_type: u32,
+        <span class="doccomment">/// A predicate (true or false) to disable the recursive verification
+        </span>predicate: FunctionInput&lt;F&gt;,
     },
-    <span class="doccomment">/// BigInt addition
-    </span>BigIntAdd { lhs: u32, rhs: u32, output: u32 },
-    <span class="doccomment">/// BigInt subtraction
-    </span>BigIntSub { lhs: u32, rhs: u32, output: u32 },
-    <span class="doccomment">/// BigInt multiplication
-    </span>BigIntMul { lhs: u32, rhs: u32, output: u32 },
-    <span class="doccomment">/// BigInt division
-    </span>BigIntDiv { lhs: u32, rhs: u32, output: u32 },
-    <span class="doccomment">/// BigInt from le bytes
-    </span>BigIntFromLeBytes { inputs: Vec&lt;FunctionInput&lt;F&gt;&gt;, modulus: Vec&lt;u8&gt;, output: u32 },
-    <span class="doccomment">/// BigInt to le bytes
-    </span>BigIntToLeBytes { input: u32, outputs: Vec&lt;Witness&gt; },
     <span class="doccomment">/// Applies the Poseidon2 permutation function to the given state,
     /// outputting the permuted state.
     </span>Poseidon2Permutation {
@@ -1059,9 +978,6 @@
         </span>inputs: Vec&lt;FunctionInput&lt;F&gt;&gt;,
         <span class="doccomment">/// Permuted state
         </span>outputs: Vec&lt;Witness&gt;,
-        <span class="doccomment">/// State length (in number of field elements)
-        /// It is the length of inputs and outputs vectors
-        </span>len: u32,
     },
     <span class="doccomment">/// Applies the SHA-256 compression function to the input message
     ///
@@ -1095,12 +1011,6 @@
             BlackBoxFuncCall::EmbeddedCurveAdd { .. } =&gt; BlackBoxFunc::EmbeddedCurveAdd,
             BlackBoxFuncCall::Keccakf1600 { .. } =&gt; BlackBoxFunc::Keccakf1600,
             BlackBoxFuncCall::RecursiveAggregation { .. } =&gt; BlackBoxFunc::RecursiveAggregation,
-            BlackBoxFuncCall::BigIntAdd { .. } =&gt; BlackBoxFunc::BigIntAdd,
-            BlackBoxFuncCall::BigIntSub { .. } =&gt; BlackBoxFunc::BigIntSub,
-            BlackBoxFuncCall::BigIntMul { .. } =&gt; BlackBoxFunc::BigIntMul,
-            BlackBoxFuncCall::BigIntDiv { .. } =&gt; BlackBoxFunc::BigIntDiv,
-            BlackBoxFuncCall::BigIntFromLeBytes { .. } =&gt; BlackBoxFunc::BigIntFromLeBytes,
-            BlackBoxFuncCall::BigIntToLeBytes { .. } =&gt; BlackBoxFunc::BigIntToLeBytes,
             BlackBoxFuncCall::Poseidon2Permutation { .. } =&gt; BlackBoxFunc::Poseidon2Permutation,
             BlackBoxFuncCall::Sha256Compression { .. } =&gt; BlackBoxFunc::Sha256Compression,
         }
@@ -1108,6 +1018,15 @@
 
     <span class="kw">pub fn </span>name(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>str {
         <span class="self">self</span>.get_black_box_func().name()
+    }
+
+    <span class="kw">pub fn </span>bit_size(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;u32&gt; {
+        <span class="kw">match </span><span class="self">self </span>{
+            BlackBoxFuncCall::AND { num_bits, .. }
+            | BlackBoxFuncCall::XOR { num_bits, .. }
+            | BlackBoxFuncCall::RANGE { num_bits, .. } =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>num_bits),
+            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+        }
     }
 
     <span class="kw">pub fn </span>get_outputs_vec(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;Witness&gt; {
@@ -1130,16 +1049,9 @@
             | BlackBoxFuncCall::EmbeddedCurveAdd { outputs, .. } =&gt; {
                 <span class="macro">vec!</span>[outputs.<span class="number">0</span>, outputs.<span class="number">1</span>, outputs.<span class="number">2</span>]
             }
-            BlackBoxFuncCall::RANGE { .. }
-            | BlackBoxFuncCall::RecursiveAggregation { .. }
-            | BlackBoxFuncCall::BigIntFromLeBytes { .. }
-            | BlackBoxFuncCall::BigIntAdd { .. }
-            | BlackBoxFuncCall::BigIntSub { .. }
-            | BlackBoxFuncCall::BigIntMul { .. }
-            | BlackBoxFuncCall::BigIntDiv { .. } =&gt; {
+            BlackBoxFuncCall::RANGE { .. } | BlackBoxFuncCall::RecursiveAggregation { .. } =&gt; {
                 <span class="macro">vec!</span>[]
             }
-            BlackBoxFuncCall::BigIntToLeBytes { outputs, .. } =&gt; outputs.to_vec(),
         }
     }
 }
@@ -1149,7 +1061,6 @@
         <span class="kw">match </span><span class="self">self </span>{
             BlackBoxFuncCall::Blake2s { inputs, .. }
             | BlackBoxFuncCall::Blake3 { inputs, .. }
-            | BlackBoxFuncCall::BigIntFromLeBytes { inputs, .. }
             | BlackBoxFuncCall::Poseidon2Permutation { inputs, .. } =&gt; inputs.to_vec(),
 
             BlackBoxFuncCall::Keccakf1600 { inputs, .. } =&gt; inputs.to_vec(),
@@ -1166,28 +1077,26 @@
             BlackBoxFuncCall::AND { lhs, rhs, .. } | BlackBoxFuncCall::XOR { lhs, rhs, .. } =&gt; {
                 <span class="macro">vec!</span>[<span class="kw-2">*</span>lhs, <span class="kw-2">*</span>rhs]
             }
-            BlackBoxFuncCall::BigIntAdd { .. }
-            | BlackBoxFuncCall::BigIntSub { .. }
-            | BlackBoxFuncCall::BigIntMul { .. }
-            | BlackBoxFuncCall::BigIntDiv { .. }
-            | BlackBoxFuncCall::BigIntToLeBytes { .. } =&gt; Vec::new(),
-            BlackBoxFuncCall::MultiScalarMul { points, scalars, .. } =&gt; {
+            BlackBoxFuncCall::RANGE { input, .. } =&gt; <span class="macro">vec!</span>[<span class="kw-2">*</span>input],
+
+            BlackBoxFuncCall::MultiScalarMul { points, scalars, predicate, .. } =&gt; {
                 <span class="kw">let </span><span class="kw-2">mut </span>inputs: Vec&lt;FunctionInput&lt;F&gt;&gt; =
                     Vec::with_capacity(points.len() + scalars.len());
                 inputs.extend(points.iter().copied());
                 inputs.extend(scalars.iter().copied());
+                inputs.push(<span class="kw-2">*</span>predicate);
                 inputs
             }
-            BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, .. } =&gt; {
-                <span class="macro">vec!</span>[input1[<span class="number">0</span>], input1[<span class="number">1</span>], input1[<span class="number">2</span>], input2[<span class="number">0</span>], input2[<span class="number">1</span>], input2[<span class="number">2</span>]]
+            BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, predicate, .. } =&gt; {
+                <span class="macro">vec!</span>[input1[<span class="number">0</span>], input1[<span class="number">1</span>], input1[<span class="number">2</span>], input2[<span class="number">0</span>], input2[<span class="number">1</span>], input2[<span class="number">2</span>], <span class="kw-2">*</span>predicate]
             }
-            BlackBoxFuncCall::RANGE { input } =&gt; <span class="macro">vec!</span>[<span class="kw-2">*</span>input],
             BlackBoxFuncCall::EcdsaSecp256k1 {
                 public_key_x,
                 public_key_y,
                 signature,
                 hashed_message,
-                ..
+                predicate,
+                output: <span class="kw">_</span>,
             } =&gt; {
                 <span class="kw">let </span><span class="kw-2">mut </span>inputs = Vec::with_capacity(
                     public_key_x.len()
@@ -1199,6 +1108,7 @@
                 inputs.extend(public_key_y.iter().copied());
                 inputs.extend(signature.iter().copied());
                 inputs.extend(hashed_message.iter().copied());
+                inputs.push(<span class="kw-2">*</span>predicate);
                 inputs
             }
             BlackBoxFuncCall::EcdsaSecp256r1 {
@@ -1206,7 +1116,8 @@
                 public_key_y,
                 signature,
                 hashed_message,
-                ..
+                predicate,
+                output: <span class="kw">_</span>,
             } =&gt; {
                 <span class="kw">let </span><span class="kw-2">mut </span>inputs = Vec::with_capacity(
                     public_key_x.len()
@@ -1218,6 +1129,7 @@
                 inputs.extend(public_key_y.iter().copied());
                 inputs.extend(signature.iter().copied());
                 inputs.extend(hashed_message.iter().copied());
+                inputs.push(<span class="kw-2">*</span>predicate);
                 inputs
             }
             BlackBoxFuncCall::RecursiveAggregation {
@@ -1226,12 +1138,14 @@
                 public_inputs,
                 key_hash,
                 proof_type: <span class="kw">_</span>,
+                predicate,
             } =&gt; {
                 <span class="kw">let </span><span class="kw-2">mut </span>inputs = Vec::new();
                 inputs.extend(key.iter().copied());
                 inputs.extend(proof.iter().copied());
                 inputs.extend(public_inputs.iter().copied());
                 inputs.push(<span class="kw-2">*</span>key_hash);
+                inputs.push(<span class="kw-2">*</span>predicate);
                 inputs
             }
         }
@@ -1240,7 +1154,7 @@
     <span class="kw">pub fn </span>get_input_witnesses(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; BTreeSet&lt;Witness&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>result = BTreeSet::new();
         <span class="kw">for </span>input <span class="kw">in </span><span class="self">self</span>.get_inputs_vec() {
-            <span class="kw">if let </span>ConstantOrWitnessEnum::Witness(w) = input.input() {
+            <span class="kw">if let </span>FunctionInput::Witness(w) = input {
                 result.insert(w);
             }
         }
@@ -1252,29 +1166,34 @@
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
         <span class="kw">let </span>uppercase_name = <span class="self">self</span>.name().to_uppercase();
         <span class="macro">write!</span>(f, <span class="string">"BLACKBOX::{uppercase_name} "</span>)<span class="question-mark">?</span>;
-        <span class="comment">// INPUTS
 
-        </span><span class="kw">let </span>inputs_str = <span class="kw-2">&amp;</span><span class="self">self
-            </span>.get_inputs_vec()
-            .iter()
-            .map(|i| i.to_string())
-            .collect::&lt;Vec&lt;String&gt;&gt;()
-            .join(<span class="string">", "</span>);
+        <span class="comment">// inputs
+        </span><span class="kw">let </span>inputs = <span class="kw-2">&amp;</span><span class="self">self</span>.get_inputs_vec();
+        <span class="kw">let </span>inputs_str = inputs.iter().map(|i| i.to_string()).collect::&lt;Vec&lt;String&gt;&gt;().join(<span class="string">", "</span>);
+        <span class="kw">if </span>inputs.len() == <span class="number">1 </span>{
+            <span class="macro">write!</span>(f, <span class="string">"input: {inputs_str}"</span>)<span class="question-mark">?</span>;
+        } <span class="kw">else </span>{
+            <span class="macro">write!</span>(f, <span class="string">"inputs: [{inputs_str}]"</span>)<span class="question-mark">?</span>;
+        }
 
-        <span class="macro">write!</span>(f, <span class="string">"[{inputs_str}]"</span>)<span class="question-mark">?</span>;
+        <span class="comment">// bits
+        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(bit_size) = <span class="self">self</span>.bit_size() {
+            <span class="macro">write!</span>(f, <span class="string">", bits: {bit_size}"</span>)<span class="question-mark">?</span>;
+        }
 
-        <span class="macro">write!</span>(f, <span class="string">" "</span>)<span class="question-mark">?</span>;
+        <span class="comment">// outputs
+        </span><span class="kw">let </span>outputs = <span class="kw-2">&amp;</span><span class="self">self</span>.get_outputs_vec();
+        <span class="kw">if </span>!outputs.is_empty() {
+            <span class="kw">let </span>outputs_str =
+                outputs.iter().map(ToString::to_string).collect::&lt;Vec&lt;String&gt;&gt;().join(<span class="string">", "</span>);
+            <span class="kw">if </span>outputs.len() == <span class="number">1 </span>{
+                <span class="macro">write!</span>(f, <span class="string">", output: {outputs_str}"</span>)<span class="question-mark">?</span>;
+            } <span class="kw">else </span>{
+                <span class="macro">write!</span>(f, <span class="string">", outputs: [{outputs_str}]"</span>)<span class="question-mark">?</span>;
+            }
+        }
 
-        <span class="comment">// OUTPUTS
-
-        </span><span class="kw">let </span>outputs_str = <span class="kw-2">&amp;</span><span class="self">self
-            </span>.get_outputs_vec()
-            .iter()
-            .map(|i| <span class="macro">format!</span>(<span class="string">"_{}"</span>, i.<span class="number">0</span>))
-            .collect::&lt;Vec&lt;String&gt;&gt;()
-            .join(<span class="string">", "</span>);
-
-        <span class="macro">write!</span>(f, <span class="string">"[{outputs_str}]"</span>)
+        <span class="prelude-val">Ok</span>(())
     }
 }
 
@@ -1318,7 +1237,7 @@
 
     <span class="kw">fn </span>keccakf1600_opcode&lt;F: AcirField&gt;() -&gt; Opcode&lt;F&gt; {
         <span class="kw">let </span>inputs: Box&lt;[FunctionInput&lt;F&gt;; <span class="number">25</span>]&gt; =
-            Box::new(std::array::from_fn(|i| FunctionInput::witness(Witness(i <span class="kw">as </span>u32 + <span class="number">1</span>), <span class="number">8</span>)));
+            Box::new(std::array::from_fn(|i| FunctionInput::Witness(Witness(i <span class="kw">as </span>u32 + <span class="number">1</span>))));
         <span class="kw">let </span>outputs: Box&lt;[Witness; <span class="number">25</span>]&gt; = Box::new(std::array::from_fn(|i| Witness(i <span class="kw">as </span>u32 + <span class="number">26</span>)));
 
         Opcode::BlackBoxFuncCall(BlackBoxFuncCall::Keccakf1600 { inputs, outputs })
@@ -1377,19 +1296,38 @@
                     BlackBoxFuncCall::AES128Encrypt { inputs, iv, key, outputs }
                 });
 
-            <span class="kw">let </span>case_and = (input.clone(), input.clone(), witness.clone())
-                .prop_map(|(lhs, rhs, output)| BlackBoxFuncCall::AND { lhs, rhs, output });
+            <span class="kw">let </span>case_and = (input_arr_3.clone(), input_arr_8.clone(), witness.clone()).prop_map(
+                |(lhs, rhs, output)| BlackBoxFuncCall::AND {
+                    lhs: lhs[<span class="number">0</span>],
+                    rhs: rhs[<span class="number">1</span>],
+                    num_bits: <span class="number">8</span>,
+                    output,
+                },
+            );
 
-            <span class="kw">let </span>case_xor = (input.clone(), input.clone(), witness.clone())
-                .prop_map(|(lhs, rhs, output)| BlackBoxFuncCall::XOR { lhs, rhs, output });
+            <span class="kw">let </span>case_xor = (input_arr_3.clone(), input_arr_8.clone(), witness.clone()).prop_map(
+                |(lhs, rhs, output)| BlackBoxFuncCall::XOR {
+                    lhs: lhs[<span class="number">0</span>],
+                    rhs: rhs[<span class="number">1</span>],
+                    num_bits: <span class="number">8</span>,
+                    output,
+                },
+            );
 
-            <span class="kw">let </span>case_range = input.clone().prop_map(|input| BlackBoxFuncCall::RANGE { input });
+            <span class="kw">let </span>case_range = witness.clone().prop_map(|witness| BlackBoxFuncCall::RANGE {
+                input: FunctionInput::Witness(witness),
+                num_bits: <span class="number">32</span>,
+            });
 
-            <span class="kw">let </span>case_blake2s = (input_vec.clone(), witness_arr_32.clone())
-                .prop_map(|(inputs, outputs)| BlackBoxFuncCall::Blake2s { inputs, outputs });
+            <span class="kw">let </span>case_blake2s =
+                (input_arr_8.clone(), witness_arr_32.clone()).prop_map(|(inputs, outputs)| {
+                    BlackBoxFuncCall::Blake2s { inputs: inputs.to_vec(), outputs }
+                });
 
-            <span class="kw">let </span>case_blake3 = (input_vec.clone(), witness_arr_32.clone())
-                .prop_map(|(inputs, outputs)| BlackBoxFuncCall::Blake3 { inputs, outputs });
+            <span class="kw">let </span>case_blake3 =
+                (input_arr_8.clone(), witness_arr_32.clone()).prop_map(|(inputs, outputs)| {
+                    BlackBoxFuncCall::Blake3 { inputs: inputs.to_vec(), outputs }
+                });
 
             <span class="kw">let </span>case_ecdsa_secp256k1 = (
                 input_arr_32.clone(),
@@ -1397,15 +1335,17 @@
                 input_arr_64.clone(),
                 input_arr_32.clone(),
                 witness.clone(),
+                input.clone(),
             )
                 .prop_map(
-                    |(public_key_x, public_key_y, signature, hashed_message, output)| {
+                    |(public_key_x, public_key_y, signature, hashed_message, output, predicate)| {
                         BlackBoxFuncCall::EcdsaSecp256k1 {
                             public_key_x,
                             public_key_y,
                             signature,
                             hashed_message,
                             output,
+                            predicate,
                         }
                     },
                 );
@@ -1416,15 +1356,17 @@
                 input_arr_64.clone(),
                 input_arr_32.clone(),
                 witness.clone(),
+                input.clone(),
             )
                 .prop_map(
-                    |(public_key_x, public_key_y, signature, hashed_message, output)| {
+                    |(public_key_x, public_key_y, signature, hashed_message, output, predicate)| {
                         BlackBoxFuncCall::EcdsaSecp256r1 {
                             public_key_x,
                             public_key_y,
                             signature,
                             hashed_message,
                             output,
+                            predicate,
                         }
                     },
                 );
@@ -1432,23 +1374,35 @@
             <span class="kw">let </span>case_multi_scalar_mul = (
                 input_vec.clone(),
                 input_vec.clone(),
+                input.clone(),
                 witness.clone(),
                 witness.clone(),
                 witness.clone(),
             )
-                .prop_map(|(points, scalars, w1, w2, w3)| {
-                    BlackBoxFuncCall::MultiScalarMul { points, scalars, outputs: (w1, w2, w3) }
+                .prop_map(|(points, scalars, predicate, w1, w2, w3)| {
+                    BlackBoxFuncCall::MultiScalarMul {
+                        points,
+                        scalars,
+                        predicate,
+                        outputs: (w1, w2, w3),
+                    }
                 });
 
             <span class="kw">let </span>case_embedded_curve_add = (
                 input_arr_3.clone(),
                 input_arr_3.clone(),
+                input.clone(),
                 witness.clone(),
                 witness.clone(),
                 witness.clone(),
             )
-                .prop_map(|(input1, input2, w1, w2, w3)| {
-                    BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, outputs: (w1, w2, w3) }
+                .prop_map(|(input1, input2, predicate, w1, w2, w3)| {
+                    BlackBoxFuncCall::EmbeddedCurveAdd {
+                        input1,
+                        input2,
+                        predicate,
+                        outputs: (w1, w2, w3),
+                    }
                 });
 
             <span class="kw">let </span>case_keccakf1600 = (input_arr_25.clone(), witness_arr_25.clone())
@@ -1460,48 +1414,24 @@
                 input_vec.clone(),
                 input.clone(),
                 any::&lt;u32&gt;(),
+                input.clone(),
             )
                 .prop_map(
-                    |(verification_key, proof, public_inputs, key_hash, proof_type)| {
+                    |(verification_key, proof, public_inputs, key_hash, proof_type, predicate)| {
                         BlackBoxFuncCall::RecursiveAggregation {
                             verification_key,
                             proof,
                             public_inputs,
                             key_hash,
                             proof_type,
+                            predicate,
                         }
                     },
                 );
 
-            <span class="kw">let </span>big_int_args = (any::&lt;u32&gt;(), any::&lt;u32&gt;(), any::&lt;u32&gt;());
-
-            <span class="kw">let </span>case_big_int_add = big_int_args
-                .prop_map(|(lhs, rhs, output)| BlackBoxFuncCall::BigIntAdd { lhs, rhs, output });
-
-            <span class="kw">let </span>case_big_int_sub = big_int_args
-                .prop_map(|(lhs, rhs, output)| BlackBoxFuncCall::BigIntSub { lhs, rhs, output });
-
-            <span class="kw">let </span>case_big_int_mul = big_int_args
-                .prop_map(|(lhs, rhs, output)| BlackBoxFuncCall::BigIntMul { lhs, rhs, output });
-
-            <span class="kw">let </span>case_big_int_div = big_int_args
-                .prop_map(|(lhs, rhs, output)| BlackBoxFuncCall::BigIntDiv { lhs, rhs, output });
-
-            <span class="kw">let </span>case_big_int_from_le_bytes = (input_vec.clone(), any::&lt;Vec&lt;u8&gt;&gt;(), any::&lt;u32&gt;())
-                .prop_map(|(inputs, modulus, output)| BlackBoxFuncCall::BigIntFromLeBytes {
-                    inputs,
-                    modulus,
-                    output,
-                });
-
-            <span class="kw">let </span>case_big_int_to_le_bytes = (any::&lt;u32&gt;(), witness_vec.clone())
-                .prop_map(|(input, outputs)| BlackBoxFuncCall::BigIntToLeBytes { input, outputs });
-
-            <span class="kw">let </span>case_poseidon2_permutation = (input_vec.clone(), witness_vec.clone(), any::&lt;u32&gt;())
-                .prop_map(|(inputs, outputs, len)| BlackBoxFuncCall::Poseidon2Permutation {
-                    inputs,
-                    outputs,
-                    len,
+            <span class="kw">let </span>case_poseidon2_permutation =
+                (input_vec.clone(), witness_vec.clone()).prop_map(|(inputs, outputs)| {
+                    BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs }
                 });
 
             <span class="kw">let </span>case_sha256_compression = (input_arr_16, input_arr_8, witness_arr_8).prop_map(
@@ -1525,12 +1455,6 @@
                 case_embedded_curve_add,
                 case_keccakf1600,
                 case_recursive_aggregation,
-                case_big_int_add,
-                case_big_int_sub,
-                case_big_int_mul,
-                case_big_int_div,
-                case_big_int_from_le_bytes,
-                case_big_int_to_le_bytes,
                 case_poseidon2_permutation,
                 case_sha256_compression,
             ]

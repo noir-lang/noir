@@ -459,7 +459,15 @@
 <a href="#458" id="458">458</a>
 <a href="#459" id="459">459</a>
 <a href="#460" id="460">460</a>
-<a href="#461" id="461">461</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module contains the last use analysis pass which is run on each function before
+<a href="#461" id="461">461</a>
+<a href="#462" id="462">462</a>
+<a href="#463" id="463">463</a>
+<a href="#464" id="464">464</a>
+<a href="#465" id="465">465</a>
+<a href="#466" id="466">466</a>
+<a href="#467" id="467">467</a>
+<a href="#468" id="468">468</a>
+<a href="#469" id="469">469</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module contains the last use analysis pass which is run on each function before
 //! the ownership pass when the experimental ownership scheme is enabled. This pass does
 //! not run without this experimental flag - and if it did its results would go unused.
 //!
@@ -889,8 +897,8 @@
     }
 
     <span class="kw">fn </span>track_variables_in_assign(<span class="kw-2">&amp;mut </span><span class="self">self</span>, assign: <span class="kw-2">&amp;</span>ast::Assign) {
-        <span class="self">self</span>.track_variables_in_lvalue(<span class="kw-2">&amp;</span>assign.lvalue);
         <span class="self">self</span>.track_variables_in_expression(<span class="kw-2">&amp;</span>assign.expression);
+        <span class="self">self</span>.track_variables_in_lvalue(<span class="kw-2">&amp;</span>assign.lvalue, <span class="bool-val">false </span><span class="comment">/* nested */</span>);
     }
 
     <span class="doccomment">/// A variable in an lvalue position is never moved (otherwise you wouldn't
@@ -902,19 +910,27 @@
     /// if the last use of one was just before it is assigned, it can actually be
     /// moved before it is assigned. This should be fine because we move out of the
     /// binding, and the binding isn't used until it is set to a new value.
-    </span><span class="kw">fn </span>track_variables_in_lvalue(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lvalue: <span class="kw-2">&amp;</span>ast::LValue) {
+    ///
+    /// The `nested` parameter indicates whether this l-value is nested inside another l-value.
+    /// For top-level identifiers there's nothing to track, but for an identifier happening
+    /// as part of an index (`ident[index] = ...`) we do want to consider `ident` as moved.
+    </span><span class="kw">fn </span>track_variables_in_lvalue(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lvalue: <span class="kw-2">&amp;</span>ast::LValue, nested: bool) {
         <span class="kw">match </span>lvalue {
             <span class="comment">// All identifiers in lvalues are implicitly `&amp;mut ident` and thus aren't moved
-            </span>ast::LValue::Ident(<span class="kw">_</span>) =&gt; (),
+            </span>ast::LValue::Ident(ident) =&gt; {
+                <span class="kw">if </span>nested {
+                    <span class="self">self</span>.track_variables_in_ident(ident);
+                }
+            }
             ast::LValue::Index { array, index, element_type: <span class="kw">_</span>, location: <span class="kw">_ </span>} =&gt; {
                 <span class="self">self</span>.track_variables_in_expression(index);
-                <span class="self">self</span>.track_variables_in_lvalue(array);
+                <span class="self">self</span>.track_variables_in_lvalue(array, <span class="bool-val">true</span>);
             }
             ast::LValue::MemberAccess { object, field_index: <span class="kw">_ </span>} =&gt; {
-                <span class="self">self</span>.track_variables_in_lvalue(object);
+                <span class="self">self</span>.track_variables_in_lvalue(object, <span class="bool-val">true</span>);
             }
             ast::LValue::Dereference { reference, element_type: <span class="kw">_ </span>} =&gt; {
-                <span class="self">self</span>.track_variables_in_lvalue(reference);
+                <span class="self">self</span>.track_variables_in_lvalue(reference, <span class="bool-val">true</span>);
             }
             ast::LValue::Clone(<span class="kw">_</span>) =&gt; <span class="macro">todo!</span>(),
         }

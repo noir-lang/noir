@@ -3486,7 +3486,158 @@
 <a href="#3485" id="3485">3485</a>
 <a href="#3486" id="3486">3486</a>
 <a href="#3487" id="3487">3487</a>
-<a href="#3488" id="3488">3488</a></pre></div><pre class="rust"><code><span class="doccomment">//! The loop invariant code motion (LICM) pass performs two related optimizations:
+<a href="#3488" id="3488">3488</a>
+<a href="#3489" id="3489">3489</a>
+<a href="#3490" id="3490">3490</a>
+<a href="#3491" id="3491">3491</a>
+<a href="#3492" id="3492">3492</a>
+<a href="#3493" id="3493">3493</a>
+<a href="#3494" id="3494">3494</a>
+<a href="#3495" id="3495">3495</a>
+<a href="#3496" id="3496">3496</a>
+<a href="#3497" id="3497">3497</a>
+<a href="#3498" id="3498">3498</a>
+<a href="#3499" id="3499">3499</a>
+<a href="#3500" id="3500">3500</a>
+<a href="#3501" id="3501">3501</a>
+<a href="#3502" id="3502">3502</a>
+<a href="#3503" id="3503">3503</a>
+<a href="#3504" id="3504">3504</a>
+<a href="#3505" id="3505">3505</a>
+<a href="#3506" id="3506">3506</a>
+<a href="#3507" id="3507">3507</a>
+<a href="#3508" id="3508">3508</a>
+<a href="#3509" id="3509">3509</a>
+<a href="#3510" id="3510">3510</a>
+<a href="#3511" id="3511">3511</a>
+<a href="#3512" id="3512">3512</a>
+<a href="#3513" id="3513">3513</a>
+<a href="#3514" id="3514">3514</a>
+<a href="#3515" id="3515">3515</a>
+<a href="#3516" id="3516">3516</a>
+<a href="#3517" id="3517">3517</a>
+<a href="#3518" id="3518">3518</a>
+<a href="#3519" id="3519">3519</a>
+<a href="#3520" id="3520">3520</a>
+<a href="#3521" id="3521">3521</a>
+<a href="#3522" id="3522">3522</a>
+<a href="#3523" id="3523">3523</a>
+<a href="#3524" id="3524">3524</a>
+<a href="#3525" id="3525">3525</a>
+<a href="#3526" id="3526">3526</a>
+<a href="#3527" id="3527">3527</a>
+<a href="#3528" id="3528">3528</a>
+<a href="#3529" id="3529">3529</a>
+<a href="#3530" id="3530">3530</a>
+<a href="#3531" id="3531">3531</a>
+<a href="#3532" id="3532">3532</a>
+<a href="#3533" id="3533">3533</a>
+<a href="#3534" id="3534">3534</a>
+<a href="#3535" id="3535">3535</a>
+<a href="#3536" id="3536">3536</a>
+<a href="#3537" id="3537">3537</a>
+<a href="#3538" id="3538">3538</a>
+<a href="#3539" id="3539">3539</a>
+<a href="#3540" id="3540">3540</a>
+<a href="#3541" id="3541">3541</a>
+<a href="#3542" id="3542">3542</a>
+<a href="#3543" id="3543">3543</a>
+<a href="#3544" id="3544">3544</a>
+<a href="#3545" id="3545">3545</a>
+<a href="#3546" id="3546">3546</a>
+<a href="#3547" id="3547">3547</a>
+<a href="#3548" id="3548">3548</a>
+<a href="#3549" id="3549">3549</a>
+<a href="#3550" id="3550">3550</a>
+<a href="#3551" id="3551">3551</a>
+<a href="#3552" id="3552">3552</a>
+<a href="#3553" id="3553">3553</a>
+<a href="#3554" id="3554">3554</a>
+<a href="#3555" id="3555">3555</a>
+<a href="#3556" id="3556">3556</a>
+<a href="#3557" id="3557">3557</a>
+<a href="#3558" id="3558">3558</a>
+<a href="#3559" id="3559">3559</a>
+<a href="#3560" id="3560">3560</a>
+<a href="#3561" id="3561">3561</a>
+<a href="#3562" id="3562">3562</a>
+<a href="#3563" id="3563">3563</a>
+<a href="#3564" id="3564">3564</a>
+<a href="#3565" id="3565">3565</a>
+<a href="#3566" id="3566">3566</a>
+<a href="#3567" id="3567">3567</a>
+<a href="#3568" id="3568">3568</a>
+<a href="#3569" id="3569">3569</a>
+<a href="#3570" id="3570">3570</a>
+<a href="#3571" id="3571">3571</a>
+<a href="#3572" id="3572">3572</a>
+<a href="#3573" id="3573">3573</a>
+<a href="#3574" id="3574">3574</a>
+<a href="#3575" id="3575">3575</a>
+<a href="#3576" id="3576">3576</a>
+<a href="#3577" id="3577">3577</a>
+<a href="#3578" id="3578">3578</a>
+<a href="#3579" id="3579">3579</a>
+<a href="#3580" id="3580">3580</a>
+<a href="#3581" id="3581">3581</a>
+<a href="#3582" id="3582">3582</a>
+<a href="#3583" id="3583">3583</a>
+<a href="#3584" id="3584">3584</a>
+<a href="#3585" id="3585">3585</a>
+<a href="#3586" id="3586">3586</a>
+<a href="#3587" id="3587">3587</a>
+<a href="#3588" id="3588">3588</a>
+<a href="#3589" id="3589">3589</a>
+<a href="#3590" id="3590">3590</a>
+<a href="#3591" id="3591">3591</a>
+<a href="#3592" id="3592">3592</a>
+<a href="#3593" id="3593">3593</a>
+<a href="#3594" id="3594">3594</a>
+<a href="#3595" id="3595">3595</a>
+<a href="#3596" id="3596">3596</a>
+<a href="#3597" id="3597">3597</a>
+<a href="#3598" id="3598">3598</a>
+<a href="#3599" id="3599">3599</a>
+<a href="#3600" id="3600">3600</a>
+<a href="#3601" id="3601">3601</a>
+<a href="#3602" id="3602">3602</a>
+<a href="#3603" id="3603">3603</a>
+<a href="#3604" id="3604">3604</a>
+<a href="#3605" id="3605">3605</a>
+<a href="#3606" id="3606">3606</a>
+<a href="#3607" id="3607">3607</a>
+<a href="#3608" id="3608">3608</a>
+<a href="#3609" id="3609">3609</a>
+<a href="#3610" id="3610">3610</a>
+<a href="#3611" id="3611">3611</a>
+<a href="#3612" id="3612">3612</a>
+<a href="#3613" id="3613">3613</a>
+<a href="#3614" id="3614">3614</a>
+<a href="#3615" id="3615">3615</a>
+<a href="#3616" id="3616">3616</a>
+<a href="#3617" id="3617">3617</a>
+<a href="#3618" id="3618">3618</a>
+<a href="#3619" id="3619">3619</a>
+<a href="#3620" id="3620">3620</a>
+<a href="#3621" id="3621">3621</a>
+<a href="#3622" id="3622">3622</a>
+<a href="#3623" id="3623">3623</a>
+<a href="#3624" id="3624">3624</a>
+<a href="#3625" id="3625">3625</a>
+<a href="#3626" id="3626">3626</a>
+<a href="#3627" id="3627">3627</a>
+<a href="#3628" id="3628">3628</a>
+<a href="#3629" id="3629">3629</a>
+<a href="#3630" id="3630">3630</a>
+<a href="#3631" id="3631">3631</a>
+<a href="#3632" id="3632">3632</a>
+<a href="#3633" id="3633">3633</a>
+<a href="#3634" id="3634">3634</a>
+<a href="#3635" id="3635">3635</a>
+<a href="#3636" id="3636">3636</a>
+<a href="#3637" id="3637">3637</a>
+<a href="#3638" id="3638">3638</a>
+<a href="#3639" id="3639">3639</a></pre></div><pre class="rust"><code><span class="doccomment">//! The loop invariant code motion (LICM) pass performs two related optimizations:
 //! 1. Loop-Invariant Code Motion: Moves computations that produce the same result
 //!    on every iteration out of the loop and into its pre-header.
 //! 2. Loop-Bounds Simplification: Simplifies computations inside the loop body
@@ -3579,6 +3730,7 @@
     ir::{
         basic_block::BasicBlockId,
         cfg::ControlFlowGraph,
+        dfg::DataFlowGraph,
         dom::DominatorTree,
         function::Function,
         function_inserter::FunctionInserter,
@@ -3763,6 +3915,42 @@
 }
 
 <span class="kw">impl </span>LoopContext {
+    <span class="doccomment">/// Create a `LoopContext`:
+    /// * Gather the variables declared within the loop
+    /// * Determine the induction variable bounds
+    </span><span class="kw">fn </span>new(
+        inserter: <span class="kw-2">&amp;</span>FunctionInserter,
+        cfg: <span class="kw-2">&amp;</span>ControlFlowGraph,
+        loop_: <span class="kw-2">&amp;</span>Loop,
+        pre_header: BasicBlockId,
+    ) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span><span class="kw-2">mut </span>defined_in_loop = HashSet::default();
+        <span class="kw">for </span>block <span class="kw">in </span>loop_.blocks.iter() {
+            <span class="kw">let </span>params = inserter.function.dfg.block_parameters(<span class="kw-2">*</span>block);
+            defined_in_loop.extend(params);
+            <span class="kw">for </span>instruction_id <span class="kw">in </span>inserter.function.dfg[<span class="kw-2">*</span>block].instructions() {
+                <span class="kw">let </span>results = inserter.function.dfg.instruction_results(<span class="kw-2">*</span>instruction_id);
+                defined_in_loop.extend(results);
+            }
+        }
+        <span class="kw">let </span>induction_variable = get_induction_var_bounds(inserter, loop_, pre_header);
+
+        <span class="self">Self </span>{
+            <span class="comment">// There is only ever one current induction variable for a loop.
+            </span>induction_variable,
+            does_loop_execute: does_loop_execute(induction_variable.map(|(<span class="kw">_</span>, bounds)| bounds)),
+            pre_header,
+            defined_in_loop,
+            loop_invariants: HashSet::default(),
+            <span class="comment">// Clear any cached control dependent nested loop blocks from the previous loop.
+            // This set is only relevant within the scope of a single loop.
+            // Keeping previous data would incorrectly classify blocks as control dependent,
+            // leading to missed hoisting opportunities.
+            </span>nested_loop_control_dependent_blocks: HashSet::default(),
+            no_break: loop_.is_fully_executed(cfg),
+        }
+    }
+
     <span class="kw">fn </span>pre_header(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; BasicBlockId {
         <span class="self">self</span>.pre_header
     }
@@ -3864,7 +4052,7 @@
         all_loops: <span class="kw-2">&amp;</span>[Loop],
         pre_header: BasicBlockId,
     ) {
-        <span class="kw">let </span><span class="kw-2">mut </span>loop_context = <span class="self">self</span>.init_loop_context(loop_, pre_header);
+        <span class="kw">let </span><span class="kw-2">mut </span>loop_context = LoopContext::new(<span class="kw-2">&amp;</span><span class="self">self</span>.inserter, <span class="kw-2">&amp;</span><span class="self">self</span>.cfg, loop_, pre_header);
 
         <span class="kw">for </span>block <span class="kw">in </span>loop_.blocks.iter() {
             <span class="kw">let </span><span class="kw-2">mut </span>block_context =
@@ -3874,7 +4062,7 @@
                 <span class="kw">if </span><span class="self">self</span>.simplify_from_loop_bounds(<span class="kw-2">&amp;</span>loop_context, <span class="kw-2">&amp;</span>block_context, instruction_id) {
                     <span class="kw">continue</span>;
                 }
-                <span class="kw">let </span>hoist_invariant =
+                <span class="kw">let </span>(hoist_invariant, insert_rc) =
                     <span class="self">self</span>.can_hoist_invariant(<span class="kw-2">&amp;</span>loop_context, <span class="kw-2">&amp;</span>block_context, instruction_id);
 
                 <span class="kw">if </span>hoist_invariant {
@@ -3882,14 +4070,9 @@
 
                     <span class="comment">// If we are hoisting a MakeArray instruction,
                     // we need to issue an extra inc_rc in case they are mutated afterward.
-                    </span><span class="kw">if </span><span class="self">self</span>.inserter.function.runtime().is_brillig()
-                        &amp;&amp; <span class="macro">matches!</span>(
-                            <span class="self">self</span>.inserter.function.dfg[instruction_id],
-                            Instruction::MakeArray { .. }
-                        )
-                    {
-                        <span class="kw">let </span>result =
-                            <span class="self">self</span>.inserter.function.dfg.instruction_results(instruction_id)[<span class="number">0</span>];
+                    </span><span class="kw">if </span>insert_rc {
+                        <span class="kw">let </span>[result] =
+                            <span class="self">self</span>.inserter.function.dfg.instruction_result(instruction_id);
                         <span class="kw">let </span>inc_rc = Instruction::IncrementRc { value: result };
                         <span class="kw">let </span>call_stack = <span class="self">self
                             </span>.inserter
@@ -4054,37 +4237,6 @@
         <span class="bool-val">true
     </span>}
 
-    <span class="doccomment">/// Create a `LoopContext`:
-    /// * Gather the variables declared within the loop
-    /// * Determine the induction variable bounds
-    </span><span class="kw">fn </span>init_loop_context(<span class="kw-2">&amp;mut </span><span class="self">self</span>, loop_: <span class="kw-2">&amp;</span>Loop, pre_header: BasicBlockId) -&gt; LoopContext {
-        <span class="kw">let </span><span class="kw-2">mut </span>defined_in_loop = HashSet::default();
-        <span class="kw">for </span>block <span class="kw">in </span>loop_.blocks.iter() {
-            <span class="kw">let </span>params = <span class="self">self</span>.inserter.function.dfg.block_parameters(<span class="kw-2">*</span>block);
-            defined_in_loop.extend(params);
-            <span class="kw">for </span>instruction_id <span class="kw">in </span><span class="self">self</span>.inserter.function.dfg[<span class="kw-2">*</span>block].instructions() {
-                <span class="kw">let </span>results = <span class="self">self</span>.inserter.function.dfg.instruction_results(<span class="kw-2">*</span>instruction_id);
-                defined_in_loop.extend(results);
-            }
-        }
-        <span class="kw">let </span>induction_variable = get_induction_var_bounds(<span class="kw-2">&amp;</span><span class="self">self</span>.inserter, loop_, pre_header);
-
-        LoopContext {
-            <span class="comment">// There is only ever one current induction variable for a loop.
-            </span>induction_variable,
-            does_loop_execute: does_loop_execute(induction_variable.map(|(<span class="kw">_</span>, bounds)| bounds)),
-            pre_header,
-            defined_in_loop,
-            loop_invariants: HashSet::default(),
-            <span class="comment">// Clear any cached control dependent nested loop blocks from the previous loop.
-            // This set is only relevant within the scope of a single loop.
-            // Keeping previous data would incorrectly classify blocks as control dependent,
-            // leading to missed hoisting opportunities.
-            </span>nested_loop_control_dependent_blocks: HashSet::default(),
-            no_break: loop_.is_fully_executed(<span class="kw-2">&amp;</span><span class="self">self</span>.cfg),
-        }
-    }
-
     <span class="doccomment">/// Create a `BlockContext`.
     </span><span class="kw">fn </span>init_block_context(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
@@ -4141,14 +4293,18 @@
         }
     }
 
-    <span class="kw">fn </span>can_hoist_invariant(
+    <span class="doccomment">/// Decide if an in instruction can be hoisted into the pre-header of the loop.
+    ///
+    /// Returns 2 flags:
+    /// 1. Whether the instruction can be hoisted
+    /// 2. If it can be hoisted, does it require an `IncrementRc` instruction.
+    </span><span class="kw">fn </span>can_hoist_invariant(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         loop_context: <span class="kw-2">&amp;</span>LoopContext,
         block_context: <span class="kw-2">&amp;</span>BlockContext,
         instruction_id: InstructionId,
-    ) -&gt; bool {
+    ) -&gt; (bool, bool) {
         <span class="kw">use </span>CanBeHoistedResult::<span class="kw-2">*</span>;
-        <span class="kw">use </span>Instruction::<span class="kw-2">*</span>;
 
         <span class="kw">let </span><span class="kw-2">mut </span>is_loop_invariant = <span class="bool-val">true</span>;
         <span class="comment">// The list of blocks for a nested loop contain any inner loops as well.
@@ -4166,25 +4322,20 @@
         });
 
         <span class="kw">if </span>!is_loop_invariant {
-            <span class="kw">return </span><span class="bool-val">false</span>;
-        }
-
-        <span class="comment">// MakeArray is only safe to hoist in ACIR, but we know that in Brillig we will insert an `IncRc`
-        // in `LoopInvariantContext::hoist_loop_invariants` to keep it safe, so it's okay to hoist them.
-        </span><span class="kw">if </span><span class="macro">matches!</span>(instruction, MakeArray { .. }) {
-            <span class="kw">return </span><span class="bool-val">true</span>;
+            <span class="kw">return </span>(<span class="bool-val">false</span>, <span class="bool-val">false</span>);
         }
 
         <span class="comment">// Check if the operation depends only on the outer loop variable, in which case it can be hoisted
         // into the pre-header of a nested loop even if the nested loop does not execute.
         </span><span class="kw">if </span><span class="self">self</span>.can_be_hoisted_from_loop_bounds(loop_context, <span class="kw-2">&amp;</span>instruction) {
-            <span class="kw">return </span><span class="bool-val">true</span>;
+            <span class="kw">return </span>(<span class="bool-val">true</span>, <span class="bool-val">false</span>);
         }
 
-        <span class="kw">match </span>can_be_hoisted(<span class="kw-2">&amp;</span>instruction, <span class="self">self</span>.inserter.function) {
-            Yes =&gt; <span class="bool-val">true</span>,
-            No =&gt; <span class="bool-val">false</span>,
-            WithPredicate =&gt; block_context.can_hoist_control_dependent_instruction(),
+        <span class="kw">match </span>can_be_hoisted(<span class="kw-2">&amp;</span>instruction, <span class="kw-2">&amp;</span><span class="self">self</span>.inserter.function.dfg) {
+            Yes =&gt; (<span class="bool-val">true</span>, <span class="bool-val">false</span>),
+            No =&gt; (<span class="bool-val">false</span>, <span class="bool-val">false</span>),
+            WithRefCount =&gt; (<span class="bool-val">true</span>, <span class="bool-val">true</span>),
+            WithPredicate =&gt; (block_context.can_hoist_control_dependent_instruction(), <span class="bool-val">false</span>),
         }
     }
 
@@ -4206,7 +4357,7 @@
         <span class="kw">use </span>Instruction::<span class="kw-2">*</span>;
 
         <span class="kw">match </span>instruction {
-            ArrayGet { array, index, offset: <span class="kw">_ </span>} =&gt; {
+            ArrayGet { array, index } =&gt; {
                 <span class="kw">let </span>array_typ = <span class="self">self</span>.inserter.function.dfg.type_of_value(<span class="kw-2">*</span>array);
                 <span class="kw">let </span>upper_bound = <span class="self">self</span>.outer_induction_variables.get(index).map(|bounds| bounds.<span class="number">1</span>);
                 <span class="kw">if let </span>(Type::Array(<span class="kw">_</span>, len), <span class="prelude-val">Some</span>(upper_bound)) = (array_typ, upper_bound) {
@@ -4280,6 +4431,7 @@
     Yes,
     No,
     WithPredicate,
+    WithRefCount,
 }
 
 <span class="kw">impl </span>From&lt;bool&gt; <span class="kw">for </span>CanBeHoistedResult {
@@ -4308,7 +4460,7 @@
 /// This differs from `can_be_deduplicated` as that method assumes there is a matching instruction
 /// with the same inputs. Hoisting is for lone instructions, meaning a mislabeled hoist could cause
 /// unexpected failures if the instruction was never meant to be executed.
-</span><span class="kw">fn </span>can_be_hoisted(instruction: <span class="kw-2">&amp;</span>Instruction, function: <span class="kw-2">&amp;</span>Function) -&gt; CanBeHoistedResult {
+</span><span class="kw">fn </span>can_be_hoisted(instruction: <span class="kw-2">&amp;</span>Instruction, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) -&gt; CanBeHoistedResult {
     <span class="kw">use </span>CanBeHoistedResult::<span class="kw-2">*</span>;
     <span class="kw">use </span>Instruction::<span class="kw-2">*</span>;
 
@@ -4322,9 +4474,9 @@
         | DecrementRc { .. } =&gt; No,
 
         Call { func, .. } =&gt; {
-            <span class="kw">let </span>purity = <span class="kw">match </span>function.dfg[<span class="kw-2">*</span>func] {
+            <span class="kw">let </span>purity = <span class="kw">match </span>dfg[<span class="kw-2">*</span>func] {
                 Value::Intrinsic(intrinsic) =&gt; <span class="prelude-val">Some</span>(intrinsic.purity()),
-                Value::Function(id) =&gt; function.dfg.purity_of(id),
+                Value::Function(id) =&gt; dfg.purity_of(id),
                 <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
             };
             <span class="kw">match </span>purity {
@@ -4338,7 +4490,7 @@
         Cast(source, target_type) =&gt; {
             <span class="comment">// A cast may have dependence on a range-check, which may not be hoisted, so we cannot always hoist a cast.
             // We can safely hoist a cast from a smaller to a larger type as no range check is necessary in this case.
-            </span><span class="kw">let </span>source_type = function.dfg.type_of_value(<span class="kw-2">*</span>source).unwrap_numeric();
+            </span><span class="kw">let </span>source_type = dfg.type_of_value(<span class="kw-2">*</span>source).unwrap_numeric();
             (source_type.bit_size() &lt;= target_type.bit_size()).into()
         }
 
@@ -4352,19 +4504,19 @@
         </span>Noop =&gt; Yes,
 
         <span class="comment">// Arrays can be mutated in unconstrained code so code that handles this case must
-        // take care to track whether the array was possibly mutated or not before
-        // hoisted. We know that in this module we will insert a corresponding `IncRc` to
-        // allow safe hoisting in unconstrained code, but just in case we would expose this
-        // function to other modules, we return a more restrictive result here.
-        </span>MakeArray { .. } =&gt; function.runtime().is_acir().into(),
-
-        <span class="comment">// These can have different behavior depending on the predicate.
-        </span>Binary(<span class="kw">_</span>) | ArrayGet { .. } | ArraySet { .. } =&gt; {
-            <span class="kw">if </span>!instruction.requires_acir_gen_predicate(<span class="kw-2">&amp;</span>function.dfg) {
+        // take care to track whether the array was possibly mutated or not before hoisted.
+        // An ACIR it is always safe to hoist MakeArray.
+        </span>MakeArray { .. } =&gt; {
+            <span class="kw">if </span>dfg.runtime().is_acir() {
                 Yes
             } <span class="kw">else </span>{
-                WithPredicate
+                WithRefCount
             }
+        }
+
+        <span class="comment">// These can have different behavior depending on the predicate.
+        </span>Binary(<span class="kw">_</span>) | ArraySet { .. } | ArrayGet { .. } =&gt; {
+            <span class="kw">if </span>!instruction.requires_acir_gen_predicate(dfg) { Yes } <span class="kw">else </span>{ WithPredicate }
         }
     }
 }
@@ -4380,7 +4532,7 @@
     <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::instruction::{Instruction, Intrinsic, TerminatorInstruction};
     <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::types::Type;
     <span class="kw">use </span><span class="kw">crate</span>::ssa::opt::loop_invariant::{
-        CanBeHoistedResult, LoopInvariantContext, can_be_hoisted,
+        CanBeHoistedResult, LoopContext, LoopInvariantContext, can_be_hoisted,
     };
     <span class="kw">use </span><span class="kw">crate</span>::ssa::opt::pure::Purity;
     <span class="kw">use </span><span class="kw">crate</span>::ssa::opt::unrolling::Loops;
@@ -5420,10 +5572,10 @@
         <span class="kw">let </span><span class="kw-2">mut </span>ssa = Ssa::from_str(src).unwrap();
         <span class="kw">let </span>function = ssa.functions.get_mut(<span class="kw-2">&amp;</span>ssa.main_id).unwrap();
         <span class="kw">let </span><span class="kw-2">mut </span>loops = Loops::find_all(function);
-        <span class="kw">let </span><span class="kw-2">mut </span>ctx = LoopInvariantContext::new(function, <span class="kw-2">&amp;</span>loops.yet_to_unroll);
+        <span class="kw">let </span>ctx = LoopInvariantContext::new(function, <span class="kw-2">&amp;</span>loops.yet_to_unroll);
         <span class="kw">let </span>pre_header = BasicBlockId::new(<span class="number">0</span>);
         <span class="kw">let </span>loop_ = loops.yet_to_unroll.pop().unwrap();
-        <span class="kw">let </span><span class="kw-2">mut </span>loop_ctx = ctx.init_loop_context(<span class="kw-2">&amp;</span>loop_, pre_header);
+        <span class="kw">let </span><span class="kw-2">mut </span>loop_ctx = LoopContext::new(<span class="kw-2">&amp;</span>ctx.inserter, <span class="kw-2">&amp;</span>ctx.cfg, <span class="kw-2">&amp;</span>loop_, pre_header);
 
         <span class="kw">let </span><span class="kw-2">mut </span>get_block_ctx = |id| {
             ctx.init_block_context(
@@ -5503,17 +5655,47 @@
         <span class="bool-val">true</span>,
         <span class="string">"nested loop empty, but add cannot overflow"
     </span>)]
-    #[test_case(<span class="string">"u32"</span>, <span class="number">0</span>, <span class="number">10</span>, <span class="number">10</span>, <span class="bool-val">true</span>, <span class="string">"add"</span>, (u32::MAX-<span class="number">5</span>) <span class="kw">as </span>i64, <span class="bool-val">true</span>, <span class="string">"add overflows, and loop executes"</span>)]
-    #[test_case(<span class="string">"u32"</span>, <span class="number">0</span>, <span class="number">10</span>, <span class="number">0</span>, <span class="bool-val">true</span>, <span class="string">"add"</span>, (u32::MAX-<span class="number">5</span>) <span class="kw">as </span>i64, <span class="bool-val">false</span>, <span class="string">"add overflows, but loop empty"</span>)]
-    #[test_case(<span class="string">"u32"</span>, <span class="number">0</span>, <span class="number">10</span>, <span class="number">0</span>, <span class="bool-val">true</span>, <span class="string">"unchecked_add"</span>, (u32::MAX-<span class="number">5</span>) <span class="kw">as </span>i64, <span class="bool-val">true</span>, <span class="string">"loop empty, but add unchecked"</span>)]
+    #[test_case(<span class="string">"u32"</span>, <span class="number">0</span>, <span class="number">10</span>, <span class="number">10</span>, <span class="bool-val">true</span>, <span class="string">"add"</span>, i64::from(u32::MAX - <span class="number">5</span>), <span class="bool-val">true</span>, <span class="string">"add overflows, and loop executes"</span>)]
+    #[test_case(<span class="string">"u32"</span>, <span class="number">0</span>, <span class="number">10</span>, <span class="number">0</span>, <span class="bool-val">true</span>, <span class="string">"add"</span>, i64::from(u32::MAX - <span class="number">5</span>), <span class="bool-val">false</span>, <span class="string">"add overflows, but loop empty"</span>)]
+    #[test_case(<span class="string">"u32"</span>, <span class="number">0</span>, <span class="number">10</span>, <span class="number">0</span>, <span class="bool-val">true</span>, <span class="string">"unchecked_add"</span>, i64::from(u32::MAX - <span class="number">5</span>), <span class="bool-val">true</span>, <span class="string">"loop empty, but add unchecked"</span>)]
     #[test_case(<span class="string">"u32"</span>, <span class="number">5</span>, <span class="number">10</span>, <span class="number">10</span>, <span class="bool-val">true</span>, <span class="string">"sub"</span>, <span class="number">5</span>, <span class="bool-val">true</span>, <span class="string">"loop executes, sub cannot overflow"</span>)]
     #[test_case(<span class="string">"u32"</span>, <span class="number">0</span>, <span class="number">10</span>, <span class="number">10</span>, <span class="bool-val">true</span>, <span class="string">"sub"</span>, <span class="number">5</span>, <span class="bool-val">true</span>, <span class="string">"sub overflows, and loop executes"</span>)]
     #[test_case(<span class="string">"u32"</span>, <span class="number">0</span>, <span class="number">10</span>, <span class="number">0</span>, <span class="bool-val">true</span>, <span class="string">"sub"</span>, <span class="number">5</span>, <span class="bool-val">false</span>, <span class="string">"sub overflows, but loop empty"</span>)]
     #[test_case(<span class="string">"u32"</span>, <span class="number">0</span>, <span class="number">10</span>, <span class="number">0</span>, <span class="bool-val">true</span>, <span class="string">"unchecked_sub"</span>, <span class="number">5</span>, <span class="bool-val">true</span>, <span class="string">"loop empty, but sub unchecked"</span>)]
     #[test_case(<span class="string">"u32"</span>, <span class="number">0</span>, <span class="number">10</span>, <span class="number">10</span>, <span class="bool-val">true</span>, <span class="string">"mul"</span>, <span class="number">10</span>, <span class="bool-val">true</span>, <span class="string">"loop executes, mul cannot overflow"</span>)]
-    #[test_case(<span class="string">"u32"</span>, <span class="number">0</span>, <span class="number">10</span>, <span class="number">10</span>, <span class="bool-val">true</span>, <span class="string">"mul"</span>, u32::MAX <span class="kw">as </span>i64, <span class="bool-val">true</span>, <span class="string">"mul overflows, and loop executes"</span>)]
-    #[test_case(<span class="string">"u32"</span>, <span class="number">0</span>, <span class="number">10</span>, <span class="number">0</span>, <span class="bool-val">true</span>, <span class="string">"mul"</span>, u32::MAX <span class="kw">as </span>i64, <span class="bool-val">false</span>, <span class="string">"mul overflows, but loop empty"</span>)]
-    #[test_case(<span class="string">"u32"</span>, <span class="number">0</span>, <span class="number">10</span>, <span class="number">0</span>, <span class="bool-val">true</span>, <span class="string">"unchecked_mul"</span>, u32::MAX <span class="kw">as </span>i64, <span class="bool-val">true</span>, <span class="string">"loop empty, but mul unchecked"</span>)]
+    #[test_case(
+        <span class="string">"u32"</span>,
+        <span class="number">0</span>,
+        <span class="number">10</span>,
+        <span class="number">10</span>,
+        <span class="bool-val">true</span>,
+        <span class="string">"mul"</span>,
+        i64::from(u32::MAX),
+        <span class="bool-val">true</span>,
+        <span class="string">"mul overflows, and loop executes"
+    </span>)]
+    #[test_case(
+        <span class="string">"u32"</span>,
+        <span class="number">0</span>,
+        <span class="number">10</span>,
+        <span class="number">0</span>,
+        <span class="bool-val">true</span>,
+        <span class="string">"mul"</span>,
+        i64::from(u32::MAX),
+        <span class="bool-val">false</span>,
+        <span class="string">"mul overflows, but loop empty"
+    </span>)]
+    #[test_case(
+        <span class="string">"u32"</span>,
+        <span class="number">0</span>,
+        <span class="number">10</span>,
+        <span class="number">0</span>,
+        <span class="bool-val">true</span>,
+        <span class="string">"unchecked_mul"</span>,
+        i64::from(u32::MAX),
+        <span class="bool-val">true</span>,
+        <span class="string">"loop empty, but mul unchecked"
+    </span>)]
     #[test_case(<span class="string">"u32"</span>, <span class="number">0</span>, <span class="number">10</span>, <span class="number">10</span>, <span class="bool-val">true</span>, <span class="string">"div"</span>, <span class="number">2</span>, <span class="bool-val">true</span>, <span class="string">"loop executes, div ok"</span>)]
     #[test_case(<span class="string">"u32"</span>, <span class="number">0</span>, <span class="number">10</span>, <span class="number">0</span>, <span class="bool-val">true</span>, <span class="string">"div"</span>, <span class="number">2</span>, <span class="bool-val">true</span>, <span class="string">"loop empty, div ok"</span>)]
     #[test_case(<span class="string">"u32"</span>, <span class="number">0</span>, <span class="number">10</span>, <span class="number">10</span>, <span class="bool-val">true</span>, <span class="string">"div"</span>, <span class="number">0</span>, <span class="bool-val">true</span>, <span class="string">"div by zero, and loop executes"</span>)]
@@ -5526,8 +5708,8 @@
     #[test_case(<span class="string">"u32"</span>, <span class="number">0</span>, <span class="number">10</span>, <span class="number">0</span>, <span class="bool-val">true</span>, <span class="string">"eq"</span>, <span class="number">5</span>, <span class="bool-val">true</span>, <span class="string">"loop empty, but eq is safe"</span>)]
     #[test_case(<span class="string">"u32"</span>, <span class="number">5</span>, <span class="number">10</span>, <span class="number">10</span>, <span class="bool-val">true</span>, <span class="string">"shr"</span>, <span class="number">1</span>, <span class="bool-val">true</span>, <span class="string">"loop executes, shr ok"</span>)]
     #[test_case(<span class="string">"u32"</span>, <span class="number">5</span>, <span class="number">10</span>, <span class="number">0</span>, <span class="bool-val">true</span>, <span class="string">"shr"</span>, <span class="number">1</span>, <span class="bool-val">false</span>, <span class="string">"loop empty, shr ok"</span>)]
-    #[test_case(<span class="string">"u32"</span>, <span class="number">5</span>, <span class="number">10</span>, <span class="number">10</span>, <span class="bool-val">true</span>, <span class="string">"shr"</span>, <span class="number">10</span>, <span class="bool-val">true</span>, <span class="string">"shr overflow, and loop executes"</span>)]
-    #[test_case(<span class="string">"u32"</span>, <span class="number">5</span>, <span class="number">10</span>, <span class="number">0</span>, <span class="bool-val">true</span>, <span class="string">"shr"</span>, <span class="number">10</span>, <span class="bool-val">false</span>, <span class="string">"shr overflow, but loop empty"</span>)]
+    #[test_case(<span class="string">"u32"</span>, <span class="number">5</span>, <span class="number">10</span>, <span class="number">10</span>, <span class="bool-val">true</span>, <span class="string">"shr"</span>, <span class="number">32</span>, <span class="bool-val">true</span>, <span class="string">"shr overflow, and loop executes"</span>)]
+    #[test_case(<span class="string">"u32"</span>, <span class="number">5</span>, <span class="number">10</span>, <span class="number">0</span>, <span class="bool-val">true</span>, <span class="string">"shr"</span>, <span class="number">32</span>, <span class="bool-val">false</span>, <span class="string">"shr overflow, but loop empty"</span>)]
     #[test_case(<span class="string">"u32"</span>, <span class="number">5</span>, <span class="number">10</span>, <span class="number">10</span>, <span class="bool-val">true</span>, <span class="string">"shl"</span>, <span class="number">1</span>, <span class="bool-val">true</span>, <span class="string">"loop executes, shl ok"</span>)]
     #[test_case(<span class="string">"u32"</span>, <span class="number">5</span>, <span class="number">10</span>, <span class="number">0</span>, <span class="bool-val">true</span>, <span class="string">"shl"</span>, <span class="number">1</span>, <span class="bool-val">false</span>, <span class="string">"loop empty, shl ok"</span>)]
     #[test_case(<span class="string">"u32"</span>, <span class="number">5</span>, <span class="number">10</span>, <span class="number">10</span>, <span class="bool-val">true</span>, <span class="string">"shl"</span>, <span class="number">32</span>, <span class="bool-val">true</span>, <span class="string">"shl overflow, and loop executes"</span>)]
@@ -5604,9 +5786,6 @@
     #[test_case(<span class="number">1</span>, TestCall::Function(<span class="prelude-val">Some</span>(Purity::Impure)), <span class="bool-val">false</span>; <span class="string">"impure function"</span>)]
     #[test_case(<span class="number">1</span>, TestCall::Function(<span class="prelude-val">None</span>), <span class="bool-val">false</span>; <span class="string">"purity unknown"</span>)]
     #[test_case(<span class="number">1</span>, TestCall::ForeignFunction, <span class="bool-val">false</span>; <span class="string">"foreign functions always impure"</span>)]
-    #[test_case(<span class="number">0</span>, TestCall::Intrinsic(Intrinsic::AsWitness), <span class="bool-val">false</span>; <span class="string">"empty loop; predicate pure intrinsic"</span>)]
-    #[test_case(<span class="number">1</span>, TestCall::Intrinsic(Intrinsic::AsWitness), <span class="bool-val">true</span>; <span class="string">"non-empty loop; predicate pure intrinsic"</span>)]
-    #[test_case(<span class="number">1</span>, TestCall::Intrinsic(Intrinsic::ArrayRefCount), <span class="bool-val">false</span>; <span class="string">"non-empty loop, impure intrinsic"</span>)]
     #[test_case(<span class="number">0</span>, TestCall::Intrinsic(Intrinsic::BlackBox(acvm::acir::BlackBoxFunc::Keccakf1600)), <span class="bool-val">true</span>; <span class="string">"empty loop, pure intrinsic"</span>)]
     #[test_case(<span class="number">1</span>, TestCall::Intrinsic(Intrinsic::BlackBox(acvm::acir::BlackBoxFunc::Keccakf1600)), <span class="bool-val">true</span>; <span class="string">"non-empty loop, pure intrinsic"</span>)]
     </span><span class="kw">fn </span>hoist_from_loop_call_with_purity(upper: u32, test_call: TestCall, should_hoist: bool) {
@@ -5653,6 +5832,65 @@
         } <span class="kw">else </span>{
             <span class="macro">assert_eq!</span>(pre_header.instructions().len(), <span class="number">1</span>, <span class="string">"should hoist"</span>);
         }
+    }
+
+    <span class="attr">#[test_case(<span class="number">0</span>, <span class="bool-val">false</span>; <span class="string">"empty loop; predicate pure intrinsic"</span>)]
+    #[test_case(<span class="number">1</span>, <span class="bool-val">true</span>; <span class="string">"non-empty loop; predicate pure intrinsic"</span>)]
+    </span><span class="kw">fn </span>hoist_as_witness_from_loop_call_with_purity(upper: u32, should_hoist: bool) {
+        <span class="kw">let </span>src = <span class="macro">format!</span>(
+            <span class="string">r#"
+        acir(inline) fn main f0 {{
+          b0(v0: Field):
+            jmp b1(u32 0)
+          b1(v1: u32):
+            v2 = lt v1, u32 {upper}
+            jmpif v2 then: b2, else: b3
+          b2():
+            call as_witness(v0)
+            v4 = unchecked_add v1, u32 1
+            jmp b1(v4)
+          b3():
+            return
+        }}
+        "#</span>,
+        );
+
+        <span class="kw">let </span>ssa = Ssa::from_str(<span class="kw-2">&amp;</span>src).unwrap();
+        <span class="kw">let </span>ssa = ssa.loop_invariant_code_motion();
+
+        <span class="comment">// The pre-header of the loop b1 is b0
+        </span><span class="kw">let </span>pre_header = <span class="kw-2">&amp;</span>ssa.main().dfg[BasicBlockId::new(<span class="number">0</span>)];
+        <span class="kw">if </span>!should_hoist {
+            <span class="macro">assert!</span>(pre_header.instructions().is_empty(), <span class="string">"should not hoist"</span>);
+        } <span class="kw">else </span>{
+            <span class="macro">assert_eq!</span>(pre_header.instructions().len(), <span class="number">1</span>, <span class="string">"should hoist"</span>);
+        }
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>does_not_hoist_array_refcount_from_loop_call_with_purity() {
+        <span class="kw">let </span>src = <span class="string">"
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3]):
+            jmp b1(u32 0)
+          b1(v1: u32):
+            v2 = lt v1, u32 1
+            jmpif v2 then: b2, else: b3
+          b2():
+            v3 = call array_refcount(v0) -&gt; u32
+            v4 = unchecked_add v1, u32 1
+            jmp b1(v4)
+          b3():
+            return
+        }
+        "</span>;
+
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>ssa = ssa.loop_invariant_code_motion();
+
+        <span class="comment">// The pre-header of the loop b1 is b0
+        </span><span class="kw">let </span>pre_header = <span class="kw-2">&amp;</span>ssa.main().dfg[BasicBlockId::new(<span class="number">0</span>)];
+        <span class="macro">assert!</span>(pre_header.instructions().is_empty(), <span class="string">"should not hoist"</span>);
     }
 
     <span class="doccomment">/// Test cases where `i &lt; const` or `const &lt; i` should or shouldn't be simplified.
@@ -5783,8 +6021,37 @@
         assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
     }
 
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>do_not_hoist_signed_div_by_minus_one_from_non_executed_nested_loop() {
+        <span class="kw">let </span>src = <span class="string">r#"
+          brillig(inline) predicate_pure fn main f0 {
+            b0():
+              jmp b1(i32 0)
+            b1(v0: i32):
+              v4 = lt v0, i32 10
+              jmpif v4 then: b2, else: b3
+            b2():
+              jmp b4(i32 10)
+            b3():
+              return
+            b4(v1: i32):
+              v6 = lt v1, i32 10
+              jmpif v6 then: b5, else: b6
+            b5():
+              v9 = div v0, i32 -1
+              v10 = unchecked_add v1, i32 1
+              jmp b4(v10)
+            b6():
+              v8 = unchecked_add v0, i32 1
+              jmp b1(v8)
+          }
+        "#</span>;
+
+        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
+    }
+
     <span class="doccomment">/// Test that in itself `MakeArray` is only safe to be hoisted in ACIR.
-    </span><span class="attr">#[test_case(RuntimeType::Brillig(InlineType::default()), CanBeHoistedResult::No)]
+    </span><span class="attr">#[test_case(RuntimeType::Brillig(InlineType::default()), CanBeHoistedResult::WithRefCount)]
     #[test_case(RuntimeType::Acir(InlineType::default()), CanBeHoistedResult::Yes)]
     </span><span class="kw">fn </span>make_array_can_be_hoisted(runtime: RuntimeType, result: CanBeHoistedResult) {
         <span class="comment">// This is just a stub to create a function with the expected runtime.
@@ -5804,7 +6071,7 @@
             typ: Type::Array(Arc::new(<span class="macro">vec!</span>[]), <span class="number">0</span>),
         };
 
-        <span class="macro">assert_eq!</span>(can_be_hoisted(<span class="kw-2">&amp;</span>instruction, function), result);
+        <span class="macro">assert_eq!</span>(can_be_hoisted(<span class="kw-2">&amp;</span>instruction, <span class="kw-2">&amp;</span>function.dfg), result);
     }
 }
 
@@ -5814,11 +6081,13 @@
         assert_ssa_snapshot,
         ssa::{
             interpreter::{errors::InterpreterError, tests::from_constant},
-            ir::types::NumericType,
+            ir::{function::RuntimeType, types::NumericType},
             opt::{assert_normalized_ssa_equals, assert_ssa_does_not_change, unrolling::Loops},
             ssa_gen::Ssa,
         },
     };
+    <span class="kw">use </span>noirc_frontend::monomorphization::ast::InlineType;
+    <span class="kw">use </span>test_case::test_case;
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>do_not_hoist_unsafe_mul_in_control_dependent_block() {
@@ -6146,7 +6415,7 @@
           loop_body():
             v6 = unchecked_mul v0, v1
             v7 = unchecked_mul v6, v0
-            call f1()
+            call f1(v7)
             v10 = unchecked_add v2, u32 1
             jmp loop(v10)
           exit():
@@ -6173,7 +6442,7 @@
             v6 = lt v2, v1
             jmpif v6 then: b2, else: b3
           b2():
-            call f1()
+            call f1(v4)
             v9 = unchecked_add v2, u32 1
             jmp b1(v9)
           b3():
@@ -6201,7 +6470,7 @@
           loop_body():
             v6 = mul v0, v1
             v7 = mul v6, v0
-            call f1()
+            call f1(v7)
             v10 = unchecked_add v2, u32 1
             jmp loop(v10)
           exit():
@@ -6223,7 +6492,7 @@
           b0(v0: u32, v1: u32):
             v3 = mul v0, v1
             v4 = mul v3, v0
-            call f1()
+            call f1(v4)
             jmp b1(u32 0)
           b1(v2: u32):
             v8 = lt v2, u32 4
@@ -6244,7 +6513,7 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>simplify_constraint() {
-        <span class="comment">// This test shows the simplification of the constraint constrain v17 == u1 1 which is converted into constrain u1 0 == u1 1 in b5
+        <span class="comment">// This test shows the constraint constrain v17 == u1 1 is not simplified into constrain u1 0 == u1 1
         </span><span class="kw">let </span>src = <span class="string">"
         brillig(inline) fn main f0 {
           entry(v0: u32, v1: u32, v2: u32):
@@ -6276,11 +6545,10 @@
         "</span>;
 
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-
         <span class="kw">let </span>ssa = ssa.loop_invariant_code_motion();
-        <span class="comment">// The loop is guaranteed to fully execute, so we expect the constrain to be simplified into constrain u1 0 == u1 1
-        // However, even though the constrain is not a loop invariant we expect it to remain in place
-        // as it is control dependent upon its predecessor blocks which are not pure.
+
+        <span class="comment">// Despite the loop is guaranteed to fully execute, which implies that the constrain will fail at some iteration,
+        // the constraint is not simplified in case some side-effect instruction would run in the previous iterations.
         </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         brillig(inline) fn main f0 {
           b0(v0: u32, v1: u32, v2: u32):
@@ -6304,9 +6572,9 @@
             jmp b5()
           b5():
             v15 = lt v3, u32 4
-            constrain u1 0 == u1 1
-            v17 = unchecked_add v3, u32 1
-            jmp b1(v17)
+            constrain v15 == u1 1
+            v16 = unchecked_add v3, u32 1
+            jmp b1(v16)
         }
         "</span>);
     }
@@ -6972,6 +7240,40 @@
         <span class="kw">let </span><span class="kw-2">mut </span>loops = Loops::find_all(ssa.main());
         <span class="kw">let </span>loop_ = loops.yet_to_unroll.pop().unwrap();
         <span class="macro">assert!</span>(!loop_.is_fully_executed(<span class="kw-2">&amp;</span>loops.cfg));
+    }
+
+    <span class="attr">#[test_case(RuntimeType::Brillig(InlineType::default()))]
+    #[test_case(RuntimeType::Acir(InlineType::default()))]
+    </span><span class="kw">fn </span>do_not_hoist_unsafe_array_get_from_control_dependent_block(runtime: RuntimeType) {
+        <span class="comment">// We use an unknown index v0 to index an array, but only if v1 is true,
+        // so we should not hoist the constraint or the array_get into the header.
+        // Hoisting the array operation and indexing with an invalid `v0` would
+        // not cause an OOB in Brillig, however the returned value would be invalid,
+        // causing knockdown loop invariant instructions to fail when the loop is not meant to fail.
+        </span><span class="kw">let </span>src = <span class="macro">format!</span>(
+            <span class="string">r#"
+          {runtime} impure fn main f0 {{
+            b0(v0: u32, v1: u1):
+              v2 = make_array [u8 0, u8 1] : [u8; 2]
+              jmp b1(u32 0)
+            b1(v3: u32):
+              v4 = lt v3, u32 2
+              jmpif v4 then: b2, else: b3
+            b2():
+              jmpif v1 then: b4, else: b5
+            b3():
+              return
+            b4():
+              constrain v0 == u32 0, "Index out of bounds"
+              v5 = array_get v2, index v0 -&gt; u8
+              jmp b5()
+            b5():
+              v6 = unchecked_add v3, u32 1
+              jmp b1(v6)
+          }}
+          "#
+        </span>);
+        assert_ssa_does_not_change(<span class="kw-2">&amp;</span>src, Ssa::loop_invariant_code_motion);
     }
 }
 </code></pre></div></section></main></body></html>

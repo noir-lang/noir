@@ -311,11 +311,7 @@
 <a href="#310" id="310">310</a>
 <a href="#311" id="311">311</a>
 <a href="#312" id="312">312</a>
-<a href="#313" id="313">313</a>
-<a href="#314" id="314">314</a>
-<a href="#315" id="315">315</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
-
-<span class="kw">use </span>acir::{
+<a href="#313" id="313">313</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{
     AcirField,
     circuit::opcodes::MemOp,
     native_types::{Expression, Witness, WitnessMap},
@@ -329,16 +325,31 @@
 <span class="kw">type </span>MemoryIndex = u32;
 
 <span class="doccomment">/// Maintains the state for solving [`MemoryInit`][`acir::circuit::Opcode::MemoryInit`] and [`MemoryOp`][`acir::circuit::Opcode::MemoryOp`] opcodes.
-</span><span class="attr">#[derive(Default)]
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>MemoryOpSolver&lt;F&gt; {
     <span class="doccomment">/// Known values of the memory block, based on the index
-    /// This map evolves as we process the opcodes
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) block_value: HashMap&lt;MemoryIndex, F&gt;,
-    <span class="doccomment">/// Length of the block, i.e the number of elements stored into the memory block.
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) block_len: u32,
+    /// This vec starts as big as it needs to, when initialized,
+    /// then evolves as we process the opcodes.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) block_value: Vec&lt;F&gt;,
 }
 
 <span class="kw">impl</span>&lt;F: AcirField&gt; MemoryOpSolver&lt;F&gt; {
+    <span class="doccomment">/// Creates a new MemoryOpSolver with the values given in `init`.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(
+        init: <span class="kw-2">&amp;</span>[Witness],
+        initial_witness: <span class="kw-2">&amp;</span>WitnessMap&lt;F&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, OpcodeResolutionError&lt;F&gt;&gt; {
+        <span class="prelude-val">Ok</span>(<span class="self">Self </span>{
+            block_value: init
+                .iter()
+                .map(|witness| witness_to_value(initial_witness, <span class="kw-2">*</span>witness).copied())
+                .collect::&lt;<span class="prelude-ty">Result</span>&lt;Vec&lt;<span class="kw">_</span>&gt;, <span class="kw">_</span>&gt;&gt;()<span class="question-mark">?</span>,
+        })
+    }
+
+    <span class="kw">fn </span>len(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u32 {
+        <span class="self">self</span>.block_value.len() <span class="kw">as </span>u32
+    }
+
     <span class="doccomment">/// Convert a field element into a memory index
     /// Only 32 bits values are valid memory indices
     </span><span class="kw">fn </span>index_from_field(<span class="kw-2">&amp;</span><span class="self">self</span>, index: F) -&gt; <span class="prelude-ty">Result</span>&lt;MemoryIndex, OpcodeResolutionError&lt;F&gt;&gt; {
@@ -349,7 +360,7 @@
             <span class="prelude-val">Err</span>(OpcodeResolutionError::IndexOutOfBounds {
                 opcode_location: ErrorLocation::Unresolved,
                 index,
-                array_size: <span class="self">self</span>.block_len,
+                array_size: <span class="self">self</span>.len(),
             })
         }
     }
@@ -361,41 +372,28 @@
         index: MemoryIndex,
         value: F,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), OpcodeResolutionError&lt;F&gt;&gt; {
-        <span class="kw">if </span>index &gt;= <span class="self">self</span>.block_len {
+        <span class="kw">if </span>index &gt;= <span class="self">self</span>.len() {
             <span class="kw">return </span><span class="prelude-val">Err</span>(OpcodeResolutionError::IndexOutOfBounds {
                 opcode_location: ErrorLocation::Unresolved,
-                index: F::from(index <span class="kw">as </span>u128),
-                array_size: <span class="self">self</span>.block_len,
+                index: F::from(u128::from(index)),
+                array_size: <span class="self">self</span>.len(),
             });
         }
-        <span class="self">self</span>.block_value.insert(index, value);
+
+        <span class="self">self</span>.block_value[index <span class="kw">as </span>usize] = value;
         <span class="prelude-val">Ok</span>(())
     }
 
     <span class="doccomment">/// Returns the value stored in the 'block_value' map for the provided index
     /// Returns an 'IndexOutOfBounds' error if the index is not in the map.
     </span><span class="kw">fn </span>read_memory_index(<span class="kw-2">&amp;</span><span class="self">self</span>, index: MemoryIndex) -&gt; <span class="prelude-ty">Result</span>&lt;F, OpcodeResolutionError&lt;F&gt;&gt; {
-        <span class="self">self</span>.block_value.get(<span class="kw-2">&amp;</span>index).copied().ok_or(OpcodeResolutionError::IndexOutOfBounds {
-            opcode_location: ErrorLocation::Unresolved,
-            index: F::from(index <span class="kw">as </span>u128),
-            array_size: <span class="self">self</span>.block_len,
-        })
-    }
-
-    <span class="doccomment">/// Set the block_value from a MemoryInit opcode
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>init(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        init: <span class="kw-2">&amp;</span>[Witness],
-        initial_witness: <span class="kw-2">&amp;</span>WitnessMap&lt;F&gt;,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), OpcodeResolutionError&lt;F&gt;&gt; {
-        <span class="self">self</span>.block_len = init.len() <span class="kw">as </span>u32;
-        <span class="kw">for </span>(memory_index, witness) <span class="kw">in </span>init.iter().enumerate() {
-            <span class="self">self</span>.write_memory_index(
-                memory_index <span class="kw">as </span>MemoryIndex,
-                <span class="kw-2">*</span>witness_to_value(initial_witness, <span class="kw-2">*</span>witness)<span class="question-mark">?</span>,
-            )<span class="question-mark">?</span>;
-        }
-        <span class="prelude-val">Ok</span>(())
+        <span class="self">self</span>.block_value.get(index <span class="kw">as </span>usize).copied().ok_or(
+            OpcodeResolutionError::IndexOutOfBounds {
+                opcode_location: ErrorLocation::Unresolved,
+                index: F::from(u128::from(index)),
+                array_size: <span class="self">self</span>.len(),
+            },
+        )
     }
 
     <span class="doccomment">/// Update the 'block_values' by processing the provided Memory opcode
@@ -501,14 +499,13 @@
         ]));
 
         <span class="kw">let </span>init = <span class="macro">vec!</span>[Witness(<span class="number">1</span>), Witness(<span class="number">2</span>)];
-
-        <span class="kw">let </span>trace = <span class="macro">vec!</span>[
+        <span class="comment">// Write the value '2' at index '1', and then read from index '1' into witness 4
+        </span><span class="kw">let </span>trace = <span class="macro">vec!</span>[
             MemOp::write_to_mem_index(FieldElement::from(<span class="number">1u128</span>).into(), Witness(<span class="number">3</span>).into()),
             MemOp::read_at_mem_index(FieldElement::one().into(), Witness(<span class="number">4</span>)),
         ];
 
-        <span class="kw">let </span><span class="kw-2">mut </span>block_solver = MemoryOpSolver::default();
-        block_solver.init(<span class="kw-2">&amp;</span>init, <span class="kw-2">&amp;</span>initial_witness).unwrap();
+        <span class="kw">let </span><span class="kw-2">mut </span>block_solver = MemoryOpSolver::new(<span class="kw-2">&amp;</span>init, <span class="kw-2">&amp;</span>initial_witness).unwrap();
 
         <span class="kw">for </span>op <span class="kw">in </span>trace {
             block_solver
@@ -528,13 +525,12 @@
         ]));
 
         <span class="kw">let </span>init = <span class="macro">vec!</span>[Witness(<span class="number">1</span>), Witness(<span class="number">2</span>)];
-
-        <span class="kw">let </span>invalid_trace = <span class="macro">vec!</span>[
+        <span class="comment">// Write at index '1', and then read at index '2' on an array of size 2.
+        </span><span class="kw">let </span>invalid_trace = <span class="macro">vec!</span>[
             MemOp::write_to_mem_index(FieldElement::from(<span class="number">1u128</span>).into(), Witness(<span class="number">3</span>).into()),
             MemOp::read_at_mem_index(FieldElement::from(<span class="number">2u128</span>).into(), Witness(<span class="number">4</span>)),
         ];
-        <span class="kw">let </span><span class="kw-2">mut </span>block_solver = MemoryOpSolver::default();
-        block_solver.init(<span class="kw-2">&amp;</span>init, <span class="kw-2">&amp;</span>initial_witness).unwrap();
+        <span class="kw">let </span><span class="kw-2">mut </span>block_solver = MemoryOpSolver::new(<span class="kw-2">&amp;</span>init, <span class="kw-2">&amp;</span>initial_witness).unwrap();
         <span class="kw">let </span><span class="kw-2">mut </span>err = <span class="prelude-val">None</span>;
         <span class="kw">for </span>op <span class="kw">in </span>invalid_trace {
             <span class="kw">if </span>err.is_none() {
@@ -555,6 +551,7 @@
     }
 
     <span class="attr">#[test]
+    </span><span class="comment">// TODO: to review after the serialization changes are merged because it will remove the predicate.
     </span><span class="kw">fn </span>test_predicate_on_read() {
         <span class="kw">let </span><span class="kw-2">mut </span>initial_witness = WitnessMap::from(BTreeMap::from_iter([
             (Witness(<span class="number">1</span>), FieldElement::from(<span class="number">1u128</span>)),
@@ -568,8 +565,7 @@
             MemOp::write_to_mem_index(FieldElement::from(<span class="number">1u128</span>).into(), Witness(<span class="number">3</span>).into()),
             MemOp::read_at_mem_index(FieldElement::from(<span class="number">2u128</span>).into(), Witness(<span class="number">4</span>)),
         ];
-        <span class="kw">let </span><span class="kw-2">mut </span>block_solver = MemoryOpSolver::default();
-        block_solver.init(<span class="kw-2">&amp;</span>init, <span class="kw-2">&amp;</span>initial_witness).unwrap();
+        <span class="kw">let </span><span class="kw-2">mut </span>block_solver = MemoryOpSolver::new(<span class="kw-2">&amp;</span>init, <span class="kw-2">&amp;</span>initial_witness).unwrap();
         <span class="kw">let </span><span class="kw-2">mut </span>err = <span class="prelude-val">None</span>;
         <span class="kw">for </span>op <span class="kw">in </span>invalid_trace {
             <span class="kw">if </span>err.is_none() {
@@ -591,6 +587,7 @@
     }
 
     <span class="attr">#[test]
+    </span><span class="comment">// TODO: to review after the serialization changes are merged because it will remove the predicate.
     </span><span class="kw">fn </span>test_predicate_on_write() {
         <span class="kw">let </span><span class="kw-2">mut </span>initial_witness = WitnessMap::from(BTreeMap::from_iter([
             (Witness(<span class="number">1</span>), FieldElement::from(<span class="number">1u128</span>)),
@@ -605,8 +602,7 @@
             MemOp::read_at_mem_index(FieldElement::from(<span class="number">0u128</span>).into(), Witness(<span class="number">4</span>)),
             MemOp::read_at_mem_index(FieldElement::from(<span class="number">1u128</span>).into(), Witness(<span class="number">5</span>)),
         ];
-        <span class="kw">let </span><span class="kw-2">mut </span>block_solver = MemoryOpSolver::default();
-        block_solver.init(<span class="kw-2">&amp;</span>init, <span class="kw-2">&amp;</span>initial_witness).unwrap();
+        <span class="kw">let </span><span class="kw-2">mut </span>block_solver = MemoryOpSolver::new(<span class="kw-2">&amp;</span>init, <span class="kw-2">&amp;</span>initial_witness).unwrap();
         <span class="kw">let </span><span class="kw-2">mut </span>err = <span class="prelude-val">None</span>;
         <span class="kw">for </span>op <span class="kw">in </span>invalid_trace {
             <span class="kw">if </span>err.is_none() {

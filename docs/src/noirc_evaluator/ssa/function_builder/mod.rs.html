@@ -609,10 +609,7 @@
 <a href="#608" id="608">608</a>
 <a href="#609" id="609">609</a>
 <a href="#610" id="610">610</a>
-<a href="#611" id="611">611</a>
-<a href="#612" id="612">612</a>
-<a href="#613" id="613">613</a>
-<a href="#614" id="614">614</a></pre></div><pre class="rust"><code><span class="kw">pub mod </span>data_bus;
+<a href="#611" id="611">611</a></pre></div><pre class="rust"><code><span class="kw">pub mod </span>data_bus;
 
 <span class="kw">use </span>std::{borrow::Cow, collections::BTreeMap, sync::Arc};
 
@@ -637,7 +634,7 @@
         basic_block::BasicBlock,
         dfg::{GlobalsGraph, InsertInstructionResult},
         function::RuntimeType,
-        instruction::{ArrayOffset, ConstrainError, InstructionId, Intrinsic},
+        instruction::{ConstrainError, InstructionId, Intrinsic},
         types::NumericType,
     },
     opt::pure::FunctionPurities,
@@ -967,12 +964,10 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         array: ValueId,
         index: ValueId,
-        offset: ArrayOffset,
         element_type: Type,
     ) -&gt; ValueId {
         <span class="kw">let </span>element_type = <span class="prelude-val">Some</span>(<span class="macro">vec!</span>[element_type]);
-        <span class="self">self</span>.insert_instruction(Instruction::ArrayGet { array, index, offset }, element_type)
-            .first()
+        <span class="self">self</span>.insert_instruction(Instruction::ArrayGet { array, index }, element_type).first()
     }
 
     <span class="doccomment">/// Insert an instruction to create a new array with the given index replaced with a new value
@@ -982,9 +977,8 @@
         index: ValueId,
         value: ValueId,
         mutable: bool,
-        offset: ArrayOffset,
     ) -&gt; ValueId {
-        <span class="kw">let </span>instruction = Instruction::ArraySet { array, index, value, mutable, offset };
+        <span class="kw">let </span>instruction = Instruction::ArraySet { array, index, value, mutable };
         <span class="self">self</span>.insert_instruction(instruction, <span class="prelude-val">None</span>).first()
     }
 

@@ -2641,7 +2641,8 @@
 <a href="#2640" id="2640">2640</a>
 <a href="#2641" id="2641">2641</a>
 <a href="#2642" id="2642">2642</a>
-<a href="#2643" id="2643">2643</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
+<a href="#2643" id="2643">2643</a>
+<a href="#2644" id="2644">2644</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
     ast::{
         ArrayLiteral, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
         ConstrainExpression, ConstrainKind, ConstructorExpression, Expression, ExpressionKind,
@@ -3609,6 +3610,7 @@
 
             <span class="comment">// Add a trailing comma regardless of whether the user specified one or not
             </span>group.text(<span class="self">self</span>.chunk(|formatter| {
+                formatter.skip_comments_and_whitespace();
                 <span class="kw">if </span>formatter.token == Token::Comma {
                     formatter.write_current_token_and_bump();
                 } <span class="kw">else </span>{
@@ -5129,7 +5131,7 @@ global y = 1;
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>format_match() {
-        <span class="kw">let </span>src = <span class="string">"fn main() {  match  x  {  A=&gt;B,C  =&gt;  {D}E=&gt;(),  } }"</span>;
+        <span class="kw">let </span>src = <span class="string">"fn main() {  match  x  {  A=&gt;B  ,  C  =&gt;  {D}E=&gt;()  ,  } }"</span>;
         <span class="comment">// We should remove the block on D for single expressions in the future,
         // unless D is an if or match.
         </span><span class="kw">let </span>expected = <span class="string">"fn main() {

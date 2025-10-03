@@ -151,7 +151,7 @@
         circuit::{
             Circuit, Opcode, Program,
             brillig::{BrilligBytecode, BrilligInputs},
-            opcodes::{BlackBoxFuncCall, ConstantOrWitnessEnum},
+            opcodes::{BlackBoxFuncCall, FunctionInput},
         },
         native_types::Expression,
     },
@@ -201,9 +201,9 @@
 
     <span class="kw">for </span>opcode <span class="kw">in </span><span class="kw-2">&amp;</span>circuit.opcodes {
         <span class="kw">match </span>opcode {
-            Opcode::AssertZero(expr)
-            | Opcode::Call { predicate: <span class="prelude-val">Some</span>(expr), .. }
-            | Opcode::MemoryOp { predicate: <span class="prelude-val">Some</span>(expr), .. } =&gt; insert_expr(<span class="kw-2">&amp;mut </span>constants, expr),
+            Opcode::AssertZero(expr) | Opcode::Call { predicate: <span class="prelude-val">Some</span>(expr), .. } =&gt; {
+                insert_expr(<span class="kw-2">&amp;mut </span>constants, expr);
+            }
 
             Opcode::MemoryInit { init, .. } =&gt; insert_array_len(<span class="kw-2">&amp;mut </span>constants, init),
 
@@ -223,18 +223,18 @@
                 }
             }
 
-            Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE { input })
-                <span class="kw">if </span><span class="macro">matches!</span>(input.input(), ConstantOrWitnessEnum::Constant(..)) =&gt;
+            Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE { input, num_bits })
+                <span class="kw">if </span><span class="macro">matches!</span>(input, FunctionInput::Constant(..)) =&gt;
             {
-                <span class="kw">match </span>input.input() {
-                    ConstantOrWitnessEnum::Constant(c) =&gt; {
-                        <span class="kw">let </span>field = <span class="number">1u128</span>.wrapping_shl(input.num_bits());
+                <span class="kw">match </span>input {
+                    FunctionInput::Constant(c) =&gt; {
+                        <span class="kw">let </span>field = <span class="number">1u128</span>.wrapping_shl(<span class="kw-2">*</span>num_bits);
                         constants.insert(F::from(field));
                         constants.insert(F::from(field - <span class="number">1</span>));
-                        constants.insert(c);
+                        constants.insert(<span class="kw-2">*</span>c);
                     }
                     <span class="kw">_ </span>=&gt; {
-                        <span class="kw">let </span>field = <span class="number">1u128</span>.wrapping_shl(input.num_bits());
+                        <span class="kw">let </span>field = <span class="number">1u128</span>.wrapping_shl(<span class="kw-2">*</span>num_bits);
                         constants.insert(F::from(field));
                         constants.insert(F::from(field - <span class="number">1</span>));
                     }

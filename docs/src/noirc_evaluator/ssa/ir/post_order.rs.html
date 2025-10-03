@@ -171,7 +171,177 @@
 <a href="#170" id="170">170</a>
 <a href="#171" id="171">171</a>
 <a href="#172" id="172">172</a>
-<a href="#173" id="173">173</a></pre></div><pre class="rust"><code><span class="doccomment">//! The post-order for a given function represented as a vector of basic block ids.
+<a href="#173" id="173">173</a>
+<a href="#174" id="174">174</a>
+<a href="#175" id="175">175</a>
+<a href="#176" id="176">176</a>
+<a href="#177" id="177">177</a>
+<a href="#178" id="178">178</a>
+<a href="#179" id="179">179</a>
+<a href="#180" id="180">180</a>
+<a href="#181" id="181">181</a>
+<a href="#182" id="182">182</a>
+<a href="#183" id="183">183</a>
+<a href="#184" id="184">184</a>
+<a href="#185" id="185">185</a>
+<a href="#186" id="186">186</a>
+<a href="#187" id="187">187</a>
+<a href="#188" id="188">188</a>
+<a href="#189" id="189">189</a>
+<a href="#190" id="190">190</a>
+<a href="#191" id="191">191</a>
+<a href="#192" id="192">192</a>
+<a href="#193" id="193">193</a>
+<a href="#194" id="194">194</a>
+<a href="#195" id="195">195</a>
+<a href="#196" id="196">196</a>
+<a href="#197" id="197">197</a>
+<a href="#198" id="198">198</a>
+<a href="#199" id="199">199</a>
+<a href="#200" id="200">200</a>
+<a href="#201" id="201">201</a>
+<a href="#202" id="202">202</a>
+<a href="#203" id="203">203</a>
+<a href="#204" id="204">204</a>
+<a href="#205" id="205">205</a>
+<a href="#206" id="206">206</a>
+<a href="#207" id="207">207</a>
+<a href="#208" id="208">208</a>
+<a href="#209" id="209">209</a>
+<a href="#210" id="210">210</a>
+<a href="#211" id="211">211</a>
+<a href="#212" id="212">212</a>
+<a href="#213" id="213">213</a>
+<a href="#214" id="214">214</a>
+<a href="#215" id="215">215</a>
+<a href="#216" id="216">216</a>
+<a href="#217" id="217">217</a>
+<a href="#218" id="218">218</a>
+<a href="#219" id="219">219</a>
+<a href="#220" id="220">220</a>
+<a href="#221" id="221">221</a>
+<a href="#222" id="222">222</a>
+<a href="#223" id="223">223</a>
+<a href="#224" id="224">224</a>
+<a href="#225" id="225">225</a>
+<a href="#226" id="226">226</a>
+<a href="#227" id="227">227</a>
+<a href="#228" id="228">228</a>
+<a href="#229" id="229">229</a>
+<a href="#230" id="230">230</a>
+<a href="#231" id="231">231</a>
+<a href="#232" id="232">232</a>
+<a href="#233" id="233">233</a>
+<a href="#234" id="234">234</a>
+<a href="#235" id="235">235</a>
+<a href="#236" id="236">236</a>
+<a href="#237" id="237">237</a>
+<a href="#238" id="238">238</a>
+<a href="#239" id="239">239</a>
+<a href="#240" id="240">240</a>
+<a href="#241" id="241">241</a>
+<a href="#242" id="242">242</a>
+<a href="#243" id="243">243</a>
+<a href="#244" id="244">244</a>
+<a href="#245" id="245">245</a>
+<a href="#246" id="246">246</a>
+<a href="#247" id="247">247</a>
+<a href="#248" id="248">248</a>
+<a href="#249" id="249">249</a>
+<a href="#250" id="250">250</a>
+<a href="#251" id="251">251</a>
+<a href="#252" id="252">252</a>
+<a href="#253" id="253">253</a>
+<a href="#254" id="254">254</a>
+<a href="#255" id="255">255</a>
+<a href="#256" id="256">256</a>
+<a href="#257" id="257">257</a>
+<a href="#258" id="258">258</a>
+<a href="#259" id="259">259</a>
+<a href="#260" id="260">260</a>
+<a href="#261" id="261">261</a>
+<a href="#262" id="262">262</a>
+<a href="#263" id="263">263</a>
+<a href="#264" id="264">264</a>
+<a href="#265" id="265">265</a>
+<a href="#266" id="266">266</a>
+<a href="#267" id="267">267</a>
+<a href="#268" id="268">268</a>
+<a href="#269" id="269">269</a>
+<a href="#270" id="270">270</a>
+<a href="#271" id="271">271</a>
+<a href="#272" id="272">272</a>
+<a href="#273" id="273">273</a>
+<a href="#274" id="274">274</a>
+<a href="#275" id="275">275</a>
+<a href="#276" id="276">276</a>
+<a href="#277" id="277">277</a>
+<a href="#278" id="278">278</a>
+<a href="#279" id="279">279</a>
+<a href="#280" id="280">280</a>
+<a href="#281" id="281">281</a>
+<a href="#282" id="282">282</a>
+<a href="#283" id="283">283</a>
+<a href="#284" id="284">284</a>
+<a href="#285" id="285">285</a>
+<a href="#286" id="286">286</a>
+<a href="#287" id="287">287</a>
+<a href="#288" id="288">288</a>
+<a href="#289" id="289">289</a>
+<a href="#290" id="290">290</a>
+<a href="#291" id="291">291</a>
+<a href="#292" id="292">292</a>
+<a href="#293" id="293">293</a>
+<a href="#294" id="294">294</a>
+<a href="#295" id="295">295</a>
+<a href="#296" id="296">296</a>
+<a href="#297" id="297">297</a>
+<a href="#298" id="298">298</a>
+<a href="#299" id="299">299</a>
+<a href="#300" id="300">300</a>
+<a href="#301" id="301">301</a>
+<a href="#302" id="302">302</a>
+<a href="#303" id="303">303</a>
+<a href="#304" id="304">304</a>
+<a href="#305" id="305">305</a>
+<a href="#306" id="306">306</a>
+<a href="#307" id="307">307</a>
+<a href="#308" id="308">308</a>
+<a href="#309" id="309">309</a>
+<a href="#310" id="310">310</a>
+<a href="#311" id="311">311</a>
+<a href="#312" id="312">312</a>
+<a href="#313" id="313">313</a>
+<a href="#314" id="314">314</a>
+<a href="#315" id="315">315</a>
+<a href="#316" id="316">316</a>
+<a href="#317" id="317">317</a>
+<a href="#318" id="318">318</a>
+<a href="#319" id="319">319</a>
+<a href="#320" id="320">320</a>
+<a href="#321" id="321">321</a>
+<a href="#322" id="322">322</a>
+<a href="#323" id="323">323</a>
+<a href="#324" id="324">324</a>
+<a href="#325" id="325">325</a>
+<a href="#326" id="326">326</a>
+<a href="#327" id="327">327</a>
+<a href="#328" id="328">328</a>
+<a href="#329" id="329">329</a>
+<a href="#330" id="330">330</a>
+<a href="#331" id="331">331</a>
+<a href="#332" id="332">332</a>
+<a href="#333" id="333">333</a>
+<a href="#334" id="334">334</a>
+<a href="#335" id="335">335</a>
+<a href="#336" id="336">336</a>
+<a href="#337" id="337">337</a>
+<a href="#338" id="338">338</a>
+<a href="#339" id="339">339</a>
+<a href="#340" id="340">340</a>
+<a href="#341" id="341">341</a>
+<a href="#342" id="342">342</a>
+<a href="#343" id="343">343</a></pre></div><pre class="rust"><code><span class="doccomment">//! The post-order for a given function represented as a vector of basic block ids.
 //!
 //! This ordering is beneficial to the efficiency of various algorithms, such as those for dead
 //! code elimination and calculating dominance trees.
@@ -266,7 +436,14 @@
 </span><span class="kw">mod </span>tests {
     <span class="kw">use </span><span class="kw">crate</span>::ssa::{
         function_builder::FunctionBuilder,
-        ir::{function::Function, map::Id, post_order::PostOrder, types::Type},
+        ir::{
+            basic_block::BasicBlockId,
+            function::Function,
+            map::Id,
+            post_order::PostOrder,
+            types::{NumericType, Type},
+        },
+        ssa_gen::Ssa,
     };
 
     <span class="attr">#[test]
@@ -342,6 +519,169 @@
         <span class="kw">let </span>post_order = PostOrder::with_function(func);
         <span class="kw">let </span>block_a_id = func.entry_block();
         <span class="macro">assert_eq!</span>(post_order.<span class="number">0</span>, [block_d_id, block_f_id, block_e_id, block_b_id, block_a_id]);
+    }
+
+    <span class="doccomment">/// Helper to construct a BasicBlockId with a syntax resembling the `b0`
+    /// syntax used in comments/ssa output.
+    </span><span class="kw">fn </span>b(id: u32) -&gt; BasicBlockId {
+        BasicBlockId::test_new(id)
+    }
+
+    <span class="doccomment">/// Documents the somewhat odd behavior from https://github.com/noir-lang/noir/issues/9771
+    </span><span class="attr">#[test]
+    </span><span class="kw">fn </span>loop_regression() {
+        <span class="comment">// b0 -&gt; b1 &lt;-&gt; b2
+        //        |
+        //        V
+        //       b3
+        </span><span class="kw">let </span><span class="kw-2">mut </span>builder = FunctionBuilder::new(<span class="string">"func"</span>.into(), Id::test_new(<span class="number">0</span>));
+        <span class="kw">let </span>b0 = builder.current_block();
+        <span class="kw">let </span>b1 = builder.insert_block();
+        <span class="kw">let </span>b2 = builder.insert_block();
+        <span class="kw">let </span>b3 = builder.insert_block();
+
+        <span class="comment">// This needs to use the FunctionBuilder since the Ssa parser will change the block ids
+        </span>builder.terminate_with_jmp(b1, Vec::new());
+
+        builder.switch_to_block(b1);
+        <span class="kw">let </span>zero = builder.numeric_constant(<span class="number">0u32</span>, NumericType::bool());
+        builder.terminate_with_jmpif(zero, b2, b3);
+
+        builder.switch_to_block(b2);
+        builder.terminate_with_jmp(b1, Vec::new());
+
+        builder.switch_to_block(b3);
+        builder.terminate_with_return(Vec::new());
+        <span class="kw">let </span>ssa = builder.finish();
+
+        <span class="kw">let </span>func = ssa.main();
+        <span class="kw">let </span>post_order = PostOrder::with_function(func);
+
+        <span class="comment">// [3, 2, 1, 0] would be the ideal but we currently get the following:
+        </span><span class="macro">assert_eq!</span>(post_order.<span class="number">0</span>, [b2, b3, b1, b0]);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>simple_if() {
+        <span class="kw">let </span>src = <span class="string">"
+        acir(inline) fn factorial f1 {
+          b0(v1: u32):
+            v2 = lt v1, u32 1
+            jmpif v2 then: b1, else: b2
+          b1():
+            jmp b3(u32 1)
+          b2():
+            v4 = sub v1, u32 1
+            v5 = call f1(v4) -&gt; u32
+            v6 = mul v1, v5
+            jmp b3(v6)
+          b3(v7: u32):
+            return v7
+        }"</span>;
+
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>func = ssa.main();
+        <span class="kw">let </span>post_order = PostOrder::with_function(func);
+        <span class="comment">// Ordering of b1, b2 is arbitrary
+        </span><span class="macro">assert_eq!</span>(post_order.<span class="number">0</span>, [b(<span class="number">3</span>), b(<span class="number">1</span>), b(<span class="number">2</span>), b(<span class="number">0</span>)]);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>nested_loop() {
+        <span class="comment">// b0 -&gt; b1 -&gt; b3
+        //      / ^
+        //     V   \
+        //     b2   |
+        //     |    |
+        //     V    |
+        //     b4-&gt;b6
+        //     | ^
+        //     V  \
+        //     b5-&gt;b8
+        //     |   ^
+        //     V  /
+        //     b7
+        //
+        // Expected topological sort:
+        // [b0, {loop blocks}, b3]  (see below for more complete explanation)
+        </span><span class="kw">let </span>src = <span class="string">"
+            acir(inline) fn main f0 {
+              b0(v0: u1):
+                jmp b1(v0)
+              b1(v1: u1):
+                jmpif v1 then: b2, else: b3
+              b2():
+                jmp b4(v1)
+              b3():
+                return
+              b4(v2: u1):
+                jmpif v2 then: b5, else: b6
+              b5():
+                jmpif v2 then: b7, else: b8
+              b6():
+                jmp b1(v1)
+              b7():
+                jmp b8()
+              b8():
+                jmp b4(v1)
+            }
+            "</span>;
+
+        <span class="comment">// We can break the CFG above into CFG's for each loop where the start
+        // node is where the loop was entered from. Break all incoming edges
+        // from this node, and remove outgoing edges that lead out of the loop:
+        //
+        //       b1
+        //      /
+        //     V
+        //     b2
+        //     |
+        //     V
+        //     b4-&gt;b6
+        //     | ^
+        //     V  \
+        //     b5-&gt;b8
+        //     |   ^
+        //     V  /
+        //     b7
+        //
+        // Here the expected topological sort is more clear:
+        // [ b1, b2, { loop blocks }, b6 ]
+        //
+        // We can do this again for the inner loop starting from `b4`:
+        //
+        //     b4
+        //     |
+        //     V
+        //     b5-&gt;b8
+        //     |   ^
+        //     V  /
+        //     b7
+        //
+        // Where the topological sort for this is unambiguously
+        // [b4, b5, b7, b8]
+        //
+        // Now we can slot this in to the unknown {loop blocks} from the first loop's
+        // topological sort to get:
+        //
+        // [b1, b2, b4, b5, b7, b8, b6]
+        //
+        // And finally to the original program to get:
+        //
+        // [b0, b1, b2, b4, b5, b7, b8, b6, b3]
+        //
+        // And the expected post-order is simply the reverse of this topological ordering:
+        //
+        // [b3, b6, b8, b7, b5, b4, b2, b1, b0]
+        //
+        // But we currently get:
+        </span><span class="kw">let </span>expected_post_order = [b(<span class="number">8</span>), b(<span class="number">7</span>), b(<span class="number">5</span>), b(<span class="number">6</span>), b(<span class="number">4</span>), b(<span class="number">2</span>), b(<span class="number">3</span>), b(<span class="number">1</span>), b(<span class="number">0</span>)];
+
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+
+        <span class="kw">let </span>func = ssa.main();
+        <span class="kw">let </span>post_order = PostOrder::with_function(func);
+        <span class="macro">assert_eq!</span>(post_order.<span class="number">0</span>, expected_post_order);
     }
 }
 </code></pre></div></section></main></body></html>

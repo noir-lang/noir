@@ -4846,7 +4846,7 @@
         <span class="kw">let </span>int_type = Type::Integer(Signedness::Unsigned, arr_elem_bits);
 
         <span class="kw">let </span>bytes_as_expr = vecmap(bytes, |byte| {
-            <span class="kw">let </span>value = SignedField::positive(byte <span class="kw">as </span>u32);
+            <span class="kw">let </span>value = SignedField::positive(u32::from(byte));
             Expression::Literal(Literal::Integer(value, int_type.clone(), location))
         });
 

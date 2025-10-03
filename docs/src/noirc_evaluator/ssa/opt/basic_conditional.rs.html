@@ -726,13 +726,13 @@
             | Instruction::Store { .. }
             | Instruction::ArraySet { .. } =&gt; <span class="kw">return </span>u32::MAX,
 
-            Instruction::ArrayGet { array, index, offset: <span class="kw">_  </span>} =&gt; {
+            Instruction::ArrayGet { array, index  } =&gt; {
                 <span class="comment">// A get can fail because of out-of-bound index
                 </span><span class="kw">let </span><span class="kw-2">mut </span>in_bound = <span class="bool-val">false</span>;
                 <span class="comment">// check if index is in bound
                 </span><span class="kw">if let </span>(<span class="prelude-val">Some</span>(index), <span class="prelude-val">Some</span>(len)) = (dfg.get_numeric_constant(<span class="kw-2">*</span>index), dfg.try_get_array_length(<span class="kw-2">*</span>array)) {
                     <span class="comment">// The index is in-bounds
-                    </span><span class="kw">if </span>index.to_u128() &lt; len <span class="kw">as </span>u128 {
+                    </span><span class="kw">if </span>index.to_u128() &lt; u128::from(len) {
                         in_bound = <span class="bool-val">true</span>;
                     }
                 }

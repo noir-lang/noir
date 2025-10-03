@@ -149,7 +149,7 @@
 
         // The modulus is guaranteed to fit, since we are truncating down to a bit size that is strictly less than the value_to_truncate.bit_size
         </span><span class="kw">let </span>modulus_var = <span class="self">self</span>.make_constant_instruction(
-            F::from(<span class="number">2_usize</span>).pow(<span class="kw-2">&amp;</span>F::from(bit_size <span class="kw">as </span>u128)),
+            F::from(<span class="number">2_usize</span>).pow(<span class="kw-2">&amp;</span>F::from(u128::from(bit_size))),
             value_to_truncate.bit_size,
         );
 

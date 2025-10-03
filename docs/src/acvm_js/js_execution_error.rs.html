@@ -89,8 +89,15 @@
 <a href="#88" id="88">88</a>
 <a href="#89" id="89">89</a>
 <a href="#90" id="90">90</a>
-<a href="#91" id="91">91</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
-    FieldElement,
+<a href="#91" id="91">91</a>
+<a href="#92" id="92">92</a>
+<a href="#93" id="93">93</a>
+<a href="#94" id="94">94</a>
+<a href="#95" id="95">95</a>
+<a href="#96" id="96">96</a>
+<a href="#97" id="97">97</a>
+<a href="#98" id="98">98</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
+    AcirField, FieldElement,
     acir::circuit::{OpcodeLocation, brillig::BrilligFunctionId, opcodes::AcirFunctionId},
     pwg::RawAssertionPayload,
 };
@@ -148,8 +155,15 @@ export type ExecutionError = Error &amp; {
             <span class="prelude-val">None </span>=&gt; JsValue::UNDEFINED,
         };
         <span class="kw">let </span>assertion_payload = <span class="kw">match </span>assertion_payload {
-            <span class="prelude-val">Some</span>(raw) =&gt; &lt;JsValue <span class="kw">as </span>JsValueSerdeExt&gt;::from_serde(<span class="kw-2">&amp;</span>raw)
-                .expect(<span class="string">"Cannot serialize assertion payload"</span>),
+            <span class="prelude-val">Some</span>(raw) =&gt; {
+                <span class="kw">let </span>stringified_raw_payload: RawAssertionPayload&lt;String&gt; = RawAssertionPayload {
+                    selector: raw.selector,
+                    data: raw.data.into_iter().map(|x| x.to_hex()).collect(),
+                };
+
+                &lt;JsValue <span class="kw">as </span>JsValueSerdeExt&gt;::from_serde(<span class="kw-2">&amp;</span>stringified_raw_payload)
+                    .expect(<span class="string">"Cannot serialize assertion payload"</span>)
+            }
             <span class="prelude-val">None </span>=&gt; JsValue::UNDEFINED,
         };
 

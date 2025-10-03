@@ -827,17 +827,27 @@
 <a href="#826" id="826">826</a>
 <a href="#827" id="827">827</a>
 <a href="#828" id="828">828</a>
-<a href="#829" id="829">829</a></pre></div><pre class="rust"><code><span class="doccomment">//! Perform random metamorphic mutations on the AST and check that the
+<a href="#829" id="829">829</a>
+<a href="#830" id="830">830</a>
+<a href="#831" id="831">831</a>
+<a href="#832" id="832">832</a>
+<a href="#833" id="833">833</a>
+<a href="#834" id="834">834</a>
+<a href="#835" id="835">835</a>
+<a href="#836" id="836">836</a>
+<a href="#837" id="837">837</a>
+<a href="#838" id="838">838</a></pre></div><pre class="rust"><code><span class="doccomment">//! Perform random metamorphic mutations on the AST and check that the
 //! execution result does not change.
 
 </span><span class="kw">use </span>std::cell::{Cell, RefCell};
 
-<span class="kw">use crate</span>::{compare_results_compiled, create_ssa_or_die, default_ssa_options};
+<span class="kw">use </span><span class="kw">crate</span>::targets::default_config;
+<span class="kw">use crate</span>::{compare_results_compiled, compile_into_circuit_or_die, default_ssa_options};
 <span class="kw">use </span>arbitrary::{Arbitrary, Unstructured};
 <span class="kw">use </span>color_eyre::eyre;
 <span class="kw">use </span>noir_ast_fuzzer::compare::{CompareMorph, CompareOptions};
 <span class="kw">use </span>noir_ast_fuzzer::scope::ScopeStack;
-<span class="kw">use </span>noir_ast_fuzzer::{Config, visitor::visit_expr_be_mut};
+<span class="kw">use </span>noir_ast_fuzzer::visitor::visit_expr_be_mut;
 <span class="kw">use </span>noir_ast_fuzzer::{rewrite, visitor};
 <span class="kw">use </span>noirc_frontend::ast::UnaryOp;
 <span class="kw">use </span>noirc_frontend::monomorphization::ast::{
@@ -845,9 +855,9 @@
 };
 
 <span class="kw">pub fn </span>fuzz(u: <span class="kw-2">&amp;mut </span>Unstructured) -&gt; eyre::Result&lt;()&gt; {
-    <span class="kw">let </span>rules = rules::all();
+    <span class="kw">let </span>config = default_config(u)<span class="question-mark">?</span>;
+    <span class="kw">let </span>rules = rules::collect(<span class="kw-2">&amp;</span>config);
     <span class="kw">let </span>max_rewrites = <span class="number">10</span>;
-    <span class="kw">let </span>config = Config { avoid_overflow: u.arbitrary()<span class="question-mark">?</span>, ..Default::default() };
     <span class="kw">let </span>inputs = CompareMorph::arb(
         u,
         config,
@@ -856,7 +866,9 @@
             rewrite_program(u, <span class="kw-2">&amp;mut </span>program, <span class="kw-2">&amp;</span>rules, max_rewrites);
             <span class="prelude-val">Ok</span>((program, options))
         },
-        |program, options| create_ssa_or_die(program, <span class="kw-2">&amp;</span>options.onto(default_ssa_options()), <span class="prelude-val">None</span>),
+        |program, options| {
+            compile_into_circuit_or_die(program, <span class="kw-2">&amp;</span>options.onto(default_ssa_options()), <span class="prelude-val">None</span>)
+        },
     )<span class="question-mark">?</span>;
 
     <span class="kw">let </span>result = inputs.exec()<span class="question-mark">?</span>;
@@ -1191,8 +1203,8 @@
     }
 
     <span class="doccomment">/// Construct all rules that we can apply on a program.
-    </span><span class="kw">pub fn </span>all() -&gt; Vec&lt;Rule&gt; {
-        <span class="macro">vec!</span>[
+    </span><span class="kw">pub fn </span>collect(config: <span class="kw-2">&amp;</span>Config) -&gt; Vec&lt;Rule&gt; {
+        <span class="kw">let </span><span class="kw-2">mut </span>rules = <span class="macro">vec!</span>[
             num_add_zero(),
             num_sub_zero(),
             num_mul_one(),
@@ -1200,10 +1212,16 @@
             bool_or_self(),
             bool_xor_self(),
             bool_xor_rand(),
-            num_commute(),
             any_inevitable(),
             int_break_up(),
-        ]
+        ];
+        <span class="kw">if </span>config.avoid_overflow {
+            <span class="comment">// When we can overflowing instruction, then swapping around the LHS and RHS
+            // of a binary operation can swap failures. We could visit the expressions to rule
+            // out a potential failure on both sides at the same time, or just skip this rule.
+            </span>rules.push(num_commute());
+        }
+        rules
     }
 
     <span class="doccomment">/// Transform any numeric value `x` into `x &lt;op&gt; &lt;rhs&gt;`
@@ -1455,7 +1473,8 @@
     <span class="kw">use </span><span class="kw">crate</span>::targets::orig_vs_morph::VariableContext;
 
     <span class="doccomment">/// Check if an expression can have a side effect, in which case duplicating or reordering it could
-    /// change the behavior of the program.
+    /// change the behavior of the program. This doesn't concern about failures, just observable changes
+    /// the state of the program.
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>has_side_effect(expr: <span class="kw-2">&amp;</span>Expression) -&gt; bool {
         expr::exists(expr, |expr| {
             <span class="macro">matches!</span>(
@@ -1648,12 +1667,11 @@
 </span><span class="kw">mod </span>tests {
     <span class="doccomment">/// ```ignore
     /// NOIR_AST_FUZZER_SEED=0xb2fb5f0b00100000 \
-    /// NOIR_AST_FUZZER_SHOW_AST=1 \
     /// cargo test -p noir_ast_fuzzer_fuzz orig_vs_morph
     /// ```
     </span><span class="attr">#[test]
     </span><span class="kw">fn </span>fuzz_with_arbtest() {
-        <span class="kw">crate</span>::targets::tests::fuzz_with_arbtest(<span class="kw">super</span>::fuzz, <span class="number">2000</span>);
+        <span class="kw">crate</span>::targets::tests::fuzz_with_arbtest(<span class="kw">super</span>::fuzz, <span class="number">10000</span>);
     }
 }
 </code></pre></div></section></main></body></html>

@@ -2254,7 +2254,248 @@
 <a href="#2253" id="2253">2253</a>
 <a href="#2254" id="2254">2254</a>
 <a href="#2255" id="2255">2255</a>
-<a href="#2256" id="2256">2256</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
+<a href="#2256" id="2256">2256</a>
+<a href="#2257" id="2257">2257</a>
+<a href="#2258" id="2258">2258</a>
+<a href="#2259" id="2259">2259</a>
+<a href="#2260" id="2260">2260</a>
+<a href="#2261" id="2261">2261</a>
+<a href="#2262" id="2262">2262</a>
+<a href="#2263" id="2263">2263</a>
+<a href="#2264" id="2264">2264</a>
+<a href="#2265" id="2265">2265</a>
+<a href="#2266" id="2266">2266</a>
+<a href="#2267" id="2267">2267</a>
+<a href="#2268" id="2268">2268</a>
+<a href="#2269" id="2269">2269</a>
+<a href="#2270" id="2270">2270</a>
+<a href="#2271" id="2271">2271</a>
+<a href="#2272" id="2272">2272</a>
+<a href="#2273" id="2273">2273</a>
+<a href="#2274" id="2274">2274</a>
+<a href="#2275" id="2275">2275</a>
+<a href="#2276" id="2276">2276</a>
+<a href="#2277" id="2277">2277</a>
+<a href="#2278" id="2278">2278</a>
+<a href="#2279" id="2279">2279</a>
+<a href="#2280" id="2280">2280</a>
+<a href="#2281" id="2281">2281</a>
+<a href="#2282" id="2282">2282</a>
+<a href="#2283" id="2283">2283</a>
+<a href="#2284" id="2284">2284</a>
+<a href="#2285" id="2285">2285</a>
+<a href="#2286" id="2286">2286</a>
+<a href="#2287" id="2287">2287</a>
+<a href="#2288" id="2288">2288</a>
+<a href="#2289" id="2289">2289</a>
+<a href="#2290" id="2290">2290</a>
+<a href="#2291" id="2291">2291</a>
+<a href="#2292" id="2292">2292</a>
+<a href="#2293" id="2293">2293</a>
+<a href="#2294" id="2294">2294</a>
+<a href="#2295" id="2295">2295</a>
+<a href="#2296" id="2296">2296</a>
+<a href="#2297" id="2297">2297</a>
+<a href="#2298" id="2298">2298</a>
+<a href="#2299" id="2299">2299</a>
+<a href="#2300" id="2300">2300</a>
+<a href="#2301" id="2301">2301</a>
+<a href="#2302" id="2302">2302</a>
+<a href="#2303" id="2303">2303</a>
+<a href="#2304" id="2304">2304</a>
+<a href="#2305" id="2305">2305</a>
+<a href="#2306" id="2306">2306</a>
+<a href="#2307" id="2307">2307</a>
+<a href="#2308" id="2308">2308</a>
+<a href="#2309" id="2309">2309</a>
+<a href="#2310" id="2310">2310</a>
+<a href="#2311" id="2311">2311</a>
+<a href="#2312" id="2312">2312</a>
+<a href="#2313" id="2313">2313</a>
+<a href="#2314" id="2314">2314</a>
+<a href="#2315" id="2315">2315</a>
+<a href="#2316" id="2316">2316</a>
+<a href="#2317" id="2317">2317</a>
+<a href="#2318" id="2318">2318</a>
+<a href="#2319" id="2319">2319</a>
+<a href="#2320" id="2320">2320</a>
+<a href="#2321" id="2321">2321</a>
+<a href="#2322" id="2322">2322</a>
+<a href="#2323" id="2323">2323</a>
+<a href="#2324" id="2324">2324</a>
+<a href="#2325" id="2325">2325</a>
+<a href="#2326" id="2326">2326</a>
+<a href="#2327" id="2327">2327</a>
+<a href="#2328" id="2328">2328</a>
+<a href="#2329" id="2329">2329</a>
+<a href="#2330" id="2330">2330</a>
+<a href="#2331" id="2331">2331</a>
+<a href="#2332" id="2332">2332</a>
+<a href="#2333" id="2333">2333</a>
+<a href="#2334" id="2334">2334</a>
+<a href="#2335" id="2335">2335</a>
+<a href="#2336" id="2336">2336</a>
+<a href="#2337" id="2337">2337</a>
+<a href="#2338" id="2338">2338</a>
+<a href="#2339" id="2339">2339</a>
+<a href="#2340" id="2340">2340</a>
+<a href="#2341" id="2341">2341</a>
+<a href="#2342" id="2342">2342</a>
+<a href="#2343" id="2343">2343</a>
+<a href="#2344" id="2344">2344</a>
+<a href="#2345" id="2345">2345</a>
+<a href="#2346" id="2346">2346</a>
+<a href="#2347" id="2347">2347</a>
+<a href="#2348" id="2348">2348</a>
+<a href="#2349" id="2349">2349</a>
+<a href="#2350" id="2350">2350</a>
+<a href="#2351" id="2351">2351</a>
+<a href="#2352" id="2352">2352</a>
+<a href="#2353" id="2353">2353</a>
+<a href="#2354" id="2354">2354</a>
+<a href="#2355" id="2355">2355</a>
+<a href="#2356" id="2356">2356</a>
+<a href="#2357" id="2357">2357</a>
+<a href="#2358" id="2358">2358</a>
+<a href="#2359" id="2359">2359</a>
+<a href="#2360" id="2360">2360</a>
+<a href="#2361" id="2361">2361</a>
+<a href="#2362" id="2362">2362</a>
+<a href="#2363" id="2363">2363</a>
+<a href="#2364" id="2364">2364</a>
+<a href="#2365" id="2365">2365</a>
+<a href="#2366" id="2366">2366</a>
+<a href="#2367" id="2367">2367</a>
+<a href="#2368" id="2368">2368</a>
+<a href="#2369" id="2369">2369</a>
+<a href="#2370" id="2370">2370</a>
+<a href="#2371" id="2371">2371</a>
+<a href="#2372" id="2372">2372</a>
+<a href="#2373" id="2373">2373</a>
+<a href="#2374" id="2374">2374</a>
+<a href="#2375" id="2375">2375</a>
+<a href="#2376" id="2376">2376</a>
+<a href="#2377" id="2377">2377</a>
+<a href="#2378" id="2378">2378</a>
+<a href="#2379" id="2379">2379</a>
+<a href="#2380" id="2380">2380</a>
+<a href="#2381" id="2381">2381</a>
+<a href="#2382" id="2382">2382</a>
+<a href="#2383" id="2383">2383</a>
+<a href="#2384" id="2384">2384</a>
+<a href="#2385" id="2385">2385</a>
+<a href="#2386" id="2386">2386</a>
+<a href="#2387" id="2387">2387</a>
+<a href="#2388" id="2388">2388</a>
+<a href="#2389" id="2389">2389</a>
+<a href="#2390" id="2390">2390</a>
+<a href="#2391" id="2391">2391</a>
+<a href="#2392" id="2392">2392</a>
+<a href="#2393" id="2393">2393</a>
+<a href="#2394" id="2394">2394</a>
+<a href="#2395" id="2395">2395</a>
+<a href="#2396" id="2396">2396</a>
+<a href="#2397" id="2397">2397</a>
+<a href="#2398" id="2398">2398</a>
+<a href="#2399" id="2399">2399</a>
+<a href="#2400" id="2400">2400</a>
+<a href="#2401" id="2401">2401</a>
+<a href="#2402" id="2402">2402</a>
+<a href="#2403" id="2403">2403</a>
+<a href="#2404" id="2404">2404</a>
+<a href="#2405" id="2405">2405</a>
+<a href="#2406" id="2406">2406</a>
+<a href="#2407" id="2407">2407</a>
+<a href="#2408" id="2408">2408</a>
+<a href="#2409" id="2409">2409</a>
+<a href="#2410" id="2410">2410</a>
+<a href="#2411" id="2411">2411</a>
+<a href="#2412" id="2412">2412</a>
+<a href="#2413" id="2413">2413</a>
+<a href="#2414" id="2414">2414</a>
+<a href="#2415" id="2415">2415</a>
+<a href="#2416" id="2416">2416</a>
+<a href="#2417" id="2417">2417</a>
+<a href="#2418" id="2418">2418</a>
+<a href="#2419" id="2419">2419</a>
+<a href="#2420" id="2420">2420</a>
+<a href="#2421" id="2421">2421</a>
+<a href="#2422" id="2422">2422</a>
+<a href="#2423" id="2423">2423</a>
+<a href="#2424" id="2424">2424</a>
+<a href="#2425" id="2425">2425</a>
+<a href="#2426" id="2426">2426</a>
+<a href="#2427" id="2427">2427</a>
+<a href="#2428" id="2428">2428</a>
+<a href="#2429" id="2429">2429</a>
+<a href="#2430" id="2430">2430</a>
+<a href="#2431" id="2431">2431</a>
+<a href="#2432" id="2432">2432</a>
+<a href="#2433" id="2433">2433</a>
+<a href="#2434" id="2434">2434</a>
+<a href="#2435" id="2435">2435</a>
+<a href="#2436" id="2436">2436</a>
+<a href="#2437" id="2437">2437</a>
+<a href="#2438" id="2438">2438</a>
+<a href="#2439" id="2439">2439</a>
+<a href="#2440" id="2440">2440</a>
+<a href="#2441" id="2441">2441</a>
+<a href="#2442" id="2442">2442</a>
+<a href="#2443" id="2443">2443</a>
+<a href="#2444" id="2444">2444</a>
+<a href="#2445" id="2445">2445</a>
+<a href="#2446" id="2446">2446</a>
+<a href="#2447" id="2447">2447</a>
+<a href="#2448" id="2448">2448</a>
+<a href="#2449" id="2449">2449</a>
+<a href="#2450" id="2450">2450</a>
+<a href="#2451" id="2451">2451</a>
+<a href="#2452" id="2452">2452</a>
+<a href="#2453" id="2453">2453</a>
+<a href="#2454" id="2454">2454</a>
+<a href="#2455" id="2455">2455</a>
+<a href="#2456" id="2456">2456</a>
+<a href="#2457" id="2457">2457</a>
+<a href="#2458" id="2458">2458</a>
+<a href="#2459" id="2459">2459</a>
+<a href="#2460" id="2460">2460</a>
+<a href="#2461" id="2461">2461</a>
+<a href="#2462" id="2462">2462</a>
+<a href="#2463" id="2463">2463</a>
+<a href="#2464" id="2464">2464</a>
+<a href="#2465" id="2465">2465</a>
+<a href="#2466" id="2466">2466</a>
+<a href="#2467" id="2467">2467</a>
+<a href="#2468" id="2468">2468</a>
+<a href="#2469" id="2469">2469</a>
+<a href="#2470" id="2470">2470</a>
+<a href="#2471" id="2471">2471</a>
+<a href="#2472" id="2472">2472</a>
+<a href="#2473" id="2473">2473</a>
+<a href="#2474" id="2474">2474</a>
+<a href="#2475" id="2475">2475</a>
+<a href="#2476" id="2476">2476</a>
+<a href="#2477" id="2477">2477</a>
+<a href="#2478" id="2478">2478</a>
+<a href="#2479" id="2479">2479</a>
+<a href="#2480" id="2480">2480</a>
+<a href="#2481" id="2481">2481</a>
+<a href="#2482" id="2482">2482</a>
+<a href="#2483" id="2483">2483</a>
+<a href="#2484" id="2484">2484</a>
+<a href="#2485" id="2485">2485</a>
+<a href="#2486" id="2486">2486</a>
+<a href="#2487" id="2487">2487</a>
+<a href="#2488" id="2488">2488</a>
+<a href="#2489" id="2489">2489</a>
+<a href="#2490" id="2490">2490</a>
+<a href="#2491" id="2491">2491</a>
+<a href="#2492" id="2492">2492</a>
+<a href="#2493" id="2493">2493</a>
+<a href="#2494" id="2494">2494</a>
+<a href="#2495" id="2495">2495</a>
+<a href="#2496" id="2496">2496</a>
+<a href="#2497" id="2497">2497</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
 //! addresses with the value stored at that address, if it is also known. This pass will also remove
 //! any `Store` instructions within a block that are no longer needed because no more loads occur in
 //! between the Store in question and the next Store.
@@ -2666,28 +2907,55 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         block_id: BasicBlockId,
         references: <span class="kw-2">&amp;mut </span>Block,
-        instruction: InstructionId,
+        instruction_id: InstructionId,
     ) {
         <span class="comment">// If the instruction was simplified and optimized out of the program we shouldn't analyze it.
         // Analyzing it could make tracking aliases less accurate if it is e.g. an ArrayGet
         // call that used to hold references but has since been optimized out to a known result.
         // However, if we don't analyze it, then it may be a MakeArray replacing an ArraySet containing references,
         // and we need to mark those references as used to keep their stores alive.
-        </span><span class="kw">let </span>(instruction, simplified) = {
-            <span class="kw">let </span>(ins, loc) = <span class="self">self</span>.inserter.map_instruction(instruction);
-            <span class="kw">match </span><span class="self">self</span>.inserter.push_instruction_value(ins, instruction, block_id, loc) {
-                InsertInstructionResult::Results(id, <span class="kw">_</span>) =&gt; (id, <span class="bool-val">false</span>),
-                InsertInstructionResult::SimplifiedTo(value) =&gt; {
-                    <span class="kw">let </span>value = <span class="kw-2">&amp;</span><span class="self">self</span>.inserter.function.dfg[value];
-                    <span class="kw">let </span>Value::Instruction { instruction, .. } = value <span class="kw">else </span>{
-                        <span class="kw">return</span>;
-                    };
-                    (<span class="kw-2">*</span>instruction, <span class="bool-val">true</span>)
-                }
-                <span class="kw">_ </span>=&gt; <span class="kw">return</span>,
-            }
-        };
+        </span><span class="kw">let </span>(instruction, loc) = <span class="self">self</span>.inserter.map_instruction(instruction_id);
 
+        <span class="kw">match </span><span class="self">self</span>.inserter.push_instruction_value(instruction, instruction_id, block_id, loc) {
+            InsertInstructionResult::Results(id, <span class="kw">_</span>) =&gt; {
+                <span class="self">self</span>.analyze_possibly_simplified_instruction(references, id, <span class="bool-val">false</span>);
+            }
+            InsertInstructionResult::SimplifiedTo(value) =&gt; {
+                <span class="comment">// Globals cannot contain references thus we do not need to analyze insertion which simplified to them.
+                </span><span class="kw">if </span><span class="self">self</span>.inserter.function.dfg.is_global(value) {
+                    <span class="kw">return</span>;
+                }
+                <span class="kw">let </span>value = <span class="kw-2">&amp;</span><span class="self">self</span>.inserter.function.dfg[value];
+                <span class="kw">if let </span>Value::Instruction { instruction, .. } = value {
+                    <span class="self">self</span>.analyze_possibly_simplified_instruction(references, <span class="kw-2">*</span>instruction, <span class="bool-val">true</span>);
+                }
+            }
+            InsertInstructionResult::SimplifiedToMultiple(values) =&gt; {
+                <span class="kw">for </span>value <span class="kw">in </span>values {
+                    <span class="comment">// Globals cannot contain references thus we do not need to analyze insertion which simplified to them.
+                    </span><span class="kw">if </span><span class="self">self</span>.inserter.function.dfg.is_global(value) {
+                        <span class="kw">continue</span>;
+                    }
+                    <span class="kw">let </span>value = <span class="kw-2">&amp;</span><span class="self">self</span>.inserter.function.dfg[value];
+                    <span class="kw">if let </span>Value::Instruction { instruction, .. } = value {
+                        <span class="self">self</span>.analyze_possibly_simplified_instruction(
+                            references,
+                            <span class="kw-2">*</span>instruction,
+                            <span class="bool-val">true</span>,
+                        );
+                    }
+                }
+            }
+            InsertInstructionResult::InstructionRemoved =&gt; (),
+        }
+    }
+
+    <span class="kw">fn </span>analyze_possibly_simplified_instruction(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        references: <span class="kw-2">&amp;mut </span>Block,
+        instruction: InstructionId,
+        simplified: bool,
+    ) {
         <span class="kw">let </span>ins = <span class="kw-2">&amp;</span><span class="self">self</span>.inserter.function.dfg[instruction];
 
         <span class="comment">// Some instructions, when simplified, cause problems if processed again.
@@ -2700,12 +2968,12 @@
             Instruction::Load { address } =&gt; {
                 <span class="kw">let </span>address = <span class="kw-2">*</span>address;
 
-                <span class="kw">let </span>result = <span class="self">self</span>.inserter.function.dfg.instruction_results(instruction)[<span class="number">0</span>];
+                <span class="kw">let </span>[result] = <span class="self">self</span>.inserter.function.dfg.instruction_result(instruction);
                 references.remember_dereference(<span class="self">self</span>.inserter.function, address, result);
 
                 <span class="comment">// If the load is known, replace it with the known value and remove the load.
                 </span><span class="kw">if let </span><span class="prelude-val">Some</span>(value) = references.get_known_value(address) {
-                    <span class="kw">let </span>result = <span class="self">self</span>.inserter.function.dfg.instruction_results(instruction)[<span class="number">0</span>];
+                    <span class="kw">let </span>[result] = <span class="self">self</span>.inserter.function.dfg.instruction_result(instruction);
                     <span class="self">self</span>.inserter.map_value(result, value);
                     <span class="self">self</span>.instructions_to_remove.insert(instruction);
                 }
@@ -2717,9 +2985,9 @@
                     <span class="kw">else </span>{
                         <span class="macro">panic!</span>(<span class="string">"Expected a Load instruction here"</span>);
                     };
-                    <span class="kw">let </span>result = <span class="self">self</span>.inserter.function.dfg.instruction_results(instruction)[<span class="number">0</span>];
-                    <span class="kw">let </span>previous_result =
-                        <span class="self">self</span>.inserter.function.dfg.instruction_results(<span class="kw-2">*</span>last_load)[<span class="number">0</span>];
+                    <span class="kw">let </span>[result] = <span class="self">self</span>.inserter.function.dfg.instruction_result(instruction);
+                    <span class="kw">let </span>[previous_result] =
+                        <span class="self">self</span>.inserter.function.dfg.instruction_result(<span class="kw-2">*</span>last_load);
                     <span class="kw">if </span><span class="kw-2">*</span>previous_address == address {
                         <span class="self">self</span>.inserter.map_value(result, previous_result);
                         <span class="self">self</span>.instructions_to_remove.insert(instruction);
@@ -2770,12 +3038,12 @@
             }
             Instruction::Allocate =&gt; {
                 <span class="comment">// Register the new reference
-                </span><span class="kw">let </span>result = <span class="self">self</span>.inserter.function.dfg.instruction_results(instruction)[<span class="number">0</span>];
+                </span><span class="kw">let </span>[result] = <span class="self">self</span>.inserter.function.dfg.instruction_result(instruction);
                 references.expressions.insert(result, Expression::Other(result));
                 references.aliases.insert(Expression::Other(result), AliasSet::known(result));
             }
             Instruction::ArrayGet { array, .. } =&gt; {
-                <span class="kw">let </span>result = <span class="self">self</span>.inserter.function.dfg.instruction_results(instruction)[<span class="number">0</span>];
+                <span class="kw">let </span>[result] = <span class="self">self</span>.inserter.function.dfg.instruction_result(instruction);
 
                 <span class="kw">if </span><span class="self">self</span>.inserter.function.dfg.type_of_value(result).contains_reference() {
                     <span class="kw">let </span>array = <span class="kw-2">*</span>array;
@@ -2804,7 +3072,7 @@
                 <span class="kw">let </span>element_type = <span class="self">self</span>.inserter.function.dfg.type_of_value(<span class="kw-2">*</span>value);
 
                 <span class="kw">if </span>element_type.contains_reference() {
-                    <span class="kw">let </span>result = <span class="self">self</span>.inserter.function.dfg.instruction_results(instruction)[<span class="number">0</span>];
+                    <span class="kw">let </span>[result] = <span class="self">self</span>.inserter.function.dfg.instruction_result(instruction);
                     <span class="kw">let </span>array = <span class="kw-2">*</span>array;
 
                     <span class="kw">let </span>expression = references.expressions.get(<span class="kw-2">&amp;</span>array).copied();
@@ -2844,12 +3112,26 @@
                         .extend(references.get_aliases_for_value(<span class="kw-2">*</span>arg).iter());
                 }
                 <span class="self">self</span>.mark_all_unknown(arguments, references);
+
+                <span class="comment">// Call results might be aliases of their arguments, if they are references
+                </span><span class="kw">let </span>results = <span class="self">self</span>.inserter.function.dfg.instruction_results(instruction);
+                <span class="kw">let </span>results_contains_references = results.iter().any(|result| {
+                    <span class="self">self</span>.inserter.function.dfg.type_of_value(<span class="kw-2">*</span>result).contains_reference()
+                });
+
+                <span class="comment">// Instead of aliasing results to arguments, because values might be nested references
+                // we'll just consider all arguments and references as now having unknown aliases.
+                </span><span class="kw">if </span>results_contains_references {
+                    <span class="kw">for </span>value <span class="kw">in </span>arguments.iter().chain(results) {
+                        <span class="self">self</span>.clear_aliases(references, <span class="kw-2">*</span>value);
+                    }
+                }
             }
             Instruction::MakeArray { elements, typ } =&gt; {
                 <span class="comment">// If `array` is an array constant that contains reference types, then insert each element
                 // as a potential alias to the array itself.
                 </span><span class="kw">if </span>typ.contains_reference() {
-                    <span class="kw">let </span>array = <span class="self">self</span>.inserter.function.dfg.instruction_results(instruction)[<span class="number">0</span>];
+                    <span class="kw">let </span>[array] = <span class="self">self</span>.inserter.function.dfg.instruction_result(instruction);
 
                     <span class="kw">let </span>expr = Expression::ArrayElement(array);
                     references.expressions.insert(array, expr);
@@ -2859,7 +3141,7 @@
                 }
             }
             Instruction::IfElse { then_value, else_value, .. } =&gt; {
-                <span class="kw">let </span>result = <span class="self">self</span>.inserter.function.dfg.instruction_results(instruction)[<span class="number">0</span>];
+                <span class="kw">let </span>[result] = <span class="self">self</span>.inserter.function.dfg.instruction_result(instruction);
                 <span class="kw">let </span>result_type = <span class="self">self</span>.inserter.function.dfg.type_of_value(result);
 
                 <span class="kw">if </span>result_type.contains_reference() {
@@ -2905,6 +3187,22 @@
             references.expressions.entry(address).or_insert(Expression::Other(address));
         <span class="kw">let </span>aliases = references.aliases.entry(<span class="kw-2">*</span>expression).or_default();
         <span class="kw-2">*</span>aliases = new_aliases;
+    }
+
+    <span class="kw">fn </span>clear_aliases(<span class="kw-2">&amp;</span><span class="self">self</span>, references: <span class="kw-2">&amp;mut </span>Block, value: ValueId) {
+        <span class="kw">if </span>!<span class="self">self</span>.inserter.function.dfg.type_of_value(value).contains_reference() {
+            <span class="kw">return</span>;
+        }
+
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(expression) = references.expressions.get(<span class="kw-2">&amp;</span>value) {
+            references.aliases.remove(expression);
+        }
+
+        <span class="kw">if let </span><span class="prelude-val">Some</span>((values, <span class="kw">_</span>)) = <span class="self">self</span>.inserter.function.dfg.get_array_constant(value) {
+            <span class="kw">for </span>value <span class="kw">in </span>values {
+                <span class="self">self</span>.clear_aliases(references, value);
+            }
+        }
     }
 
     <span class="kw">fn </span>mark_all_unknown(<span class="kw-2">&amp;</span><span class="self">self</span>, values: <span class="kw-2">&amp;</span>[ValueId], references: <span class="kw-2">&amp;mut </span>Block) {
@@ -3349,7 +3647,7 @@
             jmp b1(v8)
         }
         acir(inline) fn foo f1 {
-          b0(v0: &amp;mut Field):
+          b0(v0: &amp;mut &amp;mut Field):
             return
         }
         "</span>;
@@ -4413,7 +4711,7 @@
             v11 = load v4 -&gt; u32
             v12 = load v5 -&gt; u1
             inc_rc v10
-            v15 = call poseidon2_permutation(v10, u32 4) -&gt; [Field; 4]
+            v15 = call poseidon2_permutation(v10) -&gt; [Field; 4]
             v16 = load v2 -&gt; [Field; 3]
             v17 = load v3 -&gt; [Field; 4]
             v18 = load v4 -&gt; u32
@@ -4468,46 +4766,230 @@
             v7 = lt v4, u32 3
             jmpif v7 then: b2, else: b3
           b2():
-            v15 = load v0 -&gt; [Field; 3]
-            v16 = load v1 -&gt; [Field; 4]
-            v17 = load v2 -&gt; u32
-            v18 = load v3 -&gt; u1
-            v19 = lt v4, v17
-            jmpif v19 then: b4, else: b5
+            v14 = load v0 -&gt; [Field; 3]
+            v15 = load v1 -&gt; [Field; 4]
+            v16 = load v2 -&gt; u32
+            v17 = load v3 -&gt; u1
+            v18 = lt v4, v16
+            jmpif v18 then: b4, else: b5
           b3():
             v8 = load v0 -&gt; [Field; 3]
             v9 = load v1 -&gt; [Field; 4]
             v10 = load v2 -&gt; u32
             v11 = load v3 -&gt; u1
             inc_rc v9
-            v14 = call poseidon2_permutation(v9, u32 4) -&gt; [Field; 4]
+            v13 = call poseidon2_permutation(v9) -&gt; [Field; 4]
             store v8 at v0
-            store v14 at v1
+            store v13 at v1
             store v10 at v2
             store v11 at v3
             return
           b4():
             v20 = lt v4, u32 4
             constrain v20 == u1 1, "Index out of bounds"
-            v22 = array_get v16, index v4 -&gt; Field
+            v22 = array_get v15, index v4 -&gt; Field
             v23 = lt v4, u32 3
             constrain v23 == u1 1, "Index out of bounds"
-            v24 = array_get v15, index v4 -&gt; Field
+            v24 = array_get v14, index v4 -&gt; Field
             v25 = add v22, v24
             v26 = lt v4, u32 4
             constrain v26 == u1 1, "Index out of bounds"
-            v27 = array_set v16, index v4, value v25
+            v27 = array_set v15, index v4, value v25
             v29 = unchecked_add v4, u32 1
-            store v15 at v0
+            store v14 at v0
             store v27 at v1
-            store v17 at v2
-            store v18 at v3
+            store v16 at v2
+            store v17 at v3
             jmp b5()
           b5():
             v30 = unchecked_add v4, u32 1
             jmp b1(v30)
         }
         "#</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>analyzes_instruction_simplified_to_multiple() {
+        <span class="comment">// This is a test to make sure that if an instruction is simplified to multiple instructions,
+        // like in the case of `slice_push_back`, those are handled correctly.
+        </span><span class="kw">let </span>src = <span class="string">r#"
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            v4 = allocate -&gt; &amp;mut u1
+            store u1 0 at v4
+            v7 = make_array [v4] : [&amp;mut u1]
+            v8 = allocate -&gt; &amp;mut u1
+            store u1 0 at v8
+            v11, v12 = call slice_push_back(u32 2, v7, v8) -&gt; (u32, [&amp;mut u1])
+            v16 = array_get v12, index u32 1 -&gt; &amp;mut u1
+            v17 = load v16 -&gt; u1
+            jmpif v17 then: b1, else: b2
+          b1():
+            jmp b3(v12)
+          b2():
+            jmp b3(v12)
+          b3(v2: [&amp;mut u1]):
+            v23 = array_get v2, index u32 0 -&gt; &amp;mut u1
+            v24 = load v23 -&gt; u1
+            return v24
+        }
+        "#</span>;
+
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>ssa = ssa.mem2reg();
+
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            v1 = allocate -&gt; &amp;mut u1
+            store u1 0 at v1
+            v3 = make_array [v1] : [&amp;mut u1]
+            v4 = allocate -&gt; &amp;mut u1
+            store u1 0 at v4
+            v5 = make_array [v1, v4] : [&amp;mut u1]
+            v7 = array_set v5, index u32 2, value v4
+            v8 = make_array [v1, v4] : [&amp;mut u1]
+            jmpif u1 0 then: b1, else: b2
+          b1():
+            jmp b3(v8)
+          b2():
+            jmp b3(v8)
+          b3(v0: [&amp;mut u1]):
+            v10 = array_get v0, index u32 0 -&gt; &amp;mut u1
+            v11 = load v10 -&gt; u1
+            return v11
+        }
+        "
+        </span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>simplify_to_global_instruction() {
+        <span class="comment">// We want to have more global instructions than instructions in the function as we want
+        // to test that we never attempt to access a function's instruction map using a global instruction index.
+        // If we were to access the function's instruction map using the global instruction index in this case
+        // we would expect to hit an OOB panic.
+        // We also want to make sure that we simplify to a make array instructions as global constants will
+        // resolve directly to a constant.
+        </span><span class="kw">let </span>src = <span class="string">"
+        g0 = Field 1
+        g1 = Field 2
+        g2 = Field 3
+        g3 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g4 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g5 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g6 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g7 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g8 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g9 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g10 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g11 = make_array [g10, g10, g10] : [[Field; 3]; 3]
+
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -&gt; &amp;mut [[Field; 3]; 3]
+            store g11 at v0
+            v1 = load v0 -&gt; [[Field; 3]; 3]
+            v3 = array_get v1, index u32 0 -&gt; [Field; 3]
+            return v3
+        }
+        "</span>;
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>ssa = ssa.mem2reg();
+
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+        g0 = Field 1
+        g1 = Field 2
+        g2 = Field 3
+        g3 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g4 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g5 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g6 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g7 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g8 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g9 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g10 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g11 = make_array [g10, g10, g10] : [[Field; 3]; 3]
+
+        acir(inline) fn main f0 {
+          b0():
+            v12 = allocate -&gt; &amp;mut [[Field; 3]; 3]
+            return g10
+        }
+        "</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>correctly_aliases_references_in_call_return_values_to_arguments_with_simple_values() {
+        <span class="comment">// Here v2 could be an alias of v1, and in fact it is, so the second store to v1
+        // should invalidate the value at v2.
+        </span><span class="kw">let </span>src = <span class="string">"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = allocate -&gt; &amp;mut Field
+            store v0 at v1
+            v2 = call f1(v1) -&gt; &amp;mut Field
+            store Field 1 at v2
+            store Field 2 at v1
+            v8 = load v2 -&gt; Field
+            constrain v8 == Field 2
+            return
+        }
+        acir(inline) fn helper f1 {
+          b0(v0: &amp;mut Field):
+            return v0
+        }
+        "</span>;
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>correctly_aliases_references_in_call_return_values_to_arguments_with_arrays() {
+        <span class="comment">// Similar to the previous test except that arrays with references are passed and returned
+        </span><span class="kw">let </span>src = <span class="string">"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = allocate -&gt; &amp;mut Field
+            store v0 at v1
+            v3 = make_array [v1] : [&amp;mut Field; 1]
+            v4 = call f1(v3) -&gt; [&amp;mut Field; 1]
+            v5 = array_get v4, index u32 0 -&gt; &amp;mut Field
+            store Field 1 at v5
+            store Field 2 at v1
+            v8 = load v5 -&gt; Field
+            constrain v8 == Field 2
+            return
+        }
+        acir(inline) fn helper f1 {
+          b0(v0: [&amp;mut Field; 1]):
+            return v0
+        }
+        "</span>;
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>correctly_aliases_references_in_call_return_values_to_arguments_with_existing_aliases() {
+        <span class="comment">// Here v0 and v1 are aliases of each other. When we pass v1 to the call v2 could be
+        // an alias of v1. Then when storing to v2 we should invalidate the value at v1 but also
+        // at v0.
+        </span><span class="kw">let </span>src = <span class="string">"
+        acir(inline) fn main f0 {
+          b0(v0: &amp;mut Field, v1: &amp;mut Field):
+            store Field 0 at v1
+            v2 = call f1(v1) -&gt; &amp;mut Field
+            store Field 1 at v2
+            store Field 2 at v0
+            v8 = load v2 -&gt; Field
+            constrain v8 == Field 2
+            return
+        }
+        acir(inline) fn helper f1 {
+          b0(v0: &amp;mut Field):
+            return v0
+        }
+        "</span>;
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 }
 </code></pre></div></section></main></body></html>

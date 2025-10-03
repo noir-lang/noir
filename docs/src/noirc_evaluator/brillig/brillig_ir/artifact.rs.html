@@ -342,21 +342,7 @@
 <a href="#341" id="341">341</a>
 <a href="#342" id="342">342</a>
 <a href="#343" id="343">343</a>
-<a href="#344" id="344">344</a>
-<a href="#345" id="345">345</a>
-<a href="#346" id="346">346</a>
-<a href="#347" id="347">347</a>
-<a href="#348" id="348">348</a>
-<a href="#349" id="349">349</a>
-<a href="#350" id="350">350</a>
-<a href="#351" id="351">351</a>
-<a href="#352" id="352">352</a>
-<a href="#353" id="353">353</a>
-<a href="#354" id="354">354</a>
-<a href="#355" id="355">355</a>
-<a href="#356" id="356">356</a>
-<a href="#357" id="357">357</a>
-<a href="#358" id="358">358</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::brillig::Opcode <span class="kw">as </span>BrilligOpcode;
+<a href="#344" id="344">344</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::brillig::Opcode <span class="kw">as </span>BrilligOpcode;
 <span class="kw">use </span>acvm::acir::circuit::ErrorSelector;
 <span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 <span class="kw">use </span>std::collections::{BTreeMap, HashMap};
@@ -626,12 +612,7 @@
 
     <span class="doccomment">/// Returns true if the opcode is a jump instruction
     </span><span class="kw">fn </span>is_jmp_instruction(instruction: <span class="kw-2">&amp;</span>BrilligOpcode&lt;F&gt;) -&gt; bool {
-        <span class="macro">matches!</span>(
-            instruction,
-            BrilligOpcode::JumpIfNot { .. }
-                | BrilligOpcode::JumpIf { .. }
-                | BrilligOpcode::Jump { .. }
-        )
+        <span class="macro">matches!</span>(instruction, BrilligOpcode::JumpIf { .. } | BrilligOpcode::Jump { .. })
     }
 
     <span class="doccomment">/// Adds a label in the bytecode to specify where this block's
@@ -670,15 +651,6 @@
 
                     <span class="self">self</span>.byte_code[<span class="kw-2">*</span>location_of_jump] =
                         BrilligOpcode::Jump { location: resolved_location };
-                }
-                BrilligOpcode::JumpIfNot { condition, location } =&gt; {
-                    <span class="macro">assert_eq!</span>(
-                        location, <span class="number">0</span>,
-                        <span class="string">"location is not zero, which means that the jump label does not need resolving"
-                    </span>);
-
-                    <span class="self">self</span>.byte_code[<span class="kw-2">*</span>location_of_jump] =
-                        BrilligOpcode::JumpIfNot { condition, location: resolved_location };
                 }
                 BrilligOpcode::JumpIf { condition, location } =&gt; {
                     <span class="macro">assert_eq!</span>(

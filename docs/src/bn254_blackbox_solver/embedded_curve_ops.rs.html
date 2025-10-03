@@ -398,7 +398,7 @@
         <span class="prelude-val">Ok</span>((
             FieldElement::from_repr(out_x),
             FieldElement::from_repr(out_y),
-            FieldElement::from(output_point.is_zero() <span class="kw">as </span>u128),
+            FieldElement::from(u128::from(output_point.is_zero())),
         ))
     } <span class="kw">else </span>{
         <span class="prelude-val">Ok</span>((FieldElement::from(<span class="number">0_u128</span>), FieldElement::from(<span class="number">0_u128</span>), FieldElement::from(<span class="number">1_u128</span>)))
@@ -435,7 +435,7 @@
         <span class="prelude-val">Ok</span>((
             FieldElement::from_repr(res_x),
             FieldElement::from_repr(res_y),
-            FieldElement::from(res.is_zero() <span class="kw">as </span>u128),
+            FieldElement::from(u128::from(res.is_zero())),
         ))
     } <span class="kw">else if </span>res.is_zero() {
         <span class="prelude-val">Ok</span>((FieldElement::from(<span class="number">0_u128</span>), FieldElement::from(<span class="number">0_u128</span>), FieldElement::from(<span class="number">1_u128</span>)))

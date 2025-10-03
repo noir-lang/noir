@@ -270,7 +270,9 @@
 <a href="#269" id="269">269</a>
 <a href="#270" id="270">270</a>
 <a href="#271" id="271">271</a>
-<a href="#272" id="272">272</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::{Path, PathBuf};
+<a href="#272" id="272">272</a>
+<a href="#273" id="273">273</a>
+<a href="#274" id="274">274</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::{Path, PathBuf};
 
 <span class="kw">use </span>acir::circuit::Opcode;
 <span class="kw">use </span>acir::circuit::OpcodeLocation;
@@ -506,7 +508,10 @@
             hash: <span class="number">27</span>,
             abi: noirc_abi::Abi::default(),
             bytecode: Program {
-                functions: <span class="macro">vec!</span>[Circuit::default()],
+                functions: <span class="macro">vec!</span>[Circuit {
+                    function_name: <span class="string">"main"</span>.to_string(),
+                    ..Circuit::default()
+                }],
                 unconstrained_functions: <span class="macro">vec!</span>[
                     BrilligBytecode::default(),
                     BrilligBytecode::default(),
@@ -514,8 +519,7 @@
             },
             debug_symbols: ProgramDebugInfo { debug_infos: <span class="macro">vec!</span>[DebugInfo::default()] },
             file_map: BTreeMap::default(),
-            names: <span class="macro">vec!</span>[<span class="string">"main"</span>.to_string()],
-            brillig_names: Vec::new(),
+            expression_width: acir::circuit::ExpressionWidth::Bounded { width: <span class="number">4 </span>},
         };
 
         <span class="comment">// Write the artifact to a file

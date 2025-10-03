@@ -638,7 +638,10 @@
 <a href="#637" id="637">637</a>
 <a href="#638" id="638">638</a>
 <a href="#639" id="639">639</a>
-<a href="#640" id="640">640</a></pre></div><pre class="rust"><code><span class="doccomment">//! Codegen for converting SSA globals to Brillig bytecode.
+<a href="#640" id="640">640</a>
+<a href="#641" id="641">641</a>
+<a href="#642" id="642">642</a>
+<a href="#643" id="643">643</a></pre></div><pre class="rust"><code><span class="doccomment">//! Codegen for converting SSA globals to Brillig bytecode.
 </span><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet};
 
 <span class="kw">use </span>acvm::FieldElement;
@@ -654,7 +657,9 @@
         brillig_ir::{BrilligContext, artifact::BrilligArtifact},
     },
     ssa::ir::types::NumericType,
-    ssa::opt::brillig_entry_points::{build_inner_call_to_entry_points, get_brillig_entry_points},
+    ssa::opt::brillig_entry_points::{
+        build_inner_call_to_entry_points, get_brillig_entry_points_with_reachability,
+    },
 };
 
 <span class="doccomment">/// Context structure for generating Brillig globals
@@ -702,7 +707,8 @@
         main_id: FunctionId,
     ) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>call_graph = CallGraph::from_ssa(ssa);
-        <span class="kw">let </span>brillig_entry_points = get_brillig_entry_points(<span class="kw-2">&amp;</span>ssa.functions, main_id, <span class="kw-2">&amp;</span>call_graph);
+        <span class="kw">let </span>brillig_entry_points =
+            get_brillig_entry_points_with_reachability(<span class="kw-2">&amp;</span>ssa.functions, main_id, <span class="kw-2">&amp;</span>call_graph);
 
         <span class="kw">let </span><span class="kw-2">mut </span>hoisted_global_constants: HashMap&lt;FunctionId, ConstantCounterMap&gt; =
             HashMap::default();

@@ -337,7 +337,12 @@
 <a href="#336" id="336">336</a>
 <a href="#337" id="337">337</a>
 <a href="#338" id="338">338</a>
-<a href="#339" id="339">339</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
+<a href="#339" id="339">339</a>
+<a href="#340" id="340">340</a>
+<a href="#341" id="341">341</a>
+<a href="#342" id="342">342</a>
+<a href="#343" id="343">343</a>
+<a href="#344" id="344">344</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
     FieldElement,
     acir::{
         circuit::{Circuit, ExpressionWidth, Program <span class="kw">as </span>AcirProgram},
@@ -346,11 +351,14 @@
 };
 <span class="kw">use </span>std::collections::BTreeSet;
 
-<span class="kw">use </span>noirc_evaluator::ssa::ssa_gen::Ssa;
 <span class="kw">use </span>noirc_evaluator::ssa::{
     SsaEvaluatorOptions, ir::map::Id, optimize_ssa_builder_into_acir, primary_passes,
 };
 <span class="kw">use </span>noirc_evaluator::ssa::{SsaLogging, ir::function::Function};
+<span class="kw">use </span>noirc_evaluator::ssa::{
+    opt::{CONSTANT_FOLDING_MAX_ITER, INLINING_MAX_INSTRUCTIONS},
+    ssa_gen::Ssa,
+};
 
 <span class="kw">use </span>noirc_evaluator::brillig::BrilligOptions;
 <span class="kw">use </span>noirc_evaluator::ssa::{
@@ -579,12 +587,14 @@
         skip_underconstrained_check: <span class="bool-val">true</span>,
         skip_brillig_constraints_check: <span class="bool-val">true</span>,
         inliner_aggressiveness: <span class="number">0</span>,
+        constant_folding_max_iter: CONSTANT_FOLDING_MAX_ITER,
+        small_function_max_instruction: INLINING_MAX_INSTRUCTIONS,
         max_bytecode_increase_percent: <span class="prelude-val">None</span>,
         brillig_options: BrilligOptions::default(),
         enable_brillig_constraints_check_lookback: <span class="bool-val">false</span>,
         skip_passes: <span class="macro">vec!</span>[],
     };
-    <span class="kw">let </span>(acir_functions, brillig, <span class="kw">_</span>, <span class="kw">_</span>) = <span class="kw">match </span>optimize_ssa_builder_into_acir(
+    <span class="kw">let </span>(acir_functions, brillig, <span class="kw">_</span>) = <span class="kw">match </span>optimize_ssa_builder_into_acir(
         builder,
         <span class="kw-2">&amp;</span>ssa_evaluator_options,
         <span class="kw-2">&amp;</span>primary_passes(<span class="kw-2">&amp;</span>ssa_evaluator_options),

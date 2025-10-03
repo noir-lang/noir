@@ -415,12 +415,14 @@
 <a href="#414" id="414">414</a>
 <a href="#415" id="415">415</a>
 <a href="#416" id="416">416</a>
-<a href="#417" id="417">417</a></pre></div><pre class="rust"><code><span class="doccomment">//! Implementations for VM native [black box functions][acir::brillig::Opcode::BlackBox].
+<a href="#417" id="417">417</a>
+<a href="#418" id="418">418</a>
+<a href="#419" id="419">419</a></pre></div><pre class="rust"><code><span class="doccomment">//! Implementations for VM native [black box functions][acir::brillig::Opcode::BlackBox].
 </span><span class="kw">use </span>acir::brillig::{BlackBoxOp, HeapArray, HeapVector};
 <span class="kw">use </span>acir::{AcirField, BlackBoxFunc};
 <span class="kw">use </span>acvm_blackbox_solver::{
-    BigIntSolverWithId, BlackBoxFunctionSolver, BlackBoxResolutionError, aes128_encrypt, blake2s,
-    blake3, ecdsa_secp256k1_verify, ecdsa_secp256r1_verify, keccakf1600, sha256_compression,
+    BlackBoxFunctionSolver, BlackBoxResolutionError, aes128_encrypt, blake2s, blake3,
+    ecdsa_secp256k1_verify, ecdsa_secp256r1_verify, keccakf1600, sha256_compression,
 };
 <span class="kw">use </span>num_bigint::BigUint;
 <span class="kw">use </span>num_traits::Zero;
@@ -460,8 +462,6 @@
     input.iter().map(|<span class="kw-2">&amp;</span>x| x.into()).collect()
 }
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">type </span>BrilligBigIntSolver = BigIntSolverWithId;
-
 <span class="doccomment">/// Evaluates a black box function inside the VM, performing the actual native computation.
 ///
 /// Delegates the execution to the corresponding cryptographic or arithmetic
@@ -485,7 +485,6 @@
     op: <span class="kw-2">&amp;</span>BlackBoxOp,
     solver: <span class="kw-2">&amp;</span>Solver,
     memory: <span class="kw-2">&amp;mut </span>Memory&lt;F&gt;,
-    bigint_solver: <span class="kw-2">&amp;mut </span>BrilligBigIntSolver,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;(), BlackBoxResolutionError&gt; {
     <span class="kw">match </span>op {
         BlackBoxOp::AES128Encrypt { inputs, iv, key, outputs } =&gt; {
@@ -652,68 +651,10 @@
             );
             <span class="prelude-val">Ok</span>(())
         }
-        BlackBoxOp::BigIntAdd { lhs, rhs, output } =&gt; {
-            <span class="kw">let </span>lhs = memory.read(<span class="kw-2">*</span>lhs).expect_u32().unwrap();
-            <span class="kw">let </span>rhs = memory.read(<span class="kw-2">*</span>rhs).expect_u32().unwrap();
-
-            <span class="kw">let </span>new_id = bigint_solver.bigint_op(lhs, rhs, BlackBoxFunc::BigIntAdd)<span class="question-mark">?</span>;
-            memory.write(<span class="kw-2">*</span>output, new_id.into());
-            <span class="prelude-val">Ok</span>(())
-        }
-        BlackBoxOp::BigIntSub { lhs, rhs, output } =&gt; {
-            <span class="kw">let </span>lhs = memory.read(<span class="kw-2">*</span>lhs).expect_u32().unwrap();
-            <span class="kw">let </span>rhs = memory.read(<span class="kw-2">*</span>rhs).expect_u32().unwrap();
-
-            <span class="kw">let </span>new_id = bigint_solver.bigint_op(lhs, rhs, BlackBoxFunc::BigIntSub)<span class="question-mark">?</span>;
-            memory.write(<span class="kw-2">*</span>output, new_id.into());
-            <span class="prelude-val">Ok</span>(())
-        }
-        BlackBoxOp::BigIntMul { lhs, rhs, output } =&gt; {
-            <span class="kw">let </span>lhs = memory.read(<span class="kw-2">*</span>lhs).expect_u32().unwrap();
-            <span class="kw">let </span>rhs = memory.read(<span class="kw-2">*</span>rhs).expect_u32().unwrap();
-
-            <span class="kw">let </span>new_id = bigint_solver.bigint_op(lhs, rhs, BlackBoxFunc::BigIntMul)<span class="question-mark">?</span>;
-            memory.write(<span class="kw-2">*</span>output, new_id.into());
-            <span class="prelude-val">Ok</span>(())
-        }
-        BlackBoxOp::BigIntDiv { lhs, rhs, output } =&gt; {
-            <span class="kw">let </span>lhs = memory.read(<span class="kw-2">*</span>lhs).expect_u32().unwrap();
-            <span class="kw">let </span>rhs = memory.read(<span class="kw-2">*</span>rhs).expect_u32().unwrap();
-
-            <span class="kw">let </span>new_id = bigint_solver.bigint_op(lhs, rhs, BlackBoxFunc::BigIntDiv)<span class="question-mark">?</span>;
-            memory.write(<span class="kw-2">*</span>output, new_id.into());
-            <span class="prelude-val">Ok</span>(())
-        }
-        BlackBoxOp::BigIntFromLeBytes { inputs, modulus, output } =&gt; {
-            <span class="kw">let </span>input = read_heap_vector(memory, inputs);
-            <span class="kw">let </span>input: Vec&lt;u8&gt; = input.iter().map(|x| x.expect_u8().unwrap()).collect();
-            <span class="kw">let </span>modulus = read_heap_vector(memory, modulus);
-            <span class="kw">let </span>modulus: Vec&lt;u8&gt; = modulus.iter().map(|x| x.expect_u8().unwrap()).collect();
-
-            <span class="kw">let </span>new_id = bigint_solver.bigint_from_bytes(<span class="kw-2">&amp;</span>input, <span class="kw-2">&amp;</span>modulus)<span class="question-mark">?</span>;
-            memory.write(<span class="kw-2">*</span>output, new_id.into());
-
-            <span class="prelude-val">Ok</span>(())
-        }
-        BlackBoxOp::BigIntToLeBytes { input, output } =&gt; {
-            <span class="kw">let </span>input: u32 = memory.read(<span class="kw-2">*</span>input).expect_u32().unwrap();
-            <span class="kw">let </span>bytes = bigint_solver.bigint_to_bytes(input)<span class="question-mark">?</span>;
-            <span class="kw">let </span><span class="kw-2">mut </span>values = Vec::new();
-            <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..<span class="number">32 </span>{
-                <span class="kw">if </span>i &lt; bytes.len() {
-                    values.push(bytes[i].into());
-                } <span class="kw">else </span>{
-                    values.push(<span class="number">0_u8</span>.into());
-                }
-            }
-            memory.write_slice(memory.read_ref(output.pointer), <span class="kw-2">&amp;</span>values);
-            <span class="prelude-val">Ok</span>(())
-        }
-        BlackBoxOp::Poseidon2Permutation { message, output, len } =&gt; {
+        BlackBoxOp::Poseidon2Permutation { message, output } =&gt; {
             <span class="kw">let </span>input = read_heap_vector(memory, message);
             <span class="kw">let </span>input: Vec&lt;F&gt; = input.iter().map(|x| x.expect_field().unwrap()).collect();
-            <span class="kw">let </span>len = memory.read(<span class="kw-2">*</span>len).expect_u32().unwrap();
-            <span class="kw">let </span>result = solver.poseidon2_permutation(<span class="kw-2">&amp;</span>input, len)<span class="question-mark">?</span>;
+            <span class="kw">let </span>result = solver.poseidon2_permutation(<span class="kw-2">&amp;</span>input)<span class="question-mark">?</span>;
             <span class="kw">let </span><span class="kw-2">mut </span>values = Vec::new();
             <span class="kw">for </span>i <span class="kw">in </span>result {
                 values.push(MemoryValue::new_field(i));
@@ -761,45 +702,9 @@
                 <span class="macro">panic!</span>(<span class="string">"ToRadix opcode's output_bits size does not match expected bit size 1"</span>)
             };
 
-            <span class="kw">let </span><span class="kw-2">mut </span>input = BigUint::from_bytes_be(<span class="kw-2">&amp;</span>input.to_be_bytes());
+            <span class="kw">let </span>output = to_be_radix(input, radix, num_limbs, output_bits)<span class="question-mark">?</span>;
 
-            <span class="comment">// maximum number of bits that the limbs can hold
-            </span><span class="kw">let </span>max_bit_size = radix.ilog2() * num_limbs <span class="kw">as </span>u32;
-            <span class="kw">let </span>radix = BigUint::from_bytes_be(<span class="kw-2">&amp;</span>radix.to_be_bytes());
-            <span class="kw">let </span><span class="kw-2">mut </span>limbs: Vec&lt;MemoryValue&lt;F&gt;&gt; = <span class="macro">vec!</span>[MemoryValue::default(); num_limbs];
-
-            <span class="macro">assert!</span>(
-                radix &gt;= BigUint::from(<span class="number">2u32</span>) &amp;&amp; radix &lt;= BigUint::from(<span class="number">256u32</span>),
-                <span class="string">"Radix out of the valid range [2,256]. Value: {radix}"
-            </span>);
-
-            <span class="macro">assert!</span>(
-                num_limbs &gt;= <span class="number">1 </span>|| input == BigUint::from(<span class="number">0u32</span>),
-                <span class="string">"Input value {input} is not zero but number of limbs is zero."
-            </span>);
-
-            <span class="macro">assert!</span>(
-                !output_bits || radix == BigUint::from(<span class="number">2u32</span>),
-                <span class="string">"Radix {radix} is not equal to 2 and bit mode is activated."
-            </span>);
-
-            <span class="kw">if </span>(input.bits() <span class="kw">as </span>u32) &gt; max_bit_size {
-                <span class="kw">return </span><span class="prelude-val">Err</span>(BlackBoxResolutionError::AssertFailed(<span class="macro">format!</span>(
-                    <span class="string">"Field failed to decompose into specified {num_limbs} limbs"
-                </span>)));
-            }
-            <span class="kw">for </span>i <span class="kw">in </span>(<span class="number">0</span>..num_limbs).rev() {
-                <span class="kw">let </span>limb = <span class="kw-2">&amp;</span>input % <span class="kw-2">&amp;</span>radix;
-                <span class="kw">if </span>output_bits {
-                    limbs[i] = MemoryValue::U1(!limb.is_zero());
-                } <span class="kw">else </span>{
-                    <span class="kw">let </span>limb: u8 = limb.try_into().unwrap();
-                    limbs[i] = MemoryValue::U8(limb);
-                };
-                input /= <span class="kw-2">&amp;</span>radix;
-            }
-
-            memory.write_slice(memory.read_ref(<span class="kw-2">*</span>output_pointer), <span class="kw-2">&amp;</span>limbs);
+            memory.write_slice(memory.read_ref(<span class="kw-2">*</span>output_pointer), <span class="kw-2">&amp;</span>output);
 
             <span class="prelude-val">Ok</span>(())
         }
@@ -821,15 +726,114 @@
         BlackBoxOp::EcdsaSecp256r1 { .. } =&gt; BlackBoxFunc::EcdsaSecp256r1,
         BlackBoxOp::MultiScalarMul { .. } =&gt; BlackBoxFunc::MultiScalarMul,
         BlackBoxOp::EmbeddedCurveAdd { .. } =&gt; BlackBoxFunc::EmbeddedCurveAdd,
-        BlackBoxOp::BigIntAdd { .. } =&gt; BlackBoxFunc::BigIntAdd,
-        BlackBoxOp::BigIntSub { .. } =&gt; BlackBoxFunc::BigIntSub,
-        BlackBoxOp::BigIntMul { .. } =&gt; BlackBoxFunc::BigIntMul,
-        BlackBoxOp::BigIntDiv { .. } =&gt; BlackBoxFunc::BigIntDiv,
-        BlackBoxOp::BigIntFromLeBytes { .. } =&gt; BlackBoxFunc::BigIntFromLeBytes,
-        BlackBoxOp::BigIntToLeBytes { .. } =&gt; BlackBoxFunc::BigIntToLeBytes,
         BlackBoxOp::Poseidon2Permutation { .. } =&gt; BlackBoxFunc::Poseidon2Permutation,
         BlackBoxOp::Sha256Compression { .. } =&gt; BlackBoxFunc::Sha256Compression,
         BlackBoxOp::ToRadix { .. } =&gt; <span class="macro">unreachable!</span>(<span class="string">"ToRadix is not an ACIR BlackBoxFunc"</span>),
+    }
+}
+
+<span class="kw">fn </span>to_be_radix&lt;F: AcirField&gt;(
+    input: F,
+    radix: u32,
+    num_limbs: usize,
+    output_bits: bool,
+) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;MemoryValue&lt;F&gt;&gt;, BlackBoxResolutionError&gt; {
+    <span class="macro">assert!</span>(
+        (<span class="number">2u32</span>..=<span class="number">256u32</span>).contains(<span class="kw-2">&amp;</span>radix),
+        <span class="string">"Radix out of the valid range [2,256]. Value: {radix}"
+    </span>);
+
+    <span class="macro">assert!</span>(
+        num_limbs &gt;= <span class="number">1 </span>|| input.is_zero(),
+        <span class="string">"Input value {input} is not zero but number of limbs is zero."
+    </span>);
+
+    <span class="macro">assert!</span>(
+        !output_bits || radix == <span class="number">2u32</span>,
+        <span class="string">"Radix {radix} is not equal to 2 and bit mode is activated."
+    </span>);
+
+    <span class="kw">let </span><span class="kw-2">mut </span>input = BigUint::from_bytes_be(<span class="kw-2">&amp;</span>input.to_be_bytes());
+    <span class="kw">let </span>radix = BigUint::from(radix);
+
+    <span class="kw">let </span><span class="kw-2">mut </span>limbs: Vec&lt;MemoryValue&lt;F&gt;&gt; = <span class="macro">vec!</span>[MemoryValue::default(); num_limbs];
+    <span class="kw">for </span>i <span class="kw">in </span>(<span class="number">0</span>..num_limbs).rev() {
+        <span class="kw">let </span>limb = <span class="kw-2">&amp;</span>input % <span class="kw-2">&amp;</span>radix;
+        limbs[i] = <span class="kw">if </span>output_bits {
+            MemoryValue::U1(!limb.is_zero())
+        } <span class="kw">else </span>{
+            <span class="kw">let </span>limb: u8 = limb.try_into().unwrap();
+            MemoryValue::U8(limb)
+        };
+        input /= <span class="kw-2">&amp;</span>radix;
+    }
+
+    <span class="comment">// In order for a successful decomposition, we require that after `num_limbs` divisions by `radix` then `input` should be zero.
+    // If `input` is non-zero then that implies that we have additional limbs which are not handled.
+    </span><span class="kw">if </span>!input.is_zero() {
+        <span class="kw">return </span><span class="prelude-val">Err</span>(BlackBoxResolutionError::AssertFailed(<span class="macro">format!</span>(
+            <span class="string">"Field failed to decompose into specified {num_limbs} limbs"
+        </span>)));
+    }
+
+    <span class="prelude-val">Ok</span>(limbs)
+}
+
+<span class="attr">#[cfg(test)]
+</span><span class="kw">mod </span>to_be_radix_tests {
+    <span class="kw">use </span><span class="kw">crate</span>::black_box::to_be_radix;
+
+    <span class="kw">use </span>acir::{AcirField, FieldElement};
+
+    <span class="kw">use </span>proptest::prelude::<span class="kw-2">*</span>;
+
+    <span class="comment">// Define a wrapper around field so we can implement `Arbitrary`.
+    // NB there are other methods like `arbitrary_field_elements` around the codebase,
+    // but for `proptest_derive::Arbitrary` we need `F: AcirField + Arbitrary`.
+    </span><span class="macro">acir::acir_field::field_wrapper!</span>(TestField, FieldElement);
+
+    <span class="kw">impl </span>Arbitrary <span class="kw">for </span>TestField {
+        <span class="kw">type </span>Parameters = ();
+        <span class="kw">type </span>Strategy = BoxedStrategy&lt;<span class="self">Self</span>&gt;;
+
+        <span class="kw">fn </span>arbitrary_with(_args: <span class="self">Self</span>::Parameters) -&gt; <span class="self">Self</span>::Strategy {
+            any::&lt;u128&gt;().prop_map(|v| <span class="self">Self</span>(FieldElement::from(v))).boxed()
+        }
+    }
+
+    <span class="macro">proptest!</span> {
+        <span class="attr">#[test]
+        </span><span class="kw">fn </span>matches_byte_decomposition(param: TestField) {
+            <span class="kw">let </span>bytes: Vec&lt;u8&gt; = to_be_radix(param.<span class="number">0</span>, <span class="number">256</span>, <span class="number">32</span>, <span class="bool-val">false</span>).unwrap().into_iter().map(|byte| byte.expect_u8().unwrap()).collect();
+            <span class="kw">let </span>expected_bytes = param.<span class="number">0</span>.to_be_bytes();
+            <span class="macro">prop_assert_eq!</span>(bytes, expected_bytes);
+        }
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>correctly_handles_unusual_radices() {
+        <span class="kw">let </span>value = FieldElement::from(<span class="number">65024u128</span>);
+        <span class="kw">let </span>expected_limbs = <span class="macro">vec!</span>[<span class="number">254</span>, <span class="number">254</span>];
+
+        <span class="kw">let </span>limbs: Vec&lt;u8&gt; = to_be_radix(value, <span class="number">255</span>, <span class="number">2</span>, <span class="bool-val">false</span>)
+            .unwrap()
+            .into_iter()
+            .map(|byte| byte.expect_u8().unwrap())
+            .collect();
+        <span class="macro">assert_eq!</span>(limbs, expected_limbs);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>matches_decimal_decomposition() {
+        <span class="kw">let </span>value = FieldElement::from(<span class="number">123456789u128</span>);
+        <span class="kw">let </span>expected_limbs = <span class="macro">vec!</span>[<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">4</span>, <span class="number">5</span>, <span class="number">6</span>, <span class="number">7</span>, <span class="number">8</span>, <span class="number">9</span>];
+
+        <span class="kw">let </span>limbs: Vec&lt;u8&gt; = to_be_radix(value, <span class="number">10</span>, <span class="number">9</span>, <span class="bool-val">false</span>)
+            .unwrap()
+            .into_iter()
+            .map(|byte| byte.expect_u8().unwrap())
+            .collect();
+        <span class="macro">assert_eq!</span>(limbs, expected_limbs);
     }
 }
 </code></pre></div></section></main></body></html>

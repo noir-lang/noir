@@ -231,16 +231,7 @@
 <a href="#230" id="230">230</a>
 <a href="#231" id="231">231</a>
 <a href="#232" id="232">232</a>
-<a href="#233" id="233">233</a>
-<a href="#234" id="234">234</a>
-<a href="#235" id="235">235</a>
-<a href="#236" id="236">236</a>
-<a href="#237" id="237">237</a>
-<a href="#238" id="238">238</a>
-<a href="#239" id="239">239</a>
-<a href="#240" id="240">240</a>
-<a href="#241" id="241">241</a>
-<a href="#242" id="242">242</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fs::File;
+<a href="#233" id="233">233</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fs::File;
 <span class="kw">use </span>std::io::Write;
 <span class="kw">use </span>std::path::Path;
 <span class="kw">use </span>std::{collections::HashMap, path::PathBuf};
@@ -427,21 +418,12 @@
     }
 
     <span class="kw">fn </span>print(<span class="kw-2">mut </span><span class="self">self</span>, msg: <span class="kw-2">&amp;</span>str) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>print_ssa_pass = <span class="self">self</span>.ssa_logging.matches(msg);
+
         <span class="comment">// Always normalize if we are going to print at least one of the passes
         </span><span class="kw">if </span>!<span class="macro">matches!</span>(<span class="self">self</span>.ssa_logging, SsaLogging::None) {
             <span class="self">self</span>.ssa.normalize_ids();
         }
-
-        <span class="kw">let </span>print_ssa_pass = <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.ssa_logging {
-            SsaLogging::None =&gt; <span class="bool-val">false</span>,
-            SsaLogging::All =&gt; <span class="bool-val">true</span>,
-            SsaLogging::Contains(strings) =&gt; strings.iter().any(|string| {
-                <span class="kw">let </span>string = string.to_lowercase();
-                <span class="kw">let </span>string = string.strip_prefix(<span class="string">"after "</span>).unwrap_or(<span class="kw-2">&amp;</span>string);
-                <span class="kw">let </span>string = string.strip_suffix(<span class="string">':'</span>).unwrap_or(string);
-                msg.to_lowercase().contains(string)
-            }),
-        };
 
         <span class="kw">if </span>print_ssa_pass {
             <span class="macro">println_to_stdout!</span>(<span class="string">"After {msg}:\n{}"</span>, <span class="self">self</span>.ssa.print_with(<span class="self">self</span>.files));

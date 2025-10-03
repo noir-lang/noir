@@ -350,7 +350,7 @@
                     <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"Shouldn't be used with other input value types"</span>),
                 };
                 <span class="kw">for </span>character <span class="kw">in </span>initial_string.as_bytes().iter() {
-                    full_dictionary.insert(FieldElement::from(<span class="kw-2">*</span>character <span class="kw">as </span>i128));
+                    full_dictionary.insert(FieldElement::from(i128::from(<span class="kw-2">*</span>character)));
                 }
             }
             AbiType::Array { length: <span class="kw">_</span>, typ } =&gt; {

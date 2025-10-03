@@ -430,7 +430,22 @@
 <a href="#429" id="429">429</a>
 <a href="#430" id="430">430</a>
 <a href="#431" id="431">431</a>
-<a href="#432" id="432">432</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module implements the "ownership analysis" compiler pass on the
+<a href="#432" id="432">432</a>
+<a href="#433" id="433">433</a>
+<a href="#434" id="434">434</a>
+<a href="#435" id="435">435</a>
+<a href="#436" id="436">436</a>
+<a href="#437" id="437">437</a>
+<a href="#438" id="438">438</a>
+<a href="#439" id="439">439</a>
+<a href="#440" id="440">440</a>
+<a href="#441" id="441">441</a>
+<a href="#442" id="442">442</a>
+<a href="#443" id="443">443</a>
+<a href="#444" id="444">444</a>
+<a href="#445" id="445">445</a>
+<a href="#446" id="446">446</a>
+<a href="#447" id="447">447</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module implements the "ownership analysis" compiler pass on the
 //! monomorphized AST. It is run after monomorphization and before SSA-gen.
 //! At this point the monomorphized AST has no polymorphic types and all functions
 //! are specialized into either constrained or unconstrained versions. This pass
@@ -563,9 +578,12 @@
     ///
     /// Note that this also matches on dereference operations to exempt their LHS from clones,
     /// but their LHS is always exempt from clones so this is unchanged.
-    </span><span class="kw">fn </span>handle_reference_expression(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr: <span class="kw-2">&amp;mut </span>Expression) {
+    ///
+    /// # Returns
+    /// A boolean representing whether or not the expression was borrowed by reference (false) or moved (true).
+    </span><span class="kw">fn </span>handle_reference_expression(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr: <span class="kw-2">&amp;mut </span>Expression) -&gt; bool {
         <span class="kw">match </span>expr {
-            Expression::Ident(<span class="kw">_</span>) =&gt; (),
+            Expression::Ident(<span class="kw">_</span>) =&gt; <span class="bool-val">false</span>,
             Expression::Block(exprs) =&gt; {
                 <span class="kw">let </span>len_minus_one = exprs.len().saturating_sub(<span class="number">1</span>);
                 <span class="kw">for </span>expr <span class="kw">in </span>exprs.iter_mut().take(len_minus_one) {
@@ -573,17 +591,28 @@
                     </span><span class="self">self</span>.handle_expression(expr);
                 }
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(expr) = exprs.last_mut() {
-                    <span class="self">self</span>.handle_reference_expression(expr);
-                }
+                    <span class="self">self</span>.handle_reference_expression(expr)
+                } <span class="kw">else </span>{
+                    <span class="bool-val">true
+                </span>}
             }
             Expression::Unary(Unary { rhs, operator: UnaryOp::Dereference { .. }, .. }) =&gt; {
-                <span class="self">self</span>.handle_reference_expression(rhs);
+                <span class="self">self</span>.handle_reference_expression(rhs)
             }
             Expression::ExtractTupleField(tuple, _index) =&gt; <span class="self">self</span>.handle_reference_expression(tuple),
 
+            Expression::Index(index) =&gt; {
+                <span class="kw">let </span>is_moved = <span class="self">self</span>.handle_reference_expression(<span class="kw-2">&amp;mut </span>index.collection);
+                <span class="self">self</span>.handle_expression(<span class="kw-2">&amp;mut </span>index.index);
+                is_moved
+            }
+
             <span class="comment">// If we have something like `f(arg)` then we want to treat those variables normally
             // rather than avoid cloning them. So we shouldn't recur in `handle_reference_expression`.
-            </span>other =&gt; <span class="self">self</span>.handle_expression(other),
+            </span>other =&gt; {
+                <span class="self">self</span>.handle_expression(other);
+                <span class="bool-val">true
+            </span>}
         }
     }
 
@@ -704,10 +733,11 @@
         };
 
         <span class="comment">// Don't clone the collection, cloning only the resulting element is cheaper.
-        </span><span class="self">self</span>.handle_reference_expression(<span class="kw-2">&amp;mut </span>index.collection);
+        </span><span class="kw">let </span>is_moved = <span class="self">self</span>.handle_reference_expression(<span class="kw-2">&amp;mut </span>index.collection);
         <span class="self">self</span>.handle_expression(<span class="kw-2">&amp;mut </span>index.index);
 
-        <span class="kw">if </span>contains_array_or_str_type(<span class="kw-2">&amp;</span>index.element_type) {
+        <span class="comment">// If the index collection is being borrowed we need to clone the result.
+        </span><span class="kw">if </span>!is_moved &amp;&amp; contains_array_or_str_type(<span class="kw-2">&amp;</span>index.element_type) {
             clone_expr(index_expr);
         }
     }
@@ -789,8 +819,8 @@
     }
 
     <span class="kw">fn </span>handle_assign(<span class="kw-2">&amp;mut </span><span class="self">self</span>, assign: <span class="kw-2">&amp;mut </span><span class="kw">crate</span>::monomorphization::ast::Assign) {
-        <span class="self">self</span>.handle_lvalue(<span class="kw-2">&amp;mut </span>assign.lvalue);
         <span class="self">self</span>.handle_expression(<span class="kw-2">&amp;mut </span>assign.expression);
+        <span class="self">self</span>.handle_lvalue(<span class="kw-2">&amp;mut </span>assign.lvalue);
     }
 
     <span class="kw">fn </span>handle_lvalue(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lvalue: <span class="kw-2">&amp;mut </span>LValue) {

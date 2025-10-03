@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["CompareResults"],"fn":["run_and_compare"]};
+window.SIDEBAR_ITEMS = {"enum":["CompareResults"],"fn":["execute","run_and_compare"]};

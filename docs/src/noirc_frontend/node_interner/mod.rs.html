@@ -1481,7 +1481,14 @@
 <a href="#1480" id="1480">1480</a>
 <a href="#1481" id="1481">1481</a>
 <a href="#1482" id="1482">1482</a>
-<a href="#1483" id="1483">1483</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::hash::Hash;
+<a href="#1483" id="1483">1483</a>
+<a href="#1484" id="1484">1484</a>
+<a href="#1485" id="1485">1485</a>
+<a href="#1486" id="1486">1486</a>
+<a href="#1487" id="1487">1487</a>
+<a href="#1488" id="1488">1488</a>
+<a href="#1489" id="1489">1489</a>
+<a href="#1490" id="1490">1490</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::hash::Hash;
 <span class="kw">use </span>std::marker::Copy;
 
 <span class="kw">use </span>fm::FileId;
@@ -1542,6 +1549,13 @@
     <span class="kw">pub </span>parent: <span class="prelude-ty">Option</span>&lt;LocalModuleId&gt;,
     <span class="kw">pub </span>visibility: ItemVisibility,
 }
+
+<span class="kw">static </span>TOP_LEVEL_MODULE_ATTRIBUTES: ModuleAttributes = ModuleAttributes {
+    name: String::new(),
+    location: Location::dummy(),
+    parent: <span class="prelude-val">None</span>,
+    visibility: ItemVisibility::Public,
+};
 
 <span class="kw">type </span>TypeAttributes = Vec&lt;SecondaryAttribute&gt;;
 
@@ -2181,7 +2195,7 @@
     }
 
     <span class="kw">pub fn </span>module_attributes(<span class="kw-2">&amp;</span><span class="self">self</span>, module_id: ModuleId) -&gt; <span class="kw-2">&amp;</span>ModuleAttributes {
-        <span class="kw-2">&amp;</span><span class="self">self</span>.module_attributes[<span class="kw-2">&amp;</span>module_id]
+        <span class="self">self</span>.try_module_attributes(module_id).unwrap_or(<span class="kw-2">&amp;</span>TOP_LEVEL_MODULE_ATTRIBUTES)
     }
 
     <span class="kw">pub fn </span>try_module_attributes(<span class="kw-2">&amp;</span><span class="self">self</span>, module_id: ModuleId) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>ModuleAttributes&gt; {

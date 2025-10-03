@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["check_u128_mul_overflow"]};
+window.SIDEBAR_ITEMS = {"fn":["check_u128_mul_overflow","max_non_overflowing_const_arg"],"static":["MAX_NON_OVERFLOWING_CONST_ARG"]};

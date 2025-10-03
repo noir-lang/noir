@@ -390,9 +390,7 @@
 <a href="#389" id="389">389</a>
 <a href="#390" id="390">390</a>
 <a href="#391" id="391">391</a>
-<a href="#392" id="392">392</a>
-<a href="#393" id="393">393</a>
-<a href="#394" id="394">394</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
+<a href="#392" id="392">392</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_frontend::signed_field::SignedField;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
@@ -609,10 +607,24 @@
     /// The size of a type is defined as representing how many Fields are needed
     /// to represent the type. This is 1 for every primitive type, and is the number of fields
     /// for any flattened tuple type.
+    ///
+    /// Equivalent to `self.element_types().len()`, but doesn't consume the `self`.
+    ///
+    /// Panics if `self` is not a [`Type::Array`] or [`Type::Slice`].
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>element_size(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
         <span class="kw">match </span><span class="self">self </span>{
             Type::Array(elements, <span class="kw">_</span>) | Type::Slice(elements) =&gt; elements.len(),
             other =&gt; <span class="macro">panic!</span>(<span class="string">"element_size: Expected array or slice, found {other}"</span>),
+        }
+    }
+
+    <span class="doccomment">/// Return the types of items in this array/slice.
+    ///
+    /// Panics if `self` is not a [`Type::Array`] or [`Type::Slice`].
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>element_types(<span class="self">self</span>) -&gt; Arc&lt;Vec&lt;Type&gt;&gt; {
+        <span class="kw">match </span><span class="self">self </span>{
+            Type::Array(element_types, <span class="kw">_</span>) | Type::Slice(element_types) =&gt; element_types,
+            other =&gt; <span class="macro">panic!</span>(<span class="string">"element_types: Expected array or slice, found {other}"</span>),
         }
     }
 
@@ -660,22 +672,6 @@
             Type::Numeric(<span class="kw">_</span>) | Type::Function =&gt; <span class="bool-val">false</span>,
             Type::Array(<span class="kw">_</span>, <span class="kw">_</span>) | Type::Slice(<span class="kw">_</span>) =&gt; <span class="bool-val">true</span>,
             Type::Reference(element) =&gt; element.contains_an_array(),
-        }
-    }
-
-    <span class="doccomment">/// Retrieves the array or slice type within this type, or panics if there is none.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_contained_array(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>Type {
-        <span class="kw">match </span><span class="self">self </span>{
-            Type::Numeric(<span class="kw">_</span>) | Type::Function =&gt; <span class="macro">panic!</span>(<span class="string">"Expected an array type"</span>),
-            Type::Array(<span class="kw">_</span>, <span class="kw">_</span>) | Type::Slice(<span class="kw">_</span>) =&gt; <span class="self">self</span>,
-            Type::Reference(element) =&gt; element.get_contained_array(),
-        }
-    }
-
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>element_types(<span class="self">self</span>) -&gt; Arc&lt;Vec&lt;Type&gt;&gt; {
-        <span class="kw">match </span><span class="self">self </span>{
-            Type::Array(element_types, <span class="kw">_</span>) | Type::Slice(element_types) =&gt; element_types,
-            other =&gt; <span class="macro">panic!</span>(<span class="string">"element_types: Expected array or slice, found {other}"</span>),
         }
     }
 

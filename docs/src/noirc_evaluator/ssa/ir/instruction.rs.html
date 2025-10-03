@@ -1066,7 +1066,29 @@
 <a href="#1065" id="1065">1065</a>
 <a href="#1066" id="1066">1066</a>
 <a href="#1067" id="1067">1067</a>
-<a href="#1068" id="1068">1068</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
+<a href="#1068" id="1068">1068</a>
+<a href="#1069" id="1069">1069</a>
+<a href="#1070" id="1070">1070</a>
+<a href="#1071" id="1071">1071</a>
+<a href="#1072" id="1072">1072</a>
+<a href="#1073" id="1073">1073</a>
+<a href="#1074" id="1074">1074</a>
+<a href="#1075" id="1075">1075</a>
+<a href="#1076" id="1076">1076</a>
+<a href="#1077" id="1077">1077</a>
+<a href="#1078" id="1078">1078</a>
+<a href="#1079" id="1079">1079</a>
+<a href="#1080" id="1080">1080</a>
+<a href="#1081" id="1081">1081</a>
+<a href="#1082" id="1082">1082</a>
+<a href="#1083" id="1083">1083</a>
+<a href="#1084" id="1084">1084</a>
+<a href="#1085" id="1085">1085</a>
+<a href="#1086" id="1086">1086</a>
+<a href="#1087" id="1087">1087</a>
+<a href="#1088" id="1088">1088</a>
+<a href="#1089" id="1089">1089</a>
+<a href="#1090" id="1090">1090</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 <span class="kw">use </span>rustc_stable_hash::{FromStableHash, SipHasher128Hash};
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="kw">use </span>std::hash::Hash;
@@ -1078,7 +1100,7 @@
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_frontend::hir_def::types::Type <span class="kw">as </span>HirType;
 
-<span class="kw">use </span><span class="kw">crate</span>::ssa::opt::pure::Purity;
+<span class="kw">use </span><span class="kw">crate</span>::ssa::{ir::integer::IntegerConstant, opt::pure::Purity};
 
 <span class="kw">use super</span>::{
     basic_block::BasicBlockId,
@@ -1199,7 +1221,7 @@
     /// in constrained context, it will be 0.
     </span>ArrayRefCount,
     <span class="doccomment">/// SliceRefCount - Gives the reference count of the slice
-    /// argument: slice (value id)
+    /// arguments: slice length, slice contents (value id)
     /// result: reference count of `slice`. In unconstrained context, the reference count is stored alongside the slice.
     /// in constrained context, it will be 0.
     </span>SliceRefCount,
@@ -1423,14 +1445,12 @@
     </span>EnableSideEffectsIf { condition: ValueId },
 
     <span class="doccomment">/// Retrieve a value from an array at the given index
-    /// `offset` determines whether the index has been shifted by some offset.
-    </span>ArrayGet { array: ValueId, index: ValueId, offset: ArrayOffset },
+    </span>ArrayGet { array: ValueId, index: ValueId },
 
     <span class="doccomment">/// Creates a new array with the new value at the given index. All other elements are identical
     /// to those in the given array. This will not modify the original array unless `mutable` is
     /// set. This flag is off by default and only enabled when optimizations determine it is safe.
-    /// `offset` determines whether the index has been shifted by some offset.
-    </span>ArraySet { array: ValueId, index: ValueId, value: ValueId, mutable: bool, offset: ArrayOffset },
+    </span>ArraySet { array: ValueId, index: ValueId, value: ValueId, mutable: bool },
 
     <span class="doccomment">/// An instruction to increment the reference count of a value.
     ///
@@ -1521,12 +1541,15 @@
         <span class="kw">match </span><span class="self">self </span>{
             Instruction::Binary(binary) =&gt; binary.requires_acir_gen_predicate(dfg),
 
-            Instruction::ArrayGet { array, index, offset: <span class="kw">_ </span>} =&gt; {
+            Instruction::ArrayGet { array, index } =&gt; {
                 <span class="comment">// `ArrayGet`s which read from "known good" indices from an array should not need a predicate.
                 // This extra out of bounds (OOB) check is only inserted in the ACIR runtime.
                 // Thus, in Brillig an `ArrayGet` is always a pure operation in isolation and
-                // it is expected that OOB checks are inserted separately.
-                </span>dfg.runtime().is_acir() &amp;&amp; !dfg.is_safe_index(<span class="kw-2">*</span>index, <span class="kw-2">*</span>array)
+                // it is expected that OOB checks are inserted separately. However, it would
+                // not be safe to separate the `ArrayGet` from the OOB constraints that precede it,
+                // because while it could read an array index, the returned data could be invalid,
+                // and fail at runtime if we tried using it in the wrong context.
+                </span>!dfg.is_safe_index(<span class="kw-2">*</span>index, <span class="kw-2">*</span>array)
             }
 
             Instruction::EnableSideEffectsIf { .. } | Instruction::ArraySet { .. } =&gt; <span class="bool-val">true</span>,
@@ -1601,8 +1624,29 @@
                     !<span class="macro">matches!</span>(typ, Type::Numeric(NumericType::NativeField))
                 }
                 BinaryOp::Div | BinaryOp::Mod =&gt; {
-                    dfg.get_numeric_constant(binary.rhs).is_none_or(|c| c.is_zero())
-                }
+                    <span class="comment">// If we don't know rhs at compile time, it might be zero or -1
+                    </span><span class="kw">let </span><span class="prelude-val">Some</span>(rhs) = dfg.get_numeric_constant(binary.rhs) <span class="kw">else </span>{
+                        <span class="kw">return </span><span class="bool-val">true</span>;
+                    };
+
+                    <span class="comment">// Div or mod by zero is a side effect (failure)
+                    </span><span class="kw">if </span>rhs.is_zero() {
+                        <span class="kw">return </span><span class="bool-val">true</span>;
+                    }
+
+                    <span class="comment">// For signed types, division or modulo by -1 can overflow.
+                    </span><span class="kw">let </span>typ = dfg.type_of_value(binary.rhs).unwrap_numeric();
+                    <span class="kw">let </span>NumericType::Signed { bit_size } = typ <span class="kw">else </span>{
+                        <span class="kw">return </span><span class="bool-val">false</span>;
+                    };
+
+                    <span class="kw">let </span>minus_one = IntegerConstant::Signed { value: -<span class="number">1</span>, bit_size };
+                    <span class="kw">if </span>IntegerConstant::from_numeric_constant(rhs, typ) == <span class="prelude-val">Some</span>(minus_one) {
+                        <span class="kw">return </span><span class="bool-val">true</span>;
+                    }
+
+                    <span class="bool-val">false
+                </span>}
                 BinaryOp::Shl | BinaryOp::Shr =&gt; {
                     <span class="comment">// Bit-shifts which are known to be by a number of bits less than the bit size of the type have no side effects.
                     </span>dfg.get_numeric_constant(binary.rhs).is_none_or(|c| {
@@ -1626,10 +1670,13 @@
             <span class="comment">// `ArrayGet`s which read from "known good" indices from an array have no side effects
             // This extra out of bounds (OOB) check is only inserted in the ACIR runtime.
             // Thus, in Brillig an `ArrayGet` is always a pure operation in isolation and
-            // it is expected that OOB checks are inserted separately.
-            </span>ArrayGet { array, index, offset: <span class="kw">_ </span>} =&gt; {
-                dfg.runtime().is_acir() &amp;&amp; !dfg.is_safe_index(<span class="kw-2">*</span>index, <span class="kw-2">*</span>array)
-            }
+            // it is expected that OOB checks are inserted separately. However, it would not
+            // be safe to separate the `ArrayGet` from its corresponding OOB constraints in Brillig,
+            // as a value read from an array at an invalid index could cause failures when subsequently
+            // used in the wrong context. Since we use this information to decide whether to hoist
+            // instructions during deduplication, we consider unsafe values as potentially having
+            // indirect side effects.
+            </span>ArrayGet { array, index } =&gt; !dfg.is_safe_index(<span class="kw-2">*</span>index, <span class="kw-2">*</span>array),
 
             <span class="comment">// ArraySet has side effects
             </span>ArraySet { .. } =&gt; <span class="bool-val">true</span>,
@@ -1704,18 +1751,15 @@
             Instruction::EnableSideEffectsIf { condition } =&gt; {
                 Instruction::EnableSideEffectsIf { condition: f(<span class="kw-2">*</span>condition) }
             }
-            Instruction::ArrayGet { array, index, offset } =&gt; {
-                Instruction::ArrayGet { array: f(<span class="kw-2">*</span>array), index: f(<span class="kw-2">*</span>index), offset: <span class="kw-2">*</span>offset }
+            Instruction::ArrayGet { array, index } =&gt; {
+                Instruction::ArrayGet { array: f(<span class="kw-2">*</span>array), index: f(<span class="kw-2">*</span>index) }
             }
-            Instruction::ArraySet { array, index, value, mutable, offset } =&gt; {
-                Instruction::ArraySet {
-                    array: f(<span class="kw-2">*</span>array),
-                    index: f(<span class="kw-2">*</span>index),
-                    value: f(<span class="kw-2">*</span>value),
-                    mutable: <span class="kw-2">*</span>mutable,
-                    offset: <span class="kw-2">*</span>offset,
-                }
-            }
+            Instruction::ArraySet { array, index, value, mutable } =&gt; Instruction::ArraySet {
+                array: f(<span class="kw-2">*</span>array),
+                index: f(<span class="kw-2">*</span>index),
+                value: f(<span class="kw-2">*</span>value),
+                mutable: <span class="kw-2">*</span>mutable,
+            },
             Instruction::IncrementRc { value } =&gt; Instruction::IncrementRc { value: f(<span class="kw-2">*</span>value) },
             Instruction::DecrementRc { value } =&gt; Instruction::DecrementRc { value: f(<span class="kw-2">*</span>value) },
             Instruction::RangeCheck { value, max_bit_size, assert_message } =&gt; {
@@ -1778,11 +1822,11 @@
             Instruction::EnableSideEffectsIf { condition } =&gt; {
                 <span class="kw-2">*</span>condition = f(<span class="kw-2">*</span>condition);
             }
-            Instruction::ArrayGet { array, index, offset: <span class="kw">_ </span>} =&gt; {
+            Instruction::ArrayGet { array, index } =&gt; {
                 <span class="kw-2">*</span>array = f(<span class="kw-2">*</span>array);
                 <span class="kw-2">*</span>index = f(<span class="kw-2">*</span>index);
             }
-            Instruction::ArraySet { array, index, value, mutable: <span class="kw">_</span>, offset: <span class="kw">_ </span>} =&gt; {
+            Instruction::ArraySet { array, index, value, mutable: <span class="kw">_ </span>} =&gt; {
                 <span class="kw-2">*</span>array = f(<span class="kw-2">*</span>array);
                 <span class="kw-2">*</span>index = f(<span class="kw-2">*</span>index);
                 <span class="kw-2">*</span>value = f(<span class="kw-2">*</span>value);
@@ -1844,11 +1888,11 @@
                 f(<span class="kw-2">*</span>value);
             }
             Instruction::Allocate =&gt; (),
-            Instruction::ArrayGet { array, index, offset: <span class="kw">_ </span>} =&gt; {
+            Instruction::ArrayGet { array, index } =&gt; {
                 f(<span class="kw-2">*</span>array);
                 f(<span class="kw-2">*</span>index);
             }
-            Instruction::ArraySet { array, index, value, mutable: <span class="kw">_</span>, offset: <span class="kw">_ </span>} =&gt; {
+            Instruction::ArraySet { array, index, value, mutable: <span class="kw">_ </span>} =&gt; {
                 f(<span class="kw-2">*</span>array);
                 f(<span class="kw-2">*</span>index);
                 f(<span class="kw-2">*</span>value);

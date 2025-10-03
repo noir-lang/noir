@@ -41,7 +41,7 @@
 ) -&gt; <span class="prelude-ty">Result</span>&lt;[u8; N], OpcodeResolutionError&lt;F&gt;&gt; {
     <span class="kw">let </span><span class="kw-2">mut </span>result = [<span class="number">0</span>; N];
     <span class="kw">for </span>(it, input) <span class="kw">in </span>result.iter_mut().zip(inputs) {
-        <span class="kw">let </span>witness_value_bytes = input_to_value(initial_witness, <span class="kw-2">*</span>input, <span class="bool-val">false</span>)<span class="question-mark">?</span>.to_be_bytes();
+        <span class="kw">let </span>witness_value_bytes = input_to_value(initial_witness, <span class="kw-2">*</span>input)<span class="question-mark">?</span>.to_be_bytes();
         <span class="kw">let </span>byte = witness_value_bytes
             .last()
             .expect(<span class="string">"Field element must be represented by non-zero amount of bytes"</span>);
@@ -56,7 +56,7 @@
 ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;u8&gt;, OpcodeResolutionError&lt;F&gt;&gt; {
     <span class="kw">let </span><span class="kw-2">mut </span>result = Vec::with_capacity(inputs.len());
     <span class="kw">for </span>input <span class="kw">in </span>inputs {
-        <span class="kw">let </span>witness_value_bytes = input_to_value(initial_witness, <span class="kw-2">*</span>input, <span class="bool-val">false</span>)<span class="question-mark">?</span>.to_be_bytes();
+        <span class="kw">let </span>witness_value_bytes = input_to_value(initial_witness, <span class="kw-2">*</span>input)<span class="question-mark">?</span>.to_be_bytes();
         <span class="kw">let </span>byte = witness_value_bytes
             .last()
             .expect(<span class="string">"Field element must be represented by non-zero amount of bytes"</span>);

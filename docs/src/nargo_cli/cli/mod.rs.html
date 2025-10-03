@@ -329,22 +329,14 @@
 <a href="#328" id="328">328</a>
 <a href="#329" id="329">329</a>
 <a href="#330" id="330">330</a>
-<a href="#331" id="331">331</a>
-<a href="#332" id="332">332</a>
-<a href="#333" id="333">333</a>
-<a href="#334" id="334">334</a>
-<a href="#335" id="335">335</a>
-<a href="#336" id="336">336</a>
-<a href="#337" id="337">337</a>
-<a href="#338" id="338">338</a>
-<a href="#339" id="339">339</a>
-<a href="#340" id="340">340</a></pre></div><pre class="rust"><code><span class="kw">use </span>clap::{Args, Parser, Subcommand};
+<a href="#331" id="331">331</a></pre></div><pre class="rust"><code><span class="kw">use </span>clap::{Args, Parser, Subcommand};
 <span class="kw">use </span>const_format::formatcp;
 <span class="kw">use </span>nargo::workspace::Workspace;
 <span class="kw">use </span>nargo_toml::{
     ManifestError, NargoToml, PackageConfig, PackageMetadata, PackageSelection,
     get_package_manifest, resolve_workspace_from_fixed_toml, resolve_workspace_from_toml,
 };
+<span class="kw">use </span>noir_artifact_cli::commands::parse_and_normalize_path;
 <span class="kw">use </span>noirc_driver::{CrateName, NOIR_ARTIFACT_VERSION_STRING};
 <span class="kw">use </span>std::{
     collections::BTreeMap,
@@ -400,11 +392,11 @@
 #[derive(Args, Clone, Debug)]
 </span><span class="kw">pub struct </span>NargoConfig {
     <span class="comment">// REMINDER: Also change this flag in the LSP test lens if renamed
-    </span><span class="attr">#[arg(long, hide = <span class="bool-val">true</span>, global = <span class="bool-val">true</span>, default_value = <span class="string">"./"</span>, value_parser = parse_path)]
+    </span><span class="attr">#[arg(long, hide = <span class="bool-val">true</span>, global = <span class="bool-val">true</span>, default_value = <span class="string">"./"</span>, value_parser = parse_and_normalize_path)]
     </span>program_dir: PathBuf,
 
     <span class="doccomment">/// Override the default target directory.
-    </span><span class="attr">#[arg(long, hide = <span class="bool-val">true</span>, global = <span class="bool-val">true</span>, value_parser = parse_path)]
+    </span><span class="attr">#[arg(long, hide = <span class="bool-val">true</span>, global = <span class="bool-val">true</span>, value_parser = parse_and_normalize_path)]
     </span>target_dir: <span class="prelude-ty">Option</span>&lt;PathBuf&gt;,
 }
 
@@ -635,16 +627,6 @@
         locks.push(LockedFile(file));
     }
     <span class="prelude-val">Ok</span>(locks)
-}
-
-<span class="doccomment">/// Parses a path and turns it into an absolute one by joining to the current directory.
-</span><span class="kw">fn </span>parse_path(path: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;PathBuf, String&gt; {
-    <span class="kw">use </span>fm::NormalizePath;
-    <span class="kw">let </span><span class="kw-2">mut </span>path: PathBuf = path.parse().map_err(|e| <span class="macro">format!</span>(<span class="string">"failed to parse path: {e}"</span>))<span class="question-mark">?</span>;
-    <span class="kw">if </span>!path.is_absolute() {
-        path = std::env::current_dir().unwrap().join(path).normalize();
-    }
-    <span class="prelude-val">Ok</span>(path)
 }
 
 <span class="attr">#[cfg(test)]

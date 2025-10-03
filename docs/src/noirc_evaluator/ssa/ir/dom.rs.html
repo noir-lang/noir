@@ -870,7 +870,12 @@
 <a href="#869" id="869">869</a>
 <a href="#870" id="870">870</a>
 <a href="#871" id="871">871</a>
-<a href="#872" id="872">872</a></pre></div><pre class="rust"><code><span class="doccomment">//! The dominator tree of a function, represented as a hash map of each reachable block id to its
+<a href="#872" id="872">872</a>
+<a href="#873" id="873">873</a>
+<a href="#874" id="874">874</a>
+<a href="#875" id="875">875</a>
+<a href="#876" id="876">876</a>
+<a href="#877" id="877">877</a></pre></div><pre class="rust"><code><span class="doccomment">//! The dominator tree of a function, represented as a hash map of each reachable block id to its
 //! immediate dominator.
 //!
 //! Dominator trees are useful for tasks such as identifying back-edges in loop analysis or
@@ -946,10 +951,15 @@
 
     <span class="doccomment">/// Compare two blocks relative to the reverse post-order.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>reverse_post_order_cmp(<span class="kw-2">&amp;</span><span class="self">self</span>, a: BasicBlockId, b: BasicBlockId) -&gt; Ordering {
-        <span class="kw">match </span>(<span class="self">self</span>.nodes.get(<span class="kw-2">&amp;</span>a), <span class="self">self</span>.nodes.get(<span class="kw-2">&amp;</span>b)) {
-            (<span class="prelude-val">Some</span>(a), <span class="prelude-val">Some</span>(b)) =&gt; a.reverse_post_order_idx.cmp(<span class="kw-2">&amp;</span>b.reverse_post_order_idx),
+        <span class="kw">match </span>(<span class="self">self</span>.reverse_post_order_idx(a), <span class="self">self</span>.reverse_post_order_idx(b)) {
+            (<span class="prelude-val">Some</span>(a), <span class="prelude-val">Some</span>(b)) =&gt; a.cmp(<span class="kw-2">&amp;</span>b),
             <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"Post order for unreachable block is undefined"</span>),
         }
+    }
+
+    <span class="doccomment">/// Position in the Reverse Post-Order.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>reverse_post_order_idx(<span class="kw-2">&amp;</span><span class="self">self</span>, block_id: BasicBlockId) -&gt; <span class="prelude-ty">Option</span>&lt;u32&gt; {
+        <span class="self">self</span>.nodes.get(<span class="kw-2">&amp;</span>block_id).map(|n| n.reverse_post_order_idx)
     }
 
     <span class="doccomment">/// Returns `true` if `block_a_id` dominates `block_b_id`.
@@ -976,7 +986,7 @@
         <span class="kw-2">mut </span>block_b_id: BasicBlockId,
     ) -&gt; bool {
         <span class="comment">// Walk up the dominator tree from "b" until we encounter or pass "a". Doing the
-        // comparison on the reverse post-order may allows to test whether we have passed "a"
+        // comparison on the reverse post-order may allow to test whether we have passed "a"
         // without waiting until we reach the root of the tree.
         </span><span class="kw">loop </span>{
             <span class="kw">match </span><span class="self">self</span>.reverse_post_order_cmp(block_a_id, block_b_id) {

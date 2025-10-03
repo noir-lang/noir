@@ -205,7 +205,34 @@
 <a href="#204" id="204">204</a>
 <a href="#205" id="205">205</a>
 <a href="#206" id="206">206</a>
-<a href="#207" id="207">207</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::circuit::ExpressionWidth;
+<a href="#207" id="207">207</a>
+<a href="#208" id="208">208</a>
+<a href="#209" id="209">209</a>
+<a href="#210" id="210">210</a>
+<a href="#211" id="211">211</a>
+<a href="#212" id="212">212</a>
+<a href="#213" id="213">213</a>
+<a href="#214" id="214">214</a>
+<a href="#215" id="215">215</a>
+<a href="#216" id="216">216</a>
+<a href="#217" id="217">217</a>
+<a href="#218" id="218">218</a>
+<a href="#219" id="219">219</a>
+<a href="#220" id="220">220</a>
+<a href="#221" id="221">221</a>
+<a href="#222" id="222">222</a>
+<a href="#223" id="223">223</a>
+<a href="#224" id="224">224</a>
+<a href="#225" id="225">225</a>
+<a href="#226" id="226">226</a>
+<a href="#227" id="227">227</a>
+<a href="#228" id="228">228</a>
+<a href="#229" id="229">229</a>
+<a href="#230" id="230">230</a>
+<a href="#231" id="231">231</a>
+<a href="#232" id="232">232</a>
+<a href="#233" id="233">233</a>
+<a href="#234" id="234">234</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::circuit::ExpressionWidth;
 <span class="kw">use </span>color_eyre::eyre;
 <span class="kw">use </span>noir_ast_fuzzer::DisplayAstAsNoir;
 <span class="kw">use </span>noir_ast_fuzzer::compare::{
@@ -213,6 +240,7 @@
     CompareInterpretedResult, HasPrograms,
 };
 <span class="kw">use </span>noirc_abi::input_parser::Format;
+<span class="kw">use </span>noirc_evaluator::ssa::opt::{CONSTANT_FOLDING_MAX_ITER, INLINING_MAX_INSTRUCTIONS};
 <span class="kw">use </span>noirc_evaluator::ssa::{SsaPass, primary_passes};
 <span class="kw">use </span>noirc_evaluator::{
     brillig::BrilligOptions,
@@ -226,12 +254,8 @@
     std::env::var(key).map(|s| s == <span class="string">"1" </span>|| s == <span class="string">"true"</span>).unwrap_or_default()
 }
 
-<span class="comment">// TODO(#7876): Allow specifying options on the command line.
-</span><span class="kw">fn </span>show_ast() -&gt; bool {
-    bool_from_env(<span class="string">"NOIR_AST_FUZZER_SHOW_AST"</span>)
-}
-
-<span class="kw">fn </span>show_ssa() -&gt; bool {
+<span class="doccomment">/// Show all SSA passes during compilation.
+</span><span class="kw">fn </span>show_ssa() -&gt; bool {
     bool_from_env(<span class="string">"NOIR_AST_FUZZER_SHOW_SSA"</span>)
 }
 
@@ -246,45 +270,58 @@
         skip_brillig_constraints_check: <span class="bool-val">true</span>,
         enable_brillig_constraints_check_lookback: <span class="bool-val">false</span>,
         inliner_aggressiveness: <span class="number">0</span>,
+        constant_folding_max_iter: CONSTANT_FOLDING_MAX_ITER,
+        small_function_max_instruction: INLINING_MAX_INSTRUCTIONS,
         max_bytecode_increase_percent: <span class="prelude-val">None</span>,
         skip_passes: Default::default(),
     }
 }
 
-<span class="doccomment">/// Compile a [Program] into SSA or panic.
-///
-/// Prints the AST if `NOIR_AST_FUZZER_SHOW_AST` is set.
-</span><span class="kw">pub fn </span>create_ssa_or_die(
+<span class="doccomment">/// Compile a monomorphized [Program] into circuit or panic.
+</span><span class="kw">pub fn </span>compile_into_circuit_or_die(
     program: Program,
     options: <span class="kw-2">&amp;</span>SsaEvaluatorOptions,
     msg: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;,
 ) -&gt; SsaProgramArtifact {
-    create_ssa_with_passes_or_die(program, options, <span class="kw-2">&amp;</span>primary_passes(options), msg)
+    compile_into_circuit_with_ssa_passes_or_die(program, options, <span class="kw-2">&amp;</span>primary_passes(options), msg)
 }
 
-<span class="doccomment">/// Compile a [Program] into SSA using the given primary and secondary passes, or panic.
+<span class="doccomment">/// Compile a monomorphized [Program] into circuit using the given SSA passes or panic.
 ///
-/// Prints the AST if `NOIR_AST_FUZZER_SHOW_AST` is set.
-</span><span class="kw">pub fn </span>create_ssa_with_passes_or_die(
+/// If there is a seed in the environment, then it prints the AST when an error is encountered.
+</span><span class="kw">pub fn </span>compile_into_circuit_with_ssa_passes_or_die(
     program: Program,
     options: <span class="kw-2">&amp;</span>SsaEvaluatorOptions,
     primary: <span class="kw-2">&amp;</span>[SsaPass],
     msg: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;,
 ) -&gt; SsaProgramArtifact {
-    <span class="comment">// Unfortunately we can't use `std::panic::catch_unwind`
-    // and `std::panic::resume_unwind` to catch any panic
-    // and print the AST, then resume the panic, because
-    // `Program` has a `RefCell` in it, which is not unwind safe.
-    </span><span class="kw">if </span>show_ast() {
-        <span class="macro">eprintln!</span>(<span class="string">"---\n{}\n---"</span>, DisplayAstAsNoir(<span class="kw-2">&amp;</span>program));
-    }
+    <span class="comment">// If we are using a seed, we are probably trying to reproduce some failure;
+    // in that case let's clone the program for printing if it panicked here,
+    // otherwise try to keep things faster by not cloning.
+    </span><span class="kw">let </span>for_print = std::env::var(<span class="string">"NOIR_AST_FUZZER_SEED"</span>).is_ok().then(|| program.clone());
 
-    ssa::create_program_with_passes(program, options, primary, <span class="prelude-val">None</span>).unwrap_or_else(|e| {
-        <span class="macro">panic!</span>(
-            <span class="string">"failed to compile program: {}{e}"</span>,
-            msg.map(|s| <span class="macro">format!</span>(<span class="string">"{s}: "</span>)).unwrap_or_default()
+    <span class="comment">// We expect the programs generated should compile, but sometimes SSA passes panic, or return an error.
+    // Turn everything into a panic, catch it, print the AST, then resume panicking.
+    </span><span class="kw">let </span>result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        ssa::create_program_with_passes(program.clone(), options, primary, <span class="prelude-val">None</span>).unwrap_or_else(
+            |e| {
+                <span class="macro">panic!</span>(
+                    <span class="string">"failed to compile program: {}{e}"</span>,
+                    msg.map(|s| <span class="macro">format!</span>(<span class="string">"{s}: "</span>)).unwrap_or_default()
+                )
+            },
         )
-    })
+    }));
+
+    <span class="kw">match </span>result {
+        <span class="prelude-val">Ok</span>(ssa) =&gt; ssa,
+        <span class="prelude-val">Err</span>(payload) =&gt; {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(program) = for_print {
+                <span class="macro">eprintln!</span>(<span class="string">"--- Failing AST:\n{}\n---"</span>, DisplayAstAsNoir(<span class="kw-2">&amp;</span>program));
+            }
+            std::panic::resume_unwind(payload);
+        }
+    }
 }
 
 <span class="doccomment">/// Compare the execution result and print the inputs if the result is a failure.
@@ -318,11 +355,28 @@
                 .serialize(<span class="kw-2">&amp;</span>inputs.input_map, <span class="kw-2">&amp;</span>inputs.abi)
                 .unwrap_or_else(|e| <span class="macro">format!</span>(<span class="string">"failed to serialize inputs: {e}"</span>))
         );
+
+        <span class="comment">// Display a Program without the Brillig opcodes, which are unreadable.
+        </span><span class="kw">fn </span>display_program(artifact: <span class="kw-2">&amp;</span>SsaProgramArtifact) {
+            <span class="kw">for </span>(func_index, function) <span class="kw">in </span>artifact.program.functions.iter().enumerate() {
+                <span class="macro">eprintln!</span>(<span class="string">"func {func_index}"</span>);
+                <span class="macro">eprintln!</span>(<span class="string">"{function}"</span>);
+            }
+            <span class="kw">for </span>(func_index, function) <span class="kw">in
+                </span>artifact.program.unconstrained_functions.iter().enumerate()
+            {
+                <span class="macro">eprintln!</span>(<span class="string">"unconstrained func {func_index}"</span>);
+                <span class="macro">eprintln!</span>(<span class="string">"opcode count: {}"</span>, function.bytecode.len());
+            }
+        }
+
         <span class="macro">eprintln!</span>(<span class="string">"---\nOptions 1:\n{:?}"</span>, inputs.ssa1.options);
-        <span class="macro">eprintln!</span>(<span class="string">"---\nProgram 1:\n{}"</span>, inputs.ssa1.artifact.program);
+        <span class="macro">eprintln!</span>(<span class="string">"---\nProgram 1:"</span>);
+        display_program(<span class="kw-2">&amp;</span>inputs.ssa1.artifact);
 
         <span class="macro">eprintln!</span>(<span class="string">"---\nOptions 2:\n{:?}"</span>, inputs.ssa2.options);
-        <span class="macro">eprintln!</span>(<span class="string">"---\nProgram 2:\n{}"</span>, inputs.ssa2.artifact.program);
+        <span class="macro">eprintln!</span>(<span class="string">"---\nProgram 2:"</span>);
+        display_program(<span class="kw-2">&amp;</span>inputs.ssa1.artifact);
 
         <span class="comment">// Returning it as-is, so we can see the error message at the bottom as well.
         </span><span class="prelude-val">Err</span>(report)

@@ -337,8 +337,7 @@
 <a href="#336" id="336">336</a>
 <a href="#337" id="337">337</a>
 <a href="#338" id="338">338</a>
-<a href="#339" id="339">339</a>
-<a href="#340" id="340">340</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{
+<a href="#339" id="339">339</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{
     AcirField,
     circuit::{
         Circuit, Opcode,
@@ -350,6 +349,12 @@
 <span class="kw">use </span>std::collections::{BTreeSet, HashSet};
 
 <span class="doccomment">/// Simulate a symbolic solve for a circuit
+/// Instead of evaluating witness values from the inputs, like the PWG module is doing,
+/// this pass simply mark the witness that can be evaluated, from the known inputs,
+/// and incrementally from the previously marked witnesses.
+/// This avoid any computation on a big field which makes the process efficient.
+/// When all the witness of an opcode are marked as solvable, it means that the
+/// opcode is solvable.
 </span><span class="attr">#[derive(Default)]
 </span><span class="kw">pub struct </span>CircuitSimulator {
     <span class="doccomment">/// Track the witnesses that can be solved
@@ -414,19 +419,13 @@
                 }
                 <span class="bool-val">true
             </span>}
-            Opcode::MemoryOp { block_id, op, predicate } =&gt; {
+            Opcode::MemoryOp { block_id, op } =&gt; {
                 <span class="kw">if </span>!<span class="self">self</span>.initialized_blocks.contains(block_id) {
                     <span class="comment">// Memory must be initialized before it can be used.
                     </span><span class="kw">return </span><span class="bool-val">false</span>;
                 }
-
                 <span class="kw">if </span>!<span class="self">self</span>.can_solve_expression(<span class="kw-2">&amp;</span>op.index) {
                     <span class="kw">return </span><span class="bool-val">false</span>;
-                }
-                <span class="kw">if let </span><span class="prelude-val">Some</span>(predicate) = predicate {
-                    <span class="kw">if </span>!<span class="self">self</span>.can_solve_expression(predicate) {
-                        <span class="kw">return </span><span class="bool-val">false</span>;
-                    }
                 }
                 <span class="kw">if </span>op.operation.is_zero() {
                     <span class="kw">let </span><span class="prelude-val">Some</span>(w) = op.value.to_witness() <span class="kw">else </span>{
@@ -494,8 +493,8 @@
     }
 
     <span class="kw">pub fn </span>can_solve_function_input&lt;F: AcirField&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, input: <span class="kw-2">&amp;</span>FunctionInput&lt;F&gt;) -&gt; bool {
-        <span class="kw">if </span>!input.is_constant() {
-            <span class="kw">return </span><span class="self">self</span>.solvable_witness.contains(<span class="kw-2">&amp;</span>input.to_witness());
+        <span class="kw">if let </span>FunctionInput::Witness(w) = input {
+            <span class="kw">return </span><span class="self">self</span>.solvable_witness.contains(w);
         }
         <span class="bool-val">true
     </span>}
@@ -540,7 +539,7 @@
         FieldElement,
         acir_field::AcirField,
         circuit::{
-            Circuit, ExpressionWidth, Opcode, PublicInputs,
+            Circuit, Opcode, PublicInputs,
             brillig::{BrilligFunctionId, BrilligInputs},
             opcodes::{BlockId, BlockType, MemOp},
         },
@@ -553,8 +552,8 @@
         public_parameters: PublicInputs,
     ) -&gt; Circuit&lt;FieldElement&gt; {
         Circuit {
+            function_name: <span class="string">"test_circuit"</span>.to_string(),
             current_witness_index: <span class="number">1</span>,
-            expression_width: ExpressionWidth::Bounded { width: <span class="number">4 </span>},
             opcodes,
             private_parameters,
             public_parameters,
@@ -646,7 +645,6 @@
                         },
                         Witness(<span class="number">2</span>),
                     ),
-                    predicate: <span class="prelude-val">None</span>,
                 },
             ],
             BTreeSet::from([Witness(<span class="number">1</span>)]),

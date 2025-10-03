@@ -775,7 +775,10 @@
 <a href="#774" id="774">774</a>
 <a href="#775" id="775">775</a>
 <a href="#776" id="776">776</a>
-<a href="#777" id="777">777</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
+<a href="#777" id="777">777</a>
+<a href="#778" id="778">778</a>
+<a href="#779" id="779">779</a>
+<a href="#780" id="780">780</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
 <span class="kw">use </span>std::rc::Rc;
 
 <span class="kw">use crate</span>::{
@@ -1287,22 +1290,25 @@
                 CustomDiagnostic::simple_error(msg, String::new(), <span class="kw-2">*</span>location)
             }
             InterpreterError::InvalidValuesForBinary { lhs, rhs, operator, location } =&gt; {
-                <span class="kw">let </span>msg = <span class="macro">format!</span>(<span class="string">"No implementation for `{lhs}` {operator} `{rhs}`"</span>);
+                <span class="kw">let </span>msg = <span class="kw">if </span><span class="kw-2">*</span>operator == <span class="string">"/" </span>{
+                    <span class="string">"Attempt to divide by zero"</span>.to_string()
+                } <span class="kw">else if </span><span class="kw-2">*</span>operator == <span class="string">"%" </span>{
+                    <span class="string">"Attempt to calculate the remainder with a divisor of zero"</span>.to_string()
+                } <span class="kw">else </span>{
+                    <span class="macro">format!</span>(<span class="string">"No implementation for `{lhs}` {operator} `{rhs}`"</span>)
+                };
                 CustomDiagnostic::simple_error(msg, String::new(), <span class="kw-2">*</span>location)
             }
             InterpreterError::BinaryOperationOverflow { operator, location } =&gt; {
-                <span class="kw">let </span>msg = <span class="kw">if </span><span class="kw-2">*</span>operator == <span class="string">"/" </span>{
-                    <span class="string">"Attempt to divide by zero"</span>.to_string()
-                } <span class="kw">else </span>{
-                    <span class="kw">let </span>operator = <span class="kw">match </span><span class="kw-2">*</span>operator {
-                        <span class="string">"+" </span>=&gt; <span class="string">"add"</span>,
-                        <span class="string">"-" </span>=&gt; <span class="string">"subtract"</span>,
-                        <span class="string">"*" </span>=&gt; <span class="string">"multiply"</span>,
-                        <span class="string">"&gt;&gt;" </span>| <span class="string">"&lt;&lt;" </span>=&gt; <span class="string">"bit-shift"</span>,
-                        <span class="kw">_ </span>=&gt; operator,
-                    };
-                    <span class="macro">format!</span>(<span class="string">"Attempt to {operator} with overflow"</span>)
+                <span class="kw">let </span>operator = <span class="kw">match </span><span class="kw-2">*</span>operator {
+                    <span class="string">"+" </span>=&gt; <span class="string">"add"</span>,
+                    <span class="string">"-" </span>=&gt; <span class="string">"subtract"</span>,
+                    <span class="string">"*" </span>=&gt; <span class="string">"multiply"</span>,
+                    <span class="string">"&gt;&gt;" </span>| <span class="string">"&lt;&lt;" </span>=&gt; <span class="string">"bit-shift"</span>,
+                    <span class="kw">_ </span>=&gt; operator,
                 };
+                <span class="kw">let </span>msg = <span class="macro">format!</span>(<span class="string">"Attempt to {operator} with overflow"</span>);
+
                 CustomDiagnostic::simple_error(msg, String::new(), <span class="kw-2">*</span>location)
             }
             InterpreterError::NegateWithOverflow { location } =&gt; {

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["compile_from_artifacts","compile_from_ssa","optimize_ssa_into_acir"]};
+window.SIDEBAR_ITEMS = {"fn":["compile_from_artifacts","compile_from_ssa","compile_to_bytecode_base64","optimize_ssa_into_acir"]};

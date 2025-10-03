@@ -647,75 +647,7 @@
 <a href="#646" id="646">646</a>
 <a href="#647" id="647">647</a>
 <a href="#648" id="648">648</a>
-<a href="#649" id="649">649</a>
-<a href="#650" id="650">650</a>
-<a href="#651" id="651">651</a>
-<a href="#652" id="652">652</a>
-<a href="#653" id="653">653</a>
-<a href="#654" id="654">654</a>
-<a href="#655" id="655">655</a>
-<a href="#656" id="656">656</a>
-<a href="#657" id="657">657</a>
-<a href="#658" id="658">658</a>
-<a href="#659" id="659">659</a>
-<a href="#660" id="660">660</a>
-<a href="#661" id="661">661</a>
-<a href="#662" id="662">662</a>
-<a href="#663" id="663">663</a>
-<a href="#664" id="664">664</a>
-<a href="#665" id="665">665</a>
-<a href="#666" id="666">666</a>
-<a href="#667" id="667">667</a>
-<a href="#668" id="668">668</a>
-<a href="#669" id="669">669</a>
-<a href="#670" id="670">670</a>
-<a href="#671" id="671">671</a>
-<a href="#672" id="672">672</a>
-<a href="#673" id="673">673</a>
-<a href="#674" id="674">674</a>
-<a href="#675" id="675">675</a>
-<a href="#676" id="676">676</a>
-<a href="#677" id="677">677</a>
-<a href="#678" id="678">678</a>
-<a href="#679" id="679">679</a>
-<a href="#680" id="680">680</a>
-<a href="#681" id="681">681</a>
-<a href="#682" id="682">682</a>
-<a href="#683" id="683">683</a>
-<a href="#684" id="684">684</a>
-<a href="#685" id="685">685</a>
-<a href="#686" id="686">686</a>
-<a href="#687" id="687">687</a>
-<a href="#688" id="688">688</a>
-<a href="#689" id="689">689</a>
-<a href="#690" id="690">690</a>
-<a href="#691" id="691">691</a>
-<a href="#692" id="692">692</a>
-<a href="#693" id="693">693</a>
-<a href="#694" id="694">694</a>
-<a href="#695" id="695">695</a>
-<a href="#696" id="696">696</a>
-<a href="#697" id="697">697</a>
-<a href="#698" id="698">698</a>
-<a href="#699" id="699">699</a>
-<a href="#700" id="700">700</a>
-<a href="#701" id="701">701</a>
-<a href="#702" id="702">702</a>
-<a href="#703" id="703">703</a>
-<a href="#704" id="704">704</a>
-<a href="#705" id="705">705</a>
-<a href="#706" id="706">706</a>
-<a href="#707" id="707">707</a>
-<a href="#708" id="708">708</a>
-<a href="#709" id="709">709</a>
-<a href="#710" id="710">710</a>
-<a href="#711" id="711">711</a>
-<a href="#712" id="712">712</a>
-<a href="#713" id="713">713</a>
-<a href="#714" id="714">714</a>
-<a href="#715" id="715">715</a>
-<a href="#716" id="716">716</a>
-<a href="#717" id="717">717</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
+<a href="#649" id="649">649</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
     circuit,
     proto::brillig::{BitSize, BlackBoxOp, HeapArray, HeapValueType, HeapVector, ValueOrArray},
 };
@@ -734,11 +666,15 @@
     <span class="kw">for </span>ProtoSchema&lt;F&gt;
 {
     <span class="kw">fn </span>encode(value: <span class="kw-2">&amp;</span>circuit::brillig::BrilligBytecode&lt;F&gt;) -&gt; BrilligBytecode {
-        BrilligBytecode { bytecode: <span class="self">Self</span>::encode_vec(<span class="kw-2">&amp;</span>value.bytecode) }
+        BrilligBytecode {
+            function_name: value.function_name.clone(),
+            bytecode: <span class="self">Self</span>::encode_vec(<span class="kw-2">&amp;</span>value.bytecode),
+        }
     }
 
     <span class="kw">fn </span>decode(value: <span class="kw-2">&amp;</span>BrilligBytecode) -&gt; eyre::Result&lt;circuit::brillig::BrilligBytecode&lt;F&gt;&gt; {
         <span class="prelude-val">Ok</span>(circuit::brillig::BrilligBytecode {
+            function_name: value.function_name.clone(),
             bytecode: <span class="self">Self</span>::decode_vec_wrap(<span class="kw-2">&amp;</span>value.bytecode, <span class="string">"bytecode"</span>)<span class="question-mark">?</span>,
         })
     }
@@ -775,10 +711,6 @@
                 destination: <span class="self">Self</span>::encode_some(destination),
                 source: <span class="self">Self</span>::encode_some(source),
                 bit_size: <span class="self">Self</span>::encode_some(bit_size),
-            }),
-            brillig::Opcode::JumpIfNot { condition, location } =&gt; Value::JumpIfNot(JumpIfNot {
-                condition: <span class="self">Self</span>::encode_some(condition),
-                location: <span class="self">Self</span>::encode(location),
             }),
             brillig::Opcode::JumpIf { condition, location } =&gt; Value::JumpIf(JumpIf {
                 condition: <span class="self">Self</span>::encode_some(condition),
@@ -882,10 +814,6 @@
                 destination: <span class="self">Self</span>::decode_some_wrap(<span class="kw-2">&amp;</span>v.destination, <span class="string">"destination"</span>)<span class="question-mark">?</span>,
                 source: <span class="self">Self</span>::decode_some_wrap(<span class="kw-2">&amp;</span>v.source, <span class="string">"source"</span>)<span class="question-mark">?</span>,
                 bit_size: <span class="self">Self</span>::decode_some_wrap(<span class="kw-2">&amp;</span>v.bit_size, <span class="string">"bit_size"</span>)<span class="question-mark">?</span>,
-            }),
-            Value::JumpIfNot(v) =&gt; <span class="prelude-val">Ok</span>(brillig::Opcode::JumpIfNot {
-                condition: <span class="self">Self</span>::decode_some_wrap(<span class="kw-2">&amp;</span>v.condition, <span class="string">"condition"</span>)<span class="question-mark">?</span>,
-                location: <span class="self">Self</span>::decode_wrap(<span class="kw-2">&amp;</span>v.location, <span class="string">"location"</span>)<span class="question-mark">?</span>,
             }),
             Value::JumpIf(v) =&gt; <span class="prelude-val">Ok</span>(brillig::Opcode::JumpIf {
                 condition: <span class="self">Self</span>::decode_some_wrap(<span class="kw-2">&amp;</span>v.condition, <span class="string">"condition"</span>)<span class="question-mark">?</span>,
@@ -1270,44 +1198,10 @@
                 input2_infinite: <span class="self">Self</span>::encode_some(input2_infinite),
                 result: <span class="self">Self</span>::encode_some(result),
             }),
-            brillig::BlackBoxOp::BigIntAdd { lhs, rhs, output } =&gt; Value::BigIntAdd(BigIntAdd {
-                lhs: <span class="self">Self</span>::encode_some(lhs),
-                rhs: <span class="self">Self</span>::encode_some(rhs),
-                output: <span class="self">Self</span>::encode_some(output),
-            }),
-            brillig::BlackBoxOp::BigIntSub { lhs, rhs, output } =&gt; Value::BigIntSub(BigIntSub {
-                lhs: <span class="self">Self</span>::encode_some(lhs),
-                rhs: <span class="self">Self</span>::encode_some(rhs),
-                output: <span class="self">Self</span>::encode_some(output),
-            }),
-            brillig::BlackBoxOp::BigIntMul { lhs, rhs, output } =&gt; Value::BigIntMul(BigIntMul {
-                lhs: <span class="self">Self</span>::encode_some(lhs),
-                rhs: <span class="self">Self</span>::encode_some(rhs),
-                output: <span class="self">Self</span>::encode_some(output),
-            }),
-            brillig::BlackBoxOp::BigIntDiv { lhs, rhs, output } =&gt; Value::BigIntDiv(BigIntDiv {
-                lhs: <span class="self">Self</span>::encode_some(lhs),
-                rhs: <span class="self">Self</span>::encode_some(rhs),
-                output: <span class="self">Self</span>::encode_some(output),
-            }),
-            brillig::BlackBoxOp::BigIntFromLeBytes { inputs, modulus, output } =&gt; {
-                Value::BigIntFromLeBytes(BigIntFromLeBytes {
-                    inputs: <span class="self">Self</span>::encode_some(inputs),
-                    modulus: <span class="self">Self</span>::encode_some(modulus),
-                    output: <span class="self">Self</span>::encode_some(output),
-                })
-            }
-            brillig::BlackBoxOp::BigIntToLeBytes { input, output } =&gt; {
-                Value::BigIntToLeBytes(BigIntToLeBytes {
-                    input: <span class="self">Self</span>::encode_some(input),
-                    output: <span class="self">Self</span>::encode_some(output),
-                })
-            }
-            brillig::BlackBoxOp::Poseidon2Permutation { message, output, len } =&gt; {
+            brillig::BlackBoxOp::Poseidon2Permutation { message, output } =&gt; {
                 Value::Poseidon2Permutation(Poseidon2Permutation {
                     message: <span class="self">Self</span>::encode_some(message),
                     output: <span class="self">Self</span>::encode_some(output),
-                    len: <span class="self">Self</span>::encode_some(len),
                 })
             }
             brillig::BlackBoxOp::Sha256Compression { input, hash_values, output } =&gt; {
@@ -1383,39 +1277,9 @@
                 input2_infinite: <span class="self">Self</span>::decode_some_wrap(<span class="kw-2">&amp;</span>v.input2_infinite, <span class="string">"input2_infinite"</span>)<span class="question-mark">?</span>,
                 result: <span class="self">Self</span>::decode_some_wrap(<span class="kw-2">&amp;</span>v.result, <span class="string">"result"</span>)<span class="question-mark">?</span>,
             }),
-            Value::BigIntAdd(v) =&gt; <span class="prelude-val">Ok</span>(brillig::BlackBoxOp::BigIntAdd {
-                lhs: <span class="self">Self</span>::decode_some_wrap(<span class="kw-2">&amp;</span>v.lhs, <span class="string">"lhs"</span>)<span class="question-mark">?</span>,
-                rhs: <span class="self">Self</span>::decode_some_wrap(<span class="kw-2">&amp;</span>v.rhs, <span class="string">"rhs"</span>)<span class="question-mark">?</span>,
-                output: <span class="self">Self</span>::decode_some_wrap(<span class="kw-2">&amp;</span>v.output, <span class="string">"output"</span>)<span class="question-mark">?</span>,
-            }),
-            Value::BigIntSub(v) =&gt; <span class="prelude-val">Ok</span>(brillig::BlackBoxOp::BigIntSub {
-                lhs: <span class="self">Self</span>::decode_some_wrap(<span class="kw-2">&amp;</span>v.lhs, <span class="string">"lhs"</span>)<span class="question-mark">?</span>,
-                rhs: <span class="self">Self</span>::decode_some_wrap(<span class="kw-2">&amp;</span>v.rhs, <span class="string">"rhs"</span>)<span class="question-mark">?</span>,
-                output: <span class="self">Self</span>::decode_some_wrap(<span class="kw-2">&amp;</span>v.output, <span class="string">"output"</span>)<span class="question-mark">?</span>,
-            }),
-            Value::BigIntMul(v) =&gt; <span class="prelude-val">Ok</span>(brillig::BlackBoxOp::BigIntMul {
-                lhs: <span class="self">Self</span>::decode_some_wrap(<span class="kw-2">&amp;</span>v.lhs, <span class="string">"lhs"</span>)<span class="question-mark">?</span>,
-                rhs: <span class="self">Self</span>::decode_some_wrap(<span class="kw-2">&amp;</span>v.rhs, <span class="string">"rhs"</span>)<span class="question-mark">?</span>,
-                output: <span class="self">Self</span>::decode_some_wrap(<span class="kw-2">&amp;</span>v.output, <span class="string">"output"</span>)<span class="question-mark">?</span>,
-            }),
-            Value::BigIntDiv(v) =&gt; <span class="prelude-val">Ok</span>(brillig::BlackBoxOp::BigIntDiv {
-                lhs: <span class="self">Self</span>::decode_some_wrap(<span class="kw-2">&amp;</span>v.lhs, <span class="string">"lhs"</span>)<span class="question-mark">?</span>,
-                rhs: <span class="self">Self</span>::decode_some_wrap(<span class="kw-2">&amp;</span>v.rhs, <span class="string">"rhs"</span>)<span class="question-mark">?</span>,
-                output: <span class="self">Self</span>::decode_some_wrap(<span class="kw-2">&amp;</span>v.output, <span class="string">"output"</span>)<span class="question-mark">?</span>,
-            }),
-            Value::BigIntFromLeBytes(v) =&gt; <span class="prelude-val">Ok</span>(brillig::BlackBoxOp::BigIntFromLeBytes {
-                inputs: <span class="self">Self</span>::decode_some_wrap(<span class="kw-2">&amp;</span>v.inputs, <span class="string">"inputs"</span>)<span class="question-mark">?</span>,
-                modulus: <span class="self">Self</span>::decode_some_wrap(<span class="kw-2">&amp;</span>v.modulus, <span class="string">"modulus"</span>)<span class="question-mark">?</span>,
-                output: <span class="self">Self</span>::decode_some_wrap(<span class="kw-2">&amp;</span>v.output, <span class="string">"output"</span>)<span class="question-mark">?</span>,
-            }),
-            Value::BigIntToLeBytes(v) =&gt; <span class="prelude-val">Ok</span>(brillig::BlackBoxOp::BigIntToLeBytes {
-                input: <span class="self">Self</span>::decode_some_wrap(<span class="kw-2">&amp;</span>v.input, <span class="string">"input"</span>)<span class="question-mark">?</span>,
-                output: <span class="self">Self</span>::decode_some_wrap(<span class="kw-2">&amp;</span>v.output, <span class="string">"output"</span>)<span class="question-mark">?</span>,
-            }),
             Value::Poseidon2Permutation(v) =&gt; <span class="prelude-val">Ok</span>(brillig::BlackBoxOp::Poseidon2Permutation {
                 message: <span class="self">Self</span>::decode_some_wrap(<span class="kw-2">&amp;</span>v.message, <span class="string">"message"</span>)<span class="question-mark">?</span>,
                 output: <span class="self">Self</span>::decode_some_wrap(<span class="kw-2">&amp;</span>v.output, <span class="string">"output"</span>)<span class="question-mark">?</span>,
-                len: <span class="self">Self</span>::decode_some_wrap(<span class="kw-2">&amp;</span>v.len, <span class="string">"len"</span>)<span class="question-mark">?</span>,
             }),
             Value::Sha256Compression(v) =&gt; <span class="prelude-val">Ok</span>(brillig::BlackBoxOp::Sha256Compression {
                 input: <span class="self">Self</span>::decode_some_wrap(<span class="kw-2">&amp;</span>v.input, <span class="string">"input"</span>)<span class="question-mark">?</span>,

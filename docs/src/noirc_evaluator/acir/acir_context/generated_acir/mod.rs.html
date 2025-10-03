@@ -806,23 +806,7 @@
 <a href="#805" id="805">805</a>
 <a href="#806" id="806">806</a>
 <a href="#807" id="807">807</a>
-<a href="#808" id="808">808</a>
-<a href="#809" id="809">809</a>
-<a href="#810" id="810">810</a>
-<a href="#811" id="811">811</a>
-<a href="#812" id="812">812</a>
-<a href="#813" id="813">813</a>
-<a href="#814" id="814">814</a>
-<a href="#815" id="815">815</a>
-<a href="#816" id="816">816</a>
-<a href="#817" id="817">817</a>
-<a href="#818" id="818">818</a>
-<a href="#819" id="819">819</a>
-<a href="#820" id="820">820</a>
-<a href="#821" id="821">821</a>
-<a href="#822" id="822">822</a>
-<a href="#823" id="823">823</a>
-<a href="#824" id="824">824</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `generated_acir` module is responsible for the lowest level tracking of ACIR-gen.
+<a href="#808" id="808">808</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `generated_acir` module is responsible for the lowest level tracking of ACIR-gen.
 //!
 //! This module defines the `GeneratedAcir` which is constructed as part of the ACIR-gen pass
 //! to accumulate all of the ACIR. This tracks properties such as which witnesses form part of the circuit interface
@@ -1000,156 +984,158 @@
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>call_black_box(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         func_name: BlackBoxFunc,
-        inputs: <span class="kw-2">&amp;</span>[Vec&lt;FunctionInput&lt;F&gt;&gt;],
+        function_inputs: <span class="kw-2">&amp;</span>[Vec&lt;FunctionInput&lt;F&gt;&gt;],
         constant_inputs: Vec&lt;F&gt;,
-        constant_outputs: Vec&lt;F&gt;,
+        num_bits: <span class="prelude-ty">Option</span>&lt;u32&gt;,
         outputs: Vec&lt;Witness&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), InternalError&gt; {
-        <span class="kw">let </span>input_count = inputs.iter().fold(<span class="number">0usize</span>, |sum, val| sum + val.len());
+        <span class="kw">let </span>input_count = function_inputs.iter().fold(<span class="number">0usize</span>, |sum, val| sum + val.len());
         intrinsics_check_inputs(func_name, input_count);
         intrinsics_check_outputs(func_name, outputs.len());
-
         <span class="kw">let </span>black_box_func_call = <span class="kw">match </span>func_name {
             BlackBoxFunc::AES128Encrypt =&gt; BlackBoxFuncCall::AES128Encrypt {
-                inputs: inputs[<span class="number">0</span>].clone(),
-                iv: inputs[<span class="number">1</span>]
+                inputs: function_inputs[<span class="number">0</span>].clone(),
+                iv: function_inputs[<span class="number">1</span>]
                     .clone()
                     .try_into()
                     .expect(<span class="string">"Compiler should generate correct size inputs"</span>),
-                key: inputs[<span class="number">2</span>]
+                key: function_inputs[<span class="number">2</span>]
                     .clone()
                     .try_into()
                     .expect(<span class="string">"Compiler should generate correct size inputs"</span>),
                 outputs,
             },
-            BlackBoxFunc::AND =&gt; {
-                BlackBoxFuncCall::AND { lhs: inputs[<span class="number">0</span>][<span class="number">0</span>], rhs: inputs[<span class="number">1</span>][<span class="number">0</span>], output: outputs[<span class="number">0</span>] }
-            }
-            BlackBoxFunc::XOR =&gt; {
-                BlackBoxFuncCall::XOR { lhs: inputs[<span class="number">0</span>][<span class="number">0</span>], rhs: inputs[<span class="number">1</span>][<span class="number">0</span>], output: outputs[<span class="number">0</span>] }
-            }
-            BlackBoxFunc::RANGE =&gt; BlackBoxFuncCall::RANGE { input: inputs[<span class="number">0</span>][<span class="number">0</span>] },
+            BlackBoxFunc::AND =&gt; BlackBoxFuncCall::AND {
+                lhs: function_inputs[<span class="number">0</span>][<span class="number">0</span>],
+                rhs: function_inputs[<span class="number">1</span>][<span class="number">0</span>],
+                num_bits: num_bits.expect(<span class="string">"missing num_bits"</span>),
+                output: outputs[<span class="number">0</span>],
+            },
+            BlackBoxFunc::XOR =&gt; BlackBoxFuncCall::XOR {
+                lhs: function_inputs[<span class="number">0</span>][<span class="number">0</span>],
+                rhs: function_inputs[<span class="number">1</span>][<span class="number">0</span>],
+                num_bits: num_bits.expect(<span class="string">"missing num_bits"</span>),
+                output: outputs[<span class="number">0</span>],
+            },
+            BlackBoxFunc::RANGE =&gt; BlackBoxFuncCall::RANGE {
+                input: function_inputs[<span class="number">0</span>][<span class="number">0</span>],
+                num_bits: num_bits.expect(<span class="string">"missing num_bits"</span>),
+            },
             BlackBoxFunc::Blake2s =&gt; BlackBoxFuncCall::Blake2s {
-                inputs: inputs[<span class="number">0</span>].clone(),
+                inputs: function_inputs[<span class="number">0</span>].clone(),
                 outputs: outputs.try_into().expect(<span class="string">"Compiler should generate correct size outputs"</span>),
             },
             BlackBoxFunc::Blake3 =&gt; BlackBoxFuncCall::Blake3 {
-                inputs: inputs[<span class="number">0</span>].clone(),
+                inputs: function_inputs[<span class="number">0</span>].clone(),
                 outputs: outputs.try_into().expect(<span class="string">"Compiler should generate correct size outputs"</span>),
             },
             BlackBoxFunc::EcdsaSecp256k1 =&gt; {
+                <span class="kw">if </span>function_inputs[<span class="number">0</span>].len() != <span class="number">32
+                    </span>|| function_inputs[<span class="number">1</span>].len() != <span class="number">32
+                    </span>|| function_inputs[<span class="number">2</span>].len() != <span class="number">64
+                    </span>|| function_inputs[<span class="number">3</span>].len() != <span class="number">32
+                </span>{
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(InternalError::General {
+                        message: <span class="string">"Compiler should generate correct size inputs"</span>.to_string(),
+                        call_stack: <span class="self">self</span>.get_call_stack(),
+                    });
+                }
                 BlackBoxFuncCall::EcdsaSecp256k1 {
                     <span class="comment">// 32 bytes for each public key co-ordinate
-                    </span>public_key_x: inputs[<span class="number">0</span>]
+                    </span>public_key_x: function_inputs[<span class="number">0</span>]
                         .clone()
                         .try_into()
                         .expect(<span class="string">"Compiler should generate correct size inputs"</span>),
-                    public_key_y: inputs[<span class="number">1</span>]
+                    public_key_y: function_inputs[<span class="number">1</span>]
                         .clone()
                         .try_into()
                         .expect(<span class="string">"Compiler should generate correct size inputs"</span>),
                     <span class="comment">// (r,s) are both 32 bytes each, so signature
                     // takes up 64 bytes
-                    </span>signature: inputs[<span class="number">2</span>]
+                    </span>signature: function_inputs[<span class="number">2</span>]
                         .clone()
                         .try_into()
                         .expect(<span class="string">"Compiler should generate correct size inputs"</span>),
-                    hashed_message: inputs[<span class="number">3</span>]
+                    hashed_message: function_inputs[<span class="number">3</span>]
                         .clone()
                         .try_into()
                         .expect(<span class="string">"Compiler should generate correct size inputs"</span>),
+                    predicate: function_inputs[<span class="number">4</span>].clone()[<span class="number">0</span>],
                     output: outputs[<span class="number">0</span>],
                 }
             }
             BlackBoxFunc::EcdsaSecp256r1 =&gt; {
                 BlackBoxFuncCall::EcdsaSecp256r1 {
                     <span class="comment">// 32 bytes for each public key co-ordinate
-                    </span>public_key_x: inputs[<span class="number">0</span>]
+                    </span>public_key_x: function_inputs[<span class="number">0</span>]
                         .clone()
                         .try_into()
                         .expect(<span class="string">"Compiler should generate correct size inputs"</span>),
-                    public_key_y: inputs[<span class="number">1</span>]
+                    public_key_y: function_inputs[<span class="number">1</span>]
+                        .clone()
                         .clone()
                         .try_into()
                         .expect(<span class="string">"Compiler should generate correct size inputs"</span>),
                     <span class="comment">// (r,s) are both 32 bytes each, so signature
                     // takes up 64 bytes
-                    </span>signature: inputs[<span class="number">2</span>]
+                    </span>signature: function_inputs[<span class="number">2</span>]
                         .clone()
                         .try_into()
                         .expect(<span class="string">"Compiler should generate correct size inputs"</span>),
-                    hashed_message: inputs[<span class="number">3</span>]
+                    hashed_message: function_inputs[<span class="number">3</span>]
                         .clone()
                         .try_into()
                         .expect(<span class="string">"Compiler should generate correct size inputs"</span>),
+                    predicate: function_inputs[<span class="number">4</span>].clone()[<span class="number">0</span>],
                     output: outputs[<span class="number">0</span>],
                 }
             }
             BlackBoxFunc::MultiScalarMul =&gt; BlackBoxFuncCall::MultiScalarMul {
-                points: inputs[<span class="number">0</span>].clone(),
-                scalars: inputs[<span class="number">1</span>].clone(),
+                points: function_inputs[<span class="number">0</span>].clone(),
+                scalars: function_inputs[<span class="number">1</span>].clone(),
+                predicate: function_inputs[<span class="number">2</span>].clone()[<span class="number">0</span>],
                 outputs: (outputs[<span class="number">0</span>], outputs[<span class="number">1</span>], outputs[<span class="number">2</span>]),
             },
 
             BlackBoxFunc::EmbeddedCurveAdd =&gt; BlackBoxFuncCall::EmbeddedCurveAdd {
-                input1: Box::new([inputs[<span class="number">0</span>][<span class="number">0</span>], inputs[<span class="number">1</span>][<span class="number">0</span>], inputs[<span class="number">2</span>][<span class="number">0</span>]]),
-                input2: Box::new([inputs[<span class="number">3</span>][<span class="number">0</span>], inputs[<span class="number">4</span>][<span class="number">0</span>], inputs[<span class="number">5</span>][<span class="number">0</span>]]),
+                input1: Box::new([
+                    function_inputs[<span class="number">0</span>].clone()[<span class="number">0</span>],
+                    function_inputs[<span class="number">1</span>].clone()[<span class="number">0</span>],
+                    function_inputs[<span class="number">2</span>].clone()[<span class="number">0</span>],
+                ]),
+                input2: Box::new([
+                    function_inputs[<span class="number">3</span>].clone()[<span class="number">0</span>],
+                    function_inputs[<span class="number">4</span>].clone()[<span class="number">0</span>],
+                    function_inputs[<span class="number">5</span>].clone()[<span class="number">0</span>],
+                ]),
+                predicate: function_inputs[<span class="number">6</span>].clone()[<span class="number">0</span>],
                 outputs: (outputs[<span class="number">0</span>], outputs[<span class="number">1</span>], outputs[<span class="number">2</span>]),
             },
             BlackBoxFunc::Keccakf1600 =&gt; BlackBoxFuncCall::Keccakf1600 {
-                inputs: inputs[<span class="number">0</span>]
+                inputs: function_inputs[<span class="number">0</span>]
                     .clone()
                     .try_into()
                     .expect(<span class="string">"Compiler should generate correct size inputs"</span>),
                 outputs: outputs.try_into().expect(<span class="string">"Compiler should generate correct size outputs"</span>),
             },
             BlackBoxFunc::RecursiveAggregation =&gt; BlackBoxFuncCall::RecursiveAggregation {
-                verification_key: inputs[<span class="number">0</span>].clone(),
-                proof: inputs[<span class="number">1</span>].clone(),
-                public_inputs: inputs[<span class="number">2</span>].clone(),
-                key_hash: inputs[<span class="number">3</span>][<span class="number">0</span>],
+                verification_key: function_inputs[<span class="number">0</span>].clone(),
+                proof: function_inputs[<span class="number">1</span>].clone(),
+                public_inputs: function_inputs[<span class="number">2</span>].clone(),
+                key_hash: function_inputs[<span class="number">3</span>].clone()[<span class="number">0</span>],
                 proof_type: constant_inputs[<span class="number">0</span>].to_u128() <span class="kw">as </span>u32,
-            },
-            BlackBoxFunc::BigIntAdd =&gt; BlackBoxFuncCall::BigIntAdd {
-                lhs: constant_inputs[<span class="number">0</span>].to_u128() <span class="kw">as </span>u32,
-                rhs: constant_inputs[<span class="number">1</span>].to_u128() <span class="kw">as </span>u32,
-                output: constant_outputs[<span class="number">0</span>].to_u128() <span class="kw">as </span>u32,
-            },
-            BlackBoxFunc::BigIntSub =&gt; BlackBoxFuncCall::BigIntSub {
-                lhs: constant_inputs[<span class="number">0</span>].to_u128() <span class="kw">as </span>u32,
-                rhs: constant_inputs[<span class="number">1</span>].to_u128() <span class="kw">as </span>u32,
-                output: constant_outputs[<span class="number">0</span>].to_u128() <span class="kw">as </span>u32,
-            },
-            BlackBoxFunc::BigIntMul =&gt; BlackBoxFuncCall::BigIntMul {
-                lhs: constant_inputs[<span class="number">0</span>].to_u128() <span class="kw">as </span>u32,
-                rhs: constant_inputs[<span class="number">1</span>].to_u128() <span class="kw">as </span>u32,
-                output: constant_outputs[<span class="number">0</span>].to_u128() <span class="kw">as </span>u32,
-            },
-            BlackBoxFunc::BigIntDiv =&gt; BlackBoxFuncCall::BigIntDiv {
-                lhs: constant_inputs[<span class="number">0</span>].to_u128() <span class="kw">as </span>u32,
-                rhs: constant_inputs[<span class="number">1</span>].to_u128() <span class="kw">as </span>u32,
-                output: constant_outputs[<span class="number">0</span>].to_u128() <span class="kw">as </span>u32,
-            },
-            BlackBoxFunc::BigIntFromLeBytes =&gt; BlackBoxFuncCall::BigIntFromLeBytes {
-                inputs: inputs[<span class="number">0</span>].clone(),
-                modulus: vecmap(constant_inputs, |c| c.to_u128() <span class="kw">as </span>u8),
-                output: constant_outputs[<span class="number">0</span>].to_u128() <span class="kw">as </span>u32,
-            },
-            BlackBoxFunc::BigIntToLeBytes =&gt; BlackBoxFuncCall::BigIntToLeBytes {
-                input: constant_inputs[<span class="number">0</span>].to_u128() <span class="kw">as </span>u32,
-                outputs,
+                predicate: function_inputs[<span class="number">4</span>].clone()[<span class="number">0</span>],
             },
             BlackBoxFunc::Poseidon2Permutation =&gt; BlackBoxFuncCall::Poseidon2Permutation {
-                inputs: inputs[<span class="number">0</span>].clone(),
+                inputs: function_inputs[<span class="number">0</span>].clone(),
                 outputs,
-                len: constant_inputs[<span class="number">0</span>].to_u128() <span class="kw">as </span>u32,
             },
             BlackBoxFunc::Sha256Compression =&gt; BlackBoxFuncCall::Sha256Compression {
-                inputs: inputs[<span class="number">0</span>]
+                inputs: function_inputs[<span class="number">0</span>]
                     .clone()
                     .try_into()
                     .expect(<span class="string">"Compiler should generate correct size inputs"</span>),
-                hash_values: inputs[<span class="number">1</span>]
+                hash_values: function_inputs[<span class="number">1</span>]
                     .clone()
                     .try_into()
                     .expect(<span class="string">"Compiler should generate correct size inputs"</span>),
@@ -1232,12 +1218,12 @@
         </span><span class="kw">let </span>limbs_nb = Expression {
             mul_terms: Vec::new(),
             linear_combinations: Vec::new(),
-            q_c: F::from(limb_count <span class="kw">as </span>u128),
+            q_c: F::from(u128::from(limb_count)),
         };
         <span class="kw">let </span>radix_expr = Expression {
             mul_terms: Vec::new(),
             linear_combinations: Vec::new(),
-            q_c: F::from(radix <span class="kw">as </span>u128),
+            q_c: F::from(u128::from(radix)),
         };
         <span class="kw">let </span>inputs = <span class="macro">vec!</span>[
             BrilligInputs::Single(expr.clone()),
@@ -1402,7 +1388,8 @@
         };
 
         <span class="kw">let </span>constraint = AcirOpcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
-            input: FunctionInput::witness(witness, num_bits),
+            input: FunctionInput::Witness(witness),
+            num_bits,
         });
         <span class="self">self</span>.push_opcode(constraint);
 
@@ -1527,17 +1514,8 @@
         </span>BlackBoxFunc::RecursiveAggregation =&gt; <span class="prelude-val">None</span>,
 
         <span class="comment">// Addition over the embedded curve: input are coordinates (x1,y1,infinite1) and (x2,y2,infinite2) of the Grumpkin points
-        </span>BlackBoxFunc::EmbeddedCurveAdd =&gt; <span class="prelude-val">Some</span>(<span class="number">6</span>),
-
-        <span class="comment">// Big integer operations take in 0 inputs. They use constants for their inputs.
-        </span>BlackBoxFunc::BigIntAdd
-        | BlackBoxFunc::BigIntSub
-        | BlackBoxFunc::BigIntMul
-        | BlackBoxFunc::BigIntDiv
-        | BlackBoxFunc::BigIntToLeBytes =&gt; <span class="prelude-val">Some</span>(<span class="number">0</span>),
-
-        <span class="comment">// FromLeBytes takes a variable array of bytes as input
-        </span>BlackBoxFunc::BigIntFromLeBytes =&gt; <span class="prelude-val">None</span>,
+        // to add, plus a predicate to conditionally perform the addition.
+        </span>BlackBoxFunc::EmbeddedCurveAdd =&gt; <span class="prelude-val">Some</span>(<span class="number">7</span>),
     }
 }
 
@@ -1568,16 +1546,6 @@
         <span class="comment">// Output of operations over the embedded curve
         // will be 2 field elements representing the point.
         </span>BlackBoxFunc::MultiScalarMul | BlackBoxFunc::EmbeddedCurveAdd =&gt; <span class="prelude-val">Some</span>(<span class="number">3</span>),
-
-        <span class="comment">// Big integer operations return a big integer
-        </span>BlackBoxFunc::BigIntAdd
-        | BlackBoxFunc::BigIntSub
-        | BlackBoxFunc::BigIntMul
-        | BlackBoxFunc::BigIntDiv
-        | BlackBoxFunc::BigIntFromLeBytes =&gt; <span class="prelude-val">Some</span>(<span class="number">0</span>),
-
-        <span class="comment">// ToLeBytes returns a variable array of bytes
-        </span>BlackBoxFunc::BigIntToLeBytes =&gt; <span class="prelude-val">None</span>,
 
         <span class="comment">// Recursive aggregation has a variable number of outputs
         </span>BlackBoxFunc::RecursiveAggregation =&gt; <span class="prelude-val">None</span>,

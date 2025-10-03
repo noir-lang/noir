@@ -876,10 +876,7 @@
 <a href="#875" id="875">875</a>
 <a href="#876" id="876">876</a>
 <a href="#877" id="877">877</a>
-<a href="#878" id="878">878</a>
-<a href="#879" id="879">879</a>
-<a href="#880" id="880">880</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
-<span class="kw">use </span>std::sync::Arc;
+<a href="#878" id="878">878</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>rustc_hash::{FxHashMap <span class="kw">as </span>HashMap, FxHashSet <span class="kw">as </span>HashSet};
 
@@ -918,8 +915,7 @@
 
         <span class="comment">// Then transitively 'infect' any functions which call impure functions as also
         // impure.
-        </span><span class="kw">let </span>purities =
-            analyze_call_graph(call_graph, purities, <span class="kw-2">&amp;</span><span class="self">self</span>.functions, <span class="kw-2">&amp;</span>sccs, <span class="kw-2">&amp;</span>recursive_functions);
+        </span><span class="kw">let </span>purities = analyze_call_graph(call_graph, purities, <span class="kw-2">&amp;</span>sccs, <span class="kw-2">&amp;</span>recursive_functions);
         <span class="kw">let </span>purities = Arc::new(purities);
 
         <span class="comment">// We're done, now store purities somewhere every dfg can find it.
@@ -1109,7 +1105,6 @@
 <span class="kw">fn </span>analyze_call_graph(
     call_graph: CallGraph,
     starting_purities: FunctionPurities,
-    functions: <span class="kw-2">&amp;</span>BTreeMap&lt;FunctionId, Function&gt;,
     sccs: <span class="kw-2">&amp;</span>[Vec&lt;FunctionId&gt;],
     recursive_functions: <span class="kw-2">&amp;</span>HashSet&lt;FunctionId&gt;,
 ) -&gt; FunctionPurities {
@@ -1152,10 +1147,10 @@
                     }
                 }
 
-                <span class="comment">// Recursive Brillig functions cannot be fully pure (may loop indefinitely),
+                <span class="comment">// Recursive functions cannot be fully pure (may recurse indefinitely),
                 // but we still treat them as PureWithPredicate for deduplication purposes.
-                // If this function is recursive and a Brillig function, mark it as PureWithPredicate.
-                </span><span class="kw">if </span>recursive_functions.contains(<span class="kw-2">&amp;</span>func) &amp;&amp; functions[<span class="kw-2">&amp;</span>func].runtime().is_brillig() {
+                // If we were to mark recursive functions pure we may entirely eliminate an infinite loop.
+                </span><span class="kw">if </span>recursive_functions.contains(<span class="kw-2">&amp;</span>func) {
                     combined_purity = combined_purity.unify(Purity::PureWithPredicate);
                 }
             }
@@ -1265,7 +1260,7 @@
         <span class="macro">assert_eq!</span>(purities[<span class="kw-2">&amp;</span>FunctionId::test_new(<span class="number">4</span>)], Purity::PureWithPredicate);
         <span class="macro">assert_eq!</span>(purities[<span class="kw-2">&amp;</span>FunctionId::test_new(<span class="number">5</span>)], Purity::PureWithPredicate);
         <span class="macro">assert_eq!</span>(purities[<span class="kw-2">&amp;</span>FunctionId::test_new(<span class="number">6</span>)], Purity::Pure);
-        <span class="macro">assert_eq!</span>(purities[<span class="kw-2">&amp;</span>FunctionId::test_new(<span class="number">7</span>)], Purity::Pure);
+        <span class="macro">assert_eq!</span>(purities[<span class="kw-2">&amp;</span>FunctionId::test_new(<span class="number">7</span>)], Purity::PureWithPredicate);
 
         <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         acir(inline) impure fn main f0 {
@@ -1313,7 +1308,7 @@
             store Field 0 at v5
             return
         }
-        acir(inline) pure fn pure_recursive f7 {
+        acir(inline) predicate_pure fn pure_recursive f7 {
           b0(v0: u32):
             v3 = lt v0, u32 1
             jmpif v3 then: b1, else: b2
@@ -1494,7 +1489,8 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>mutual_recursion_marks_functions_pure() {
-        <span class="comment">// We want to test that two pure mutually recursive functions do in fact mark each other as pure
+        <span class="comment">// We want to test that two pure mutually recursive functions do in fact mark each other as PureWithPredicate.
+        // If we have indefinite recursion and we may accidentally eliminate an infinite loop before inlining can catch it.
         </span><span class="kw">let </span>src = <span class="string">r#"
         acir(inline) fn main f0 {
           b0():
@@ -1533,9 +1529,9 @@
         <span class="kw">let </span>ssa = ssa.purity_analysis();
 
         <span class="kw">let </span>purities = <span class="kw-2">&amp;</span>ssa.main().dfg.function_purities;
-        <span class="macro">assert_eq!</span>(purities[<span class="kw-2">&amp;</span>FunctionId::test_new(<span class="number">0</span>)], Purity::Pure);
-        <span class="macro">assert_eq!</span>(purities[<span class="kw-2">&amp;</span>FunctionId::test_new(<span class="number">1</span>)], Purity::Pure);
-        <span class="macro">assert_eq!</span>(purities[<span class="kw-2">&amp;</span>FunctionId::test_new(<span class="number">2</span>)], Purity::Pure);
+        <span class="macro">assert_eq!</span>(purities[<span class="kw-2">&amp;</span>FunctionId::test_new(<span class="number">0</span>)], Purity::PureWithPredicate);
+        <span class="macro">assert_eq!</span>(purities[<span class="kw-2">&amp;</span>FunctionId::test_new(<span class="number">1</span>)], Purity::PureWithPredicate);
+        <span class="macro">assert_eq!</span>(purities[<span class="kw-2">&amp;</span>FunctionId::test_new(<span class="number">2</span>)], Purity::PureWithPredicate);
     }
 
     <span class="doccomment">/// This test matches [mutual_recursion_marks_functions_pure] except all functions have a Brillig runtime

@@ -949,7 +949,7 @@
                 };
                 <span class="comment">// This is an array and can be structurally mutated if the number of elements is more than one
                 // This is an array and can be structurally mutated if the number of elements is more than one
-                </span><span class="kw">let </span>arrays_hit = arrays_hit + ((length &gt; <span class="number">1</span>) <span class="kw">as </span>usize);
+                </span><span class="kw">let </span>arrays_hit = arrays_hit + usize::from(length &gt; <span class="number">1</span>);
                 <span class="kw">let </span><span class="kw-2">mut </span>structural_mutation_directive = <span class="prelude-val">None</span>;
                 <span class="kw">let </span><span class="kw-2">mut </span>element_vector_with_value_mutation: Vec&lt;InputValue&gt; = (<span class="number">0</span>..length)
                     .zip(weight_tree_node.subnodes.as_ref().unwrap())

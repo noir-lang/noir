@@ -1378,7 +1378,7 @@
     <span class="kw">let </span><span class="kw-2">mut </span>hasher = std::collections::hash_map::DefaultHasher::new();
     item.hash(<span class="kw-2">&amp;mut </span>hasher);
     <span class="kw">let </span>hash = hasher.finish();
-    <span class="prelude-val">Ok</span>(Value::Field(SignedField::positive(hash <span class="kw">as </span>u128)))
+    <span class="prelude-val">Ok</span>(Value::Field(SignedField::positive(u128::from(hash))))
 }
 
 <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>eq_item&lt;T: Eq&gt;(

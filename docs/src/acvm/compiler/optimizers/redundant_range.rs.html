@@ -474,7 +474,11 @@
 <a href="#473" id="473">473</a>
 <a href="#474" id="474">474</a>
 <a href="#475" id="475">475</a>
-<a href="#476" id="476">476</a></pre></div><pre class="rust"><code><span class="doccomment">//! The redundant range constraint optimization pass aims to remove any [BlackBoxFunc::Range] opcodes
+<a href="#476" id="476">476</a>
+<a href="#477" id="477">477</a>
+<a href="#478" id="478">478</a>
+<a href="#479" id="479">479</a>
+<a href="#480" id="480">480</a></pre></div><pre class="rust"><code><span class="doccomment">//! The redundant range constraint optimization pass aims to remove any [BlackBoxFunc::Range] opcodes
 //! which doesn't result in additional restrictions on the value of witnesses.
 //!
 //! Suppose we had the following pseudo-code:
@@ -539,7 +543,7 @@
     circuit::{
         Circuit, Opcode,
         brillig::BrilligFunctionId,
-        opcodes::{BlackBoxFuncCall, BlockId, ConstantOrWitnessEnum, MemOp},
+        opcodes::{BlackBoxFuncCall, BlockId, FunctionInput, MemOp},
     },
     native_types::Witness,
 };
@@ -547,12 +551,13 @@
 
 <span class="doccomment">/// Information gathered about witnesses which are subject to range constraints.
 </span><span class="kw">struct </span>RangeInfo {
-    <span class="doccomment">/// Opcode positions at which stricter bit size information becomes available.
+    <span class="doccomment">/// Opcode positions which updated this RangeInfo, i.e
+    /// at which stricter bit size information becomes available.
     </span>switch_points: BTreeSet&lt;usize&gt;,
     <span class="doccomment">/// Strictest constraint on bit size so far.
     </span>num_bits: u32,
-    <span class="doccomment">/// Indicate whether the bit size comes from an assertion, in which case we
-    /// can save an equivalent range constraint.
+    <span class="doccomment">/// Indicate whether the bit size comes from an assertion or from array indexing,
+    /// in which cases we can save an equivalent range constraint.
     </span>is_implied: bool,
 }
 
@@ -601,9 +606,9 @@
                     </span>}
                 }
 
-                Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE { input }) =&gt; {
-                    <span class="kw">if let </span>ConstantOrWitnessEnum::Witness(witness) = input.input() {
-                        <span class="prelude-val">Some</span>((witness, input.num_bits(), <span class="bool-val">false</span>))
+                Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE { input, num_bits }) =&gt; {
+                    <span class="kw">if let </span>FunctionInput::Witness(witness) = input {
+                        <span class="prelude-val">Some</span>((<span class="kw-2">*</span>witness, <span class="kw-2">*</span>num_bits, <span class="bool-val">false</span>))
                     } <span class="kw">else </span>{
                         <span class="prelude-val">None
                     </span>}
@@ -657,6 +662,13 @@
     <span class="doccomment">/// Returns a `Circuit` where each Witness is only range constrained
     /// a minimal number of times that still allows us to avoid executing
     /// any new side effects due to their removal.
+    ///
+    /// The idea is to keep only the RANGE opcodes that have stricly smaller bit-size requirements
+    /// than before, i.e the ones that are at a 'switch point'.
+    /// Furthermore, we only keep the switch points that are last before
+    /// a 'side-effect' opcode (i.e a Brillig call).
+    /// As a result, we simply do a backward pass on the opcodes, so that the last Brillig call
+    /// is known before reaching a RANGE opcode.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>replace_redundant_ranges(
         <span class="self">self</span>,
         order_list: Vec&lt;usize&gt;,
@@ -668,12 +680,10 @@
         <span class="comment">// Going in reverse so we can propagate the side effect information backwards.
         </span><span class="kw">for </span>(idx, opcode) <span class="kw">in </span><span class="self">self</span>.circuit.opcodes.into_iter().enumerate().rev() {
             <span class="kw">let </span><span class="prelude-val">Some</span>(witness) = (<span class="kw">match </span>opcode {
-                Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE { input }) =&gt; {
-                    <span class="kw">match </span>input.input() {
-                        ConstantOrWitnessEnum::Witness(witness) =&gt; <span class="prelude-val">Some</span>(witness),
-                        <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
-                    }
-                }
+                Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
+                    input: FunctionInput::Witness(witness),
+                    ..
+                }) =&gt; <span class="prelude-val">Some</span>(witness),
                 Opcode::BrilligCall { id, .. } =&gt; {
                     <span class="comment">// Assume that Brillig calls might have side effects, unless we know they don't.
                     </span><span class="kw">if </span><span class="self">self</span>.brillig_side_effects.get(<span class="kw-2">&amp;</span>id).copied().unwrap_or(<span class="bool-val">true</span>) {
@@ -728,19 +738,15 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
-    <span class="kw">use </span>std::collections::{BTreeMap, BTreeSet};
+    <span class="kw">use </span>std::collections::BTreeMap;
 
-    <span class="kw">use </span><span class="kw">crate</span>::compiler::optimizers::redundant_range::{
-        RangeOptimizer, memory_block_implied_max_bits,
+    <span class="kw">use crate</span>::{
+        assert_circuit_snapshot,
+        compiler::optimizers::redundant_range::{RangeOptimizer, memory_block_implied_max_bits},
     };
     <span class="kw">use </span>acir::{
-        FieldElement,
-        circuit::{
-            Circuit, ExpressionWidth, Opcode, PublicInputs,
-            brillig::{BrilligFunctionId, BrilligInputs},
-            opcodes::{BlackBoxFuncCall, BlockId, BlockType, FunctionInput, MemOp},
-        },
-        native_types::{Expression, Witness},
+        circuit::{Circuit, brillig::BrilligFunctionId},
+        native_types::Witness,
     };
 
     <span class="attr">#[test]
@@ -755,33 +761,18 @@
         <span class="macro">assert_eq!</span>(memory_block_implied_max_bits(<span class="kw-2">&amp;</span>[Witness(<span class="number">0</span>); u16::MAX <span class="kw">as </span>usize]), <span class="number">16</span>);
     }
 
-    <span class="kw">fn </span>test_range_constraint(witness: Witness, num_bits: u32) -&gt; Opcode&lt;FieldElement&gt; {
-        Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
-            input: FunctionInput::witness(witness, num_bits),
-        })
-    }
-
-    <span class="kw">fn </span>test_circuit(ranges: Vec&lt;(Witness, u32)&gt;) -&gt; Circuit&lt;FieldElement&gt; {
-        <span class="kw">let </span>opcodes: Vec&lt;<span class="kw">_</span>&gt; = ranges
-            .into_iter()
-            .map(|(witness, num_bits)| test_range_constraint(witness, num_bits))
-            .collect();
-
-        Circuit {
-            current_witness_index: <span class="number">1</span>,
-            expression_width: ExpressionWidth::Bounded { width: <span class="number">4 </span>},
-            opcodes,
-            private_parameters: BTreeSet::new(),
-            public_parameters: PublicInputs::default(),
-            return_values: PublicInputs::default(),
-            assert_messages: Default::default(),
-        }
-    }
-
     <span class="attr">#[test]
     </span><span class="kw">fn </span>retain_lowest_range_size() {
         <span class="comment">// The optimizer should keep the lowest bit size range constraint
-        </span><span class="kw">let </span>circuit = test_circuit(<span class="macro">vec!</span>[(Witness(<span class="number">1</span>), <span class="number">32</span>), (Witness(<span class="number">1</span>), <span class="number">16</span>)]);
+        </span><span class="kw">let </span>src = <span class="string">"
+        private parameters: []
+        public parameters: []
+        return values: []
+        BLACKBOX::RANGE input: w1, bits: 32
+        BLACKBOX::RANGE input: w1, bits: 16
+        "</span>;
+        <span class="kw">let </span>circuit = Circuit::from_str(src).unwrap();
+
         <span class="kw">let </span>acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, <span class="kw">_</span>)| i).collect();
         <span class="kw">let </span>brillig_side_effects = BTreeMap::new();
         <span class="kw">let </span>optimizer = RangeOptimizer::new(circuit, <span class="kw-2">&amp;</span>brillig_side_effects);
@@ -796,110 +787,124 @@
         </span>);
 
         <span class="kw">let </span>(optimized_circuit, <span class="kw">_</span>) = optimizer.replace_redundant_ranges(acir_opcode_positions);
-        <span class="macro">assert_eq!</span>(optimized_circuit.opcodes.len(), <span class="number">1</span>);
-
-        <span class="macro">assert_eq!</span>(
-            optimized_circuit.opcodes[<span class="number">0</span>],
-            Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
-                input: FunctionInput::witness(Witness(<span class="number">1</span>), <span class="number">16</span>)
-            })
-        );
+        <span class="macro">assert_circuit_snapshot!</span>(optimized_circuit, @<span class="string">r"
+        private parameters: []
+        public parameters: []
+        return values: []
+        BLACKBOX::RANGE input: w1, bits: 16
+        "</span>);
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>remove_duplicates() {
         <span class="comment">// The optimizer should remove all duplicate range opcodes.
+        </span><span class="kw">let </span>src = <span class="string">"
+        private parameters: []
+        public parameters: []
+        return values: []
+        BLACKBOX::RANGE input: w1, bits: 16
+        BLACKBOX::RANGE input: w1, bits: 16
+        BLACKBOX::RANGE input: w2, bits: 23
+        BLACKBOX::RANGE input: w2, bits: 23
+        "</span>;
+        <span class="kw">let </span>circuit = Circuit::from_str(src).unwrap();
 
-        </span><span class="kw">let </span>circuit = test_circuit(<span class="macro">vec!</span>[
-            (Witness(<span class="number">1</span>), <span class="number">16</span>),
-            (Witness(<span class="number">1</span>), <span class="number">16</span>),
-            (Witness(<span class="number">2</span>), <span class="number">23</span>),
-            (Witness(<span class="number">2</span>), <span class="number">23</span>),
-        ]);
         <span class="kw">let </span>acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, <span class="kw">_</span>)| i).collect();
         <span class="kw">let </span>brillig_side_effects = BTreeMap::new();
         <span class="kw">let </span>optimizer = RangeOptimizer::new(circuit, <span class="kw-2">&amp;</span>brillig_side_effects);
         <span class="kw">let </span>(optimized_circuit, <span class="kw">_</span>) = optimizer.replace_redundant_ranges(acir_opcode_positions);
-        <span class="macro">assert_eq!</span>(optimized_circuit.opcodes.len(), <span class="number">2</span>);
-
-        <span class="macro">assert_eq!</span>(
-            optimized_circuit.opcodes[<span class="number">0</span>],
-            Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
-                input: FunctionInput::witness(Witness(<span class="number">1</span>), <span class="number">16</span>)
-            })
-        );
-        <span class="macro">assert_eq!</span>(
-            optimized_circuit.opcodes[<span class="number">1</span>],
-            Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
-                input: FunctionInput::witness(Witness(<span class="number">2</span>), <span class="number">23</span>)
-            })
-        );
+        <span class="macro">assert_circuit_snapshot!</span>(optimized_circuit, @<span class="string">r"
+        private parameters: []
+        public parameters: []
+        return values: []
+        BLACKBOX::RANGE input: w1, bits: 16
+        BLACKBOX::RANGE input: w2, bits: 23
+        "</span>);
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>non_range_opcodes() {
         <span class="comment">// The optimizer should not remove or change non-range opcodes
         // The four AssertZero opcodes should remain unchanged.
-        </span><span class="kw">let </span><span class="kw-2">mut </span>circuit = test_circuit(<span class="macro">vec!</span>[(Witness(<span class="number">1</span>), <span class="number">16</span>), (Witness(<span class="number">1</span>), <span class="number">16</span>)]);
+        </span><span class="kw">let </span>src = <span class="string">"
+        private parameters: []
+        public parameters: []
+        return values: []
+        BLACKBOX::RANGE input: w1, bits: 16
+        BLACKBOX::RANGE input: w1, bits: 16
+        ASSERT 0 = 0
+        ASSERT 0 = 0
+        ASSERT 0 = 0
+        ASSERT 0 = 0
+        "</span>;
+        <span class="kw">let </span>circuit = Circuit::from_str(src).unwrap();
 
-        circuit.opcodes.push(Opcode::AssertZero(Expression::default()));
-        circuit.opcodes.push(Opcode::AssertZero(Expression::default()));
-        circuit.opcodes.push(Opcode::AssertZero(Expression::default()));
-        circuit.opcodes.push(Opcode::AssertZero(Expression::default()));
         <span class="kw">let </span>acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, <span class="kw">_</span>)| i).collect();
         <span class="kw">let </span>brillig_side_effects = BTreeMap::new();
         <span class="kw">let </span>optimizer = RangeOptimizer::new(circuit, <span class="kw-2">&amp;</span>brillig_side_effects);
         <span class="kw">let </span>(optimized_circuit, <span class="kw">_</span>) = optimizer.replace_redundant_ranges(acir_opcode_positions);
-        <span class="macro">assert_eq!</span>(optimized_circuit.opcodes.len(), <span class="number">5</span>);
+        <span class="macro">assert_circuit_snapshot!</span>(optimized_circuit, @<span class="string">r"
+        private parameters: []
+        public parameters: []
+        return values: []
+        BLACKBOX::RANGE input: w1, bits: 16
+        ASSERT 0 = 0
+        ASSERT 0 = 0
+        ASSERT 0 = 0
+        ASSERT 0 = 0
+        "</span>);
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>constant_implied_ranges() {
         <span class="comment">// The optimizer should use knowledge about constant witness assignments to remove range opcodes.
-        </span><span class="kw">let </span><span class="kw-2">mut </span>circuit = test_circuit(<span class="macro">vec!</span>[(Witness(<span class="number">1</span>), <span class="number">16</span>)]);
+        </span><span class="kw">let </span>src = <span class="string">"
+        private parameters: []
+        public parameters: []
+        return values: []
+        BLACKBOX::RANGE input: w1, bits: 16
+        ASSERT w1 = 0
+        "</span>;
+        <span class="kw">let </span>circuit = Circuit::from_str(src).unwrap();
 
-        circuit.opcodes.push(Opcode::AssertZero(Witness(<span class="number">1</span>).into()));
         <span class="kw">let </span>acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, <span class="kw">_</span>)| i).collect();
         <span class="kw">let </span>brillig_side_effects = BTreeMap::new();
         <span class="kw">let </span>optimizer = RangeOptimizer::new(circuit, <span class="kw-2">&amp;</span>brillig_side_effects);
         <span class="kw">let </span>(optimized_circuit, <span class="kw">_</span>) = optimizer.replace_redundant_ranges(acir_opcode_positions);
-        <span class="macro">assert_eq!</span>(optimized_circuit.opcodes.len(), <span class="number">1</span>);
-        <span class="macro">assert_eq!</span>(optimized_circuit.opcodes[<span class="number">0</span>], Opcode::AssertZero(Witness(<span class="number">1</span>).into()));
+        <span class="macro">assert_circuit_snapshot!</span>(optimized_circuit, @<span class="string">r"
+        private parameters: []
+        public parameters: []
+        return values: []
+        ASSERT w1 = 0
+        "</span>);
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>potential_side_effects() {
         <span class="comment">// The optimizer should not remove range constraints if doing so might allow invalid side effects to go through.
-        </span><span class="kw">let </span><span class="kw-2">mut </span>circuit = test_circuit(<span class="macro">vec!</span>[(Witness(<span class="number">1</span>), <span class="number">32</span>)]);
+        </span><span class="kw">let </span>src = <span class="string">"
+        private parameters: []
+        public parameters: []
+        return values: []
+        BLACKBOX::RANGE input: w1, bits: 32
 
-        <span class="comment">// Call brillig with w2
-        </span>circuit.opcodes.push(Opcode::BrilligCall {
-            id: BrilligFunctionId(<span class="number">0</span>),
-            inputs: <span class="macro">vec!</span>[BrilligInputs::Single(Witness(<span class="number">2</span>).into())],
-            outputs: <span class="macro">vec!</span>[],
-            predicate: <span class="prelude-val">None</span>,
-        });
+        // Call brillig with w2
+        BRILLIG CALL func: 0, inputs: [w2], outputs: []
+        BLACKBOX::RANGE input: w1, bits: 16
 
-        circuit.opcodes.push(test_range_constraint(Witness(<span class="number">1</span>), <span class="number">16</span>));
+        // Another call
+        BRILLIG CALL func: 0, inputs: [w2], outputs: []
 
-        <span class="comment">// Anther call
-        </span>circuit.opcodes.push(Opcode::BrilligCall {
-            id: BrilligFunctionId(<span class="number">0</span>),
-            inputs: <span class="macro">vec!</span>[BrilligInputs::Single(Witness(<span class="number">2</span>).into())],
-            outputs: <span class="macro">vec!</span>[],
-            predicate: <span class="prelude-val">None</span>,
-        });
+        // One more constraint, but this is redundant.
+        BLACKBOX::RANGE input: w1, bits: 64
 
-        <span class="comment">// One more constraint, but this is redundant.
-        </span>circuit.opcodes.push(test_range_constraint(Witness(<span class="number">1</span>), <span class="number">64</span>));
-        <span class="comment">// assert w1 == 0
-        </span>circuit.opcodes.push(Opcode::AssertZero(Witness(<span class="number">1</span>).into()));
+        // assert w1 == 0
+        ASSERT w1 = 0
+        "</span>;
+        <span class="kw">let </span>circuit = Circuit::from_str(src).unwrap();
 
         <span class="kw">let </span>acir_opcode_positions: Vec&lt;usize&gt; =
             circuit.opcodes.iter().enumerate().map(|(i, <span class="kw">_</span>)| i).collect();
-
-        <span class="comment">// The last constraint is expected to be removed.
-        </span><span class="kw">let </span>expected_length = circuit.opcodes.len() - <span class="number">1</span>;
 
         <span class="comment">// Consider the Brillig function to have a side effect.
         </span><span class="kw">let </span>brillig_side_effects = BTreeMap::from_iter(<span class="macro">vec!</span>[(BrilligFunctionId(<span class="number">0</span>), <span class="bool-val">true</span>)]);
@@ -908,46 +913,49 @@
         <span class="kw">let </span>(optimized_circuit, <span class="kw">_</span>) =
             optimizer.replace_redundant_ranges(acir_opcode_positions.clone());
 
-        <span class="macro">assert_eq!</span>(optimized_circuit.opcodes.len(), expected_length);
-        <span class="macro">assert_eq!</span>(
-            optimized_circuit.opcodes[<span class="number">0</span>],
-            Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
-                input: FunctionInput::witness(Witness(<span class="number">1</span>), <span class="number">32</span>) <span class="comment">// The minimum does not propagate backwards.
-            </span>})
-        );
+        <span class="comment">// `BLACKBOX::RANGE [w1]:32 bits []` remains: The minimum does not propagate backwards.
+        </span><span class="macro">assert_circuit_snapshot!</span>(optimized_circuit, @<span class="string">r"
+        private parameters: []
+        public parameters: []
+        return values: []
+        BLACKBOX::RANGE input: w1, bits: 32
+        BRILLIG CALL func: 0, inputs: [w2], outputs: []
+        BLACKBOX::RANGE input: w1, bits: 16
+        BRILLIG CALL func: 0, inputs: [w2], outputs: []
+        ASSERT w1 = 0
+        "</span>);
 
         <span class="comment">// Applying again should have no effect (despite the range having the same bit size as the assert).
-        </span><span class="kw">let </span>optimizer = RangeOptimizer::new(optimized_circuit, <span class="kw-2">&amp;</span>brillig_side_effects);
+        </span><span class="kw">let </span>optimizer = RangeOptimizer::new(optimized_circuit.clone(), <span class="kw-2">&amp;</span>brillig_side_effects);
         <span class="kw">let </span>(double_optimized_circuit, <span class="kw">_</span>) =
             optimizer.replace_redundant_ranges(acir_opcode_positions);
-        <span class="macro">assert_eq!</span>(double_optimized_circuit.opcodes.len(), expected_length);
+        <span class="macro">assert_eq!</span>(optimized_circuit.to_string(), double_optimized_circuit.to_string());
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>array_implied_ranges() {
         <span class="comment">// The optimizer should use knowledge about array lengths and witnesses used to index these to remove range opcodes.
-        </span><span class="kw">let </span><span class="kw-2">mut </span>circuit = test_circuit(<span class="macro">vec!</span>[(Witness(<span class="number">1</span>), <span class="number">16</span>)]);
+        </span><span class="kw">let </span>src = <span class="string">"
+        private parameters: []
+        public parameters: []
+        return values: []
+        BLACKBOX::RANGE input: w1, bits: 16
+        INIT b0 = [w0, w0, w0, w0, w0, w0, w0, w0]
+        READ w2 = b0[w1]
+        "</span>;
+        <span class="kw">let </span>circuit = Circuit::from_str(src).unwrap();
 
-        <span class="kw">let </span>mem_init = Opcode::MemoryInit {
-            block_id: BlockId(<span class="number">0</span>),
-            init: <span class="macro">vec!</span>[Witness(<span class="number">0</span>); <span class="number">8</span>],
-            block_type: BlockType::Memory,
-        };
-        <span class="kw">let </span>mem_op = Opcode::MemoryOp {
-            block_id: BlockId(<span class="number">0</span>),
-            op: MemOp::read_at_mem_index(Witness(<span class="number">1</span>).into(), Witness(<span class="number">2</span>)),
-            predicate: <span class="prelude-val">None</span>,
-        };
-
-        circuit.opcodes.push(mem_init.clone());
-        circuit.opcodes.push(mem_op.clone());
         <span class="kw">let </span>acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, <span class="kw">_</span>)| i).collect();
         <span class="kw">let </span>brillig_side_effects = BTreeMap::new();
         <span class="kw">let </span>optimizer = RangeOptimizer::new(circuit, <span class="kw-2">&amp;</span>brillig_side_effects);
         <span class="kw">let </span>(optimized_circuit, <span class="kw">_</span>) = optimizer.replace_redundant_ranges(acir_opcode_positions);
-        <span class="macro">assert_eq!</span>(optimized_circuit.opcodes.len(), <span class="number">2</span>);
-        <span class="macro">assert_eq!</span>(optimized_circuit.opcodes[<span class="number">0</span>], mem_init);
-        <span class="macro">assert_eq!</span>(optimized_circuit.opcodes[<span class="number">1</span>], mem_op);
+        <span class="macro">assert_circuit_snapshot!</span>(optimized_circuit, @<span class="string">r"
+        private parameters: []
+        public parameters: []
+        return values: []
+        INIT b0 = [w0, w0, w0, w0, w0, w0, w0, w0]
+        READ w2 = b0[w1]
+        "</span>);
     }
 }
 </code></pre></div></section></main></body></html>

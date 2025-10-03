@@ -127,37 +127,7 @@
 <a href="#126" id="126">126</a>
 <a href="#127" id="127">127</a>
 <a href="#128" id="128">128</a>
-<a href="#129" id="129">129</a>
-<a href="#130" id="130">130</a>
-<a href="#131" id="131">131</a>
-<a href="#132" id="132">132</a>
-<a href="#133" id="133">133</a>
-<a href="#134" id="134">134</a>
-<a href="#135" id="135">135</a>
-<a href="#136" id="136">136</a>
-<a href="#137" id="137">137</a>
-<a href="#138" id="138">138</a>
-<a href="#139" id="139">139</a>
-<a href="#140" id="140">140</a>
-<a href="#141" id="141">141</a>
-<a href="#142" id="142">142</a>
-<a href="#143" id="143">143</a>
-<a href="#144" id="144">144</a>
-<a href="#145" id="145">145</a>
-<a href="#146" id="146">146</a>
-<a href="#147" id="147">147</a>
-<a href="#148" id="148">148</a>
-<a href="#149" id="149">149</a>
-<a href="#150" id="150">150</a>
-<a href="#151" id="151">151</a>
-<a href="#152" id="152">152</a>
-<a href="#153" id="153">153</a>
-<a href="#154" id="154">154</a>
-<a href="#155" id="155">155</a>
-<a href="#156" id="156">156</a>
-<a href="#157" id="157">157</a>
-<a href="#158" id="158">158</a>
-<a href="#159" id="159">159</a></pre></div><pre class="rust"><code><span class="doccomment">//! Black box functions are ACIR opcodes which rely on backends implementing
+<a href="#129" id="129">129</a></pre></div><pre class="rust"><code><span class="doccomment">//! Black box functions are ACIR opcodes which rely on backends implementing
 //! support for specialized constraints.
 //! This makes certain zk-snark unfriendly computations cheaper than if they were
 //! implemented in more basic constraints.
@@ -195,18 +165,6 @@
     </span>RecursiveAggregation,
     <span class="doccomment">/// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::EmbeddedCurveAdd]
     </span>EmbeddedCurveAdd,
-    <span class="doccomment">/// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::BigIntAdd]
-    </span>BigIntAdd,
-    <span class="doccomment">/// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::BigIntSub]
-    </span>BigIntSub,
-    <span class="doccomment">/// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::BigIntMul]
-    </span>BigIntMul,
-    <span class="doccomment">/// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::BigIntDiv]
-    </span>BigIntDiv,
-    <span class="doccomment">/// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::BigIntFromLeBytes]
-    </span>BigIntFromLeBytes,
-    <span class="doccomment">/// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::BigIntToLeBytes]
-    </span>BigIntToLeBytes,
     <span class="doccomment">/// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::Poseidon2Permutation]
     </span>Poseidon2Permutation,
     <span class="doccomment">/// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::Sha256Compression]
@@ -234,12 +192,6 @@
             BlackBoxFunc::Keccakf1600 =&gt; <span class="string">"keccakf1600"</span>,
             BlackBoxFunc::RecursiveAggregation =&gt; <span class="string">"recursive_aggregation"</span>,
             BlackBoxFunc::EcdsaSecp256r1 =&gt; <span class="string">"ecdsa_secp256r1"</span>,
-            BlackBoxFunc::BigIntAdd =&gt; <span class="string">"bigint_add"</span>,
-            BlackBoxFunc::BigIntSub =&gt; <span class="string">"bigint_sub"</span>,
-            BlackBoxFunc::BigIntMul =&gt; <span class="string">"bigint_mul"</span>,
-            BlackBoxFunc::BigIntDiv =&gt; <span class="string">"bigint_div"</span>,
-            BlackBoxFunc::BigIntFromLeBytes =&gt; <span class="string">"bigint_from_le_bytes"</span>,
-            BlackBoxFunc::BigIntToLeBytes =&gt; <span class="string">"bigint_to_le_bytes"</span>,
             BlackBoxFunc::Poseidon2Permutation =&gt; <span class="string">"poseidon2_permutation"</span>,
             BlackBoxFunc::Sha256Compression =&gt; <span class="string">"sha256_compression"</span>,
         }
@@ -259,12 +211,6 @@
             <span class="string">"range" </span>=&gt; <span class="prelude-val">Some</span>(BlackBoxFunc::RANGE),
             <span class="string">"keccakf1600" </span>=&gt; <span class="prelude-val">Some</span>(BlackBoxFunc::Keccakf1600),
             <span class="string">"recursive_aggregation" </span>=&gt; <span class="prelude-val">Some</span>(BlackBoxFunc::RecursiveAggregation),
-            <span class="string">"bigint_add" </span>=&gt; <span class="prelude-val">Some</span>(BlackBoxFunc::BigIntAdd),
-            <span class="string">"bigint_sub" </span>=&gt; <span class="prelude-val">Some</span>(BlackBoxFunc::BigIntSub),
-            <span class="string">"bigint_mul" </span>=&gt; <span class="prelude-val">Some</span>(BlackBoxFunc::BigIntMul),
-            <span class="string">"bigint_div" </span>=&gt; <span class="prelude-val">Some</span>(BlackBoxFunc::BigIntDiv),
-            <span class="string">"bigint_from_le_bytes" </span>=&gt; <span class="prelude-val">Some</span>(BlackBoxFunc::BigIntFromLeBytes),
-            <span class="string">"bigint_to_le_bytes" </span>=&gt; <span class="prelude-val">Some</span>(BlackBoxFunc::BigIntToLeBytes),
             <span class="string">"poseidon2_permutation" </span>=&gt; <span class="prelude-val">Some</span>(BlackBoxFunc::Poseidon2Permutation),
             <span class="string">"sha256_compression" </span>=&gt; <span class="prelude-val">Some</span>(BlackBoxFunc::Sha256Compression),
             <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
@@ -285,12 +231,6 @@
             | BlackBoxFunc::EcdsaSecp256k1
             | BlackBoxFunc::EcdsaSecp256r1
             | BlackBoxFunc::Keccakf1600
-            | BlackBoxFunc::BigIntAdd
-            | BlackBoxFunc::BigIntSub
-            | BlackBoxFunc::BigIntMul
-            | BlackBoxFunc::BigIntDiv
-            | BlackBoxFunc::BigIntFromLeBytes
-            | BlackBoxFunc::BigIntToLeBytes
             | BlackBoxFunc::Poseidon2Permutation
             | BlackBoxFunc::Sha256Compression =&gt; <span class="bool-val">false</span>,
         }

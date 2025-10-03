@@ -611,73 +611,7 @@
 <a href="#610" id="610">610</a>
 <a href="#611" id="611">611</a>
 <a href="#612" id="612">612</a>
-<a href="#613" id="613">613</a>
-<a href="#614" id="614">614</a>
-<a href="#615" id="615">615</a>
-<a href="#616" id="616">616</a>
-<a href="#617" id="617">617</a>
-<a href="#618" id="618">618</a>
-<a href="#619" id="619">619</a>
-<a href="#620" id="620">620</a>
-<a href="#621" id="621">621</a>
-<a href="#622" id="622">622</a>
-<a href="#623" id="623">623</a>
-<a href="#624" id="624">624</a>
-<a href="#625" id="625">625</a>
-<a href="#626" id="626">626</a>
-<a href="#627" id="627">627</a>
-<a href="#628" id="628">628</a>
-<a href="#629" id="629">629</a>
-<a href="#630" id="630">630</a>
-<a href="#631" id="631">631</a>
-<a href="#632" id="632">632</a>
-<a href="#633" id="633">633</a>
-<a href="#634" id="634">634</a>
-<a href="#635" id="635">635</a>
-<a href="#636" id="636">636</a>
-<a href="#637" id="637">637</a>
-<a href="#638" id="638">638</a>
-<a href="#639" id="639">639</a>
-<a href="#640" id="640">640</a>
-<a href="#641" id="641">641</a>
-<a href="#642" id="642">642</a>
-<a href="#643" id="643">643</a>
-<a href="#644" id="644">644</a>
-<a href="#645" id="645">645</a>
-<a href="#646" id="646">646</a>
-<a href="#647" id="647">647</a>
-<a href="#648" id="648">648</a>
-<a href="#649" id="649">649</a>
-<a href="#650" id="650">650</a>
-<a href="#651" id="651">651</a>
-<a href="#652" id="652">652</a>
-<a href="#653" id="653">653</a>
-<a href="#654" id="654">654</a>
-<a href="#655" id="655">655</a>
-<a href="#656" id="656">656</a>
-<a href="#657" id="657">657</a>
-<a href="#658" id="658">658</a>
-<a href="#659" id="659">659</a>
-<a href="#660" id="660">660</a>
-<a href="#661" id="661">661</a>
-<a href="#662" id="662">662</a>
-<a href="#663" id="663">663</a>
-<a href="#664" id="664">664</a>
-<a href="#665" id="665">665</a>
-<a href="#666" id="666">666</a>
-<a href="#667" id="667">667</a>
-<a href="#668" id="668">668</a>
-<a href="#669" id="669">669</a>
-<a href="#670" id="670">670</a>
-<a href="#671" id="671">671</a>
-<a href="#672" id="672">672</a>
-<a href="#673" id="673">673</a>
-<a href="#674" id="674">674</a>
-<a href="#675" id="675">675</a>
-<a href="#676" id="676">676</a>
-<a href="#677" id="677">677</a>
-<a href="#678" id="678">678</a>
-<a href="#679" id="679">679</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
+<a href="#613" id="613">613</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
     circuit::{
         <span class="self">self</span>,
         brillig::BrilligFunctionId,
@@ -685,12 +619,12 @@
     },
     proto::acir::circuit::{
         AssertMessage, AssertionPayload, BlackBoxFuncCall, BlockType, BrilligInputs,
-        BrilligOutputs, Circuit, ConstantOrWitnessEnum, ExpressionOrMemory, ExpressionWidth,
-        FunctionInput, MemOp, Opcode, OpcodeLocation,
+        BrilligOutputs, Circuit, ExpressionOrMemory, ExpressionWidth, FunctionInput, MemOp, Opcode,
+        OpcodeLocation,
     },
 };
 <span class="kw">use </span>acir_field::AcirField;
-<span class="kw">use </span>color_eyre::eyre::{<span class="self">self</span>, Context};
+<span class="kw">use </span>color_eyre::eyre::{<span class="self">self</span>};
 <span class="kw">use </span>noir_protobuf::{ProtoCodec, decode_oneof_map};
 
 <span class="kw">use </span><span class="kw">super</span>::ProtoSchema;
@@ -698,9 +632,9 @@
 <span class="kw">impl</span>&lt;F: AcirField&gt; ProtoCodec&lt;circuit::Circuit&lt;F&gt;, Circuit&gt; <span class="kw">for </span>ProtoSchema&lt;F&gt; {
     <span class="kw">fn </span>encode(value: <span class="kw-2">&amp;</span>circuit::Circuit&lt;F&gt;) -&gt; Circuit {
         Circuit {
+            function_name: value.function_name.clone(),
             current_witness_index: value.current_witness_index,
             opcodes: <span class="self">Self</span>::encode_vec(<span class="kw-2">&amp;</span>value.opcodes),
-            expression_width: <span class="self">Self</span>::encode_some(<span class="kw-2">&amp;</span>value.expression_width),
             private_parameters: <span class="self">Self</span>::encode_vec(value.private_parameters.iter()),
             public_parameters: <span class="self">Self</span>::encode_vec(value.public_parameters.<span class="number">0</span>.iter()),
             return_values: <span class="self">Self</span>::encode_vec(value.return_values.<span class="number">0</span>.iter()),
@@ -710,9 +644,9 @@
 
     <span class="kw">fn </span>decode(value: <span class="kw-2">&amp;</span>Circuit) -&gt; eyre::Result&lt;circuit::Circuit&lt;F&gt;&gt; {
         <span class="prelude-val">Ok</span>(circuit::Circuit {
+            function_name: value.function_name.clone(),
             current_witness_index: value.current_witness_index,
             opcodes: <span class="self">Self</span>::decode_vec_wrap(<span class="kw-2">&amp;</span>value.opcodes, <span class="string">"opcodes"</span>)<span class="question-mark">?</span>,
-            expression_width: <span class="self">Self</span>::decode_some_wrap(<span class="kw-2">&amp;</span>value.expression_width, <span class="string">"expression_width"</span>)<span class="question-mark">?</span>,
             private_parameters: <span class="self">Self</span>::decode_vec_wrap(
                 <span class="kw-2">&amp;</span>value.private_parameters,
                 <span class="string">"private_parameters"</span>,
@@ -861,11 +795,10 @@
             circuit::Opcode::BlackBoxFuncCall(black_box_func_call) =&gt; {
                 Value::BlackboxFuncCall(<span class="self">Self</span>::encode(black_box_func_call))
             }
-            circuit::Opcode::MemoryOp { block_id, op, predicate } =&gt; Value::MemoryOp(MemoryOp {
-                block_id: block_id.<span class="number">0</span>,
-                op: <span class="self">Self</span>::encode_some(op),
-                predicate: predicate.as_ref().map(<span class="self">Self</span>::encode),
-            }),
+            circuit::Opcode::MemoryOp { block_id, op } =&gt; Value::MemoryOp(
+                <span class="attr">#[allow(deprecated)]
+                </span>MemoryOp { block_id: block_id.<span class="number">0</span>, op: <span class="self">Self</span>::encode_some(op), predicate: <span class="prelude-val">None </span>},
+            ),
             circuit::Opcode::MemoryInit { block_id, init, block_type } =&gt; {
                 Value::MemoryInit(MemoryInit {
                     block_id: block_id.<span class="number">0</span>,
@@ -903,7 +836,6 @@
             Value::MemoryOp(memory_op) =&gt; <span class="prelude-val">Ok</span>(circuit::Opcode::MemoryOp {
                 block_id: BlockId(memory_op.block_id),
                 op: <span class="self">Self</span>::decode_some_wrap(<span class="kw-2">&amp;</span>memory_op.op, <span class="string">"op"</span>)<span class="question-mark">?</span>,
-                predicate: <span class="self">Self</span>::decode_opt_wrap(<span class="kw-2">&amp;</span>memory_op.predicate, <span class="string">"predicate"</span>)<span class="question-mark">?</span>,
             }),
             Value::MemoryInit(memory_init) =&gt; <span class="prelude-val">Ok</span>(circuit::Opcode::MemoryInit {
                 block_id: BlockId(memory_init.block_id),
@@ -962,18 +894,20 @@
                     outputs: <span class="self">Self</span>::encode_vec(outputs),
                 })
             }
-            opcodes::BlackBoxFuncCall::AND { lhs, rhs, output } =&gt; Value::And(And {
+            opcodes::BlackBoxFuncCall::AND { lhs, rhs, num_bits, output } =&gt; Value::And(And {
                 lhs: <span class="self">Self</span>::encode_some(lhs),
                 rhs: <span class="self">Self</span>::encode_some(rhs),
+                num_bits: <span class="kw-2">*</span>num_bits,
                 output: <span class="self">Self</span>::encode_some(output),
             }),
-            opcodes::BlackBoxFuncCall::XOR { lhs, rhs, output } =&gt; Value::Xor(Xor {
+            opcodes::BlackBoxFuncCall::XOR { lhs, rhs, num_bits, output } =&gt; Value::Xor(Xor {
                 lhs: <span class="self">Self</span>::encode_some(lhs),
                 rhs: <span class="self">Self</span>::encode_some(rhs),
+                num_bits: <span class="kw-2">*</span>num_bits,
                 output: <span class="self">Self</span>::encode_some(output),
             }),
-            opcodes::BlackBoxFuncCall::RANGE { input } =&gt; {
-                Value::Range(Range { input: <span class="self">Self</span>::encode_some(input) })
+            opcodes::BlackBoxFuncCall::RANGE { input, num_bits } =&gt; {
+                Value::Range(Range { input: <span class="self">Self</span>::encode_some(input), num_bits: <span class="kw-2">*</span>num_bits })
             }
             opcodes::BlackBoxFuncCall::Blake2s { inputs, outputs } =&gt; Value::Blake2s(Blake2s {
                 inputs: <span class="self">Self</span>::encode_vec(inputs),
@@ -989,12 +923,14 @@
                 signature,
                 hashed_message,
                 output,
+                predicate,
             } =&gt; Value::EcdsaSecp256k1(EcdsaSecp256k1 {
                 public_key_x: <span class="self">Self</span>::encode_vec(public_key_x.as_ref()),
                 public_key_y: <span class="self">Self</span>::encode_vec(public_key_y.as_ref()),
                 signature: <span class="self">Self</span>::encode_vec(signature.as_ref()),
                 hashed_message: <span class="self">Self</span>::encode_vec(hashed_message.as_ref()),
                 output: <span class="self">Self</span>::encode_some(output),
+                predicate: <span class="self">Self</span>::encode_some(predicate),
             }),
             opcodes::BlackBoxFuncCall::EcdsaSecp256r1 {
                 public_key_x,
@@ -1002,26 +938,30 @@
                 signature,
                 hashed_message,
                 output,
+                predicate,
             } =&gt; Value::EcdsaSecp256r1(EcdsaSecp256r1 {
                 public_key_x: <span class="self">Self</span>::encode_vec(public_key_x.as_ref()),
                 public_key_y: <span class="self">Self</span>::encode_vec(public_key_y.as_ref()),
                 signature: <span class="self">Self</span>::encode_vec(signature.as_ref()),
                 hashed_message: <span class="self">Self</span>::encode_vec(hashed_message.as_ref()),
                 output: <span class="self">Self</span>::encode_some(output),
+                predicate: <span class="self">Self</span>::encode_some(predicate),
             }),
-            opcodes::BlackBoxFuncCall::MultiScalarMul { points, scalars, outputs } =&gt; {
+            opcodes::BlackBoxFuncCall::MultiScalarMul { points, scalars, predicate, outputs } =&gt; {
                 <span class="kw">let </span>(w1, w2, w3) = outputs;
                 Value::MultiScalarMul(MultiScalarMul {
                     points: <span class="self">Self</span>::encode_vec(points),
                     scalars: <span class="self">Self</span>::encode_vec(scalars),
+                    predicate: <span class="self">Self</span>::encode_some(predicate),
                     outputs: <span class="self">Self</span>::encode_vec([w1, w2, w3]),
                 })
             }
-            opcodes::BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, outputs } =&gt; {
+            opcodes::BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, predicate, outputs } =&gt; {
                 <span class="kw">let </span>(w1, w2, w3) = outputs;
                 Value::EmbeddedCurveAdd(EmbeddedCurveAdd {
                     input1: <span class="self">Self</span>::encode_vec(input1.as_ref()),
                     input2: <span class="self">Self</span>::encode_vec(input2.as_ref()),
+                    predicate: <span class="self">Self</span>::encode_some(predicate),
                     outputs: <span class="self">Self</span>::encode_vec([w1, w2, w3]),
                 })
             }
@@ -1037,43 +977,19 @@
                 public_inputs,
                 key_hash,
                 proof_type,
+                predicate,
             } =&gt; Value::RecursiveAggregation(RecursiveAggregation {
                 verification_key: <span class="self">Self</span>::encode_vec(verification_key),
                 proof: <span class="self">Self</span>::encode_vec(proof),
                 public_inputs: <span class="self">Self</span>::encode_vec(public_inputs),
                 key_hash: <span class="self">Self</span>::encode_some(key_hash),
                 proof_type: <span class="kw-2">*</span>proof_type,
+                predicate: <span class="self">Self</span>::encode_some(predicate),
             }),
-            opcodes::BlackBoxFuncCall::BigIntAdd { lhs, rhs, output } =&gt; {
-                Value::BigIntAdd(BigIntAdd { lhs: <span class="kw-2">*</span>lhs, rhs: <span class="kw-2">*</span>rhs, output: <span class="kw-2">*</span>output })
-            }
-            opcodes::BlackBoxFuncCall::BigIntSub { lhs, rhs, output } =&gt; {
-                Value::BigIntSub(BigIntSub { lhs: <span class="kw-2">*</span>lhs, rhs: <span class="kw-2">*</span>rhs, output: <span class="kw-2">*</span>output })
-            }
-            opcodes::BlackBoxFuncCall::BigIntMul { lhs, rhs, output } =&gt; {
-                Value::BigIntMul(BigIntMul { lhs: <span class="kw-2">*</span>lhs, rhs: <span class="kw-2">*</span>rhs, output: <span class="kw-2">*</span>output })
-            }
-            opcodes::BlackBoxFuncCall::BigIntDiv { lhs, rhs, output } =&gt; {
-                Value::BigIntDiv(BigIntDiv { lhs: <span class="kw-2">*</span>lhs, rhs: <span class="kw-2">*</span>rhs, output: <span class="kw-2">*</span>output })
-            }
-            opcodes::BlackBoxFuncCall::BigIntFromLeBytes { inputs, modulus, output } =&gt; {
-                Value::BigIntFromLeBytes(BigIntFromLeBytes {
-                    inputs: <span class="self">Self</span>::encode_vec(inputs),
-                    modulus: modulus.clone(),
-                    output: <span class="kw-2">*</span>output,
-                })
-            }
-            opcodes::BlackBoxFuncCall::BigIntToLeBytes { input, outputs } =&gt; {
-                Value::BigIntToLeBytes(BigIntToLeBytes {
-                    input: <span class="kw-2">*</span>input,
-                    outputs: <span class="self">Self</span>::encode_vec(outputs),
-                })
-            }
-            opcodes::BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs, len } =&gt; {
+            opcodes::BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs } =&gt; {
                 Value::Poseidon2Permutation(Poseidon2Permutation {
                     inputs: <span class="self">Self</span>::encode_vec(inputs),
                     outputs: <span class="self">Self</span>::encode_vec(outputs),
-                    len: <span class="kw-2">*</span>len,
                 })
             }
             opcodes::BlackBoxFuncCall::Sha256Compression { inputs, hash_values, outputs } =&gt; {
@@ -1102,15 +1018,18 @@
                     Value::And(v) =&gt; <span class="prelude-val">Ok</span>(opcodes::BlackBoxFuncCall::AND {
                         lhs: <span class="self">Self</span>::decode_some_wrap(<span class="kw-2">&amp;</span>v.lhs, <span class="string">"lhs"</span>)<span class="question-mark">?</span>,
                         rhs: <span class="self">Self</span>::decode_some_wrap(<span class="kw-2">&amp;</span>v.rhs, <span class="string">"rhs"</span>)<span class="question-mark">?</span>,
+                        num_bits: v.num_bits,
                         output: <span class="self">Self</span>::decode_some_wrap(<span class="kw-2">&amp;</span>v.output, <span class="string">"output"</span>)<span class="question-mark">?</span>,
                     }),
                     Value::Xor(v) =&gt; <span class="prelude-val">Ok</span>(opcodes::BlackBoxFuncCall::XOR {
                         lhs: <span class="self">Self</span>::decode_some_wrap(<span class="kw-2">&amp;</span>v.lhs, <span class="string">"lhs"</span>)<span class="question-mark">?</span>,
                         rhs: <span class="self">Self</span>::decode_some_wrap(<span class="kw-2">&amp;</span>v.rhs, <span class="string">"rhs"</span>)<span class="question-mark">?</span>,
+                        num_bits: v.num_bits,
                         output: <span class="self">Self</span>::decode_some_wrap(<span class="kw-2">&amp;</span>v.output, <span class="string">"output"</span>)<span class="question-mark">?</span>,
                     }),
                     Value::Range(v) =&gt; <span class="prelude-val">Ok</span>(opcodes::BlackBoxFuncCall::RANGE {
                         input: <span class="self">Self</span>::decode_some_wrap(<span class="kw-2">&amp;</span>v.input, <span class="string">"input"</span>)<span class="question-mark">?</span>,
+                        num_bits: v.num_bits,
                     }),
                     Value::Blake2s(v) =&gt; <span class="prelude-val">Ok</span>(opcodes::BlackBoxFuncCall::Blake2s {
                         inputs: <span class="self">Self</span>::decode_vec_wrap(<span class="kw-2">&amp;</span>v.inputs, <span class="string">"inputs"</span>)<span class="question-mark">?</span>,
@@ -1129,6 +1048,7 @@
                             <span class="string">"hashed_message"</span>,
                         )<span class="question-mark">?</span>,
                         output: <span class="self">Self</span>::decode_some_wrap(<span class="kw-2">&amp;</span>v.output, <span class="string">"output"</span>)<span class="question-mark">?</span>,
+                        predicate: <span class="self">Self</span>::decode_some_wrap(<span class="kw-2">&amp;</span>v.predicate, <span class="string">"predicate"</span>)<span class="question-mark">?</span>,
                     }),
                     Value::EcdsaSecp256r1(v) =&gt; <span class="prelude-val">Ok</span>(opcodes::BlackBoxFuncCall::EcdsaSecp256r1 {
                         public_key_x: <span class="self">Self</span>::decode_box_arr_wrap(<span class="kw-2">&amp;</span>v.public_key_x, <span class="string">"public_key_x"</span>)<span class="question-mark">?</span>,
@@ -1139,16 +1059,19 @@
                             <span class="string">"hashed_message"</span>,
                         )<span class="question-mark">?</span>,
                         output: <span class="self">Self</span>::decode_some_wrap(<span class="kw-2">&amp;</span>v.output, <span class="string">"output"</span>)<span class="question-mark">?</span>,
+                        predicate: <span class="self">Self</span>::decode_some_wrap(<span class="kw-2">&amp;</span>v.predicate, <span class="string">"predicate"</span>)<span class="question-mark">?</span>,
                     }),
                     Value::MultiScalarMul(v) =&gt; <span class="prelude-val">Ok</span>(opcodes::BlackBoxFuncCall::MultiScalarMul {
                         points: <span class="self">Self</span>::decode_vec_wrap(<span class="kw-2">&amp;</span>v.points, <span class="string">"points"</span>)<span class="question-mark">?</span>,
                         scalars: <span class="self">Self</span>::decode_vec_wrap(<span class="kw-2">&amp;</span>v.scalars, <span class="string">"scalars"</span>)<span class="question-mark">?</span>,
+                        predicate: <span class="self">Self</span>::decode_some_wrap(<span class="kw-2">&amp;</span>v.predicate, <span class="string">"predicate"</span>)<span class="question-mark">?</span>,
                         outputs: <span class="self">Self</span>::decode_arr_wrap(<span class="kw-2">&amp;</span>v.outputs, <span class="string">"outputs"</span>)
                             .map(|[w1, w2, w3]| (w1, w2, w3))<span class="question-mark">?</span>,
                     }),
                     Value::EmbeddedCurveAdd(v) =&gt; <span class="prelude-val">Ok</span>(opcodes::BlackBoxFuncCall::EmbeddedCurveAdd {
                         input1: <span class="self">Self</span>::decode_box_arr_wrap(<span class="kw-2">&amp;</span>v.input1, <span class="string">"input1"</span>)<span class="question-mark">?</span>,
                         input2: <span class="self">Self</span>::decode_box_arr_wrap(<span class="kw-2">&amp;</span>v.input2, <span class="string">"input2"</span>)<span class="question-mark">?</span>,
+                        predicate: <span class="self">Self</span>::decode_some_wrap(<span class="kw-2">&amp;</span>v.predicate, <span class="string">"predicate"</span>)<span class="question-mark">?</span>,
                         outputs: <span class="self">Self</span>::decode_arr_wrap(<span class="kw-2">&amp;</span>v.outputs, <span class="string">"outputs"</span>)
                             .map(|[w1, w2, w3]| (w1, w2, w3))<span class="question-mark">?</span>,
                     }),
@@ -1169,44 +1092,13 @@
                             )<span class="question-mark">?</span>,
                             key_hash: <span class="self">Self</span>::decode_some_wrap(<span class="kw-2">&amp;</span>v.key_hash, <span class="string">"key_hash"</span>)<span class="question-mark">?</span>,
                             proof_type: v.proof_type,
+                            predicate: <span class="self">Self</span>::decode_some_wrap(<span class="kw-2">&amp;</span>v.predicate, <span class="string">"predicate"</span>)<span class="question-mark">?</span>,
                         })
                     }
-                    Value::BigIntAdd(v) =&gt; <span class="prelude-val">Ok</span>(opcodes::BlackBoxFuncCall::BigIntAdd {
-                        lhs: v.lhs,
-                        rhs: v.rhs,
-                        output: v.output,
-                    }),
-                    Value::BigIntSub(v) =&gt; <span class="prelude-val">Ok</span>(opcodes::BlackBoxFuncCall::BigIntSub {
-                        lhs: v.lhs,
-                        rhs: v.rhs,
-                        output: v.output,
-                    }),
-                    Value::BigIntMul(v) =&gt; <span class="prelude-val">Ok</span>(opcodes::BlackBoxFuncCall::BigIntMul {
-                        lhs: v.lhs,
-                        rhs: v.rhs,
-                        output: v.output,
-                    }),
-                    Value::BigIntDiv(v) =&gt; <span class="prelude-val">Ok</span>(opcodes::BlackBoxFuncCall::BigIntDiv {
-                        lhs: v.lhs,
-                        rhs: v.rhs,
-                        output: v.output,
-                    }),
-                    Value::BigIntFromLeBytes(v) =&gt; {
-                        <span class="prelude-val">Ok</span>(opcodes::BlackBoxFuncCall::BigIntFromLeBytes {
-                            inputs: <span class="self">Self</span>::decode_vec_wrap(<span class="kw-2">&amp;</span>v.inputs, <span class="string">"inputs"</span>)<span class="question-mark">?</span>,
-                            modulus: v.modulus.clone(),
-                            output: v.output,
-                        })
-                    }
-                    Value::BigIntToLeBytes(v) =&gt; <span class="prelude-val">Ok</span>(opcodes::BlackBoxFuncCall::BigIntToLeBytes {
-                        input: v.input,
-                        outputs: <span class="self">Self</span>::decode_vec_wrap(<span class="kw-2">&amp;</span>v.outputs, <span class="string">"outputs"</span>)<span class="question-mark">?</span>,
-                    }),
                     Value::Poseidon2Permutation(v) =&gt; {
                         <span class="prelude-val">Ok</span>(opcodes::BlackBoxFuncCall::Poseidon2Permutation {
                             inputs: <span class="self">Self</span>::decode_vec_wrap(<span class="kw-2">&amp;</span>v.inputs, <span class="string">"inputs"</span>)<span class="question-mark">?</span>,
                             outputs: <span class="self">Self</span>::decode_vec_wrap(<span class="kw-2">&amp;</span>v.outputs, <span class="string">"outputs"</span>)<span class="question-mark">?</span>,
-                            len: v.len,
                         })
                     }
                     Value::Sha256Compression(v) =&gt; {
@@ -1227,46 +1119,22 @@
     </span>F: AcirField,
 {
     <span class="kw">fn </span>encode(value: <span class="kw-2">&amp;</span>opcodes::FunctionInput&lt;F&gt;) -&gt; FunctionInput {
-        FunctionInput { input: <span class="self">Self</span>::encode_some(value.input_ref()), num_bits: value.num_bits() }
+        <span class="kw">use </span><span class="kw">crate</span>::proto::acir::circuit::function_input::<span class="kw-2">*</span>;
+        <span class="kw">let </span>value = <span class="kw">match </span>value {
+            opcodes::FunctionInput::Constant(field) =&gt; Value::Constant(<span class="self">Self</span>::encode(field)),
+            opcodes::FunctionInput::Witness(witness) =&gt; Value::Witness(<span class="self">Self</span>::encode(witness)),
+        };
+        FunctionInput { value: <span class="prelude-val">Some</span>(value) }
     }
 
     <span class="kw">fn </span>decode(value: <span class="kw-2">&amp;</span>FunctionInput) -&gt; eyre::Result&lt;opcodes::FunctionInput&lt;F&gt;&gt; {
-        <span class="kw">let </span>input = <span class="self">Self</span>::decode_some_wrap(<span class="kw-2">&amp;</span>value.input, <span class="string">"input"</span>)<span class="question-mark">?</span>;
-
-        <span class="kw">match </span>input {
-            opcodes::ConstantOrWitnessEnum::Constant(c) =&gt; {
-                opcodes::FunctionInput::constant(c, value.num_bits).wrap_err(<span class="string">"constant"</span>)
-            }
-            opcodes::ConstantOrWitnessEnum::Witness(w) =&gt; {
-                <span class="prelude-val">Ok</span>(opcodes::FunctionInput::witness(w, value.num_bits))
-            }
-        }
-    }
-}
-
-<span class="kw">impl</span>&lt;F&gt; ProtoCodec&lt;opcodes::ConstantOrWitnessEnum&lt;F&gt;, ConstantOrWitnessEnum&gt; <span class="kw">for </span>ProtoSchema&lt;F&gt;
-<span class="kw">where
-    </span>F: AcirField,
-{
-    <span class="kw">fn </span>encode(value: <span class="kw-2">&amp;</span>opcodes::ConstantOrWitnessEnum&lt;F&gt;) -&gt; ConstantOrWitnessEnum {
-        <span class="kw">use </span><span class="kw">crate</span>::proto::acir::circuit::constant_or_witness_enum::<span class="kw-2">*</span>;
-        <span class="kw">let </span>value = <span class="kw">match </span>value {
-            opcodes::ConstantOrWitnessEnum::Constant(field) =&gt; Value::Constant(<span class="self">Self</span>::encode(field)),
-            opcodes::ConstantOrWitnessEnum::Witness(witness) =&gt; {
-                Value::Witness(<span class="self">Self</span>::encode(witness))
-            }
-        };
-        ConstantOrWitnessEnum { value: <span class="prelude-val">Some</span>(value) }
-    }
-
-    <span class="kw">fn </span>decode(value: <span class="kw-2">&amp;</span>ConstantOrWitnessEnum) -&gt; eyre::Result&lt;opcodes::ConstantOrWitnessEnum&lt;F&gt;&gt; {
-        <span class="kw">use </span><span class="kw">crate</span>::proto::acir::circuit::constant_or_witness_enum::<span class="kw-2">*</span>;
+        <span class="kw">use </span><span class="kw">crate</span>::proto::acir::circuit::function_input::<span class="kw-2">*</span>;
         decode_oneof_map(<span class="kw-2">&amp;</span>value.value, |value| <span class="kw">match </span>value {
             Value::Constant(field) =&gt; {
-                <span class="prelude-val">Ok</span>(opcodes::ConstantOrWitnessEnum::Constant(<span class="self">Self</span>::decode_wrap(field, <span class="string">"constant"</span>)<span class="question-mark">?</span>))
+                <span class="prelude-val">Ok</span>(opcodes::FunctionInput::Constant(<span class="self">Self</span>::decode_wrap(field, <span class="string">"constant"</span>)<span class="question-mark">?</span>))
             }
             Value::Witness(witness) =&gt; {
-                <span class="prelude-val">Ok</span>(opcodes::ConstantOrWitnessEnum::Witness(<span class="self">Self</span>::decode_wrap(witness, <span class="string">"witness"</span>)<span class="question-mark">?</span>))
+                <span class="prelude-val">Ok</span>(opcodes::FunctionInput::Witness(<span class="self">Self</span>::decode_wrap(witness, <span class="string">"witness"</span>)<span class="question-mark">?</span>))
             }
         })
     }

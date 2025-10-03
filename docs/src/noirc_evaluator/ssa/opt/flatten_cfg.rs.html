@@ -2318,10 +2318,7 @@
 <a href="#2317" id="2317">2317</a>
 <a href="#2318" id="2318">2318</a>
 <a href="#2319" id="2319">2319</a>
-<a href="#2320" id="2320">2320</a>
-<a href="#2321" id="2321">2321</a>
-<a href="#2322" id="2322">2322</a>
-<a href="#2323" id="2323">2323</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the SSA flattening pass - a required pass for ACIR to remove any remaining
+<a href="#2320" id="2320">2320</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the SSA flattening pass - a required pass for ACIR to remove any remaining
 //! control-flow in the singular program-function, resulting in a single block containing the
 //! program logic.
 //!
@@ -2486,7 +2483,6 @@
 };
 
 <span class="kw">mod </span>branch_analysis;
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>value_merger;
 
 <span class="kw">impl </span>Ssa {
     <span class="doccomment">/// Flattens the control flow graph of main such that the function is left with a
@@ -3373,7 +3369,9 @@
                     arguments[<span class="number">3</span>] = point2_x;
                     arguments[<span class="number">4</span>] = point2_y;
                 }
-
+                <span class="comment">// TODO: We now use a predicate in order to disable the blackbox on the backend side
+                // the predicates on the inputs above will be removed once the backend is updated
+                </span>arguments[<span class="number">5</span>] = <span class="self">self</span>.mul_by_condition(arguments[<span class="number">5</span>], condition, call_stack);
                 arguments
             }
 
@@ -3381,10 +3379,12 @@
             </span>BlackBoxFunc::MultiScalarMul =&gt; {
                 <span class="kw">let </span>(elements, typ) =
                     <span class="self">self</span>.apply_predicate_to_msm_argument(arguments[<span class="number">0</span>], condition, call_stack);
-
                 <span class="kw">let </span>instruction = Instruction::MakeArray { elements, typ };
                 <span class="kw">let </span>array = <span class="self">self</span>.insert_instruction(instruction, call_stack);
                 arguments[<span class="number">0</span>] = array;
+                <span class="comment">// TODO: We now use a predicate in order to disable the blackbox on the backend side
+                // the predicates on the inputs above will be removed once the backend is updated
+                </span>arguments[<span class="number">2</span>] = <span class="self">self</span>.mul_by_condition(arguments[<span class="number">2</span>], condition, call_stack);
                 arguments
             }
 
@@ -3418,7 +3418,9 @@
                     condition,
                     call_stack,
                 );
-
+                <span class="comment">// TODO: We now use a predicate in order to disable the blackbox on the backend side
+                // the predicates on the inputs above will be removed once the backend is updated
+                </span>arguments[<span class="number">4</span>] = <span class="self">self</span>.mul_by_condition(arguments[<span class="number">4</span>], condition, call_stack);
                 arguments
             }
             BlackBoxFunc::EcdsaSecp256r1 =&gt; {
@@ -3446,7 +3448,9 @@
                     condition,
                     call_stack,
                 );
-
+                <span class="comment">// TODO: We now use a predicate in order to disable the blackbox on the backend side
+                // the predicates on the inputs above will be removed once the backend is updated
+                </span>arguments[<span class="number">4</span>] = <span class="self">self</span>.mul_by_condition(arguments[<span class="number">4</span>], condition, call_stack);
                 arguments
             }
 
@@ -3465,15 +3469,6 @@
 
             BlackBoxFunc::RANGE =&gt; {
                 <span class="macro">unreachable!</span>(<span class="string">"RANGE should have been converted into `Instruction::RangeCheck`"</span>)
-            }
-
-            BlackBoxFunc::BigIntAdd
-            | BlackBoxFunc::BigIntSub
-            | BlackBoxFunc::BigIntMul
-            | BlackBoxFunc::BigIntDiv
-            | BlackBoxFunc::BigIntFromLeBytes
-            | BlackBoxFunc::BigIntToLeBytes =&gt; {
-                <span class="macro">todo!</span>(<span class="string">"BigInt opcodes are not supported yet"</span>)
             }
         }
     }
@@ -3515,7 +3510,7 @@
                 <span class="self">self</span>.inserter
                     .function
                     .dfg
-                    .make_constant(FieldElement::from(<span class="kw-2">*</span>elem <span class="kw">as </span>u32), NumericType::unsigned(<span class="number">8</span>))
+                    .make_constant(FieldElement::from(u32::from(<span class="kw-2">*</span>elem)), NumericType::unsigned(<span class="number">8</span>))
             })
             .collect();
         <span class="kw">let </span>constant_array = Instruction::MakeArray { elements, typ: expected_array_type };
@@ -3549,7 +3544,7 @@
         condition: ValueId,
         call_stack: CallStackId,
     ) -&gt; (ValueId, ValueId) {
-        <span class="kw">let </span>index = !abscissa <span class="kw">as </span>usize;
+        <span class="kw">let </span>index = usize::from(!abscissa);
         <span class="kw">if </span>inputs[<span class="number">3</span>] == inputs[<span class="number">0</span>] &amp;&amp; inputs[<span class="number">4</span>] == inputs[<span class="number">1</span>] {
             <span class="comment">// Point doubling
             </span><span class="kw">let </span>predicated_value =
@@ -4353,7 +4348,7 @@
 
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
 
-        <span class="kw">let </span>ssa = ssa.flatten_cfg().mem2reg().fold_constants();
+        <span class="kw">let </span>ssa = ssa.flatten_cfg().mem2reg().fold_constants(<span class="number">1</span>);
 
         <span class="kw">let </span>main = ssa.main();
 
@@ -4420,7 +4415,7 @@
 
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
 
-        <span class="kw">let </span>ssa = ssa.flatten_cfg().mem2reg().fold_constants();
+        <span class="kw">let </span>ssa = ssa.flatten_cfg().mem2reg().fold_constants(<span class="number">1</span>);
 
         <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         acir(inline) fn main f0 {
@@ -4466,7 +4461,7 @@
             .mem2reg()
             .remove_if_else()
             .unwrap()
-            .fold_constants()
+            .fold_constants(<span class="number">1</span>)
             .dead_instruction_elimination();
 
         <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
@@ -4596,19 +4591,18 @@
             v3 = add u32 42, v1
             enable_side_effects v0
             v4 = cast v0 as u32
-            v5 = cast v0 as u32
-            v6 = unchecked_mul v3, v5
-            range_check v6 to 16 bits
-            v7 = not v0
-            enable_side_effects v7
-            v9 = add u32 3, v3
+            v5 = unchecked_mul v3, v4
+            range_check v5 to 16 bits
+            v6 = not v0
+            enable_side_effects v6
+            v8 = add u32 3, v3
             enable_side_effects u1 1
-            v11 = cast v0 as u32
-            v12 = cast v7 as u32
-            v13 = unchecked_mul v11, v3
-            v14 = unchecked_mul v12, v9
-            v15 = unchecked_add v13, v14
-            return v15
+            v10 = cast v0 as u32
+            v11 = cast v6 as u32
+            v12 = unchecked_mul v10, v3
+            v13 = unchecked_mul v11, v8
+            v14 = unchecked_add v12, v13
+            return v14
         }
         "</span>);
     }

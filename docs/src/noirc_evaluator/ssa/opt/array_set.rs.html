@@ -391,80 +391,7 @@
 <a href="#390" id="390">390</a>
 <a href="#391" id="391">391</a>
 <a href="#392" id="392">392</a>
-<a href="#393" id="393">393</a>
-<a href="#394" id="394">394</a>
-<a href="#395" id="395">395</a>
-<a href="#396" id="396">396</a>
-<a href="#397" id="397">397</a>
-<a href="#398" id="398">398</a>
-<a href="#399" id="399">399</a>
-<a href="#400" id="400">400</a>
-<a href="#401" id="401">401</a>
-<a href="#402" id="402">402</a>
-<a href="#403" id="403">403</a>
-<a href="#404" id="404">404</a>
-<a href="#405" id="405">405</a>
-<a href="#406" id="406">406</a>
-<a href="#407" id="407">407</a>
-<a href="#408" id="408">408</a>
-<a href="#409" id="409">409</a>
-<a href="#410" id="410">410</a>
-<a href="#411" id="411">411</a>
-<a href="#412" id="412">412</a>
-<a href="#413" id="413">413</a>
-<a href="#414" id="414">414</a>
-<a href="#415" id="415">415</a>
-<a href="#416" id="416">416</a>
-<a href="#417" id="417">417</a>
-<a href="#418" id="418">418</a>
-<a href="#419" id="419">419</a>
-<a href="#420" id="420">420</a>
-<a href="#421" id="421">421</a>
-<a href="#422" id="422">422</a>
-<a href="#423" id="423">423</a>
-<a href="#424" id="424">424</a>
-<a href="#425" id="425">425</a>
-<a href="#426" id="426">426</a>
-<a href="#427" id="427">427</a>
-<a href="#428" id="428">428</a>
-<a href="#429" id="429">429</a>
-<a href="#430" id="430">430</a>
-<a href="#431" id="431">431</a>
-<a href="#432" id="432">432</a>
-<a href="#433" id="433">433</a>
-<a href="#434" id="434">434</a>
-<a href="#435" id="435">435</a>
-<a href="#436" id="436">436</a>
-<a href="#437" id="437">437</a>
-<a href="#438" id="438">438</a>
-<a href="#439" id="439">439</a>
-<a href="#440" id="440">440</a>
-<a href="#441" id="441">441</a>
-<a href="#442" id="442">442</a>
-<a href="#443" id="443">443</a>
-<a href="#444" id="444">444</a>
-<a href="#445" id="445">445</a>
-<a href="#446" id="446">446</a>
-<a href="#447" id="447">447</a>
-<a href="#448" id="448">448</a>
-<a href="#449" id="449">449</a>
-<a href="#450" id="450">450</a>
-<a href="#451" id="451">451</a>
-<a href="#452" id="452">452</a>
-<a href="#453" id="453">453</a>
-<a href="#454" id="454">454</a>
-<a href="#455" id="455">455</a>
-<a href="#456" id="456">456</a>
-<a href="#457" id="457">457</a>
-<a href="#458" id="458">458</a>
-<a href="#459" id="459">459</a>
-<a href="#460" id="460">460</a>
-<a href="#461" id="461">461</a>
-<a href="#462" id="462">462</a>
-<a href="#463" id="463">463</a>
-<a href="#464" id="464">464</a>
-<a href="#465" id="465">465</a>
-<a href="#466" id="466">466</a></pre></div><pre class="rust"><code><span class="doccomment">//! The purpose of the `array_set_optimization` SSA pass is to mark `ArraySet` instructions
+<a href="#393" id="393">393</a></pre></div><pre class="rust"><code><span class="doccomment">//! The purpose of the `array_set_optimization` SSA pass is to mark `ArraySet` instructions
 //! as mutable _iff_ the array is not potentially shared with the callers or callees of the
 //! function and won't be used again in the function itself either. In other words, if this
 //! is the last time we use this version of the array, we can mutate it in place, and avoid
@@ -472,11 +399,13 @@
 //!
 //! This optimization only applies to ACIR. In Brillig we use ref-counting to decide when
 //! there are no other references to an array.
+//! This pass assumes that Load and Store instructions have been previously removed.
 //!
 //! The pass is expected to run at most once, and requires these passes to occur before itself:
 //! * unrolling
 //! * flattening
 //! * removal of if-else instructions
+//! * mem2reg and DIE, in order to remove Load/Store instructions
 
 </span><span class="kw">use </span>core::panic;
 <span class="kw">use </span>std::mem;
@@ -550,6 +479,12 @@
                 </span>Instruction::IfElse { .. } =&gt; {
                     <span class="macro">panic!</span>(<span class="string">"IfElse instruction exists before `array_set_optimization` pass"</span>);
                 }
+                Instruction::Load { .. } =&gt; {
+                    <span class="macro">panic!</span>(<span class="string">"Load instruction exists before `array_set_optimization` pass"</span>);
+                }
+                Instruction::Store { .. } =&gt; {
+                    <span class="macro">panic!</span>(<span class="string">"Store instruction exists before `array_set_optimization` pass"</span>);
+                }
                 <span class="kw">_ </span>=&gt; {}
             }
         }
@@ -562,7 +497,7 @@
 ///   - Mutable array_set optimization has been applied to Brillig function.
 </span><span class="attr">#[cfg(debug_assertions)]
 </span><span class="kw">fn </span>array_set_optimization_post_check(func: <span class="kw-2">&amp;</span>Function) {
-    <span class="comment">// Brillig functions should be not have any mutable array sets.
+    <span class="comment">// Brillig functions should not have any mutable array sets.
     </span><span class="kw">if </span>func.runtime().is_brillig() {
         <span class="kw">for </span>block_id <span class="kw">in </span>func.reachable_blocks() {
             <span class="kw">let </span>instruction_ids = func.dfg[block_id].instructions();
@@ -601,9 +536,6 @@
     dfg: <span class="kw-2">&amp;</span><span class="lifetime">'f </span>DataFlowGraph,
     array_to_last_use: HashMap&lt;ValueId, InstructionId&gt;,
     instructions_that_can_be_made_mutable: HashSet&lt;InstructionId&gt;,
-    <span class="comment">// Mapping of an array that comes from a load and whether the address
-    // it was loaded from is a reference parameter passed to the block.
-    </span>arrays_from_load: HashMap&lt;ValueId, bool&gt;,
 }
 
 <span class="kw">impl</span>&lt;<span class="lifetime">'f</span>&gt; Context&lt;<span class="lifetime">'f</span>&gt; {
@@ -612,7 +544,6 @@
             dfg,
             array_to_last_use: HashMap::default(),
             instructions_that_can_be_made_mutable: HashSet::default(),
-            arrays_from_load: HashMap::default(),
         }
     }
 
@@ -660,21 +591,13 @@
                 </span>Instruction::ArraySet { array, .. } =&gt; {
                     <span class="self">self</span>.set_last_use(<span class="kw-2">*</span>array, <span class="kw-2">*</span>instruction_id);
 
-                    <span class="comment">// If the array we are setting does not come from a load we can safely mark it mutable.
-                    // If the array comes from a load we may potentially being mutating an array at a reference
-                    // that is loaded from by other values.
-
-                    // We also want to check that the array is not part of the terminator arguments, as this means it is used again.
+                    <span class="comment">// We also want to check that the array is not part of the terminator arguments, as this means it is used again.
                     </span><span class="kw">let </span><span class="kw-2">mut </span>is_array_in_terminator = <span class="bool-val">false</span>;
                     terminator.for_each_value(|value| {
                         is_array_in_terminator |= value == <span class="kw-2">*</span>array;
                     });
 
-                    <span class="kw">let </span>can_mutate = <span class="kw">if let </span><span class="prelude-val">Some</span>(is_from_param) = <span class="self">self</span>.arrays_from_load.get(array) {
-                        !is_from_param
-                    } <span class="kw">else </span>{
-                        !is_array_in_terminator
-                    };
+                    <span class="kw">let </span>can_mutate = !is_array_in_terminator;
 
                     <span class="kw">if </span>can_mutate {
                         <span class="self">self</span>.instructions_that_can_be_made_mutable.insert(<span class="kw-2">*</span>instruction_id);
@@ -688,14 +611,11 @@
                         }
                     }
                 }
-                <span class="comment">// Arrays loaded from input references might be shared with the caller.
-                </span>Instruction::Load { address } =&gt; {
-                    <span class="kw">let </span>result = <span class="self">self</span>.dfg.instruction_results(<span class="kw-2">*</span>instruction_id)[<span class="number">0</span>];
-                    <span class="kw">if </span><span class="self">self</span>.dfg.type_of_value(result).is_array() {
-                        <span class="kw">let </span>is_reference_param =
-                            <span class="self">self</span>.dfg.block_parameters(block_id).contains(address);
-                        <span class="self">self</span>.arrays_from_load.insert(result, is_reference_param);
-                    }
+                <span class="comment">// Arrays loaded from memory might reference an existing array
+                // For instance if the array comes from a load we may potentially be mutating an array
+                // at a reference that is loaded from by other values.
+                </span>Instruction::Load { .. } =&gt; {
+                    <span class="macro">panic!</span>(<span class="string">"Load instruction exists before `array_set_optimization` pass"</span>);
                 }
                 <span class="comment">// Arrays nested in other arrays are a use.
                 </span>Instruction::MakeArray { elements, .. } =&gt; {
@@ -734,50 +654,6 @@
         assert_ssa_snapshot,
         ssa::{Ssa, opt::assert_ssa_does_not_change},
     };
-
-    <span class="attr">#[test]
-    </span><span class="kw">fn </span>array_set_in_loop_with_conditional_clone() {
-        <span class="comment">// We want to make sure that we do not mark a single array set mutable which is loaded
-        // from and cloned in a loop. If the array is inadvertently marked mutable, and is cloned in a previous iteration
-        // of the loop, its clone will also be altered.
-
-        // Note that this is a Brillig function, so it's skipped altogether.
-        // We can't just change it to ACIR, because it uses multiple blocks, it's not unrolled and flattened.
-        // It's left here to prevent any regressions, should we ever run the array_set optimization on Brillig again.
-        </span><span class="kw">let </span>src = <span class="string">"
-            brillig(inline) fn main f0 {
-              b0():
-                v2 = make_array [Field 0, Field 0, Field 0, Field 0, Field 0] : [Field; 5]
-                v3 = make_array [v2, v2] : [[Field; 5]; 2]
-                v4 = allocate -&gt; &amp;mut [[Field; 5]; 2]
-                store v3 at v4
-                v5 = allocate -&gt; &amp;mut [[Field; 5]; 2]
-                store v3 at v5
-                jmp b1(u32 0)
-              b1(v0: u32):
-                v8 = lt v0, u32 5
-                jmpif v8 then: b3, else: b2
-              b2():
-                return
-              b3():
-                v9 = eq v0, u32 5
-                jmpif v9 then: b4, else: b5
-              b4():
-                v10 = load v4 -&gt; [[Field; 5]; 2]
-                store v10 at v5
-                jmp b5()
-              b5():
-                v11 = load v4 -&gt; [[Field; 5]; 2]
-                v12 = array_get v11, index u32 0 -&gt; [Field; 5]
-                v14 = array_set v12, index v0, value Field 20
-                v15 = array_set v11, index v0, value v14
-                store v15 at v4
-                v17 = add v0, u32 1
-                jmp b1(v17)
-            }
-            "</span>;
-        assert_ssa_does_not_change(src, Ssa::array_set_optimization);
-    }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>does_not_mutate_array_used_in_make_array() {
@@ -843,66 +719,12 @@
     }
 
     <span class="attr">#[test]
-    </span><span class="kw">fn </span>does_not_mutate_array_loaded_from_reference_parameter() {
-        <span class="kw">let </span>src = <span class="string">"
-            acir(inline) fn main f0 {
-              b0():
-                v1 = make_array [Field 0] : [Field; 1]
-                v2 = allocate -&gt; &amp;mut [Field; 1]
-                store v1 at v2
-                call f1(v2)
-                return
-            }
-
-            acir(inline) fn func_1 f1 {
-              b0(v0: &amp;mut [Field; 1]):
-                v1 = load v0 -&gt; [Field; 1]
-                v2 = array_set v1, index u32 0, value Field 1
-                return
-            }
-            "</span>;
-        assert_ssa_does_not_change(src, Ssa::array_set_optimization);
-    }
-
-    <span class="attr">#[test]
-    </span><span class="kw">fn </span>mutate_arrays_loaded_from_non_parameter_reference() {
-        <span class="kw">let </span>src = <span class="string">"
-            acir(inline) fn main f0 {
-              b0():
-                v1 = make_array [Field 0] : [Field; 1]
-                v2 = allocate -&gt; &amp;mut [Field; 1]
-                store v1 at v2
-                v3 = load v2 -&gt; [Field; 1]
-                v4 = array_set v3, index u32 0, value Field 1
-                return
-            }
-            "</span>;
-        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-
-        <span class="kw">let </span>ssa = ssa.array_set_optimization();
-        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
-            acir(inline) fn main f0 {
-              b0():
-                v1 = make_array [Field 0] : [Field; 1]
-                v2 = allocate -&gt; &amp;mut [Field; 1]
-                store v1 at v2
-                v3 = load v2 -&gt; [Field; 1]
-                v6 = array_set mut v3, index u32 0, value Field 1
-                return
-            }
-        "</span>);
-    }
-
-    <span class="attr">#[test]
     </span><span class="kw">fn </span>does_not_mutate_arrays_in_unreachable_blocks() {
         <span class="kw">let </span>src = <span class="string">"
             acir(inline) fn main f0 {
               b0():
                 v1 = make_array [Field 0] : [Field; 1]
-                v2 = allocate -&gt; &amp;mut [Field; 1]
-                store v1 at v2
-                v3 = load v2 -&gt; [Field; 1]
-                v4 = array_set v3, index u32 0, value Field 1
+                v4 = array_set v1, index u32 0, value Field 1
                 constrain u1 0 == u1 1
                 unreachable
             }
@@ -923,6 +745,38 @@
                 v3 = not v0
                 v4 = if v0 then v1 else (if v3) v2
                 v5 = array_set v4, index u32 0, value u32 1
+                return v1
+            }
+            "</span>;
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>_ssa = ssa.array_set_optimization();
+    }
+
+    <span class="attr">#[test]
+    #[should_panic]
+    </span><span class="kw">fn </span>assumes_no_load() {
+        <span class="kw">let </span>src = <span class="string">"
+            acir(inline) predicate_pure fn main f0 {
+              b0(v0: u1, v1: [u32; 2], v2: [u32; 2]):
+                v3 = load v2 -&gt; [u32; 2]
+                v4 = array_get v3, index u32 0 -&gt; u32
+                v5 = array_set v1, index u32 0, value v4
+                return v1
+            }
+            "</span>;
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>_ssa = ssa.array_set_optimization();
+    }
+
+    <span class="attr">#[test]
+    #[should_panic]
+    </span><span class="kw">fn </span>assumes_no_store() {
+        <span class="kw">let </span>src = <span class="string">"
+            acir(inline) predicate_pure fn main f0 {
+              b0(v0: u1, v1: [u32; 2], v2: [u32; 2]):
+                v3 = allocate -&gt; &amp;mut [u32; 2]
+                store v2 at v3
+                v5 = array_set v3, index u32 0, value u32 1
                 return v1
             }
             "</span>;

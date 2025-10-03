@@ -440,10 +440,7 @@
 <a href="#439" id="439">439</a>
 <a href="#440" id="440">440</a>
 <a href="#441" id="441">441</a>
-<a href="#442" id="442">442</a>
-<a href="#443" id="443">443</a>
-<a href="#444" id="444">444</a>
-<a href="#445" id="445">445</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::AcirField;
+<a href="#442" id="442">442</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::AcirField;
 
 <span class="kw">use </span><span class="kw">crate</span>::ast::BinaryOpKind;
 <span class="kw">use </span><span class="kw">crate</span>::hir::Location;
@@ -468,6 +465,15 @@
     <span class="kw">let </span>lhs_overflow = InterpreterError::BinaryOperationOverflow { operator: <span class="string">"&lt;&lt;"</span>, location };
     <span class="kw">let </span>rhs_overflow = InterpreterError::BinaryOperationOverflow { operator: <span class="string">"&gt;&gt;"</span>, location };
     <span class="kw">let </span>math_error = |operator| InterpreterError::BinaryOperationOverflow { location, operator };
+
+    <span class="kw">if </span><span class="macro">matches!</span>(operator.kind, BinaryOpKind::Divide | BinaryOpKind::Modulo) &amp;&amp; rhs_value.is_zero() {
+        <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::InvalidValuesForBinary {
+            lhs: lhs_type,
+            rhs: rhs_type,
+            location,
+            operator: <span class="kw">if </span>operator.kind == BinaryOpKind::Divide { <span class="string">"/" </span>} <span class="kw">else </span>{ <span class="string">"%" </span>},
+        });
+    }
 
     <span class="doccomment">/// Generate matches that can promote the type of one side to the other if they are compatible.
     </span><span class="macro">macro_rules!</span> match_values {
@@ -594,7 +600,7 @@
         BinaryOpKind::Divide =&gt; <span class="macro">match_arithmetic!</span> {
             (lhs_value <span class="kw">as </span>lhs <span class="string">"/" </span>rhs_value <span class="kw">as </span>rhs) {
                 field: <span class="kw">if </span>rhs.absolute_value().is_zero() {
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(math_error(<span class="string">"/"</span>));
+                   <span class="kw">return </span><span class="prelude-val">Err</span>( InterpreterError::InvalidValuesForBinary { lhs: lhs_type, rhs: rhs_type, location, operator: <span class="string">"/" </span>});
                 } <span class="kw">else </span>{
                     lhs / rhs
                 },
@@ -633,7 +639,8 @@
             (lhs_value <span class="kw">as </span>lhs <span class="string">"&gt;&gt;" </span>rhs_value <span class="kw">as </span>rhs) =&gt; {
                 <span class="attr">#[allow(unused_comparisons, clippy::absurd_extreme_comparisons)]
                 </span><span class="kw">if </span>rhs &gt; <span class="number">127 </span>{<span class="kw">return </span><span class="prelude-val">Err</span>(rhs_overflow);}
-                lhs.checked_shr(rhs <span class="kw">as </span>u32)
+                <span class="attr">#[allow(clippy::cast_lossless)]
+                </span>lhs.checked_shr(rhs <span class="kw">as </span>u32)
             }
         },
         <span class="attr">#[allow(trivial_numeric_casts)]
@@ -641,18 +648,12 @@
             (lhs_value <span class="kw">as </span>lhs <span class="string">"&lt;&lt;" </span>rhs_value <span class="kw">as </span>rhs) =&gt; {
                 <span class="attr">#[allow(unused_comparisons, clippy::absurd_extreme_comparisons)]
                 </span><span class="kw">if </span>rhs &gt; <span class="number">127 </span>{<span class="kw">return </span><span class="prelude-val">Err</span>(lhs_overflow);}
-                lhs.checked_shl(
-                rhs <span class="kw">as </span>u32
-            )}
+                <span class="attr">#[allow(clippy::cast_lossless)]
+                </span>lhs.checked_shl(rhs <span class="kw">as </span>u32)
+            }
         },
-        BinaryOpKind::Modulo =&gt; <span class="kw">match </span>(<span class="kw-2">&amp;</span>lhs_value, <span class="kw-2">&amp;</span>rhs_value) {
-            (Value::I8(i8::MIN), Value::I8(-<span class="number">1</span>)) =&gt; <span class="prelude-val">Ok</span>(Value::I8(<span class="number">0</span>)),
-            (Value::I16(i16::MIN), Value::I16(-<span class="number">1</span>)) =&gt; <span class="prelude-val">Ok</span>(Value::I16(<span class="number">0</span>)),
-            (Value::I32(i32::MIN), Value::I32(-<span class="number">1</span>)) =&gt; <span class="prelude-val">Ok</span>(Value::I32(<span class="number">0</span>)),
-            (Value::I64(i64::MIN), Value::I64(-<span class="number">1</span>)) =&gt; <span class="prelude-val">Ok</span>(Value::I64(<span class="number">0</span>)),
-            <span class="kw">_ </span>=&gt; <span class="macro">match_integer!</span> {
-                (lhs_value <span class="kw">as </span>lhs <span class="string">"%" </span>rhs_value <span class="kw">as </span>rhs) =&gt; lhs.checked_rem(rhs)
-            },
+        BinaryOpKind::Modulo =&gt; <span class="macro">match_integer!</span> {
+            (lhs_value <span class="kw">as </span>lhs <span class="string">"%" </span>rhs_value <span class="kw">as </span>rhs) =&gt; lhs.checked_rem(rhs)
         },
     }
 }
@@ -684,9 +685,8 @@
         <span class="kw">let </span>rhs = Value::I8(-<span class="number">1</span>);
         <span class="kw">let </span>operator = HirBinaryOp { kind: BinaryOpKind::Modulo, location: Location::dummy() };
         <span class="kw">let </span>location = Location::dummy();
-        <span class="kw">let </span>result = evaluate_infix(lhs, rhs, operator, location).unwrap();
-
-        <span class="macro">assert_eq!</span>(result, Value::I8(<span class="number">0</span>));
+        <span class="kw">let </span>err = evaluate_infix(lhs, rhs, operator, location).unwrap_err();
+        <span class="macro">assert!</span>(<span class="macro">matches!</span>(err, InterpreterError::BinaryOperationOverflow { .. }));
     }
 
     <span class="attr">#[test]
@@ -852,10 +852,7 @@
             }
         "#</span>;
         <span class="kw">let </span>result = interpret_expect_error(src);
-        <span class="macro">assert!</span>(<span class="macro">matches!</span>(
-            result,
-            InterpreterError::BinaryOperationOverflow { operator: <span class="string">"/"</span>, location: <span class="kw">_ </span>}
-        ));
+        <span class="macro">assert!</span>(<span class="macro">matches!</span>(result, InterpreterError::InvalidValuesForBinary { operator: <span class="string">"/"</span>, .. }));
     }
 
     <span class="attr">#[test]
@@ -866,10 +863,7 @@
             }
         "#</span>;
         <span class="kw">let </span>result = interpret_expect_error(src);
-        <span class="macro">assert!</span>(<span class="macro">matches!</span>(
-            result,
-            InterpreterError::BinaryOperationOverflow { operator: <span class="string">"/"</span>, location: <span class="kw">_ </span>}
-        ));
+        <span class="macro">assert!</span>(<span class="macro">matches!</span>(result, InterpreterError::InvalidValuesForBinary { operator: <span class="string">"/"</span>, .. }));
     }
 
     <span class="attr">#[test]

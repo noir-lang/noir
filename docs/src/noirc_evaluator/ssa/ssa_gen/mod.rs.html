@@ -1248,7 +1248,10 @@
 <a href="#1247" id="1247">1247</a>
 <a href="#1248" id="1248">1248</a>
 <a href="#1249" id="1249">1249</a>
-<a href="#1250" id="1250">1250</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>context;
+<a href="#1250" id="1250">1250</a>
+<a href="#1251" id="1251">1251</a>
+<a href="#1252" id="1252">1252</a>
+<a href="#1253" id="1253">1253</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>context;
 <span class="kw">mod </span>program;
 <span class="kw">mod </span>tests;
 <span class="kw">mod </span>value;
@@ -1279,7 +1282,7 @@
 
 <span class="kw">use </span><span class="kw">super</span>::ir::basic_block::BasicBlockId;
 <span class="kw">use </span><span class="kw">super</span>::ir::dfg::GlobalsGraph;
-<span class="kw">use </span><span class="kw">super</span>::ir::instruction::{ArrayOffset, ErrorType};
+<span class="kw">use </span><span class="kw">super</span>::ir::instruction::ErrorType;
 <span class="kw">use </span><span class="kw">super</span>::ir::types::NumericType;
 <span class="kw">use </span><span class="kw">super</span>::validation::validate_function;
 <span class="kw">use super</span>::{
@@ -1503,7 +1506,7 @@
             }
             ast::Literal::Bool(value) =&gt; {
                 <span class="comment">// Don't need to call checked_numeric_constant here since `value` can only be true or false
-                </span><span class="prelude-val">Ok</span>(<span class="self">self</span>.builder.numeric_constant(<span class="kw-2">*</span>value <span class="kw">as </span>u128, NumericType::bool()).into())
+                </span><span class="prelude-val">Ok</span>(<span class="self">self</span>.builder.numeric_constant(u128::from(<span class="kw-2">*</span>value), NumericType::bool()).into())
             }
             ast::Literal::Str(string) =&gt; <span class="prelude-val">Ok</span>(<span class="self">self</span>.codegen_string(string)),
             ast::Literal::FmtStr(fragments, number_of_fields, fields) =&gt; {
@@ -1528,7 +1531,7 @@
                 </span><span class="kw">let </span>string = <span class="self">self</span>.codegen_string(<span class="kw-2">&amp;</span>string);
                 <span class="kw">let </span>field_count = <span class="self">self
                     </span>.builder
-                    .numeric_constant(<span class="kw-2">*</span>number_of_fields <span class="kw">as </span>u128, NumericType::NativeField);
+                    .numeric_constant(u128::from(<span class="kw-2">*</span>number_of_fields), NumericType::NativeField);
                 <span class="kw">let </span>fields = <span class="self">self</span>.codegen_expression(fields)<span class="question-mark">?</span>;
 
                 <span class="prelude-val">Ok</span>(Tree::Branch(<span class="macro">vec!</span>[string, field_count.into(), fields]))
@@ -1546,7 +1549,7 @@
 
     <span class="kw">fn </span>codegen_string(<span class="kw-2">&amp;mut </span><span class="self">self</span>, string: <span class="kw-2">&amp;</span>str) -&gt; Values {
         <span class="kw">let </span>elements = vecmap(string.as_bytes(), |byte| {
-            <span class="self">self</span>.builder.numeric_constant(<span class="kw-2">*</span>byte <span class="kw">as </span>u128, NumericType::char()).into()
+            <span class="self">self</span>.builder.numeric_constant(u128::from(<span class="kw-2">*</span>byte), NumericType::char()).into()
         });
         <span class="kw">let </span>typ = <span class="self">Self</span>::convert_non_tuple_type(<span class="kw-2">&amp;</span>ast::Type::String(elements.len() <span class="kw">as </span>u32));
         <span class="self">self</span>.codegen_array(elements, typ)
@@ -1716,16 +1719,16 @@
             <span class="self">self</span>.builder.numeric_constant(type_size <span class="kw">as </span>u128, NumericType::length_type());
 
         <span class="kw">let </span>array_type = <span class="kw-2">&amp;</span><span class="self">self</span>.builder.type_of_value(array);
+        <span class="kw">let </span>runtime = <span class="self">self</span>.builder.current_function.runtime();
 
         <span class="comment">// Checks for index Out-of-bounds
         </span><span class="kw">match </span>array_type {
             Type::Array(<span class="kw">_</span>, len) =&gt; {
                 <span class="comment">// Out of bounds array accesses are guaranteed to fail in ACIR so this check is performed implicitly.
                 // We then only need to inject it for brillig functions.
-                </span><span class="kw">let </span>runtime = <span class="self">self</span>.builder.current_function.runtime();
-                <span class="kw">if </span>runtime.is_brillig() {
+                </span><span class="kw">if </span>runtime.is_brillig() {
                     <span class="kw">let </span>len =
-                        <span class="self">self</span>.builder.numeric_constant(<span class="kw-2">*</span>len <span class="kw">as </span>u128, NumericType::length_type());
+                        <span class="self">self</span>.builder.numeric_constant(u128::from(<span class="kw-2">*</span>len), NumericType::length_type());
                     <span class="self">self</span>.codegen_access_check(index, len);
                 }
             }
@@ -1741,23 +1744,26 @@
             <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"must have array or slice but got {array_type}"</span>),
         }
 
-        <span class="comment">// This shouldn't overflow because the initial index is within array bounds
-        </span><span class="kw">let </span>base_index = <span class="self">self</span>.builder.set_location(location).insert_binary(
+        <span class="comment">// This can overflow if the original index is already not in the bounds of the array
+        // and we skipped inserting constraints. To stay on the conservative side, start with
+        // a checked operation, and simplify to unchecked if it can be evaluated.
+        // In Brillig we will be protected from overflows by constraints, so we can go unchecked.
+        </span><span class="kw">let </span>unchecked = runtime.is_brillig();
+        <span class="kw">let </span>base_index = <span class="self">self</span>.builder.set_location(location).insert_binary(
             index,
-            BinaryOp::Mul { unchecked: <span class="bool-val">true </span>},
+            BinaryOp::Mul { unchecked },
             type_size,
         );
 
         <span class="kw">let </span><span class="kw-2">mut </span>field_index = <span class="number">0u128</span>;
         <span class="prelude-val">Ok</span>(<span class="self">Self</span>::map_type(element_type, |typ| {
-            <span class="kw">let </span>index = <span class="self">self</span>.make_offset(base_index, field_index);
+            <span class="kw">let </span>index = <span class="self">self</span>.make_offset(base_index, field_index, unchecked);
             field_index += <span class="number">1</span>;
 
             <span class="comment">// Reference counting in brillig relies on us incrementing reference
             // counts when nested arrays/slices are constructed or indexed. This
             // has no effect in ACIR code.
-            </span><span class="kw">let </span>offset = ArrayOffset::None;
-            <span class="kw">let </span>result = <span class="self">self</span>.builder.insert_array_get(array, index, offset, typ);
+            </span><span class="kw">let </span>result = <span class="self">self</span>.builder.insert_array_get(array, index, typ);
             result.into()
         }))
     }
@@ -1881,7 +1887,7 @@
 
         <span class="kw">let </span>result = <span class="self">self</span>.codegen_expression(<span class="kw-2">&amp;</span>for_expr.block);
         <span class="self">self</span>.codegen_unless_break_or_continue(result, |this, <span class="kw">_</span>| {
-            <span class="kw">let </span>new_loop_index = this.make_offset(loop_index, <span class="number">1</span>);
+            <span class="kw">let </span>new_loop_index = this.make_offset(loop_index, <span class="number">1</span>, <span class="bool-val">true</span>);
             this.builder.terminate_with_jmp(loop_entry, <span class="macro">vec!</span>[new_loop_index]);
         })<span class="question-mark">?</span>;
 
@@ -2448,7 +2454,7 @@
 
         <span class="comment">// Must remember to increment i before jumping
         </span><span class="kw">if let </span><span class="prelude-val">Some</span>(loop_index) = loop_.loop_index {
-            <span class="kw">let </span>new_loop_index = <span class="self">self</span>.make_offset(loop_index, <span class="number">1</span>);
+            <span class="kw">let </span>new_loop_index = <span class="self">self</span>.make_offset(loop_index, <span class="number">1</span>, <span class="bool-val">true</span>);
             <span class="self">self</span>.builder.terminate_with_jmp(loop_.loop_entry, <span class="macro">vec!</span>[new_loop_index]);
         } <span class="kw">else </span>{
             <span class="self">self</span>.builder.terminate_with_jmp(loop_.loop_entry, <span class="macro">vec!</span>[]);

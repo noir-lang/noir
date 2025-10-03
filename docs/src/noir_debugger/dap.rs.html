@@ -1204,7 +1204,7 @@
             .clone()
             .into_iter()
             .map(|(witness, value)| Variable {
-                name: <span class="macro">format!</span>(<span class="string">"_{}"</span>, witness.witness_index()),
+                name: witness.to_string(),
                 value: <span class="macro">format!</span>(<span class="string">"{value:?}"</span>),
                 ..Variable::default()
             })

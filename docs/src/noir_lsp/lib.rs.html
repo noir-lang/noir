@@ -437,7 +437,9 @@
 <a href="#436" id="436">436</a>
 <a href="#437" id="437">437</a>
 <a href="#438" id="438">438</a>
-<a href="#439" id="439">439</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#439" id="439">439</a>
+<a href="#440" id="440">440</a>
+<a href="#441" id="441">441</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 </span><span class="kw">use </span>std::{
@@ -453,8 +455,9 @@
 
 <span class="kw">use </span>acvm::{BlackBoxFunctionSolver, FieldElement};
 <span class="kw">use </span>async_lsp::lsp_types::request::{
-    CodeActionRequest, Completion, DocumentSymbolRequest, HoverRequest, InlayHintRequest,
-    PrepareRenameRequest, References, Rename, SignatureHelpRequest, WorkspaceSymbolRequest,
+    CodeActionRequest, Completion, DocumentSymbolRequest, FoldingRangeRequest, HoverRequest,
+    InlayHintRequest, PrepareRenameRequest, References, Rename, SignatureHelpRequest,
+    WorkspaceSymbolRequest,
 };
 <span class="kw">use </span>async_lsp::{
     AnyEvent, AnyNotification, AnyRequest, ClientSocket, Error, LspService, ResponseError,
@@ -518,7 +521,7 @@
 <span class="kw">use </span>with_file::parsed_module_with_file;
 
 <span class="kw">use crate</span>::{
-    requests::{on_expand_request, on_std_source_code_request},
+    requests::{on_expand_request, on_folding_range_request, on_std_source_code_request},
     types::request::{NargoExpand, NargoStdSourceCode},
 };
 
@@ -615,6 +618,7 @@
             .request::&lt;SignatureHelpRequest, <span class="kw">_</span>&gt;(on_signature_help_request)
             .request::&lt;CodeActionRequest, <span class="kw">_</span>&gt;(on_code_action_request)
             .request::&lt;WorkspaceSymbolRequest, <span class="kw">_</span>&gt;(on_workspace_symbol_request)
+            .request::&lt;FoldingRangeRequest, <span class="kw">_</span>&gt;(on_folding_range_request)
             .request::&lt;NargoExpand, <span class="kw">_</span>&gt;(on_expand_request)
             .request::&lt;NargoStdSourceCode, <span class="kw">_</span>&gt;(on_std_source_code_request)
             .notification::&lt;notification::Initialized&gt;(on_initialized)

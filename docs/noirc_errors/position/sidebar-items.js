@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["Located","Location","Span","Spanned"],"type":["Position"]};
+window.SIDEBAR_ITEMS = {"struct":["Located","Location"],"type":["Position"]};

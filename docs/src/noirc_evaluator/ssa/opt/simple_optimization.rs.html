@@ -195,7 +195,16 @@
 <a href="#194" id="194">194</a>
 <a href="#195" id="195">195</a>
 <a href="#196" id="196">196</a>
-<a href="#197" id="197">197</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::hash::BuildHasher;
+<a href="#197" id="197">197</a>
+<a href="#198" id="198">198</a>
+<a href="#199" id="199">199</a>
+<a href="#200" id="200">200</a>
+<a href="#201" id="201">201</a>
+<a href="#202" id="202">202</a>
+<a href="#203" id="203">203</a>
+<a href="#204" id="204">204</a>
+<a href="#205" id="205">205</a>
+<a href="#206" id="206">206</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::hash::BuildHasher;
 
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::call_stack::CallStackId;
@@ -327,16 +336,24 @@
         <span class="self">self</span>.values_to_replace.insert(from, to);
     }
 
+    <span class="doccomment">/// Check if the instruction has changed relative to its original contents,
+    /// e.g. because any of its values have been replaced.
+    </span><span class="kw">fn </span>has_instruction_changed(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="comment">// If the instruction changed, then there is a chance that we can (or have to)
+        // simplify it before we insert it back into the block.
+        </span><span class="kw">let </span>instruction_hash = rustc_hash::FxBuildHasher.hash_one(<span class="self">self</span>.instruction());
+        <span class="self">self</span>.orig_instruction_hash != instruction_hash
+    }
+
     <span class="doccomment">/// Instructs this context to insert the current instruction right away, as opposed
     /// to doing this at the end of `mutate`'s block (unless `remove_current_instruction is called`).
     ///
-    /// If the instruction or its values has relative to their original content,
+    /// If the instruction or its values has changed relative to their original content,
     /// we attempt to simplify the instruction before re-inserting it into the block.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>insert_current_instruction(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="comment">// If the instruction changed, then there is a chance that we can (or have to)
         // simplify it before we insert it back into the block.
-        </span><span class="kw">let </span>instruction_hash = rustc_hash::FxBuildHasher.hash_one(<span class="self">self</span>.instruction());
-        <span class="kw">let </span>simplify = <span class="self">self</span>.orig_instruction_hash != instruction_hash;
+        </span><span class="kw">let </span>simplify = <span class="self">self</span>.has_instruction_changed();
 
         <span class="kw">if </span>simplify {
             <span class="comment">// Based on FunctionInserter::push_instruction_value.
@@ -345,6 +362,7 @@
             <span class="kw">let </span>ctrl_typevars = instruction
                 .requires_ctrl_typevars()
                 .then(|| vecmap(<span class="kw-2">&amp;</span>results, |result| <span class="self">self</span>.dfg.type_of_value(<span class="kw-2">*</span>result)));
+
             <span class="kw">let </span>new_results = <span class="self">self</span>.dfg.insert_instruction_and_results_if_simplified(
                 instruction,
                 <span class="self">self</span>.block_id,

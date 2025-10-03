@@ -27,9 +27,7 @@
 <a href="#26" id="26">26</a>
 <a href="#27" id="27">27</a>
 <a href="#28" id="28">28</a>
-<a href="#29" id="29">29</a>
-<a href="#30" id="30">30</a>
-<a href="#31" id="31">31</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#29" id="29">29</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 </span><span class="doccomment">//! This crate provides the implementation of BlackBox functions of ACIR and Brillig.
@@ -40,14 +38,12 @@
 <span class="kw">use </span>thiserror::Error;
 
 <span class="kw">mod </span>aes128;
-<span class="kw">mod </span>bigint;
 <span class="kw">mod </span>curve_specific_solver;
 <span class="kw">mod </span>ecdsa;
 <span class="kw">mod </span>hash;
 <span class="kw">mod </span>logic;
 
 <span class="kw">pub use </span>aes128::aes128_encrypt;
-<span class="kw">pub use </span>bigint::{BigIntSolver, BigIntSolverWithId};
 <span class="kw">pub use </span>curve_specific_solver::{BlackBoxFunctionSolver, StubbedBlackBoxSolver};
 <span class="kw">pub use </span>ecdsa::{ecdsa_secp256k1_verify, ecdsa_secp256r1_verify};
 <span class="kw">pub use </span>hash::{blake2s, blake3, keccakf1600, sha256_compression};

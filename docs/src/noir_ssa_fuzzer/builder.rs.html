@@ -997,38 +997,17 @@
 <a href="#996" id="996">996</a>
 <a href="#997" id="997">997</a>
 <a href="#998" id="998">998</a>
-<a href="#999" id="999">999</a>
-<a href="#1000" id="1000">1000</a>
-<a href="#1001" id="1001">1001</a>
-<a href="#1002" id="1002">1002</a>
-<a href="#1003" id="1003">1003</a>
-<a href="#1004" id="1004">1004</a>
-<a href="#1005" id="1005">1005</a>
-<a href="#1006" id="1006">1006</a>
-<a href="#1007" id="1007">1007</a>
-<a href="#1008" id="1008">1008</a>
-<a href="#1009" id="1009">1009</a>
-<a href="#1010" id="1010">1010</a>
-<a href="#1011" id="1011">1011</a>
-<a href="#1012" id="1012">1012</a>
-<a href="#1013" id="1013">1013</a>
-<a href="#1014" id="1014">1014</a>
-<a href="#1015" id="1015">1015</a>
-<a href="#1016" id="1016">1016</a>
-<a href="#1017" id="1017">1017</a>
-<a href="#1018" id="1018">1018</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::typed_value::{NumericType, Point, Scalar, Type, TypedValue};
+<a href="#999" id="999">999</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::typed_value::{NumericType, Point, Scalar, Type, TypedValue};
 <span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>noir_ssa_executor::compiler::compile_from_ssa;
 <span class="kw">use </span>noirc_driver::{CompileOptions, CompiledProgram};
 <span class="kw">use </span>noirc_evaluator::ssa::function_builder::FunctionBuilder;
 <span class="kw">use </span>noirc_evaluator::ssa::ir::basic_block::BasicBlockId;
 <span class="kw">use </span>noirc_evaluator::ssa::ir::function::{Function, RuntimeType};
-<span class="kw">use </span>noirc_evaluator::ssa::ir::instruction::ArrayOffset;
 <span class="kw">use </span>noirc_evaluator::ssa::ir::instruction::BinaryOp;
 <span class="kw">use </span>noirc_evaluator::ssa::ir::map::Id;
 <span class="kw">use </span>noirc_evaluator::ssa::ir::types::Type <span class="kw">as </span>SsaType;
 <span class="kw">use </span>noirc_evaluator::ssa::ir::value::Value;
-<span class="kw">use </span>noirc_frontend::monomorphization::ast::InlineType;
 <span class="kw">use </span>noirc_frontend::monomorphization::ast::InlineType <span class="kw">as </span>FrontendInlineType;
 <span class="kw">use </span>std::panic::AssertUnwindSafe;
 <span class="kw">use </span>std::sync::Arc;
@@ -1052,6 +1031,7 @@
 /// Contains a FunctionBuilder and tracks the current numeric type being used
 </span><span class="kw">pub struct </span>FuzzerBuilder {
     <span class="kw">pub</span>(<span class="kw">crate</span>) builder: FunctionBuilder,
+    <span class="kw">pub</span>(<span class="kw">crate</span>) runtime: RuntimeType,
 }
 
 <span class="kw">impl </span>FuzzerBuilder {
@@ -1061,7 +1041,7 @@
         <span class="kw">let </span><span class="kw-2">mut </span>builder = FunctionBuilder::new(<span class="string">"main"</span>.into(), main_id);
         builder.set_runtime(RuntimeType::Acir(FrontendInlineType::default()));
         builder.simplify = simplifying_enabled;
-        <span class="self">Self </span>{ builder }
+        <span class="self">Self </span>{ builder, runtime: RuntimeType::Acir(FrontendInlineType::default()) }
     }
 
     <span class="doccomment">/// Creates a new FuzzerBuilder in Brillig context
@@ -1070,7 +1050,15 @@
         <span class="kw">let </span><span class="kw-2">mut </span>builder = FunctionBuilder::new(<span class="string">"main"</span>.into(), main_id);
         builder.set_runtime(RuntimeType::Brillig(FrontendInlineType::default()));
         builder.simplify = simplifying_enabled;
-        <span class="self">Self </span>{ builder }
+        <span class="self">Self </span>{ builder, runtime: RuntimeType::Brillig(FrontendInlineType::default()) }
+    }
+
+    <span class="kw">pub fn </span>new_by_runtime(runtime: RuntimeType, simplifying_enabled: bool) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>main_id: Id&lt;Function&gt; = Id::new(<span class="number">0</span>);
+        <span class="kw">let </span><span class="kw-2">mut </span>builder = FunctionBuilder::new(<span class="string">"main"</span>.into(), main_id);
+        builder.set_runtime(runtime);
+        builder.simplify = simplifying_enabled;
+        <span class="self">Self </span>{ builder, runtime }
     }
 
     <span class="doccomment">/// Compiles the built function into a CompiledProgram, to run it with nargo execute
@@ -1350,15 +1338,18 @@
         <span class="self">self</span>.builder.insert_store(memory_addr.value_id, value.value_id);
     }
 
-    <span class="doccomment">/// Creates a new ACIR function with the given name and id with inline type InlineType::Inline
-    </span><span class="kw">pub fn </span>new_acir_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>, name: String, function_id: Id&lt;Function&gt;) {
+    <span class="doccomment">/// Creates a new function with the given name and id with inline type InlineType::Inline
+    /// Sets the same runtime as the builder
+    </span><span class="kw">pub fn </span>new_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>, name: String, function_id: Id&lt;Function&gt;) {
         <span class="comment">// maybe use different inline type
-        </span><span class="self">self</span>.builder.new_function(name, function_id, InlineType::Inline);
-    }
-
-    <span class="doccomment">/// Creates a new Brillig function with the given name and id with inline type InlineType::Inline
-    </span><span class="kw">pub fn </span>new_brillig_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>, name: String, function_id: Id&lt;Function&gt;) {
-        <span class="self">self</span>.builder.new_brillig_function(name, function_id, InlineType::Inline);
+        </span><span class="kw">match </span><span class="self">self</span>.runtime {
+            RuntimeType::Acir(inline_type) =&gt; {
+                <span class="self">self</span>.builder.new_function(name, function_id, inline_type);
+            }
+            RuntimeType::Brillig(inline_type) =&gt; {
+                <span class="self">self</span>.builder.new_brillig_function(name, function_id, inline_type);
+            }
+        }
     }
 
     <span class="doccomment">/// Inserts an import function with the given function id
@@ -1437,7 +1428,7 @@
             .import_intrinsic(<span class="string">"to_le_radix"</span>)
             .expect(<span class="string">"to_le_radix intrinsic should be available"</span>);
         <span class="kw">let </span>element_type = Type::Numeric(NumericType::U8);
-        <span class="kw">let </span>result_type = Type::Array(Arc::new(<span class="macro">vec!</span>[element_type.clone()]), limb_count <span class="kw">as </span>u32);
+        <span class="kw">let </span>result_type = Type::Array(Arc::new(<span class="macro">vec!</span>[element_type.clone()]), u32::from(limb_count));
         <span class="kw">let </span>result = <span class="self">self</span>.builder.insert_call(
             intrinsic,
             <span class="macro">vec!</span>[field_value.value_id, radix],
@@ -1472,7 +1463,6 @@
             <span class="kw">let </span>byte = <span class="self">self</span>.builder.insert_array_get(
                 array.value_id,
                 index,
-                ArrayOffset::None,
                 SsaType::Numeric(NumericType::U8.into()),
             );
             <span class="kw">let </span>byte_as_field = <span class="self">self</span>.builder.insert_cast(byte, NumericType::Field.into());
@@ -1710,7 +1700,6 @@
         <span class="kw">let </span>res = <span class="self">self</span>.builder.insert_array_get(
             array.value_id,
             index.value_id,
-            ArrayOffset::None,
             element_type.clone().into(),
         );
         TypedValue::new(res, element_type)
@@ -1738,13 +1727,8 @@
         } <span class="kw">else </span>{
             index
         };
-        <span class="kw">let </span>res = <span class="self">self</span>.builder.insert_array_set(
-            array.value_id,
-            index.value_id,
-            value.value_id,
-            <span class="bool-val">false</span>,
-            ArrayOffset::None,
-        );
+        <span class="kw">let </span>res =
+            <span class="self">self</span>.builder.insert_array_set(array.value_id, index.value_id, value.value_id, <span class="bool-val">false</span>);
         TypedValue::new(res, Type::Array(array_type.clone(), array_length))
     }
 
@@ -1796,27 +1780,18 @@
             Arc::new(<span class="macro">vec!</span>[field_type.clone(), field_type.clone(), boolean_type.clone()]),
             <span class="number">1</span>,
         );
+        <span class="kw">let </span>predicate = <span class="self">self</span>.builder.numeric_constant(<span class="number">1_u32</span>, NumericType::Boolean.into());
         <span class="kw">let </span>result = <span class="self">self</span>.builder.insert_call(
             intrinsic,
-            <span class="macro">vec!</span>[basic_point, scalar_id],
+            <span class="macro">vec!</span>[basic_point, scalar_id, predicate],
             <span class="macro">vec!</span>[return_type.clone().into()],
         );
         <span class="macro">assert_eq!</span>(result.len(), <span class="number">1</span>);
         <span class="kw">let </span>result = result[<span class="number">0</span>];
         <span class="kw">let </span>x_idx = <span class="self">self</span>.builder.numeric_constant(<span class="number">0_u32</span>, NumericType::U32.into());
         <span class="kw">let </span>y_idx = <span class="self">self</span>.builder.numeric_constant(<span class="number">1_u32</span>, NumericType::U32.into());
-        <span class="kw">let </span>x = <span class="self">self</span>.builder.insert_array_get(
-            result,
-            x_idx,
-            ArrayOffset::None,
-            field_type.clone().into(),
-        );
-        <span class="kw">let </span>y = <span class="self">self</span>.builder.insert_array_get(
-            result,
-            y_idx,
-            ArrayOffset::None,
-            field_type.clone().into(),
-        );
+        <span class="kw">let </span>x = <span class="self">self</span>.builder.insert_array_get(result, x_idx, field_type.clone().into());
+        <span class="kw">let </span>y = <span class="self">self</span>.builder.insert_array_get(result, y_idx, field_type.clone().into());
         Point {
             x: TypedValue::new(x, field_type.clone()),
             y: TypedValue::new(y, field_type),
@@ -1837,7 +1812,12 @@
         Point { x: scalar.lo, y: scalar.hi, is_infinite }
     }
 
-    <span class="kw">pub fn </span>multi_scalar_mul(<span class="kw-2">&amp;mut </span><span class="self">self</span>, points: Vec&lt;Point&gt;, scalars: Vec&lt;Scalar&gt;) -&gt; Point {
+    <span class="kw">pub fn </span>multi_scalar_mul(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        points: Vec&lt;Point&gt;,
+        scalars: Vec&lt;Scalar&gt;,
+        predicate: bool,
+    ) -&gt; Point {
         <span class="macro">assert_eq!</span>(points.len(), scalars.len());
         <span class="kw">for </span>point <span class="kw">in </span><span class="kw-2">&amp;</span>points {
             <span class="macro">assert!</span>(point.validate());
@@ -1845,7 +1825,8 @@
         <span class="kw">for </span>scalar <span class="kw">in </span><span class="kw-2">&amp;</span>scalars {
             <span class="macro">assert!</span>(scalar.validate());
         }
-
+        <span class="kw">let </span>predicate =
+            <span class="self">self</span>.builder.numeric_constant(u32::from(predicate), NumericType::Boolean.into());
         <span class="kw">let </span>field_type = Type::Numeric(NumericType::Field);
         <span class="kw">let </span>boolean_type = Type::Numeric(NumericType::Boolean);
         <span class="kw">let </span>intrinsic = <span class="self">self
@@ -1878,7 +1859,7 @@
         );
         <span class="kw">let </span>result = <span class="self">self</span>.builder.insert_call(
             intrinsic,
-            <span class="macro">vec!</span>[point_ids_array, scalar_ids_array],
+            <span class="macro">vec!</span>[point_ids_array, scalar_ids_array, predicate],
             <span class="macro">vec!</span>[return_type.clone().into()],
         );
         <span class="macro">assert_eq!</span>(result.len(), <span class="number">1</span>);
@@ -1886,24 +1867,10 @@
         <span class="kw">let </span>x_idx = <span class="self">self</span>.builder.numeric_constant(<span class="number">0_u32</span>, NumericType::U32.into());
         <span class="kw">let </span>y_idx = <span class="self">self</span>.builder.numeric_constant(<span class="number">1_u32</span>, NumericType::U32.into());
         <span class="kw">let </span>is_infinite_idx = <span class="self">self</span>.builder.numeric_constant(<span class="number">2_u32</span>, NumericType::U32.into());
-        <span class="kw">let </span>x = <span class="self">self</span>.builder.insert_array_get(
-            result,
-            x_idx,
-            ArrayOffset::None,
-            field_type.clone().into(),
-        );
-        <span class="kw">let </span>y = <span class="self">self</span>.builder.insert_array_get(
-            result,
-            y_idx,
-            ArrayOffset::None,
-            field_type.clone().into(),
-        );
-        <span class="kw">let </span>is_infinite = <span class="self">self</span>.builder.insert_array_get(
-            result,
-            is_infinite_idx,
-            ArrayOffset::None,
-            boolean_type.clone().into(),
-        );
+        <span class="kw">let </span>x = <span class="self">self</span>.builder.insert_array_get(result, x_idx, field_type.clone().into());
+        <span class="kw">let </span>y = <span class="self">self</span>.builder.insert_array_get(result, y_idx, field_type.clone().into());
+        <span class="kw">let </span>is_infinite =
+            <span class="self">self</span>.builder.insert_array_get(result, is_infinite_idx, boolean_type.clone().into());
         Point {
             x: TypedValue::new(x, field_type.clone()),
             y: TypedValue::new(y, field_type),
@@ -1911,45 +1878,34 @@
         }
     }
 
-    <span class="kw">pub fn </span>point_add(<span class="kw-2">&amp;mut </span><span class="self">self</span>, p1: Point, p2: Point) -&gt; Point {
+    <span class="kw">pub fn </span>point_add(<span class="kw-2">&amp;mut </span><span class="self">self</span>, p1: Point, p2: Point, predicate: bool) -&gt; Point {
         <span class="macro">assert!</span>(p1.validate());
         <span class="macro">assert!</span>(p2.validate());
         <span class="kw">let </span>field_type = Type::Numeric(NumericType::Field);
         <span class="kw">let </span>boolean_type = Type::Numeric(NumericType::Boolean);
+        <span class="kw">let </span>predicate =
+            <span class="self">self</span>.builder.numeric_constant(u32::from(predicate), NumericType::Boolean.into());
         <span class="kw">let </span>intrinsic = <span class="self">self
             </span>.builder
             .import_intrinsic(<span class="string">"embedded_curve_add"</span>)
             .expect(<span class="string">"embedded_curve_add intrinsic should be available"</span>);
-        <span class="kw">let </span>points_flattened = p1.to_id_vec().into_iter().chain(p2.to_id_vec()).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+        <span class="kw">let </span><span class="kw-2">mut </span>arguments = p1.to_id_vec().into_iter().chain(p2.to_id_vec()).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+        arguments.push(predicate);
         <span class="kw">let </span>return_type = Type::Array(
             Arc::new(<span class="macro">vec!</span>[field_type.clone(), field_type.clone(), boolean_type.clone()]),
             <span class="number">1</span>,
         );
         <span class="kw">let </span>result =
-            <span class="self">self</span>.builder.insert_call(intrinsic, points_flattened, <span class="macro">vec!</span>[return_type.clone().into()]);
+            <span class="self">self</span>.builder.insert_call(intrinsic, arguments, <span class="macro">vec!</span>[return_type.clone().into()]);
         <span class="macro">assert_eq!</span>(result.len(), <span class="number">1</span>);
         <span class="kw">let </span>result = result[<span class="number">0</span>];
         <span class="kw">let </span>x_idx = <span class="self">self</span>.builder.numeric_constant(<span class="number">0_u32</span>, NumericType::U32.into());
         <span class="kw">let </span>y_idx = <span class="self">self</span>.builder.numeric_constant(<span class="number">1_u32</span>, NumericType::U32.into());
         <span class="kw">let </span>is_infinite_idx = <span class="self">self</span>.builder.numeric_constant(<span class="number">2_u32</span>, NumericType::U32.into());
-        <span class="kw">let </span>x = <span class="self">self</span>.builder.insert_array_get(
-            result,
-            x_idx,
-            ArrayOffset::None,
-            field_type.clone().into(),
-        );
-        <span class="kw">let </span>y = <span class="self">self</span>.builder.insert_array_get(
-            result,
-            y_idx,
-            ArrayOffset::None,
-            field_type.clone().into(),
-        );
-        <span class="kw">let </span>is_infinite = <span class="self">self</span>.builder.insert_array_get(
-            result,
-            is_infinite_idx,
-            ArrayOffset::None,
-            boolean_type.clone().into(),
-        );
+        <span class="kw">let </span>x = <span class="self">self</span>.builder.insert_array_get(result, x_idx, field_type.clone().into());
+        <span class="kw">let </span>y = <span class="self">self</span>.builder.insert_array_get(result, y_idx, field_type.clone().into());
+        <span class="kw">let </span>is_infinite =
+            <span class="self">self</span>.builder.insert_array_get(result, is_infinite_idx, boolean_type.clone().into());
         Point {
             x: TypedValue::new(x, field_type.clone()),
             y: TypedValue::new(y, field_type),
@@ -1960,7 +1916,7 @@
     <span class="kw">fn </span>bytes_to_ssa_array(<span class="kw-2">&amp;mut </span><span class="self">self</span>, vec: Vec&lt;u8&gt;) -&gt; TypedValue {
         <span class="kw">let </span>elements: Vec&lt;Id&lt;Value&gt;&gt; = vec
             .into_iter()
-            .map(|x| <span class="self">self</span>.builder.numeric_constant(x <span class="kw">as </span>u32, NumericType::U8.into()))
+            .map(|x| <span class="self">self</span>.builder.numeric_constant(u32::from(x), NumericType::U8.into()))
             .collect();
         <span class="kw">let </span>array_type =
             Type::Array(Arc::new(<span class="macro">vec!</span>[Type::Numeric(NumericType::U8)]), elements.len() <span class="kw">as </span>u32);
@@ -1970,28 +1926,19 @@
         )
     }
 
-    <span class="kw">fn </span>bytes_to_ssa_slice(<span class="kw-2">&amp;mut </span><span class="self">self</span>, vec: Vec&lt;u8&gt;) -&gt; TypedValue {
-        <span class="kw">let </span>elements: Vec&lt;Id&lt;Value&gt;&gt; = vec
-            .into_iter()
-            .map(|x| <span class="self">self</span>.builder.numeric_constant(x <span class="kw">as </span>u32, NumericType::U8.into()))
-            .collect();
-        <span class="kw">let </span>slice_type = Type::Slice(Arc::new(<span class="macro">vec!</span>[Type::Numeric(NumericType::U8)]));
-        TypedValue::new(
-            <span class="self">self</span>.builder.insert_make_array(elements.into(), slice_type.clone().into()),
-            slice_type,
-        )
-    }
-
     <span class="kw">pub fn </span>ecdsa_secp256r1(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         pub_key_x: Vec&lt;u8&gt;,
         pub_key_y: Vec&lt;u8&gt;,
         hash: Vec&lt;u8&gt;,
         signature: Vec&lt;u8&gt;,
+        predicate: bool,
     ) -&gt; TypedValue {
+        <span class="kw">let </span>predicate =
+            <span class="self">self</span>.builder.numeric_constant(u32::from(predicate), NumericType::Boolean.into());
         <span class="kw">let </span>pub_key_x = <span class="self">self</span>.bytes_to_ssa_array(pub_key_x);
         <span class="kw">let </span>pub_key_y = <span class="self">self</span>.bytes_to_ssa_array(pub_key_y);
-        <span class="kw">let </span>hash = <span class="self">self</span>.bytes_to_ssa_slice(hash);
+        <span class="kw">let </span>hash = <span class="self">self</span>.bytes_to_ssa_array(hash);
         <span class="kw">let </span>signature = <span class="self">self</span>.bytes_to_ssa_array(signature);
         <span class="kw">let </span>return_type = Type::Numeric(NumericType::Boolean);
         <span class="kw">let </span>intrinsic = <span class="self">self
@@ -2000,7 +1947,13 @@
             .expect(<span class="string">"ecdsa_secp256r1 intrinsic should be available"</span>);
         <span class="kw">let </span>result = <span class="self">self</span>.builder.insert_call(
             intrinsic,
-            <span class="macro">vec!</span>[pub_key_x.value_id, pub_key_y.value_id, signature.value_id, hash.value_id],
+            <span class="macro">vec!</span>[
+                pub_key_x.value_id,
+                pub_key_y.value_id,
+                signature.value_id,
+                hash.value_id,
+                predicate,
+            ],
             <span class="macro">vec!</span>[return_type.clone().into()],
         );
         <span class="macro">assert_eq!</span>(result.len(), <span class="number">1</span>);
@@ -2014,10 +1967,13 @@
         pub_key_y: Vec&lt;u8&gt;,
         hash: Vec&lt;u8&gt;,
         signature: Vec&lt;u8&gt;,
+        predicate: bool,
     ) -&gt; TypedValue {
+        <span class="kw">let </span>predicate =
+            <span class="self">self</span>.builder.numeric_constant(u32::from(predicate), NumericType::Boolean.into());
         <span class="kw">let </span>pub_key_x = <span class="self">self</span>.bytes_to_ssa_array(pub_key_x);
         <span class="kw">let </span>pub_key_y = <span class="self">self</span>.bytes_to_ssa_array(pub_key_y);
-        <span class="kw">let </span>hash = <span class="self">self</span>.bytes_to_ssa_slice(hash);
+        <span class="kw">let </span>hash = <span class="self">self</span>.bytes_to_ssa_array(hash);
         <span class="kw">let </span>signature = <span class="self">self</span>.bytes_to_ssa_array(signature);
         <span class="kw">let </span>return_type = Type::Numeric(NumericType::Boolean);
         <span class="kw">let </span>intrinsic = <span class="self">self
@@ -2026,7 +1982,13 @@
             .expect(<span class="string">"ecdsa_secp256k1 intrinsic should be available"</span>);
         <span class="kw">let </span>result = <span class="self">self</span>.builder.insert_call(
             intrinsic,
-            <span class="macro">vec!</span>[pub_key_x.value_id, pub_key_y.value_id, signature.value_id, hash.value_id],
+            <span class="macro">vec!</span>[
+                pub_key_x.value_id,
+                pub_key_y.value_id,
+                signature.value_id,
+                hash.value_id,
+                predicate,
+            ],
             <span class="macro">vec!</span>[return_type.clone().into()],
         );
         <span class="macro">assert_eq!</span>(result.len(), <span class="number">1</span>);

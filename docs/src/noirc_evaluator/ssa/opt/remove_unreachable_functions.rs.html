@@ -269,12 +269,7 @@
 <a href="#268" id="268">268</a>
 <a href="#269" id="269">269</a>
 <a href="#270" id="270">270</a>
-<a href="#271" id="271">271</a>
-<a href="#272" id="272">272</a>
-<a href="#273" id="273">273</a>
-<a href="#274" id="274">274</a>
-<a href="#275" id="275">275</a>
-<a href="#276" id="276">276</a></pre></div><pre class="rust"><code><span class="doccomment">//! Removes any unreachable functions from the code. These can result from
+<a href="#271" id="271">271</a></pre></div><pre class="rust"><code><span class="doccomment">//! Removes any unreachable functions from the code. These can result from
 //! optimizations making existing functions unreachable, e.g. `if false { foo() }`,
 //! or even from monomorphizing an unconstrained version of a constrained function
 //! where the original constrained version ends up never being used.
@@ -356,13 +351,8 @@
 /// A sorted set of [`FunctionId`]s that are reachable from the entry points of the SSA.
 </span><span class="kw">fn </span>reachable_functions(ssa: <span class="kw-2">&amp;</span>Ssa) -&gt; HashSet&lt;FunctionId&gt; {
     <span class="comment">// Identify entry points
-    </span><span class="kw">let </span>entry_points = ssa.functions.iter().filter_map(|(<span class="kw-2">&amp;</span>id, func)| {
-        <span class="comment">// Not using `Ssa::is_entry_point` because it could leave Brillig functions that nobody calls in the SSA,
-        // because it considers every Brillig function as an entry point.
-        </span><span class="kw">let </span>is_entry_point =
-            id == ssa.main_id || func.runtime().is_acir() &amp;&amp; func.runtime().is_entry_point();
-        is_entry_point.then_some(id)
-    });
+    </span><span class="kw">let </span>entry_points =
+        ssa.functions.iter().filter_map(|(<span class="kw-2">&amp;</span>id, <span class="kw">_</span>)| ssa.is_entry_point(id).then_some(id));
 
     <span class="comment">// Build call graph dependencies using this passes definition of reachability.
     </span><span class="kw">let </span>dependencies = ssa.functions.iter().map(|(<span class="kw-2">&amp;</span>id, func)| (id, used_functions(func))).collect();

@@ -652,17 +652,27 @@
 <a href="#651" id="651">651</a>
 <a href="#652" id="652">652</a>
 <a href="#653" id="653">653</a>
-<a href="#654" id="654">654</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ssa::{
-    ir::{
-        basic_block::BasicBlockId,
-        instruction::{
-            ArrayOffset, Binary, BinaryOp, ConstrainError, Instruction,
-            binary::{truncate, truncate_field},
-        },
-        types::{NumericType, Type},
-        value::{Value, ValueId},
+<a href="#654" id="654">654</a>
+<a href="#655" id="655">655</a>
+<a href="#656" id="656">656</a>
+<a href="#657" id="657">657</a>
+<a href="#658" id="658">658</a>
+<a href="#659" id="659">659</a>
+<a href="#660" id="660">660</a>
+<a href="#661" id="661">661</a>
+<a href="#662" id="662">662</a>
+<a href="#663" id="663">663</a>
+<a href="#664" id="664">664</a>
+<a href="#665" id="665">665</a>
+<a href="#666" id="666">666</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
+    basic_block::BasicBlockId,
+    dfg::simplify::value_merger::ValueMerger,
+    instruction::{
+        Binary, BinaryOp, ConstrainError, Instruction,
+        binary::{truncate, truncate_field},
     },
-    opt::flatten_cfg::value_merger::ValueMerger,
+    types::{NumericType, Type},
+    value::{Value, ValueId},
 };
 <span class="kw">use </span>acvm::{AcirField <span class="kw">as _</span>, FieldElement};
 <span class="kw">use </span>binary::simplify_binary;
@@ -677,11 +687,13 @@
 <span class="kw">mod </span>call;
 <span class="kw">mod </span>cast;
 <span class="kw">mod </span>constrain;
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>value_merger;
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span>call::constant_to_radix;
 
 <span class="doccomment">/// Contains the result to Instruction::simplify, specifying how the instruction
 /// should be simplified.
+</span><span class="attr">#[derive(Debug)]
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>SimplifyResult {
     <span class="doccomment">/// Replace this function's result with the given value
     </span>SimplifiedTo(ValueId),
@@ -764,7 +776,7 @@
             }
         }
         Instruction::ConstrainNotEqual(..) =&gt; <span class="prelude-val">None</span>,
-        Instruction::ArrayGet { array, index, offset } =&gt; {
+        Instruction::ArrayGet { array, index } =&gt; {
             <span class="kw">if let </span><span class="prelude-val">Some</span>(index) = dfg.get_numeric_constant(<span class="kw-2">*</span>index) {
                 <span class="kw">return </span>try_optimize_array_get_from_previous_set(dfg, <span class="kw-2">*</span>array, index);
             }
@@ -775,7 +787,7 @@
             </span>{
                 <span class="comment">// If the array is of length 1 then we know the only value which can be potentially read out of it.
                 // We can then simply assert that the index is equal to zero and return the array's contained value.
-                </span>optimize_length_one_array_read(dfg, block, call_stack, <span class="kw-2">*</span>array, <span class="kw-2">*</span>index, <span class="kw-2">*</span>offset)
+                </span>optimize_length_one_array_read(dfg, block, call_stack, <span class="kw-2">*</span>array, <span class="kw-2">*</span>index)
             } <span class="kw">else </span>{
                 <span class="prelude-val">None
             </span>}
@@ -880,6 +892,18 @@
                     zero,
                     assert_message.as_ref().map(|msg| ConstrainError::from(msg.clone())),
                 ))
+            } <span class="kw">else if let </span><span class="prelude-val">Some</span>(c) = dfg.get_numeric_constant(<span class="kw-2">*</span>value) {
+                <span class="kw">if </span>c.num_bits() &gt; <span class="kw-2">*</span>max_bit_size {
+                    <span class="kw">let </span>zero = dfg.make_constant(FieldElement::zero(), NumericType::bool());
+                    <span class="kw">let </span>one = dfg.make_constant(FieldElement::one(), NumericType::bool());
+                    SimplifiedToInstruction(Instruction::Constrain(
+                        zero,
+                        one,
+                        assert_message.as_ref().map(|msg| ConstrainError::from(msg.clone())),
+                    ))
+                } <span class="kw">else </span>{
+                    Remove
+                }
             } <span class="kw">else </span>{
                 <span class="prelude-val">None
             </span>}
@@ -984,7 +1008,6 @@
     call_stack: CallStackId,
     array: ValueId,
     index: ValueId,
-    offset: ArrayOffset,
 ) -&gt; SimplifyResult {
     <span class="kw">let </span>zero = dfg.make_constant(FieldElement::zero(), NumericType::length_type());
     <span class="kw">let </span>index_constraint = Instruction::Constrain(
@@ -996,11 +1019,7 @@
 
     <span class="kw">let </span>result = try_optimize_array_get_from_previous_set(dfg, array, FieldElement::zero());
     <span class="kw">if let </span>SimplifyResult::None = result {
-        SimplifyResult::SimplifiedToInstruction(Instruction::ArrayGet {
-            array,
-            index: zero,
-            offset,
-        })
+        SimplifyResult::SimplifiedToInstruction(Instruction::ArrayGet { array, index: zero })
     } <span class="kw">else </span>{
         result
     }
@@ -1098,8 +1117,8 @@
     target_value: ValueId,
 ) -&gt; SimplifyResult {
     <span class="kw">let </span>array_from_get = <span class="kw">match </span>dfg.get_local_or_global_instruction(target_value) {
-        <span class="prelude-val">Some</span>(Instruction::ArrayGet { array, index, offset }) =&gt; {
-            <span class="kw">if </span><span class="kw-2">*</span>offset == ArrayOffset::None &amp;&amp; <span class="kw-2">*</span>array == array_id &amp;&amp; <span class="kw-2">*</span>index == target_index {
+        <span class="prelude-val">Some</span>(Instruction::ArrayGet { array, index }) =&gt; {
+            <span class="kw">if </span><span class="kw-2">*</span>array == array_id &amp;&amp; <span class="kw-2">*</span>index == target_index {
                 <span class="comment">// If array and index match from the value, we can immediately simplify
                 </span><span class="kw">return </span>SimplifyResult::SimplifiedTo(array_id);
             } <span class="kw">else if </span><span class="kw-2">*</span>index == target_index {
@@ -1162,25 +1181,30 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>removes_range_constraints_on_constants() {
-        <span class="kw">let </span>src = <span class="string">"
+        <span class="kw">let </span>src = <span class="string">r#"
         acir(inline) fn main f0 {
-          b0(v0: Field):
+          b0(v0: Field, v1: u8):
             range_check Field 0 to 1 bits
             range_check Field 1 to 1 bits
+            range_check Field 2 to 1 bits, "2 &gt; 1"
             range_check Field 255 to 8 bits
-            range_check Field 256 to 8 bits
+            range_check Field 256 to 8 bits, "256 &gt; 255"
+            range_check v0 to 8 bits
+            range_check v1 to 8 bits
             return
         }
-        "</span>;
+        "#</span>;
         <span class="kw">let </span>ssa = Ssa::from_str_simplifying(src).unwrap();
 
-        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r#"
         acir(inline) fn main f0 {
-          b0(v0: Field):
-            range_check Field 256 to 8 bits
+          b0(v0: Field, v1: u8):
+            constrain u1 0 == u1 1, "2 &gt; 1"
+            constrain u1 0 == u1 1, "256 &gt; 255"
+            range_check v0 to 8 bits
             return
         }
-        "</span>);
+        "#</span>);
     }
 
     <span class="attr">#[test]

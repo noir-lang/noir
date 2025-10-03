@@ -62,29 +62,23 @@
 <a href="#61" id="61">61</a>
 <a href="#62" id="62">62</a>
 <a href="#63" id="63">63</a>
-<a href="#64" id="64">64</a>
-<a href="#65" id="65">65</a>
-<a href="#66" id="66">66</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare the execution of random ASTs between the initial SSA
+<a href="#64" id="64">64</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare the execution of random ASTs between the initial SSA
 //! (or as close as we can stay to the initial state)
 //! and the fully optimized version.
-</span><span class="kw">use crate</span>::{
-    compare_results_compiled, create_ssa_or_die, create_ssa_with_passes_or_die, default_ssa_options,
+</span><span class="kw">use </span><span class="kw">crate</span>::targets::default_config;
+<span class="kw">use crate</span>::{
+    compare_results_compiled, compile_into_circuit_or_die,
+    compile_into_circuit_with_ssa_passes_or_die, default_ssa_options,
 };
 <span class="kw">use </span>arbitrary::{Arbitrary, Unstructured};
 <span class="kw">use </span>color_eyre::eyre;
 <span class="kw">use </span>noir_ast_fuzzer::compare::{CompareOptions, ComparePipelines};
-<span class="kw">use </span>noir_ast_fuzzer::{
-    Config, compare::CompareResult, rewrite::change_all_functions_into_unconstrained,
-};
+<span class="kw">use </span>noir_ast_fuzzer::{compare::CompareResult, rewrite::change_all_functions_into_unconstrained};
 <span class="kw">use </span>noirc_evaluator::ssa::minimal_passes;
 
 <span class="kw">pub fn </span>fuzz(u: <span class="kw-2">&amp;mut </span>Unstructured) -&gt; eyre::Result&lt;()&gt; {
     <span class="kw">let </span>passes = minimal_passes();
-    <span class="kw">let </span>config = Config {
-        <span class="comment">// Overflows are easy to trigger.
-        </span>avoid_overflow: u.arbitrary()<span class="question-mark">?</span>,
-        ..Default::default()
-    };
+    <span class="kw">let </span>config = default_config(u)<span class="question-mark">?</span>;
 
     <span class="kw">let </span>inputs = ComparePipelines::arb(
         u,
@@ -93,7 +87,7 @@
             <span class="comment">// We want to do the minimum possible amount of SSA passes. Brillig can get away with fewer than ACIR,
             // because ACIR needs unrolling of loops for example, so we treat everything as Brillig.
             </span><span class="kw">let </span>options = CompareOptions::default();
-            <span class="kw">let </span>ssa = create_ssa_with_passes_or_die(
+            <span class="kw">let </span>ssa = compile_into_circuit_with_ssa_passes_or_die(
                 change_all_functions_into_unconstrained(program),
                 <span class="kw-2">&amp;</span>options.onto(default_ssa_options()),
                 <span class="kw-2">&amp;</span>passes,
@@ -103,8 +97,11 @@
         },
         |u, program| {
             <span class="kw">let </span>options = CompareOptions::arbitrary(u)<span class="question-mark">?</span>;
-            <span class="kw">let </span>ssa =
-                create_ssa_or_die(program, <span class="kw-2">&amp;</span>options.onto(default_ssa_options()), <span class="prelude-val">Some</span>(<span class="string">"final"</span>));
+            <span class="kw">let </span>ssa = compile_into_circuit_or_die(
+                program,
+                <span class="kw-2">&amp;</span>options.onto(default_ssa_options()),
+                <span class="prelude-val">Some</span>(<span class="string">"final"</span>),
+            );
             <span class="prelude-val">Ok</span>((ssa, options))
         },
     )<span class="question-mark">?</span>;
@@ -122,12 +119,11 @@
 </span><span class="kw">mod </span>tests {
     <span class="doccomment">/// ```ignore
     /// NOIR_AST_FUZZER_SEED=0x6819c61400001000 \
-    /// NOIR_AST_FUZZER_SHOW_AST=1 \
     /// cargo test -p noir_ast_fuzzer_fuzz min_vs_full
     /// ```
     </span><span class="attr">#[test]
     </span><span class="kw">fn </span>fuzz_with_arbtest() {
-        <span class="kw">crate</span>::targets::tests::fuzz_with_arbtest(<span class="kw">super</span>::fuzz, <span class="number">2000</span>);
+        <span class="kw">crate</span>::targets::tests::fuzz_with_arbtest(<span class="kw">super</span>::fuzz, <span class="number">10000</span>);
     }
 }
 </code></pre></div></section></main></body></html>
