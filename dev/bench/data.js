@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1759504350153,
+  "lastUpdate": 1759509258952,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23096,48 +23096,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "michaeljklein@users.noreply.github.com",
-            "name": "Michael J Klein",
-            "username": "michaeljklein"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "6425a803f3045687174ce97650b88f4adc286787",
-          "message": "chore: add more to/from le/be bits/bytes edge case tests (#9906)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-09-25T13:28:06Z",
-          "tree_id": "8b3c851cfbfdddef029ca8d45de9d33ac5455a26",
-          "url": "https://github.com/noir-lang/noir/commit/6425a803f3045687174ce97650b88f4adc286787"
-        },
-        "date": 1758808414417,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 251520,
-            "range": "± 829",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 222839,
-            "range": "± 4459",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2783424,
-            "range": "± 47753",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -25189,6 +25147,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2820047,
             "range": "± 9686",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "461ae3c29a6617e4e39a82773159151e48d971d1",
+          "message": "chore: validate that no jumps to function entry block exist (#10076)",
+          "timestamp": "2025-10-03T16:10:32Z",
+          "tree_id": "79b34652de617b6e15759fc0bffb1aa8c630381b",
+          "url": "https://github.com/noir-lang/noir/commit/461ae3c29a6617e4e39a82773159151e48d971d1"
+        },
+        "date": 1759509236989,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 262456,
+            "range": "± 1829",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 231837,
+            "range": "± 2274",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2820773,
+            "range": "± 4754",
             "unit": "ns/iter"
           }
         ]
