@@ -151,7 +151,9 @@
 <a href="#150" id="150">150</a>
 <a href="#151" id="151">151</a>
 <a href="#152" id="152">152</a>
-<a href="#153" id="153">153</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::vec;
+<a href="#153" id="153">153</a>
+<a href="#154" id="154">154</a>
+<a href="#155" id="155">155</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::vec;
 
 <span class="kw">use </span>acvm::{AcirField, acir::brillig::MemoryAddress};
 
@@ -172,10 +174,11 @@
         index: SingleAddrVariable,
         item_count: usize,
     ) {
-        <span class="kw">let </span>source_vector_pointer_arg = MemoryAddress::direct(ScratchSpace::start());
-        <span class="kw">let </span>index_arg = MemoryAddress::direct(ScratchSpace::start() + <span class="number">1</span>);
-        <span class="kw">let </span>item_count_arg = MemoryAddress::direct(ScratchSpace::start() + <span class="number">2</span>);
-        <span class="kw">let </span>new_vector_pointer_return = MemoryAddress::direct(ScratchSpace::start() + <span class="number">3</span>);
+        <span class="kw">let </span>scratch_start = ScratchSpace::start();
+        <span class="kw">let </span>source_vector_pointer_arg = MemoryAddress::direct(scratch_start);
+        <span class="kw">let </span>index_arg = MemoryAddress::direct(scratch_start + <span class="number">1</span>);
+        <span class="kw">let </span>item_count_arg = MemoryAddress::direct(scratch_start + <span class="number">2</span>);
+        <span class="kw">let </span>new_vector_pointer_return = MemoryAddress::direct(scratch_start + <span class="number">3</span>);
 
         <span class="self">self</span>.mov_instruction(source_vector_pointer_arg, source_vector.pointer);
         <span class="self">self</span>.mov_instruction(index_arg, index.address);
@@ -190,10 +193,11 @@
 <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>compile_vector_remove_procedure&lt;F: AcirField + DebugToString&gt;(
     brillig_context: <span class="kw-2">&amp;mut </span>BrilligContext&lt;F, ScratchSpace&gt;,
 ) {
-    <span class="kw">let </span>source_vector_pointer_arg = MemoryAddress::direct(ScratchSpace::start());
-    <span class="kw">let </span>index_arg = MemoryAddress::direct(ScratchSpace::start() + <span class="number">1</span>);
-    <span class="kw">let </span>item_count_arg = MemoryAddress::direct(ScratchSpace::start() + <span class="number">2</span>);
-    <span class="kw">let </span>new_vector_pointer_return = MemoryAddress::direct(ScratchSpace::start() + <span class="number">3</span>);
+    <span class="kw">let </span>scratch_start = brillig_context.registers.start();
+    <span class="kw">let </span>source_vector_pointer_arg = MemoryAddress::direct(scratch_start);
+    <span class="kw">let </span>index_arg = MemoryAddress::direct(scratch_start + <span class="number">1</span>);
+    <span class="kw">let </span>item_count_arg = MemoryAddress::direct(scratch_start + <span class="number">2</span>);
+    <span class="kw">let </span>new_vector_pointer_return = MemoryAddress::direct(scratch_start + <span class="number">3</span>);
 
     brillig_context.set_allocated_registers(<span class="macro">vec!</span>[
         source_vector_pointer_arg,

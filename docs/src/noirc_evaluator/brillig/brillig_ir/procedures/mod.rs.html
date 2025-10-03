@@ -144,7 +144,8 @@
 <a href="#143" id="143">143</a>
 <a href="#144" id="144">144</a>
 <a href="#145" id="145">145</a>
-<a href="#146" id="146">146</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::debug_info::ProcedureDebugId;
+<a href="#146" id="146">146</a>
+<a href="#147" id="147">147</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::debug_info::ProcedureDebugId;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 
 <span class="kw">mod </span>array_copy;
@@ -257,6 +258,7 @@
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>compile_procedure&lt;F: AcirField + DebugToString&gt;(
     procedure_id: ProcedureId,
     options: <span class="kw-2">&amp;</span>BrilligOptions,
+    stack_start: usize,
 ) -&gt; BrilligArtifact&lt;F&gt; {
     <span class="kw">let </span><span class="kw-2">mut </span>brillig_context = BrilligContext::new_for_procedure(procedure_id.clone(), options);
     brillig_context.enter_context(Label::procedure(procedure_id.clone()));
@@ -280,7 +282,7 @@
         }
         ProcedureId::VectorRemove =&gt; compile_vector_remove_procedure(<span class="kw-2">&amp;mut </span>brillig_context),
         ProcedureId::CheckMaxStackDepth =&gt; {
-            compile_check_max_stack_depth_procedure(<span class="kw-2">&amp;mut </span>brillig_context);
+            compile_check_max_stack_depth_procedure(<span class="kw-2">&amp;mut </span>brillig_context, stack_start);
         }
         ProcedureId::RevertWithString(revert_string) =&gt; {
             compile_revert_with_string_procedure(<span class="kw-2">&amp;mut </span>brillig_context, revert_string);

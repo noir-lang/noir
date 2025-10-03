@@ -45,8 +45,7 @@
 <a href="#44" id="44">44</a>
 <a href="#45" id="45">45</a>
 <a href="#46" id="46">46</a>
-<a href="#47" id="47">47</a>
-<a href="#48" id="48">48</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::vec;
+<a href="#47" id="47">47</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::vec;
 
 <span class="kw">use </span>acvm::{AcirField, acir::brillig::MemoryAddress};
 
@@ -65,12 +64,10 @@
         destination_pointer: MemoryAddress,
         num_elements_variable: MemoryAddress,
     ) {
-        <span class="self">self</span>.mov_instruction(MemoryAddress::direct(ScratchSpace::start()), source_pointer);
-        <span class="self">self</span>.mov_instruction(MemoryAddress::direct(ScratchSpace::start() + <span class="number">1</span>), destination_pointer);
-        <span class="self">self</span>.mov_instruction(
-            MemoryAddress::direct(ScratchSpace::start() + <span class="number">2</span>),
-            num_elements_variable,
-        );
+        <span class="kw">let </span>scratch_start = ScratchSpace::start();
+        <span class="self">self</span>.mov_instruction(MemoryAddress::direct(scratch_start), source_pointer);
+        <span class="self">self</span>.mov_instruction(MemoryAddress::direct(scratch_start + <span class="number">1</span>), destination_pointer);
+        <span class="self">self</span>.mov_instruction(MemoryAddress::direct(scratch_start + <span class="number">2</span>), num_elements_variable);
         <span class="self">self</span>.add_procedure_call_instruction(ProcedureId::MemCopy);
     }
 }
@@ -78,9 +75,10 @@
 <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>compile_mem_copy_procedure&lt;F: AcirField + DebugToString&gt;(
     brillig_context: <span class="kw-2">&amp;mut </span>BrilligContext&lt;F, ScratchSpace&gt;,
 ) {
-    <span class="kw">let </span>source_pointer = MemoryAddress::direct(ScratchSpace::start());
-    <span class="kw">let </span>destination_pointer = MemoryAddress::direct(ScratchSpace::start() + <span class="number">1</span>);
-    <span class="kw">let </span>num_elements_variable = MemoryAddress::direct(ScratchSpace::start() + <span class="number">2</span>);
+    <span class="kw">let </span>scratch_start = brillig_context.registers.start();
+    <span class="kw">let </span>source_pointer = MemoryAddress::direct(scratch_start);
+    <span class="kw">let </span>destination_pointer = MemoryAddress::direct(scratch_start + <span class="number">1</span>);
+    <span class="kw">let </span>num_elements_variable = MemoryAddress::direct(scratch_start + <span class="number">2</span>);
 
     brillig_context.set_allocated_registers(<span class="macro">vec!</span>[
         source_pointer,

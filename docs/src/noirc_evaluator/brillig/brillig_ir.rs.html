@@ -531,7 +531,17 @@
 <a href="#530" id="530">530</a>
 <a href="#531" id="531">531</a>
 <a href="#532" id="532">532</a>
-<a href="#533" id="533">533</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module is an abstraction layer over `Brillig`.
+<a href="#533" id="533">533</a>
+<a href="#534" id="534">534</a>
+<a href="#535" id="535">535</a>
+<a href="#536" id="536">536</a>
+<a href="#537" id="537">537</a>
+<a href="#538" id="538">538</a>
+<a href="#539" id="539">539</a>
+<a href="#540" id="540">540</a>
+<a href="#541" id="541">541</a>
+<a href="#542" id="542">542</a>
+<a href="#543" id="543">543</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module is an abstraction layer over `Brillig`.
 //! To allow for separation of concerns, it knows nothing
 //! about SSA types, and can therefore be tested independently.
 //! `brillig_gen` is therefore the module which combines both
@@ -563,6 +573,7 @@
 <span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 <span class="kw">use </span>registers::{RegisterAllocator, ScratchSpace};
 
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span><span class="self">self</span>::registers::LayoutConfig;
 <span class="kw">use </span><span class="self">self</span>::{artifact::BrilligArtifact, debug_show::DebugToString, registers::Stack};
 <span class="kw">use </span>acvm::{
     AcirField,
@@ -634,9 +645,12 @@
     </span>count_arrays_copied: bool,
 
     globals_memory_size: <span class="prelude-ty">Option</span>&lt;usize&gt;,
+
+    <span class="doccomment">/// Memory layout information. See [self::registers] for more information about the memory layout.
+    </span>layout: LayoutConfig,
 }
 
-<span class="kw">impl</span>&lt;F, R&gt; BrilligContext&lt;F, R&gt; {
+<span class="kw">impl</span>&lt;F, R: RegisterAllocator&gt; BrilligContext&lt;F, R&gt; {
     <span class="doccomment">/// Enable the insertion of bytecode with extra assertions during testing.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>enable_debug_assertions(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
         <span class="self">self</span>.enable_debug_assertions
@@ -651,7 +665,7 @@
         </span>);
 
         <span class="comment">// The copy counter is always put in the first global slot
-        </span>MemoryAddress::Direct(GlobalSpace::start())
+        </span>MemoryAddress::Direct(GlobalSpace::start_with_layout(<span class="kw-2">&amp;</span><span class="self">self</span>.registers.layout()))
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>count_array_copies(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
@@ -678,7 +692,7 @@
         obj.name = function_name.to_owned();
         BrilligContext {
             obj,
-            registers: Stack::new(),
+            registers: Stack::new(options.layout),
             context_label: Label::entrypoint(),
             current_section: <span class="number">0</span>,
             next_section: <span class="number">1</span>,
@@ -687,6 +701,7 @@
             count_arrays_copied: options.enable_array_copy_counter,
             can_call_procedures: <span class="bool-val">true</span>,
             globals_memory_size: <span class="prelude-val">None</span>,
+            layout: options.layout,
         }
     }
 }
@@ -800,7 +815,7 @@
         obj.procedure = <span class="prelude-val">Some</span>(procedure_id);
         BrilligContext {
             obj,
-            registers: ScratchSpace::new(),
+            registers: ScratchSpace::new(options.layout),
             context_label: Label::entrypoint(),
             current_section: <span class="number">0</span>,
             next_section: <span class="number">1</span>,
@@ -809,6 +824,7 @@
             count_arrays_copied: options.enable_array_copy_counter,
             can_call_procedures: <span class="bool-val">false</span>,
             globals_memory_size: <span class="prelude-val">None</span>,
+            layout: options.layout,
         }
     }
 }
@@ -821,7 +837,7 @@
     ) -&gt; BrilligContext&lt;F, GlobalSpace&gt; {
         BrilligContext {
             obj: BrilligArtifact::default(),
-            registers: GlobalSpace::new(),
+            registers: GlobalSpace::new(options.layout),
             context_label: Label::globals_init(entry_point),
             current_section: <span class="number">0</span>,
             next_section: <span class="number">1</span>,
@@ -830,12 +846,13 @@
             count_arrays_copied: options.enable_array_copy_counter,
             can_call_procedures: <span class="bool-val">false</span>,
             globals_memory_size: <span class="prelude-val">None</span>,
+            layout: options.layout,
         }
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>global_space_size(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
-        <span class="comment">// `GlobalSpace::start()` is inclusive so we must add one to get the accurate total global memory size
-        </span>(<span class="self">self</span>.registers.max_memory_address() + <span class="number">1</span>) - GlobalSpace::start()
+        <span class="comment">// `GlobalSpace::start` is inclusive so we must add one to get the accurate total global memory size
+        </span>(<span class="self">self</span>.registers.max_memory_address() + <span class="number">1</span>) - <span class="self">self</span>.registers.start()
     }
 }
 
@@ -922,6 +939,7 @@
             enable_debug_trace: <span class="bool-val">true</span>,
             enable_debug_assertions: <span class="bool-val">true</span>,
             enable_array_copy_counter: <span class="bool-val">false</span>,
+            ..Default::default()
         };
         <span class="kw">let </span><span class="kw-2">mut </span>context = BrilligContext::new(<span class="string">"test"</span>, <span class="kw-2">&amp;</span>options);
         context.enter_context(Label::function(id));
@@ -937,9 +955,10 @@
             enable_debug_trace: <span class="bool-val">false</span>,
             enable_debug_assertions: context.enable_debug_assertions,
             enable_array_copy_counter: context.count_arrays_copied,
+            ..Default::default()
         };
         <span class="kw">let </span>artifact = context.artifact();
-        <span class="kw">let </span><span class="kw-2">mut </span>entry_point_artifact = BrilligContext::new_entry_point_artifact(
+        <span class="kw">let </span>(<span class="kw-2">mut </span>entry_point_artifact, stack_start) = BrilligContext::new_entry_point_artifact(
             arguments,
             returns,
             FunctionId::test_new(<span class="number">0</span>),
@@ -954,7 +973,7 @@
             <span class="kw">let </span>LabelType::Procedure(procedure_id) = unresolved_fn_label.label_type <span class="kw">else </span>{
                 <span class="macro">panic!</span>(<span class="string">"Test functions cannot be linked with other functions"</span>);
             };
-            <span class="kw">let </span>procedure_artifact = compile_procedure(procedure_id, <span class="kw-2">&amp;</span>options);
+            <span class="kw">let </span>procedure_artifact = compile_procedure(procedure_id, <span class="kw-2">&amp;</span>options, stack_start);
             entry_point_artifact.link_with(<span class="kw-2">&amp;</span>procedure_artifact);
         }
         entry_point_artifact.finish()
@@ -992,6 +1011,7 @@
             enable_debug_trace: <span class="bool-val">true</span>,
             enable_debug_assertions: <span class="bool-val">true</span>,
             enable_array_copy_counter: <span class="bool-val">false</span>,
+            ..Default::default()
         };
         <span class="kw">let </span><span class="kw-2">mut </span>context = BrilligContext::new(<span class="string">"test"</span>, <span class="kw-2">&amp;</span>options);
         <span class="kw">let </span>r_stack = ReservedRegisters::free_memory_pointer();

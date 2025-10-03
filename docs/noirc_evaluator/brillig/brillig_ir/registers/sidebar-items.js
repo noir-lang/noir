@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["DeallocationListAllocator","GlobalSpace","ScratchSpace","Stack"],"trait":["RegisterAllocator"]};
+window.SIDEBAR_ITEMS = {"constant":["MAX_SCRATCH_SPACE","MAX_STACK_FRAME_SIZE","NUM_STACK_FRAMES"],"struct":["DeallocationListAllocator","GlobalSpace","LayoutConfig","ScratchSpace","Stack"],"trait":["RegisterAllocator"]};

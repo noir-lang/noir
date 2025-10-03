@@ -489,7 +489,19 @@
 <a href="#488" id="488">488</a>
 <a href="#489" id="489">489</a>
 <a href="#490" id="490">490</a>
-<a href="#491" id="491">491</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{brillig::BrilligOptions, ssa::ir::function::FunctionId};
+<a href="#491" id="491">491</a>
+<a href="#492" id="492">492</a>
+<a href="#493" id="493">493</a>
+<a href="#494" id="494">494</a>
+<a href="#495" id="495">495</a>
+<a href="#496" id="496">496</a>
+<a href="#497" id="497">497</a>
+<a href="#498" id="498">498</a>
+<a href="#499" id="499">499</a>
+<a href="#500" id="500">500</a>
+<a href="#501" id="501">501</a>
+<a href="#502" id="502">502</a>
+<a href="#503" id="503">503</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{brillig::BrilligOptions, ssa::ir::function::FunctionId};
 
 <span class="kw">use super</span>::{
     BrilligBinaryOp, BrilligContext, ReservedRegisters,
@@ -503,10 +515,6 @@
     brillig::{HeapVector, MemoryAddress},
 };
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const </span>MAX_STACK_SIZE: usize = <span class="number">16 </span>* MAX_STACK_FRAME_SIZE;
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const </span>MAX_STACK_FRAME_SIZE: usize = <span class="number">2048</span>;
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const </span>MAX_SCRATCH_SPACE: usize = <span class="number">64</span>;
-
 <span class="kw">impl</span>&lt;F: AcirField + DebugToString&gt; BrilligContext&lt;F, Stack&gt; {
     <span class="doccomment">/// Creates an entry point artifact that will jump to the function label provided.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new_entry_point_artifact(
@@ -517,12 +525,12 @@
         globals_memory_size: usize,
         name: <span class="kw-2">&amp;</span>str,
         options: <span class="kw-2">&amp;</span>BrilligOptions,
-    ) -&gt; BrilligArtifact&lt;F&gt; {
+    ) -&gt; (BrilligArtifact&lt;F&gt;, usize) {
         <span class="kw">let </span><span class="kw-2">mut </span>context = BrilligContext::new(name, options);
 
         context.set_globals_memory_size(<span class="prelude-val">Some</span>(globals_memory_size));
 
-        context.codegen_entry_point(<span class="kw-2">&amp;</span>arguments, <span class="kw-2">&amp;</span>return_parameters);
+        <span class="kw">let </span>stack_start = context.codegen_entry_point(<span class="kw-2">&amp;</span>arguments, <span class="kw-2">&amp;</span>return_parameters);
 
         <span class="kw">if </span>globals_init {
             context.add_globals_init_instruction(target_function);
@@ -531,28 +539,37 @@
         context.add_external_call_instruction(target_function);
 
         context.codegen_exit_point(<span class="kw-2">&amp;</span>arguments, <span class="kw-2">&amp;</span>return_parameters);
-        context.artifact()
+        (context.artifact(), stack_start)
     }
 
     <span class="kw">fn </span>calldata_start_offset(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
-        ReservedRegisters::len()
-            + MAX_STACK_SIZE
-            + MAX_SCRATCH_SPACE
-            + <span class="self">self</span>.globals_memory_size.expect(<span class="string">"The memory size of globals should be set"</span>)
+        <span class="kw">let </span>globals_size =
+            <span class="self">self</span>.globals_memory_size.expect(<span class="string">"The memory size of globals should be set"</span>);
+        <span class="self">self</span>.layout.entry_point_start(globals_size)
     }
 
     <span class="kw">fn </span>return_data_start_offset(<span class="kw-2">&amp;</span><span class="self">self</span>, calldata_size: usize) -&gt; usize {
-        <span class="self">self</span>.calldata_start_offset() + calldata_size
+        <span class="kw">let </span>globals_size =
+            <span class="self">self</span>.globals_memory_size.expect(<span class="string">"The memory size of globals should be set"</span>);
+        <span class="self">self</span>.layout.return_data_start(globals_size, calldata_size)
     }
 
     <span class="doccomment">/// Adds the instructions needed to handle entry point parameters
     /// The runtime will leave the parameters in calldata.
     /// Arrays will be passed flattened.
+    ///
+    /// Memory layout for entry points:
+    /// {reserved} {scratch} {globals} {entry point (call data + return data)} {stack} {heap}
+    ///
+    /// # Returns
+    /// The start of the stack memory region. The start of the stack is determined by the globals compiled as well as
+    /// the amount of call data and return data. We return this information so that the [max stack depth check][super::ProcedureId::CheckMaxStackDepth]
+    /// can check against the appropriate constant represented the max stack pointer we can have in memory.
     </span><span class="kw">fn </span>codegen_entry_point(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         arguments: <span class="kw-2">&amp;</span>[BrilligParameter],
         return_parameters: <span class="kw-2">&amp;</span>[BrilligParameter],
-    ) {
+    ) -&gt; usize {
         <span class="comment">// We need to allocate the variable for every argument first so any register allocation doesn't mangle the expected order.
         </span><span class="kw">let </span><span class="kw-2">mut </span>argument_variables = <span class="self">self</span>.allocate_function_arguments(arguments);
 
@@ -565,16 +582,21 @@
             <span class="number">1_usize</span>.into(),
         );
 
-        <span class="comment">// Set initial value of free memory pointer: calldata_start_offset + calldata_size + return_data_size
+        <span class="kw">let </span>return_data_start = <span class="self">self</span>.return_data_start_offset(calldata_size);
+
+        <span class="comment">// The heap begins after the end of the stack.
+        // Set initial value of free memory pointer: `return_data_start + return_data_size + self.layout.max_stack_size()`
         </span><span class="self">self</span>.const_instruction(
             SingleAddrVariable::new_usize(ReservedRegisters::free_memory_pointer()),
-            (<span class="self">self</span>.calldata_start_offset() + calldata_size + return_data_size).into(),
+            (return_data_start + return_data_size + <span class="self">self</span>.layout.max_stack_size()).into(),
         );
 
-        <span class="comment">// Set initial value of stack pointer: ReservedRegisters.len()
-        </span><span class="self">self</span>.const_instruction(
+        <span class="comment">// The stack begins after the calldata region (calldata + return data)
+        // Set initial value of the stack pointer: `return_data_start + return_data_size`
+        </span><span class="kw">let </span>stack_start = return_data_start + return_data_size;
+        <span class="self">self</span>.const_instruction(
             SingleAddrVariable::new_usize(ReservedRegisters::stack_pointer()),
-            ReservedRegisters::len().into(),
+            stack_start.into(),
         );
 
         <span class="comment">// Copy calldata
@@ -624,6 +646,8 @@
                 <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: cannot match variables against arguments"</span>),
             }
         }
+
+        stack_start
     }
 
     <span class="kw">fn </span>allocate_function_arguments(

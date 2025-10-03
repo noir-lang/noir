@@ -874,7 +874,8 @@
 <a href="#873" id="873">873</a>
 <a href="#874" id="874">874</a>
 <a href="#875" id="875">875</a>
-<a href="#876" id="876">876</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#876" id="876">876</a>
+<a href="#877" id="877">877</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 
 </span><span class="kw">use </span>std::hash::BuildHasher;
@@ -1122,6 +1123,7 @@
                 enable_debug_trace: <span class="self">self</span>.show_brillig,
                 enable_debug_assertions: <span class="self">self</span>.enable_brillig_debug_assertions,
                 enable_array_copy_counter: <span class="self">self</span>.count_array_copies,
+                ..Default::default()
             },
             print_codegen_timings: <span class="self">self</span>.benchmark_codegen,
             expression_width: <span class="kw">if </span><span class="self">self</span>.bounded_codegen {

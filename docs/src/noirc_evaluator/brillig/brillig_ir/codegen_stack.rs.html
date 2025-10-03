@@ -354,7 +354,8 @@
 <a href="#353" id="353">353</a>
 <a href="#354" id="354">354</a>
 <a href="#355" id="355">355</a>
-<a href="#356" id="356">356</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, acir::brillig::MemoryAddress};
+<a href="#356" id="356">356</a>
+<a href="#357" id="357">357</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, acir::brillig::MemoryAddress};
 <span class="kw">use </span>rustc_hash::{FxHashMap <span class="kw">as </span>HashMap, FxHashSet <span class="kw">as </span>HashSet};
 
 <span class="kw">use super</span>::{BrilligContext, debug_show::DebugToString, registers::RegisterAllocator};
@@ -490,7 +491,7 @@
     <span class="kw">use crate</span>::{
         brillig::{
             BrilligOptions,
-            brillig_ir::{BrilligContext, artifact::Label, registers::Stack},
+            brillig_ir::{BrilligContext, LayoutConfig, artifact::Label, registers::Stack},
         },
         ssa::ir::function::FunctionId,
     };
@@ -567,6 +568,7 @@
             enable_debug_trace: <span class="bool-val">true</span>,
             enable_debug_assertions: <span class="bool-val">true</span>,
             enable_array_copy_counter: <span class="bool-val">false</span>,
+            layout: LayoutConfig::default(),
         };
         <span class="kw">let </span><span class="kw-2">mut </span>context = BrilligContext::new(<span class="string">"test"</span>, <span class="kw-2">&amp;</span>options);
         context.enter_context(Label::function(FunctionId::test_new(<span class="number">0</span>)));

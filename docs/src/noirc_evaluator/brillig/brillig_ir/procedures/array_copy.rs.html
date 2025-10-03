@@ -191,7 +191,9 @@
 <a href="#190" id="190">190</a>
 <a href="#191" id="191">191</a>
 <a href="#192" id="192">192</a>
-<a href="#193" id="193">193</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::vec;
+<a href="#193" id="193">193</a>
+<a href="#194" id="194">194</a>
+<a href="#195" id="195">195</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::vec;
 
 <span class="kw">use </span>acvm::{
     AcirField,
@@ -217,9 +219,10 @@
         source_array: BrilligArray,
         destination_array: BrilligArray,
     ) {
-        <span class="kw">let </span>source_array_pointer_arg = MemoryAddress::direct(ScratchSpace::start());
-        <span class="kw">let </span>source_array_memory_size_arg = MemoryAddress::direct(ScratchSpace::start() + <span class="number">1</span>);
-        <span class="kw">let </span>new_array_pointer_return = MemoryAddress::direct(ScratchSpace::start() + <span class="number">2</span>);
+        <span class="kw">let </span>scratch_start = ScratchSpace::start();
+        <span class="kw">let </span>source_array_pointer_arg = MemoryAddress::direct(scratch_start);
+        <span class="kw">let </span>source_array_memory_size_arg = MemoryAddress::direct(scratch_start + <span class="number">1</span>);
+        <span class="kw">let </span>new_array_pointer_return = MemoryAddress::direct(scratch_start + <span class="number">2</span>);
 
         <span class="self">self</span>.mov_instruction(source_array_pointer_arg, source_array.pointer);
         <span class="self">self</span>.usize_const_instruction(source_array_memory_size_arg, (source_array.size + <span class="number">1</span>).into());
@@ -233,9 +236,10 @@
 <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>compile_array_copy_procedure&lt;F: AcirField + DebugToString&gt;(
     brillig_context: <span class="kw-2">&amp;mut </span>BrilligContext&lt;F, ScratchSpace&gt;,
 ) {
-    <span class="kw">let </span>source_array_pointer_arg = MemoryAddress::direct(ScratchSpace::start());
-    <span class="kw">let </span>source_array_memory_size_arg = MemoryAddress::direct(ScratchSpace::start() + <span class="number">1</span>);
-    <span class="kw">let </span>new_array_pointer_return = MemoryAddress::direct(ScratchSpace::start() + <span class="number">2</span>);
+    <span class="kw">let </span>scratch_start = brillig_context.registers.start();
+    <span class="kw">let </span>source_array_pointer_arg = MemoryAddress::direct(scratch_start);
+    <span class="kw">let </span>source_array_memory_size_arg = MemoryAddress::direct(scratch_start + <span class="number">1</span>);
+    <span class="kw">let </span>new_array_pointer_return = MemoryAddress::direct(scratch_start + <span class="number">2</span>);
 
     brillig_context.set_allocated_registers(<span class="macro">vec!</span>[
         source_array_pointer_arg,

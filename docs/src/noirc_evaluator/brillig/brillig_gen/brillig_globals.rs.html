@@ -641,7 +641,20 @@
 <a href="#640" id="640">640</a>
 <a href="#641" id="641">641</a>
 <a href="#642" id="642">642</a>
-<a href="#643" id="643">643</a></pre></div><pre class="rust"><code><span class="doccomment">//! Codegen for converting SSA globals to Brillig bytecode.
+<a href="#643" id="643">643</a>
+<a href="#644" id="644">644</a>
+<a href="#645" id="645">645</a>
+<a href="#646" id="646">646</a>
+<a href="#647" id="647">647</a>
+<a href="#648" id="648">648</a>
+<a href="#649" id="649">649</a>
+<a href="#650" id="650">650</a>
+<a href="#651" id="651">651</a>
+<a href="#652" id="652">652</a>
+<a href="#653" id="653">653</a>
+<a href="#654" id="654">654</a>
+<a href="#655" id="655">655</a>
+<a href="#656" id="656">656</a></pre></div><pre class="rust"><code><span class="doccomment">//! Codegen for converting SSA globals to Brillig bytecode.
 </span><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet};
 
 <span class="kw">use </span>acvm::FieldElement;
@@ -942,9 +955,7 @@
         acir::brillig::{BitSize, IntegerBitSize, Opcode},
     };
 
-    <span class="kw">use </span><span class="kw">crate</span>::brillig::{
-        BrilligOptions, GlobalSpace, LabelType, Ssa, brillig_ir::registers::RegisterAllocator,
-    };
+    <span class="kw">use </span><span class="kw">crate</span>::brillig::{BrilligOptions, GlobalSpace, LabelType, Ssa};
 
     <span class="kw">use </span><span class="kw">super</span>::ConstantAllocation;
 
@@ -975,7 +986,8 @@
         "</span>;
 
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span>brillig = ssa.to_brillig(<span class="kw-2">&amp;</span>BrilligOptions::default());
+        <span class="kw">let </span>options = BrilligOptions::default();
+        <span class="kw">let </span>brillig = ssa.to_brillig(<span class="kw-2">&amp;</span>options);
 
         <span class="macro">assert_eq!</span>(
             brillig.globals.len(),
@@ -1007,7 +1019,10 @@
                 <span class="kw">let </span>Opcode::Const { destination, bit_size, value } = <span class="kw-2">&amp;</span>artifact.byte_code[<span class="number">0</span>] <span class="kw">else </span>{
                     <span class="macro">panic!</span>(<span class="string">"First opcode is expected to be `Const`"</span>);
                 };
-                <span class="macro">assert_eq!</span>(destination.unwrap_direct(), GlobalSpace::start());
+                <span class="macro">assert_eq!</span>(
+                    destination.unwrap_direct(),
+                    GlobalSpace::start_with_layout(<span class="kw-2">&amp;</span>options.layout)
+                );
                 <span class="macro">assert!</span>(<span class="macro">matches!</span>(bit_size, BitSize::Field));
                 <span class="macro">assert_eq!</span>(<span class="kw-2">*</span>value, FieldElement::from(<span class="number">2u128</span>));
 
@@ -1091,7 +1106,8 @@
         <span class="comment">// Need to run SSA pass that sets up Brillig array gets
         </span><span class="kw">let </span>ssa = ssa.brillig_array_get_and_set();
 
-        <span class="kw">let </span>brillig = ssa.to_brillig(<span class="kw-2">&amp;</span>BrilligOptions::default());
+        <span class="kw">let </span>options = BrilligOptions::default();
+        <span class="kw">let </span>brillig = ssa.to_brillig(<span class="kw-2">&amp;</span>options);
 
         <span class="macro">assert_eq!</span>(
             brillig.globals.len(),
@@ -1116,7 +1132,10 @@
                 <span class="kw">let </span>Opcode::Const { destination, bit_size, value } = <span class="kw-2">&amp;</span>artifact.byte_code[<span class="number">0</span>] <span class="kw">else </span>{
                     <span class="macro">panic!</span>(<span class="string">"First opcode is expected to be `Const`"</span>);
                 };
-                <span class="macro">assert_eq!</span>(destination.unwrap_direct(), GlobalSpace::start());
+                <span class="macro">assert_eq!</span>(
+                    destination.unwrap_direct(),
+                    GlobalSpace::start_with_layout(<span class="kw-2">&amp;</span>options.layout)
+                );
                 <span class="macro">assert!</span>(<span class="macro">matches!</span>(bit_size, BitSize::Field));
                 <span class="macro">assert_eq!</span>(<span class="kw-2">*</span>value, FieldElement::from(<span class="number">1u128</span>));
                 <span class="macro">assert!</span>(<span class="macro">matches!</span>(<span class="kw-2">&amp;</span>artifact.byte_code[<span class="number">1</span>], Opcode::Return));
@@ -1199,7 +1218,8 @@
             }
         }
 
-        <span class="kw">let </span>brillig = ssa.to_brillig(<span class="kw-2">&amp;</span>BrilligOptions::default());
+        <span class="kw">let </span>options = BrilligOptions::default();
+        <span class="kw">let </span>brillig = ssa.to_brillig(<span class="kw-2">&amp;</span>options);
 
         <span class="macro">assert_eq!</span>(brillig.globals.len(), <span class="number">1</span>, <span class="string">"Should have a single entry point"</span>);
         <span class="kw">for </span>(func_id, artifact) <span class="kw">in </span>brillig.globals {
@@ -1212,14 +1232,20 @@
             <span class="kw">let </span>Opcode::Const { destination, bit_size, value } = <span class="kw-2">&amp;</span>artifact.byte_code[<span class="number">0</span>] <span class="kw">else </span>{
                 <span class="macro">panic!</span>(<span class="string">"First opcode is expected to be `Const`"</span>);
             };
-            <span class="macro">assert_eq!</span>(destination.unwrap_direct(), GlobalSpace::start());
+            <span class="macro">assert_eq!</span>(
+                destination.unwrap_direct(),
+                GlobalSpace::start_with_layout(<span class="kw-2">&amp;</span>options.layout)
+            );
             <span class="macro">assert!</span>(<span class="macro">matches!</span>(bit_size, BitSize::Integer(IntegerBitSize::U1)));
             <span class="macro">assert_eq!</span>(<span class="kw-2">*</span>value, FieldElement::from(<span class="number">0u128</span>));
 
             <span class="kw">let </span>Opcode::Const { destination, bit_size, value } = <span class="kw-2">&amp;</span>artifact.byte_code[<span class="number">1</span>] <span class="kw">else </span>{
                 <span class="macro">panic!</span>(<span class="string">"First opcode is expected to be `Const`"</span>);
             };
-            <span class="macro">assert_eq!</span>(destination.unwrap_direct(), GlobalSpace::start() + <span class="number">1</span>);
+            <span class="macro">assert_eq!</span>(
+                destination.unwrap_direct(),
+                GlobalSpace::start_with_layout(<span class="kw-2">&amp;</span>options.layout) + <span class="number">1
+            </span>);
             <span class="macro">assert!</span>(<span class="macro">matches!</span>(bit_size, BitSize::Field));
             <span class="macro">assert_eq!</span>(<span class="kw-2">*</span>value, FieldElement::from(<span class="number">1u128</span>));
 
