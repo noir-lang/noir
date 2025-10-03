@@ -477,7 +477,9 @@
 <a href="#476" id="476">476</a>
 <a href="#477" id="477">477</a>
 <a href="#478" id="478">478</a>
-<a href="#479" id="479">479</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
+<a href="#479" id="479">479</a>
+<a href="#480" id="480">480</a>
+<a href="#481" id="481">481</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>acvm::acir::BlackBoxFunc;
 <span class="kw">use </span>acvm::blackbox_solver::sha256_compression;
@@ -788,7 +790,7 @@
 }
 
 <span class="kw">type </span>ECDSASignatureVerifier = <span class="kw">fn</span>(
-    hashed_msg: <span class="kw-2">&amp;</span>[u8],
+    hashed_msg: <span class="kw-2">&amp;</span>[u8; <span class="number">32</span>],
     public_key_x: <span class="kw-2">&amp;</span>[u8; <span class="number">32</span>],
     public_key_y: <span class="kw-2">&amp;</span>[u8; <span class="number">32</span>],
     signature: <span class="kw-2">&amp;</span>[u8; <span class="number">64</span>],
@@ -829,7 +831,9 @@
                 .expect(<span class="string">"ECDSA public key fields are 32 bytes"</span>);
             <span class="kw">let </span>signature: [u8; <span class="number">64</span>] =
                 to_u8_vec(dfg, signature).try_into().expect(<span class="string">"ECDSA signatures are 64 bytes"</span>);
-            <span class="kw">let </span>hashed_message: Vec&lt;u8&gt; = to_u8_vec(dfg, hashed_message);
+            <span class="kw">let </span>hashed_message: [u8; <span class="number">32</span>] = to_u8_vec(dfg, hashed_message)
+                .try_into()
+                .expect(<span class="string">"ECDSA message hashes are 32 bytes"</span>);
 
             <span class="kw">let </span>valid_signature =
                 signature_verifier(<span class="kw-2">&amp;</span>hashed_message, <span class="kw-2">&amp;</span>public_key_x, <span class="kw-2">&amp;</span>public_key_y, <span class="kw-2">&amp;</span>signature)

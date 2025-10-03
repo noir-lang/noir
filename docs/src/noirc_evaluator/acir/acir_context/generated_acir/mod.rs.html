@@ -1503,9 +1503,9 @@
         // witness at a time.
         </span>BlackBoxFunc::RANGE =&gt; <span class="prelude-val">Some</span>(<span class="number">1</span>),
 
-        <span class="comment">// Signature verification algorithms will take in a variable
-        // number of inputs, since the message/hashed-message can vary in size.
-        </span>BlackBoxFunc::EcdsaSecp256k1 | BlackBoxFunc::EcdsaSecp256r1 =&gt; <span class="prelude-val">None</span>,
+        <span class="comment">// 64 bytes for the signature, 32 bytes for the hashed message,
+        // and 32 bytes each for the x and y coordinates of the public key, plus a predicate.
+        </span>BlackBoxFunc::EcdsaSecp256k1 | BlackBoxFunc::EcdsaSecp256r1 =&gt; <span class="prelude-val">Some</span>(<span class="number">161</span>),
 
         <span class="comment">// Inputs for multi scalar multiplication is an arbitrary number of [point, scalar] pairs.
         </span>BlackBoxFunc::MultiScalarMul =&gt; <span class="prelude-val">None</span>,

@@ -78,7 +78,9 @@
 <a href="#77" id="77">77</a>
 <a href="#78" id="78">78</a>
 <a href="#79" id="79">79</a>
-<a href="#80" id="80">80</a></pre></div><pre class="rust"><code><span class="kw">use </span>js_sys::JsString;
+<a href="#80" id="80">80</a>
+<a href="#81" id="81">81</a>
+<a href="#82" id="82">82</a></pre></div><pre class="rust"><code><span class="kw">use </span>js_sys::JsString;
 <span class="kw">use </span>wasm_bindgen::prelude::<span class="kw-2">*</span>;
 
 <span class="kw">use </span><span class="kw">crate</span>::js_witness_map::{field_element_to_js_string, js_value_to_field_element};
@@ -125,6 +127,7 @@
     public_key_y_bytes: <span class="kw-2">&amp;</span>[u8],
     signature: <span class="kw-2">&amp;</span>[u8],
 ) -&gt; bool {
+    <span class="kw">let </span>hashed_msg: <span class="kw-2">&amp;</span>[u8; <span class="number">32</span>] = hashed_msg.try_into().unwrap();
     <span class="kw">let </span>public_key_x_bytes: <span class="kw-2">&amp;</span>[u8; <span class="number">32</span>] = public_key_x_bytes.try_into().unwrap();
     <span class="kw">let </span>public_key_y_bytes: <span class="kw-2">&amp;</span>[u8; <span class="number">32</span>] = public_key_y_bytes.try_into().unwrap();
     <span class="kw">let </span>signature: <span class="kw-2">&amp;</span>[u8; <span class="number">64</span>] = signature.try_into().unwrap();
@@ -146,6 +149,7 @@
     public_key_y_bytes: <span class="kw-2">&amp;</span>[u8],
     signature: <span class="kw-2">&amp;</span>[u8],
 ) -&gt; bool {
+    <span class="kw">let </span>hashed_msg: <span class="kw-2">&amp;</span>[u8; <span class="number">32</span>] = hashed_msg.try_into().unwrap();
     <span class="kw">let </span>public_key_x_bytes: <span class="kw-2">&amp;</span>[u8; <span class="number">32</span>] = public_key_x_bytes.try_into().unwrap();
     <span class="kw">let </span>public_key_y_bytes: <span class="kw-2">&amp;</span>[u8; <span class="number">32</span>] = public_key_y_bytes.try_into().unwrap();
     <span class="kw">let </span>signature: <span class="kw-2">&amp;</span>[u8; <span class="number">64</span>] = signature.try_into().unwrap();

@@ -26,7 +26,7 @@
 <span class="kw">mod </span>secp256r1;
 
 <span class="kw">pub fn </span>ecdsa_secp256k1_verify(
-    hashed_msg: <span class="kw-2">&amp;</span>[u8],
+    hashed_msg: <span class="kw-2">&amp;</span>[u8; <span class="number">32</span>],
     public_key_x: <span class="kw-2">&amp;</span>[u8; <span class="number">32</span>],
     public_key_y: <span class="kw-2">&amp;</span>[u8; <span class="number">32</span>],
     signature: <span class="kw-2">&amp;</span>[u8; <span class="number">64</span>],
@@ -35,7 +35,7 @@
 }
 
 <span class="kw">pub fn </span>ecdsa_secp256r1_verify(
-    hashed_msg: <span class="kw-2">&amp;</span>[u8],
+    hashed_msg: <span class="kw-2">&amp;</span>[u8; <span class="number">32</span>],
     public_key_x: <span class="kw-2">&amp;</span>[u8; <span class="number">32</span>],
     public_key_y: <span class="kw-2">&amp;</span>[u8; <span class="number">32</span>],
     signature: <span class="kw-2">&amp;</span>[u8; <span class="number">64</span>],

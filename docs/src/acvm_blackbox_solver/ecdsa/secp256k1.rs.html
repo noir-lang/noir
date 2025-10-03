@@ -138,18 +138,7 @@
 <a href="#137" id="137">137</a>
 <a href="#138" id="138">138</a>
 <a href="#139" id="139">139</a>
-<a href="#140" id="140">140</a>
-<a href="#141" id="141">141</a>
-<a href="#142" id="142">142</a>
-<a href="#143" id="143">143</a>
-<a href="#144" id="144">144</a>
-<a href="#145" id="145">145</a>
-<a href="#146" id="146">146</a>
-<a href="#147" id="147">147</a>
-<a href="#148" id="148">148</a>
-<a href="#149" id="149">149</a>
-<a href="#150" id="150">150</a>
-<a href="#151" id="151">151</a></pre></div><pre class="rust"><code><span class="kw">use </span>k256::elliptic_curve::PrimeField;
+<a href="#140" id="140">140</a></pre></div><pre class="rust"><code><span class="kw">use </span>k256::elliptic_curve::PrimeField;
 <span class="kw">use </span>k256::elliptic_curve::sec1::FromEncodedPoint;
 
 <span class="kw">use </span>blake2::digest::generic_array::GenericArray;
@@ -163,7 +152,7 @@
 <span class="kw">use </span>k256::{Scalar, ecdsa::Signature};
 
 <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>verify_signature(
-    hashed_msg: <span class="kw-2">&amp;</span>[u8],
+    hashed_msg: <span class="kw-2">&amp;</span>[u8; <span class="number">32</span>],
     public_key_x_bytes: <span class="kw-2">&amp;</span>[u8; <span class="number">32</span>],
     public_key_y_bytes: <span class="kw-2">&amp;</span>[u8; <span class="number">32</span>],
     signature: <span class="kw-2">&amp;</span>[u8; <span class="number">64</span>],
@@ -287,17 +276,6 @@
             verify_signature(<span class="kw-2">&amp;</span>HASHED_MESSAGE, <span class="kw-2">&amp;</span>invalid_pub_key_x, <span class="kw-2">&amp;</span>invalid_pub_key_y, <span class="kw-2">&amp;</span>SIGNATURE);
 
         <span class="macro">assert!</span>(!valid);
-    }
-
-    <span class="attr">#[test]
-    #[ignore = <span class="string">"ECDSA verification does not currently handle long hashes correctly"</span>]
-    </span><span class="kw">fn </span>trims_overly_long_hashes_to_correct_length() {
-        <span class="kw">let </span><span class="kw-2">mut </span>long_hashed_message = HASHED_MESSAGE.to_vec();
-        long_hashed_message.push(<span class="number">0xff</span>);
-
-        <span class="kw">let </span>valid = verify_signature(<span class="kw-2">&amp;</span>long_hashed_message, <span class="kw-2">&amp;</span>PUB_KEY_X, <span class="kw-2">&amp;</span>PUB_KEY_Y, <span class="kw-2">&amp;</span>SIGNATURE);
-
-        <span class="macro">assert!</span>(valid);
     }
 }
 </code></pre></div></section></main></body></html>

@@ -417,7 +417,13 @@
 <a href="#416" id="416">416</a>
 <a href="#417" id="417">417</a>
 <a href="#418" id="418">418</a>
-<a href="#419" id="419">419</a></pre></div><pre class="rust"><code><span class="doccomment">//! Implementations for VM native [black box functions][acir::brillig::Opcode::BlackBox].
+<a href="#419" id="419">419</a>
+<a href="#420" id="420">420</a>
+<a href="#421" id="421">421</a>
+<a href="#422" id="422">422</a>
+<a href="#423" id="423">423</a>
+<a href="#424" id="424">424</a>
+<a href="#425" id="425">425</a></pre></div><pre class="rust"><code><span class="doccomment">//! Implementations for VM native [black box functions][acir::brillig::Opcode::BlackBox].
 </span><span class="kw">use </span>acir::brillig::{BlackBoxOp, HeapArray, HeapVector};
 <span class="kw">use </span>acir::{AcirField, BlackBoxFunc};
 <span class="kw">use </span>acvm_blackbox_solver::{
@@ -569,12 +575,18 @@
             <span class="kw">let </span>hashed_msg = to_u8_vec(read_heap_vector(memory, hashed_msg));
 
             <span class="kw">let </span>result = <span class="kw">match </span>op {
-                BlackBoxOp::EcdsaSecp256k1 { .. } =&gt; {
-                    ecdsa_secp256k1_verify(<span class="kw-2">&amp;</span>hashed_msg, <span class="kw-2">&amp;</span>public_key_x, <span class="kw-2">&amp;</span>public_key_y, <span class="kw-2">&amp;</span>signature)<span class="question-mark">?
-                </span>}
-                BlackBoxOp::EcdsaSecp256r1 { .. } =&gt; {
-                    ecdsa_secp256r1_verify(<span class="kw-2">&amp;</span>hashed_msg, <span class="kw-2">&amp;</span>public_key_x, <span class="kw-2">&amp;</span>public_key_y, <span class="kw-2">&amp;</span>signature)<span class="question-mark">?
-                </span>}
+                BlackBoxOp::EcdsaSecp256k1 { .. } =&gt; ecdsa_secp256k1_verify(
+                    <span class="kw-2">&amp;</span>hashed_msg.try_into().unwrap(),
+                    <span class="kw-2">&amp;</span>public_key_x,
+                    <span class="kw-2">&amp;</span>public_key_y,
+                    <span class="kw-2">&amp;</span>signature,
+                )<span class="question-mark">?</span>,
+                BlackBoxOp::EcdsaSecp256r1 { .. } =&gt; ecdsa_secp256r1_verify(
+                    <span class="kw-2">&amp;</span>hashed_msg.try_into().unwrap(),
+                    <span class="kw-2">&amp;</span>public_key_x,
+                    <span class="kw-2">&amp;</span>public_key_y,
+                    <span class="kw-2">&amp;</span>signature,
+                )<span class="question-mark">?</span>,
                 <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"`BlackBoxOp` is guarded against being a non-ecdsa operation"</span>),
             };
 
