@@ -355,11 +355,13 @@ impl<'a> Parser<'a> {
     }
 
     fn eat_attribute_start(&mut self) -> Option<bool> {
-        if matches!(self.token.token(), Token::AttributeStart { is_inner: false, .. }) {
+        if let Token::AttributeStart { is_inner: false, is_tag } = self.token.token() {
             // We have parsed the attribute start token `#[`.
-            // Disable the "skip whitespaces" flag so that the next `self.bump()`
+            // Disable the "skip whitespaces" flag only for tag attributes so that the next `self.bump()`
             // does not consume the whitespace following the upcoming token.
-            self.set_lexer_skip_whitespaces_flag(false);
+            if *is_tag {
+                self.set_lexer_skip_whitespaces_flag(false);
+            }
             let token = self.bump();
             self.set_lexer_skip_whitespaces_flag(true);
             match token.into_token() {
@@ -372,11 +374,13 @@ impl<'a> Parser<'a> {
     }
 
     fn eat_inner_attribute_start(&mut self) -> Option<bool> {
-        if matches!(self.token.token(), Token::AttributeStart { is_inner: true, .. }) {
+        if let Token::AttributeStart { is_inner: true, is_tag } = self.token.token() {
             // We have parsed the inner attribute start token `#![`.
-            // Disable the "skip whitespaces" flag so that the next `self.bump()`
+            // Disable the "skip whitespaces" flag only for tag attributes so that the next `self.bump()`
             // does not consume the whitespace following the upcoming token.
-            self.set_lexer_skip_whitespaces_flag(false);
+            if *is_tag {
+                self.set_lexer_skip_whitespaces_flag(false);
+            }
             let token = self.bump();
             self.set_lexer_skip_whitespaces_flag(true);
             match token.into_token() {
