@@ -107,13 +107,13 @@ fn truncate_u16_to_6_bits() {
     let src = "
     acir(inline) fn main f0 {
       b0(v0: u16):
-        v1 = truncate v0 to 6 bits, max_bit_size: 8
+        v1 = truncate v0 to 6 bits, max_bit_size: 16
         return v1
     }
     ";
     let program = ssa_to_acir_program(src);
 
-    // Truncating to 6 bits is the same as dividing by 2^6 = 64
+    // Truncating to 6 bits is the same as taking the remainder of dividing by 2^6 = 64
     assert_circuit_snapshot!(program, @r"
     func 0
     private parameters: [w0]
@@ -121,7 +121,7 @@ fn truncate_u16_to_6_bits() {
     return values: [w1]
     BLACKBOX::RANGE input: w0, bits: 16
     BRILLIG CALL func: 0, inputs: [w0, 64], outputs: [w2, w3]
-    BLACKBOX::RANGE input: w2, bits: 2
+    BLACKBOX::RANGE input: w2, bits: 10
     BLACKBOX::RANGE input: w3, bits: 6
     ASSERT w3 = w0 - 64*w2
     ASSERT w3 = w1
