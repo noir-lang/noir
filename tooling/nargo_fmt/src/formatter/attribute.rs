@@ -1,3 +1,4 @@
+use noirc_errors::Span;
 use noirc_frontend::token::{
     Attribute, Attributes, FunctionAttribute, FunctionAttributeKind, FuzzingScope, MetaAttribute,
     MetaAttributeName, SecondaryAttribute, SecondaryAttributeKind, TestScope, Token,
@@ -97,7 +98,7 @@ impl Formatter<'_> {
                 self.format_one_arg_attribute();
             }
             SecondaryAttributeKind::Tag(_) => {
-                self.write_and_skip_span_without_formatting(attribute.location.span);
+                self.format_tag_attribute(attribute.location.span);
             }
             SecondaryAttributeKind::Meta(meta_attribute) => {
                 self.format_meta_attribute(meta_attribute);
@@ -248,6 +249,15 @@ impl Formatter<'_> {
         }
         self.write_right_bracket(); // ]
     }
+
+    /// Removes the trailing whitespaces from the tag attribute.
+    fn format_tag_attribute(&mut self, span: Span) {
+        self.write_source_span_trimmed(span);
+
+        while self.token_span.start() < span.end() && self.token != Token::EOF {
+            self.bump();
+        }
+    }
 }
 
 #[cfg(test)]
@@ -264,6 +274,13 @@ mod tests {
     fn format_inner_tag_attribute() {
         let src = "  #!['foo] ";
         let expected = "#!['foo]\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_inner_tag_attribute_new_line() {
+        let src = "#!['bar]     \n";
+        let expected = "#!['bar]\n";
         assert_format(src, expected);
     }
 

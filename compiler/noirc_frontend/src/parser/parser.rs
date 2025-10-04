@@ -355,8 +355,15 @@ impl<'a> Parser<'a> {
     }
 
     fn eat_attribute_start(&mut self) -> Option<bool> {
-        if matches!(self.token.token(), Token::AttributeStart { is_inner: false, .. }) {
+        if let Token::AttributeStart { is_inner: false, is_tag } = self.token.token() {
+            // We have parsed the attribute start token `#[`.
+            // Disable the "skip whitespaces" flag only for tag attributes so that the next `self.bump()`
+            // does not consume the whitespace following the upcoming token.
+            if *is_tag {
+                self.set_lexer_skip_whitespaces_flag(false);
+            }
             let token = self.bump();
+            self.set_lexer_skip_whitespaces_flag(true);
             match token.into_token() {
                 Token::AttributeStart { is_tag, .. } => Some(is_tag),
                 _ => unreachable!(),
@@ -367,8 +374,15 @@ impl<'a> Parser<'a> {
     }
 
     fn eat_inner_attribute_start(&mut self) -> Option<bool> {
-        if matches!(self.token.token(), Token::AttributeStart { is_inner: true, .. }) {
+        if let Token::AttributeStart { is_inner: true, is_tag } = self.token.token() {
+            // We have parsed the inner attribute start token `#![`.
+            // Disable the "skip whitespaces" flag only for tag attributes so that the next `self.bump()`
+            // does not consume the whitespace following the upcoming token.
+            if *is_tag {
+                self.set_lexer_skip_whitespaces_flag(false);
+            }
             let token = self.bump();
+            self.set_lexer_skip_whitespaces_flag(true);
             match token.into_token() {
                 Token::AttributeStart { is_tag, .. } => Some(is_tag),
                 _ => unreachable!(),
@@ -477,6 +491,16 @@ impl<'a> Parser<'a> {
 
     fn at_keyword(&self, keyword: Keyword) -> bool {
         self.at(Token::Keyword(keyword))
+    }
+
+    fn at_whitespace(&self) -> bool {
+        matches!(self.token.token(), Token::Whitespace(_))
+    }
+
+    fn set_lexer_skip_whitespaces_flag(&mut self, flag: bool) {
+        if let TokenStream::Lexer(lexer) = &mut self.tokens {
+            lexer.set_skip_whitespaces_flag(flag);
+        };
     }
 
     fn next_is(&self, token: Token) -> bool {
