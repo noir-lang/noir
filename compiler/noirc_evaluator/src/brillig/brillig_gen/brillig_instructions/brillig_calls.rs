@@ -27,7 +27,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
     ///
     /// Numeric types and fixed-sized array results are directly allocated.
     /// As vector's are determined at runtime they are allocated differently.
-    /// - Allocates memory for a [BrilligVector], which holds a pointer and dynamic size.
+    /// - Allocates memory for a [BrilligVariable::BrilligVector], which holds a pointer and dynamic size.
     /// - Initializes the pointer using the free memory pointer.
     /// - The actual size will be updated after the foreign function call returns.
     ///
