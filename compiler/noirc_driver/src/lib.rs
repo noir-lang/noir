@@ -656,7 +656,6 @@ fn compile_contract_inner(
             options.inliner_aggressiveness = 0;
         }
 
-
         if let Some(ref name_filter) = options.show_contract_fn {
             let show = name == *name_filter;
             options.show_ssa &= show;
