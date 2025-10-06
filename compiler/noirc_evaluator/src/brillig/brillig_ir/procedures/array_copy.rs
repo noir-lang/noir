@@ -24,9 +24,10 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         source_array: BrilligArray,
         destination_array: BrilligArray,
     ) {
-        let source_array_pointer_arg = MemoryAddress::direct(ScratchSpace::start());
-        let source_array_memory_size_arg = MemoryAddress::direct(ScratchSpace::start() + 1);
-        let new_array_pointer_return = MemoryAddress::direct(ScratchSpace::start() + 2);
+        let scratch_start = ScratchSpace::start();
+        let source_array_pointer_arg = MemoryAddress::direct(scratch_start);
+        let source_array_memory_size_arg = MemoryAddress::direct(scratch_start + 1);
+        let new_array_pointer_return = MemoryAddress::direct(scratch_start + 2);
 
         self.mov_instruction(source_array_pointer_arg, source_array.pointer);
         self.usize_const_instruction(source_array_memory_size_arg, (source_array.size + 1).into());
@@ -40,9 +41,10 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 pub(super) fn compile_array_copy_procedure<F: AcirField + DebugToString>(
     brillig_context: &mut BrilligContext<F, ScratchSpace>,
 ) {
-    let source_array_pointer_arg = MemoryAddress::direct(ScratchSpace::start());
-    let source_array_memory_size_arg = MemoryAddress::direct(ScratchSpace::start() + 1);
-    let new_array_pointer_return = MemoryAddress::direct(ScratchSpace::start() + 2);
+    let scratch_start = brillig_context.registers.start();
+    let source_array_pointer_arg = MemoryAddress::direct(scratch_start);
+    let source_array_memory_size_arg = MemoryAddress::direct(scratch_start + 1);
+    let new_array_pointer_return = MemoryAddress::direct(scratch_start + 2);
 
     brillig_context.set_allocated_registers(vec![
         source_array_pointer_arg,
