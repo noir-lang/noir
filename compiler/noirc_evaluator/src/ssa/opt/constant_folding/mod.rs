@@ -1079,10 +1079,10 @@ mod test {
                 v5 = make_array [u1 0] : [u1; 1]
                 jmpif v3 then: b1, else: b2
               b1():
-                v6 = make_array [u1 0] : [u1; 1]
+                inc_rc v5
                 jmp b3(u1 0)
               b2():
-                inc_rc v5
+                v6 = make_array [u1 0] : [u1; 1]
                 jmp b3(u1 0)
               b3(v1: u1):
                 constrain v1 == u1 0
@@ -1336,6 +1336,7 @@ mod test {
             v28 = make_array b"DEF"
             jmpif v20 then: b1, else: b2
           b1():
+            inc_rc v24
             jmp b3(v24)
           b2():
             v29 = eq v19, Field 3
@@ -1365,6 +1366,7 @@ mod test {
           b8(v2: [u8; 3]):
             jmp b3(v2)
           b9():
+            inc_rc v28
             jmp b10()
           b10():
             inc_rc v28
@@ -1393,6 +1395,7 @@ mod test {
             jmp b20(v28)
           b19():
             constrain v34 == Field 5
+            inc_rc v28
             jmp b20(v28)
           b20(v6: [u8; 3]):
             jmp b17(v6)
@@ -1461,6 +1464,7 @@ mod test {
             v11 = make_array [u8 0] : [u8; 1]
             jmpif v0 then: b3, else: b4
           b3():
+            inc_rc v11
             jmp b5()
           b4():
             inc_rc v11
@@ -1596,6 +1600,7 @@ mod test {
             jmpif v1 then: b7, else: b8
           b7():
             v9 = make_array [u8 0] : [u8; 1]
+            inc_rc v8
             jmp b9()
           b8():
             inc_rc v8
@@ -1607,6 +1612,7 @@ mod test {
             jmpif v1 then: b11, else: b12
           b11():
             inc_rc v3
+            inc_rc v5
             jmp b13()
           b12():
             inc_rc v5
@@ -1620,6 +1626,7 @@ mod test {
             store v3 at v6
             jmp b16()
           b16():
+            inc_rc v3
             v10 = allocate -> &mut [u8; 1]
             store v3 at v10
             jmp b17()
@@ -1628,6 +1635,7 @@ mod test {
             v12 = make_array [u8 3] : [u8; 1]
             jmpif v1 then: b18, else: b19
           b18():
+            inc_rc v12
             jmp b20()
           b19():
             inc_rc v12
