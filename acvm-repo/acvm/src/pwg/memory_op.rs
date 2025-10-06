@@ -43,8 +43,8 @@ impl<F: AcirField> MemoryOpSolver<F> {
                 opcode_location: ErrorLocation::Unresolved,
                 index,
                 array_size: self.len(),
-            })
-        }
+            }
+        })
     }
 
     /// Update the 'block_value' map with the provided index/value
@@ -100,6 +100,7 @@ impl<F: AcirField> MemoryOpSolver<F> {
         &mut self,
         op: &MemOp<F>,
         initial_witness: &mut WitnessMap<F>,
+        pedantic_solving: bool,
     ) -> Result<(), OpcodeResolutionError<F>> {
         let operation = get_value(&op.operation, initial_witness)?;
 
@@ -180,7 +181,8 @@ mod tests {
         let mut block_solver = MemoryOpSolver::new(&init, &initial_witness).unwrap();
 
         for op in trace {
-            block_solver.solve_memory_op(&op, &mut initial_witness).unwrap();
+            let pedantic_solving = true;
+            block_solver.solve_memory_op(&op, &mut initial_witness, pedantic_solving).unwrap();
         }
 
         assert_eq!(initial_witness[&Witness(4)], FieldElement::from(2u128));
@@ -204,7 +206,9 @@ mod tests {
         let mut err = None;
         for op in invalid_trace {
             if err.is_none() {
-                err = block_solver.solve_memory_op(&op, &mut initial_witness).err();
+                let pedantic_solving = true;
+                err =
+                    block_solver.solve_memory_op(&op, &mut initial_witness, pedantic_solving).err();
             }
         }
 
