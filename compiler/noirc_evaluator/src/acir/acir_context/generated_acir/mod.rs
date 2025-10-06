@@ -578,11 +578,14 @@ impl<F: AcirField> GeneratedAcir<F> {
                 call_stack: self.get_call_stack(),
             });
         };
-
-        let constraint = AcirOpcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
-            input: FunctionInput::Witness(witness),
-            num_bits,
-        });
+        let constraint = if num_bits == 0 {
+            AcirOpcode::AssertZero(Expression::from(witness))
+        } else {
+            AcirOpcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
+                input: FunctionInput::Witness(witness),
+                num_bits,
+            })
+        };
         self.push_opcode(constraint);
 
         Ok(())
