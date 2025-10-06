@@ -12,8 +12,7 @@ use crate::pwg::{input_to_value, insert_value};
 /// If successful, `initial_witness` will be mutated to contain the new witness assignment.
 pub(super) fn solve_generic_256_hash_opcode<F: AcirField>(
     initial_witness: &mut WitnessMap<F>,
-    #[allow(clippy::ptr_arg)] //Clippy mistakenly believes that it can be replaced by &[..]
-    inputs: &Vec<FunctionInput<F>>,
+    inputs: &[FunctionInput<F>],
     var_message_size: Option<&FunctionInput<F>>,
     outputs: &[Witness; 32],
     hash_function: fn(data: &[u8]) -> Result<[u8; 32], BlackBoxResolutionError>,
@@ -42,7 +41,10 @@ fn get_hash_input<F: AcirField>(
     // Truncate the message if there is a `message_size` parameter given
     match message_size {
         Some(input) => {
-            let num_bytes_to_take = input_to_value(initial_witness, *input)?.to_u128() as usize;
+            let num_bytes_to_take = input_to_value(initial_witness, *input)?
+                .try_into_u128()
+                .map(|num_bytes_to_take| num_bytes_to_take as usize)
+                .expect("expected a 'num_bytes_to_take' that fit into a u128");
 
             // If the number of bytes to take is more than the amount of bytes available
             // in the message, then we error.
@@ -83,7 +85,9 @@ fn to_u32_array<const N: usize, F: AcirField>(
     let mut result = [0; N];
     for (it, input) in result.iter_mut().zip(inputs) {
         let witness_value = input_to_value(initial_witness, *input)?;
-        *it = witness_value.to_u128() as u32;
+        *it = witness_value
+            .try_into_u128()
+            .expect("expected the 'witness_value' to fit into a u128") as u32;
     }
     Ok(result)
 }

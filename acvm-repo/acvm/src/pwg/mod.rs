@@ -258,6 +258,8 @@ pub enum OpcodeResolutionError<F> {
     AcirCallOutputsMismatch { opcode_location: ErrorLocation, results_size: u32, outputs_size: u32 },
     #[error("(--pedantic): Predicates are expected to be 0 or 1, but found: {pred_value}")]
     PredicateLargerThanOne { opcode_location: ErrorLocation, pred_value: F },
+    #[error("(--pedantic): Memory operations are expected to be 0 or 1, but found: {operation}")]
+    MemoryOperationLargerThanOne { opcode_location: ErrorLocation, operation: F },
 }
 
 impl<F> From<BlackBoxResolutionError> for OpcodeResolutionError<F> {
@@ -524,7 +526,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
                     .block_solvers
                     .get_mut(block_id)
                     .expect("Memory block should have been initialized before use");
-                solver.solve_memory_op(op, &mut self.witness_map)
+                solver.solve_memory_op(op, &mut self.witness_map, self.backend.pedantic_solving())
             }
             Opcode::BrilligCall { .. } => match self.solve_brillig_call_opcode() {
                 Ok(Some(foreign_call)) => return self.wait_for_foreign_call(foreign_call),
