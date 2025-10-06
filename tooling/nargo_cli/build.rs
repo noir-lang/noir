@@ -71,7 +71,7 @@ fn main() -> Result<(), String> {
 
 /// Some tests are explicitly ignored in brillig due to them failing.
 /// These should be fixed and removed from this list.
-const IGNORED_BRILLIG_TESTS: [&str; 11] = [
+const IGNORED_BRILLIG_TESTS: [&str; 10] = [
     // bit sizes for bigint operation doesn't match up.
     "bigint",
     // ICE due to looking for function which doesn't exist.
@@ -85,8 +85,6 @@ const IGNORED_BRILLIG_TESTS: [&str; 11] = [
     "fold_numeric_generic_poseidon",
     // Expected to fail as test asserts on which runtime it is in.
     "is_unconstrained",
-    // Only panics in ACIR
-    "regression_9986",
 ];
 
 /// Tests which aren't expected to work with the default minimum inliner cases.
@@ -481,12 +479,7 @@ fn generate_execution_panic_tests(test_file: &mut File, test_data_dir: &Path) {
             &test_dir,
             "execute",
             "execution_panic(nargo);",
-            &MatrixConfig {
-                vary_brillig: !IGNORED_BRILLIG_TESTS.contains(&test_name.as_str()),
-                vary_inliner: true,
-                min_inliner: min_inliner(&test_name),
-                max_inliner: max_inliner(&test_name),
-            },
+            &MatrixConfig::default(),
         );
     }
     writeln!(test_file, "}}").unwrap();
