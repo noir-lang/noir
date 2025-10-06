@@ -59,7 +59,7 @@
 //! Solving this black-box simply means to validate that the values (from `initial_witness`) are indeed 32 bits for w0, w1, w2, w3, w4
 //! If `initial_witness` does not have values for w0, w1, w2, w3, w4, or if the values are over 32 bits, the execution will fail.
 //! The next opcode is an AssertZero opcode: EXPR [ (1, w0) (-1, w1) (-1, w6) 0 ], which indicates that `w0 - w1 - w6` should be equal to 0.
-//! Since we know the values of `w0, w1` from `initial_witness`, we can compute `w6 = w0 + w1` so that the AssertZero is satified.
+//! Since we know the values of `w0, w1` from `initial_witness`, we can compute `w6 = w0 + w1` so that the AssertZero is satisfied.
 //! Solving AssertZero means computing the unknown witness and adding the result to `initial_witness`, which now contains the value for `w6`.
 //! The next opcode is a Brillig Call where input is `w6` and output is `w7`. From the function id of the opcode, the solver will retrieve the
 //! corresponding Brillig bytecode and instantiate a Brillig VM with the value of the input. This value was just computed before.

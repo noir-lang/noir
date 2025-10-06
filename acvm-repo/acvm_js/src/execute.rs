@@ -314,7 +314,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ProgramExecutor<'a, B> {
                     }
                     ACVMStatus::RequiresAcirCall(call_info) => {
                         let acir_to_call = &self.functions[call_info.id.as_usize()];
-                        let initial_witness = &call_info.initial_witness;
+                        let initial_witness = call_info.initial_witness;
                         let call_solved_witness = self
                             .execute_circuit(
                                 acir_to_call,
