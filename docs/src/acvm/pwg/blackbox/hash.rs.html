@@ -217,7 +217,11 @@
 <a href="#216" id="216">216</a>
 <a href="#217" id="217">217</a>
 <a href="#218" id="218">218</a>
-<a href="#219" id="219">219</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{
+<a href="#219" id="219">219</a>
+<a href="#220" id="220">220</a>
+<a href="#221" id="221">221</a>
+<a href="#222" id="222">222</a>
+<a href="#223" id="223">223</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{
     AcirField,
     circuit::opcodes::FunctionInput,
     native_types::{Witness, WitnessMap},
@@ -231,8 +235,7 @@
 /// If successful, `initial_witness` will be mutated to contain the new witness assignment.
 </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>solve_generic_256_hash_opcode&lt;F: AcirField&gt;(
     initial_witness: <span class="kw-2">&amp;mut </span>WitnessMap&lt;F&gt;,
-    <span class="attr">#[allow(clippy::ptr_arg)] </span><span class="comment">//Clippy mistakenly believes that it can be replaced by &amp;[..]
-    </span>inputs: <span class="kw-2">&amp;</span>Vec&lt;FunctionInput&lt;F&gt;&gt;,
+    inputs: <span class="kw-2">&amp;</span>[FunctionInput&lt;F&gt;],
     var_message_size: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>FunctionInput&lt;F&gt;&gt;,
     outputs: <span class="kw-2">&amp;</span>[Witness; <span class="number">32</span>],
     hash_function: <span class="kw">fn</span>(data: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;[u8; <span class="number">32</span>], BlackBoxResolutionError&gt;,
@@ -261,7 +264,10 @@
     <span class="comment">// Truncate the message if there is a `message_size` parameter given
     </span><span class="kw">match </span>message_size {
         <span class="prelude-val">Some</span>(input) =&gt; {
-            <span class="kw">let </span>num_bytes_to_take = input_to_value(initial_witness, <span class="kw-2">*</span>input)<span class="question-mark">?</span>.to_u128() <span class="kw">as </span>usize;
+            <span class="kw">let </span>num_bytes_to_take = input_to_value(initial_witness, <span class="kw-2">*</span>input)<span class="question-mark">?
+                </span>.try_into_u128()
+                .map(|num_bytes_to_take| num_bytes_to_take <span class="kw">as </span>usize)
+                .expect(<span class="string">"expected a 'num_bytes_to_take' that fit into a u128"</span>);
 
             <span class="comment">// If the number of bytes to take is more than the amount of bytes available
             // in the message, then we error.
@@ -302,7 +308,9 @@
     <span class="kw">let </span><span class="kw-2">mut </span>result = [<span class="number">0</span>; N];
     <span class="kw">for </span>(it, input) <span class="kw">in </span>result.iter_mut().zip(inputs) {
         <span class="kw">let </span>witness_value = input_to_value(initial_witness, <span class="kw-2">*</span>input)<span class="question-mark">?</span>;
-        <span class="kw-2">*</span>it = witness_value.to_u128() <span class="kw">as </span>u32;
+        <span class="kw-2">*</span>it = witness_value
+            .try_into_u128()
+            .expect(<span class="string">"expected the 'witness_value' to fit into a u128"</span>) <span class="kw">as </span>u32;
     }
     <span class="prelude-val">Ok</span>(result)
 }

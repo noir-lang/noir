@@ -211,7 +211,18 @@
 <a href="#210" id="210">210</a>
 <a href="#211" id="211">211</a>
 <a href="#212" id="212">212</a>
-<a href="#213" id="213">213</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{
+<a href="#213" id="213">213</a>
+<a href="#214" id="214">214</a>
+<a href="#215" id="215">215</a>
+<a href="#216" id="216">216</a>
+<a href="#217" id="217">217</a>
+<a href="#218" id="218">218</a>
+<a href="#219" id="219">219</a>
+<a href="#220" id="220">220</a>
+<a href="#221" id="221">221</a>
+<a href="#222" id="222">222</a>
+<a href="#223" id="223">223</a>
+<a href="#224" id="224">224</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{
     AcirField,
     circuit::opcodes::MemOp,
     native_types::{Witness, WitnessMap},
@@ -245,22 +256,19 @@
     }
 
     <span class="kw">fn </span>len(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u32 {
-        <span class="self">self</span>.block_value.len() <span class="kw">as </span>u32
+        u32::try_from(<span class="self">self</span>.block_value.len()).expect(<span class="string">"expected a length that fits into a u32"</span>)
     }
 
     <span class="doccomment">/// Convert a field element into a memory index
     /// Only 32 bits values are valid memory indices
     </span><span class="kw">fn </span>index_from_field(<span class="kw-2">&amp;</span><span class="self">self</span>, index: F) -&gt; <span class="prelude-ty">Result</span>&lt;MemoryIndex, OpcodeResolutionError&lt;F&gt;&gt; {
-        <span class="kw">if </span>index.num_bits() &lt;= <span class="number">32 </span>{
-            <span class="kw">let </span>memory_index = index.try_to_u64().unwrap() <span class="kw">as </span>MemoryIndex;
-            <span class="prelude-val">Ok</span>(memory_index)
-        } <span class="kw">else </span>{
-            <span class="prelude-val">Err</span>(OpcodeResolutionError::IndexOutOfBounds {
+        index.try_to_u32().ok_or_else({
+            || OpcodeResolutionError::IndexOutOfBounds {
                 opcode_location: ErrorLocation::Unresolved,
                 index,
                 array_size: <span class="self">self</span>.len(),
-            })
-        }
+            }
+        })
     }
 
     <span class="doccomment">/// Update the 'block_value' map with the provided index/value
@@ -316,6 +324,7 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         op: <span class="kw-2">&amp;</span>MemOp&lt;F&gt;,
         initial_witness: <span class="kw-2">&amp;mut </span>WitnessMap&lt;F&gt;,
+        pedantic_solving: bool,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), OpcodeResolutionError&lt;F&gt;&gt; {
         <span class="kw">let </span>operation = get_value(<span class="kw-2">&amp;</span>op.operation, initial_witness)<span class="question-mark">?</span>;
 
@@ -331,6 +340,16 @@
 
         <span class="comment">// `operation == 0` implies a read operation. (`operation == 1` implies write operation).
         </span><span class="kw">let </span>is_read_operation = operation.is_zero();
+        <span class="kw">if </span>pedantic_solving {
+            <span class="comment">// We expect that the 'operation' should resolve to either 0 or 1.
+            </span><span class="kw">if </span>!is_read_operation &amp;&amp; !operation.is_one() {
+                <span class="kw">let </span>opcode_location = ErrorLocation::Unresolved;
+                <span class="kw">return </span><span class="prelude-val">Err</span>(OpcodeResolutionError::MemoryOperationLargerThanOne {
+                    opcode_location,
+                    operation,
+                });
+            }
+        }
 
         <span class="kw">if </span>is_read_operation {
             <span class="comment">// `value_read = arr[memory_index]`
@@ -386,7 +405,8 @@
         <span class="kw">let </span><span class="kw-2">mut </span>block_solver = MemoryOpSolver::new(<span class="kw-2">&amp;</span>init, <span class="kw-2">&amp;</span>initial_witness).unwrap();
 
         <span class="kw">for </span>op <span class="kw">in </span>trace {
-            block_solver.solve_memory_op(<span class="kw-2">&amp;</span>op, <span class="kw-2">&amp;mut </span>initial_witness).unwrap();
+            <span class="kw">let </span>pedantic_solving = <span class="bool-val">true</span>;
+            block_solver.solve_memory_op(<span class="kw-2">&amp;</span>op, <span class="kw-2">&amp;mut </span>initial_witness, pedantic_solving).unwrap();
         }
 
         <span class="macro">assert_eq!</span>(initial_witness[<span class="kw-2">&amp;</span>Witness(<span class="number">4</span>)], FieldElement::from(<span class="number">2u128</span>));
@@ -410,7 +430,9 @@
         <span class="kw">let </span><span class="kw-2">mut </span>err = <span class="prelude-val">None</span>;
         <span class="kw">for </span>op <span class="kw">in </span>invalid_trace {
             <span class="kw">if </span>err.is_none() {
-                err = block_solver.solve_memory_op(<span class="kw-2">&amp;</span>op, <span class="kw-2">&amp;mut </span>initial_witness).err();
+                <span class="kw">let </span>pedantic_solving = <span class="bool-val">true</span>;
+                err =
+                    block_solver.solve_memory_op(<span class="kw-2">&amp;</span>op, <span class="kw-2">&amp;mut </span>initial_witness, pedantic_solving).err();
             }
         }
 

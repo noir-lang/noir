@@ -1012,7 +1012,9 @@
 <a href="#1011" id="1011">1011</a>
 <a href="#1012" id="1012">1012</a>
 <a href="#1013" id="1013">1013</a>
-<a href="#1014" id="1014">1014</a></pre></div><pre class="rust"><code><span class="comment">// Re-usable methods that backends can use to implement their PWG
+<a href="#1014" id="1014">1014</a>
+<a href="#1015" id="1015">1015</a>
+<a href="#1016" id="1016">1016</a></pre></div><pre class="rust"><code><span class="comment">// Re-usable methods that backends can use to implement their PWG
 
 </span><span class="doccomment">//! This module contains methods to implement the partial witness generation (PWG) of an ACIR program.
 //! The goal of ACIR execution is to compute the values of all the ACIR witnesses, or an error if it could not compute them all.
@@ -1272,6 +1274,8 @@
     </span>AcirCallOutputsMismatch { opcode_location: ErrorLocation, results_size: u32, outputs_size: u32 },
     <span class="attr">#[error(<span class="string">"(--pedantic): Predicates are expected to be 0 or 1, but found: {pred_value}"</span>)]
     </span>PredicateLargerThanOne { opcode_location: ErrorLocation, pred_value: F },
+    <span class="attr">#[error(<span class="string">"(--pedantic): Memory operations are expected to be 0 or 1, but found: {operation}"</span>)]
+    </span>MemoryOperationLargerThanOne { opcode_location: ErrorLocation, operation: F },
 }
 
 <span class="kw">impl</span>&lt;F&gt; From&lt;BlackBoxResolutionError&gt; <span class="kw">for </span>OpcodeResolutionError&lt;F&gt; {
@@ -1538,7 +1542,7 @@
                     </span>.block_solvers
                     .get_mut(block_id)
                     .expect(<span class="string">"Memory block should have been initialized before use"</span>);
-                solver.solve_memory_op(op, <span class="kw-2">&amp;mut </span><span class="self">self</span>.witness_map)
+                solver.solve_memory_op(op, <span class="kw-2">&amp;mut </span><span class="self">self</span>.witness_map, <span class="self">self</span>.backend.pedantic_solving())
             }
             Opcode::BrilligCall { .. } =&gt; <span class="kw">match </span><span class="self">self</span>.solve_brillig_call_opcode() {
                 <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(foreign_call)) =&gt; <span class="kw">return </span><span class="self">self</span>.wait_for_foreign_call(foreign_call),

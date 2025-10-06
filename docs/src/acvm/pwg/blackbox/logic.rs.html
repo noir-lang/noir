@@ -122,8 +122,7 @@
 <a href="#121" id="121">121</a>
 <a href="#122" id="122">122</a>
 <a href="#123" id="123">123</a>
-<a href="#124" id="124">124</a>
-<a href="#125" id="125">125</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::OpcodeResolutionError;
+<a href="#124" id="124">124</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::OpcodeResolutionError;
 <span class="kw">use </span><span class="kw">crate</span>::pwg::{check_bit_size, input_to_value, insert_value};
 <span class="kw">use </span>acir::circuit::opcodes::FunctionInput;
 <span class="kw">use </span>acir::{
@@ -184,14 +183,13 @@
     pedantic_solving: bool,
     logic_op: <span class="kw">impl </span>Fn(F, F) -&gt; F,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;(), OpcodeResolutionError&lt;F&gt;&gt; {
-    <span class="comment">// TODO(https://github.com/noir-lang/noir/issues/5985): re-enable these by
-    // default once we figure out how to combine these with existing
-    // noirc_frontend/noirc_evaluator overflow error messages
-    </span><span class="kw">let </span>skip_bitsize_checks = !pedantic_solving;
     <span class="kw">let </span>w_l_value = input_to_value(initial_witness, <span class="kw-2">*</span>a)<span class="question-mark">?</span>;
     <span class="kw">let </span>w_r_value = input_to_value(initial_witness, <span class="kw-2">*</span>b)<span class="question-mark">?</span>;
     <span class="kw">let </span>assignment = logic_op(w_l_value, w_r_value);
-    <span class="kw">if </span>!skip_bitsize_checks {
+    <span class="comment">// TODO(https://github.com/noir-lang/noir/issues/5985): re-enable these by
+    // default once we figure out how to combine these with existing
+    // noirc_frontend/noirc_evaluator overflow error messages
+    </span><span class="kw">if </span>pedantic_solving {
         check_bit_size(w_l_value, num_bits)<span class="question-mark">?</span>;
         check_bit_size(w_r_value, num_bits)<span class="question-mark">?</span>;
     }
