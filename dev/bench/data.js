@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1759777532254,
+  "lastUpdate": 1759784823351,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23416,48 +23416,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "ba14f643a206fc0fb53ab6d6d642be559c9656bd",
-          "message": "chore(ci): add provenance attestations to npm packages (#10011)",
-          "timestamp": "2025-09-26T10:39:12Z",
-          "tree_id": "13ab2dac7706480814c023b72cb10d89f5c08d03",
-          "url": "https://github.com/noir-lang/noir/commit/ba14f643a206fc0fb53ab6d6d642be559c9656bd"
-        },
-        "date": 1758884797324,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 253244,
-            "range": "± 712",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 224625,
-            "range": "± 5019",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2784302,
-            "range": "± 18944",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "075a31b4ae849374cc17a4804b1dc4976e3a3c28",
           "message": "chore(ci): fix external checks (#10009)",
           "timestamp": "2025-09-26T13:25:00+01:00",
@@ -25499,6 +25457,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2786537,
             "range": "± 9655",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "52610192+Aristotelis2002@users.noreply.github.com",
+            "name": "Aristotelis",
+            "username": "Aristotelis2002"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1d260dfdc3ef35c9f26a755be118fe48d04d7dbf",
+          "message": "fix(tag_attr): keep whitespace tokens when parsing (#9981)",
+          "timestamp": "2025-10-06T20:43:12Z",
+          "tree_id": "aace6de25a03d0ed876d25e814e7e4a37d514d6c",
+          "url": "https://github.com/noir-lang/noir/commit/1d260dfdc3ef35c9f26a755be118fe48d04d7dbf"
+        },
+        "date": 1759784801563,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 252638,
+            "range": "± 484",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 225373,
+            "range": "± 5991",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2787526,
+            "range": "± 12861",
             "unit": "ns/iter"
           }
         ]
