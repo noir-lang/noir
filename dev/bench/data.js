@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1759766939987,
+  "lastUpdate": 1759772355943,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23355,48 +23355,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "fda596f2669205bcdde91ae913a2c9b4790ffd3e",
-          "message": "chore(ci): fix docs breaking JS releases (#10010)",
-          "timestamp": "2025-09-26T10:43:48+01:00",
-          "tree_id": "195b9b10c6136fb0db942611ad39ab4e36b8ada8",
-          "url": "https://github.com/noir-lang/noir/commit/fda596f2669205bcdde91ae913a2c9b4790ffd3e"
-        },
-        "date": 1758879980546,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 250615,
-            "range": "± 202",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 236638,
-            "range": "± 3350",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2781228,
-            "range": "± 2063",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "17c97e8180fae2e16ab05f47bfa29fea23207cd7",
           "message": "chore: remove unused feature flag (#9993)",
@@ -25439,6 +25397,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2792524,
             "range": "± 2435",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "aaa27ba1adda8ddefeea0dbdc1660ec7d0deb4cb",
+          "message": "chore: add in hack for `public_dispatch` (#10084)",
+          "timestamp": "2025-10-06T18:36:21+01:00",
+          "tree_id": "662f80be0ccd236ff6d78c46f26276f777cc5c7a",
+          "url": "https://github.com/noir-lang/noir/commit/aaa27ba1adda8ddefeea0dbdc1660ec7d0deb4cb"
+        },
+        "date": 1759772331832,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 253461,
+            "range": "± 1178",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 227132,
+            "range": "± 4956",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2788396,
+            "range": "± 1541",
             "unit": "ns/iter"
           }
         ]
