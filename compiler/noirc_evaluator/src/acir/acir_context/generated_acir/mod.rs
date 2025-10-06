@@ -578,11 +578,14 @@ impl<F: AcirField> GeneratedAcir<F> {
                 call_stack: self.get_call_stack(),
             });
         };
-
-        let constraint = AcirOpcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
-            input: FunctionInput::Witness(witness),
-            num_bits,
-        });
+        let constraint = if num_bits == 0 {
+            AcirOpcode::AssertZero(Expression::from(witness))
+        } else {
+            AcirOpcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
+                input: FunctionInput::Witness(witness),
+                num_bits,
+            })
+        };
         self.push_opcode(constraint);
 
         Ok(())
@@ -695,9 +698,9 @@ fn black_box_func_expected_input_size(name: BlackBoxFunc) -> Option<usize> {
         // witness at a time.
         BlackBoxFunc::RANGE => Some(1),
 
-        // Signature verification algorithms will take in a variable
-        // number of inputs, since the message/hashed-message can vary in size.
-        BlackBoxFunc::EcdsaSecp256k1 | BlackBoxFunc::EcdsaSecp256r1 => None,
+        // 64 bytes for the signature, 32 bytes for the hashed message,
+        // and 32 bytes each for the x and y coordinates of the public key, plus a predicate.
+        BlackBoxFunc::EcdsaSecp256k1 | BlackBoxFunc::EcdsaSecp256r1 => Some(161),
 
         // Inputs for multi scalar multiplication is an arbitrary number of [point, scalar] pairs.
         BlackBoxFunc::MultiScalarMul => None,

@@ -191,9 +191,18 @@ impl<W: Write> Interpreter<'_, W> {
                             size: s_len,
                         })
                     })?;
+                    let m_len = m.len();
+                    let m_array: &[u8; 32] = &m.try_into().map_err(|_| {
+                        InterpreterError::Internal(InternalError::InvalidInputSize {
+                            expected_size: 32,
+                            size: m_len,
+                        })
+                    })?;
                     let result = if predicate {
-                        acvm::blackbox_solver::ecdsa_secp256k1_verify(&m, x_array, y_array, s_array)
-                            .map_err(Self::convert_error)?
+                        acvm::blackbox_solver::ecdsa_secp256k1_verify(
+                            m_array, x_array, y_array, s_array,
+                        )
+                        .map_err(Self::convert_error)?
                     } else {
                         true
                     };
@@ -230,10 +239,19 @@ impl<W: Write> Interpreter<'_, W> {
                             size: s_len,
                         })
                     })?;
+                    let m_len = m.len();
+                    let m_array: &[u8; 32] = &m.try_into().map_err(|_| {
+                        InterpreterError::Internal(InternalError::InvalidInputSize {
+                            expected_size: 32,
+                            size: m_len,
+                        })
+                    })?;
 
                     let result = if predicate {
-                        acvm::blackbox_solver::ecdsa_secp256r1_verify(&m, x_array, y_array, s_array)
-                            .map_err(Self::convert_error)?
+                        acvm::blackbox_solver::ecdsa_secp256r1_verify(
+                            m_array, x_array, y_array, s_array,
+                        )
+                        .map_err(Self::convert_error)?
                     } else {
                         true
                     };
@@ -453,8 +471,15 @@ impl<W: Write> Interpreter<'_, W> {
                 Ok(vec![Value::bool(lhs < rhs)])
             }
             Intrinsic::ArrayRefCount | Intrinsic::SliceRefCount => {
-                let array = self.lookup_array_or_slice(args[0], "array/slice ref count")?;
-                let rc = *array.rc.borrow();
+                // `slice_refcount` receives `[length, array]` as input. `array_refcount` gets just `[array]`
+                let idx = if matches!(intrinsic, Intrinsic::SliceRefCount) { 1 } else { 0 };
+                let array = self.lookup_array_or_slice(args[idx], "array/slice ref count")?;
+                let mut rc = *array.rc.borrow();
+                // ACIR always returns 0 for the refcounts, and we expect that IncRc and DecRc don't appear in constrained SSA.
+                // The interpreter starts with a default ref-count value of 1. If it did not change, treat it as zero to match ACIR.
+                if !self.in_unconstrained_context() && rc == 1 {
+                    rc = 0;
+                }
                 Ok(vec![Value::from_constant(rc.into(), NumericType::unsigned(32))?])
             }
         }

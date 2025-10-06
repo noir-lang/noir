@@ -150,12 +150,18 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             let hashed_msg = to_u8_vec(read_heap_vector(memory, hashed_msg));
 
             let result = match op {
-                BlackBoxOp::EcdsaSecp256k1 { .. } => {
-                    ecdsa_secp256k1_verify(&hashed_msg, &public_key_x, &public_key_y, &signature)?
-                }
-                BlackBoxOp::EcdsaSecp256r1 { .. } => {
-                    ecdsa_secp256r1_verify(&hashed_msg, &public_key_x, &public_key_y, &signature)?
-                }
+                BlackBoxOp::EcdsaSecp256k1 { .. } => ecdsa_secp256k1_verify(
+                    &hashed_msg.try_into().unwrap(),
+                    &public_key_x,
+                    &public_key_y,
+                    &signature,
+                )?,
+                BlackBoxOp::EcdsaSecp256r1 { .. } => ecdsa_secp256r1_verify(
+                    &hashed_msg.try_into().unwrap(),
+                    &public_key_x,
+                    &public_key_y,
+                    &signature,
+                )?,
                 _ => unreachable!("`BlackBoxOp` is guarded against being a non-ecdsa operation"),
             };
 

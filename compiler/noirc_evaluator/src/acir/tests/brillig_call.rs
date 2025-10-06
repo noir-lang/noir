@@ -51,19 +51,19 @@ fn multiple_brillig_calls_one_bytecode() {
     BRILLIG CALL func: 0, inputs: [w0, w1], outputs: [w6]
     BRILLIG CALL func: 1, inputs: [w0, w1], outputs: [w7]
 
-    unconstrained func 0
+    unconstrained func 0: foo
      0: @2 = const u32 1
      1: @1 = const u32 32839
-     2: @0 = const u32 3
+     2: @0 = const u32 71
      3: sp[3] = const u32 2
      4: sp[4] = const u32 0
-     5: @32836 = calldata copy [sp[4]; sp[3]]
-     6: sp[1] = @32836
-     7: sp[2] = @32837
+     5: @68 = calldata copy [sp[4]; sp[3]]
+     6: sp[1] = @68
+     7: sp[2] = @69
      8: call 14
      9: call 15
-    10: @32838 = sp[1]
-    11: sp[2] = const u32 32838
+    10: @70 = sp[1]
+    11: sp[2] = const u32 70
     12: sp[3] = const u32 1
     13: stop &[sp[2]; sp[3]]
     14: return
@@ -75,25 +75,25 @@ fn multiple_brillig_calls_one_bytecode() {
     20: sp[5] = const u32 0
     21: trap &[@1; sp[5]]
     22: return
-    23: @32772 = const u32 30720
-    24: @32771 = u32 lt @0, @32772
-    25: jump if @32771 to 28
+    23: @4 = const u32 30791
+    24: @3 = u32 lt @0, @4
+    25: jump if @3 to 28
     26: @1 = indirect const u64 15764276373176857197
     27: trap &[@1; @2]
     28: return
-    unconstrained func 1
+    unconstrained func 1: foo
      0: @2 = const u32 1
      1: @1 = const u32 32839
-     2: @0 = const u32 3
+     2: @0 = const u32 71
      3: sp[3] = const u32 2
      4: sp[4] = const u32 0
-     5: @32836 = calldata copy [sp[4]; sp[3]]
-     6: sp[1] = @32836
-     7: sp[2] = @32837
+     5: @68 = calldata copy [sp[4]; sp[3]]
+     6: sp[1] = @68
+     7: sp[2] = @69
      8: call 14
      9: call 15
-    10: @32838 = sp[1]
-    11: sp[2] = const u32 32838
+    10: @70 = sp[1]
+    11: sp[2] = const u32 70
     12: sp[3] = const u32 1
     13: stop &[sp[2]; sp[3]]
     14: return
@@ -105,9 +105,9 @@ fn multiple_brillig_calls_one_bytecode() {
     20: sp[5] = const u32 0
     21: trap &[@1; sp[5]]
     22: return
-    23: @32772 = const u32 30720
-    24: @32771 = u32 lt @0, @32772
-    25: jump if @32771 to 28
+    23: @4 = const u32 30791
+    24: @3 = u32 lt @0, @4
+    25: jump if @3 to 28
     26: @1 = indirect const u64 15764276373176857197
     27: trap &[@1; @2]
     28: return
@@ -128,6 +128,7 @@ fn multiple_brillig_stdlib_calls() {
         return
     }";
     let (program, debug) = ssa_to_acir_program_with_debug_info(src);
+
     // We expect two brillig functions:
     //   - Quotient (shared between both divisions)
     //   - Inversion, caused by division-by-zero check (shared between both divisions)
@@ -168,7 +169,7 @@ fn multiple_brillig_stdlib_calls() {
     ASSERT w9 = -w2*w8 + w1
     ASSERT w8 = 1
 
-    unconstrained func 0
+    unconstrained func 0: directive_invert
     0: @21 = const u32 1
     1: @20 = const u32 0
     2: @0 = calldata copy [@20; @21]
@@ -178,7 +179,7 @@ fn multiple_brillig_stdlib_calls() {
     6: @1 = const field 1
     7: @0 = field field_div @1, @0
     8: stop &[@20; @21]
-    unconstrained func 1
+    unconstrained func 1: directive_integer_quotient
     0: @10 = const u32 2
     1: @11 = const u32 0
     2: @0 = calldata copy [@11; @10]
@@ -259,21 +260,21 @@ fn brillig_stdlib_calls_with_regular_brillig_call() {
     ASSERT w11 = -w2*w10 + w1
     ASSERT w10 = 1
 
-    unconstrained func 0
+    unconstrained func 0: foo
      0: @2 = const u32 1
      1: @1 = const u32 32839
-     2: @0 = const u32 3
+     2: @0 = const u32 71
      3: sp[3] = const u32 2
      4: sp[4] = const u32 0
-     5: @32836 = calldata copy [sp[4]; sp[3]]
-     6: @32836 = cast @32836 to u32
-     7: @32837 = cast @32837 to u32
-     8: sp[1] = @32836
-     9: sp[2] = @32837
+     5: @68 = calldata copy [sp[4]; sp[3]]
+     6: @68 = cast @68 to u32
+     7: @69 = cast @69 to u32
+     8: sp[1] = @68
+     9: sp[2] = @69
     10: call 16
     11: call 17
-    12: @32838 = sp[1]
-    13: sp[2] = const u32 32838
+    12: @70 = sp[1]
+    13: sp[2] = const u32 70
     14: sp[3] = const u32 1
     15: stop &[sp[2]; sp[3]]
     16: return
@@ -285,13 +286,13 @@ fn brillig_stdlib_calls_with_regular_brillig_call() {
     22: sp[5] = const u32 0
     23: trap &[@1; sp[5]]
     24: return
-    25: @32772 = const u32 30720
-    26: @32771 = u32 lt @0, @32772
-    27: jump if @32771 to 30
+    25: @4 = const u32 30791
+    26: @3 = u32 lt @0, @4
+    27: jump if @3 to 30
     28: @1 = indirect const u64 15764276373176857197
     29: trap &[@1; @2]
     30: return
-    unconstrained func 1
+    unconstrained func 1: directive_invert
     0: @21 = const u32 1
     1: @20 = const u32 0
     2: @0 = calldata copy [@20; @21]
@@ -301,7 +302,7 @@ fn brillig_stdlib_calls_with_regular_brillig_call() {
     6: @1 = const field 1
     7: @0 = field field_div @1, @0
     8: stop &[@20; @21]
-    unconstrained func 2
+    unconstrained func 2: directive_integer_quotient
     0: @10 = const u32 2
     1: @11 = const u32 0
     2: @0 = calldata copy [@11; @10]
@@ -406,21 +407,21 @@ fn brillig_stdlib_calls_with_multiple_acir_calls() {
     ASSERT w5 = 0
     ASSERT w2 = w0
 
-    unconstrained func 0
+    unconstrained func 0: foo
      0: @2 = const u32 1
      1: @1 = const u32 32839
-     2: @0 = const u32 3
+     2: @0 = const u32 71
      3: sp[3] = const u32 2
      4: sp[4] = const u32 0
-     5: @32836 = calldata copy [sp[4]; sp[3]]
-     6: @32836 = cast @32836 to u32
-     7: @32837 = cast @32837 to u32
-     8: sp[1] = @32836
-     9: sp[2] = @32837
+     5: @68 = calldata copy [sp[4]; sp[3]]
+     6: @68 = cast @68 to u32
+     7: @69 = cast @69 to u32
+     8: sp[1] = @68
+     9: sp[2] = @69
     10: call 16
     11: call 17
-    12: @32838 = sp[1]
-    13: sp[2] = const u32 32838
+    12: @70 = sp[1]
+    13: sp[2] = const u32 70
     14: sp[3] = const u32 1
     15: stop &[sp[2]; sp[3]]
     16: return
@@ -432,13 +433,13 @@ fn brillig_stdlib_calls_with_multiple_acir_calls() {
     22: sp[5] = const u32 0
     23: trap &[@1; sp[5]]
     24: return
-    25: @32772 = const u32 30720
-    26: @32771 = u32 lt @0, @32772
-    27: jump if @32771 to 30
+    25: @4 = const u32 30791
+    26: @3 = u32 lt @0, @4
+    27: jump if @3 to 30
     28: @1 = indirect const u64 15764276373176857197
     29: trap &[@1; @2]
     30: return
-    unconstrained func 1
+    unconstrained func 1: directive_invert
     0: @21 = const u32 1
     1: @20 = const u32 0
     2: @0 = calldata copy [@20; @21]
@@ -448,7 +449,7 @@ fn brillig_stdlib_calls_with_multiple_acir_calls() {
     6: @1 = const field 1
     7: @0 = field field_div @1, @0
     8: stop &[@20; @21]
-    unconstrained func 2
+    unconstrained func 2: directive_integer_quotient
     0: @10 = const u32 2
     1: @11 = const u32 0
     2: @0 = calldata copy [@11; @10]
