@@ -23,8 +23,10 @@ use crate::{
 };
 use proptest::prelude::*;
 
+mod arrays;
 mod brillig_call;
 mod call;
+mod instructions;
 mod intrinsics;
 
 /// Test utility for converting [ACIR gen artifacts][crate::acir::ssa::Artifacts]
@@ -55,14 +57,13 @@ fn ssa_to_acir_program_with_debug_info(src: &str) -> (Program<FieldElement>, Vec
 
     let brillig = ssa.to_brillig(&BrilligOptions::default());
 
-    let (acir_functions, brillig_functions, brillig_names, _) = ssa
+    let (acir_functions, brillig_functions, _) = ssa
+        .generate_entry_point_index()
         .into_acir(&brillig, &BrilligOptions::default(), ExpressionWidth::default())
         .expect("Should compile manually written SSA into ACIR");
 
-    let artifacts = ArtifactsAndWarnings(
-        (acir_functions, brillig_functions, brillig_names, BTreeMap::default()),
-        vec![],
-    );
+    let artifacts =
+        ArtifactsAndWarnings((acir_functions, brillig_functions, BTreeMap::default()), vec![]);
     let program_artifact = combine_artifacts(
         artifacts,
         &arg_size_and_visibilities,
@@ -89,98 +90,65 @@ fn unchecked_mul_should_not_have_range_check() {
     // Check that range checks only exist on the function parameters
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w2
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
-    BLACKBOX::RANGE [(w0, 32)] []
-    BLACKBOX::RANGE [(w1, 32)] []
-    EXPR [ (-1, w0, w1) (1, w2) 0 ]
+    BLACKBOX::RANGE input: w0, bits: 32
+    BLACKBOX::RANGE input: w1, bits: 32
+    ASSERT w2 = w0*w1
     ");
 }
 
 #[test]
-fn does_not_generate_memory_blocks_without_dynamic_accesses() {
+fn no_zero_bits_range_check() {
     let src = "
-        acir(inline) fn main f0 {
-          b0(v0: [Field; 2]):
-            v2, v3 = call as_slice(v0) -> (u32, [Field])
-            call f1(u32 2, v3)
-            v7 = array_get v0, index u32 0 -> Field
-            constrain v7 == Field 0
-            return
+    acir(inline) fn main f0 {   
+        b0(v0: Field):
+            v1 = truncate v0 to 8 bits, max_bit_size: 254
+            v2 = cast v1 as u8
+            return v2
         }
-
-        brillig(inline) fn foo f1 {
-          b0(v0: u32, v1: [Field]):
-              return
-          }
-        ";
+    ";
     let program = ssa_to_acir_program(src);
-    println!("{program}");
 
-    // Check that no memory opcodes were emitted.
+    // Check that there is no 0-bits range check, but 'ASSERT w7 = 0' instead
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w1
-    private parameters: [w0, w1]
+    private parameters: [w0]
     public parameters: []
-    return values: []
-    BRILLIG CALL func 0: inputs: [EXPR [ 2 ], [EXPR [ (1, w0) 0 ], EXPR [ (1, w1) 0 ]]], outputs: []
-    EXPR [ (1, w0) 0 ]
+    return values: [w1]
+    BRILLIG CALL func: 0, inputs: [w0, 256], outputs: [w2, w3]
+    BLACKBOX::RANGE input: w2, bits: 246
+    BLACKBOX::RANGE input: w3, bits: 8
+    ASSERT w3 = w0 - 256*w2
+    ASSERT w4 = -w2 + 85500948718122168836900022442411230814642048439125134155071110103811751936
+    BLACKBOX::RANGE input: w4, bits: 246
+    BRILLIG CALL func: 1, inputs: [-w2 + 85500948718122168836900022442411230814642048439125134155071110103811751936], outputs: [w5]
+    ASSERT w6 = w2*w5 - 85500948718122168836900022442411230814642048439125134155071110103811751936*w5 + 1
+    ASSERT 0 = -w2*w6 + 85500948718122168836900022442411230814642048439125134155071110103811751936*w6
+    ASSERT w7 = w3*w6
+    ASSERT w7 = 0
+    ASSERT w3 = w1
 
-    unconstrained func 0
-     0: @2 = const u32 1
-     1: @1 = const u32 32839
-     2: @0 = const u32 3
-     3: sp[3] = const u32 3
-     4: sp[4] = const u32 0
-     5: @32836 = calldata copy [sp[4]; sp[3]]
-     6: @32836 = cast @32836 to u32
-     7: sp[1] = @32836
-     8: sp[2] = const u32 32837
-     9: sp[4] = const u32 2
-    10: sp[6] = const u32 3
-    11: sp[5] = u32 add sp[4], sp[6]
-    12: sp[3] = @1
-    13: @1 = u32 add @1, sp[5]
-    14: sp[3] = indirect const u32 1
-    15: sp[5] = u32 add sp[3], @2
-    16: store sp[4] at sp[5]
-    17: sp[5] = u32 add sp[5], @2
-    18: store sp[4] at sp[5]
-    19: sp[6] = const u32 3
-    20: sp[5] = u32 add sp[3], sp[6]
-    21: @32771 = sp[2]
-    22: @32772 = sp[5]
-    23: @32773 = sp[4]
-    24: call 31
-    25: sp[2] = sp[3]
-    26: call 42
-    27: call 43
-    28: sp[1] = const u32 32839
-    29: sp[2] = const u32 0
-    30: stop &[sp[1]; sp[2]]
-    31: @32775 = u32 add @32771, @32773
-    32: @32776 = @32771
-    33: @32777 = @32772
-    34: @32778 = u32 eq @32776, @32775
-    35: jump if @32778 to 41
-    36: @32774 = load @32776
-    37: store @32774 at @32777
-    38: @32776 = u32 add @32776, @2
-    39: @32777 = u32 add @32777, @2
-    40: jump to 34
-    41: return
-    42: return
-    43: call 45
-    44: return
-    45: @32772 = const u32 30720
-    46: @32771 = u32 lt @0, @32772
-    47: jump if @32771 to 50
-    48: @1 = indirect const u64 15764276373176857197
-    49: trap &[@1; @2]
-    50: return
+    unconstrained func 0: directive_integer_quotient
+    0: @10 = const u32 2
+    1: @11 = const u32 0
+    2: @0 = calldata copy [@11; @10]
+    3: @2 = field int_div @0, @1
+    4: @1 = field mul @2, @1
+    5: @1 = field sub @0, @1
+    6: @0 = @2
+    7: stop &[@11; @10]
+    unconstrained func 1: directive_invert
+    0: @21 = const u32 1
+    1: @20 = const u32 0
+    2: @0 = calldata copy [@20; @21]
+    3: @2 = const field 0
+    4: @3 = field eq @0, @2
+    5: jump if @3 to 8
+    6: @1 = const field 1
+    7: @0 = field field_div @1, @0
+    8: stop &[@20; @21]
     ");
 }
 
@@ -259,7 +227,7 @@ fn properly_constrains_quotient_when_truncating_fields() {
     let malicious_brillig_stdlib =
         BrilligStdLib { quotient: malicious_quotient, ..BrilligStdLib::default() };
 
-    let (acir_functions, brillig_functions, _, _) = codegen_acir(
+    let (acir_functions, brillig_functions, _) = codegen_acir(
         ssa,
         &Brillig::default(),
         malicious_brillig_stdlib,
@@ -302,7 +270,7 @@ fn do_not_overflow_with_constant_constrain_neq() {
     let ssa = Ssa::from_str(src).unwrap();
     let brillig = ssa.to_brillig(&BrilligOptions::default());
 
-    let (acir_functions, _brillig_functions, _, _) = ssa
+    let (acir_functions, _brillig_functions, _) = ssa
         .into_acir(&brillig, &BrilligOptions::default(), ExpressionWidth::default())
         .expect("Should compile manually written SSA into ACIR");
 
@@ -328,33 +296,6 @@ fn derive_pedersen_generators_requires_constant_input() {
         .expect_err("Should fail with assert constant");
 }
 
-#[test]
-// Regression for https://github.com/noir-lang/noir/issues/9847
-fn signed_div_overflow() {
-    // Test that check -128 / -1 overflow for i8
-    let src = r#"
-        acir(inline) predicate_pure fn main f0 {
-          b0(v1: i8, v2: i8):
-            v3 = div v1, v2
-            return
-        }
-        "#;
-
-    let ssa = Ssa::from_str(src).unwrap();
-    let inputs = vec![FieldElement::from(128_u128), FieldElement::from(255_u128)];
-    let inputs = inputs
-        .into_iter()
-        .enumerate()
-        .map(|(i, f)| (Witness(i as u32), f))
-        .collect::<BTreeMap<_, _>>();
-    let initial_witness = WitnessMap::from(inputs);
-    let output = None;
-
-    // acir execution should fail to divide -128 / -1
-    let acir_execution_result = execute_ssa(ssa, initial_witness.clone(), output.as_ref());
-    assert!(matches!(acir_execution_result, (ACVMStatus::Failure(_), _)));
-}
-
 /// Convert the SSA input into ACIR and use ACVM to execute it
 /// Returns the ACVM execution status and the value of the 'output' witness value,
 /// unless the provided output is None or the ACVM fails during execution.
@@ -364,7 +305,7 @@ fn execute_ssa(
     output: Option<&Witness>,
 ) -> (ACVMStatus<FieldElement>, Option<FieldElement>) {
     let brillig = ssa.to_brillig(&BrilligOptions::default());
-    let (acir_functions, brillig_functions, _, _) = ssa
+    let (acir_functions, brillig_functions, _) = ssa
         .into_acir(&brillig, &BrilligOptions::default(), ExpressionWidth::default())
         .expect("Should compile manually written SSA into ACIR");
     assert_eq!(acir_functions.len(), 1);

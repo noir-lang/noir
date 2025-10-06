@@ -1,4 +1,4 @@
-define: &AZ_COMMIT 9a7dd2b0b67f0af92401ce32105de3558052d6ca
+define: &AZ_COMMIT 85c44ed86f7fa13e4737e0f9d39d6a82f05858c2
 projects:
   private-kernel-inner:
     repo: AztecProtocol/aztec-packages
@@ -14,7 +14,6 @@ projects:
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/private-kernel-tail
     num_runs: 5
-    timeout: 4
     compilation-timeout: 3
     execution-timeout: 0.04
     compilation-memory-limit: 300
@@ -24,7 +23,6 @@ projects:
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/private-kernel-reset
     num_runs: 5
-    timeout: 250
     compilation-timeout: 10
     execution-timeout: 0.35
     compilation-memory-limit: 750
@@ -35,7 +33,6 @@ projects:
     path: noir-projects/noir-protocol-circuits/crates/rollup-block-root-first-empty-tx
     cannot_execute: true
     num_runs: 5
-    timeout: 60
     compilation-timeout: 30
     compilation-memory-limit: 1500
   rollup-block-root-single-tx:
@@ -44,7 +41,6 @@ projects:
     path: noir-projects/noir-protocol-circuits/crates/rollup-block-root-single-tx
     cannot_execute: true
     num_runs: 1
-    timeout: 60
     compilation-timeout: 250
     compilation-memory-limit: 10000
   rollup-block-root:
@@ -52,7 +48,6 @@ projects:
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/rollup-block-root
     num_runs: 1
-    timeout: 60
     compilation-timeout: 250
     execution-timeout: 40
     compilation-memory-limit: 10000
@@ -62,7 +57,6 @@ projects:
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/rollup-checkpoint-merge
     num_runs: 5
-    timeout: 15
     compilation-timeout: 20
     execution-timeout: 0.75
     compilation-memory-limit: 1700
@@ -71,9 +65,8 @@ projects:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/rollup-checkpoint-root-single-block
-    num_runs: 5
-    timeout: 15
-    compilation-timeout: 20
+    num_runs: 1
+    compilation-timeout: 250
     execution-timeout: 0.75
     compilation-memory-limit: 10000
     execution-memory-limit: 2000
@@ -81,9 +74,8 @@ projects:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/rollup-checkpoint-root
-    num_runs: 5
-    timeout: 15
-    compilation-timeout: 20
+    num_runs: 1
+    compilation-timeout: 250
     execution-timeout: 1
     compilation-memory-limit: 10000
     execution-memory-limit: 2000
@@ -92,7 +84,6 @@ projects:
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/rollup-tx-merge
     num_runs: 5
-    timeout: 300
     compilation-timeout: 4
     execution-timeout: 0.01
     compilation-memory-limit: 450
@@ -102,7 +93,6 @@ projects:
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/rollup-root
     num_runs: 5
-    timeout: 300
     compilation-timeout: 2
     execution-timeout: 0.6
     compilation-memory-limit: 500
@@ -112,8 +102,7 @@ projects:
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/rollup-tx-base-private
     num_runs: 5
-    timeout: 15
-    compilation-timeout: 20
+    compilation-timeout: 30
     execution-timeout: 0.75
     compilation-memory-limit: 1700
     execution-memory-limit: 600
@@ -122,16 +111,14 @@ projects:
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/rollup-tx-base-public
     num_runs: 5
-    timeout: 15
-    compilation-timeout: 20
+    compilation-timeout: 100
     execution-timeout: 0.75
-    compilation-memory-limit: 1700
+    compilation-memory-limit: 8000
     execution-memory-limit: 600
   semaphore-depth-10:
     repo: noir-lang/noir
     path: test_programs/benchmarks/semaphore_depth_10
     num_runs: 20
-    timeout: 300
     compilation-timeout: 2
     execution-timeout: 0.6
     compilation-memory-limit: 450
@@ -140,7 +127,6 @@ projects:
     repo: noir-lang/noir
     path: test_programs/benchmarks/sha512_100_bytes
     num_runs: 10
-    timeout: 300
     compilation-timeout: 10
     execution-timeout: 5
     compilation-memory-limit: 450

@@ -52,6 +52,7 @@ pub mod parser;
 pub mod ssa_gen;
 pub(crate) mod validation;
 mod visit_once_deque;
+mod visit_once_priority_queue;
 
 #[derive(Debug, Clone)]
 pub enum SsaLogging {
@@ -107,7 +108,10 @@ pub struct SsaEvaluatorOptions {
     /// The higher the value, the more inlined Brillig functions will be.
     pub inliner_aggressiveness: i64,
 
-    //// The higher the value, the more Brillig functions will be set to always be inlined.
+    /// Maximum number iterations to do in constant folding, as long as new values are hoisted.
+    pub constant_folding_max_iter: usize,
+
+    /// The higher the value, the more Brillig functions will be set to always be inlined.
     pub small_function_max_instruction: usize,
 
     /// Maximum accepted percentage increase in the Brillig bytecode size after unrolling loops.
@@ -129,7 +133,8 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         SsaPass::new(Ssa::defunctionalize, "Defunctionalization"),
         SsaPass::new_try(Ssa::inline_simple_functions, "Inlining simple functions")
             .and_then(Ssa::remove_unreachable_functions),
-        SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
+        // BUG: Enabling this mem2reg causes test failures in aztec-nr; specifically `state_vars::private_mutable::test::initialize_and_get_pending`
+        // SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
         SsaPass::new(Ssa::remove_paired_rc, "Removing Paired rc_inc & rc_decs"),
         SsaPass::new(Ssa::purity_analysis, "Purity Analysis"),
         SsaPass::new_try(
@@ -173,6 +178,9 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
         SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
         SsaPass::new(Ssa::remove_bit_shifts, "Removing Bit Shifts"),
+        // Expand signed lt/div/mod after "Removing Bit Shifts" because that pass might
+        // introduce signed divisions.
+        SsaPass::new(Ssa::expand_signed_math, "Expand signed math"),
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
         SsaPass::new(Ssa::flatten_cfg, "Flattening"),
         // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores
@@ -192,10 +200,16 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         ),
         SsaPass::new_try(Ssa::remove_if_else, "Remove IfElse"),
         SsaPass::new(Ssa::purity_analysis, "Purity Analysis"),
-        SsaPass::new(Ssa::fold_constants, "Constant Folding"),
+        SsaPass::new(
+            |ssa| ssa.fold_constants(options.constant_folding_max_iter),
+            "Constant Folding",
+        ),
         SsaPass::new(Ssa::flatten_basic_conditionals, "Simplify conditionals for unconstrained"),
         SsaPass::new(Ssa::remove_enable_side_effects, "EnableSideEffectsIf removal"),
-        SsaPass::new(Ssa::fold_constants_using_constraints, "Constant Folding using constraints"),
+        SsaPass::new(
+            |ssa| ssa.fold_constants_using_constraints(options.constant_folding_max_iter),
+            "Constant Folding using constraints",
+        ),
         SsaPass::new_try(
             move |ssa| ssa.unroll_loops_iteratively(options.max_bytecode_increase_percent),
             "Unrolling",
@@ -215,28 +229,26 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         // We have to run it before, to give it a chance to turn Store+Load into known values.
         SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
-        SsaPass::new(Ssa::array_set_optimization, "Array Set Optimizations"),
         SsaPass::new(Ssa::brillig_entry_point_analysis, "Brillig Entry Point Analysis")
             // Remove any potentially unnecessary duplication from the Brillig entry point analysis.
             .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new(Ssa::remove_truncate_after_range_check, "Removing Truncate after RangeCheck"),
         SsaPass::new(Ssa::checked_to_unchecked, "Checked to unchecked"),
         SsaPass::new(Ssa::fold_constants_using_constraints, "Constant Folding using constraints"),
-        SsaPass::new(Ssa::fold_constants_with_brillig, "Inlining Brillig Calls"),
+        SsaPass::new(
+            |ssa| ssa.fold_constants_with_brillig(options.constant_folding_max_iter),
+            "Inlining Brillig Calls",
+        ),
         SsaPass::new(Ssa::remove_unreachable_instructions, "Remove Unreachable Instructions")
             .and_then(Ssa::remove_unreachable_functions),
-        // This pass makes transformations specific to Brillig generation.
-        // It must be the last pass to either alter or add new instructions before Brillig generation,
-        // as other semantics in the compiler can potentially break (e.g. inserting instructions).
-        SsaPass::new(Ssa::brillig_array_get_and_set, "Brillig Array Get and Set Optimizations"),
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination")
             // A function can be potentially unreachable post-DIE if all calls to that function were removed.
             .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new_try(
             Ssa::verify_no_dynamic_indices_to_references,
             "Verifying no dynamic array indices to reference value elements",
-        )
-        .and_then(|ssa| {
+        ),
+        SsaPass::new(Ssa::array_set_optimization, "Array Set Optimizations").and_then(|ssa| {
             // Deferred sanity checks that don't modify the SSA, just panic if we have something unexpected
             // that we don't know how to attribute to a concrete error with the Noir code.
             ssa.dead_instruction_elimination_post_check(true);
@@ -263,10 +275,6 @@ pub fn minimal_passes() -> Vec<SsaPass<'static>> {
         // which was called in the AST not being called in the SSA. Such functions would cause
         // panics later, when we are looking for global allocations.
         SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
-        // We need to add an offset to constant array indices in Brillig.
-        // This can change which globals are used, because constant creation might result
-        // in the (re)use of otherwise unused global values.
-        SsaPass::new(Ssa::brillig_array_get_and_set, "Brillig Array Get and Set Optimizations"),
     ]
 }
 
@@ -285,6 +293,20 @@ pub fn optimize_ssa_builder_into_acir(
     let builder = builder.with_skip_passes(options.skip_passes.clone()).run_passes(passes)?;
 
     drop(ssa_gen_span_guard);
+
+    // Shift the array offsets in Brillig functions to benefit from the constant allocation logic,
+    // but do this outside the normal SSA passes, so we don't need to make the SSA interpreter and
+    // every other pass aware of the possibility that indexes are shifted, which could result in
+    // them conceptually not aligning with the positions of complex item types for example.
+    // This can change which globals are used, because constant creation might result
+    // in the (re)use of otherwise unused global values.
+    // It must be the last pass to either alter or add new instructions before Brillig generation,
+    // as other semantics in the compiler can potentially break (e.g. inserting instructions).
+    // Running it through the builder so it can be printed, for transparency.
+    let builder = builder.run_passes(&[SsaPass::new(
+        Ssa::brillig_array_get_and_set,
+        "Brillig Array Get and Set Optimizations",
+    )])?;
 
     let brillig = time("SSA to Brillig", options.print_codegen_timings, || {
         builder.ssa().to_brillig(&options.brillig_options)
@@ -409,10 +431,8 @@ pub fn combine_artifacts(
     debug_functions: DebugFunctions,
     debug_types: DebugTypes,
 ) -> SsaProgramArtifact {
-    let ArtifactsAndWarnings(
-        (generated_acirs, generated_brillig, brillig_function_names, error_types),
-        ssa_level_warnings,
-    ) = artifacts;
+    let ArtifactsAndWarnings((generated_acirs, generated_brillig, error_types), ssa_level_warnings) =
+        artifacts;
 
     assert_eq!(
         generated_acirs.len(),
@@ -439,13 +459,7 @@ pub fn combine_artifacts(
         .map(|(selector, hir_type)| (selector, ErrorType::Dynamic(hir_type)))
         .collect();
 
-    SsaProgramArtifact::new(
-        functions,
-        brillig_function_names,
-        generated_brillig,
-        error_types,
-        ssa_level_warnings,
-    )
+    SsaProgramArtifact::new(functions, generated_brillig, error_types, ssa_level_warnings)
 }
 
 fn resolve_function_signature(func_sig: &FunctionSignature) -> Vec<(u32, Visibility)> {
@@ -484,8 +498,8 @@ pub fn convert_generated_acir_into_circuit(
     let return_values = PublicInputs(return_witnesses.iter().copied().collect());
 
     let circuit = Circuit {
+        function_name: name.clone(),
         current_witness_index,
-        expression_width: ExpressionWidth::Unbounded,
         opcodes,
         private_parameters,
         public_parameters,

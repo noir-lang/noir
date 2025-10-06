@@ -7,6 +7,8 @@ use indexmap::IndexMap;
 /// The `GeneralOptimizer` processes all [`Expression`]s to:
 /// - remove any zero-coefficient terms.
 /// - merge any quadratic terms containing the same two witnesses.
+///
+/// This pass does not depend on any other pass and should be the first one in a set of optimizing passes.
 pub(crate) struct GeneralOptimizer;
 
 impl GeneralOptimizer {
@@ -17,8 +19,12 @@ impl GeneralOptimizer {
     }
 }
 
-// Simplifies all mul terms with the same bi-variate variables while also removing
-// terms that end up with a zero coefficient.
+/// Simplifies all mul terms of the form `scale*w1*w2` with the same bi-variate variables
+/// while also removing terms that end up with a zero coefficient.
+///
+/// For instance, mul terms `0*w1*w1 + 2*w2*w1 - w2*w1 - w1*w2` will return an
+/// empty vector, because: w1*w2 and w2*w1 are the same bi-variate variable
+/// and the resulting scale is `2-1-1 = 0`
 fn simplify_mul_terms<F: AcirField>(mut gate: Expression<F>) -> Expression<F> {
     let mut hash_map: IndexMap<(Witness, Witness), F> = IndexMap::new();
 
@@ -87,130 +93,118 @@ mod tests {
     #[test]
     fn removes_zero_coefficients_from_mul_terms() {
         let src = "
-        current witness: w1
         private parameters: [w0, w1]
         public parameters: []
         return values: []
 
         // The first multiplication should be removed
-        EXPR [ (0, w0, w1) (1, w0, w1) 0 ]
+        ASSERT 0*w0*w1 + w0*w1 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
         let optimized_circuit = optimize(circuit);
         assert_circuit_snapshot!(optimized_circuit, @r"
-        current witness: w1
         private parameters: [w0, w1]
         public parameters: []
         return values: []
-        EXPR [ (1, w0, w1) 0 ]
+        ASSERT 0 = w0*w1
         ");
     }
 
     #[test]
     fn removes_zero_coefficients_from_linear_terms() {
         let src = "
-        current witness: w1
         private parameters: [w0, w1]
         public parameters: []
         return values: []
 
         // The first linear combination should be removed
-        EXPR [ (0, w0) (1, w1) 0 ]
+        ASSERT 0*w0 + w1 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
         let optimized_circuit = optimize(circuit);
         assert_circuit_snapshot!(optimized_circuit, @r"
-        current witness: w1
         private parameters: [w0, w1]
         public parameters: []
         return values: []
-        EXPR [ (1, w1) 0 ]
+        ASSERT w1 = 0
         ");
     }
 
     #[test]
     fn simplifies_mul_terms() {
         let src = "
-        current witness: w1
         private parameters: [w0, w1]
         public parameters: []
         return values: []
 
         // There are all mul terms with the same variables so we should end up with just one
         // that is the sum of all the coefficients
-        EXPR [ (2, w0, w1) (3, w1, w0) (4, w0, w1) 0 ]
+        ASSERT 2*w0*w1 + 3*w1*w0 + 4*w0*w1 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
         let optimized_circuit = optimize(circuit);
         assert_circuit_snapshot!(optimized_circuit, @r"
-        current witness: w1
         private parameters: [w0, w1]
         public parameters: []
         return values: []
-        EXPR [ (9, w0, w1) 0 ]
+        ASSERT 0 = 9*w0*w1
         ");
     }
 
     #[test]
     fn removes_zero_coefficients_after_simplifying_mul_terms() {
         let src = "
-        current witness: w1
         private parameters: [w0, w1]
         public parameters: []
         return values: []
-        EXPR [ (2, w0, w1) (3, w1, w0) (-5, w0, w1) 0 ]
+        ASSERT 2*w0*w1 + 3*w1*w0 - 5*w0*w1 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
         let optimized_circuit = optimize(circuit);
         assert_circuit_snapshot!(optimized_circuit, @r"
-        current witness: w1
         private parameters: [w0, w1]
         public parameters: []
         return values: []
-        EXPR [ 0 ]
+        ASSERT 0 = 0
         ");
     }
 
     #[test]
     fn simplifies_linear_terms() {
         let src = "
-        current witness: w1
         private parameters: [w0, w1]
         public parameters: []
         return values: []
 
         // These are all linear terms with the same variable so we should end up with just one
         // that is the sum of all the coefficients
-        EXPR [ (1, w0) (2, w0) (3, w0) 0 ]
+        ASSERT w0 + 2*w0 + 3*w0 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
         let optimized_circuit = optimize(circuit);
         assert_circuit_snapshot!(optimized_circuit, @r"
-        current witness: w1
         private parameters: [w0, w1]
         public parameters: []
         return values: []
-        EXPR [ (6, w0) 0 ]
+        ASSERT 0 = 6*w0
         ");
     }
 
     #[test]
     fn removes_zero_coefficients_after_simplifying_linear_terms() {
         let src = "
-        current witness: w1
         private parameters: [w0, w1]
         public parameters: []
         return values: []
-        EXPR [ (1, w0) (2, w0) (-3, w0) 0 ]
+        ASSERT w0 + 2*w0 - 3*w0 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
         let optimized_circuit = optimize(circuit);
         assert_circuit_snapshot!(optimized_circuit, @r"
-        current witness: w1
         private parameters: [w0, w1]
         public parameters: []
         return values: []
-        EXPR [ 0 ]
+        ASSERT 0 = 0
         ");
     }
 }
