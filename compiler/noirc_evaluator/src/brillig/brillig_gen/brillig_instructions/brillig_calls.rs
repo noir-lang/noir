@@ -128,7 +128,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         }
     }
 
-    /// Internal method to codegen an [Instruction::Call] to a [Value::Function]
+    /// Internal method to codegen an [crate::ssa::ir::instruction::Instruction::Call] to a [Value::Function]
     fn convert_ssa_function_call(
         &mut self,
         func_id: FunctionId,
