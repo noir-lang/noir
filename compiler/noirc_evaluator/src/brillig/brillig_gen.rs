@@ -55,7 +55,7 @@ pub(crate) fn gen_brillig_for(
 
     let options = BrilligOptions { enable_debug_trace: false, ..*options };
 
-    let mut entry_point = BrilligContext::new_entry_point_artifact(
+    let (mut entry_point, stack_start) = BrilligContext::new_entry_point_artifact(
         arguments,
         FunctionContext::return_values(func),
         func.id(),
@@ -67,7 +67,7 @@ pub(crate) fn gen_brillig_for(
 
     // Link the entry point with all dependencies
     while let Some(unresolved_fn_label) = entry_point.first_unresolved_function_call() {
-        let artifact = &brillig.find_by_label(unresolved_fn_label.clone(), &options);
+        let artifact = &brillig.find_by_label(unresolved_fn_label.clone(), &options, stack_start);
         let artifact = match artifact {
             Some(artifact) => artifact,
             None => {
