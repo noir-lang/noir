@@ -875,7 +875,10 @@
 <a href="#874" id="874">874</a>
 <a href="#875" id="875">875</a>
 <a href="#876" id="876">876</a>
-<a href="#877" id="877">877</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#877" id="877">877</a>
+<a href="#878" id="878">878</a>
+<a href="#879" id="879">879</a>
+<a href="#880" id="880">880</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 
 </span><span class="kw">use </span>std::hash::BuildHasher;
@@ -1529,6 +1532,9 @@
         }
 
         <span class="kw">let </span><span class="kw-2">mut </span>options = options.clone();
+        <span class="kw">if </span>name == <span class="string">"public_dispatch" </span>{
+            options.inliner_aggressiveness = <span class="number">0</span>;
+        }
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">ref </span>name_filter) = options.show_contract_fn {
             <span class="kw">let </span>show = name == <span class="kw-2">*</span>name_filter;
