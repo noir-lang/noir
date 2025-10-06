@@ -26,6 +26,7 @@ use proptest::prelude::*;
 mod arrays;
 mod brillig_call;
 mod call;
+mod instructions;
 mod intrinsics;
 
 /// Test utility for converting [ACIR gen artifacts][crate::acir::ssa::Artifacts]
