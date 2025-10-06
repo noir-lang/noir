@@ -3,6 +3,73 @@ use acvm::{acir::circuit::Opcode, assert_circuit_snapshot};
 use crate::acir::tests::ssa_to_acir_program;
 
 #[test]
+fn array_set_not_mutable() {
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: [Field; 3], v1: u32, v2: Field):
+        v3 = array_get v0, index v1 -> Field
+        v4 = array_set v0, index v1, value v2
+        return v4
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    // Note how the non-mutable array_set ends up using a different block (b1)
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0, w1, w2, w3, w4]
+    public parameters: []
+    return values: [w5, w6, w7]
+    INIT b0 = [w0, w1, w2]
+    READ w8 = b0[w3]
+    INIT b1 = [w0, w1, w2]
+    WRITE b1[w3] = w4
+    ASSERT w9 = 0
+    READ w10 = b1[w9]
+    ASSERT w11 = 1
+    READ w12 = b1[w11]
+    ASSERT w13 = 2
+    READ w14 = b1[w13]
+    ASSERT w10 = w5
+    ASSERT w12 = w6
+    ASSERT w14 = w7
+    ");
+}
+
+#[test]
+fn array_set_mutable() {
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: [Field; 3], v1: u32, v2: Field):
+        v3 = array_get v0, index v1 -> Field
+        v4 = array_set mut v0, index v1, value v2
+        return v4
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    // Now how the mutable array_set ends up using the same block (b0)
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0, w1, w2, w3, w4]
+    public parameters: []
+    return values: [w5, w6, w7]
+    INIT b0 = [w0, w1, w2]
+    READ w8 = b0[w3]
+    WRITE b0[w3] = w4
+    ASSERT w9 = 0
+    READ w10 = b0[w9]
+    ASSERT w11 = 1
+    READ w12 = b0[w11]
+    ASSERT w13 = 2
+    READ w14 = b0[w13]
+    ASSERT w10 = w5
+    ASSERT w12 = w6
+    ASSERT w14 = w7
+    ");
+}
+
+#[test]
 fn does_not_generate_memory_blocks_without_dynamic_accesses() {
     let src = "
         acir(inline) fn main f0 {

@@ -928,18 +928,31 @@ impl<'f> Validator<'f> {
             .terminator()
             .expect("Block is expected to have a terminator instruction");
 
+        let entry_block = self.function.entry_block();
         match terminator {
-            TerminatorInstruction::JmpIf { condition, .. } => {
+            TerminatorInstruction::JmpIf {
+                condition, then_destination, else_destination, ..
+            } => {
                 let condition_type = self.function.dfg.type_of_value(*condition);
+                assert_ne!(
+                    *then_destination, entry_block,
+                    "Entry block cannot be the target of a jump"
+                );
+                assert_ne!(
+                    *else_destination, entry_block,
+                    "Entry block cannot be the target of a jump"
+                );
                 assert_eq!(
                     condition_type,
                     Type::bool(),
                     "JmpIf conditions should have boolean type"
                 );
             }
-            TerminatorInstruction::Jmp { .. }
-            | TerminatorInstruction::Return { .. }
-            | TerminatorInstruction::Unreachable { .. } => (),
+            TerminatorInstruction::Jmp { destination, .. } => {
+                assert_ne!(*destination, entry_block, "Entry block cannot be the target of a jump");
+            }
+
+            TerminatorInstruction::Return { .. } | TerminatorInstruction::Unreachable { .. } => (),
         }
     }
 
@@ -1108,7 +1121,17 @@ fn assert_embedded_curve_point(
 
 #[cfg(test)]
 mod tests {
-    use crate::ssa::ssa_gen::Ssa;
+    use noirc_frontend::monomorphization::ast::InlineType;
+
+    use crate::ssa::{
+        function_builder::FunctionBuilder,
+        ir::{
+            function::{FunctionId, RuntimeType},
+            types::{NumericType, Type},
+        },
+        ssa_gen::Ssa,
+        validation::Validator,
+    };
 
     #[test]
     fn lone_truncate() {
@@ -1708,5 +1731,58 @@ mod tests {
             return v2
         }";
         let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Entry block cannot be the target of a jump")]
+    fn disallows_jumping_to_entry_block() {
+        // This test constructs the following function manually, which cannot be constructed using the SSA parser
+        // because the parser does not support jumping to the entry block.
+        //
+        // brillig(inline) fn main f0 {
+        //   b0(v0: u1):
+        //     jmp b1()
+        //   b1():
+        //     jmpif v0 then: b2, else: b3
+        //   b2():
+        //     jmp b0(Field 0)
+        //   b3():
+        //     jmp b4()
+        //   b4():
+        //     return
+        // }
+
+        let main_id = FunctionId::new(0);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        builder.set_runtime(RuntimeType::Brillig(InlineType::default()));
+
+        let b0 = builder.current_block();
+        let b1 = builder.insert_block();
+        let b2 = builder.insert_block();
+        let b3 = builder.insert_block();
+        let b4 = builder.insert_block();
+
+        let v0 = builder.add_parameter(Type::bool());
+
+        builder.terminate_with_jmp(b1, Vec::new());
+
+        builder.switch_to_block(b1);
+
+        builder.terminate_with_jmpif(v0, b2, b3);
+
+        builder.switch_to_block(b2);
+
+        let false_constant = builder.numeric_constant(false, NumericType::bool());
+        builder.terminate_with_jmp(b0, vec![false_constant]);
+
+        builder.switch_to_block(b3);
+        builder.terminate_with_jmp(b4, Vec::new());
+
+        builder.switch_to_block(b4);
+        builder.terminate_with_return(Vec::new());
+
+        let ssa = builder.finish();
+
+        Validator::new(&ssa.functions[&main_id], &ssa).run();
     }
 }
