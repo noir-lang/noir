@@ -32,7 +32,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
     /// - `input_value_types`: Expected type layout for each input.
     ///
     /// # Returns
-    /// - [VMStatus<F>] indicating the next state of the VM:
+    /// - [VMStatus] indicating the next state of the VM:
     ///   - [VMStatus::ForeignCallWait] if the results are not yet available.
     ///   - [VMStatus::Finished] or [VMStatus::Failure] depending on whether writing the results succeeded.
     ///
