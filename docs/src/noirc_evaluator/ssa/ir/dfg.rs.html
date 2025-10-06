@@ -944,7 +944,18 @@
 <a href="#943" id="943">943</a>
 <a href="#944" id="944">944</a>
 <a href="#945" id="945">945</a>
-<a href="#946" id="946">946</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, sync::Arc};
+<a href="#946" id="946">946</a>
+<a href="#947" id="947">947</a>
+<a href="#948" id="948">948</a>
+<a href="#949" id="949">949</a>
+<a href="#950" id="950">950</a>
+<a href="#951" id="951">951</a>
+<a href="#952" id="952">952</a>
+<a href="#953" id="953">953</a>
+<a href="#954" id="954">954</a>
+<a href="#955" id="955">955</a>
+<a href="#956" id="956">956</a>
+<a href="#957" id="957">957</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, sync::Arc};
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
     function_builder::data_bus::DataBus,
@@ -1752,6 +1763,17 @@
             Type::Slice(<span class="kw">_</span>) =&gt; ArrayOffset::Slice,
             <span class="kw">_ </span>=&gt; ArrayOffset::None,
         }
+    }
+
+    <span class="doccomment">/// Check if the results of an instruction are used in the databus to return a value..
+    ///
+    /// This only applies to ACIR, as in Brillig the databus will always be empty.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_returned_in_databus(<span class="kw-2">&amp;</span><span class="self">self</span>, instruction_id: InstructionId) -&gt; bool {
+        <span class="kw">let </span><span class="prelude-val">Some</span>(return_data) = <span class="self">self</span>.data_bus.return_data <span class="kw">else </span>{
+            <span class="kw">return </span><span class="bool-val">false</span>;
+        };
+        <span class="kw">let </span>results = <span class="self">self</span>.instruction_results(instruction_id);
+        results.iter().any(|id| <span class="kw-2">*</span>id == return_data)
     }
 }
 
