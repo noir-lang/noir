@@ -545,8 +545,7 @@
 <a href="#544" id="544">544</a>
 <a href="#545" id="545">545</a>
 <a href="#546" id="546">546</a>
-<a href="#547" id="547">547</a>
-<a href="#548" id="548">548</a></pre></div><pre class="rust"><code><span class="doccomment">/// An SSA pass for ACIR functions that transforms "less than", "div" and "mod" operation on
+<a href="#547" id="547">547</a></pre></div><pre class="rust"><code><span class="doccomment">/// An SSA pass for ACIR functions that transforms "less than", "div" and "mod" operation on
 /// signed integers into equivalent sequences of operations that rely on unsigned integers.
 ///
 /// The purpose of this pass is to avoid ACIR having to handle signed integers "less than",
@@ -1067,17 +1066,16 @@
             v20 = unchecked_add v3, v19
             v21 = mod v16, v20
             v22 = cast v10 as u1
-            v23 = cast v10 as u8
-            v24 = unchecked_sub u8 128, v21
-            v25 = unchecked_mul v24, v23
-            v26 = unchecked_mul v25, u8 2
-            v27 = unchecked_add v21, v26
-            v29 = eq v21, u8 0
-            v30 = not v29
-            v31 = cast v30 as u8
-            v32 = unchecked_mul v27, v31
-            v33 = cast v32 as i8
-            return v33
+            v23 = unchecked_sub u8 128, v21
+            v24 = unchecked_mul v23, v10
+            v25 = unchecked_mul v24, u8 2
+            v26 = unchecked_add v21, v25
+            v28 = eq v21, u8 0
+            v29 = not v28
+            v30 = cast v29 as u8
+            v31 = unchecked_mul v26, v30
+            v32 = cast v31 as i8
+            return v32
         }
         "#</span>);
     }

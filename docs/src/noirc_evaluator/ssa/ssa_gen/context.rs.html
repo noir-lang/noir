@@ -1015,7 +1015,20 @@
 <a href="#1014" id="1014">1014</a>
 <a href="#1015" id="1015">1015</a>
 <a href="#1016" id="1016">1016</a>
-<a href="#1017" id="1017">1017</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#1017" id="1017">1017</a>
+<a href="#1018" id="1018">1018</a>
+<a href="#1019" id="1019">1019</a>
+<a href="#1020" id="1020">1020</a>
+<a href="#1021" id="1021">1021</a>
+<a href="#1022" id="1022">1022</a>
+<a href="#1023" id="1023">1023</a>
+<a href="#1024" id="1024">1024</a>
+<a href="#1025" id="1025">1025</a>
+<a href="#1026" id="1026">1026</a>
+<a href="#1027" id="1027">1027</a>
+<a href="#1028" id="1028">1028</a>
+<a href="#1029" id="1029">1029</a>
+<a href="#1030" id="1030">1030</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 <span class="kw">use </span>std::sync::{Arc, Mutex, RwLock};
 
 <span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
@@ -1388,7 +1401,7 @@
     /// Compared to `self.builder.insert_cast`, this version will automatically truncate `value` to be a valid `typ`.
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>insert_safe_cast(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        <span class="kw-2">mut </span>value: ValueId,
+        value: ValueId,
         typ: NumericType,
         location: Location,
     ) -&gt; ValueId {
@@ -1409,68 +1422,7 @@
                     }
                     std::cmp::Ordering::Equal =&gt; value,
                     std::cmp::Ordering::Greater =&gt; {
-                        <span class="comment">// If target size is bigger, we do a sign extension:
-                        // When the value is negative, it is represented in 2-complement form; `2^s-v`, where `s` is the incoming bit size and `v` is the absolute value
-                        // Sign extension in this case will give `2^t-v`, where `t` is the target bit size
-                        // So we simply convert `2^s-v` into `2^t-v` by adding `2^t-2^s` to the value when the value is negative.
-                        // Casting s-bits signed v0 to t-bits will add the following instructions:
-                        // v1 = cast v0 to 's-bits unsigned'
-                        // v2 = lt v1, 2**(s-1)
-                        // v3 = not(v1)
-                        // v4 = cast v3 to 't-bits unsigned'
-                        // v5 = v3 * (2**t - 2**s)
-                        // v6 = cast v1 to 't-bits unsigned'
-                        // return v6 + v5
-                        </span><span class="kw">let </span>value_as_unsigned = <span class="self">self</span>.insert_safe_cast(
-                            value,
-                            NumericType::unsigned(<span class="kw-2">*</span>incoming_type_size),
-                            location,
-                        );
-                        <span class="kw">let </span>half_width = <span class="self">self</span>.builder.numeric_constant(
-                            FieldElement::from(<span class="number">2_u128</span>.pow(incoming_type_size - <span class="number">1</span>)),
-                            NumericType::unsigned(<span class="kw-2">*</span>incoming_type_size),
-                        );
-                        <span class="comment">// value_sign is 1 if the value is positive, 0 otherwise
-                        </span><span class="kw">let </span>value_sign =
-                            <span class="self">self</span>.builder.insert_binary(value_as_unsigned, BinaryOp::Lt, half_width);
-                        <span class="kw">let </span>max_for_incoming_type_size = <span class="kw">if </span><span class="kw-2">*</span>incoming_type_size == <span class="number">128 </span>{
-                            u128::MAX
-                        } <span class="kw">else </span>{
-                            <span class="number">2_u128</span>.pow(<span class="kw-2">*</span>incoming_type_size) - <span class="number">1
-                        </span>};
-                        <span class="kw">let </span>max_for_target_type_size = <span class="kw">if </span>target_type_size == <span class="number">128 </span>{
-                            u128::MAX
-                        } <span class="kw">else </span>{
-                            <span class="number">2_u128</span>.pow(target_type_size) - <span class="number">1
-                        </span>};
-                        <span class="kw">let </span>patch = <span class="self">self</span>.builder.numeric_constant(
-                            FieldElement::from(
-                                max_for_target_type_size - max_for_incoming_type_size,
-                            ),
-                            NumericType::unsigned(target_type_size),
-                        );
-                        <span class="kw">let </span><span class="kw-2">mut </span>is_negative_predicate = <span class="self">self</span>.builder.insert_not(value_sign);
-                        is_negative_predicate = <span class="self">self</span>.insert_safe_cast(
-                            is_negative_predicate,
-                            NumericType::unsigned(target_type_size),
-                            location,
-                        );
-                        <span class="comment">// multiplication by a boolean cannot overflow
-                        </span><span class="kw">let </span>patch_with_sign_predicate = <span class="self">self</span>.builder.insert_binary(
-                            patch,
-                            BinaryOp::Mul { unchecked: <span class="bool-val">true </span>},
-                            is_negative_predicate,
-                        );
-                        <span class="kw">let </span>value_as_unsigned = <span class="self">self</span>.builder.insert_cast(
-                            value_as_unsigned,
-                            NumericType::unsigned(target_type_size),
-                        );
-                        <span class="comment">// Patch the bit sign, which gives a `target_type_size` bit size value, so it does not overflow.
-                        </span><span class="self">self</span>.builder.insert_binary(
-                            patch_with_sign_predicate,
-                            BinaryOp::Add { unchecked: <span class="bool-val">true </span>},
-                            value_as_unsigned,
-                        )
+                        <span class="self">self</span>.sign_extend(value, <span class="kw-2">*</span>incoming_type_size, target_type_size, location)
                     }
                 }
             }
@@ -1480,46 +1432,56 @@
             ) =&gt; {
                 <span class="comment">// If target size is smaller, we do a truncation
                 </span><span class="kw">if </span>target_type_size &lt; <span class="kw-2">*</span>incoming_type_size {
-                    value =
-                        <span class="self">self</span>.builder.insert_truncate(value, target_type_size, <span class="kw-2">*</span>incoming_type_size);
+                    <span class="self">self</span>.builder.insert_truncate(value, target_type_size, <span class="kw-2">*</span>incoming_type_size)
+                } <span class="kw">else </span>{
+                    value
                 }
-                value
             }
             <span class="comment">// When casting a signed value to u1 we can truncate then cast
             </span>(
                 Type::Numeric(NumericType::Signed { bit_size: incoming_type_size }),
                 NumericType::Unsigned { bit_size: <span class="number">1 </span>},
             ) =&gt; <span class="self">self</span>.builder.insert_truncate(value, <span class="number">1</span>, <span class="kw-2">*</span>incoming_type_size),
-            <span class="comment">// For mixed sign to unsigned or unsigned to sign;
-            // 1. we cast to the required type using the same signedness
-            // 2. then we switch the signedness
+
+            <span class="comment">// For mixed singed to unsigned:
             </span>(
                 Type::Numeric(NumericType::Signed { bit_size: incoming_type_size }),
                 NumericType::Unsigned { bit_size: target_type_size },
             ) =&gt; {
-                <span class="kw">if </span><span class="kw-2">*</span>incoming_type_size != target_type_size {
-                    value = <span class="self">self</span>.insert_safe_cast(
-                        value,
-                        NumericType::signed(target_type_size),
-                        location,
-                    );
+                <span class="comment">// when going from lower to higher bit size:
+                // 1. we sign-extend to the target bits
+                // 2. we are already in the target signedness
+                </span><span class="kw">if </span><span class="kw-2">*</span>incoming_type_size &lt; target_type_size {
+                    <span class="comment">// By not the casting to a signed type with the target bit size, we avoid potentially going
+                    // through i128, which is not a type we support in the frontend, and would be strange in SSA.
+                    </span><span class="self">self</span>.sign_extend(value, <span class="kw-2">*</span>incoming_type_size, target_type_size, location)
                 }
-                value
+                <span class="comment">// when the target bit size is not higher than the source:
+                // 1. we cast to the required type using the same signedness
+                // 2. then we switch the signedness
+                </span><span class="kw">else if </span><span class="kw-2">*</span>incoming_type_size != target_type_size {
+                    <span class="self">self</span>.insert_safe_cast(value, NumericType::signed(target_type_size), location)
+                } <span class="kw">else </span>{
+                    value
+                }
             }
-            (
+
+            <span class="comment">// For mixed unsigned to signed:
+            // 1. we cast to the required type using the same signedness
+            // 2. then we switch the signedness
+            </span>(
                 Type::Numeric(NumericType::Unsigned { bit_size: incoming_type_size }),
                 NumericType::Signed { bit_size: target_type_size },
             ) =&gt; {
                 <span class="kw">if </span><span class="kw-2">*</span>incoming_type_size != target_type_size {
-                    value = <span class="self">self</span>.insert_safe_cast(
-                        value,
-                        NumericType::unsigned(target_type_size),
-                        location,
-                    );
+                    <span class="self">self</span>.insert_safe_cast(value, NumericType::unsigned(target_type_size), location)
+                } <span class="kw">else </span>{
+                    value
                 }
-                value
             }
-            (
+
+            <span class="comment">// Field to signed/unsigned:
+            </span>(
                 Type::Numeric(NumericType::NativeField),
                 NumericType::Unsigned { bit_size: target_type_size },
             )
@@ -1532,6 +1494,70 @@
             <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"Invalid cast from {} to {}"</span>, incoming_type, typ),
         };
         <span class="self">self</span>.builder.insert_cast(result, typ)
+    }
+
+    <span class="doccomment">/// During casting signed values, if target size is bigger, we do a sign extension:
+    ///
+    /// When the value is negative, it is represented in 2-complement form; `2^s-v`, where `s` is the incoming bit size and `v` is the absolute value.
+    /// Sign extension in this case will give `2^t-v`, where `t` is the target bit size.
+    /// So we simply convert `2^s-v` into `2^t-v` by adding `2^t-2^s` to the value when the value is negative.
+    ///
+    /// Casting s-bits signed v0 to t-bits will add the following instructions:
+    /// ```ssa
+    /// v1 = cast v0 to 's-bits unsigned'
+    /// v2 = lt v1, 2**(s-1)
+    /// v3 = not(v1)
+    /// v4 = cast v3 to 't-bits unsigned'
+    /// v5 = v3 * (2**t - 2**s)
+    /// v6 = cast v1 to 't-bits unsigned'
+    /// return v6 + v5
+    /// ```
+    ///
+    /// Return an unsigned value that we can cast back to the signed type if we want,
+    /// or keep it as it is, if we did the sign extension as part of casting e.g. `i8` to `u64`.
+    </span><span class="kw">fn </span>sign_extend(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        value: ValueId,
+        incoming_type_size: u32,
+        target_type_size: u32,
+        location: Location,
+    ) -&gt; ValueId {
+        <span class="kw">let </span>value_as_unsigned =
+            <span class="self">self</span>.insert_safe_cast(value, NumericType::unsigned(incoming_type_size), location);
+        <span class="kw">let </span>half_width = <span class="self">self</span>.builder.numeric_constant(
+            FieldElement::from(<span class="number">2_u128</span>.pow(incoming_type_size - <span class="number">1</span>)),
+            NumericType::unsigned(incoming_type_size),
+        );
+        <span class="comment">// value_sign is 1 if the value is positive, 0 otherwise
+        </span><span class="kw">let </span>value_sign = <span class="self">self</span>.builder.insert_binary(value_as_unsigned, BinaryOp::Lt, half_width);
+        <span class="kw">let </span>max_for_incoming_type_size =
+            <span class="kw">if </span>incoming_type_size == <span class="number">128 </span>{ u128::MAX } <span class="kw">else </span>{ <span class="number">2_u128</span>.pow(incoming_type_size) - <span class="number">1 </span>};
+        <span class="kw">let </span>max_for_target_type_size =
+            <span class="kw">if </span>target_type_size == <span class="number">128 </span>{ u128::MAX } <span class="kw">else </span>{ <span class="number">2_u128</span>.pow(target_type_size) - <span class="number">1 </span>};
+        <span class="kw">let </span>patch = <span class="self">self</span>.builder.numeric_constant(
+            FieldElement::from(max_for_target_type_size - max_for_incoming_type_size),
+            NumericType::unsigned(target_type_size),
+        );
+        <span class="kw">let </span><span class="kw-2">mut </span>is_negative_predicate = <span class="self">self</span>.builder.insert_not(value_sign);
+        is_negative_predicate = <span class="self">self</span>.insert_safe_cast(
+            is_negative_predicate,
+            NumericType::unsigned(target_type_size),
+            location,
+        );
+        <span class="comment">// multiplication by a boolean cannot overflow
+        </span><span class="kw">let </span>patch_with_sign_predicate = <span class="self">self</span>.builder.insert_binary(
+            patch,
+            BinaryOp::Mul { unchecked: <span class="bool-val">true </span>},
+            is_negative_predicate,
+        );
+        <span class="kw">let </span>value_as_unsigned =
+            <span class="self">self</span>.builder.insert_cast(value_as_unsigned, NumericType::unsigned(target_type_size));
+        <span class="comment">// Patch the bit sign, which gives a `target_type_size` bit size value, so it does not overflow.
+        </span><span class="self">self</span>.builder.insert_binary(
+            patch_with_sign_predicate,
+            BinaryOp::Add { unchecked: <span class="bool-val">true </span>},
+            value_as_unsigned,
+        )
     }
 
     <span class="doccomment">/// Create a const offset of an address for an array load or store

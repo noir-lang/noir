@@ -631,9 +631,7 @@
 <a href="#630" id="630">630</a>
 <a href="#631" id="631">631</a>
 <a href="#632" id="632">632</a>
-<a href="#633" id="633">633</a>
-<a href="#634" id="634">634</a>
-<a href="#635" id="635">635</a></pre></div><pre class="rust"><code><span class="doccomment">/// An SSA pass that transforms the checked signed arithmetic operations add, sub and mul
+<a href="#633" id="633">633</a></pre></div><pre class="rust"><code><span class="doccomment">/// An SSA pass that transforms the checked signed arithmetic operations add, sub and mul
 /// into unchecked operations followed by explicit overflow checks.
 ///
 /// The purpose of this pass is to avoid ACIR and Brillig having to handle checked signed arithmetic
@@ -1140,8 +1138,7 @@
             v12 = eq v11, v8
             v13 = unchecked_mul v12, v10
             constrain v13 == v10, "attempt to add with overflow"
-            v14 = cast v3 as i32
-            return v14
+            return v3
         }
         "#</span>);
     }
@@ -1173,8 +1170,7 @@
             v13 = eq v12, v8
             v14 = unchecked_mul v13, v11
             constrain v14 == v11, "attempt to subtract with overflow"
-            v15 = cast v3 as i32
-            return v15
+            return v3
         }
         "#</span>);
     }
