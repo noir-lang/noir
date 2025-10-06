@@ -814,7 +814,7 @@ mod test {
         }";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.fold_constants();
+        let ssa = ssa.fold_constants(MIN_ITER);
 
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) predicate_pure fn main f0 {
