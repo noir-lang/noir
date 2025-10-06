@@ -4,19 +4,19 @@ use acvm::{AcirField, FieldElement};
 use iter_extended::vecmap;
 
 use crate::brillig::BrilligBlock;
-use crate::brillig::brillig_ir::BrilligBinaryOp;
-use crate::brillig::brillig_ir::registers::RegisterAllocator;
+use crate::brillig::brillig_ir::{BrilligBinaryOp, registers::RegisterAllocator};
 use crate::ssa::ir::function::FunctionId;
-use crate::ssa::ir::types::NumericType;
-use crate::ssa::ir::types::Type;
-use crate::ssa::ir::value::Value;
-use crate::ssa::ir::{dfg::DataFlowGraph, value::ValueId};
+use crate::ssa::ir::instruction::{Endian, Hint, InstructionId, Intrinsic};
+use crate::ssa::ir::{
+    dfg::DataFlowGraph,
+    types::{NumericType, Type},
+    value::{Value, ValueId},
+};
 
 use super::super::brillig_black_box::convert_black_box_call;
 use crate::brillig::brillig_ir::brillig_variable::{
     BrilligArray, BrilligVariable, SingleAddrVariable, type_to_heap_value_type,
 };
-use crate::ssa::ir::instruction::{Endian, Hint, InstructionId, Intrinsic};
 
 impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
     /// Allocates a variable to hold the result of an external function call (e.g., foreign or black box).

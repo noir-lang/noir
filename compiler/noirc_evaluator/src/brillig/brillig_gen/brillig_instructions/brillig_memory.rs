@@ -6,9 +6,9 @@ use im::Vector;
 
 use crate::brillig::brillig_gen::brillig_block::BrilligBlock;
 use crate::brillig::brillig_ir::brillig_variable::{BrilligVariable, SingleAddrVariable};
-use crate::brillig::brillig_ir::registers::RegisterAllocator;
 use crate::brillig::brillig_ir::{
     BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, BrilligBinaryOp, BrilligContext, ReservedRegisters,
+    registers::RegisterAllocator,
 };
 use crate::ssa::ir::instruction::InstructionId;
 use crate::ssa::ir::types::Type;
