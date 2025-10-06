@@ -11,10 +11,34 @@ use acvm_blackbox_solver::BlackBoxFunctionSolver;
 use crate::{MemoryValue, VM, VMStatus};
 
 impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
-    /// Process a single foreign-call instruction.
+    /// Handles the execution of a single [ForeignCall opcode][acir::brillig::Opcode::ForeignCall].
     ///
-    /// This method encapsulates all logic that handles calling into the Brillig
-    /// foreign function environment.
+    /// This method performs the following steps:
+    /// 1. Checks if the foreign call results are already available. If not, it resolves the input
+    ///    values from memory and pauses execution by returning `VMStatus::ForeignCallWait`.
+    ///    For vectors, the preceding `u32` length field is used to truncate the slice input to its semantic length.
+    /// 2. If results are available, it writes them to memory, ensuring that the returned data
+    ///    matches the expected types and sizes. Nested arrays are reconstructed from flat
+    ///    outputs when necessary. Nested vectors are an unsupported return type and will trigger an error.
+    /// 3. Increments the foreign call counter and advances the program counter.
+    ///
+    /// # Parameters
+    /// The borrowed fields of a [ForeignCall opcode][acir::brillig::Opcode::ForeignCall].
+    /// They are listed again below:
+    /// - `function`: Name of the foreign function being called.
+    /// - `destinations`: Pointers or heap structures where the return values will be written.
+    /// - `destination_value_types`: Expected type layout for each destination.
+    /// - `inputs`: Pointers or heap structures representing the inputs for the foreign call.
+    /// - `input_value_types`: Expected type layout for each input.
+    ///
+    /// # Returns
+    /// - [VMStatus<F>] indicating the next state of the VM:
+    ///   - [VMStatus::ForeignCallWait] if the results are not yet available.
+    ///   - [VMStatus::Finished] or [VMStatus::Failure] depending on whether writing the results succeeded.
+    ///
+    /// # Panics
+    /// - If `inputs` and `input_value_types` lengths do not match.
+    /// - If `destinations` and `destination_value_types` lengths do not match.
     pub(super) fn process_foreign_call(
         &mut self,
         function: &str,
