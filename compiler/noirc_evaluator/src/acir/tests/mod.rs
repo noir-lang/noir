@@ -130,7 +130,7 @@ fn no_zero_bits_range_check() {
     ASSERT w7 = 0
     ASSERT w3 = w1
 
-    unconstrained func 0
+    unconstrained func 0: directive_integer_quotient
     0: @10 = const u32 2
     1: @11 = const u32 0
     2: @0 = calldata copy [@11; @10]
@@ -139,7 +139,7 @@ fn no_zero_bits_range_check() {
     5: @1 = field sub @0, @1
     6: @0 = @2
     7: stop &[@11; @10]
-    unconstrained func 1
+    unconstrained func 1: directive_invert
     0: @21 = const u32 1
     1: @20 = const u32 0
     2: @0 = calldata copy [@20; @21]
