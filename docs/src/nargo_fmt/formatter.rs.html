@@ -312,7 +312,14 @@
 <a href="#311" id="311">311</a>
 <a href="#312" id="312">312</a>
 <a href="#313" id="313">313</a>
-<a href="#314" id="314">314</a></pre></div><pre class="rust"><code><span class="kw">use </span>buffer::Buffer;
+<a href="#314" id="314">314</a>
+<a href="#315" id="315">315</a>
+<a href="#316" id="316">316</a>
+<a href="#317" id="317">317</a>
+<a href="#318" id="318">318</a>
+<a href="#319" id="319">319</a>
+<a href="#320" id="320">320</a>
+<a href="#321" id="321">321</a></pre></div><pre class="rust"><code><span class="kw">use </span>buffer::Buffer;
 <span class="kw">use </span>noirc_frontend::{
     ParsedModule,
     ast::Ident,
@@ -539,6 +546,13 @@
     <span class="doccomment">/// Writes whatever is in the given span relative to the file's source that's being formatted.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>write_source_span(<span class="kw-2">&amp;mut </span><span class="self">self</span>, span: Span) {
         <span class="self">self</span>.write(<span class="kw-2">&amp;</span><span class="self">self</span>.source[span.start() <span class="kw">as </span>usize..span.end() <span class="kw">as </span>usize]);
+    }
+
+    <span class="doccomment">/// Writes whatever is in the given span relative to the file's source that's being formatted
+    /// but trims the whitespaces at the end.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>write_source_span_trimmed(<span class="kw-2">&amp;mut </span><span class="self">self</span>, span: Span) {
+        <span class="kw">let </span>source = <span class="self">self</span>.source[span.start() <span class="kw">as </span>usize..span.end() <span class="kw">as </span>usize].trim_end();
+        <span class="self">self</span>.write(source);
     }
 
     <span class="doccomment">/// Writes the current indentation to the buffer, but only if the buffer
