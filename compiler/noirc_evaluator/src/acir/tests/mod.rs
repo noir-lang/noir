@@ -102,6 +102,59 @@ fn unchecked_mul_should_not_have_range_check() {
 }
 
 #[test]
+fn no_zero_bits_range_check() {
+    let src = "
+    acir(inline) fn main f0 {   
+        b0(v0: Field):
+            v1 = truncate v0 to 8 bits, max_bit_size: 254
+            v2 = cast v1 as u8
+            return v2
+        }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    // Check that there is no 0-bits range check, but 'ASSERT w7 = 0' instead
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0]
+    public parameters: []
+    return values: [w1]
+    BRILLIG CALL func: 0, inputs: [w0, 256], outputs: [w2, w3]
+    BLACKBOX::RANGE input: w2, bits: 246
+    BLACKBOX::RANGE input: w3, bits: 8
+    ASSERT w3 = w0 - 256*w2
+    ASSERT w4 = -w2 + 85500948718122168836900022442411230814642048439125134155071110103811751936
+    BLACKBOX::RANGE input: w4, bits: 246
+    BRILLIG CALL func: 1, inputs: [-w2 + 85500948718122168836900022442411230814642048439125134155071110103811751936], outputs: [w5]
+    ASSERT w6 = w2*w5 - 85500948718122168836900022442411230814642048439125134155071110103811751936*w5 + 1
+    ASSERT 0 = -w2*w6 + 85500948718122168836900022442411230814642048439125134155071110103811751936*w6
+    ASSERT w7 = w3*w6
+    ASSERT w7 = 0
+    ASSERT w3 = w1
+
+    unconstrained func 0: directive_integer_quotient
+    0: @10 = const u32 2
+    1: @11 = const u32 0
+    2: @0 = calldata copy [@11; @10]
+    3: @2 = field int_div @0, @1
+    4: @1 = field mul @2, @1
+    5: @1 = field sub @0, @1
+    6: @0 = @2
+    7: stop &[@11; @10]
+    unconstrained func 1: directive_invert
+    0: @21 = const u32 1
+    1: @20 = const u32 0
+    2: @0 = calldata copy [@20; @21]
+    3: @2 = const field 0
+    4: @3 = field eq @0, @2
+    5: jump if @3 to 8
+    6: @1 = const field 1
+    7: @0 = field field_div @1, @0
+    8: stop &[@20; @21]
+    ");
+}
+
+#[test]
 fn properly_constrains_quotient_when_truncating_fields() {
     let src = "
         acir(inline) fn main f0 {
