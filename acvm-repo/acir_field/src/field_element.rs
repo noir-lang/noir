@@ -124,7 +124,7 @@ impl<F: PrimeField> FieldElement<F> {
         self.0
     }
 
-    fn fits_in_u128(&self) -> bool {
+    pub fn fits_in_u128(&self) -> bool {
         self.num_bits() <= 128
     }
 

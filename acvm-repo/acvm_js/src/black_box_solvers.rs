@@ -45,6 +45,7 @@ pub fn ecdsa_secp256k1_verify(
     public_key_y_bytes: &[u8],
     signature: &[u8],
 ) -> bool {
+    let hashed_msg: &[u8; 32] = hashed_msg.try_into().unwrap();
     let public_key_x_bytes: &[u8; 32] = public_key_x_bytes.try_into().unwrap();
     let public_key_y_bytes: &[u8; 32] = public_key_y_bytes.try_into().unwrap();
     let signature: &[u8; 64] = signature.try_into().unwrap();
@@ -66,6 +67,7 @@ pub fn ecdsa_secp256r1_verify(
     public_key_y_bytes: &[u8],
     signature: &[u8],
 ) -> bool {
+    let hashed_msg: &[u8; 32] = hashed_msg.try_into().unwrap();
     let public_key_x_bytes: &[u8; 32] = public_key_x_bytes.try_into().unwrap();
     let public_key_y_bytes: &[u8; 32] = public_key_y_bytes.try_into().unwrap();
     let signature: &[u8; 64] = signature.try_into().unwrap();
