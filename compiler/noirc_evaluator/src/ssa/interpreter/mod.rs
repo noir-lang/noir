@@ -1174,23 +1174,32 @@ macro_rules! apply_fit_binop_opt {
 /// case there is an overflow, thus turning the operation infallible.
 ///
 /// If the result is an overflow, it promotes the values to `Field` and performs the operation there.
+/// If the operation is applied on `Unfit` values, and the result fits in the original numeric type,
+/// it is converted back to a `Fit` value.
 ///
-/// For example if we would normally have an infallible `wrapped_add`, but we want to match ACIR
+/// For example we would normally have an infallible `wrapped_add`, but we want to match ACIR
 /// by not wrapping around but extending into larger bit sizes.
 ///
 /// # Parameters
+/// - `$cons`: Constructor for a `NumericValue`
 /// - `$lhs`, `$rhs`: The `Fitted` values in the left-hand side and right-hand side operands.
 /// - `$f`: The function to apply on the integer values if both are `Fit`; returns `None` on overflow.
 /// - `$g`: The function to apply on `Field` values.
 /// - `$lhs_num`, `$rhs_num`: The original `NumericValue`s.
 macro_rules! apply_fit_binop {
-    ($lhs:expr, $rhs:expr, $f:expr, $g:expr, $lhs_num:expr, $rhs_num:expr) => {
+    ($cons:expr, $lhs:expr, $rhs:expr, $f:expr, $g:expr, $lhs_num:expr, $rhs_num:expr) => {
         if let (Fitted::Fit(lhs), Fitted::Fit(rhs)) = ($lhs, $rhs) {
-            $f(&lhs, &rhs).map(Fitted::Fit).unwrap_or_else(|| {
+            let fitted = $f(&lhs, &rhs).map(Fitted::Fit).unwrap_or_else(|| {
                 Fitted::Unfit($g($lhs_num.convert_to_field(), $rhs_num.convert_to_field()))
-            })
+            });
+            $cons(fitted)
         } else {
-            Fitted::Unfit($g($lhs_num.convert_to_field(), $rhs_num.convert_to_field()))
+            let field = $g($lhs_num.convert_to_field(), $rhs_num.convert_to_field());
+            let typ = $lhs_num.get_type();
+            NumericValue::from_constant(field, typ).unwrap_or_else(|_| {
+                let fitted = Fitted::Unfit(field);
+                $cons(fitted)
+            })
         }
     };
 }
@@ -1201,8 +1210,7 @@ macro_rules! apply_fit_binop {
 /// For anything else it's best to panic, or return an error; we'll see if it comes up.
 macro_rules! apply_fit_comparison_op {
     ($lhs:expr, $rhs:expr, $f:expr, $g:expr, $lhs_num:expr, $rhs_num:expr) => {{
-        use Fitted::*;
-        if let (Fit(lhs), Fit(rhs)) = ($lhs, $rhs) {
+        if let (Fitted::Fit(lhs), Fitted::Fit(rhs)) = ($lhs, $rhs) {
             $f(lhs, rhs)
         } else {
             $g($lhs_num.convert_to_field(), $rhs_num.convert_to_field())
@@ -1236,15 +1244,15 @@ macro_rules! apply_int_binop {
                 unreachable!("Expected only integer values, found field values")
             }
             (U1(_), U1(_)) => unreachable!("Expected only large integer values, found u1"),
-            (U8(lhs), U8(rhs)) => U8(apply_fit_binop!(lhs, rhs, $f, $g, lhs_num, rhs_num)),
-            (U16(lhs), U16(rhs)) => U16(apply_fit_binop!(lhs, rhs, $f, $g, lhs_num, rhs_num)),
-            (U32(lhs), U32(rhs)) => U32(apply_fit_binop!(lhs, rhs, $f, $g, lhs_num, rhs_num)),
-            (U64(lhs), U64(rhs)) => U64(apply_fit_binop!(lhs, rhs, $f, $g, lhs_num, rhs_num)),
-            (U128(lhs), U128(rhs)) => U128(apply_fit_binop!(lhs, rhs, $f, $g, lhs_num, rhs_num)),
-            (I8(lhs), I8(rhs)) => I8(apply_fit_binop!(lhs, rhs, $f, $g, lhs_num, rhs_num)),
-            (I16(lhs), I16(rhs)) => I16(apply_fit_binop!(lhs, rhs, $f, $g, lhs_num, rhs_num)),
-            (I32(lhs), I32(rhs)) => I32(apply_fit_binop!(lhs, rhs, $f, $g, lhs_num, rhs_num)),
-            (I64(lhs), I64(rhs)) => I64(apply_fit_binop!(lhs, rhs, $f, $g, lhs_num, rhs_num)),
+            (U8(lhs), U8(rhs)) => apply_fit_binop!(U8, lhs, rhs, $f, $g, lhs_num, rhs_num),
+            (U16(lhs), U16(rhs)) => apply_fit_binop!(U16, lhs, rhs, $f, $g, lhs_num, rhs_num),
+            (U32(lhs), U32(rhs)) => apply_fit_binop!(U32, lhs, rhs, $f, $g, lhs_num, rhs_num),
+            (U64(lhs), U64(rhs)) => apply_fit_binop!(U64, lhs, rhs, $f, $g, lhs_num, rhs_num),
+            (U128(lhs), U128(rhs)) => apply_fit_binop!(U128, lhs, rhs, $f, $g, lhs_num, rhs_num),
+            (I8(lhs), I8(rhs)) => apply_fit_binop!(I8, lhs, rhs, $f, $g, lhs_num, rhs_num),
+            (I16(lhs), I16(rhs)) => apply_fit_binop!(I16, lhs, rhs, $f, $g, lhs_num, rhs_num),
+            (I32(lhs), I32(rhs)) => apply_fit_binop!(I32, lhs, rhs, $f, $g, lhs_num, rhs_num),
+            (I64(lhs), I64(rhs)) => apply_fit_binop!(I64, lhs, rhs, $f, $g, lhs_num, rhs_num),
             (lhs, rhs) => {
                 let binary = $binary;
                 return Err(internal(InternalError::MismatchedTypesInBinaryOperator {
