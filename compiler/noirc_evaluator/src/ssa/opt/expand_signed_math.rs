@@ -519,17 +519,16 @@ mod tests {
             v20 = unchecked_add v3, v19
             v21 = mod v16, v20
             v22 = cast v10 as u1
-            v23 = cast v10 as u8
-            v24 = unchecked_sub u8 128, v21
-            v25 = unchecked_mul v24, v23
-            v26 = unchecked_mul v25, u8 2
-            v27 = unchecked_add v21, v26
-            v29 = eq v21, u8 0
-            v30 = not v29
-            v31 = cast v30 as u8
-            v32 = unchecked_mul v27, v31
-            v33 = cast v32 as i8
-            return v33
+            v23 = unchecked_sub u8 128, v21
+            v24 = unchecked_mul v23, v10
+            v25 = unchecked_mul v24, u8 2
+            v26 = unchecked_add v21, v25
+            v28 = eq v21, u8 0
+            v29 = not v28
+            v30 = cast v29 as u8
+            v31 = unchecked_mul v26, v30
+            v32 = cast v31 as i8
+            return v32
         }
         "#);
     }

@@ -185,7 +185,7 @@ impl CircuitSimulator {
 
     pub(crate) fn expr_wit<F>(expr: &Expression<F>) -> BTreeSet<Witness> {
         let mut result = BTreeSet::new();
-        result.extend(expr.mul_terms.iter().flat_map(|i| vec![i.1, i.2]));
+        result.extend(expr.mul_terms.iter().flat_map(|i| [i.1, i.2]));
         result.extend(expr.linear_combinations.iter().map(|i| i.1));
         result
     }
