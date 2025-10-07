@@ -103,7 +103,7 @@ impl Default for Config {
             ("assign", 30),
             ("if", 10),
             ("match", 10),
-            ("for", 25),
+            ("for", 37),
             ("let", 25),
             ("call", 5),
             ("constrain", 4),
@@ -120,7 +120,7 @@ impl Default for Config {
             ("let", 20),
             ("call", 5),
             ("print", 15),
-            ("constrain", 10),
+            ("constrain", 15),
         ]);
         Self {
             max_globals: 3,

@@ -1,3 +1,4 @@
+use rustc_hash::FxHashMap;
 use std::{
     collections::{HashMap, HashSet, VecDeque},
     sync::Arc,
@@ -7,15 +8,19 @@ use acvm::acir::circuit::ErrorSelector;
 use noirc_errors::{Location, call_stack::CallStackId};
 
 use crate::ssa::{
-    function_builder::FunctionBuilder,
+    function_builder::{
+        FunctionBuilder,
+        data_bus::{CallData, DataBus},
+    },
     ir::{
         basic_block::BasicBlockId,
         dfg::GlobalsGraph,
         function::{Function, FunctionId},
-        instruction::{ConstrainError, Instruction},
+        instruction::{ArrayOffset, ConstrainError, Instruction},
         value::ValueId,
     },
     opt::pure::FunctionPurities,
+    parser::ast::ParsedDataBus,
     ssa_gen::validate_ssa,
 };
 
@@ -203,6 +208,33 @@ impl Translator {
             self.translate_block(parsed_block)?;
         }
 
+        self.translate_function_data_bus(function.data_bus)
+    }
+
+    fn translate_function_data_bus(
+        &mut self,
+        parsed_data_bus: ParsedDataBus,
+    ) -> Result<(), SsaError> {
+        let mut call_data_vec = Vec::new();
+        for parsed_call_data in parsed_data_bus.call_data {
+            let call_data_id = parsed_call_data.call_data_id;
+            let array_id = self.translate_value(parsed_call_data.array)?;
+            let mut index_map = FxHashMap::default();
+            for (value, index) in parsed_call_data.index_map {
+                let value_id = self.translate_value(value)?;
+                index_map.insert(value_id, index);
+            }
+            let call_data = CallData { call_data_id, array_id, index_map };
+            call_data_vec.push(call_data);
+        }
+
+        let return_data = if let Some(return_data) = parsed_data_bus.return_data {
+            Some(self.translate_value(return_data)?)
+        } else {
+            None
+        };
+        let data_bus = DataBus { call_data: call_data_vec, return_data };
+        self.builder.set_data_bus(data_bus);
         Ok(())
     }
 
@@ -288,16 +320,18 @@ impl Translator {
                 self.define_variable(target, value_id)?;
             }
             ParsedInstruction::ArrayGet { target, element_type, array, index, offset } => {
+                self.set_offset(&target, offset)?;
                 let array = self.translate_value(array)?;
                 let index = self.translate_value(index)?;
-                let value_id = self.builder.insert_array_get(array, index, offset, element_type);
+                let value_id = self.builder.insert_array_get(array, index, element_type);
                 self.define_variable(target, value_id)?;
             }
             ParsedInstruction::ArraySet { target, array, index, value, mutable, offset } => {
+                self.set_offset(&target, offset)?;
                 let array = self.translate_value(array)?;
                 let index = self.translate_value(index)?;
                 let value = self.translate_value(value)?;
-                let value_id = self.builder.insert_array_set(array, index, value, mutable, offset);
+                let value_id = self.builder.insert_array_set(array, index, value, mutable);
                 self.define_variable(target, value_id)?;
             }
             ParsedInstruction::BinaryOp { target, lhs, op, rhs } => {
@@ -594,5 +628,17 @@ impl Translator {
 
     fn current_function_id(&self) -> FunctionId {
         self.builder.current_function.id()
+    }
+
+    /// If any array instruction has an offset, mark the DFG as using offsets in general.
+    fn set_offset(&mut self, target: &Identifier, offset: ArrayOffset) -> Result<(), SsaError> {
+        if offset == ArrayOffset::None {
+            return Ok(());
+        }
+        if !self.builder.current_function.dfg.runtime().is_brillig() {
+            return Err(SsaError::IllegalOffset(target.clone(), offset));
+        }
+        self.builder.current_function.dfg.brillig_arrays_offset = true;
+        Ok(())
     }
 }

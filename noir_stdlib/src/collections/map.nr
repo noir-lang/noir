@@ -1,7 +1,7 @@
 use crate::cmp::Eq;
 use crate::collections::bounded_vec::BoundedVec;
 use crate::default::Default;
-use crate::hash::{BuildHasher, BuildHasherDefault, Hash, poseidon2::Poseidon2Hasher};
+use crate::hash::{BuildHasher, Hash};
 use crate::option::Option;
 
 // We use load factor alpha_max = 0.75.

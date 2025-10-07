@@ -1,3 +1,5 @@
+use acvm::acir::circuit::Program;
+use base64::Engine;
 use noirc_abi::Abi;
 use noirc_driver::{CompileError, CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_errors::call_stack::CallStack;
@@ -71,14 +73,13 @@ pub fn compile_from_artifacts(artifacts: ArtifactsAndWarnings) -> CompiledProgra
         .map(|acir| vec![(acir.input_witnesses.len() as u32, Visibility::Private)])
         .collect();
 
-    let SsaProgramArtifact { program, debug, warnings, names, brillig_names, .. } =
-        combine_artifacts(
-            artifacts,
-            &dummy_arg_info,
-            BTreeMap::new(),
-            BTreeMap::new(),
-            BTreeMap::new(),
-        );
+    let SsaProgramArtifact { program, debug, warnings, .. } = combine_artifacts(
+        artifacts,
+        &dummy_arg_info,
+        BTreeMap::new(),
+        BTreeMap::new(),
+        BTreeMap::new(),
+    );
     let file_map = BTreeMap::new();
     CompiledProgram {
         hash: 1, // const hash, doesn't matter in this case
@@ -88,8 +89,7 @@ pub fn compile_from_artifacts(artifacts: ArtifactsAndWarnings) -> CompiledProgra
         file_map,
         noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
         warnings,
-        names,
-        brillig_names,
+        expression_width: noirc_driver::DEFAULT_EXPRESSION_WIDTH,
     }
 }
 
@@ -99,4 +99,14 @@ pub fn compile_from_ssa(
 ) -> Result<CompiledProgram, CompileError> {
     let artifacts = optimize_ssa_into_acir(ssa, options.as_ssa_options(PathBuf::new()))?;
     Ok(compile_from_artifacts(artifacts))
+}
+
+pub fn compile_to_bytecode_base64(
+    ssa: Ssa,
+    options: &CompileOptions,
+) -> Result<String, CompileError> {
+    let compiled_program = compile_from_ssa(ssa, options)?;
+    let bytecode = Program::serialize_program(&compiled_program.program);
+    let bytecode_b64 = base64::engine::general_purpose::STANDARD.encode(bytecode);
+    Ok(bytecode_b64)
 }
