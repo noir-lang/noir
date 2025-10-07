@@ -847,24 +847,7 @@
 <a href="#846" id="846">846</a>
 <a href="#847" id="847">847</a>
 <a href="#848" id="848">848</a>
-<a href="#849" id="849">849</a>
-<a href="#850" id="850">850</a>
-<a href="#851" id="851">851</a>
-<a href="#852" id="852">852</a>
-<a href="#853" id="853">853</a>
-<a href="#854" id="854">854</a>
-<a href="#855" id="855">855</a>
-<a href="#856" id="856">856</a>
-<a href="#857" id="857">857</a>
-<a href="#858" id="858">858</a>
-<a href="#859" id="859">859</a>
-<a href="#860" id="860">860</a>
-<a href="#861" id="861">861</a>
-<a href="#862" id="862">862</a>
-<a href="#863" id="863">863</a>
-<a href="#864" id="864">864</a>
-<a href="#865" id="865">865</a>
-<a href="#866" id="866">866</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::BlackBoxFunc;
+<a href="#849" id="849">849</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::BlackBoxFunc;
 <span class="kw">use </span>acvm::acir::brillig::{MemoryAddress, ValueOrArray};
 <span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>iter_extended::vecmap;
@@ -1596,30 +1579,14 @@
                         <span class="self">self</span>.convert_ssa_identity_call(arguments, dfg, result_ids);
                     }
                     Intrinsic::BlackBox(bb_func) =&gt; {
-                        <span class="comment">// Slices are represented as a tuple of (length, slice contents).
-                        // We must check the inputs to determine if there are slices
-                        // and make sure that we pass the correct inputs to the black box function call.
-                        // The loop below only keeps the slice contents, so that
-                        // setting up a black box function with slice inputs matches the expected
-                        // number of arguments specified in the function signature.
-                        </span><span class="kw">let </span><span class="kw-2">mut </span>arguments_no_slice_len = Vec::new();
-                        <span class="kw">for </span>(i, arg) <span class="kw">in </span>arguments.iter().enumerate() {
-                            <span class="kw">if </span><span class="macro">matches!</span>(dfg.type_of_value(<span class="kw-2">*</span>arg), Type::Numeric(<span class="kw">_</span>)) {
-                                <span class="kw">if </span>i &lt; arguments.len() - <span class="number">1 </span>{
-                                    <span class="kw">if </span>!<span class="macro">matches!</span>(
-                                        dfg.type_of_value(arguments[i + <span class="number">1</span>]),
-                                        Type::Slice(<span class="kw">_</span>)
-                                    ) {
-                                        arguments_no_slice_len.push(<span class="kw-2">*</span>arg);
-                                    }
-                                } <span class="kw">else </span>{
-                                    arguments_no_slice_len.push(<span class="kw-2">*</span>arg);
-                                }
-                            } <span class="kw">else </span>{
-                                arguments_no_slice_len.push(<span class="kw-2">*</span>arg);
-                            }
-                        }
+                        <span class="macro">assert!</span>(
+                            !arguments
+                                .iter()
+                                .any(|arg| dfg.type_of_value(<span class="kw-2">*</span>arg).contains_slice_element()),
+                            <span class="string">"Blackbox functions should not be called with arguments of slice type"
+                        </span>);
 
+                        <span class="kw">let </span><span class="kw-2">mut </span>arguments = arguments.to_vec();
                         <span class="kw">if </span><span class="macro">matches!</span>(
                             bb_func,
                             BlackBoxFunc::EcdsaSecp256k1
@@ -1630,19 +1597,18 @@
                             <span class="comment">// Some black box functions have a predicate argument in SSA which we don't want to
                             // use in the brillig VM. This is as we do not need to flatten the CFG in brillig
                             // so we expect the predicate to always be true.
-                            </span><span class="kw">let </span>predicate = <span class="kw-2">&amp;</span>arguments_no_slice_len.pop().expect(
+                            </span><span class="kw">let </span>predicate = arguments.pop().expect(
                                 <span class="string">"ICE: ECDSA black box function must have a predicate argument"</span>,
                             );
                             <span class="macro">assert_eq!</span>(
-                                dfg.get_numeric_constant_with_type(<span class="kw-2">*</span>predicate),
+                                dfg.get_numeric_constant_with_type(predicate),
                                 <span class="prelude-val">Some</span>((FieldElement::one(), NumericType::bool())),
                                 <span class="string">"ICE: ECDSA black box function must have a predicate argument with value 1"
                             </span>);
                         }
 
-                        <span class="kw">let </span>function_arguments = vecmap(<span class="kw-2">&amp;</span>arguments_no_slice_len, |arg| {
-                            <span class="self">self</span>.convert_ssa_value(<span class="kw-2">*</span>arg, dfg)
-                        });
+                        <span class="kw">let </span>function_arguments =
+                            vecmap(arguments, |arg| <span class="self">self</span>.convert_ssa_value(arg, dfg));
                         <span class="kw">let </span>function_results = dfg.instruction_results(instruction_id);
                         <span class="kw">let </span>function_results = vecmap(function_results, |result| {
                             <span class="self">self</span>.allocate_external_call_result(<span class="kw-2">*</span>result, dfg)
