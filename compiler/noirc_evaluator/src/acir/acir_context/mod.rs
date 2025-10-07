@@ -289,22 +289,14 @@ impl<F: AcirField> AcirContext<F> {
         // Check that the inverted var is valid.
         // This check prevents invalid divisions by zero.
         let should_be_one = self.mul_var(inverted_var, var)?;
-        self.maybe_eq_predicate(should_be_one, predicate)?;
+
+        //    predicate * should_be_one = predicate
+        // -> predicate * (should_be_one - 1) = 0
+        // so either should_be_one is one or predicate is zero
+        let pred_mul_should_be_one = self.mul_var(should_be_one, predicate)?;
+        self.assert_eq_var(pred_mul_should_be_one, predicate, None)?;
 
         Ok(inverted_var)
-    }
-
-    // Constrains `var` to be equal to predicate if the predicate is true
-    // or to be equal to 0 if the predicate is false.
-    //
-    // Since we multiply `var` by the predicate, this is a no-op if the predicate is false
-    pub(crate) fn maybe_eq_predicate(
-        &mut self,
-        var: AcirVar,
-        predicate: AcirVar,
-    ) -> Result<(), RuntimeError> {
-        let pred_mul_var = self.mul_var(var, predicate)?;
-        self.assert_eq_var(pred_mul_var, predicate, None)
     }
 
     // Returns the variable from the results, assuming it is the only result
