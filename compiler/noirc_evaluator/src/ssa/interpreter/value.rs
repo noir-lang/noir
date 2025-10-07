@@ -34,8 +34,8 @@ pub enum Value {
 /// The reason this exists is the difference in behavior of unchecked operations in Brillig and ACIR:
 /// * In Brillig unchecked operations wrap around, but we have other opcodes surrounding it that
 ///   either prevent such operations from being carried out, or check for any overflows later.
-/// * In ACIR, everything is represented a `Field`, and overflows are not checked, so e.g. an unchecked
-///   multiplication of `u32` values can result in something that only its in a `u64`.
+/// * In ACIR, everything is represented as a `Field`, and overflows are not checked, so e.g. an unchecked
+///   multiplication of `u32` values can result in something that only fits in a `u64`.
 ///
 /// When we interpret an operation that would wrap around, if we are in an ACIR context we can use
 /// the `Unfit` variant to indicate that the value beyond what fits into the base type.
