@@ -47,8 +47,8 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
         inputs: &[ValueOrArray],
         input_value_types: &[HeapValueType],
     ) -> VMStatus<F> {
-        assert!(inputs.len() == input_value_types.len());
-        assert!(destinations.len() == destination_value_types.len());
+        assert_eq!(inputs.len(), input_value_types.len());
+        assert_eq!(destinations.len(), destination_value_types.len());
 
         if self.foreign_call_counter >= self.foreign_call_results.len() {
             // When this opcode is called, it is possible that the results of a foreign call are
