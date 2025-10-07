@@ -299,9 +299,7 @@ mod tests {
         acir::brillig::{BitSize, IntegerBitSize, Opcode},
     };
 
-    use crate::brillig::{
-        BrilligOptions, GlobalSpace, LabelType, Ssa, brillig_ir::registers::RegisterAllocator,
-    };
+    use crate::brillig::{BrilligOptions, GlobalSpace, LabelType, Ssa};
 
     use super::ConstantAllocation;
 
@@ -332,7 +330,8 @@ mod tests {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let brillig = ssa.to_brillig(&BrilligOptions::default());
+        let options = BrilligOptions::default();
+        let brillig = ssa.to_brillig(&options);
 
         assert_eq!(
             brillig.globals.len(),
@@ -364,7 +363,10 @@ mod tests {
                 let Opcode::Const { destination, bit_size, value } = &artifact.byte_code[0] else {
                     panic!("First opcode is expected to be `Const`");
                 };
-                assert_eq!(destination.unwrap_direct(), GlobalSpace::start());
+                assert_eq!(
+                    destination.unwrap_direct(),
+                    GlobalSpace::start_with_layout(&options.layout)
+                );
                 assert!(matches!(bit_size, BitSize::Field));
                 assert_eq!(*value, FieldElement::from(2u128));
 
@@ -448,7 +450,8 @@ mod tests {
         // Need to run SSA pass that sets up Brillig array gets
         let ssa = ssa.brillig_array_get_and_set();
 
-        let brillig = ssa.to_brillig(&BrilligOptions::default());
+        let options = BrilligOptions::default();
+        let brillig = ssa.to_brillig(&options);
 
         assert_eq!(
             brillig.globals.len(),
@@ -473,7 +476,10 @@ mod tests {
                 let Opcode::Const { destination, bit_size, value } = &artifact.byte_code[0] else {
                     panic!("First opcode is expected to be `Const`");
                 };
-                assert_eq!(destination.unwrap_direct(), GlobalSpace::start());
+                assert_eq!(
+                    destination.unwrap_direct(),
+                    GlobalSpace::start_with_layout(&options.layout)
+                );
                 assert!(matches!(bit_size, BitSize::Field));
                 assert_eq!(*value, FieldElement::from(1u128));
                 assert!(matches!(&artifact.byte_code[1], Opcode::Return));
@@ -556,7 +562,8 @@ mod tests {
             }
         }
 
-        let brillig = ssa.to_brillig(&BrilligOptions::default());
+        let options = BrilligOptions::default();
+        let brillig = ssa.to_brillig(&options);
 
         assert_eq!(brillig.globals.len(), 1, "Should have a single entry point");
         for (func_id, artifact) in brillig.globals {
@@ -569,14 +576,20 @@ mod tests {
             let Opcode::Const { destination, bit_size, value } = &artifact.byte_code[0] else {
                 panic!("First opcode is expected to be `Const`");
             };
-            assert_eq!(destination.unwrap_direct(), GlobalSpace::start());
+            assert_eq!(
+                destination.unwrap_direct(),
+                GlobalSpace::start_with_layout(&options.layout)
+            );
             assert!(matches!(bit_size, BitSize::Integer(IntegerBitSize::U1)));
             assert_eq!(*value, FieldElement::from(0u128));
 
             let Opcode::Const { destination, bit_size, value } = &artifact.byte_code[1] else {
                 panic!("First opcode is expected to be `Const`");
             };
-            assert_eq!(destination.unwrap_direct(), GlobalSpace::start() + 1);
+            assert_eq!(
+                destination.unwrap_direct(),
+                GlobalSpace::start_with_layout(&options.layout) + 1
+            );
             assert!(matches!(bit_size, BitSize::Field));
             assert_eq!(*value, FieldElement::from(1u128));
 

@@ -210,6 +210,10 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
                     msg == "attempt to divide by zero" || msg.contains("divisor of zero")
                 })
             }
+            (DivisionByZero { .. }, DivisionByZero { .. }) => {
+                // Signed math in ACIR is expanded to unsigned math. We may have two different `DivisionByZero` errors due to differing types.
+                true
+            }
             (PoppedFromEmptySlice { .. }, ConstrainEqFailed { msg, .. }) => {
                 // The removal of unreachable instructions can replace popping from an empty slice with an always-fail constraint.
                 msg.as_ref().is_some_and(|msg| msg == "Index out of bounds")
