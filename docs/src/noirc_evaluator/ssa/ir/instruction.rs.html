@@ -1088,7 +1088,8 @@
 <a href="#1087" id="1087">1087</a>
 <a href="#1088" id="1088">1088</a>
 <a href="#1089" id="1089">1089</a>
-<a href="#1090" id="1090">1090</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
+<a href="#1090" id="1090">1090</a>
+<a href="#1091" id="1091">1091</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 <span class="kw">use </span>rustc_stable_hash::{FromStableHash, SipHasher128Hash};
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="kw">use </span>std::hash::Hash;
@@ -1552,7 +1553,9 @@
                 </span>!dfg.is_safe_index(<span class="kw-2">*</span>index, <span class="kw-2">*</span>array)
             }
 
-            Instruction::EnableSideEffectsIf { .. } | Instruction::ArraySet { .. } =&gt; <span class="bool-val">true</span>,
+            Instruction::EnableSideEffectsIf { .. }
+            | Instruction::ArraySet { .. }
+            | Instruction::ConstrainNotEqual(..) =&gt; <span class="bool-val">true</span>,
 
             Instruction::Call { func, .. } =&gt; <span class="kw">match </span>dfg[<span class="kw-2">*</span>func] {
                 Value::Function(id) =&gt; !<span class="macro">matches!</span>(dfg.purity_of(id), <span class="prelude-val">Some</span>(Purity::Pure)),
@@ -1574,7 +1577,6 @@
             Instruction::Cast(<span class="kw">_</span>, <span class="kw">_</span>)
             | Instruction::Not(<span class="kw">_</span>)
             | Instruction::Truncate { .. }
-            | Instruction::ConstrainNotEqual(..)
             | Instruction::Constrain(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>)
             | Instruction::RangeCheck { .. }
             | Instruction::Allocate
