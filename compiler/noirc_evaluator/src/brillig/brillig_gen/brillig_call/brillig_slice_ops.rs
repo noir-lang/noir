@@ -7,7 +7,7 @@ use crate::brillig::brillig_ir::{
     registers::RegisterAllocator,
 };
 
-use super::brillig_block::BrilligBlock;
+use super::super::brillig_block::BrilligBlock;
 
 impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
     fn write_variables(&mut self, write_pointer: MemoryAddress, variables: &[BrilligVariable]) {
