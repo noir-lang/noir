@@ -20,7 +20,7 @@ set up their Brillig debug metadata by function id.</p>
     acir_index: <a class="primitive" href="https://doc.rust-lang.org/1.85.0/std/primitive.usize.html">usize</a>,
     brillig_function_id: <a class="struct" href="../../../acir/circuit/brillig/struct.BrilligFunctionId.html" title="struct acir::circuit::brillig::BrilligFunctionId">BrilligFunctionId</a>,
     profiling_active: <a class="primitive" href="https://doc.rust-lang.org/1.85.0/std/primitive.bool.html">bool</a>,
-    with_branch_to_feature_map: <a class="enum" href="https://doc.rust-lang.org/1.85.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;&amp;<a class="type" href="../../../brillig_vm/type.BranchToFeatureMap.html" title="type brillig_vm::BranchToFeatureMap">BranchToFeatureMap</a>&gt;,
+    with_branch_to_feature_map: <a class="enum" href="https://doc.rust-lang.org/1.85.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;&amp;<a class="type" href="../../../brillig_vm/fuzzing/type.BranchToFeatureMap.html" title="type brillig_vm::fuzzing::BranchToFeatureMap">BranchToFeatureMap</a>&gt;,
 ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.85.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;Self, <a class="enum" href="../enum.OpcodeResolutionError.html" title="enum acvm::pwg::OpcodeResolutionError">OpcodeResolutionError</a>&lt;F&gt;&gt;</h4></section></summary><div class="docblock"><p>Constructs a solver for a Brillig block given the bytecode and initial
 witness.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.setup_brillig_vm" class="method"><a class="src rightside" href="../../../src/acvm/pwg/brillig.rs.html#94-151">Source</a><h4 class="code-header">fn <a href="#method.setup_brillig_vm" class="fn">setup_brillig_vm</a>(
@@ -30,7 +30,7 @@ witness.</p>
     brillig_bytecode: &amp;'b [<a class="enum" href="../../../brillig/opcodes/enum.BrilligOpcode.html" title="enum brillig::opcodes::BrilligOpcode">BrilligOpcode</a>&lt;F&gt;],
     bb_solver: <a class="primitive" href="https://doc.rust-lang.org/1.85.0/std/primitive.reference.html">&amp;'b B</a>,
     profiling_active: <a class="primitive" href="https://doc.rust-lang.org/1.85.0/std/primitive.bool.html">bool</a>,
-    with_branch_to_feature_map: <a class="enum" href="https://doc.rust-lang.org/1.85.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;&amp;<a class="type" href="../../../brillig_vm/type.BranchToFeatureMap.html" title="type brillig_vm::BranchToFeatureMap">BranchToFeatureMap</a>&gt;,
+    with_branch_to_feature_map: <a class="enum" href="https://doc.rust-lang.org/1.85.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;&amp;<a class="type" href="../../../brillig_vm/fuzzing/type.BranchToFeatureMap.html" title="type brillig_vm::fuzzing::BranchToFeatureMap">BranchToFeatureMap</a>&gt;,
 ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.85.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="struct" href="../../../brillig_vm/struct.VM.html" title="struct brillig_vm::VM">VM</a>&lt;'b, F, B&gt;, <a class="enum" href="../enum.OpcodeResolutionError.html" title="enum acvm::pwg::OpcodeResolutionError">OpcodeResolutionError</a>&lt;F&gt;&gt;</h4></section></summary><div class="docblock"><p>Get a BrilligVM for executing the provided bytecode</p>
 <ol>
 <li>Reduce the input expressions into a known value, or error if they do not reduce to a value.</li>

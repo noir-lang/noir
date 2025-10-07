@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["FUZZING_COMPARISON_FALSE_STATE","FUZZING_COMPARISON_LOG_RANGE_START_STATE","FUZZING_COMPARISON_TRUE_STATE"],"struct":["FuzzingTrace"],"type":["Branch","BranchToFeatureMap","UniqueFeatureIndex"]};
