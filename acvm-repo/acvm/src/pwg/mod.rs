@@ -105,7 +105,7 @@ use acir::{
     native_types::{Expression, Witness, WitnessMap},
 };
 use acvm_blackbox_solver::BlackBoxResolutionError;
-use brillig_vm::BranchToFeatureMap;
+use brillig_vm::fuzzing::BranchToFeatureMap;
 
 use self::{arithmetic::ExpressionSolver, memory_op::MemoryOpSolver};
 use crate::BlackBoxFunctionSolver;
