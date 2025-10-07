@@ -25,7 +25,6 @@ use super::brillig_block_variables::{BlockVariables, allocate_value_with_type};
 use super::brillig_fn::FunctionContext;
 use super::brillig_globals::HoistedConstantsToBrilligGlobals;
 use super::constant_allocation::InstructionLocation;
-//use super::brillig_instructions;
 
 /// Context structure for compiling a [function block][crate::ssa::ir::basic_block::BasicBlock] into Brillig bytecode.
 pub(crate) struct BrilligBlock<'block, Registers: RegisterAllocator> {
