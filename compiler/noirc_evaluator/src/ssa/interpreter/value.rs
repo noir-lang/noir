@@ -357,6 +357,15 @@ impl Value {
     pub fn snapshot_args(args: &[Value]) -> Vec<Value> {
         args.iter().map(|arg| arg.snapshot()).collect()
     }
+
+    /// Wrap a `Field` into an `Unfit`, with a type that we were _supposed_ to get,
+    /// had some operation not overflown.
+    ///
+    /// This is used only in tests to construct expected values.
+    #[cfg(test)]
+    pub(crate) fn unfit(field: FieldElement, typ: NumericType) -> IResult<Self> {
+        NumericValue::unfit(field, typ).map(Self::Numeric)
+    }
 }
 
 impl NumericValue {
@@ -397,6 +406,7 @@ impl NumericValue {
     /// Create a `NumericValue` from a `Field` constant.
     ///
     /// Returns an error if the value does not fit into the number of bits indicated by the `NumericType`.
+    ///
     /// Never creates `Fitted::Unfit` values.
     pub fn from_constant(constant: FieldElement, typ: NumericType) -> IResult<NumericValue> {
         use super::InternalError::{ConstantDoesNotFitInType, UnsupportedNumericType};
@@ -500,15 +510,28 @@ impl NumericValue {
         }
     }
 
-    // pub fn is_negative(&self) -> bool {
-    //     match self {
-    //         NumericValue::I8(v) => *v < 0,
-    //         NumericValue::I16(v) => *v < 0,
-    //         NumericValue::I32(v) => *v < 0,
-    //         NumericValue::I64(v) => *v < 0,
-    //         _ => false,
-    //     }
-    // }
+    /// Creates a `NumericValue` of a specific bit size with a `Fitted::Unfit` value.
+    #[cfg(test)]
+    pub fn unfit(field: FieldElement, typ: NumericType) -> IResult<NumericValue> {
+        use super::InternalError::UnsupportedNumericType;
+        use super::InterpreterError::Internal;
+
+        match typ {
+            NumericType::NativeField | NumericType::Unsigned { bit_size: 1 } => {
+                unreachable!("{typ} cannot be unfit")
+            }
+            NumericType::Unsigned { bit_size: 8 } => Ok(Self::U8(Fitted::Unfit(field))),
+            NumericType::Unsigned { bit_size: 16 } => Ok(Self::U16(Fitted::Unfit(field))),
+            NumericType::Unsigned { bit_size: 32 } => Ok(Self::U32(Fitted::Unfit(field))),
+            NumericType::Unsigned { bit_size: 64 } => Ok(Self::U64(Fitted::Unfit(field))),
+            NumericType::Unsigned { bit_size: 128 } => Ok(Self::U128(Fitted::Unfit(field))),
+            NumericType::Signed { bit_size: 8 } => Ok(Self::I8(Fitted::Unfit(field))),
+            NumericType::Signed { bit_size: 16 } => Ok(Self::I16(Fitted::Unfit(field))),
+            NumericType::Signed { bit_size: 32 } => Ok(Self::I32(Fitted::Unfit(field))),
+            NumericType::Signed { bit_size: 64 } => Ok(Self::I64(Fitted::Unfit(field))),
+            typ => Err(Internal(UnsupportedNumericType { typ })),
+        }
+    }
 }
 
 impl std::fmt::Display for Value {

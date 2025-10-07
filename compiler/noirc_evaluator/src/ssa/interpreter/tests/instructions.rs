@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use acvm::{AcirField, FieldElement};
 use iter_extended::vecmap;
 use noirc_frontend::Shared;
 
@@ -20,6 +21,10 @@ use crate::ssa::{
 };
 
 use super::{executes_with_no_errors, expect_error};
+
+fn make_unfit(value: impl Into<FieldElement>, typ: NumericType) -> Value {
+    Value::unfit(value.into(), typ).unwrap()
+}
 
 #[test]
 fn add_unsigned() {
@@ -103,7 +108,8 @@ fn add_unchecked_signed() {
         }
     ",
     );
-    assert_eq!(value, Value::i8(-127));
+    assert_ne!(value, Value::i8(-128), "no wrapping");
+    assert_eq!(value, make_unfit(129u32, NumericType::signed(8)));
 }
 
 #[test]
@@ -176,7 +182,12 @@ fn sub_unchecked_unsigned() {
         }
     ",
     );
-    assert_eq!(value, Value::u8(246));
+    assert_ne!(value, Value::u8(246), "no wrapping");
+    assert_eq!(
+        value,
+        // Note that this is not the same as `Value::i8(-10).convert_to_field()`, because that casts to u8 first.
+        make_unfit(FieldElement::zero() - FieldElement::from(10u32), NumericType::unsigned(8))
+    );
 }
 
 #[test]
@@ -263,7 +274,8 @@ fn mul_unchecked_unsigned() {
         }
     ",
     );
-    assert_eq!(value, Value::u8(0));
+    assert_ne!(value, Value::u8(0), "no wrapping");
+    assert_eq!(value, make_unfit(256u32, NumericType::unsigned(8)));
 }
 
 #[test]
@@ -277,7 +289,8 @@ fn mul_unchecked_signed() {
         }
     ",
     );
-    assert_eq!(value, Value::i8(-2));
+    assert_ne!(value, Value::i8(-2), "no wrapping");
+    assert_eq!(value, make_unfit(254u32, NumericType::signed(8)));
 }
 
 #[test]
