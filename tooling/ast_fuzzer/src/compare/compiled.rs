@@ -11,7 +11,7 @@ use noirc_abi::{Abi, InputMap, input_parser::InputValue};
 use noirc_evaluator::{ErrorType, ssa::SsaProgramArtifact};
 use noirc_frontend::monomorphization::ast::Program;
 
-use crate::{Config, arb_inputs, arb_program, program_abi};
+use crate::{Config, arb_inputs, arb_program, compare::logging, program_abi};
 
 use super::{Comparable, CompareOptions, CompareResult, FailedOutput, HasPrograms, PassedOutput};
 
@@ -160,7 +160,18 @@ impl Comparable for NargoErrorWithTypes {
                         || msg.contains("division by zero")
                 })
                 || both(&msg1, &msg2, |msg| {
-                    msg.contains("attempted to shift by") || msg.contains("bit-shift with overflow")
+                    msg.contains("attempted to shift by")
+                        || msg.contains("shift with overflow")
+                        || msg.contains("shift right with overflow")
+                        || msg.contains("shift left with overflow")
+                })
+                || both(&msg1, &msg2, |msg| {
+                    // In Brillig we have constraints protecting overflows,
+                    // while in ACIR we have checked multiplication unless we know its safe.
+                    msg.contains("multiply with overflow") || msg.contains("index out of bounds")
+                })
+                || both(&msg1, &msg2, |msg| {
+                    msg.contains("add with overflow") || msg.contains("index out of bounds")
                 })
         } else {
             false
@@ -195,11 +206,15 @@ impl Comparable for NargoErrorWithTypes {
             (
                 SolvingError(OpcodeResolutionError::UnsatisfiedConstrain { .. }, _),
                 AssertionFailed(_, _, _),
-            ) => msg2.as_ref().is_some_and(|msg| msg.contains("divide by zero")),
+            ) => msg2.as_ref().is_some_and(|msg| {
+                msg.contains("divide by zero") || msg.contains("divisor of zero")
+            }),
             (
                 AssertionFailed(_, _, _),
                 SolvingError(OpcodeResolutionError::UnsatisfiedConstrain { .. }, _),
-            ) => msg1.is_some_and(|msg| msg.contains("divide by zero")),
+            ) => msg1.is_some_and(|msg| {
+                msg.contains("divide by zero") || msg.contains("divisor of zero")
+            }),
             (
                 SolvingError(OpcodeResolutionError::IndexOutOfBounds { .. }, _),
                 AssertionFailed(_, _, _),
@@ -221,7 +236,11 @@ impl Comparable for InputValue {
 
 impl std::fmt::Display for NargoErrorWithTypes {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        std::fmt::Display::fmt(&self.0, f)
+        if let Some(msg) = self.user_defined_failure_message() {
+            write!(f, "{}: {}", self.0, msg)
+        } else {
+            std::fmt::Display::fmt(&self.0, f)
+        }
     }
 }
 
@@ -239,13 +258,6 @@ impl<P> CompareCompiled<P> {
     pub fn exec(&self) -> eyre::Result<CompareCompiledResult> {
         let blackbox_solver = Bn254BlackBoxSolver(false);
         let initial_witness = self.abi.encode(&self.input_map, None).wrap_err("abi::encode")?;
-
-        log::debug!(
-            "ABI input:\n{}",
-            noirc_abi::input_parser::Format::Toml
-                .serialize(&self.input_map, &self.abi)
-                .unwrap_or_else(|e| format!("failed to serialize inputs: {e}"))
-        );
 
         let do_exec = |program| {
             let mut print = Vec::new();
@@ -298,12 +310,17 @@ impl CompareCompiled<Program> {
     ) -> arbitrary::Result<Self> {
         let program = arb_program(u, c)?;
         let abi = program_abi(&program);
+        logging::log_program(&program, "");
 
         let ssa1 = CompareArtifact::from(f(u, program.clone())?);
         let ssa2 = CompareArtifact::from(g(u, program.clone())?);
 
+        logging::log_options(&ssa1.options, "1st");
+        logging::log_options(&ssa2.options, "2nd");
+
         let input_program = &ssa1.artifact.program;
         let input_map = arb_inputs(u, input_program, &abi)?;
+        logging::log_abi_inputs(&abi, &input_map);
 
         Ok(Self { program, abi, input_map, ssa1, ssa2 })
     }
@@ -327,7 +344,12 @@ impl CompareMorph {
         g: impl Fn(Program, &CompareOptions) -> SsaProgramArtifact,
     ) -> arbitrary::Result<Self> {
         let program1 = arb_program(u, c)?;
+        logging::log_program(&program1, "orig");
+
         let (program2, options) = f(u, program1.clone())?;
+        logging::log_program(&program2, "morph");
+        logging::log_options(&options, "");
+
         let abi = program_abi(&program1);
 
         let ssa1 = g(program1.clone(), &options);
@@ -335,6 +357,7 @@ impl CompareMorph {
 
         let input_program = &ssa1.program;
         let input_map = arb_inputs(u, input_program, &abi)?;
+        logging::log_abi_inputs(&abi, &input_map);
 
         Ok(Self {
             program: (program1, program2),

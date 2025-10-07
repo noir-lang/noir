@@ -144,7 +144,7 @@ fn interpreter_value_to_ir_value(
 
             let instruction_id = dfg.make_instruction(instruction, None);
             dfg[block_id].instructions_mut().push(instruction_id);
-            *dfg.instruction_results(instruction_id).first().unwrap()
+            dfg.instruction_result::<1>(instruction_id)[0]
         }
         Type::Slice(element_types) => {
             let array = match value {
@@ -161,7 +161,7 @@ fn interpreter_value_to_ir_value(
 
             let instruction_id = dfg.make_instruction(instruction, None);
             dfg[block_id].instructions_mut().push(instruction_id);
-            *dfg.instruction_results(instruction_id).first().unwrap()
+            dfg.instruction_result::<1>(instruction_id)[0]
         }
         Type::Function | Type::Reference(_) => unreachable!("Cannot be a constant value"),
     }

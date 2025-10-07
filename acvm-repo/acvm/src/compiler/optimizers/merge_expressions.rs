@@ -10,7 +10,7 @@ use acir::{
     native_types::{Expression, Witness},
 };
 
-use crate::compiler::CircuitSimulator;
+use crate::compiler::{CircuitSimulator, optimizers::GeneralOptimizer};
 
 pub(crate) struct MergeExpressionsOptimizer<F: AcirField> {
     resolved_blocks: HashMap<BlockId, BTreeSet<Witness>>,
@@ -27,26 +27,33 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
         }
     }
     /// This pass analyzes the circuit and identifies intermediate variables that are
-    /// only used in two arithmetic opcodes. It then merges the opcode which produces the
+    /// only used in two AssertZero opcodes. It then merges the opcode which produces the
     /// intermediate variable into the second one that uses it
-    /// Note: This pass is only relevant for backends that can handle unlimited width
     ///
     /// The first pass maps witnesses to the index of the opcodes using them.
     /// Public inputs are not considered because they cannot be simplified.
     /// Witnesses used by MemoryInit opcodes are put in a separate map and marked as used by a Brillig call
     /// if the memory block is an input to the call.
     ///
-    /// The second pass looks for arithmetic opcodes having a witness which is only used by another arithmetic opcode.
+    /// The second pass looks for AssertZero opcodes having a witness which is only used by another arithmetic opcode.
     /// In that case, the opcode with the smallest index is merged into the other one via Gaussian elimination.
-    /// For instance, if we have '_1' used only by these two opcodes,
-    /// where `_{value}` refers to a witness and `{value}` refers to a constant:
-    /// [(1, _2,_3), (2, _2), (2, _1), (1, _3)]
-    /// [(2, _3, _4), (2,_1), (1, _4)]
-    /// We will remove the first one and modify the second one like this:
-    /// [(2, _3, _4), (1, _4), (-1, _2), (-1/2, _3), (-1/2, _2, _3)]
+    /// For instance, if we have 'w1' used only by these two opcodes,
+    /// `5*w2*w3` and `w1`:
+    /// w2*w3 + 2*w2 + w1 + w3 = 0   // This opcode 'defines' the variable w1
+    /// 2*w3*w4 + w1 + w4 = 0        // which is only used here
+    ///
+    /// For w1 we can say:
+    /// w1 = -1/2*w2*w3 - w2 - 1/2*w3
+    ///
+    /// Then we will remove the first one and modify the second one like this:
+    /// 2*w3*w4 + w4 - w2 - 1/2*w3 - 1/2*w2*w3 = 0
     ///
     /// This transformation is relevant for Plonk-ish backends although they have a limited width because
     /// they can potentially handle expressions with large linear combinations using 'big-add' gates.
+    ///
+    /// Pre-condition:
+    /// - This pass is only relevant for backends that can handle unlimited width
+    /// - CSAT pass should have been run prior to this one.
     pub(crate) fn eliminate_intermediate_variable(
         &mut self,
         circuit: &Circuit<F>,
@@ -107,6 +114,7 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
                             let (source, target) = if op1 < op2 { (op1, op2) } else { (op2, op1) };
                             let source_opcode = self.get_opcode(source, circuit);
                             let target_opcode = self.get_opcode(target, circuit);
+
                             if let (
                                 Some(Opcode::AssertZero(expr_use)),
                                 Some(Opcode::AssertZero(expr_define)),
@@ -199,13 +207,10 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
 
                 witnesses
             }
-            Opcode::MemoryOp { block_id: _, op, predicate } => {
-                //index, value, and predicate
+            Opcode::MemoryOp { block_id: _, op } => {
+                //index and value
                 let mut witnesses = CircuitSimulator::expr_wit(&op.index);
                 witnesses.extend(CircuitSimulator::expr_wit(&op.value));
-                if let Some(p) = predicate {
-                    witnesses.extend(CircuitSimulator::expr_wit(p));
-                }
                 witnesses
             }
 
@@ -257,7 +262,9 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
             if k.1 == w {
                 for i in &expr.linear_combinations {
                     if i.1 == w {
-                        return Some(target.add_mul(-(k.0 / i.0), expr));
+                        let expr = target.add_mul(-(k.0 / i.0), expr);
+                        let expr = GeneralOptimizer::optimize(expr);
+                        return Some(expr);
                     }
                 }
             }
@@ -300,15 +307,33 @@ mod tests {
     }
 
     #[test]
+    fn merges_expressions() {
+        let src = "
+        private parameters: [w0]
+        public parameters: []
+        return values: [w2]
+        ASSERT 2*w1 = w0 + 5
+        ASSERT w2 = 4*w1 + 4
+        ";
+        let circuit = Circuit::from_str(src).unwrap();
+        let optimized_circuit = merge_expressions(circuit.clone());
+        assert_circuit_snapshot!(optimized_circuit, @r"
+        private parameters: [w0]
+        public parameters: []
+        return values: [w2]
+        ASSERT w2 = 2*w0 + 14
+        ");
+    }
+
+    #[test]
     fn does_not_eliminate_witnesses_returned_from_brillig() {
         let src = "
-        current witness index : _1
-        private parameters indices : [_0]
-        public parameters indices : []
-        return value indices : []
-        BRILLIG CALL func 0: inputs: [], outputs: [_1]
-        EXPR [ (2, _0) (3, _1) (1, _2) 1 ]
-        EXPR [ (2, _0) (2, _1) (1, _5) 1 ]
+        private parameters: [w0]
+        public parameters: []
+        return values: []
+        BRILLIG CALL func: 0, inputs: [], outputs: [w1]
+        ASSERT 2*w0 + 3*w1 + w2 + 1 = 0
+        ASSERT 2*w0 + 2*w1 + w5 + 1 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
         let optimized_circuit = merge_expressions(circuit.clone());
@@ -318,12 +343,11 @@ mod tests {
     #[test]
     fn does_not_eliminate_witnesses_returned_from_circuit() {
         let src = "
-        current witness index : _2
-        private parameters indices : [_0]
-        public parameters indices : []
-        return value indices : [_1, _2]
-        EXPR [ (-1, _0, _0) (1, _1) 0 ]
-        EXPR [ (-1, _1) (1, _2) 0 ]
+        private parameters: [w0]
+        public parameters: []
+        return values: [w1, w2]
+        ASSERT -w0*w0 + w1 = 0
+        ASSERT -w1 + w2 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
         let optimized_circuit = merge_expressions(circuit.clone());
@@ -333,27 +357,25 @@ mod tests {
     #[test]
     fn does_not_attempt_to_merge_into_previous_opcodes() {
         let src = "
-        current witness index : _5
-        private parameters indices : [_0, _1]
-        public parameters indices : []
-        return value indices : []
-        EXPR [ (1, _0, _0) (-1, _4) 0 ]
-        EXPR [ (1, _0, _1) (1, _5) 0 ]
-        EXPR [ (-1, _2) (1, _4) (1, _5) 0 ]
-        EXPR [ (1, _2) (-1, _3) (1, _4) (1, _5) 0 ]
-        BLACKBOX::RANGE [(_3, 32)] []
+        private parameters: [w0, w1]
+        public parameters: []
+        return values: []
+        ASSERT w0*w0 - w4 = 0
+        ASSERT w0*w1 + w5 = 0
+        ASSERT -w2 + w4 + w5 = 0
+        ASSERT w2 - w3 + w4 + w5 = 0
+        BLACKBOX::RANGE input: w3, bits: 32
         ";
         let circuit = Circuit::from_str(src).unwrap();
 
         let optimized_circuit = merge_expressions(circuit);
         assert_circuit_snapshot!(optimized_circuit, @r"
-        current witness index : _5
-        private parameters indices : [_0, _1]
-        public parameters indices : []
-        return value indices : []
-        EXPR [ (1, _0, _1) (1, _5) 0 ]
-        EXPR [ (2, _0, _0) (-1, _3) (2, _5) 0 ]
-        BLACKBOX::RANGE [(_3, 32)] []
+        private parameters: [w0, w1]
+        public parameters: []
+        return values: []
+        ASSERT w5 = -w0*w1
+        ASSERT w3 = 2*w0*w0 + 2*w5
+        BLACKBOX::RANGE input: w3, bits: 32
         ");
     }
 
@@ -362,16 +384,15 @@ mod tests {
         // Regression test for https://github.com/noir-lang/noir/issues/6527
         // Previously we would not track the usage of witness 4 in the output of the blackbox function.
         // We would then merge the final two opcodes losing the check that the brillig call must match
-        // with `_0 ^ _1`.
+        // with `w0 ^ w1`.
         let src = "
-        current witness index : _7
-        private parameters indices : [_0, _1]
-        public parameters indices : []
-        return value indices : [_2]
-        BRILLIG CALL func 0: inputs: [], outputs: [_3]
-        BLACKBOX::AND [(_0, 8), (_1, 8)] [_4]
-        EXPR [ (1, _3) (-1, _4) 0 ]
-        EXPR [ (-1, _2) (1, _4) 0 ]
+        private parameters: [w0, w1]
+        public parameters: []
+        return values: [w2]
+        BRILLIG CALL func: 0, inputs: [], outputs: [w3]
+        BLACKBOX::AND inputs: [w0, w1], bits: 8, output: w4
+        ASSERT w3 - w4 = 0
+        ASSERT -w2 + w4 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
         let optimized_circuit = merge_expressions(circuit.clone());

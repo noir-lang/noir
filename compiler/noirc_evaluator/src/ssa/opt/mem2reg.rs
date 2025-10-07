@@ -424,6 +424,10 @@ impl<'f> PerFunctionContext<'f> {
                 self.analyze_possibly_simplified_instruction(references, id, false);
             }
             InsertInstructionResult::SimplifiedTo(value) => {
+                // Globals cannot contain references thus we do not need to analyze insertion which simplified to them.
+                if self.inserter.function.dfg.is_global(value) {
+                    return;
+                }
                 let value = &self.inserter.function.dfg[value];
                 if let Value::Instruction { instruction, .. } = value {
                     self.analyze_possibly_simplified_instruction(references, *instruction, true);
@@ -431,6 +435,10 @@ impl<'f> PerFunctionContext<'f> {
             }
             InsertInstructionResult::SimplifiedToMultiple(values) => {
                 for value in values {
+                    // Globals cannot contain references thus we do not need to analyze insertion which simplified to them.
+                    if self.inserter.function.dfg.is_global(value) {
+                        continue;
+                    }
                     let value = &self.inserter.function.dfg[value];
                     if let Value::Instruction { instruction, .. } = value {
                         self.analyze_possibly_simplified_instruction(
@@ -463,12 +471,12 @@ impl<'f> PerFunctionContext<'f> {
             Instruction::Load { address } => {
                 let address = *address;
 
-                let result = self.inserter.function.dfg.instruction_results(instruction)[0];
+                let [result] = self.inserter.function.dfg.instruction_result(instruction);
                 references.remember_dereference(self.inserter.function, address, result);
 
                 // If the load is known, replace it with the known value and remove the load.
                 if let Some(value) = references.get_known_value(address) {
-                    let result = self.inserter.function.dfg.instruction_results(instruction)[0];
+                    let [result] = self.inserter.function.dfg.instruction_result(instruction);
                     self.inserter.map_value(result, value);
                     self.instructions_to_remove.insert(instruction);
                 }
@@ -480,9 +488,9 @@ impl<'f> PerFunctionContext<'f> {
                     else {
                         panic!("Expected a Load instruction here");
                     };
-                    let result = self.inserter.function.dfg.instruction_results(instruction)[0];
-                    let previous_result =
-                        self.inserter.function.dfg.instruction_results(*last_load)[0];
+                    let [result] = self.inserter.function.dfg.instruction_result(instruction);
+                    let [previous_result] =
+                        self.inserter.function.dfg.instruction_result(*last_load);
                     if *previous_address == address {
                         self.inserter.map_value(result, previous_result);
                         self.instructions_to_remove.insert(instruction);
@@ -533,12 +541,12 @@ impl<'f> PerFunctionContext<'f> {
             }
             Instruction::Allocate => {
                 // Register the new reference
-                let result = self.inserter.function.dfg.instruction_results(instruction)[0];
+                let [result] = self.inserter.function.dfg.instruction_result(instruction);
                 references.expressions.insert(result, Expression::Other(result));
                 references.aliases.insert(Expression::Other(result), AliasSet::known(result));
             }
             Instruction::ArrayGet { array, .. } => {
-                let result = self.inserter.function.dfg.instruction_results(instruction)[0];
+                let [result] = self.inserter.function.dfg.instruction_result(instruction);
 
                 if self.inserter.function.dfg.type_of_value(result).contains_reference() {
                     let array = *array;
@@ -567,7 +575,7 @@ impl<'f> PerFunctionContext<'f> {
                 let element_type = self.inserter.function.dfg.type_of_value(*value);
 
                 if element_type.contains_reference() {
-                    let result = self.inserter.function.dfg.instruction_results(instruction)[0];
+                    let [result] = self.inserter.function.dfg.instruction_result(instruction);
                     let array = *array;
 
                     let expression = references.expressions.get(&array).copied();
@@ -607,12 +615,26 @@ impl<'f> PerFunctionContext<'f> {
                         .extend(references.get_aliases_for_value(*arg).iter());
                 }
                 self.mark_all_unknown(arguments, references);
+
+                // Call results might be aliases of their arguments, if they are references
+                let results = self.inserter.function.dfg.instruction_results(instruction);
+                let results_contains_references = results.iter().any(|result| {
+                    self.inserter.function.dfg.type_of_value(*result).contains_reference()
+                });
+
+                // Instead of aliasing results to arguments, because values might be nested references
+                // we'll just consider all arguments and references as now having unknown aliases.
+                if results_contains_references {
+                    for value in arguments.iter().chain(results) {
+                        self.clear_aliases(references, *value);
+                    }
+                }
             }
             Instruction::MakeArray { elements, typ } => {
                 // If `array` is an array constant that contains reference types, then insert each element
                 // as a potential alias to the array itself.
                 if typ.contains_reference() {
-                    let array = self.inserter.function.dfg.instruction_results(instruction)[0];
+                    let [array] = self.inserter.function.dfg.instruction_result(instruction);
 
                     let expr = Expression::ArrayElement(array);
                     references.expressions.insert(array, expr);
@@ -622,7 +644,7 @@ impl<'f> PerFunctionContext<'f> {
                 }
             }
             Instruction::IfElse { then_value, else_value, .. } => {
-                let result = self.inserter.function.dfg.instruction_results(instruction)[0];
+                let [result] = self.inserter.function.dfg.instruction_result(instruction);
                 let result_type = self.inserter.function.dfg.type_of_value(result);
 
                 if result_type.contains_reference() {
@@ -668,6 +690,22 @@ impl<'f> PerFunctionContext<'f> {
             references.expressions.entry(address).or_insert(Expression::Other(address));
         let aliases = references.aliases.entry(*expression).or_default();
         *aliases = new_aliases;
+    }
+
+    fn clear_aliases(&self, references: &mut Block, value: ValueId) {
+        if !self.inserter.function.dfg.type_of_value(value).contains_reference() {
+            return;
+        }
+
+        if let Some(expression) = references.expressions.get(&value) {
+            references.aliases.remove(expression);
+        }
+
+        if let Some((values, _)) = self.inserter.function.dfg.get_array_constant(value) {
+            for value in values {
+                self.clear_aliases(references, value);
+            }
+        }
     }
 
     fn mark_all_unknown(&self, values: &[ValueId], references: &mut Block) {
@@ -1112,7 +1150,7 @@ mod tests {
             jmp b1(v8)
         }
         acir(inline) fn foo f1 {
-          b0(v0: &mut Field):
+          b0(v0: &mut &mut Field):
             return
         }
         ";
@@ -2176,7 +2214,7 @@ mod tests {
             v11 = load v4 -> u32
             v12 = load v5 -> u1
             inc_rc v10
-            v15 = call poseidon2_permutation(v10, u32 4) -> [Field; 4]
+            v15 = call poseidon2_permutation(v10) -> [Field; 4]
             v16 = load v2 -> [Field; 3]
             v17 = load v3 -> [Field; 4]
             v18 = load v4 -> u32
@@ -2231,40 +2269,40 @@ mod tests {
             v7 = lt v4, u32 3
             jmpif v7 then: b2, else: b3
           b2():
-            v15 = load v0 -> [Field; 3]
-            v16 = load v1 -> [Field; 4]
-            v17 = load v2 -> u32
-            v18 = load v3 -> u1
-            v19 = lt v4, v17
-            jmpif v19 then: b4, else: b5
+            v14 = load v0 -> [Field; 3]
+            v15 = load v1 -> [Field; 4]
+            v16 = load v2 -> u32
+            v17 = load v3 -> u1
+            v18 = lt v4, v16
+            jmpif v18 then: b4, else: b5
           b3():
             v8 = load v0 -> [Field; 3]
             v9 = load v1 -> [Field; 4]
             v10 = load v2 -> u32
             v11 = load v3 -> u1
             inc_rc v9
-            v14 = call poseidon2_permutation(v9, u32 4) -> [Field; 4]
+            v13 = call poseidon2_permutation(v9) -> [Field; 4]
             store v8 at v0
-            store v14 at v1
+            store v13 at v1
             store v10 at v2
             store v11 at v3
             return
           b4():
             v20 = lt v4, u32 4
             constrain v20 == u1 1, "Index out of bounds"
-            v22 = array_get v16, index v4 -> Field
+            v22 = array_get v15, index v4 -> Field
             v23 = lt v4, u32 3
             constrain v23 == u1 1, "Index out of bounds"
-            v24 = array_get v15, index v4 -> Field
+            v24 = array_get v14, index v4 -> Field
             v25 = add v22, v24
             v26 = lt v4, u32 4
             constrain v26 == u1 1, "Index out of bounds"
-            v27 = array_set v16, index v4, value v25
+            v27 = array_set v15, index v4, value v25
             v29 = unchecked_add v4, u32 1
-            store v15 at v0
+            store v14 at v0
             store v27 at v1
-            store v17 at v2
-            store v18 at v3
+            store v16 at v2
+            store v17 at v3
             jmp b5()
           b5():
             v30 = unchecked_add v4, u32 1
@@ -2326,5 +2364,134 @@ mod tests {
         }
         "
         );
+    }
+
+    #[test]
+    fn simplify_to_global_instruction() {
+        // We want to have more global instructions than instructions in the function as we want
+        // to test that we never attempt to access a function's instruction map using a global instruction index.
+        // If we were to access the function's instruction map using the global instruction index in this case
+        // we would expect to hit an OOB panic.
+        // We also want to make sure that we simplify to a make array instructions as global constants will
+        // resolve directly to a constant.
+        let src = "
+        g0 = Field 1
+        g1 = Field 2
+        g2 = Field 3
+        g3 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g4 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g5 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g6 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g7 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g8 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g9 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g10 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g11 = make_array [g10, g10, g10] : [[Field; 3]; 3]
+
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut [[Field; 3]; 3]
+            store g11 at v0
+            v1 = load v0 -> [[Field; 3]; 3]
+            v3 = array_get v1, index u32 0 -> [Field; 3]
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+
+        assert_ssa_snapshot!(ssa, @r"
+        g0 = Field 1
+        g1 = Field 2
+        g2 = Field 3
+        g3 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g4 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g5 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g6 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g7 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g8 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g9 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g10 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g11 = make_array [g10, g10, g10] : [[Field; 3]; 3]
+
+        acir(inline) fn main f0 {
+          b0():
+            v12 = allocate -> &mut [[Field; 3]; 3]
+            return g10
+        }
+        ");
+    }
+
+    #[test]
+    fn correctly_aliases_references_in_call_return_values_to_arguments_with_simple_values() {
+        // Here v2 could be an alias of v1, and in fact it is, so the second store to v1
+        // should invalidate the value at v2.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = allocate -> &mut Field
+            store v0 at v1
+            v2 = call f1(v1) -> &mut Field
+            store Field 1 at v2
+            store Field 2 at v1
+            v8 = load v2 -> Field
+            constrain v8 == Field 2
+            return
+        }
+        acir(inline) fn helper f1 {
+          b0(v0: &mut Field):
+            return v0
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    #[test]
+    fn correctly_aliases_references_in_call_return_values_to_arguments_with_arrays() {
+        // Similar to the previous test except that arrays with references are passed and returned
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = allocate -> &mut Field
+            store v0 at v1
+            v3 = make_array [v1] : [&mut Field; 1]
+            v4 = call f1(v3) -> [&mut Field; 1]
+            v5 = array_get v4, index u32 0 -> &mut Field
+            store Field 1 at v5
+            store Field 2 at v1
+            v8 = load v5 -> Field
+            constrain v8 == Field 2
+            return
+        }
+        acir(inline) fn helper f1 {
+          b0(v0: [&mut Field; 1]):
+            return v0
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    #[test]
+    fn correctly_aliases_references_in_call_return_values_to_arguments_with_existing_aliases() {
+        // Here v0 and v1 are aliases of each other. When we pass v1 to the call v2 could be
+        // an alias of v1. Then when storing to v2 we should invalidate the value at v1 but also
+        // at v0.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: &mut Field, v1: &mut Field):
+            store Field 0 at v1
+            v2 = call f1(v1) -> &mut Field
+            store Field 1 at v2
+            store Field 2 at v0
+            v8 = load v2 -> Field
+            constrain v8 == Field 2
+            return
+        }
+        acir(inline) fn helper f1 {
+          b0(v0: &mut Field):
+            return v0
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 }

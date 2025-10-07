@@ -27,11 +27,13 @@ impl SpannedToken {
 pub(crate) enum Token {
     /// Identifier such as `RANGE`, `AND`, etc.
     Ident(String),
-    /// Reserved identifiers such as `EXPR`.
+    /// Reserved identifiers such as `CONSTRAIN`.
     /// Most words in ACIR's human readable are expected to be keywords
     Keyword(Keyword),
-    /// Witness index, like `_42`
+    /// Witness index, like `w42`
     Witness(u32),
+    /// Block index, like `b42`
+    Block(u32),
     /// Integer value represented using the underlying native field element
     Int(FieldElement),
     /// :
@@ -48,6 +50,14 @@ pub(crate) enum Token {
     LeftParen,
     /// )
     RightParen,
+    /// +
+    Plus,
+    /// -
+    Minus,
+    /// *
+    Star,
+    /// =
+    Equal,
     Eof,
 }
 
@@ -66,7 +76,8 @@ impl std::fmt::Display for Token {
         match self {
             Token::Ident(ident) => write!(f, "{ident}"),
             Token::Keyword(keyword) => write!(f, "{keyword}"),
-            Token::Witness(index) => write!(f, "_{index}"),
+            Token::Witness(index) => write!(f, "w{index}"),
+            Token::Block(index) => write!(f, "b{index}"),
             Token::Int(int) => write!(f, "{int}"),
             Token::Colon => write!(f, ":"),
             Token::Semicolon => write!(f, ";"),
@@ -75,6 +86,10 @@ impl std::fmt::Display for Token {
             Token::RightBracket => write!(f, "]"),
             Token::LeftParen => write!(f, "("),
             Token::RightParen => write!(f, ")"),
+            Token::Plus => write!(f, "+"),
+            Token::Minus => write!(f, "-"),
+            Token::Star => write!(f, "*"),
+            Token::Equal => write!(f, "="),
             Token::Eof => write!(f, "(end of stream)"),
         }
     }
@@ -83,37 +98,33 @@ impl std::fmt::Display for Token {
 /// ACIR human readable text format keywords
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum Keyword {
-    /// current
-    Current,
-    /// witness
-    Witness,
-    /// index
-    Index,
     /// private
     Private,
     /// parameters
     Parameters,
-    /// indices
-    Indices,
     /// public
     Public,
     /// return
     Return,
     /// value
     Value,
-    /// EXPR
-    Expression,
+    /// values
+    Values,
+    /// ASSERT
+    Assert,
     /// BLACKBOX
     BlackBoxFuncCall,
-    /// MEM
-    MemoryOp,
     /// INIT
     MemoryInit,
+    /// READ
+    MemoryRead,
+    /// WRITE
+    MemoryWrite,
     /// BRILLIG
     Brillig,
     /// CALL
     Call,
-    /// PREDICATE
+    /// predicate
     Predicate,
     /// CALLDATA
     CallData,
@@ -121,30 +132,43 @@ pub(crate) enum Keyword {
     ReturnData,
     /// func
     Function,
+    /// input
+    Input,
+    /// inputs
+    Inputs,
+    /// output
+    Output,
+    /// outputs
+    Outputs,
+    /// bits
+    Bits,
 }
 
 impl Keyword {
     pub(super) fn lookup_keyword(word: &str) -> Option<Token> {
         let keyword = match word {
-            "current" => Keyword::Current,
-            "witness" => Keyword::Witness,
-            "index" => Keyword::Index,
             "private" => Keyword::Private,
             "parameters" => Keyword::Parameters,
-            "indices" => Keyword::Indices,
             "public" => Keyword::Public,
             "return" => Keyword::Return,
             "value" => Keyword::Value,
-            "EXPR" => Keyword::Expression,
+            "values" => Keyword::Values,
+            "ASSERT" => Keyword::Assert,
             "BLACKBOX" => Keyword::BlackBoxFuncCall,
-            "MEM" => Keyword::MemoryOp,
             "INIT" => Keyword::MemoryInit,
+            "READ" => Keyword::MemoryRead,
+            "WRITE" => Keyword::MemoryWrite,
             "BRILLIG" => Keyword::Brillig,
             "CALL" => Keyword::Call,
-            "PREDICATE" => Keyword::Predicate,
+            "predicate" => Keyword::Predicate,
             "CALLDATA" => Keyword::CallData,
             "RETURNDATA" => Keyword::ReturnData,
             "func" => Keyword::Function,
+            "input" => Keyword::Input,
+            "inputs" => Keyword::Inputs,
+            "output" => Keyword::Output,
+            "outputs" => Keyword::Outputs,
+            "bits" => Keyword::Bits,
             _ => return None,
         };
         Some(Token::Keyword(keyword))
@@ -154,25 +178,28 @@ impl Keyword {
 impl std::fmt::Display for Keyword {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Keyword::Current => write!(f, "current"),
-            Keyword::Witness => write!(f, "witness"),
-            Keyword::Index => write!(f, "index"),
             Keyword::Private => write!(f, "private"),
             Keyword::Parameters => write!(f, "parameters"),
-            Keyword::Indices => write!(f, "indices"),
             Keyword::Public => write!(f, "public"),
             Keyword::Return => write!(f, "return"),
             Keyword::Value => write!(f, "value"),
-            Keyword::Expression => write!(f, "EXPR"),
+            Keyword::Values => write!(f, "values"),
+            Keyword::Assert => write!(f, "ASSERT"),
             Keyword::BlackBoxFuncCall => write!(f, "BLACKBOX"),
-            Keyword::MemoryOp => write!(f, "MEM"),
             Keyword::MemoryInit => write!(f, "INIT"),
+            Keyword::MemoryRead => write!(f, "READ"),
+            Keyword::MemoryWrite => write!(f, "WRITE"),
             Keyword::Brillig => write!(f, "BRILLIG"),
             Keyword::Call => write!(f, "CALL"),
-            Keyword::Predicate => write!(f, "PREDICATE"),
+            Keyword::Predicate => write!(f, "predicate"),
             Keyword::CallData => write!(f, "CALLDATA"),
             Keyword::ReturnData => write!(f, "RETURNDATA"),
             Keyword::Function => write!(f, "func"),
+            Keyword::Input => write!(f, "input"),
+            Keyword::Inputs => write!(f, "inputs"),
+            Keyword::Output => write!(f, "output"),
+            Keyword::Outputs => write!(f, "outputs"),
+            Keyword::Bits => write!(f, "bits"),
         }
     }
 }

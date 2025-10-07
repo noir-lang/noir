@@ -355,12 +355,8 @@ impl BlockContext {
                     /*is constant =*/ false,
                     safe_index,
                 );
-                if let Some((value, is_references)) = value {
-                    if !is_references {
-                        self.store_variable(&value);
-                    } else {
-                        panic!("References are not supported for array get with dynamic index");
-                    }
+                if let Some(value) = value {
+                    self.store_variable(&value);
                 }
             }
             Instruction::ArraySet { array_index, index, value_index, safe_index } => {
@@ -384,22 +380,16 @@ impl BlockContext {
                     value_index,
                     safe_index,
                 );
-                if let Some((new_array, is_references)) = new_array {
-                    if is_references {
-                        panic!("References are not supported for array set with dynamic index");
-                    }
-                    let element_type = new_array.type_of_variable.unwrap_array_element_type();
-                    match element_type {
-                        Type::Numeric(_element_type) => {
-                            self.store_variable(&new_array);
-                        }
-                        _ => panic!("Expected NumericType, found {element_type:?}"),
-                    }
+                if let Some(new_array) = new_array {
+                    self.store_variable(&new_array);
                 }
             }
             Instruction::ArrayGetWithConstantIndex { array_index, index, safe_index } => {
+                // Array index should be limited to 32 bits
+                // Otherwise it fails at compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:133:40:
+                let index_32_bits = index & (u32::MAX as usize);
                 // insert constant index
-                let index_id = builder.insert_constant(index, NumericType::U32);
+                let index_id = builder.insert_constant(index_32_bits, NumericType::U32);
                 let value = self.insert_array_get(
                     builder,
                     array_index,
@@ -407,7 +397,7 @@ impl BlockContext {
                     /*is constant =*/ true,
                     safe_index,
                 );
-                if let Some((value, _is_references)) = value {
+                if let Some(value) = value {
                     self.store_variable(&value);
                 }
             }
@@ -417,8 +407,11 @@ impl BlockContext {
                 value_index,
                 safe_index,
             } => {
+                // Array index should be limited to 32 bits
+                // Otherwise it fails at compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:133:40:
+                let index_32_bits = index & (u32::MAX as usize);
                 // insert constant index
-                let index_id = builder.insert_constant(index, NumericType::U32);
+                let index_id = builder.insert_constant(index_32_bits, NumericType::U32);
                 let new_array = self.insert_array_set(
                     builder,
                     array_index,
@@ -427,37 +420,14 @@ impl BlockContext {
                     value_index,
                     safe_index,
                 );
-                if let Some((new_array, is_references)) = new_array {
-                    let element_type = match new_array.type_of_variable.clone() {
-                        Type::Array(elements_type, _) => elements_type[0].clone(),
-                        _ => panic!("Expected ArrayType, found {:?}", new_array.type_of_variable),
-                    };
-                    match element_type {
-                        Type::Numeric(_element_type) => {
-                            assert!(
-                                !is_references,
-                                "Encountered numeric element in an array with references"
-                            );
-                            self.store_variable(&new_array);
-                        }
-                        Type::Reference(type_ref) => {
-                            assert!(
-                                is_references,
-                                "Encountered reference element in an array without references"
-                            );
-                            assert!(
-                                type_ref.is_numeric(),
-                                "Expected reference to a numeric type, found {type_ref:?}"
-                            );
-                            self.store_variable(&new_array);
-                        }
-                        _ => {
-                            panic!("Expected NumericType or ReferenceType, found {element_type:?}")
-                        }
-                    }
+                if let Some(new_array) = new_array {
+                    self.store_variable(&new_array);
                 }
             }
             Instruction::FieldToBytesToField { field_idx } => {
+                if !self.options.instruction_options.field_to_bytes_to_field_enabled {
+                    return;
+                }
                 let field = self.get_stored_variable(&Type::Numeric(NumericType::Field), field_idx);
                 let field = match field {
                     Some(field) => field,
@@ -468,6 +438,9 @@ impl BlockContext {
                 self.store_variable(&field);
             }
             Instruction::Blake2sHash { field_idx, limbs_count } => {
+                if !self.options.instruction_options.blake2s_hash_enabled {
+                    return;
+                }
                 let input = self.get_stored_variable(&Type::Numeric(NumericType::Field), field_idx);
                 let input = match input {
                     Some(input) => input,
@@ -482,6 +455,9 @@ impl BlockContext {
                 self.store_variable(&hash_as_field);
             }
             Instruction::Blake3Hash { field_idx, limbs_count } => {
+                if !self.options.instruction_options.blake3_hash_enabled {
+                    return;
+                }
                 let input = self.get_stored_variable(&Type::Numeric(NumericType::Field), field_idx);
                 let input = match input {
                     Some(input) => input,
@@ -496,6 +472,9 @@ impl BlockContext {
                 self.store_variable(&hash_as_field);
             }
             Instruction::Keccakf1600Hash { u64_indices, load_elements_of_array } => {
+                if !self.options.instruction_options.keccakf1600_hash_enabled {
+                    return;
+                }
                 let input = match self.insert_array(
                     builder,
                     u64_indices.to_vec(),
@@ -520,6 +499,9 @@ impl BlockContext {
                 }
             }
             Instruction::Aes128Encrypt { input_idx, input_limbs_count, key_idx, iv_idx } => {
+                if !self.options.instruction_options.aes128_encrypt_enabled {
+                    return;
+                }
                 if input_limbs_count == 0 {
                     return;
                 }
@@ -554,6 +536,9 @@ impl BlockContext {
                 state_indices,
                 load_elements_of_array,
             } => {
+                if !self.options.instruction_options.sha256_compression_enabled {
+                    return;
+                }
                 let input = match self.insert_array(
                     builder,
                     input_indices.to_vec(),
@@ -585,7 +570,7 @@ impl BlockContext {
                     }
                 }
             }
-            Instruction::PointAdd { p1, p2 } => {
+            Instruction::PointAdd { p1, p2, predicate } => {
                 if !self.options.instruction_options.point_add_enabled {
                     return;
                 }
@@ -596,12 +581,12 @@ impl BlockContext {
                 }
                 let p1 = p1.unwrap();
                 let p2 = p2.unwrap();
-                let acir_point = builder.point_add(p1.clone(), p2.clone());
+                let acir_point = builder.point_add(p1.clone(), p2.clone(), predicate);
                 for typed_value in [&acir_point.x, &acir_point.y, &acir_point.is_infinite] {
                     self.store_variable(typed_value);
                 }
             }
-            Instruction::MultiScalarMul { points_and_scalars } => {
+            Instruction::MultiScalarMul { points_and_scalars, predicate } => {
                 if !self.options.instruction_options.multi_scalar_mul_enabled {
                     return;
                 }
@@ -622,7 +607,8 @@ impl BlockContext {
                 if points_vec.len() != scalars_vec.len() {
                     unreachable!("points_vec.len() != scalars_vec.len()");
                 }
-                let point = builder.multi_scalar_mul(points_vec.clone(), scalars_vec.clone());
+                let point =
+                    builder.multi_scalar_mul(points_vec.clone(), scalars_vec.clone(), predicate);
                 for typed_value in [&point.x, &point.y, &point.is_infinite] {
                     self.store_variable(typed_value);
                 }
@@ -633,6 +619,7 @@ impl BlockContext {
                 corrupt_pubkey_x,
                 corrupt_pubkey_y,
                 corrupt_signature,
+                predicate,
             } => {
                 if !self.options.instruction_options.ecdsa_secp256r1_enabled {
                     return;
@@ -650,6 +637,7 @@ impl BlockContext {
                     prepared_signature.public_key_y.clone(),
                     prepared_signature.hash.clone(),
                     prepared_signature.signature.clone(),
+                    predicate,
                 );
                 self.store_variable(&result);
             }
@@ -659,6 +647,7 @@ impl BlockContext {
                 corrupt_pubkey_x,
                 corrupt_pubkey_y,
                 corrupt_signature,
+                predicate,
             } => {
                 if !self.options.instruction_options.ecdsa_secp256k1_enabled {
                     return;
@@ -676,6 +665,7 @@ impl BlockContext {
                     prepared_signature.public_key_y.clone(),
                     prepared_signature.hash.clone(),
                     prepared_signature.signature.clone(),
+                    predicate,
                 );
                 self.store_variable(&result);
             }
@@ -746,7 +736,7 @@ impl BlockContext {
     /// * `safe_index` - If true, the index will be taken modulo the array length
     ///
     /// # Returns
-    /// * (TypedValue, is_references)
+    /// * TypedValue
     /// * None if the instruction is not enabled or the array is not stored
     fn insert_array_get(
         &mut self,
@@ -755,7 +745,7 @@ impl BlockContext {
         index: TypedValue,
         index_is_constant: bool,
         safe_index: bool,
-    ) -> Option<(TypedValue, bool)> {
+    ) -> Option<TypedValue> {
         if !self.options.instruction_options.array_get_enabled
             || !self.options.instruction_options.create_array_enabled
         {
@@ -774,7 +764,7 @@ impl BlockContext {
             _ => return None,
         };
         // references are not supported for array get with dynamic index
-        if array.type_of_variable.is_reference() && !index_is_constant {
+        if array.type_of_variable.type_contains_reference() && !index_is_constant {
             return None;
         }
         // cast the index to u32
@@ -785,7 +775,7 @@ impl BlockContext {
             array.type_of_variable.unwrap_array_element_type(),
             safe_index,
         );
-        Some((value, array.type_of_variable.is_reference()))
+        Some(value)
     }
 
     /// Inserts an array set instruction
@@ -798,7 +788,7 @@ impl BlockContext {
     /// * `safe_index` - If true, the index will be taken modulo the array length
     ///
     /// # Returns
-    /// * (TypedValue referencing the new array, is_references)
+    /// * TypedValue referencing the new array
     /// * None if the instruction is not enabled or the array is not stored
     fn insert_array_set(
         &mut self,
@@ -808,7 +798,7 @@ impl BlockContext {
         index_is_constant: bool,
         value_index: usize,
         safe_index: bool,
-    ) -> Option<(TypedValue, bool)> {
+    ) -> Option<TypedValue> {
         if !self.options.instruction_options.array_set_enabled {
             return None;
         }
@@ -826,7 +816,7 @@ impl BlockContext {
         };
 
         let is_array_of_references =
-            array.type_of_variable.unwrap_array_element_type().is_reference();
+            array.type_of_variable.unwrap_array_element_type().type_contains_reference();
         // get the array from the stored arrays
         // references are not supported for array set with dynamic index
         if is_array_of_references && !index_is_constant {
@@ -840,7 +830,7 @@ impl BlockContext {
         };
         let new_array =
             builder.insert_array_set(array.clone(), index.clone(), value.clone(), safe_index);
-        Some((new_array, is_array_of_references))
+        Some(new_array)
     }
 
     pub(crate) fn insert_instructions(

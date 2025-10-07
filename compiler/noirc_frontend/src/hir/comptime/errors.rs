@@ -512,6 +512,8 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             InterpreterError::InvalidValuesForBinary { lhs, rhs, operator, location } => {
                 let msg = if *operator == "/" {
                     "Attempt to divide by zero".to_string()
+                } else if *operator == "%" {
+                    "Attempt to calculate the remainder with a divisor of zero".to_string()
                 } else {
                     format!("No implementation for `{lhs}` {operator} `{rhs}`")
                 };

@@ -1,3 +1,5 @@
+// TODO(sn): separate to features
+#![allow(dead_code)]
 pub(crate) mod redis;
 use crate::fuzz_lib::fuzzer::FuzzerOutput;
 use base64::{Engine as _, engine::general_purpose};

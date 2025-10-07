@@ -7,7 +7,7 @@
 //! through nargo, which speeds up execution but also currently
 //! has some issues (inability to use prints among others).
 use crate::targets::default_config;
-use crate::{compare_results_comptime, create_ssa_or_die, default_ssa_options};
+use crate::{compare_results_comptime, compile_into_circuit_or_die, default_ssa_options};
 use arbitrary::Unstructured;
 use color_eyre::eyre;
 use noir_ast_fuzzer::Config;
@@ -36,7 +36,7 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
 
     let inputs = CompareComptime::arb(u, config, |program| {
         let options = CompareOptions::default();
-        let ssa = create_ssa_or_die(
+        let ssa = compile_into_circuit_or_die(
             change_all_functions_into_unconstrained(program),
             &options.onto(default_ssa_options()),
             Some("brillig"),
@@ -46,7 +46,7 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
 
     let result = inputs.exec_direct(|program| {
         let options = CompareOptions::default();
-        let ssa = create_ssa_or_die(
+        let ssa = compile_into_circuit_or_die(
             program,
             &options.onto(default_ssa_options()),
             Some("comptime_result_wrapper"),
@@ -62,7 +62,6 @@ mod tests {
 
     /// ```ignore
     /// NOIR_AST_FUZZER_SEED=0x6819c61400001000 \
-    /// NOIR_AST_FUZZER_SHOW_AST=1 \
     /// cargo test -p noir_ast_fuzzer_fuzz comptime_vs_brillig_direct
     /// ```
     #[test]
