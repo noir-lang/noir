@@ -817,6 +817,31 @@ mod test {
         assert_normalized_ssa_equals(ssa, expected);
     }
 
+    // TODO: https://github.com/noir-lang/noir/issues/9767
+    #[test]
+    fn constant_fold_duplicated_field_divisions() {
+        // We should remove the duplicated field inversions here.
+        let src = "
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: Field):
+            v1 = div Field 1, v0
+            v2 = div Field 1, v0
+            return
+        }";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants(MIN_ITER);
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: Field):
+            v2 = div Field 1, v0
+            v3 = div Field 1, v0
+            return
+        }
+        ");
+    }
+
     #[test]
     fn constant_index_array_access_deduplication() {
         // After constructing this IR, we run constant folding which should replace the second constant-index array get
