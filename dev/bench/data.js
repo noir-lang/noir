@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1759845727120,
+  "lastUpdate": 1759846298581,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23421,48 +23421,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "fc711e345c4f7a334e3f009c8edf60f5f6aea817",
-          "message": "chore(acir): avoid duplication when invoking brillig stdlib call (#10025)",
-          "timestamp": "2025-09-29T15:48:15Z",
-          "tree_id": "9539426e9fc373ab598cc66626edbb8376b99e28",
-          "url": "https://github.com/noir-lang/noir/commit/fc711e345c4f7a334e3f009c8edf60f5f6aea817"
-        },
-        "date": 1759162445226,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 251408,
-            "range": "± 1574",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 223092,
-            "range": "± 5573",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2780783,
-            "range": "± 1445",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -25514,6 +25472,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2791241,
             "range": "± 13214",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "75c7d69cf14633c6ce8de84e1e204bdf8ecc33bd",
+          "message": "chore: use `u64` over `Field` in template program (#10096)",
+          "timestamp": "2025-10-07T13:43:36Z",
+          "tree_id": "52f81abe1d2767491806e41e6282c76a787c0396",
+          "url": "https://github.com/noir-lang/noir/commit/75c7d69cf14633c6ce8de84e1e204bdf8ecc33bd"
+        },
+        "date": 1759846275280,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 266294,
+            "range": "± 1513",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 233571,
+            "range": "± 2739",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2787928,
+            "range": "± 4590",
             "unit": "ns/iter"
           }
         ]
