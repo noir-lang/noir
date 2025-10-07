@@ -386,8 +386,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
     /// Look up an array index.
     ///
-    /// If the value exists but it's `Unfit`, returns `IndexOutOfBounds` with `u32::MAX` as the index,
-    /// to hint at the likely overflow that happened during index arithmetic.
+    /// If the value exists but it's `Unfit`, returns `IndexOutOfBounds`.
     fn lookup_array_index(
         &self,
         value_id: ValueId,
@@ -395,18 +394,14 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         length: u32,
     ) -> IResult<u32> {
         self.lookup_helper(value_id, instruction, "u32", Value::as_u32).map_err(|e| {
-            if !matches!(e, InterpreterError::Internal(InternalError::TypeError { .. })) {
-                return e;
+            if matches!(e, InterpreterError::Internal(InternalError::TypeError { .. })) {
+                if let Ok(Value::Numeric(NumericValue::U32(Fitted::Unfit(index)))) =
+                    self.lookup(value_id)
+                {
+                    return InterpreterError::IndexOutOfBounds { index, length };
+                }
             }
-            if !self
-                .lookup(value_id)
-                .ok()
-                .and_then(|v| v.as_numeric())
-                .is_some_and(|n| n.is_unfit())
-            {
-                return e;
-            }
-            InterpreterError::IndexOutOfBounds { index: u32::MAX, length }
+            e
         })
     }
 
@@ -981,7 +976,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             // a zeroed type is used in case of array get
             // So we can simply replace it with uninitialized value
             if side_effects_enabled {
-                return Err(InterpreterError::IndexOutOfBounds { index, length });
+                return Err(InterpreterError::IndexOutOfBounds { index: index.into(), length });
             } else {
                 let typ = self.dfg().type_of_value(result);
                 Value::uninitialized(&typ, result)
@@ -1002,7 +997,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             let elements = array.elements.borrow();
             let element = elements
                 .get(index as usize)
-                .ok_or(InterpreterError::IndexOutOfBounds { index, length })?;
+                .ok_or(InterpreterError::IndexOutOfBounds { index: index.into(), length })?;
 
             // Either return a fresh nested array (in constrained context) or just clone the element.
             if !self.in_unconstrained_context() {
@@ -1050,7 +1045,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 if self.in_unconstrained_context() { *array.rc.borrow() == 1 } else { mutable };
 
             if index >= length {
-                return Err(InterpreterError::IndexOutOfBounds { index, length });
+                return Err(InterpreterError::IndexOutOfBounds { index: index.into(), length });
             }
 
             if should_mutate {

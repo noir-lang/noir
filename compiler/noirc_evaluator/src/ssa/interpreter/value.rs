@@ -533,21 +533,6 @@ impl NumericValue {
             typ => Err(Internal(UnsupportedNumericType { typ })),
         }
     }
-
-    pub(crate) fn is_unfit(&self) -> bool {
-        matches!(
-            self,
-            NumericValue::U8(Fitted::Unfit(_))
-                | NumericValue::U16(Fitted::Unfit(_))
-                | NumericValue::U32(Fitted::Unfit(_))
-                | NumericValue::U64(Fitted::Unfit(_))
-                | NumericValue::U128(Fitted::Unfit(_))
-                | NumericValue::I8(Fitted::Unfit(_))
-                | NumericValue::I16(Fitted::Unfit(_))
-                | NumericValue::I32(Fitted::Unfit(_))
-                | NumericValue::I64(Fitted::Unfit(_))
-        )
-    }
 }
 
 impl std::fmt::Display for Value {
