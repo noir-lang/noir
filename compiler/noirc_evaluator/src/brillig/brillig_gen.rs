@@ -4,6 +4,7 @@ pub(crate) mod brillig_block;
 pub(crate) mod brillig_block_variables;
 pub(crate) mod brillig_fn;
 pub(crate) mod brillig_globals;
+mod brillig_instructions;
 pub(crate) mod brillig_slice_ops;
 pub(crate) mod constant_allocation;
 mod variable_liveness;

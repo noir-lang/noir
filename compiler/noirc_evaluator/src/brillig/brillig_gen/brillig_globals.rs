@@ -23,8 +23,6 @@ pub(crate) struct BrilligGlobals {
     pub(crate) ssa_to_brillig: SsaToBrilligGlobals,
     /// Mapping of constant values hoisted to global memory
     pub(crate) hoisted_constants: HoistedConstantsToBrilligGlobals,
-    /// Size of global memory in the VM
-    pub(crate) globals_size: usize,
 }
 
 /// Mapping of SSA value ids to their Brillig allocations
@@ -61,8 +59,8 @@ impl BrilligGlobals {
             }
         }
 
-        // Aggregate hoisted constants from reachable functions
-        let mut hoisted_constants = BTreeSet::new();
+        // Hoist constants shared across functions
+        let mut constant_counts = ConstantCounterMap::default();
         for &func_id in &brillig_reachable_function_ids {
             let func = &ssa.functions[&func_id];
             let constants = ConstantAllocation::from_function(func);
@@ -70,10 +68,16 @@ impl BrilligGlobals {
                 let value = func.dfg.get_numeric_constant(c).unwrap();
                 let typ = func.dfg.type_of_value(c).unwrap_numeric();
                 if !func.dfg.is_global(c) {
-                    hoisted_constants.insert((value, typ));
+                    *constant_counts.entry((value, typ)).or_insert(0) += 1;
                 }
             }
         }
+
+        let hoisted_constants: BTreeSet<_> = constant_counts
+            .into_iter()
+            .filter(|(_, count)| *count > 1)
+            .map(|(const_key, _)| const_key)
+            .collect();
 
         // SSA Globals are computed once at compile time and shared across all functions,
         // thus we can just fetch globals from the main function.
@@ -87,7 +91,7 @@ impl BrilligGlobals {
         brillig.globals = artifact;
         brillig.globals_memory_size = globals_size;
 
-        Self { ssa_to_brillig, hoisted_constants, globals_size }
+        Self { ssa_to_brillig, hoisted_constants }
     }
 }
 

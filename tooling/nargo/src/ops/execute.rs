@@ -1,9 +1,9 @@
 use acvm::acir::circuit::brillig::BrilligBytecode;
 use acvm::acir::circuit::{OpcodeLocation, Program};
 use acvm::acir::native_types::WitnessStack;
-use acvm::brillig_vm::{BranchToFeatureMap, Memory, MemoryValue, VM};
+use acvm::brillig_vm::{BranchToFeatureMap, MemoryValue, VM};
 use acvm::pwg::{
-    ACVM, ACVMStatus, BrilligSolver, ErrorLocation, OpcodeNotSolvable, OpcodeResolutionError,
+    ACVM, ACVMStatus, ErrorLocation, OpcodeNotSolvable, OpcodeResolutionError,
     ProfilingSamples,
 };
 use acvm::{AcirField, BlackBoxFunctionSolver};
@@ -280,7 +280,7 @@ pub(crate) fn execute_program_with_brillig_fuzzing<
             status.is_finished(),
             "We expect no status other than success for global initialization"
         );
-        vm.take_memory()
+        vm.take_memory().take_values()
     } else {
         vec![]
     };
@@ -324,7 +324,7 @@ pub(crate) fn execute_program_with_acir_fuzzing<
             status.is_finished(),
             "We expect no status other than success for global initialization"
         );
-        vm.take_memory()
+        vm.take_memory().take_values()
     } else {
         vec![]
     };
@@ -366,7 +366,7 @@ fn execute_program_inner<F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignC
     profiling_active: bool,
 ) -> Result<(WitnessStack<F>, ProfilingSamples), NargoError<F>> {
     let unconstrained_global_memory = if let Some(globals) = &program.unconstrained_global_memory {
-        // TODO: we can 
+        // TODO: we can
         if globals.bytecode.is_empty() {
             vec![]
         } else {
@@ -380,7 +380,7 @@ fn execute_program_inner<F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignC
             //     status.is_finished(),
             //     "We expect no status other than success for global initialization"
             // );
-            vm.take_memory()
+            vm.take_memory().take_values()
         }
     } else {
         vec![]

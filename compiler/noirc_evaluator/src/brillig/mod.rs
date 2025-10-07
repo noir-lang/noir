@@ -10,7 +10,6 @@ pub mod brillig_ir;
 
 use acvm::FieldElement;
 use acvm::acir::brillig::Opcode;
-use acvm::acir::circuit::brillig::BrilligBytecode;
 use brillig_gen::brillig_block::BrilligBlock;
 use brillig_gen::constant_allocation::ConstantAllocation;
 use brillig_gen::{brillig_fn::FunctionContext, brillig_globals::BrilligGlobals};

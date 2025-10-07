@@ -101,6 +101,6 @@ pub(super) fn codegen_acir(
     } else {
         None
     };
-    
+
     Ok((acirs, brillig_bytecode, brillig_globals, ssa.error_selector_to_type))
 }

@@ -1,4 +1,4 @@
-use crate::black_box::{self, BlackBoxOp};
+use crate::black_box::BlackBoxOp;
 use acir_field::AcirField;
 use serde::{Deserialize, Serialize};
 
