@@ -40,15 +40,16 @@ pub enum Value {
 /// When we interpret an operation that would wrap around, if we are in an ACIR context we can use
 /// the `Unfit` variant to indicate that the value went beyond what fits into the base type.
 ///
-/// Since we normally demand that ACIR and Brillig return the same result, once an operation
-/// overflows its type, we know for a fact that ACIR and Brillig would not return the same
-/// value, since Brillig wraps, and ACIR does not.
-///
-/// Because of this, the only reason to keep the `Field` value for quasi informational purposes,
-/// but note that some operations, like comparisons, are meaningless on `Field`. Also methods
-/// like `Value::as_u32` *could* try to convert values back to `u32` to see if they fit *again*,
-/// but since we know that it will never be the same as Brillig, we err on the side of caution
-/// and ignore `Unfit` values.
+/// Since we normally require that ACIR and Brillig return the same result, once an operation
+/// overflows its type, we have reason to believe that ACIR and Brillig would not return the same
+/// value, since Brillig wraps, and ACIR does not. 
+/// 
+/// However, some operations that we ported back from ACIR to SSA are implemented in such a 
+/// way that transient values "escape" the boundaries of their type, only to be restored later, 
+/// so keeping the `Field` serves more than informational purposes. We expect that under normal
+/// circumstances this effect is temporary, and by the time we would have to apply operations
+/// on the values that aren't implemented for `Field` (e.g. `lt` and bitwise ops), the values will
+/// be back on track. 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Fitted<T> {
     Fit(T),
