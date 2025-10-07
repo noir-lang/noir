@@ -184,7 +184,9 @@ impl CircuitSimulator {
     }
 
     pub(crate) fn expr_wit<F>(expr: &Expression<F>) -> impl Iterator<Item = Witness> {
-        expr.mul_terms.iter().flat_map(|i| [i.1, i.2])
+        expr.mul_terms
+            .iter()
+            .flat_map(|i| [i.1, i.2])
             .chain(expr.linear_combinations.iter().map(|i| i.1))
     }
 }

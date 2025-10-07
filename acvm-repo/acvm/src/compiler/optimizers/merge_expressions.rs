@@ -127,7 +127,8 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
                                     self.deleted_gates.insert(source);
                                     // Update the 'used_witness' map to account for the merge.
                                     let witness_list = CircuitSimulator::expr_wit(&expr_use);
-                                    let witness_list = witness_list.chain(CircuitSimulator::expr_wit(&expr_define));
+                                    let witness_list = witness_list
+                                        .chain(CircuitSimulator::expr_wit(&expr_define));
 
                                     for w2 in witness_list {
                                         if !circuit_io.contains(&w2) {
@@ -221,10 +222,14 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
             Opcode::BrilligCall { inputs, outputs, .. } => {
                 let mut witnesses = BTreeSet::new();
                 for i in inputs {
-                    self.for_each_brillig_input_wit(i, |witness| { witnesses.insert(witness); });
+                    self.for_each_brillig_input_wit(i, |witness| {
+                        witnesses.insert(witness);
+                    });
                 }
                 for i in outputs {
-                    self.for_each_brillig_output_wit(i, |witness| { witnesses.insert(witness); });
+                    self.for_each_brillig_output_wit(i, |witness| {
+                        witnesses.insert(witness);
+                    });
                 }
                 witnesses
             }
