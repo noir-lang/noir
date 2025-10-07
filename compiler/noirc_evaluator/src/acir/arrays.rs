@@ -551,7 +551,6 @@ impl Context<'_> {
     }
 
     /// Generates a read opcode for the array
-    /// `index_side_effect == false` means that we ensured `var_index` will have a type matching the value in the array
     fn array_get(
         &mut self,
         instruction: InstructionId,
