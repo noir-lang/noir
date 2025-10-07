@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, collections::BTreeMap, io::Write, u32};
+use std::{cmp::Ordering, collections::BTreeMap, io::Write};
 
 use super::{
     Ssa,
@@ -402,7 +402,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 .lookup(value_id)
                 .ok()
                 .and_then(|v| v.as_numeric())
-                .map_or(false, |n| n.is_unfit())
+                .is_some_and(|n| n.is_unfit())
             {
                 return e;
             }
@@ -1002,7 +1002,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             let elements = array.elements.borrow();
             let element = elements
                 .get(index as usize)
-                .ok_or_else(|| InterpreterError::IndexOutOfBounds { index, length })?;
+                .ok_or(InterpreterError::IndexOutOfBounds { index, length })?;
 
             // Either return a fresh nested array (in constrained context) or just clone the element.
             if !self.in_unconstrained_context() {
