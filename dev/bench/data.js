@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1759831742246,
+  "lastUpdate": 1759832265786,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23426,48 +23426,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "f666b6eb4299fce03f85ca556b183ed3481b73ab",
-          "message": "fix(parser): enforce left brace after match expression (#10018)",
-          "timestamp": "2025-09-26T21:19:19Z",
-          "tree_id": "14ae9f43f39d98c3dda1e0ae0e3e238fe14e81bc",
-          "url": "https://github.com/noir-lang/noir/commit/f666b6eb4299fce03f85ca556b183ed3481b73ab"
-        },
-        "date": 1758923198387,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 250702,
-            "range": "± 630",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 222018,
-            "range": "± 8224",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2780201,
-            "range": "± 4202",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -25519,6 +25477,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2790950,
             "range": "± 2575",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "9067781952f5eff81ba22903c143feca1087e49d",
+          "message": "chore: add extra constraint folding pass (#9766)",
+          "timestamp": "2025-10-07T09:44:01Z",
+          "tree_id": "c7bff47253f9ef5cc40ad9a76ed34416d6eb89e1",
+          "url": "https://github.com/noir-lang/noir/commit/9067781952f5eff81ba22903c143feca1087e49d"
+        },
+        "date": 1759832242870,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 248524,
+            "range": "± 441",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 216936,
+            "range": "± 6338",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2789755,
+            "range": "± 2771",
             "unit": "ns/iter"
           }
         ]
