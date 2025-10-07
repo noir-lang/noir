@@ -24,7 +24,7 @@ pub(crate) enum MulTerm<F> {
 
 impl ExpressionSolver {
     /// Derives the rest of the witness in the provided expression based on the known witness values
-    /// 1. Fist we simplify the expression based on the known values and try to reduce the multiplication and linear terms
+    /// 1. First we simplify the expression based on the known values and try to reduce the multiplication and linear terms
     /// 2. If we end up with only the constant term;
     ///     - if it is 0 then the opcode is solved, if not,
     ///     - the assert_zero opcode is not satisfied and we return an error
@@ -148,8 +148,8 @@ impl ExpressionSolver {
         arith_opcode: &Expression<F>,
         witness_assignments: &WitnessMap<F>,
     ) -> Result<MulTerm<F>, OpcodeStatus<F>> {
-        // First note that the mul term can only contain one/zero term
-        // We are assuming it has been optimized.
+        // First note that the mul term can only contain one/zero term,
+        // e.g. that it has been optimized, or else we're returning OpcodeUnsolvable
         match arith_opcode.mul_terms.len() {
             0 => Ok(MulTerm::Solved(F::zero())),
             1 => Ok(ExpressionSolver::solve_mul_term_helper(
@@ -195,13 +195,12 @@ impl ExpressionSolver {
     }
 
     /// Returns the summation of all of the variables, plus the unknown variable
-    /// Returns None, if there is more than one unknown variable
-    /// We cannot assign
+    /// Returns [`OpcodeStatus::OpcodeUnsolvable`], if there is more than one unknown variable
     pub(super) fn solve_fan_in_term<F: AcirField>(
         arith_opcode: &Expression<F>,
         witness_assignments: &WitnessMap<F>,
     ) -> OpcodeStatus<F> {
-        // This is assuming that the fan-in is more than 0
+        // If the fan-in has more than 0 num_unknowns:
 
         // This is the variable that we want to assign the value to
         let mut unknown_variable = (F::zero(), Witness::default());
@@ -276,7 +275,7 @@ impl ExpressionSolver {
 /// is ±1.
 ///
 /// Field inversion is the most significant cost of solving [`Opcode::AssertZero`][acir::circuit::opcodes::Opcode::AssertZero]
-/// opcodes, we can avoid this in the situation
+/// opcodes, which we can avoid when the denominator is ±1.
 fn quick_invert<F: AcirField>(numerator: F, denominator: F) -> F {
     if denominator == F::one() {
         numerator

@@ -191,6 +191,11 @@ impl Type {
         Type::unsigned(SSA_WORD_SIZE)
     }
 
+    /// True if this type is a numeric primitive type.
+    pub(crate) fn is_numeric(&self) -> bool {
+        matches!(self, Type::Numeric(_))
+    }
+
     /// Returns the inner NumericType if this is one, or panics otherwise
     pub(crate) fn unwrap_numeric(&self) -> NumericType {
         match self {

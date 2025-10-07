@@ -26,6 +26,7 @@ use proptest::prelude::*;
 mod arrays;
 mod brillig_call;
 mod call;
+mod instructions;
 mod intrinsics;
 
 /// Test utility for converting [ACIR gen artifacts][crate::acir::ssa::Artifacts]
@@ -89,13 +90,65 @@ fn unchecked_mul_should_not_have_range_check() {
     // Check that range checks only exist on the function parameters
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w2
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
-    BLACKBOX::RANGE [w0]:32 bits []
-    BLACKBOX::RANGE [w1]:32 bits []
-    EXPR w2 = w0*w1
+    BLACKBOX::RANGE input: w0, bits: 32
+    BLACKBOX::RANGE input: w1, bits: 32
+    ASSERT w2 = w0*w1
+    ");
+}
+
+#[test]
+fn no_zero_bits_range_check() {
+    let src = "
+    acir(inline) fn main f0 {   
+        b0(v0: Field):
+            v1 = truncate v0 to 8 bits, max_bit_size: 254
+            v2 = cast v1 as u8
+            return v2
+        }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    // Check that there is no 0-bits range check, but 'ASSERT w7 = 0' instead
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0]
+    public parameters: []
+    return values: [w1]
+    BRILLIG CALL func: 0, inputs: [w0, 256], outputs: [w2, w3]
+    BLACKBOX::RANGE input: w2, bits: 246
+    BLACKBOX::RANGE input: w3, bits: 8
+    ASSERT w3 = w0 - 256*w2
+    ASSERT w4 = -w2 + 85500948718122168836900022442411230814642048439125134155071110103811751936
+    BLACKBOX::RANGE input: w4, bits: 246
+    BRILLIG CALL func: 1, inputs: [-w2 + 85500948718122168836900022442411230814642048439125134155071110103811751936], outputs: [w5]
+    ASSERT w6 = w2*w5 - 85500948718122168836900022442411230814642048439125134155071110103811751936*w5 + 1
+    ASSERT 0 = -w2*w6 + 85500948718122168836900022442411230814642048439125134155071110103811751936*w6
+    ASSERT w7 = w3*w6
+    ASSERT w7 = 0
+    ASSERT w3 = w1
+
+    unconstrained func 0: directive_integer_quotient
+    0: @10 = const u32 2
+    1: @11 = const u32 0
+    2: @0 = calldata copy [@11; @10]
+    3: @2 = field int_div @0, @1
+    4: @1 = field mul @2, @1
+    5: @1 = field sub @0, @1
+    6: @0 = @2
+    7: stop &[@11; @10]
+    unconstrained func 1: directive_invert
+    0: @21 = const u32 1
+    1: @20 = const u32 0
+    2: @0 = calldata copy [@20; @21]
+    3: @2 = const field 0
+    4: @3 = field eq @0, @2
+    5: jump if @3 to 8
+    6: @1 = const field 1
+    7: @0 = field field_div @1, @0
+    8: stop &[@20; @21]
     ");
 }
 
@@ -241,33 +294,6 @@ fn derive_pedersen_generators_requires_constant_input() {
     let brillig = ssa.to_brillig(&BrilligOptions::default());
     ssa.into_acir(&brillig, &BrilligOptions::default(), ExpressionWidth::default())
         .expect_err("Should fail with assert constant");
-}
-
-#[test]
-// Regression for https://github.com/noir-lang/noir/issues/9847
-fn signed_div_overflow() {
-    // Test that check -128 / -1 overflow for i8
-    let src = r#"
-        acir(inline) predicate_pure fn main f0 {
-          b0(v1: i8, v2: i8):
-            v3 = div v1, v2
-            return
-        }
-        "#;
-
-    let ssa = Ssa::from_str(src).unwrap();
-    let inputs = vec![FieldElement::from(128_u128), FieldElement::from(255_u128)];
-    let inputs = inputs
-        .into_iter()
-        .enumerate()
-        .map(|(i, f)| (Witness(i as u32), f))
-        .collect::<BTreeMap<_, _>>();
-    let initial_witness = WitnessMap::from(inputs);
-    let output = None;
-
-    // acir execution should fail to divide -128 / -1
-    let acir_execution_result = execute_ssa(ssa, initial_witness.clone(), output.as_ref());
-    assert!(matches!(acir_execution_result, (ACVMStatus::Failure(_), _)));
 }
 
 /// Convert the SSA input into ACIR and use ACVM to execute it

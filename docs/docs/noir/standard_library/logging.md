@@ -28,11 +28,11 @@ Both `print` and `println` are generic functions which can work on integers, fie
 
 ```rust
 struct Person {
-    age: Field,
-    height: Field,
+    age: u32,
+    height: u32,
 }
 
-fn main(age: Field, height: Field) {
+fn main(age: u32, height: u32) {
     let person = Person {
         age: age,
         height: height,

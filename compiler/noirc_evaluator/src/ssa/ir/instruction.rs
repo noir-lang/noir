@@ -131,7 +131,7 @@ pub enum Intrinsic {
     /// in constrained context, it will be 0.
     ArrayRefCount,
     /// SliceRefCount - Gives the reference count of the slice
-    /// argument: slice (value id)
+    /// arguments: slice length, slice contents (value id)
     /// result: reference count of `slice`. In unconstrained context, the reference count is stored alongside the slice.
     /// in constrained context, it will be 0.
     SliceRefCount,
@@ -462,7 +462,9 @@ impl Instruction {
                 !dfg.is_safe_index(*index, *array)
             }
 
-            Instruction::EnableSideEffectsIf { .. } | Instruction::ArraySet { .. } => true,
+            Instruction::EnableSideEffectsIf { .. }
+            | Instruction::ArraySet { .. }
+            | Instruction::ConstrainNotEqual(..) => true,
 
             Instruction::Call { func, .. } => match dfg[*func] {
                 Value::Function(id) => !matches!(dfg.purity_of(id), Some(Purity::Pure)),
@@ -484,7 +486,6 @@ impl Instruction {
             Instruction::Cast(_, _)
             | Instruction::Not(_)
             | Instruction::Truncate { .. }
-            | Instruction::ConstrainNotEqual(..)
             | Instruction::Constrain(_, _, _)
             | Instruction::RangeCheck { .. }
             | Instruction::Allocate

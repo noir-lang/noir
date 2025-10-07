@@ -2028,7 +2028,7 @@ mod test {
 
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.flatten_cfg().mem2reg().fold_constants();
+        let ssa = ssa.flatten_cfg().mem2reg().fold_constants(1);
 
         let main = ssa.main();
 
@@ -2095,7 +2095,7 @@ mod test {
 
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.flatten_cfg().mem2reg().fold_constants();
+        let ssa = ssa.flatten_cfg().mem2reg().fold_constants(1);
 
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -2141,7 +2141,7 @@ mod test {
             .mem2reg()
             .remove_if_else()
             .unwrap()
-            .fold_constants()
+            .fold_constants(1)
             .dead_instruction_elimination();
 
         assert_ssa_snapshot!(ssa, @r"

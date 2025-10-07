@@ -1,21 +1,103 @@
+//! Memory layout and register allocation for Brillig programs.
+//!
+//! Brillig execution splits its memory/register space into fixed and dynamic regions. The layout
+//! is strictly enforced by the register allocators defined in this module.
+//!
+//! The regions are as follows:
+//! 1. Reserved registers: Used internally by the VM for special purposes (e.g., stack pointer,
+//!    free memory pointer, etc.). These registers occupy the lowest memory addresses.
+//! 2. Scratch space: Temporary memory used for procedure arguments and return values, allowing
+//!    function calls without saving/restoring the stack. Scratch space uses direct addressing.
+//! 3. Globals: Read-only memory initialized at the beginning of the program. The size is
+//!    determined during global variable compilation and may vary per program. Starts immediately
+//!    after the scratch space.
+//! 4. Entry point: Memory region containing program input arguments and reserved space for return values.
+//!    Starts immediately after the globals and ends before the stack.
+//! 5. Stack: Dynamic stack frames used for function-local variables. Each function call
+//!    creates its own view of the stack. Stack uses relative addressing for stack frames.
+//! 6. Heap: Dynamic memory allocated after the stack for arrays, vectors, and other data
+//!    structures. Starts immediately after the stack region.
+//!
+//! This module contains:
+//! - [LayoutConfig]: Centralized configuration of maximum sizes for stack frames, total stack size,
+//!   and scratch space. All register allocators query this configuration to determine their memory bounds.
+//!   This config is meant to be immutable and provides the following benefits:
+//!   - Clear separation between memory layout policy and actual code generation.
+//!   - Unit tests to vary memory layouts and ensure bytecode remains consistent.
+//! - [RegisterAllocator]: Trait implemented by all memory region allocators. Each allocator is expected
+//!   to enforce its own bounds checks and allocation/deallocation logic.
+//! - [Stack], [ScratchSpace], and [GlobalSpace]: Register allocator implementations for each memory region.
 use std::collections::BTreeSet;
 
 use acvm::acir::brillig::{HeapArray, HeapVector, MemoryAddress};
 use iter_extended::vecmap;
 
-use crate::brillig::brillig_ir::entry_point::MAX_STACK_SIZE;
+use super::{BrilligContext, ReservedRegisters, brillig_variable::SingleAddrVariable};
 
-use super::{
-    BrilligContext, ReservedRegisters,
-    brillig_variable::SingleAddrVariable,
-    entry_point::{MAX_SCRATCH_SPACE, MAX_STACK_FRAME_SIZE},
-};
+/// Defines the memory layout for Brillig programs.
+///
+/// Brillig execution splits its register space into fixed regions
+/// (reserved registers, scratch space, globals, calldata) and dynamic regions
+/// (stack, heap). This configuration structure centralizes the sizing rules for
+/// fixed regions and the stack.
+#[derive(Clone, Copy, Debug)]
+pub struct LayoutConfig {
+    max_stack_frame_size: usize,
+    max_stack_size: usize,
+    max_scratch_space: usize,
+}
+
+impl LayoutConfig {
+    pub(crate) fn new(
+        max_stack_frame_size: usize,
+        num_stack_frames: usize,
+        max_scratch_space: usize,
+    ) -> Self {
+        let max_stack_size = num_stack_frames * max_stack_frame_size;
+        Self { max_stack_frame_size, max_stack_size, max_scratch_space }
+    }
+
+    pub(crate) fn max_stack_frame_size(&self) -> usize {
+        self.max_stack_frame_size
+    }
+
+    pub(crate) fn max_stack_size(&self) -> usize {
+        self.max_stack_size
+    }
+
+    pub(crate) fn max_scratch_space(&self) -> usize {
+        self.max_scratch_space
+    }
+
+    /// Start of the entry point region:
+    /// {reserved} {scratch space} {globals} [call data]
+    pub(crate) fn entry_point_start(&self, globals_size: usize) -> usize {
+        ScratchSpace::end_with_layout(self) + globals_size
+    }
+
+    /// Start of the return data within the entry point region:
+    /// {reserved} {scratch space} {globals} {call data} [return data]
+    pub(crate) fn return_data_start(&self, globals_size: usize, calldata_size: usize) -> usize {
+        self.entry_point_start(globals_size) + calldata_size
+    }
+}
+
+/// These constants represent expert chosen defaults that are appropriate for the majority of programs
+pub(crate) const NUM_STACK_FRAMES: usize = 16;
+pub(crate) const MAX_STACK_FRAME_SIZE: usize = 2048;
+pub(crate) const MAX_SCRATCH_SPACE: usize = 64;
+
+impl Default for LayoutConfig {
+    fn default() -> Self {
+        Self::new(MAX_STACK_FRAME_SIZE, NUM_STACK_FRAMES, MAX_SCRATCH_SPACE)
+    }
+}
 
 pub(crate) trait RegisterAllocator {
     /// First valid memory address
-    fn start() -> usize;
+    fn start(&self) -> usize;
     /// Last valid memory address
-    fn end() -> usize;
+    fn end(&self) -> usize;
     /// Allocates a new register.
     fn allocate_register(&mut self) -> MemoryAddress;
     /// Push a register to the deallocation list, ready for reuse.
@@ -23,45 +105,57 @@ pub(crate) trait RegisterAllocator {
     /// Ensures a register is allocated, allocating it if necessary
     fn ensure_register_is_allocated(&mut self, register: MemoryAddress);
     /// Creates a new register context from a set of registers allocated previously.
-    fn from_preallocated_registers(preallocated_registers: Vec<MemoryAddress>) -> Self;
+    fn from_preallocated_registers(
+        preallocated_registers: Vec<MemoryAddress>,
+        layout: LayoutConfig,
+    ) -> Self;
     /// Finds the first register that is available based upon the deallocation list
     fn empty_registers_start(&self) -> MemoryAddress;
+    /// Return the memory layout used by this allocator.
+    fn layout(&self) -> LayoutConfig;
 }
 
 /// Every brillig stack frame/call context has its own view of register space.
 /// This is maintained by copying these registers to the stack during calls and reading them back.
 pub(crate) struct Stack {
     storage: DeallocationListAllocator,
+    layout: LayoutConfig,
 }
 
 impl Stack {
-    pub(crate) fn new() -> Self {
-        Self { storage: DeallocationListAllocator::new(Self::start()) }
+    pub(crate) fn new(layout: LayoutConfig) -> Self {
+        let start = Self::start();
+        Self { storage: DeallocationListAllocator::new(start), layout }
     }
 
-    fn is_within_bounds(register: MemoryAddress) -> bool {
+    fn is_within_bounds(&self, register: MemoryAddress) -> bool {
         let offset = register.unwrap_relative();
-        offset >= Self::start() && offset < Self::end()
+        offset >= self.start() && offset < self.end()
+    }
+
+    /// Static start method for constructors
+    pub(super) fn start() -> usize {
+        1 // Previous stack pointer is the first stack item
     }
 }
 
 impl RegisterAllocator for Stack {
-    fn start() -> usize {
-        1 // Previous stack pointer is the first stack item
+    fn start(&self) -> usize {
+        Self::start()
     }
 
-    fn end() -> usize {
-        MAX_STACK_FRAME_SIZE
+    fn end(&self) -> usize {
+        self.layout.max_stack_frame_size()
     }
 
     fn ensure_register_is_allocated(&mut self, register: MemoryAddress) {
-        assert!(Self::is_within_bounds(register), "Register out of stack bounds");
+        assert!(self.is_within_bounds(register), "Register out of stack bounds");
         self.storage.ensure_register_is_allocated(register.unwrap_relative());
     }
 
     fn allocate_register(&mut self) -> MemoryAddress {
         let allocated = MemoryAddress::relative(self.storage.allocate_register());
-        assert!(Self::is_within_bounds(allocated), "Stack frame too deep");
+        assert!(self.is_within_bounds(allocated), "Stack frame too deep");
         allocated
     }
 
@@ -69,21 +163,30 @@ impl RegisterAllocator for Stack {
         self.storage.deallocate_register(register_index.unwrap_relative());
     }
 
-    fn from_preallocated_registers(preallocated_registers: Vec<MemoryAddress>) -> Self {
+    fn from_preallocated_registers(
+        preallocated_registers: Vec<MemoryAddress>,
+        layout: LayoutConfig,
+    ) -> Self {
+        let mock = Stack::new(layout);
         for register in &preallocated_registers {
-            assert!(Self::is_within_bounds(*register), "Register out of stack bounds");
+            assert!(mock.is_within_bounds(*register), "Register out of stack bounds");
         }
 
         Self {
             storage: DeallocationListAllocator::from_preallocated_registers(
-                Self::start(),
+                mock.start(),
                 vecmap(preallocated_registers, |r| r.unwrap_relative()),
             ),
+            layout,
         }
     }
 
     fn empty_registers_start(&self) -> MemoryAddress {
-        MemoryAddress::relative(self.storage.empty_registers_start(Self::start()))
+        MemoryAddress::relative(self.storage.empty_registers_start(self.start()))
+    }
+
+    fn layout(&self) -> LayoutConfig {
+        self.layout
     }
 }
 
@@ -92,36 +195,45 @@ impl RegisterAllocator for Stack {
 /// The scratch space is a much smaller set of memory cells.
 pub(crate) struct ScratchSpace {
     storage: DeallocationListAllocator,
+    layout: LayoutConfig,
 }
 
 impl ScratchSpace {
-    pub(crate) fn new() -> Self {
-        Self { storage: DeallocationListAllocator::new(Self::start()) }
+    pub(crate) fn new(layout: LayoutConfig) -> Self {
+        Self { storage: DeallocationListAllocator::new(Self::start()), layout }
     }
 
-    fn is_within_bounds(register: MemoryAddress) -> bool {
+    fn is_within_bounds(&self, register: MemoryAddress) -> bool {
         let index = register.unwrap_direct();
-        index >= Self::start() && index < Self::end()
+        index >= self.start() && index < self.end()
+    }
+
+    pub(super) fn start() -> usize {
+        ReservedRegisters::len()
+    }
+
+    pub(super) fn end_with_layout(layout: &LayoutConfig) -> usize {
+        ReservedRegisters::len() + layout.max_scratch_space()
     }
 }
 
 impl RegisterAllocator for ScratchSpace {
-    fn start() -> usize {
-        ReservedRegisters::len() + MAX_STACK_SIZE
+    fn start(&self) -> usize {
+        Self::start()
     }
 
-    fn end() -> usize {
-        Self::start() + MAX_SCRATCH_SPACE
+    fn end(&self) -> usize {
+        Self::end_with_layout(&self.layout)
     }
 
     fn ensure_register_is_allocated(&mut self, register: MemoryAddress) {
-        assert!(Self::is_within_bounds(register), "Register out of scratch space bounds");
+        assert!(self.is_within_bounds(register), "Register out of scratch space bounds");
         self.storage.ensure_register_is_allocated(register.unwrap_direct());
     }
 
     fn allocate_register(&mut self) -> MemoryAddress {
         let allocated = MemoryAddress::direct(self.storage.allocate_register());
-        assert!(Self::is_within_bounds(allocated), "Scratch space too deep");
+        assert!(self.is_within_bounds(allocated), "Scratch space too deep");
         allocated
     }
 
@@ -129,21 +241,30 @@ impl RegisterAllocator for ScratchSpace {
         self.storage.deallocate_register(register_index.unwrap_direct());
     }
 
-    fn from_preallocated_registers(preallocated_registers: Vec<MemoryAddress>) -> Self {
+    fn from_preallocated_registers(
+        preallocated_registers: Vec<MemoryAddress>,
+        layout: LayoutConfig,
+    ) -> Self {
+        let mock = Self::new(layout);
         for register in &preallocated_registers {
-            assert!(Self::is_within_bounds(*register), "Register out of scratch space bounds");
+            assert!(mock.is_within_bounds(*register), "Register out of scratch space bounds");
         }
 
         Self {
             storage: DeallocationListAllocator::from_preallocated_registers(
-                Self::start(),
+                mock.start(),
                 vecmap(preallocated_registers, |r| r.unwrap_direct()),
             ),
+            layout,
         }
     }
 
     fn empty_registers_start(&self) -> MemoryAddress {
-        MemoryAddress::direct(self.storage.empty_registers_start(Self::start()))
+        MemoryAddress::direct(self.storage.empty_registers_start(self.start()))
+    }
+
+    fn layout(&self) -> LayoutConfig {
+        self.layout
     }
 }
 
@@ -154,24 +275,23 @@ impl RegisterAllocator for ScratchSpace {
 pub(crate) struct GlobalSpace {
     storage: DeallocationListAllocator,
     max_memory_address: usize,
+    layout: LayoutConfig,
 }
 
 impl GlobalSpace {
-    pub(crate) fn new() -> Self {
-        Self {
-            storage: DeallocationListAllocator::new(Self::start()),
-            max_memory_address: Self::start(),
-        }
+    pub(crate) fn new(layout: LayoutConfig) -> Self {
+        let start = Self::start_with_layout(&layout);
+        Self { storage: DeallocationListAllocator::new(start), max_memory_address: start, layout }
     }
 
-    fn is_within_bounds(register: MemoryAddress) -> bool {
+    fn is_within_bounds(&self, register: MemoryAddress) -> bool {
         let index = register.unwrap_direct();
-        index >= Self::start()
+        index >= self.start()
     }
 
     fn update_max_address(&mut self, register: MemoryAddress) {
         let index = register.unwrap_direct();
-        assert!(index >= Self::start(), "Global space malformed");
+        assert!(index >= self.start(), "Global space malformed");
         if index > self.max_memory_address {
             self.max_memory_address = index;
         }
@@ -180,14 +300,19 @@ impl GlobalSpace {
     pub(super) fn max_memory_address(&self) -> usize {
         self.max_memory_address
     }
+
+    /// Computes the first valid memory address for global space
+    pub(crate) fn start_with_layout(layout: &LayoutConfig) -> usize {
+        ScratchSpace::end_with_layout(layout)
+    }
 }
 
 impl RegisterAllocator for GlobalSpace {
-    fn start() -> usize {
-        ScratchSpace::end()
+    fn start(&self) -> usize {
+        Self::start_with_layout(&self.layout)
     }
 
-    fn end() -> usize {
+    fn end(&self) -> usize {
         unreachable!("The global space is set by the program");
     }
 
@@ -206,22 +331,31 @@ impl RegisterAllocator for GlobalSpace {
         self.storage.ensure_register_is_allocated(register.unwrap_direct());
     }
 
-    fn from_preallocated_registers(preallocated_registers: Vec<MemoryAddress>) -> Self {
+    fn from_preallocated_registers(
+        preallocated_registers: Vec<MemoryAddress>,
+        layout: LayoutConfig,
+    ) -> Self {
+        let mock = Self::new(layout);
         for register in &preallocated_registers {
-            assert!(Self::is_within_bounds(*register), "Register out of global space bounds");
+            assert!(mock.is_within_bounds(*register), "Register out of global space bounds");
         }
 
         Self {
             storage: DeallocationListAllocator::from_preallocated_registers(
-                Self::start(),
+                mock.start(),
                 vecmap(preallocated_registers, |r| r.unwrap_direct()),
             ),
-            max_memory_address: Self::start(),
+            max_memory_address: mock.start(),
+            layout,
         }
     }
 
     fn empty_registers_start(&self) -> MemoryAddress {
-        MemoryAddress::direct(self.storage.empty_registers_start(Self::start()))
+        MemoryAddress::direct(self.storage.empty_registers_start(self.start()))
+    }
+
+    fn layout(&self) -> LayoutConfig {
+        self.layout
     }
 }
 
@@ -305,7 +439,8 @@ impl<F, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     }
 
     pub(crate) fn set_allocated_registers(&mut self, allocated_registers: Vec<MemoryAddress>) {
-        self.registers = Registers::from_preallocated_registers(allocated_registers);
+        let layout = self.registers.layout();
+        self.registers = Registers::from_preallocated_registers(allocated_registers, layout);
     }
 
     /// Push a register to the deallocation list, ready for reuse.
@@ -330,11 +465,14 @@ impl<F, Registers: RegisterAllocator> BrilligContext<F, Registers> {
 
 #[cfg(test)]
 mod tests {
-    use crate::brillig::brillig_ir::registers::{RegisterAllocator, Stack};
+    use crate::brillig::brillig_ir::{
+        LayoutConfig,
+        registers::{RegisterAllocator, Stack},
+    };
 
     #[test]
     fn stack_should_prioritize_returning_low_registers() {
-        let mut stack = Stack::new();
+        let mut stack = Stack::new(LayoutConfig::default());
         let one = stack.allocate_register();
         let _two = stack.allocate_register();
         let three = stack.allocate_register();
