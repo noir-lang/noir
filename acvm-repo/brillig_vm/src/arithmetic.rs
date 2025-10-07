@@ -65,6 +65,14 @@ pub(crate) fn evaluate_binary_field_op<F: AcirField>(
             }
         }
         BinaryFieldOp::IntegerDiv => {
+            // IntegerDiv is only meant to represent unsigned integer division.
+            // The operands must be valid non-negative integers within the field's range.
+            // Because AcirField is modulo the prime field, it does not natively track
+            // "negative" numbers as any value is already reduced modulo the prime.
+            //
+            // Therefore, we do not check for negative inputs here. It is the responsibility
+            // of the code generator to ensure that operands for IntegerDiv are valid unsigned integers.
+            // The only runtime error we check for is division by zero.
             if b.is_zero() {
                 return Err(BrilligArithmeticError::DivisionByZero);
             } else {
@@ -334,7 +342,7 @@ fn evaluate_binary_int_op_arith<
 }
 
 #[cfg(test)]
-mod tests {
+mod int_ops {
     use super::*;
     use acir::{AcirField, FieldElement};
 
@@ -392,6 +400,26 @@ mod tests {
         ];
 
         evaluate_int_ops(test_ops, BinaryIntOp::Add, bit_size);
+
+        // Mismatched bit sizes should error
+        assert_eq!(
+            evaluate_binary_int_op(
+                &BinaryIntOp::Add,
+                MemoryValue::<FieldElement>::U8(1),
+                MemoryValue::<FieldElement>::U16(2),
+                IntegerBitSize::U8
+            ),
+            Err(BrilligArithmeticError::MismatchedRhsBitSize { rhs_bit_size: 16, op_bit_size: 8 })
+        );
+        assert_eq!(
+            evaluate_binary_int_op(
+                &BinaryIntOp::Add,
+                MemoryValue::<FieldElement>::U16(2),
+                MemoryValue::<FieldElement>::U8(1),
+                IntegerBitSize::U8
+            ),
+            Err(BrilligArithmeticError::MismatchedLhsBitSize { lhs_bit_size: 16, op_bit_size: 8 })
+        );
     }
 
     #[test]
@@ -414,6 +442,26 @@ mod tests {
             TestParams { a: to_negative(3, bit_size), b: 2, result: to_negative(5, bit_size) },
         ];
         evaluate_int_ops(test_ops, BinaryIntOp::Sub, bit_size);
+
+        // Mismatched bit sizes should error
+        assert_eq!(
+            evaluate_binary_int_op(
+                &BinaryIntOp::Sub,
+                MemoryValue::<FieldElement>::U8(1),
+                MemoryValue::<FieldElement>::U16(1),
+                IntegerBitSize::U8
+            ),
+            Err(BrilligArithmeticError::MismatchedRhsBitSize { rhs_bit_size: 16, op_bit_size: 8 })
+        );
+        assert_eq!(
+            evaluate_binary_int_op(
+                &BinaryIntOp::Sub,
+                MemoryValue::<FieldElement>::U16(1),
+                MemoryValue::<FieldElement>::U8(1),
+                IntegerBitSize::U8
+            ),
+            Err(BrilligArithmeticError::MismatchedLhsBitSize { lhs_bit_size: 16, op_bit_size: 8 })
+        );
     }
 
     #[test]
@@ -446,6 +494,26 @@ mod tests {
         ];
 
         evaluate_int_ops(test_ops, BinaryIntOp::Mul, bit_size);
+
+        // Mismatched bit sizes should error
+        assert_eq!(
+            evaluate_binary_int_op(
+                &BinaryIntOp::Mul,
+                MemoryValue::<FieldElement>::U8(1),
+                MemoryValue::<FieldElement>::U16(1),
+                IntegerBitSize::U8
+            ),
+            Err(BrilligArithmeticError::MismatchedRhsBitSize { rhs_bit_size: 16, op_bit_size: 8 })
+        );
+        assert_eq!(
+            evaluate_binary_int_op(
+                &BinaryIntOp::Mul,
+                MemoryValue::<FieldElement>::U16(1),
+                MemoryValue::<FieldElement>::U8(1),
+                IntegerBitSize::U8
+            ),
+            Err(BrilligArithmeticError::MismatchedLhsBitSize { lhs_bit_size: 16, op_bit_size: 8 })
+        );
     }
 
     #[test]
@@ -456,6 +524,37 @@ mod tests {
             vec![TestParams { a: 5, b: 3, result: 1 }, TestParams { a: 5, b: 10, result: 0 }];
 
         evaluate_int_ops(test_ops, BinaryIntOp::Div, bit_size);
+
+        // Mismatched bit sizes should error
+        assert_eq!(
+            evaluate_binary_int_op(
+                &BinaryIntOp::Div,
+                MemoryValue::<FieldElement>::U8(1),
+                MemoryValue::<FieldElement>::U16(1),
+                IntegerBitSize::U8
+            ),
+            Err(BrilligArithmeticError::MismatchedRhsBitSize { rhs_bit_size: 16, op_bit_size: 8 })
+        );
+        assert_eq!(
+            evaluate_binary_int_op(
+                &BinaryIntOp::Div,
+                MemoryValue::<FieldElement>::U16(1),
+                MemoryValue::<FieldElement>::U8(1),
+                IntegerBitSize::U8
+            ),
+            Err(BrilligArithmeticError::MismatchedLhsBitSize { lhs_bit_size: 16, op_bit_size: 8 })
+        );
+
+        // Division by zero should error
+        assert_eq!(
+            evaluate_binary_int_op(
+                &BinaryIntOp::Div,
+                MemoryValue::<FieldElement>::U8(1),
+                MemoryValue::<FieldElement>::U8(0),
+                IntegerBitSize::U8
+            ),
+            Err(BrilligArithmeticError::DivisionByZero)
+        );
     }
 
     #[test]
@@ -495,6 +594,354 @@ mod tests {
                 IntegerBitSize::U8
             ),
             Err(BrilligArithmeticError::BitshiftOverflow { bit_size: 8, shift_size: 8 })
+        );
+    }
+
+    #[test]
+    fn comparison_ops_test() {
+        let bit_size = IntegerBitSize::U8;
+
+        // Equals
+        let test_ops = vec![
+            TestParams { a: 5, b: 5, result: 1 },
+            TestParams { a: 10, b: 5, result: 0 },
+            TestParams { a: 0, b: 0, result: 1 },
+        ];
+        evaluate_int_ops(test_ops, BinaryIntOp::Equals, bit_size);
+
+        // LessThan
+        let test_ops = vec![
+            TestParams { a: 4, b: 5, result: 1 },
+            TestParams { a: 5, b: 4, result: 0 },
+            TestParams { a: 5, b: 5, result: 0 },
+        ];
+        evaluate_int_ops(test_ops, BinaryIntOp::LessThan, bit_size);
+
+        // LessThanEquals
+        let test_ops = vec![
+            TestParams { a: 4, b: 5, result: 1 },
+            TestParams { a: 5, b: 4, result: 0 },
+            TestParams { a: 5, b: 5, result: 1 },
+        ];
+        evaluate_int_ops(test_ops, BinaryIntOp::LessThanEquals, bit_size);
+
+        // Mismatched bit sizes should error
+        assert_eq!(
+            evaluate_binary_int_op(
+                &BinaryIntOp::Equals,
+                MemoryValue::<FieldElement>::U8(1),
+                MemoryValue::<FieldElement>::U16(1),
+                IntegerBitSize::U8
+            ),
+            Err(BrilligArithmeticError::MismatchedRhsBitSize { rhs_bit_size: 16, op_bit_size: 8 })
+        );
+        assert_eq!(
+            evaluate_binary_int_op(
+                &BinaryIntOp::LessThan,
+                MemoryValue::<FieldElement>::U16(1),
+                MemoryValue::<FieldElement>::U8(1),
+                IntegerBitSize::U8
+            ),
+            Err(BrilligArithmeticError::MismatchedLhsBitSize { lhs_bit_size: 16, op_bit_size: 8 })
+        );
+        assert_eq!(
+            evaluate_binary_int_op(
+                &BinaryIntOp::LessThanEquals,
+                MemoryValue::<FieldElement>::U16(1),
+                MemoryValue::<FieldElement>::U8(1),
+                IntegerBitSize::U8
+            ),
+            Err(BrilligArithmeticError::MismatchedLhsBitSize { lhs_bit_size: 16, op_bit_size: 8 })
+        );
+    }
+}
+
+#[cfg(test)]
+mod field_ops {
+    use super::*;
+    use acir::{AcirField, FieldElement};
+
+    struct TestParams {
+        a: FieldElement,
+        b: FieldElement,
+        result: FieldElement,
+    }
+
+    fn evaluate_field_u128(op: &BinaryFieldOp, a: FieldElement, b: FieldElement) -> FieldElement {
+        let result_value: MemoryValue<FieldElement> =
+            evaluate_binary_field_op(op, MemoryValue::new_field(a), MemoryValue::new_field(b))
+                .unwrap();
+        // Convert back to FieldElement
+        result_value.to_field()
+    }
+
+    fn evaluate_field_ops(test_params: Vec<TestParams>, op: BinaryFieldOp) {
+        for test in test_params {
+            assert_eq!(evaluate_field_u128(&op, test.a, test.b), test.result);
+        }
+    }
+
+    #[test]
+    fn add_test() {
+        let test_ops = vec![
+            TestParams { a: 1u32.into(), b: 2u32.into(), result: 3u32.into() },
+            TestParams { a: 5u32.into(), b: 10u32.into(), result: 15u32.into() },
+            TestParams { a: 250u32.into(), b: 10u32.into(), result: 260u32.into() },
+        ];
+        evaluate_field_ops(test_ops, BinaryFieldOp::Add);
+
+        // Mismatched bit sizes
+        assert_eq!(
+            evaluate_binary_field_op(
+                &BinaryFieldOp::Add,
+                MemoryValue::new_field(FieldElement::from(1u32)),
+                MemoryValue::<FieldElement>::U16(2),
+            ),
+            Err(BrilligArithmeticError::MismatchedRhsBitSize {
+                rhs_bit_size: 16,
+                op_bit_size: 254
+            })
+        );
+
+        assert_eq!(
+            evaluate_binary_field_op(
+                &BinaryFieldOp::Add,
+                MemoryValue::<FieldElement>::U16(1),
+                MemoryValue::new_field(FieldElement::from(2u32)),
+            ),
+            Err(BrilligArithmeticError::MismatchedLhsBitSize {
+                lhs_bit_size: 16,
+                op_bit_size: 254
+            })
+        );
+    }
+
+    #[test]
+    fn sub_test() {
+        let test_ops = vec![
+            TestParams { a: 5u32.into(), b: 3u32.into(), result: 2u32.into() },
+            TestParams { a: 2u32.into(), b: 10u32.into(), result: FieldElement::from(-8_i128) },
+        ];
+        evaluate_field_ops(test_ops, BinaryFieldOp::Sub);
+
+        // Mismatched bit sizes
+        assert_eq!(
+            evaluate_binary_field_op(
+                &BinaryFieldOp::Sub,
+                MemoryValue::new_field(FieldElement::from(1u32)),
+                MemoryValue::<FieldElement>::U16(1),
+            ),
+            Err(BrilligArithmeticError::MismatchedRhsBitSize {
+                rhs_bit_size: 16,
+                op_bit_size: 254
+            })
+        );
+
+        assert_eq!(
+            evaluate_binary_field_op(
+                &BinaryFieldOp::Sub,
+                MemoryValue::<FieldElement>::U16(1),
+                MemoryValue::new_field(FieldElement::from(1u32)),
+            ),
+            Err(BrilligArithmeticError::MismatchedLhsBitSize {
+                lhs_bit_size: 16,
+                op_bit_size: 254
+            })
+        );
+    }
+
+    #[test]
+    fn mul_test() {
+        let test_ops = vec![
+            TestParams { a: 2u32.into(), b: 3u32.into(), result: 6u32.into() },
+            TestParams { a: 10u32.into(), b: 25u32.into(), result: 250u32.into() },
+        ];
+        evaluate_field_ops(test_ops, BinaryFieldOp::Mul);
+
+        // Mismatched bit sizes
+        assert_eq!(
+            evaluate_binary_field_op(
+                &BinaryFieldOp::Mul,
+                MemoryValue::new_field(FieldElement::from(1u32)),
+                MemoryValue::<FieldElement>::U16(1),
+            ),
+            Err(BrilligArithmeticError::MismatchedRhsBitSize {
+                rhs_bit_size: 16,
+                op_bit_size: 254
+            })
+        );
+
+        assert_eq!(
+            evaluate_binary_field_op(
+                &BinaryFieldOp::Mul,
+                MemoryValue::<FieldElement>::U16(1),
+                MemoryValue::new_field(FieldElement::from(1u32)),
+            ),
+            Err(BrilligArithmeticError::MismatchedLhsBitSize {
+                lhs_bit_size: 16,
+                op_bit_size: 254
+            })
+        );
+    }
+
+    #[test]
+    fn div_test() {
+        let test_ops = vec![
+            TestParams { a: 10u32.into(), b: 2u32.into(), result: 5u32.into() },
+            TestParams { a: 9u32.into(), b: 3u32.into(), result: 3u32.into() },
+            TestParams {
+                a: 10u32.into(),
+                b: FieldElement::from(-1_i128),
+                result: FieldElement::from(-10_i128),
+            },
+            TestParams { a: 10u32.into(), b: 1u32.into(), result: 10u32.into() },
+        ];
+        evaluate_field_ops(test_ops, BinaryFieldOp::Div);
+
+        // Division by zero
+        assert_eq!(
+            evaluate_binary_field_op(
+                &BinaryFieldOp::Div,
+                MemoryValue::new_field(FieldElement::from(1u128)),
+                MemoryValue::new_field(FieldElement::zero()),
+            ),
+            Err(BrilligArithmeticError::DivisionByZero)
+        );
+
+        // Mismatched bit sizes
+        assert_eq!(
+            evaluate_binary_field_op(
+                &BinaryFieldOp::Div,
+                MemoryValue::new_field(FieldElement::from(1u32)),
+                MemoryValue::<FieldElement>::U16(1),
+            ),
+            Err(BrilligArithmeticError::MismatchedRhsBitSize {
+                rhs_bit_size: 16,
+                op_bit_size: 254
+            })
+        );
+
+        assert_eq!(
+            evaluate_binary_field_op(
+                &BinaryFieldOp::Div,
+                MemoryValue::<FieldElement>::U16(1),
+                MemoryValue::new_field(FieldElement::from(1u32)),
+            ),
+            Err(BrilligArithmeticError::MismatchedLhsBitSize {
+                lhs_bit_size: 16,
+                op_bit_size: 254
+            })
+        );
+    }
+
+    #[test]
+    fn integer_div_test() {
+        let test_ops = vec![
+            TestParams { a: 10u32.into(), b: 2u32.into(), result: 5u32.into() },
+            TestParams { a: 9u32.into(), b: 3u32.into(), result: 3u32.into() },
+            // Negative numbers are treated as large unsigned numbers, thus we expect a result of 0 here
+            TestParams { a: 10u32.into(), b: FieldElement::from(-1_i128), result: 0u32.into() },
+            TestParams { a: 10u32.into(), b: 1u32.into(), result: 10u32.into() },
+        ];
+        evaluate_field_ops(test_ops, BinaryFieldOp::IntegerDiv);
+
+        // Division by zero should error
+        assert_eq!(
+            evaluate_binary_field_op(
+                &BinaryFieldOp::IntegerDiv,
+                MemoryValue::new_field(FieldElement::from(1u128)),
+                MemoryValue::new_field(FieldElement::zero()),
+            ),
+            Err(BrilligArithmeticError::DivisionByZero)
+        );
+
+        // Mismatched bit sizes should error
+        assert_eq!(
+            evaluate_binary_field_op(
+                &BinaryFieldOp::IntegerDiv,
+                MemoryValue::new_field(FieldElement::from(1u32)),
+                MemoryValue::<FieldElement>::U16(1),
+            ),
+            Err(BrilligArithmeticError::MismatchedRhsBitSize {
+                rhs_bit_size: 16,
+                op_bit_size: 254
+            })
+        );
+
+        assert_eq!(
+            evaluate_binary_field_op(
+                &BinaryFieldOp::IntegerDiv,
+                MemoryValue::<FieldElement>::U16(1),
+                MemoryValue::new_field(FieldElement::from(1u32)),
+            ),
+            Err(BrilligArithmeticError::MismatchedLhsBitSize {
+                lhs_bit_size: 16,
+                op_bit_size: 254
+            })
+        );
+    }
+
+    #[test]
+    fn comparison_ops_test() {
+        // Equals
+        let test_ops = vec![
+            TestParams { a: 5u32.into(), b: 5u32.into(), result: 1u32.into() },
+            TestParams { a: 10u32.into(), b: 5u32.into(), result: 0u32.into() },
+            TestParams { a: 0u32.into(), b: 0u32.into(), result: 1u32.into() },
+        ];
+        evaluate_field_ops(test_ops, BinaryFieldOp::Equals);
+
+        // LessThan
+        let test_ops = vec![
+            TestParams { a: 4u32.into(), b: 5u32.into(), result: 1u32.into() },
+            TestParams { a: 5u32.into(), b: 4u32.into(), result: 0u32.into() },
+            TestParams { a: 5u32.into(), b: 5u32.into(), result: 0u32.into() },
+        ];
+        evaluate_field_ops(test_ops, BinaryFieldOp::LessThan);
+
+        // LessThanEquals
+        let test_ops = vec![
+            TestParams { a: 4u32.into(), b: 5u32.into(), result: 1u32.into() },
+            TestParams { a: 5u32.into(), b: 4u32.into(), result: 0u32.into() },
+            TestParams { a: 5u32.into(), b: 5u32.into(), result: 1u32.into() },
+        ];
+        evaluate_field_ops(test_ops, BinaryFieldOp::LessThanEquals);
+
+        // Mismatched bit sizes should error
+        assert_eq!(
+            evaluate_binary_field_op(
+                &BinaryFieldOp::Equals,
+                MemoryValue::new_field(1u32.into()),
+                MemoryValue::<FieldElement>::U16(1),
+            ),
+            Err(BrilligArithmeticError::MismatchedRhsBitSize {
+                rhs_bit_size: 16,
+                op_bit_size: 254
+            })
+        );
+
+        assert_eq!(
+            evaluate_binary_field_op(
+                &BinaryFieldOp::LessThan,
+                MemoryValue::<FieldElement>::U16(1),
+                MemoryValue::new_field(1u32.into()),
+            ),
+            Err(BrilligArithmeticError::MismatchedLhsBitSize {
+                lhs_bit_size: 16,
+                op_bit_size: 254
+            })
+        );
+
+        assert_eq!(
+            evaluate_binary_field_op(
+                &BinaryFieldOp::LessThanEquals,
+                MemoryValue::<FieldElement>::U16(1),
+                MemoryValue::new_field(1u32.into()),
+            ),
+            Err(BrilligArithmeticError::MismatchedLhsBitSize {
+                lhs_bit_size: 16,
+                op_bit_size: 254
+            })
         );
     }
 }
