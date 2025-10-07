@@ -254,6 +254,7 @@ input#docsearch-input {
 
 .homepage_cta_footer_container {
   display: flex;
+  gap: 15px;
   justify-content: center;
 }
 
