@@ -2418,7 +2418,32 @@
 <a href="#2417" id="2417">2417</a>
 <a href="#2418" id="2418">2418</a>
 <a href="#2419" id="2419">2419</a>
-<a href="#2420" id="2420">2420</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the constant folding optimization pass is to propagate any constants forwards into
+<a href="#2420" id="2420">2420</a>
+<a href="#2421" id="2421">2421</a>
+<a href="#2422" id="2422">2422</a>
+<a href="#2423" id="2423">2423</a>
+<a href="#2424" id="2424">2424</a>
+<a href="#2425" id="2425">2425</a>
+<a href="#2426" id="2426">2426</a>
+<a href="#2427" id="2427">2427</a>
+<a href="#2428" id="2428">2428</a>
+<a href="#2429" id="2429">2429</a>
+<a href="#2430" id="2430">2430</a>
+<a href="#2431" id="2431">2431</a>
+<a href="#2432" id="2432">2432</a>
+<a href="#2433" id="2433">2433</a>
+<a href="#2434" id="2434">2434</a>
+<a href="#2435" id="2435">2435</a>
+<a href="#2436" id="2436">2436</a>
+<a href="#2437" id="2437">2437</a>
+<a href="#2438" id="2438">2438</a>
+<a href="#2439" id="2439">2439</a>
+<a href="#2440" id="2440">2440</a>
+<a href="#2441" id="2441">2441</a>
+<a href="#2442" id="2442">2442</a>
+<a href="#2443" id="2443">2443</a>
+<a href="#2444" id="2444">2444</a>
+<a href="#2445" id="2445">2445</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the constant folding optimization pass is to propagate any constants forwards into
 //! later [`Instruction`]s to maximize the impact of [compile-time simplifications][crate::ssa::ir::dfg::simplify::simplify()].
 //!
 //! The pass works as follows:
@@ -3235,6 +3260,31 @@
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
         <span class="kw">let </span>ssa = ssa.fold_constants(MIN_ITER);
         assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    <span class="comment">// TODO: https://github.com/noir-lang/noir/issues/9767
+    </span><span class="attr">#[test]
+    </span><span class="kw">fn </span>constant_fold_duplicated_field_divisions() {
+        <span class="comment">// We should remove the duplicated field inversions here.
+        </span><span class="kw">let </span>src = <span class="string">"
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: Field):
+            v1 = div Field 1, v0
+            v2 = div Field 1, v0
+            return
+        }"</span>;
+
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>ssa = ssa.fold_constants(MIN_ITER);
+
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: Field):
+            v2 = div Field 1, v0
+            v3 = div Field 1, v0
+            return
+        }
+        "</span>);
     }
 
     <span class="attr">#[test]

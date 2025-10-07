@@ -571,7 +571,11 @@
 <a href="#570" id="570">570</a>
 <a href="#571" id="571">571</a>
 <a href="#572" id="572">572</a>
-<a href="#573" id="573">573</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
+<a href="#573" id="573">573</a>
+<a href="#574" id="574">574</a>
+<a href="#575" id="575">575</a>
+<a href="#576" id="576">576</a>
+<a href="#577" id="577">577</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
 //! The IR presented in this module will already
 //! be in SSA form and will be used to apply
 //! conventional optimizations like Common Subexpression
@@ -807,6 +811,10 @@
             </span>.and_then(Ssa::remove_unreachable_functions),
         SsaPass::new(Ssa::remove_truncate_after_range_check, <span class="string">"Removing Truncate after RangeCheck"</span>),
         SsaPass::new(Ssa::checked_to_unchecked, <span class="string">"Checked to unchecked"</span>),
+        SsaPass::new(
+            |ssa| ssa.fold_constants_using_constraints(options.constant_folding_max_iter),
+            <span class="string">"Constant Folding using constraints"</span>,
+        ),
         SsaPass::new(
             |ssa| ssa.fold_constants_with_brillig(options.constant_folding_max_iter),
             <span class="string">"Inlining Brillig Calls"</span>,
