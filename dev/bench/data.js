@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1759857150575,
+  "lastUpdate": 1759859726262,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23421,48 +23421,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "cf7dbf1659809f13a556ab42bb57e9fbe3b2f1e0",
-          "message": "chore: green light for ACVM optimisation (#10002)",
-          "timestamp": "2025-09-29T17:18:33Z",
-          "tree_id": "91419cd1ee9907cb06272c9decf7363c7a11e792",
-          "url": "https://github.com/noir-lang/noir/commit/cf7dbf1659809f13a556ab42bb57e9fbe3b2f1e0"
-        },
-        "date": 1759167711741,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 252164,
-            "range": "± 799",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 222480,
-            "range": "± 1951",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2779961,
-            "range": "± 1770",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -25514,6 +25472,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2789692,
             "range": "± 4918",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "84d900dc911ab71a69883936c566b1b1d4d3f837",
+          "message": "chore: Remove unnecessary allocation in `expr_with` (#10103)",
+          "timestamp": "2025-10-07T17:31:25Z",
+          "tree_id": "938e075a512e5d2715e52c0bb52d54b443dcc9a8",
+          "url": "https://github.com/noir-lang/noir/commit/84d900dc911ab71a69883936c566b1b1d4d3f837"
+        },
+        "date": 1759859702129,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 263793,
+            "range": "± 376",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 228908,
+            "range": "± 2735",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2788021,
+            "range": "± 1333",
             "unit": "ns/iter"
           }
         ]
