@@ -551,7 +551,8 @@ impl<T: std::fmt::Display> std::fmt::Display for Fitted<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Fitted::Fit(v) => v.fmt(f),
-            Fitted::Unfit(v) => v.fmt(f),
+            // Distinguish an overflowed value from the type it's supposed to be.
+            Fitted::Unfit(v) => write!(f, "({v})"),
         }
     }
 }
