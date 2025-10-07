@@ -1,9 +1,9 @@
-//! The `compiler` module contains several pass to transform an ACIR program.
+//! The `compiler` module contains several passes to transform an ACIR program.
 //! Roughly, the passes are spearated into the `optimizers` which try to reduce the number of opcodes
 //! and the `transformers` which adapt the opcodes to the proving backend.
 //!
 //! # Optimizers
-//! - GeneralOptimizer: simple pass which simplify AssertZero opcodes when possible (e.g remove terms with null coeficient)
+//! - GeneralOptimizer: simple pass which simplifies AssertZero opcodes when possible (e.g remove terms with a null coeficient)
 //! - UnusedMemoryOptimizer: simple pass which removes MemoryInit opcodes when they are not used (e.g no corresponding MemoryOp opcode)
 //! - RangeOptimizer: forward pass to collect range check information, and backward pass to remove the ones that are redundant.
 //!
@@ -29,7 +29,6 @@ mod optimizers;
 mod simulator;
 mod transformers;
 
-pub use optimizers::optimize;
 use optimizers::optimize_internal;
 pub use simulator::CircuitSimulator;
 use transformers::transform_internal;
@@ -50,9 +49,9 @@ pub struct AcirTransformationMap {
 impl AcirTransformationMap {
     /// Builds a map from a vector of pointers to the old acir opcodes.
     /// The index in the vector is the new opcode index.
-    /// The value of the vector is the old opcode index pointed.
+    /// The value of the vector is where the old opcode index was pointed.
     /// E.g: If acir_opcode_positions = 0,1,2,4,5,5,6
-    /// that means that old index  0,1,2,4,5,5,6 are mapped to the new indexes: 0,1,2,3,4,5,6
+    /// that means that old indices 0,1,2,4,5,5,6 are mapped to the new indexes: 0,1,2,3,4,5,6
     /// This gives the following map:
     /// 0 -> 0
     /// 1 -> 1
@@ -71,8 +70,8 @@ impl AcirTransformationMap {
     /// Returns the new opcode location(s) corresponding to the old opcode.
     /// An OpcodeLocation contains the index of the opcode in the vector of opcodes
     /// This function returns the new OpcodeLocation by 'updating' the index within the given OpcodeLocation
-    /// using the AcirTransformationMap. In fact it does not update the given OpcodeLocation 'in-memory' but rather
-    /// returns a new one, and even a vector of OpcodeLocation in case there are multiple new indexes corresponding
+    /// using the AcirTransformationMap. In fact, it does not update the given OpcodeLocation 'in-memory' but rather
+    /// returns a new one, and even a vector of OpcodeLocation's in case there are multiple new indexes corresponding
     /// to the old opcode index.
     pub fn new_locations(
         &self,
@@ -95,7 +94,7 @@ impl AcirTransformationMap {
         )
     }
 
-    /// This function is similar to `new_locations()`, but only deal with
+    /// This function is similar to `new_locations()`, but only deals with
     /// the AcirOpcodeLocation variant
     pub fn new_acir_locations(
         &self,
@@ -120,7 +119,7 @@ fn transform_assert_messages<F: Clone>(
         .into_iter()
         .flat_map(|(location, message)| {
             let new_locations = map.new_locations(location);
-            new_locations.into_iter().map(move |new_location| (new_location, message.clone()))
+            new_locations.map(move |new_location| (new_location, message.clone()))
         })
         .collect()
 }
@@ -141,13 +140,33 @@ pub fn compile<F: AcirField>(
     expression_width: ExpressionWidth,
     brillig_side_effects: &BTreeMap<BrilligFunctionId, bool>,
 ) -> (Circuit<F>, AcirTransformationMap) {
+    let max_transformer_passes_or_default = None;
+    compile_internal(acir, expression_width, brillig_side_effects, max_transformer_passes_or_default)
+}
+
+/// Applies backend independent optimizations to a [`Circuit`].
+pub fn optimize<F: AcirField>(
+    acir: Circuit<F>,
+    brillig_side_effects: &BTreeMap<BrilligFunctionId, bool>,
+) -> (Circuit<F>, AcirTransformationMap) {
+    let expression_width = ExpressionWidth::default();
+    let max_transformer_passes_or_default = Some(1);
+    compile_internal(acir, expression_width, brillig_side_effects, max_transformer_passes_or_default)
+}
+
+pub fn compile_internal<F: AcirField>(
+    acir: Circuit<F>,
+    expression_width: ExpressionWidth,
+    brillig_side_effects: &BTreeMap<BrilligFunctionId, bool>,
+    max_transformer_passes_or_default: Option<usize>,
+) -> (Circuit<F>, AcirTransformationMap) {
     let acir_opcode_positions = (0..acir.opcodes.len()).collect::<Vec<_>>();
 
     let (acir, acir_opcode_positions) =
         optimize_internal(acir, acir_opcode_positions, brillig_side_effects);
 
     let (mut acir, acir_opcode_positions) =
-        transform_internal(acir, expression_width, acir_opcode_positions, brillig_side_effects);
+        transform_internal(acir, expression_width, acir_opcode_positions, brillig_side_effects, max_transformer_passes_or_default);
 
     let transformation_map = AcirTransformationMap::new(&acir_opcode_positions);
     acir.assert_messages = transform_assert_messages(acir.assert_messages, &transformation_map);

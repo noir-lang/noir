@@ -1,27 +1,27 @@
 /// This module applies backend specific transformation to a [`Circuit`].
 ///
-/// ## CSAT: transforms AssertZero opcodes into  AssertZero opcodes having the required width.
+/// ## CSAT: transforms AssertZero opcodes into AssertZero opcodes having the required width.
 ///
 /// For instance, if the width is 4, the AssertZero opcode x1 + x2 + x3 + x4 + x5 - y = 0 will be transformed using 2 intermediate variables (z1,z2):
 /// x1 + x2 + x3 = z1
 /// x4 + x5 = z2
 /// z1 + z2 - y = 0
 /// If x1,..x5 are inputs to the program, they are taggeg as 'solvable', and would be used to compute the value of y.
-/// If we generate the intermediate variable x4 + x5 - y = z3, we get an unsolvable circuit because this AssertZero opcode will have two unkwnon values: y and z3
-/// So the CSAT transformation keep track of which witness would be solved for each opcode in order to only generate solvable intermediat variables.
+/// If we generate the intermediate variable x4 + x5 - y = z3, we get an unsolvable circuit because this AssertZero opcode will have two unknown values: y and z3
+/// So the CSAT transformation keeps track of which witnesses would be solved for each opcode in order to only generate solvable intermediate variables.
 ///
-/// ## eliminate intermediate variables
+/// ## Eliminate intermediate variables
 /// The 'eliminate intermediate variables' pass will remove any intermediate variables (for instance created by the previous transformation)
 /// that are used in exactly two AssertZero opcodes.
 /// This results in arithmetic opcodes having linear combinations of potentially large width.
 /// For instance if the intermediate variable is z1 is only used in y:
-/// z1 = x1 + x2 +x3
+/// z1 = x1 + x2 + x3
 /// y = z1 + x4
 /// We remove it, undoing the work done during the CSAT transformation: y = x1 + x2 + x3 + x4
 ///
 /// We do this because the backend is expected to handle linear combinations of 'unbounded width' in a more efficient way
 /// than the 'CSAT transformation'.
-/// However, it is worth to compute intermediate variables if they are used in more than one other opcode.
+/// However, it is worthwhile to compute intermediate variables if they are used in more than one other opcode.
 ///
 /// ## redundant_range
 /// The 'range optimization' pass, from the optimizers module will remove any redundant range opcodes again.
@@ -53,20 +53,21 @@ use super::{
 
 /// We need multiple passes to stabilize the output.
 /// The value was determined by running tests.
-const MAX_TRANSFORMER_PASSES: usize = 3;
+const DEFAULT_MAX_TRANSFORMER_PASSES: usize = 4;
 
 /// Applies backend specific optimizations to a [`Circuit`].
 pub fn transform<F: AcirField>(
     acir: Circuit<F>,
     expression_width: ExpressionWidth,
     brillig_side_effects: &BTreeMap<BrilligFunctionId, bool>,
+    max_transformer_passes_or_default: Option<usize>,
 ) -> (Circuit<F>, AcirTransformationMap) {
     // Track original acir opcode positions throughout the transformation passes of the compilation
     // by applying the modifications done to the circuit opcodes and also to the opcode_positions (delete and insert)
     let acir_opcode_positions = acir.opcodes.iter().enumerate().map(|(i, _)| i).collect();
 
     let (mut acir, acir_opcode_positions) =
-        transform_internal(acir, expression_width, acir_opcode_positions, brillig_side_effects);
+        transform_internal(acir, expression_width, acir_opcode_positions, brillig_side_effects, max_transformer_passes_or_default);
 
     let transformation_map = AcirTransformationMap::new(&acir_opcode_positions);
 
@@ -86,6 +87,7 @@ pub(super) fn transform_internal<F: AcirField>(
     expression_width: ExpressionWidth,
     mut acir_opcode_positions: Vec<usize>,
     brillig_side_effects: &BTreeMap<BrilligFunctionId, bool>,
+    max_transformer_passes_or_default: Option<usize>,
 ) -> (Circuit<F>, Vec<usize>) {
     if acir.opcodes.len() == 1 && matches!(acir.opcodes[0], Opcode::BrilligCall { .. }) {
         info!("Program is fully unconstrained, skipping transformation pass");
@@ -95,9 +97,14 @@ pub(super) fn transform_internal<F: AcirField>(
     // Allow multiple passes until we have stable output.
     let mut prev_opcodes_hash = rustc_hash::FxBuildHasher.hash_one(&acir.opcodes);
 
+    // Checking for stable output after MAX_TRANSFORMER_PASSES
+    let mut opcodes_hash_stabilized = false;
+
+    let max_transformer_passes = max_transformer_passes_or_default.unwrap_or(DEFAULT_MAX_TRANSFORMER_PASSES);
+
     // For most test programs it would be enough to loop here, but some of them
     // don't stabilize unless we also repeat the backend agnostic optimizations.
-    for _ in 0..MAX_TRANSFORMER_PASSES {
+    for _ in 0..max_transformer_passes {
         info!("Number of opcodes {}", acir.opcodes.len());
         let (new_acir, new_acir_opcode_positions) = transform_internal_once(
             acir,
@@ -112,10 +119,13 @@ pub(super) fn transform_internal<F: AcirField>(
         let new_opcodes_hash = rustc_hash::FxBuildHasher.hash_one(&acir.opcodes);
 
         if new_opcodes_hash == prev_opcodes_hash {
+            opcodes_hash_stabilized = true;
             break;
         }
         prev_opcodes_hash = new_opcodes_hash;
     }
+    assert!(opcodes_hash_stabilized, "expected hash of ACIR opcodes to stabilize");
+
     // After the elimination of intermediate variables the `current_witness_index` is potentially higher than it needs to be,
     // which would cause gaps if we ran the optimization a second time, making it look like new variables were added.
     acir.current_witness_index = max_witness(&acir).witness_index();
@@ -166,7 +176,7 @@ fn transform_internal_once<F: AcirField>(
 
     let mut next_witness_index = acir.current_witness_index + 1;
     // maps a normalized expression to the intermediate variable which represents the expression, along with its 'norm'
-    // the 'norm' is simply the value of the first non zero coefficient in the expression, taken from the linear terms, or quadratic terms if there is none.
+    // the 'norm' is simply the value of the first non-zero coefficient in the expression, taken from the linear terms, or quadratic terms if there is none.
     let mut intermediate_variables: IndexMap<Expression<F>, (F, Witness)> = IndexMap::new();
     for (index, opcode) in acir.opcodes.into_iter().enumerate() {
         match opcode {
@@ -520,5 +530,113 @@ where
         if let FunctionInput::Witness(witness) = input {
             self.fold(*witness);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::compiler::transform_internal;
+    use acir::{
+        circuit::{
+            Circuit,
+            ExpressionWidth,
+            brillig::BrilligFunctionId,
+        },
+    };
+    use std::collections::BTreeMap;
+
+    // tests::execution_success::test_to_be_bytes failed with "expected hash of ACIR opcodes to stabilize" when MAX_TRANSFORMER_PASSES=3,
+    // but this isn't failing with MAX_TRANSFORMER_PASSES=3
+    #[test]
+    #[should_panic(expected = "expected hash of ACIR opcodes to stabilize")]
+    fn test_max_transformer_passes() {
+        let formatted_acir = r#"private parameters: [w0]
+public parameters: []
+return values: [w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25, w26, w27, w28, w29, w30, w31]
+BRILLIG CALL func: 0, inputs: [w0, 31, 256], outputs: [[w32, w33, w34, w35, w36, w37, w38, w39, w40, w41, w42, w43, w44, w45, w46, w47, w48, w49, w50, w51, w52, w53, w54, w55, w56, w57, w58, w59, w60, w61, w62]]
+BLACKBOX::RANGE input: w35, bits: 8
+BLACKBOX::RANGE input: w36, bits: 8
+BLACKBOX::RANGE input: w37, bits: 8
+BLACKBOX::RANGE input: w38, bits: 8
+BLACKBOX::RANGE input: w39, bits: 8
+BLACKBOX::RANGE input: w40, bits: 8
+BLACKBOX::RANGE input: w41, bits: 8
+BLACKBOX::RANGE input: w42, bits: 8
+BLACKBOX::RANGE input: w43, bits: 8
+BLACKBOX::RANGE input: w44, bits: 8
+BLACKBOX::RANGE input: w45, bits: 8
+BLACKBOX::RANGE input: w46, bits: 8
+BLACKBOX::RANGE input: w47, bits: 8
+BLACKBOX::RANGE input: w48, bits: 8
+BLACKBOX::RANGE input: w49, bits: 8
+BLACKBOX::RANGE input: w50, bits: 8
+BLACKBOX::RANGE input: w51, bits: 8
+BLACKBOX::RANGE input: w52, bits: 8
+BLACKBOX::RANGE input: w53, bits: 8
+BLACKBOX::RANGE input: w54, bits: 8
+BLACKBOX::RANGE input: w55, bits: 8
+BLACKBOX::RANGE input: w56, bits: 8
+BLACKBOX::RANGE input: w57, bits: 8
+BLACKBOX::RANGE input: w58, bits: 8
+BLACKBOX::RANGE input: w59, bits: 8
+BLACKBOX::RANGE input: w60, bits: 8
+BLACKBOX::RANGE input: w61, bits: 8
+BLACKBOX::RANGE input: w62, bits: 8
+ASSERT w32 = w0 - 256*w33 - 65536*w34 - 16777216*w35 - 4294967296*w36 - 1099511627776*w37 - 281474976710656*w38 - 72057594037927936*w39 - 18446744073709551616*w40 - 4722366482869645213696*w41 - 1208925819614629174706176*w42 - 309485009821345068724781056*w43 - 79228162514264337593543950336*w44 - 20282409603651670423947251286016*w45 - 5192296858534827628530496329220096*w46 - 1329227995784915872903807060280344576*w47 - 340282366920938463463374607431768211456*w48 - 87112285931760246646623899502532662132736*w49 - 22300745198530623141535718272648361505980416*w50 - 5708990770823839524233143877797980545530986496*w51 - 1461501637330902918203684832716283019655932542976*w52 - 374144419156711147060143317175368453031918731001856*w53 - 95780971304118053647396689196894323976171195136475136*w54 - 24519928653854221733733552434404946937899825954937634816*w55 - 6277101735386680763835789423207666416102355444464034512896*w56 - 1606938044258990275541962092341162602522202993782792835301376*w57 - 411376139330301510538742295639337626245683966408394965837152256*w58 - 105312291668557186697918027683670432318895095400549111254310977536*w59 - 26959946667150639794667015087019630673637144422540572481103610249216*w60 - 6901746346790563787434755862277025452451108972170386555162524223799296*w61 - 1766847064778384329583297500742918515827483896875618958121606201292619776*w62
+ASSERT w32 = 60
+ASSERT w33 = 33
+ASSERT w34 = 31
+ASSERT w0 = 16777216*w35 + 4294967296*w36 + 1099511627776*w37 + 281474976710656*w38 + 72057594037927936*w39 + 18446744073709551616*w40 + 4722366482869645213696*w41 + 1208925819614629174706176*w42 + 309485009821345068724781056*w43 + 79228162514264337593543950336*w44 + 20282409603651670423947251286016*w45 + 5192296858534827628530496329220096*w46 + 1329227995784915872903807060280344576*w47 + 340282366920938463463374607431768211456*w48 + 87112285931760246646623899502532662132736*w49 + 22300745198530623141535718272648361505980416*w50 + 5708990770823839524233143877797980545530986496*w51 + 1461501637330902918203684832716283019655932542976*w52 + 374144419156711147060143317175368453031918731001856*w53 + 95780971304118053647396689196894323976171195136475136*w54 + 24519928653854221733733552434404946937899825954937634816*w55 + 6277101735386680763835789423207666416102355444464034512896*w56 + 1606938044258990275541962092341162602522202993782792835301376*w57 + 411376139330301510538742295639337626245683966408394965837152256*w58 + 105312291668557186697918027683670432318895095400549111254310977536*w59 + 26959946667150639794667015087019630673637144422540572481103610249216*w60 + 6901746346790563787434755862277025452451108972170386555162524223799296*w61 + 1766847064778384329583297500742918515827483896875618958121606201292619776*w62 + 2040124
+ASSERT w62 = w1
+ASSERT w61 = w2
+ASSERT w60 = w3
+ASSERT w59 = w4
+ASSERT w58 = w5
+ASSERT w57 = w6
+ASSERT w56 = w7
+ASSERT w55 = w8
+ASSERT w54 = w9
+ASSERT w53 = w10
+ASSERT w52 = w11
+ASSERT w51 = w12
+ASSERT w50 = w13
+ASSERT w49 = w14
+ASSERT w48 = w15
+ASSERT w47 = w16
+ASSERT w46 = w17
+ASSERT w45 = w18
+ASSERT w44 = w19
+ASSERT w43 = w20
+ASSERT w42 = w21
+ASSERT w41 = w22
+ASSERT w40 = w23
+ASSERT w39 = w24
+ASSERT w38 = w25
+ASSERT w37 = w26
+ASSERT w36 = w27
+ASSERT w35 = w28
+ASSERT w29 = 31
+ASSERT w30 = 33
+ASSERT w31 = 60
+"#;
+
+        let acir = Circuit::from_str(formatted_acir).unwrap();
+        let expression_width = ExpressionWidth::Bounded { width: 4 };
+        let acir_opcode_positions = vec![
+            0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
+            24, 25, 26, 27, 28, 29, 29, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43,
+            44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64,
+        ];
+        let mut brillig_side_effects = BTreeMap::new();
+        brillig_side_effects.insert(BrilligFunctionId(0), false);
+
+        let (_, result_acir_opcode_positions) = transform_internal(
+            acir,
+            expression_width,
+            acir_opcode_positions.clone(),
+            &brillig_side_effects,
+            Some(3),
+        );
+        assert_eq!(acir_opcode_positions, result_acir_opcode_positions);
     }
 }

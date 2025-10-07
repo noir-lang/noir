@@ -9,29 +9,29 @@ use acir::{
 };
 use std::collections::{BTreeSet, HashSet};
 
-/// Simulate a symbolic solve for a circuit
+/// Simulate solving a circuit symbolically
 /// Instead of evaluating witness values from the inputs, like the PWG module is doing,
-/// this pass simply mark the witness that can be evaluated, from the known inputs,
+/// this pass simply marks the witness that can be evaluated, from the known inputs,
 /// and incrementally from the previously marked witnesses.
-/// This avoid any computation on a big field which makes the process efficient.
+/// This avoids any computation on a big field which makes the process efficient.
 /// When all the witness of an opcode are marked as solvable, it means that the
 /// opcode is solvable.
 #[derive(Default)]
 pub struct CircuitSimulator {
     /// Track the witnesses that can be solved
-    solvable_witness: HashSet<Witness>,
+    solvable_witnesses: HashSet<Witness>,
 
     /// Track whether a [`BlockId`] has been initialized
     initialized_blocks: HashSet<BlockId>,
 }
 
 impl CircuitSimulator {
-    /// Simulate a symbolic solve for a circuit by keeping track of the witnesses that can be solved.
-    /// Returns the index of the opcode that cannot be solved, if any.
+    /// Simulate solving a circuit symbolically by keeping track of the witnesses that can be solved.
+    /// Returns the index of an opcode that cannot be solved, if any.
     #[tracing::instrument(level = "trace", skip_all)]
     pub fn check_circuit<F: AcirField>(&mut self, circuit: &Circuit<F>) -> Option<usize> {
         let circuit_inputs = circuit.circuit_arguments();
-        self.solvable_witness.extend(circuit_inputs.iter());
+        self.solvable_witnesses.extend(circuit_inputs.iter());
         for (i, op) in circuit.opcodes.iter().enumerate() {
             if !self.try_solve(op) {
                 return Some(i);
@@ -46,18 +46,18 @@ impl CircuitSimulator {
         match opcode {
             Opcode::AssertZero(expr) => {
                 for (_, w1, w2) in &expr.mul_terms {
-                    if !self.solvable_witness.contains(w1) {
-                        if !self.solvable_witness.contains(w2) {
+                    if !self.solvable_witnesses.contains(w1) {
+                        if !self.solvable_witnesses.contains(w2) {
                             return false;
                         }
                         unresolved.insert(*w1);
                     }
-                    if !self.solvable_witness.contains(w2) && w1 != w2 {
+                    if !self.solvable_witnesses.contains(w2) && w1 != w2 {
                         unresolved.insert(*w2);
                     }
                 }
                 for (_, w) in &expr.linear_combinations {
-                    if !self.solvable_witness.contains(w) {
+                    if !self.solvable_witnesses.contains(w) {
                         unresolved.insert(*w);
                     }
                 }
@@ -100,7 +100,7 @@ impl CircuitSimulator {
             }
             Opcode::MemoryInit { block_id, init, .. } => {
                 for w in init {
-                    if !self.solvable_witness.contains(w) {
+                    if !self.solvable_witnesses.contains(w) {
                         return false;
                     }
                 }
@@ -131,7 +131,7 @@ impl CircuitSimulator {
             }
             Opcode::Call { id: _, inputs, outputs, predicate } => {
                 for w in inputs {
-                    if !self.solvable_witness.contains(w) {
+                    if !self.solvable_witnesses.contains(w) {
                         return false;
                     }
                 }
@@ -150,23 +150,25 @@ impl CircuitSimulator {
 
     /// Adds the witness to set of solvable witness
     pub(crate) fn mark_solvable(&mut self, witness: Witness) {
-        self.solvable_witness.insert(witness);
+        self.solvable_witnesses.insert(witness);
     }
 
     pub fn can_solve_function_input<F: AcirField>(&self, input: &FunctionInput<F>) -> bool {
         if let FunctionInput::Witness(w) = input {
-            return self.solvable_witness.contains(w);
+            return self.solvable_witnesses.contains(w);
         }
         true
     }
+
     fn can_solve_expression<F>(&self, expr: &Expression<F>) -> bool {
-        for w in Self::expr_wit(expr) {
-            if !self.solvable_witness.contains(&w) {
+        for w in Self::expr_witness(expr) {
+            if !self.solvable_witnesses.contains(&w) {
                 return false;
             }
         }
         true
     }
+
     fn can_solve_brillig_input<F>(&mut self, input: &BrilligInputs<F>) -> bool {
         match input {
             BrilligInputs::Single(expr) => self.can_solve_expression(expr),
@@ -183,7 +185,7 @@ impl CircuitSimulator {
         }
     }
 
-    pub(crate) fn expr_wit<F>(expr: &Expression<F>) -> BTreeSet<Witness> {
+    pub(crate) fn expr_witness<F>(expr: &Expression<F>) -> BTreeSet<Witness> {
         let mut result = BTreeSet::new();
         result.extend(expr.mul_terms.iter().flat_map(|i| vec![i.1, i.2]));
         result.extend(expr.linear_combinations.iter().map(|i| i.1));
@@ -191,6 +193,8 @@ impl CircuitSimulator {
     }
 }
 
+// TODO: add test(s) for BlackBoxFuncCall
+// TODO: how to test parity with "full" circuit solver?
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeSet;
