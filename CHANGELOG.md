@@ -1,5 +1,51 @@
 # Changelog
 
+## [1.0.0-beta.14](https://github.com/noir-lang/noir/compare/v1.0.0-beta.13...v1.0.0-beta.14) (2025-10-06)
+
+
+### ⚠ BREAKING CHANGES
+
+* several ACIR serialisation changes ([#8134](https://github.com/noir-lang/noir/issues/8134))
+
+### Features
+
+* Add Module::parent and Module::child_modules ([#10005](https://github.com/noir-lang/noir/issues/10005)) ([4f954fa](https://github.com/noir-lang/noir/commit/4f954faf1c233a53e2a21e90be776bdcee64c9fb))
+* **brillig:** Centralize memory layout policy and reorganize memory regions ([#9985](https://github.com/noir-lang/noir/issues/9985)) ([f2acd9b](https://github.com/noir-lang/noir/commit/f2acd9b421f15fe9a1388afdeb4db5240b0be18a))
+* **cli:** Visualize the Control Flow Graph ([#9867](https://github.com/noir-lang/noir/issues/9867)) ([f355e1d](https://github.com/noir-lang/noir/commit/f355e1d0e2e5db8eeb597b2abcd2028d38b43521))
+* No need to use dummy slice values in remove_if_else ([#9928](https://github.com/noir-lang/noir/issues/9928)) ([dd83075](https://github.com/noir-lang/noir/commit/dd83075be5758cf8c6a3a28e7c4a08a32fc9fde5))
+* Optimize out noop casts on constants ([#10024](https://github.com/noir-lang/noir/issues/10024)) ([28daf02](https://github.com/noir-lang/noir/commit/28daf02aaaa426525340f3fd6d31ff6cc5c8e13a))
+* Parse and display SSA databus ([#9991](https://github.com/noir-lang/noir/issues/9991)) ([cb5c0ed](https://github.com/noir-lang/noir/commit/cb5c0ed85ecf8138964399d7b74a309587c999e8))
+* **ssa:** `constant_folding` with loop ([#10019](https://github.com/noir-lang/noir/issues/10019)) ([35909c7](https://github.com/noir-lang/noir/commit/35909c71d639f81687d3c5fd4e3c1487579a0703))
+
+
+### Bug Fixes
+
+* **acir:** Extend slice on dynamic insertion and compilation panic when flattening ([#10051](https://github.com/noir-lang/noir/issues/10051)) ([79ef33b](https://github.com/noir-lang/noir/commit/79ef33bd7b9325ea91ec174e53562cb13874c4a1))
+* Correct max_bit_size when left-shifting ([#9770](https://github.com/noir-lang/noir/issues/9770)) ([773e286](https://github.com/noir-lang/noir/commit/773e2868ed451787429bba24389c685468822b32))
+* Correctly handle unusual radices in `ToRadix` decompositions ([#9941](https://github.com/noir-lang/noir/issues/9941)) ([b9b8210](https://github.com/noir-lang/noir/commit/b9b8210ce3ca93b2ac439906932c57548782af5c))
+* Disable early mem2reg ([#9987](https://github.com/noir-lang/noir/issues/9987)) ([4eb2a5c](https://github.com/noir-lang/noir/commit/4eb2a5c83a4951f0cc7cc6e53fa093f81b8932be))
+* **fuzzer:** Mark DivisionByZero with different types as equivalent ([#10066](https://github.com/noir-lang/noir/issues/10066)) ([2e78193](https://github.com/noir-lang/noir/commit/2e78193a001642b734c77a1285a5e68634288e67))
+* **fuzz:** Handle divisor of zero msg in error comparison ([#9995](https://github.com/noir-lang/noir/issues/9995)) ([c60257c](https://github.com/noir-lang/noir/commit/c60257cb22c685c6d560879bd18de03c018fd3bb))
+* Hoist and then deduplicate ([#10047](https://github.com/noir-lang/noir/issues/10047)) ([58b733a](https://github.com/noir-lang/noir/commit/58b733a9d965de59fdd4b534ebe89e6b5bbf86e4))
+* **mem2reg:** Consider call return aliases ([#10016](https://github.com/noir-lang/noir/issues/10016)) ([0e13cf6](https://github.com/noir-lang/noir/commit/0e13cf6b51da9fbbd9fb43252d60777ac6b9cc83))
+* **parser:** Enforce left brace after match expression ([#10018](https://github.com/noir-lang/noir/issues/10018)) ([f666b6e](https://github.com/noir-lang/noir/commit/f666b6eb4299fce03f85ca556b183ed3481b73ab))
+* Remove generic length from ECDSA message hash in stdlib ([#10043](https://github.com/noir-lang/noir/issues/10043)) ([5bbec69](https://github.com/noir-lang/noir/commit/5bbec696bd059053af69b6c01180e6a8d380ae8c))
+* Signed division by -1 can overflow ([#9976](https://github.com/noir-lang/noir/issues/9976)) ([8ca4af7](https://github.com/noir-lang/noir/commit/8ca4af784ce805900a8d5472830c9c28e92562b8))
+* **ssa:** Avoid going through `i128` when casting signed to `u128` ([#10045](https://github.com/noir-lang/noir/issues/10045)) ([94dadc7](https://github.com/noir-lang/noir/commit/94dadc7effd29309dd2d8a5af345e694a5a5f741))
+* **ssa:** Handle OOB indexing of slice literals in `remove_unreachalbe_instructions` ([#9999](https://github.com/noir-lang/noir/issues/9999)) ([88bf540](https://github.com/noir-lang/noir/commit/88bf5402b734dfdb1d6315fe181c0a9770144ff9))
+* **ssa:** Handle partially removed `ArrayGet` groups of complex type during OOB checks ([#10027](https://github.com/noir-lang/noir/issues/10027)) ([39f193c](https://github.com/noir-lang/noir/commit/39f193cf14d97b200611dd6f6c9dac42f52b0b63))
+* **ssa:** Keep defaults for values returned in the databus ([#10042](https://github.com/noir-lang/noir/issues/10042)) ([348d92c](https://github.com/noir-lang/noir/commit/348d92c2fcd1a847e9abcc0dc6cbfd6f7caa1ee0))
+* **ssa:** SSA interpreter to return 0 for `Intrinsic::*RefCount` when constrained ([#10033](https://github.com/noir-lang/noir/issues/10033)) ([6a55e2d](https://github.com/noir-lang/noir/commit/6a55e2d2a9c0cf294054c120134c4ef4671aecbb))
+* **ssa:** SSA interpreter to use the 2nd arg in `slice_refcount` ([#10034](https://github.com/noir-lang/noir/issues/10034)) ([821a460](https://github.com/noir-lang/noir/commit/821a460eb4e0bbd0ecc382962f5bdb70bfc9b7b8))
+* **ssa:** Start with checked operations in index calculations ([#9888](https://github.com/noir-lang/noir/issues/9888)) ([852d0fb](https://github.com/noir-lang/noir/commit/852d0fb96c3abe67f34b0ec594ab0307b760509c))
+* **stdlib:** Only compute the garbage `embedded_curve_result` result if we know we will need it ([#10077](https://github.com/noir-lang/noir/issues/10077)) ([e5acaf6](https://github.com/noir-lang/noir/commit/e5acaf603193ddd5136251516c463ae6c50997b4))
+* **tag_attr:** Keep whitespace tokens when parsing ([#9981](https://github.com/noir-lang/noir/issues/9981)) ([1d260df](https://github.com/noir-lang/noir/commit/1d260dfdc3ef35c9f26a755be118fe48d04d7dbf))
+
+
+### Miscellaneous Chores
+
+* Several ACIR serialisation changes ([#8134](https://github.com/noir-lang/noir/issues/8134)) ([05a61db](https://github.com/noir-lang/noir/commit/05a61db551b445ac824fb6319cefcd7ece96b6b7))
+
 ## [1.0.0-beta.13](https://github.com/noir-lang/noir/compare/v1.0.0-beta.12...v1.0.0-beta.13) (2025-09-19)
 
 
