@@ -925,7 +925,10 @@ pub(crate) fn is_predicate_false<F: AcirField>(
     }
 }
 
-/// Currently used in `debugger/src/context.rs`
+/// Encapsulates a request from the ACVM that encounters an [ACIR call opcode][brillig_vm::brillig::Opcode::Call]
+/// where the result of the circuit execution has not yet been provided.
+///
+/// The caller must resolve this opcode externally based upon the information in the request.
 #[derive(Debug, Clone, PartialEq)]
 pub struct AcirCallWaitInfo<F> {
     /// Index in the list of ACIR function's that should be called
