@@ -42,14 +42,14 @@ pub enum Value {
 ///
 /// Since we normally require that ACIR and Brillig return the same result, once an operation
 /// overflows its type, we have reason to believe that ACIR and Brillig would not return the same
-/// value, since Brillig wraps, and ACIR does not. 
-/// 
-/// However, some operations that we ported back from ACIR to SSA are implemented in such a 
-/// way that transient values "escape" the boundaries of their type, only to be restored later, 
+/// value, since Brillig wraps, and ACIR does not.
+///
+/// However, some operations that we ported back from ACIR to SSA are implemented in such a
+/// way that transient values "escape" the boundaries of their type, only to be restored later,
 /// so keeping the `Field` serves more than informational purposes. We expect that under normal
 /// circumstances this effect is temporary, and by the time we would have to apply operations
 /// on the values that aren't implemented for `Field` (e.g. `lt` and bitwise ops), the values will
-/// be back on track. 
+/// be back on track.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Fitted<T> {
     Fit(T),
