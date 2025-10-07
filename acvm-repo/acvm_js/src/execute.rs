@@ -319,7 +319,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ProgramExecutor<'a, B> {
                             .execute_circuit(
                                 acir_to_call,
                                 call_info.id,
-                                initial_witness.clone(),
+                                initial_witness,
                                 witness_stack,
                             )
                             .await?;
