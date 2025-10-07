@@ -38,7 +38,7 @@ pub enum Value {
 ///   multiplication of `u32` values can result in something that only fits in a `u64`.
 ///
 /// When we interpret an operation that would wrap around, if we are in an ACIR context we can use
-/// the `Unfit` variant to indicate that the value beyond what fits into the base type.
+/// the `Unfit` variant to indicate that the value went beyond what fits into the base type.
 ///
 /// Since we normally demand that ACIR and Brillig return the same result, once an operation
 /// overflows its type, we know for a fact that ACIR and Brillig would not return the same
