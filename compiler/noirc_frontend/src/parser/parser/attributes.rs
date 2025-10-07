@@ -110,6 +110,11 @@ impl Parser<'_> {
         let mut contents = String::new();
 
         let mut brackets_count = 1; // 1 because of the starting `#[`
+        // Note: Keep trailing whitespace tokens.
+        // If we skip them, only non-whitespace tokens are parsed.
+        // When converting those tokens into a `String` for the tag attribute,
+        // the result will lose whitespace and no longer match the original content.
+        self.set_lexer_skip_whitespaces_flag(false);
 
         while !self.at_eof() {
             if self.at(Token::LeftBracket) {
@@ -123,6 +128,11 @@ impl Parser<'_> {
             }
 
             contents.push_str(&self.token.to_string());
+            self.bump();
+        }
+
+        self.set_lexer_skip_whitespaces_flag(true);
+        while self.at_whitespace() {
             self.bump();
         }
 
@@ -789,5 +799,57 @@ mod tests {
             panic!("Expected secondary attribute");
         };
         assert!(matches!(attr.kind, SecondaryAttributeKind::Deprecated(None)));
+    }
+
+    #[test]
+    fn parses_inner_tag_attribute_with_whitespace() {
+        let src = "#!['hello world]";
+        let mut parser = Parser::for_str_with_dummy_file(src);
+        let SecondaryAttributeKind::Tag(contents) = parser.parse_inner_attribute().unwrap().kind
+        else {
+            panic!("Expected inner tag attribute");
+        };
+        expect_no_errors(&parser.errors);
+        assert_eq!(contents, "hello world");
+    }
+
+    #[test]
+    fn parses_inner_tag_attribute_with_multiple_whitespaces() {
+        let src = "#!['x as u32]";
+        let mut parser = Parser::for_str_with_dummy_file(src);
+        let SecondaryAttributeKind::Tag(contents) = parser.parse_inner_attribute().unwrap().kind
+        else {
+            panic!("Expected inner tag attribute");
+        };
+        expect_no_errors(&parser.errors);
+        assert_eq!(contents, "x as u32");
+    }
+    #[test]
+    fn parses_tag_attribute_with_multiple_whitespaces() {
+        let src = "#['y as i16]";
+        let mut parser = Parser::for_str_with_dummy_file(src);
+        let (attribute, _span) = parser.parse_attribute().unwrap();
+        expect_no_errors(&parser.errors);
+        let Attribute::Secondary(attribute) = attribute else {
+            panic!("Expected secondary attribute");
+        };
+        let SecondaryAttributeKind::Tag(contents) = attribute.kind else {
+            panic!("Expected meta attribute");
+        };
+        assert_eq!(contents, "y as i16");
+    }
+    #[test]
+    fn parses_tag_attribute_with_whitespace() {
+        let src = "#['foo bar]";
+        let mut parser = Parser::for_str_with_dummy_file(src);
+        let (attribute, _span) = parser.parse_attribute().unwrap();
+        expect_no_errors(&parser.errors);
+        let Attribute::Secondary(attribute) = attribute else {
+            panic!("Expected secondary attribute");
+        };
+        let SecondaryAttributeKind::Tag(contents) = attribute.kind else {
+            panic!("Expected meta attribute");
+        };
+        assert_eq!(contents, "foo bar");
     }
 }
