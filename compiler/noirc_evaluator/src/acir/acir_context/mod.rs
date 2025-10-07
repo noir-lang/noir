@@ -297,21 +297,14 @@ impl<F: AcirField> AcirContext<F> {
     // Constrains `var` to be equal to predicate if the predicate is true
     // or to be equal to 0 if the predicate is false.
     //
-    // If the predicate is false, this is a no-op.
+    // Since we multiply `var` by the predicate, this is a no-op if the predicate is false
     pub(crate) fn maybe_eq_predicate(
         &mut self,
         var: AcirVar,
         predicate: AcirVar,
     ) -> Result<(), RuntimeError> {
-        let predicate_data = self.vars[&predicate].clone();
-        if let AcirVarData::Const(constant) = predicate_data {
-            if constant.is_zero() {
-                // If the predicate is false, this is a no-op.
-                return Ok(());
-            }
-        }
-
-        self.assert_eq_var(var, predicate, None)
+        let pred_mul_var = self.mul_var(var, predicate)?;
+        self.assert_eq_var(pred_mul_var, predicate, None)
     }
 
     // Returns the variable from the results, assuming it is the only result
