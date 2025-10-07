@@ -45,7 +45,7 @@ fn test_add() {
 You can be more specific and make it fail with a specific reason by using `should_fail_with = "<the reason for failure>"`:
 
 ```rust
-fn main(african_swallow_avg_speed : Field) {
+fn main(african_swallow_avg_speed: u64) {
     assert(african_swallow_avg_speed == 65, "What is the airspeed velocity of an unladen swallow");
 }
 
@@ -63,7 +63,7 @@ fn test_bridgekeeper() {
 The string given to `should_fail_with` doesn't need to exactly match the failure reason, it just needs to be a substring of it:
 
 ```rust
-fn main(african_swallow_avg_speed : Field) {
+fn main(african_swallow_avg_speed: u64) {
     assert(african_swallow_avg_speed == 65, "What is the airspeed velocity of an unladen swallow");
 }
 
