@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["vector_element_size"]};
