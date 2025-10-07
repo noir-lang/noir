@@ -5,3 +5,4 @@ coverage
 *.json*
 fuzz-*.log
 *_nohup
+nohup.out
