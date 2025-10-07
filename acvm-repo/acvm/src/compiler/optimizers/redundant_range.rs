@@ -162,7 +162,7 @@ impl<'a, F: AcirField> RangeOptimizer<'a, F> {
             infos
                 .entry(witness)
                 .and_modify(|info| {
-                    if num_bits < info.num_bits
+                    if num_bits > info.num_bits
                         || num_bits == info.num_bits && is_implied && !info.is_implied
                     {
                         info.switch_points.insert(idx);
