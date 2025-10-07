@@ -141,7 +141,12 @@ pub fn compile<F: AcirField>(
     brillig_side_effects: &BTreeMap<BrilligFunctionId, bool>,
 ) -> (Circuit<F>, AcirTransformationMap) {
     let max_transformer_passes_or_default = None;
-    compile_internal(acir, expression_width, brillig_side_effects, max_transformer_passes_or_default)
+    compile_internal(
+        acir,
+        expression_width,
+        brillig_side_effects,
+        max_transformer_passes_or_default,
+    )
 }
 
 /// Applies backend independent optimizations to a [`Circuit`].
@@ -151,7 +156,12 @@ pub fn optimize<F: AcirField>(
 ) -> (Circuit<F>, AcirTransformationMap) {
     let expression_width = ExpressionWidth::default();
     let max_transformer_passes_or_default = Some(1);
-    compile_internal(acir, expression_width, brillig_side_effects, max_transformer_passes_or_default)
+    compile_internal(
+        acir,
+        expression_width,
+        brillig_side_effects,
+        max_transformer_passes_or_default,
+    )
 }
 
 pub fn compile_internal<F: AcirField>(
@@ -165,8 +175,13 @@ pub fn compile_internal<F: AcirField>(
     let (acir, acir_opcode_positions) =
         optimize_internal(acir, acir_opcode_positions, brillig_side_effects);
 
-    let (mut acir, acir_opcode_positions) =
-        transform_internal(acir, expression_width, acir_opcode_positions, brillig_side_effects, max_transformer_passes_or_default);
+    let (mut acir, acir_opcode_positions) = transform_internal(
+        acir,
+        expression_width,
+        acir_opcode_positions,
+        brillig_side_effects,
+        max_transformer_passes_or_default,
+    );
 
     let transformation_map = AcirTransformationMap::new(&acir_opcode_positions);
     acir.assert_messages = transform_assert_messages(acir.assert_messages, &transformation_map);

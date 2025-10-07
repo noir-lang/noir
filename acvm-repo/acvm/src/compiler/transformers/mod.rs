@@ -66,8 +66,13 @@ pub fn transform<F: AcirField>(
     // by applying the modifications done to the circuit opcodes and also to the opcode_positions (delete and insert)
     let acir_opcode_positions = acir.opcodes.iter().enumerate().map(|(i, _)| i).collect();
 
-    let (mut acir, acir_opcode_positions) =
-        transform_internal(acir, expression_width, acir_opcode_positions, brillig_side_effects, max_transformer_passes_or_default);
+    let (mut acir, acir_opcode_positions) = transform_internal(
+        acir,
+        expression_width,
+        acir_opcode_positions,
+        brillig_side_effects,
+        max_transformer_passes_or_default,
+    );
 
     let transformation_map = AcirTransformationMap::new(&acir_opcode_positions);
 
@@ -100,7 +105,8 @@ pub(super) fn transform_internal<F: AcirField>(
     // Checking for stable output after MAX_TRANSFORMER_PASSES
     let mut opcodes_hash_stabilized = false;
 
-    let max_transformer_passes = max_transformer_passes_or_default.unwrap_or(DEFAULT_MAX_TRANSFORMER_PASSES);
+    let max_transformer_passes =
+        max_transformer_passes_or_default.unwrap_or(DEFAULT_MAX_TRANSFORMER_PASSES);
 
     // For most test programs it would be enough to loop here, but some of them
     // don't stabilize unless we also repeat the backend agnostic optimizations.
@@ -536,13 +542,7 @@ where
 #[cfg(test)]
 mod tests {
     use crate::compiler::transform_internal;
-    use acir::{
-        circuit::{
-            Circuit,
-            ExpressionWidth,
-            brillig::BrilligFunctionId,
-        },
-    };
+    use acir::circuit::{Circuit, ExpressionWidth, brillig::BrilligFunctionId};
     use std::collections::BTreeMap;
 
     // tests::execution_success::test_to_be_bytes failed with "expected hash of ACIR opcodes to stabilize" when MAX_TRANSFORMER_PASSES=3,
