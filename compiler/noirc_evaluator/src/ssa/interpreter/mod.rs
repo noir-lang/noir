@@ -1487,16 +1487,24 @@ fn evaluate_binary(
         ),
         BinaryOp::Eq => apply_int_comparison_op!(lhs, rhs, binary, |a, b| a == b, |a, b| a == b),
         BinaryOp::Lt => {
-            apply_int_comparison_op!(lhs, rhs, binary, |a, b| a < b, |_, _| todo!("unfit lt"))
+            apply_int_comparison_op!(lhs, rhs, binary, |a, b| a < b, |_, _| unreachable!(
+                "unfit lt: fit types should have been restored already"
+            ))
         }
         BinaryOp::And => {
-            apply_int_binop!(lhs, rhs, binary, |a, b| Some(a & b), |_, _| todo!("unfit and"))
+            apply_int_binop!(lhs, rhs, binary, |a, b| Some(a & b), |_, _| unreachable!(
+                "unfit and: fit types should have been restored already"
+            ))
         }
         BinaryOp::Or => {
-            apply_int_binop!(lhs, rhs, binary, |a, b| Some(a | b), |_, _| todo!("unfit or"))
+            apply_int_binop!(lhs, rhs, binary, |a, b| Some(a | b), |_, _| unreachable!(
+                "unfit or: fit types should have been restored already"
+            ))
         }
         BinaryOp::Xor => {
-            apply_int_binop!(lhs, rhs, binary, |a, b| Some(a ^ b), |_, _| todo!("unfit xor"))
+            apply_int_binop!(lhs, rhs, binary, |a, b| Some(a ^ b), |_, _| unreachable!(
+                "unfit xor: fit types should have been restored already"
+            ))
         }
         BinaryOp::Shl => {
             use NumericValue::*;
