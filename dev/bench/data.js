@@ -1,107 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1759832994317,
+  "lastUpdate": 1759833000038,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "0c5df89f336a3bb24df78cd17e70376dd6fecfc5",
-          "message": "chore(acir): Intrinsics and slice_ops modules as well as slice_ops doc comments (#10012)",
-          "timestamp": "2025-09-26T16:46:18Z",
-          "tree_id": "cb33ad9be0187c74325a7edd44cf464f820b4973",
-          "url": "https://github.com/noir-lang/noir/commit/0c5df89f336a3bb24df78cd17e70376dd6fecfc5"
-        },
-        "date": 1758907580060,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 286.45,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 585.23,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 258.72,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 341.03,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 338.17,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 341.99,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 342.07,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 9680,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 9690,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 347.38,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 1490,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 6960,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 339.44,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 107.46,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 251.24,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -4939,6 +4840,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-tx-merge",
             "value": 338.93,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 96.83,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 251.26,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "d6c623d28ae85f3ac0c53518369438cf7fea2ba0",
+          "message": "chore: refactor brillig_blocks (#10088)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2025-10-07T09:34:52Z",
+          "tree_id": "a685cf18f5c9e55bf6331a3e9194413840290e1f",
+          "url": "https://github.com/noir-lang/noir/commit/d6c623d28ae85f3ac0c53518369438cf7fea2ba0"
+        },
+        "date": 1759832977267,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 273.17,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 562.6,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 256.35,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 342.85,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 340.07,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 343.9,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 343.93,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 9710,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 9720,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 346.54,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 1360,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 6950,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 338.94,
             "unit": "MB"
           },
           {
