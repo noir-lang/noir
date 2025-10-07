@@ -32,4 +32,10 @@ impl<F: AcirField> MemOp<F> {
     pub fn write_to_mem_index(index: Expression<F>, value: Expression<F>) -> Self {
         MemOp { operation: Expression::one(), index, value }
     }
+
+    pub fn mutate_witnesses(&mut self, f: impl Fn(&mut Witness)) {
+        self.operation.mutate_witnesses(&f);
+        self.index.mutate_witnesses(&f);
+        self.value.mutate_witnesses(&f);
+    }
 }

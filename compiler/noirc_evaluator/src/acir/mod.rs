@@ -230,18 +230,36 @@ impl<'a> Context<'a> {
         for instruction_id in entry_block.instructions() {
             warnings.extend(self.convert_ssa_instruction(*instruction_id, dfg, ssa)?);
         }
+
         let (return_vars, return_warnings) =
             self.convert_ssa_return(entry_block.unwrap_terminator(), dfg)?;
 
-        // TODO: This is a naive method of assigning the return values to their witnesses as
-        // we're likely to get a number of constraints which are asserting one witness to be equal to another.
-        //
-        // We should search through the program and relabel these witnesses so we can remove this constraint.
+        // Map return witnesses to the actual return variables
+        let mut witness_mapping = HashMap::default();
         for (witness_var, return_var) in return_witness_vars.iter().zip(return_vars) {
-            self.acir_context.assert_eq_var(*witness_var, return_var, None)?;
+            if let (Some(witness_witness), Some(return_witness)) = (
+                self.acir_context.var_to_expression(*witness_var)?.to_witness(),
+                self.acir_context.var_to_expression(return_var)?.to_witness(),
+            ) {
+                witness_mapping.insert(return_witness, witness_witness);
+            } else {
+                self.acir_context.assert_eq_var(*witness_var, return_var, None)?;
+            }
         }
 
         self.initialize_databus(&return_witnesses, dfg)?;
+
+        // Then replace them in the opcodes that form the return value
+        if !witness_mapping.is_empty() {
+            for opcode in &mut self.acir_context.acir_ir.opcodes {
+                opcode.mutate_witnesses(|witness: &mut Witness| {
+                    if let Some(replacement) = witness_mapping.get(witness) {
+                        *witness = *replacement;
+                    }
+                });
+            }
+        }
+
         warnings.extend(return_warnings);
         warnings.extend(self.acir_context.warnings.clone());
 

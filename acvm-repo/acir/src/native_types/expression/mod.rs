@@ -138,6 +138,16 @@ impl<F> Expression<F> {
         self.mul_terms.sort_by(|a, b| a.1.cmp(&b.1).then(a.2.cmp(&b.2)));
         self.linear_combinations.sort_by(|a, b| a.1.cmp(&b.1));
     }
+
+    pub fn mutate_witnesses(&mut self, f: impl Fn(&mut Witness)) {
+        for (_, w1, w2) in &mut self.mul_terms {
+            f(w1);
+            f(w2);
+        }
+        for (_, w) in &mut self.linear_combinations {
+            f(w);
+        }
+    }
 }
 
 impl<F: AcirField> Expression<F> {

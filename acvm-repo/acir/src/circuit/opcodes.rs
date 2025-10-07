@@ -143,6 +143,37 @@ pub enum Opcode<F: AcirField> {
     },
 }
 
+impl<F: AcirField> Opcode<F> {
+    pub fn mutate_witnesses(&mut self, f: impl Fn(&mut Witness)) {
+        match self {
+            Opcode::AssertZero(expr) => expr.mutate_witnesses(&f),
+            Opcode::BlackBoxFuncCall(g) => g.mutate_witnesses(&f),
+            Opcode::MemoryOp { op, .. } => op.mutate_witnesses(&f),
+            Opcode::MemoryInit { init, .. } => {
+                for witness in init.iter_mut() {
+                    f(witness);
+                }
+            }
+            Opcode::BrilligCall { inputs, outputs, .. } => {
+                for input in inputs.iter_mut() {
+                    input.mutate_witnesses(&f);
+                }
+                for output in outputs.iter_mut() {
+                    output.mutate_witnesses(&f);
+                }
+            }
+            Opcode::Call { inputs, outputs, .. } => {
+                for input in inputs.iter_mut() {
+                    f(input);
+                }
+                for output in outputs.iter_mut() {
+                    f(output);
+                }
+            }
+        }
+    }
+}
+
 impl<F: AcirField> std::fmt::Display for Opcode<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

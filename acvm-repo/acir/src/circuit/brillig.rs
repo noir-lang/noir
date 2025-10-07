@@ -42,6 +42,20 @@ pub enum BrilligInputs<F> {
     MemoryArray(BlockId),
 }
 
+impl<F: AcirField> BrilligInputs<F> {
+    pub fn mutate_witnesses(&mut self, f: impl Fn(&mut Witness)) {
+        match self {
+            BrilligInputs::Single(expr) => expr.mutate_witnesses(f),
+            BrilligInputs::Array(exprs) => {
+                for expr in exprs {
+                    expr.mutate_witnesses(&f);
+                }
+            }
+            BrilligInputs::MemoryArray(_) => {}
+        }
+    }
+}
+
 impl<F: AcirField> std::fmt::Display for BrilligInputs<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -62,6 +76,19 @@ impl<F: AcirField> std::fmt::Display for BrilligInputs<F> {
 pub enum BrilligOutputs {
     Simple(Witness),
     Array(Vec<Witness>),
+}
+
+impl BrilligOutputs {
+    pub fn mutate_witnesses(&mut self, f: impl Fn(&mut Witness)) {
+        match self {
+            BrilligOutputs::Simple(witness) => f(witness),
+            BrilligOutputs::Array(witnesses) => {
+                for witness in witnesses {
+                    f(witness);
+                }
+            }
+        }
+    }
 }
 
 impl std::fmt::Display for BrilligOutputs {
