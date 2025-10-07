@@ -24,11 +24,10 @@ pub type UniqueFeatureIndex = usize;
 /// A map for translating encountered branching logic to features for fuzzing
 pub type BranchToFeatureMap = HashMap<Branch, UniqueFeatureIndex>;
 
-/// Fuzzing trace
+/// Context structure for all information necessary to compute the fuzzing trace
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub(super) struct FuzzingTrace {
-    /// Counter for each feature / branch
-    /// Fuzzer tracing memory
+    /// Fuzzer tracing memory ddd
     trace: Vec<u32>,
     /// Branch to feature map for fuzzing
     /// Maps program counter + feature to index in the trace vector
@@ -46,14 +45,10 @@ impl FuzzingTrace {
         self.trace[index] += 1;
     }
 
-    fn record_conditional_mov(&mut self, pc: usize, branch_taken: bool) {
+    fn record_conditional_mov(&mut self, pc: usize, branch: bool) {
         let index = self.branch_to_feature_map[&(
             pc,
-            if branch_taken {
-                FUZZING_COMPARISON_TRUE_STATE
-            } else {
-                FUZZING_COMPARISON_FALSE_STATE
-            },
+            if branch { FUZZING_COMPARISON_TRUE_STATE } else { FUZZING_COMPARISON_FALSE_STATE },
         )];
         self.trace[index] += 1;
     }
@@ -67,6 +62,11 @@ impl FuzzingTrace {
         result: MemoryValue<F>,
     ) {
         match op {
+            BinaryFieldOp::Add
+            | BinaryFieldOp::Sub
+            | BinaryFieldOp::Mul
+            | BinaryFieldOp::Div
+            | BinaryFieldOp::IntegerDiv => {}
             BinaryFieldOp::Equals | BinaryFieldOp::LessThan | BinaryFieldOp::LessThanEquals => {
                 let a = match lhs {
                     MemoryValue::Field(a) => a,
@@ -93,7 +93,6 @@ impl FuzzingTrace {
                 self.trace[approach_index] += 1;
                 self.trace[condition_index] += 1;
             }
-            _ => {}
         }
     }
 
@@ -106,6 +105,15 @@ impl FuzzingTrace {
         result: MemoryValue<F>,
     ) {
         match op {
+            BinaryIntOp::Add
+            | BinaryIntOp::Sub
+            | BinaryIntOp::Mul
+            | BinaryIntOp::Div
+            | BinaryIntOp::And
+            | BinaryIntOp::Or
+            | BinaryIntOp::Xor
+            | BinaryIntOp::Shl
+            | BinaryIntOp::Shr => {}
             BinaryIntOp::Equals | BinaryIntOp::LessThan | BinaryIntOp::LessThanEquals => {
                 let lhs_val = lhs.to_u128().expect("lhs is not an integer");
                 let rhs_val = rhs.to_u128().expect("rhs is not an integer");
@@ -117,7 +125,8 @@ impl FuzzingTrace {
                 let approach_index = self.branch_to_feature_map[&(
                     pc,
                     FUZZING_COMPARISON_LOG_RANGE_START_STATE
-                        + rhs_val.abs_diff(lhs_val).ilog2().saturating_add(1) as usize,
+                        + rhs_val.abs_diff(lhs_val).checked_ilog2().map_or_else(|| 0, |x| x + 1)
+                            as usize,
                 )];
                 let condition_index = self.branch_to_feature_map[&(
                     pc,
@@ -126,7 +135,6 @@ impl FuzzingTrace {
                 self.trace[approach_index] += 1;
                 self.trace[condition_index] += 1;
             }
-            _ => {}
         }
     }
 
