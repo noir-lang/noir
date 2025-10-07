@@ -644,16 +644,15 @@ fn can_be_deduplicated(instruction: &Instruction, dfg: &DataFlowGraph) -> CanBeD
 
 #[cfg(test)]
 mod test {
+    use std::collections::BTreeMap;
+
     use crate::{
         assert_ssa_snapshot,
         ssa::{
-            Ssa,
-            interpreter::value::Value,
-            ir::{types::NumericType, value::ValueMapping},
-            opt::{
+            interpreter::{value::Value, Interpreter, InterpreterOptions}, ir::{types::NumericType, value::ValueMapping}, opt::{
                 assert_normalized_ssa_equals, assert_ssa_does_not_change,
                 constant_folding::DEFAULT_MAX_ITER,
-            },
+            }, Ssa
         },
     };
 
@@ -1166,7 +1165,9 @@ mod test {
         let mut ssa = Ssa::from_str(src).unwrap();
 
         // First demonstrate what happens if we don't revisit.
-        ssa.main_mut().constant_fold(false, 1, &mut None);
+        let empty_functions_map = BTreeMap::new();
+        let mut empty_interpreter = Interpreter::new_from_functions(&empty_functions_map, InterpreterOptions::default(), std::io::empty());
+        ssa.main_mut().constant_fold(false, 1, &mut empty_interpreter);
 
         // 1. v9 is a duplicate of v5 -> hoisted to b0
         // 2. v13 is a duplicate of v9 -> immediately deduplicated because it's now in b0
