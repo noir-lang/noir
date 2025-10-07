@@ -74,7 +74,7 @@ assert(empty_vector.len() == 0);
 Retrieves an element from the vector at a given index. Panics if the index points beyond the vector's end.
 
 ```rust
-pub fn get(self, index: Field) -> T
+pub fn get(self, index: u32) -> T
 ```
 
 Example:
@@ -87,7 +87,7 @@ assert(vector.get(1) == 20);
 ### set
 
 ```rust
-pub fn set(&mut self: Self, index: u64, value: T) {
+pub fn set(&mut self: Self, index: u32, value: T)
 ```
 
 Writes an element to the vector at the given index, starting from zero.
@@ -141,7 +141,7 @@ assert(vector.len() == 1);
 Inserts an element at a specified index, shifting subsequent elements to the right.
 
 ```rust
-pub fn insert(&mut self, index: Field, elem: T)
+pub fn insert(&mut self, index: u32, elem: T)
 ```
 
 Example:

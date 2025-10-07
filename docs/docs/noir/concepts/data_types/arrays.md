@@ -17,9 +17,9 @@ An array is one way of grouping together values into one compound type. Array ty
 or explicitly specified via the syntax `[<Type>; <Size>]`:
 
 ```rust
-fn main(x : Field, y : Field) {
+fn main(x : u64, y : u64) {
     let my_arr = [x, y];
-    let your_arr: [Field; 2] = [x, y];
+    let your_arr: [u64; 2] = [x, y];
 }
 ```
 

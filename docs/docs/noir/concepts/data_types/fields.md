@@ -15,11 +15,9 @@ sidebar_position: 0
 
 The field type corresponds to the native field type of the proving backend.
 
-The size of a Noir field depends on the elliptic curve's finite field for the proving backend
-adopted. For example, a field would be a 254-bit integer when paired with the default backend that
-spans the Grumpkin curve.
+The size of a Noir field depends on the elliptic curve's finite field for the proving backend  adopted. For example, a field would be a 254-bit integer when paired with the default backend that spans the Grumpkin curve.
 
-Fields support integer arithmetic and are often used as the default numeric type in Noir:
+Fields support integer arithmetic:
 
 ```rust
 fn main(x : Field, y : Field)  {
@@ -27,11 +25,9 @@ fn main(x : Field, y : Field)  {
 }
 ```
 
-`x`, `y` and `z` are all private fields in this example. Using the `let` keyword we defined a new
-private value `z` constrained to be equal to `x + y`.
+`x`, `y` and `z` are all private fields in this example. Using the `let` keyword we defined a new private value `z` constrained to be equal to `x + y`.
 
-If proving efficiency is of priority, fields should be used as a default for solving problems.
-Smaller integer types (e.g. `u64`) incur extra range constraints.
+If proving efficiency is of priority, fields should be used as a default for solving problems. Smaller integer types (e.g. `u64`) incur extra range constraints.
 
 ## Methods
 
