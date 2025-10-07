@@ -5,7 +5,7 @@ use noirc_frontend::Shared;
 
 use crate::ssa::{
     interpreter::{
-        InterpreterError, NumericValue, Value,
+        InterpreterError, Value,
         tests::{
             expect_value, expect_value_with_args, expect_values, expect_values_with_args,
             from_constant,
@@ -32,7 +32,7 @@ fn add_unsigned() {
         }
     ",
     );
-    assert_eq!(value, Value::Numeric(NumericValue::U32(102)));
+    assert_eq!(value, Value::u32(102));
 }
 
 #[test]
@@ -47,7 +47,7 @@ fn add_signed() {
         }
     ",
     );
-    assert_eq!(value, Value::Numeric(NumericValue::I32(102)));
+    assert_eq!(value, Value::i32(102));
 }
 
 #[test]
@@ -103,7 +103,7 @@ fn add_unchecked_signed() {
         }
     ",
     );
-    assert_eq!(value, Value::Numeric(NumericValue::I8(-127)));
+    assert_eq!(value, Value::i8(-127));
 }
 
 #[test]
@@ -117,7 +117,7 @@ fn sub_unsigned() {
         }
     ",
     );
-    assert_eq!(value, Value::Numeric(NumericValue::U32(10000)));
+    assert_eq!(value, Value::u32(10000));
 }
 
 #[test]
@@ -132,7 +132,7 @@ fn sub_signed() {
         }
     ",
     );
-    assert_eq!(value, Value::Numeric(NumericValue::I32(-1)));
+    assert_eq!(value, Value::i32(-1));
 }
 
 #[test]
@@ -176,7 +176,7 @@ fn sub_unchecked_unsigned() {
         }
     ",
     );
-    assert!(matches!(value, Value::Numeric(NumericValue::U8(246))));
+    assert_eq!(value, Value::u8(246));
 }
 
 #[test]
@@ -190,7 +190,7 @@ fn sub_unchecked_signed() {
         }
     ",
     );
-    assert_eq!(value, Value::Numeric(NumericValue::I8(-7)));
+    assert_eq!(value, Value::i8(-7));
 }
 
 #[test]
@@ -204,7 +204,7 @@ fn mul_unsigned() {
         }
     ",
     );
-    assert_eq!(value, Value::Numeric(NumericValue::U64(200)));
+    assert_eq!(value, Value::u64(200));
 }
 
 #[test]
@@ -221,7 +221,7 @@ fn mul_signed() {
         }
     ",
     );
-    assert_eq!(value, Value::Numeric(NumericValue::I64(200)));
+    assert_eq!(value, Value::i64(200));
 }
 
 #[test]
@@ -263,7 +263,7 @@ fn mul_unchecked_unsigned() {
         }
     ",
     );
-    assert_eq!(value, Value::Numeric(NumericValue::U8(0)));
+    assert_eq!(value, Value::u8(0));
 }
 
 #[test]
@@ -277,7 +277,7 @@ fn mul_unchecked_signed() {
         }
     ",
     );
-    assert_eq!(value, Value::Numeric(NumericValue::I8(-2)));
+    assert_eq!(value, Value::i8(-2));
 }
 
 #[test]
@@ -291,7 +291,7 @@ fn div() {
         }
     ",
     );
-    assert_eq!(value, Value::Numeric(NumericValue::I16(64)));
+    assert_eq!(value, Value::i16(64));
 }
 
 #[test]
@@ -319,7 +319,7 @@ fn r#mod() {
         }
     ",
     );
-    assert_eq!(value, Value::Numeric(NumericValue::I64(2)));
+    assert_eq!(value, Value::i64(2));
 }
 
 #[test]
@@ -853,7 +853,7 @@ fn array_get_disabled_by_enable_side_effects_if_index_is_not_known_to_be_safe() 
             return v1
         }
     "#,
-        vec![Value::Numeric(NumericValue::U32(1))],
+        vec![Value::u32(1)],
     );
     // If enable_side_effects is false, array get will retrieve the value at the first compatible index
     assert_eq!(value, from_constant(1_u32.into(), NumericType::NativeField));
