@@ -290,9 +290,9 @@ impl<F: AcirField> AcirContext<F> {
         // This check prevents invalid divisions by zero.
         let should_be_one = self.mul_var(inverted_var, var)?;
 
-        //    predicate * should_be_one = predicate
-        // -> predicate * (should_be_one - 1) = 0
-        // so either should_be_one is one or predicate is zero
+        //    `predicate * should_be_one = predicate`
+        // -> `predicate * (should_be_one - 1) = 0`
+        // so either `should_be_one` is one or `predicate` is zero
         let pred_mul_should_be_one = self.mul_var(should_be_one, predicate)?;
         self.assert_eq_var(pred_mul_should_be_one, predicate, None)?;
 
