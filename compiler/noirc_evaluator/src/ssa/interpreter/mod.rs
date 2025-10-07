@@ -12,7 +12,7 @@ use super::{
 };
 use crate::ssa::{
     interpreter::value::Fitted,
-    ir::{instruction::binary::truncate_field, printer::display_binary},
+    ir::{instruction::binary::truncate_field, printer::display_binary, types::NumericType},
 };
 use acvm::{AcirField, FieldElement};
 use errors::{InternalError, InterpreterError, MAX_UNSIGNED_BIT_SIZE};
@@ -657,47 +657,65 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         result: ValueId,
     ) -> IResult<()> {
         use Fitted::*;
+        use NumericValue::*;
 
         let value = self.lookup_numeric(value_id, "truncate")?;
+        let typ = value.get_type();
         if bit_size == 0 {
             return Err(internal(InternalError::TruncateToZeroBits { value_id, max_bit_size }));
         }
 
         // Truncate an unsigned value.
-        fn truncate_fitted<T>(value: Fitted<T>, bit_size: u32) -> IResult<Fitted<T>>
+        fn truncate_fitted<F, T>(
+            cons: F,
+            typ: NumericType,
+            value: Fitted<T>,
+            bit_size: u32,
+        ) -> IResult<NumericValue>
         where
             T: TryFrom<u128>,
             u128: From<T>,
             <T as TryFrom<u128>>::Error: std::fmt::Debug,
+            F: Fn(Fitted<T>) -> NumericValue,
         {
             match value {
-                Fit(value) => Ok(Fit(truncate_unsigned(value, bit_size)?)),
-                Unfit(value) => Ok(Unfit(truncate_field(value, bit_size))),
+                Fit(value) => Ok(cons(Fit(truncate_unsigned(value, bit_size)?))),
+                Unfit(value) => {
+                    let truncated = truncate_field(value, bit_size);
+                    NumericValue::from_constant(truncated, typ)
+                        .or_else(|_| Ok(cons(Unfit(truncated))))
+                }
             }
         }
 
         // Truncate a signed value via unsigned cast and back.
         macro_rules! truncate_via {
-            ($value:ident, $bit_size:ident, $typ:ty, $unsigned:ty) => {
+            ($cons:expr, $typ:expr, $value:ident, $bit_size:ident, $signed:ty, $unsigned:ty) => {
                 match $value {
-                    Fit(value) => Fit(truncate_unsigned(value as $unsigned, $bit_size)? as $typ),
-                    Unfit(value) => Unfit(truncate_field(value, bit_size)),
+                    Fit(value) => {
+                        $cons(Fit(truncate_unsigned(value as $unsigned, $bit_size)? as $signed))
+                    }
+                    Unfit(value) => {
+                        let truncated = truncate_field(value, bit_size);
+                        NumericValue::from_constant(truncated, typ)
+                            .unwrap_or_else(|_| $cons(Unfit(truncated)))
+                    }
                 }
             };
         }
 
         let truncated = match value {
-            NumericValue::Field(value) => NumericValue::Field(truncate_field(value, bit_size)),
-            NumericValue::U1(value) => NumericValue::U1(value),
-            NumericValue::U8(value) => NumericValue::U8(truncate_fitted(value, bit_size)?),
-            NumericValue::U16(value) => NumericValue::U16(truncate_fitted(value, bit_size)?),
-            NumericValue::U32(value) => NumericValue::U32(truncate_fitted(value, bit_size)?),
-            NumericValue::U64(value) => NumericValue::U64(truncate_fitted(value, bit_size)?),
-            NumericValue::U128(value) => NumericValue::U128(truncate_fitted(value, bit_size)?),
-            NumericValue::I8(value) => NumericValue::I8(truncate_via!(value, bit_size, i8, u8)),
-            NumericValue::I16(value) => NumericValue::I16(truncate_via!(value, bit_size, i16, u16)),
-            NumericValue::I32(value) => NumericValue::I32(truncate_via!(value, bit_size, i32, u32)),
-            NumericValue::I64(value) => NumericValue::I64(truncate_via!(value, bit_size, i64, u64)),
+            Field(value) => Field(truncate_field(value, bit_size)),
+            U1(value) => U1(value),
+            U8(value) => truncate_fitted(U8, typ, value, bit_size)?,
+            U16(value) => truncate_fitted(U16, typ, value, bit_size)?,
+            U32(value) => truncate_fitted(U32, typ, value, bit_size)?,
+            U64(value) => truncate_fitted(U64, typ, value, bit_size)?,
+            U128(value) => truncate_fitted(U128, typ, value, bit_size)?,
+            I8(value) => truncate_via!(I8, typ, value, bit_size, i8, u8),
+            I16(value) => truncate_via!(I16, typ, value, bit_size, i16, u16),
+            I32(value) => truncate_via!(I32, typ, value, bit_size, i32, u32),
+            I64(value) => truncate_via!(I64, typ, value, bit_size, i64, u64),
         };
 
         self.define(result, Value::Numeric(truncated))
