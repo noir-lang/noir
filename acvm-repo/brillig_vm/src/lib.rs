@@ -27,8 +27,8 @@ use crate::fuzzing::FuzzingTrace;
 mod arithmetic;
 mod black_box;
 mod cast;
-pub mod fuzzing;
 mod foreign_call;
+pub mod fuzzing;
 mod memory;
 
 /// The error call stack contains the opcode indexes of the call stack at the time of failure, plus the index of the opcode that failed.
