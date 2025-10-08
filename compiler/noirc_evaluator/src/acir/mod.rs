@@ -234,10 +234,10 @@ impl<'a> Context<'a> {
         let (return_vars, return_warnings) =
             self.convert_ssa_return(entry_block.unwrap_terminator(), dfg)?;
 
-        // Map return witnesses to the actual return variables, if we can.
-        // Otherwise we just assert that they are equal.
+        // See if we can map return witnesses to the actual return variables.
         let mut witness_mapping = HashMap::default();
-        for (witness_var, return_var) in return_witness_vars.iter().zip(return_vars) {
+
+        for (witness_var, return_var) in return_witness_vars.iter().zip(return_vars.clone()) {
             // Only map vars that are witnesses
             if let (Some(witness_witness), Some(return_witness)) = (
                 self.acir_context.var_to_expression(*witness_var)?.to_witness(),
@@ -250,13 +250,22 @@ impl<'a> Context<'a> {
                 // that with `output_witness_2 = output_witness_2`.
                 if !input_witness.contains(&return_witness)
                     && !return_witnesses.contains(&return_witness)
+                    // Check that we don't map a same witness to two different witnesses.
+                    && witness_mapping.insert(return_witness, witness_witness).is_none()
                 {
-                    witness_mapping.insert(return_witness, witness_witness);
                     continue;
                 }
             }
 
-            self.acir_context.assert_eq_var(*witness_var, return_var, None)?;
+            witness_mapping.clear();
+            break;
+        }
+
+        // If we can't do the mapping so we'll just assert return witness vars are equal to the return vars.
+        if witness_mapping.is_empty() {
+            for (witness_var, return_var) in return_witness_vars.iter().zip(return_vars) {
+                self.acir_context.assert_eq_var(*witness_var, return_var, None)?;
+            }
         }
 
         self.initialize_databus(&return_witnesses, dfg)?;
