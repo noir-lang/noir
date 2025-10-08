@@ -234,22 +234,34 @@ impl<'a> Context<'a> {
         let (return_vars, return_warnings) =
             self.convert_ssa_return(entry_block.unwrap_terminator(), dfg)?;
 
-        // Map return witnesses to the actual return variables
+        // Map return witnesses to the actual return variables, if we can.
+        // Otherwise we just assert that they are equal.
         let mut witness_mapping = HashMap::default();
         for (witness_var, return_var) in return_witness_vars.iter().zip(return_vars) {
+            // Only map vars that are witnesess
             if let (Some(witness_witness), Some(return_witness)) = (
                 self.acir_context.var_to_expression(*witness_var)?.to_witness(),
                 self.acir_context.var_to_expression(return_var)?.to_witness(),
             ) {
-                witness_mapping.insert(return_witness, witness_witness);
-            } else {
-                self.acir_context.assert_eq_var(*witness_var, return_var, None)?;
+                // Don't map vars that are input or output witnesses. If we have
+                // `input_witness_1 = output_witness_1` and we do the replacement we end up with
+                // `output_witness_1 = output_witness_1` which loses information.
+                // Similarly, if we have `output_witness_1 = output_witness_2` we shouldn't replace
+                // that with `output_witness_2 = output_witness_2`.
+                if !input_witness.contains(&return_witness)
+                    && !return_witnesses.contains(&return_witness)
+                {
+                    witness_mapping.insert(return_witness, witness_witness);
+                    continue;
+                }
             }
+
+            self.acir_context.assert_eq_var(*witness_var, return_var, None)?;
         }
 
         self.initialize_databus(&return_witnesses, dfg)?;
 
-        // Then replace them in the opcodes that form the return value
+        // Go over each opcode and apply the witness mapping we computed above
         if !witness_mapping.is_empty() {
             for opcode in &mut self.acir_context.acir_ir.opcodes {
                 opcode.mutate_witnesses(|witness: &mut Witness| {

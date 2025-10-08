@@ -144,6 +144,7 @@ pub enum Opcode<F: AcirField> {
 }
 
 impl<F: AcirField> Opcode<F> {
+    /// Mutates all witnesses in this opcode by applying the function `f` to each witness.
     pub fn mutate_witnesses(&mut self, f: impl Fn(&mut Witness)) {
         match self {
             Opcode::AssertZero(expr) => expr.mutate_witnesses(&f),

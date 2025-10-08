@@ -139,6 +139,7 @@ impl<F> Expression<F> {
         self.linear_combinations.sort_by(|a, b| a.1.cmp(&b.1));
     }
 
+    /// Mutates all witnesses in this expression by applying the function `f` to each witness.
     pub fn mutate_witnesses(&mut self, f: impl Fn(&mut Witness)) {
         for (_, w1, w2) in &mut self.mul_terms {
             f(w1);

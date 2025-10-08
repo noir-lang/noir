@@ -22,7 +22,8 @@ pub enum FunctionInput<F> {
 }
 
 impl<F> FunctionInput<F> {
-    pub fn mutate_witnesses(&mut self, f: &impl Fn(&mut Witness)) {
+    /// Mutates this function input if it is a witness by applying the function `f` to it.
+    pub fn mutate_witness(&mut self, f: &impl Fn(&mut Witness)) {
         if let FunctionInput::Witness(witness) = self {
             f(witness);
         }
@@ -331,38 +332,39 @@ impl<F> BlackBoxFuncCall<F> {
         }
     }
 
+    /// Mutates all witnesses in this blackbox function call by applying the function `f` to each witness.
     pub fn mutate_witnesses(&mut self, f: impl Fn(&mut Witness)) {
         match self {
             BlackBoxFuncCall::AES128Encrypt { inputs, iv, key, outputs } => {
                 for input in inputs {
-                    input.mutate_witnesses(&f);
+                    input.mutate_witness(&f);
                 }
                 for iv_elem in iv.iter_mut() {
-                    iv_elem.mutate_witnesses(&f);
+                    iv_elem.mutate_witness(&f);
                 }
                 for key_elem in key.iter_mut() {
-                    key_elem.mutate_witnesses(&f);
+                    key_elem.mutate_witness(&f);
                 }
                 for output in outputs {
                     f(output);
                 }
             }
             BlackBoxFuncCall::AND { lhs, rhs, num_bits: _, output } => {
-                lhs.mutate_witnesses(&f);
-                rhs.mutate_witnesses(&f);
+                lhs.mutate_witness(&f);
+                rhs.mutate_witness(&f);
                 f(output);
             }
             BlackBoxFuncCall::XOR { lhs, rhs, num_bits: _, output } => {
-                lhs.mutate_witnesses(&f);
-                rhs.mutate_witnesses(&f);
+                lhs.mutate_witness(&f);
+                rhs.mutate_witness(&f);
                 f(output);
             }
             BlackBoxFuncCall::RANGE { input, num_bits: _ } => {
-                input.mutate_witnesses(&f);
+                input.mutate_witness(&f);
             }
             BlackBoxFuncCall::Blake2s { inputs, outputs } => {
                 for input in inputs {
-                    input.mutate_witnesses(&f);
+                    input.mutate_witness(&f);
                 }
                 for output in outputs.iter_mut() {
                     f(output);
@@ -370,7 +372,7 @@ impl<F> BlackBoxFuncCall<F> {
             }
             BlackBoxFuncCall::Blake3 { inputs, outputs } => {
                 for input in inputs {
-                    input.mutate_witnesses(&f);
+                    input.mutate_witness(&f);
                 }
                 for output in outputs.iter_mut() {
                     f(output);
@@ -385,18 +387,18 @@ impl<F> BlackBoxFuncCall<F> {
                 output,
             } => {
                 for elem in public_key_x.iter_mut() {
-                    elem.mutate_witnesses(&f);
+                    elem.mutate_witness(&f);
                 }
                 for elem in public_key_y.iter_mut() {
-                    elem.mutate_witnesses(&f);
+                    elem.mutate_witness(&f);
                 }
                 for elem in signature.iter_mut() {
-                    elem.mutate_witnesses(&f);
+                    elem.mutate_witness(&f);
                 }
                 for elem in hashed_message.iter_mut() {
-                    elem.mutate_witnesses(&f);
+                    elem.mutate_witness(&f);
                 }
-                predicate.mutate_witnesses(&f);
+                predicate.mutate_witness(&f);
                 f(output);
             }
             BlackBoxFuncCall::EcdsaSecp256r1 {
@@ -408,47 +410,47 @@ impl<F> BlackBoxFuncCall<F> {
                 output,
             } => {
                 for elem in public_key_x.iter_mut() {
-                    elem.mutate_witnesses(&f);
+                    elem.mutate_witness(&f);
                 }
                 for elem in public_key_y.iter_mut() {
-                    elem.mutate_witnesses(&f);
+                    elem.mutate_witness(&f);
                 }
                 for elem in signature.iter_mut() {
-                    elem.mutate_witnesses(&f);
+                    elem.mutate_witness(&f);
                 }
                 for elem in hashed_message.iter_mut() {
-                    elem.mutate_witnesses(&f);
+                    elem.mutate_witness(&f);
                 }
-                predicate.mutate_witnesses(&f);
+                predicate.mutate_witness(&f);
                 f(output);
             }
             BlackBoxFuncCall::MultiScalarMul { points, scalars, predicate, outputs } => {
                 for point in points {
-                    point.mutate_witnesses(&f);
+                    point.mutate_witness(&f);
                 }
                 for scalar in scalars {
-                    scalar.mutate_witnesses(&f);
+                    scalar.mutate_witness(&f);
                 }
-                predicate.mutate_witnesses(&f);
+                predicate.mutate_witness(&f);
                 f(&mut outputs.0);
                 f(&mut outputs.1);
                 f(&mut outputs.2);
             }
             BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, predicate, outputs } => {
                 for elem in input1.iter_mut() {
-                    elem.mutate_witnesses(&f);
+                    elem.mutate_witness(&f);
                 }
                 for elem in input2.iter_mut() {
-                    elem.mutate_witnesses(&f);
+                    elem.mutate_witness(&f);
                 }
-                predicate.mutate_witnesses(&f);
+                predicate.mutate_witness(&f);
                 f(&mut outputs.0);
                 f(&mut outputs.1);
                 f(&mut outputs.2);
             }
             BlackBoxFuncCall::Keccakf1600 { inputs, outputs } => {
                 for input in inputs.iter_mut() {
-                    input.mutate_witnesses(&f);
+                    input.mutate_witness(&f);
                 }
                 for output in outputs.iter_mut() {
                     f(output);
@@ -463,20 +465,20 @@ impl<F> BlackBoxFuncCall<F> {
                 predicate,
             } => {
                 for elem in verification_key.iter_mut() {
-                    elem.mutate_witnesses(&f);
+                    elem.mutate_witness(&f);
                 }
                 for elem in proof.iter_mut() {
-                    elem.mutate_witnesses(&f);
+                    elem.mutate_witness(&f);
                 }
                 for elem in public_inputs.iter_mut() {
-                    elem.mutate_witnesses(&f);
+                    elem.mutate_witness(&f);
                 }
-                key_hash.mutate_witnesses(&f);
-                predicate.mutate_witnesses(&f);
+                key_hash.mutate_witness(&f);
+                predicate.mutate_witness(&f);
             }
             BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs } => {
                 for input in inputs {
-                    input.mutate_witnesses(&f);
+                    input.mutate_witness(&f);
                 }
                 for output in outputs {
                     f(output);
@@ -484,10 +486,10 @@ impl<F> BlackBoxFuncCall<F> {
             }
             BlackBoxFuncCall::Sha256Compression { inputs, hash_values, outputs } => {
                 for input in inputs.iter_mut() {
-                    input.mutate_witnesses(&f);
+                    input.mutate_witness(&f);
                 }
                 for hash_value in hash_values.iter_mut() {
-                    hash_value.mutate_witnesses(&f);
+                    hash_value.mutate_witness(&f);
                 }
                 for output in outputs.iter_mut() {
                     f(output);

@@ -43,6 +43,7 @@ pub enum BrilligInputs<F> {
 }
 
 impl<F: AcirField> BrilligInputs<F> {
+    /// Mutates all witnesses in these brillig inputs by applying the function `f` to each witness.
     pub fn mutate_witnesses(&mut self, f: impl Fn(&mut Witness)) {
         match self {
             BrilligInputs::Single(expr) => expr.mutate_witnesses(f),
@@ -79,6 +80,7 @@ pub enum BrilligOutputs {
 }
 
 impl BrilligOutputs {
+    /// Mutates all witnesses in these brillig outputs by applying the function `f` to each witness.
     pub fn mutate_witnesses(&mut self, f: impl Fn(&mut Witness)) {
         match self {
             BrilligOutputs::Simple(witness) => f(witness),
