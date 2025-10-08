@@ -533,7 +533,13 @@
 <a href="#532" id="532">532</a>
 <a href="#533" id="533">533</a>
 <a href="#534" id="534">534</a>
-<a href="#535" id="535">535</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::native_types::Witness;
+<a href="#535" id="535">535</a>
+<a href="#536" id="536">536</a>
+<a href="#537" id="537">537</a>
+<a href="#538" id="538">538</a>
+<a href="#539" id="539">539</a>
+<a href="#540" id="540">540</a>
+<a href="#541" id="541">541</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::native_types::Witness;
 <span class="kw">use </span>acir_field::AcirField;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="kw">use </span>std::cmp::Ordering;
@@ -964,7 +970,7 @@
     }
 
     <span class="kw">if </span>expr.q_c.is_zero() {
-        <span class="kw">if </span>as_equal_to_zero &amp;&amp; !printed_term {
+        <span class="kw">if </span>!printed_term {
             <span class="macro">write!</span>(f, <span class="string">"0"</span>)<span class="question-mark">?</span>;
         }
     } <span class="kw">else </span>{
@@ -1066,6 +1072,12 @@
                 q_c: FieldElement::from(<span class="number">10u128</span>)
             }
         );
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>display_zero() {
+        <span class="kw">let </span>zero = Expression::&lt;FieldElement&gt;::default();
+        <span class="macro">assert_eq!</span>(zero.to_string(), <span class="string">"0"</span>);
     }
 }
 </code></pre></div></section></main></body></html>
