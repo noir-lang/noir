@@ -7,6 +7,8 @@
 //! [acvm]: https://crates.io/crates/acvm
 //! [brillig_vm]: https://crates.io/crates/brillig_vm
 
+#[doc = include_str!("../README.md")]
+
 mod black_box;
 mod foreign_call;
 mod opcodes;
