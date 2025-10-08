@@ -22,6 +22,8 @@ use self::brillig_ir::{
 };
 
 use crate::brillig::brillig_ir::LayoutConfig;
+use crate::ssa::ir::call_graph::CallGraph;
+use crate::ssa::opt::brillig_entry_points::get_brillig_entry_points_with_reachability;
 use crate::ssa::{
     ir::{
         dfg::DataFlowGraph,
@@ -52,8 +54,8 @@ pub struct Brillig {
     /// Maps SSA function labels to their brillig artifact
     ssa_function_to_brillig: HashMap<FunctionId, BrilligArtifact<FieldElement>>,
     pub call_stacks: CallStackHelper,
-    globals: HashMap<FunctionId, BrilligArtifact<FieldElement>>,
-    globals_memory_size: HashMap<FunctionId, usize>,
+    globals: BrilligArtifact<FieldElement>,
+    globals_memory_size: usize,
 }
 
 impl Brillig {
@@ -91,7 +93,7 @@ impl Brillig {
             LabelType::Procedure(procedure_id) => {
                 Some(Cow::Owned(compile_procedure(procedure_id, options, stack_start)))
             }
-            LabelType::GlobalInit(function_id) => self.globals.get(&function_id).map(Cow::Borrowed),
+            LabelType::GlobalInit => Some(Cow::Borrowed(&self.globals)),
             _ => unreachable!("ICE: Expected a function or procedure label"),
         }
     }
@@ -156,30 +158,21 @@ impl Ssa {
             return brillig;
         }
 
-        let mut brillig_globals = BrilligGlobals::new(self, used_globals_map, self.main_id);
+        let brillig_globals = BrilligGlobals::new(self, &used_globals_map, &mut brillig, options);
 
-        // SSA Globals are computed once at compile time and shared across all functions,
-        // thus we can just fetch globals from the main function.
-        // This same globals graph will then be used to declare Brillig globals for the respective entry points.
-        let globals = (*self.functions[&self.main_id].dfg.globals).clone();
-        let globals_dfg = DataFlowGraph::from(globals);
-        brillig_globals.declare_globals(&globals_dfg, &mut brillig, options);
+        let call_graph = CallGraph::from_ssa(self);
+        let brillig_entry_points =
+            get_brillig_entry_points_with_reachability(&self.functions, self.main_id, &call_graph);
 
         for brillig_function_id in brillig_reachable_function_ids {
-            let empty_allocations = HashMap::default();
-            let empty_const_allocations = HashMap::default();
-            let (globals_allocations, hoisted_constant_allocations) = brillig_globals
-                .get_brillig_globals(brillig_function_id)
-                .unwrap_or((&empty_allocations, &empty_const_allocations));
-
             let func = &self.functions[&brillig_function_id];
-            let is_entry_point = brillig_globals.entry_points().contains_key(&brillig_function_id);
+            let is_entry_point = brillig_entry_points.contains_key(&brillig_function_id);
 
             brillig.compile(
                 func,
                 options,
-                globals_allocations,
-                hoisted_constant_allocations,
+                &brillig_globals.ssa_to_brillig,
+                &brillig_globals.hoisted_constants,
                 is_entry_point,
             );
         }

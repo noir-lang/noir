@@ -46,11 +46,7 @@ pub(crate) fn gen_brillig_for(
     options: &BrilligOptions,
 ) -> Result<GeneratedBrillig<FieldElement>, InternalError> {
     // Create the entry point artifact
-    let globals_memory_size = brillig
-        .globals_memory_size
-        .get(&func.id())
-        .copied()
-        .expect("Should have the globals memory size specified for an entry point");
+    let globals_memory_size = brillig.globals_memory_size;
 
     let options = BrilligOptions { enable_debug_trace: false, ..*options };
 
