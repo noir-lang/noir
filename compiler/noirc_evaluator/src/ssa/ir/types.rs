@@ -288,14 +288,6 @@ impl Type {
         }
     }
 
-    pub(crate) fn first(&self) -> Type {
-        match self {
-            Type::Numeric(_) | Type::Function => self.clone(),
-            Type::Reference(typ) => typ.first(),
-            Type::Slice(element_types) | Type::Array(element_types, _) => element_types[0].first(),
-        }
-    }
-
     /// True if this is a reference type or if it is a composite type which contains a reference.
     pub(crate) fn contains_reference(&self) -> bool {
         match self {
