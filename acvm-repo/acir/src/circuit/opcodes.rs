@@ -220,7 +220,7 @@ mod tests {
 
     use crate::{
         circuit::opcodes::{BlackBoxFuncCall, BlockId, BlockType, FunctionInput},
-        native_types::Witness,
+        native_types::{Expression, Witness},
     };
 
     use super::Opcode;
@@ -265,5 +265,11 @@ mod tests {
             range.to_string(),
             @"BLACKBOX::RANGE input: w0, bits: 32"
         );
+    }
+
+    #[test]
+    fn display_zero() {
+        let zero = Opcode::AssertZero(Expression::<FieldElement>::default());
+        assert_eq!(zero.to_string(), "ASSERT 0 = 0");
     }
 }
