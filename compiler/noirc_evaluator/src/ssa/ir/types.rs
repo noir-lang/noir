@@ -191,6 +191,11 @@ impl Type {
         Type::unsigned(SSA_WORD_SIZE)
     }
 
+    /// True if this type is a numeric primitive type.
+    pub(crate) fn is_numeric(&self) -> bool {
+        matches!(self, Type::Numeric(_))
+    }
+
     /// Returns the inner NumericType if this is one, or panics otherwise
     pub(crate) fn unwrap_numeric(&self) -> NumericType {
         match self {
@@ -280,14 +285,6 @@ impl Type {
             Type::Numeric(_) | Type::Function => false,
             Type::Array(_, _) | Type::Slice(_) => true,
             Type::Reference(element) => element.contains_an_array(),
-        }
-    }
-
-    pub(crate) fn first(&self) -> Type {
-        match self {
-            Type::Numeric(_) | Type::Function => self.clone(),
-            Type::Reference(typ) => typ.first(),
-            Type::Slice(element_types) | Type::Array(element_types, _) => element_types[0].first(),
         }
     }
 

@@ -24,7 +24,7 @@ A simple example of a fuzzing harness is the following:
 ```rust
 #[fuzz]
 fn fuzz_add(a: Field, b: Field) {
-    assert(a!=(b+3));
+    assert(a != (b+3));
 }
 ```
 

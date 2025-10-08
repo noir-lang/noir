@@ -124,7 +124,7 @@ let append = &[1, 2].append(&[3, 4, 5]);
 Inserts an element at a specified index and shifts all following elements by 1.
 
 ```rust
-fn insert(_self: Self, _index: Field, _elem: T) -> Self
+fn insert(_self: Self, _index: u32, _elem: T) -> Self
 ```
 
 Example:
@@ -141,7 +141,7 @@ View the corresponding test file [here][test-file].
 Remove an element at a specified index, shifting all elements after it to the left, returning the altered slice and the removed element.
 
 ```rust
-fn remove(_self: Self, _index: Field) -> (Self, T)
+fn remove(_self: Self, _index: u32) -> (Self, T)
 ```
 
 Example:
