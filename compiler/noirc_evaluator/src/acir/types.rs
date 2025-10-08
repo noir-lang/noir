@@ -99,7 +99,10 @@ pub(super) struct AcirDynamicArray {
     /// Thus, we store a vector of types rather than a single type, as a dynamic non-homogenous array
     /// is still represented in ACIR by a single `AcirDynamicArray` structure.
     ///
-    /// The length of the value types vector must match the `len` field in this structure.
+    /// This vector only holds the numeric types for a single dynamic array element.
+    /// For example, if in Noir or SSA we have `[(u8, u32, Field); 3]` then `len` will be 3
+    /// and `value_types` will be `[u8, u32, Field]`. To know the type of the element at index `i`
+    /// we can fetch `value_types[i % len]`.
     pub(super) value_types: Vec<NumericType>,
     /// Identification for the ACIR dynamic array
     /// inner element type sizes array
@@ -159,19 +162,6 @@ impl AcirValue {
             AcirValue::Var(var, typ) => vec![(var, typ)],
             AcirValue::Array(array) => array.into_iter().flat_map(AcirValue::flatten).collect(),
             AcirValue::DynamicArray(_) => unimplemented!("Cannot flatten a dynamic array"),
-        }
-    }
-
-    /// Fetch a flat list of the [NumericType] contained within an array
-    /// An [AcirValue::DynamicArray] should already have a field representing
-    /// its types and should be supported here unlike [AcirValue::flatten]
-    pub(super) fn flat_numeric_types(self) -> Vec<NumericType> {
-        match self {
-            AcirValue::Array(array) => {
-                array.into_iter().flat_map(|elem| elem.flat_numeric_types()).collect()
-            }
-            AcirValue::DynamicArray(AcirDynamicArray { value_types, .. }) => value_types,
-            AcirValue::Var(_, typ) => vec![typ.to_numeric_type()],
         }
     }
 }

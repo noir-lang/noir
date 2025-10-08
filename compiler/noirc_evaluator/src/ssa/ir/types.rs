@@ -253,6 +253,42 @@ impl Type {
         }
     }
 
+    /// Assumes `self` is an array or slice type with nested numeric types, arrays or slices
+    /// (recursively) and returns a flat list of all the contained numeric types.
+    /// Panics if `self` is not an array or slice type or if a function or reference type
+    /// is found along the way.
+    pub(crate) fn flat_numeric_types(&self) -> Vec<NumericType> {
+        match self {
+            Type::Array(types, _) | Type::Slice(types) => {
+                let mut flat_types = Vec::new();
+                for typ in types.iter() {
+                    typ.collect_flat_numeric_types(&mut flat_types);
+                }
+                flat_types
+            }
+            Type::Function => panic!("Called flat_numeric_types on a function type"),
+            Type::Reference(_) => panic!("Called flat_numeric_types on a reference type"),
+            Type::Numeric(_) => panic!("Called flat_numeric_types on a numeric type"),
+        }
+    }
+
+    /// Helper function for `flat_numeric_types` that recursively collects all numeric types
+    /// into `flat_types`.
+    fn collect_flat_numeric_types(&self, flat_types: &mut Vec<NumericType>) {
+        match self {
+            Type::Numeric(numeric_type) => {
+                flat_types.push(*numeric_type);
+            }
+            Type::Array(types, _) | Type::Slice(types) => {
+                for typ in types.iter() {
+                    typ.collect_flat_numeric_types(flat_types);
+                }
+            }
+            Type::Function => panic!("Called collect_flat_numeric_types on a function type"),
+            Type::Reference(_) => panic!("Called collect_flat_numeric_types on a reference type"),
+        }
+    }
+
     /// Returns the flattened size of a Type
     pub(crate) fn flattened_size(&self) -> u32 {
         match self {
