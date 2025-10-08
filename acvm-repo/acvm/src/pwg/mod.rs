@@ -48,9 +48,6 @@
 //! Indeed, some ACIR pass can transform the ACIR program in order to apply optimizations,
 //! or to make it compatible with a specific proving system.
 //! However, ACIR execution is expected to work on any ACIR program (transformed or not).
-//! Then the program indicates the 'current witness', which is the last witness used in the program.
-//! Any transformation that needs to add more witnesses will use it in order to not overlap with
-//! existing witnesses. This is not relevant for execution.
 //! Then we see the parameters of the program as public and private inputs.
 //! The `initial_witness` needs to contain values for these parameters before execution, else
 //! the execution will fail.
