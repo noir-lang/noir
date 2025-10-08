@@ -117,18 +117,17 @@ fn no_zero_bits_range_check() {
     private parameters: [w0]
     public parameters: []
     return values: [w1]
-    BRILLIG CALL func: 0, inputs: [w0, 256], outputs: [w2, w3]
+    BRILLIG CALL func: 0, inputs: [w0, 256], outputs: [w2, w1]
     BLACKBOX::RANGE input: w2, bits: 246
-    BLACKBOX::RANGE input: w3, bits: 8
-    ASSERT w3 = w0 - 256*w2
+    BLACKBOX::RANGE input: w1, bits: 8
+    ASSERT w1 = w0 - 256*w2
     ASSERT w4 = -w2 + 85500948718122168836900022442411230814642048439125134155071110103811751936
     BLACKBOX::RANGE input: w4, bits: 246
     BRILLIG CALL func: 1, inputs: [-w2 + 85500948718122168836900022442411230814642048439125134155071110103811751936], outputs: [w5]
     ASSERT w6 = w2*w5 - 85500948718122168836900022442411230814642048439125134155071110103811751936*w5 + 1
     ASSERT 0 = -w2*w6 + 85500948718122168836900022442411230814642048439125134155071110103811751936*w6
-    ASSERT w7 = w3*w6
+    ASSERT w7 = w1*w6
     ASSERT w7 = 0
-    ASSERT w3 = w1
 
     unconstrained func 0: directive_integer_quotient
     0: @10 = const u32 2

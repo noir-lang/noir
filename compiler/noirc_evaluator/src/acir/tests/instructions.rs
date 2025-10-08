@@ -120,11 +120,10 @@ fn truncate_u16_to_6_bits() {
     public parameters: []
     return values: [w1]
     BLACKBOX::RANGE input: w0, bits: 16
-    BRILLIG CALL func: 0, inputs: [w0, 64], outputs: [w2, w3]
+    BRILLIG CALL func: 0, inputs: [w0, 64], outputs: [w2, w1]
     BLACKBOX::RANGE input: w2, bits: 10
-    BLACKBOX::RANGE input: w3, bits: 6
-    ASSERT w3 = w0 - 64*w2
-    ASSERT w3 = w1
+    BLACKBOX::RANGE input: w1, bits: 6
+    ASSERT w1 = w0 - 64*w2
 
     unconstrained func 0: directive_integer_quotient
     0: @10 = const u32 2
@@ -168,18 +167,17 @@ fn truncate_field_to_6_bits() {
     private parameters: [w0]
     public parameters: []
     return values: [w1]
-    BRILLIG CALL func: 0, inputs: [w0, 64], outputs: [w2, w3]
+    BRILLIG CALL func: 0, inputs: [w0, 64], outputs: [w2, w1]
     BLACKBOX::RANGE input: w2, bits: 248
-    BLACKBOX::RANGE input: w3, bits: 6
-    ASSERT w3 = w0 - 64*w2
+    BLACKBOX::RANGE input: w1, bits: 6
+    ASSERT w1 = w0 - 64*w2
     ASSERT w4 = -w2 + 342003794872488675347600089769644923258568193756500536620284440415247007744
     BLACKBOX::RANGE input: w4, bits: 248
     BRILLIG CALL func: 1, inputs: [-w2 + 342003794872488675347600089769644923258568193756500536620284440415247007744], outputs: [w5]
     ASSERT w6 = w2*w5 - 342003794872488675347600089769644923258568193756500536620284440415247007744*w5 + 1
     ASSERT 0 = -w2*w6 + 342003794872488675347600089769644923258568193756500536620284440415247007744*w6
-    ASSERT w7 = w3*w6
+    ASSERT w7 = w1*w6
     ASSERT w7 = 0
-    ASSERT w3 = w1
 
     unconstrained func 0: directive_integer_quotient
     0: @10 = const u32 2

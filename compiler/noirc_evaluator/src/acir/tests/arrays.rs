@@ -25,14 +25,11 @@ fn array_set_not_mutable() {
     INIT b1 = [w0, w1, w2]
     WRITE b1[w3] = w4
     ASSERT w9 = 0
-    READ w10 = b1[w9]
+    READ w5 = b1[w9]
     ASSERT w11 = 1
-    READ w12 = b1[w11]
+    READ w6 = b1[w11]
     ASSERT w13 = 2
-    READ w14 = b1[w13]
-    ASSERT w10 = w5
-    ASSERT w12 = w6
-    ASSERT w14 = w7
+    READ w7 = b1[w13]
     ");
 }
 
@@ -58,14 +55,11 @@ fn array_set_mutable() {
     READ w8 = b0[w3]
     WRITE b0[w3] = w4
     ASSERT w9 = 0
-    READ w10 = b0[w9]
+    READ w5 = b0[w9]
     ASSERT w11 = 1
-    READ w12 = b0[w11]
+    READ w6 = b0[w11]
     ASSERT w13 = 2
-    READ w14 = b0[w13]
-    ASSERT w10 = w5
-    ASSERT w12 = w6
-    ASSERT w14 = w7
+    READ w7 = b0[w13]
     ");
 }
 
@@ -187,14 +181,11 @@ fn generates_memory_op_for_dynamic_write() {
     ASSERT w7 = 10
     WRITE b1[w3] = w7
     ASSERT w8 = 0
-    READ w9 = b1[w8]
+    READ w4 = b1[w8]
     ASSERT w10 = 1
-    READ w11 = b1[w10]
+    READ w5 = b1[w10]
     ASSERT w12 = 2
-    READ w13 = b1[w12]
-    ASSERT w9 = w4
-    ASSERT w11 = w5
-    ASSERT w13 = w6
+    READ w6 = b1[w12]
     ");
 }
 
@@ -267,14 +258,11 @@ fn generates_predicated_index_and_dummy_value_for_dynamic_write() {
     ASSERT w10 = -w4*w9 + 10*w4 + w9
     WRITE b1[w8] = w10
     ASSERT w11 = 0
-    READ w12 = b1[w11]
+    READ w5 = b1[w11]
     ASSERT w13 = 1
-    READ w14 = b1[w13]
+    READ w6 = b1[w13]
     ASSERT w15 = 2
-    READ w16 = b1[w15]
-    ASSERT w12 = w5
-    ASSERT w14 = w6
-    ASSERT w16 = w7
+    READ w7 = b1[w15]
     ");
 }
 
