@@ -117,7 +117,7 @@ impl Ssa {
         let inline_targets = bottom_up
             .iter()
             .filter_map(|id| {
-                let info = inline_infos.get(&id)?;
+                let info = inline_infos.get(id)?;
                 let dfg = &self.functions[id].dfg;
                 info.is_inline_target(dfg).then_some(*id)
             })
