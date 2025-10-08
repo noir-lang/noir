@@ -235,34 +235,15 @@ impl<'a> Context<'a> {
             self.convert_ssa_return(entry_block.unwrap_terminator(), dfg)?;
 
         // See if we can map return witnesses to the actual return variables.
-        let mut witness_mapping = HashMap::default();
-
-        for (witness_var, return_var) in return_witness_vars.iter().zip(return_vars.clone()) {
-            // Only map vars that are witnesses
-            if let (Some(witness_witness), Some(return_witness)) = (
-                self.acir_context.var_to_expression(*witness_var)?.to_witness(),
-                self.acir_context.var_to_expression(return_var)?.to_witness(),
-            ) {
-                // Don't map vars that are input or output witnesses. If we have
-                // `input_witness_1 = output_witness_1` and we do the replacement we end up with
-                // `output_witness_1 = output_witness_1` which loses information.
-                // Similarly, if we have `output_witness_1 = output_witness_2` we shouldn't replace
-                // that with `output_witness_2 = output_witness_2`.
-                if !input_witness.contains(&return_witness)
-                    && !return_witnesses.contains(&return_witness)
-                    // Check that we don't map a same witness to two different witnesses.
-                    && witness_mapping.insert(return_witness, witness_witness).is_none()
-                {
-                    continue;
-                }
-            }
-
-            witness_mapping.clear();
-            break;
-        }
+        let witness_mapping = self.compute_witness_mapping(
+            &input_witness,
+            &return_witness_vars,
+            &return_witnesses,
+            &return_vars,
+        )?;
 
         // If we can't do the mapping so we'll just assert return witness vars are equal to the return vars.
-        if witness_mapping.is_empty() {
+        if witness_mapping.is_none() {
             for (witness_var, return_var) in return_witness_vars.iter().zip(return_vars) {
                 self.acir_context.assert_eq_var(*witness_var, return_var, None)?;
             }
@@ -271,7 +252,7 @@ impl<'a> Context<'a> {
         self.initialize_databus(&return_witnesses, dfg)?;
 
         // Go over each opcode and apply the witness mapping we computed above
-        if !witness_mapping.is_empty() {
+        if let Some(witness_mapping) = witness_mapping {
             for opcode in &mut self.acir_context.acir_ir.opcodes {
                 opcode.mutate_witnesses(|witness: &mut Witness| {
                     if let Some(replacement) = witness_mapping.get(witness) {
@@ -294,6 +275,42 @@ impl<'a> Context<'a> {
             if self.data_bus.return_data.is_some() { Vec::new() } else { return_witnesses },
             warnings,
         ))
+    }
+
+    /// Tries to compute a mapping from return witnesses to return variables.
+    /// The mapping cannot be computed (Ok(None) is returned) if return witnesses are input or
+    /// output witnesses, or if a witness would need to be mapped to two different variables.
+    fn compute_witness_mapping(
+        &mut self,
+        input_witness: &[Witness],
+        return_witness_vars: &[AcirVar],
+        return_witnesses: &[Witness],
+        return_vars: &[AcirVar],
+    ) -> Result<Option<HashMap<Witness, Witness>>, RuntimeError> {
+        let mut witness_mapping = HashMap::default();
+        for (witness_var, return_var) in return_witness_vars.iter().zip(return_vars) {
+            // Only map vars that are witnesses
+            if let (Some(witness_witness), Some(return_witness)) = (
+                self.acir_context.var_to_expression(*witness_var)?.to_witness(),
+                self.acir_context.var_to_expression(*return_var)?.to_witness(),
+            ) {
+                // Don't map vars that are input or output witnesses. If we have
+                // `input_witness_1 = output_witness_1` and we do the replacement we end up with
+                // `output_witness_1 = output_witness_1` which loses information.
+                // Similarly, if we have `output_witness_1 = output_witness_2` we shouldn't replace
+                // that with `output_witness_2 = output_witness_2`.
+                if !input_witness.contains(&return_witness)
+                    && !return_witnesses.contains(&return_witness)
+                    // Check that we don't map a same witness to two different witnesses.
+                    && witness_mapping.insert(return_witness, witness_witness).is_none()
+                {
+                    continue;
+                }
+            }
+
+            return Ok(None);
+        }
+        Ok(Some(witness_mapping))
     }
 
     fn convert_brillig_main(
