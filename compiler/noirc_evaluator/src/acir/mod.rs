@@ -235,7 +235,7 @@ impl<'a> Context<'a> {
             self.convert_ssa_return(entry_block.unwrap_terminator(), dfg)?;
 
         // See if we can map return witnesses to the actual return variables.
-        let witness_mapping = self.compute_witness_mapping(
+        let witness_mapping = self.compute_return_witness_mapping(
             &input_witness,
             &return_witness_vars,
             &return_witnesses,
@@ -280,7 +280,7 @@ impl<'a> Context<'a> {
     /// Tries to compute a mapping from return witnesses to return variables.
     /// The mapping cannot be computed (Ok(None) is returned) if return witnesses are input or
     /// output witnesses, or if a witness would need to be mapped to two different variables.
-    fn compute_witness_mapping(
+    fn compute_return_witness_mapping(
         &mut self,
         input_witness: &[Witness],
         return_witness_vars: &[AcirVar],
