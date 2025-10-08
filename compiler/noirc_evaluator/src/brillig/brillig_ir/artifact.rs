@@ -335,9 +335,4 @@ impl<F: Clone + std::fmt::Debug> BrilligArtifact<F> {
     pub(crate) fn set_call_stack(&mut self, call_stack: CallStackId) {
         self.call_stack_id = call_stack;
     }
-
-    #[cfg(test)]
-    pub(crate) fn take_labels(&mut self) -> HashMap<Label, usize> {
-        std::mem::take(&mut self.labels)
-    }
 }
