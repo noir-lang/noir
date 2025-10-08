@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["brillig_binary","brillig_calls","brillig_memory"]};
+window.SIDEBAR_ITEMS = {"mod":["brillig_binary","brillig_memory"]};

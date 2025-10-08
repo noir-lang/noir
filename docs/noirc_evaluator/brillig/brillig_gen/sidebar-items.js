@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["gen_brillig_for"],"mod":["brillig_black_box","brillig_block","brillig_block_variables","brillig_fn","brillig_globals","brillig_instructions","brillig_slice_ops","constant_allocation","variable_liveness"]};
+window.SIDEBAR_ITEMS = {"fn":["gen_brillig_for"],"mod":["brillig_block","brillig_block_variables","brillig_call","brillig_fn","brillig_globals","brillig_instructions","constant_allocation","variable_liveness"]};
