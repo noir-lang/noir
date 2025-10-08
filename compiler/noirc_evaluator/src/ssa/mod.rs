@@ -161,8 +161,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         SsaPass::new(
             Ssa::dead_instruction_elimination_pre_flattening,
             "Dead Instruction Elimination",
-        )
-        .and_then(Ssa::remove_unused_instructions),
+        ),
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
         SsaPass::new(Ssa::as_slice_optimization, "`as_slice` optimization")
             .and_then(Ssa::remove_unreachable_functions),
@@ -177,7 +176,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             "Unrolling",
         ),
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
-        SsaPass::new(Ssa::mem2reg, "Mem2Reg").and_then(Ssa::remove_unused_instructions),
+        SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
         SsaPass::new(Ssa::remove_bit_shifts, "Removing Bit Shifts"),
         // Expand signed lt/div/mod after "Removing Bit Shifts" because that pass might
         // introduce signed divisions.
@@ -248,8 +247,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination")
             // A function can be potentially unreachable post-DIE if all calls to that function were removed.
-            .and_then(Ssa::remove_unreachable_functions)
-            .and_then(Ssa::remove_unused_instructions),
+            .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new_try(
             Ssa::verify_no_dynamic_indices_to_references,
             "Verifying no dynamic array indices to reference value elements",
