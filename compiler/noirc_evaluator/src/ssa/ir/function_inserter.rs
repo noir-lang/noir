@@ -58,11 +58,12 @@ impl<'f> FunctionInserter<'f> {
         }
     }
 
-    /// Sanity check that we are not creating cycles.
+    /// Sanity check that we are not creating back-and-forth cycles. 
+    /// Doesn't catch longer cycles, but has detected mistakes with reusing instructions.
     #[cfg(debug_assertions)]
     fn validate_map_value(&self, key: ValueId, value: ValueId) {
         if let Some(value_of_value) = self.values.get(&value) {
-            assert!(*value_of_value != key, "reflexive mapping: {key} <-> {value}");
+            assert!(*value_of_value != key, "mapping short-circuit: {key} <-> {value}");
         }
     }
 
