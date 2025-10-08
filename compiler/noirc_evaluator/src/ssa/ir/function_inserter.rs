@@ -58,7 +58,7 @@ impl<'f> FunctionInserter<'f> {
         }
     }
 
-    /// Sanity check that we are not creating back-and-forth cycles. 
+    /// Sanity check that we are not creating back-and-forth cycles.
     /// Doesn't catch longer cycles, but has detected mistakes with reusing instructions.
     #[cfg(debug_assertions)]
     fn validate_map_value(&self, key: ValueId, value: ValueId) {
