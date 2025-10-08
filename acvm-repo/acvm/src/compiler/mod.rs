@@ -131,7 +131,7 @@ fn transform_assert_messages<F: Clone>(
 /// - Unused Memory: remove unused MemoryInit opcodes.
 /// - Redundant Ranges: remove RANGE opcodes that are redundant.
 ///
-/// transform_internal: run multiple times (up to 3) until the output stabilizes.
+/// transform_internal: run multiple times (up to 4) until the output stabilizes.
 /// - CSAT: limit AssertZero opcodes to the Circuit's width.
 /// - Eliminate intermediate variables: Combine AssertZero opcodes used only once.
 /// - Redundant Ranges: some RANGEs may be redundant as a side effect of the previous pass.

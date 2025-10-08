@@ -42,9 +42,9 @@ impl CircuitSimulator {
 
     /// Check if the Opcode can be solved, and if yes, add the solved witness to set of solvable witness
     fn try_solve<F: AcirField>(&mut self, opcode: &Opcode<F>) -> bool {
-        let mut unresolved = HashSet::new();
         match opcode {
             Opcode::AssertZero(expr) => {
+                let mut unresolved = HashSet::new();
                 for (_, w1, w2) in &expr.mul_terms {
                     if !self.solvable_witnesses.contains(w1) {
                         if !self.solvable_witnesses.contains(w2) {
@@ -193,8 +193,6 @@ impl CircuitSimulator {
     }
 }
 
-// TODO: add test(s) for BlackBoxFuncCall
-// TODO: how to test parity with "full" circuit solver?
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeSet;
@@ -206,11 +204,12 @@ mod tests {
         circuit::{
             Circuit, Opcode, PublicInputs,
             brillig::{BrilligFunctionId, BrilligInputs},
-            opcodes::{BlockId, BlockType, MemOp},
+            opcodes::{BlackBoxFuncCall, BlockId, BlockType, FunctionInput, MemOp},
         },
         native_types::{Expression, Witness},
     };
 
+    // TODO(https://github.com/noir-lang/noir/issues/10122): Use `Circuit::from_str` to test ACVM's `CircuitSimulator`
     fn test_circuit(
         opcodes: Vec<Opcode<FieldElement>>,
         private_parameters: BTreeSet<Witness>,
@@ -246,6 +245,30 @@ mod tests {
                 q_c: FieldElement::zero(),
             })],
             BTreeSet::from([Witness(1)]),
+            PublicInputs::default(),
+        );
+
+        assert!(CircuitSimulator::default().check_circuit(&connected_circuit).is_none());
+    }
+
+    #[test]
+    fn reports_true_for_connected_circuit_with_range() {
+        let connected_circuit = test_circuit(
+            vec![
+                Opcode::AssertZero(Expression {
+                    mul_terms: Vec::new(),
+                    linear_combinations: vec![
+                        (FieldElement::one(), Witness(1)),
+                        (-FieldElement::one(), Witness(2)),
+                    ],
+                    q_c: FieldElement::zero(),
+                }),
+                Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
+                    input: FunctionInput::Witness(Witness(3)),
+                    num_bits: 8,
+                }),
+            ],
+            BTreeSet::from([Witness(1), Witness(3)]),
             PublicInputs::default(),
         );
 

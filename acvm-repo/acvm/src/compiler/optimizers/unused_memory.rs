@@ -76,7 +76,7 @@ impl<F: AcirField> UnusedMemoryOptimizer<F> {
 
 #[cfg(test)]
 mod tests {
-    use crate::assert_circuit_snapshot;
+    use crate::{assert_circuit_snapshot, compiler::CircuitSimulator};
 
     use super::*;
 
@@ -90,9 +90,11 @@ mod tests {
         ASSERT w0 - w1 - w2 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
+        assert!(CircuitSimulator::default().check_circuit(&circuit).is_none());
         let unused_memory = UnusedMemoryOptimizer::new(circuit);
         assert_eq!(unused_memory.unused_memory_initializations.len(), 1);
         let (circuit, _) = unused_memory.remove_unused_memory_initializations(vec![0, 1]);
+        assert!(CircuitSimulator::default().check_circuit(&circuit).is_none());
         assert_circuit_snapshot!(circuit, @r"
         private parameters: [w0, w1]
         public parameters: []
@@ -111,9 +113,11 @@ mod tests {
         ASSERT w2 = w0 - w1
         ";
         let circuit = Circuit::from_str(src).unwrap();
+        assert!(CircuitSimulator::default().check_circuit(&circuit).is_none());
         let unused_memory = UnusedMemoryOptimizer::new(circuit.clone());
         assert_eq!(unused_memory.unused_memory_initializations.len(), 1);
         let (optimized_circuit, _) = unused_memory.remove_unused_memory_initializations(vec![0, 1]);
+        assert!(CircuitSimulator::default().check_circuit(&optimized_circuit).is_none());
         assert_eq!(optimized_circuit, circuit);
     }
 }

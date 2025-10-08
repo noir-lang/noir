@@ -1,4 +1,4 @@
-/// This module applies backend specific transformation to a [`Circuit`].
+/// This module applies backend specific transformations to a [`Circuit`].
 ///
 /// ## CSAT: transforms AssertZero opcodes into AssertZero opcodes having the required width.
 ///
@@ -6,15 +6,16 @@
 /// x1 + x2 + x3 = z1
 /// x4 + x5 = z2
 /// z1 + z2 - y = 0
-/// If x1,..x5 are inputs to the program, they are taggeg as 'solvable', and would be used to compute the value of y.
+/// If x1,..x5 are inputs to the program, they are tagged as 'solvable', and would be used to compute the value of y.
 /// If we generate the intermediate variable x4 + x5 - y = z3, we get an unsolvable circuit because this AssertZero opcode will have two unknown values: y and z3
 /// So the CSAT transformation keeps track of which witnesses would be solved for each opcode in order to only generate solvable intermediate variables.
 ///
 /// ## Eliminate intermediate variables
+///
 /// The 'eliminate intermediate variables' pass will remove any intermediate variables (for instance created by the previous transformation)
 /// that are used in exactly two AssertZero opcodes.
 /// This results in arithmetic opcodes having linear combinations of potentially large width.
-/// For instance if the intermediate variable is z1 is only used in y:
+/// For instance if the intermediate variable is z1 and is only used in y:
 /// z1 = x1 + x2 + x3
 /// y = z1 + x4
 /// We remove it, undoing the work done during the CSAT transformation: y = x1 + x2 + x3 + x4
@@ -24,7 +25,8 @@
 /// However, it is worthwhile to compute intermediate variables if they are used in more than one other opcode.
 ///
 /// ## redundant_range
-/// The 'range optimization' pass, from the optimizers module will remove any redundant range opcodes again.
+///
+/// The 'range optimization' pass, from the optimizers module, will remove any redundant range opcodes.
 use std::collections::BTreeMap;
 
 use acir::{
@@ -56,6 +58,11 @@ use super::{
 const DEFAULT_MAX_TRANSFORMER_PASSES: usize = 4;
 
 /// Applies backend specific optimizations to a [`Circuit`].
+///
+/// Pre-Conditions:
+/// - General Optimizer must run before this pass,
+///   when max_transformer_passes_or_default.unwrap_or(DEFAULT_MAX_TRANSFORMER_PASSES) is greater than 0
+/// - `expression_width` must be at least `MIN_EXPRESSION_WIDTH`, when bounded
 pub fn transform<F: AcirField>(
     acir: Circuit<F>,
     expression_width: ExpressionWidth,
@@ -86,6 +93,11 @@ pub fn transform<F: AcirField>(
 /// Accepts an injected `acir_opcode_positions` to allow transformations to be applied directly after optimizations.
 ///
 /// Does multiple passes until the output stabilizes.
+///
+/// Pre-Conditions:
+/// - General Optimizer must run before this pass,
+///   when max_transformer_passes_or_default.unwrap_or(DEFAULT_MAX_TRANSFORMER_PASSES) is greater than 0
+/// - `expression_width` must be at least `MIN_EXPRESSION_WIDTH`, when bounded
 #[tracing::instrument(level = "trace", name = "transform_acir", skip(acir, acir_opcode_positions))]
 pub(super) fn transform_internal<F: AcirField>(
     mut acir: Circuit<F>,
@@ -145,6 +157,10 @@ pub(super) fn transform_internal<F: AcirField>(
 /// If it is bounded, it first performs the 'CSAT transformation' in one pass, by creating intermediate variables when necessary.
 /// Then it performs `eliminate_intermediate_variable()` which (re-)combine intermediate variables used only once.
 /// It concludes with a round of `replace_redundant_ranges()` which removes range checks made redundant by the previous pass.
+///
+/// Pre-Conditions:
+/// - General Optimizer must run before this pass
+/// - `expression_width` must be at least `MIN_EXPRESSION_WIDTH`, when bounded
 #[tracing::instrument(
     level = "trace",
     name = "transform_acir_once",
@@ -156,6 +172,11 @@ fn transform_internal_once<F: AcirField>(
     acir_opcode_positions: Vec<usize>,
     brillig_side_effects: &BTreeMap<BrilligFunctionId, bool>,
 ) -> (Circuit<F>, Vec<usize>) {
+    // 1. CSAT transformation
+    // Process each opcode in the circuit by marking the solvable witnesses and transforming the AssertZero opcodes
+    // to the required width by creating intermediate variables.
+    // Knowing if a witness is solvable avoids creating un-solvable intermediate variables.
+
     // If the expression width is unbounded, we don't need to do anything.
     let mut transformer = match &expression_width {
         ExpressionWidth::Unbounded => {
@@ -169,11 +190,6 @@ fn transform_internal_once<F: AcirField>(
             csat
         }
     };
-
-    // 1. CSAT transformation
-    // Process each opcode in the circuit by marking the solvable witnesses and transforming the AssertZero opcodes
-    // to the required width by creating intermediate variables.
-    // Knowing if a witness is solvable avoids creating un-solvable intermediate variables.
 
     let mut new_acir_opcode_positions: Vec<usize> = Vec::with_capacity(acir_opcode_positions.len());
     // Optimize the assert-zero gates by reducing them into the correct width and
@@ -237,9 +253,9 @@ fn transform_internal_once<F: AcirField>(
             Opcode::BrilligCall { ref outputs, .. } => {
                 for output in outputs {
                     match output {
-                        BrilligOutputs::Simple(w) => transformer.mark_solvable(*w),
-                        BrilligOutputs::Array(v) => {
-                            for witness in v {
+                        BrilligOutputs::Simple(witness) => transformer.mark_solvable(*witness),
+                        BrilligOutputs::Array(witnesses) => {
+                            for witness in witnesses {
                                 transformer.mark_solvable(*witness);
                             }
                         }
@@ -340,8 +356,8 @@ where
 
     /// Fold many witnesses into the state.
     fn fold_many<'w, I: Iterator<Item = &'w Witness>>(&mut self, witnesses: I) {
-        for w in witnesses {
-            self.fold(*w);
+        for witness in witnesses {
+            self.fold(*witness);
         }
     }
 
@@ -359,8 +375,8 @@ where
                 self.fold_expr(value);
             }
             Opcode::MemoryInit { block_id: _, init, block_type: _ } => {
-                for w in init {
-                    self.fold(*w);
+                for witness in init {
+                    self.fold(*witness);
                 }
             }
             // We keep the display for a BrilligCall and circuit Call separate as they
@@ -411,10 +427,10 @@ where
     fn fold_brillig_outputs(&mut self, outputs: &[BrilligOutputs]) {
         for output in outputs {
             match output {
-                BrilligOutputs::Simple(w) => {
-                    self.fold(*w);
+                BrilligOutputs::Simple(witness) => {
+                    self.fold(*witness);
                 }
-                BrilligOutputs::Array(ws) => self.fold_many(ws.iter()),
+                BrilligOutputs::Array(witnesses) => self.fold_many(witnesses.iter()),
             }
         }
     }
@@ -541,12 +557,10 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::compiler::transform_internal;
+    use crate::compiler::{CircuitSimulator, transform_internal};
     use acir::circuit::{Circuit, ExpressionWidth, brillig::BrilligFunctionId};
     use std::collections::BTreeMap;
 
-    // tests::execution_success::test_to_be_bytes failed with "expected hash of ACIR opcodes to stabilize" when MAX_TRANSFORMER_PASSES=3,
-    // but this isn't failing with MAX_TRANSFORMER_PASSES=3
     #[test]
     #[should_panic(expected = "expected hash of ACIR opcodes to stabilize")]
     fn test_max_transformer_passes() {
@@ -621,6 +635,7 @@ ASSERT w31 = 60
 "#;
 
         let acir = Circuit::from_str(formatted_acir).unwrap();
+        assert!(CircuitSimulator::default().check_circuit(&acir).is_none());
         let expression_width = ExpressionWidth::Bounded { width: 4 };
         let acir_opcode_positions = vec![
             0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
