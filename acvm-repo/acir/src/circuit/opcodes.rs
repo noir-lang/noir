@@ -149,26 +149,32 @@ impl<F: AcirField> Opcode<F> {
         match self {
             Opcode::AssertZero(expr) => expr.mutate_witnesses(&f),
             Opcode::BlackBoxFuncCall(g) => g.mutate_witnesses(&f),
-            Opcode::MemoryOp { op, .. } => op.mutate_witnesses(&f),
-            Opcode::MemoryInit { init, .. } => {
+            Opcode::MemoryOp { op, block_id: _ } => op.mutate_witnesses(&f),
+            Opcode::MemoryInit { init, block_id: _, block_type: _ } => {
                 for witness in init.iter_mut() {
                     f(witness);
                 }
             }
-            Opcode::BrilligCall { inputs, outputs, .. } => {
+            Opcode::BrilligCall { inputs, outputs, predicate, id: _ } => {
                 for input in inputs.iter_mut() {
                     input.mutate_witnesses(&f);
                 }
                 for output in outputs.iter_mut() {
                     output.mutate_witnesses(&f);
                 }
+                if let Some(predicate) = predicate {
+                    predicate.mutate_witnesses(&f);
+                }
             }
-            Opcode::Call { inputs, outputs, .. } => {
+            Opcode::Call { inputs, outputs, predicate, id: _ } => {
                 for input in inputs.iter_mut() {
                     f(input);
                 }
                 for output in outputs.iter_mut() {
                     f(output);
+                }
+                if let Some(predicate) = predicate {
+                    predicate.mutate_witnesses(&f);
                 }
             }
         }
