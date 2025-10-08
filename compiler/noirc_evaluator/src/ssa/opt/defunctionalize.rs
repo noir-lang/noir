@@ -126,7 +126,7 @@ impl DefunctionalizationContext {
             // We mutate value types in `defunctionalize`, so to prevent that from affecting which
             // apply functions are chosen we replace all first-class function calls with calls to
             // the appropriate apply function beforehand.
-            self.replace_fist_class_calls_with_apply_function(function);
+            self.replace_first_class_calls_with_apply_function(function);
 
             // Replace any first-class function values with field values. This will also mutate the
             // type of some values, such as block arguments
@@ -137,7 +137,7 @@ impl DefunctionalizationContext {
     /// Replaces any function calls using first-class function values with calls to the
     /// appropriate `apply` function. Note that this must be done before types are mutated
     /// in `defunctionalize` since this uses the pre-mutated types to query apply functions.
-    fn replace_fist_class_calls_with_apply_function(&mut self, func: &mut Function) {
+    fn replace_first_class_calls_with_apply_function(&mut self, func: &mut Function) {
         for block_id in func.reachable_blocks() {
             let block = &mut func.dfg[block_id];
 
