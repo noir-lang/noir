@@ -688,10 +688,18 @@ impl Instruction {
                     else_value: f(*else_value),
                 }
             }
-            Instruction::MakeArray { elements, typ } => Instruction::MakeArray {
-                elements: elements.iter().copied().map(f).collect(),
-                typ: typ.clone(),
-            },
+            Instruction::MakeArray { elements, typ } => {
+                // Going in this elaborate way to avoid having to clone the Arcs in the im::Vec if nothing changed.
+                let mut elements = elements.clone();
+                for i in 0..elements.len() {
+                    let old = elements[i];
+                    let new = f(old);
+                    if new != old {
+                        elements[i] = new;
+                    }
+                }
+                Instruction::MakeArray { elements, typ: typ.clone() }
+            }
             Instruction::Noop => Instruction::Noop,
         }
     }
