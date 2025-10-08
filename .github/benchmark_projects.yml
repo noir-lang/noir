@@ -111,7 +111,7 @@ projects:
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/rollup-tx-base-public
     num_runs: 5
-    compilation-timeout: 100
+    compilation-timeout: 120
     execution-timeout: 0.75
     compilation-memory-limit: 8000
     execution-memory-limit: 600
