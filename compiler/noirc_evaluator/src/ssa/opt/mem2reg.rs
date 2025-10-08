@@ -419,7 +419,17 @@ impl<'f> PerFunctionContext<'f> {
         // and we need to mark those references as used to keep their stores alive.
         let (instruction, loc) = self.inserter.map_instruction(instruction_id);
 
-        match self.inserter.push_instruction_value(instruction, instruction_id, block_id, loc) {
+        // We track which instructions can be removed by ID; if we allowed the same ID to appear multiple times
+        // in a block then we could not tell them apart.
+        let allow_reinsert = false;
+
+        match self.inserter.push_instruction_value(
+            instruction,
+            instruction_id,
+            block_id,
+            loc,
+            allow_reinsert,
+        ) {
             InsertInstructionResult::Results(id, _) => {
                 self.analyze_possibly_simplified_instruction(references, id, false);
             }

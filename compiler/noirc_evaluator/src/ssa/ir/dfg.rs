@@ -335,10 +335,8 @@ impl DataFlowGraph {
                         if self[id] == instruction {
                             // Just (re)insert into the block, no need to redefine.
                             self.blocks[block].insert_instruction(id);
-                            return InsertInstructionResult::Results(
-                                id,
-                                self.instruction_results(id),
-                            );
+                            let results = self.instruction_results(id);
+                            return InsertInstructionResult::Results(id, results);
                         }
                     }
                 }
