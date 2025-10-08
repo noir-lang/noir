@@ -134,6 +134,10 @@ struct PerFunctionContext<'f> {
     /// from the middle of Vecs many times will be slower than a single call to `retain`.
     instructions_to_remove: HashSet<InstructionId>,
 
+    /// All instructions analyzed so far in the function.
+    /// Anything new can be reinserted,  while things that appear repeatedly have to be cloned.
+    instructions_analyzed: HashSet<InstructionId>,
+
     /// Track a value's last load across all blocks.
     /// If a value is not used in anymore loads we can remove the last store to that value.
     last_loads: HashSet<ValueId>,
@@ -159,6 +163,7 @@ impl<'f> PerFunctionContext<'f> {
             inserter: FunctionInserter::new(function),
             blocks: BTreeMap::new(),
             instructions_to_remove: HashSet::default(),
+            instructions_analyzed: HashSet::default(),
             last_loads: HashSet::default(),
             aliased_references: HashMap::default(),
             instruction_input_references: HashSet::default(),
@@ -420,8 +425,8 @@ impl<'f> PerFunctionContext<'f> {
         let (instruction, loc) = self.inserter.map_instruction(instruction_id);
 
         // We track which instructions can be removed by ID; if we allowed the same ID to appear multiple times
-        // in a block then we could not tell them apart.
-        let allow_reinsert = false;
+        // in a block then we could not tell them apart. When we see something the first time we can reuse it.
+        let allow_reinsert = self.instructions_analyzed.insert(instruction_id);
 
         match self.inserter.push_instruction_value(
             instruction,
