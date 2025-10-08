@@ -41,6 +41,7 @@ impl<'f> FunctionInserter<'f> {
             // existing entries, but we should never have a value in the map referring to itself anyway.
             self.values.remove(&key);
         } else {
+            #[cfg(debug_assertions)]
             self.validate_map_value(key, value);
             self.values.entry(key).or_insert(value);
         }
@@ -51,14 +52,15 @@ impl<'f> FunctionInserter<'f> {
         if key == value {
             self.values.remove(&key);
         } else {
+            #[cfg(debug_assertions)]
             self.validate_map_value(key, value);
             self.values.insert(key, value);
         }
     }
 
     /// Sanity check that we are not creating cycles.
+    #[cfg(debug_assertions)]
     fn validate_map_value(&self, key: ValueId, value: ValueId) {
-        #[cfg(debug_assertions)]
         if let Some(value_of_value) = self.values.get(&value) {
             assert!(*value_of_value != key, "reflexive mapping: {key} <-> {value}");
         }
