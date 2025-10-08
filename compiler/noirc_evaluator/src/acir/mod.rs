@@ -238,7 +238,7 @@ impl<'a> Context<'a> {
         // Otherwise we just assert that they are equal.
         let mut witness_mapping = HashMap::default();
         for (witness_var, return_var) in return_witness_vars.iter().zip(return_vars) {
-            // Only map vars that are witnesess
+            // Only map vars that are witnesses
             if let (Some(witness_witness), Some(return_witness)) = (
                 self.acir_context.var_to_expression(*witness_var)?.to_witness(),
                 self.acir_context.var_to_expression(return_var)?.to_witness(),
