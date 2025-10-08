@@ -7,9 +7,6 @@
 //!
 //! [acir]: https://crates.io/crates/acir
 //! [acvm]: https://crates.io/crates/acvm
-
-use std::collections::HashMap;
-
 use acir::AcirField;
 use acir::brillig::{
     BinaryFieldOp, BinaryIntOp, ForeignCallParam, ForeignCallResult, IntegerBitSize, MemoryAddress,
@@ -24,11 +21,14 @@ pub use acir::brillig;
 use memory::MemoryTypeError;
 pub use memory::{MEMORY_ADDRESSING_BIT_SIZE, Memory, MemoryValue};
 
-use num_bigint::BigUint;
+pub use crate::fuzzing::BranchToFeatureMap;
+use crate::fuzzing::FuzzingTrace;
+
 mod arithmetic;
 mod black_box;
 mod cast;
 mod foreign_call;
+pub mod fuzzing;
 mod memory;
 
 /// The error call stack contains the opcode indexes of the call stack at the time of failure, plus the index of the opcode that failed.
@@ -98,23 +98,6 @@ pub type OpcodePosition = usize;
 /// The position of the next opcode that will be executed in the bytecode or an id of a specific state produced by the opcode
 pub type NextOpcodePositionOrState = usize;
 
-/// A state that represents a true comparison as part of a feature
-const FUZZING_COMPARISON_TRUE_STATE: usize = usize::MAX - 1;
-/// A state that represents a false comparison as part of a feature
-const FUZZING_COMPARISON_FALSE_STATE: usize = usize::MAX;
-
-/// The start of the range of the states that represent logarithm of the difference between the comparison arguments as part of a feature
-const FUZZING_COMPARISON_LOG_RANGE_START_STATE: usize = 0;
-
-/// A tuple of the current opcode position and the next opcode position or state
-pub type Branch = (OpcodePosition, NextOpcodePositionOrState);
-
-/// The index of a unique feature in the fuzzing trace
-pub type UniqueFeatureIndex = usize;
-
-/// A map for translating encountered branching logic to features for fuzzing
-pub type BranchToFeatureMap = HashMap<Branch, UniqueFeatureIndex>;
-
 /// A sample for an executed opcode
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct BrilligProfilingSample {
@@ -150,13 +133,9 @@ pub struct VM<'a, F, B: BlackBoxFunctionSolver<F>> {
     // Samples for profiling the VM execution.
     profiling_samples: BrilligProfilingSamples,
 
-    // The vm should trace fuzzing
-    fuzzing_active: bool,
-    // Fuzzer tracing memory
-    fuzzer_trace: Vec<u32>,
-
-    // Branch to feature map for fuzzing
-    branch_to_feature_map: BranchToFeatureMap,
+    /// Fuzzing trace structure
+    /// If the field is `None` then fuzzing is inactive
+    fuzzing_trace: Option<FuzzingTrace>,
 }
 
 impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
@@ -168,13 +147,8 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         profiling_active: bool,
         with_branch_to_feature_map: Option<&BranchToFeatureMap>,
     ) -> Self {
-        let (fuzzing_active, fuzzer_trace, branch_to_feature_map) = match with_branch_to_feature_map
-        {
-            Some(branch_to_feature_map) => {
-                (true, vec![0u32; branch_to_feature_map.len()], branch_to_feature_map.clone())
-            }
-            None => (false, Vec::new(), HashMap::new()),
-        };
+        let fuzzing_trace = with_branch_to_feature_map.map(|map| FuzzingTrace::new(map.clone()));
+
         Self {
             calldata,
             program_counter: 0,
@@ -187,9 +161,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
             black_box_solver,
             profiling_active,
             profiling_samples: Vec::with_capacity(bytecode.len()),
-            fuzzing_active,
-            fuzzer_trace,
-            branch_to_feature_map,
+            fuzzing_trace,
         }
     }
 
@@ -198,7 +170,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
     }
 
     pub fn is_fuzzing_active(&self) -> bool {
-        self.fuzzing_active
+        self.fuzzing_trace.is_some()
     }
 
     pub fn take_profiling_samples(&mut self) -> BrilligProfilingSamples {
@@ -297,128 +269,8 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         self.process_opcode_internal()
     }
 
-    /// Mark the execution of a particular branch in the fuzzing trace
-    fn fuzzing_trace_branching(&mut self, destination: NextOpcodePositionOrState) {
-        if !self.fuzzing_active {
-            return;
-        }
-        let index = self.branch_to_feature_map[&(self.program_counter, destination)];
-        self.fuzzer_trace[index] += 1;
-    }
-
-    /// Mark the execution of a conditional move in the fuzzing trace
-    fn fuzzing_trace_conditional_mov(&mut self, branch: bool) {
-        if !self.fuzzing_active {
-            return;
-        }
-        let index = self.branch_to_feature_map[&(
-            self.program_counter,
-            if branch { FUZZING_COMPARISON_TRUE_STATE } else { FUZZING_COMPARISON_FALSE_STATE },
-        )];
-        self.fuzzer_trace[index] += 1;
-    }
-
-    /// Collect information about the comparison of two field values in the fuzzing trace
-    fn fuzzing_trace_binary_field_op_comparison(
-        &mut self,
-        op: &BinaryFieldOp,
-        lhs: MemoryValue<F>,
-        rhs: MemoryValue<F>,
-        result: MemoryValue<F>,
-    ) {
-        if !self.fuzzing_active {
-            return;
-        }
-        match op {
-            BinaryFieldOp::Add
-            | BinaryFieldOp::Sub
-            | BinaryFieldOp::Mul
-            | BinaryFieldOp::Div
-            | BinaryFieldOp::IntegerDiv => {}
-            BinaryFieldOp::Equals | BinaryFieldOp::LessThan | BinaryFieldOp::LessThanEquals => {
-                let a = match lhs {
-                    MemoryValue::Field(a) => a,
-                    _ => {
-                        return;
-                    }
-                };
-                let b = match rhs {
-                    MemoryValue::Field(b) => b,
-                    _ => {
-                        return;
-                    }
-                };
-                let c = match result {
-                    MemoryValue::Field(..) => {
-                        return;
-                    }
-                    MemoryValue::U1(value) => value,
-                    _ => {
-                        return;
-                    }
-                };
-                let approach_index = self.branch_to_feature_map[&(
-                    self.program_counter,
-                    FUZZING_COMPARISON_LOG_RANGE_START_STATE
-                        + BigUint::from_bytes_be(&(b - a).to_be_bytes()).bits() as usize,
-                )];
-                let condition_index = self.branch_to_feature_map[&(
-                    self.program_counter,
-                    if c { FUZZING_COMPARISON_TRUE_STATE } else { FUZZING_COMPARISON_FALSE_STATE },
-                )];
-                self.fuzzer_trace[condition_index] += 1;
-                self.fuzzer_trace[approach_index] += 1;
-            }
-        }
-    }
-
-    /// Collect information about the comparison of two integer values in the fuzzing trace
-    fn fuzzing_trace_binary_int_op_comparison(
-        &mut self,
-        op: &BinaryIntOp,
-        lhs: MemoryValue<F>,
-        rhs: MemoryValue<F>,
-        result: MemoryValue<F>,
-    ) {
-        if !self.fuzzing_active {
-            return;
-        }
-        match op {
-            BinaryIntOp::Add
-            | BinaryIntOp::Sub
-            | BinaryIntOp::Mul
-            | BinaryIntOp::Div
-            | BinaryIntOp::And
-            | BinaryIntOp::Or
-            | BinaryIntOp::Xor
-            | BinaryIntOp::Shl
-            | BinaryIntOp::Shr => {}
-            BinaryIntOp::Equals | BinaryIntOp::LessThan | BinaryIntOp::LessThanEquals => {
-                let lhs_value = lhs.to_u128().expect("lhs is not an integer");
-                let rhs_value = rhs.to_u128().expect("rhs is not an integer");
-                let c = match result {
-                    MemoryValue::U1(value) => value,
-                    _ => {
-                        return;
-                    }
-                };
-                let approach_index = self.branch_to_feature_map[&(
-                    self.program_counter,
-                    FUZZING_COMPARISON_LOG_RANGE_START_STATE
-                        + rhs_value.abs_diff(lhs_value).checked_ilog2().map_or_else(|| 0, |x| x + 1)
-                            as usize,
-                )];
-                let condition_index = self.branch_to_feature_map[&(
-                    self.program_counter,
-                    if c { FUZZING_COMPARISON_TRUE_STATE } else { FUZZING_COMPARISON_FALSE_STATE },
-                )];
-                self.fuzzer_trace[condition_index] += 1;
-                self.fuzzer_trace[approach_index] += 1;
-            }
-        }
-    }
     pub fn get_fuzzing_trace(&self) -> Vec<u32> {
-        self.fuzzer_trace.clone()
+        self.fuzzing_trace.as_ref().map(|trace| trace.get_trace()).unwrap_or_default()
     }
 
     /// Execute a single opcode:

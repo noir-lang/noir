@@ -730,30 +730,14 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                         self.convert_ssa_identity_call(arguments, dfg, result_ids);
                     }
                     Intrinsic::BlackBox(bb_func) => {
-                        // Slices are represented as a tuple of (length, slice contents).
-                        // We must check the inputs to determine if there are slices
-                        // and make sure that we pass the correct inputs to the black box function call.
-                        // The loop below only keeps the slice contents, so that
-                        // setting up a black box function with slice inputs matches the expected
-                        // number of arguments specified in the function signature.
-                        let mut arguments_no_slice_len = Vec::new();
-                        for (i, arg) in arguments.iter().enumerate() {
-                            if matches!(dfg.type_of_value(*arg), Type::Numeric(_)) {
-                                if i < arguments.len() - 1 {
-                                    if !matches!(
-                                        dfg.type_of_value(arguments[i + 1]),
-                                        Type::Slice(_)
-                                    ) {
-                                        arguments_no_slice_len.push(*arg);
-                                    }
-                                } else {
-                                    arguments_no_slice_len.push(*arg);
-                                }
-                            } else {
-                                arguments_no_slice_len.push(*arg);
-                            }
-                        }
+                        assert!(
+                            !arguments
+                                .iter()
+                                .any(|arg| dfg.type_of_value(*arg).contains_slice_element()),
+                            "Blackbox functions should not be called with arguments of slice type"
+                        );
 
+                        let mut arguments = arguments.to_vec();
                         if matches!(
                             bb_func,
                             BlackBoxFunc::EcdsaSecp256k1
@@ -764,19 +748,18 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                             // Some black box functions have a predicate argument in SSA which we don't want to
                             // use in the brillig VM. This is as we do not need to flatten the CFG in brillig
                             // so we expect the predicate to always be true.
-                            let predicate = &arguments_no_slice_len.pop().expect(
+                            let predicate = arguments.pop().expect(
                                 "ICE: ECDSA black box function must have a predicate argument",
                             );
                             assert_eq!(
-                                dfg.get_numeric_constant_with_type(*predicate),
+                                dfg.get_numeric_constant_with_type(predicate),
                                 Some((FieldElement::one(), NumericType::bool())),
                                 "ICE: ECDSA black box function must have a predicate argument with value 1"
                             );
                         }
 
-                        let function_arguments = vecmap(&arguments_no_slice_len, |arg| {
-                            self.convert_ssa_value(*arg, dfg)
-                        });
+                        let function_arguments =
+                            vecmap(arguments, |arg| self.convert_ssa_value(arg, dfg));
                         let function_results = dfg.instruction_results(instruction_id);
                         let function_results = vecmap(function_results, |result| {
                             self.allocate_external_call_result(*result, dfg)
