@@ -795,6 +795,24 @@ mod field_ops {
                 result: FieldElement::from(-10_i128),
             },
             TestParams { a: 10u32.into(), b: 1u32.into(), result: 10u32.into() },
+            // Field division is a * 1/b. The inverse of 20 is 7660885005143746327786242010840046280991927540145612020294371465301532973466
+            TestParams {
+                a: 10u32.into(),
+                b: 20u32.into(),
+                result: FieldElement::try_from_str(
+                    "10944121435919637611123202872628637544274182200208017171849102093287904247809",
+                )
+                .unwrap(),
+            },
+            // The inverse of 7 is 3126891838834182174606629392179610726935480628630862049099743455225115499374.
+            TestParams {
+                a: 100u32.into(),
+                b: 7u32.into(),
+                result: FieldElement::try_from_str(
+                    "6253783677668364349213258784359221453870961257261724098199486910450230998762",
+                )
+                .unwrap(),
+            },
         ];
         evaluate_field_ops(test_ops, BinaryFieldOp::Div);
 
@@ -842,6 +860,9 @@ mod field_ops {
             // Negative numbers are treated as large unsigned numbers, thus we expect a result of 0 here
             TestParams { a: 10u32.into(), b: FieldElement::from(-1_i128), result: 0u32.into() },
             TestParams { a: 10u32.into(), b: 1u32.into(), result: 10u32.into() },
+            TestParams { a: 10u32.into(), b: 20u32.into(), result: 0u32.into() },
+            // 100 / 7 == 14 with a remainder of 2. The remainder is discarded.
+            TestParams { a: 100u32.into(), b: 7u32.into(), result: 14u32.into() },
         ];
         evaluate_field_ops(test_ops, BinaryFieldOp::IntegerDiv);
 
