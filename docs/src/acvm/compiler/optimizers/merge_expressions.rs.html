@@ -399,7 +399,13 @@
 <a href="#398" id="398">398</a>
 <a href="#399" id="399">399</a>
 <a href="#400" id="400">400</a>
-<a href="#401" id="401">401</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet, HashMap};
+<a href="#401" id="401">401</a>
+<a href="#402" id="402">402</a>
+<a href="#403" id="403">403</a>
+<a href="#404" id="404">404</a>
+<a href="#405" id="405">405</a>
+<a href="#406" id="406">406</a>
+<a href="#407" id="407">407</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet, HashMap};
 
 <span class="kw">use </span>acir::{
     AcirField,
@@ -527,8 +533,10 @@
                                     <span class="self">self</span>.modified_gates.insert(target, Opcode::AssertZero(expr));
                                     <span class="self">self</span>.deleted_gates.insert(source);
                                     <span class="comment">// Update the 'used_witness' map to account for the merge.
-                                    </span><span class="kw">let </span><span class="kw-2">mut </span>witness_list = CircuitSimulator::expr_wit(<span class="kw-2">&amp;</span>expr_use);
-                                    witness_list.extend(CircuitSimulator::expr_wit(<span class="kw-2">&amp;</span>expr_define));
+                                    </span><span class="kw">let </span>witness_list = CircuitSimulator::expr_wit(<span class="kw-2">&amp;</span>expr_use);
+                                    <span class="kw">let </span>witness_list = witness_list
+                                        .chain(CircuitSimulator::expr_wit(<span class="kw-2">&amp;</span>expr_define));
+
                                     <span class="kw">for </span>w2 <span class="kw">in </span>witness_list {
                                         <span class="kw">if </span>!circuit_io.contains(<span class="kw-2">&amp;</span>w2) {
                                             used_witness.entry(w2).and_modify(|v| {
@@ -566,42 +574,43 @@
         (new_circuit, new_acir_opcode_positions)
     }
 
-    <span class="kw">fn </span>brillig_input_wit(<span class="kw-2">&amp;</span><span class="self">self</span>, input: <span class="kw-2">&amp;</span>BrilligInputs&lt;F&gt;) -&gt; BTreeSet&lt;Witness&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>result = BTreeSet::new();
+    <span class="kw">fn </span>for_each_brillig_input_wit(<span class="kw-2">&amp;</span><span class="self">self</span>, input: <span class="kw-2">&amp;</span>BrilligInputs&lt;F&gt;, <span class="kw-2">mut </span>f: <span class="kw">impl </span>FnMut(Witness)) {
         <span class="kw">match </span>input {
             BrilligInputs::Single(expr) =&gt; {
-                result.extend(CircuitSimulator::expr_wit(expr));
+                <span class="kw">for </span>witness <span class="kw">in </span>CircuitSimulator::expr_wit(expr) {
+                    f(witness);
+                }
             }
             BrilligInputs::Array(exprs) =&gt; {
                 <span class="kw">for </span>expr <span class="kw">in </span>exprs {
-                    result.extend(CircuitSimulator::expr_wit(expr));
+                    <span class="kw">for </span>witness <span class="kw">in </span>CircuitSimulator::expr_wit(expr) {
+                        f(witness);
+                    }
                 }
             }
             BrilligInputs::MemoryArray(block_id) =&gt; {
-                <span class="kw">let </span>witnesses = <span class="self">self</span>.resolved_blocks.get(block_id).expect(<span class="string">"Unknown block id"</span>);
-                result.extend(witnesses);
+                <span class="kw">for </span>witness <span class="kw">in </span><span class="self">self</span>.resolved_blocks.get(block_id).expect(<span class="string">"Unknown block id"</span>) {
+                    f(<span class="kw-2">*</span>witness);
+                }
             }
         }
-        result
     }
 
-    <span class="kw">fn </span>brillig_output_wit(<span class="kw-2">&amp;</span><span class="self">self</span>, output: <span class="kw-2">&amp;</span>BrilligOutputs) -&gt; BTreeSet&lt;Witness&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>result = BTreeSet::new();
+    <span class="kw">fn </span>for_each_brillig_output_wit(<span class="kw-2">&amp;</span><span class="self">self</span>, output: <span class="kw-2">&amp;</span>BrilligOutputs, <span class="kw-2">mut </span>f: <span class="kw">impl </span>FnMut(Witness)) {
         <span class="kw">match </span>output {
-            BrilligOutputs::Simple(witness) =&gt; {
-                result.insert(<span class="kw-2">*</span>witness);
-            }
+            BrilligOutputs::Simple(witness) =&gt; f(<span class="kw-2">*</span>witness),
             BrilligOutputs::Array(witnesses) =&gt; {
-                result.extend(witnesses);
+                <span class="kw">for </span>witness <span class="kw">in </span>witnesses {
+                    f(<span class="kw-2">*</span>witness);
+                }
             }
         }
-        result
     }
 
     <span class="comment">// Returns the input witnesses used by the opcode
     </span><span class="kw">fn </span>witness_inputs(<span class="kw-2">&amp;</span><span class="self">self</span>, opcode: <span class="kw-2">&amp;</span>Opcode&lt;F&gt;) -&gt; BTreeSet&lt;Witness&gt; {
         <span class="kw">match </span>opcode {
-            Opcode::AssertZero(expr) =&gt; CircuitSimulator::expr_wit(expr),
+            Opcode::AssertZero(expr) =&gt; CircuitSimulator::expr_wit(expr).collect(),
             Opcode::BlackBoxFuncCall(bb_func) =&gt; {
                 <span class="kw">let </span><span class="kw-2">mut </span>witnesses = bb_func.get_input_witnesses();
                 witnesses.extend(bb_func.get_outputs_vec());
@@ -610,9 +619,8 @@
             }
             Opcode::MemoryOp { block_id: <span class="kw">_</span>, op } =&gt; {
                 <span class="comment">//index and value
-                </span><span class="kw">let </span><span class="kw-2">mut </span>witnesses = CircuitSimulator::expr_wit(<span class="kw-2">&amp;</span>op.index);
-                witnesses.extend(CircuitSimulator::expr_wit(<span class="kw-2">&amp;</span>op.value));
-                witnesses
+                </span><span class="kw">let </span>witnesses = CircuitSimulator::expr_wit(<span class="kw-2">&amp;</span>op.index);
+                witnesses.chain(CircuitSimulator::expr_wit(<span class="kw-2">&amp;</span>op.value)).collect()
             }
 
             Opcode::MemoryInit { block_id: <span class="kw">_</span>, init, block_type: <span class="kw">_ </span>} =&gt; {
@@ -621,15 +629,19 @@
             Opcode::BrilligCall { inputs, outputs, .. } =&gt; {
                 <span class="kw">let </span><span class="kw-2">mut </span>witnesses = BTreeSet::new();
                 <span class="kw">for </span>i <span class="kw">in </span>inputs {
-                    witnesses.extend(<span class="self">self</span>.brillig_input_wit(i));
+                    <span class="self">self</span>.for_each_brillig_input_wit(i, |witness| {
+                        witnesses.insert(witness);
+                    });
                 }
                 <span class="kw">for </span>i <span class="kw">in </span>outputs {
-                    witnesses.extend(<span class="self">self</span>.brillig_output_wit(i));
+                    <span class="self">self</span>.for_each_brillig_output_wit(i, |witness| {
+                        witnesses.insert(witness);
+                    });
                 }
                 witnesses
             }
             Opcode::Call { id: <span class="kw">_</span>, inputs, outputs, predicate } =&gt; {
-                <span class="kw">let </span><span class="kw-2">mut </span>witnesses: BTreeSet&lt;Witness&gt; = BTreeSet::from_iter(inputs.iter().copied());
+                <span class="kw">let </span><span class="kw-2">mut </span>witnesses: BTreeSet&lt;Witness&gt; = inputs.iter().copied().collect();
                 witnesses.extend(outputs);
 
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(p) = predicate {

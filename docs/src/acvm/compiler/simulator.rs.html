@@ -346,7 +346,7 @@
     },
     native_types::{Expression, Witness},
 };
-<span class="kw">use </span>std::collections::{BTreeSet, HashSet};
+<span class="kw">use </span>std::collections::HashSet;
 
 <span class="doccomment">/// Simulate a symbolic solve for a circuit
 /// Instead of evaluating witness values from the inputs, like the PWG module is doing,
@@ -522,11 +522,11 @@
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>expr_wit&lt;F&gt;(expr: <span class="kw-2">&amp;</span>Expression&lt;F&gt;) -&gt; BTreeSet&lt;Witness&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>result = BTreeSet::new();
-        result.extend(expr.mul_terms.iter().flat_map(|i| [i.<span class="number">1</span>, i.<span class="number">2</span>]));
-        result.extend(expr.linear_combinations.iter().map(|i| i.<span class="number">1</span>));
-        result
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>expr_wit&lt;F&gt;(expr: <span class="kw-2">&amp;</span>Expression&lt;F&gt;) -&gt; <span class="kw">impl </span>Iterator&lt;Item = Witness&gt; {
+        expr.mul_terms
+            .iter()
+            .flat_map(|i| [i.<span class="number">1</span>, i.<span class="number">2</span>])
+            .chain(expr.linear_combinations.iter().map(|i| i.<span class="number">1</span>))
     }
 }
 
