@@ -102,7 +102,7 @@ pub(super) struct AcirDynamicArray {
     /// This vector only holds the numeric types for a single dynamic array element.
     /// For example, if in Noir or SSA we have `[(u8, u32, Field); 3]` then `len` will be 3
     /// and `value_types` will be `[u8, u32, Field]`. To know the type of the element at index `i`
-    /// we can fetch `value_types[i % len]`.
+    /// we can fetch `value_types[i % value_types.len()]`.
     pub(super) value_types: Vec<NumericType>,
     /// Identification for the ACIR dynamic array
     /// inner element type sizes array
