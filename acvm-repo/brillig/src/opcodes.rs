@@ -549,7 +549,7 @@ pub enum BinaryFieldOp {
     Mul,
     /// Field division
     Div,
-    /// Integer division
+    /// Unsigned integer division
     IntegerDiv,
     /// (==) equal
     Equals,
