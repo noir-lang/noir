@@ -10,17 +10,6 @@ use acir::{
 use acvm_blackbox_solver::StubbedBlackBoxSolver;
 use brillig_vm::{FailureReason, MEMORY_ADDRESSING_BIT_SIZE, MemoryValue, VM, VMStatus};
 
-/// Helper to execute brillig code until completion
-fn brillig_execute<F: AcirField>(vm: &mut VM<F, StubbedBlackBoxSolver>) {
-    loop {
-        let status = vm.process_opcode();
-        if matches!(status, VMStatus::Finished { .. } | VMStatus::ForeignCallWait { .. }) {
-            break;
-        }
-        assert_eq!(status, VMStatus::InProgress);
-    }
-}
-
 /// Helper to execute brillig code and return the VM
 fn brillig_execute_and_get_vm<'a, F: AcirField>(
     calldata: Vec<F>,
@@ -28,8 +17,8 @@ fn brillig_execute_and_get_vm<'a, F: AcirField>(
     solver: &'a StubbedBlackBoxSolver,
 ) -> VM<'a, F, StubbedBlackBoxSolver> {
     let mut vm = VM::new(calldata, opcodes, solver, false, None);
-    brillig_execute(&mut vm);
-    assert!(vm.get_final_call_stack().is_empty());
+    vm.process_opcodes();
+    assert!(vm.get_call_stack_no_current_counter().is_empty());
     vm
 }
 

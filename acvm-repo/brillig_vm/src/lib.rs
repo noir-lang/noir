@@ -262,7 +262,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
     /// Returns the VM's call stack but unlike [Self::get_call_stack] without the attaching
     /// the program counter in the last position of the returned vector.
     /// This is meant only for fetching the call stack after execution has completed.
-    pub fn get_final_call_stack(&self) -> Vec<usize> {
+    pub fn get_call_stack_no_current_counter(&self) -> Vec<usize> {
         self.call_stack.clone()
     }
 
