@@ -1,3 +1,4 @@
+use crate::acir::types::flat_numeric_types;
 use crate::acir::{AcirDynamicArray, AcirType, AcirValue};
 use crate::errors::RuntimeError;
 use crate::ssa::ir::{dfg::DataFlowGraph, value::ValueId};
@@ -380,7 +381,7 @@ impl Context<'_> {
                 None
             };
 
-        let value_types = slice_typ.flat_numeric_types();
+        let value_types = flat_numeric_types(&slice_typ);
 
         let result = AcirValue::DynamicArray(AcirDynamicArray {
             block_id: result_block_id,
@@ -525,7 +526,7 @@ impl Context<'_> {
                 None
             };
 
-        let value_types = slice_typ.flat_numeric_types();
+        let value_types = flat_numeric_types(&slice_typ);
 
         let result = AcirValue::DynamicArray(AcirDynamicArray {
             block_id: result_block_id,

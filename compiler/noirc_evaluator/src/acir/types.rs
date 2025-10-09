@@ -175,3 +175,44 @@ impl AcirVar {
         AcirVar(var)
     }
 }
+
+/// Assumes `typ` is an array or slice type with nested numeric types, arrays or slices
+/// (recursively) and returns a flat list of all the contained numeric types.
+/// Panics if `self` is not an array or slice type or if a function or reference type
+/// is found along the way.
+pub(crate) fn flat_numeric_types(typ: &crate::ssa::ir::types::Type) -> Vec<NumericType> {
+    use crate::ssa::ir::types::Type;
+    match typ {
+        Type::Array(types, _) | Type::Slice(types) => {
+            let mut flat_types = Vec::new();
+            for typ in types.iter() {
+                collect_flat_numeric_types(typ, &mut flat_types);
+            }
+            flat_types
+        }
+        Type::Function => panic!("Called flat_numeric_types on a function type"),
+        Type::Reference(_) => panic!("Called flat_numeric_types on a reference type"),
+        Type::Numeric(_) => panic!("Called flat_numeric_types on a numeric type"),
+    }
+}
+
+/// Helper function for `flat_numeric_types` that recursively collects all numeric types
+/// into `flat_types`.
+fn collect_flat_numeric_types(
+    typ: &crate::ssa::ir::types::Type,
+    flat_types: &mut Vec<NumericType>,
+) {
+    use crate::ssa::ir::types::Type;
+    match typ {
+        Type::Numeric(numeric_type) => {
+            flat_types.push(*numeric_type);
+        }
+        Type::Array(types, _) | Type::Slice(types) => {
+            for typ in types.iter() {
+                collect_flat_numeric_types(typ, flat_types);
+            }
+        }
+        Type::Function => panic!("Called collect_flat_numeric_types on a function type"),
+        Type::Reference(_) => panic!("Called collect_flat_numeric_types on a reference type"),
+    }
+}
