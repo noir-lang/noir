@@ -259,14 +259,17 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString, Registers: Re
     }
 }
 
-/// Converts a Brillig array or vector into a heap-allocated [HeapVector]
+/// Converts a [BrilligVariable] into a heap-allocated [HeapArray]
 /// suitable for use as an input to a Brillig [BlackBoxOp].
+///
+/// # Panics
+/// If the input is not a [BrilligVariable::BrilligArray]
 fn get_heap_array<F: AcirField + DebugToString, Registers: RegisterAllocator>(
     brillig_context: &mut BrilligContext<F, Registers>,
-    array_or_array: BrilligVariable,
+    array: BrilligVariable,
     bb_func: &BlackBoxFunc,
 ) -> HeapArray {
-    let array_or_array = brillig_context.variable_to_value_or_array(array_or_array);
+    let array_or_array = brillig_context.variable_to_value_or_array(array);
     match *array_or_array {
         ValueOrArray::HeapArray(array) => array,
         _ => {
