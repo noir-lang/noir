@@ -120,6 +120,7 @@ use acvm::acir::{circuit::opcodes::BlockType, native_types::Witness};
 use acvm::{FieldElement, acir::AcirField, acir::circuit::opcodes::BlockId};
 use iter_extended::{try_vecmap, vecmap};
 
+use crate::acir::types::flat_numeric_types;
 use crate::errors::{InternalError, RuntimeError};
 use crate::ssa::ir::{
     dfg::DataFlowGraph,
@@ -777,13 +778,7 @@ impl Context<'_> {
             None
         };
 
-        let value_types = self.convert_value(array, dfg).flat_numeric_types();
-        // Compiler sanity check
-        assert_eq!(
-            value_types.len(),
-            len,
-            "ICE: The length of the flattened type array should match the length of the dynamic array"
-        );
+        let value_types = flat_numeric_types(&array_typ);
 
         Ok(AcirValue::DynamicArray(AcirDynamicArray {
             block_id,
