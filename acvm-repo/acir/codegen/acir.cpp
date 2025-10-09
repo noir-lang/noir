@@ -802,7 +802,26 @@ namespace Acir {
             }
         };
 
-        std::variant<Direct, Relative> value;
+        struct Global {
+            uint64_t value;
+
+            friend bool operator==(const Global&, const Global&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Global bincodeDeserialize(std::vector<uint8_t>);
+
+            void msgpack_pack(auto& packer) const { packer.pack(value); }
+
+            void msgpack_unpack(msgpack::object const& o) {
+                try {
+                    o.convert(value);
+                } catch (const msgpack::type_error&) {
+                    std::cerr << o << std::endl;
+                    throw_or_abort("error converting into newtype 'Global'");
+                }
+            }
+        };
+
+        std::variant<Direct, Relative, Global> value;
 
         friend bool operator==(const MemoryAddress&, const MemoryAddress&);
         std::vector<uint8_t> bincodeSerialize() const;
@@ -819,6 +838,10 @@ namespace Acir {
                     break;
                 case 1:
                     tag = "Relative";
+                    is_unit = false;
+                    break;
+                case 2:
+                    tag = "Global";
                     is_unit = false;
                     break;
                 default:
@@ -873,6 +896,17 @@ namespace Acir {
                 } catch (const msgpack::type_error&) {
                     std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'MemoryAddress::Relative'");
+                }
+                
+                value = v;
+            }
+            else if (tag == "Global") {
+                Global v;
+                try {
+                    o.via.map.ptr[0].val.convert(v);
+                } catch (const msgpack::type_error&) {
+                    std::cerr << o << std::endl;
+                    throw_or_abort("error converting into enum variant 'MemoryAddress::Global'");
                 }
                 
                 value = v;
@@ -4413,15 +4447,17 @@ namespace Acir {
     struct Program {
         std::vector<Acir::Circuit> functions;
         std::vector<Acir::BrilligBytecode> unconstrained_functions;
+        std::optional<Acir::BrilligBytecode> unconstrained_global_memory;
 
         friend bool operator==(const Program&, const Program&);
         std::vector<uint8_t> bincodeSerialize() const;
         static Program bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
-            packer.pack_map(2);
+            packer.pack_map(3);
             packer.pack(std::make_pair("functions", functions));
             packer.pack(std::make_pair("unconstrained_functions", unconstrained_functions));
+            packer.pack(std::make_pair("unconstrained_global_memory", unconstrained_global_memory));
         }
 
         void msgpack_unpack(msgpack::object const& o) {
@@ -4429,6 +4465,7 @@ namespace Acir {
             auto kvmap = Helpers::make_kvmap(o, name);
             Helpers::conv_fld_from_kvmap(kvmap, name, "functions", functions, false);
             Helpers::conv_fld_from_kvmap(kvmap, name, "unconstrained_functions", unconstrained_functions, false);
+            Helpers::conv_fld_from_kvmap(kvmap, name, "unconstrained_global_memory", unconstrained_global_memory, true);
         }
     };
 
@@ -9219,6 +9256,44 @@ Acir::MemoryAddress::Relative serde::Deserializable<Acir::MemoryAddress::Relativ
 
 namespace Acir {
 
+    inline bool operator==(const MemoryAddress::Global &lhs, const MemoryAddress::Global &rhs) {
+        if (!(lhs.value == rhs.value)) { return false; }
+        return true;
+    }
+
+    inline std::vector<uint8_t> MemoryAddress::Global::bincodeSerialize() const {
+        auto serializer = serde::BincodeSerializer();
+        serde::Serializable<MemoryAddress::Global>::serialize(*this, serializer);
+        return std::move(serializer).bytes();
+    }
+
+    inline MemoryAddress::Global MemoryAddress::Global::bincodeDeserialize(std::vector<uint8_t> input) {
+        auto deserializer = serde::BincodeDeserializer(input);
+        auto value = serde::Deserializable<MemoryAddress::Global>::deserialize(deserializer);
+        if (deserializer.get_buffer_offset() < input.size()) {
+            throw_or_abort("Some input bytes were not read");
+        }
+        return value;
+    }
+
+} // end of namespace Acir
+
+template <>
+template <typename Serializer>
+void serde::Serializable<Acir::MemoryAddress::Global>::serialize(const Acir::MemoryAddress::Global &obj, Serializer &serializer) {
+    serde::Serializable<decltype(obj.value)>::serialize(obj.value, serializer);
+}
+
+template <>
+template <typename Deserializer>
+Acir::MemoryAddress::Global serde::Deserializable<Acir::MemoryAddress::Global>::deserialize(Deserializer &deserializer) {
+    Acir::MemoryAddress::Global obj;
+    obj.value = serde::Deserializable<decltype(obj.value)>::deserialize(deserializer);
+    return obj;
+}
+
+namespace Acir {
+
     inline bool operator==(const Opcode &lhs, const Opcode &rhs) {
         if (!(lhs.value == rhs.value)) { return false; }
         return true;
@@ -9640,6 +9715,7 @@ namespace Acir {
     inline bool operator==(const Program &lhs, const Program &rhs) {
         if (!(lhs.functions == rhs.functions)) { return false; }
         if (!(lhs.unconstrained_functions == rhs.unconstrained_functions)) { return false; }
+        if (!(lhs.unconstrained_global_memory == rhs.unconstrained_global_memory)) { return false; }
         return true;
     }
 
@@ -9666,6 +9742,7 @@ void serde::Serializable<Acir::Program>::serialize(const Acir::Program &obj, Ser
     serializer.increase_container_depth();
     serde::Serializable<decltype(obj.functions)>::serialize(obj.functions, serializer);
     serde::Serializable<decltype(obj.unconstrained_functions)>::serialize(obj.unconstrained_functions, serializer);
+    serde::Serializable<decltype(obj.unconstrained_global_memory)>::serialize(obj.unconstrained_global_memory, serializer);
     serializer.decrease_container_depth();
 }
 
@@ -9676,6 +9753,7 @@ Acir::Program serde::Deserializable<Acir::Program>::deserialize(Deserializer &de
     Acir::Program obj;
     obj.functions = serde::Deserializable<decltype(obj.functions)>::deserialize(deserializer);
     obj.unconstrained_functions = serde::Deserializable<decltype(obj.unconstrained_functions)>::deserialize(deserializer);
+    obj.unconstrained_global_memory = serde::Deserializable<decltype(obj.unconstrained_global_memory)>::deserialize(deserializer);
     deserializer.decrease_container_depth();
     return obj;
 }

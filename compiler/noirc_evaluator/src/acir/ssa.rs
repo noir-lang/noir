@@ -15,8 +15,9 @@ use crate::{
 use super::{Context, GeneratedAcir, SharedContext, acir_context::BrilligStdLib};
 
 pub type Artifacts = (
-    Vec<GeneratedAcir<FieldElement>>,
-    Vec<BrilligBytecode<FieldElement>>,
+    Vec<GeneratedAcir<FieldElement>>,      // ACIR functions
+    Vec<BrilligBytecode<FieldElement>>,    // Brillig functions
+    Option<BrilligBytecode<FieldElement>>, // Brillig globals
     BTreeMap<ErrorSelector, HirType>,
 );
 
@@ -24,7 +25,7 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip_all)]
     pub fn into_acir(
         self,
-        brillig: &Brillig,
+        brillig: Brillig,
         brillig_options: &BrilligOptions,
         expression_width: ExpressionWidth,
     ) -> Result<Artifacts, RuntimeError> {
@@ -34,7 +35,7 @@ impl Ssa {
 
 pub(super) fn codegen_acir(
     ssa: Ssa,
-    brillig: &Brillig,
+    mut brillig: Brillig,
     brillig_stdlib: BrilligStdLib<FieldElement>,
     brillig_options: &BrilligOptions,
     expression_width: ExpressionWidth,
@@ -50,7 +51,7 @@ pub(super) fn codegen_acir(
         let context = Context::new(
             &mut shared_context,
             expression_width,
-            brillig,
+            &brillig,
             brillig_stdlib.clone(),
             brillig_options,
         );
@@ -92,5 +93,14 @@ pub(super) fn codegen_acir(
         .map(|brillig| BrilligBytecode { function_name: brillig.name, bytecode: brillig.byte_code })
         .collect();
 
-    Ok((acirs, brillig_bytecode, ssa.error_selector_to_type))
+    let brillig_globals = if !ssa.main().runtime().is_brillig() {
+        Some(BrilligBytecode {
+            function_name: "GlobalsInit".to_owned(),
+            bytecode: brillig.take_globals(),
+        })
+    } else {
+        None
+    };
+
+    Ok((acirs, brillig_bytecode, brillig_globals, ssa.error_selector_to_type))
 }

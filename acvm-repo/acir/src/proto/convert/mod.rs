@@ -21,6 +21,10 @@ impl<F: AcirField> ProtoCodec<circuit::Program<F>, Program> for ProtoSchema<F> {
         Program {
             functions: Self::encode_vec(&value.functions),
             unconstrained_functions: Self::encode_vec(&value.unconstrained_functions),
+            unconstrained_global_memory: value
+                .unconstrained_global_memory
+                .as_ref()
+                .map(Self::encode),
         }
     }
 
@@ -30,6 +34,10 @@ impl<F: AcirField> ProtoCodec<circuit::Program<F>, Program> for ProtoSchema<F> {
             unconstrained_functions: Self::decode_vec_wrap(
                 &value.unconstrained_functions,
                 "unconstrained_functions",
+            )?,
+            unconstrained_global_memory: Self::decode_opt_wrap(
+                &value.unconstrained_global_memory,
+                "unconstrained_global_memory",
             )?,
         })
     }

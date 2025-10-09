@@ -1,9 +1,11 @@
-use acvm::acir::brillig::Opcode as BrilligOpcode;
+use acvm::acir::brillig::{MemoryAddress, Opcode as BrilligOpcode};
 use acvm::acir::circuit::ErrorSelector;
 use noirc_errors::call_stack::CallStackId;
 use std::collections::{BTreeMap, HashMap};
 
 use crate::ErrorType;
+use crate::brillig::brillig_ir::LayoutConfig;
+use crate::brillig::brillig_ir::registers::GlobalSpace;
 use crate::ssa::ir::{basic_block::BasicBlockId, function::FunctionId};
 
 use super::procedures::ProcedureId;
@@ -77,8 +79,7 @@ pub(crate) enum LabelType {
     /// Labels for intrinsic procedures
     Procedure(ProcedureId),
     /// Label for initialization of globals
-    /// Stores a function ID referencing the entry point
-    GlobalInit(FunctionId),
+    GlobalInit,
 }
 
 impl std::fmt::Display for LabelType {
@@ -93,8 +94,8 @@ impl std::fmt::Display for LabelType {
             }
             LabelType::Entrypoint => write!(f, "Entrypoint"),
             LabelType::Procedure(procedure_id) => write!(f, "Procedure({procedure_id:?})"),
-            LabelType::GlobalInit(function_id) => {
-                write!(f, "Globals Initialization({function_id:?})")
+            LabelType::GlobalInit => {
+                write!(f, "Globals Initialization")
             }
         }
     }
@@ -131,8 +132,8 @@ impl Label {
         Label { label_type: LabelType::Procedure(procedure_id), section: None }
     }
 
-    pub(crate) fn globals_init(function_id: FunctionId) -> Self {
-        Label { label_type: LabelType::GlobalInit(function_id), section: None }
+    pub(crate) fn globals_init() -> Self {
+        Label { label_type: LabelType::GlobalInit, section: None }
     }
 }
 
@@ -337,8 +338,20 @@ impl<F: Clone + std::fmt::Debug> BrilligArtifact<F> {
         self.call_stack_id = call_stack;
     }
 
-    #[cfg(test)]
-    pub(crate) fn take_labels(&mut self) -> HashMap<Label, usize> {
-        std::mem::take(&mut self.labels)
+    pub(crate) fn linearize_globals(&mut self, layout: &LayoutConfig) {
+        let globals_linear_start = GlobalSpace::start_with_layout(layout);
+        for opcode in &mut self.byte_code {
+            opcode.map_memory_addresses(|addr| match addr {
+                MemoryAddress::Global(offset) => {
+                    MemoryAddress::Direct(globals_linear_start + offset)
+                }
+                other => other,
+            });
+        }
     }
+
+    // #[cfg(test)]
+    // pub(crate) fn take_labels(&mut self) -> HashMap<Label, usize> {
+    //     std::mem::take(&mut self.labels)
+    // }
 }

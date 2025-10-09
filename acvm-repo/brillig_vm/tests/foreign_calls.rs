@@ -18,9 +18,10 @@ fn run_foreign_call_test<F: AcirField>(
     expected_foreign_call_status: VMStatus<F>,
     foreign_call_result: Vec<ForeignCallParam<F>>,
     expected_final_status: VMStatus<F>,
-) -> (Memory<F>, usize) {
+    post_check: impl FnOnce(&Memory<'_, F>, usize),
+) {
     let solver = StubbedBlackBoxSolver::default();
-    let mut vm = VM::new(calldata, opcodes, &solver, false, None);
+    let mut vm = VM::new(calldata, opcodes, &[], &solver, false, None);
 
     let status = vm.process_opcodes();
     assert_eq!(status, expected_foreign_call_status);
@@ -28,8 +29,9 @@ fn run_foreign_call_test<F: AcirField>(
     vm.resolve_foreign_call(ForeignCallResult { values: foreign_call_result });
     let status = vm.process_opcode();
     assert_eq!(status, expected_final_status);
+
     let counter = vm.foreign_call_counter();
-    (vm.take_memory(), counter)
+    post_check(&vm.take_memory(), counter)
 }
 
 #[test]
@@ -58,7 +60,16 @@ fn foreign_call_opcode_simple_result() {
         },
     ];
 
-    let (memory, foreign_call_counter) = run_foreign_call_test(
+    let post_check = |memory: &Memory<'_, FieldElement>, foreign_call_counter| {
+        // Check result address
+        let result_value = memory.read(r_result);
+        assert_eq!(result_value, (10u32).into());
+
+        // Ensure the foreign call counter has been incremented
+        assert_eq!(foreign_call_counter, 1);
+    };
+
+    run_foreign_call_test(
         vec![],
         &double_program,
         VMStatus::ForeignCallWait {
@@ -67,14 +78,8 @@ fn foreign_call_opcode_simple_result() {
         },
         vec![FieldElement::from(10u128).into()],
         VMStatus::Finished { return_data_offset: 0, return_data_size: 0 },
+        post_check,
     );
-
-    // Check result address
-    let result_value = memory.read(r_result);
-    assert_eq!(result_value, (10u32).into());
-
-    // Ensure the foreign call counter has been incremented
-    assert_eq!(foreign_call_counter, 1);
 }
 
 #[test]
@@ -140,7 +145,7 @@ fn foreign_call_opcode_memory_result() {
         },
     ];
 
-    let (memory, counter) = run_foreign_call_test(
+    run_foreign_call_test(
         initial_matrix.clone(),
         &invert_program,
         VMStatus::ForeignCallWait {
@@ -149,15 +154,16 @@ fn foreign_call_opcode_memory_result() {
         },
         vec![expected_result.clone().into()],
         VMStatus::Finished { return_data_offset: 0, return_data_size: 0 },
+        |memory, counter| {
+            // Check result in memory
+            let result_values = memory.read_slice(MemoryAddress::direct(2), 4);
+            let result_fields: Vec<_> = result_values.iter().map(|v| v.to_field()).collect();
+            assert_eq!(result_fields, expected_result);
+
+            // Ensure the foreign call counter has been incremented
+            assert_eq!(counter, 1);
+        },
     );
-
-    // Check result in memory
-    let result_values = memory.read_slice(MemoryAddress::direct(2), 4);
-    let result_fields: Vec<_> = result_values.iter().map(|v| v.to_field()).collect();
-    assert_eq!(result_fields, expected_result);
-
-    // Ensure the foreign call counter has been incremented
-    assert_eq!(counter, 1);
 }
 
 /// Calling a simple foreign call function that takes any string input, concatenates it with itself, and reverses the concatenation
@@ -239,7 +245,7 @@ fn foreign_call_opcode_vector_input_and_output() {
         },
     ];
 
-    let (memory, counter) = run_foreign_call_test(
+    run_foreign_call_test(
         input_string.clone(),
         &string_double_program,
         VMStatus::ForeignCallWait {
@@ -248,18 +254,19 @@ fn foreign_call_opcode_vector_input_and_output() {
         },
         vec![ForeignCallParam::Array(output_string.clone())],
         VMStatus::Finished { return_data_offset: 0, return_data_size: 0 },
+        |memory, counter| {
+            // Check result in memory
+            let result_values: Vec<_> = memory
+                .read_slice(MemoryAddress::direct(4 + input_string.len()), output_string.len())
+                .iter()
+                .map(|mem_val| mem_val.clone().to_field())
+                .collect();
+            assert_eq!(result_values, output_string);
+
+            // Ensure the foreign call counter has been incremented
+            assert_eq!(counter, 1);
+        },
     );
-
-    // Check result in memory
-    let result_values: Vec<_> = memory
-        .read_slice(MemoryAddress::direct(4 + input_string.len()), output_string.len())
-        .iter()
-        .map(|mem_val| mem_val.clone().to_field())
-        .collect();
-    assert_eq!(result_values, output_string);
-
-    // Ensure the foreign call counter has been incremented
-    assert_eq!(counter, 1);
 }
 
 #[test]
@@ -325,7 +332,7 @@ fn foreign_call_opcode_memory_alloc_result() {
         },
     ];
 
-    let (memory, counter) = run_foreign_call_test(
+    run_foreign_call_test(
         initial_matrix.clone(),
         &invert_program,
         VMStatus::ForeignCallWait {
@@ -334,26 +341,27 @@ fn foreign_call_opcode_memory_alloc_result() {
         },
         vec![expected_result.clone().into()],
         VMStatus::Finished { return_data_offset: 0, return_data_size: 0 },
+        |memory, counter| {
+            // Check initial memory still in place
+            let initial_values: Vec<_> = memory
+                .read_slice(MemoryAddress::direct(2), 4)
+                .iter()
+                .map(|mem_val| mem_val.clone().to_field())
+                .collect();
+            assert_eq!(initial_values, initial_matrix);
+
+            // Check result in memory
+            let result_values: Vec<_> = memory
+                .read_slice(MemoryAddress::direct(6), 4)
+                .iter()
+                .map(|mem_val| mem_val.clone().to_field())
+                .collect();
+            assert_eq!(result_values, expected_result);
+
+            // Ensure the foreign call counter has been incremented
+            assert_eq!(counter, 1);
+        },
     );
-
-    // Check initial memory still in place
-    let initial_values: Vec<_> = memory
-        .read_slice(MemoryAddress::direct(2), 4)
-        .iter()
-        .map(|mem_val| mem_val.clone().to_field())
-        .collect();
-    assert_eq!(initial_values, initial_matrix);
-
-    // Check result in memory
-    let result_values: Vec<_> = memory
-        .read_slice(MemoryAddress::direct(6), 4)
-        .iter()
-        .map(|mem_val| mem_val.clone().to_field())
-        .collect();
-    assert_eq!(result_values, expected_result);
-
-    // Ensure the foreign call counter has been incremented
-    assert_eq!(counter, 1);
 }
 
 #[test]
@@ -438,7 +446,7 @@ fn foreign_call_opcode_multiple_array_inputs_result() {
     let mut initial_memory = matrix_a.clone();
     initial_memory.extend(matrix_b.clone());
 
-    let (memory, counter) = run_foreign_call_test(
+    run_foreign_call_test(
         initial_memory.clone(),
         &matrix_mul_program,
         VMStatus::ForeignCallWait {
@@ -447,18 +455,19 @@ fn foreign_call_opcode_multiple_array_inputs_result() {
         },
         vec![expected_result.clone().into()],
         VMStatus::Finished { return_data_offset: 0, return_data_size: 0 },
+        |memory, counter| {
+            // Check result in memory
+            let result_values: Vec<_> = memory
+                .read_slice(MemoryAddress::direct(0), 4)
+                .iter()
+                .map(|mem_val| mem_val.clone().to_field())
+                .collect();
+            assert_eq!(result_values, expected_result);
+
+            // Ensure the foreign call counter has been incremented
+            assert_eq!(counter, 1);
+        },
     );
-
-    // Check result in memory
-    let result_values: Vec<_> = memory
-        .read_slice(MemoryAddress::direct(0), 4)
-        .iter()
-        .map(|mem_val| mem_val.clone().to_field())
-        .collect();
-    assert_eq!(result_values, expected_result);
-
-    // Ensure the foreign call counter has been incremented
-    assert_eq!(counter, 1);
 }
 
 #[test]
@@ -567,7 +576,7 @@ fn foreign_call_opcode_nested_arrays_and_slices_input() {
     .collect();
 
     let calldata: Vec<FieldElement> = memory.iter().map(|v| v.to_field()).collect();
-    let (memory, counter) = run_foreign_call_test(
+    run_foreign_call_test(
         calldata,
         &program,
         VMStatus::ForeignCallWait {
@@ -588,14 +597,15 @@ fn foreign_call_opcode_nested_arrays_and_slices_input() {
         },
         vec![FieldElement::from(45u128).into()],
         VMStatus::Finished { return_data_offset: 0, return_data_size: 0 },
+        |memory, counter| {
+            // Check result
+            let result_value = memory.read(r_output);
+            assert_eq!(result_value, MemoryValue::new_field(FieldElement::from(45u128)));
+
+            // Ensure the foreign call counter has been incremented
+            assert_eq!(counter, 1);
+        },
     );
-
-    // Check result
-    let result_value = memory.read(r_output);
-    assert_eq!(result_value, MemoryValue::new_field(FieldElement::from(45u128)));
-
-    // Ensure the foreign call counter has been incremented
-    assert_eq!(counter, 1);
 }
 
 #[test]
@@ -627,6 +637,7 @@ fn handles_foreign_calls_returning_empty_arrays() {
         VMStatus::ForeignCallWait { function: "foo".to_string(), inputs: Vec::new() },
         vec![ForeignCallParam::Array(vec![])],
         VMStatus::Finished { return_data_offset: 0, return_data_size: 0 },
+        |_, _| {},
     );
 }
 
@@ -671,6 +682,7 @@ fn aborts_when_foreign_call_returns_too_much_data() {
             },
             call_stack: vec![1],
         },
+        |_, _| {},
     );
 }
 
@@ -714,6 +726,7 @@ fn aborts_when_foreign_call_returns_not_enough_much_data() {
             },
             call_stack: vec![1],
         },
+        |_, _| {},
     );
 }
 
@@ -762,5 +775,6 @@ fn aborts_when_foreign_call_returns_data_which_does_not_match_vector_elements() 
             },
             call_stack: vec![1],
         },
+        |_, _| {},
     );
 }

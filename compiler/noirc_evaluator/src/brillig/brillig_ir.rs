@@ -38,7 +38,7 @@ use acvm::{
 };
 use debug_show::DebugShow;
 
-use super::{BrilligOptions, FunctionId, GlobalSpace, ProcedureId};
+use super::{BrilligOptions, GlobalSpace, ProcedureId};
 
 /// The Brillig VM does not apply a limit to the memory address space,
 /// As a convention, we take use 32 bits. This means that we assume that
@@ -288,14 +288,11 @@ impl<F: AcirField + DebugToString> BrilligContext<F, ScratchSpace> {
 
 /// Special brillig context to codegen global values initialization
 impl<F: AcirField + DebugToString> BrilligContext<F, GlobalSpace> {
-    pub(crate) fn new_for_global_init(
-        options: &BrilligOptions,
-        entry_point: FunctionId,
-    ) -> BrilligContext<F, GlobalSpace> {
+    pub(crate) fn new_for_global_init(options: &BrilligOptions) -> BrilligContext<F, GlobalSpace> {
         BrilligContext {
             obj: BrilligArtifact::default(),
             registers: GlobalSpace::new(options.layout),
-            context_label: Label::globals_init(entry_point),
+            context_label: Label::globals_init(),
             current_section: 0,
             next_section: 1,
             debug_show: DebugShow::new(options.enable_debug_trace),
@@ -441,7 +438,7 @@ pub(crate) mod tests {
         bytecode: &[BrilligOpcode<FieldElement>],
     ) -> (VM<'_, FieldElement, DummyBlackBoxSolver>, usize, usize) {
         let profiling_active = false;
-        let mut vm = VM::new(calldata, bytecode, &DummyBlackBoxSolver, profiling_active, None);
+        let mut vm = VM::new(calldata, bytecode, &[], &DummyBlackBoxSolver, profiling_active, None);
 
         let status = vm.process_opcodes();
         if let VMStatus::Finished { return_data_offset, return_data_size } = status {
@@ -522,7 +519,7 @@ pub(crate) mod tests {
 
         let bytecode: Vec<BrilligOpcode<FieldElement>> = context.artifact().finish().byte_code;
 
-        let mut vm = VM::new(vec![], &bytecode, &DummyBlackBoxSolver, false, None);
+        let mut vm = VM::new(vec![], &bytecode, &[], &DummyBlackBoxSolver, false, None);
         let status = vm.process_opcodes();
         assert_eq!(
             status,

@@ -229,9 +229,6 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         // We have to run it before, to give it a chance to turn Store+Load into known values.
         SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
-        SsaPass::new(Ssa::brillig_entry_point_analysis, "Brillig Entry Point Analysis")
-            // Remove any potentially unnecessary duplication from the Brillig entry point analysis.
-            .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new(Ssa::remove_truncate_after_range_check, "Removing Truncate after RangeCheck"),
         SsaPass::new(Ssa::checked_to_unchecked, "Checked to unchecked"),
         SsaPass::new(
@@ -340,8 +337,9 @@ pub fn optimize_ssa_builder_into_acir(
     };
 
     drop(ssa_gen_span_guard);
+
     let artifacts = time("SSA to ACIR", options.print_codegen_timings, || {
-        ssa.into_acir(&brillig, &options.brillig_options, options.expression_width)
+        ssa.into_acir(brillig, &options.brillig_options, options.expression_width)
     })?;
 
     Ok(ArtifactsAndWarnings(artifacts, ssa_level_warnings))
@@ -434,8 +432,10 @@ pub fn combine_artifacts(
     debug_functions: DebugFunctions,
     debug_types: DebugTypes,
 ) -> SsaProgramArtifact {
-    let ArtifactsAndWarnings((generated_acirs, generated_brillig, error_types), ssa_level_warnings) =
-        artifacts;
+    let ArtifactsAndWarnings(
+        (generated_acirs, generated_brillig, brillig_globals, error_types),
+        ssa_level_warnings,
+    ) = artifacts;
 
     assert_eq!(
         generated_acirs.len(),
@@ -462,7 +462,13 @@ pub fn combine_artifacts(
         .map(|(selector, hir_type)| (selector, ErrorType::Dynamic(hir_type)))
         .collect();
 
-    SsaProgramArtifact::new(functions, generated_brillig, error_types, ssa_level_warnings)
+    SsaProgramArtifact::new(
+        functions,
+        generated_brillig,
+        brillig_globals,
+        error_types,
+        ssa_level_warnings,
+    )
 }
 
 fn resolve_function_signature(func_sig: &FunctionSignature) -> Vec<(u32, Visibility)> {

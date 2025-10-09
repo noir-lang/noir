@@ -47,6 +47,7 @@ pub enum ExpressionWidth {
 pub struct Program<F: AcirField> {
     pub functions: Vec<Circuit<F>>,
     pub unconstrained_functions: Vec<BrilligBytecode<F>>,
+    pub unconstrained_global_memory: Option<BrilligBytecode<F>>,
 }
 
 /// Representation of a single ACIR circuit. The execution trace of this structure
@@ -452,7 +453,11 @@ mod tests {
             return_values: PublicInputs(BTreeSet::from_iter(vec![Witness(4), Witness(12)])),
             assert_messages: Default::default(),
         };
-        let program = Program { functions: vec![circuit], unconstrained_functions: Vec::new() };
+        let program = Program {
+            functions: vec![circuit],
+            unconstrained_functions: Vec::new(),
+            unconstrained_global_memory: None,
+        };
 
         fn read_write<F: Serialize + for<'a> Deserialize<'a> + AcirField>(
             program: Program<F>,
@@ -486,7 +491,11 @@ mod tests {
             return_values: PublicInputs(BTreeSet::from_iter(vec![Witness(2)])),
             assert_messages: Default::default(),
         };
-        let program = Program { functions: vec![circuit], unconstrained_functions: Vec::new() };
+        let program = Program {
+            functions: vec![circuit],
+            unconstrained_functions: Vec::new(),
+            unconstrained_global_memory: None,
+        };
 
         let json = serde_json::to_string_pretty(&program).unwrap();
 

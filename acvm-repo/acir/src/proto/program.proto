@@ -12,4 +12,6 @@ message Program {
   repeated acvm.acir.circuit.Circuit functions = 1;
   // Brillig functions
   repeated acvm.brillig.BrilligBytecode unconstrained_functions = 2;
+  // Brillig global memory
+  optional acvm.brillig.BrilligBytecode unconstrained_global_memory = 3;
 }

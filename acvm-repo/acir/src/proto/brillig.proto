@@ -107,6 +107,7 @@ message MemoryAddress {
   oneof value {
     uint64 direct = 1;
     uint64 relative = 2;
+    uint64 global = 3;
   }
 }
 

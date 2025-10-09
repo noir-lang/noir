@@ -79,7 +79,7 @@ use acir::{
     native_types::{Expression, Witness, WitnessMap},
 };
 use acvm_blackbox_solver::BlackBoxResolutionError;
-use brillig_vm::fuzzing::BranchToFeatureMap;
+use brillig_vm::{BranchToFeatureMap, MemoryValue};
 
 use self::{arithmetic::ExpressionSolver, memory_op::MemoryOpSolver};
 use crate::BlackBoxFunctionSolver;
@@ -299,6 +299,8 @@ pub struct ACVM<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> {
     // Each unconstrained function referenced in the program
     unconstrained_functions: &'a [BrilligBytecode<F>],
 
+    unconstrained_globals_memory: &'a [MemoryValue<F>],
+
     assertion_payloads: &'a [(OpcodeLocation, AssertionPayload<F>)],
 
     profiling_active: bool,
@@ -320,6 +322,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
         opcodes: &'a [Opcode<F>],
         initial_witness: WitnessMap<F>,
         unconstrained_functions: &'a [BrilligBytecode<F>],
+        unconstrained_globals_memory: &'a [MemoryValue<F>],
         assertion_payloads: &'a [(OpcodeLocation, AssertionPayload<F>)],
     ) -> Self {
         let status = if opcodes.is_empty() { ACVMStatus::Solved } else { ACVMStatus::InProgress };
@@ -334,6 +337,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
             acir_call_counter: 0,
             acir_call_results: Vec::default(),
             unconstrained_functions,
+            unconstrained_globals_memory,
             assertion_payloads,
             profiling_active: false,
             profiling_samples: Vec::new(),
@@ -631,6 +635,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
                 &self.block_solvers,
                 inputs,
                 &self.unconstrained_functions[id.as_usize()].bytecode,
+                self.unconstrained_globals_memory,
                 self.backend,
                 self.instruction_pointer,
                 *id,
@@ -715,6 +720,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
             &self.block_solvers,
             inputs,
             &self.unconstrained_functions[id.as_usize()].bytecode,
+            self.unconstrained_globals_memory,
             self.backend,
             self.instruction_pointer,
             *id,
@@ -989,7 +995,7 @@ mod tests {
         ];
         let empty1 = Vec::new();
         let empty2 = Vec::new();
-        let mut acvm = ACVM::new(&backend, &opcodes, initial_witness, &empty1, &empty2);
+        let mut acvm = ACVM::new(&backend, &opcodes, initial_witness, &empty1, &[], &empty2);
         assert_eq!(acvm.solve(), ACVMStatus::Solved);
         assert_eq!(acvm.witness_map()[&Witness(5)], FieldElement::from(0u128));
     }
