@@ -1058,7 +1058,7 @@
     <span class="doccomment">/// Setting to decide on an inlining strategy for Brillig functions.
     /// A more aggressive inliner should generate larger programs but more optimized
     /// A less aggressive inliner should generate smaller programs
-    </span><span class="attr">#[arg(long, hide = <span class="bool-val">true</span>, allow_hyphen_values = <span class="bool-val">true</span>, default_value_t = i64::MAX)]
+    </span><span class="attr">#[arg(long, allow_hyphen_values = <span class="bool-val">true</span>, default_value_t = i64::MAX)]
     </span><span class="kw">pub </span>inliner_aggressiveness: i64,
 
     <span class="doccomment">/// Maximum number of iterations to do in constant folding, as long as new values are being hoisted.
