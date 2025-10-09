@@ -141,26 +141,12 @@ pub fn compile<F: AcirField>(
     expression_width: ExpressionWidth,
     brillig_side_effects: &BTreeMap<BrilligFunctionId, bool>,
 ) -> (Circuit<F>, AcirTransformationMap) {
-    let max_transformer_passes_or_default = None;
-    compile_internal(
-        acir,
-        expression_width,
-        brillig_side_effects,
-        max_transformer_passes_or_default,
-    )
-}
-
-pub fn compile_internal<F: AcirField>(
-    acir: Circuit<F>,
-    expression_width: ExpressionWidth,
-    brillig_side_effects: &BTreeMap<BrilligFunctionId, bool>,
-    max_transformer_passes_or_default: Option<usize>,
-) -> (Circuit<F>, AcirTransformationMap) {
     let acir_opcode_positions = (0..acir.opcodes.len()).collect::<Vec<_>>();
 
     let (acir, acir_opcode_positions) =
         optimize_internal(acir, acir_opcode_positions, brillig_side_effects);
 
+    let max_transformer_passes_or_default = None;
     let (mut acir, acir_opcode_positions, _opcodes_hash_stabilized) = transform_internal(
         acir,
         expression_width,
