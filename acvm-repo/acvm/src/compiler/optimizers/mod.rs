@@ -17,6 +17,33 @@ use tracing::info;
 
 use self::unused_memory::UnusedMemoryOptimizer;
 
+use super::{AcirTransformationMap, transform_assert_messages};
+
+/// Applies backend independent optimizations to a [`Circuit`].
+pub fn optimize<F: AcirField>(
+    acir: Circuit<F>,
+    brillig_side_effects: &BTreeMap<BrilligFunctionId, bool>,
+) -> (Circuit<F>, AcirTransformationMap) {
+    // Track original acir opcode positions throughout the transformation passes of the compilation
+    // by applying the modifications done to the circuit opcodes and also to the opcode_positions (delete and insert)
+    // For instance, here before any transformation, the old acir opcode positions have not changed.
+    // So acir_opcode_positions = 0, 1,...,n-1, representing the index of the opcode in Circuit.opcodes vector.
+    let acir_opcode_positions = (0..acir.opcodes.len()).collect();
+
+    // `optimize_internal()` may change the circuit, and it returns a new one, as well the new_opcode_positions
+    // In the new circuit, the opcode at index `i` corresponds to the opcode at index `new_opcode_positions[i]` in the original circuit.
+    // For instance let's say it removed the opcode at index 3, and replaced the one at index 5 by two new opcodes
+    // The new_opcode_positions is now: 0,1,2,4,5,5,6,....n-1
+    let (mut acir, new_opcode_positions) =
+        optimize_internal(acir, acir_opcode_positions, brillig_side_effects);
+
+    let transformation_map = AcirTransformationMap::new(&new_opcode_positions);
+
+    acir.assert_messages = transform_assert_messages(acir.assert_messages, &transformation_map);
+
+    (acir, transformation_map)
+}
+
 /// Applies backend independent optimizations to a [`Circuit`].
 ///
 /// Accepts an injected `acir_opcode_positions` to allow optimizations to be applied in a loop.

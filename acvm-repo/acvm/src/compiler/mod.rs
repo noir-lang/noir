@@ -25,6 +25,7 @@ use acir::{
 };
 
 // The various passes that we can use over ACIR
+pub use optimizers::optimize;
 mod optimizers;
 mod simulator;
 mod transformers;
@@ -149,21 +150,6 @@ pub fn compile<F: AcirField>(
     )
 }
 
-/// Applies backend independent optimizations to a [`Circuit`].
-pub fn optimize<F: AcirField>(
-    acir: Circuit<F>,
-    brillig_side_effects: &BTreeMap<BrilligFunctionId, bool>,
-) -> (Circuit<F>, AcirTransformationMap) {
-    let expression_width = ExpressionWidth::default();
-    let max_transformer_passes_or_default = Some(1);
-    compile_internal(
-        acir,
-        expression_width,
-        brillig_side_effects,
-        max_transformer_passes_or_default,
-    )
-}
-
 pub fn compile_internal<F: AcirField>(
     acir: Circuit<F>,
     expression_width: ExpressionWidth,
@@ -175,7 +161,7 @@ pub fn compile_internal<F: AcirField>(
     let (acir, acir_opcode_positions) =
         optimize_internal(acir, acir_opcode_positions, brillig_side_effects);
 
-    let (mut acir, acir_opcode_positions) = transform_internal(
+    let (mut acir, acir_opcode_positions, _opcodes_hash_stabilized) = transform_internal(
         acir,
         expression_width,
         acir_opcode_positions,

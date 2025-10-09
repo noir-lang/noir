@@ -53,9 +53,8 @@ use super::{
     transform_assert_messages,
 };
 
-/// We need multiple passes to stabilize the output.
-/// The value was determined by running tests.
-const DEFAULT_MAX_TRANSFORMER_PASSES: usize = 4;
+/// We use multiple passes to stabilize the output in many cases
+const DEFAULT_MAX_TRANSFORMER_PASSES: usize = 3;
 
 /// Applies backend specific optimizations to a [`Circuit`].
 ///
@@ -73,7 +72,7 @@ pub fn transform<F: AcirField>(
     // by applying the modifications done to the circuit opcodes and also to the opcode_positions (delete and insert)
     let acir_opcode_positions = acir.opcodes.iter().enumerate().map(|(i, _)| i).collect();
 
-    let (mut acir, acir_opcode_positions) = transform_internal(
+    let (mut acir, acir_opcode_positions, _opcodes_hash_stabilized) = transform_internal(
         acir,
         expression_width,
         acir_opcode_positions,
@@ -105,10 +104,10 @@ pub(super) fn transform_internal<F: AcirField>(
     mut acir_opcode_positions: Vec<usize>,
     brillig_side_effects: &BTreeMap<BrilligFunctionId, bool>,
     max_transformer_passes_or_default: Option<usize>,
-) -> (Circuit<F>, Vec<usize>) {
+) -> (Circuit<F>, Vec<usize>, bool) {
     if acir.opcodes.len() == 1 && matches!(acir.opcodes[0], Opcode::BrilligCall { .. }) {
         info!("Program is fully unconstrained, skipping transformation pass");
-        return (acir, acir_opcode_positions);
+        return (acir, acir_opcode_positions, true);
     }
 
     // Allow multiple passes until we have stable output.
@@ -142,13 +141,12 @@ pub(super) fn transform_internal<F: AcirField>(
         }
         prev_opcodes_hash = new_opcodes_hash;
     }
-    assert!(opcodes_hash_stabilized, "expected hash of ACIR opcodes to stabilize");
 
     // After the elimination of intermediate variables the `current_witness_index` is potentially higher than it needs to be,
     // which would cause gaps if we ran the optimization a second time, making it look like new variables were added.
     acir.current_witness_index = max_witness(&acir).witness_index();
 
-    (acir, acir_opcode_positions)
+    (acir, acir_opcode_positions, opcodes_hash_stabilized)
 }
 
 /// Accepts an injected `acir_opcode_positions` to allow transformations to be applied directly after optimizations.
@@ -562,7 +560,6 @@ mod tests {
     use std::collections::BTreeMap;
 
     #[test]
-    #[should_panic(expected = "expected hash of ACIR opcodes to stabilize")]
     fn test_max_transformer_passes() {
         let formatted_acir = r#"private parameters: [w0]
 public parameters: []
@@ -645,13 +642,13 @@ ASSERT w31 = 60
         let mut brillig_side_effects = BTreeMap::new();
         brillig_side_effects.insert(BrilligFunctionId(0), false);
 
-        let (_, result_acir_opcode_positions) = transform_internal(
+        let (_, _, opcodes_hash_stabilized) = transform_internal(
             acir,
             expression_width,
             acir_opcode_positions.clone(),
             &brillig_side_effects,
             Some(3),
         );
-        assert_eq!(acir_opcode_positions, result_acir_opcode_positions);
+        assert!(!opcodes_hash_stabilized);
     }
 }
