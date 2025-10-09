@@ -346,8 +346,15 @@ pub(super) fn simplify_call(
                 SimplifyResult::None
             }
         }
-        Intrinsic::ArrayRefCount => SimplifyResult::None,
-        Intrinsic::SliceRefCount => SimplifyResult::None,
+        Intrinsic::ArrayRefCount | Intrinsic::SliceRefCount => {
+            if dfg.runtime.is_acir() {
+                // In ACIR, ref counts are not tracked so we always simplify them to zero.
+                let zero = dfg.make_constant(FieldElement::zero(), NumericType::unsigned(32));
+                SimplifyResult::SimplifiedTo(zero)
+            } else {
+                SimplifyResult::None
+            }
+        }
     };
 
     if let (Some(expected_types), SimplifyResult::SimplifiedTo(result)) =
@@ -773,5 +780,82 @@ mod tests {
             return v19
         }
         "#);
+    }
+
+    #[test]
+    fn simplifies_array_refcount_in_acir_to_zero() {
+        let src = r#"
+        acir(inline) fn main func {
+          b0(v0: [Field; 3]):
+            v1 = call array_refcount(v0) -> u32
+            return v1
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3]):
+            return u32 0
+        }
+        ");
+    }
+
+    #[test]
+    fn does_not_simplify_array_refcount_in_brillig() {
+        let src = r#"
+        brillig(inline) fn main func {
+          b0(v0: [Field; 3]):
+            v1 = call array_refcount(v0) -> u32
+            return v1
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: [Field; 3]):
+            v2 = call array_refcount(v0) -> u32
+            return v2
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_slice_refcount_in_acir_to_zero() {
+        let src = r#"
+        acir(inline) fn main func {
+          b0(v0: [Field; 3]):
+            v1 = call slice_refcount(v0) -> u32
+            return v1
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3]):
+            return u32 0
+        }
+        ");
+    }
+
+    #[test]
+    fn does_not_simplify_slice_refcount_in_brillig() {
+        let src = r#"
+        brillig(inline) fn main func {
+          b0(v0: [Field; 3]):
+            v1 = call slice_refcount(v0) -> u32
+            return v1
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3]):
+            return u32 0
+        }
+        ");
     }
 }

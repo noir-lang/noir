@@ -1,4 +1,3 @@
-use acvm::{AcirField, FieldElement};
 use iter_extended::vecmap;
 
 use crate::acir::{
@@ -9,7 +8,7 @@ use crate::errors::RuntimeError;
 use crate::ssa::ir::{
     dfg::DataFlowGraph,
     instruction::{Hint, Intrinsic},
-    types::{NumericType, Type},
+    types::Type,
     value::ValueId,
 };
 
@@ -132,17 +131,9 @@ impl Context<'_> {
                     .get_or_create_witness_var(input)
                     .map(|val| self.convert_vars_to_values(vec![val], dfg, result_ids))?)
             }
-            Intrinsic::ArrayAsStrUnchecked => Ok(vec![self.convert_value(arguments[0], dfg)]),
             Intrinsic::DerivePedersenGenerators => Err(RuntimeError::AssertConstantFailed {
                 call_stack: self.acir_context.get_call_stack(),
             }),
-            Intrinsic::ArrayRefCount | Intrinsic::SliceRefCount => {
-                let zero = self.acir_context.add_constant(FieldElement::zero());
-                Ok(vec![AcirValue::Var(
-                    zero,
-                    AcirType::NumericType(NumericType::Unsigned { bit_size: 32 }),
-                )])
-            }
             Intrinsic::ApplyRangeConstraint => {
                 unreachable!(
                     "ICE: `Intrinsic::ApplyRangeConstraint` calls should be transformed into an `Instruction::RangeCheck`"
@@ -152,9 +143,12 @@ impl Context<'_> {
                 unreachable!("FieldLessThan can only be called in unconstrained")
             }
             Intrinsic::IsUnconstrained
+            | Intrinsic::ArrayAsStrUnchecked
             | Intrinsic::StrAsBytes
             | Intrinsic::StaticAssert
-            | Intrinsic::AssertConstant => {
+            | Intrinsic::AssertConstant
+            | Intrinsic::ArrayRefCount
+            | Intrinsic::SliceRefCount => {
                 unreachable!("Expected {intrinsic} to be removed by this point")
             }
         }
