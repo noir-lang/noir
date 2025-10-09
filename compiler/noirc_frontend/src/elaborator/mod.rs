@@ -521,10 +521,12 @@ impl<'context> Elaborator<'context> {
             | FunctionKind::Oracle
             | FunctionKind::TraitFunctionWithoutBody => {
                 if !body.statements.is_empty() {
-                    self.push_err(ResolverError::OracleWithBody { location: func_meta.name.location });
+                    self.push_err(ResolverError::OracleWithBody {
+                        location: func_meta.name.location,
+                    });
                 }
                 (HirFunction::empty(), Type::Error)
-            },
+            }
             FunctionKind::Normal => {
                 let return_type = func_meta.return_type();
                 let (block, body_type) = self.elaborate_block(body, Some(return_type));
