@@ -190,6 +190,8 @@ pub enum ResolverError {
     WildcardTypeDisallowed { location: Location },
     #[error("References are not allowed in globals")]
     ReferencesNotAllowedInGlobals { location: Location },
+    #[error("Functions marked with #[oracle] must have no body")]
+    OracleWithBody { location: Location },
 }
 
 impl ResolverError {
@@ -255,7 +257,8 @@ impl ResolverError {
             | ResolverError::AssociatedItemConstraintsNotAllowedInGenerics { location }
             | ResolverError::AmbiguousAssociatedType { location, .. }
             | ResolverError::WildcardTypeDisallowed { location }
-            | ResolverError::ReferencesNotAllowedInGlobals { location } => *location,
+            | ResolverError::ReferencesNotAllowedInGlobals { location }
+            | ResolverError::OracleWithBody { location } => *location,
             ResolverError::UnusedVariable { ident }
             | ResolverError::UnusedItem { ident, .. }
             | ResolverError::DuplicateField { field: ident }
@@ -808,6 +811,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *location,
                 )
             }
+            ResolverError::OracleWithBody { location } => {
+                Diagnostic::simple_error(
+                    "Functions marked with #[builtin] or #[oracle] must have no body".to_string(),
+                    "This function body will never be run so should be removed".to_string(),
+                    *location,
+                )
         }
+    }
     }
 }

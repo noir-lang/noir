@@ -7,6 +7,7 @@ mod enums;
 mod imports;
 mod metaprogramming;
 mod name_shadowing;
+mod oracles;
 mod references;
 mod traits;
 mod turbofish;
