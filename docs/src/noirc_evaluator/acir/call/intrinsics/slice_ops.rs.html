@@ -541,21 +541,8 @@
 <a href="#540" id="540">540</a>
 <a href="#541" id="541">541</a>
 <a href="#542" id="542">542</a>
-<a href="#543" id="543">543</a>
-<a href="#544" id="544">544</a>
-<a href="#545" id="545">545</a>
-<a href="#546" id="546">546</a>
-<a href="#547" id="547">547</a>
-<a href="#548" id="548">548</a>
-<a href="#549" id="549">549</a>
-<a href="#550" id="550">550</a>
-<a href="#551" id="551">551</a>
-<a href="#552" id="552">552</a>
-<a href="#553" id="553">553</a>
-<a href="#554" id="554">554</a>
-<a href="#555" id="555">555</a>
-<a href="#556" id="556">556</a>
-<a href="#557" id="557">557</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::acir::{AcirDynamicArray, AcirType, AcirValue};
+<a href="#543" id="543">543</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::acir::types::flat_numeric_types;
+<span class="kw">use </span><span class="kw">crate</span>::acir::{AcirDynamicArray, AcirType, AcirValue};
 <span class="kw">use </span><span class="kw">crate</span>::errors::RuntimeError;
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{dfg::DataFlowGraph, value::ValueId};
 <span class="kw">use </span>acvm::{AcirField, FieldElement};
@@ -937,14 +924,7 @@
                 <span class="prelude-val">None
             </span>};
 
-        <span class="kw">let </span><span class="kw-2">mut </span>value_types = slice.flat_numeric_types();
-        <span class="comment">// We can safely append the value types to the end as we expect the types to be the same for each element.
-        </span>value_types.append(<span class="kw-2">&amp;mut </span>new_value_types);
-        <span class="macro">assert_eq!</span>(
-            value_types.len(),
-            slice_size,
-            <span class="string">"ICE: Value types array must match new slice size"
-        </span>);
+        <span class="kw">let </span>value_types = flat_numeric_types(<span class="kw-2">&amp;</span>slice_typ);
 
         <span class="kw">let </span>result = AcirValue::DynamicArray(AcirDynamicArray {
             block_id: result_block_id,
@@ -1089,15 +1069,7 @@
                 <span class="prelude-val">None
             </span>};
 
-        <span class="kw">let </span><span class="kw-2">mut </span>value_types = slice.flat_numeric_types();
-        <span class="comment">// We can safely remove the value types based upon the popped elements size =
-        // as we expect the types to be the same for each element.
-        </span>value_types.truncate(value_types.len() - popped_elements_size);
-        <span class="macro">assert_eq!</span>(
-            value_types.len(),
-            result_size,
-            <span class="string">"ICE: Value types array must match new slice size"
-        </span>);
+        <span class="kw">let </span>value_types = flat_numeric_types(<span class="kw-2">&amp;</span>slice_typ);
 
         <span class="kw">let </span>result = AcirValue::DynamicArray(AcirDynamicArray {
             block_id: result_block_id,

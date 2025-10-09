@@ -185,7 +185,28 @@
 <a href="#184" id="184">184</a>
 <a href="#185" id="185">185</a>
 <a href="#186" id="186">186</a>
-<a href="#187" id="187">187</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Debug;
+<a href="#187" id="187">187</a>
+<a href="#188" id="188">188</a>
+<a href="#189" id="189">189</a>
+<a href="#190" id="190">190</a>
+<a href="#191" id="191">191</a>
+<a href="#192" id="192">192</a>
+<a href="#193" id="193">193</a>
+<a href="#194" id="194">194</a>
+<a href="#195" id="195">195</a>
+<a href="#196" id="196">196</a>
+<a href="#197" id="197">197</a>
+<a href="#198" id="198">198</a>
+<a href="#199" id="199">199</a>
+<a href="#200" id="200">200</a>
+<a href="#201" id="201">201</a>
+<a href="#202" id="202">202</a>
+<a href="#203" id="203">203</a>
+<a href="#204" id="204">204</a>
+<a href="#205" id="205">205</a>
+<a href="#206" id="206">206</a>
+<a href="#207" id="207">207</a>
+<a href="#208" id="208">208</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Debug;
 
 <span class="kw">use </span>acvm::{AcirField, acir::circuit::opcodes::BlockId};
 
@@ -286,7 +307,10 @@
     /// Thus, we store a vector of types rather than a single type, as a dynamic non-homogenous array
     /// is still represented in ACIR by a single `AcirDynamicArray` structure.
     ///
-    /// The length of the value types vector must match the `len` field in this structure.
+    /// This vector only holds the numeric types for a single dynamic array element.
+    /// For example, if in Noir or SSA we have `[(u8, u32, Field); 3]` then `len` will be 3
+    /// and `value_types` will be `[u8, u32, Field]`. To know the type of the element at index `i`
+    /// we can fetch `value_types[i % value_types.len()]`.
     </span><span class="kw">pub</span>(<span class="kw">super</span>) value_types: Vec&lt;NumericType&gt;,
     <span class="doccomment">/// Identification for the ACIR dynamic array
     /// inner element type sizes array
@@ -348,19 +372,6 @@
             AcirValue::DynamicArray(<span class="kw">_</span>) =&gt; <span class="macro">unimplemented!</span>(<span class="string">"Cannot flatten a dynamic array"</span>),
         }
     }
-
-    <span class="doccomment">/// Fetch a flat list of the [NumericType] contained within an array
-    /// An [AcirValue::DynamicArray] should already have a field representing
-    /// its types and should be supported here unlike [AcirValue::flatten]
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>flat_numeric_types(<span class="self">self</span>) -&gt; Vec&lt;NumericType&gt; {
-        <span class="kw">match </span><span class="self">self </span>{
-            AcirValue::Array(array) =&gt; {
-                array.into_iter().flat_map(|elem| elem.flat_numeric_types()).collect()
-            }
-            AcirValue::DynamicArray(AcirDynamicArray { value_types, .. }) =&gt; value_types,
-            AcirValue::Var(<span class="kw">_</span>, typ) =&gt; <span class="macro">vec!</span>[typ.to_numeric_type()],
-        }
-    }
 }
 
 <span class="doccomment">/// A Reference to an `AcirVarData`
@@ -370,6 +381,37 @@
 <span class="kw">impl </span>AcirVar {
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>new(var: usize) -&gt; <span class="self">Self </span>{
         AcirVar(var)
+    }
+}
+
+<span class="doccomment">/// Assumes `typ` is an array or slice type with nested numeric types, arrays or slices
+/// (recursively) and returns a flat list of all the contained numeric types.
+/// Panics if `self` is not an array or slice type or if a function or reference type
+/// is found along the way.
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>flat_numeric_types(typ: <span class="kw-2">&amp;</span>SsaType) -&gt; Vec&lt;NumericType&gt; {
+    <span class="kw">match </span>typ {
+        SsaType::Array(..) | SsaType::Slice(..) =&gt; {
+            <span class="kw">let </span><span class="kw-2">mut </span>flat_types = Vec::new();
+            collect_flat_numeric_types(typ, <span class="kw-2">&amp;mut </span>flat_types);
+            flat_types
+        }
+        <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"Called flat_numeric_types on a non-array/slice type"</span>),
+    }
+}
+
+<span class="doccomment">/// Helper function for `flat_numeric_types` that recursively collects all numeric types
+/// into `flat_types`.
+</span><span class="kw">fn </span>collect_flat_numeric_types(typ: <span class="kw-2">&amp;</span>SsaType, flat_types: <span class="kw-2">&amp;mut </span>Vec&lt;NumericType&gt;) {
+    <span class="kw">match </span>typ {
+        SsaType::Numeric(numeric_type) =&gt; {
+            flat_types.push(<span class="kw-2">*</span>numeric_type);
+        }
+        SsaType::Array(types, <span class="kw">_</span>) | SsaType::Slice(types) =&gt; {
+            <span class="kw">for </span>typ <span class="kw">in </span>types.iter() {
+                collect_flat_numeric_types(typ, flat_types);
+            }
+        }
+        <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"Called collect_flat_numeric_types on non-array/slice/number type"</span>),
     }
 }
 </code></pre></div></section></main></body></html>

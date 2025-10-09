@@ -1136,12 +1136,7 @@
 <a href="#1135" id="1135">1135</a>
 <a href="#1136" id="1136">1136</a>
 <a href="#1137" id="1137">1137</a>
-<a href="#1138" id="1138">1138</a>
-<a href="#1139" id="1139">1139</a>
-<a href="#1140" id="1140">1140</a>
-<a href="#1141" id="1141">1141</a>
-<a href="#1142" id="1142">1142</a>
-<a href="#1143" id="1143">1143</a></pre></div><pre class="rust"><code><span class="doccomment">//! Array handling in ACIR.
+<a href="#1138" id="1138">1138</a></pre></div><pre class="rust"><code><span class="doccomment">//! Array handling in ACIR.
 //!
 //! This modules how Noir's SSA array semantics are lowered into ACIR's flat memory model.
 //! Arrays in SSA can appear as constants or dynamically allocated blocks.
@@ -1263,6 +1258,7 @@
 <span class="kw">use </span>acvm::{FieldElement, acir::AcirField, acir::circuit::opcodes::BlockId};
 <span class="kw">use </span>iter_extended::{try_vecmap, vecmap};
 
+<span class="kw">use </span><span class="kw">crate</span>::acir::types::flat_numeric_types;
 <span class="kw">use </span><span class="kw">crate</span>::errors::{InternalError, RuntimeError};
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
     dfg::DataFlowGraph,
@@ -1920,13 +1916,7 @@
             <span class="prelude-val">None
         </span>};
 
-        <span class="kw">let </span>value_types = <span class="self">self</span>.convert_value(array, dfg).flat_numeric_types();
-        <span class="comment">// Compiler sanity check
-        </span><span class="macro">assert_eq!</span>(
-            value_types.len(),
-            len,
-            <span class="string">"ICE: The length of the flattened type array should match the length of the dynamic array"
-        </span>);
+        <span class="kw">let </span>value_types = flat_numeric_types(<span class="kw-2">&amp;</span>array_typ);
 
         <span class="prelude-val">Ok</span>(AcirValue::DynamicArray(AcirDynamicArray {
             block_id,

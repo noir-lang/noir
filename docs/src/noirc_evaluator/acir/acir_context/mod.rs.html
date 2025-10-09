@@ -2925,7 +2925,7 @@
 
                     <span class="prelude-val">Ok</span>::&lt;(AcirVar, AcirType), InternalError&gt;((
                         <span class="self">self</span>.read_from_memory(block_id, <span class="kw-2">&amp;</span>index_var)<span class="question-mark">?</span>,
-                        value_types[i].into(),
+                        value_types[i % value_types.len()].into(),
                     ))
                 })
             }
