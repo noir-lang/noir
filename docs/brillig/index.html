@@ -1,4 +1,215 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="The Brillig bytecode is distinct from regular ACIR in that it does not generate constraints."><title>brillig - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-46132b98.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="brillig" data-themes="" data-resource-suffix="" data-rustdoc-version="1.85.0 (4d91de4e4 2025-02-17)" data-channel="1.85.0" data-search-js="search-75f5ac3e.js" data-settings-js="settings-0f613d39.js" ><script src="../static.files/storage-59e33391.js"></script><script defer src="../crates.js"></script><script defer src="../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc mod crate"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../brillig/index.html">brillig</a><span class="version">1.0.0-beta.14</span></h2></div><div class="sidebar-elems"><ul class="block"><li><a id="all-types" href="all.html">All Items</a></li></ul><section id="rustdoc-toc"><h3><a href="#modules">Crate Items</a></h3><ul class="block"><li><a href="#modules" title="Modules">Modules</a></li><li><a href="#structs" title="Structs">Structs</a></li><li><a href="#enums" title="Enums">Enums</a></li><li><a href="#types" title="Type Aliases">Type Aliases</a></li></ul></section><div id="rustdoc-modnav"></div></div></nav><div class="sidebar-resizer"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1>Crate <span>brillig</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/brillig/lib.rs.html#1-19">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>The Brillig bytecode is distinct from regular <a href="https://crates.io/crates/acir">ACIR</a> in that it does not generate constraints.</p>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Brillig"><title>brillig - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-46132b98.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="brillig" data-themes="" data-resource-suffix="" data-rustdoc-version="1.85.0 (4d91de4e4 2025-02-17)" data-channel="1.85.0" data-search-js="search-75f5ac3e.js" data-settings-js="settings-0f613d39.js" ><script src="../static.files/storage-59e33391.js"></script><script defer src="../crates.js"></script><script defer src="../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc mod crate"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../brillig/index.html">brillig</a><span class="version">1.0.0-beta.14</span></h2></div><div class="sidebar-elems"><ul class="block"><li><a id="all-types" href="all.html">All Items</a></li></ul><section id="rustdoc-toc"><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#brillig" title="Brillig">Brillig</a><ul><li><a href="#introduction" title="Introduction">Introduction</a></li><li><a href="#why-we-need-brillig" title="Why we need Brillig">Why we need Brillig</a></li><li><a href="#brillig-architecture" title="Brillig Architecture">Brillig Architecture</a></li><li><a href="#design-principles" title="Design principles">Design principles</a></li><li><a href="#finite-field-vm" title="Finite Field VM">Finite Field VM</a></li><li><a href="#bytecode-structure-and-function" title="Bytecode Structure and Function">Bytecode Structure and Function</a></li><li><a href="#interfacing-with-provers" title="Interfacing with Provers">Interfacing with Provers</a></li><li><a href="#execution-model" title="Execution Model">Execution Model</a></li><li><a href="#error-and-exception-handling" title="Error and Exception Handling">Error and Exception Handling</a></li><li><a href="#conclusion" title="Conclusion">Conclusion</a></li><li><a href="#brillig-example" title="Brillig Example">Brillig Example</a></li><li><a href="#usage-in-noir" title="Usage in Noir">Usage in Noir</a></li><li><a href="#runtime" title="Runtime">Runtime</a></li><li><a href="#bytecode" title="Bytecode">Bytecode</a></li><li><a href="#arithmetic" title="Arithmetic">Arithmetic</a></li><li><a href="#execution" title="Execution">Execution</a></li><li><a href="#blockchain" title="Blockchain">Blockchain</a></li><li><a href="#documentation" title="Documentation">Documentation</a></li></ul></li></ul><h3><a href="#modules">Crate Items</a></h3><ul class="block"><li><a href="#modules" title="Modules">Modules</a></li><li><a href="#structs" title="Structs">Structs</a></li><li><a href="#enums" title="Enums">Enums</a></li><li><a href="#types" title="Type Aliases">Type Aliases</a></li></ul></section><div id="rustdoc-modnav"></div></div></nav><div class="sidebar-resizer"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1>Crate <span>brillig</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/brillig/lib.rs.html#1-14">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><h2 id="brillig"><a class="doc-anchor" href="#brillig">§</a>Brillig</h2><h3 id="introduction"><a class="doc-anchor" href="#introduction">§</a>Introduction</h3>
+<p>Brillig is a general virtual machine architecture for usage with an NP complete circuit language that aims to incorporate unconstrained or non-deterministic functionality. For example, a language which compiles down to ACIR, can integrate unconstrained functions into its circuits by also compiling down to Brillig bytecode.
+The name ‘Brillig’ has not specific meaning, apart from being a reference to the poem, “Jabberwocky”, by Lewis Carroll. It is used to distinguish the constrained (ACIR) vs unconstrained (Brillig) bytecode generated by Noir.</p>
+<h3 id="why-we-need-brillig"><a class="doc-anchor" href="#why-we-need-brillig">§</a>Why we need Brillig</h3>
+<p>Zero-knowledge (ZK) domain-specific languages (DSL) enable developers to generate ZK proofs from their programs by compiling code down to the constraints of an NP complete language (such as R1CS or PLONKish languages). However, the hard bounds of a constraint system can be very limiting to the functionality of a ZK DSL, and integrating a general VM is very useful for the following reasons:</p>
+<ol>
+<li>Unconstrained execution</li>
+</ol>
+<p>Enabling a circuit language to perform unconstrained execution is a powerful tool. Said another way, unconstrained execution lets developers generate witnesses from code that does not generate any constraints. Being able to execute logic outside of a circuit is critical for both circuit performance and constructing proofs on information that is external to a circuit.</p>
+<p>For example, multiple encrypted notes are a common way to represent single private values.
+When notes need to be presented for a proof, the notes selected need to be verified, but the exact choice is not fully constrained.
+The note selection algorithm does not need a proof of execution, just the note outputs suffice to constrain the system.
+We refer to these discretionary choice functions as unconstrained functions.</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="comment">// Say we need to reveal and nullify certain notes to pass this check
+// How can we formalize this partially constrained choice?
+</span><span class="kw">if </span>get_balance() &gt; min_amount {
+    <span class="comment">// ... perform some action ...
+</span>}</code></pre></div>
+<p>Fetching information from somewhere external to a circuit can also be used to enable developers to improve circuit efficiency.</p>
+<p>For example, we may have a finite field which we want to transform to a byte array for use somewhere else in our circuit. To convert the field to a byte array in our circuit would require looping over the field’s size in bytes and performing multiple bit operations. Such as in the pseudocode below where <code>x</code> is a finite field:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..FIELD_SIZE_IN_BYTES {
+    byte_array[i] = (x &gt;&gt; (<span class="number">8 </span>* i)) &amp; <span class="number">0xff</span>;
+}</code></pre></div>
+<p>There are a couple problems with this approach.</p>
+<ol>
+<li>Bit operations in circuits are very inefficient and require lots of constraints.</li>
+<li>Finite fields are not inherently ordered, so any finite field <code>x</code> that we would want to perform a bit operation upon would have to be range constrained to some integer value. This ultimately defeats the purpose of being able to decompose any Field element to a byte array.</li>
+</ol>
+<p>Instead we can write out arithmetic constraints inside of our circuit that maintains we have a valid byte array. For a 254 bit finite field <code>x</code> we can write out the following pseudocode:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code>assert(
+    (byte_array[<span class="number">0</span>]<span class="kw-2">*</span><span class="number">2</span>^<span class="number">0 </span>+ byte_array[<span class="number">1</span>]<span class="kw-2">*</span><span class="number">2</span>^<span class="number">8 </span>+ ... + byte_array[<span class="number">31</span>]<span class="kw-2">*</span><span class="number">2</span>^<span class="number">248</span>) - x == <span class="number">0
+</span>)</code></pre></div>
+<p>However, there is a problem with this pseudocode as it has been laid out so far. The statements above makes sense from the point of view of the verifier, but the prover does not know what the values of <code>byte_array</code> are implicitly. <code>byte_array[0]</code> could be full value of <code>x</code> while the rest of the byte array values are 0, or the array could be the valid byte array that we want. The prover must inject the correct values into the arithmetic constraint above. The prover can inject this information by performing the byte decomposition in an unconstrained environment.</p>
+<p>A ZK DSL does not just prove computation but proves that some computation was handled correctly. Thus, it is necessary that when we switch from performing some operation directly inside of a circuit to inside of an unconstrained environment that the appropriate constraints are still laid down elsewhere in the circuit. The note selection algorithm example at the top of this section follows the same methodology. We are not constraining the unconstrained execution, but rather its outputs.</p>
+<p>Brillig provides a way to evaluate such unconstrained functions in a safe, general VM.</p>
+<ol start="2">
+<li>Attributing incorrectness</li>
+</ol>
+<p>Brillig’s bytecode when compiling a ZK DSL into a program commitment must differentiate between runtime errors and simply invalid proofs. This proves useful in environments that rely on hedged trust and are distributed, such as blockchains.</p>
+<p>In such systems, sequenced proofs of shared public state have unique trust assumptions. Proofs of correctness are not constructed by the user/transactor, creating complications. Two scenarios must be distinguished when executing functions on shared public state:</p>
+<ol>
+<li>When a user attempts to call a public function via a sequencer but inputs data that causes the function to revert and the contract to fail.</li>
+<li>When a transaction is valid, but the prover deliberately assigns incorrect values to the witnesses, leading to a failing proof for a legitimate transaction.</li>
+</ol>
+<p>In private functions, where the user is also the prover, distinguishing between these scenarios isn’t necessary. However, for public functions, it becomes vital to separate them to accurately identify potential malicious actors in hedged trust scenarios. In the first scenario, the responsibility lies with the user, whereas, in the second scenario, it’s with the prover.</p>
+<p>To ensure the protocol always demands valid proofs of knowledge, a virtual machine (VM) becomes necessary. Here, a VM operates as a zero-knowledge circuit that interprets a program. The VM sequentially executes program instructions and utilizes a public failure flag. In case of VM execution reverting, the failure flag is set to one, and on success, it is set to zero. Regardless of the outcome, an honest user will always have a means to create a valid proof.</p>
+<p>Any general VM could technically be used to accomplish this task such as WASM or the EVM. However, most other general VMs were designed with other execution environments in mind. Proving time is expected to take up the majority of any ZK DSL program’s execution, and Brillig’s architecture was specifically designed with SNARK proving efficiency in mind.</p>
+<h3 id="brillig-architecture"><a class="doc-anchor" href="#brillig-architecture">§</a>Brillig Architecture</h3><h3 id="design-principles"><a class="doc-anchor" href="#design-principles">§</a>Design principles</h3>
+<p>The focus of Brillig is on simplicity, safety, correctness and SNARK proving efficiency.</p>
+<h3 id="finite-field-vm"><a class="doc-anchor" href="#finite-field-vm">§</a>Finite Field VM</h3>
+<p>The Brillig VM operates over finite fields and supports using up to a 128 bit integer representation. The finite field Brillig supports is generalizable and based upon the field ACIR supports (where <a href="https://github.com/arkworks-rs/algebra/tree/master/ff">Arkworks</a> is used for the finite field interface). The ACIR fields currently supported are the prime fields of the bn254 curve and the bls12-381 curve.</p>
+<p>All integers ultimately translate to the finite field which Brillig is based upon. For example when a BinaryIntOp is used, the field is first cast to a fixed bitsize integer that can be accommodated within the field, prior to performing operations. Certain operations, such as ordered comparison or signed division, only make sense in the context of BinaryIntOp. The exact maximum integer value the field can store should not be relied upon, however, it is assured to be capable of packing 3 32-bit integers.</p>
+<p>The decision to have Brillig operate over finite fields simplifies SNARK proving and optimizes for efficiency, as ultimately all data types translate to a finite field which is the native data type for SNARKs.</p>
+<h3 id="bytecode-structure-and-function"><a class="doc-anchor" href="#bytecode-structure-and-function">§</a>Bytecode Structure and Function</h3>
+<p>Brillig bytecode acts as an alternate compilation target for a domain specific circuit language. The bytecode is available standalone and can be invoked from an ACIR program. Because the bytecode is designed to be operated by virtual machines, physical registers are meaningless and as a result, it
+primarily operates with dedicated memory access operations. For convenience, virtual registers, representing a simple value, are emulated using memory. The bytecode supports conditional jumps, a lightweight callstack, and can access a flat memory array of field element cells, thereby fulfilling the core requirements of a low-level VM.</p>
+<h3 id="interfacing-with-provers"><a class="doc-anchor" href="#interfacing-with-provers">§</a>Interfacing with Provers</h3>
+<p>During execution, when a backend integrated with ACVM calls a Brillig function, it is expected to trust the outputs of the opcode. In the ACIR context, Brillig bytecode is intended for unconstrained functions, hence the assumption of not needing to prove execution. However, the bytecode might be processed by a prover backend for reasons outlined in the “Attributing incorrectness” section. The specifics of this interaction reflect the inherent trust requirements and complexity of operating within a blockchain environment. In this case, a zkVM approach would be needed to prove execution.</p>
+<h3 id="execution-model"><a class="doc-anchor" href="#execution-model">§</a>Execution Model</h3>
+<p>The Brillig VM is a low-level virtual machine. It uses a program counter to step through its readonly bytecode data and consists of a callstack with just return addresses to memory spaces filled with field elements. Control flow operations are limited to a non-conditional jump, conditional jumps (checking if a value is zero), and a call operation that manipulates the callstack. There’s also a foreign call instruction that allows any non-Brillig input to enter the system, and black-box function instructions which can execute a fixed list of native VM functions, that match ACIR blackbox functions.</p>
+<p>The VM accepts four initialization parameters.</p>
+<ol>
+<li>The calldata, represented by a list of field elements</li>
+<li>The bytecode to be executed</li>
+<li>The black-box solver, which is used to execute black-box functions</li>
+<li>A flag, that can be used for profiling purposes</li>
+</ol>
+<p>The VM then processes each opcode according to their <a href="02_opcode_listing.md">specification</a>.</p>
+<p>If the VM reaches a foreign call instruction it will first fetch the call’s input according to the information inside of the instruction. Through an internal counter and the foreign call results supplied to the VM, the VM will determine whether the outputs have been resolved. If they have not been resolved, the VM will then pause and return a status containing the foreign call inputs. The caller of the VM should interpret the call information returned and update the Brillig process. Execution can then continue as normal. While technically the foreign call result is considered part of the VM’s input along with bytecode and calldata, it is practically an input to the program.</p>
+<h3 id="error-and-exception-handling"><a class="doc-anchor" href="#error-and-exception-handling">§</a>Error and Exception Handling</h3>
+<p>Failed asserts, represented by the TRAP opcode, during the execution of an unconstrained function, result in an error in Brillig bytecode, accompanied by data detailing the failure. In a hedged trust blockchain environment, a prover might still want to generate a ‘valid’ proof of an error result so that incorrectness can be correctly attributed. This emphasizes the importance of handling errors and exceptions within the context of a blockchain-based VM.</p>
+<h3 id="conclusion"><a class="doc-anchor" href="#conclusion">§</a>Conclusion</h3>
+<p>The Brillig VM provides a flexible and efficient environment for executing unconstrained code in a circuit environment. By thoughtfully integrating with snark provers and blockchain technology, and with careful attention to error handling, Brillig fulfills a key role within the Noir programming ecosystem.</p>
+<h3 id="brillig-example"><a class="doc-anchor" href="#brillig-example">§</a>Brillig Example</h3>
+<p>For the following Noir:</p>
+<div class="example-wrap"><pre class="language-noir"><code>fn main() {
+    let mut a = 10;
+    let mut b = 5;
+    let mut c = 0;
+
+    c = a + b;
+
+    if c &lt;= 15 {
+        a = a * b;
+    } else {
+        b = a + b;
+    }
+
+    print(a, b, c);
+}</code></pre></div>
+<p>One possible Brillig output would be:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code>[
+    { <span class="comment">// location = 0
+        </span><span class="string">"Const"</span>: {
+            <span class="string">"destination"</span>: <span class="number">0</span>,
+            <span class="string">"value"</span>: { <span class="string">"inner"</span>: <span class="string">"10" </span>}
+        }
+    },
+    { <span class="comment">// location = 1
+        </span><span class="string">"Const"</span>: {
+            <span class="string">"destination"</span>: <span class="number">1</span>,
+            <span class="string">"value"</span>: { <span class="string">"inner"</span>: <span class="string">"5" </span>}
+        }
+    },
+    { <span class="comment">// location = 2
+        </span><span class="string">"Const"</span>: {
+            <span class="string">"destination"</span>: <span class="number">2</span>,
+            <span class="string">"value"</span>: { <span class="string">"inner"</span>: <span class="string">"0" </span>}
+        }
+    },
+    { <span class="comment">// location = 3
+        </span><span class="string">"Const"</span>: {
+            <span class="string">"destination"</span>: <span class="number">3</span>,
+            <span class="string">"value"</span>: { <span class="string">"inner"</span>: <span class="string">"15" </span>}
+        }
+    },
+    { <span class="comment">// location = 4
+        </span><span class="string">"BinaryIntOp"</span>: {
+            <span class="string">"destination"</span>: <span class="number">2</span>,
+            <span class="string">"op"</span>: <span class="string">"Add"</span>,
+            <span class="string">"bit_size"</span>: <span class="number">32</span>,
+            <span class="string">"lhs"</span>: <span class="number">0</span>,
+            <span class="string">"rhs"</span>: <span class="number">1
+        </span>}
+    },
+    { <span class="comment">// location = 5
+        </span><span class="string">"BinaryIntOp"</span>: {
+            <span class="string">"destination"</span>: <span class="number">4</span>,
+            <span class="string">"op"</span>: <span class="string">"LessThanEquals"</span>,
+            <span class="string">"bit_size"</span>: <span class="number">32</span>,
+            <span class="string">"lhs"</span>: <span class="number">2</span>,
+            <span class="string">"rhs"</span>: <span class="number">3
+        </span>}
+    },
+    { <span class="comment">// location = 6
+        </span><span class="string">"JumpIf"</span>: {
+            <span class="string">"condition"</span>: <span class="number">4</span>,
+            <span class="string">"location"</span>: <span class="number">9
+        </span>}
+    },
+    { <span class="comment">// location = 7
+        </span><span class="string">"BinaryFieldOp"</span>: {
+            <span class="string">"destination"</span>: <span class="number">0</span>,
+            <span class="string">"op"</span>: <span class="string">"Multiply"</span>,
+            <span class="string">"lhs"</span>: <span class="number">0</span>,
+            <span class="string">"rhs"</span>: <span class="number">1
+        </span>}
+    },
+    { <span class="comment">// location = 8
+        </span><span class="string">"Jump"</span>: {
+            <span class="string">"location"</span>: <span class="number">10
+        </span>}
+    },
+    { <span class="comment">// location = 9
+        </span><span class="string">"BinaryFieldOp"</span>: {
+            <span class="string">"destination"</span>: <span class="number">1</span>,
+            <span class="string">"op"</span>: <span class="string">"Add"</span>,
+            <span class="string">"lhs"</span>: <span class="number">0</span>,
+            <span class="string">"rhs"</span>: <span class="number">1
+        </span>}
+    },
+    { <span class="comment">// location = 10
+        </span><span class="string">"ForeignCall"</span>: {
+            <span class="string">"function"</span>: <span class="string">"print"</span>,
+            <span class="string">"destination"</span>: [], <span class="comment">// No output
+            </span><span class="string">"input"</span>: [
+                {<span class="string">"RegisterIndex"</span>: <span class="number">0</span>},
+                {<span class="string">"RegisterIndex"</span>: <span class="number">1</span>},
+                {<span class="string">"RegisterIndex"</span>: <span class="number">2</span>}
+            ]
+        }
+    },
+    { <span class="comment">// location = 11
+        </span><span class="string">"Stop"</span>: {}
+    }
+]</code></pre></div>
+<p>The execution and interpretation of the program would be as follows:</p>
+<ol>
+<li>The three <code>Const</code> instructions load values into reg0, reg1, reg2, reg3. These are variables a, b and c, and a temporary equal to 15</li>
+<li>At location 4, let reg2 (c) equal reg0 plus reg1 (a + b)</li>
+<li>Let reg4 (a temporary value) equal reg2 LessThanEquals reg3 (c &lt;= 15)</li>
+<li>If reg4 is 0 (so c &gt; 15), jump to location 9 where we set b = a + b then go to location 10. Otherwise if c &lt;= 15, we fall through to location 7, set a = a * b, and then go to location 10.</li>
+<li>At location 10, we queue up inputs to a foreign call from reg0, reg1, reg2 (variables a, b, and c). This interrupts execution, calls to the outer system, and then returns to Brillig execution. If this had outputs, they might be written to registers and memory.</li>
+<li>We finally reach the final location where we <code>Stop</code>. If this were a function to be called by another Brillig function, we would <code>Return</code>.</li>
+</ol>
+<h3 id="usage-in-noir"><a class="doc-anchor" href="#usage-in-noir">§</a>Usage in Noir</h3><h3 id="runtime"><a class="doc-anchor" href="#runtime">§</a>Runtime</h3>
+<p>In a Noir program, you can have normal functions, which will be compiled into ACIR, but also unconstrained functions, which will be compiled into Brillig bytecode.
+The functions have a ‘runtime’ which specifies whether they are unconstrained or not. Because it is possible to call a normal function from an unconstrained one, and because this call is expected to be unconstrained, functions that are called within the two runtime environments are duplicated under the hood by the monomorphization pass into two different functions, one for each runtime.</p>
+<p>The optimizations performed by the various SSA passes will be specialized for each function’s runtime. In particular inlining and unrolling will be much less aggressive for the Brillig runtime in order to minimize the bytecode size.</p>
+<h3 id="bytecode"><a class="doc-anchor" href="#bytecode">§</a>Bytecode</h3>
+<p>After the SSA passes, the generation of the bytecode for a Brillig function is done in a standard way by converting each SSA instruction into its equivalent Brillig operations. Arrays are mapped to the Brillig memory, SSA virtual registers are translated into memory addresses, and the CFG into jumps and conditional jumps over the bytecode.
+A specific handling for global variables allocates them in a special section of the Brillig memory, for each entry point function. Constants shared across functions can also be hoisted to the global memory.
+A liveness analysis is performed in order to re-use as much of the Brillig memory as possible and limit its growth.
+Finally, the Brillig bytecode as well as the ACIR opcodes of the main function are serialized into a Noir compilation artifact.</p>
+<h3 id="arithmetic"><a class="doc-anchor" href="#arithmetic">§</a>Arithmetic</h3>
+<ul>
+<li>Brillig integer arithmetic is ‘wrapping’ over the integer bitsize</li>
+<li>ACIR has no integer handling and is purely over a finite field</li>
+<li>Noir Integer arithmetic is ‘checked’ and errors in case of overflow.</li>
+</ul>
+<p>When a Noir program is compiled, integer checked arithmetic is ‘emulated’ (i.e checks are added to check for overflow) both in ACIR and Brillig bytecode.</p>
+<h3 id="execution"><a class="doc-anchor" href="#execution">§</a>Execution</h3>
+<p>Calling an unconstrained function from a (normal) function becomes a call opcode inside the ACIR bytecode, referencing the brillig bytecode. The execution of a Noir program, will instantiate a <a href="../brillig_vm/README.md">Brillig VM</a> and execute the bytecode, providing the results in the witnesses specified in the ACIR call opcode.</p>
+<h3 id="blockchain"><a class="doc-anchor" href="#blockchain">§</a>Blockchain</h3>
+<p>Another use case for Brillig bytecode is for public execution of a smart contract in a blockchain environment. In that case, the public function has a Brillig runtime and is compiled into Brillig bytecode. This bytecode can then be executed by a dedicated zkVM, which results into a new state of the blockchain along with a proof that this state is the result of applying the public function.
+The blockchain can now be updated upon proof verification by the blockchain nodes.</p>
+<h3 id="documentation"><a class="doc-anchor" href="#documentation">§</a>Documentation</h3>
+<p>For detailed documentation, visit <a href="https://noir-lang.github.io/noir/docs/brillig/index.html">https://noir-lang.github.io/noir/docs/brillig/index.html</a>.</p>
 </div></details><h2 id="modules" class="section-header">Modules<a href="#modules" class="anchor">§</a></h2><ul class="item-table"><li><div class="item-name"><a class="mod" href="black_box/index.html" title="mod brillig::black_box">black_<wbr>box</a><span title="Restricted Visibility">&nbsp;🔒</span> </div></li><li><div class="item-name"><a class="mod" href="foreign_call/index.html" title="mod brillig::foreign_call">foreign_<wbr>call</a><span title="Restricted Visibility">&nbsp;🔒</span> </div></li><li><div class="item-name"><a class="mod" href="opcodes/index.html" title="mod brillig::opcodes">opcodes</a><span title="Restricted Visibility">&nbsp;🔒</span> </div></li></ul><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><ul class="item-table"><li><div class="item-name"><a class="struct" href="struct.ForeignCallResult.html" title="struct brillig::ForeignCallResult">Foreign<wbr>Call<wbr>Result</a></div><div class="desc docblock-short">Represents the full output of a <a href="enum.Opcode.html#variant.ForeignCall" title="variant brillig::Opcode::ForeignCall">foreign call</a>.</div></li><li><div class="item-name"><a class="struct" href="struct.HeapArray.html" title="struct brillig::HeapArray">Heap<wbr>Array</a></div><div class="desc docblock-short">A fixed-sized array starting from a Brillig memory location.</div></li><li><div class="item-name"><a class="struct" href="struct.HeapVector.html" title="struct brillig::HeapVector">Heap<wbr>Vector</a></div><div class="desc docblock-short">A memory-sized vector passed starting from a Brillig memory location and with a memory-held size</div></li></ul><h2 id="enums" class="section-header">Enums<a href="#enums" class="anchor">§</a></h2><ul class="item-table"><li><div class="item-name"><a class="enum" href="enum.BinaryFieldOp.html" title="enum brillig::BinaryFieldOp">Binary<wbr>Field<wbr>Op</a></div><div class="desc docblock-short">Binary fixed-length field expressions</div></li><li><div class="item-name"><a class="enum" href="enum.BinaryIntOp.html" title="enum brillig::BinaryIntOp">Binary<wbr>IntOp</a></div><div class="desc docblock-short">Binary fixed-length integer expressions</div></li><li><div class="item-name"><a class="enum" href="enum.BitSize.html" title="enum brillig::BitSize">BitSize</a></div></li><li><div class="item-name"><a class="enum" href="enum.BlackBoxOp.html" title="enum brillig::BlackBoxOp">Black<wbr>BoxOp</a></div><div class="desc docblock-short">These opcodes provide an equivalent of ACIR blackbox functions.
 They are implemented as native functions in the VM.</div></li><li><div class="item-name"><a class="enum" href="enum.ForeignCallParam.html" title="enum brillig::ForeignCallParam">Foreign<wbr>Call<wbr>Param</a></div><div class="desc docblock-short">Single input or output of a <a href="enum.Opcode.html#variant.ForeignCall" title="variant brillig::Opcode::ForeignCall">foreign call</a>.</div></li><li><div class="item-name"><a class="enum" href="enum.HeapValueType.html" title="enum brillig::HeapValueType">Heap<wbr>Value<wbr>Type</a></div><div class="desc docblock-short">Describes the memory layout for an array/vector element</div></li><li><div class="item-name"><a class="enum" href="enum.IntegerBitSize.html" title="enum brillig::IntegerBitSize">Integer<wbr>BitSize</a></div></li><li><div class="item-name"><a class="enum" href="enum.MemoryAddress.html" title="enum brillig::MemoryAddress">Memory<wbr>Address</a></div><div class="desc docblock-short">Represents an address in the VM’s memory.
 Supports both direct and relative addressing.</div></li><li><div class="item-name"><a class="enum" href="enum.Opcode.html" title="enum brillig::Opcode">Opcode</a></div></li><li><div class="item-name"><a class="enum" href="enum.ValueOrArray.html" title="enum brillig::ValueOrArray">Value<wbr>OrArray</a></div><div class="desc docblock-short">Lays out various ways an external foreign call’s input and output data may be interpreted inside Brillig.
