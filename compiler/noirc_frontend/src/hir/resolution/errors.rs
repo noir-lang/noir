@@ -813,7 +813,7 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
             }
             ResolverError::OracleWithBody { location } => {
                 Diagnostic::simple_error(
-                    "Functions marked with #[builtin] or #[oracle] must have no body".to_string(),
+                    "Functions marked with #[oracle] must have no body".to_string(),
                     "This function body will never be run so should be removed".to_string(),
                     *location,
                 )
