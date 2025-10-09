@@ -6,6 +6,7 @@ pub(crate) mod brillig_fn;
 pub(crate) mod brillig_globals;
 mod brillig_instructions;
 pub(crate) mod constant_allocation;
+mod tests;
 mod variable_liveness;
 
 use acvm::FieldElement;
