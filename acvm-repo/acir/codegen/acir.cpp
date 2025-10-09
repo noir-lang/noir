@@ -867,6 +867,8 @@ namespace Acir {
         Acir::MemoryAddress size;
 
         friend bool operator==(const HeapVector&, const HeapVector&);
+        std::vector<uint8_t> bincodeSerialize() const;
+        static HeapVector bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
             packer.pack_map(2);
@@ -875,28 +877,20 @@ namespace Acir {
         }
 
         void msgpack_unpack(msgpack::object const& o) {
-            std::string name = "HeapVector";
-            if (o.type == msgpack::type::MAP) {
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "pointer", pointer, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "size", size, false);
-            } else if (o.type == msgpack::type::ARRAY) {
-                auto array = o.via.array; 
-                Helpers::conv_fld_from_array(array, name, "pointer", pointer, 0);
-                Helpers::conv_fld_from_array(array, name, "size", size, 1);
-            } else {
-                throw_or_abort("expected MAP or ARRAY for " + name);
-            }
+            auto name = "HeapVector";
+            auto kvmap = Helpers::make_kvmap(o, name);
+            Helpers::conv_fld_from_kvmap(kvmap, name, "pointer", pointer, false);
+            Helpers::conv_fld_from_kvmap(kvmap, name, "size", size, false);
         }
     };
 
     struct BlackBoxOp {
 
         struct AES128Encrypt {
-            Acir::HeapVector inputs;
+            Acir::HeapArray inputs;
             Acir::HeapArray iv;
             Acir::HeapArray key;
-            Acir::HeapVector outputs;
+            Acir::HeapArray outputs;
 
             friend bool operator==(const AES128Encrypt&, const AES128Encrypt&);
 
@@ -929,7 +923,7 @@ namespace Acir {
         };
 
         struct Blake2s {
-            Acir::HeapVector message;
+            Acir::HeapArray message;
             Acir::HeapArray output;
 
             friend bool operator==(const Blake2s&, const Blake2s&);
@@ -957,7 +951,7 @@ namespace Acir {
         };
 
         struct Blake3 {
-            Acir::HeapVector message;
+            Acir::HeapArray message;
             Acir::HeapArray output;
 
             friend bool operator==(const Blake3&, const Blake3&);
@@ -1013,7 +1007,7 @@ namespace Acir {
         };
 
         struct EcdsaSecp256k1 {
-            Acir::HeapVector hashed_msg;
+            Acir::HeapArray hashed_msg;
             Acir::HeapArray public_key_x;
             Acir::HeapArray public_key_y;
             Acir::HeapArray signature;
@@ -1053,7 +1047,7 @@ namespace Acir {
         };
 
         struct EcdsaSecp256r1 {
-            Acir::HeapVector hashed_msg;
+            Acir::HeapArray hashed_msg;
             Acir::HeapArray public_key_x;
             Acir::HeapArray public_key_y;
             Acir::HeapArray signature;
@@ -1093,8 +1087,8 @@ namespace Acir {
         };
 
         struct MultiScalarMul {
-            Acir::HeapVector points;
-            Acir::HeapVector scalars;
+            Acir::HeapArray points;
+            Acir::HeapArray scalars;
             Acir::HeapArray outputs;
 
             friend bool operator==(const MultiScalarMul&, const MultiScalarMul&);
@@ -1173,7 +1167,7 @@ namespace Acir {
         };
 
         struct Poseidon2Permutation {
-            Acir::HeapVector message;
+            Acir::HeapArray message;
             Acir::HeapArray output;
 
             friend bool operator==(const Poseidon2Permutation&, const Poseidon2Permutation&);
@@ -1652,6 +1646,28 @@ namespace Acir {
                 std::cerr << o << std::endl;
                 throw_or_abort("unknown 'HeapValueType' enum variant: " + tag);
             }
+        }
+    };
+
+    struct HeapVector {
+        Acir::MemoryAddress pointer;
+        Acir::MemoryAddress size;
+
+        friend bool operator==(const HeapVector&, const HeapVector&);
+        std::vector<uint8_t> bincodeSerialize() const;
+        static HeapVector bincodeDeserialize(std::vector<uint8_t>);
+
+        void msgpack_pack(auto& packer) const {
+            packer.pack_map(2);
+            packer.pack(std::make_pair("pointer", pointer));
+            packer.pack(std::make_pair("size", size));
+        }
+
+        void msgpack_unpack(msgpack::object const& o) {
+            auto name = "HeapVector";
+            auto kvmap = Helpers::make_kvmap(o, name);
+            Helpers::conv_fld_from_kvmap(kvmap, name, "pointer", pointer, false);
+            Helpers::conv_fld_from_kvmap(kvmap, name, "size", size, false);
         }
     };
 
