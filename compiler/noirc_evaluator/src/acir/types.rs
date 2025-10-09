@@ -183,11 +183,9 @@ impl AcirVar {
 pub(crate) fn flat_numeric_types(typ: &crate::ssa::ir::types::Type) -> Vec<NumericType> {
     use crate::ssa::ir::types::Type;
     match typ {
-        Type::Array(types, _) | Type::Slice(types) => {
+        Type::Array(..) | Type::Slice(..) => {
             let mut flat_types = Vec::new();
-            for typ in types.iter() {
-                collect_flat_numeric_types(typ, &mut flat_types);
-            }
+            collect_flat_numeric_types(typ, &mut flat_types);
             flat_types
         }
         _ => panic!("Called flat_numeric_types on a non-array/slice type"),
