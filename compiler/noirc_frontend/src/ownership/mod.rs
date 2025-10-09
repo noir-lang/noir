@@ -144,7 +144,7 @@ impl Context {
                     self.handle_expression(expr);
                 }
                 if let Some(expr) = exprs.last_mut() {
-                    self.handle_reference_expression(expr)
+                    self.handle_reference_expression(expr);
                 }
             }
             Expression::Unary(Unary { rhs, operator: UnaryOp::Dereference { .. }, .. }) => {

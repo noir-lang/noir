@@ -146,7 +146,7 @@ fn borrows_on_nested_index() {
 }
 
 #[test]
-fn moves_call_array_result() {
+fn clone_call_array_result() {
     let src = "
     unconstrained fn main(i: u32) -> pub u32 {
         let _a = foo()[1][0][1];
