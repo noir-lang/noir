@@ -4066,7 +4066,7 @@
                     <span class="self">self</span>.can_hoist_invariant(<span class="kw-2">&amp;</span>loop_context, <span class="kw-2">&amp;</span>block_context, instruction_id);
 
                 <span class="kw">if </span>hoist_invariant {
-                    <span class="self">self</span>.inserter.push_instruction(instruction_id, pre_header);
+                    <span class="self">self</span>.inserter.push_instruction(instruction_id, pre_header, <span class="bool-val">false</span>);
 
                     <span class="comment">// If we are hoisting a MakeArray instruction,
                     // we need to issue an extra inc_rc in case they are mutated afterward.
@@ -4091,7 +4091,7 @@
                     </span><span class="kw">if </span>!block_context.is_impure {
                         block_context.is_impure = dfg[instruction_id].has_side_effects(dfg);
                     }
-                    <span class="self">self</span>.inserter.push_instruction(instruction_id, <span class="kw-2">*</span>block);
+                    <span class="self">self</span>.inserter.push_instruction(instruction_id, <span class="kw-2">*</span>block, <span class="bool-val">true</span>);
                 }
 
                 <span class="comment">// We will have new IDs after pushing instructions.
@@ -4387,7 +4387,7 @@
 
         <span class="kw">for </span>block <span class="kw">in </span>block_order {
             <span class="kw">for </span>instruction_id <span class="kw">in </span><span class="self">self</span>.inserter.function.dfg[block].take_instructions() {
-                <span class="self">self</span>.inserter.push_instruction(instruction_id, block);
+                <span class="self">self</span>.inserter.push_instruction(instruction_id, block, <span class="bool-val">true</span>);
             }
             <span class="self">self</span>.inserter.map_terminator_in_place(block);
         }

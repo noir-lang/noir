@@ -178,7 +178,29 @@
 <a href="#177" id="177">177</a>
 <a href="#178" id="178">178</a>
 <a href="#179" id="179">179</a>
-<a href="#180" id="180">180</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#180" id="180">180</a>
+<a href="#181" id="181">181</a>
+<a href="#182" id="182">182</a>
+<a href="#183" id="183">183</a>
+<a href="#184" id="184">184</a>
+<a href="#185" id="185">185</a>
+<a href="#186" id="186">186</a>
+<a href="#187" id="187">187</a>
+<a href="#188" id="188">188</a>
+<a href="#189" id="189">189</a>
+<a href="#190" id="190">190</a>
+<a href="#191" id="191">191</a>
+<a href="#192" id="192">192</a>
+<a href="#193" id="193">193</a>
+<a href="#194" id="194">194</a>
+<a href="#195" id="195">195</a>
+<a href="#196" id="196">196</a>
+<a href="#197" id="197">197</a>
+<a href="#198" id="198">198</a>
+<a href="#199" id="199">199</a>
+<a href="#200" id="200">200</a>
+<a href="#201" id="201">201</a>
+<a href="#202" id="202">202</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 
 <span class="kw">use super</span>::{
@@ -209,7 +231,7 @@
     /// ValueId that was passed in.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>resolve(<span class="kw-2">&amp;</span><span class="self">self</span>, value: ValueId) -&gt; ValueId {
         <span class="kw">match </span><span class="self">self</span>.values.get(<span class="kw-2">&amp;</span>value) {
-            <span class="prelude-val">Some</span>(value) =&gt; <span class="self">self</span>.resolve(<span class="kw-2">*</span>value),
+            <span class="prelude-val">Some</span>(new_value) =&gt; <span class="self">self</span>.resolve(<span class="kw-2">*</span>new_value),
             <span class="prelude-val">None </span>=&gt; value,
         }
     }
@@ -221,6 +243,8 @@
             // existing entries, but we should never have a value in the map referring to itself anyway.
             </span><span class="self">self</span>.values.remove(<span class="kw-2">&amp;</span>key);
         } <span class="kw">else </span>{
+            <span class="attr">#[cfg(debug_assertions)]
+            </span><span class="self">self</span>.validate_map_value(key, value);
             <span class="self">self</span>.values.entry(key).or_insert(value);
         }
     }
@@ -230,7 +254,18 @@
         <span class="kw">if </span>key == value {
             <span class="self">self</span>.values.remove(<span class="kw-2">&amp;</span>key);
         } <span class="kw">else </span>{
+            <span class="attr">#[cfg(debug_assertions)]
+            </span><span class="self">self</span>.validate_map_value(key, value);
             <span class="self">self</span>.values.insert(key, value);
+        }
+    }
+
+    <span class="doccomment">/// Sanity check that we are not creating back-and-forth cycles.
+    /// Doesn't catch longer cycles, but has detected mistakes with reusing instructions.
+    </span><span class="attr">#[cfg(debug_assertions)]
+    </span><span class="kw">fn </span>validate_map_value(<span class="kw-2">&amp;</span><span class="self">self</span>, key: ValueId, value: ValueId) {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(value_of_value) = <span class="self">self</span>.values.get(<span class="kw-2">&amp;</span>value) {
+            <span class="macro">assert!</span>(<span class="kw-2">*</span>value_of_value != key, <span class="string">"mapping short-circuit: {key} &lt;-&gt; {value}"</span>);
         }
     }
 
@@ -264,27 +299,33 @@
         <span class="self">self</span>.function.dfg.data_bus = data_bus;
     }
 
-    <span class="doccomment">/// Push a new instruction to the given block and return its new `InstructionId`.
+    <span class="doccomment">/// Push an instruction by ID, after re-mapping the values in it, to the given block and return its new `InstructionId`.
     /// If the instruction was simplified out of the program, `None` is returned.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>push_instruction(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         id: InstructionId,
         block: BasicBlockId,
+        allow_reinsert: bool,
     ) -&gt; <span class="prelude-ty">Option</span>&lt;InstructionId&gt; {
         <span class="kw">let </span>(instruction, location) = <span class="self">self</span>.map_instruction(id);
 
-        <span class="kw">match </span><span class="self">self</span>.push_instruction_value(instruction, id, block, location) {
+        <span class="kw">match </span><span class="self">self</span>.push_instruction_value(instruction, id, block, location, allow_reinsert) {
             InsertInstructionResult::Results(new_id, <span class="kw">_</span>) =&gt; <span class="prelude-val">Some</span>(new_id),
             <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>push_instruction_value(
+    <span class="doccomment">/// Push a instruction that already exists with an ID, given as an instance with potential modification already applied to it.
+    ///
+    /// If `allow_insert` is set, we consider reinserting the instruction as it is, if it hasn't changed and cannot be simplified.
+    /// Consider using this if we are re-inserting when we take instructions from a block and re-insert them into the same block.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>push_instruction_value(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         instruction: Instruction,
         id: InstructionId,
         block: BasicBlockId,
         call_stack: CallStackId,
+        allow_reinsert: bool,
     ) -&gt; InsertInstructionResult&lt;<span class="lifetime">'_</span>&gt; {
         <span class="kw">let </span>results = <span class="self">self</span>.function.dfg.instruction_results(id).to_vec();
 
@@ -292,11 +333,12 @@
             .requires_ctrl_typevars()
             .then(|| vecmap(<span class="kw-2">&amp;</span>results, |result| <span class="self">self</span>.function.dfg.type_of_value(<span class="kw-2">*</span>result)));
 
-        <span class="kw">let </span>new_results = <span class="self">self</span>.function.dfg.insert_instruction_and_results(
+        <span class="kw">let </span>new_results = <span class="self">self</span>.function.dfg.insert_instruction_and_results_if_simplified(
             instruction,
             block,
             ctrl_typevars,
             call_stack,
+            allow_reinsert.then_some(id),
         );
 
         <span class="self">Self</span>::insert_new_instruction_results(<span class="kw-2">&amp;mut </span><span class="self">self</span>.values, <span class="kw-2">&amp;</span>results, <span class="kw-2">&amp;</span>new_results);
@@ -305,14 +347,16 @@
 
     <span class="doccomment">/// Modify the values HashMap to remember the mapping between an instruction result's previous
     /// ValueId (from the source_function) and its new ValueId in the destination function.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>insert_new_instruction_results(
+    </span><span class="kw">fn </span>insert_new_instruction_results(
         values: <span class="kw-2">&amp;mut </span>HashMap&lt;ValueId, ValueId&gt;,
         old_results: <span class="kw-2">&amp;</span>[ValueId],
         new_results: <span class="kw-2">&amp;</span>InsertInstructionResult,
     ) {
         <span class="macro">assert_eq!</span>(old_results.len(), new_results.len());
         <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..old_results.len() {
-            values.insert(old_results[i], new_results[i]);
+            <span class="kw">if </span>old_results[i] != new_results[i] {
+                values.insert(old_results[i], new_results[i]);
+            }
         }
     }
 

@@ -2318,7 +2318,12 @@
 <a href="#2317" id="2317">2317</a>
 <a href="#2318" id="2318">2318</a>
 <a href="#2319" id="2319">2319</a>
-<a href="#2320" id="2320">2320</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the SSA flattening pass - a required pass for ACIR to remove any remaining
+<a href="#2320" id="2320">2320</a>
+<a href="#2321" id="2321">2321</a>
+<a href="#2322" id="2322">2322</a>
+<a href="#2323" id="2323">2323</a>
+<a href="#2324" id="2324">2324</a>
+<a href="#2325" id="2325">2325</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the SSA flattening pass - a required pass for ACIR to remove any remaining
 //! control-flow in the singular program-function, resulting in a single block containing the
 //! program logic.
 //!
@@ -3160,8 +3165,13 @@
         <span class="kw">let </span>instruction = <span class="self">self</span>.handle_instruction_side_effects(instruction, call_stack);
 
         <span class="kw">let </span>instruction_is_allocate = <span class="macro">matches!</span>(<span class="kw-2">&amp;</span>instruction, Instruction::Allocate);
-        <span class="kw">let </span>results =
-            <span class="self">self</span>.inserter.push_instruction_value(instruction, id, <span class="self">self</span>.target_block, call_stack);
+        <span class="kw">let </span>results = <span class="self">self</span>.inserter.push_instruction_value(
+            instruction,
+            id,
+            <span class="self">self</span>.target_block,
+            call_stack,
+            <span class="bool-val">true</span>,
+        );
 
         <span class="comment">// Remember an allocate was created local to this branch so that we do not try to merge store
         // values across branches for it later.

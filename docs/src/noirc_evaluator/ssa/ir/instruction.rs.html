@@ -1089,7 +1089,24 @@
 <a href="#1088" id="1088">1088</a>
 <a href="#1089" id="1089">1089</a>
 <a href="#1090" id="1090">1090</a>
-<a href="#1091" id="1091">1091</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
+<a href="#1091" id="1091">1091</a>
+<a href="#1092" id="1092">1092</a>
+<a href="#1093" id="1093">1093</a>
+<a href="#1094" id="1094">1094</a>
+<a href="#1095" id="1095">1095</a>
+<a href="#1096" id="1096">1096</a>
+<a href="#1097" id="1097">1097</a>
+<a href="#1098" id="1098">1098</a>
+<a href="#1099" id="1099">1099</a>
+<a href="#1100" id="1100">1100</a>
+<a href="#1101" id="1101">1101</a>
+<a href="#1102" id="1102">1102</a>
+<a href="#1103" id="1103">1103</a>
+<a href="#1104" id="1104">1104</a>
+<a href="#1105" id="1105">1105</a>
+<a href="#1106" id="1106">1106</a>
+<a href="#1107" id="1107">1107</a>
+<a href="#1108" id="1108">1108</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 <span class="kw">use </span>rustc_stable_hash::{FromStableHash, SipHasher128Hash};
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="kw">use </span>std::hash::Hash;
@@ -1779,10 +1796,11 @@
                     else_value: f(<span class="kw-2">*</span>else_value),
                 }
             }
-            Instruction::MakeArray { elements, typ } =&gt; Instruction::MakeArray {
-                elements: elements.iter().copied().map(f).collect(),
-                typ: typ.clone(),
-            },
+            Instruction::MakeArray { elements, typ } =&gt; {
+                <span class="kw">let </span><span class="kw-2">mut </span>elements = elements.clone();
+                im_vec_map_values_mut(<span class="kw-2">&amp;mut </span>elements, f);
+                Instruction::MakeArray { elements, typ: typ.clone() }
+            }
             Instruction::Noop =&gt; Instruction::Noop,
         }
     }
@@ -1847,9 +1865,7 @@
                 <span class="kw-2">*</span>else_value = f(<span class="kw-2">*</span>else_value);
             }
             Instruction::MakeArray { elements, typ: <span class="kw">_ </span>} =&gt; {
-                <span class="kw">for </span>element <span class="kw">in </span>elements.iter_mut() {
-                    <span class="kw-2">*</span>element = f(<span class="kw-2">*</span>element);
-                }
+                im_vec_map_values_mut(elements, f);
             }
             Instruction::Noop =&gt; (),
         }
@@ -2177,6 +2193,24 @@
             | TerminatorInstruction::Jmp { call_stack, .. }
             | TerminatorInstruction::Return { call_stack, .. }
             | TerminatorInstruction::Unreachable { call_stack } =&gt; <span class="kw-2">*</span>call_stack = new_call_stack,
+        }
+    }
+}
+
+<span class="doccomment">/// Try to avoid mutation until we know something changed, to take advantage of
+/// structural sharing, and avoid needlessly calling `Arc::make_mut` which clones
+/// the content and increases memory use.
+</span><span class="kw">fn </span>im_vec_map_values_mut&lt;T, F&gt;(xs: <span class="kw-2">&amp;mut </span>im::Vector&lt;T&gt;, <span class="kw-2">mut </span>f: F)
+<span class="kw">where
+    </span>T: Copy + PartialEq,
+    F: FnMut(T) -&gt; T,
+{
+    <span class="comment">// Even `xs.iter_mut()` calls `get_mut` on each element.
+    </span><span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..xs.len() {
+        <span class="kw">let </span>x = xs[i];
+        <span class="kw">let </span>y = f(x);
+        <span class="kw">if </span>x != y {
+            xs[i] = y;
         }
     }
 }

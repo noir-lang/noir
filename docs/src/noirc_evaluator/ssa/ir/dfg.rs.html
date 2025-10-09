@@ -955,7 +955,14 @@
 <a href="#954" id="954">954</a>
 <a href="#955" id="955">955</a>
 <a href="#956" id="956">956</a>
-<a href="#957" id="957">957</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, sync::Arc};
+<a href="#957" id="957">957</a>
+<a href="#958" id="958">958</a>
+<a href="#959" id="959">959</a>
+<a href="#960" id="960">960</a>
+<a href="#961" id="961">961</a>
+<a href="#962" id="962">962</a>
+<a href="#963" id="963">963</a>
+<a href="#964" id="964">964</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, sync::Arc};
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
     function_builder::data_bus::DataBus,
@@ -1292,10 +1299,8 @@
                         <span class="kw">if </span><span class="self">self</span>[id] == instruction {
                             <span class="comment">// Just (re)insert into the block, no need to redefine.
                             </span><span class="self">self</span>.blocks[block].insert_instruction(id);
-                            <span class="kw">return </span>InsertInstructionResult::Results(
-                                id,
-                                <span class="self">self</span>.instruction_results(id),
-                            );
+                            <span class="kw">let </span>results = <span class="self">self</span>.instruction_results(id);
+                            <span class="kw">return </span>InsertInstructionResult::Results(id, results);
                         }
                     }
                 }
@@ -1545,10 +1550,19 @@
 
     <span class="doccomment">/// Remove an instruction by replacing it with a `Noop` instruction.
     /// Doing this avoids shifting over each instruction after this one in its block's instructions vector.
-    </span><span class="attr">#[allow(unused)]
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>remove_instruction(<span class="kw-2">&amp;mut </span><span class="self">self</span>, instruction: InstructionId) {
         <span class="self">self</span>.instructions[instruction] = Instruction::Noop;
         <span class="self">self</span>.results.insert(instruction, smallvec::SmallVec::new());
+    }
+
+    <span class="doccomment">/// Remove instructions for which the `keep` functions returns `false`.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>retain_instructions(<span class="kw-2">&amp;mut </span><span class="self">self</span>, keep: <span class="kw">impl </span>Fn(InstructionId) -&gt; bool) {
+        <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..<span class="self">self</span>.instructions.len() {
+            <span class="kw">let </span>id = InstructionId::new(i <span class="kw">as </span>u32);
+            <span class="kw">if </span>!keep(id) {
+                <span class="self">self</span>.remove_instruction(id);
+            }
+        }
     }
 
     <span class="doccomment">/// Add a parameter to the given block

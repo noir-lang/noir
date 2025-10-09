@@ -575,7 +575,8 @@
 <a href="#574" id="574">574</a>
 <a href="#575" id="575">575</a>
 <a href="#576" id="576">576</a>
-<a href="#577" id="577">577</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
+<a href="#577" id="577">577</a>
+<a href="#578" id="578">578</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
 //! The IR presented in this module will already
 //! be in SSA form and will be used to apply
 //! conventional optimizations like Common Subexpression
@@ -760,8 +761,9 @@
         </span>SsaPass::new(Ssa::expand_signed_math, <span class="string">"Expand signed math"</span>),
         SsaPass::new(Ssa::simplify_cfg, <span class="string">"Simplifying"</span>),
         SsaPass::new(Ssa::flatten_cfg, <span class="string">"Flattening"</span>),
-        <span class="comment">// Run mem2reg once more with the flattened CFG to catch any remaining loads/stores
-        </span>SsaPass::new(Ssa::mem2reg, <span class="string">"Mem2Reg"</span>),
+        <span class="comment">// Run mem2reg once more with the flattened CFG to catch any remaining loads/stores,
+        // then try to free memory before inlining, which involves copying a instructions.
+        </span>SsaPass::new(Ssa::mem2reg, <span class="string">"Mem2Reg"</span>).and_then(Ssa::remove_unused_instructions),
         <span class="comment">// Run the inlining pass again to handle functions with `InlineType::NoPredicates`.
         // Before flattening is run, we treat functions marked with the `InlineType::NoPredicates` as an entry point.
         // This pass must come immediately following `mem2reg` as the succeeding passes

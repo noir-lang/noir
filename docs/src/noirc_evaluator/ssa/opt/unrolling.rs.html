@@ -2941,7 +2941,7 @@
         // instances of the induction variable or any values that were changed as a result
         // of the new induction variable value.
         </span><span class="kw">for </span>instruction <span class="kw">in </span>instructions {
-            <span class="self">self</span>.inserter.push_instruction(instruction, <span class="self">self</span>.insert_block);
+            <span class="self">self</span>.inserter.push_instruction(instruction, <span class="self">self</span>.insert_block, <span class="bool-val">false</span>);
         }
         <span class="kw">let </span><span class="kw-2">mut </span>terminator = <span class="self">self</span>.dfg()[<span class="self">self</span>.source_block].unwrap_terminator().clone();
 

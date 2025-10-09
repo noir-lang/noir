@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["ArrayOffset","ConstrainError","Endian","ErrorType","Hint","Instruction","InstructionResultType","Intrinsic","TerminatorInstruction"],"mod":["binary"],"type":["InstructionId"]};
+window.SIDEBAR_ITEMS = {"enum":["ArrayOffset","ConstrainError","Endian","ErrorType","Hint","Instruction","InstructionResultType","Intrinsic","TerminatorInstruction"],"fn":["im_vec_map_values_mut"],"mod":["binary"],"type":["InstructionId"]};
