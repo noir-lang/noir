@@ -120,8 +120,8 @@ use acvm::acir::{circuit::opcodes::BlockType, native_types::Witness};
 use acvm::{FieldElement, acir::AcirField, acir::circuit::opcodes::BlockId};
 use iter_extended::{try_vecmap, vecmap};
 
+use crate::acir::types::flat_numeric_types;
 use crate::errors::{InternalError, RuntimeError};
-use crate::ssa::ir::types::NumericType;
 use crate::ssa::ir::{
     dfg::DataFlowGraph,
     instruction::{Instruction, InstructionId},
@@ -1135,35 +1135,4 @@ pub(super) fn array_has_constant_element_size(array_typ: &Type) -> Option<u32> {
     let element_size = element_sizes.next().expect("must have at least one element");
 
     if element_sizes.all(|size| size == element_size) { Some(element_size) } else { None }
-}
-
-/// Assumes `typ` is an array or slice type with nested numeric types, arrays or slices
-/// (recursively) and returns a flat list of all the contained numeric types.
-/// Panics if `self` is not an array or slice type or if a function or reference type
-/// is found along the way.
-fn flat_numeric_types(typ: &Type) -> Vec<NumericType> {
-    match typ {
-        Type::Array(..) | Type::Slice(..) => {
-            let mut flat_types = Vec::new();
-            collect_flat_numeric_types(typ, &mut flat_types);
-            flat_types
-        }
-        _ => panic!("Called flat_numeric_types on a non-array/slice type"),
-    }
-}
-
-/// Helper function for `flat_numeric_types` that recursively collects all numeric types
-/// into `flat_types`.
-fn collect_flat_numeric_types(typ: &Type, flat_types: &mut Vec<NumericType>) {
-    match typ {
-        Type::Numeric(numeric_type) => {
-            flat_types.push(*numeric_type);
-        }
-        Type::Array(types, _) | Type::Slice(types) => {
-            for typ in types.iter() {
-                collect_flat_numeric_types(typ, flat_types);
-            }
-        }
-        _ => panic!("Called collect_flat_numeric_types on non-array/slice/number type"),
-    }
 }
