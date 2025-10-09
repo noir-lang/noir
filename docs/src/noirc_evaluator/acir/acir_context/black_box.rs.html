@@ -175,7 +175,13 @@
 <a href="#174" id="174">174</a>
 <a href="#175" id="175">175</a>
 <a href="#176" id="176">176</a>
-<a href="#177" id="177">177</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::{AcirField, BlackBoxFunc, circuit::opcodes::FunctionInput};
+<a href="#177" id="177">177</a>
+<a href="#178" id="178">178</a>
+<a href="#179" id="179">179</a>
+<a href="#180" id="180">180</a>
+<a href="#181" id="181">181</a>
+<a href="#182" id="182">182</a>
+<a href="#183" id="183">183</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::{AcirField, BlackBoxFunc, circuit::opcodes::FunctionInput};
 <span class="kw">use </span>iter_extended::vecmap;
 
 <span class="kw">use </span><span class="kw">crate</span>::errors::{InternalError, RuntimeError};
@@ -190,7 +196,7 @@
         name: BlackBoxFunc,
         <span class="kw-2">mut </span>inputs: Vec&lt;AcirValue&gt;,
         num_bits: <span class="prelude-ty">Option</span>&lt;u32&gt;,
-        <span class="kw-2">mut </span>output_count: usize,
+        output_count: usize,
         predicate: <span class="prelude-ty">Option</span>&lt;AcirVar&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;AcirVar&gt;, RuntimeError&gt; {
         <span class="comment">// Separate out any arguments that should be constants
@@ -207,7 +213,13 @@
                         }));
                     }
                 }<span class="question-mark">?</span>;
-                output_count = input_size + (<span class="number">16 </span>- input_size % <span class="number">16</span>);
+
+                <span class="macro">assert_eq!</span>(
+                    output_count,
+                    input_size + (<span class="number">16 </span>- input_size % <span class="number">16</span>),
+                    <span class="string">"output count mismatch"
+                </span>);
+
                 Vec::new()
             }
             BlackBoxFunc::RecursiveAggregation =&gt; {
