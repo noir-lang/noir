@@ -189,7 +189,8 @@
 <a href="#188" id="188">188</a>
 <a href="#189" id="189">189</a>
 <a href="#190" id="190">190</a>
-<a href="#191" id="191">191</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::BTreeMap, path::PathBuf};
+<a href="#191" id="191">191</a>
+<a href="#192" id="192">192</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::BTreeMap, path::PathBuf};
 
 <span class="kw">use </span>clap::Args;
 <span class="kw">use </span>color_eyre::eyre::{<span class="self">self</span>, Context, bail};
@@ -264,6 +265,7 @@
             <span class="macro">println_to_stdout!</span>(<span class="string">"--- Interpreter result:\nErr({err})\n---"</span>);
         }
     }
+    <span class="kw">let </span>is_ok = result.is_ok();
 
     <span class="kw">if let </span><span class="prelude-val">Some</span>(return_value) = ssa_return {
         <span class="kw">let </span>return_value_as_string = vecmap(<span class="kw-2">&amp;</span>return_value, ToString::to_string).join(<span class="string">", "</span>);
@@ -280,7 +282,7 @@
         }
     }
 
-    <span class="prelude-val">Ok</span>(())
+    <span class="kw">if </span>is_ok { <span class="prelude-val">Ok</span>(()) } <span class="kw">else </span>{ <span class="macro">bail!</span>(<span class="string">"The interpreter encountered an error."</span>) }
 }
 
 <span class="doccomment">/// Derive an ABI description from the SSA parameters.
