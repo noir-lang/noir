@@ -162,8 +162,8 @@ fn moves_call_array_result() {
     // We expect no clones
     insta::assert_snapshot!(program, @r"
     unconstrained fn main$f0(i$l0: u32) -> pub u32 {
-        let _a$l1 = foo$f1()[1][0][1];
-        let _s$l2 = foo$f1()[1][0][1];
+        let _a$l1 = foo$f1()[1][0][1].clone();
+        let _s$l2 = foo$f1()[1][0][1].clone();
         i$l0
     }
     unconstrained fn foo$f1() -> [[[[u128; 0]; 2]; 1]; 2] {

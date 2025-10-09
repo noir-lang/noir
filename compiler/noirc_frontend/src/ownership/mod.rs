@@ -134,9 +134,9 @@ impl Context {
     ///
     /// # Returns
     /// A boolean representing whether or not the expression was borrowed by reference (false) or moved (true).
-    fn handle_reference_expression(&mut self, expr: &mut Expression) -> bool {
+    fn handle_reference_expression(&mut self, expr: &mut Expression) {
         match expr {
-            Expression::Ident(_) => false,
+            Expression::Ident(_) => (),
             Expression::Block(exprs) => {
                 let len_minus_one = exprs.len().saturating_sub(1);
                 for expr in exprs.iter_mut().take(len_minus_one) {
@@ -145,27 +145,21 @@ impl Context {
                 }
                 if let Some(expr) = exprs.last_mut() {
                     self.handle_reference_expression(expr)
-                } else {
-                    true
                 }
             }
             Expression::Unary(Unary { rhs, operator: UnaryOp::Dereference { .. }, .. }) => {
-                self.handle_reference_expression(rhs)
+                self.handle_reference_expression(rhs);
             }
             Expression::ExtractTupleField(tuple, _index) => self.handle_reference_expression(tuple),
 
             Expression::Index(index) => {
-                let is_moved = self.handle_reference_expression(&mut index.collection);
+                self.handle_reference_expression(&mut index.collection);
                 self.handle_expression(&mut index.index);
-                is_moved
             }
 
             // If we have something like `f(arg)` then we want to treat those variables normally
             // rather than avoid cloning them. So we shouldn't recur in `handle_reference_expression`.
-            other => {
-                self.handle_expression(other);
-                true
-            }
+            other => self.handle_expression(other),
         }
     }
 
@@ -286,11 +280,11 @@ impl Context {
         };
 
         // Don't clone the collection, cloning only the resulting element is cheaper.
-        let is_moved = self.handle_reference_expression(&mut index.collection);
+        self.handle_reference_expression(&mut index.collection);
         self.handle_expression(&mut index.index);
 
         // If the index collection is being borrowed we need to clone the result.
-        if !is_moved && contains_array_or_str_type(&index.element_type) {
+        if contains_array_or_str_type(&index.element_type) {
             clone_expr(index_expr);
         }
     }
