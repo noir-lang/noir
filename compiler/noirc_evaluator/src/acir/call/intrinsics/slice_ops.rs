@@ -1,3 +1,4 @@
+use crate::acir::types::flat_numeric_types;
 use crate::acir::{AcirDynamicArray, AcirType, AcirValue};
 use crate::errors::RuntimeError;
 use crate::ssa::ir::{dfg::DataFlowGraph, value::ValueId};
@@ -368,15 +369,25 @@ impl Context<'_> {
             }
         }
 
-        let AcirValue::DynamicArray(dymamic_array) = slice else {
-            panic!("ICE: The input slice should be a dynamic array");
-        };
+        let element_type_sizes =
+            if super::arrays::array_has_constant_element_size(&slice_typ).is_none() {
+                Some(self.init_element_type_sizes_array(
+                    &slice_typ,
+                    slice_contents,
+                    Some(&slice),
+                    dfg,
+                )?)
+            } else {
+                None
+            };
+
+        let value_types = flat_numeric_types(&slice_typ);
 
         let result = AcirValue::DynamicArray(AcirDynamicArray {
             block_id: result_block_id,
             len: slice_size,
-            value_types: dymamic_array.value_types,
-            element_type_sizes: dymamic_array.element_type_sizes,
+            value_types,
+            element_type_sizes,
         });
 
         Ok(vec![AcirValue::Var(new_slice_length, AcirType::field()), result])
@@ -503,15 +514,25 @@ impl Context<'_> {
             self.acir_context.write_to_memory(result_block_id, &current_index, &new_value)?;
         }
 
-        let AcirValue::DynamicArray(dymamic_array) = slice else {
-            panic!("ICE: The input slice should be a dynamic array");
-        };
+        let element_type_sizes =
+            if super::arrays::array_has_constant_element_size(&slice_typ).is_none() {
+                Some(self.init_element_type_sizes_array(
+                    &slice_typ,
+                    slice_contents,
+                    Some(&slice),
+                    dfg,
+                )?)
+            } else {
+                None
+            };
+
+        let value_types = flat_numeric_types(&slice_typ);
 
         let result = AcirValue::DynamicArray(AcirDynamicArray {
             block_id: result_block_id,
             len: result_size,
-            value_types: dymamic_array.value_types,
-            element_type_sizes: dymamic_array.element_type_sizes,
+            value_types,
+            element_type_sizes,
         });
 
         let mut result = vec![AcirValue::Var(new_slice_length, AcirType::field()), result];
