@@ -5,7 +5,7 @@
 //! by transforming functions used as values (i.e., first-class functions)
 //! into constant numbers (fields) that represent their function IDs.
 //!
-//! Defunctionalization handles higher-order functions functions by lowering function values into
+//! Defunctionalization handles higher-order functions by lowering function values into
 //! constant identifiers and replacing calls of function values with calls to a single
 //! dispatch `apply` function.
 //!
@@ -496,7 +496,7 @@ fn create_apply_functions(
         } else if pre_runtime_filter_len != 0 && caller_runtime.is_brillig() {
             // We had variants, but they were all filtered out.
             // Frontend bug: only ACIR variants in a Brillig group.
-            panic!("ICE: invalid defunctionalization: only ACIR variants for a Brillig runtime",);
+            panic!("ICE: invalid defunctionalization: only ACIR variants for a Brillig runtime");
         } else {
             // If no variants exist for a dynamic call we leave removing those dead calls and parameters to DIE.
             // However, we have to construct a dummy function for these dead calls as to keep a well formed SSA
