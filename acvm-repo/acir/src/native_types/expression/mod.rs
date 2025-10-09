@@ -429,7 +429,7 @@ pub(crate) fn display_expression<F: AcirField>(
     }
 
     if expr.q_c.is_zero() {
-        if as_equal_to_zero && !printed_term {
+        if !printed_term {
             write!(f, "0")?;
         }
     } else {
@@ -531,5 +531,11 @@ mod tests {
                 q_c: FieldElement::from(10u128)
             }
         );
+    }
+
+    #[test]
+    fn display_zero() {
+        let zero = Expression::<FieldElement>::default();
+        assert_eq!(zero.to_string(), "0");
     }
 }
