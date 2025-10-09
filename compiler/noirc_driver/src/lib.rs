@@ -178,7 +178,7 @@ pub struct CompileOptions {
     /// Setting to decide on an inlining strategy for Brillig functions.
     /// A more aggressive inliner should generate larger programs but more optimized
     /// A less aggressive inliner should generate smaller programs
-    #[arg(long, hide = true, allow_hyphen_values = true, default_value_t = i64::MAX)]
+    #[arg(long, allow_hyphen_values = true, default_value_t = i64::MAX)]
     pub inliner_aggressiveness: i64,
 
     /// Maximum number of iterations to do in constant folding, as long as new values are being hoisted.
