@@ -164,7 +164,7 @@ impl<F: AcirField> AcirContext<F> {
                     let index_var = self.add_constant(i);
 
                     let value_read_var = self.read_from_memory(block_id, &index_var)?;
-                    let value_typ = value_types[i % value_types.len()].clone();
+                    let value_typ = value_types[i % value_types.len()];
                     let value_read =
                         AcirValue::Var(value_read_var, AcirType::NumericType(value_typ));
 

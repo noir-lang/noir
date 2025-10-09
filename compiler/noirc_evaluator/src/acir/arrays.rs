@@ -743,7 +743,7 @@ impl Context<'_> {
                     let index_var = self.acir_context.add_constant(i);
 
                     let read = self.acir_context.read_from_memory(*inner_block_id, &index_var)?;
-                    let typ = value_types[i % value_types.len()].clone();
+                    let typ = value_types[i % value_types.len()];
                     Ok::<AcirValue, RuntimeError>(AcirValue::Var(read, AcirType::NumericType(typ)))
                 })?;
                 self.array_set_value(&AcirValue::Array(values.into()), block_id, var_index)?;
@@ -942,7 +942,7 @@ impl Context<'_> {
             let index_var = self.acir_context.add_constant(i);
 
             let read = self.acir_context.read_from_memory(source, &index_var)?;
-            let typ = value_types[i % value_types.len()].clone();
+            let typ = value_types[i % value_types.len()];
 
             Ok::<AcirValue, RuntimeError>(AcirValue::Var(read, AcirType::NumericType(typ)))
         })?;
