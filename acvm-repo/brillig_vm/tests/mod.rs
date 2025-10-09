@@ -195,8 +195,7 @@ fn jump_forward_and_backward() {
 fn stop() {
     // Create a vector in memory
     let vector_size: u32 = 100;
-    let calldata: Vec<FieldElement> =
-        (0..vector_size).into_iter().map(FieldElement::from).collect();
+    let calldata: Vec<FieldElement> = (0..vector_size).map(FieldElement::from).collect();
 
     let calldata_pointer = MemoryAddress::Direct(calldata.len());
 
