@@ -297,7 +297,7 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString, Registers: Re
 
 /// Converts a [BrilligVariable] into a heap-allocated [HeapArray]
 /// suitable for use as an input to a Brillig [BlackBoxOp].
-/// 
+///
 /// # Panics
 /// If the input is not a [BrilligVariable::BrilligArray]
 fn get_heap_array<F: AcirField + DebugToString, Registers: RegisterAllocator>(
