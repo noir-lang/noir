@@ -1,4 +1,4 @@
-use crate::{HeapArray, MemoryAddress, opcodes::HeapVector};
+use crate::{HeapArray, MemoryAddress};
 use serde::{Deserialize, Serialize};
 
 /// These opcodes provide an equivalent of ACIR blackbox functions.
@@ -7,16 +7,16 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum BlackBoxOp {
     /// Encrypts a message using AES128.
-    AES128Encrypt { inputs: HeapVector, iv: HeapArray, key: HeapArray, outputs: HeapVector },
+    AES128Encrypt { inputs: HeapArray, iv: HeapArray, key: HeapArray, outputs: HeapArray },
     /// Calculates the Blake2s hash of the inputs.
-    Blake2s { message: HeapVector, output: HeapArray },
+    Blake2s { message: HeapArray, output: HeapArray },
     /// Calculates the Blake3 hash of the inputs.
-    Blake3 { message: HeapVector, output: HeapArray },
+    Blake3 { message: HeapArray, output: HeapArray },
     /// Keccak Permutation function of 1600 width
     Keccakf1600 { input: HeapArray, output: HeapArray },
     /// Verifies a ECDSA signature over the secp256k1 curve.
     EcdsaSecp256k1 {
-        hashed_msg: HeapVector,
+        hashed_msg: HeapArray,
         public_key_x: HeapArray,
         public_key_y: HeapArray,
         signature: HeapArray,
@@ -24,14 +24,14 @@ pub enum BlackBoxOp {
     },
     /// Verifies a ECDSA signature over the secp256r1 curve.
     EcdsaSecp256r1 {
-        hashed_msg: HeapVector,
+        hashed_msg: HeapArray,
         public_key_x: HeapArray,
         public_key_y: HeapArray,
         signature: HeapArray,
         result: MemoryAddress,
     },
     /// Performs multi scalar multiplication over the embedded curve.
-    MultiScalarMul { points: HeapVector, scalars: HeapVector, outputs: HeapArray },
+    MultiScalarMul { points: HeapArray, scalars: HeapArray, outputs: HeapArray },
     /// Performs addition over the embedded curve.
     EmbeddedCurveAdd {
         input1_x: MemoryAddress,
@@ -44,7 +44,7 @@ pub enum BlackBoxOp {
     },
     /// Applies the Poseidon2 permutation function to the given state,
     /// outputting the permuted state.
-    Poseidon2Permutation { message: HeapVector, output: HeapArray },
+    Poseidon2Permutation { message: HeapArray, output: HeapArray },
     /// Applies the SHA-256 compression function to the input message
     Sha256Compression { input: HeapArray, hash_values: HeapArray, output: HeapArray },
     /// Returns a decomposition in `num_limbs` limbs of the given input over the given radix.

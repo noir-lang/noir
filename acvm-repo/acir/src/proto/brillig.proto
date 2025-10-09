@@ -202,17 +202,17 @@ message BlackBoxOp {
     ToRadix to_radix = 11;
   }
   message AES128Encrypt {
-    HeapVector inputs = 1;
+    HeapArray inputs = 1;
     HeapArray iv = 2;
     HeapArray key = 3;
-    HeapVector outputs = 4;
+    HeapArray outputs = 4;
   }
   message Blake2s {
-    HeapVector message = 1;
+    HeapArray message = 1;
     HeapArray output = 2;
   }
   message Blake3 {
-    HeapVector message = 1;
+    HeapArray message = 1;
     HeapArray output = 2;
   }
   message Keccakf1600 {
@@ -220,14 +220,14 @@ message BlackBoxOp {
     HeapArray output = 2;
   }
   message EcdsaSecp256k1 {
-    HeapVector hashed_msg = 1;
+    HeapArray hashed_msg = 1;
     HeapArray public_key_x = 2;
     HeapArray public_key_y = 3;
     HeapArray signature = 4;
     MemoryAddress result = 5;
   }
   message EcdsaSecp256r1 {
-    HeapVector hashed_msg = 1;
+    HeapArray hashed_msg = 1;
     HeapArray public_key_x = 2;
     HeapArray public_key_y = 3;
     HeapArray signature = 4;
@@ -235,8 +235,8 @@ message BlackBoxOp {
   }
 
   message MultiScalarMul {
-    HeapVector points = 1;
-    HeapVector scalars = 2;
+    HeapArray points = 1;
+    HeapArray scalars = 2;
     HeapArray outputs = 3;
   }
   message EmbeddedCurveAdd {
@@ -249,7 +249,7 @@ message BlackBoxOp {
     HeapArray result = 7;
   }
   message Poseidon2Permutation {
-    HeapVector message = 1;
+    HeapArray message = 1;
     HeapArray output = 2;
   }
   message Sha256Compression {
