@@ -423,7 +423,7 @@ mod tests {
     fn write_and_read_slice() {
         let mut memory = Memory::<FieldElement>::default();
         // [1, 2, 3, 4, 5]
-        let values: Vec<_> = (1..=5).map(|x| MemoryValue::U32(x)).collect();
+        let values: Vec<_> = (1..=5).map(MemoryValue::U32).collect();
 
         // Write at an address > 0 to show resizing
         memory.write_slice(MemoryAddress::direct(2), &values);
