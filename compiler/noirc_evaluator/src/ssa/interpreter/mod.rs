@@ -1065,7 +1065,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         let is_slice = matches!(&result_type, Type::Slice(..));
 
         // The number of elements in the array must be a multiple of the number of element types
-        let element_types = result_type.clone().element_types();
+        let element_types = result_type.element_types();
         if element_types.is_empty() {
             if !elements.is_empty() {
                 return Err(internal(InternalError::MakeArrayElementCountMismatch {

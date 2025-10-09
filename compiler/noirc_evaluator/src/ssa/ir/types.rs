@@ -234,9 +234,9 @@ impl Type {
     /// Return the types of items in this array/slice.
     ///
     /// Panics if `self` is not a [`Type::Array`] or [`Type::Slice`].
-    pub(crate) fn element_types(self) -> Arc<Vec<Type>> {
+    pub(crate) fn element_types(&self) -> Arc<Vec<Type>> {
         match self {
-            Type::Array(element_types, _) | Type::Slice(element_types) => element_types,
+            Type::Array(element_types, _) | Type::Slice(element_types) => element_types.clone(),
             other => panic!("element_types: Expected array or slice, found {other}"),
         }
     }
