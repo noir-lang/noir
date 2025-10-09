@@ -825,8 +825,8 @@ mod tests {
     fn simplifies_slice_refcount_in_acir_to_zero() {
         let src = r#"
         acir(inline) fn main func {
-          b0(v0: [Field; 3]):
-            v1 = call slice_refcount(v0) -> u32
+          b0(v0: [Field]):
+            v1 = call slice_refcount(u32 3, v0) -> u32
             return v1
         }
         "#;
@@ -834,7 +834,7 @@ mod tests {
 
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
-          b0(v0: [Field; 3]):
+          b0(v0: [Field]):
             return u32 0
         }
         ");
@@ -844,17 +844,18 @@ mod tests {
     fn does_not_simplify_slice_refcount_in_brillig() {
         let src = r#"
         brillig(inline) fn main func {
-          b0(v0: [Field; 3]):
-            v1 = call slice_refcount(v0) -> u32
+          b0(v0: [Field]):
+            v1 = call slice_refcount(u32 3, v0) -> u32
             return v1
         }
         "#;
         let ssa = Ssa::from_str_simplifying(src).unwrap();
 
         assert_ssa_snapshot!(ssa, @r"
-        acir(inline) fn main f0 {
-          b0(v0: [Field; 3]):
-            return u32 0
+        brillig(inline) fn main f0 {
+          b0(v0: [Field]):
+            v3 = call slice_refcount(u32 3, v0) -> u32
+            return v3
         }
         ");
     }
