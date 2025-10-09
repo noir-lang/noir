@@ -190,9 +190,7 @@ pub(crate) fn flat_numeric_types(typ: &crate::ssa::ir::types::Type) -> Vec<Numer
             }
             flat_types
         }
-        Type::Function => panic!("Called flat_numeric_types on a function type"),
-        Type::Reference(_) => panic!("Called flat_numeric_types on a reference type"),
-        Type::Numeric(_) => panic!("Called flat_numeric_types on a numeric type"),
+        _ => panic!("Called flat_numeric_types on a non-array/slice type"),
     }
 }
 
