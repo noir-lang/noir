@@ -8,11 +8,12 @@ pub(crate) fn to_u8_array<const N: usize, F: AcirField>(
 ) -> Result<[u8; N], OpcodeResolutionError<F>> {
     let mut result = [0; N];
     for (it, input) in result.iter_mut().zip(inputs) {
-        let witness_value_bytes = input_to_value(initial_witness, *input, false)?.to_be_bytes();
-        let byte = witness_value_bytes
-            .last()
-            .expect("Field element must be represented by non-zero amount of bytes");
-        *it = *byte;
+        let byte: u8 = input_to_value(initial_witness, *input)?
+            .try_into_u128()
+            .expect("expected input to fit into a u8")
+            .try_into()
+            .expect("expected input to fit into a u8");
+        *it = byte;
     }
     Ok(result)
 }
@@ -23,11 +24,12 @@ pub(crate) fn to_u8_vec<F: AcirField>(
 ) -> Result<Vec<u8>, OpcodeResolutionError<F>> {
     let mut result = Vec::with_capacity(inputs.len());
     for input in inputs {
-        let witness_value_bytes = input_to_value(initial_witness, *input, false)?.to_be_bytes();
-        let byte = witness_value_bytes
-            .last()
-            .expect("Field element must be represented by non-zero amount of bytes");
-        result.push(*byte);
+        let byte: u8 = input_to_value(initial_witness, *input)?
+            .try_into_u128()
+            .expect("expected input to fit into a u8")
+            .try_into()
+            .expect("expected input to fit into a u8");
+        result.push(byte);
     }
     Ok(result)
 }

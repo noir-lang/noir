@@ -3,7 +3,7 @@ import { TEST_LOG_LEVEL } from '../environment.js';
 import { Logger } from 'tslog';
 import { acvm, abi, Noir } from '@noir-lang/noir_js';
 
-import { Barretenberg, deflattenFields, RawBuffer, UltraHonkBackend } from '@aztec/bb.js';
+import { Barretenberg, deflattenFields, RawBuffer, UltraHonkBackend, UltraHonkVerifierBackend } from '@aztec/bb.js';
 import { getFile } from './utils.js';
 import { InputMap } from '@noir-lang/noirc_abi';
 import { createFileManager, compile } from '@noir-lang/noir_wasm';
@@ -49,8 +49,11 @@ describe('It compiles noir program code, receiving circuit bytes and abi object.
 
     // Get verification key for inner circuit as fields
     const innerCircuitVerificationKey = await main_backend.getVerificationKey();
+    main_backend.destroy();
+
     const barretenbergAPI = await Barretenberg.new({ threads: 1 });
     const vkAsFields = await barretenbergAPI.acirVkAsFieldsUltraHonk(new RawBuffer(innerCircuitVerificationKey));
+    barretenbergAPI.destroy();
 
     const recursion_inputs: InputMap = {
       verification_key: vkAsFields.map((field) => field.toString()),
@@ -69,9 +72,12 @@ describe('It compiles noir program code, receiving circuit bytes and abi object.
 
     const { witness: recursion_witnessUint8Array } = await new Noir(recursion_program).execute(recursion_inputs);
 
+    logger.debug('About to generate proof...');
     const recursion_proof = await recursion_backend.generateProof(recursion_witnessUint8Array);
+    const verificationKey = await recursion_backend.getVerificationKey();
 
-    const recursion_verification = await recursion_backend.verifyProof(recursion_proof);
+    const verifierBackend = new UltraHonkVerifierBackend({ logger: debugLogger }, { recursive: false });
+    const recursion_verification = await verifierBackend.verifyProof({ ...recursion_proof, verificationKey });
 
     logger.debug('recursion_verification', recursion_verification);
 

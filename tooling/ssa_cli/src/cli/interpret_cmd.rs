@@ -104,6 +104,7 @@ fn abi_from_ssa(ssa: &Ssa) -> Abi {
     let visibility = AbiVisibility::Public;
 
     let parameters = main
+        .view()
         .parameter_types()
         .iter()
         .enumerate()
@@ -115,6 +116,7 @@ fn abi_from_ssa(ssa: &Ssa) -> Abi {
         .collect();
 
     let return_type = main
+        .view()
         .return_types()
         .filter(|ts| !ts.is_empty())
         .map(|types| AbiReturnType { abi_type: abi_type_from_multi_ssa(&types), visibility });
