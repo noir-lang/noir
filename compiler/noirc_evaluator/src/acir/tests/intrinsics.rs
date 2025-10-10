@@ -536,7 +536,7 @@ fn as_slice_for_composite_slice() {
     ";
     let program = ssa_to_acir_program(src);
 
-    // Note that 4 is incorrectly returned as the length, when 2 is the correct value
+    // Note that 2 is returned, not 4 (as there are two `(Field, Field)` elements)
     assert_circuit_snapshot!(program, @r"
     func 0
     private parameters: []
@@ -546,6 +546,6 @@ fn as_slice_for_composite_slice() {
     ASSERT w2 = 20
     ASSERT w3 = 30
     ASSERT w4 = 40
-    ASSERT w0 = 4
+    ASSERT w0 = 2
     ");
 }
