@@ -677,7 +677,29 @@
 <a href="#676" id="676">676</a>
 <a href="#677" id="677">677</a>
 <a href="#678" id="678">678</a>
-<a href="#679" id="679">679</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, collections::BTreeMap, fmt::Display};
+<a href="#679" id="679">679</a>
+<a href="#680" id="680">680</a>
+<a href="#681" id="681">681</a>
+<a href="#682" id="682">682</a>
+<a href="#683" id="683">683</a>
+<a href="#684" id="684">684</a>
+<a href="#685" id="685">685</a>
+<a href="#686" id="686">686</a>
+<a href="#687" id="687">687</a>
+<a href="#688" id="688">688</a>
+<a href="#689" id="689">689</a>
+<a href="#690" id="690">690</a>
+<a href="#691" id="691">691</a>
+<a href="#692" id="692">692</a>
+<a href="#693" id="693">693</a>
+<a href="#694" id="694">694</a>
+<a href="#695" id="695">695</a>
+<a href="#696" id="696">696</a>
+<a href="#697" id="697">697</a>
+<a href="#698" id="698">698</a>
+<a href="#699" id="699">699</a>
+<a href="#700" id="700">700</a>
+<a href="#701" id="701">701</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, collections::BTreeMap, fmt::Display};
 
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{
@@ -1139,6 +1161,28 @@
             InlineType::InlineAlways =&gt; <span class="bool-val">false</span>,
             InlineType::Fold =&gt; <span class="bool-val">true</span>,
             InlineType::NoPredicates =&gt; <span class="bool-val">false</span>,
+        }
+    }
+
+    <span class="doccomment">/// Produce an `InlineType` which we can use with an unconstrained version of a function.
+    </span><span class="kw">pub fn </span>into_unconstrained(<span class="self">self</span>) -&gt; <span class="self">Self </span>{
+        <span class="kw">match </span><span class="self">self </span>{
+            InlineType::Inline | InlineType::InlineAlways =&gt; <span class="self">self</span>,
+            InlineType::Fold =&gt; {
+                <span class="comment">// The #[fold] attribute is about creating separate ACIR circuits for proving,
+                // not relevant in Brillig. Leaving it violates some expectations that each
+                // will become its own entry point.
+                </span><span class="self">Self</span>::default()
+            }
+            InlineType::NoPredicates =&gt; {
+                <span class="comment">// The #[no_predicates] are guaranteed to be inlined after flattening,
+                // which is needed for some of the programs even in Brillig, otherwise
+                // some intrinsics can survive until Brillig-gen that weren't supposed to.
+                // We can keep these, or try inlining more aggressively, since we don't
+                // have to wait until after flattening in Brillig, but InlineAlways
+                // resulted in some Brillig bytecode size regressions.
+                </span><span class="self">self
+            </span>}
         }
     }
 }

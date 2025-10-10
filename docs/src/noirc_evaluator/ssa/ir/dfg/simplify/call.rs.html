@@ -775,7 +775,15 @@
 <a href="#774" id="774">774</a>
 <a href="#775" id="775">775</a>
 <a href="#776" id="776">776</a>
-<a href="#777" id="777">777</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
+<a href="#777" id="777">777</a>
+<a href="#778" id="778">778</a>
+<a href="#779" id="779">779</a>
+<a href="#780" id="780">780</a>
+<a href="#781" id="781">781</a>
+<a href="#782" id="782">782</a>
+<a href="#783" id="783">783</a>
+<a href="#784" id="784">784</a>
+<a href="#785" id="785">785</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
 <span class="kw">use </span>std::{collections::VecDeque, sync::Arc};
 
@@ -1476,7 +1484,15 @@
     values.iter().all(|value| dfg.get_numeric_constant(<span class="kw-2">*</span>value).is_some())
 }
 
-<span class="kw">fn </span>simplify_derive_generators(
+<span class="doccomment">/// Replaces a call to `derive_pedersen_generators` with the results of the computation.
+///
+/// It only works if the arguments to the call are both constants, which means that the
+/// function which contains this call needs to be inlined into its caller, where the
+/// arguments are known. This is taken care of by the `#[no_predicates]` attribute,
+/// which forces inlining after flattening.
+///
+/// This intrinsic must not reach Brillig-gen.
+</span><span class="kw">fn </span>simplify_derive_generators(
     dfg: <span class="kw-2">&amp;mut </span>DataFlowGraph,
     arguments: <span class="kw-2">&amp;</span>[ValueId],
     num_generators: u32,

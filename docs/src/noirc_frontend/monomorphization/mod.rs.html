@@ -2894,7 +2894,10 @@
 <a href="#2893" id="2893">2893</a>
 <a href="#2894" id="2894">2894</a>
 <a href="#2895" id="2895">2895</a>
-<a href="#2896" id="2896">2896</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
+<a href="#2896" id="2896">2896</a>
+<a href="#2897" id="2897">2897</a>
+<a href="#2898" id="2898">2898</a>
+<a href="#2899" id="2899">2899</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
 //! It accepts the type checked HIR as input and produces a monomorphized AST as output.
 //! This file implements the pass itself, while the AST is defined in the ast module.
 //!
@@ -3299,7 +3302,10 @@
         <span class="kw">let </span>unconstrained = <span class="self">self</span>.in_unconstrained_function;
 
         <span class="kw">let </span>attributes = <span class="self">self</span>.interner.function_attributes(<span class="kw-2">&amp;</span>f);
-        <span class="kw">let </span>inline_type = InlineType::from(attributes);
+        <span class="kw">let </span><span class="kw-2">mut </span>inline_type = InlineType::from(attributes);
+        <span class="kw">if </span>unconstrained {
+            inline_type = inline_type.into_unconstrained();
+        }
 
         <span class="kw">let </span>parameters = <span class="self">self</span>.parameters(<span class="kw-2">&amp;</span>meta.parameters)<span class="question-mark">?</span>;
         <span class="kw">let </span>body = <span class="self">self</span>.expr(body_expr_id)<span class="question-mark">?</span>;
