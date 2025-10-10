@@ -317,15 +317,39 @@ impl Context<'_> {
         let result_block_id = self.block_id(result_ids[1]);
         self.initialize_array(result_block_id, slice_size, None)?;
         let mut current_insert_index = 0;
+
+        // This caches each `is_after_insert` var for each index for an optimization that is
+        // explained below, above `is_after_insert`.
+        let mut cached_is_after_inserts = Vec::with_capacity(slice_size);
+
         for i in 0..slice_size {
             let current_index = self.acir_context.add_constant(i);
 
             // Check that we are above the lower bound of the insertion index
             let is_after_insert =
                 self.acir_context.more_than_eq_var(current_index, flat_user_index, 64)?;
+            cached_is_after_inserts.push(is_after_insert);
+
             // Check that we are below the upper bound of the insertion index
-            let is_before_insert =
-                self.acir_context.less_than_var(current_index, max_flat_user_index, 64)?;
+            let is_before_insert = if i >= inner_elem_size_usize {
+                // Optimization: we first note that `max_flat_user_index = flat_user_index + inner_elem_size`.
+                // Then we note that at each index we do these comparisons:
+                // - is_after_insert: `i >= flat_user_index`
+                // - is_before_insert: `i < (flat_user_index + inner_elem_size)`
+                //
+                // As `i` is incremented, for example to `i + n`, we get:
+                // - is_before_insert: `i + n < (flat_user_index + inner_elem_size)`
+                // If `n == inner_elem_size` then we have:
+                // - is_before_insert: `i + n < (flat_user_index + n)` which is equivalent to:
+                // - is_before_insert: `i < flat_user_index`
+                // Then we note that this is the opposite of `i >= flat_user_index`.
+                // So once `i >= inner_elem_size` we can use the previously made comparisons, negated,
+                // instead of performing them again (for dynamic indexes they incur a brillig call).
+                let cached_is_after_insert = cached_is_after_inserts[i - inner_elem_size_usize];
+                self.acir_context.sub_var(one, cached_is_after_insert)?
+            } else {
+                self.acir_context.less_than_var(current_index, max_flat_user_index, 64)?
+            };
 
             // Read from the original slice the value we want to insert into our new slice.
             // We need to make sure that we read the previous element when our current index is greater than insertion index.
