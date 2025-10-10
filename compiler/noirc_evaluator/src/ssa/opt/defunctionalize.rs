@@ -21,7 +21,7 @@
 //! fn apply(function_id: Field, arg1: Field, arg2: Field) -> Field {
 //!     match function_id {
 //!         0 -> function0(arg1, arg2),
-//!         1 -> function0(arg1, arg2),
+//!         1 -> function1(arg1, arg2),
 //!         ...
 //!         N -> functionN(arg1, arg2),
 //!     }
@@ -59,7 +59,7 @@ use rustc_hash::FxHashMap as HashMap;
 /// fn apply(function_id: Field, arg1: Field, arg2: Field) -> Field {
 ///     match function_id {
 ///         0 -> function0(arg1, arg2),
-///         1 -> function0(arg1, arg2),
+///         1 -> function1(arg1, arg2),
 ///         ...
 ///         N -> functionN(arg1, arg2),
 ///     }
@@ -75,7 +75,7 @@ struct ApplyFunction {
 }
 
 /// All functions used as a value that share the same signature and runtime type
-/// Maps ([Signature], [RuntimeType]) -> Vec<[FunctionId]>
+/// Maps ([Signature], Caller [RuntimeType]) -> Vec<([FunctionId], Callee [RuntimeType])>
 type Variants = BTreeMap<(Signature, RuntimeType), Vec<(FunctionId, RuntimeType)>>;
 /// All generated apply functions for each grouping of function variants.
 /// Each apply function is handles a specific ([Signature], [RuntimeType]) group.
@@ -496,7 +496,7 @@ fn create_apply_functions(
         } else if pre_runtime_filter_len != 0 && caller_runtime.is_brillig() {
             // We had variants, but they were all filtered out.
             // Frontend bug: only ACIR variants in a Brillig group.
-            panic!("ICE: invalid defunctionalization: only ACIR variants for a Brillig runtime",);
+            panic!("ICE: invalid defunctionalization: only ACIR variants for a Brillig runtime");
         } else {
             // If no variants exist for a dynamic call we leave removing those dead calls and parameters to DIE.
             // However, we have to construct a dummy function for these dead calls as to keep a well formed SSA
@@ -546,7 +546,7 @@ fn create_apply_function(
     caller_runtime: RuntimeType,
     function_ids: Vec<(FunctionId, RuntimeType)>,
 ) -> FunctionId {
-    assert!(!function_ids.is_empty());
+    debug_assert!(function_ids.len() > 1, "only created dispatch for multiple functions");
     // Clone the user-defined globals and the function purities mapping,
     // which are shared across all functions.
     // We will be borrowing `ssa` mutably so we need to fetch this shared information
@@ -1093,7 +1093,7 @@ mod tests {
           acir(inline) fn main f0 {
             b0():
               call f1()
-              return f1 
+              return f1
           }
           acir(inline) fn bar f1 {
             b0():
