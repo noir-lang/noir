@@ -7,13 +7,7 @@ use crate::{
 #[test]
 fn brillig_blake2s() {
     let src = "
-    acir(inline) fn main f0 {
-      b0(v0: [u8; 10]):
-        v2 = call f1(v0) -> [u8; 32]
-        return
-    }
-
-    brillig(inline) fn foo f1 {
+    brillig(inline) fn foo f0 {
       b0(v0: [u8; 10]):
         v1 = call blake2s(v0) -> [u8; 32]
         return v1
@@ -21,7 +15,7 @@ fn brillig_blake2s() {
     ";
 
     let brillig = ssa_to_brillig_artifacts(src);
-    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(1)];
+    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
      0: call 0
@@ -42,20 +36,14 @@ fn brillig_blake2s() {
 #[test]
 fn brillig_blake3() {
     let src = "
-    acir(inline) fn main f0 {
-      b0(v0: [u8; 10]):
-        v2 = call f1(v0) -> [u8; 32]
-        return
-    }
-
-    brillig(inline) fn foo f1 {
+    brillig(inline) fn foo f0 {
       b0(v0: [u8; 10]):
         v1 = call blake3(v0) -> [u8; 32]
         return v1
     }
     ";
     let brillig = ssa_to_brillig_artifacts(src);
-    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(1)];
+    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
      0: call 0
@@ -76,13 +64,7 @@ fn brillig_blake3() {
 #[test]
 fn brillig_keccakf1600() {
     let src = "
-    acir(inline) fn main f0 {
-      b0(v0: [u64; 25]):
-        v2 = call f1(v0) -> [u64; 25]
-        return
-    }
-
-    brillig(inline) fn foo f1 {
+    brillig(inline) fn foo f0 {
       b0(v0: [u64; 25]):
         v1 = call keccakf1600(v0) -> [u64; 25]
         return v1
@@ -90,7 +72,7 @@ fn brillig_keccakf1600() {
     ";
 
     let brillig = ssa_to_brillig_artifacts(src);
-    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(1)];
+    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
      0: call 0
@@ -110,13 +92,7 @@ fn brillig_keccakf1600() {
 #[test]
 fn brillig_ecdsa_secp256k1() {
     let src = "
-    acir(inline) fn main f0 {
-      b0(v0: [u8; 32], v1: [u8; 32], v2: [u8; 64], v3: [u8; 32]):
-        v5 = call f1(v0, v1, v2, v3) -> u1
-        return
-    }
-
-    brillig(inline) fn foo f1 {
+    brillig(inline) fn foo f0 {
       b0(v0: [u8; 32], v1: [u8; 32], v2: [u8; 64], v3: [u8; 32]):
         v4 = call ecdsa_secp256k1(v0, v1, v2, v3, u1 1) -> u1
         return v4
@@ -124,7 +100,7 @@ fn brillig_ecdsa_secp256k1() {
     ";
 
     let brillig = ssa_to_brillig_artifacts(src);
-    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(1)];
+    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
      0: call 0
@@ -144,13 +120,7 @@ fn brillig_ecdsa_secp256k1() {
 #[test]
 fn brillig_ecdsa_secp256r1() {
     let src = "
-    acir(inline) fn main f0 {
-      b0(v0: [u8; 32], v1: [u8; 32], v2: [u8; 64], v3: [u8; 32]):
-        v5 = call f1(v0, v1, v2, v3) -> u1
-        return
-    }
-
-    brillig(inline) fn foo f1 {
+    brillig(inline) fn foo f0 {
       b0(v0: [u8; 32], v1: [u8; 32], v2: [u8; 64], v3: [u8; 32]):
         v4 = call ecdsa_secp256r1(v0, v1, v2, v3, u1 1) -> u1
         return v4
@@ -158,7 +128,7 @@ fn brillig_ecdsa_secp256r1() {
     ";
 
     let brillig = ssa_to_brillig_artifacts(src);
-    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(1)];
+    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
      0: call 0
@@ -178,13 +148,7 @@ fn brillig_ecdsa_secp256r1() {
 #[test]
 fn brillig_multi_scalar_mul() {
     let src = "
-    acir(inline) fn main f0 {
-      b0(v0: [(Field, Field, u1); 2], v1: [(Field, Field); 2]):
-        v3 = call f1(v0, v1) -> [(Field, Field, u1); 1]
-        return
-    }
-
-    brillig(inline) fn foo f1 {
+    brillig(inline) fn foo f0 {
       b0(v0: [(Field, Field, u1); 2], v1: [(Field, Field); 2]):
         v2 = call multi_scalar_mul(v0, v1, u1 1) -> [(Field, Field, u1); 1]
         return v2
@@ -192,7 +156,7 @@ fn brillig_multi_scalar_mul() {
     ";
 
     let brillig = ssa_to_brillig_artifacts(src);
-    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(1)];
+    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
      0: call 0
@@ -216,13 +180,7 @@ fn brillig_multi_scalar_mul() {
 #[test]
 fn brillig_embedded_curve_add() {
     let src = "
-    acir(inline) fn main f0 {
-      b0(v0: Field, v1: Field, v2: u1, v3: Field, v4: Field, v5: u1):
-        v7 = call f1(v0, v1, v2, v3, v4, v5) -> [(Field, Field, u1); 1]
-        return
-    }
-
-    brillig(inline) fn foo f1 {
+    brillig(inline) fn foo f0 {
       b0(v0: Field, v1: Field, v2: u1, v3: Field, v4: Field, v5: u1):
         v6 = call embedded_curve_add(v0, v1, v2, v3, v4, v5, u1 1) -> [(Field, Field, u1); 1]
         return v6
@@ -230,7 +188,7 @@ fn brillig_embedded_curve_add() {
     ";
 
     let brillig = ssa_to_brillig_artifacts(src);
-    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(1)];
+    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
      0: call 0
@@ -250,13 +208,7 @@ fn brillig_embedded_curve_add() {
 #[test]
 fn brillig_poseidon2_permutation() {
     let src = "
-    acir(inline) fn main f0 {
-      b0(v0: [Field; 4]):
-        v2 = call f1(v0) -> [Field; 4]
-        return
-    }
-
-    brillig(inline) fn foo f1 {
+    brillig(inline) fn foo f0 {
       b0(v0: [Field; 4]):
         v1 = call poseidon2_permutation(v0) -> [Field; 4]
         return v1
@@ -264,7 +216,7 @@ fn brillig_poseidon2_permutation() {
     ";
 
     let brillig = ssa_to_brillig_artifacts(src);
-    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(1)];
+    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
      0: call 0
@@ -285,20 +237,14 @@ fn brillig_poseidon2_permutation() {
 #[test]
 fn brillig_sha256_compression() {
     let src = "
-    acir(inline) fn main f0 {
-      b0(v0: [u32; 16], v1: [u32; 8]):
-        v3 = call f1(v0, v1) -> [u32; 8]
-        return
-    }
-
-    brillig(inline) fn foo f1 {
+    brillig(inline) fn foo f0 {
       b0(v0: [u32; 16], v1: [u32; 8]):
         v2 = call sha256_compression(v0, v1) -> [u32; 8]
         return v2
     }
     ";
     let brillig = ssa_to_brillig_artifacts(src);
-    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(1)];
+    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
      0: call 0
@@ -319,13 +265,7 @@ fn brillig_sha256_compression() {
 #[test]
 fn brillig_aes128_encrypt() {
     let src = "
-    acir(inline) fn main f0 {
-      b0(v0: [u8; 16], v1: [u8; 16], v2: [u8; 16]):
-        v4 = call f1(v0, v1, v2) -> [u8; 32]
-        return
-    }
-
-    brillig(inline) fn foo f1 {
+    brillig(inline) fn foo f0 {
       b0(v0: [u8; 16], v1: [u8; 16], v2: [u8; 16]):
         v3 = call aes128_encrypt(v0, v1, v2) -> [u8; 32]
         return v3
@@ -333,7 +273,7 @@ fn brillig_aes128_encrypt() {
     ";
 
     let brillig = ssa_to_brillig_artifacts(src);
-    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(1)];
+    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
      0: call 0

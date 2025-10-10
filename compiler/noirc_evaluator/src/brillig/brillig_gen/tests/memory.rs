@@ -7,14 +7,7 @@ use crate::{
 #[test]
 fn brillig_array_get() {
     let src = "
-    acir(inline) fn main f0 {
-      b0(v0: u32):
-        v2 = call f1(v0) -> u32
-        constrain v2 == u32 10
-        return
-    }
-
-    brillig(inline) fn foo f1 {
+    brillig(inline) fn foo f0 {
       b0(v0: u32):
         v1 = make_array [u32 10, u32 20, u32 30] : [u32; 3]
         v2 = array_get v1, index v0 -> u32
@@ -23,7 +16,7 @@ fn brillig_array_get() {
     ";
 
     let brillig = ssa_to_brillig_artifacts(src);
-    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(1)];
+    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
      0: call 0
@@ -53,14 +46,7 @@ fn brillig_array_get() {
 #[test]
 fn brillig_array_set() {
     let src = "
-    acir(inline) fn main f0 {
-      b0(v0: u32):
-        v2 = call f1(v0) -> u32
-        constrain v2 == u32 99
-        return
-    }
-
-    brillig(inline) fn foo f1 {
+    brillig(inline) fn foo f0 {
       b0(v0: u32):
         v1 = make_array [u32 10, u32 20, u32 30] : [u32; 3]
         v2 = array_set v1, index v0, value u32 99
@@ -70,7 +56,7 @@ fn brillig_array_set() {
     ";
 
     let brillig = ssa_to_brillig_artifacts(src);
-    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(1)];
+    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
      0: call 0
@@ -108,14 +94,7 @@ fn brillig_array_set() {
 #[test]
 fn brillig_array_with_rc_ops() {
     let src = "
-    acir(inline) fn main f0 {
-      b0():
-        v1 = call f1() -> u32
-        constrain v1 == u32 99
-        return
-    }
-
-    brillig(inline) fn foo f1 {
+    brillig(inline) fn foo f0 {
       b0():
         v0 = make_array [u32 10, u32 20, u32 30] : [u32; 3]
         inc_rc v0
@@ -127,7 +106,7 @@ fn brillig_array_with_rc_ops() {
     ";
 
     let brillig = ssa_to_brillig_artifacts(src);
-    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(1)];
+    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
      0: call 0

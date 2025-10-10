@@ -7,14 +7,7 @@ use crate::{
 #[test]
 fn brillig_add() {
     let src = "
-    acir(inline) fn main f0 {
-      b0(v0: u32, v1: u32, v2: u32):
-        v4 = call f1(v0, v1) -> u32
-        constrain v4 == v2
-        return
-    }
-       
-    brillig(inline) fn foo f1 {
+    brillig(inline) fn foo f0 {
       b0(v0: u32, v1: u32):
         v2 = add v0, v1
         return v2
@@ -22,7 +15,7 @@ fn brillig_add() {
     ";
 
     let brillig = ssa_to_brillig_artifacts(src);
-    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(1)];
+    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
     0: call 0
@@ -39,14 +32,7 @@ fn brillig_add() {
 #[test]
 fn brillig_sub() {
     let src = "
-    acir(inline) fn main f0 {
-      b0(v0: u32, v1: u32, v2: u32):
-        v4 = call f1(v0, v1) -> u32
-        constrain v4 == v2
-        return
-    }
-
-    brillig(inline) fn foo f1 {
+    brillig(inline) fn foo f0 {
       b0(v0: u32, v1: u32):
         v2 = sub v0, v1
         return v2
@@ -54,7 +40,7 @@ fn brillig_sub() {
     ";
 
     let brillig = ssa_to_brillig_artifacts(src);
-    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(1)];
+    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
     0: call 0
@@ -71,14 +57,7 @@ fn brillig_sub() {
 #[test]
 fn brillig_mul() {
     let src = "
-    acir(inline) fn main f0 {
-      b0(v0: u32, v1: u32, v2: u32):
-        v4 = call f1(v0, v1) -> u32
-        constrain v4 == v2
-        return
-    }
-
-    brillig(inline) fn foo f1 {
+    brillig(inline) fn foo f0 {
       b0(v0: u32, v1: u32):
         v2 = mul v0, v1
         return v2
@@ -86,7 +65,7 @@ fn brillig_mul() {
     ";
 
     let brillig = ssa_to_brillig_artifacts(src);
-    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(1)];
+    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
      0: call 0
@@ -107,14 +86,7 @@ fn brillig_mul() {
 #[test]
 fn brillig_div() {
     let src = "
-    acir(inline) fn main f0 {
-      b0(v0: u32, v1: u32, v2: u32):
-        v4 = call f1(v0, v1) -> u32
-        constrain v4 == v2
-        return
-    }
-
-    brillig(inline) fn foo f1 {
+    brillig(inline) fn foo f0 {
       b0(v0: u32, v1: u32):
         v2 = div v0, v1
         return v2
@@ -122,7 +94,7 @@ fn brillig_div() {
     ";
 
     let brillig = ssa_to_brillig_artifacts(src);
-    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(1)];
+    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
     0: call 0
@@ -136,21 +108,14 @@ fn brillig_div() {
 #[test]
 fn brillig_mod() {
     let src = "
-    acir(inline) fn main f0 {
-      b0(v0: u32, v1: u32, v2: u32):
-        v4 = call f1(v0, v1) -> u32
-        constrain v4 == v2
-        return
-    }
-
-    brillig(inline) fn foo f1 {
+    brillig(inline) fn foo f0 {
       b0(v0: u32, v1: u32):
         v2 = mod v0, v1
         return v2
     }
     ";
     let brillig = ssa_to_brillig_artifacts(src);
-    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(1)];
+    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
     0: call 0
@@ -166,14 +131,7 @@ fn brillig_mod() {
 #[test]
 fn brillig_eq() {
     let src = "
-    acir(inline) fn main f0 {
-      b0(v0: u32, v1: u32, v2: u1):
-        v4 = call f1(v0, v1) -> u1
-        constrain v4 == v2
-        return
-    }
-
-    brillig(inline) fn foo f1 {
+    brillig(inline) fn foo f0 {
       b0(v0: u32, v1: u32):
         v2 = eq v0, v1
         return v2
@@ -181,7 +139,7 @@ fn brillig_eq() {
     ";
 
     let brillig = ssa_to_brillig_artifacts(src);
-    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(1)];
+    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
     0: call 0
@@ -195,14 +153,7 @@ fn brillig_eq() {
 #[test]
 fn brillig_lt() {
     let src = "
-    acir(inline) fn main f0 {
-      b0(v0: u32, v1: u32, v2: u1):
-        v4 = call f1(v0, v1) -> u1
-        constrain v4 == v2
-        return
-    }
-
-    brillig(inline) fn foo f1 {
+    brillig(inline) fn foo f0 {
       b0(v0: u32, v1: u32):
         v2 = lt v0, v1
         return v2
@@ -210,7 +161,7 @@ fn brillig_lt() {
     ";
 
     let brillig = ssa_to_brillig_artifacts(src);
-    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(1)];
+    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
     0: call 0
@@ -224,14 +175,7 @@ fn brillig_lt() {
 #[test]
 fn brillig_and() {
     let src = "
-    acir(inline) fn main f0 {
-      b0(v0: u32, v1: u32, v2: u32):
-        v4 = call f1(v0, v1) -> u32
-        constrain v4 == v2
-        return
-    }
-
-    brillig(inline) fn foo f1 {
+    brillig(inline) fn foo f0 {
       b0(v0: u32, v1: u32):
         v2 = and v0, v1
         return v2
@@ -239,7 +183,7 @@ fn brillig_and() {
     ";
 
     let brillig = ssa_to_brillig_artifacts(src);
-    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(1)];
+    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
     0: call 0
@@ -253,14 +197,7 @@ fn brillig_and() {
 #[test]
 fn brillig_or() {
     let src = "
-    acir(inline) fn main f0 {
-      b0(v0: u32, v1: u32, v2: u32):
-        v4 = call f1(v0, v1) -> u32
-        constrain v4 == v2
-        return
-    }
-
-    brillig(inline) fn foo f1 {
+    brillig(inline) fn foo f0 {
       b0(v0: u32, v1: u32):
         v2 = or v0, v1
         return v2
@@ -268,7 +205,7 @@ fn brillig_or() {
     ";
 
     let brillig = ssa_to_brillig_artifacts(src);
-    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(1)];
+    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
     0: call 0
@@ -282,14 +219,7 @@ fn brillig_or() {
 #[test]
 fn brillig_xor() {
     let src = "
-    acir(inline) fn main f0 {
-      b0(v0: u32, v1: u32, v2: u32):
-        v4 = call f1(v0, v1) -> u32
-        constrain v4 == v2
-        return
-    }
-
-    brillig(inline) fn foo f1 {
+    brillig(inline) fn foo f0 {
       b0(v0: u32, v1: u32):
         v2 = xor v0, v1
         return v2
@@ -297,7 +227,7 @@ fn brillig_xor() {
     ";
 
     let brillig = ssa_to_brillig_artifacts(src);
-    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(1)];
+    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
     0: call 0
@@ -311,14 +241,7 @@ fn brillig_xor() {
 #[test]
 fn brillig_shl() {
     let src = "
-    acir(inline) fn main f0 {
-      b0(v0: u32, v1: u32, v2: u32):
-        v4 = call f1(v0, v1) -> u32
-        constrain v4 == v2
-        return
-    }
-
-    brillig(inline) fn foo f1 {
+    brillig(inline) fn foo f0 {
       b0(v0: u32, v1: u32):
         v2 = shl v0, v1
         return v2
@@ -326,7 +249,7 @@ fn brillig_shl() {
     ";
 
     let brillig = ssa_to_brillig_artifacts(src);
-    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(1)];
+    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
     0: call 0
@@ -340,14 +263,7 @@ fn brillig_shl() {
 #[test]
 fn brillig_shr() {
     let src = "
-    acir(inline) fn main f0 {
-      b0(v0: u32, v1: u32, v2: u32):
-        v4 = call f1(v0, v1) -> u32
-        constrain v4 == v2
-        return
-    }
-
-    brillig(inline) fn foo f1 {
+    brillig(inline) fn foo f0 {
       b0(v0: u32, v1: u32):
         v2 = shr v0, v1
         return v2
@@ -355,7 +271,7 @@ fn brillig_shr() {
     ";
 
     let brillig = ssa_to_brillig_artifacts(src);
-    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(1)];
+    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
     0: call 0
@@ -369,14 +285,7 @@ fn brillig_shr() {
 #[test]
 fn brillig_add_field() {
     let src = "
-    acir(inline) fn main f0 {
-      b0(v0: Field, v1: Field, v2: Field):
-        v4 = call f1(v0, v1) -> Field
-        constrain v4 == v2
-        return
-    }
-
-    brillig(inline) fn foo f1 {
+    brillig(inline) fn foo f0 {
       b0(v0: Field, v1: Field):
         v2 = add v0, v1
         return v2
@@ -384,7 +293,7 @@ fn brillig_add_field() {
     ";
 
     let brillig = ssa_to_brillig_artifacts(src);
-    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(1)];
+    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
     0: call 0
@@ -398,14 +307,7 @@ fn brillig_add_field() {
 #[test]
 fn brillig_sub_field() {
     let src = "
-    acir(inline) fn main f0 {
-      b0(v0: Field, v1: Field, v2: Field):
-        v4 = call f1(v0, v1) -> Field
-        constrain v4 == v2
-        return
-    }
-
-    brillig(inline) fn foo f1 {
+    brillig(inline) fn foo f0 {
       b0(v0: Field, v1: Field):
         v2 = sub v0, v1
         return v2
@@ -413,7 +315,7 @@ fn brillig_sub_field() {
     ";
 
     let brillig = ssa_to_brillig_artifacts(src);
-    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(1)];
+    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
     0: call 0
@@ -427,14 +329,7 @@ fn brillig_sub_field() {
 #[test]
 fn brillig_mul_field() {
     let src = "
-    acir(inline) fn main f0 {
-      b0(v0: Field, v1: Field, v2: Field):
-        v4 = call f1(v0, v1) -> Field
-        constrain v4 == v2
-        return
-    }
-
-    brillig(inline) fn foo f1 {
+    brillig(inline) fn foo f0 {
       b0(v0: Field, v1: Field):
         v2 = mul v0, v1
         return v2
@@ -442,7 +337,7 @@ fn brillig_mul_field() {
     ";
 
     let brillig = ssa_to_brillig_artifacts(src);
-    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(1)];
+    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
     0: call 0
@@ -456,14 +351,7 @@ fn brillig_mul_field() {
 #[test]
 fn brillig_div_field() {
     let src = "
-    acir(inline) fn main f0 {
-      b0(v0: Field, v1: Field, v2: Field):
-        v4 = call f1(v0, v1) -> Field
-        constrain v4 == v2
-        return
-    }
-
-    brillig(inline) fn foo f1 {
+    brillig(inline) fn foo f0 {
       b0(v0: Field, v1: Field):
         v2 = div v0, v1
         return v2
@@ -471,7 +359,7 @@ fn brillig_div_field() {
     ";
 
     let brillig = ssa_to_brillig_artifacts(src);
-    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(1)];
+    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
     0: call 0

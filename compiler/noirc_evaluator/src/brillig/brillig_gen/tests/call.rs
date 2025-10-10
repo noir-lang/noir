@@ -7,14 +7,7 @@ use crate::{
 #[test]
 fn brillig_array_len() {
     let src = "
-    acir(inline) fn main f0 {
-      b0():
-        v1 = call f1() -> u32
-        constrain v1 == u32 3
-        return
-    }
-
-    brillig(inline) fn foo f1 {
+    brillig(inline) fn foo f0 {
       b0():
         v0 = make_array [u32 10, u32 20, u32 30] : [u32; 3]
         v1 = call array_len(v0) -> u32
@@ -23,7 +16,7 @@ fn brillig_array_len() {
     ";
 
     let brillig = ssa_to_brillig_artifacts(src);
-    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(1)];
+    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
      0: call 0
@@ -50,14 +43,7 @@ fn brillig_array_len() {
 #[test]
 fn brillig_as_slice() {
     let src = "
-    acir(inline) fn main f0 {
-      b0():
-        v1 = call f1() -> u32
-        constrain v1 == u32 3
-        return
-    }
-
-    brillig(inline) fn foo f1 {
+    brillig(inline) fn foo f0 {
       b0():
         v0 = make_array [u32 10, u32 20, u32 30] : [u32; 3]
         v1, v2 = call as_slice(v0) -> (u32, [u32])
@@ -66,7 +52,7 @@ fn brillig_as_slice() {
     ";
 
     let brillig = ssa_to_brillig_artifacts(src);
-    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(1)];
+    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
      0: call 0
@@ -110,13 +96,7 @@ fn brillig_as_slice() {
 #[test]
 fn brillig_to_bits() {
     let src = "
-    acir(inline) fn main f0 {
-      b0(v0: Field):
-        v2 = call f1(v0) -> [u1; 8]
-        return
-    }
-
-    brillig(inline) fn foo f1 {
+    brillig(inline) fn foo f0 {
       b0(v0: Field):
         v1 = call to_le_bits(v0) -> [u1; 8]
         return v1
@@ -124,7 +104,7 @@ fn brillig_to_bits() {
     ";
 
     let brillig = ssa_to_brillig_artifacts(src);
-    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(1)];
+    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
      0: call 0
@@ -150,13 +130,7 @@ fn brillig_to_bits() {
 #[test]
 fn brillig_to_radix() {
     let src = "
-    acir(inline) fn main f0 {
-      b0(v0: Field, v1: u32):
-        v3 = call f1(v0, v1) -> [u8; 8]
-        return
-    }
-
-    brillig(inline) fn foo f1 {
+    brillig(inline) fn foo f0 {
       b0(v0: Field, v1: u32):
         v2 = call to_le_radix(v0, v1) -> [u8; 8]
         return v2
@@ -164,7 +138,7 @@ fn brillig_to_radix() {
     ";
 
     let brillig = ssa_to_brillig_artifacts(src);
-    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(1)];
+    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
      0: call 0
@@ -189,14 +163,7 @@ fn brillig_to_radix() {
 #[test]
 fn brillig_field_less_than() {
     let src = "
-    acir(inline) fn main f0 {
-      b0(v0: Field, v1: Field):
-        v3 = call f1(v0, v1) -> u1
-        constrain v3 == u1 1
-        return
-    }
-
-    brillig(inline) fn foo f1 {
+    brillig(inline) fn foo f0 {
       b0(v0: Field, v1: Field):
         v2 = call field_less_than(v0, v1) -> u1
         return v2
@@ -204,7 +171,7 @@ fn brillig_field_less_than() {
     ";
 
     let brillig = ssa_to_brillig_artifacts(src);
-    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(1)];
+    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
     0: call 0
@@ -218,13 +185,7 @@ fn brillig_field_less_than() {
 #[test]
 fn brillig_array_ref_count() {
     let src = "
-    acir(inline) fn main f0 {
-      b0():
-        v1 = call f1() -> u32
-        return
-    }
-
-    brillig(inline) fn foo f1 {
+    brillig(inline) fn foo f0 {
       b0():
         v0 = make_array [u32 10, u32 20, u32 30] : [u32; 3]
         v1 = call array_refcount(v0) -> u32
@@ -233,7 +194,7 @@ fn brillig_array_ref_count() {
     ";
 
     let brillig = ssa_to_brillig_artifacts(src);
-    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(1)];
+    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
      0: call 0
@@ -260,13 +221,7 @@ fn brillig_array_ref_count() {
 #[test]
 fn brillig_slice_ref_count() {
     let src = "
-    acir(inline) fn main f0 {
-      b0():
-        v3 = call f1() -> u32
-        return
-    }
-
-    brillig(inline) fn foo f1 {
+    brillig(inline) fn foo f0 {
       b0():
         v0 = make_array [u32 10, u32 20, u32 30] : [u32; 3]
         v1, v2 = call as_slice(v0) -> (u32, [u32])
@@ -276,7 +231,7 @@ fn brillig_slice_ref_count() {
     ";
 
     let brillig = ssa_to_brillig_artifacts(src);
-    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(1)];
+    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
      0: call 0
