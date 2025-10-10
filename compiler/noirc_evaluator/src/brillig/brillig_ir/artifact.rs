@@ -65,6 +65,18 @@ pub struct BrilligArtifact<F> {
     pub(crate) procedure_locations: BTreeMap<ProcedureId, (OpcodeLocation, OpcodeLocation)>,
 }
 
+impl<F: std::fmt::Display> std::fmt::Display for BrilligArtifact<F> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "fn {}", self.name)?;
+        let width = self.byte_code.len().to_string().len();
+        for (index, opcode) in self.byte_code.iter().enumerate() {
+            writeln!(f, "{index:>width$}: {opcode}")?;
+        }
+
+        Ok(())
+    }
+}
+
 /// A pointer to a location in the opcode.
 pub(crate) type OpcodeLocation = usize;
 
