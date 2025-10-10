@@ -31,7 +31,7 @@ mod intrinsics;
 
 /// Test utility for converting [ACIR gen artifacts][crate::acir::ssa::Artifacts]
 /// into the final [ACIR Program][Program] in order to use its parser and human-readable text format.
-pub(crate) fn ssa_to_acir_program(src: &str) -> Program<FieldElement> {
+fn ssa_to_acir_program(src: &str) -> Program<FieldElement> {
     ssa_to_acir_program_with_debug_info(src).0
 }
 
