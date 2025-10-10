@@ -478,8 +478,9 @@ impl InlineType {
                 // which is needed for some of the programs even in Brillig, otherwise
                 // some intrinsics can survive until Brillig-gen that weren't supposed to.
                 // We can keep these, or try inlining more aggressively, since we don't
-                // have to wait until after flattening in Brillig.
-                Self::InlineAlways
+                // have to wait until after flattening in Brillig, but InlineAlways
+                // resulted in some Brillig bytecode size regressions.
+                self
             }
         }
     }
