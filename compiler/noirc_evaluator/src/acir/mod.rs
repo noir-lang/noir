@@ -24,7 +24,7 @@ mod call;
 mod shared_context;
 pub(crate) mod ssa;
 #[cfg(test)]
-pub(crate) mod tests;
+mod tests;
 mod types;
 
 use crate::brillig::Brillig;
