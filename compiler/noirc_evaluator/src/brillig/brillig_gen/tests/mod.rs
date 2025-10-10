@@ -11,10 +11,10 @@ use crate::{
     ssa::ssa_gen::Ssa,
 };
 
-mod binary_test;
-mod black_box_test;
-mod call_test;
-mod memory_test;
+mod binary;
+mod black_box;
+mod call;
+mod memory;
 
 fn ssa_to_brillig_artifacts(src: &str) -> Brillig {
     let ssa = Ssa::from_str(src).unwrap();
