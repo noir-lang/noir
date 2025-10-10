@@ -427,7 +427,7 @@ impl<'f> LoopInvariantContext<'f> {
                     self.can_hoist_invariant(&loop_context, &block_context, instruction_id);
 
                 if hoist_invariant {
-                    self.inserter.push_instruction(instruction_id, pre_header);
+                    self.inserter.push_instruction(instruction_id, pre_header, false);
 
                     // If we are hoisting a MakeArray instruction,
                     // we need to issue an extra inc_rc in case they are mutated afterward.
@@ -452,7 +452,7 @@ impl<'f> LoopInvariantContext<'f> {
                     if !block_context.is_impure {
                         block_context.is_impure = dfg[instruction_id].has_side_effects(dfg);
                     }
-                    self.inserter.push_instruction(instruction_id, *block);
+                    self.inserter.push_instruction(instruction_id, *block, true);
                 }
 
                 // We will have new IDs after pushing instructions.
@@ -748,7 +748,7 @@ impl<'f> LoopInvariantContext<'f> {
 
         for block in block_order {
             for instruction_id in self.inserter.function.dfg[block].take_instructions() {
-                self.inserter.push_instruction(instruction_id, block);
+                self.inserter.push_instruction(instruction_id, block, true);
             }
             self.inserter.map_terminator_in_place(block);
         }

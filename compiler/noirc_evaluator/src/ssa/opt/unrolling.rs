@@ -1136,7 +1136,7 @@ impl<'f> LoopIteration<'f> {
         // instances of the induction variable or any values that were changed as a result
         // of the new induction variable value.
         for instruction in instructions {
-            self.inserter.push_instruction(instruction, self.insert_block);
+            self.inserter.push_instruction(instruction, self.insert_block, false);
         }
         let mut terminator = self.dfg()[self.source_block].unwrap_terminator().clone();
 
