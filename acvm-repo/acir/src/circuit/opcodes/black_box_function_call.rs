@@ -443,10 +443,8 @@ impl<F: std::fmt::Display + Copy> std::fmt::Display for BlackBoxFuncCall<F> {
                 let outputs = slice_to_string(outputs);
                 write!(f, "inputs: {inputs}, iv: {iv}, key: {key}, outputs: {outputs}")?;
             }
-            BlackBoxFuncCall::AND { lhs, rhs, num_bits, output } => {
-                write!(f, "lhs: {lhs}, rhs: {rhs}, output: {output}, bits: {num_bits}")?;
-            }
-            BlackBoxFuncCall::XOR { lhs, rhs, num_bits, output } => {
+            BlackBoxFuncCall::AND { lhs, rhs, num_bits, output }
+            | BlackBoxFuncCall::XOR { lhs, rhs, num_bits, output } => {
                 write!(f, "lhs: {lhs}, rhs: {rhs}, output: {output}, bits: {num_bits}")?;
             }
             BlackBoxFuncCall::RANGE { input, num_bits } => {
