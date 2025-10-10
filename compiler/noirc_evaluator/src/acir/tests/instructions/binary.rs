@@ -515,11 +515,55 @@ fn lt_u8() {
     return values: [w2]
     BLACKBOX::RANGE input: w0, bits: 8
     BLACKBOX::RANGE input: w1, bits: 8
-    BRILLIG CALL func: 0, inputs: [w0 - w1 + 256, 256], outputs: [w3, w4]
+    BRILLIG CALL func: 0, inputs: [-w0 + w1 + 255, 256], outputs: [w3, w4]
     BLACKBOX::RANGE input: w3, bits: 1
     BLACKBOX::RANGE input: w4, bits: 8
-    ASSERT w4 = w0 - w1 - 256*w3 + 256
-    ASSERT w3 = -w2 + 1
+    ASSERT w4 = -w0 + w1 - 256*w3 + 255
+    ASSERT w3 = w2
+
+    unconstrained func 0: directive_integer_quotient
+    0: @10 = const u32 2
+    1: @11 = const u32 0
+    2: @0 = calldata copy [@11; @10]
+    3: @2 = field int_div @0, @1
+    4: @1 = field mul @2, @1
+    5: @1 = field sub @0, @1
+    6: @0 = @2
+    7: stop &[@11; @10]
+    ");
+}
+
+#[test]
+fn not_lt_u8() {
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u8, v1: u8):
+        v2 = lt v0, v1
+        v3 = not v2
+        return v3
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    // This test exists to show that in ACIR we optimize `!(lhs < rhs)` to `lhs >= rhs`.
+    // As can be seen below, there's no `w = 1 - ...` opcode, meaning that we never
+    // end up inverting a value.
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0, w1]
+    public parameters: []
+    return values: [w2]
+    BLACKBOX::RANGE input: w0, bits: 8
+    BLACKBOX::RANGE input: w1, bits: 8
+    BRILLIG CALL func: 0, inputs: [-w0 + w1 + 255, 256], outputs: [w3, w4]
+    BLACKBOX::RANGE input: w3, bits: 1
+    BLACKBOX::RANGE input: w4, bits: 8
+    ASSERT w4 = -w0 + w1 - 256*w3 + 255
+    BRILLIG CALL func: 0, inputs: [w0 - w1 + 256, 256], outputs: [w5, w6]
+    BLACKBOX::RANGE input: w5, bits: 1
+    BLACKBOX::RANGE input: w6, bits: 8
+    ASSERT w6 = w0 - w1 - 256*w5 + 256
+    ASSERT w5 = w2
 
     unconstrained func 0: directive_integer_quotient
     0: @10 = const u32 2
