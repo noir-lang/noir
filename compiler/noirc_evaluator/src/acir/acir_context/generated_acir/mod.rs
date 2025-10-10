@@ -271,9 +271,14 @@ impl<F: AcirField> GeneratedAcir<F> {
             }
 
             BlackBoxFunc::EmbeddedCurveAdd => {
-                let [input1, input2, predicate] = into(function_inputs);
-                let [input1_0, input1_1, input1_2] = into(input1);
-                let [input2_0, input2_1, input2_2] = into(input2);
+                let [input1_0, input1_1, input1_2, input2_0, input2_1, input2_2, predicate] =
+                    into(function_inputs);
+                let [input1_0] = into(input1_0);
+                let [input1_1] = into(input1_1);
+                let [input1_2] = into(input1_2);
+                let [input2_0] = into(input2_0);
+                let [input2_1] = into(input2_1);
+                let [input2_2] = into(input2_2);
                 let [predicate] = into(predicate);
                 let [output0, output1, output2] = into(outputs);
                 BlackBoxFuncCall::EmbeddedCurveAdd {
