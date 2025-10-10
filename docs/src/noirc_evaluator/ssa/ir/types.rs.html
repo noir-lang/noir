@@ -387,7 +387,11 @@
 <a href="#386" id="386">386</a>
 <a href="#387" id="387">387</a>
 <a href="#388" id="388">388</a>
-<a href="#389" id="389">389</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
+<a href="#389" id="389">389</a>
+<a href="#390" id="390">390</a>
+<a href="#391" id="391">391</a>
+<a href="#392" id="392">392</a>
+<a href="#393" id="393">393</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_frontend::signed_field::SignedField;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
@@ -642,7 +646,11 @@
         }
     }
 
-    <span class="doccomment">/// Returns the flattened size of a Type
+    <span class="doccomment">/// Returns the flattened size of a Type.
+    ///
+    /// The flattened type is mostly useful in ACIR, where nested arrays are also flattened,
+    /// as opposed to SSA, where only tuples get flattened into the array they are in,
+    /// but nested arrays appear as a value ID.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>flattened_size(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u32 {
         <span class="kw">match </span><span class="self">self </span>{
             Type::Array(elements, len) =&gt; {
