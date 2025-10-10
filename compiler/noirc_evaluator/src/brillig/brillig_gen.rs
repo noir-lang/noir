@@ -94,7 +94,7 @@ pub(crate) fn gen_brillig_for(
 }
 
 #[cfg(test)]
-mod linking {
+mod entry_point {
     use crate::{
         assert_artifact_snapshot,
         brillig::{
