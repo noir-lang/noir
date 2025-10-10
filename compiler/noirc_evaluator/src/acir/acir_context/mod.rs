@@ -1311,7 +1311,7 @@ impl<F: AcirField> AcirContext<F> {
 
                     Ok::<(AcirVar, AcirType), InternalError>((
                         self.read_from_memory(block_id, &index_var)?,
-                        value_types[i].into(),
+                        value_types[i % value_types.len()].into(),
                     ))
                 })
             }
