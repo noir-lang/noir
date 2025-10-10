@@ -404,9 +404,8 @@ impl<'interner> Monomorphizer<'interner> {
 
         let attributes = self.interner.function_attributes(&f);
         let mut inline_type = InlineType::from(attributes);
-
-        if !inline_type.is_compatible(unconstrained) {
-            inline_type = InlineType::default();
+        if unconstrained {
+            inline_type = inline_type.into_unconstrained();
         }
 
         let parameters = self.parameters(&meta.parameters)?;
