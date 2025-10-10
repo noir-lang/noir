@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1760040300585,
+  "lastUpdate": 1760091048948,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23476,48 +23476,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "052462c5c3900c9214c0eff369ebd1bc4d4915f7",
-          "message": "chore: use new ACIR syntax in docs, and some tests (#10057)",
-          "timestamp": "2025-10-02T11:24:29Z",
-          "tree_id": "d6558c53e8c6a8b4b84e755cf30e45a7e90a0245",
-          "url": "https://github.com/noir-lang/noir/commit/052462c5c3900c9214c0eff369ebd1bc4d4915f7"
-        },
-        "date": 1759405671411,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 251784,
-            "range": "± 328",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 222966,
-            "range": "± 1202",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2783880,
-            "range": "± 6347",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -25569,6 +25527,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2791058,
             "range": "± 49006",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "d09585f1a9b1370c3be58ffb3477eb0fa4349fd7",
+          "message": "fix(ssa): SSA Interpreter handle overflow by promoting to Field (#10097)",
+          "timestamp": "2025-10-10T09:44:37Z",
+          "tree_id": "92260ad5a9fdd57165e3ccdc43ab7bfc592120aa",
+          "url": "https://github.com/noir-lang/noir/commit/d09585f1a9b1370c3be58ffb3477eb0fa4349fd7"
+        },
+        "date": 1760091023027,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 252216,
+            "range": "± 658",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 223184,
+            "range": "± 3879",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2257063,
+            "range": "± 8139",
             "unit": "ns/iter"
           }
         ]
