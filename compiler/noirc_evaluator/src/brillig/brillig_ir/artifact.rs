@@ -31,6 +31,17 @@ pub(crate) struct GeneratedBrillig<F> {
     pub(crate) procedure_locations: BTreeMap<ProcedureId, (OpcodeLocation, OpcodeLocation)>,
 }
 
+impl<F: std::fmt::Display> std::fmt::Display for GeneratedBrillig<F> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "fn {}", self.name)?;
+        let width = self.byte_code.len().to_string().len();
+        for (index, opcode) in self.byte_code.iter().enumerate() {
+            writeln!(f, "{index:>width$}: {opcode}")?;
+        }
+        Ok(())
+    }
+}
+
 #[derive(Default, Debug, Clone)]
 /// Artifacts resulting from the compilation of a function into brillig byte code.
 /// It includes the bytecode of the function and all the metadata that allows linking with other functions.
@@ -72,7 +83,6 @@ impl<F: std::fmt::Display> std::fmt::Display for BrilligArtifact<F> {
         for (index, opcode) in self.byte_code.iter().enumerate() {
             writeln!(f, "{index:>width$}: {opcode}")?;
         }
-
         Ok(())
     }
 }

@@ -1,4 +1,7 @@
-use crate::{assert_artifact_snapshot, brillig::brillig_gen::tests::ssa_to_brillig_artifacts, ssa::ir::map::Id};
+use crate::{
+    assert_artifact_snapshot, brillig::brillig_gen::tests::ssa_to_brillig_artifacts,
+    ssa::ir::map::Id,
+};
 
 // Tests array element access by index code-gen for Brillig.
 #[test]
@@ -65,7 +68,6 @@ fn brillig_array_set() {
         return v3
     }
     ";
-
 
     let brillig = ssa_to_brillig_artifacts(src);
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(1)];
