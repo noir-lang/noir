@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1760093235735,
+  "lastUpdate": 1760101050960,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23485,48 +23485,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "2e78193a001642b734c77a1285a5e68634288e67",
-          "message": "fix(fuzzer): Mark DivisionByZero with different types as equivalent (#10066)",
-          "timestamp": "2025-10-02T13:32:32Z",
-          "tree_id": "5793f2083bf6b6488cdc7cbb618f9c346764d4ea",
-          "url": "https://github.com/noir-lang/noir/commit/2e78193a001642b734c77a1285a5e68634288e67"
-        },
-        "date": 1759413532709,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 252628,
-            "range": "± 464",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 223225,
-            "range": "± 3795",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2786897,
-            "range": "± 2193",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "dc7973381c8f4a7fc96054c1d92e76b62a93eb11",
           "message": "chore(acir): SliceRemove refactor (#10058)\n\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
@@ -25569,6 +25527,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2788587,
             "range": "± 10862",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "cedc8ece905d141acdccbc691308f22fe09714c9",
+          "message": "chore(SSA): avoid consuming self when returning Arc (#10147)",
+          "timestamp": "2025-10-10T12:29:15Z",
+          "tree_id": "a3e6cec8098fdb1ba812cc0177508dfc4827e3ae",
+          "url": "https://github.com/noir-lang/noir/commit/cedc8ece905d141acdccbc691308f22fe09714c9"
+        },
+        "date": 1760101026001,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 266509,
+            "range": "± 395",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 234869,
+            "range": "± 2765",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2786413,
+            "range": "± 1360",
             "unit": "ns/iter"
           }
         ]
