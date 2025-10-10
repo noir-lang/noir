@@ -1,7 +1,5 @@
 fn main() -> pub [[Field; 1]; 1] {
-    let a = unsafe {
-        foo([[0xcafebabe]])
-    };
+    let a = unsafe { foo([[0xcafebabe]]) };
     assert(a[0][0] == 0xcafebabe);
     a
 }
