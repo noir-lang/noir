@@ -154,14 +154,7 @@
 <a href="#153" id="153">153</a>
 <a href="#154" id="154">154</a>
 <a href="#155" id="155">155</a>
-<a href="#156" id="156">156</a>
-<a href="#157" id="157">157</a>
-<a href="#158" id="158">158</a>
-<a href="#159" id="159">159</a>
-<a href="#160" id="160">160</a>
-<a href="#161" id="161">161</a>
-<a href="#162" id="162">162</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
-<span class="kw">use </span>iter_extended::vecmap;
+<a href="#156" id="156">156</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 
 <span class="kw">use </span><span class="kw">crate</span>::acir::{
     arrays,
@@ -171,7 +164,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
     dfg::DataFlowGraph,
     instruction::{Hint, Intrinsic},
-    types::{NumericType, Type},
+    types::Type,
     value::ValueId,
 };
 
@@ -294,17 +287,9 @@
                     .get_or_create_witness_var(input)
                     .map(|val| <span class="self">self</span>.convert_vars_to_values(<span class="macro">vec!</span>[val], dfg, result_ids))<span class="question-mark">?</span>)
             }
-            Intrinsic::ArrayAsStrUnchecked =&gt; <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[<span class="self">self</span>.convert_value(arguments[<span class="number">0</span>], dfg)]),
             Intrinsic::DerivePedersenGenerators =&gt; <span class="prelude-val">Err</span>(RuntimeError::AssertConstantFailed {
                 call_stack: <span class="self">self</span>.acir_context.get_call_stack(),
             }),
-            Intrinsic::ArrayRefCount | Intrinsic::SliceRefCount =&gt; {
-                <span class="kw">let </span>zero = <span class="self">self</span>.acir_context.add_constant(FieldElement::zero());
-                <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[AcirValue::Var(
-                    zero,
-                    AcirType::NumericType(NumericType::Unsigned { bit_size: <span class="number">32 </span>}),
-                )])
-            }
             Intrinsic::ApplyRangeConstraint =&gt; {
                 <span class="macro">unreachable!</span>(
                     <span class="string">"ICE: `Intrinsic::ApplyRangeConstraint` calls should be transformed into an `Instruction::RangeCheck`"
@@ -314,9 +299,12 @@
                 <span class="macro">unreachable!</span>(<span class="string">"FieldLessThan can only be called in unconstrained"</span>)
             }
             Intrinsic::IsUnconstrained
+            | Intrinsic::ArrayAsStrUnchecked
             | Intrinsic::StrAsBytes
             | Intrinsic::StaticAssert
-            | Intrinsic::AssertConstant =&gt; {
+            | Intrinsic::AssertConstant
+            | Intrinsic::ArrayRefCount
+            | Intrinsic::SliceRefCount =&gt; {
                 <span class="macro">unreachable!</span>(<span class="string">"Expected {intrinsic} to be removed by this point"</span>)
             }
         }

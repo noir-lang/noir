@@ -783,7 +783,92 @@
 <a href="#782" id="782">782</a>
 <a href="#783" id="783">783</a>
 <a href="#784" id="784">784</a>
-<a href="#785" id="785">785</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
+<a href="#785" id="785">785</a>
+<a href="#786" id="786">786</a>
+<a href="#787" id="787">787</a>
+<a href="#788" id="788">788</a>
+<a href="#789" id="789">789</a>
+<a href="#790" id="790">790</a>
+<a href="#791" id="791">791</a>
+<a href="#792" id="792">792</a>
+<a href="#793" id="793">793</a>
+<a href="#794" id="794">794</a>
+<a href="#795" id="795">795</a>
+<a href="#796" id="796">796</a>
+<a href="#797" id="797">797</a>
+<a href="#798" id="798">798</a>
+<a href="#799" id="799">799</a>
+<a href="#800" id="800">800</a>
+<a href="#801" id="801">801</a>
+<a href="#802" id="802">802</a>
+<a href="#803" id="803">803</a>
+<a href="#804" id="804">804</a>
+<a href="#805" id="805">805</a>
+<a href="#806" id="806">806</a>
+<a href="#807" id="807">807</a>
+<a href="#808" id="808">808</a>
+<a href="#809" id="809">809</a>
+<a href="#810" id="810">810</a>
+<a href="#811" id="811">811</a>
+<a href="#812" id="812">812</a>
+<a href="#813" id="813">813</a>
+<a href="#814" id="814">814</a>
+<a href="#815" id="815">815</a>
+<a href="#816" id="816">816</a>
+<a href="#817" id="817">817</a>
+<a href="#818" id="818">818</a>
+<a href="#819" id="819">819</a>
+<a href="#820" id="820">820</a>
+<a href="#821" id="821">821</a>
+<a href="#822" id="822">822</a>
+<a href="#823" id="823">823</a>
+<a href="#824" id="824">824</a>
+<a href="#825" id="825">825</a>
+<a href="#826" id="826">826</a>
+<a href="#827" id="827">827</a>
+<a href="#828" id="828">828</a>
+<a href="#829" id="829">829</a>
+<a href="#830" id="830">830</a>
+<a href="#831" id="831">831</a>
+<a href="#832" id="832">832</a>
+<a href="#833" id="833">833</a>
+<a href="#834" id="834">834</a>
+<a href="#835" id="835">835</a>
+<a href="#836" id="836">836</a>
+<a href="#837" id="837">837</a>
+<a href="#838" id="838">838</a>
+<a href="#839" id="839">839</a>
+<a href="#840" id="840">840</a>
+<a href="#841" id="841">841</a>
+<a href="#842" id="842">842</a>
+<a href="#843" id="843">843</a>
+<a href="#844" id="844">844</a>
+<a href="#845" id="845">845</a>
+<a href="#846" id="846">846</a>
+<a href="#847" id="847">847</a>
+<a href="#848" id="848">848</a>
+<a href="#849" id="849">849</a>
+<a href="#850" id="850">850</a>
+<a href="#851" id="851">851</a>
+<a href="#852" id="852">852</a>
+<a href="#853" id="853">853</a>
+<a href="#854" id="854">854</a>
+<a href="#855" id="855">855</a>
+<a href="#856" id="856">856</a>
+<a href="#857" id="857">857</a>
+<a href="#858" id="858">858</a>
+<a href="#859" id="859">859</a>
+<a href="#860" id="860">860</a>
+<a href="#861" id="861">861</a>
+<a href="#862" id="862">862</a>
+<a href="#863" id="863">863</a>
+<a href="#864" id="864">864</a>
+<a href="#865" id="865">865</a>
+<a href="#866" id="866">866</a>
+<a href="#867" id="867">867</a>
+<a href="#868" id="868">868</a>
+<a href="#869" id="869">869</a>
+<a href="#870" id="870">870</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
 <span class="kw">use </span>std::{collections::VecDeque, sync::Arc};
 
@@ -1131,8 +1216,15 @@
                 SimplifyResult::None
             }
         }
-        Intrinsic::ArrayRefCount =&gt; SimplifyResult::None,
-        Intrinsic::SliceRefCount =&gt; SimplifyResult::None,
+        Intrinsic::ArrayRefCount | Intrinsic::SliceRefCount =&gt; {
+            <span class="kw">if </span>dfg.runtime.is_acir() {
+                <span class="comment">// In ACIR, ref counts are not tracked so we always simplify them to zero.
+                </span><span class="kw">let </span>zero = dfg.make_constant(FieldElement::zero(), NumericType::unsigned(<span class="number">32</span>));
+                SimplifyResult::SimplifiedTo(zero)
+            } <span class="kw">else </span>{
+                SimplifyResult::None
+            }
+        }
     };
 
     <span class="kw">if let </span>(<span class="prelude-val">Some</span>(expected_types), SimplifyResult::SimplifiedTo(result)) =
@@ -1566,6 +1658,84 @@
             return v19
         }
         "#</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>simplifies_array_refcount_in_acir_to_zero() {
+        <span class="kw">let </span>src = <span class="string">r#"
+        acir(inline) fn main func {
+          b0(v0: [Field; 3]):
+            v1 = call array_refcount(v0) -&gt; u32
+            return v1
+        }
+        "#</span>;
+        <span class="kw">let </span>ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3]):
+            return u32 0
+        }
+        "</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>does_not_simplify_array_refcount_in_brillig() {
+        <span class="kw">let </span>src = <span class="string">r#"
+        brillig(inline) fn main func {
+          b0(v0: [Field; 3]):
+            v1 = call array_refcount(v0) -&gt; u32
+            return v1
+        }
+        "#</span>;
+        <span class="kw">let </span>ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+        brillig(inline) fn main f0 {
+          b0(v0: [Field; 3]):
+            v2 = call array_refcount(v0) -&gt; u32
+            return v2
+        }
+        "</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>simplifies_slice_refcount_in_acir_to_zero() {
+        <span class="kw">let </span>src = <span class="string">r#"
+        acir(inline) fn main func {
+          b0(v0: [Field]):
+            v1 = call slice_refcount(u32 3, v0) -&gt; u32
+            return v1
+        }
+        "#</span>;
+        <span class="kw">let </span>ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+        acir(inline) fn main f0 {
+          b0(v0: [Field]):
+            return u32 0
+        }
+        "</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>does_not_simplify_slice_refcount_in_brillig() {
+        <span class="kw">let </span>src = <span class="string">r#"
+        brillig(inline) fn main func {
+          b0(v0: [Field]):
+            v1 = call slice_refcount(u32 3, v0) -&gt; u32
+            return v1
+        }
+        "#</span>;
+        <span class="kw">let </span>ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+        brillig(inline) fn main f0 {
+          b0(v0: [Field]):
+            v3 = call slice_refcount(u32 3, v0) -&gt; u32
+            return v3
+        }
+        "</span>);
     }
 }
 </code></pre></div></section></main></body></html>
