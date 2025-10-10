@@ -2948,7 +2948,7 @@
         <span class="kw">let </span>is_slice = <span class="macro">matches!</span>(<span class="kw-2">&amp;</span>result_type, Type::Slice(..));
 
         <span class="comment">// The number of elements in the array must be a multiple of the number of element types
-        </span><span class="kw">let </span>element_types = result_type.clone().element_types();
+        </span><span class="kw">let </span>element_types = result_type.element_types();
         <span class="kw">if </span>element_types.is_empty() {
             <span class="kw">if </span>!elements.is_empty() {
                 <span class="kw">return </span><span class="prelude-val">Err</span>(internal(InternalError::MakeArrayElementCountMismatch {

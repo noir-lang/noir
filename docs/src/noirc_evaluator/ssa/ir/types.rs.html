@@ -614,7 +614,7 @@
     /// to represent the type. This is 1 for every primitive type, and is the number of fields
     /// for any flattened tuple type.
     ///
-    /// Equivalent to `self.element_types().len()`, but doesn't consume the `self`.
+    /// Equivalent to `self.element_types().len()`.
     ///
     /// Panics if `self` is not a [`Type::Array`] or [`Type::Slice`].
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>element_size(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
@@ -627,9 +627,9 @@
     <span class="doccomment">/// Return the types of items in this array/slice.
     ///
     /// Panics if `self` is not a [`Type::Array`] or [`Type::Slice`].
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>element_types(<span class="self">self</span>) -&gt; Arc&lt;Vec&lt;Type&gt;&gt; {
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>element_types(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Arc&lt;Vec&lt;Type&gt;&gt; {
         <span class="kw">match </span><span class="self">self </span>{
-            Type::Array(element_types, <span class="kw">_</span>) | Type::Slice(element_types) =&gt; element_types,
+            Type::Array(element_types, <span class="kw">_</span>) | Type::Slice(element_types) =&gt; element_types.clone(),
             other =&gt; <span class="macro">panic!</span>(<span class="string">"element_types: Expected array or slice, found {other}"</span>),
         }
     }

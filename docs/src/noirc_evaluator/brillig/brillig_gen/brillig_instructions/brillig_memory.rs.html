@@ -541,7 +541,7 @@
         <span class="kw">if </span>data.is_empty() {
             <span class="kw">return</span>;
         }
-        <span class="kw">let </span>item_types = typ.clone().element_types();
+        <span class="kw">let </span>item_types = typ.element_types();
 
         <span class="comment">// Find out if we are repeating the same item over and over
         </span><span class="kw">let </span>first_item = data.iter().take(item_types.len()).copied().collect();
