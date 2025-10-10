@@ -1224,14 +1224,35 @@ impl<F: AcirField> AcirContext<F> {
         &mut self,
         lhs: AcirVar,
         rhs: AcirVar,
-        bit_size: u32,
+        max_bits: u32,
     ) -> Result<AcirVar, RuntimeError> {
-        // Flip the result of calling more than equal method to
-        // compute less than.
-        let comparison = self.more_than_eq_var(lhs, rhs, bit_size)?;
+        // Here we do something similar to `more_than_eq_var`, but we compute the sign of `a-b` against
+        // `2^{max_bits} - 1` instead of `2^{max_bits}` (where a=lhs, b=rhs).
+        //
+        // The math we do is:
+        // c = (2^{max_bits} - 1) - (rhs - lhs)
+        //
+        // Then we compute `c / 2^{max_bits}`.
+        // First we note that `c` is always greater than zero because `rhs - lhs` will be between
+        // `2^{max_bits} - 1` and `-(2^{max_bits} - 1)`, so no Field underflow can happen.
+        // Then we have:
+        // - if `rhs > lhs`, `rhs - lhs` is at least 1, so `c < 2^{max_bits} - 1` and, when divided by
+        // `2^{max_bits}`, the quotient is `0`.
+        // - if `rhs == lhs`, `rhs - lhs` is zero so `c == 2^{max_bits} - 1`, and the quotient is still `0`.
+        // - if `rhs < lhs` then `rhs - lhs` is `-1` or less, so `c >= 2^{max_bits}`, and the quotient is `1`.
+        //
+        // Essentially, the quotient is `1` when `lhs > rhs` and `0` otherwise.
+        assert!(max_bits + 1 < F::max_num_bits());
 
-        let one = self.add_constant(F::one());
-        self.sub_var(one, comparison) // comparison_negated
+        let two_max_bits = self.add_constant(power_of_two::<F>(max_bits));
+        let two_max_bits_minus_one = self.add_constant(power_of_two::<F>(max_bits) - F::one());
+        let diff = self.sub_var(rhs, lhs)?;
+        let comparison_evaluation = self.add_var(diff, two_max_bits_minus_one)?;
+
+        let one = self.add_constant(1_u128);
+        let (q, _) =
+            self.euclidean_division_var(comparison_evaluation, two_max_bits, max_bits + 1, one)?;
+        Ok(q)
     }
 
     /// Returns a vector of `AcirVar`s constrained to be the decomposition of the given input
