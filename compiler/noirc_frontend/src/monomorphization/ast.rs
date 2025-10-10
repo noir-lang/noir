@@ -462,6 +462,14 @@ impl InlineType {
             InlineType::NoPredicates => false,
         }
     }
+
+    /// Check if the inline type can be used on a constrained/unconstrained function.
+    pub fn is_compatible(&self, unconstrained: bool) -> bool {
+        match self {
+            InlineType::Inline | InlineType::InlineAlways => true,
+            InlineType::Fold | InlineType::NoPredicates => !unconstrained,
+        }
+    }
 }
 
 impl Display for InlineType {
