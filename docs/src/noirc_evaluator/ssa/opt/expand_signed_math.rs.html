@@ -526,26 +526,7 @@
 <a href="#525" id="525">525</a>
 <a href="#526" id="526">526</a>
 <a href="#527" id="527">527</a>
-<a href="#528" id="528">528</a>
-<a href="#529" id="529">529</a>
-<a href="#530" id="530">530</a>
-<a href="#531" id="531">531</a>
-<a href="#532" id="532">532</a>
-<a href="#533" id="533">533</a>
-<a href="#534" id="534">534</a>
-<a href="#535" id="535">535</a>
-<a href="#536" id="536">536</a>
-<a href="#537" id="537">537</a>
-<a href="#538" id="538">538</a>
-<a href="#539" id="539">539</a>
-<a href="#540" id="540">540</a>
-<a href="#541" id="541">541</a>
-<a href="#542" id="542">542</a>
-<a href="#543" id="543">543</a>
-<a href="#544" id="544">544</a>
-<a href="#545" id="545">545</a>
-<a href="#546" id="546">546</a>
-<a href="#547" id="547">547</a></pre></div><pre class="rust"><code><span class="doccomment">/// An SSA pass for ACIR functions that transforms "less than", "div" and "mod" operation on
+<a href="#528" id="528">528</a></pre></div><pre class="rust"><code><span class="doccomment">/// An SSA pass for ACIR functions that transforms "less than", "div" and "mod" operation on
 /// signed integers into equivalent sequences of operations that rely on unsigned integers.
 ///
 /// The purpose of this pass is to avoid ACIR having to handle signed integers "less than",
@@ -873,11 +854,7 @@
 </span><span class="kw">mod </span>tests {
     <span class="kw">use crate</span>::{
         assert_ssa_snapshot,
-        ssa::{
-            interpreter::value::{NumericValue, Value},
-            opt::assert_ssa_does_not_change,
-            ssa_gen::Ssa,
-        },
+        ssa::{interpreter::value::Value, opt::assert_ssa_does_not_change, ssa_gen::Ssa},
     };
 
     <span class="attr">#[test]
@@ -904,14 +881,11 @@
             (<span class="number">20</span>, -<span class="number">10</span>, <span class="bool-val">false</span>),
         ];
         <span class="kw">for </span>(lhs, rhs, expected) <span class="kw">in </span>test_cases {
-            <span class="kw">let </span>result = ssa.interpret(<span class="macro">vec!</span>[
-                Value::Numeric(NumericValue::I8(lhs)),
-                Value::Numeric(NumericValue::I8(rhs)),
-            ]);
+            <span class="kw">let </span>result = ssa.interpret(<span class="macro">vec!</span>[Value::i8(lhs), Value::i8(rhs)]);
             <span class="macro">assert!</span>(result.is_ok());
             <span class="kw">let </span>result = result.unwrap();
             <span class="macro">assert_eq!</span>(result.len(), <span class="number">1</span>);
-            <span class="macro">assert_eq!</span>(result[<span class="number">0</span>], Value::Numeric(NumericValue::U1(expected)));
+            <span class="macro">assert_eq!</span>(result[<span class="number">0</span>], Value::bool(expected));
         }
 
         <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
@@ -956,17 +930,11 @@
         <span class="kw">let </span>ssa = ssa.expand_signed_math();
 
         <span class="comment">// Check that -128 i8 / -1 i8 overflows
-        </span><span class="kw">let </span>result = ssa.interpret(<span class="macro">vec!</span>[
-            Value::Numeric(NumericValue::I8(-<span class="number">128</span>)),
-            Value::Numeric(NumericValue::I8(-<span class="number">1</span>)),
-        ]);
+        </span><span class="kw">let </span>result = ssa.interpret(<span class="macro">vec!</span>[Value::i8(-<span class="number">128</span>), Value::i8(-<span class="number">1</span>)]);
         <span class="macro">assert!</span>(result.is_err());
 
         <span class="comment">// Check that 10 i8 / 0 i8 overflows
-        </span><span class="kw">let </span>result = ssa.interpret(<span class="macro">vec!</span>[
-            Value::Numeric(NumericValue::I8(<span class="number">10</span>)),
-            Value::Numeric(NumericValue::I8(<span class="number">0</span>)),
-        ]);
+        </span><span class="kw">let </span>result = ssa.interpret(<span class="macro">vec!</span>[Value::i8(<span class="number">10</span>), Value::i8(<span class="number">0</span>)]);
         <span class="macro">assert!</span>(result.is_err());
 
         <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r#"
@@ -1032,17 +1000,11 @@
         <span class="kw">let </span>ssa = ssa.expand_signed_math();
 
         <span class="comment">// Check that -128 i8 / -1 i8 overflows
-        </span><span class="kw">let </span>result = ssa.interpret(<span class="macro">vec!</span>[
-            Value::Numeric(NumericValue::I8(-<span class="number">128</span>)),
-            Value::Numeric(NumericValue::I8(-<span class="number">1</span>)),
-        ]);
+        </span><span class="kw">let </span>result = ssa.interpret(<span class="macro">vec!</span>[Value::i8(-<span class="number">128</span>), Value::i8(-<span class="number">1</span>)]);
         <span class="macro">assert!</span>(result.is_err());
 
         <span class="comment">// Check that 10 i8 / 0 i8 overflows
-        </span><span class="kw">let </span>result = ssa.interpret(<span class="macro">vec!</span>[
-            Value::Numeric(NumericValue::I8(<span class="number">10</span>)),
-            Value::Numeric(NumericValue::I8(<span class="number">0</span>)),
-        ]);
+        </span><span class="kw">let </span>result = ssa.interpret(<span class="macro">vec!</span>[Value::i8(<span class="number">10</span>), Value::i8(<span class="number">0</span>)]);
         <span class="macro">assert!</span>(result.is_err());
 
         <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r#"

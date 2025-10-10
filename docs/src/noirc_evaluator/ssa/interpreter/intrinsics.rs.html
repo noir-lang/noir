@@ -887,10 +887,7 @@
 <a href="#886" id="886">886</a>
 <a href="#887" id="887">887</a>
 <a href="#888" id="888">888</a>
-<a href="#889" id="889">889</a>
-<a href="#890" id="890">890</a>
-<a href="#891" id="891">891</a>
-<a href="#892" id="892">892</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::io::Write;
+<a href="#889" id="889">889</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::io::Write;
 
 <span class="kw">use </span>acvm::{AcirField, BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
 <span class="kw">use </span>bn254_blackbox_solver::derive_generators;
@@ -898,14 +895,11 @@
 <span class="kw">use </span>noirc_printable_type::{PrintableType, PrintableValueDisplay, decode_printable_value};
 <span class="kw">use </span>num_bigint::BigUint;
 
-<span class="kw">use </span><span class="kw">crate</span>::ssa::{
-    interpreter::NumericValue,
-    ir::{
-        dfg,
-        instruction::{Endian, Intrinsic},
-        types::{NumericType, Type},
-        value::ValueId,
-    },
+<span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
+    dfg,
+    instruction::{Endian, Intrinsic},
+    types::{NumericType, Type},
+    value::ValueId,
 };
 
 <span class="kw">use super</span>::{ArrayValue, IResult, IResults, InternalError, Interpreter, InterpreterError, Value};
@@ -922,7 +916,7 @@
                 check_argument_count(args, <span class="number">1</span>, intrinsic)<span class="question-mark">?</span>;
                 <span class="kw">let </span>array = <span class="self">self</span>.lookup_array_or_slice(args[<span class="number">0</span>], <span class="string">"call to array_len"</span>)<span class="question-mark">?</span>;
                 <span class="kw">let </span>length = array.elements.borrow().len();
-                <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[Value::Numeric(NumericValue::U32(length <span class="kw">as </span>u32))])
+                <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[Value::u32(length <span class="kw">as </span>u32)])
             }
             Intrinsic::ArrayAsStrUnchecked =&gt; {
                 check_argument_count(args, <span class="number">1</span>, intrinsic)<span class="question-mark">?</span>;
@@ -932,7 +926,7 @@
                 check_argument_count(args, <span class="number">1</span>, intrinsic)<span class="question-mark">?</span>;
                 <span class="kw">let </span>array = <span class="self">self</span>.lookup_array_or_slice(args[<span class="number">0</span>], <span class="string">"call to as_slice"</span>)<span class="question-mark">?</span>;
                 <span class="kw">let </span>length = array.elements.borrow().len();
-                <span class="kw">let </span>length = Value::Numeric(NumericValue::U32(length <span class="kw">as </span>u32));
+                <span class="kw">let </span>length = Value::u32(length <span class="kw">as </span>u32);
 
                 <span class="kw">let </span>elements = array.elements.borrow().to_vec();
                 <span class="kw">let </span>slice = Value::slice(elements, array.element_types.clone());
@@ -1429,7 +1423,7 @@
             new_elements.push(<span class="self">self</span>.lookup(<span class="kw-2">*</span>arg)<span class="question-mark">?</span>);
         }
 
-        <span class="kw">let </span>new_length = Value::Numeric(NumericValue::U32(length + <span class="number">1</span>));
+        <span class="kw">let </span>new_length = Value::u32(length + <span class="number">1</span>);
         <span class="kw">let </span>new_slice = Value::slice(new_elements, element_types);
         <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[new_length, new_slice])
     }
@@ -1444,7 +1438,7 @@
         <span class="kw">let </span><span class="kw-2">mut </span>new_elements = try_vecmap(args.iter().skip(<span class="number">2</span>), |arg| <span class="self">self</span>.lookup(<span class="kw-2">*</span>arg))<span class="question-mark">?</span>;
         new_elements.extend_from_slice(<span class="kw-2">&amp;</span>slice_elements.borrow());
 
-        <span class="kw">let </span>new_length = Value::Numeric(NumericValue::U32(length + <span class="number">1</span>));
+        <span class="kw">let </span>new_length = Value::u32(length + <span class="number">1</span>);
         <span class="kw">let </span>new_slice = Value::slice(new_elements, element_types);
         <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[new_length, new_slice])
     }
@@ -1470,7 +1464,7 @@
         <span class="kw">let </span><span class="kw-2">mut </span>popped_elements = vecmap(<span class="number">0</span>..element_types.len(), |<span class="kw">_</span>| slice_elements.pop().unwrap());
         popped_elements.reverse();
 
-        <span class="kw">let </span>new_length = Value::Numeric(NumericValue::U32(length - <span class="number">1</span>));
+        <span class="kw">let </span>new_length = Value::u32(length - <span class="number">1</span>);
         <span class="kw">let </span>new_slice = Value::slice(slice_elements, element_types);
         <span class="kw">let </span><span class="kw-2">mut </span>results = <span class="macro">vec!</span>[new_length, new_slice];
         results.extend(popped_elements);
@@ -1493,7 +1487,7 @@
 
         <span class="kw">let </span><span class="kw-2">mut </span>results = slice_elements.drain(<span class="number">0</span>..element_types.len()).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
 
-        <span class="kw">let </span>new_length = Value::Numeric(NumericValue::U32(length - <span class="number">1</span>));
+        <span class="kw">let </span>new_length = Value::u32(length - <span class="number">1</span>);
         <span class="kw">let </span>new_slice = Value::slice(slice_elements, element_types);
         results.push(new_length);
         results.push(new_slice);
@@ -1515,7 +1509,7 @@
             index += <span class="number">1</span>;
         }
 
-        <span class="kw">let </span>new_length = Value::Numeric(NumericValue::U32(length + <span class="number">1</span>));
+        <span class="kw">let </span>new_length = Value::u32(length + <span class="number">1</span>);
         <span class="kw">let </span>new_slice = Value::slice(slice_elements, element_types);
         <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[new_length, new_slice])
     }
@@ -1538,7 +1532,7 @@
         <span class="kw">let </span>index = index <span class="kw">as </span>usize * element_types.len();
         <span class="kw">let </span>removed: Vec&lt;<span class="kw">_</span>&gt; = slice_elements.drain(index..index + element_types.len()).collect();
 
-        <span class="kw">let </span>new_length = Value::Numeric(NumericValue::U32(length - <span class="number">1</span>));
+        <span class="kw">let </span>new_length = Value::u32(length - <span class="number">1</span>);
         <span class="kw">let </span>new_slice = Value::slice(slice_elements, element_types);
         <span class="kw">let </span><span class="kw-2">mut </span>results = <span class="macro">vec!</span>[new_length, new_slice];
         results.extend(removed);
@@ -1734,8 +1728,8 @@
                 }
             }
             <span class="comment">// Chamber the length for a potential vector following it.
-            </span><span class="kw">if let </span>Value::Numeric(NumericValue::U32(length)) = value {
-                vector_length = <span class="prelude-val">Some</span>(<span class="kw-2">*</span>length <span class="kw">as </span>usize);
+            </span><span class="kw">if let </span><span class="prelude-val">Some</span>(length) = value.as_u32() {
+                vector_length = <span class="prelude-val">Some</span>(length <span class="kw">as </span>usize);
             } <span class="kw">else </span>{
                 vector_length = <span class="prelude-val">None</span>;
             }

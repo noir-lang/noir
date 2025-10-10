@@ -1704,7 +1704,128 @@
 <a href="#1703" id="1703">1703</a>
 <a href="#1704" id="1704">1704</a>
 <a href="#1705" id="1705">1705</a>
-<a href="#1706" id="1706">1706</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{cmp::Ordering, collections::BTreeMap, io::Write};
+<a href="#1706" id="1706">1706</a>
+<a href="#1707" id="1707">1707</a>
+<a href="#1708" id="1708">1708</a>
+<a href="#1709" id="1709">1709</a>
+<a href="#1710" id="1710">1710</a>
+<a href="#1711" id="1711">1711</a>
+<a href="#1712" id="1712">1712</a>
+<a href="#1713" id="1713">1713</a>
+<a href="#1714" id="1714">1714</a>
+<a href="#1715" id="1715">1715</a>
+<a href="#1716" id="1716">1716</a>
+<a href="#1717" id="1717">1717</a>
+<a href="#1718" id="1718">1718</a>
+<a href="#1719" id="1719">1719</a>
+<a href="#1720" id="1720">1720</a>
+<a href="#1721" id="1721">1721</a>
+<a href="#1722" id="1722">1722</a>
+<a href="#1723" id="1723">1723</a>
+<a href="#1724" id="1724">1724</a>
+<a href="#1725" id="1725">1725</a>
+<a href="#1726" id="1726">1726</a>
+<a href="#1727" id="1727">1727</a>
+<a href="#1728" id="1728">1728</a>
+<a href="#1729" id="1729">1729</a>
+<a href="#1730" id="1730">1730</a>
+<a href="#1731" id="1731">1731</a>
+<a href="#1732" id="1732">1732</a>
+<a href="#1733" id="1733">1733</a>
+<a href="#1734" id="1734">1734</a>
+<a href="#1735" id="1735">1735</a>
+<a href="#1736" id="1736">1736</a>
+<a href="#1737" id="1737">1737</a>
+<a href="#1738" id="1738">1738</a>
+<a href="#1739" id="1739">1739</a>
+<a href="#1740" id="1740">1740</a>
+<a href="#1741" id="1741">1741</a>
+<a href="#1742" id="1742">1742</a>
+<a href="#1743" id="1743">1743</a>
+<a href="#1744" id="1744">1744</a>
+<a href="#1745" id="1745">1745</a>
+<a href="#1746" id="1746">1746</a>
+<a href="#1747" id="1747">1747</a>
+<a href="#1748" id="1748">1748</a>
+<a href="#1749" id="1749">1749</a>
+<a href="#1750" id="1750">1750</a>
+<a href="#1751" id="1751">1751</a>
+<a href="#1752" id="1752">1752</a>
+<a href="#1753" id="1753">1753</a>
+<a href="#1754" id="1754">1754</a>
+<a href="#1755" id="1755">1755</a>
+<a href="#1756" id="1756">1756</a>
+<a href="#1757" id="1757">1757</a>
+<a href="#1758" id="1758">1758</a>
+<a href="#1759" id="1759">1759</a>
+<a href="#1760" id="1760">1760</a>
+<a href="#1761" id="1761">1761</a>
+<a href="#1762" id="1762">1762</a>
+<a href="#1763" id="1763">1763</a>
+<a href="#1764" id="1764">1764</a>
+<a href="#1765" id="1765">1765</a>
+<a href="#1766" id="1766">1766</a>
+<a href="#1767" id="1767">1767</a>
+<a href="#1768" id="1768">1768</a>
+<a href="#1769" id="1769">1769</a>
+<a href="#1770" id="1770">1770</a>
+<a href="#1771" id="1771">1771</a>
+<a href="#1772" id="1772">1772</a>
+<a href="#1773" id="1773">1773</a>
+<a href="#1774" id="1774">1774</a>
+<a href="#1775" id="1775">1775</a>
+<a href="#1776" id="1776">1776</a>
+<a href="#1777" id="1777">1777</a>
+<a href="#1778" id="1778">1778</a>
+<a href="#1779" id="1779">1779</a>
+<a href="#1780" id="1780">1780</a>
+<a href="#1781" id="1781">1781</a>
+<a href="#1782" id="1782">1782</a>
+<a href="#1783" id="1783">1783</a>
+<a href="#1784" id="1784">1784</a>
+<a href="#1785" id="1785">1785</a>
+<a href="#1786" id="1786">1786</a>
+<a href="#1787" id="1787">1787</a>
+<a href="#1788" id="1788">1788</a>
+<a href="#1789" id="1789">1789</a>
+<a href="#1790" id="1790">1790</a>
+<a href="#1791" id="1791">1791</a>
+<a href="#1792" id="1792">1792</a>
+<a href="#1793" id="1793">1793</a>
+<a href="#1794" id="1794">1794</a>
+<a href="#1795" id="1795">1795</a>
+<a href="#1796" id="1796">1796</a>
+<a href="#1797" id="1797">1797</a>
+<a href="#1798" id="1798">1798</a>
+<a href="#1799" id="1799">1799</a>
+<a href="#1800" id="1800">1800</a>
+<a href="#1801" id="1801">1801</a>
+<a href="#1802" id="1802">1802</a>
+<a href="#1803" id="1803">1803</a>
+<a href="#1804" id="1804">1804</a>
+<a href="#1805" id="1805">1805</a>
+<a href="#1806" id="1806">1806</a>
+<a href="#1807" id="1807">1807</a>
+<a href="#1808" id="1808">1808</a>
+<a href="#1809" id="1809">1809</a>
+<a href="#1810" id="1810">1810</a>
+<a href="#1811" id="1811">1811</a>
+<a href="#1812" id="1812">1812</a>
+<a href="#1813" id="1813">1813</a>
+<a href="#1814" id="1814">1814</a>
+<a href="#1815" id="1815">1815</a>
+<a href="#1816" id="1816">1816</a>
+<a href="#1817" id="1817">1817</a>
+<a href="#1818" id="1818">1818</a>
+<a href="#1819" id="1819">1819</a>
+<a href="#1820" id="1820">1820</a>
+<a href="#1821" id="1821">1821</a>
+<a href="#1822" id="1822">1822</a>
+<a href="#1823" id="1823">1823</a>
+<a href="#1824" id="1824">1824</a>
+<a href="#1825" id="1825">1825</a>
+<a href="#1826" id="1826">1826</a>
+<a href="#1827" id="1827">1827</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{cmp::Ordering, collections::BTreeMap, io::Write};
 
 <span class="kw">use super</span>::{
     Ssa,
@@ -1716,11 +1837,15 @@
         value::ValueId,
     },
 };
-<span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{instruction::binary::truncate_field, printer::display_binary};
+<span class="kw">use </span><span class="kw">crate</span>::ssa::{
+    interpreter::value::Fitted,
+    ir::{instruction::binary::truncate_field, printer::display_binary, types::NumericType},
+};
 <span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>errors::{InternalError, InterpreterError, MAX_UNSIGNED_BIT_SIZE};
 <span class="kw">use </span>iter_extended::{try_vecmap, vecmap};
 <span class="kw">use </span>noirc_frontend::Shared;
+<span class="kw">use </span>num_traits::{CheckedShl, CheckedShr};
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
 <span class="kw">use </span>value::{ArrayValue, NumericValue, ReferenceValue};
 
@@ -2314,7 +2439,23 @@
     }
 
     <span class="kw">fn </span>interpret_not(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: ValueId, result: ValueId) -&gt; IResult&lt;()&gt; {
-        <span class="kw">let </span>new_result = <span class="kw">match </span><span class="self">self</span>.lookup_numeric(id, <span class="string">"not instruction"</span>)<span class="question-mark">? </span>{
+        <span class="kw">let </span>num_value = <span class="self">self</span>.lookup_numeric(id, <span class="string">"not instruction"</span>)<span class="question-mark">?</span>;
+        <span class="kw">let </span>bit_size = num_value.get_type().bit_size();
+
+        <span class="comment">// Based on AcirContext::not_var
+        </span><span class="kw">fn </span>fitted_not&lt;T: std::ops::Not&lt;Output = T&gt;&gt;(value: Fitted&lt;T&gt;, bit_size: u32) -&gt; Fitted&lt;T&gt; {
+            value.map(
+                |value| !value,
+                |value| {
+                    <span class="comment">// Based on AcirContext::not_var
+                    </span><span class="kw">let </span>bit_size = FieldElement::from(bit_size);
+                    <span class="kw">let </span>max = FieldElement::from(<span class="number">2u128</span>).pow(<span class="kw-2">&amp;</span>bit_size) - FieldElement::one();
+                    max - value
+                },
+            )
+        }
+
+        <span class="kw">let </span>new_result = <span class="kw">match </span>num_value {
             NumericValue::Field(<span class="kw">_</span>) =&gt; {
                 <span class="kw">return </span><span class="prelude-val">Err</span>(internal(InternalError::UnsupportedOperatorForType {
                     operator: <span class="string">"!"</span>,
@@ -2322,15 +2463,15 @@
                 }));
             }
             NumericValue::U1(value) =&gt; NumericValue::U1(!value),
-            NumericValue::U8(value) =&gt; NumericValue::U8(!value),
-            NumericValue::U16(value) =&gt; NumericValue::U16(!value),
-            NumericValue::U32(value) =&gt; NumericValue::U32(!value),
-            NumericValue::U64(value) =&gt; NumericValue::U64(!value),
-            NumericValue::U128(value) =&gt; NumericValue::U128(!value),
-            NumericValue::I8(value) =&gt; NumericValue::I8(!value),
-            NumericValue::I16(value) =&gt; NumericValue::I16(!value),
-            NumericValue::I32(value) =&gt; NumericValue::I32(!value),
-            NumericValue::I64(value) =&gt; NumericValue::I64(!value),
+            NumericValue::U8(value) =&gt; NumericValue::U8(fitted_not(value, bit_size)),
+            NumericValue::U16(value) =&gt; NumericValue::U16(fitted_not(value, bit_size)),
+            NumericValue::U32(value) =&gt; NumericValue::U32(fitted_not(value, bit_size)),
+            NumericValue::U64(value) =&gt; NumericValue::U64(fitted_not(value, bit_size)),
+            NumericValue::U128(value) =&gt; NumericValue::U128(fitted_not(value, bit_size)),
+            NumericValue::I8(value) =&gt; NumericValue::I8(fitted_not(value, bit_size)),
+            NumericValue::I16(value) =&gt; NumericValue::I16(fitted_not(value, bit_size)),
+            NumericValue::I32(value) =&gt; NumericValue::I32(fitted_not(value, bit_size)),
+            NumericValue::I64(value) =&gt; NumericValue::I64(fitted_not(value, bit_size)),
         };
         <span class="self">self</span>.define(result, Value::Numeric(new_result))
     }
@@ -2342,31 +2483,66 @@
         max_bit_size: u32,
         result: ValueId,
     ) -&gt; IResult&lt;()&gt; {
+        <span class="kw">use </span>Fitted::<span class="kw-2">*</span>;
+        <span class="kw">use </span>NumericValue::<span class="kw-2">*</span>;
+
         <span class="kw">let </span>value = <span class="self">self</span>.lookup_numeric(value_id, <span class="string">"truncate"</span>)<span class="question-mark">?</span>;
+        <span class="kw">let </span>typ = value.get_type();
         <span class="kw">if </span>bit_size == <span class="number">0 </span>{
             <span class="kw">return </span><span class="prelude-val">Err</span>(internal(InternalError::TruncateToZeroBits { value_id, max_bit_size }));
         }
 
+        <span class="comment">// Truncate an unsigned value.
+        </span><span class="kw">fn </span>truncate_fitted&lt;F, T&gt;(
+            cons: F,
+            typ: NumericType,
+            value: Fitted&lt;T&gt;,
+            bit_size: u32,
+        ) -&gt; IResult&lt;NumericValue&gt;
+        <span class="kw">where
+            </span>T: TryFrom&lt;u128&gt;,
+            u128: From&lt;T&gt;,
+            &lt;T <span class="kw">as </span>TryFrom&lt;u128&gt;&gt;::Error: std::fmt::Debug,
+            F: Fn(Fitted&lt;T&gt;) -&gt; NumericValue,
+        {
+            <span class="kw">match </span>value {
+                Fit(value) =&gt; <span class="prelude-val">Ok</span>(cons(Fit(truncate_unsigned(value, bit_size)<span class="question-mark">?</span>))),
+                Unfit(value) =&gt; {
+                    <span class="kw">let </span>truncated = truncate_field(value, bit_size);
+                    NumericValue::from_constant(truncated, typ)
+                        .or_else(|<span class="kw">_</span>| <span class="prelude-val">Ok</span>(cons(Unfit(truncated))))
+                }
+            }
+        }
+
+        <span class="comment">// Truncate a signed value via unsigned cast and back.
+        </span><span class="macro">macro_rules!</span> truncate_via {
+            (<span class="macro-nonterminal">$cons</span>:expr, <span class="macro-nonterminal">$typ</span>:expr, <span class="macro-nonterminal">$value</span>:ident, <span class="macro-nonterminal">$bit_size</span>:ident, <span class="macro-nonterminal">$signed</span>:ty, <span class="macro-nonterminal">$unsigned</span>:ty) =&gt; {
+                <span class="kw">match </span><span class="macro-nonterminal">$value </span>{
+                    Fit(value) =&gt; {
+                        <span class="macro-nonterminal">$cons</span>(Fit(truncate_unsigned(value <span class="kw">as </span><span class="macro-nonterminal">$unsigned</span>, <span class="macro-nonterminal">$bit_size</span>)<span class="question-mark">? </span><span class="kw">as </span><span class="macro-nonterminal">$signed</span>))
+                    }
+                    Unfit(value) =&gt; {
+                        <span class="kw">let </span>truncated = truncate_field(value, bit_size);
+                        NumericValue::from_constant(truncated, typ)
+                            .unwrap_or_else(|<span class="kw">_</span>| <span class="macro-nonterminal">$cons</span>(Unfit(truncated)))
+                    }
+                }
+            };
+        }
+
         <span class="kw">let </span>truncated = <span class="kw">match </span>value {
-            NumericValue::Field(value) =&gt; NumericValue::Field(truncate_field(value, bit_size)),
-            NumericValue::U1(value) =&gt; NumericValue::U1(value),
-            NumericValue::U8(value) =&gt; NumericValue::U8(truncate_unsigned(value, bit_size)<span class="question-mark">?</span>),
-            NumericValue::U16(value) =&gt; NumericValue::U16(truncate_unsigned(value, bit_size)<span class="question-mark">?</span>),
-            NumericValue::U32(value) =&gt; NumericValue::U32(truncate_unsigned(value, bit_size)<span class="question-mark">?</span>),
-            NumericValue::U64(value) =&gt; NumericValue::U64(truncate_unsigned(value, bit_size)<span class="question-mark">?</span>),
-            NumericValue::U128(value) =&gt; NumericValue::U128(truncate_unsigned(value, bit_size)<span class="question-mark">?</span>),
-            NumericValue::I8(value) =&gt; {
-                NumericValue::I8(truncate_unsigned(value <span class="kw">as </span>u8, bit_size)<span class="question-mark">? </span><span class="kw">as </span>i8)
-            }
-            NumericValue::I16(value) =&gt; {
-                NumericValue::I16(truncate_unsigned(value <span class="kw">as </span>u16, bit_size)<span class="question-mark">? </span><span class="kw">as </span>i16)
-            }
-            NumericValue::I32(value) =&gt; {
-                NumericValue::I32(truncate_unsigned(value <span class="kw">as </span>u32, bit_size)<span class="question-mark">? </span><span class="kw">as </span>i32)
-            }
-            NumericValue::I64(value) =&gt; {
-                NumericValue::I64(truncate_unsigned(value <span class="kw">as </span>u64, bit_size)<span class="question-mark">? </span><span class="kw">as </span>i64)
-            }
+            Field(value) =&gt; Field(truncate_field(value, bit_size)),
+            U1(value) =&gt; U1(value),
+            U8(value) =&gt; truncate_fitted(U8, typ, value, bit_size)<span class="question-mark">?</span>,
+            U16(value) =&gt; truncate_fitted(U16, typ, value, bit_size)<span class="question-mark">?</span>,
+            U32(value) =&gt; truncate_fitted(U32, typ, value, bit_size)<span class="question-mark">?</span>,
+            U64(value) =&gt; truncate_fitted(U64, typ, value, bit_size)<span class="question-mark">?</span>,
+            U128(value) =&gt; truncate_fitted(U128, typ, value, bit_size)<span class="question-mark">?</span>,
+            I8(value) =&gt; <span class="macro">truncate_via!</span>(I8, typ, value, bit_size, i8, u8),
+            I16(value) =&gt; <span class="macro">truncate_via!</span>(I16, typ, value, bit_size, i16, u16),
+            I32(value) =&gt; <span class="macro">truncate_via!</span>(I32, typ, value, bit_size, i32, u32),
+            I64(value) =&gt; <span class="macro">truncate_via!</span>(I64, typ, value, bit_size, i64, u64),
         };
 
         <span class="self">self</span>.define(result, Value::Numeric(truncated))
@@ -2394,34 +2570,35 @@
             <span class="kw">if </span>x &lt;= <span class="number">0.0001 </span>{ <span class="number">0 </span>} <span class="kw">else </span>{ x.log2() <span class="kw">as </span>u32 + <span class="number">1 </span>}
         }
 
+        <span class="kw">fn </span>fitted_bit_count&lt;T: Into&lt;f64&gt;&gt;(value: Fitted&lt;T&gt;) -&gt; u32 {
+            value.apply(|value| bit_count(value), |value| value.num_bits())
+        }
+
         <span class="kw">let </span>bit_count = <span class="kw">match </span>value {
             NumericValue::Field(value) =&gt; value.num_bits(),
             <span class="comment">// max_bit_size &gt; 0 so u1 should always pass these checks
             </span>NumericValue::U1(<span class="kw">_</span>) =&gt; <span class="kw">return </span><span class="prelude-val">Ok</span>(()),
-            NumericValue::U8(value) =&gt; bit_count(value),
-            NumericValue::U16(value) =&gt; bit_count(value),
-            NumericValue::U32(value) =&gt; bit_count(value),
+            NumericValue::U8(value) =&gt; fitted_bit_count(value),
+            NumericValue::U16(value) =&gt; fitted_bit_count(value),
+            NumericValue::U32(value) =&gt; fitted_bit_count(value),
             NumericValue::U64(value) =&gt; {
                 <span class="comment">// u64, u128, and i64 don't impl Into&lt;f64&gt;
-                </span><span class="kw">if </span>value == <span class="number">0 </span>{ <span class="number">0 </span>} <span class="kw">else </span>{ value.ilog2() + <span class="number">1 </span>}
+                </span>value.apply(
+                    |value| <span class="kw">if </span>value == <span class="number">0 </span>{ <span class="number">0 </span>} <span class="kw">else </span>{ value.ilog2() + <span class="number">1 </span>},
+                    |value| value.num_bits(),
+                )
             }
-            NumericValue::U128(value) =&gt; {
-                <span class="kw">if </span>value == <span class="number">0 </span>{
-                    <span class="number">0
-                </span>} <span class="kw">else </span>{
-                    value.ilog2() + <span class="number">1
-                </span>}
-            }
-            NumericValue::I8(value) =&gt; bit_count(value),
-            NumericValue::I16(value) =&gt; bit_count(value),
-            NumericValue::I32(value) =&gt; bit_count(value),
-            NumericValue::I64(value) =&gt; {
-                <span class="kw">if </span>value == <span class="number">0 </span>{
-                    <span class="number">0
-                </span>} <span class="kw">else </span>{
-                    value.ilog2() + <span class="number">1
-                </span>}
-            }
+            NumericValue::U128(value) =&gt; value.apply(
+                |value| <span class="kw">if </span>value == <span class="number">0 </span>{ <span class="number">0 </span>} <span class="kw">else </span>{ value.ilog2() + <span class="number">1 </span>},
+                |value| value.num_bits(),
+            ),
+            NumericValue::I8(value) =&gt; fitted_bit_count(value),
+            NumericValue::I16(value) =&gt; fitted_bit_count(value),
+            NumericValue::I32(value) =&gt; fitted_bit_count(value),
+            NumericValue::I64(value) =&gt; value.apply(
+                |value| <span class="kw">if </span>value == <span class="number">0 </span>{ <span class="number">0 </span>} <span class="kw">else </span>{ value.ilog2() + <span class="number">1 </span>},
+                |value| value.num_bits(),
+            ),
         };
 
         <span class="kw">if </span>bit_count &gt; max_bit_size {
@@ -2824,12 +3001,75 @@
     }
 }
 
+<span class="doccomment">/// Applies a fallible integer binary operation on `Fitted` values, or returns an overflow error.
+///
+/// If one of the values are already `Unfit`, the result is an overflow.
+</span><span class="macro">macro_rules!</span> apply_fit_binop_opt {
+    (<span class="macro-nonterminal">$lhs</span>:expr, <span class="macro-nonterminal">$rhs</span>:expr, <span class="macro-nonterminal">$f</span>:expr, <span class="macro-nonterminal">$overflow</span>:expr) =&gt; {
+        <span class="kw">match </span>(<span class="macro-nonterminal">$lhs</span>, <span class="macro-nonterminal">$rhs</span>) {
+            (Fitted::Fit(lhs), Fitted::Fit(rhs)) =&gt; {
+                <span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs).map(Fitted::Fit).ok_or_else(<span class="macro-nonterminal">$overflow</span>)
+            }
+            <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(<span class="macro-nonterminal">$overflow</span>()),
+        }
+    };
+}
+
+<span class="doccomment">/// Applies a fallible integer binary operation on `Fitted` values, promoting values to `Field` in
+/// case there is an overflow, thus turning the operation infallible.
+///
+/// If the result is an overflow, it promotes the values to `Field` and performs the operation there.
+/// If the operation is applied on `Unfit` values, and the result fits in the original numeric type,
+/// it is converted back to a `Fit` value.
+///
+/// For example we would normally have an infallible `wrapped_add`, but we want to match ACIR
+/// by not wrapping around but extending into larger bit sizes.
+///
+/// # Parameters
+/// - `$cons`: Constructor for a `NumericValue`
+/// - `$lhs`, `$rhs`: The `Fitted` values in the left-hand side and right-hand side operands.
+/// - `$f`: The function to apply on the integer values if both are `Fit`; returns `None` on overflow.
+/// - `$g`: The function to apply on `Field` values.
+/// - `$lhs_num`, `$rhs_num`: The original `NumericValue`s.
+</span><span class="macro">macro_rules!</span> apply_fit_binop {
+    (<span class="macro-nonterminal">$cons</span>:expr, <span class="macro-nonterminal">$lhs</span>:expr, <span class="macro-nonterminal">$rhs</span>:expr, <span class="macro-nonterminal">$f</span>:expr, <span class="macro-nonterminal">$g</span>:expr, <span class="macro-nonterminal">$lhs_num</span>:expr, <span class="macro-nonterminal">$rhs_num</span>:expr) =&gt; {
+        <span class="kw">if let </span>(Fitted::Fit(lhs), Fitted::Fit(rhs)) = (<span class="macro-nonterminal">$lhs</span>, <span class="macro-nonterminal">$rhs</span>) {
+            <span class="kw">let </span>fitted = <span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs).map(Fitted::Fit).unwrap_or_else(|| {
+                Fitted::Unfit(<span class="macro-nonterminal">$g</span>(<span class="macro-nonterminal">$lhs_num</span>.convert_to_field(), <span class="macro-nonterminal">$rhs_num</span>.convert_to_field()))
+            });
+            <span class="macro-nonterminal">$cons</span>(fitted)
+        } <span class="kw">else </span>{
+            <span class="kw">let </span>field = <span class="macro-nonterminal">$g</span>(<span class="macro-nonterminal">$lhs_num</span>.convert_to_field(), <span class="macro-nonterminal">$rhs_num</span>.convert_to_field());
+            <span class="kw">let </span>typ = <span class="macro-nonterminal">$lhs_num</span>.get_type();
+            NumericValue::from_constant(field, typ).unwrap_or_else(|<span class="kw">_</span>| {
+                <span class="kw">let </span>fitted = Fitted::Unfit(field);
+                <span class="macro-nonterminal">$cons</span>(fitted)
+            })
+        }
+    };
+}
+
+<span class="doccomment">/// Apply a comparison operator on `Fitted` values, returning a `bool`.
+///
+/// This is here for the sake of `apply_int_comparison_op`, but comparing `Field` is only meaningful for equality.
+/// For anything else it's best to panic, or return an error; we'll see if it comes up.
+</span><span class="macro">macro_rules!</span> apply_fit_comparison_op {
+    (<span class="macro-nonterminal">$lhs</span>:expr, <span class="macro-nonterminal">$rhs</span>:expr, <span class="macro-nonterminal">$f</span>:expr, <span class="macro-nonterminal">$g</span>:expr, <span class="macro-nonterminal">$lhs_num</span>:expr, <span class="macro-nonterminal">$rhs_num</span>:expr) =&gt; {{
+        <span class="kw">if let </span>(Fitted::Fit(lhs), Fitted::Fit(rhs)) = (<span class="macro-nonterminal">$lhs</span>, <span class="macro-nonterminal">$rhs</span>) {
+            <span class="macro-nonterminal">$f</span>(lhs, rhs)
+        } <span class="kw">else </span>{
+            <span class="macro-nonterminal">$g</span>(<span class="macro-nonterminal">$lhs_num</span>.convert_to_field(), <span class="macro-nonterminal">$rhs_num</span>.convert_to_field())
+        }
+    }};
+}
+
 <span class="doccomment">/// Applies an infallible integer binary operation to two `NumericValue`s.
 ///
 /// # Parameters
 /// - `$lhs`, `$rhs`: The left hand side and right hand side operands (must be the same variant).
 /// - `$binary`: The binary instruction, used for error handling if types mismatch.
-/// - `$f`: A function (e.g., `wrapping_add`) that applies the operation on the raw numeric types.
+/// - `$f`: A function (e.g., `checked_add`) that applies the operation on the raw numeric types.
+/// - `$g`: A function that performs the equivalent of `$f` on `Field` values.
 ///
 /// # Panics
 /// - If either operand is a [NumericValue::Field] or [NumericValue::U1] variant, this macro will panic with unreachable.
@@ -2840,22 +3080,24 @@
 /// # Returns
 /// A `NumericValue` containing the result of the operation, matching the original type.
 </span><span class="macro">macro_rules!</span> apply_int_binop {
-    (<span class="macro-nonterminal">$lhs</span>:expr, <span class="macro-nonterminal">$rhs</span>:expr, <span class="macro-nonterminal">$binary</span>:expr, <span class="macro-nonterminal">$f</span>:expr) =&gt; {{
+    (<span class="macro-nonterminal">$lhs</span>:expr, <span class="macro-nonterminal">$rhs</span>:expr, <span class="macro-nonterminal">$binary</span>:expr, <span class="macro-nonterminal">$f</span>:expr, <span class="macro-nonterminal">$g</span>:expr) =&gt; {{
         <span class="kw">use </span>value::NumericValue::<span class="kw-2">*</span>;
+        <span class="kw">let </span>lhs_num: value::NumericValue = <span class="macro-nonterminal">$lhs</span>;
+        <span class="kw">let </span>rhs_num: value::NumericValue = <span class="macro-nonterminal">$rhs</span>;
         <span class="kw">match </span>(<span class="macro-nonterminal">$lhs</span>, <span class="macro-nonterminal">$rhs</span>) {
             (Field(<span class="kw">_</span>), Field(<span class="kw">_</span>)) =&gt; {
                 <span class="macro">unreachable!</span>(<span class="string">"Expected only integer values, found field values"</span>)
             }
             (U1(<span class="kw">_</span>), U1(<span class="kw">_</span>)) =&gt; <span class="macro">unreachable!</span>(<span class="string">"Expected only large integer values, found u1"</span>),
-            (U8(lhs), U8(rhs)) =&gt; U8(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs)),
-            (U16(lhs), U16(rhs)) =&gt; U16(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs)),
-            (U32(lhs), U32(rhs)) =&gt; U32(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs)),
-            (U64(lhs), U64(rhs)) =&gt; U64(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs)),
-            (U128(lhs), U128(rhs)) =&gt; U128(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs)),
-            (I8(lhs), I8(rhs)) =&gt; I8(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs)),
-            (I16(lhs), I16(rhs)) =&gt; I16(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs)),
-            (I32(lhs), I32(rhs)) =&gt; I32(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs)),
-            (I64(lhs), I64(rhs)) =&gt; I64(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs)),
+            (U8(lhs), U8(rhs)) =&gt; <span class="macro">apply_fit_binop!</span>(U8, lhs, rhs, <span class="macro-nonterminal">$f</span>, <span class="macro-nonterminal">$g</span>, lhs_num, rhs_num),
+            (U16(lhs), U16(rhs)) =&gt; <span class="macro">apply_fit_binop!</span>(U16, lhs, rhs, <span class="macro-nonterminal">$f</span>, <span class="macro-nonterminal">$g</span>, lhs_num, rhs_num),
+            (U32(lhs), U32(rhs)) =&gt; <span class="macro">apply_fit_binop!</span>(U32, lhs, rhs, <span class="macro-nonterminal">$f</span>, <span class="macro-nonterminal">$g</span>, lhs_num, rhs_num),
+            (U64(lhs), U64(rhs)) =&gt; <span class="macro">apply_fit_binop!</span>(U64, lhs, rhs, <span class="macro-nonterminal">$f</span>, <span class="macro-nonterminal">$g</span>, lhs_num, rhs_num),
+            (U128(lhs), U128(rhs)) =&gt; <span class="macro">apply_fit_binop!</span>(U128, lhs, rhs, <span class="macro-nonterminal">$f</span>, <span class="macro-nonterminal">$g</span>, lhs_num, rhs_num),
+            (I8(lhs), I8(rhs)) =&gt; <span class="macro">apply_fit_binop!</span>(I8, lhs, rhs, <span class="macro-nonterminal">$f</span>, <span class="macro-nonterminal">$g</span>, lhs_num, rhs_num),
+            (I16(lhs), I16(rhs)) =&gt; <span class="macro">apply_fit_binop!</span>(I16, lhs, rhs, <span class="macro-nonterminal">$f</span>, <span class="macro-nonterminal">$g</span>, lhs_num, rhs_num),
+            (I32(lhs), I32(rhs)) =&gt; <span class="macro">apply_fit_binop!</span>(I32, lhs, rhs, <span class="macro-nonterminal">$f</span>, <span class="macro-nonterminal">$g</span>, lhs_num, rhs_num),
+            (I64(lhs), I64(rhs)) =&gt; <span class="macro">apply_fit_binop!</span>(I64, lhs, rhs, <span class="macro-nonterminal">$f</span>, <span class="macro-nonterminal">$g</span>, lhs_num, rhs_num),
             (lhs, rhs) =&gt; {
                 <span class="kw">let </span>binary = <span class="macro-nonterminal">$binary</span>;
                 <span class="kw">return </span><span class="prelude-val">Err</span>(internal(InternalError::MismatchedTypesInBinaryOperator {
@@ -2873,10 +3115,10 @@
 <span class="doccomment">/// Applies a fallible integer binary operation (e.g., checked arithmetic) to two `NumericValue`s.
 ///
 /// # Parameters
-/// - `$dfg`: The data flow graph, used for formatting diagnostic error messages.
 /// - `$lhs`, `$rhs`: The left-hand side and right-hand side operands (must be the same variant).
 /// - `$binary`: The binary instruction, used for diagnostics and overflow reporting.
 /// - `$f`: A fallible operation function that returns an `Option&lt;_&gt;` (e.g., `checked_add`).
+/// - `$display_binary`: A function to display the binary operation for diagnostic purposes.
 ///
 /// # Panics
 /// - If either operand is a [NumericValue::Field]or [NumericValue::U1], this macro panics as those types are not supported.
@@ -2916,15 +3158,15 @@
                 <span class="macro">unreachable!</span>(<span class="string">"Expected only integer values, found field values"</span>)
             }
             (U1(<span class="kw">_</span>), U1(<span class="kw">_</span>)) =&gt; <span class="macro">unreachable!</span>(<span class="string">"Expected only large integer values, found u1"</span>),
-            (U8(lhs), U8(rhs)) =&gt; U8(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs).ok_or_else(overflow)<span class="question-mark">?</span>),
-            (U16(lhs), U16(rhs)) =&gt; U16(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs).ok_or_else(overflow)<span class="question-mark">?</span>),
-            (U32(lhs), U32(rhs)) =&gt; U32(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs).ok_or_else(overflow)<span class="question-mark">?</span>),
-            (U64(lhs), U64(rhs)) =&gt; U64(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs).ok_or_else(overflow)<span class="question-mark">?</span>),
-            (U128(lhs), U128(rhs)) =&gt; U128(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs).ok_or_else(overflow)<span class="question-mark">?</span>),
-            (I8(lhs), I8(rhs)) =&gt; I8(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs).ok_or_else(overflow)<span class="question-mark">?</span>),
-            (I16(lhs), I16(rhs)) =&gt; I16(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs).ok_or_else(overflow)<span class="question-mark">?</span>),
-            (I32(lhs), I32(rhs)) =&gt; I32(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs).ok_or_else(overflow)<span class="question-mark">?</span>),
-            (I64(lhs), I64(rhs)) =&gt; I64(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs).ok_or_else(overflow)<span class="question-mark">?</span>),
+            (U8(lhs), U8(rhs)) =&gt; U8(<span class="macro">apply_fit_binop_opt!</span>(lhs, rhs, <span class="macro-nonterminal">$f</span>, overflow)<span class="question-mark">?</span>),
+            (U16(lhs), U16(rhs)) =&gt; U16(<span class="macro">apply_fit_binop_opt!</span>(lhs, rhs, <span class="macro-nonterminal">$f</span>, overflow)<span class="question-mark">?</span>),
+            (U32(lhs), U32(rhs)) =&gt; U32(<span class="macro">apply_fit_binop_opt!</span>(lhs, rhs, <span class="macro-nonterminal">$f</span>, overflow)<span class="question-mark">?</span>),
+            (U64(lhs), U64(rhs)) =&gt; U64(<span class="macro">apply_fit_binop_opt!</span>(lhs, rhs, <span class="macro-nonterminal">$f</span>, overflow)<span class="question-mark">?</span>),
+            (U128(lhs), U128(rhs)) =&gt; U128(<span class="macro">apply_fit_binop_opt!</span>(lhs, rhs, <span class="macro-nonterminal">$f</span>, overflow)<span class="question-mark">?</span>),
+            (I8(lhs), I8(rhs)) =&gt; I8(<span class="macro">apply_fit_binop_opt!</span>(lhs, rhs, <span class="macro-nonterminal">$f</span>, overflow)<span class="question-mark">?</span>),
+            (I16(lhs), I16(rhs)) =&gt; I16(<span class="macro">apply_fit_binop_opt!</span>(lhs, rhs, <span class="macro-nonterminal">$f</span>, overflow)<span class="question-mark">?</span>),
+            (I32(lhs), I32(rhs)) =&gt; I32(<span class="macro">apply_fit_binop_opt!</span>(lhs, rhs, <span class="macro-nonterminal">$f</span>, overflow)<span class="question-mark">?</span>),
+            (I64(lhs), I64(rhs)) =&gt; I64(<span class="macro">apply_fit_binop_opt!</span>(lhs, rhs, <span class="macro-nonterminal">$f</span>, overflow)<span class="question-mark">?</span>),
             (lhs, rhs) =&gt; {
                 <span class="kw">return </span><span class="prelude-val">Err</span>(internal(InternalError::MismatchedTypesInBinaryOperator {
                     lhs: lhs.to_string(),
@@ -2939,22 +3181,38 @@
 }
 
 <span class="macro">macro_rules!</span> apply_int_comparison_op {
-    (<span class="macro-nonterminal">$lhs</span>:expr, <span class="macro-nonterminal">$rhs</span>:expr, <span class="macro-nonterminal">$binary</span>:expr, <span class="macro-nonterminal">$f</span>:expr) =&gt; {{
+    (<span class="macro-nonterminal">$lhs</span>:expr, <span class="macro-nonterminal">$rhs</span>:expr, <span class="macro-nonterminal">$binary</span>:expr, <span class="macro-nonterminal">$f</span>:expr, <span class="macro-nonterminal">$g</span>:expr) =&gt; {{
         <span class="kw">use </span>NumericValue::<span class="kw-2">*</span>;
+        <span class="kw">let </span>lhs_num: NumericValue = <span class="macro-nonterminal">$lhs</span>;
+        <span class="kw">let </span>rhs_num: NumericValue = <span class="macro-nonterminal">$rhs</span>;
         <span class="kw">match </span>(<span class="macro-nonterminal">$lhs</span>, <span class="macro-nonterminal">$rhs</span>) {
             (Field(<span class="kw">_</span>), Field(<span class="kw">_</span>)) =&gt; {
                 <span class="macro">unreachable!</span>(<span class="string">"Expected only integer values, found field values"</span>)
             }
             (U1(<span class="kw">_</span>), U1(<span class="kw">_</span>)) =&gt; <span class="macro">unreachable!</span>(<span class="string">"Expected only large integer values, found u1"</span>),
-            (U8(lhs), U8(rhs)) =&gt; U1(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs)),
-            (U16(lhs), U16(rhs)) =&gt; U1(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs)),
-            (U32(lhs), U32(rhs)) =&gt; U1(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs)),
-            (U64(lhs), U64(rhs)) =&gt; U1(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs)),
-            (U128(lhs), U128(rhs)) =&gt; U1(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs)),
-            (I8(lhs), I8(rhs)) =&gt; U1(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs)),
-            (I16(lhs), I16(rhs)) =&gt; U1(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs)),
-            (I32(lhs), I32(rhs)) =&gt; U1(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs)),
-            (I64(lhs), I64(rhs)) =&gt; U1(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs)),
+            (U8(lhs), U8(rhs)) =&gt; U1(<span class="macro">apply_fit_comparison_op!</span>(lhs, rhs, <span class="macro-nonterminal">$f</span>, <span class="macro-nonterminal">$g</span>, lhs_num, rhs_num)),
+            (U16(lhs), U16(rhs)) =&gt; {
+                U1(<span class="macro">apply_fit_comparison_op!</span>(lhs, rhs, <span class="macro-nonterminal">$f</span>, <span class="macro-nonterminal">$g</span>, lhs_num, rhs_num))
+            }
+            (U32(lhs), U32(rhs)) =&gt; {
+                U1(<span class="macro">apply_fit_comparison_op!</span>(lhs, rhs, <span class="macro-nonterminal">$f</span>, <span class="macro-nonterminal">$g</span>, lhs_num, rhs_num))
+            }
+            (U64(lhs), U64(rhs)) =&gt; {
+                U1(<span class="macro">apply_fit_comparison_op!</span>(lhs, rhs, <span class="macro-nonterminal">$f</span>, <span class="macro-nonterminal">$g</span>, lhs_num, rhs_num))
+            }
+            (U128(lhs), U128(rhs)) =&gt; {
+                U1(<span class="macro">apply_fit_comparison_op!</span>(lhs, rhs, <span class="macro-nonterminal">$f</span>, <span class="macro-nonterminal">$g</span>, lhs_num, rhs_num))
+            }
+            (I8(lhs), I8(rhs)) =&gt; U1(<span class="macro">apply_fit_comparison_op!</span>(lhs, rhs, <span class="macro-nonterminal">$f</span>, <span class="macro-nonterminal">$g</span>, lhs_num, rhs_num)),
+            (I16(lhs), I16(rhs)) =&gt; {
+                U1(<span class="macro">apply_fit_comparison_op!</span>(lhs, rhs, <span class="macro-nonterminal">$f</span>, <span class="macro-nonterminal">$g</span>, lhs_num, rhs_num))
+            }
+            (I32(lhs), I32(rhs)) =&gt; {
+                U1(<span class="macro">apply_fit_comparison_op!</span>(lhs, rhs, <span class="macro-nonterminal">$f</span>, <span class="macro-nonterminal">$g</span>, lhs_num, rhs_num))
+            }
+            (I64(lhs), I64(rhs)) =&gt; {
+                U1(<span class="macro">apply_fit_comparison_op!</span>(lhs, rhs, <span class="macro-nonterminal">$f</span>, <span class="macro-nonterminal">$g</span>, lhs_num, rhs_num))
+            }
             (lhs, rhs) =&gt; {
                 <span class="kw">let </span>binary = <span class="macro-nonterminal">$binary</span>;
                 <span class="kw">return </span><span class="prelude-val">Err</span>(internal(InternalError::MismatchedTypesInBinaryOperator {
@@ -3013,7 +3271,7 @@
             )
         }
         BinaryOp::Add { unchecked: <span class="bool-val">true </span>} =&gt; {
-            <span class="macro">apply_int_binop!</span>(lhs, rhs, binary, num_traits::WrappingAdd::wrapping_add)
+            <span class="macro">apply_int_binop!</span>(lhs, rhs, binary, num_traits::CheckedAdd::checked_add, |a, b| a + b)
         }
         BinaryOp::Sub { unchecked: <span class="bool-val">false </span>} =&gt; {
             <span class="macro">apply_int_binop_opt!</span>(
@@ -3025,7 +3283,7 @@
             )
         }
         BinaryOp::Sub { unchecked: <span class="bool-val">true </span>} =&gt; {
-            <span class="macro">apply_int_binop!</span>(lhs, rhs, binary, num_traits::WrappingSub::wrapping_sub)
+            <span class="macro">apply_int_binop!</span>(lhs, rhs, binary, num_traits::CheckedSub::checked_sub, |a, b| a - b)
         }
         BinaryOp::Mul { unchecked: <span class="bool-val">false </span>} =&gt; {
             <span class="comment">// Only unsigned multiplication has side effects
@@ -3038,7 +3296,7 @@
             )
         }
         BinaryOp::Mul { unchecked: <span class="bool-val">true </span>} =&gt; {
-            <span class="macro">apply_int_binop!</span>(lhs, rhs, binary, num_traits::WrappingMul::wrapping_mul)
+            <span class="macro">apply_int_binop!</span>(lhs, rhs, binary, num_traits::CheckedMul::checked_mul, |a, b| a * b)
         }
         BinaryOp::Div =&gt; <span class="macro">apply_int_binop_opt!</span>(
             lhs,
@@ -3054,21 +3312,42 @@
             num_traits::CheckedRem::checked_rem,
             display_binary
         ),
-        BinaryOp::Eq =&gt; <span class="macro">apply_int_comparison_op!</span>(lhs, rhs, binary, |a, b| a == b),
-        BinaryOp::Lt =&gt; <span class="macro">apply_int_comparison_op!</span>(lhs, rhs, binary, |a, b| a &lt; b),
+        BinaryOp::Eq =&gt; <span class="macro">apply_int_comparison_op!</span>(lhs, rhs, binary, |a, b| a == b, |a, b| a == b),
+        BinaryOp::Lt =&gt; {
+            <span class="macro">apply_int_comparison_op!</span>(lhs, rhs, binary, |a, b| a &lt; b, |<span class="kw">_</span>, <span class="kw">_</span>| <span class="macro">unreachable!</span>(
+                <span class="string">"unfit lt: fit types should have been restored already"
+            </span>))
+        }
         BinaryOp::And =&gt; {
-            <span class="macro">apply_int_binop!</span>(lhs, rhs, binary, std::ops::BitAnd::bitand)
+            <span class="macro">apply_int_binop!</span>(lhs, rhs, binary, |a, b| <span class="prelude-val">Some</span>(a &amp; b), |<span class="kw">_</span>, <span class="kw">_</span>| <span class="macro">unreachable!</span>(
+                <span class="string">"unfit and: fit types should have been restored already"
+            </span>))
         }
         BinaryOp::Or =&gt; {
-            <span class="macro">apply_int_binop!</span>(lhs, rhs, binary, std::ops::BitOr::bitor)
+            <span class="macro">apply_int_binop!</span>(lhs, rhs, binary, |a, b| <span class="prelude-val">Some</span>(a | b), |<span class="kw">_</span>, <span class="kw">_</span>| <span class="macro">unreachable!</span>(
+                <span class="string">"unfit or: fit types should have been restored already"
+            </span>))
         }
         BinaryOp::Xor =&gt; {
-            <span class="macro">apply_int_binop!</span>(lhs, rhs, binary, std::ops::BitXor::bitxor)
+            <span class="macro">apply_int_binop!</span>(lhs, rhs, binary, |a, b| <span class="prelude-val">Some</span>(a ^ b), |<span class="kw">_</span>, <span class="kw">_</span>| <span class="macro">unreachable!</span>(
+                <span class="string">"unfit xor: fit types should have been restored already"
+            </span>))
         }
         BinaryOp::Shl =&gt; {
             <span class="kw">use </span>NumericValue::<span class="kw-2">*</span>;
             <span class="kw">let </span>instruction = <span class="macro">format!</span>(<span class="string">"`{}` ({lhs} &lt;&lt; {rhs})"</span>, display_binary(binary));
-            <span class="kw">let </span>overflow = InterpreterError::Overflow { operator: BinaryOp::Shl, instruction };
+            <span class="kw">let </span>over = || InterpreterError::Overflow { operator: BinaryOp::Shl, instruction };
+
+            <span class="kw">fn </span>shl&lt;A: CheckedShl&gt;(a: <span class="kw-2">&amp;</span>A, b: <span class="kw-2">&amp;</span>u32) -&gt; <span class="prelude-ty">Option</span>&lt;A&gt; {
+                a.checked_shl(<span class="kw-2">*</span>b)
+            }
+            <span class="kw">fn </span>shl_into&lt;A: CheckedShl, B: Into&lt;u32&gt; + Copy&gt;(a: <span class="kw-2">&amp;</span>A, b: <span class="kw-2">&amp;</span>B) -&gt; <span class="prelude-ty">Option</span>&lt;A&gt; {
+                shl(a, <span class="kw-2">&amp;</span>(<span class="kw-2">*</span>b).into())
+            }
+            <span class="kw">fn </span>shl_try&lt;A: CheckedShl, B: TryInto&lt;u32&gt; + Copy&gt;(a: <span class="kw-2">&amp;</span>A, b: <span class="kw-2">&amp;</span>B) -&gt; <span class="prelude-ty">Option</span>&lt;A&gt; {
+                shl(a, <span class="kw-2">&amp;</span>(<span class="kw-2">*</span>b).try_into().ok()<span class="question-mark">?</span>)
+            }
+
             <span class="kw">match </span>(lhs, rhs) {
                 (Field(<span class="kw">_</span>), <span class="kw">_</span>) | (<span class="kw">_</span>, Field(<span class="kw">_</span>)) =&gt; {
                     <span class="kw">return </span><span class="prelude-val">Err</span>(internal(InternalError::UnsupportedOperatorForType {
@@ -3076,40 +3355,16 @@
                         typ: <span class="string">"Field"</span>,
                     }));
                 }
-                (U1(lhs_value), U1(rhs_value)) =&gt; U1(<span class="kw">if </span>!rhs_value { lhs_value } <span class="kw">else </span>{ <span class="bool-val">false </span>}),
-                (U8(lhs_value), U8(rhs_value)) =&gt; {
-                    lhs_value.checked_shl(rhs_value.into()).map(U8).ok_or(overflow)<span class="question-mark">?
-                </span>}
-                (U16(lhs_value), U16(rhs_value)) =&gt; {
-                    lhs_value.checked_shl(rhs_value.into()).map(U16).ok_or(overflow)<span class="question-mark">?
-                </span>}
-                (U32(lhs_value), U32(rhs_value)) =&gt; {
-                    lhs_value.checked_shl(rhs_value).map(U32).ok_or(overflow)<span class="question-mark">?
-                </span>}
-                (U64(lhs_value), U64(rhs_value)) =&gt; {
-                    <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow.clone())<span class="question-mark">?</span>;
-                    lhs_value.checked_shl(rhs_value).map(U64).ok_or(overflow)<span class="question-mark">?
-                </span>}
-                (U128(lhs_value), U128(rhs_value)) =&gt; {
-                    <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow.clone())<span class="question-mark">?</span>;
-                    lhs_value.checked_shl(rhs_value).map(U128).ok_or(overflow)<span class="question-mark">?
-                </span>}
-                (I8(lhs_value), I8(rhs_value)) =&gt; {
-                    <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow.clone())<span class="question-mark">?</span>;
-                    lhs_value.checked_shl(rhs_value).map(I8).ok_or(overflow)<span class="question-mark">?
-                </span>}
-                (I16(lhs_value), I16(rhs_value)) =&gt; {
-                    <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow.clone())<span class="question-mark">?</span>;
-                    lhs_value.checked_shl(rhs_value).map(I16).ok_or(overflow)<span class="question-mark">?
-                </span>}
-                (I32(lhs_value), I32(rhs_value)) =&gt; {
-                    <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow.clone())<span class="question-mark">?</span>;
-                    lhs_value.checked_shl(rhs_value).map(I32).ok_or(overflow)<span class="question-mark">?
-                </span>}
-                (I64(lhs_value), I64(rhs_value)) =&gt; {
-                    <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow.clone())<span class="question-mark">?</span>;
-                    lhs_value.checked_shl(rhs_value).map(I64).ok_or(overflow)<span class="question-mark">?
-                </span>}
+                (U1(lhs), U1(rhs)) =&gt; U1(<span class="kw">if </span>!rhs { lhs } <span class="kw">else </span>{ <span class="bool-val">false </span>}),
+                (U8(lhs), U8(rhs)) =&gt; U8(<span class="macro">apply_fit_binop_opt!</span>(lhs, rhs, shl_into, over)<span class="question-mark">?</span>),
+                (U16(lhs), U16(rhs)) =&gt; U16(<span class="macro">apply_fit_binop_opt!</span>(lhs, rhs, shl_into, over)<span class="question-mark">?</span>),
+                (U32(lhs), U32(rhs)) =&gt; U32(<span class="macro">apply_fit_binop_opt!</span>(lhs, rhs, shl, over)<span class="question-mark">?</span>),
+                (U64(lhs), U64(rhs)) =&gt; U64(<span class="macro">apply_fit_binop_opt!</span>(lhs, rhs, shl_try, over)<span class="question-mark">?</span>),
+                (U128(lhs), U128(rhs)) =&gt; U128(<span class="macro">apply_fit_binop_opt!</span>(lhs, rhs, shl_try, over)<span class="question-mark">?</span>),
+                (I8(lhs), I8(rhs)) =&gt; I8(<span class="macro">apply_fit_binop_opt!</span>(lhs, rhs, shl_try, over)<span class="question-mark">?</span>),
+                (I16(lhs), I16(rhs)) =&gt; I16(<span class="macro">apply_fit_binop_opt!</span>(lhs, rhs, shl_try, over)<span class="question-mark">?</span>),
+                (I32(lhs), I32(rhs)) =&gt; I32(<span class="macro">apply_fit_binop_opt!</span>(lhs, rhs, shl_try, over)<span class="question-mark">?</span>),
+                (I64(lhs), I64(rhs)) =&gt; I64(<span class="macro">apply_fit_binop_opt!</span>(lhs, rhs, shl_try, over)<span class="question-mark">?</span>),
                 <span class="kw">_ </span>=&gt; {
                     <span class="kw">return </span><span class="prelude-val">Err</span>(internal(InternalError::MismatchedTypesInBinaryOperator {
                         lhs: lhs.to_string(),
@@ -3122,10 +3377,21 @@
             }
         }
         BinaryOp::Shr =&gt; {
-            <span class="kw">let </span>instruction = <span class="macro">format!</span>(<span class="string">"`{}` ({lhs} &gt;&gt; {rhs})"</span>, display_binary(binary));
-            <span class="kw">let </span>overflow = InterpreterError::Overflow { operator: BinaryOp::Shr, instruction };
-
             <span class="kw">use </span>NumericValue::<span class="kw-2">*</span>;
+
+            <span class="kw">let </span>instruction = <span class="macro">format!</span>(<span class="string">"`{}` ({lhs} &gt;&gt; {rhs})"</span>, display_binary(binary));
+            <span class="kw">let </span>over = || InterpreterError::Overflow { operator: BinaryOp::Shr, instruction };
+
+            <span class="kw">fn </span>shr&lt;A: CheckedShr&gt;(a: <span class="kw-2">&amp;</span>A, b: <span class="kw-2">&amp;</span>u32) -&gt; <span class="prelude-ty">Option</span>&lt;A&gt; {
+                a.checked_shr(<span class="kw-2">*</span>b)
+            }
+            <span class="kw">fn </span>shr_into&lt;A: CheckedShr, B: Into&lt;u32&gt; + Copy&gt;(a: <span class="kw-2">&amp;</span>A, b: <span class="kw-2">&amp;</span>B) -&gt; <span class="prelude-ty">Option</span>&lt;A&gt; {
+                shr(a, <span class="kw-2">&amp;</span>(<span class="kw-2">*</span>b).into())
+            }
+            <span class="kw">fn </span>shr_try&lt;A: CheckedShr, B: TryInto&lt;u32&gt; + Copy&gt;(a: <span class="kw-2">&amp;</span>A, b: <span class="kw-2">&amp;</span>B) -&gt; <span class="prelude-ty">Option</span>&lt;A&gt; {
+                shr(a, <span class="kw-2">&amp;</span>(<span class="kw-2">*</span>b).try_into().ok()<span class="question-mark">?</span>)
+            }
+
             <span class="kw">match </span>(lhs, rhs) {
                 (Field(<span class="kw">_</span>), <span class="kw">_</span>) | (<span class="kw">_</span>, Field(<span class="kw">_</span>)) =&gt; {
                     <span class="kw">return </span><span class="prelude-val">Err</span>(internal(InternalError::UnsupportedOperatorForType {
@@ -3133,40 +3399,16 @@
                         typ: <span class="string">"Field"</span>,
                     }));
                 }
-                (U1(lhs_value), U1(rhs_value)) =&gt; U1(<span class="kw">if </span>!rhs_value { lhs_value } <span class="kw">else </span>{ <span class="bool-val">false </span>}),
-                (U8(lhs_value), U8(rhs_value)) =&gt; {
-                    lhs_value.checked_shr(rhs_value.into()).map(U8).ok_or(overflow)<span class="question-mark">?
-                </span>}
-                (U16(lhs_value), U16(rhs_value)) =&gt; {
-                    lhs_value.checked_shr(rhs_value.into()).map(U16).ok_or(overflow)<span class="question-mark">?
-                </span>}
-                (U32(lhs_value), U32(rhs_value)) =&gt; {
-                    lhs_value.checked_shr(rhs_value).map(U32).ok_or(overflow)<span class="question-mark">?
-                </span>}
-                (U64(lhs_value), U64(rhs_value)) =&gt; {
-                    <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow.clone())<span class="question-mark">?</span>;
-                    lhs_value.checked_shr(rhs_value).map(U64).ok_or(overflow)<span class="question-mark">?
-                </span>}
-                (U128(lhs_value), U128(rhs_value)) =&gt; {
-                    <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow.clone())<span class="question-mark">?</span>;
-                    lhs_value.checked_shr(rhs_value).map(U128).ok_or(overflow)<span class="question-mark">?
-                </span>}
-                (I8(lhs_value), I8(rhs_value)) =&gt; {
-                    <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow.clone())<span class="question-mark">?</span>;
-                    lhs_value.checked_shr(rhs_value).map(I8).ok_or(overflow)<span class="question-mark">?
-                </span>}
-                (I16(lhs_value), I16(rhs_value)) =&gt; {
-                    <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow.clone())<span class="question-mark">?</span>;
-                    lhs_value.checked_shr(rhs_value).map(I16).ok_or(overflow)<span class="question-mark">?
-                </span>}
-                (I32(lhs_value), I32(rhs_value)) =&gt; {
-                    <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow.clone())<span class="question-mark">?</span>;
-                    lhs_value.checked_shr(rhs_value).map(I32).ok_or(overflow)<span class="question-mark">?
-                </span>}
-                (I64(lhs_value), I64(rhs_value)) =&gt; {
-                    <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow.clone())<span class="question-mark">?</span>;
-                    lhs_value.checked_shr(rhs_value).map(I64).ok_or(overflow)<span class="question-mark">?
-                </span>}
+                (U1(lhs), U1(rhs)) =&gt; U1(<span class="kw">if </span>!rhs { lhs } <span class="kw">else </span>{ <span class="bool-val">false </span>}),
+                (U8(lhs), U8(rhs)) =&gt; U8(<span class="macro">apply_fit_binop_opt!</span>(lhs, rhs, shr_into, over)<span class="question-mark">?</span>),
+                (U16(lhs), U16(rhs)) =&gt; U16(<span class="macro">apply_fit_binop_opt!</span>(lhs, rhs, shr_into, over)<span class="question-mark">?</span>),
+                (U32(lhs), U32(rhs)) =&gt; U32(<span class="macro">apply_fit_binop_opt!</span>(lhs, rhs, shr, over)<span class="question-mark">?</span>),
+                (U64(lhs), U64(rhs)) =&gt; U64(<span class="macro">apply_fit_binop_opt!</span>(lhs, rhs, shr_try, over)<span class="question-mark">?</span>),
+                (U128(lhs), U128(rhs)) =&gt; U128(<span class="macro">apply_fit_binop_opt!</span>(lhs, rhs, shr_try, over)<span class="question-mark">?</span>),
+                (I8(lhs), I8(rhs)) =&gt; I8(<span class="macro">apply_fit_binop_opt!</span>(lhs, rhs, shr_try, over)<span class="question-mark">?</span>),
+                (I16(lhs), I16(rhs)) =&gt; I16(<span class="macro">apply_fit_binop_opt!</span>(lhs, rhs, shr_try, over)<span class="question-mark">?</span>),
+                (I32(lhs), I32(rhs)) =&gt; I32(<span class="macro">apply_fit_binop_opt!</span>(lhs, rhs, shr_try, over)<span class="question-mark">?</span>),
+                (I64(lhs), I64(rhs)) =&gt; I64(<span class="macro">apply_fit_binop_opt!</span>(lhs, rhs, shr_try, over)<span class="question-mark">?</span>),
                 <span class="kw">_ </span>=&gt; {
                     <span class="kw">return </span><span class="prelude-val">Err</span>(internal(InternalError::MismatchedTypesInBinaryOperator {
                         lhs: lhs.to_string(),
@@ -3399,12 +3641,12 @@
             <span class="macro">assert_eq!</span>(
                 <span class="kw">super</span>::evaluate_binary(
                     <span class="kw-2">&amp;</span>binary,
-                    NumericValue::I8(lhs),
-                    NumericValue::I8(rhs),
+                    NumericValue::I8(lhs.into()),
+                    NumericValue::I8(rhs.into()),
                     <span class="bool-val">true</span>,
                     display
                 ),
-                expected_result.map(NumericValue::I8),
+                expected_result.map(|i| NumericValue::I8(i.into())),
                 <span class="string">"{lhs} &lt;&lt; {rhs}"</span>,
             );
         }

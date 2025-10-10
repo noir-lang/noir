@@ -502,7 +502,171 @@
 <a href="#501" id="501">501</a>
 <a href="#502" id="502">502</a>
 <a href="#503" id="503">503</a>
-<a href="#504" id="504">504</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
+<a href="#504" id="504">504</a>
+<a href="#505" id="505">505</a>
+<a href="#506" id="506">506</a>
+<a href="#507" id="507">507</a>
+<a href="#508" id="508">508</a>
+<a href="#509" id="509">509</a>
+<a href="#510" id="510">510</a>
+<a href="#511" id="511">511</a>
+<a href="#512" id="512">512</a>
+<a href="#513" id="513">513</a>
+<a href="#514" id="514">514</a>
+<a href="#515" id="515">515</a>
+<a href="#516" id="516">516</a>
+<a href="#517" id="517">517</a>
+<a href="#518" id="518">518</a>
+<a href="#519" id="519">519</a>
+<a href="#520" id="520">520</a>
+<a href="#521" id="521">521</a>
+<a href="#522" id="522">522</a>
+<a href="#523" id="523">523</a>
+<a href="#524" id="524">524</a>
+<a href="#525" id="525">525</a>
+<a href="#526" id="526">526</a>
+<a href="#527" id="527">527</a>
+<a href="#528" id="528">528</a>
+<a href="#529" id="529">529</a>
+<a href="#530" id="530">530</a>
+<a href="#531" id="531">531</a>
+<a href="#532" id="532">532</a>
+<a href="#533" id="533">533</a>
+<a href="#534" id="534">534</a>
+<a href="#535" id="535">535</a>
+<a href="#536" id="536">536</a>
+<a href="#537" id="537">537</a>
+<a href="#538" id="538">538</a>
+<a href="#539" id="539">539</a>
+<a href="#540" id="540">540</a>
+<a href="#541" id="541">541</a>
+<a href="#542" id="542">542</a>
+<a href="#543" id="543">543</a>
+<a href="#544" id="544">544</a>
+<a href="#545" id="545">545</a>
+<a href="#546" id="546">546</a>
+<a href="#547" id="547">547</a>
+<a href="#548" id="548">548</a>
+<a href="#549" id="549">549</a>
+<a href="#550" id="550">550</a>
+<a href="#551" id="551">551</a>
+<a href="#552" id="552">552</a>
+<a href="#553" id="553">553</a>
+<a href="#554" id="554">554</a>
+<a href="#555" id="555">555</a>
+<a href="#556" id="556">556</a>
+<a href="#557" id="557">557</a>
+<a href="#558" id="558">558</a>
+<a href="#559" id="559">559</a>
+<a href="#560" id="560">560</a>
+<a href="#561" id="561">561</a>
+<a href="#562" id="562">562</a>
+<a href="#563" id="563">563</a>
+<a href="#564" id="564">564</a>
+<a href="#565" id="565">565</a>
+<a href="#566" id="566">566</a>
+<a href="#567" id="567">567</a>
+<a href="#568" id="568">568</a>
+<a href="#569" id="569">569</a>
+<a href="#570" id="570">570</a>
+<a href="#571" id="571">571</a>
+<a href="#572" id="572">572</a>
+<a href="#573" id="573">573</a>
+<a href="#574" id="574">574</a>
+<a href="#575" id="575">575</a>
+<a href="#576" id="576">576</a>
+<a href="#577" id="577">577</a>
+<a href="#578" id="578">578</a>
+<a href="#579" id="579">579</a>
+<a href="#580" id="580">580</a>
+<a href="#581" id="581">581</a>
+<a href="#582" id="582">582</a>
+<a href="#583" id="583">583</a>
+<a href="#584" id="584">584</a>
+<a href="#585" id="585">585</a>
+<a href="#586" id="586">586</a>
+<a href="#587" id="587">587</a>
+<a href="#588" id="588">588</a>
+<a href="#589" id="589">589</a>
+<a href="#590" id="590">590</a>
+<a href="#591" id="591">591</a>
+<a href="#592" id="592">592</a>
+<a href="#593" id="593">593</a>
+<a href="#594" id="594">594</a>
+<a href="#595" id="595">595</a>
+<a href="#596" id="596">596</a>
+<a href="#597" id="597">597</a>
+<a href="#598" id="598">598</a>
+<a href="#599" id="599">599</a>
+<a href="#600" id="600">600</a>
+<a href="#601" id="601">601</a>
+<a href="#602" id="602">602</a>
+<a href="#603" id="603">603</a>
+<a href="#604" id="604">604</a>
+<a href="#605" id="605">605</a>
+<a href="#606" id="606">606</a>
+<a href="#607" id="607">607</a>
+<a href="#608" id="608">608</a>
+<a href="#609" id="609">609</a>
+<a href="#610" id="610">610</a>
+<a href="#611" id="611">611</a>
+<a href="#612" id="612">612</a>
+<a href="#613" id="613">613</a>
+<a href="#614" id="614">614</a>
+<a href="#615" id="615">615</a>
+<a href="#616" id="616">616</a>
+<a href="#617" id="617">617</a>
+<a href="#618" id="618">618</a>
+<a href="#619" id="619">619</a>
+<a href="#620" id="620">620</a>
+<a href="#621" id="621">621</a>
+<a href="#622" id="622">622</a>
+<a href="#623" id="623">623</a>
+<a href="#624" id="624">624</a>
+<a href="#625" id="625">625</a>
+<a href="#626" id="626">626</a>
+<a href="#627" id="627">627</a>
+<a href="#628" id="628">628</a>
+<a href="#629" id="629">629</a>
+<a href="#630" id="630">630</a>
+<a href="#631" id="631">631</a>
+<a href="#632" id="632">632</a>
+<a href="#633" id="633">633</a>
+<a href="#634" id="634">634</a>
+<a href="#635" id="635">635</a>
+<a href="#636" id="636">636</a>
+<a href="#637" id="637">637</a>
+<a href="#638" id="638">638</a>
+<a href="#639" id="639">639</a>
+<a href="#640" id="640">640</a>
+<a href="#641" id="641">641</a>
+<a href="#642" id="642">642</a>
+<a href="#643" id="643">643</a>
+<a href="#644" id="644">644</a>
+<a href="#645" id="645">645</a>
+<a href="#646" id="646">646</a>
+<a href="#647" id="647">647</a>
+<a href="#648" id="648">648</a>
+<a href="#649" id="649">649</a>
+<a href="#650" id="650">650</a>
+<a href="#651" id="651">651</a>
+<a href="#652" id="652">652</a>
+<a href="#653" id="653">653</a>
+<a href="#654" id="654">654</a>
+<a href="#655" id="655">655</a>
+<a href="#656" id="656">656</a>
+<a href="#657" id="657">657</a>
+<a href="#658" id="658">658</a>
+<a href="#659" id="659">659</a>
+<a href="#660" id="660">660</a>
+<a href="#661" id="661">661</a>
+<a href="#662" id="662">662</a>
+<a href="#663" id="663">663</a>
+<a href="#664" id="664">664</a>
+<a href="#665" id="665">665</a>
+<a href="#666" id="666">666</a>
+<a href="#667" id="667">667</a>
+<a href="#668" id="668">668</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>iter_extended::{try_vecmap, vecmap};
@@ -532,21 +696,89 @@
     ForeignFunction(String),
 }
 
+<span class="doccomment">/// Represents a numeric type that either fits in the expected bit size,
+/// or would have to be represented as a `Field` to match the semantics of ACIR.
+///
+/// The reason this exists is the difference in behavior of unchecked operations in Brillig and ACIR:
+/// * In Brillig unchecked operations wrap around, but we have other opcodes surrounding it that
+///   either prevent such operations from being carried out, or check for any overflows later.
+/// * In ACIR, everything is represented as a `Field`, and overflows are not checked, so e.g. an unchecked
+///   multiplication of `u32` values can result in something that only fits in a `u64`.
+///
+/// When we interpret an operation that would wrap around, if we are in an ACIR context we can use
+/// the `Unfit` variant to indicate that the value went beyond what fits into the base type.
+///
+/// Since we normally require that ACIR and Brillig return the same result, once an operation
+/// overflows its type, we have reason to believe that ACIR and Brillig would not return the same
+/// value, since Brillig wraps, and ACIR does not.
+///
+/// However, some operations that we ported back from ACIR to SSA are implemented in such a
+/// way that transient values "escape" the boundaries of their type, only to be restored later,
+/// so keeping the `Field` serves more than informational purposes. We expect that under normal
+/// circumstances this effect is temporary, and by the time we would have to apply operations
+/// on the values that aren't implemented for `Field` (e.g. `lt` and bitwise ops), the values will
+/// be back on track.
+</span><span class="attr">#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+</span><span class="kw">pub enum </span>Fitted&lt;T&gt; {
+    Fit(T),
+    Unfit(FieldElement),
+}
+
+<span class="kw">impl</span>&lt;A&gt; Fitted&lt;A&gt; {
+    <span class="kw">pub fn </span>map&lt;B&gt;(
+        <span class="self">self</span>,
+        f: <span class="kw">impl </span>FnOnce(A) -&gt; B,
+        g: <span class="kw">impl </span>FnOnce(FieldElement) -&gt; FieldElement,
+    ) -&gt; Fitted&lt;B&gt; {
+        <span class="kw">match </span><span class="self">self </span>{
+            <span class="self">Self</span>::Fit(value) =&gt; Fitted::Fit(f(value)),
+            <span class="self">Self</span>::Unfit(value) =&gt; Fitted::Unfit(g(value)),
+        }
+    }
+
+    <span class="kw">pub fn </span>apply&lt;B&gt;(<span class="self">self</span>, f: <span class="kw">impl </span>FnOnce(A) -&gt; B, g: <span class="kw">impl </span>FnOnce(FieldElement) -&gt; B) -&gt; B {
+        <span class="kw">match </span><span class="self">self </span>{
+            <span class="self">Self</span>::Fit(value) =&gt; f(value),
+            <span class="self">Self</span>::Unfit(value) =&gt; g(value),
+        }
+    }
+}
+
+<span class="macro">macro_rules!</span> impl_fitted {
+    ($(<span class="macro-nonterminal">$t</span>:ty),<span class="kw-2">*</span>) =&gt; {
+        $(
+        <span class="kw">impl </span>From&lt;<span class="macro-nonterminal">$t</span>&gt; <span class="kw">for </span>Fitted&lt;<span class="macro-nonterminal">$t</span>&gt; {
+            <span class="kw">fn </span>from(value: <span class="macro-nonterminal">$t</span>) -&gt; <span class="self">Self </span>{
+                <span class="self">Self</span>::Fit(value)
+            }
+        }
+
+        <span class="kw">impl </span>From&lt;FieldElement&gt; <span class="kw">for </span>Fitted&lt;<span class="macro-nonterminal">$t</span>&gt; {
+            <span class="kw">fn </span>from(value: FieldElement) -&gt; <span class="self">Self </span>{
+                <span class="self">Self</span>::Unfit(value)
+            }
+        }
+        )*
+    };
+}
+
+<span class="macro">impl_fitted!</span> { u8, u16, u32, u64, u128, i8, i16, i32, i64 }
+
 <span class="attr">#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 </span><span class="kw">pub enum </span>NumericValue {
     Field(FieldElement),
 
     U1(bool),
-    U8(u8),
-    U16(u16),
-    U32(u32),
-    U64(u64),
-    U128(u128),
+    U8(Fitted&lt;u8&gt;),
+    U16(Fitted&lt;u16&gt;),
+    U32(Fitted&lt;u32&gt;),
+    U64(Fitted&lt;u64&gt;),
+    U128(Fitted&lt;u128&gt;),
 
-    I8(i8),
-    I16(i16),
-    I32(i32),
-    I64(i64),
+    I8(Fitted&lt;i8&gt;),
+    I16(Fitted&lt;i16&gt;),
+    I32(Fitted&lt;i32&gt;),
+    I64(Fitted&lt;i64&gt;),
 }
 
 <span class="attr">#[derive(Debug, Clone, PartialEq, Eq)]
@@ -606,21 +838,21 @@
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>as_u8(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;u8&gt; {
         <span class="kw">match </span><span class="self">self </span>{
-            Value::Numeric(NumericValue::U8(value)) =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>value),
+            Value::Numeric(NumericValue::U8(Fitted::Fit(value))) =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>value),
             <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
         }
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>as_u32(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;u32&gt; {
         <span class="kw">match </span><span class="self">self </span>{
-            Value::Numeric(NumericValue::U32(value)) =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>value),
+            Value::Numeric(NumericValue::U32(Fitted::Fit(value))) =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>value),
             <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
         }
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>as_u64(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;u64&gt; {
         <span class="kw">match </span><span class="self">self </span>{
-            Value::Numeric(NumericValue::U64(value)) =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>value),
+            Value::Numeric(NumericValue::U64(Fitted::Fit(value))) =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>value),
             <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
         }
     }
@@ -658,10 +890,48 @@
         <span class="prelude-val">Ok</span>(<span class="self">Self</span>::array(values, <span class="macro">vec!</span>[Type::Numeric(typ)]))
     }
 
-    <span class="comment">// This is used in tests but shouldn't be cfg(test) only
-    </span><span class="attr">#[allow(unused)]
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>bool(value: bool) -&gt; <span class="self">Self </span>{
+    <span class="kw">pub fn </span>bool(value: bool) -&gt; <span class="self">Self </span>{
         <span class="self">Self</span>::Numeric(NumericValue::U1(value))
+    }
+
+    <span class="kw">pub fn </span>field(value: FieldElement) -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>::Numeric(NumericValue::Field(value))
+    }
+
+    <span class="kw">pub fn </span>u8(value: u8) -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>::Numeric(NumericValue::U8(value.into()))
+    }
+
+    <span class="kw">pub fn </span>u16(value: u16) -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>::Numeric(NumericValue::U16(value.into()))
+    }
+
+    <span class="kw">pub fn </span>u32(value: u32) -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>::Numeric(NumericValue::U32(value.into()))
+    }
+
+    <span class="kw">pub fn </span>u128(value: u128) -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>::Numeric(NumericValue::U128(value.into()))
+    }
+
+    <span class="kw">pub fn </span>u64(value: u64) -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>::Numeric(NumericValue::U64(value.into()))
+    }
+
+    <span class="kw">pub fn </span>i8(value: i8) -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>::Numeric(NumericValue::I8(value.into()))
+    }
+
+    <span class="kw">pub fn </span>i16(value: i16) -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>::Numeric(NumericValue::I16(value.into()))
+    }
+
+    <span class="kw">pub fn </span>i32(value: i32) -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>::Numeric(NumericValue::I32(value.into()))
+    }
+
+    <span class="kw">pub fn </span>i64(value: i64) -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>::Numeric(NumericValue::I64(value.into()))
     }
 
     <span class="kw">pub fn </span>array(elements: Vec&lt;Value&gt;, element_types: Vec&lt;Type&gt;) -&gt; <span class="self">Self </span>{
@@ -756,6 +1026,15 @@
     </span><span class="kw">pub fn </span>snapshot_args(args: <span class="kw-2">&amp;</span>[Value]) -&gt; Vec&lt;Value&gt; {
         args.iter().map(|arg| arg.snapshot()).collect()
     }
+
+    <span class="doccomment">/// Wrap a `Field` into an `Unfit`, with a type that we were _supposed_ to get,
+    /// had some operation not overflown.
+    ///
+    /// This is used only in tests to construct expected values.
+    </span><span class="attr">#[cfg(test)]
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>unfit(field: FieldElement, typ: NumericType) -&gt; IResult&lt;<span class="self">Self</span>&gt; {
+        NumericValue::unfit(field, typ).map(<span class="self">Self</span>::Numeric)
+    }
 }
 
 <span class="kw">impl </span>NumericValue {
@@ -793,7 +1072,12 @@
         }
     }
 
-    <span class="kw">pub fn </span>from_constant(constant: FieldElement, typ: NumericType) -&gt; IResult&lt;NumericValue&gt; {
+    <span class="doccomment">/// Create a `NumericValue` from a `Field` constant.
+    ///
+    /// Returns an error if the value does not fit into the number of bits indicated by the `NumericType`.
+    ///
+    /// Never creates `Fitted::Unfit` values.
+    </span><span class="kw">pub fn </span>from_constant(constant: FieldElement, typ: NumericType) -&gt; IResult&lt;NumericValue&gt; {
         <span class="kw">use </span><span class="kw">super</span>::InternalError::{ConstantDoesNotFitInType, UnsupportedNumericType};
         <span class="kw">use </span><span class="kw">super</span>::InterpreterError::Internal;
 
@@ -811,25 +1095,29 @@
             NumericType::Unsigned { bit_size: <span class="number">8 </span>} =&gt; constant
                 .try_into_u128()
                 .and_then(|x| x.try_into().ok())
+                .map(Fitted::Fit)
                 .map(<span class="self">Self</span>::U8)
                 .ok_or(does_not_fit),
             NumericType::Unsigned { bit_size: <span class="number">16 </span>} =&gt; constant
                 .try_into_u128()
                 .and_then(|x| x.try_into().ok())
+                .map(Fitted::Fit)
                 .map(<span class="self">Self</span>::U16)
                 .ok_or(does_not_fit),
             NumericType::Unsigned { bit_size: <span class="number">32 </span>} =&gt; constant
                 .try_into_u128()
                 .and_then(|x| x.try_into().ok())
+                .map(Fitted::Fit)
                 .map(<span class="self">Self</span>::U32)
                 .ok_or(does_not_fit),
             NumericType::Unsigned { bit_size: <span class="number">64 </span>} =&gt; constant
                 .try_into_u128()
                 .and_then(|x| x.try_into().ok())
+                .map(Fitted::Fit)
                 .map(<span class="self">Self</span>::U64)
                 .ok_or(does_not_fit),
             NumericType::Unsigned { bit_size: <span class="number">128 </span>} =&gt; {
-                constant.try_into_u128().map(<span class="self">Self</span>::U128).ok_or(does_not_fit)
+                constant.try_into_u128().map(Fitted::Fit).map(<span class="self">Self</span>::U128).ok_or(does_not_fit)
             }
             <span class="comment">// Signed cases are a bit weird. We want to allow all values in the corresponding
             // unsigned range so we have to cast to the unsigned type first to see if it fits.
@@ -837,22 +1125,26 @@
             </span>NumericType::Signed { bit_size: <span class="number">8 </span>} =&gt; constant
                 .try_into_u128()
                 .and_then(|x| u8::try_from(x).ok())
-                .map(|x| <span class="self">Self</span>::I8(x <span class="kw">as </span>i8))
+                .map(|x| Fitted::Fit(x <span class="kw">as </span>i8))
+                .map(<span class="self">Self</span>::I8)
                 .ok_or(does_not_fit),
             NumericType::Signed { bit_size: <span class="number">16 </span>} =&gt; constant
                 .try_into_u128()
                 .and_then(|x| u16::try_from(x).ok())
-                .map(|x| <span class="self">Self</span>::I16(x <span class="kw">as </span>i16))
+                .map(|x| Fitted::Fit(x <span class="kw">as </span>i16))
+                .map(<span class="self">Self</span>::I16)
                 .ok_or(does_not_fit),
             NumericType::Signed { bit_size: <span class="number">32 </span>} =&gt; constant
                 .try_into_u128()
                 .and_then(|x| u32::try_from(x).ok())
-                .map(|x| <span class="self">Self</span>::I32(x <span class="kw">as </span>i32))
+                .map(|x| Fitted::Fit(x <span class="kw">as </span>i32))
+                .map(<span class="self">Self</span>::I32)
                 .ok_or(does_not_fit),
             NumericType::Signed { bit_size: <span class="number">64 </span>} =&gt; constant
                 .try_into_u128()
                 .and_then(|x| u64::try_from(x).ok())
-                .map(|x| <span class="self">Self</span>::I64(x <span class="kw">as </span>i64))
+                .map(|x| Fitted::Fit(x <span class="kw">as </span>i64))
+                .map(<span class="self">Self</span>::I64)
                 .ok_or(does_not_fit),
             typ =&gt; <span class="prelude-val">Err</span>(Internal(UnsupportedNumericType { typ })),
         }
@@ -863,27 +1155,50 @@
             NumericValue::Field(field) =&gt; <span class="kw-2">*</span>field,
             NumericValue::U1(boolean) <span class="kw">if </span><span class="kw-2">*</span>boolean =&gt; FieldElement::one(),
             NumericValue::U1(<span class="kw">_</span>) =&gt; FieldElement::zero(),
-            NumericValue::U8(value) =&gt; FieldElement::from(u32::from(<span class="kw-2">*</span>value)),
-            NumericValue::U16(value) =&gt; FieldElement::from(u32::from(<span class="kw-2">*</span>value)),
-            NumericValue::U32(value) =&gt; FieldElement::from(<span class="kw-2">*</span>value),
-            NumericValue::U64(value) =&gt; FieldElement::from(<span class="kw-2">*</span>value),
-            NumericValue::U128(value) =&gt; FieldElement::from(<span class="kw-2">*</span>value),
+            NumericValue::U8(Fitted::Fit(value)) =&gt; FieldElement::from(u32::from(<span class="kw-2">*</span>value)),
+            NumericValue::U16(Fitted::Fit(value)) =&gt; FieldElement::from(u32::from(<span class="kw-2">*</span>value)),
+            NumericValue::U32(Fitted::Fit(value)) =&gt; FieldElement::from(<span class="kw-2">*</span>value),
+            NumericValue::U64(Fitted::Fit(value)) =&gt; FieldElement::from(<span class="kw-2">*</span>value),
+            NumericValue::U128(Fitted::Fit(value)) =&gt; FieldElement::from(<span class="kw-2">*</span>value),
             <span class="comment">// Need to cast possibly negative values to the unsigned variants
             // first to ensure they are zero-extended rather than sign-extended
-            </span>NumericValue::I8(value) =&gt; FieldElement::from(i128::from(<span class="kw-2">*</span>value <span class="kw">as </span>u8)),
-            NumericValue::I16(value) =&gt; FieldElement::from(i128::from(<span class="kw-2">*</span>value <span class="kw">as </span>u16)),
-            NumericValue::I32(value) =&gt; FieldElement::from(i128::from(<span class="kw-2">*</span>value <span class="kw">as </span>u32)),
-            NumericValue::I64(value) =&gt; FieldElement::from(i128::from(<span class="kw-2">*</span>value <span class="kw">as </span>u64)),
+            </span>NumericValue::I8(Fitted::Fit(value)) =&gt; FieldElement::from(i128::from(<span class="kw-2">*</span>value <span class="kw">as </span>u8)),
+            NumericValue::I16(Fitted::Fit(value)) =&gt; FieldElement::from(i128::from(<span class="kw-2">*</span>value <span class="kw">as </span>u16)),
+            NumericValue::I32(Fitted::Fit(value)) =&gt; FieldElement::from(i128::from(<span class="kw-2">*</span>value <span class="kw">as </span>u32)),
+            NumericValue::I64(Fitted::Fit(value)) =&gt; FieldElement::from(i128::from(<span class="kw-2">*</span>value <span class="kw">as </span>u64)),
+
+            NumericValue::U8(Fitted::Unfit(value))
+            | NumericValue::U16(Fitted::Unfit(value))
+            | NumericValue::U32(Fitted::Unfit(value))
+            | NumericValue::U64(Fitted::Unfit(value))
+            | NumericValue::U128(Fitted::Unfit(value))
+            | NumericValue::I8(Fitted::Unfit(value))
+            | NumericValue::I16(Fitted::Unfit(value))
+            | NumericValue::I32(Fitted::Unfit(value))
+            | NumericValue::I64(Fitted::Unfit(value)) =&gt; <span class="kw-2">*</span>value,
         }
     }
 
-    <span class="kw">pub fn </span>is_negative(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="kw">match </span><span class="self">self </span>{
-            NumericValue::I8(v) =&gt; <span class="kw-2">*</span>v &lt; <span class="number">0</span>,
-            NumericValue::I16(v) =&gt; <span class="kw-2">*</span>v &lt; <span class="number">0</span>,
-            NumericValue::I32(v) =&gt; <span class="kw-2">*</span>v &lt; <span class="number">0</span>,
-            NumericValue::I64(v) =&gt; <span class="kw-2">*</span>v &lt; <span class="number">0</span>,
-            <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
+    <span class="doccomment">/// Creates a `NumericValue` of a specific bit size with a `Fitted::Unfit` value.
+    </span><span class="attr">#[cfg(test)]
+    </span><span class="kw">pub fn </span>unfit(field: FieldElement, typ: NumericType) -&gt; IResult&lt;NumericValue&gt; {
+        <span class="kw">use </span><span class="kw">super</span>::InternalError::UnsupportedNumericType;
+        <span class="kw">use </span><span class="kw">super</span>::InterpreterError::Internal;
+
+        <span class="kw">match </span>typ {
+            NumericType::NativeField | NumericType::Unsigned { bit_size: <span class="number">1 </span>} =&gt; {
+                <span class="macro">unreachable!</span>(<span class="string">"{typ} cannot be unfit"</span>)
+            }
+            NumericType::Unsigned { bit_size: <span class="number">8 </span>} =&gt; <span class="prelude-val">Ok</span>(<span class="self">Self</span>::U8(Fitted::Unfit(field))),
+            NumericType::Unsigned { bit_size: <span class="number">16 </span>} =&gt; <span class="prelude-val">Ok</span>(<span class="self">Self</span>::U16(Fitted::Unfit(field))),
+            NumericType::Unsigned { bit_size: <span class="number">32 </span>} =&gt; <span class="prelude-val">Ok</span>(<span class="self">Self</span>::U32(Fitted::Unfit(field))),
+            NumericType::Unsigned { bit_size: <span class="number">64 </span>} =&gt; <span class="prelude-val">Ok</span>(<span class="self">Self</span>::U64(Fitted::Unfit(field))),
+            NumericType::Unsigned { bit_size: <span class="number">128 </span>} =&gt; <span class="prelude-val">Ok</span>(<span class="self">Self</span>::U128(Fitted::Unfit(field))),
+            NumericType::Signed { bit_size: <span class="number">8 </span>} =&gt; <span class="prelude-val">Ok</span>(<span class="self">Self</span>::I8(Fitted::Unfit(field))),
+            NumericType::Signed { bit_size: <span class="number">16 </span>} =&gt; <span class="prelude-val">Ok</span>(<span class="self">Self</span>::I16(Fitted::Unfit(field))),
+            NumericType::Signed { bit_size: <span class="number">32 </span>} =&gt; <span class="prelude-val">Ok</span>(<span class="self">Self</span>::I32(Fitted::Unfit(field))),
+            NumericType::Signed { bit_size: <span class="number">64 </span>} =&gt; <span class="prelude-val">Ok</span>(<span class="self">Self</span>::I64(Fitted::Unfit(field))),
+            typ =&gt; <span class="prelude-val">Err</span>(Internal(UnsupportedNumericType { typ })),
         }
     }
 }
@@ -897,6 +1212,16 @@
             Value::Function(id) =&gt; <span class="macro">write!</span>(f, <span class="string">"{id}"</span>),
             Value::Intrinsic(intrinsic) =&gt; <span class="macro">write!</span>(f, <span class="string">"{intrinsic}"</span>),
             Value::ForeignFunction(name) =&gt; <span class="macro">write!</span>(f, <span class="string">"ForeignFunction(\"{name}\")"</span>),
+        }
+    }
+}
+
+<span class="kw">impl</span>&lt;T: std::fmt::Display&gt; std::fmt::Display <span class="kw">for </span>Fitted&lt;T&gt; {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
+        <span class="kw">match </span><span class="self">self </span>{
+            Fitted::Fit(v) =&gt; v.fmt(f),
+            <span class="comment">// Distinguish an overflowed value from the type it's supposed to be.
+            </span>Fitted::Unfit(v) =&gt; <span class="macro">write!</span>(f, <span class="string">"({v})"</span>),
         }
     }
 }
@@ -940,19 +1265,22 @@
         </span><span class="kw">if </span><span class="self">self</span>.element_types.len() == <span class="number">1
             </span>&amp;&amp; <span class="macro">matches!</span>(<span class="self">self</span>.element_types[<span class="number">0</span>], Type::Numeric(NumericType::Unsigned { bit_size: <span class="number">8 </span>}))
         {
-            <span class="kw">let </span>printable = <span class="self">self</span>.elements.borrow().iter().all(|value| {
-                <span class="macro">matches!</span>(value, Value::Numeric(NumericValue::U8(byte)) <span class="kw">if </span>is_printable_byte(<span class="kw-2">*</span>byte))
-            });
+            <span class="kw">let </span>printable = <span class="self">self
+                </span>.elements
+                .borrow()
+                .iter()
+                .all(|value| value.as_u8().is_some_and(is_printable_byte));
+
             <span class="kw">if </span>printable {
                 <span class="kw">let </span>bytes = <span class="self">self
                     </span>.elements
                     .borrow()
                     .iter()
                     .map(|value| {
-                        <span class="kw">let </span>Value::Numeric(NumericValue::U8(byte)) = value <span class="kw">else </span>{
+                        <span class="kw">let </span><span class="prelude-val">Some</span>(byte) = value.as_u8() <span class="kw">else </span>{
                             <span class="macro">panic!</span>(<span class="string">"Expected U8 value in array, found {value}"</span>);
                         };
-                        <span class="kw-2">*</span>byte
+                        byte
                     })
                     .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
                 <span class="kw">let </span>string = String::from_utf8(bytes).unwrap();

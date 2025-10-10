@@ -426,9 +426,7 @@
 <a href="#425" id="425">425</a>
 <a href="#426" id="426">426</a>
 <a href="#427" id="427">427</a>
-<a href="#428" id="428">428</a>
-<a href="#429" id="429">429</a>
-<a href="#430" id="430">430</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST compiled into SSA and executed with the
+<a href="#428" id="428">428</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST compiled into SSA and executed with the
 //! SSA interpreter at some stage of the SSA pipeline.
 
 </span><span class="kw">use </span>std::sync::{Arc, OnceLock};
@@ -729,10 +727,8 @@
             <span class="kw">let </span>num_val = NumericValue::from_constant(<span class="kw-2">*</span>f, num_typ).expect(<span class="string">"cannot create constant"</span>);
             values.push(Value::Numeric(num_val));
         }
-        InputValue::String(s) =&gt; values.push(array_value(
-            vecmap(s.as_bytes(), |b| Value::Numeric(NumericValue::U8(<span class="kw-2">*</span>b))),
-            <span class="macro">vec!</span>[Type::unsigned(<span class="number">8</span>)],
-        )),
+        InputValue::String(s) =&gt; values
+            .push(array_value(vecmap(s.as_bytes(), |b| Value::u8(<span class="kw-2">*</span>b)), <span class="macro">vec!</span>[Type::unsigned(<span class="number">8</span>)])),
         InputValue::Vec(input_values) =&gt; <span class="kw">match </span>typ {
             AbiType::Array { length, typ } =&gt; {
                 <span class="macro">assert_eq!</span>(<span class="kw-2">*</span>length <span class="kw">as </span>usize, input_values.len(), <span class="string">"array length != input length"</span>);
