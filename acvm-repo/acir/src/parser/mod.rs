@@ -363,12 +363,10 @@ impl<'a> Parser<'a> {
                 let inputs = self.parse_blackbox_inputs(Keyword::Inputs)?;
                 self.eat_comma_or_error()?;
 
-                let iv = self.parse_blackbox_inputs(Keyword::Iv)?;
-                let iv = self.try_vec_to_array::<16, _>(iv, Keyword::Iv)?;
+                let iv = self.parse_blackbox_inputs_array::<16>(Keyword::Iv)?;
                 self.eat_comma_or_error()?;
 
-                let key = self.parse_blackbox_inputs(Keyword::Key)?;
-                let key = self.try_vec_to_array::<16, _>(key, Keyword::Key)?;
+                let key = self.parse_blackbox_inputs_array::<16>(Keyword::Key)?;
                 self.eat_comma_or_error()?;
 
                 let outputs = self.parse_blackbox_outputs()?;
@@ -415,8 +413,7 @@ impl<'a> Parser<'a> {
                 let inputs = self.parse_blackbox_inputs(Keyword::Inputs)?;
                 self.eat_comma_or_error()?;
 
-                let outputs = self.parse_blackbox_outputs()?;
-                let outputs = self.try_vec_to_array::<32, _>(outputs, Keyword::Outputs)?;
+                let outputs = self.parse_blackbox_outputs_array::<32>()?;
 
                 BlackBoxFuncCall::Blake2s { inputs, outputs }
             }
@@ -424,29 +421,22 @@ impl<'a> Parser<'a> {
                 let inputs = self.parse_blackbox_inputs(Keyword::Inputs)?;
                 self.eat_comma_or_error()?;
 
-                let outputs = self.parse_blackbox_outputs()?;
-                let outputs = self.try_vec_to_array::<32, _>(outputs, Keyword::Outputs)?;
+                let outputs = self.parse_blackbox_outputs_array::<32>()?;
 
                 BlackBoxFuncCall::Blake3 { inputs, outputs }
             }
             BlackBoxFunc::EcdsaSecp256k1 => {
-                let public_key_x = self.parse_blackbox_inputs(Keyword::PublicKeyX)?;
-                let public_key_x =
-                    self.try_vec_to_array::<32, _>(public_key_x, Keyword::PublicKeyX)?;
+                let public_key_x = self.parse_blackbox_inputs_array::<32>(Keyword::PublicKeyX)?;
                 self.eat_comma_or_error()?;
 
-                let public_key_y = self.parse_blackbox_inputs(Keyword::PublicKeyY)?;
-                let public_key_y =
-                    self.try_vec_to_array::<32, _>(public_key_y, Keyword::PublicKeyY)?;
+                let public_key_y = self.parse_blackbox_inputs_array::<32>(Keyword::PublicKeyY)?;
                 self.eat_comma_or_error()?;
 
-                let signature = self.parse_blackbox_inputs(Keyword::Signature)?;
-                let signature = self.try_vec_to_array::<64, _>(signature, Keyword::Signature)?;
+                let signature = self.parse_blackbox_inputs_array::<64>(Keyword::Signature)?;
                 self.eat_comma_or_error()?;
 
-                let hashed_message = self.parse_blackbox_inputs(Keyword::HashedMessage)?;
                 let hashed_message =
-                    self.try_vec_to_array::<32, _>(hashed_message, Keyword::HashedMessage)?;
+                    self.parse_blackbox_inputs_array::<32>(Keyword::HashedMessage)?;
                 self.eat_comma_or_error()?;
 
                 let predicate = self.parse_blackbox_input(Keyword::Predicate)?;
@@ -464,23 +454,17 @@ impl<'a> Parser<'a> {
                 }
             }
             BlackBoxFunc::EcdsaSecp256r1 => {
-                let public_key_x = self.parse_blackbox_inputs(Keyword::PublicKeyX)?;
-                let public_key_x =
-                    self.try_vec_to_array::<32, _>(public_key_x, Keyword::PublicKeyX)?;
+                let public_key_x = self.parse_blackbox_inputs_array::<32>(Keyword::PublicKeyX)?;
                 self.eat_comma_or_error()?;
 
-                let public_key_y = self.parse_blackbox_inputs(Keyword::PublicKeyY)?;
-                let public_key_y =
-                    self.try_vec_to_array::<32, _>(public_key_y, Keyword::PublicKeyY)?;
+                let public_key_y = self.parse_blackbox_inputs_array::<32>(Keyword::PublicKeyY)?;
                 self.eat_comma_or_error()?;
 
-                let signature = self.parse_blackbox_inputs(Keyword::Signature)?;
-                let signature = self.try_vec_to_array::<64, _>(signature, Keyword::Signature)?;
+                let signature = self.parse_blackbox_inputs_array::<64>(Keyword::Signature)?;
                 self.eat_comma_or_error()?;
 
-                let hashed_message = self.parse_blackbox_inputs(Keyword::HashedMessage)?;
                 let hashed_message =
-                    self.try_vec_to_array::<32, _>(hashed_message, Keyword::HashedMessage)?;
+                    self.parse_blackbox_inputs_array::<32>(Keyword::HashedMessage)?;
                 self.eat_comma_or_error()?;
 
                 let predicate = self.parse_blackbox_input(Keyword::Predicate)?;
@@ -507,19 +491,16 @@ impl<'a> Parser<'a> {
                 let predicate = self.parse_blackbox_input(Keyword::Predicate)?;
                 self.eat_comma_or_error()?;
 
-                let outputs = self.parse_blackbox_outputs()?;
-                let outputs = self.try_vec_to_array::<3, _>(outputs, Keyword::Outputs)?;
+                let outputs = self.parse_blackbox_outputs_array::<3>()?;
                 let outputs = (outputs[0], outputs[1], outputs[2]);
 
                 BlackBoxFuncCall::MultiScalarMul { points, scalars, predicate, outputs }
             }
             BlackBoxFunc::Keccakf1600 => {
-                let inputs = self.parse_blackbox_inputs(Keyword::Inputs)?;
-                let inputs = self.try_vec_to_array::<25, _>(inputs, Keyword::Inputs)?;
+                let inputs = self.parse_blackbox_inputs_array::<25>(Keyword::Inputs)?;
                 self.eat_comma_or_error()?;
 
-                let outputs = self.parse_blackbox_outputs()?;
-                let outputs = self.try_vec_to_array::<25, _>(outputs, Keyword::Outputs)?;
+                let outputs = self.parse_blackbox_outputs_array::<25>()?;
 
                 BlackBoxFuncCall::Keccakf1600 { inputs, outputs }
             }
@@ -551,19 +532,16 @@ impl<'a> Parser<'a> {
                 }
             }
             BlackBoxFunc::EmbeddedCurveAdd => {
-                let input1 = self.parse_blackbox_inputs(Keyword::Input1)?;
-                let input1 = self.try_vec_to_array::<3, _>(input1, Keyword::Input1)?;
+                let input1 = self.parse_blackbox_inputs_array::<3>(Keyword::Input1)?;
                 self.eat_comma_or_error()?;
 
-                let input2 = self.parse_blackbox_inputs(Keyword::Input2)?;
-                let input2 = self.try_vec_to_array::<3, _>(input2, Keyword::Input2)?;
+                let input2 = self.parse_blackbox_inputs_array::<3>(Keyword::Input2)?;
                 self.eat_comma_or_error()?;
 
                 let predicate = self.parse_blackbox_input(Keyword::Predicate)?;
                 self.eat_comma_or_error()?;
 
-                let outputs = self.parse_blackbox_outputs()?;
-                let outputs = self.try_vec_to_array::<3, _>(outputs, Keyword::Outputs)?;
+                let outputs = self.parse_blackbox_outputs_array::<3>()?;
                 let outputs = (outputs[0], outputs[1], outputs[2]);
 
                 BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, predicate, outputs }
@@ -577,22 +555,26 @@ impl<'a> Parser<'a> {
                 BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs }
             }
             BlackBoxFunc::Sha256Compression => {
-                let inputs = self.parse_blackbox_inputs(Keyword::Inputs)?;
-                let inputs = self.try_vec_to_array::<16, _>(inputs, Keyword::Inputs)?;
+                let inputs = self.parse_blackbox_inputs_array::<16>(Keyword::Inputs)?;
                 self.eat_comma_or_error()?;
 
-                let hash_values = self.parse_blackbox_inputs(Keyword::HashValues)?;
-                let hash_values =
-                    self.try_vec_to_array::<8, _>(hash_values, Keyword::HashValues)?;
+                let hash_values = self.parse_blackbox_inputs_array::<8>(Keyword::HashValues)?;
                 self.eat_comma_or_error()?;
 
-                let outputs = self.parse_blackbox_outputs()?;
-                let outputs = self.try_vec_to_array::<8, _>(outputs, Keyword::Outputs)?;
+                let outputs = self.parse_blackbox_outputs_array::<8>()?;
 
                 BlackBoxFuncCall::Sha256Compression { inputs, hash_values, outputs }
             }
         };
         Ok(func)
+    }
+
+    fn parse_blackbox_inputs_array<const N: usize>(
+        &mut self,
+        keyword: Keyword,
+    ) -> Result<Box<[FunctionInput<FieldElement>; N]>, ParserError> {
+        let inputs = self.parse_blackbox_inputs(keyword)?;
+        self.try_vec_to_array::<N, _>(inputs, keyword)
     }
 
     fn parse_blackbox_inputs(
@@ -655,6 +637,11 @@ impl<'a> Parser<'a> {
         self.eat_or_error(Token::Colon)?;
         let witness = self.eat_witness_or_error()?;
         Ok(witness)
+    }
+
+    fn parse_blackbox_outputs_array<const N: usize>(&mut self) -> ParseResult<Box<[Witness; N]>> {
+        let outputs = self.parse_blackbox_outputs()?;
+        self.try_vec_to_array::<N, _>(outputs, Keyword::Outputs)
     }
 
     fn parse_blackbox_outputs(&mut self) -> ParseResult<Vec<Witness>> {
