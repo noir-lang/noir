@@ -467,7 +467,18 @@ impl InlineType {
     pub fn is_compatible(&self, unconstrained: bool) -> bool {
         match self {
             InlineType::Inline | InlineType::InlineAlways => true,
-            InlineType::Fold | InlineType::NoPredicates => !unconstrained,
+            InlineType::Fold => {
+                // The #[fold] attribute is about creating separate ACIR circuits for proving,
+                // not relevant in Brillig. Leaving it violates some expectations that each
+                // will become its own entry point.
+                !unconstrained
+            }
+            InlineType::NoPredicates => {
+                // The #[no_predicates] are guaranteed to be inlined after flattening,
+                // which is needed for some of the programs even in Brillig, otherwise
+                // some intrinsics can survive until Brillig-gen that weren't supposed to.
+                true
+            }
         }
     }
 }
