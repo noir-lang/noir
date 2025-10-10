@@ -1,3 +1,4 @@
+use crate::acir::types::flat_numeric_types;
 use crate::acir::{AcirDynamicArray, AcirType, AcirValue};
 use crate::errors::RuntimeError;
 use crate::ssa::ir::{dfg::DataFlowGraph, value::ValueId};
@@ -380,14 +381,7 @@ impl Context<'_> {
                 None
             };
 
-        let mut value_types = slice.flat_numeric_types();
-        // We can safely append the value types to the end as we expect the types to be the same for each element.
-        value_types.append(&mut new_value_types);
-        assert_eq!(
-            value_types.len(),
-            slice_size,
-            "ICE: Value types array must match new slice size"
-        );
+        let value_types = flat_numeric_types(&slice_typ);
 
         let result = AcirValue::DynamicArray(AcirDynamicArray {
             block_id: result_block_id,
@@ -532,15 +526,7 @@ impl Context<'_> {
                 None
             };
 
-        let mut value_types = slice.flat_numeric_types();
-        // We can safely remove the value types based upon the popped elements size =
-        // as we expect the types to be the same for each element.
-        value_types.truncate(value_types.len() - popped_elements_size);
-        assert_eq!(
-            value_types.len(),
-            result_size,
-            "ICE: Value types array must match new slice size"
-        );
+        let value_types = flat_numeric_types(&slice_typ);
 
         let result = AcirValue::DynamicArray(AcirDynamicArray {
             block_id: result_block_id,
