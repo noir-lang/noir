@@ -2,6 +2,7 @@ use crate::ast::PathSegment;
 use crate::parse_program;
 use crate::parser::{ParsedModule, ParsedSubModule};
 use crate::signed_field::SignedField;
+use crate::token::FunctionAttributeKind;
 use crate::{ast, ast::Path, parser::ItemKind};
 use fm::FileId;
 use noirc_errors::debug_info::{DebugFnId, DebugFunction};
@@ -107,6 +108,20 @@ impl DebugInstrumenter {
     }
 
     fn walk_fn(&mut self, func: &mut ast::FunctionDefinition) {
+        // Don't instrument functions that are not supposed to have a body
+        if let Some((func, _)) = &func.attributes.function {
+            match func.kind {
+                FunctionAttributeKind::Foreign(_)
+                | FunctionAttributeKind::Builtin(_)
+                | FunctionAttributeKind::Oracle(_) => return,
+                FunctionAttributeKind::Test(..)
+                | FunctionAttributeKind::Fold
+                | FunctionAttributeKind::NoPredicates
+                | FunctionAttributeKind::InlineAlways
+                | FunctionAttributeKind::FuzzingHarness(..) => (),
+            }
+        }
+
         let func_name = func.name.to_string();
         let func_args =
             func.parameters.iter().map(|param| pattern_to_string(&param.pattern)).collect();
