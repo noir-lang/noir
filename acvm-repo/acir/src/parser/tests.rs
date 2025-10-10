@@ -467,28 +467,24 @@ fn sha256_compression_missing_outputs() {
 
 #[test]
 fn multi_scalar_mul() {
-    let src = format!(
-    "
+    let src = "
     private parameters: []
     public parameters: []
     return values: []
     BLACKBOX::MULTI_SCALAR_MUL points: [w0, w1], scalars: [w2, w3], predicate: 1, outputs: [w4, w5, w6]
-    "
-    );
-    assert_circuit_roundtrip(&src);
+    ";
+    assert_circuit_roundtrip(src);
 }
 
 #[test]
 fn recursive_aggregation() {
-    let src = format!(
-    "
+    let src = "
     private parameters: []
     public parameters: []
     return values: []
     BLACKBOX::RECURSIVE_AGGREGATION verification_key: [w0], proof: [w1], public_inputs: [w2], key_hash: w3, proof_type: 4, predicate: 1
-    "
-    );
-    assert_circuit_roundtrip(&src);
+    ";
+    assert_circuit_roundtrip(src);
 }
 
 #[test]
