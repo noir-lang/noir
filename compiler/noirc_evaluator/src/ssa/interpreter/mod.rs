@@ -10,11 +10,15 @@ use super::{
         value::ValueId,
     },
 };
-use crate::ssa::ir::{instruction::binary::truncate_field, printer::display_binary};
+use crate::ssa::{
+    interpreter::value::Fitted,
+    ir::{instruction::binary::truncate_field, printer::display_binary, types::NumericType},
+};
 use acvm::{AcirField, FieldElement};
 use errors::{InternalError, InterpreterError, MAX_UNSIGNED_BIT_SIZE};
 use iter_extended::{try_vecmap, vecmap};
 use noirc_frontend::Shared;
+use num_traits::{CheckedShl, CheckedShr};
 use rustc_hash::FxHashMap as HashMap;
 use value::{ArrayValue, NumericValue, ReferenceValue};
 
@@ -608,7 +612,23 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
     }
 
     fn interpret_not(&mut self, id: ValueId, result: ValueId) -> IResult<()> {
-        let new_result = match self.lookup_numeric(id, "not instruction")? {
+        let num_value = self.lookup_numeric(id, "not instruction")?;
+        let bit_size = num_value.get_type().bit_size();
+
+        // Based on AcirContext::not_var
+        fn fitted_not<T: std::ops::Not<Output = T>>(value: Fitted<T>, bit_size: u32) -> Fitted<T> {
+            value.map(
+                |value| !value,
+                |value| {
+                    // Based on AcirContext::not_var
+                    let bit_size = FieldElement::from(bit_size);
+                    let max = FieldElement::from(2u128).pow(&bit_size) - FieldElement::one();
+                    max - value
+                },
+            )
+        }
+
+        let new_result = match num_value {
             NumericValue::Field(_) => {
                 return Err(internal(InternalError::UnsupportedOperatorForType {
                     operator: "!",
@@ -616,15 +636,15 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 }));
             }
             NumericValue::U1(value) => NumericValue::U1(!value),
-            NumericValue::U8(value) => NumericValue::U8(!value),
-            NumericValue::U16(value) => NumericValue::U16(!value),
-            NumericValue::U32(value) => NumericValue::U32(!value),
-            NumericValue::U64(value) => NumericValue::U64(!value),
-            NumericValue::U128(value) => NumericValue::U128(!value),
-            NumericValue::I8(value) => NumericValue::I8(!value),
-            NumericValue::I16(value) => NumericValue::I16(!value),
-            NumericValue::I32(value) => NumericValue::I32(!value),
-            NumericValue::I64(value) => NumericValue::I64(!value),
+            NumericValue::U8(value) => NumericValue::U8(fitted_not(value, bit_size)),
+            NumericValue::U16(value) => NumericValue::U16(fitted_not(value, bit_size)),
+            NumericValue::U32(value) => NumericValue::U32(fitted_not(value, bit_size)),
+            NumericValue::U64(value) => NumericValue::U64(fitted_not(value, bit_size)),
+            NumericValue::U128(value) => NumericValue::U128(fitted_not(value, bit_size)),
+            NumericValue::I8(value) => NumericValue::I8(fitted_not(value, bit_size)),
+            NumericValue::I16(value) => NumericValue::I16(fitted_not(value, bit_size)),
+            NumericValue::I32(value) => NumericValue::I32(fitted_not(value, bit_size)),
+            NumericValue::I64(value) => NumericValue::I64(fitted_not(value, bit_size)),
         };
         self.define(result, Value::Numeric(new_result))
     }
@@ -636,31 +656,66 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         max_bit_size: u32,
         result: ValueId,
     ) -> IResult<()> {
+        use Fitted::*;
+        use NumericValue::*;
+
         let value = self.lookup_numeric(value_id, "truncate")?;
+        let typ = value.get_type();
         if bit_size == 0 {
             return Err(internal(InternalError::TruncateToZeroBits { value_id, max_bit_size }));
         }
 
+        // Truncate an unsigned value.
+        fn truncate_fitted<F, T>(
+            cons: F,
+            typ: NumericType,
+            value: Fitted<T>,
+            bit_size: u32,
+        ) -> IResult<NumericValue>
+        where
+            T: TryFrom<u128>,
+            u128: From<T>,
+            <T as TryFrom<u128>>::Error: std::fmt::Debug,
+            F: Fn(Fitted<T>) -> NumericValue,
+        {
+            match value {
+                Fit(value) => Ok(cons(Fit(truncate_unsigned(value, bit_size)?))),
+                Unfit(value) => {
+                    let truncated = truncate_field(value, bit_size);
+                    NumericValue::from_constant(truncated, typ)
+                        .or_else(|_| Ok(cons(Unfit(truncated))))
+                }
+            }
+        }
+
+        // Truncate a signed value via unsigned cast and back.
+        macro_rules! truncate_via {
+            ($cons:expr, $typ:expr, $value:ident, $bit_size:ident, $signed:ty, $unsigned:ty) => {
+                match $value {
+                    Fit(value) => {
+                        $cons(Fit(truncate_unsigned(value as $unsigned, $bit_size)? as $signed))
+                    }
+                    Unfit(value) => {
+                        let truncated = truncate_field(value, bit_size);
+                        NumericValue::from_constant(truncated, typ)
+                            .unwrap_or_else(|_| $cons(Unfit(truncated)))
+                    }
+                }
+            };
+        }
+
         let truncated = match value {
-            NumericValue::Field(value) => NumericValue::Field(truncate_field(value, bit_size)),
-            NumericValue::U1(value) => NumericValue::U1(value),
-            NumericValue::U8(value) => NumericValue::U8(truncate_unsigned(value, bit_size)?),
-            NumericValue::U16(value) => NumericValue::U16(truncate_unsigned(value, bit_size)?),
-            NumericValue::U32(value) => NumericValue::U32(truncate_unsigned(value, bit_size)?),
-            NumericValue::U64(value) => NumericValue::U64(truncate_unsigned(value, bit_size)?),
-            NumericValue::U128(value) => NumericValue::U128(truncate_unsigned(value, bit_size)?),
-            NumericValue::I8(value) => {
-                NumericValue::I8(truncate_unsigned(value as u8, bit_size)? as i8)
-            }
-            NumericValue::I16(value) => {
-                NumericValue::I16(truncate_unsigned(value as u16, bit_size)? as i16)
-            }
-            NumericValue::I32(value) => {
-                NumericValue::I32(truncate_unsigned(value as u32, bit_size)? as i32)
-            }
-            NumericValue::I64(value) => {
-                NumericValue::I64(truncate_unsigned(value as u64, bit_size)? as i64)
-            }
+            Field(value) => Field(truncate_field(value, bit_size)),
+            U1(value) => U1(value),
+            U8(value) => truncate_fitted(U8, typ, value, bit_size)?,
+            U16(value) => truncate_fitted(U16, typ, value, bit_size)?,
+            U32(value) => truncate_fitted(U32, typ, value, bit_size)?,
+            U64(value) => truncate_fitted(U64, typ, value, bit_size)?,
+            U128(value) => truncate_fitted(U128, typ, value, bit_size)?,
+            I8(value) => truncate_via!(I8, typ, value, bit_size, i8, u8),
+            I16(value) => truncate_via!(I16, typ, value, bit_size, i16, u16),
+            I32(value) => truncate_via!(I32, typ, value, bit_size, i32, u32),
+            I64(value) => truncate_via!(I64, typ, value, bit_size, i64, u64),
         };
 
         self.define(result, Value::Numeric(truncated))
@@ -688,34 +743,35 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             if x <= 0.0001 { 0 } else { x.log2() as u32 + 1 }
         }
 
+        fn fitted_bit_count<T: Into<f64>>(value: Fitted<T>) -> u32 {
+            value.apply(|value| bit_count(value), |value| value.num_bits())
+        }
+
         let bit_count = match value {
             NumericValue::Field(value) => value.num_bits(),
             // max_bit_size > 0 so u1 should always pass these checks
             NumericValue::U1(_) => return Ok(()),
-            NumericValue::U8(value) => bit_count(value),
-            NumericValue::U16(value) => bit_count(value),
-            NumericValue::U32(value) => bit_count(value),
+            NumericValue::U8(value) => fitted_bit_count(value),
+            NumericValue::U16(value) => fitted_bit_count(value),
+            NumericValue::U32(value) => fitted_bit_count(value),
             NumericValue::U64(value) => {
                 // u64, u128, and i64 don't impl Into<f64>
-                if value == 0 { 0 } else { value.ilog2() + 1 }
+                value.apply(
+                    |value| if value == 0 { 0 } else { value.ilog2() + 1 },
+                    |value| value.num_bits(),
+                )
             }
-            NumericValue::U128(value) => {
-                if value == 0 {
-                    0
-                } else {
-                    value.ilog2() + 1
-                }
-            }
-            NumericValue::I8(value) => bit_count(value),
-            NumericValue::I16(value) => bit_count(value),
-            NumericValue::I32(value) => bit_count(value),
-            NumericValue::I64(value) => {
-                if value == 0 {
-                    0
-                } else {
-                    value.ilog2() + 1
-                }
-            }
+            NumericValue::U128(value) => value.apply(
+                |value| if value == 0 { 0 } else { value.ilog2() + 1 },
+                |value| value.num_bits(),
+            ),
+            NumericValue::I8(value) => fitted_bit_count(value),
+            NumericValue::I16(value) => fitted_bit_count(value),
+            NumericValue::I32(value) => fitted_bit_count(value),
+            NumericValue::I64(value) => value.apply(
+                |value| if value == 0 { 0 } else { value.ilog2() + 1 },
+                |value| value.num_bits(),
+            ),
         };
 
         if bit_count > max_bit_size {
@@ -1118,12 +1174,75 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
     }
 }
 
+/// Applies a fallible integer binary operation on `Fitted` values, or returns an overflow error.
+///
+/// If one of the values are already `Unfit`, the result is an overflow.
+macro_rules! apply_fit_binop_opt {
+    ($lhs:expr, $rhs:expr, $f:expr, $overflow:expr) => {
+        match ($lhs, $rhs) {
+            (Fitted::Fit(lhs), Fitted::Fit(rhs)) => {
+                $f(&lhs, &rhs).map(Fitted::Fit).ok_or_else($overflow)
+            }
+            _ => Err($overflow()),
+        }
+    };
+}
+
+/// Applies a fallible integer binary operation on `Fitted` values, promoting values to `Field` in
+/// case there is an overflow, thus turning the operation infallible.
+///
+/// If the result is an overflow, it promotes the values to `Field` and performs the operation there.
+/// If the operation is applied on `Unfit` values, and the result fits in the original numeric type,
+/// it is converted back to a `Fit` value.
+///
+/// For example we would normally have an infallible `wrapped_add`, but we want to match ACIR
+/// by not wrapping around but extending into larger bit sizes.
+///
+/// # Parameters
+/// - `$cons`: Constructor for a `NumericValue`
+/// - `$lhs`, `$rhs`: The `Fitted` values in the left-hand side and right-hand side operands.
+/// - `$f`: The function to apply on the integer values if both are `Fit`; returns `None` on overflow.
+/// - `$g`: The function to apply on `Field` values.
+/// - `$lhs_num`, `$rhs_num`: The original `NumericValue`s.
+macro_rules! apply_fit_binop {
+    ($cons:expr, $lhs:expr, $rhs:expr, $f:expr, $g:expr, $lhs_num:expr, $rhs_num:expr) => {
+        if let (Fitted::Fit(lhs), Fitted::Fit(rhs)) = ($lhs, $rhs) {
+            let fitted = $f(&lhs, &rhs).map(Fitted::Fit).unwrap_or_else(|| {
+                Fitted::Unfit($g($lhs_num.convert_to_field(), $rhs_num.convert_to_field()))
+            });
+            $cons(fitted)
+        } else {
+            let field = $g($lhs_num.convert_to_field(), $rhs_num.convert_to_field());
+            let typ = $lhs_num.get_type();
+            NumericValue::from_constant(field, typ).unwrap_or_else(|_| {
+                let fitted = Fitted::Unfit(field);
+                $cons(fitted)
+            })
+        }
+    };
+}
+
+/// Apply a comparison operator on `Fitted` values, returning a `bool`.
+///
+/// This is here for the sake of `apply_int_comparison_op`, but comparing `Field` is only meaningful for equality.
+/// For anything else it's best to panic, or return an error; we'll see if it comes up.
+macro_rules! apply_fit_comparison_op {
+    ($lhs:expr, $rhs:expr, $f:expr, $g:expr, $lhs_num:expr, $rhs_num:expr) => {{
+        if let (Fitted::Fit(lhs), Fitted::Fit(rhs)) = ($lhs, $rhs) {
+            $f(lhs, rhs)
+        } else {
+            $g($lhs_num.convert_to_field(), $rhs_num.convert_to_field())
+        }
+    }};
+}
+
 /// Applies an infallible integer binary operation to two `NumericValue`s.
 ///
 /// # Parameters
 /// - `$lhs`, `$rhs`: The left hand side and right hand side operands (must be the same variant).
 /// - `$binary`: The binary instruction, used for error handling if types mismatch.
-/// - `$f`: A function (e.g., `wrapping_add`) that applies the operation on the raw numeric types.
+/// - `$f`: A function (e.g., `checked_add`) that applies the operation on the raw numeric types.
+/// - `$g`: A function that performs the equivalent of `$f` on `Field` values.
 ///
 /// # Panics
 /// - If either operand is a [NumericValue::Field] or [NumericValue::U1] variant, this macro will panic with unreachable.
@@ -1134,22 +1253,24 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 /// # Returns
 /// A `NumericValue` containing the result of the operation, matching the original type.
 macro_rules! apply_int_binop {
-    ($lhs:expr, $rhs:expr, $binary:expr, $f:expr) => {{
+    ($lhs:expr, $rhs:expr, $binary:expr, $f:expr, $g:expr) => {{
         use value::NumericValue::*;
+        let lhs_num: value::NumericValue = $lhs;
+        let rhs_num: value::NumericValue = $rhs;
         match ($lhs, $rhs) {
             (Field(_), Field(_)) => {
                 unreachable!("Expected only integer values, found field values")
             }
             (U1(_), U1(_)) => unreachable!("Expected only large integer values, found u1"),
-            (U8(lhs), U8(rhs)) => U8($f(&lhs, &rhs)),
-            (U16(lhs), U16(rhs)) => U16($f(&lhs, &rhs)),
-            (U32(lhs), U32(rhs)) => U32($f(&lhs, &rhs)),
-            (U64(lhs), U64(rhs)) => U64($f(&lhs, &rhs)),
-            (U128(lhs), U128(rhs)) => U128($f(&lhs, &rhs)),
-            (I8(lhs), I8(rhs)) => I8($f(&lhs, &rhs)),
-            (I16(lhs), I16(rhs)) => I16($f(&lhs, &rhs)),
-            (I32(lhs), I32(rhs)) => I32($f(&lhs, &rhs)),
-            (I64(lhs), I64(rhs)) => I64($f(&lhs, &rhs)),
+            (U8(lhs), U8(rhs)) => apply_fit_binop!(U8, lhs, rhs, $f, $g, lhs_num, rhs_num),
+            (U16(lhs), U16(rhs)) => apply_fit_binop!(U16, lhs, rhs, $f, $g, lhs_num, rhs_num),
+            (U32(lhs), U32(rhs)) => apply_fit_binop!(U32, lhs, rhs, $f, $g, lhs_num, rhs_num),
+            (U64(lhs), U64(rhs)) => apply_fit_binop!(U64, lhs, rhs, $f, $g, lhs_num, rhs_num),
+            (U128(lhs), U128(rhs)) => apply_fit_binop!(U128, lhs, rhs, $f, $g, lhs_num, rhs_num),
+            (I8(lhs), I8(rhs)) => apply_fit_binop!(I8, lhs, rhs, $f, $g, lhs_num, rhs_num),
+            (I16(lhs), I16(rhs)) => apply_fit_binop!(I16, lhs, rhs, $f, $g, lhs_num, rhs_num),
+            (I32(lhs), I32(rhs)) => apply_fit_binop!(I32, lhs, rhs, $f, $g, lhs_num, rhs_num),
+            (I64(lhs), I64(rhs)) => apply_fit_binop!(I64, lhs, rhs, $f, $g, lhs_num, rhs_num),
             (lhs, rhs) => {
                 let binary = $binary;
                 return Err(internal(InternalError::MismatchedTypesInBinaryOperator {
@@ -1167,10 +1288,10 @@ macro_rules! apply_int_binop {
 /// Applies a fallible integer binary operation (e.g., checked arithmetic) to two `NumericValue`s.
 ///
 /// # Parameters
-/// - `$dfg`: The data flow graph, used for formatting diagnostic error messages.
 /// - `$lhs`, `$rhs`: The left-hand side and right-hand side operands (must be the same variant).
 /// - `$binary`: The binary instruction, used for diagnostics and overflow reporting.
 /// - `$f`: A fallible operation function that returns an `Option<_>` (e.g., `checked_add`).
+/// - `$display_binary`: A function to display the binary operation for diagnostic purposes.
 ///
 /// # Panics
 /// - If either operand is a [NumericValue::Field]or [NumericValue::U1], this macro panics as those types are not supported.
@@ -1210,15 +1331,15 @@ macro_rules! apply_int_binop_opt {
                 unreachable!("Expected only integer values, found field values")
             }
             (U1(_), U1(_)) => unreachable!("Expected only large integer values, found u1"),
-            (U8(lhs), U8(rhs)) => U8($f(&lhs, &rhs).ok_or_else(overflow)?),
-            (U16(lhs), U16(rhs)) => U16($f(&lhs, &rhs).ok_or_else(overflow)?),
-            (U32(lhs), U32(rhs)) => U32($f(&lhs, &rhs).ok_or_else(overflow)?),
-            (U64(lhs), U64(rhs)) => U64($f(&lhs, &rhs).ok_or_else(overflow)?),
-            (U128(lhs), U128(rhs)) => U128($f(&lhs, &rhs).ok_or_else(overflow)?),
-            (I8(lhs), I8(rhs)) => I8($f(&lhs, &rhs).ok_or_else(overflow)?),
-            (I16(lhs), I16(rhs)) => I16($f(&lhs, &rhs).ok_or_else(overflow)?),
-            (I32(lhs), I32(rhs)) => I32($f(&lhs, &rhs).ok_or_else(overflow)?),
-            (I64(lhs), I64(rhs)) => I64($f(&lhs, &rhs).ok_or_else(overflow)?),
+            (U8(lhs), U8(rhs)) => U8(apply_fit_binop_opt!(lhs, rhs, $f, overflow)?),
+            (U16(lhs), U16(rhs)) => U16(apply_fit_binop_opt!(lhs, rhs, $f, overflow)?),
+            (U32(lhs), U32(rhs)) => U32(apply_fit_binop_opt!(lhs, rhs, $f, overflow)?),
+            (U64(lhs), U64(rhs)) => U64(apply_fit_binop_opt!(lhs, rhs, $f, overflow)?),
+            (U128(lhs), U128(rhs)) => U128(apply_fit_binop_opt!(lhs, rhs, $f, overflow)?),
+            (I8(lhs), I8(rhs)) => I8(apply_fit_binop_opt!(lhs, rhs, $f, overflow)?),
+            (I16(lhs), I16(rhs)) => I16(apply_fit_binop_opt!(lhs, rhs, $f, overflow)?),
+            (I32(lhs), I32(rhs)) => I32(apply_fit_binop_opt!(lhs, rhs, $f, overflow)?),
+            (I64(lhs), I64(rhs)) => I64(apply_fit_binop_opt!(lhs, rhs, $f, overflow)?),
             (lhs, rhs) => {
                 return Err(internal(InternalError::MismatchedTypesInBinaryOperator {
                     lhs: lhs.to_string(),
@@ -1233,22 +1354,38 @@ macro_rules! apply_int_binop_opt {
 }
 
 macro_rules! apply_int_comparison_op {
-    ($lhs:expr, $rhs:expr, $binary:expr, $f:expr) => {{
+    ($lhs:expr, $rhs:expr, $binary:expr, $f:expr, $g:expr) => {{
         use NumericValue::*;
+        let lhs_num: NumericValue = $lhs;
+        let rhs_num: NumericValue = $rhs;
         match ($lhs, $rhs) {
             (Field(_), Field(_)) => {
                 unreachable!("Expected only integer values, found field values")
             }
             (U1(_), U1(_)) => unreachable!("Expected only large integer values, found u1"),
-            (U8(lhs), U8(rhs)) => U1($f(&lhs, &rhs)),
-            (U16(lhs), U16(rhs)) => U1($f(&lhs, &rhs)),
-            (U32(lhs), U32(rhs)) => U1($f(&lhs, &rhs)),
-            (U64(lhs), U64(rhs)) => U1($f(&lhs, &rhs)),
-            (U128(lhs), U128(rhs)) => U1($f(&lhs, &rhs)),
-            (I8(lhs), I8(rhs)) => U1($f(&lhs, &rhs)),
-            (I16(lhs), I16(rhs)) => U1($f(&lhs, &rhs)),
-            (I32(lhs), I32(rhs)) => U1($f(&lhs, &rhs)),
-            (I64(lhs), I64(rhs)) => U1($f(&lhs, &rhs)),
+            (U8(lhs), U8(rhs)) => U1(apply_fit_comparison_op!(lhs, rhs, $f, $g, lhs_num, rhs_num)),
+            (U16(lhs), U16(rhs)) => {
+                U1(apply_fit_comparison_op!(lhs, rhs, $f, $g, lhs_num, rhs_num))
+            }
+            (U32(lhs), U32(rhs)) => {
+                U1(apply_fit_comparison_op!(lhs, rhs, $f, $g, lhs_num, rhs_num))
+            }
+            (U64(lhs), U64(rhs)) => {
+                U1(apply_fit_comparison_op!(lhs, rhs, $f, $g, lhs_num, rhs_num))
+            }
+            (U128(lhs), U128(rhs)) => {
+                U1(apply_fit_comparison_op!(lhs, rhs, $f, $g, lhs_num, rhs_num))
+            }
+            (I8(lhs), I8(rhs)) => U1(apply_fit_comparison_op!(lhs, rhs, $f, $g, lhs_num, rhs_num)),
+            (I16(lhs), I16(rhs)) => {
+                U1(apply_fit_comparison_op!(lhs, rhs, $f, $g, lhs_num, rhs_num))
+            }
+            (I32(lhs), I32(rhs)) => {
+                U1(apply_fit_comparison_op!(lhs, rhs, $f, $g, lhs_num, rhs_num))
+            }
+            (I64(lhs), I64(rhs)) => {
+                U1(apply_fit_comparison_op!(lhs, rhs, $f, $g, lhs_num, rhs_num))
+            }
             (lhs, rhs) => {
                 let binary = $binary;
                 return Err(internal(InternalError::MismatchedTypesInBinaryOperator {
@@ -1307,7 +1444,7 @@ fn evaluate_binary(
             )
         }
         BinaryOp::Add { unchecked: true } => {
-            apply_int_binop!(lhs, rhs, binary, num_traits::WrappingAdd::wrapping_add)
+            apply_int_binop!(lhs, rhs, binary, num_traits::CheckedAdd::checked_add, |a, b| a + b)
         }
         BinaryOp::Sub { unchecked: false } => {
             apply_int_binop_opt!(
@@ -1319,7 +1456,7 @@ fn evaluate_binary(
             )
         }
         BinaryOp::Sub { unchecked: true } => {
-            apply_int_binop!(lhs, rhs, binary, num_traits::WrappingSub::wrapping_sub)
+            apply_int_binop!(lhs, rhs, binary, num_traits::CheckedSub::checked_sub, |a, b| a - b)
         }
         BinaryOp::Mul { unchecked: false } => {
             // Only unsigned multiplication has side effects
@@ -1332,7 +1469,7 @@ fn evaluate_binary(
             )
         }
         BinaryOp::Mul { unchecked: true } => {
-            apply_int_binop!(lhs, rhs, binary, num_traits::WrappingMul::wrapping_mul)
+            apply_int_binop!(lhs, rhs, binary, num_traits::CheckedMul::checked_mul, |a, b| a * b)
         }
         BinaryOp::Div => apply_int_binop_opt!(
             lhs,
@@ -1348,21 +1485,42 @@ fn evaluate_binary(
             num_traits::CheckedRem::checked_rem,
             display_binary
         ),
-        BinaryOp::Eq => apply_int_comparison_op!(lhs, rhs, binary, |a, b| a == b),
-        BinaryOp::Lt => apply_int_comparison_op!(lhs, rhs, binary, |a, b| a < b),
+        BinaryOp::Eq => apply_int_comparison_op!(lhs, rhs, binary, |a, b| a == b, |a, b| a == b),
+        BinaryOp::Lt => {
+            apply_int_comparison_op!(lhs, rhs, binary, |a, b| a < b, |_, _| unreachable!(
+                "unfit lt: fit types should have been restored already"
+            ))
+        }
         BinaryOp::And => {
-            apply_int_binop!(lhs, rhs, binary, std::ops::BitAnd::bitand)
+            apply_int_binop!(lhs, rhs, binary, |a, b| Some(a & b), |_, _| unreachable!(
+                "unfit and: fit types should have been restored already"
+            ))
         }
         BinaryOp::Or => {
-            apply_int_binop!(lhs, rhs, binary, std::ops::BitOr::bitor)
+            apply_int_binop!(lhs, rhs, binary, |a, b| Some(a | b), |_, _| unreachable!(
+                "unfit or: fit types should have been restored already"
+            ))
         }
         BinaryOp::Xor => {
-            apply_int_binop!(lhs, rhs, binary, std::ops::BitXor::bitxor)
+            apply_int_binop!(lhs, rhs, binary, |a, b| Some(a ^ b), |_, _| unreachable!(
+                "unfit xor: fit types should have been restored already"
+            ))
         }
         BinaryOp::Shl => {
             use NumericValue::*;
             let instruction = format!("`{}` ({lhs} << {rhs})", display_binary(binary));
-            let overflow = InterpreterError::Overflow { operator: BinaryOp::Shl, instruction };
+            let over = || InterpreterError::Overflow { operator: BinaryOp::Shl, instruction };
+
+            fn shl<A: CheckedShl>(a: &A, b: &u32) -> Option<A> {
+                a.checked_shl(*b)
+            }
+            fn shl_into<A: CheckedShl, B: Into<u32> + Copy>(a: &A, b: &B) -> Option<A> {
+                shl(a, &(*b).into())
+            }
+            fn shl_try<A: CheckedShl, B: TryInto<u32> + Copy>(a: &A, b: &B) -> Option<A> {
+                shl(a, &(*b).try_into().ok()?)
+            }
+
             match (lhs, rhs) {
                 (Field(_), _) | (_, Field(_)) => {
                     return Err(internal(InternalError::UnsupportedOperatorForType {
@@ -1370,40 +1528,16 @@ fn evaluate_binary(
                         typ: "Field",
                     }));
                 }
-                (U1(lhs_value), U1(rhs_value)) => U1(if !rhs_value { lhs_value } else { false }),
-                (U8(lhs_value), U8(rhs_value)) => {
-                    lhs_value.checked_shl(rhs_value.into()).map(U8).ok_or(overflow)?
-                }
-                (U16(lhs_value), U16(rhs_value)) => {
-                    lhs_value.checked_shl(rhs_value.into()).map(U16).ok_or(overflow)?
-                }
-                (U32(lhs_value), U32(rhs_value)) => {
-                    lhs_value.checked_shl(rhs_value).map(U32).ok_or(overflow)?
-                }
-                (U64(lhs_value), U64(rhs_value)) => {
-                    let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
-                    lhs_value.checked_shl(rhs_value).map(U64).ok_or(overflow)?
-                }
-                (U128(lhs_value), U128(rhs_value)) => {
-                    let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
-                    lhs_value.checked_shl(rhs_value).map(U128).ok_or(overflow)?
-                }
-                (I8(lhs_value), I8(rhs_value)) => {
-                    let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
-                    lhs_value.checked_shl(rhs_value).map(I8).ok_or(overflow)?
-                }
-                (I16(lhs_value), I16(rhs_value)) => {
-                    let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
-                    lhs_value.checked_shl(rhs_value).map(I16).ok_or(overflow)?
-                }
-                (I32(lhs_value), I32(rhs_value)) => {
-                    let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
-                    lhs_value.checked_shl(rhs_value).map(I32).ok_or(overflow)?
-                }
-                (I64(lhs_value), I64(rhs_value)) => {
-                    let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
-                    lhs_value.checked_shl(rhs_value).map(I64).ok_or(overflow)?
-                }
+                (U1(lhs), U1(rhs)) => U1(if !rhs { lhs } else { false }),
+                (U8(lhs), U8(rhs)) => U8(apply_fit_binop_opt!(lhs, rhs, shl_into, over)?),
+                (U16(lhs), U16(rhs)) => U16(apply_fit_binop_opt!(lhs, rhs, shl_into, over)?),
+                (U32(lhs), U32(rhs)) => U32(apply_fit_binop_opt!(lhs, rhs, shl, over)?),
+                (U64(lhs), U64(rhs)) => U64(apply_fit_binop_opt!(lhs, rhs, shl_try, over)?),
+                (U128(lhs), U128(rhs)) => U128(apply_fit_binop_opt!(lhs, rhs, shl_try, over)?),
+                (I8(lhs), I8(rhs)) => I8(apply_fit_binop_opt!(lhs, rhs, shl_try, over)?),
+                (I16(lhs), I16(rhs)) => I16(apply_fit_binop_opt!(lhs, rhs, shl_try, over)?),
+                (I32(lhs), I32(rhs)) => I32(apply_fit_binop_opt!(lhs, rhs, shl_try, over)?),
+                (I64(lhs), I64(rhs)) => I64(apply_fit_binop_opt!(lhs, rhs, shl_try, over)?),
                 _ => {
                     return Err(internal(InternalError::MismatchedTypesInBinaryOperator {
                         lhs: lhs.to_string(),
@@ -1416,10 +1550,21 @@ fn evaluate_binary(
             }
         }
         BinaryOp::Shr => {
-            let instruction = format!("`{}` ({lhs} >> {rhs})", display_binary(binary));
-            let overflow = InterpreterError::Overflow { operator: BinaryOp::Shr, instruction };
-
             use NumericValue::*;
+
+            let instruction = format!("`{}` ({lhs} >> {rhs})", display_binary(binary));
+            let over = || InterpreterError::Overflow { operator: BinaryOp::Shr, instruction };
+
+            fn shr<A: CheckedShr>(a: &A, b: &u32) -> Option<A> {
+                a.checked_shr(*b)
+            }
+            fn shr_into<A: CheckedShr, B: Into<u32> + Copy>(a: &A, b: &B) -> Option<A> {
+                shr(a, &(*b).into())
+            }
+            fn shr_try<A: CheckedShr, B: TryInto<u32> + Copy>(a: &A, b: &B) -> Option<A> {
+                shr(a, &(*b).try_into().ok()?)
+            }
+
             match (lhs, rhs) {
                 (Field(_), _) | (_, Field(_)) => {
                     return Err(internal(InternalError::UnsupportedOperatorForType {
@@ -1427,40 +1572,16 @@ fn evaluate_binary(
                         typ: "Field",
                     }));
                 }
-                (U1(lhs_value), U1(rhs_value)) => U1(if !rhs_value { lhs_value } else { false }),
-                (U8(lhs_value), U8(rhs_value)) => {
-                    lhs_value.checked_shr(rhs_value.into()).map(U8).ok_or(overflow)?
-                }
-                (U16(lhs_value), U16(rhs_value)) => {
-                    lhs_value.checked_shr(rhs_value.into()).map(U16).ok_or(overflow)?
-                }
-                (U32(lhs_value), U32(rhs_value)) => {
-                    lhs_value.checked_shr(rhs_value).map(U32).ok_or(overflow)?
-                }
-                (U64(lhs_value), U64(rhs_value)) => {
-                    let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
-                    lhs_value.checked_shr(rhs_value).map(U64).ok_or(overflow)?
-                }
-                (U128(lhs_value), U128(rhs_value)) => {
-                    let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
-                    lhs_value.checked_shr(rhs_value).map(U128).ok_or(overflow)?
-                }
-                (I8(lhs_value), I8(rhs_value)) => {
-                    let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
-                    lhs_value.checked_shr(rhs_value).map(I8).ok_or(overflow)?
-                }
-                (I16(lhs_value), I16(rhs_value)) => {
-                    let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
-                    lhs_value.checked_shr(rhs_value).map(I16).ok_or(overflow)?
-                }
-                (I32(lhs_value), I32(rhs_value)) => {
-                    let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
-                    lhs_value.checked_shr(rhs_value).map(I32).ok_or(overflow)?
-                }
-                (I64(lhs_value), I64(rhs_value)) => {
-                    let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
-                    lhs_value.checked_shr(rhs_value).map(I64).ok_or(overflow)?
-                }
+                (U1(lhs), U1(rhs)) => U1(if !rhs { lhs } else { false }),
+                (U8(lhs), U8(rhs)) => U8(apply_fit_binop_opt!(lhs, rhs, shr_into, over)?),
+                (U16(lhs), U16(rhs)) => U16(apply_fit_binop_opt!(lhs, rhs, shr_into, over)?),
+                (U32(lhs), U32(rhs)) => U32(apply_fit_binop_opt!(lhs, rhs, shr, over)?),
+                (U64(lhs), U64(rhs)) => U64(apply_fit_binop_opt!(lhs, rhs, shr_try, over)?),
+                (U128(lhs), U128(rhs)) => U128(apply_fit_binop_opt!(lhs, rhs, shr_try, over)?),
+                (I8(lhs), I8(rhs)) => I8(apply_fit_binop_opt!(lhs, rhs, shr_try, over)?),
+                (I16(lhs), I16(rhs)) => I16(apply_fit_binop_opt!(lhs, rhs, shr_try, over)?),
+                (I32(lhs), I32(rhs)) => I32(apply_fit_binop_opt!(lhs, rhs, shr_try, over)?),
+                (I64(lhs), I64(rhs)) => I64(apply_fit_binop_opt!(lhs, rhs, shr_try, over)?),
                 _ => {
                     return Err(internal(InternalError::MismatchedTypesInBinaryOperator {
                         lhs: lhs.to_string(),
@@ -1693,12 +1814,12 @@ mod test {
             assert_eq!(
                 super::evaluate_binary(
                     &binary,
-                    NumericValue::I8(lhs),
-                    NumericValue::I8(rhs),
+                    NumericValue::I8(lhs.into()),
+                    NumericValue::I8(rhs.into()),
                     true,
                     display
                 ),
-                expected_result.map(NumericValue::I8),
+                expected_result.map(|i| NumericValue::I8(i.into())),
                 "{lhs} << {rhs}",
             );
         }

@@ -18,7 +18,7 @@ fn to_le_bits() {
         }
     ",
     );
-    assert_eq!(value, Value::Numeric(NumericValue::U1(true)));
+    assert_eq!(value, Value::bool(true));
 }
 
 #[test]
@@ -35,7 +35,7 @@ fn to_le_radix() {
         }
     ",
     );
-    assert_eq!(value, Value::Numeric(NumericValue::U8(255)));
+    assert_eq!(value, Value::u8(255));
 }
 
 #[test]

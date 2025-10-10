@@ -326,11 +326,7 @@ fn expand_signed_math_post_check(func: &Function) {
 mod tests {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{
-            interpreter::value::{NumericValue, Value},
-            opt::assert_ssa_does_not_change,
-            ssa_gen::Ssa,
-        },
+        ssa::{interpreter::value::Value, opt::assert_ssa_does_not_change, ssa_gen::Ssa},
     };
 
     #[test]
@@ -357,14 +353,11 @@ mod tests {
             (20, -10, false),
         ];
         for (lhs, rhs, expected) in test_cases {
-            let result = ssa.interpret(vec![
-                Value::Numeric(NumericValue::I8(lhs)),
-                Value::Numeric(NumericValue::I8(rhs)),
-            ]);
+            let result = ssa.interpret(vec![Value::i8(lhs), Value::i8(rhs)]);
             assert!(result.is_ok());
             let result = result.unwrap();
             assert_eq!(result.len(), 1);
-            assert_eq!(result[0], Value::Numeric(NumericValue::U1(expected)));
+            assert_eq!(result[0], Value::bool(expected));
         }
 
         assert_ssa_snapshot!(ssa, @r"
@@ -409,17 +402,11 @@ mod tests {
         let ssa = ssa.expand_signed_math();
 
         // Check that -128 i8 / -1 i8 overflows
-        let result = ssa.interpret(vec![
-            Value::Numeric(NumericValue::I8(-128)),
-            Value::Numeric(NumericValue::I8(-1)),
-        ]);
+        let result = ssa.interpret(vec![Value::i8(-128), Value::i8(-1)]);
         assert!(result.is_err());
 
         // Check that 10 i8 / 0 i8 overflows
-        let result = ssa.interpret(vec![
-            Value::Numeric(NumericValue::I8(10)),
-            Value::Numeric(NumericValue::I8(0)),
-        ]);
+        let result = ssa.interpret(vec![Value::i8(10), Value::i8(0)]);
         assert!(result.is_err());
 
         assert_ssa_snapshot!(ssa, @r#"
@@ -485,17 +472,11 @@ mod tests {
         let ssa = ssa.expand_signed_math();
 
         // Check that -128 i8 / -1 i8 overflows
-        let result = ssa.interpret(vec![
-            Value::Numeric(NumericValue::I8(-128)),
-            Value::Numeric(NumericValue::I8(-1)),
-        ]);
+        let result = ssa.interpret(vec![Value::i8(-128), Value::i8(-1)]);
         assert!(result.is_err());
 
         // Check that 10 i8 / 0 i8 overflows
-        let result = ssa.interpret(vec![
-            Value::Numeric(NumericValue::I8(10)),
-            Value::Numeric(NumericValue::I8(0)),
-        ]);
+        let result = ssa.interpret(vec![Value::i8(10), Value::i8(0)]);
         assert!(result.is_err());
 
         assert_ssa_snapshot!(ssa, @r#"
