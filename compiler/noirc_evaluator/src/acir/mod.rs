@@ -444,18 +444,11 @@ impl<'a> Context<'a> {
                 warnings.extend(self.convert_ssa_call(instruction, dfg, ssa, result_ids)?);
             }
             Instruction::Not(value_id) => {
-                // If this is `!(lhs < rhs)` we can optimize it to `lhs >= rhs`
-                let result_acir_var = if let Some(result_acir_var) =
-                    self.convert_not_less_than_to_more_than_eq(dfg, value_id)?
-                {
-                    result_acir_var
-                } else {
-                    let (acir_var, typ) = match self.convert_value(*value_id, dfg) {
-                        AcirValue::Var(acir_var, typ) => (acir_var, typ),
-                        _ => unreachable!("NOT is only applied to numerics"),
-                    };
-                    self.acir_context.not_var(acir_var, typ)?
+                let (acir_var, typ) = match self.convert_value(*value_id, dfg) {
+                    AcirValue::Var(acir_var, typ) => (acir_var, typ),
+                    _ => unreachable!("NOT is only applied to numerics"),
                 };
+                let result_acir_var = self.acir_context.not_var(acir_var, typ)?;
                 self.define_result_var(dfg, instruction_id, result_acir_var);
             }
             Instruction::Truncate { value, bit_size, max_bit_size } => {
@@ -510,31 +503,6 @@ impl<'a> Context<'a> {
 
         self.acir_context.set_call_stack(CallStack::new());
         Ok(warnings)
-    }
-
-    /// When converting `!value`, if `value` is `lhs < rhs` we end up with `!(lhs < rhs)` which
-    /// is equivalent to `lhs >= rhs`. Given that `more_than_eq_var` is slightly more efficient
-    /// that calling `not_var(less_than_var(..))` we optimize this case.
-    fn convert_not_less_than_to_more_than_eq(
-        &mut self,
-        dfg: &DataFlowGraph,
-        value_id: &Id<Value>,
-    ) -> Result<Option<AcirVar>, RuntimeError> {
-        let Value::Instruction { instruction, .. } = &dfg[*value_id] else {
-            return Ok(None);
-        };
-        let Instruction::Binary(binary @ Binary { lhs, rhs, operator: BinaryOp::Lt }) =
-            &dfg[*instruction]
-        else {
-            return Ok(None);
-        };
-
-        let lhs = self.convert_numeric_value(*lhs, dfg)?;
-        let rhs = self.convert_numeric_value(*rhs, dfg)?;
-        let binary_type = self.type_of_binary_operation(binary, dfg);
-        let binary_type = AcirType::from(binary_type);
-        let bit_count = binary_type.bit_size::<FieldElement>();
-        self.acir_context.more_than_eq_var(lhs, rhs, bit_count).map(Some)
     }
 
     /// Converts an optional constrain error message into an ACIR assertion payload
