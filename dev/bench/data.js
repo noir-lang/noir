@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1760093040776,
+  "lastUpdate": 1760093044825,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14862,95 +14862,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "3c29fd74e5251e3ec826e2953c22d596a4e3edac",
-          "message": "chore(fuzz): Remove `is_frontend_friendly` from the AST fuzzer (#10046)",
-          "timestamp": "2025-10-02T11:50:20Z",
-          "tree_id": "867417e15ae791b85cc398d2ec47987947d60f8a",
-          "url": "https://github.com/noir-lang/noir/commit/3c29fd74e5251e3ec826e2953c22d596a4e3edac"
-        },
-        "date": 1759408510406,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 254.76,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 292.26,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 243.16,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 337.21,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 336.15,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 1030,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 1030,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 337.35,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 450.76,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 465.63,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 335.49,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 73.49,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 71.74,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -19240,6 +19151,95 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/d09585f1a9b1370c3be58ffb3477eb0fa4349fd7"
         },
         "date": 1760092053746,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 255.57,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 293.11,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 244,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 338.92,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 337.79,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1020,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1020,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 338.99,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 452.47,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 467.36,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 337.18,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 73.69,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 71.96,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "dbc6cfe7f0ead4e6780167de99e184909a486db8",
+          "message": "fix(ssa): Use `Type::element_size` instead of `Type::flattened_size` for `optimize_length_one_array_read` (#10146)",
+          "timestamp": "2025-10-10T10:06:13Z",
+          "tree_id": "7fc3a62a87eb83c09b099e0a6aa2d6f9a9252cc8",
+          "url": "https://github.com/noir-lang/noir/commit/dbc6cfe7f0ead4e6780167de99e184909a486db8"
+        },
+        "date": 1760093018327,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
