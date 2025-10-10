@@ -515,11 +515,11 @@ fn lt_u8() {
     return values: [w2]
     BLACKBOX::RANGE input: w0, bits: 8
     BLACKBOX::RANGE input: w1, bits: 8
-    BRILLIG CALL func: 0, inputs: [w0 - w1 + 256, 256], outputs: [w3, w4]
+    BRILLIG CALL func: 0, inputs: [-w0 + w1 + 255, 256], outputs: [w3, w4]
     BLACKBOX::RANGE input: w3, bits: 1
     BLACKBOX::RANGE input: w4, bits: 8
-    ASSERT w4 = w0 - w1 - 256*w3 + 256
-    ASSERT w3 = -w2 + 1
+    ASSERT w4 = -w0 + w1 - 256*w3 + 255
+    ASSERT w3 = w2
 
     unconstrained func 0: directive_integer_quotient
     0: @10 = const u32 2
