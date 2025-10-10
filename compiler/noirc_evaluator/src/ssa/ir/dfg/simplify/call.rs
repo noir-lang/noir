@@ -699,6 +699,14 @@ fn array_is_constant(dfg: &DataFlowGraph, values: &im::Vector<ValueId>) -> bool 
     values.iter().all(|value| dfg.get_numeric_constant(*value).is_some())
 }
 
+/// Replaces a call to `derive_pedersen_generators` with the results of the computation.
+///
+/// It only works if the arguments to the call are both constants, which means that the
+/// function which contains this call needs to be inlined into its caller, where the
+/// arguments are known. This is taken care of by the `#[no_predicates]` attribute,
+/// which forces inlining after flattening.
+///
+/// This intrinsic must not reach Brillig-gen.
 fn simplify_derive_generators(
     dfg: &mut DataFlowGraph,
     arguments: &[ValueId],
