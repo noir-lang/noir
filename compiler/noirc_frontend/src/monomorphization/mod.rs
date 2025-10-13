@@ -49,6 +49,7 @@ mod debug;
 pub mod debug_types;
 pub mod errors;
 pub mod printer;
+mod proxies;
 pub mod tests;
 pub mod visitor;
 
@@ -204,8 +205,11 @@ pub fn monomorphize_debug(
         debug_variables,
         debug_functions,
         debug_types,
-    );
-    Ok(program.handle_ownership())
+    )
+    .handle_ownership()
+    .create_foreign_proxies();
+
+    Ok(program)
 }
 
 impl<'interner> Monomorphizer<'interner> {
