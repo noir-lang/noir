@@ -541,7 +541,9 @@
 <a href="#540" id="540">540</a>
 <a href="#541" id="541">541</a>
 <a href="#542" id="542">542</a>
-<a href="#543" id="543">543</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::acir::types::flat_numeric_types;
+<a href="#543" id="543">543</a>
+<a href="#544" id="544">544</a>
+<a href="#545" id="545">545</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::acir::types::flat_numeric_types;
 <span class="kw">use </span><span class="kw">crate</span>::acir::{AcirDynamicArray, AcirType, AcirValue};
 <span class="kw">use </span><span class="kw">crate</span>::errors::RuntimeError;
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{dfg::DataFlowGraph, value::ValueId};
@@ -587,7 +589,7 @@
 
         <span class="kw">let </span>new_slice_val = AcirValue::Array(new_slice);
 
-        <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[AcirValue::Var(new_slice_length, AcirType::field()), new_slice_val])
+        <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[AcirValue::Var(new_slice_length, AcirType::unsigned(<span class="number">32</span>)), new_slice_val])
     }
 
     <span class="doccomment">/// Pushes one or more elements to the front of a non-nested slice.
@@ -627,7 +629,7 @@
 
         <span class="kw">let </span>new_slice_val = AcirValue::Array(new_slice);
 
-        <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[AcirValue::Var(new_slice_length, AcirType::field()), new_slice_val])
+        <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[AcirValue::Var(new_slice_length, AcirType::unsigned(<span class="number">32</span>)), new_slice_val])
     }
 
     <span class="doccomment">/// Removes and returns one or more elements from the back of a non-nested slice.
@@ -685,8 +687,10 @@
         <span class="kw">let </span>slice = <span class="self">self</span>.convert_value(slice_contents, dfg);
         <span class="kw">let </span>new_slice = <span class="self">self</span>.read_array(slice)<span class="question-mark">?</span>;
 
-        <span class="kw">let </span><span class="kw-2">mut </span>results =
-            <span class="macro">vec!</span>[AcirValue::Var(new_slice_length, AcirType::field()), AcirValue::Array(new_slice)];
+        <span class="kw">let </span><span class="kw-2">mut </span>results = <span class="macro">vec!</span>[
+            AcirValue::Var(new_slice_length, AcirType::unsigned(<span class="number">32</span>)),
+            AcirValue::Array(new_slice),
+        ];
         results.append(<span class="kw-2">&amp;mut </span>popped_elements);
 
         <span class="prelude-val">Ok</span>(results)
@@ -767,7 +771,7 @@
 
         new_slice = new_slice.slice(popped_elements_size..);
 
-        popped_elements.push(AcirValue::Var(new_slice_length, AcirType::field()));
+        popped_elements.push(AcirValue::Var(new_slice_length, AcirType::unsigned(<span class="number">32</span>)));
         popped_elements.push(AcirValue::Array(new_slice));
 
         <span class="prelude-val">Ok</span>(popped_elements)
@@ -933,7 +937,7 @@
             element_type_sizes,
         });
 
-        <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[AcirValue::Var(new_slice_length, AcirType::field()), result])
+        <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[AcirValue::Var(new_slice_length, AcirType::unsigned(<span class="number">32</span>)), result])
     }
 
     <span class="doccomment">/// Removes one or more elements from a slice at a given index.
@@ -1078,7 +1082,7 @@
             element_type_sizes,
         });
 
-        <span class="kw">let </span><span class="kw-2">mut </span>result = <span class="macro">vec!</span>[AcirValue::Var(new_slice_length, AcirType::field()), result];
+        <span class="kw">let </span><span class="kw-2">mut </span>result = <span class="macro">vec!</span>[AcirValue::Var(new_slice_length, AcirType::unsigned(<span class="number">32</span>)), result];
         result.append(<span class="kw-2">&amp;mut </span>popped_elements);
 
         <span class="prelude-val">Ok</span>(result)

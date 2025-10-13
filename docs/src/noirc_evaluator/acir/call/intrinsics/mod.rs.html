@@ -162,7 +162,13 @@
 <a href="#161" id="161">161</a>
 <a href="#162" id="162">162</a>
 <a href="#163" id="163">163</a>
-<a href="#164" id="164">164</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#164" id="164">164</a>
+<a href="#165" id="165">165</a>
+<a href="#166" id="166">166</a>
+<a href="#167" id="167">167</a>
+<a href="#168" id="168">168</a>
+<a href="#169" id="169">169</a>
+<a href="#170" id="170">170</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 
 <span class="kw">use </span><span class="kw">crate</span>::acir::{
     arrays,
@@ -264,7 +270,10 @@
                     AcirValue::Array(values) =&gt; values.len(),
                     AcirValue::DynamicArray(array) =&gt; array.len,
                 };
-                <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[AcirValue::Var(<span class="self">self</span>.acir_context.add_constant(len), AcirType::field())])
+                <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[AcirValue::Var(
+                    <span class="self">self</span>.acir_context.add_constant(len),
+                    AcirType::unsigned(<span class="number">32</span>),
+                )])
             }
             Intrinsic::AsSlice =&gt; {
                 <span class="kw">let </span>slice_contents = arguments[<span class="number">0</span>];
@@ -285,7 +294,10 @@
                 <span class="kw">let </span>acir_value = <span class="self">self</span>.convert_value(slice_contents, dfg);
                 <span class="kw">let </span>result = <span class="self">self</span>.read_array(acir_value)<span class="question-mark">?</span>;
 
-                <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[AcirValue::Var(slice_length, AcirType::field()), AcirValue::Array(result)])
+                <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[
+                    AcirValue::Var(slice_length, AcirType::unsigned(<span class="number">32</span>)),
+                    AcirValue::Array(result),
+                ])
             }
 
             Intrinsic::SlicePushBack =&gt; <span class="self">self</span>.convert_slice_push_back(arguments, dfg),

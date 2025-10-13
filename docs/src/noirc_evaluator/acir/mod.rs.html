@@ -1765,8 +1765,8 @@
                 }
                 result
             }
-            AcirValue::DynamicArray(AcirDynamicArray { block_id, len, .. }) =&gt; {
-                <span class="kw">let </span>elements = <span class="self">self</span>.read_dynamic_array(<span class="kw-2">*</span>block_id, <span class="kw-2">*</span>len)<span class="question-mark">?</span>;
+            AcirValue::DynamicArray(AcirDynamicArray { block_id, len, value_types, .. }) =&gt; {
+                <span class="kw">let </span>elements = <span class="self">self</span>.read_dynamic_array(<span class="kw-2">*</span>block_id, <span class="kw-2">*</span>len, value_types)<span class="question-mark">?</span>;
                 <span class="kw">let </span><span class="kw-2">mut </span>result = Vec::new();
 
                 <span class="kw">for </span>value <span class="kw">in </span>elements {

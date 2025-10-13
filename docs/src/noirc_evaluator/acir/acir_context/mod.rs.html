@@ -3055,12 +3055,12 @@
                     <span class="self">self</span>.initialize_array_inner(witnesses, value)<span class="question-mark">?</span>;
                 }
             }
-            AcirValue::DynamicArray(AcirDynamicArray { block_id, len, .. }) =&gt; {
+            AcirValue::DynamicArray(AcirDynamicArray { block_id, len, value_types, .. }) =&gt; {
                 <span class="kw">let </span>dynamic_array_values = try_vecmap(<span class="number">0</span>..len, |i| {
                     <span class="kw">let </span>index_var = <span class="self">self</span>.add_constant(i);
-
                     <span class="kw">let </span>read = <span class="self">self</span>.read_from_memory(block_id, <span class="kw-2">&amp;</span>index_var)<span class="question-mark">?</span>;
-                    <span class="prelude-val">Ok</span>::&lt;AcirValue, InternalError&gt;(AcirValue::Var(read, AcirType::field()))
+                    <span class="kw">let </span>typ = value_types[i % value_types.len()];
+                    <span class="prelude-val">Ok</span>::&lt;AcirValue, InternalError&gt;(AcirValue::Var(read, AcirType::NumericType(typ)))
                 })<span class="question-mark">?</span>;
                 <span class="kw">for </span>value <span class="kw">in </span>dynamic_array_values {
                     <span class="self">self</span>.initialize_array_inner(witnesses, value)<span class="question-mark">?</span>;

@@ -1136,7 +1136,21 @@
 <a href="#1135" id="1135">1135</a>
 <a href="#1136" id="1136">1136</a>
 <a href="#1137" id="1137">1137</a>
-<a href="#1138" id="1138">1138</a></pre></div><pre class="rust"><code><span class="doccomment">//! Array handling in ACIR.
+<a href="#1138" id="1138">1138</a>
+<a href="#1139" id="1139">1139</a>
+<a href="#1140" id="1140">1140</a>
+<a href="#1141" id="1141">1141</a>
+<a href="#1142" id="1142">1142</a>
+<a href="#1143" id="1143">1143</a>
+<a href="#1144" id="1144">1144</a>
+<a href="#1145" id="1145">1145</a>
+<a href="#1146" id="1146">1146</a>
+<a href="#1147" id="1147">1147</a>
+<a href="#1148" id="1148">1148</a>
+<a href="#1149" id="1149">1149</a>
+<a href="#1150" id="1150">1150</a>
+<a href="#1151" id="1151">1151</a>
+<a href="#1152" id="1152">1152</a></pre></div><pre class="rust"><code><span class="doccomment">//! Array handling in ACIR.
 //!
 //! This modules how Noir's SSA array semantics are lowered into ACIR's flat memory model.
 //! Arrays in SSA can appear as constants or dynamically allocated blocks.
@@ -1260,6 +1274,7 @@
 
 <span class="kw">use </span><span class="kw">crate</span>::acir::types::flat_numeric_types;
 <span class="kw">use </span><span class="kw">crate</span>::errors::{InternalError, RuntimeError};
+<span class="kw">use </span><span class="kw">crate</span>::ssa::ir::types::NumericType;
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
     dfg::DataFlowGraph,
     instruction::{Instruction, InstructionId},
@@ -1608,7 +1623,7 @@
         dummy_value: <span class="kw-2">&amp;</span>AcirValue,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;AcirValue, RuntimeError&gt; {
         <span class="kw">match </span>(store_value, dummy_value) {
-            (AcirValue::Var(store_var, <span class="kw">_</span>), AcirValue::Var(dummy_var, <span class="kw">_</span>)) =&gt; {
+            (AcirValue::Var(store_var, typ), AcirValue::Var(dummy_var, <span class="kw">_</span>)) =&gt; {
                 <span class="kw">let </span>true_pred =
                     <span class="self">self</span>.acir_context.mul_var(<span class="kw-2">*</span>store_var, <span class="self">self</span>.current_side_effects_enabled_var)<span class="question-mark">?</span>;
                 <span class="kw">let </span>one = <span class="self">self</span>.acir_context.add_constant(FieldElement::one());
@@ -1617,7 +1632,7 @@
                 <span class="kw">let </span>false_pred = <span class="self">self</span>.acir_context.mul_var(not_pred, <span class="kw-2">*</span>dummy_var)<span class="question-mark">?</span>;
                 <span class="comment">// predicate*value + (1-predicate)*dummy
                 </span><span class="kw">let </span>new_value = <span class="self">self</span>.acir_context.add_var(true_pred, false_pred)<span class="question-mark">?</span>;
-                <span class="prelude-val">Ok</span>(AcirValue::Var(new_value, AcirType::field()))
+                <span class="prelude-val">Ok</span>(AcirValue::Var(new_value, typ.clone()))
             }
             (AcirValue::Array(values), AcirValue::Array(dummy_values)) =&gt; {
                 <span class="kw">let </span><span class="kw-2">mut </span>elements = im::Vector::new();
@@ -1634,7 +1649,7 @@
                 <span class="prelude-val">Ok</span>(AcirValue::Array(elements))
             }
             (
-                AcirValue::DynamicArray(AcirDynamicArray { block_id, len, .. }),
+                AcirValue::DynamicArray(AcirDynamicArray { block_id, len, value_types, .. }),
                 AcirValue::Array(dummy_values),
             ) =&gt; {
                 <span class="kw">let </span>dummy_values = dummy_values
@@ -1649,7 +1664,7 @@
                     <span class="string">"ICE: The store value and dummy must have the same number of inner values"
                 </span>);
 
-                <span class="kw">let </span>values = <span class="self">self</span>.read_dynamic_array(<span class="kw-2">*</span>block_id, <span class="kw-2">*</span>len)<span class="question-mark">?</span>;
+                <span class="kw">let </span>values = <span class="self">self</span>.read_dynamic_array(<span class="kw-2">*</span>block_id, <span class="kw-2">*</span>len, value_types)<span class="question-mark">?</span>;
                 <span class="kw">let </span><span class="kw-2">mut </span>elements = im::Vector::new();
                 <span class="kw">for </span>(val, dummy_val) <span class="kw">in </span>values.iter().zip(dummy_values) {
                     elements.push_back(<span class="self">self</span>.convert_array_set_store_value(val, <span class="kw-2">&amp;</span>dummy_val)<span class="question-mark">?</span>);
@@ -1871,12 +1886,18 @@
                     <span class="self">self</span>.array_set_value(value, block_id, var_index)<span class="question-mark">?</span>;
                 }
             }
-            AcirValue::DynamicArray(AcirDynamicArray { block_id: inner_block_id, len, .. }) =&gt; {
+            AcirValue::DynamicArray(AcirDynamicArray {
+                block_id: inner_block_id,
+                len,
+                value_types,
+                ..
+            }) =&gt; {
                 <span class="kw">let </span>values = try_vecmap(<span class="number">0</span>..<span class="kw-2">*</span>len, |i| {
                     <span class="kw">let </span>index_var = <span class="self">self</span>.acir_context.add_constant(i);
 
                     <span class="kw">let </span>read = <span class="self">self</span>.acir_context.read_from_memory(<span class="kw-2">*</span>inner_block_id, <span class="kw-2">&amp;</span>index_var)<span class="question-mark">?</span>;
-                    <span class="prelude-val">Ok</span>::&lt;AcirValue, RuntimeError&gt;(AcirValue::Var(read, AcirType::field()))
+                    <span class="kw">let </span>typ = value_types[i % value_types.len()];
+                    <span class="prelude-val">Ok</span>::&lt;AcirValue, RuntimeError&gt;(AcirValue::Var(read, AcirType::NumericType(typ)))
                 })<span class="question-mark">?</span>;
                 <span class="self">self</span>.array_set_value(<span class="kw-2">&amp;</span>AcirValue::Array(values.into()), block_id, var_index)<span class="question-mark">?</span>;
             }
@@ -2029,8 +2050,8 @@
         <span class="kw">match </span>array {
             AcirValue::Var(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: attempting to copy a non-array value"</span>),
             AcirValue::Array(vars) =&gt; <span class="prelude-val">Ok</span>(vars),
-            AcirValue::DynamicArray(AcirDynamicArray { block_id, len, .. }) =&gt; {
-                <span class="self">self</span>.read_dynamic_array(block_id, len)
+            AcirValue::DynamicArray(AcirDynamicArray { block_id, len, value_types, .. }) =&gt; {
+                <span class="self">self</span>.read_dynamic_array(block_id, len, <span class="kw-2">&amp;</span>value_types)
             }
         }
     }
@@ -2049,9 +2070,12 @@
                 <span class="kw">let </span>array_len = <span class="self">self</span>.flattened_size(source, dfg);
                 <span class="prelude-val">Ok</span>(<span class="self">self</span>.initialize_array(destination, array_len, <span class="prelude-val">Some</span>(array))<span class="question-mark">?</span>)
             }
-            AcirValue::DynamicArray(source) =&gt; {
-                <span class="self">self</span>.copy_dynamic_array(source.block_id, destination, source.len)
-            }
+            AcirValue::DynamicArray(source) =&gt; <span class="self">self</span>.copy_dynamic_array(
+                source.block_id,
+                destination,
+                source.len,
+                <span class="kw-2">&amp;</span>source.value_types,
+            ),
         }
     }
 
@@ -2059,12 +2083,15 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         source: BlockId,
         array_len: usize,
+        value_types: <span class="kw-2">&amp;</span>[NumericType],
     ) -&gt; <span class="prelude-ty">Result</span>&lt;im::Vector&lt;AcirValue&gt;, RuntimeError&gt; {
         <span class="kw">let </span>init_values = try_vecmap(<span class="number">0</span>..array_len, |i| {
             <span class="kw">let </span>index_var = <span class="self">self</span>.acir_context.add_constant(i);
 
             <span class="kw">let </span>read = <span class="self">self</span>.acir_context.read_from_memory(source, <span class="kw-2">&amp;</span>index_var)<span class="question-mark">?</span>;
-            <span class="prelude-val">Ok</span>::&lt;AcirValue, RuntimeError&gt;(AcirValue::Var(read, AcirType::field()))
+            <span class="kw">let </span>typ = value_types[i % value_types.len()];
+
+            <span class="prelude-val">Ok</span>::&lt;AcirValue, RuntimeError&gt;(AcirValue::Var(read, AcirType::NumericType(typ)))
         })<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(init_values.into())
     }
@@ -2074,8 +2101,9 @@
         source: BlockId,
         destination: BlockId,
         array_len: usize,
+        value_types: <span class="kw-2">&amp;</span>[NumericType],
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), RuntimeError&gt; {
-        <span class="kw">let </span>array = <span class="self">self</span>.read_dynamic_array(source, array_len)<span class="question-mark">?</span>;
+        <span class="kw">let </span>array = <span class="self">self</span>.read_dynamic_array(source, array_len, value_types)<span class="question-mark">?</span>;
         <span class="self">self</span>.initialize_array(destination, array_len, <span class="prelude-val">Some</span>(AcirValue::Array(array)))<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(())
     }
