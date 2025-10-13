@@ -274,7 +274,7 @@
     <span class="attr">#[error(<span class="string">"Reached the unreachable"</span>)]
     </span>ReachedTheUnreachable,
     <span class="attr">#[error(<span class="string">"Array index {index} is out of bounds for array of length {length}"</span>)]
-    </span>IndexOutOfBounds { index: u32, length: u32 },
+    </span>IndexOutOfBounds { index: FieldElement, length: u32 },
 }
 
 <span class="doccomment">/// These errors can only result from interpreting malformed SSA

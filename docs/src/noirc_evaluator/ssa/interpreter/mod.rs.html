@@ -1825,7 +1825,29 @@
 <a href="#1824" id="1824">1824</a>
 <a href="#1825" id="1825">1825</a>
 <a href="#1826" id="1826">1826</a>
-<a href="#1827" id="1827">1827</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{cmp::Ordering, collections::BTreeMap, io::Write};
+<a href="#1827" id="1827">1827</a>
+<a href="#1828" id="1828">1828</a>
+<a href="#1829" id="1829">1829</a>
+<a href="#1830" id="1830">1830</a>
+<a href="#1831" id="1831">1831</a>
+<a href="#1832" id="1832">1832</a>
+<a href="#1833" id="1833">1833</a>
+<a href="#1834" id="1834">1834</a>
+<a href="#1835" id="1835">1835</a>
+<a href="#1836" id="1836">1836</a>
+<a href="#1837" id="1837">1837</a>
+<a href="#1838" id="1838">1838</a>
+<a href="#1839" id="1839">1839</a>
+<a href="#1840" id="1840">1840</a>
+<a href="#1841" id="1841">1841</a>
+<a href="#1842" id="1842">1842</a>
+<a href="#1843" id="1843">1843</a>
+<a href="#1844" id="1844">1844</a>
+<a href="#1845" id="1845">1845</a>
+<a href="#1846" id="1846">1846</a>
+<a href="#1847" id="1847">1847</a>
+<a href="#1848" id="1848">1848</a>
+<a href="#1849" id="1849">1849</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{cmp::Ordering, collections::BTreeMap, io::Write};
 
 <span class="kw">use super</span>::{
     Ssa,
@@ -2209,6 +2231,27 @@
         instruction: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str,
     ) -&gt; IResult&lt;ArrayValue&gt; {
         <span class="self">self</span>.lookup_helper(value_id, instruction, <span class="string">"array or slice"</span>, Value::as_array_or_slice)
+    }
+
+    <span class="doccomment">/// Look up an array index.
+    ///
+    /// If the value exists but it's `Unfit`, returns `IndexOutOfBounds`.
+    </span><span class="kw">fn </span>lookup_array_index(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        value_id: ValueId,
+        instruction: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str,
+        length: u32,
+    ) -&gt; IResult&lt;u32&gt; {
+        <span class="self">self</span>.lookup_helper(value_id, instruction, <span class="string">"u32"</span>, Value::as_u32).map_err(|e| {
+            <span class="kw">if </span><span class="macro">matches!</span>(e, InterpreterError::Internal(InternalError::TypeError { .. })) {
+                <span class="kw">if let </span><span class="prelude-val">Ok</span>(Value::Numeric(NumericValue::U32(Fitted::Unfit(index)))) =
+                    <span class="self">self</span>.lookup(value_id)
+                {
+                    <span class="kw">return </span>InterpreterError::IndexOutOfBounds { index, length };
+                }
+            }
+            e
+        })
     }
 
     <span class="kw">fn </span>lookup_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>, value_id: ValueId, instruction: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str) -&gt; IResult&lt;Vec&lt;u8&gt;&gt; {
@@ -2772,16 +2815,17 @@
     ) -&gt; IResult&lt;()&gt; {
         <span class="kw">let </span>offset = <span class="self">self</span>.dfg().array_offset(array, index);
         <span class="kw">let </span>array = <span class="self">self</span>.lookup_array_or_slice(array, <span class="string">"array get"</span>)<span class="question-mark">?</span>;
-        <span class="kw">let </span>index = <span class="self">self</span>.lookup_u32(index, <span class="string">"array get index"</span>)<span class="question-mark">?</span>;
+        <span class="kw">let </span>length = array.elements.borrow().len() <span class="kw">as </span>u32;
+        <span class="kw">let </span>index = <span class="self">self</span>.lookup_array_index(index, <span class="string">"array get index"</span>, length)<span class="question-mark">?</span>;
         <span class="kw">let </span><span class="kw-2">mut </span>index = index - offset.to_u32();
 
-        <span class="kw">let </span>element = <span class="kw">if </span>array.elements.borrow().is_empty() {
+        <span class="kw">let </span>element = <span class="kw">if </span>length == <span class="number">0 </span>{
             <span class="comment">// Accessing an array of 0-len is replaced by asserting
             // the branch is not-taken during acir-gen and
             // a zeroed type is used in case of array get
             // So we can simply replace it with uninitialized value
             </span><span class="kw">if </span>side_effects_enabled {
-                <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::IndexOutOfBounds { index, length: <span class="number">0 </span>});
+                <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::IndexOutOfBounds { index: index.into(), length });
             } <span class="kw">else </span>{
                 <span class="kw">let </span>typ = <span class="self">self</span>.dfg().type_of_value(result);
                 Value::uninitialized(<span class="kw-2">&amp;</span>typ, result)
@@ -2800,9 +2844,9 @@
                 }
             }
             <span class="kw">let </span>elements = array.elements.borrow();
-            <span class="kw">let </span>element = elements.get(index <span class="kw">as </span>usize).ok_or_else(|| {
-                InterpreterError::IndexOutOfBounds { index, length: elements.len() <span class="kw">as </span>u32 }
-            })<span class="question-mark">?</span>;
+            <span class="kw">let </span>element = elements
+                .get(index <span class="kw">as </span>usize)
+                .ok_or(InterpreterError::IndexOutOfBounds { index: index.into(), length })<span class="question-mark">?</span>;
 
             <span class="comment">// Either return a fresh nested array (in constrained context) or just clone the element.
             </span><span class="kw">if </span>!<span class="self">self</span>.in_unconstrained_context() {
@@ -2841,16 +2885,16 @@
         <span class="kw">let </span>array = <span class="self">self</span>.lookup_array_or_slice(array, <span class="string">"array set"</span>)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>result_array = <span class="kw">if </span>side_effects_enabled {
-            <span class="kw">let </span>index = <span class="self">self</span>.lookup_u32(index, <span class="string">"array set index"</span>)<span class="question-mark">?</span>;
+            <span class="kw">let </span>length = array.elements.borrow().len() <span class="kw">as </span>u32;
+            <span class="kw">let </span>index = <span class="self">self</span>.lookup_array_index(index, <span class="string">"array set index"</span>, length)<span class="question-mark">?</span>;
             <span class="kw">let </span>index = index - offset.to_u32();
             <span class="kw">let </span>value = <span class="self">self</span>.lookup(value)<span class="question-mark">?</span>;
 
             <span class="kw">let </span>should_mutate =
                 <span class="kw">if </span><span class="self">self</span>.in_unconstrained_context() { <span class="kw-2">*</span>array.rc.borrow() == <span class="number">1 </span>} <span class="kw">else </span>{ mutable };
 
-            <span class="kw">let </span>len = array.elements.borrow().len();
-            <span class="kw">if </span>index <span class="kw">as </span>usize &gt;= len {
-                <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::IndexOutOfBounds { index, length: len <span class="kw">as </span>u32 });
+            <span class="kw">if </span>index &gt;= length {
+                <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::IndexOutOfBounds { index: index.into(), length });
             }
 
             <span class="kw">if </span>should_mutate {

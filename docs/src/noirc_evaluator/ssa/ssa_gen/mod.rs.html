@@ -1251,7 +1251,10 @@
 <a href="#1250" id="1250">1250</a>
 <a href="#1251" id="1251">1251</a>
 <a href="#1252" id="1252">1252</a>
-<a href="#1253" id="1253">1253</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>context;
+<a href="#1253" id="1253">1253</a>
+<a href="#1254" id="1254">1254</a>
+<a href="#1255" id="1255">1255</a>
+<a href="#1256" id="1256">1256</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>context;
 <span class="kw">mod </span>program;
 <span class="kw">mod </span>tests;
 <span class="kw">mod </span>value;
@@ -1748,7 +1751,10 @@
         // and we skipped inserting constraints. To stay on the conservative side, start with
         // a checked operation, and simplify to unchecked if it can be evaluated.
         // In Brillig we will be protected from overflows by constraints, so we can go unchecked.
-        </span><span class="kw">let </span>unchecked = runtime.is_brillig();
+        // In ACIR the values are represented as Fields, so they don't wrap around, but ACIR has built-in OOB checks,
+        // so it's okay to use unchecked operations. The SSA interpreter has been updated to have similar semantics.
+        </span><span class="kw">let </span>unchecked = <span class="bool-val">true</span>;
+
         <span class="kw">let </span>base_index = <span class="self">self</span>.builder.set_location(location).insert_binary(
             index,
             BinaryOp::Mul { unchecked },
