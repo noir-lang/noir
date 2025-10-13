@@ -97,12 +97,6 @@ libraries:
     path: noir-projects/noir-protocol-circuits/crates/private-kernel-lib
     timeout: 300
     critical: false
-  protocol_circuits_reset_kernel_lib:
-    repo: AztecProtocol/aztec-packages
-    ref: *AZ_COMMIT
-    path: noir-projects/noir-protocol-circuits/crates/reset-kernel-lib
-    timeout: 40
-    critical: false
   protocol_circuits_types:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
