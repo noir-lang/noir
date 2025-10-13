@@ -122,6 +122,7 @@ use iter_extended::{try_vecmap, vecmap};
 
 use crate::acir::types::flat_numeric_types;
 use crate::errors::{InternalError, RuntimeError};
+use crate::ssa::ir::types::NumericType;
 use crate::ssa::ir::{
     dfg::DataFlowGraph,
     instruction::{Instruction, InstructionId},
@@ -470,7 +471,7 @@ impl Context<'_> {
         dummy_value: &AcirValue,
     ) -> Result<AcirValue, RuntimeError> {
         match (store_value, dummy_value) {
-            (AcirValue::Var(store_var, _), AcirValue::Var(dummy_var, _)) => {
+            (AcirValue::Var(store_var, typ), AcirValue::Var(dummy_var, _)) => {
                 let true_pred =
                     self.acir_context.mul_var(*store_var, self.current_side_effects_enabled_var)?;
                 let one = self.acir_context.add_constant(FieldElement::one());
@@ -479,7 +480,7 @@ impl Context<'_> {
                 let false_pred = self.acir_context.mul_var(not_pred, *dummy_var)?;
                 // predicate*value + (1-predicate)*dummy
                 let new_value = self.acir_context.add_var(true_pred, false_pred)?;
-                Ok(AcirValue::Var(new_value, AcirType::field()))
+                Ok(AcirValue::Var(new_value, typ.clone()))
             }
             (AcirValue::Array(values), AcirValue::Array(dummy_values)) => {
                 let mut elements = im::Vector::new();
@@ -496,7 +497,7 @@ impl Context<'_> {
                 Ok(AcirValue::Array(elements))
             }
             (
-                AcirValue::DynamicArray(AcirDynamicArray { block_id, len, .. }),
+                AcirValue::DynamicArray(AcirDynamicArray { block_id, len, value_types, .. }),
                 AcirValue::Array(dummy_values),
             ) => {
                 let dummy_values = dummy_values
@@ -511,7 +512,7 @@ impl Context<'_> {
                     "ICE: The store value and dummy must have the same number of inner values"
                 );
 
-                let values = self.read_dynamic_array(*block_id, *len)?;
+                let values = self.read_dynamic_array(*block_id, *len, value_types)?;
                 let mut elements = im::Vector::new();
                 for (val, dummy_val) in values.iter().zip(dummy_values) {
                     elements.push_back(self.convert_array_set_store_value(val, &dummy_val)?);
@@ -733,12 +734,18 @@ impl Context<'_> {
                     self.array_set_value(value, block_id, var_index)?;
                 }
             }
-            AcirValue::DynamicArray(AcirDynamicArray { block_id: inner_block_id, len, .. }) => {
+            AcirValue::DynamicArray(AcirDynamicArray {
+                block_id: inner_block_id,
+                len,
+                value_types,
+                ..
+            }) => {
                 let values = try_vecmap(0..*len, |i| {
                     let index_var = self.acir_context.add_constant(i);
 
                     let read = self.acir_context.read_from_memory(*inner_block_id, &index_var)?;
-                    Ok::<AcirValue, RuntimeError>(AcirValue::Var(read, AcirType::field()))
+                    let typ = value_types[i % value_types.len()];
+                    Ok::<AcirValue, RuntimeError>(AcirValue::Var(read, AcirType::NumericType(typ)))
                 })?;
                 self.array_set_value(&AcirValue::Array(values.into()), block_id, var_index)?;
             }
@@ -891,8 +898,8 @@ impl Context<'_> {
         match array {
             AcirValue::Var(_, _) => unreachable!("ICE: attempting to copy a non-array value"),
             AcirValue::Array(vars) => Ok(vars),
-            AcirValue::DynamicArray(AcirDynamicArray { block_id, len, .. }) => {
-                self.read_dynamic_array(block_id, len)
+            AcirValue::DynamicArray(AcirDynamicArray { block_id, len, value_types, .. }) => {
+                self.read_dynamic_array(block_id, len, &value_types)
             }
         }
     }
@@ -911,9 +918,12 @@ impl Context<'_> {
                 let array_len = self.flattened_size(source, dfg);
                 Ok(self.initialize_array(destination, array_len, Some(array))?)
             }
-            AcirValue::DynamicArray(source) => {
-                self.copy_dynamic_array(source.block_id, destination, source.len)
-            }
+            AcirValue::DynamicArray(source) => self.copy_dynamic_array(
+                source.block_id,
+                destination,
+                source.len,
+                &source.value_types,
+            ),
         }
     }
 
@@ -921,12 +931,15 @@ impl Context<'_> {
         &mut self,
         source: BlockId,
         array_len: usize,
+        value_types: &[NumericType],
     ) -> Result<im::Vector<AcirValue>, RuntimeError> {
         let init_values = try_vecmap(0..array_len, |i| {
             let index_var = self.acir_context.add_constant(i);
 
             let read = self.acir_context.read_from_memory(source, &index_var)?;
-            Ok::<AcirValue, RuntimeError>(AcirValue::Var(read, AcirType::field()))
+            let typ = value_types[i % value_types.len()];
+
+            Ok::<AcirValue, RuntimeError>(AcirValue::Var(read, AcirType::NumericType(typ)))
         })?;
         Ok(init_values.into())
     }
@@ -936,8 +949,9 @@ impl Context<'_> {
         source: BlockId,
         destination: BlockId,
         array_len: usize,
+        value_types: &[NumericType],
     ) -> Result<(), RuntimeError> {
-        let array = self.read_dynamic_array(source, array_len)?;
+        let array = self.read_dynamic_array(source, array_len, value_types)?;
         self.initialize_array(destination, array_len, Some(AcirValue::Array(array)))?;
         Ok(())
     }
