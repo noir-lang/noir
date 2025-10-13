@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1760354240618,
+  "lastUpdate": 1760370259131,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23456,48 +23456,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "8d4f14d1b90187465d83c59676e573303ae605c0",
-          "message": "chore(ci): fix permissions about publishing rustdoc (#10075)",
-          "timestamp": "2025-10-03T14:44:54+01:00",
-          "tree_id": "c77eb0f410bddfc131d5e17a4f65d6dca1324c5f",
-          "url": "https://github.com/noir-lang/noir/commit/8d4f14d1b90187465d83c59676e573303ae605c0"
-        },
-        "date": 1759499241846,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 256375,
-            "range": "± 1900",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 227527,
-            "range": "± 4329",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2798776,
-            "range": "± 2015",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -25549,6 +25507,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2781461,
             "range": "± 1459",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9dcbf4c333229efbbb1fc812b1035e0153d6625b",
+          "message": "chore: revert \"chore(ACIRgen): always compute array offset (#10099)\" (#10176)",
+          "timestamp": "2025-10-13T16:41:20+01:00",
+          "tree_id": "36cb9c8a94fae353f7cf470396a115b0918e8109",
+          "url": "https://github.com/noir-lang/noir/commit/9dcbf4c333229efbbb1fc812b1035e0153d6625b"
+        },
+        "date": 1760370235317,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 267456,
+            "range": "± 2243",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 235144,
+            "range": "± 3391",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2786998,
+            "range": "± 2613",
             "unit": "ns/iter"
           }
         ]
