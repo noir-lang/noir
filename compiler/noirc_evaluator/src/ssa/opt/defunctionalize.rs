@@ -94,6 +94,10 @@ impl Ssa {
     /// See [`defunctionalize`][self] module for more information.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn defunctionalize(mut self) -> Ssa {
+        // Check that we have removed all cases we don't handle in this pass.
+        #[cfg(debug_assertions)]
+        self.functions.values().for_each(defunctionalize_pre_check);
+
         // Find all functions used as value that share the same signature and runtime type
         let variants = find_variants(&self);
 
@@ -360,10 +364,19 @@ fn find_variants(ssa: &Ssa) -> Variants {
 fn find_functions_as_values(func: &Function) -> BTreeSet<FunctionId> {
     let mut functions_as_values: BTreeSet<FunctionId> = BTreeSet::new();
 
-    let mut process_value = |value_id: ValueId| {
-        if let Value::Function(id) = func.dfg[value_id] {
-            functions_as_values.insert(id);
+    visit_values_other_than_call_target(func, |value| {
+        if let Value::Function(id) = value {
+            functions_as_values.insert(*id);
         }
+    });
+
+    functions_as_values
+}
+
+/// Visit all values which are *not* targets of a `Call`.
+fn visit_values_other_than_call_target(func: &Function, mut f: impl FnMut(&Value) -> ()) {
+    let mut process_value = |value_id: ValueId| {
+        f(&func.dfg[value_id]);
     };
 
     for block_id in func.reachable_blocks() {
@@ -382,8 +395,6 @@ fn find_functions_as_values(func: &Function) -> BTreeSet<FunctionId> {
 
         block.unwrap_terminator().for_each_value(&mut process_value);
     }
-
-    functions_as_values
 }
 
 /// Finds all dynamic dispatch signatures in the given function.
@@ -749,6 +760,19 @@ fn make_dummy_return_data(function_builder: &mut FunctionBuilder, typ: &Type) ->
             )
         }
     }
+}
+
+/// Check pre-execution properties.
+///
+/// Panics if:
+///   * Any intrinsic or foreign function is passed as a value.
+#[cfg(debug_assertions)]
+fn defunctionalize_pre_check(function: &Function) {
+    visit_values_other_than_call_target(function, |value| match value {
+        Value::ForeignFunction(name) => panic!("foreign function as value: {name}"),
+        Value::Intrinsic(intrinsic) => panic!("intrinsic function as value: {intrinsic}"),
+        _ => (),
+    });
 }
 
 /// Check post-execution properties:
