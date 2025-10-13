@@ -374,7 +374,7 @@ fn find_functions_as_values(func: &Function) -> BTreeSet<FunctionId> {
 }
 
 /// Visit all values which are *not* targets of a `Call`.
-fn visit_values_other_than_call_target(func: &Function, mut f: impl FnMut(&Value) -> ()) {
+fn visit_values_other_than_call_target(func: &Function, mut f: impl FnMut(&Value)) {
     let mut process_value = |value_id: ValueId| {
         f(&func.dfg[value_id]);
     };
