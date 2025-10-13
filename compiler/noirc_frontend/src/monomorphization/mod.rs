@@ -49,7 +49,7 @@ mod debug;
 pub mod debug_types;
 pub mod errors;
 pub mod printer;
-mod proxies;
+pub mod proxies;
 pub mod tests;
 pub mod visitor;
 

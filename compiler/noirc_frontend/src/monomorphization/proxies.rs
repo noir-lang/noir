@@ -33,7 +33,7 @@ use crate::{
 impl Program {
     /// Create proxies for foreign functions used as values.
     ///
-    /// See [proxies](crate::monomorphization::proxies) for details.
+    /// See the [proxies](crate::monomorphization::proxies) for details.
     ///
     /// This should only be called once, before converting to SSA.
     pub fn create_foreign_proxies(mut self) -> Self {
@@ -142,7 +142,7 @@ impl<'a> ForeignFunctionValue<'a> {
         {
             return None;
         }
-        return Some(Self { items });
+        Some(Self { items })
     }
 
     /// Apply a function on the constrained and unconstrained identifier.
