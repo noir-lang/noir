@@ -2538,4 +2538,39 @@ mod tests {
         ";
         assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
+
+    #[test]
+    fn regression_10020() {
+        // v14 = add v12, v13 is NOT replaced by v13 = add v12, Field 1
+        let src = "
+acir(inline) predicate_pure fn main f0 {
+  b0():
+    v1 = allocate -> &mut Field
+    store Field 0 at v1
+    v3 = allocate -> &mut Field
+    store Field 0 at v3
+    v4 = make_array [v1, v3] : [&mut Field; 2]
+    v5 = allocate -> &mut Field
+    store Field 0 at v5
+    jmp b1(u32 0)
+  b1(v0: u32):
+    v7 = eq v0, u32 0
+    jmpif v7 then: b2, else: b3
+  b2():
+    v9 = array_get v4, index v0 -> &mut Field
+    store Field 1 at v9
+    store Field 2 at v1
+    v12 = load v5 -> Field
+    v13 = load v9 -> Field
+    v14 = add v12, v13
+    store v14 at v5
+    v16 = unchecked_add v0, u32 1
+    jmp b1(v16)
+  b3():
+    v8 = load v5 -> Field
+    return v8
+}
+        ";
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
 }
