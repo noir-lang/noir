@@ -2510,7 +2510,7 @@ mod tests {
         assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
-     #[test]
+    #[test]
     fn regression_10070() {
         // Here v6 and v7 aliases v2 expression.
         // When storing to v3 we may modify value referenced by v2 depending on the taken branch
