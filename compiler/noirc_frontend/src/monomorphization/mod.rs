@@ -220,6 +220,7 @@ impl<'interner> Monomorphizer<'interner> {
         Ok(())
     }
 
+    #[allow(clippy::type_complexity)]
     pub fn peek_queue(
         &self,
     ) -> Option<&(node_interner::FuncId, FuncId, TypeBindings, Option<TraitItemId>, bool, Location)>
@@ -240,11 +241,11 @@ impl<'interner> Monomorphizer<'interner> {
     }
 
     pub fn return_location(&self) -> Option<Location> {
-        self.return_location.clone()
+        self.return_location
     }
 
     pub fn interner(&self) -> &NodeInterner {
-        &self.interner
+        self.interner
     }
 
     pub fn into_program(self, function_sig: FunctionSignature) -> Program {
