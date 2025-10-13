@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1760371105445,
+  "lastUpdate": 1760379790526,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23451,48 +23451,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "f2acd9b421f15fe9a1388afdeb4db5240b0be18a",
-          "message": "feat(brillig): Centralize memory layout policy and reorganize memory regions (#9985)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-10-03T14:29:12Z",
-          "tree_id": "5aafdd1628943914e5ea488a5b5505ded68eda38",
-          "url": "https://github.com/noir-lang/noir/commit/f2acd9b421f15fe9a1388afdeb4db5240b0be18a"
-        },
-        "date": 1759503282016,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 254787,
-            "range": "± 1050",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 227735,
-            "range": "± 3038",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2820047,
-            "range": "± 9686",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -25544,6 +25502,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2786998,
             "range": "± 2613",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "86565a22ac8f611a07285a215070fb70aa9bc2bb",
+          "message": "chore(ssa): Restore the use of unchecked index operations (#10110)",
+          "timestamp": "2025-10-13T17:57:48Z",
+          "tree_id": "00c25b704a7f71ddc961a3e2964464ee5bdf59c1",
+          "url": "https://github.com/noir-lang/noir/commit/86565a22ac8f611a07285a215070fb70aa9bc2bb"
+        },
+        "date": 1760379767398,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 265969,
+            "range": "± 814",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 231260,
+            "range": "± 5116",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2784282,
+            "range": "± 16772",
             "unit": "ns/iter"
           }
         ]
