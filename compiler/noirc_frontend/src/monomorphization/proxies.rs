@@ -180,7 +180,7 @@ fn make_proxy(id: FuncId, ident: Ident, unconstrained: bool) -> Function {
     // Pick the version of the function that we need to forward to.
     let func_idx = if unconstrained { 1 } else { 0 };
     let func_typ = items[func_idx].clone();
-    let Type::Function(args, ret, _env, _) = func_typ.clone() else {
+    let Type::Function(args, ret, _env, _) = func_typ else {
         unreachable!("ICE: expected function type; got {}", ident.typ);
     };
 
@@ -218,7 +218,8 @@ fn make_proxy(id: FuncId, ident: Ident, unconstrained: bool) -> Function {
             definition: ident.definition,
             mutable: ident.mutable,
             name: ident.name,
-            typ: func_typ, // Pick the version based on constrained-ness.
+            // The ident type still carries both function types in its definition.
+            typ: ident.typ,
         };
 
         let arguments = vecmap(&parameters, |(id, mutable, name, typ, _)| {
