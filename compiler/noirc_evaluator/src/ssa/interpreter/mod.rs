@@ -384,6 +384,27 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         self.lookup_helper(value_id, instruction, "array or slice", Value::as_array_or_slice)
     }
 
+    /// Look up an array index.
+    ///
+    /// If the value exists but it's `Unfit`, returns `IndexOutOfBounds`.
+    fn lookup_array_index(
+        &self,
+        value_id: ValueId,
+        instruction: &'static str,
+        length: u32,
+    ) -> IResult<u32> {
+        self.lookup_helper(value_id, instruction, "u32", Value::as_u32).map_err(|e| {
+            if matches!(e, InterpreterError::Internal(InternalError::TypeError { .. })) {
+                if let Ok(Value::Numeric(NumericValue::U32(Fitted::Unfit(index)))) =
+                    self.lookup(value_id)
+                {
+                    return InterpreterError::IndexOutOfBounds { index, length };
+                }
+            }
+            e
+        })
+    }
+
     fn lookup_bytes(&self, value_id: ValueId, instruction: &'static str) -> IResult<Vec<u8>> {
         let array = self.lookup_array_or_slice(value_id, instruction)?;
         let array = array.elements.borrow();
@@ -945,16 +966,17 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
     ) -> IResult<()> {
         let offset = self.dfg().array_offset(array, index);
         let array = self.lookup_array_or_slice(array, "array get")?;
-        let index = self.lookup_u32(index, "array get index")?;
+        let length = array.elements.borrow().len() as u32;
+        let index = self.lookup_array_index(index, "array get index", length)?;
         let mut index = index - offset.to_u32();
 
-        let element = if array.elements.borrow().is_empty() {
+        let element = if length == 0 {
             // Accessing an array of 0-len is replaced by asserting
             // the branch is not-taken during acir-gen and
             // a zeroed type is used in case of array get
             // So we can simply replace it with uninitialized value
             if side_effects_enabled {
-                return Err(InterpreterError::IndexOutOfBounds { index, length: 0 });
+                return Err(InterpreterError::IndexOutOfBounds { index: index.into(), length });
             } else {
                 let typ = self.dfg().type_of_value(result);
                 Value::uninitialized(&typ, result)
@@ -973,9 +995,9 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 }
             }
             let elements = array.elements.borrow();
-            let element = elements.get(index as usize).ok_or_else(|| {
-                InterpreterError::IndexOutOfBounds { index, length: elements.len() as u32 }
-            })?;
+            let element = elements
+                .get(index as usize)
+                .ok_or(InterpreterError::IndexOutOfBounds { index: index.into(), length })?;
 
             // Either return a fresh nested array (in constrained context) or just clone the element.
             if !self.in_unconstrained_context() {
@@ -1014,16 +1036,16 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         let array = self.lookup_array_or_slice(array, "array set")?;
 
         let result_array = if side_effects_enabled {
-            let index = self.lookup_u32(index, "array set index")?;
+            let length = array.elements.borrow().len() as u32;
+            let index = self.lookup_array_index(index, "array set index", length)?;
             let index = index - offset.to_u32();
             let value = self.lookup(value)?;
 
             let should_mutate =
                 if self.in_unconstrained_context() { *array.rc.borrow() == 1 } else { mutable };
 
-            let len = array.elements.borrow().len();
-            if index as usize >= len {
-                return Err(InterpreterError::IndexOutOfBounds { index, length: len as u32 });
+            if index >= length {
+                return Err(InterpreterError::IndexOutOfBounds { index: index.into(), length });
             }
 
             if should_mutate {
