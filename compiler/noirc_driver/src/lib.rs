@@ -14,7 +14,7 @@ use noirc_errors::{CustomDiagnostic, DiagnosticKind};
 use noirc_evaluator::brillig::BrilligOptions;
 use noirc_evaluator::create_program;
 use noirc_evaluator::errors::RuntimeError;
-use noirc_evaluator::ssa::opt::inlining::MAX_INSTRUCTIONS;
+use noirc_evaluator::ssa::opt::{CONSTANT_FOLDING_MAX_ITER, INLINING_MAX_INSTRUCTIONS};
 use noirc_evaluator::ssa::{
     OptimizationLevel, SsaEvaluatorOptions, SsaLogging, SsaProgramArtifact,
     create_program_with_minimal_passes,
@@ -179,12 +179,17 @@ pub struct CompileOptions {
     /// Setting to decide on an inlining strategy for Brillig functions.
     /// A more aggressive inliner should generate larger programs but more optimized
     /// A less aggressive inliner should generate smaller programs
-    #[arg(long, hide = true, allow_hyphen_values = true, default_value_t = i64::MAX)]
+    #[arg(long, allow_hyphen_values = true, default_value_t = i64::MAX)]
     pub inliner_aggressiveness: i64,
+
+    /// Maximum number of iterations to do in constant folding, as long as new values are being hoisted.
+    /// A value of 0 effectively disables constant folding.
+    #[arg(long, hide = true, allow_hyphen_values = true, default_value_t = CONSTANT_FOLDING_MAX_ITER)]
+    pub constant_folding_max_iter: usize,
 
     /// Setting to decide the maximum weight threshold at which we designate a function
     /// as "small" and thus to always be inlined.
-    #[arg(long, hide = true, allow_hyphen_values = true, default_value_t = MAX_INSTRUCTIONS)]
+    #[arg(long, hide = true, allow_hyphen_values = true, default_value_t = INLINING_MAX_INSTRUCTIONS)]
     pub small_function_max_instructions: usize,
 
     /// Setting the maximum acceptable increase in Brillig bytecode size due to
@@ -242,6 +247,7 @@ impl CompileOptions {
                 enable_debug_trace: self.show_brillig,
                 enable_debug_assertions: self.enable_brillig_debug_assertions,
                 enable_array_copy_counter: self.count_array_copies,
+                ..Default::default()
             },
             print_codegen_timings: self.benchmark_codegen,
             expression_width: if self.bounded_codegen {
@@ -256,6 +262,7 @@ impl CompileOptions {
             skip_brillig_constraints_check: !self.silence_warnings
                 && self.skip_brillig_constraints_check,
             inliner_aggressiveness: self.inliner_aggressiveness,
+            constant_folding_max_iter: self.constant_folding_max_iter,
             small_function_max_instruction: self.small_function_max_instructions,
             max_bytecode_increase_percent: self.max_bytecode_increase_percent,
             skip_passes: self.skip_ssa_pass.clone(),
@@ -651,6 +658,9 @@ fn compile_contract_inner(
         }
 
         let mut options = options.clone();
+        if name == "public_dispatch" {
+            options.inliner_aggressiveness = 0;
+        }
 
         if let Some(ref name_filter) = options.show_contract_fn {
             let show = name == *name_filter;

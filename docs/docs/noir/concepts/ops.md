@@ -52,7 +52,7 @@ This differs from the operations such as `+` where the operands are used in _com
 ### Bitwise Operations Example
 
 ```rust
-fn main(x : Field) {
+fn main(x: Field) {
     let y = x as u32;
     let z = y & y;
 }

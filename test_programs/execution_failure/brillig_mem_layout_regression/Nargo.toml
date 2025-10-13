@@ -1,0 +1,6 @@
+[package]
+name = "brillig_mem_layout_regression"
+type = "bin"
+authors = [""]
+
+[dependencies]

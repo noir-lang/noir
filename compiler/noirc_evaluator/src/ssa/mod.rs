@@ -52,6 +52,7 @@ pub mod parser;
 pub mod ssa_gen;
 pub(crate) mod validation;
 mod visit_once_deque;
+mod visit_once_priority_queue;
 
 #[derive(Debug, Clone)]
 pub enum SsaLogging {
@@ -116,7 +117,10 @@ pub struct SsaEvaluatorOptions {
     /// The higher the value, the more inlined Brillig functions will be.
     pub inliner_aggressiveness: i64,
 
-    //// The higher the value, the more Brillig functions will be set to always be inlined.
+    /// Maximum number iterations to do in constant folding, as long as new values are hoisted.
+    pub constant_folding_max_iter: usize,
+
+    /// The higher the value, the more Brillig functions will be set to always be inlined.
     pub small_function_max_instruction: usize,
 
     /// Maximum accepted percentage increase in the Brillig bytecode size after unrolling loops.
@@ -222,8 +226,10 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
     ssa_pass_builder.add_pass(Ssa::expand_signed_math, "Expand signed math", vec![All, Debug]);
     ssa_pass_builder.add_pass(Ssa::simplify_cfg, "Simplifying", vec![All, Debug]);
     ssa_pass_builder.add_pass(Ssa::flatten_cfg, "Flattening", vec![All]);
-    // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores
+    // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores,
+    // then try to free memory before inlining, which involves copying a instructions.
     ssa_pass_builder.add_pass(Ssa::mem2reg, "Mem2Reg", vec![All, Debug]);
+    ssa_pass_builder.attach_pass_to_last(Ssa::remove_unused_instructions, vec![All]);
     // Run the inlining pass again to handle functions with `InlineType::NoPredicates`.
     // Before flattening is run, we treat functions marked with the `InlineType::NoPredicates` as an entry point.
     // This pass must come immediately following `mem2reg` as the succeeding passes
@@ -240,7 +246,11 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
     );
     ssa_pass_builder.add_try_pass(Ssa::remove_if_else, "Remove IfElse", vec![All]);
     ssa_pass_builder.add_pass(Ssa::purity_analysis, "Purity Analysis", vec![All, Debug]);
-    ssa_pass_builder.add_pass(Ssa::fold_constants, "Constant Folding", vec![All]);
+    ssa_pass_builder.add_pass(
+        |ssa| ssa.fold_constants(options.constant_folding_max_iter),
+        "Constant Folding",
+        vec![All],
+    );
     ssa_pass_builder.add_pass(
         Ssa::flatten_basic_conditionals,
         "Simplify conditionals for unconstrained",
@@ -252,7 +262,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         vec![All, Debug],
     );
     ssa_pass_builder.add_pass(
-        Ssa::fold_constants_using_constraints,
+        |ssa| ssa.fold_constants_using_constraints(options.constant_folding_max_iter),
         "Constant Folding using constraints",
         vec![All],
     );
@@ -304,10 +314,14 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         "Removing Truncate after RangeCheck",
         vec![All],
     );
-    // TODO(totel): Test if the following passes can be marked as debug
     ssa_pass_builder.add_pass(Ssa::checked_to_unchecked, "Checked to unchecked", vec![All, Debug]);
     ssa_pass_builder.add_pass(
-        Ssa::fold_constants_with_brillig,
+        |ssa| ssa.fold_constants_using_constraints(options.constant_folding_max_iter),
+        "Constant Folding using constraints",
+        vec![All],
+    );
+    ssa_pass_builder.add_pass(
+        |ssa| ssa.fold_constants_with_brillig(options.constant_folding_max_iter),
         "Inlining Brillig Calls",
         vec![All],
     );
@@ -527,8 +541,10 @@ pub fn combine_artifacts(
     debug_functions: DebugFunctions,
     debug_types: DebugTypes,
 ) -> SsaProgramArtifact {
-    let ArtifactsAndWarnings((mut generated_acirs, generated_brillig, error_types), ssa_level_warnings) =
-        artifacts;
+    let ArtifactsAndWarnings(
+        (mut generated_acirs, generated_brillig, error_types),
+        ssa_level_warnings,
+    ) = artifacts;
 
     assert_eq!(
         generated_acirs.len(),
@@ -559,12 +575,7 @@ pub fn combine_artifacts(
         })
         .collect();
 
-    SsaProgramArtifact::new(
-        functions,
-        generated_brillig,
-        error_types,
-        ssa_level_warnings,
-    )
+    SsaProgramArtifact::new(functions, generated_brillig, error_types, ssa_level_warnings)
 }
 
 fn resolve_function_signature(func_sig: &FunctionSignature) -> Vec<(u32, Visibility)> {

@@ -13,7 +13,7 @@ impl<F: AcirField> AcirContext<F> {
         name: BlackBoxFunc,
         mut inputs: Vec<AcirValue>,
         num_bits: Option<u32>,
-        mut output_count: usize,
+        output_count: usize,
         predicate: Option<AcirVar>,
     ) -> Result<Vec<AcirVar>, RuntimeError> {
         // Separate out any arguments that should be constants
@@ -30,7 +30,13 @@ impl<F: AcirField> AcirContext<F> {
                         }));
                     }
                 }?;
-                output_count = input_size + (16 - input_size % 16);
+
+                assert_eq!(
+                    output_count,
+                    input_size + (16 - input_size % 16),
+                    "output count mismatch"
+                );
+
                 Vec::new()
             }
             BlackBoxFunc::RecursiveAggregation => {

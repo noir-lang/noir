@@ -161,3 +161,38 @@ fn basic_nested_call(inline_type: InlineType) {
     ASSERT w2 = w0
     ");
 }
+
+#[test]
+fn call_with_predicate() {
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: Field, v1: u1):
+        enable_side_effects v1
+        v2 = call f1(v0) -> Field
+        return v2
+    }
+
+    acir(fold) fn one f1 {
+      b0(v0: Field):
+        v1 = add v0, Field 1
+        return v1
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0, w1]
+    public parameters: []
+    return values: [w2]
+    BLACKBOX::RANGE input: w1, bits: 1
+    CALL func: 1, predicate: w1, inputs: [w0], outputs: [w3]
+    ASSERT w3 = w2
+
+    func 1
+    private parameters: [w0]
+    public parameters: []
+    return values: [w1]
+    ASSERT w1 = w0 + 1
+    ");
+}

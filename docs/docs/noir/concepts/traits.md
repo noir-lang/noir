@@ -415,7 +415,7 @@ case, type inference determines the impl that is selected.
 ```rust
 let my_struct = MyStruct::default();
 
-let x: Field = Default::default();
+let x: u64 = Default::default();
 let result = x + Default::default();
 ```
 

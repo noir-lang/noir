@@ -840,8 +840,13 @@ impl<'f> Context<'f> {
         let instruction = self.handle_instruction_side_effects(instruction, call_stack);
 
         let instruction_is_allocate = matches!(&instruction, Instruction::Allocate);
-        let results =
-            self.inserter.push_instruction_value(instruction, id, self.target_block, call_stack);
+        let results = self.inserter.push_instruction_value(
+            instruction,
+            id,
+            self.target_block,
+            call_stack,
+            true,
+        );
 
         // Remember an allocate was created local to this branch so that we do not try to merge store
         // values across branches for it later.
@@ -2028,7 +2033,7 @@ mod test {
 
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.flatten_cfg().mem2reg().fold_constants();
+        let ssa = ssa.flatten_cfg().mem2reg().fold_constants(1);
 
         let main = ssa.main();
 
@@ -2095,7 +2100,7 @@ mod test {
 
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.flatten_cfg().mem2reg().fold_constants();
+        let ssa = ssa.flatten_cfg().mem2reg().fold_constants(1);
 
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -2141,7 +2146,7 @@ mod test {
             .mem2reg()
             .remove_if_else()
             .unwrap()
-            .fold_constants()
+            .fold_constants(1)
             .dead_instruction_elimination();
 
         assert_ssa_snapshot!(ssa, @r"
