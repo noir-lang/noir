@@ -64,7 +64,7 @@ impl FunctionDeclaration {
             .collect();
 
         let return_type =
-            (!types::is_unit(&self.return_type)).then(|| types::to_hir_type(&self.return_type));
+            (!types::is_unit(&self.return_type)).then_some(self.return_type.to_hir_type());
 
         (param_types, return_type)
     }
@@ -103,7 +103,7 @@ pub(crate) fn hir_param(
         pat = HirPattern::Mutable(Box::new(pat), Location::dummy());
     }
 
-    let typ = types::to_hir_type(typ);
+    let typ = typ.to_hir_type();
 
     (pat, typ, vis)
 }
@@ -1465,7 +1465,7 @@ impl<'a> FunctionContext<'a> {
         // but it takes 2 more arguments: the type descriptor and the format string marker,
         // which are inserted automatically by the monomorphizer.
         let param_types = vec![Type::Bool, typ.clone()];
-        let hir_type = types::to_hir_type(typ);
+        let hir_type = typ.to_hir_type();
         let ident = self.local_ident(*id);
         let mut args = vec![
             expr::lit_bool(true), // include newline,
@@ -1506,7 +1506,7 @@ impl<'a> FunctionContext<'a> {
         let cons = Expression::Constrain(
             Box::new(cond),
             Location::dummy(),
-            Some(Box::new((msg, types::to_hir_type(&CONSTRAIN_MSG_TYPE)))),
+            Some(Box::new((msg, CONSTRAIN_MSG_TYPE.to_hir_type()))),
         );
         Ok(Some(cons))
     }
@@ -1928,7 +1928,7 @@ impl<'a> FunctionContext<'a> {
                 // There is only one case in the AST that we can generate, which is to unpack the tuple
                 // into its constituent fields. The compiler would do this, and then generate further
                 // matches on individual fields. We don't do that here, just make the fields available.
-                let constructor = Constructor::Tuple(vecmap(item_types, types::to_hir_type));
+                let constructor = Constructor::Tuple(vecmap(item_types, Type::to_hir_type));
                 let mut arguments = Vec::new();
                 self.enter_scope();
                 for item_type in item_types {

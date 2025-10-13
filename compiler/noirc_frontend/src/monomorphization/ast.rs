@@ -8,7 +8,7 @@ use noirc_errors::{
 
 use crate::{
     ast::{BinaryOpKind, IntegerBitSize},
-    hir_def::expr::Constructor,
+    hir_def::{self, expr::Constructor},
     shared::Signedness,
     signed_field::SignedField,
     token::Attributes,
@@ -507,6 +507,7 @@ pub enum Type {
     Tuple(Vec<Type>),
     Slice(Box<Type>),
     Reference(Box<Type>, /*mutable:*/ bool),
+    /// `(args, ret, env, unconstrained)`
     Function(
         /*args:*/ Vec<Type>,
         /*ret:*/ Box<Type>,
@@ -528,6 +529,49 @@ impl Type {
         match self {
             Type::Array(_, elem) | Type::Slice(elem) => Some(elem),
             _ => None,
+        }
+    }
+
+    /// Convert the type back into a HIR equivalent (not necessarily the original HIR type).
+    pub fn to_hir_type(&self) -> hir_def::types::Type {
+        use hir_def::types::{Kind as HirKind, Type as HirType};
+
+        // Meet the expectations of `Type::evaluate_to_u32`.
+        let size_const = |size: u32| {
+            Box::new(HirType::Constant(
+                SignedField::from(size),
+                HirKind::Numeric(Box::new(HirType::Integer(
+                    Signedness::Unsigned,
+                    IntegerBitSize::ThirtyTwo,
+                ))),
+            ))
+        };
+
+        match self {
+            Type::Unit => HirType::Unit,
+            Type::Bool => HirType::Bool,
+            Type::Field => HirType::FieldElement,
+            Type::Integer(signedness, integer_bit_size) => {
+                HirType::Integer(*signedness, *integer_bit_size)
+            }
+            Type::String(size) => HirType::String(size_const(*size)),
+            Type::Array(size, typ) => {
+                HirType::Array(size_const(*size), Box::new(typ.to_hir_type()))
+            }
+            Type::Tuple(items) => HirType::Tuple(items.iter().map(Self::to_hir_type).collect()),
+            Type::Function(param_types, return_type, env_type, unconstrained) => HirType::Function(
+                vecmap(param_types, Self::to_hir_type),
+                Box::new(return_type.to_hir_type()),
+                Box::new(env_type.to_hir_type()),
+                *unconstrained,
+            ),
+            Type::Reference(typ, mutable) => {
+                HirType::Reference(Box::new(typ.to_hir_type()), *mutable)
+            }
+            Type::Slice(typ) => HirType::Slice(Box::new(typ.to_hir_type())),
+            Type::FmtString(size, typ) => {
+                HirType::FmtString(size_const(*size), Box::new(typ.to_hir_type()))
+            }
         }
     }
 }
