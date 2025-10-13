@@ -274,3 +274,43 @@ fn hir_param(
 
     (pat, typ, vis)
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::test_utils::get_monomorphized_no_emit_test;
+
+    #[test]
+    fn creates_proxies_for_oracle() {
+        let src = "
+        unconstrained fn main() {
+            foo(bar);
+        }
+
+        unconstrained fn foo(f: unconstrained fn(Field) -> ()) {
+          f(0);
+        }
+
+        #[oracle(my_oracle)]
+        unconstrained fn bar(f: Field) {
+        }
+        ";
+
+        let program = get_monomorphized_no_emit_test(src).unwrap();
+        insta::assert_snapshot!(program, @r"
+        unconstrained fn main$f0() -> () {
+            foo$f1((bar$f2, bar$f3));
+        }
+        unconstrained fn foo$f1(f$l0: (fn(Field) -> (), unconstrained fn(Field) -> ())) -> () {
+            f$l0.1(0);
+        }
+        #[inline_always]
+        fn bar_proxy$f2(p0$l0: Field) -> () {
+            bar$my_oracle(p0$l0)
+        }
+        #[inline_always]
+        unconstrained fn bar_proxy$f3(p0$l0: Field) -> () {
+            bar$my_oracle(p0$l0)
+        }
+        ");
+    }
+}
