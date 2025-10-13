@@ -1,0 +1,9 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stdout
+---
+<<fn([]) -> Field>>
+<<fn([]) -> Field>>
+<<fn([Field]) -> Unit>>
+<<fn([Array { length: 10, typ: UnsignedInteger { width: 8 } }]) -> Array { length: 32, typ: UnsignedInteger { width: 8 } }>>
+[regression_10156] Circuit output: 0x00
