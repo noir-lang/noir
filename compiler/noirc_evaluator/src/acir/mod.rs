@@ -863,8 +863,8 @@ impl<'a> Context<'a> {
                 }
                 result
             }
-            AcirValue::DynamicArray(AcirDynamicArray { block_id, len, .. }) => {
-                let elements = self.read_dynamic_array(*block_id, *len)?;
+            AcirValue::DynamicArray(AcirDynamicArray { block_id, len, value_types, .. }) => {
+                let elements = self.read_dynamic_array(*block_id, *len, value_types)?;
                 let mut result = Vec::new();
 
                 for value in elements {
