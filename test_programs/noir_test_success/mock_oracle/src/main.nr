@@ -191,12 +191,16 @@ unconstrained fn call_void_field_twice(mock: OracleMock, initial_times_called: F
 fn test_function_pointer() {
     // Crate a lambda, which will become its own global function with an ID.
     let add = |x: u32, y: u64| (x as Field) + (y as Field);
+    let mul = |x: u32, y: u64| (x as Field) * (y as Field);
 
     // Safety: testing that and oracle can take and return a function as an ID.
     unsafe {
         // Set the expectation that we will pass the `add` lambda, surrounded by other numbers
         // to make sure deserialization does not affect them.
         let mock = OracleMock::mock("func_field").with_params((10, add, 20)).returns(30);
+
+        // Pass another lambda just so it's used as a value and we should see the dispatch function handle it.
+        let _mock = OracleMock::mock("func_field").with_params((10, mul, 20)).returns(200);
 
         // Call the oracle with the expected parameters.
         let ret = func_field(10, add, 20);
@@ -215,6 +219,8 @@ fn test_function_pointer() {
 
         // Now call the function and see that it returns the same result as `add`.
         // Note that `f` _is_ `add`, as it is nothing but an ID of a function in SSA.
-        assert_eq(f(x, y), add(x, y));
+        let r = f(x, y);
+        assert_eq(r, add(x, y));
+        assert(r != mul(x, y));
     }
 }
