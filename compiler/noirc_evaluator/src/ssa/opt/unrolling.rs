@@ -890,12 +890,11 @@ impl BoilerplateStats {
         // NB we have not checked that these are actual pairs.
         let load_and_store = self.loads.min(self.stores) * 2;
         let total_boilerplate = self.increments + load_and_store + boilerplate;
-        if let Some(useful_instructions) = self.all_instructions.checked_sub(total_boilerplate) {
-            useful_instructions
-        } else {
-            debug_assert!(false, "Boilerplate instructions exceed total instructions in loop");
-            0
-        }
+        debug_assert!(
+            total_boilerplate < self.all_instructions,
+            "Boilerplate instructions exceed total instructions in loop"
+        );
+        self.all_instructions.saturating_sub(total_boilerplate)
     }
 
     /// Estimated number of instructions if we unroll the loop.
