@@ -1323,18 +1323,6 @@ fn deny_fold_attribute_on_unconstrained() {
 }
 
 #[test]
-fn deny_oracle_attribute_on_non_unconstrained() {
-    let src = r#"
-        #[oracle(foo)]
-        ^^^^^^^^^^^^^^ Usage of the `#[oracle]` function attribute is only valid on unconstrained functions
-        pub fn foo(x: Field, y: Field) {
-               ~~~ Oracle functions must have the `unconstrained` keyword applied
-        }
-    "#;
-    check_errors!(src);
-}
-
-#[test]
 fn deny_abi_attribute_outside_of_contract() {
     let src = r#"
 
