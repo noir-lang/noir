@@ -2327,12 +2327,12 @@
 }
 
 <span class="kw">fn </span>calculate_element_type_sizes_array(array: <span class="kw-2">&amp;</span>im::Vector&lt;AcirValue&gt;) -&gt; Vec&lt;usize&gt; {
-    <span class="kw">let </span><span class="kw-2">mut </span>flat_elem_type_sizes = Vec::new();
-    flat_elem_type_sizes.push(<span class="number">0</span>);
-    <span class="kw">for </span>(i, value) <span class="kw">in </span>array.iter().enumerate() {
-        flat_elem_type_sizes.push(flattened_value_size(value) + flat_elem_type_sizes[i]);
+    <span class="kw">let </span><span class="kw-2">mut </span>flat_elem_type_sizes = Vec::with_capacity(array.len());
+    <span class="kw">let </span><span class="kw-2">mut </span>total_size = <span class="number">0</span>;
+    <span class="kw">for </span>value <span class="kw">in </span>array {
+        flat_elem_type_sizes.push(total_size);
+        total_size += flattened_value_size(value);
     }
-
     flat_elem_type_sizes
 }
 
