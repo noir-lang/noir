@@ -891,7 +891,7 @@ impl BoilerplateStats {
         let load_and_store = self.loads.min(self.stores) * 2;
         let total_boilerplate = self.increments + load_and_store + boilerplate;
         debug_assert!(
-            total_boilerplate < self.all_instructions,
+            total_boilerplate <= self.all_instructions,
             "Boilerplate instructions exceed total instructions in loop"
         );
         self.all_instructions.saturating_sub(total_boilerplate)
