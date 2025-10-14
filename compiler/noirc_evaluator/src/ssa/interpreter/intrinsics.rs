@@ -310,7 +310,7 @@ impl<W: Write> Interpreter<'_, W> {
                         }
                     }
                     let predicate = self.lookup_bool(
-                        args[3],
+                        args[2],
                         "retrieving predicate in call to MultiScalarMul blackbox",
                     )?;
 
