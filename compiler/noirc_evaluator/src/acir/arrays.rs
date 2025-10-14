@@ -122,6 +122,7 @@ use iter_extended::{try_vecmap, vecmap};
 
 use crate::acir::types::flat_numeric_types;
 use crate::errors::{InternalError, RuntimeError};
+use crate::ssa::ir::types::NumericType;
 use crate::ssa::ir::{
     dfg::DataFlowGraph,
     instruction::{Instruction, InstructionId},
@@ -218,14 +219,19 @@ impl Context<'_> {
         }
 
         let array_typ = dfg.type_of_value(array);
-        let offset = self.compute_offset(instruction, dfg, &array_typ, store_value);
-        let (new_index, new_value) =
-            self.convert_array_operation_inputs(array, dfg, index, store_value, offset)?;
+        let offset = self.compute_offset(instruction, dfg, &array_typ);
+        let (new_index, new_value) = self.convert_array_operation_inputs(
+            array,
+            dfg,
+            index,
+            store_value,
+            offset.unwrap_or_default(),
+        )?;
 
         if let Some(new_value) = new_value {
             self.array_set(instruction, new_index, new_value, dfg, mutable)?;
         } else {
-            self.array_get(instruction, array, new_index, dfg)?;
+            self.array_get(instruction, array, new_index, dfg, offset.is_none())?;
         }
 
         Ok(())
@@ -356,34 +362,30 @@ impl Context<'_> {
     }
 
     /// Get an offset such that the type of the array at the offset is the same as the type at the 'index'
-    /// The offset is computed based on the type of the stored value, if any (if it's an ArraySet instruction),
-    /// or otherwise the type of the result (if it's an ArrayGet instruction).
+    /// If we find one, we will use it when computing the index under the enable_side_effect predicate
+    /// If not, array_get(..) will use a fallback costing one multiplication in the worst case.
+    /// cf. <https://github.com/noir-lang/noir/pull/4971>
+    /// For simplicity we compute the offset only for simple arrays
     fn compute_offset(
         &mut self,
         instruction: InstructionId,
         dfg: &DataFlowGraph,
         array_typ: &Type,
-        store_value: Option<ValueId>,
-    ) -> usize {
-        let value_at_index = if let Some(store_value) = store_value {
-            store_value
-        } else {
-            let [result] = dfg.instruction_result(instruction);
-            result
-        };
-        let value_type = dfg.type_of_value(value_at_index);
-        match array_typ {
-            Type::Array(item_type, _) | Type::Slice(item_type) => {
-                for (index, typ) in item_type.iter().enumerate() {
-                    if &value_type == typ {
-                        return index;
-                    }
-                }
+    ) -> Option<usize> {
+        let is_simple_array = dfg.instruction_results(instruction).len() == 1
+            && (array_has_constant_element_size(array_typ) == Some(1));
+        if is_simple_array {
+            let result_type = dfg.type_of_value(dfg.instruction_results(instruction)[0]);
+            match array_typ {
+                Type::Array(item_type, _) | Type::Slice(item_type) => item_type
+                    .iter()
+                    .enumerate()
+                    .find_map(|(index, typ)| (result_type == *typ).then_some(index)),
+                _ => None,
             }
-            _ => (),
+        } else {
+            None
         }
-
-        unreachable!("ICE: should always be able to compute offset for array operation");
     }
 
     /// We need to properly setup the inputs for array operations in ACIR.
@@ -470,7 +472,7 @@ impl Context<'_> {
         dummy_value: &AcirValue,
     ) -> Result<AcirValue, RuntimeError> {
         match (store_value, dummy_value) {
-            (AcirValue::Var(store_var, _), AcirValue::Var(dummy_var, _)) => {
+            (AcirValue::Var(store_var, typ), AcirValue::Var(dummy_var, _)) => {
                 let true_pred =
                     self.acir_context.mul_var(*store_var, self.current_side_effects_enabled_var)?;
                 let one = self.acir_context.add_constant(FieldElement::one());
@@ -479,7 +481,7 @@ impl Context<'_> {
                 let false_pred = self.acir_context.mul_var(not_pred, *dummy_var)?;
                 // predicate*value + (1-predicate)*dummy
                 let new_value = self.acir_context.add_var(true_pred, false_pred)?;
-                Ok(AcirValue::Var(new_value, AcirType::field()))
+                Ok(AcirValue::Var(new_value, typ.clone()))
             }
             (AcirValue::Array(values), AcirValue::Array(dummy_values)) => {
                 let mut elements = im::Vector::new();
@@ -496,7 +498,7 @@ impl Context<'_> {
                 Ok(AcirValue::Array(elements))
             }
             (
-                AcirValue::DynamicArray(AcirDynamicArray { block_id, len, .. }),
+                AcirValue::DynamicArray(AcirDynamicArray { block_id, len, value_types, .. }),
                 AcirValue::Array(dummy_values),
             ) => {
                 let dummy_values = dummy_values
@@ -511,7 +513,7 @@ impl Context<'_> {
                     "ICE: The store value and dummy must have the same number of inner values"
                 );
 
-                let values = self.read_dynamic_array(*block_id, *len)?;
+                let values = self.read_dynamic_array(*block_id, *len, value_types)?;
                 let mut elements = im::Vector::new();
                 for (val, dummy_val) in values.iter().zip(dummy_values) {
                     elements.push_back(self.convert_array_set_store_value(val, &dummy_val)?);
@@ -552,18 +554,22 @@ impl Context<'_> {
     }
 
     /// Generates a read opcode for the array
+    /// `index_side_effect == false` means that we ensured `var_index` will have a type matching the value in the array
     fn array_get(
         &mut self,
         instruction: InstructionId,
         array: ValueId,
         var_index: AcirVar,
         dfg: &DataFlowGraph,
+        index_side_effect: bool,
     ) -> Result<(), RuntimeError> {
         let block_id = self.ensure_array_is_initialized(array, dfg)?;
         let [result] = dfg.instruction_result(instruction);
         let res_typ = dfg.type_of_value(result);
 
         let value = self.load_array_value(array, block_id, var_index, &res_typ, dfg)?;
+
+        let value = self.apply_index_side_effects(array, value, index_side_effect, dfg)?;
 
         self.define_result(dfg, instruction, value);
         Ok(())
@@ -592,6 +598,37 @@ impl Context<'_> {
         } else {
             self.array_get_value(res_typ, block_id, &mut var_index)
         }
+    }
+
+    /// Applies predication logic on the result in case the read under a false predicate
+    /// returns a value with a larger type that may later trigger an overflow.
+    /// Ensures values read under false predicate are zeroed out if types don’t align.
+    fn apply_index_side_effects(
+        &mut self,
+        array: ValueId,
+        mut value: AcirValue,
+        mut index_side_effect: bool,
+        dfg: &DataFlowGraph,
+    ) -> Result<AcirValue, RuntimeError> {
+        if let AcirValue::Var(value_var, typ) = &value {
+            let array_typ = dfg.type_of_value(array);
+            if let (Type::Numeric(numeric_type), AcirType::NumericType(num)) =
+                (array_typ.first(), typ)
+            {
+                if numeric_type.bit_size() <= num.bit_size() {
+                    // first element is compatible
+                    index_side_effect = false;
+                }
+            }
+
+            if index_side_effect {
+                value = AcirValue::Var(
+                    self.acir_context.mul_var(*value_var, self.current_side_effects_enabled_var)?,
+                    typ.clone(),
+                );
+            }
+        }
+        Ok(value)
     }
 
     pub(super) fn array_get_value(
@@ -733,12 +770,18 @@ impl Context<'_> {
                     self.array_set_value(value, block_id, var_index)?;
                 }
             }
-            AcirValue::DynamicArray(AcirDynamicArray { block_id: inner_block_id, len, .. }) => {
+            AcirValue::DynamicArray(AcirDynamicArray {
+                block_id: inner_block_id,
+                len,
+                value_types,
+                ..
+            }) => {
                 let values = try_vecmap(0..*len, |i| {
                     let index_var = self.acir_context.add_constant(i);
 
                     let read = self.acir_context.read_from_memory(*inner_block_id, &index_var)?;
-                    Ok::<AcirValue, RuntimeError>(AcirValue::Var(read, AcirType::field()))
+                    let typ = value_types[i % value_types.len()];
+                    Ok::<AcirValue, RuntimeError>(AcirValue::Var(read, AcirType::NumericType(typ)))
                 })?;
                 self.array_set_value(&AcirValue::Array(values.into()), block_id, var_index)?;
             }
@@ -891,8 +934,8 @@ impl Context<'_> {
         match array {
             AcirValue::Var(_, _) => unreachable!("ICE: attempting to copy a non-array value"),
             AcirValue::Array(vars) => Ok(vars),
-            AcirValue::DynamicArray(AcirDynamicArray { block_id, len, .. }) => {
-                self.read_dynamic_array(block_id, len)
+            AcirValue::DynamicArray(AcirDynamicArray { block_id, len, value_types, .. }) => {
+                self.read_dynamic_array(block_id, len, &value_types)
             }
         }
     }
@@ -911,9 +954,12 @@ impl Context<'_> {
                 let array_len = self.flattened_size(source, dfg);
                 Ok(self.initialize_array(destination, array_len, Some(array))?)
             }
-            AcirValue::DynamicArray(source) => {
-                self.copy_dynamic_array(source.block_id, destination, source.len)
-            }
+            AcirValue::DynamicArray(source) => self.copy_dynamic_array(
+                source.block_id,
+                destination,
+                source.len,
+                &source.value_types,
+            ),
         }
     }
 
@@ -921,12 +967,15 @@ impl Context<'_> {
         &mut self,
         source: BlockId,
         array_len: usize,
+        value_types: &[NumericType],
     ) -> Result<im::Vector<AcirValue>, RuntimeError> {
         let init_values = try_vecmap(0..array_len, |i| {
             let index_var = self.acir_context.add_constant(i);
 
             let read = self.acir_context.read_from_memory(source, &index_var)?;
-            Ok::<AcirValue, RuntimeError>(AcirValue::Var(read, AcirType::field()))
+            let typ = value_types[i % value_types.len()];
+
+            Ok::<AcirValue, RuntimeError>(AcirValue::Var(read, AcirType::NumericType(typ)))
         })?;
         Ok(init_values.into())
     }
@@ -936,8 +985,9 @@ impl Context<'_> {
         source: BlockId,
         destination: BlockId,
         array_len: usize,
+        value_types: &[NumericType],
     ) -> Result<(), RuntimeError> {
-        let array = self.read_dynamic_array(source, array_len)?;
+        let array = self.read_dynamic_array(source, array_len, value_types)?;
         self.initialize_array(destination, array_len, Some(AcirValue::Array(array)))?;
         Ok(())
     }

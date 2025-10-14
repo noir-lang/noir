@@ -840,8 +840,13 @@ impl<'f> Context<'f> {
         let instruction = self.handle_instruction_side_effects(instruction, call_stack);
 
         let instruction_is_allocate = matches!(&instruction, Instruction::Allocate);
-        let results =
-            self.inserter.push_instruction_value(instruction, id, self.target_block, call_stack);
+        let results = self.inserter.push_instruction_value(
+            instruction,
+            id,
+            self.target_block,
+            call_stack,
+            true,
+        );
 
         // Remember an allocate was created local to this branch so that we do not try to merge store
         // values across branches for it later.
