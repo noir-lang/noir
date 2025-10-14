@@ -32,6 +32,13 @@ unconstrained fn struct_field(point: Point, array: [Field; 4]) -> Field {
     struct_field_oracle(point, array)
 }
 
+#[oracle(func_field)]
+unconstrained fn func_field_oracle(_x: u32, _f: fn(u32, u64) -> Field, _y: u64) -> Field {}
+
+unconstrained fn func_field(x: u32, f: fn(u32, u64) -> Field, y: u64) -> Field {
+    func_field_oracle(x, f, y)
+}
+
 #[test(should_fail)]
 fn test_mock_no_returns() {
     // Safety: testing context
@@ -178,4 +185,36 @@ unconstrained fn call_void_field_twice(mock: OracleMock, initial_times_called: F
     assert_eq(void_field(), 10);
     assert_eq(void_field(), 10);
     assert_eq(mock.times_called(), initial_times_called + 2);
+}
+
+#[test]
+fn test_function_pointer() {
+    // Crate a lambda, which will become its own global function with an ID.
+    let add = |x: u32, y: u64| (x as Field) + (y as Field);
+
+    // Safety: testing that and oracle can take and return a function as an ID.
+    unsafe {
+        // Set the expectation that we will pass the `add` lambda, surrounded by other numbers
+        // to make sure deserialization does not affect them.
+        let mock = OracleMock::mock("func_field").with_params((10, add, 20)).returns(30);
+
+        // Call the oracle with the expected parameters.
+        let ret = func_field(10, add, 20);
+        // It should match the parameters and return the expected result.
+        // This is trivial as the mocker just stores the inputs as-is.
+        assert_eq(ret, 30);
+
+        // Get the last params back and parse whatever we passed for `add` into a
+        // function type with the correct signature. It will only be an ID, but
+        // giving it type should allow us to call it.
+        let (x, f, y): (u32, fn(u32, u64) -> Field, u64) = mock.get_last_params();
+
+        // Check that receiving a function did not affect the values before/after it.
+        assert_eq(x, 10);
+        assert_eq(y, 20);
+
+        // Now call the function and see that it returns the same result as `add`.
+        // Note that `f` _is_ `add`, as it is nothing but an ID of a function in SSA.
+        assert_eq(f(x, y), add(x, y));
+    }
 }
