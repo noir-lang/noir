@@ -2510,7 +2510,36 @@
 <a href="#2509" id="2509">2509</a>
 <a href="#2510" id="2510">2510</a>
 <a href="#2511" id="2511">2511</a>
-<a href="#2512" id="2512">2512</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
+<a href="#2512" id="2512">2512</a>
+<a href="#2513" id="2513">2513</a>
+<a href="#2514" id="2514">2514</a>
+<a href="#2515" id="2515">2515</a>
+<a href="#2516" id="2516">2516</a>
+<a href="#2517" id="2517">2517</a>
+<a href="#2518" id="2518">2518</a>
+<a href="#2519" id="2519">2519</a>
+<a href="#2520" id="2520">2520</a>
+<a href="#2521" id="2521">2521</a>
+<a href="#2522" id="2522">2522</a>
+<a href="#2523" id="2523">2523</a>
+<a href="#2524" id="2524">2524</a>
+<a href="#2525" id="2525">2525</a>
+<a href="#2526" id="2526">2526</a>
+<a href="#2527" id="2527">2527</a>
+<a href="#2528" id="2528">2528</a>
+<a href="#2529" id="2529">2529</a>
+<a href="#2530" id="2530">2530</a>
+<a href="#2531" id="2531">2531</a>
+<a href="#2532" id="2532">2532</a>
+<a href="#2533" id="2533">2533</a>
+<a href="#2534" id="2534">2534</a>
+<a href="#2535" id="2535">2535</a>
+<a href="#2536" id="2536">2536</a>
+<a href="#2537" id="2537">2537</a>
+<a href="#2538" id="2538">2538</a>
+<a href="#2539" id="2539">2539</a>
+<a href="#2540" id="2540">2540</a>
+<a href="#2541" id="2541">2541</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
 //! addresses with the value stored at that address, if it is also known. This pass will also remove
 //! any `Store` instructions within a block that are no longer needed because no more loads occur in
 //! between the Store in question and the next Store.
@@ -5018,6 +5047,35 @@
           b0(v0: &amp;mut Field):
             return v0
         }
+        "</span>;
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>keep_last_store() {
+        <span class="comment">// This test check that used Store instructions are not simplified:
+        // - Allocate v1 and v3 and store into them
+        // - Put them in array v4 = [v1, v3]
+        // - Store v4 at v5
+        // - Pass v5 a function as an argument, so that v5 is used
+        // - This should keep the store to v5, and recursively to v1 and v3
+        </span><span class="kw">let </span>src = <span class="string">"
+    brillig(inline) fn main f0 {
+      b0():
+        v1 = allocate -&gt; &amp;mut Field
+        store Field 99 at v1
+        v3 = allocate -&gt; &amp;mut Field
+        store Field 88 at v3
+        v4 = make_array [v1, v3] : [&amp;mut Field; 2]
+        v5 = allocate -&gt; &amp;mut [&amp;mut Field; 2]
+        store v4 at v5
+        v6 = call f1(v5) -&gt; Field
+        return v6
+    }
+    brillig(inline) fn helper f1 {
+      b0(v0: &amp;mut [&amp;mut Field; 2]):
+        return Field 0
+    }
         "</span>;
         assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
