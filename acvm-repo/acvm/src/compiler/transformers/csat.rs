@@ -220,8 +220,7 @@ impl CSatTransformer {
 
                     // Constrain this intermediate_opcode to be equal to the temp variable by adding it into the IndexMap
                     // We need a unique name for our intermediate variable
-                    // TODO: make issue for this?
-                    // XXX: Another optimization, which could be applied in another algorithm
+                    // TODO(https://github.com/noir-lang/noir/issues/10192): Another optimization, which could be applied in another algorithm
                     // If two opcodes have a large fan-in/out and they share a few common terms, then we should create intermediate variables for them
                     // Do some sort of subset matching algorithm for this on the terms of the polynomial
                     let intermediate_var = Self::get_or_create_intermediate_var(

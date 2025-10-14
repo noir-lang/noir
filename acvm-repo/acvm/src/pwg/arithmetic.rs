@@ -73,8 +73,7 @@ impl ExpressionSolver {
                         insert_value(&w1, assignment, initial_witness)
                     }
                 } else {
-                    // TODO WIP: make issue for this TODO?
-                    // TODO: can we be more specific with this error?
+                    // TODO(https://github.com/noir-lang/noir/issues/10191): can we be more specific with this error?
                     Err(OpcodeResolutionError::OpcodeNotSolvable(
                         OpcodeNotSolvable::ExpressionHasTooManyUnknowns(opcode.clone()),
                     ))

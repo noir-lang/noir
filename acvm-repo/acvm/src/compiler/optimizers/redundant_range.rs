@@ -550,7 +550,9 @@ mod tests {
         INIT b0 = [w0, w0, w0, w0, w0, w0, w0, w0]
         READ w2 = b0[w1]
         ");
+    }
 
+    #[test]
     #[should_panic(expected = "collect_ranges: constant != 0 and -constant / k == 0")]
     fn collect_ranges_zero_linear_combination_panics() {
         let src = "
