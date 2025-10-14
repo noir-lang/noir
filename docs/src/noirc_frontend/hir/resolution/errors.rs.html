@@ -811,7 +811,17 @@
 <a href="#810" id="810">810</a>
 <a href="#811" id="811">811</a>
 <a href="#812" id="812">812</a>
-<a href="#813" id="813">813</a></pre></div><pre class="rust"><code><span class="kw">pub use </span>noirc_errors::Span;
+<a href="#813" id="813">813</a>
+<a href="#814" id="814">814</a>
+<a href="#815" id="815">815</a>
+<a href="#816" id="816">816</a>
+<a href="#817" id="817">817</a>
+<a href="#818" id="818">818</a>
+<a href="#819" id="819">819</a>
+<a href="#820" id="820">820</a>
+<a href="#821" id="821">821</a>
+<a href="#822" id="822">822</a>
+<a href="#823" id="823">823</a></pre></div><pre class="rust"><code><span class="kw">pub use </span>noirc_errors::Span;
 <span class="kw">use </span>noirc_errors::{CustomDiagnostic <span class="kw">as </span>Diagnostic, Location};
 <span class="kw">use </span>thiserror::Error;
 
@@ -1003,6 +1013,8 @@
     </span>WildcardTypeDisallowed { location: Location },
     <span class="attr">#[error(<span class="string">"References are not allowed in globals"</span>)]
     </span>ReferencesNotAllowedInGlobals { location: Location },
+    <span class="attr">#[error(<span class="string">"Functions marked with #[oracle] must have no body"</span>)]
+    </span>OracleWithBody { location: Location },
 }
 
 <span class="kw">impl </span>ResolverError {
@@ -1068,7 +1080,8 @@
             | ResolverError::AssociatedItemConstraintsNotAllowedInGenerics { location }
             | ResolverError::AmbiguousAssociatedType { location, .. }
             | ResolverError::WildcardTypeDisallowed { location }
-            | ResolverError::ReferencesNotAllowedInGlobals { location } =&gt; <span class="kw-2">*</span>location,
+            | ResolverError::ReferencesNotAllowedInGlobals { location }
+            | ResolverError::OracleWithBody { location } =&gt; <span class="kw-2">*</span>location,
             ResolverError::UnusedVariable { ident }
             | ResolverError::UnusedItem { ident, .. }
             | ResolverError::DuplicateField { field: ident }
@@ -1621,7 +1634,14 @@
                     <span class="kw-2">*</span>location,
                 )
             }
+            ResolverError::OracleWithBody { location } =&gt; {
+                Diagnostic::simple_error(
+                    <span class="string">"Functions marked with #[oracle] must have no body"</span>.to_string(),
+                    <span class="string">"This function body will never be run so should be removed"</span>.to_string(),
+                    <span class="kw-2">*</span>location,
+                )
         }
+    }
     }
 }
 </code></pre></div></section></main></body></html>

@@ -485,23 +485,23 @@
         <span class="comment">// Include the print part of stdlib for the elaborator to be able to use the print oracle
         </span><span class="kw">let </span>import_print = <span class="string">r#"
         #[oracle(print)]
-        unconstrained fn print_oracle&lt;T&gt;(with_newline: bool, input: T) {{}}
+        unconstrained fn print_oracle&lt;T&gt;(with_newline: bool, input: T) {}
 
-        unconstrained fn print_unconstrained&lt;T&gt;(with_newline: bool, input: T) {{
+        unconstrained fn print_unconstrained&lt;T&gt;(with_newline: bool, input: T) {
             print_oracle(with_newline, input);
-        }}
+        }
 
-        pub fn println&lt;T&gt;(input: T) {{
-            unsafe {{
+        pub fn println&lt;T&gt;(input: T) {
+            unsafe {
                 print_unconstrained(true, input);
-            }}
-        }}
+            }
+        }
 
-        pub fn print&lt;T&gt;(input: T) {{
-            unsafe {{
+        pub fn print&lt;T&gt;(input: T) {
+            unsafe {
                 print_unconstrained(false, input);
-            }}
-        }}
+            }
+        }
         "#</span>;
 
         <span class="comment">// Add comptime modifier for main

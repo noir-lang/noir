@@ -2789,7 +2789,21 @@
 <a href="#2788" id="2788">2788</a>
 <a href="#2789" id="2789">2789</a>
 <a href="#2790" id="2790">2790</a>
-<a href="#2791" id="2791">2791</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#2791" id="2791">2791</a>
+<a href="#2792" id="2792">2792</a>
+<a href="#2793" id="2793">2793</a>
+<a href="#2794" id="2794">2794</a>
+<a href="#2795" id="2795">2795</a>
+<a href="#2796" id="2796">2796</a>
+<a href="#2797" id="2797">2797</a>
+<a href="#2798" id="2798">2798</a>
+<a href="#2799" id="2799">2799</a>
+<a href="#2800" id="2800">2800</a>
+<a href="#2801" id="2801">2801</a>
+<a href="#2802" id="2802">2802</a>
+<a href="#2803" id="2803">2803</a>
+<a href="#2804" id="2804">2804</a>
+<a href="#2805" id="2805">2805</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     cell::RefCell,
     collections::{BTreeMap, BTreeSet},
     rc::Rc,
@@ -3309,8 +3323,22 @@
         <span class="kw">let </span>(hir_func, body_type) = <span class="kw">match </span>kind {
             FunctionKind::Builtin
             | FunctionKind::LowLevel
-            | FunctionKind::Oracle
-            | FunctionKind::TraitFunctionWithoutBody =&gt; (HirFunction::empty(), Type::Error),
+            | FunctionKind::TraitFunctionWithoutBody =&gt; {
+                <span class="kw">if </span>!body.statements.is_empty() {
+                    <span class="macro">panic!</span>(
+                        <span class="string">"Builtin, low-level, and trait function declarations cannot have a body"
+                    </span>);
+                }
+                (HirFunction::empty(), Type::Error)
+            }
+            FunctionKind::Oracle =&gt; {
+                <span class="kw">if </span>!body.statements.is_empty() {
+                    <span class="self">self</span>.push_err(ResolverError::OracleWithBody {
+                        location: func_meta.name.location,
+                    });
+                }
+                (HirFunction::empty(), Type::Error)
+            }
             FunctionKind::Normal =&gt; {
                 <span class="kw">let </span>return_type = func_meta.return_type();
                 <span class="kw">let </span>(block, body_type) = <span class="self">self</span>.elaborate_block(body, <span class="prelude-val">Some</span>(return_type));

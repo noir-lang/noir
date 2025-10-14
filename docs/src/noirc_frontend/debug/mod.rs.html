@@ -803,10 +803,26 @@
 <a href="#802" id="802">802</a>
 <a href="#803" id="803">803</a>
 <a href="#804" id="804">804</a>
-<a href="#805" id="805">805</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::PathSegment;
+<a href="#805" id="805">805</a>
+<a href="#806" id="806">806</a>
+<a href="#807" id="807">807</a>
+<a href="#808" id="808">808</a>
+<a href="#809" id="809">809</a>
+<a href="#810" id="810">810</a>
+<a href="#811" id="811">811</a>
+<a href="#812" id="812">812</a>
+<a href="#813" id="813">813</a>
+<a href="#814" id="814">814</a>
+<a href="#815" id="815">815</a>
+<a href="#816" id="816">816</a>
+<a href="#817" id="817">817</a>
+<a href="#818" id="818">818</a>
+<a href="#819" id="819">819</a>
+<a href="#820" id="820">820</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::PathSegment;
 <span class="kw">use </span><span class="kw">crate</span>::parse_program;
 <span class="kw">use </span><span class="kw">crate</span>::parser::{ParsedModule, ParsedSubModule};
 <span class="kw">use </span><span class="kw">crate</span>::signed_field::SignedField;
+<span class="kw">use </span><span class="kw">crate</span>::token::FunctionAttributeKind;
 <span class="kw">use crate</span>::{ast, ast::Path, parser::ItemKind};
 <span class="kw">use </span>fm::FileId;
 <span class="kw">use </span>noirc_errors::debug_info::{DebugFnId, DebugFunction};
@@ -912,6 +928,20 @@
     }
 
     <span class="kw">fn </span>walk_fn(<span class="kw-2">&amp;mut </span><span class="self">self</span>, func: <span class="kw-2">&amp;mut </span>ast::FunctionDefinition) {
+        <span class="comment">// Don't instrument functions that are not supposed to have a body
+        </span><span class="kw">if let </span><span class="prelude-val">Some</span>((func, <span class="kw">_</span>)) = <span class="kw-2">&amp;</span>func.attributes.function {
+            <span class="kw">match </span>func.kind {
+                FunctionAttributeKind::Foreign(<span class="kw">_</span>)
+                | FunctionAttributeKind::Builtin(<span class="kw">_</span>)
+                | FunctionAttributeKind::Oracle(<span class="kw">_</span>) =&gt; <span class="kw">return</span>,
+                FunctionAttributeKind::Test(..)
+                | FunctionAttributeKind::Fold
+                | FunctionAttributeKind::NoPredicates
+                | FunctionAttributeKind::InlineAlways
+                | FunctionAttributeKind::FuzzingHarness(..) =&gt; (),
+            }
+        }
+
         <span class="kw">let </span>func_name = func.name.to_string();
         <span class="kw">let </span>func_args =
             func.parameters.iter().map(|param| pattern_to_string(<span class="kw-2">&amp;</span>param.pattern)).collect();
