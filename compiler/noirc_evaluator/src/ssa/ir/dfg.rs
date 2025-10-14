@@ -823,7 +823,7 @@ impl DataFlowGraph {
             return false;
         };
         let results = self.instruction_results(instruction_id);
-        results.iter().any(|id| *id == return_data)
+        results.contains(&return_data)
     }
 }
 
