@@ -893,7 +893,7 @@ impl BoilerplateStats {
         if let Some(useful_instructions) = self.all_instructions.checked_sub(total_boilerplate) {
             useful_instructions
         } else {
-            warn!("Boilerplate instructions exceed total instructions in loop");
+            debug_assert!(false, "Boilerplate instructions exceed total instructions in loop");
             0
         }
     }
