@@ -46,6 +46,7 @@ pub(super) fn simplify_ec_add(
                 &point2_x,
                 &point2_y,
                 &point2_is_infinity,
+                true,
             ) else {
                 return SimplifyResult::None;
             };
@@ -139,6 +140,7 @@ pub(super) fn simplify_msm(
                 &constant_points,
                 &constant_scalars_lo,
                 &constant_scalars_hi,
+                true,
             ) else {
                 return SimplifyResult::None;
             };
