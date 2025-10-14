@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1760448585663,
+  "lastUpdate": 1760449031022,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23441,48 +23441,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "5bbec696bd059053af69b6c01180e6a8d380ae8c",
-          "message": "fix: remove generic length from ECDSA message hash in stdlib (#10043)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
-          "timestamp": "2025-10-03T16:25:13Z",
-          "tree_id": "9a4ee4452fbd498c458c92e9d5b396dec2a59c0c",
-          "url": "https://github.com/noir-lang/noir/commit/5bbec696bd059053af69b6c01180e6a8d380ae8c"
-        },
-        "date": 1759510193942,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 265832,
-            "range": "± 1095",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 233542,
-            "range": "± 4925",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2794000,
-            "range": "± 10448",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25534,6 +25492,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2784813,
             "range": "± 1650",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "96fb8193436323f4469e5e6f6c7090a0be99be8f",
+          "message": "fix: emit error on oracle functions with function bodies (#10132)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
+          "timestamp": "2025-10-14T12:55:48Z",
+          "tree_id": "1a9280c16f08cdf18ebffc903628915e18da1fa6",
+          "url": "https://github.com/noir-lang/noir/commit/96fb8193436323f4469e5e6f6c7090a0be99be8f"
+        },
+        "date": 1760449007907,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 262673,
+            "range": "± 5549",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 228737,
+            "range": "± 5426",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2785308,
+            "range": "± 7001",
             "unit": "ns/iter"
           }
         ]
