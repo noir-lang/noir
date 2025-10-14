@@ -1329,7 +1329,6 @@ fn deny_oracle_attribute_on_non_unconstrained() {
         ^^^^^^^^^^^^^^ Usage of the `#[oracle]` function attribute is only valid on unconstrained functions
         pub fn foo(x: Field, y: Field) {
                ~~~ Oracle functions must have the `unconstrained` keyword applied
-            assert(x != y);
         }
     "#;
     check_errors!(src);
