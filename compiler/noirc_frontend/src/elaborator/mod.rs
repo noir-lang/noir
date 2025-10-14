@@ -518,8 +518,8 @@ impl<'context> Elaborator<'context> {
         let (hir_func, body_type) = match kind {
             FunctionKind::Builtin
             | FunctionKind::LowLevel
-            | FunctionKind::Oracle
-            | FunctionKind::TraitFunctionWithoutBody => {
+            | FunctionKind::TraitFunctionWithoutBody => (HirFunction::empty(), Type::Error),
+            FunctionKind::Oracle => {
                 if !body.statements.is_empty() {
                     self.push_err(ResolverError::OracleWithBody {
                         location: func_meta.name.location,
