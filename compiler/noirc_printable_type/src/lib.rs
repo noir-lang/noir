@@ -132,8 +132,12 @@ fn to_string<F: AcirField>(value: &PrintableValue<F>, typ: &PrintableType) -> Op
                 output.push_str("false");
             }
         }
-        (PrintableValue::Field(_), PrintableType::Function { arguments, return_type, .. }) => {
-            output.push_str(&format!("<<fn({arguments:?}) -> {return_type:?}>>",));
+        (
+            PrintableValue::Field(_),
+            PrintableType::Function { arguments, return_type, unconstrained, .. },
+        ) => {
+            let cons = if *unconstrained { "unconstrained " } else { "" };
+            output.push_str(&format!("<<{cons}fn({arguments:?}) -> {return_type:?}>>"));
         }
         (_, PrintableType::Reference { mutable: false, .. }) => {
             output.push_str("<<ref>>");
