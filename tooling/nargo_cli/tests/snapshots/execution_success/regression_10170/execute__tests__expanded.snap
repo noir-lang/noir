@@ -1,0 +1,14 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(cond: bool) {
+    let mut slice: [u32] = &[0_u32, 1_u32];
+    if cond { slice = slice.push_back(10_u32); };
+    for i in 0_u32..2_u32 {
+        slice = slice.push_back(i);
+        assert(slice[slice.len() - 1_u32] == i);
+        let (new_slice, _): ([u32], u32) = slice.pop_back();
+        slice = new_slice;
+    }
+}
