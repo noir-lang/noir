@@ -114,6 +114,7 @@ impl<'a, F: AcirField> RangeOptimizer<'a, F> {
                         let (k, witness) = expr.linear_combinations[0];
                         let constant = expr.q_c;
                         let witness_value = -constant / k;
+                        assert!(constant == F::zero() || witness_value != F::zero(), "collect_ranges: constant != 0 and -constant / k == 0");
 
                         if witness_value.is_zero() {
                             Some((witness, 0, true))
@@ -183,7 +184,7 @@ impl<'a, F: AcirField> RangeOptimizer<'a, F> {
     /// a minimal number of times that still allows us to avoid executing
     /// any new side effects due to their removal.
     ///
-    /// The idea is to keep only the RANGE opcodes that have stricly smaller bit-size requirements
+    /// The idea is to keep only the RANGE opcodes that have strictly smaller bit-size requirements
     /// than before, i.e the ones that are at a 'switch point'.
     /// Furthermore, we only keep the switch points that are last before
     /// a 'side-effect' opcode (i.e a Brillig call).
@@ -264,12 +265,14 @@ mod tests {
         assert_circuit_snapshot,
         compiler::{
             CircuitSimulator,
-            optimizers::redundant_range::{RangeOptimizer, memory_block_implied_max_bits},
+            optimizers::{redundant_range::{RangeOptimizer, memory_block_implied_max_bits}, Opcode},
         },
+        FieldElement,
     };
     use acir::{
+        AcirField,
         circuit::{Circuit, brillig::BrilligFunctionId},
-        native_types::Witness,
+        native_types::{Expression, Witness},
     };
 
     #[test]
@@ -547,5 +550,24 @@ mod tests {
         INIT b0 = [w0, w0, w0, w0, w0, w0, w0, w0]
         READ w2 = b0[w1]
         ");
+
+    #[should_panic(expected = "collect_ranges: constant != 0 and -constant / k == 0")]
+    fn collect_ranges_zero_linear_combination_panics() {
+        let src = "
+        private parameters: [w1]
+        public parameters: []
+        return values: []
+        ";
+        let mut circuit = Circuit::from_str(src).unwrap();
+        let expr = Expression {
+            mul_terms: vec![],
+            linear_combinations: vec![
+                (FieldElement::zero(), Witness(0)),
+            ],
+            q_c: FieldElement::one(),
+        };
+        let opcode = Opcode::AssertZero(expr);
+        circuit.opcodes.push(opcode);
+        RangeOptimizer::collect_ranges(&circuit);
     }
 }

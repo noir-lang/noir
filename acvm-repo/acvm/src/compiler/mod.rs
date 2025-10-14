@@ -1,9 +1,9 @@
 //! The `compiler` module contains several passes to transform an ACIR program.
-//! Roughly, the passes are spearated into the `optimizers` which try to reduce the number of opcodes
+//! Roughly, the passes are separated into the `optimizers` which try to reduce the number of opcodes
 //! and the `transformers` which adapt the opcodes to the proving backend.
 //!
 //! # Optimizers
-//! - GeneralOptimizer: simple pass which simplifies AssertZero opcodes when possible (e.g remove terms with a null coeficient)
+//! - GeneralOptimizer: simple pass which simplifies AssertZero opcodes when possible (e.g remove terms with null coefficient)
 //! - UnusedMemoryOptimizer: simple pass which removes MemoryInit opcodes when they are not used (e.g no corresponding MemoryOp opcode)
 //! - RangeOptimizer: forward pass to collect range check information, and backward pass to remove the ones that are redundant.
 //!

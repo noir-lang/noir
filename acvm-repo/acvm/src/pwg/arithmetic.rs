@@ -73,6 +73,7 @@ impl ExpressionSolver {
                         insert_value(&w1, assignment, initial_witness)
                     }
                 } else {
+                    // TODO WIP: make issue for this TODO?
                     // TODO: can we be more specific with this error?
                     Err(OpcodeResolutionError::OpcodeNotSolvable(
                         OpcodeNotSolvable::ExpressionHasTooManyUnknowns(opcode.clone()),
@@ -282,7 +283,9 @@ fn quick_invert<F: AcirField>(numerator: F, denominator: F) -> F {
     } else if denominator == -F::one() {
         -numerator
     } else {
-        numerator / denominator
+        let div_numerator_denominator = numerator / denominator;
+        assert!(numerator == F::zero() || div_numerator_denominator != F::zero(), "quick_invert: numerator != 0 and numerator / denominator == 0");
+        div_numerator_denominator
     }
 }
 
@@ -297,6 +300,12 @@ mod tests {
         let numerator = FieldElement::from_be_bytes_reduce("hello_world".as_bytes());
         assert_eq!(quick_invert(numerator, FieldElement::one()), numerator / FieldElement::one());
         assert_eq!(quick_invert(numerator, -FieldElement::one()), numerator / -FieldElement::one());
+    }
+
+    #[test]
+    #[should_panic(expected = "quick_invert: numerator != 0 and numerator / denominator == 0")]
+    fn quick_invert_zero_denominator() {
+        quick_invert(FieldElement::one(), FieldElement::zero());
     }
 
     #[test]
