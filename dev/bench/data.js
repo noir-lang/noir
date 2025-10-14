@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1760380658812,
+  "lastUpdate": 1760447217994,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23455,48 +23455,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "461ae3c29a6617e4e39a82773159151e48d971d1",
-          "message": "chore: validate that no jumps to function entry block exist (#10076)",
-          "timestamp": "2025-10-03T16:10:32Z",
-          "tree_id": "79b34652de617b6e15759fc0bffb1aa8c630381b",
-          "url": "https://github.com/noir-lang/noir/commit/461ae3c29a6617e4e39a82773159151e48d971d1"
-        },
-        "date": 1759509236989,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 262456,
-            "range": "± 1829",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 231837,
-            "range": "± 2274",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2820773,
-            "range": "± 4754",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "5bbec696bd059053af69b6c01180e6a8d380ae8c",
           "message": "fix: remove generic length from ECDSA message hash in stdlib (#10043)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
@@ -25539,6 +25497,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2784282,
             "range": "± 16772",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d5d7c2a9407ba25b399a43fd3266b3560f9528a7",
+          "message": "chore: bump bb version (#10181)",
+          "timestamp": "2025-10-14T14:03:04+01:00",
+          "tree_id": "e2bf36cee7bfce5abc0d8575d355faf7abe1f041",
+          "url": "https://github.com/noir-lang/noir/commit/d5d7c2a9407ba25b399a43fd3266b3560f9528a7"
+        },
+        "date": 1760447194446,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 264190,
+            "range": "± 430",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 230807,
+            "range": "± 4986",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2784813,
+            "range": "± 1650",
             "unit": "ns/iter"
           }
         ]
