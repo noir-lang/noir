@@ -61,7 +61,7 @@ impl Ssa {
 /// 'Small' basic blocks means that we expect their execution cost to be small.
 ///
 /// In case the block is the entry of a 'simple conditional', the function returns a BasicConditional which
-/// consist into the list of the conditional blocks:
+/// consist of the list of the conditional blocks:
 ///     block_entry
 ///      /       \
 /// block_then   block_else
@@ -102,7 +102,7 @@ fn is_conditional(
         return None;
     }
     if left_successors_len == 1 && right_successors_len == 1 && next_left == next_right {
-        // The branches join on one block so it is a non-nested conditional with a classical diamand shape:
+        // The branches join on one block so it is a non-nested conditional with a classical diamond shape:
         //    block
         //    /    \
         // left   right
