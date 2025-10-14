@@ -262,7 +262,10 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
                 for i in &expr.linear_combinations {
                     if i.1 == witness {
                         let div_k0_i0 = k.0 / i.0;
-                        assert!(k.0 == F::zero() || div_k0_i0 != F::zero(), "merge_expression: k.0 != 0 and k.0 / i.0 == 0");
+                        assert!(
+                            k.0 == F::zero() || div_k0_i0 != F::zero(),
+                            "merge_expression: k.0 != 0 and k.0 / i.0 == 0"
+                        );
                         let expr = target.add_mul(-div_k0_i0, expr);
                         let expr = GeneralOptimizer::optimize(expr);
                         return Some(expr);
@@ -291,7 +294,11 @@ mod tests {
         assert_circuit_snapshot,
         compiler::{CircuitSimulator, optimizers::MergeExpressionsOptimizer},
     };
-    use acir::{AcirField, FieldElement, circuit::Circuit, native_types::{Expression, Witness}};
+    use acir::{
+        AcirField, FieldElement,
+        circuit::Circuit,
+        native_types::{Expression, Witness},
+    };
 
     fn merge_expressions(circuit: Circuit<FieldElement>) -> Circuit<FieldElement> {
         assert!(CircuitSimulator::default().check_circuit(&circuit).is_none());
@@ -405,22 +412,17 @@ mod tests {
     fn merge_expression_on_zero_linear_combination_panics() {
         let opcode_a = Expression {
             mul_terms: vec![],
-            linear_combinations: vec![
-                (FieldElement::one(), Witness(0)),
-            ],
+            linear_combinations: vec![(FieldElement::one(), Witness(0))],
             q_c: FieldElement::zero(),
         };
         let opcode_b = Expression {
             mul_terms: vec![],
-            linear_combinations: vec![
-                (FieldElement::zero(), Witness(0)),
-            ],
+            linear_combinations: vec![(FieldElement::zero(), Witness(0))],
             q_c: FieldElement::zero(),
         };
-        assert_eq!(MergeExpressionsOptimizer::merge_expression(
-            &opcode_a,
-            &opcode_b,
-            Witness(0),
-        ), Some(opcode_a));
+        assert_eq!(
+            MergeExpressionsOptimizer::merge_expression(&opcode_a, &opcode_b, Witness(0),),
+            Some(opcode_a)
+        );
     }
 }

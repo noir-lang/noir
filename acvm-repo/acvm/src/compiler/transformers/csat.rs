@@ -146,8 +146,7 @@ impl CSatTransformer {
         for (scale, w_l, w_r) in opcode.mul_terms {
             // We want to layout solvable intermediate variables, if we cannot solve one of the witnesses
             // that means the intermediate opcode will not be immediately solvable
-            if !self.solvable_witness.contains(&w_l) || !self.solvable_witness.contains(&w_r)
-            {
+            if !self.solvable_witness.contains(&w_l) || !self.solvable_witness.contains(&w_r) {
                 remaining_mul_terms.push((scale, w_l, w_r));
                 continue;
             }
@@ -273,7 +272,10 @@ impl CSatTransformer {
         if intermediate_variables.contains_key(&normalized_expr) {
             let (l, iv) = intermediate_variables[&normalized_expr];
             let div_k_l = k / l;
-            assert!(k == F::zero() || div_k_l != F::zero(), "get_or_create_intermediate_var: k != 0 and k / l == 0");
+            assert!(
+                k == F::zero() || div_k_l != F::zero(),
+                "get_or_create_intermediate_var: k != 0 and k / l == 0"
+            );
             (k / l, iv)
         } else {
             let inter_var = Witness(*num_witness);
@@ -339,9 +341,7 @@ impl CSatTransformer {
         // Create Intermediate variables for the multiplication opcodes
         let mut remaining_mul_terms = Vec::with_capacity(opcode.mul_terms.len());
         for (scale, w_l, w_r) in opcode.mul_terms {
-            if self.solvable_witness.contains(&w_l)
-                && self.solvable_witness.contains(&w_r)
-            {
+            if self.solvable_witness.contains(&w_l) && self.solvable_witness.contains(&w_r) {
                 let mut intermediate_opcode = Expression::default();
 
                 // Push mul term into the opcode
@@ -556,9 +556,7 @@ mod tests {
     fn normalize_on_zero_linear_combination_panics() {
         let expr = Expression {
             mul_terms: vec![],
-            linear_combinations: vec![
-                (FieldElement::zero(), Witness(0)),
-            ],
+            linear_combinations: vec![(FieldElement::zero(), Witness(0))],
             q_c: FieldElement::zero(),
         };
         CSatTransformer::normalize(expr);
@@ -569,7 +567,7 @@ mod tests {
     fn normalize_on_zero_mul_term_scale_panics() {
         let expr = Expression {
             mul_terms: vec![(FieldElement::zero(), Witness(0), Witness(1))],
-            linear_combinations: vec![ ],
+            linear_combinations: vec![],
             q_c: FieldElement::zero(),
         };
         CSatTransformer::normalize(expr);
@@ -580,7 +578,7 @@ mod tests {
     fn get_or_create_intermediate_var_with_zero_panics() {
         let expr = Expression {
             mul_terms: vec![(FieldElement::one(), Witness(0), Witness(1))],
-            linear_combinations: vec![ ],
+            linear_combinations: vec![],
             q_c: FieldElement::zero(),
         };
 

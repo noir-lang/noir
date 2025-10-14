@@ -283,7 +283,10 @@ fn quick_invert<F: AcirField>(numerator: F, denominator: F) -> F {
         -numerator
     } else {
         let div_numerator_denominator = numerator / denominator;
-        assert!(numerator == F::zero() || div_numerator_denominator != F::zero(), "quick_invert: numerator != 0 and numerator / denominator == 0");
+        assert!(
+            numerator == F::zero() || div_numerator_denominator != F::zero(),
+            "quick_invert: numerator != 0 and numerator / denominator == 0"
+        );
         div_numerator_denominator
     }
 }

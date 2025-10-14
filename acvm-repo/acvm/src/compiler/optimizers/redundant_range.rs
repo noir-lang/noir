@@ -114,7 +114,10 @@ impl<'a, F: AcirField> RangeOptimizer<'a, F> {
                         let (k, witness) = expr.linear_combinations[0];
                         let constant = expr.q_c;
                         let witness_value = -constant / k;
-                        assert!(constant == F::zero() || witness_value != F::zero(), "collect_ranges: constant != 0 and -constant / k == 0");
+                        assert!(
+                            constant == F::zero() || witness_value != F::zero(),
+                            "collect_ranges: constant != 0 and -constant / k == 0"
+                        );
 
                         if witness_value.is_zero() {
                             Some((witness, 0, true))
@@ -262,12 +265,14 @@ mod tests {
     use std::collections::BTreeMap;
 
     use crate::{
-        assert_circuit_snapshot,
+        FieldElement, assert_circuit_snapshot,
         compiler::{
             CircuitSimulator,
-            optimizers::{redundant_range::{RangeOptimizer, memory_block_implied_max_bits}, Opcode},
+            optimizers::{
+                Opcode,
+                redundant_range::{RangeOptimizer, memory_block_implied_max_bits},
+            },
         },
-        FieldElement,
     };
     use acir::{
         AcirField,
@@ -563,9 +568,7 @@ mod tests {
         let mut circuit = Circuit::from_str(src).unwrap();
         let expr = Expression {
             mul_terms: vec![],
-            linear_combinations: vec![
-                (FieldElement::zero(), Witness(0)),
-            ],
+            linear_combinations: vec![(FieldElement::zero(), Witness(0))],
             q_c: FieldElement::one(),
         };
         let opcode = Opcode::AssertZero(expr);
