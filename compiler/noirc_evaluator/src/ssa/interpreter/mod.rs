@@ -964,13 +964,27 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         result: ValueId,
         side_effects_enabled: bool,
     ) -> IResult<()> {
+        // When there is a problem indexing the array, but side effects are disabled,
+        // define the value as uninitialized.
+        let uninitialized = |this: &mut Self| {
+            let typ = this.dfg().type_of_value(result);
+            let value = Value::uninitialized(&typ, result);
+            this.define(result, value)
+        };
+
         let offset = self.dfg().array_offset(array, index);
         let array = self.lookup_array_or_slice(array, "array get")?;
         let length = array.elements.borrow().len() as u32;
-        let index = self.lookup_array_index(index, "array get index", length)?;
+
+        let index = match self.lookup_array_index(index, "array get index", length) {
+            Err(InterpreterError::IndexOutOfBounds { .. }) if !side_effects_enabled => {
+                return uninitialized(self);
+            }
+            other => other?,
+        };
         let mut index = index - offset.to_u32();
 
-        let element = if length == 0 {
+        if length == 0 {
             // Accessing an array of 0-len is replaced by asserting
             // the branch is not-taken during acir-gen and
             // a zeroed type is used in case of array get
@@ -978,10 +992,11 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             if side_effects_enabled {
                 return Err(InterpreterError::IndexOutOfBounds { index: index.into(), length });
             } else {
-                let typ = self.dfg().type_of_value(result);
-                Value::uninitialized(&typ, result)
+                return uninitialized(self);
             }
-        } else {
+        }
+
+        let element = {
             // An array_get with false side_effects_enabled is replaced
             // by a load at a valid index during acir-gen.
             if !side_effects_enabled {
