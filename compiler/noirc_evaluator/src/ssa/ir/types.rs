@@ -221,7 +221,7 @@ impl Type {
     /// to represent the type. This is 1 for every primitive type, and is the number of fields
     /// for any flattened tuple type.
     ///
-    /// Equivalent to `self.element_types().len()`, but doesn't consume the `self`.
+    /// Equivalent to `self.element_types().len()`.
     ///
     /// Panics if `self` is not a [`Type::Array`] or [`Type::Slice`].
     pub(crate) fn element_size(&self) -> usize {
@@ -234,9 +234,9 @@ impl Type {
     /// Return the types of items in this array/slice.
     ///
     /// Panics if `self` is not a [`Type::Array`] or [`Type::Slice`].
-    pub(crate) fn element_types(self) -> Arc<Vec<Type>> {
+    pub(crate) fn element_types(&self) -> Arc<Vec<Type>> {
         match self {
-            Type::Array(element_types, _) | Type::Slice(element_types) => element_types,
+            Type::Array(element_types, _) | Type::Slice(element_types) => element_types.clone(),
             other => panic!("element_types: Expected array or slice, found {other}"),
         }
     }
@@ -253,7 +253,11 @@ impl Type {
         }
     }
 
-    /// Returns the flattened size of a Type
+    /// Returns the flattened size of a Type.
+    ///
+    /// The flattened type is mostly useful in ACIR, where nested arrays are also flattened,
+    /// as opposed to SSA, where only tuples get flattened into the array they are in,
+    /// but nested arrays appear as a value ID.
     pub(crate) fn flattened_size(&self) -> u32 {
         match self {
             Type::Array(elements, len) => {
@@ -285,6 +289,14 @@ impl Type {
             Type::Numeric(_) | Type::Function => false,
             Type::Array(_, _) | Type::Slice(_) => true,
             Type::Reference(element) => element.contains_an_array(),
+        }
+    }
+
+    pub(crate) fn first(&self) -> Type {
+        match self {
+            Type::Numeric(_) | Type::Function => self.clone(),
+            Type::Reference(typ) => typ.first(),
+            Type::Slice(element_types) | Type::Array(element_types, _) => element_types[0].first(),
         }
     }
 
