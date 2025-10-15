@@ -127,10 +127,8 @@ impl Function {
         }
 
         let mut context = Context::new(&self.dfg);
-
-        for block in self.reachable_blocks() {
-            context.analyze_last_uses(block);
-        }
+        let entry_block = self.entry_block();
+        context.analyze_last_uses(entry_block);
 
         let instructions_to_update = mem::take(&mut context.instructions_that_can_be_made_mutable);
         make_mutable(&mut self.dfg, &instructions_to_update);
