@@ -391,7 +391,24 @@
 <a href="#390" id="390">390</a>
 <a href="#391" id="391">391</a>
 <a href="#392" id="392">392</a>
-<a href="#393" id="393">393</a></pre></div><pre class="rust"><code><span class="doccomment">//! The purpose of the `array_set_optimization` SSA pass is to mark `ArraySet` instructions
+<a href="#393" id="393">393</a>
+<a href="#394" id="394">394</a>
+<a href="#395" id="395">395</a>
+<a href="#396" id="396">396</a>
+<a href="#397" id="397">397</a>
+<a href="#398" id="398">398</a>
+<a href="#399" id="399">399</a>
+<a href="#400" id="400">400</a>
+<a href="#401" id="401">401</a>
+<a href="#402" id="402">402</a>
+<a href="#403" id="403">403</a>
+<a href="#404" id="404">404</a>
+<a href="#405" id="405">405</a>
+<a href="#406" id="406">406</a>
+<a href="#407" id="407">407</a>
+<a href="#408" id="408">408</a>
+<a href="#409" id="409">409</a>
+<a href="#410" id="410">410</a></pre></div><pre class="rust"><code><span class="doccomment">//! The purpose of the `array_set_optimization` SSA pass is to mark `ArraySet` instructions
 //! as mutable _iff_ the array is not potentially shared with the callers or callees of the
 //! function and won't be used again in the function itself either. In other words, if this
 //! is the last time we use this version of the array, we can mutate it in place, and avoid
@@ -456,13 +473,11 @@
 
     <span class="kw">let </span>reachable_blocks = func.reachable_blocks();
 
-    <span class="kw">if </span>!func.runtime().is_entry_point() {
-        <span class="macro">assert_eq!</span>(
-            reachable_blocks.len(),
-            <span class="number">1</span>,
-            <span class="string">"Expected there to be 1 block remaining in ACIR function for array_set optimization"
-        </span>);
-    }
+    <span class="macro">assert_eq!</span>(
+        reachable_blocks.len(),
+        <span class="number">1</span>,
+        <span class="string">"Expected there to be 1 block remaining in ACIR function for array_set optimization"
+    </span>);
 
     <span class="kw">for </span>block_id <span class="kw">in </span>reachable_blocks {
         <span class="kw">let </span>instruction_ids = func.dfg[block_id].instructions();
@@ -522,10 +537,8 @@
         }
 
         <span class="kw">let </span><span class="kw-2">mut </span>context = Context::new(<span class="kw-2">&amp;</span><span class="self">self</span>.dfg);
-
-        <span class="kw">for </span>block <span class="kw">in </span><span class="self">self</span>.reachable_blocks() {
-            context.analyze_last_uses(block);
-        }
+        <span class="kw">let </span>entry_block = <span class="self">self</span>.entry_block();
+        context.analyze_last_uses(entry_block);
 
         <span class="kw">let </span>instructions_to_update = mem::take(<span class="kw-2">&amp;mut </span>context.instructions_that_can_be_made_mutable);
         make_mutable(<span class="kw-2">&amp;mut </span><span class="self">self</span>.dfg, <span class="kw-2">&amp;</span>instructions_to_update);
@@ -654,6 +667,7 @@
         assert_ssa_snapshot,
         ssa::{Ssa, opt::assert_ssa_does_not_change},
     };
+    <span class="kw">use </span>test_case::test_case;
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>does_not_mutate_array_used_in_make_array() {
@@ -781,6 +795,26 @@
             }
             "</span>;
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>_ssa = ssa.array_set_optimization();
+    }
+
+    <span class="attr">#[test_case(<span class="string">"inline"</span>)]
+    #[test_case(<span class="string">"fold"</span>)]
+    #[should_panic = <span class="string">"Expected there to be 1 block remaining in ACIR function for array_set optimization"</span>]
+    </span><span class="kw">fn </span>disallows_multiple_blocks(inline_type: <span class="kw-2">&amp;</span>str) {
+        <span class="kw">let </span>src = <span class="macro">format!</span>(
+            <span class="string">"
+        acir({inline_type}) fn main f0 {{
+          b0():
+            v1 = make_array [Field 0] : [Field; 1]
+            v2 = array_set v1, index u32 0, value Field 1
+            jmp b1()
+          b1():
+            v3 = array_get v2, index u32 0 -&gt; Field
+            return v3
+        }}"
+        </span>);
+        <span class="kw">let </span>ssa = Ssa::from_str(<span class="kw-2">&amp;</span>src).unwrap();
         <span class="kw">let </span>_ssa = ssa.array_set_optimization();
     }
 }
