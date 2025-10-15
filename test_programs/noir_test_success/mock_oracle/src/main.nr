@@ -39,6 +39,13 @@ unconstrained fn func_field(x: u32, f: fn(u32, u64) -> Field, y: u64) -> Field {
     func_field_oracle(x, f, y)
 }
 
+#[oracle(field_func)]
+unconstrained fn field_func_oracle(_x: Field) -> fn(u32, u64) -> Field {}
+
+unconstrained fn field_func(x: Field) -> fn(u32, u64) -> Field {
+    field_func_oracle(x)
+}
+
 #[oracle(brillig_func_field)]
 unconstrained fn brillig_func_field_oracle(
     _x: u8,
@@ -261,4 +268,22 @@ unconstrained fn test_brillig_function_pointer() {
 
 unconstrained fn brillig_add_8_128(x: u8, y: u128) -> Field {
     (x as Field) + (y as Field)
+}
+
+#[test(should_fail)]
+fn test_invalid_function_pointer() {
+    // Create a lambda, so we have a dispatch function to its constrained/unconstrained versions.
+    let add = |x: u32, y: u64| (x as Field) + (y as Field);
+
+    // Safety: test that returning an arbitrary function pointer cannot be invoked.
+    unsafe {
+        // Return the ID of the main entry point itself, rather than the ID of `add`.
+        // Need to return a tuple: the IDs of the constrained and unconstrained version.
+        let _ = OracleMock::mock("field_func").with_params((0,)).returns((0, 0));
+        let _ = OracleMock::mock("field_func").with_params((1,)).returns(add);
+        // Call the oracle with the sneaky parameters that return an invalid ID.
+        let f: fn(u32, u64) -> Field = field_func(0);
+        // Trying to call the function should result in an error, since the ID 0 is not handled by the dispatch.
+        let _ = f(10, 20);
+    }
 }
