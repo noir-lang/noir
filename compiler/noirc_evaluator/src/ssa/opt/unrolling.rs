@@ -889,7 +889,12 @@ impl BoilerplateStats {
         // Be conservative and only assume that mem2reg gets rid of load followed by store.
         // NB we have not checked that these are actual pairs.
         let load_and_store = self.loads.min(self.stores) * 2;
-        self.all_instructions - self.increments - load_and_store - boilerplate
+        let total_boilerplate = self.increments + load_and_store + boilerplate;
+        debug_assert!(
+            total_boilerplate <= self.all_instructions,
+            "Boilerplate instructions exceed total instructions in loop"
+        );
+        self.all_instructions.saturating_sub(total_boilerplate)
     }
 
     /// Estimated number of instructions if we unroll the loop.
