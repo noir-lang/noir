@@ -63,13 +63,11 @@ fn array_set_optimization_pre_check(func: &Function) {
 
     let reachable_blocks = func.reachable_blocks();
 
-    if !func.runtime().is_entry_point() {
-        assert_eq!(
-            reachable_blocks.len(),
-            1,
-            "Expected there to be 1 block remaining in ACIR function for array_set optimization"
-        );
-    }
+    assert_eq!(
+        reachable_blocks.len(),
+        1,
+        "Expected there to be 1 block remaining in ACIR function for array_set optimization"
+    );
 
     for block_id in reachable_blocks {
         let instruction_ids = func.dfg[block_id].instructions();
@@ -261,6 +259,7 @@ mod tests {
         assert_ssa_snapshot,
         ssa::{Ssa, opt::assert_ssa_does_not_change},
     };
+    use test_case::test_case;
 
     #[test]
     fn does_not_mutate_array_used_in_make_array() {
@@ -388,6 +387,26 @@ mod tests {
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();
+        let _ssa = ssa.array_set_optimization();
+    }
+
+    #[test_case("inline")]
+    #[test_case("fold")]
+    #[should_panic = "Expected there to be 1 block remaining in ACIR function for array_set optimization"]
+    fn disallows_multiple_blocks(inline_type: &str) {
+        let src = format!(
+            "
+        acir({inline_type}) fn main f0 {{
+          b0():
+            v1 = make_array [Field 0] : [Field; 1]
+            v2 = array_set v1, index u32 0, value Field 1
+            jmp b1()
+          b1():
+            v3 = array_get v2, index u32 0 -> Field
+            return v3
+        }}"
+        );
+        let ssa = Ssa::from_str(&src).unwrap();
         let _ssa = ssa.array_set_optimization();
     }
 }
