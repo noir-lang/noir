@@ -117,7 +117,7 @@ mutation-test base="master": install-rust-tools
   trap "rm -rf $tmpdir" EXIT
 
   git diff origin/{{base}}.. | tee $tmpdir/git.diff
-  cargo mutants --no-shuffle -vV --test-tool=nextest --in-diff $tmpdir/git.diff
+  cargo mutants --no-shuffle -vV --test-tool=nextest --workspace --in-diff $tmpdir/git.diff
 
 # Checks if there are any pending insta.rs snapshots and errors if any exist.
 check-pending-snapshots:
