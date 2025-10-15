@@ -516,7 +516,7 @@ impl AstPrinter {
             return Ok(false);
         }
 
-        fn maybe_func<'a>(expr: &'a Expression) -> Option<&'a str> {
+        fn maybe_func(expr: &Expression) -> Option<&str> {
             // The AST fuzzer generates Type::Function; the Monomorphizer would be Type::Tuple([Type::Function, Type::Function])
             if let Expression::Ident(Ident { typ: Type::Function(_, _, _, _), name, .. }) = expr {
                 Some(name.as_str())
