@@ -533,11 +533,13 @@ impl Type {
     }
 
     /// Convert the type back into a HIR equivalent (not necessarily the original HIR type).
+    ///
+    /// Aims to maintain parity with [Monomorphizer::convert_type](crate::monomorphization::Monomorphizer::convert_type).
     pub fn to_hir_type(&self) -> hir_def::types::Type {
         use hir_def::types::{Kind as HirKind, Type as HirType};
 
         // Meet the expectations of `Type::evaluate_to_u32`.
-        let size_const = |size: u32| {
+        fn size_const(size: u32) -> Box<HirType> {
             Box::new(HirType::Constant(
                 SignedField::from(size),
                 HirKind::Numeric(Box::new(HirType::Integer(
@@ -545,7 +547,31 @@ impl Type {
                     IntegerBitSize::ThirtyTwo,
                 ))),
             ))
-        };
+        }
+
+        // Inverse of HirType::Function -> Type::Tuple([Type::Function, Type::Function])
+        fn maybe_func(items: &[Type]) -> Option<HirType> {
+            if items.len() != 2 {
+                return None;
+            }
+            let Type::Function(args0, ret0, env0, false) = &items[0] else {
+                return None;
+            };
+            let Type::Function(args1, ret1, env1, true) = &items[1] else {
+                return None;
+            };
+            if args0 != args1 || ret0 != ret1 || env0 != env1 {
+                return None;
+            }
+            let func = HirType::Function(
+                vecmap(args0, Type::to_hir_type),
+                Box::new(ret0.to_hir_type()),
+                Box::new(env0.to_hir_type()),
+                // Assume unconstrained.
+                false,
+            );
+            Some(func)
+        }
 
         match self {
             Type::Unit => HirType::Unit,
@@ -558,13 +584,6 @@ impl Type {
             Type::Array(size, typ) => {
                 HirType::Array(size_const(*size), Box::new(typ.to_hir_type()))
             }
-            Type::Tuple(items) => HirType::Tuple(items.iter().map(Self::to_hir_type).collect()),
-            Type::Function(param_types, return_type, env_type, unconstrained) => HirType::Function(
-                vecmap(param_types, Self::to_hir_type),
-                Box::new(return_type.to_hir_type()),
-                Box::new(env_type.to_hir_type()),
-                *unconstrained,
-            ),
             Type::Reference(typ, mutable) => {
                 HirType::Reference(Box::new(typ.to_hir_type()), *mutable)
             }
@@ -572,6 +591,14 @@ impl Type {
             Type::FmtString(size, typ) => {
                 HirType::FmtString(size_const(*size), Box::new(typ.to_hir_type()))
             }
+            Type::Tuple(items) => maybe_func(items)
+                .unwrap_or_else(|| HirType::Tuple(items.iter().map(Self::to_hir_type).collect())),
+            Type::Function(args, ret, env, unconstrained) => HirType::Function(
+                vecmap(args, Type::to_hir_type),
+                Box::new(ret.to_hir_type()),
+                Box::new(env.to_hir_type()),
+                *unconstrained,
+            ),
         }
     }
 }
