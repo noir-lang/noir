@@ -39,6 +39,21 @@ unconstrained fn func_field(x: u32, f: fn(u32, u64) -> Field, y: u64) -> Field {
     func_field_oracle(x, f, y)
 }
 
+#[oracle(brillig_func_field)]
+unconstrained fn brillig_func_field_oracle(
+    _x: u8,
+    _f: unconstrained fn(u8, u128) -> Field,
+    _y: u128,
+) -> Field {}
+
+unconstrained fn brillig_func_field(
+    x: u8,
+    f: unconstrained fn(u8, u128) -> Field,
+    y: u128,
+) -> Field {
+    brillig_func_field_oracle(x, f, y)
+}
+
 #[test(should_fail)]
 fn test_mock_no_returns() {
     // Safety: testing context
@@ -223,4 +238,27 @@ fn test_function_pointer() {
         assert_eq(r, add(x, y));
         assert(r != mul(x, y));
     }
+}
+
+#[test]
+unconstrained fn test_brillig_function_pointer() {
+    // Safety: test that we can pass a function to the oracle and back, when this is the only use of the function,
+    // it is never directly called from Noir, and so it will not have a dispatch function.
+    // Because it is a pointer to an unconstrained function, it won't have 2 different versions of created;
+    // instead it will be passed as a tuple of the same ID on both sides, which is a bit inconsistent with
+    // the type that indicates a constrained and an unconstrained function, but since the constrained one
+    // is never called, and even if it was it would have the same result, it doesn't matter.
+    let mock =
+        OracleMock::mock("brillig_func_field").with_params((10, brillig_add_8_128, 20)).returns(30);
+    // Call the oracle with the expected parameters.
+    let _ = brillig_func_field(10, brillig_add_8_128, 20);
+    // Get the function back.
+    let (x, f, y): (u8, unconstrained fn(u8, u128) -> Field, u128) = mock.get_last_params();
+    // Now call the function and see that it returns the expected result.
+    // Since we don't have a dispatch function, we will actually call the function directly.
+    assert_eq(f(x, y), 30);
+}
+
+unconstrained fn brillig_add_8_128(x: u8, y: u128) -> Field {
+    (x as Field) + (y as Field)
 }
