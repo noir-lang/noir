@@ -109,6 +109,45 @@ jobs:
       - name: Check for pending snapshots
         run: just check-pending-snapshots
 
+  incremental-mutation-test:
+    name: Incremental Mutation Test
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Fetch base commit
+        run: |
+          git fetch --depth=1 origin ${{ github.base_ref }}
+
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.85.0
+        with:
+          targets: x86_64-unknown-linux-gnu
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: x86_64-unknown-linux-gnu-debug
+          save-if: false
+
+      - name: Install just
+        uses: taiki-e/install-action@just
+
+      - name: Run incremental mutation test
+        run: just mutation-test ${{ github.base_ref }}
+
+      - name: Archive mutants.out
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mutants-incremental.out
+          path: mutants.out
+
   # This is a job which depends on all test jobs and reports the overall status.
   # This allows us to add/remove test jobs without having to update the required workflows.
   tests-end:
