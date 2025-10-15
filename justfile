@@ -112,7 +112,7 @@ fuzz-nightly: install-rust-tools
   NOIR_AST_FUZZER_FORCE_NON_DETERMINISTIC=1 cargo nextest run -p noir_ast_fuzzer_fuzz --no-fail-fast
 
 
-cargo-mutants-args := if ci == "1" { "--in-place" } else { "" }
+cargo-mutants-args := if ci == "1" { "--in-place -vV" } else { "" }
 
 mutation-test base="master": install-rust-tools
   #!/usr/bin/env bash
