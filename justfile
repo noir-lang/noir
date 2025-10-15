@@ -120,8 +120,9 @@ mutation-test base="master": install-rust-tools
   trap "rm -rf $tmpdir" EXIT
 
   git diff origin/{{base}}.. | tee $tmpdir/git.diff
-  cargo mutants --no-shuffle --test-tool=nextest --workspace --in-diff $tmpdir/git.diff {{cargo-mutants-args}}
-
+  cargo mutants --no-shuffle --test-tool=nextest -p acir_field -p acir -p acvm -p brillig -p brillig_vm -p blackbox_solver -j2 --in-diff $tmpdir/git.diff {{cargo-mutants-args}}
+  cargo mutants --no-shuffle --test-tool=nextest -p noirc_evaluator -j2 --in-diff $tmpdir/git.diff {{cargo-mutants-args}}
+  
 # Checks if there are any pending insta.rs snapshots and errors if any exist.
 check-pending-snapshots:
   #!/usr/bin/env bash
