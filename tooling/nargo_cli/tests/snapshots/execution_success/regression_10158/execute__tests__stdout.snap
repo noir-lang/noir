@@ -2,4 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-((<<fn([UnsignedInteger { width: 32 }, Boolean]) -> Field>>, <<unconstrained fn([UnsignedInteger { width: 32 }, Boolean]) -> Field>>), 10)
+((<<fn(u32, bool) -> Field>>, <<unconstrained fn(u32, bool) -> Field>>), 10)
