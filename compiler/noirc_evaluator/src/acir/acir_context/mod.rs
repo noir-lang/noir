@@ -86,7 +86,7 @@ impl<F: AcirField> AcirContext<F> {
         self.acir_ir.current_witness_index()
     }
 
-    pub(crate) fn extract_witness(&self, inputs: &[AcirValue]) -> Vec<Witness> {
+    pub(crate) fn extract_witnesses(&self, inputs: &[AcirValue]) -> Vec<Witness> {
         inputs
             .iter()
             .flat_map(|value| value.clone().flatten())
@@ -329,7 +329,7 @@ impl<F: AcirField> AcirContext<F> {
         Ok(result_var)
     }
 
-    /// Returns an `AcirVar` that is the XOR result of `lhs` & `rhs`.
+    /// Returns an `AcirVar` that is the XOR result of `lhs` and `rhs`.
     pub(crate) fn xor_var(
         &mut self,
         lhs: AcirVar,
@@ -339,7 +339,14 @@ impl<F: AcirField> AcirContext<F> {
         let lhs_expr = self.var_to_expression(lhs)?;
         let rhs_expr = self.var_to_expression(rhs)?;
 
-        if lhs_expr == rhs_expr {
+        // TODO: WIP
+        // if lhs_expr == rhs_expr {
+        // `lhs == rhs` => `lhs - rhs == 0`
+        let diff_expr = &lhs_expr - &rhs_expr;
+        // TODO: WIP
+        // let lhs_eq_rhs = diff_expr.is_const() && diff_expr.is_zero();
+        let lhs_eq_rhs = diff_expr.is_zero();
+        if lhs_eq_rhs {
             // x ^ x == 0
             let zero = self.add_constant(F::zero());
             return Ok(zero);
@@ -372,7 +379,7 @@ impl<F: AcirField> AcirContext<F> {
         }
     }
 
-    /// Returns an `AcirVar` that is the AND result of `lhs` & `rhs`.
+    /// Returns an `AcirVar` that is the AND result of `lhs` and `rhs`.
     pub(crate) fn and_var(
         &mut self,
         lhs: AcirVar,
@@ -382,7 +389,13 @@ impl<F: AcirField> AcirContext<F> {
         let lhs_expr = self.var_to_expression(lhs)?;
         let rhs_expr = self.var_to_expression(rhs)?;
 
-        if lhs_expr == rhs_expr {
+        // TODO: WIP
+        // if lhs_expr == rhs_expr {
+        let diff_expr = &lhs_expr - &rhs_expr;
+        // TODO: WIP
+        // let lhs_eq_rhs = diff_expr.is_const() && diff_expr.is_zero();
+        let lhs_eq_rhs = diff_expr.is_zero();
+        if lhs_eq_rhs {
             // x & x == x
             return Ok(lhs);
         } else if lhs_expr.is_zero() || rhs_expr.is_zero() {
@@ -408,7 +421,7 @@ impl<F: AcirField> AcirContext<F> {
         }
     }
 
-    /// Returns an `AcirVar` that is the OR result of `lhs` & `rhs`.
+    /// Returns an `AcirVar` that is the OR result of `lhs` and `rhs`.
     pub(crate) fn or_var(
         &mut self,
         lhs: AcirVar,
@@ -417,7 +430,17 @@ impl<F: AcirField> AcirContext<F> {
     ) -> Result<AcirVar, RuntimeError> {
         let lhs_expr = self.var_to_expression(lhs)?;
         let rhs_expr = self.var_to_expression(rhs)?;
-        if lhs_expr.is_zero() {
+
+        // TODO: WIP
+        // if lhs_expr == rhs_expr {
+        let diff_expr = &lhs_expr - &rhs_expr;
+        // TODO: WIP
+        // let lhs_eq_rhs = diff_expr.is_const() && diff_expr.is_zero();
+        let lhs_eq_rhs = diff_expr.is_zero();
+        if lhs_eq_rhs {
+            // x | x == x
+            return Ok(lhs);
+        } else if lhs_expr.is_zero() {
             // 0 | x == x
             return Ok(rhs);
         } else if rhs_expr.is_zero() {
@@ -428,7 +451,7 @@ impl<F: AcirField> AcirContext<F> {
         match typ.to_numeric_type() {
             NumericType::Signed { bit_size: 1 } | NumericType::Unsigned { bit_size: 1 } => {
                 // Operands are booleans
-                // a + b - ab
+                // a + b - a*b
                 let mul = self.mul_var(lhs, rhs)?;
                 let sum = self.add_var(lhs, rhs)?;
                 self.sub_var(sum, mul)
@@ -479,6 +502,8 @@ impl<F: AcirField> AcirContext<F> {
                 .assertion_payloads
                 .insert(self.acir_ir.last_acir_opcode_location(), payload);
         }
+        // TODO: is this sensitive to the location at which variables are marked equivalent or when
+        // assert_eq_var is called?
         self.mark_variables_equivalent(lhs, rhs)?;
 
         Ok(())
@@ -535,7 +560,7 @@ impl<F: AcirField> AcirContext<F> {
         Ok(())
     }
 
-    pub(crate) fn vars_to_expressions_or_memory(
+    pub(crate) fn values_to_expressions_or_memory(
         &self,
         values: &[AcirValue],
     ) -> Result<Vec<ExpressionOrMemory<F>>, RuntimeError> {
@@ -545,9 +570,9 @@ impl<F: AcirField> AcirContext<F> {
                 AcirValue::Var(var, _) => {
                     result.push(ExpressionOrMemory::Expression(self.var_to_expression(*var)?));
                 }
-                AcirValue::Array(vars) => {
-                    let vars_as_vec: Vec<_> = vars.iter().cloned().collect();
-                    result.extend(self.vars_to_expressions_or_memory(&vars_as_vec)?);
+                AcirValue::Array(values) => {
+                    let values_as_vec: Vec<_> = values.iter().cloned().collect();
+                    result.extend(self.values_to_expressions_or_memory(&values_as_vec)?);
                 }
                 AcirValue::DynamicArray(AcirDynamicArray { block_id, .. }) => {
                     result.push(ExpressionOrMemory::Memory(*block_id));
@@ -785,7 +810,7 @@ impl<F: AcirField> AcirContext<F> {
                     let lhs_const = lhs_const.to_u128();
                     let rhs_const = rhs_const.to_u128();
                     let quotient = lhs_const / rhs_const;
-                    let remainder = lhs_const - quotient * rhs_const;
+                    let remainder = lhs_const % rhs_const;
 
                     let quotient_var = self.add_constant(quotient);
                     let remainder_var = self.add_constant(remainder);
@@ -842,7 +867,7 @@ impl<F: AcirField> AcirContext<F> {
             // can't assume that the RHS will never have more bits than the operand.
             // Alternatively if the RHS is a result of an underflow, it could be a negative number which
             // is represented by a very large positive Field, which could fail to compile to ACIR in
-            // `range_constrain_var` below, because it can use all 254 bits.
+            // `range_constrain_var` below, because it can use all Field bits.
 
             // To avoid any uncertainty about how the rest of the calls would behave if we pretended that we
             // didn't know that the RHS has more bits than the operation assumes, we return zero and add an
@@ -990,6 +1015,7 @@ impl<F: AcirField> AcirContext<F> {
     /// if lhs>rhs, rhs-lhs = p+rhs-lhs > p-2^bits >= 2^bits  (if log(p) >= bits + 1)
     /// n.b: we do NOT check here that lhs and rhs are indeed 'bits' size
     /// lhs < rhs <=> a+1<=b
+    /// TODO: make issue for TODO?
     /// TODO: Consolidate this with bounds_check function.
     pub(super) fn bound_constraint_with_offset(
         &mut self,
@@ -1010,7 +1036,7 @@ impl<F: AcirField> AcirContext<F> {
 
         assert!(
             bits < F::max_num_bits(),
-            "range check with bit size of the prime field is not implemented yet"
+            "range check with bit size >= the prime field size is not implemented yet"
         );
 
         let mut lhs_offset = self.add_var(lhs, offset)?;
@@ -1035,7 +1061,7 @@ impl<F: AcirField> AcirContext<F> {
             let two_pow_bit_size_minus_one =
                 if bit_size == 128 { u128::MAX } else { (1_u128 << bit_size) - 1 };
             let r = two_pow_bit_size_minus_one - rhs_offset;
-            // however, since it is a constant, we can compute it's actual bit size
+            // however, since it is a constant, we can compute its actual bit size
             let r_bit_size = bit_size_u128(r);
 
             //we need to ensure lhs_offset + r does not overflow
@@ -1054,8 +1080,8 @@ impl<F: AcirField> AcirContext<F> {
                 return Ok(());
             }
         }
-        // General case:  lhs_offset<=rhs <=> rhs-lhs_offset>=0 <=> rhs-lhs_offset is a 'bits' bit integer
-        let sub_expression = self.sub_var(rhs, lhs_offset)?; //rhs-lhs_offset
+        // General case: lhs_offset<=rhs <=> rhs-lhs_offset>=0 <=> rhs-lhs_offset is a 'bits' bit integer
+        let sub_expression = self.sub_var(rhs, lhs_offset)?; // rhs-lhs_offset
         self.range_constrain_var(
             sub_expression,
             &NumericType::Unsigned { bit_size: bits },
@@ -1175,10 +1201,11 @@ impl<F: AcirField> AcirContext<F> {
         // In other words, `1` means `a >= b` and `0` means `b > a`.
         // The important thing here is that `c` does not overflow nor underflow the field;
         // - By construction we have `c >= 0`, so there is no underflow
-        // - We assert at the beginning that `2^{max_bits+1}` does not overflow the field, so neither c.
+        // - We assert at the beginning that `2^{max_bits+1}` does not overflow the field, so neither does c.
 
         // Ensure that 2^{max_bits + 1} is less than the field size
         //
+        // TODO: make issue for this TODO
         // TODO: perhaps this should be a user error, instead of an assert
         assert!(max_bits + 1 < F::max_num_bits());
 
@@ -1186,7 +1213,7 @@ impl<F: AcirField> AcirContext<F> {
         let diff = self.sub_var(lhs, rhs)?;
         let comparison_evaluation = self.add_var(diff, two_max_bits)?;
 
-        // Euclidean division by 2^{max_bits}  : 2^{max_bits} + a - b = q * 2^{max_bits} + r
+        // Euclidean division by 2^{max_bits} : 2^{max_bits} + a - b = q * 2^{max_bits} + r
         //
         // 2^{max_bits} is of max_bits+1 bit size
         // If a>b, then a-b is less than 2^{max_bits} - 1, so 2^{max_bits} + a - b is less than 2^{max_bits} + 2^{max_bits} - 1 = 2^{max_bits+1} - 1
@@ -1231,7 +1258,7 @@ impl<F: AcirField> AcirContext<F> {
         let comparison = self.more_than_eq_var(lhs, rhs, bit_size)?;
 
         let one = self.add_constant(F::one());
-        self.sub_var(one, comparison) // comparison_negated
+        self.sub_var(one, comparison) // comparison negated
     }
 
     /// Returns a vector of `AcirVar`s constrained to be the decomposition of the given input
@@ -1239,6 +1266,7 @@ impl<F: AcirField> AcirContext<F> {
     ///
     /// The `AcirVar`s for the `radix_var` and `limb_count_var` must be a constant
     ///
+    /// TODO: add issue for this TODO
     /// TODO: support radix larger than field modulus
     pub(crate) fn radix_decompose(
         &mut self,
@@ -1249,7 +1277,7 @@ impl<F: AcirField> AcirContext<F> {
         result_element_type: AcirType,
     ) -> Result<AcirValue, RuntimeError> {
         let radix = match self.vars[&radix_var].as_constant() {
-            Some(radix) => radix.to_u128() as u32,
+            Some(radix) => u32::try_from(radix.to_u128()).expect("expected radix to fit within a u32"),
             None => {
                 return Err(RuntimeError::InternalError(InternalError::NotAConstant {
                     name: "radix".to_string(),
@@ -1410,9 +1438,9 @@ impl<F: AcirField> AcirContext<F> {
                 let zero_witness = self.var_to_witness(zero)?;
                 vec![zero_witness; len]
             }
-            Some(optional_value) => {
+            Some(value) => {
                 let mut values = Vec::new();
-                self.initialize_array_inner(&mut values, optional_value)?;
+                self.initialize_array_inner(&mut values, value)?;
                 values
             }
         };
@@ -1442,15 +1470,14 @@ impl<F: AcirField> AcirContext<F> {
                 }
             }
             AcirValue::DynamicArray(AcirDynamicArray { block_id, len, value_types, .. }) => {
-                let dynamic_array_values = try_vecmap(0..len, |i| {
+                for i in 0..len {
                     let index_var = self.add_constant(i);
                     let read = self.read_from_memory(block_id, &index_var)?;
                     let typ = value_types[i % value_types.len()];
-                    Ok::<AcirValue, InternalError>(AcirValue::Var(read, AcirType::NumericType(typ)))
-                })?;
-                for value in dynamic_array_values {
+                    let value = AcirValue::Var(read, AcirType::NumericType(typ));
                     self.initialize_array_inner(witnesses, value)?;
                 }
+
             }
         }
         Ok(())

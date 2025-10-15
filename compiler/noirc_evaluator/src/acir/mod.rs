@@ -269,7 +269,7 @@ impl<'a> Context<'a> {
         })?;
         let arguments = self.gen_brillig_parameters(dfg[main_func.entry_block()].parameters(), dfg);
 
-        let witness_inputs = self.acir_context.extract_witness(&inputs);
+        let witness_inputs = self.acir_context.extract_witnesses(&inputs);
         let returns = main_func.returns().unwrap_or_default();
 
         let outputs: Vec<AcirType> =
@@ -525,10 +525,10 @@ impl<'a> Context<'a> {
                 {
                     self.acir_context.generate_assertion_message_payload(constant_string)
                 } else {
-                    let acir_vars: Vec<_> = vecmap(values, |value| self.convert_value(*value, dfg));
+                    let acir_values: Vec<_> = vecmap(values, |value| self.convert_value(*value, dfg));
 
                     let expressions_or_memory =
-                        self.acir_context.vars_to_expressions_or_memory(&acir_vars)?;
+                        self.acir_context.values_to_expressions_or_memory(&acir_values)?;
 
                     let error_selector = error_selector.as_u64();
                     AssertionPayload { error_selector, payload: expressions_or_memory }
