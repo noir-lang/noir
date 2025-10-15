@@ -188,8 +188,20 @@ impl Context<'_> {
                         .get(&value_id)
                         .expect("ICE: Unknown slice input to brillig")
                     {
-                        AcirValue::DynamicArray(AcirDynamicArray { len, .. }) => *len,
-                        AcirValue::Array(array) => array.len(),
+                        AcirValue::DynamicArray(AcirDynamicArray { len, .. }) => {
+                            // len holds the flattened length of all elements in the slice,
+                            // so to get the no-flattened length we need to divide by the flattened
+                            // length of a single slice entry
+                            let sum: usize =
+                                item_types.iter().map(|typ| typ.flattened_size() as usize).sum();
+                            if sum == 0 { 0 } else { *len / sum }
+                        }
+                        AcirValue::Array(array) => {
+                            // len holds the non-flattened length of all elements in the slice,
+                            // so here we need to divide by the non-flattened length of a single
+                            // slice entry
+                            if item_types.len() == 0 { 0 } else { array.len() / item_types.len() }
+                        }
                         _ => unreachable!("ICE: Slice value is not an array"),
                     };
 
@@ -198,7 +210,7 @@ impl Context<'_> {
                             .iter()
                             .map(BrilligFunctionContext::ssa_type_to_parameter)
                             .collect(),
-                        len / item_types.len(),
+                        len,
                     )
                 } else {
                     BrilligFunctionContext::ssa_type_to_parameter(&typ)
