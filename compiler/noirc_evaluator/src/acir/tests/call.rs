@@ -151,7 +151,7 @@ fn basic_nested_call(inline_type: InlineType) {
     return values: [w2]
     ASSERT w3 = w0 + 2
     CALL func: 2, predicate: 1, inputs: [w3, w1], outputs: [w4]
-    ASSERT w4 = w2
+    ASSERT w2 = w4
 
     func 2
     private parameters: [w0, w1]
@@ -187,7 +187,7 @@ fn call_with_predicate() {
     return values: [w2]
     BLACKBOX::RANGE input: w1, bits: 1
     CALL func: 1, predicate: w1, inputs: [w0], outputs: [w3]
-    ASSERT w3 = w2
+    ASSERT w2 = w3
 
     func 1
     private parameters: [w0]
