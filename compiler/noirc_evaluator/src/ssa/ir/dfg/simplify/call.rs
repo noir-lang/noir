@@ -91,14 +91,18 @@ pub(super) fn simplify_call(
             }
         }
         Intrinsic::ArrayLen => {
-            if let Some(length) = dfg.try_get_array_length(arguments[0]) {
-                let length = FieldElement::from(u128::from(length));
-                SimplifyResult::SimplifiedTo(dfg.make_constant(length, NumericType::length_type()))
-            } else if matches!(dfg.type_of_value(arguments[1]), Type::Slice(_)) {
-                SimplifyResult::SimplifiedTo(arguments[0])
-            } else {
-                SimplifyResult::None
-            }
+            let length = match dfg.type_of_value(arguments[0]) {
+                Type::Array(_, length) => {
+                    let length = FieldElement::from(u128::from(length));
+                    dfg.make_constant(length, NumericType::length_type())
+                }
+                Type::Numeric(_) => {
+                    assert!(matches!(dfg.type_of_value(arguments[1]), Type::Slice(_)));
+                    arguments[0]
+                }
+                _ => panic!("First argument to ArrayLen must be an array or a slice length"),
+            };
+            SimplifyResult::SimplifiedTo(length)
         }
         // Strings are already arrays of bytes in SSA
         Intrinsic::ArrayAsStrUnchecked => SimplifyResult::SimplifiedTo(arguments[0]),
