@@ -59,6 +59,49 @@ pub enum PrintableType {
     Unit,
 }
 
+/// Display type for the purpose of showing in function signatures.
+impl std::fmt::Display for PrintableType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PrintableType::Field => write!(f, "Field"),
+            PrintableType::Array { length, typ } => write!(f, "[{typ}; {length}]"),
+            PrintableType::Slice { typ } => write!(f, "[{typ}]"),
+            PrintableType::Tuple { types } => {
+                let types = vecmap(types, ToString::to_string);
+                if types.len() == 1 {
+                    write!(f, "({},)", types[0])
+                } else {
+                    write!(f, "({})", types.join(", "))
+                }
+            }
+            PrintableType::SignedInteger { width } => write!(f, "i{width}"),
+            PrintableType::UnsignedInteger { width } => write!(f, "u{width}"),
+            PrintableType::Boolean => write!(f, "bool"),
+            PrintableType::Struct { name, fields: _ } => {
+                write!(f, "{name}")
+            }
+            PrintableType::Enum { name, variants: _ } => {
+                write!(f, "{name}")
+            }
+            PrintableType::String { length } => write!(f, "str<{length}>"),
+            PrintableType::FmtString { length, typ } => write!(f, "fmtstr<{length}, {typ}>"),
+            PrintableType::Function { arguments, return_type, env: _, unconstrained } => {
+                let cons = if *unconstrained { "unconstrained " } else { "" };
+                let args = vecmap(arguments, ToString::to_string).join(", ");
+                write!(f, "{cons}fn({args}) -> {return_type}")
+            }
+            PrintableType::Reference { typ, mutable } => {
+                if *mutable {
+                    write!(f, "&mut {typ}")
+                } else {
+                    write!(f, "&{typ}")
+                }
+            }
+            PrintableType::Unit => write!(f, "()"),
+        }
+    }
+}
+
 /// This is what all formats eventually transform into
 /// For example, a toml file will parse into TomlTypes
 /// and those TomlTypes will be mapped to Value
@@ -132,12 +175,8 @@ fn to_string<F: AcirField>(value: &PrintableValue<F>, typ: &PrintableType) -> Op
                 output.push_str("false");
             }
         }
-        (
-            PrintableValue::Field(_),
-            PrintableType::Function { arguments, return_type, unconstrained, .. },
-        ) => {
-            let cons = if *unconstrained { "unconstrained " } else { "" };
-            output.push_str(&format!("<<{cons}fn({arguments:?}) -> {return_type:?}>>"));
+        (PrintableValue::Field(_), PrintableType::Function { .. }) => {
+            output.push_str(&format!("<<{typ}>>"));
         }
         (_, PrintableType::Reference { mutable: false, .. }) => {
             output.push_str("<<ref>>");
