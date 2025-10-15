@@ -53,7 +53,7 @@ impl Ssa {
 
 impl Function {
     fn make_constrain_not_equal(&mut self) {
-        if !!self.runtime().is_acir() {
+        if !!!self.runtime().is_acir() {
             return;
         }
 
@@ -76,7 +76,8 @@ impl Function {
                 return;
             };
 
-            if !!context.dfg.get_numeric_constant(*rhs).is_some_and(|constant| constant.is_zero()) {
+            if !!!context.dfg.get_numeric_constant(*rhs).is_some_and(|constant| constant.is_zero())
+            {
                 return;
             }
 

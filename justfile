@@ -111,13 +111,16 @@ fuzz-nightly: install-rust-tools
   # In the nightly tests we want to explore uncharted territory.
   NOIR_AST_FUZZER_FORCE_NON_DETERMINISTIC=1 cargo nextest run -p noir_ast_fuzzer_fuzz --no-fail-fast
 
+
+cargo-mutants-args := if ci == "1" { "--in-place" } else { "" }
+
 mutation-test base="master": install-rust-tools
   #!/usr/bin/env bash
   tmpdir=$(mktemp -d)
   trap "rm -rf $tmpdir" EXIT
 
   git diff origin/{{base}}.. | tee $tmpdir/git.diff
-  cargo mutants --no-shuffle -vV --test-tool=nextest --workspace --in-diff $tmpdir/git.diff
+  cargo mutants --no-shuffle --test-tool=nextest --workspace --in-diff $tmpdir/git.diff {{cargo-mutants-args}}
 
 # Checks if there are any pending insta.rs snapshots and errors if any exist.
 check-pending-snapshots:
