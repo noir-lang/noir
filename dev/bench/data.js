@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1760461342274,
+  "lastUpdate": 1760527533809,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23421,48 +23421,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "e5acaf603193ddd5136251516c463ae6c50997b4",
-          "message": "fix(stdlib): Only compute the garbage `embedded_curve_result` result if we know we will need it (#10077)",
-          "timestamp": "2025-10-06T08:42:47Z",
-          "tree_id": "b87416a746de7896c54572ec436b1fbdacbaaf7f",
-          "url": "https://github.com/noir-lang/noir/commit/e5acaf603193ddd5136251516c463ae6c50997b4"
-        },
-        "date": 1759741931663,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 250335,
-            "range": "± 1063",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 222790,
-            "range": "± 3649",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2788411,
-            "range": "± 2004",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -25514,6 +25472,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2783742,
             "range": "± 2359",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3b0181a89c3ed0eacaf6646d569ae9f13dfdba39",
+          "message": "chore: ensure that `useful_instructions` cannot overflow (#10173)",
+          "timestamp": "2025-10-15T11:01:22Z",
+          "tree_id": "c5382d239d3d3376dd54b10fd1f0f67b912483a2",
+          "url": "https://github.com/noir-lang/noir/commit/3b0181a89c3ed0eacaf6646d569ae9f13dfdba39"
+        },
+        "date": 1760527510348,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 265639,
+            "range": "± 1083",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 231161,
+            "range": "± 4797",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2786419,
+            "range": "± 1342",
             "unit": "ns/iter"
           }
         ]
