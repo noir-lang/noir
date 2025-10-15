@@ -192,9 +192,9 @@ impl Context<'_> {
                             // len holds the flattened length of all elements in the slice,
                             // so to get the no-flattened length we need to divide by the flattened
                             // length of a single slice entry
-                            let sum: usize =
-                                item_types.iter().map(|typ| typ.flattened_size() as usize).sum();
-                            if sum == 0 { 0 } else { *len / sum }
+                            let sum: u32 =
+                                item_types.iter().map(|typ| typ.flattened_size()).sum();
+                            if sum == 0 { 0 } else { *len / sum as usize }
                         }
                         AcirValue::Array(array) => {
                             // len holds the non-flattened length of all elements in the slice,
