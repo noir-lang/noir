@@ -1803,7 +1803,12 @@
 <a href="#1802" id="1802">1802</a>
 <a href="#1803" id="1803">1803</a>
 <a href="#1804" id="1804">1804</a>
-<a href="#1805" id="1805">1805</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the loop unrolling pass for the new SSA IR.
+<a href="#1805" id="1805">1805</a>
+<a href="#1806" id="1806">1806</a>
+<a href="#1807" id="1807">1807</a>
+<a href="#1808" id="1808">1808</a>
+<a href="#1809" id="1809">1809</a>
+<a href="#1810" id="1810">1810</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the loop unrolling pass for the new SSA IR.
 //!
 //! This pass is divided into a few steps:
 //! 1. Find all loops in the program (`find_all_loops`)
@@ -2694,7 +2699,12 @@
         <span class="comment">// Be conservative and only assume that mem2reg gets rid of load followed by store.
         // NB we have not checked that these are actual pairs.
         </span><span class="kw">let </span>load_and_store = <span class="self">self</span>.loads.min(<span class="self">self</span>.stores) * <span class="number">2</span>;
-        <span class="self">self</span>.all_instructions - <span class="self">self</span>.increments - load_and_store - boilerplate
+        <span class="kw">let </span>total_boilerplate = <span class="self">self</span>.increments + load_and_store + boilerplate;
+        <span class="macro">debug_assert!</span>(
+            total_boilerplate &lt;= <span class="self">self</span>.all_instructions,
+            <span class="string">"Boilerplate instructions exceed total instructions in loop"
+        </span>);
+        <span class="self">self</span>.all_instructions.saturating_sub(total_boilerplate)
     }
 
     <span class="doccomment">/// Estimated number of instructions if we unroll the loop.
