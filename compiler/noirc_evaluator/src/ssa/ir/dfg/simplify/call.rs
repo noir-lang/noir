@@ -96,7 +96,7 @@ pub(super) fn simplify_call(
                     let length = FieldElement::from(u128::from(length));
                     dfg.make_constant(length, NumericType::length_type())
                 }
-                Type::Numeric(NumericType::Signed { bit_size: 32 }) => {
+                Type::Numeric(NumericType::Unsigned { bit_size: 32 }) => {
                     assert!(matches!(dfg.type_of_value(arguments[1]), Type::Slice(_)));
                     arguments[0]
                 }
