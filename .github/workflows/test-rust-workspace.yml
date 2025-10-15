@@ -112,7 +112,7 @@ jobs:
   incremental-mutation-test:
     name: Incremental Mutation Test
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
       contents: read
