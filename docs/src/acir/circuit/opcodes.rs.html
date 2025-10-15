@@ -273,7 +273,15 @@
 <a href="#272" id="272">272</a>
 <a href="#273" id="273">273</a>
 <a href="#274" id="274">274</a>
-<a href="#275" id="275">275</a></pre></div><pre class="rust"><code><span class="doccomment">//! ACIR opcodes
+<a href="#275" id="275">275</a>
+<a href="#276" id="276">276</a>
+<a href="#277" id="277">277</a>
+<a href="#278" id="278">278</a>
+<a href="#279" id="279">279</a>
+<a href="#280" id="280">280</a>
+<a href="#281" id="281">281</a>
+<a href="#282" id="282">282</a>
+<a href="#283" id="283">283</a></pre></div><pre class="rust"><code><span class="doccomment">//! ACIR opcodes
 //!
 //! This module defines the core set opcodes used in ACIR.
 </span><span class="kw">use </span><span class="kw">super</span>::brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs};
@@ -281,7 +289,10 @@
 <span class="kw">pub mod </span>function_id;
 <span class="kw">pub use </span>function_id::AcirFunctionId;
 
-<span class="kw">use </span><span class="kw">crate</span>::native_types::{Expression, Witness, display_expression};
+<span class="kw">use crate</span>::{
+    circuit::PublicInputs,
+    native_types::{Expression, Witness, display_expression},
+};
 <span class="kw">use </span>acir_field::AcirField;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 
@@ -420,72 +431,77 @@
 
 <span class="kw">impl</span>&lt;F: AcirField&gt; std::fmt::Display <span class="kw">for </span>Opcode&lt;F&gt; {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
-        <span class="kw">match </span><span class="self">self </span>{
-            Opcode::AssertZero(expr) =&gt; {
-                <span class="macro">write!</span>(f, <span class="string">"ASSERT "</span>)<span class="question-mark">?</span>;
-                display_expression(expr, <span class="bool-val">true</span>, f)
-            }
-            Opcode::BlackBoxFuncCall(g) =&gt; g.fmt(f),
-            Opcode::MemoryOp { block_id, op } =&gt; {
-                <span class="kw">let </span>is_read = op.operation.is_zero();
-                <span class="kw">if </span>is_read {
-                    <span class="macro">write!</span>(f, <span class="string">"READ {} = b{}[{}]"</span>, op.value, block_id.<span class="number">0</span>, op.index)
-                } <span class="kw">else </span>{
-                    <span class="macro">write!</span>(f, <span class="string">"WRITE b{}[{}] = {}"</span>, block_id.<span class="number">0</span>, op.index, op.value)
-                }
-            }
-            Opcode::MemoryInit { block_id, init, block_type: databus } =&gt; {
-                <span class="kw">match </span>databus {
-                    BlockType::Memory =&gt; <span class="macro">write!</span>(f, <span class="string">"INIT "</span>)<span class="question-mark">?</span>,
-                    BlockType::CallData(id) =&gt; <span class="macro">write!</span>(f, <span class="string">"INIT CALLDATA {id} "</span>)<span class="question-mark">?</span>,
-                    BlockType::ReturnData =&gt; <span class="macro">write!</span>(f, <span class="string">"INIT RETURNDATA "</span>)<span class="question-mark">?</span>,
-                }
-                <span class="kw">let </span>witnesses =
-                    init.iter().map(|w| <span class="macro">format!</span>(<span class="string">"{w}"</span>)).collect::&lt;Vec&lt;String&gt;&gt;().join(<span class="string">", "</span>);
-                <span class="macro">write!</span>(f, <span class="string">"b{} = [{witnesses}]"</span>, block_id.<span class="number">0</span>)
-            }
-            <span class="comment">// We keep the display for a BrilligCall and circuit Call separate as they
-            // are distinct in their functionality and we should maintain this separation for debugging.
-            </span>Opcode::BrilligCall { id, inputs, outputs, predicate } =&gt; {
-                <span class="macro">write!</span>(f, <span class="string">"BRILLIG CALL func: {id}, "</span>)<span class="question-mark">?</span>;
-                <span class="kw">if let </span><span class="prelude-val">Some</span>(pred) = predicate {
-                    <span class="macro">write!</span>(f, <span class="string">"predicate: {pred}, "</span>)<span class="question-mark">?</span>;
-                }
-
-                <span class="kw">let </span>inputs = inputs
-                    .iter()
-                    .map(|input| <span class="macro">format!</span>(<span class="string">"{input}"</span>))
-                    .collect::&lt;Vec&lt;String&gt;&gt;()
-                    .join(<span class="string">", "</span>);
-                <span class="kw">let </span>outputs = outputs
-                    .iter()
-                    .map(|output| <span class="macro">format!</span>(<span class="string">"{output}"</span>))
-                    .collect::&lt;Vec&lt;String&gt;&gt;()
-                    .join(<span class="string">", "</span>);
-
-                <span class="macro">write!</span>(f, <span class="string">"inputs: [{inputs}], "</span>)<span class="question-mark">?</span>;
-                <span class="macro">write!</span>(f, <span class="string">"outputs: [{outputs}]"</span>)
-            }
-            Opcode::Call { id, inputs, outputs, predicate } =&gt; {
-                <span class="macro">write!</span>(f, <span class="string">"CALL func: {id}, "</span>)<span class="question-mark">?</span>;
-                <span class="kw">if let </span><span class="prelude-val">Some</span>(pred) = predicate {
-                    <span class="macro">write!</span>(f, <span class="string">"predicate: {pred}, "</span>)<span class="question-mark">?</span>;
-                }
-                <span class="kw">let </span>inputs =
-                    inputs.iter().map(|w| <span class="macro">format!</span>(<span class="string">"{w}"</span>)).collect::&lt;Vec&lt;String&gt;&gt;().join(<span class="string">", "</span>);
-                <span class="kw">let </span>outputs =
-                    outputs.iter().map(|w| <span class="macro">format!</span>(<span class="string">"{w}"</span>)).collect::&lt;Vec&lt;String&gt;&gt;().join(<span class="string">", "</span>);
-
-                <span class="macro">write!</span>(f, <span class="string">"inputs: [{inputs}], "</span>)<span class="question-mark">?</span>;
-                <span class="macro">write!</span>(f, <span class="string">"outputs: [{outputs}]"</span>)
-            }
-        }
+        display_opcode(<span class="self">self</span>, <span class="prelude-val">None</span>, f)
     }
 }
 
 <span class="kw">impl</span>&lt;F: AcirField&gt; std::fmt::Debug <span class="kw">for </span>Opcode&lt;F&gt; {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
         std::fmt::Display::fmt(<span class="self">self</span>, f)
+    }
+}
+
+<span class="doccomment">/// Displays an opcode, optionally using the provided return values to prefer displaying
+/// `ASSERT return_value = ...` when possible.
+</span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>display_opcode&lt;F: AcirField&gt;(
+    opcode: <span class="kw-2">&amp;</span>Opcode&lt;F&gt;,
+    return_values: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>PublicInputs&gt;,
+    f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;,
+) -&gt; std::fmt::Result {
+    <span class="kw">match </span>opcode {
+        Opcode::AssertZero(expr) =&gt; {
+            <span class="macro">write!</span>(f, <span class="string">"ASSERT "</span>)<span class="question-mark">?</span>;
+            display_expression(expr, <span class="bool-val">true</span>, return_values, f)
+        }
+        Opcode::BlackBoxFuncCall(g) =&gt; std::fmt::Display::fmt(<span class="kw-2">&amp;</span>g, f),
+        Opcode::MemoryOp { block_id, op } =&gt; {
+            <span class="kw">let </span>is_read = op.operation.is_zero();
+            <span class="kw">if </span>is_read {
+                <span class="macro">write!</span>(f, <span class="string">"READ {} = b{}[{}]"</span>, op.value, block_id.<span class="number">0</span>, op.index)
+            } <span class="kw">else </span>{
+                <span class="macro">write!</span>(f, <span class="string">"WRITE b{}[{}] = {}"</span>, block_id.<span class="number">0</span>, op.index, op.value)
+            }
+        }
+        Opcode::MemoryInit { block_id, init, block_type: databus } =&gt; {
+            <span class="kw">match </span>databus {
+                BlockType::Memory =&gt; <span class="macro">write!</span>(f, <span class="string">"INIT "</span>)<span class="question-mark">?</span>,
+                BlockType::CallData(id) =&gt; <span class="macro">write!</span>(f, <span class="string">"INIT CALLDATA {id} "</span>)<span class="question-mark">?</span>,
+                BlockType::ReturnData =&gt; <span class="macro">write!</span>(f, <span class="string">"INIT RETURNDATA "</span>)<span class="question-mark">?</span>,
+            }
+            <span class="kw">let </span>witnesses = init.iter().map(|w| <span class="macro">format!</span>(<span class="string">"{w}"</span>)).collect::&lt;Vec&lt;String&gt;&gt;().join(<span class="string">", "</span>);
+            <span class="macro">write!</span>(f, <span class="string">"b{} = [{witnesses}]"</span>, block_id.<span class="number">0</span>)
+        }
+        <span class="comment">// We keep the display for a BrilligCall and circuit Call separate as they
+        // are distinct in their functionality and we should maintain this separation for debugging.
+        </span>Opcode::BrilligCall { id, inputs, outputs, predicate } =&gt; {
+            <span class="macro">write!</span>(f, <span class="string">"BRILLIG CALL func: {id}, "</span>)<span class="question-mark">?</span>;
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(pred) = predicate {
+                <span class="macro">write!</span>(f, <span class="string">"predicate: {pred}, "</span>)<span class="question-mark">?</span>;
+            }
+
+            <span class="kw">let </span>inputs =
+                inputs.iter().map(|input| <span class="macro">format!</span>(<span class="string">"{input}"</span>)).collect::&lt;Vec&lt;String&gt;&gt;().join(<span class="string">", "</span>);
+            <span class="kw">let </span>outputs = outputs
+                .iter()
+                .map(|output| <span class="macro">format!</span>(<span class="string">"{output}"</span>))
+                .collect::&lt;Vec&lt;String&gt;&gt;()
+                .join(<span class="string">", "</span>);
+
+            <span class="macro">write!</span>(f, <span class="string">"inputs: [{inputs}], "</span>)<span class="question-mark">?</span>;
+            <span class="macro">write!</span>(f, <span class="string">"outputs: [{outputs}]"</span>)
+        }
+        Opcode::Call { id, inputs, outputs, predicate } =&gt; {
+            <span class="macro">write!</span>(f, <span class="string">"CALL func: {id}, "</span>)<span class="question-mark">?</span>;
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(pred) = predicate {
+                <span class="macro">write!</span>(f, <span class="string">"predicate: {pred}, "</span>)<span class="question-mark">?</span>;
+            }
+            <span class="kw">let </span>inputs = inputs.iter().map(|w| <span class="macro">format!</span>(<span class="string">"{w}"</span>)).collect::&lt;Vec&lt;String&gt;&gt;().join(<span class="string">", "</span>);
+            <span class="kw">let </span>outputs =
+                outputs.iter().map(|w| <span class="macro">format!</span>(<span class="string">"{w}"</span>)).collect::&lt;Vec&lt;String&gt;&gt;().join(<span class="string">", "</span>);
+
+            <span class="macro">write!</span>(f, <span class="string">"inputs: [{inputs}], "</span>)<span class="question-mark">?</span>;
+            <span class="macro">write!</span>(f, <span class="string">"outputs: [{outputs}]"</span>)
+        }
     }
 }
 

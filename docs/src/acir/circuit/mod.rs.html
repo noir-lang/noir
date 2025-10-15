@@ -730,13 +730,16 @@
 <a href="#729" id="729">729</a>
 <a href="#730" id="730">730</a>
 <a href="#731" id="731">731</a>
-<a href="#732" id="732">732</a></pre></div><pre class="rust"><code><span class="doccomment">//! Native structures for representing ACIR
+<a href="#732" id="732">732</a>
+<a href="#733" id="733">733</a>
+<a href="#734" id="734">734</a></pre></div><pre class="rust"><code><span class="doccomment">//! Native structures for representing ACIR
 
 </span><span class="kw">pub mod </span>black_box_functions;
 <span class="kw">pub mod </span>brillig;
 <span class="kw">pub mod </span>opcodes;
 
 <span class="kw">use crate</span>::{
+    circuit::opcodes::display_opcode,
     native_types::{Expression, Witness},
     serialization::{deserialize_any_format, serialize_with_format_from_env},
 };
@@ -1087,7 +1090,8 @@
         write_witness_indices(f, <span class="kw-2">&amp;</span><span class="self">self</span>.return_values.indices())<span class="question-mark">?</span>;
 
         <span class="kw">for </span>opcode <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.opcodes {
-            <span class="macro">writeln!</span>(f, <span class="string">"{opcode}"</span>)<span class="question-mark">?</span>;
+            display_opcode(opcode, <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.return_values), f)<span class="question-mark">?</span>;
+            <span class="macro">writeln!</span>(f)<span class="question-mark">?</span>;
         }
         <span class="prelude-val">Ok</span>(())
     }
