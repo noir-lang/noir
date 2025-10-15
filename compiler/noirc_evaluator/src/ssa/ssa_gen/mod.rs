@@ -498,7 +498,10 @@ impl FunctionContext<'_> {
         // and we skipped inserting constraints. To stay on the conservative side, start with
         // a checked operation, and simplify to unchecked if it can be evaluated.
         // In Brillig we will be protected from overflows by constraints, so we can go unchecked.
-        let unchecked = runtime.is_brillig();
+        // In ACIR the values are represented as Fields, so they don't wrap around, but ACIR has built-in OOB checks,
+        // so it's okay to use unchecked operations. The SSA interpreter has been updated to have similar semantics.
+        let unchecked = true;
+
         let base_index = self.builder.set_location(location).insert_binary(
             index,
             BinaryOp::Mul { unchecked },
