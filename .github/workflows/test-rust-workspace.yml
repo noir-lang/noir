@@ -121,6 +121,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      - name: Fetch base commit
+        run: |
+          git fetch --depth=1 origin ${{ github.base_ref }}
+
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.85.0
         with:
