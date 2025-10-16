@@ -255,6 +255,10 @@ impl Context<'_> {
 
         let block_id = self.ensure_array_is_initialized(slice_contents, dfg)?;
 
+        let item_size = dfg.type_of_value(slice_contents).element_size();
+        let item_size = self.acir_context.add_constant(item_size);
+        var_index = self.acir_context.mul_var(var_index, item_size)?;
+
         let mut popped_elements = Vec::new();
         for res in &result_ids[2..] {
             let elem = self.array_get_value(&dfg.type_of_value(*res), block_id, &mut var_index)?;
@@ -405,11 +409,14 @@ impl Context<'_> {
 
         let mut slice_size = super::arrays::flattened_value_size(&slice);
 
+        let elements_to_insert = &arguments[3..];
+
         // Fetch the flattened index from the user provided index argument.
+        let item_size = self.acir_context.add_constant(elements_to_insert.len());
+        let insert_index = self.acir_context.mul_var(insert_index, item_size)?;
         let flat_user_index =
             self.get_flattened_index(&slice_typ, slice_contents, insert_index, dfg)?;
 
-        let elements_to_insert = &arguments[3..];
         // Determine the elements we need to write into our resulting dynamic array.
         // We need to a fully flat list of AcirVar's as a dynamic array is represented with flat memory.
         let mut inner_elem_size_usize = 0;
@@ -583,6 +590,10 @@ impl Context<'_> {
             slice_size,
             "ICE: The read flattened slice should match the computed size"
         );
+
+        let item_size = slice_typ.element_size();
+        let item_size = self.acir_context.add_constant(item_size);
+        let remove_index = self.acir_context.mul_var(remove_index, item_size)?;
 
         // Fetch the flattened index from the user provided index argument.
         let flat_user_index =
