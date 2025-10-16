@@ -776,9 +776,8 @@ impl<'a> Parser<'a> {
             }
 
             // If no comma, expect closing bracket next
-            if self.token.token() != &Token::RightBracket {
-                return self.expected_token(Token::RightBracket);
-            }
+            self.eat_or_error(Token::RightBracket)?;
+            break;
         }
 
         Ok(values)
