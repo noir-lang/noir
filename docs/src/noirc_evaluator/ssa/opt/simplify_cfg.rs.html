@@ -948,7 +948,56 @@
 <a href="#947" id="947">947</a>
 <a href="#948" id="948">948</a>
 <a href="#949" id="949">949</a>
-<a href="#950" id="950">950</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the simplify cfg pass of the SSA IR.
+<a href="#950" id="950">950</a>
+<a href="#951" id="951">951</a>
+<a href="#952" id="952">952</a>
+<a href="#953" id="953">953</a>
+<a href="#954" id="954">954</a>
+<a href="#955" id="955">955</a>
+<a href="#956" id="956">956</a>
+<a href="#957" id="957">957</a>
+<a href="#958" id="958">958</a>
+<a href="#959" id="959">959</a>
+<a href="#960" id="960">960</a>
+<a href="#961" id="961">961</a>
+<a href="#962" id="962">962</a>
+<a href="#963" id="963">963</a>
+<a href="#964" id="964">964</a>
+<a href="#965" id="965">965</a>
+<a href="#966" id="966">966</a>
+<a href="#967" id="967">967</a>
+<a href="#968" id="968">968</a>
+<a href="#969" id="969">969</a>
+<a href="#970" id="970">970</a>
+<a href="#971" id="971">971</a>
+<a href="#972" id="972">972</a>
+<a href="#973" id="973">973</a>
+<a href="#974" id="974">974</a>
+<a href="#975" id="975">975</a>
+<a href="#976" id="976">976</a>
+<a href="#977" id="977">977</a>
+<a href="#978" id="978">978</a>
+<a href="#979" id="979">979</a>
+<a href="#980" id="980">980</a>
+<a href="#981" id="981">981</a>
+<a href="#982" id="982">982</a>
+<a href="#983" id="983">983</a>
+<a href="#984" id="984">984</a>
+<a href="#985" id="985">985</a>
+<a href="#986" id="986">986</a>
+<a href="#987" id="987">987</a>
+<a href="#988" id="988">988</a>
+<a href="#989" id="989">989</a>
+<a href="#990" id="990">990</a>
+<a href="#991" id="991">991</a>
+<a href="#992" id="992">992</a>
+<a href="#993" id="993">993</a>
+<a href="#994" id="994">994</a>
+<a href="#995" id="995">995</a>
+<a href="#996" id="996">996</a>
+<a href="#997" id="997">997</a>
+<a href="#998" id="998">998</a>
+<a href="#999" id="999">999</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the simplify cfg pass of the SSA IR.
 //!
 //! This is a rather simple pass that is expected to be cheap to perform. It:
 //! 1. Removes blocks with no predecessors
@@ -1010,7 +1059,7 @@
 
             <span class="comment">// First perform any simplifications on the current block, this ensures that we add the proper successors
             // to the stack.
-            </span>simplify_current_block(<span class="self">self</span>, block, <span class="kw-2">&amp;mut </span>cfg);
+            </span>simplify_current_block(<span class="self">self</span>, block, <span class="kw-2">&amp;mut </span>cfg, <span class="kw-2">&amp;mut </span>values_to_replace);
 
             <span class="kw">if </span>visited.insert(block) {
                 stack.extend(<span class="self">self</span>.dfg[block].successors().filter(|block| !visited.contains(block)));
@@ -1022,16 +1071,7 @@
                     predecessors.next().expect(<span class="string">"Already checked length of predecessors"</span>);
                 drop(predecessors);
 
-                <span class="comment">// If the block has only 1 predecessor, we can safely remove its block parameters
-                </span>remove_block_parameters(<span class="self">self</span>, block, predecessor, <span class="kw-2">&amp;mut </span>values_to_replace);
-
-                <span class="comment">// Note: this function relies on `remove_block_parameters` being called first.
-                // Otherwise the inlined block will refer to parameters that no longer exist.
-                //
-                // If successful, `block` will be empty and unreachable after this call, so any
-                // optimizations performed after this point on the same block should check if
-                // the inlining here was successful before continuing.
-                </span>try_inline_into_predecessor(<span class="self">self</span>, <span class="kw-2">&amp;mut </span>cfg, block, predecessor);
+                try_inline_successor(<span class="self">self</span>, <span class="kw-2">&amp;mut </span>cfg, predecessor, <span class="kw-2">&amp;mut </span>values_to_replace);
             } <span class="kw">else </span>{
                 drop(predecessors);
 
@@ -1060,16 +1100,16 @@
     function: <span class="kw-2">&amp;mut </span>Function,
     block: BasicBlockId,
     cfg: <span class="kw-2">&amp;mut </span>ControlFlowGraph,
+    values_to_replace: <span class="kw-2">&amp;mut </span>ValueMapping,
 ) {
     <span class="comment">// These functions return `true` if they successfully simplified the CFG for the current block.
-    </span><span class="kw">let </span><span class="kw-2">mut </span>simplified = <span class="bool-val">false</span>;
+    </span><span class="kw">let </span><span class="kw-2">mut </span>simplified = <span class="bool-val">true</span>;
 
-    simplified |= check_for_negated_jmpif_condition(function, block, cfg);
-    simplified |= check_for_constant_jmpif(function, block, cfg);
-    simplified |= check_for_converging_jmpif(function, block, cfg);
-
-    <span class="kw">if </span>simplified {
-        simplify_current_block(function, block, cfg);
+    <span class="kw">while </span>simplified {
+        simplified = check_for_negated_jmpif_condition(function, block, cfg)
+            | check_for_constant_jmpif(function, block, cfg)
+            | check_for_converging_jmpif(function, block, cfg)
+            | try_inline_successor(function, cfg, block, values_to_replace);
     }
 }
 
@@ -1345,6 +1385,40 @@
 ///
 /// This will only occur if the predecessor's only successor is the given block.
 /// It is also expected that the given block's only predecessor is the given one.
+</span><span class="kw">fn </span>try_inline_successor(
+    function: <span class="kw-2">&amp;mut </span>Function,
+    cfg: <span class="kw-2">&amp;mut </span>ControlFlowGraph,
+    block: BasicBlockId,
+    values_to_replace: <span class="kw-2">&amp;mut </span>ValueMapping,
+) -&gt; bool {
+    <span class="kw">if let </span><span class="prelude-val">Some</span>(TerminatorInstruction::Jmp { destination, .. }) = function.dfg[block].terminator() {
+        <span class="kw">let </span>destination = <span class="kw-2">*</span>destination;
+        <span class="kw">let </span>predecessors = cfg.predecessors(destination);
+        <span class="kw">if </span>predecessors.len() == <span class="number">1 </span>{
+            drop(predecessors);
+
+            <span class="comment">// If the block has only 1 predecessor, we can safely remove its block parameters
+            </span>remove_block_parameters(function, destination, block, values_to_replace);
+
+            <span class="comment">// Note: this function relies on `remove_block_parameters` being called first.
+            // Otherwise the inlined block will refer to parameters that no longer exist.
+            //
+            // If successful, `block` will be empty and unreachable after this call, so any
+            // optimizations performed after this point on the same block should check if
+            // the inlining here was successful before continuing.
+            </span>try_inline_into_predecessor(function, cfg, destination, block)
+        } <span class="kw">else </span>{
+            <span class="bool-val">false
+        </span>}
+    } <span class="kw">else </span>{
+        <span class="bool-val">false
+    </span>}
+}
+
+<span class="doccomment">/// Try to inline a block into its predecessor, returning true if successful.
+///
+/// This will only occur if the predecessor's only successor is the given block.
+/// It is also expected that the given block's only predecessor is the given one.
 </span><span class="kw">fn </span>try_inline_into_predecessor(
     function: <span class="kw-2">&amp;mut </span>Function,
     cfg: <span class="kw-2">&amp;mut </span>ControlFlowGraph,
@@ -1597,11 +1671,11 @@
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: i16):
             v2 = lt i16 1, v0
-            jmpif v2 then: b2, else: b1
+            jmpif v2 then: b1, else: b2
           b1():
-            return u32 2
+            jmp b1()
           b2():
-            jmp b2()
+            return u32 2
         }
         "</span>);
     }
@@ -1862,6 +1936,30 @@
         brillig(inline) fn test f0 {
           b0():
             return
+        }
+        "</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>double_jmp_with_args_blocks() {
+        <span class="kw">let </span>src = <span class="string">"
+        brillig(inline) fn test f0 {
+          b0(v0: Field):
+            jmp b1(v0, Field 2)
+          b1(v1: Field, v2: Field):
+            jmp b2(v1)
+          b2(v3: Field):
+            return v3
+        }
+        "</span>;
+
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>ssa = ssa.simplify_cfg();
+
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+        brillig(inline) fn test f0 {
+          b0(v0: Field):
+            return v0
         }
         "</span>);
     }
