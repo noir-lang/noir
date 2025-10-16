@@ -95,7 +95,7 @@ impl Context<'_> {
                         for acir_value in vector {
                             let acir_vars = self.flatten(&acir_value)?;
                             for var in acir_vars {
-                                elements_var.push(var.0);
+                                elements_var.push(var);
                             }
                         }
                     }
