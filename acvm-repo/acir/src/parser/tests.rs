@@ -136,6 +136,20 @@ fn range_check() {
 }
 
 #[test]
+fn and() {
+    let src = "
+    private parameters: [w0]
+    public parameters: [w1]
+    return values: []
+    BLACKBOX::RANGE input: w0, bits: 32
+    BLACKBOX::RANGE input: w1, bits: 32
+    BLACKBOX::AND lhs: w0, rhs: w1, output: w2, bits: 32
+    ASSERT w2 = 15
+    ";
+    assert_circuit_roundtrip(src);
+}
+
+#[test]
 fn xor() {
     let src = "
     private parameters: [w0]
@@ -143,7 +157,7 @@ fn xor() {
     return values: []
     BLACKBOX::RANGE input: w0, bits: 32
     BLACKBOX::RANGE input: w1, bits: 32
-    BLACKBOX::XOR inputs: [w0, w1], bits: 32, output: w2
+    BLACKBOX::XOR lhs: w0, rhs: w1, output: w2, bits: 32
     ASSERT w2 = 15
     ";
     assert_circuit_roundtrip(src);
@@ -216,7 +230,7 @@ fn aes128_encrypt() {
     BLACKBOX::RANGE input: w57, bits: 8
     BLACKBOX::RANGE input: w58, bits: 8
     BLACKBOX::RANGE input: w59, bits: 8
-    BLACKBOX::AES128_ENCRYPT inputs: [w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25, w26, w27, w28, w29, w30, w31, w32, w33, w34, w35, w36, w37, w38, w39, w40, w41, w42, w43], outputs: [w60, w61, w62, w63, w64, w65, w66, w67, w68, w69, w70, w71, w72, w73, w74, w75]
+    BLACKBOX::AES128_ENCRYPT inputs: [w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25, w26, w27], iv: [w28, w29, w30, w31, w32, w33, w34, w35, w36, w37, w38, w39, w40, w41, w42, w43], key: [w44, w45, w46, w47, w48, w49, w50, w51, w52, w53, w54, w55, w56, w57, w58, w59], outputs: [w60, w61, w62, w63, w64, w65, w66, w67, w68, w69, w70, w71, w72, w73, w74, w75]
     ASSERT w60 = w44
     ASSERT w61 = w45
     ASSERT w62 = w46
@@ -261,32 +275,36 @@ fn blake3() {
 
 #[test]
 fn ecdsa_secp256k1() {
-    let input_witnesses: Vec<String> = (0..161).map(|i| format!("w{i}")).collect();
-    let inputs_str = input_witnesses.join(", ");
+    let public_key_x = (0..32).map(|i| format!("w{i}")).collect::<Vec<_>>().join(", ");
+    let public_key_y = (32..64).map(|i| format!("w{i}")).collect::<Vec<_>>().join(", ");
+    let signature = (64..128).map(|i| format!("w{i}")).collect::<Vec<_>>().join(", ");
+    let hashed_message = (128..160).map(|i| format!("w{i}")).collect::<Vec<_>>().join(", ");
 
     let src = format!(
-        "
+    "
     private parameters: []
     public parameters: []
     return values: []
-    BLACKBOX::ECDSA_SECP256K1 inputs: [{inputs_str}], output: w161
+    BLACKBOX::ECDSA_SECP256K1 public_key_x: [{public_key_x}], public_key_y: [{public_key_y}], signature: [{signature}], hashed_message: [{hashed_message}], predicate: 1, output: w161
     "
     );
     assert_circuit_roundtrip(&src);
 }
 
 #[test]
-#[should_panic = "Expected 32 inputs for public_key_y, found 3"]
+#[should_panic = "Expected 32 values for public_key_x, found 31"]
 fn ecdsa_secp256k1_missing_inputs() {
-    let input_witnesses: Vec<String> = (0..100).map(|i| format!("w{i}")).collect();
-    let inputs_str = input_witnesses.join(", ");
+    let public_key_x = (0..31).map(|i| format!("w{i}")).collect::<Vec<_>>().join(", ");
+    let public_key_y = (32..64).map(|i| format!("w{i}")).collect::<Vec<_>>().join(", ");
+    let signature = (64..128).map(|i| format!("w{i}")).collect::<Vec<_>>().join(", ");
+    let hashed_message = (128..160).map(|i| format!("w{i}")).collect::<Vec<_>>().join(", ");
 
     let src = format!(
-        "
+    "
     private parameters: []
     public parameters: []
     return values: []
-    BLACKBOX::ECDSA_SECP256K1 inputs: [{inputs_str}], output: w100
+    BLACKBOX::ECDSA_SECP256K1 public_key_x: [{public_key_x}], public_key_y: [{public_key_y}], signature: [{signature}], hashed_message: [{hashed_message}], predicate: 1, output: w161
     "
     );
     let _ = Circuit::from_str(&src).unwrap();
@@ -294,32 +312,36 @@ fn ecdsa_secp256k1_missing_inputs() {
 
 #[test]
 fn ecdsa_secp256r1() {
-    let input_witnesses: Vec<String> = (0..161).map(|i| format!("w{i}")).collect();
-    let inputs_str = input_witnesses.join(", ");
+    let public_key_x = (0..32).map(|i| format!("w{i}")).collect::<Vec<_>>().join(", ");
+    let public_key_y = (32..64).map(|i| format!("w{i}")).collect::<Vec<_>>().join(", ");
+    let signature = (64..128).map(|i| format!("w{i}")).collect::<Vec<_>>().join(", ");
+    let hashed_message = (128..160).map(|i| format!("w{i}")).collect::<Vec<_>>().join(", ");
 
     let src = format!(
-        "
+    "
     private parameters: []
     public parameters: []
     return values: []
-    BLACKBOX::ECDSA_SECP256R1 inputs: [{inputs_str}], output: w161
+    BLACKBOX::ECDSA_SECP256R1 public_key_x: [{public_key_x}], public_key_y: [{public_key_y}], signature: [{signature}], hashed_message: [{hashed_message}], predicate: 1, output: w161
     "
     );
     assert_circuit_roundtrip(&src);
 }
 
 #[test]
-#[should_panic = "Expected 32 inputs for public_key_y, found 3"]
+#[should_panic = "Expected 64 values for signature, found 30"]
 fn ecdsa_secp256r1_missing_inputs() {
-    let input_witnesses: Vec<String> = (0..100).map(|i| format!("w{i}")).collect();
-    let inputs_str = input_witnesses.join(", ");
+    let public_key_x = (0..32).map(|i| format!("w{i}")).collect::<Vec<_>>().join(", ");
+    let public_key_y = (32..64).map(|i| format!("w{i}")).collect::<Vec<_>>().join(", ");
+    let signature = (64..94).map(|i| format!("w{i}")).collect::<Vec<_>>().join(", ");
+    let hashed_message = (128..160).map(|i| format!("w{i}")).collect::<Vec<_>>().join(", ");
 
     let src = format!(
-        "
+    "
     private parameters: []
     public parameters: []
     return values: []
-    BLACKBOX::ECDSA_SECP256R1 inputs: [{inputs_str}], outputs: [w100]
+    BLACKBOX::ECDSA_SECP256R1 public_key_x: [{public_key_x}], public_key_y: [{public_key_y}], signature: [{signature}], hashed_message: [{hashed_message}], predicate: 1, output: w161
     "
     );
     let _ = Circuit::from_str(&src).unwrap();
@@ -345,7 +367,7 @@ fn keccakf1600() {
 }
 
 #[test]
-#[should_panic = "Expected 25 inputs for Keccakf1600 inputs, found 24"]
+#[should_panic = "Expected 25 values for inputs, found 24"]
 fn keccakf1600_missing_inputs() {
     let input_witnesses: Vec<String> = (0..24).map(|i| format!("w{i}")).collect();
     let inputs_str = input_witnesses.join(", ");
@@ -370,7 +392,7 @@ fn embedded_curve_add() {
     private parameters: []
     public parameters: []
     return values: []
-    BLACKBOX::EMBEDDED_CURVE_ADD inputs: [w0, w1, w2, w3, w4, w5, w6], outputs: [w7, w8, w9]
+    BLACKBOX::EMBEDDED_CURVE_ADD input1: [w0, w1, w2], input2: [w3, w4, w5], predicate: w6, outputs: [w7, w8, w9]
     ";
     assert_circuit_roundtrip(src);
 }
@@ -382,7 +404,7 @@ fn embedded_curve_add_wrong_output_count() {
         private parameters: []
         public parameters: []
         return values: []
-        BLACKBOX::EMBEDDED_CURVE_ADD inputs: [w0, w1, w2, w3, w4, w5, w6], outputs: [w7, w8]
+        BLACKBOX::EMBEDDED_CURVE_ADD input1: [w0, w1, w2], input2: [w3, w4, w5], predicate: w6, outputs: [w7, w8]
     ";
     let _ = Circuit::from_str(src).unwrap();
 }
@@ -400,8 +422,11 @@ fn poseidon2_permutation() {
 
 #[test]
 fn sha256_compression() {
-    let input_witnesses: Vec<String> = (0..24).map(|i| format!("w{i}")).collect();
+    let input_witnesses: Vec<String> = (0..16).map(|i| format!("w{i}")).collect();
     let inputs_str = input_witnesses.join(", ");
+
+    let hash_value_witnesses: Vec<String> = (16..24).map(|i| format!("w{i}")).collect();
+    let hash_values_str = hash_value_witnesses.join(", ");
 
     let output_witnesses: Vec<String> = (24..32).map(|i| format!("w{i}")).collect();
     let outputs_str = output_witnesses.join(", ");
@@ -411,7 +436,7 @@ fn sha256_compression() {
     private parameters: []
     public parameters: []
     return values: []
-    BLACKBOX::SHA256_COMPRESSION inputs: [{inputs_str}], outputs: [{outputs_str}]
+    BLACKBOX::SHA256_COMPRESSION inputs: [{inputs_str}], hash_values: [{hash_values_str}], outputs: [{outputs_str}]
     "
     );
     assert_circuit_roundtrip(&src);
@@ -420,8 +445,11 @@ fn sha256_compression() {
 #[test]
 #[should_panic]
 fn sha256_compression_missing_outputs() {
-    let input_witnesses: Vec<String> = (0..24).map(|i| format!("w{i}")).collect();
+    let input_witnesses: Vec<String> = (0..16).map(|i| format!("w{i}")).collect();
     let inputs_str = input_witnesses.join(", ");
+
+    let hash_value_witnesses: Vec<String> = (16..24).map(|i| format!("w{i}")).collect();
+    let hash_values_str = hash_value_witnesses.join(", ");
 
     let output_witnesses: Vec<String> = (24..31).map(|i| format!("w{i}")).collect(); // should be 8 total
     let outputs_str = output_witnesses.join(", ");
@@ -431,10 +459,32 @@ fn sha256_compression_missing_outputs() {
         private parameters: []
         public parameters: []
         return values: []
-        BLACKBOX::SHA256_COMPRESSION inputs: [{inputs_str}], outputs: [{outputs_str}]
+        BLACKBOX::SHA256_COMPRESSION inputs: [{inputs_str}], hash_values: [{hash_values_str}], outputs: [{outputs_str}]
         "
     );
     let _ = Circuit::from_str(&src).unwrap();
+}
+
+#[test]
+fn multi_scalar_mul() {
+    let src = "
+    private parameters: []
+    public parameters: []
+    return values: []
+    BLACKBOX::MULTI_SCALAR_MUL points: [w0, w1], scalars: [w2, w3], predicate: 1, outputs: [w4, w5, w6]
+    ";
+    assert_circuit_roundtrip(src);
+}
+
+#[test]
+fn recursive_aggregation() {
+    let src = "
+    private parameters: []
+    public parameters: []
+    return values: []
+    BLACKBOX::RECURSIVE_AGGREGATION verification_key: [w0], proof: [w1], public_inputs: [w2], key_hash: w3, proof_type: 4, predicate: 1
+    ";
+    assert_circuit_roundtrip(src);
 }
 
 #[test]
