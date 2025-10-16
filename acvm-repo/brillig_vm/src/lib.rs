@@ -215,32 +215,26 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         self.status(VMStatus::InProgress);
     }
 
-    fn get_error_stack(&self) -> Vec<usize> {
-        let mut error_stack: Vec<_> = self.call_stack.clone();
-        error_stack.push(self.program_counter);
-        error_stack
-    }
-
-    /// Sets the current status of the VM to `fail`.
-    /// Indicating that the VM encountered a `Trap` Opcode
-    /// or an invalid state.
+    /// Sets the current status of the VM to `Failure`,
+    /// indicating that the VM encountered a `Trap` Opcode.
     fn trap(&mut self, revert_data_offset: usize, revert_data_size: usize) -> VMStatus<F> {
         self.status(VMStatus::Failure {
-            call_stack: self.get_error_stack(),
+            call_stack: self.get_call_stack(),
             reason: FailureReason::Trap { revert_data_offset, revert_data_size },
-        });
-        self.status.clone()
+        })
     }
 
+    /// Sets the current status of the VM to `Failure`,
+    /// indicating that the VM encountered an invalid state.
     fn fail(&mut self, message: String) -> VMStatus<F> {
         self.status(VMStatus::Failure {
-            call_stack: self.get_error_stack(),
+            call_stack: self.get_call_stack(),
             reason: FailureReason::RuntimeError { message },
-        });
-        self.status.clone()
+        })
     }
 
-    /// Loop over the bytecode and update the program counter
+    /// Process opcodes in a loop until a status of `Finished`,
+    /// `Failure` or `ForeignCallWait` is encountered.
     pub fn process_opcodes(&mut self) -> VMStatus<F> {
         while !matches!(
             self.process_opcode(),
@@ -249,10 +243,16 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         self.status.clone()
     }
 
+    /// Read memory slots.
+    ///
+    /// Used by the debugger to inspect the contents of the memory.
     pub fn get_memory(&self) -> &[MemoryValue<F>] {
         self.memory.values()
     }
 
+    /// Take all the contents of the memory, leaving it empty.
+    ///
+    /// Used only for testing purposes.
     pub fn take_memory(mut self) -> Memory<F> {
         std::mem::take(&mut self.memory)
     }
@@ -261,6 +261,9 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         self.foreign_call_counter
     }
 
+    /// Write a numeric value to direct memory slot.
+    ///
+    /// Used by the debugger to alter memory.
     pub fn write_memory_at(&mut self, ptr: usize, value: MemoryValue<F>) {
         self.memory.write(MemoryAddress::direct(ptr), value);
     }
@@ -268,10 +271,12 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
     /// Returns the VM's current call stack, including the actual program
     /// counter in the last position of the returned vector.
     pub fn get_call_stack(&self) -> Vec<usize> {
-        self.call_stack.iter().copied().chain(std::iter::once(self.program_counter)).collect()
+        let mut call_stack = self.get_call_stack_no_current_counter();
+        call_stack.push(self.program_counter);
+        call_stack
     }
 
-    /// Returns the VM's call stack but unlike [Self::get_call_stack] without the attaching
+    /// Returns the VM's call stack, but unlike [Self::get_call_stack] without the attaching
     /// the program counter in the last position of the returned vector.
     /// This is meant only for fetching the call stack after execution has completed.
     pub fn get_call_stack_no_current_counter(&self) -> Vec<usize> {
@@ -295,12 +300,12 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
     /// Execute a single opcode:
     /// 1. Retrieve the current opcode using the program counter
     /// 2. Execute the opcode.
-    ///    - For instance a binary 'result = lhs+rhs' opcode will read the VM memory at the lhs and rhs addresses,
+    ///    - For instance a binary 'result = lhs+rhs' opcode will read the VM memory at the 'lhs' and 'rhs' addresses,
     ///      compute the sum and write it to the 'result' memory address.
     /// 3. Update the program counter, usually by incrementing it.
     ///
     /// - Control flow opcodes jump around the bytecode by setting the program counter.
-    /// - Foreign call opcodes pause the VM until the foreign call results are available
+    /// - Foreign call opcodes pause the VM until the foreign call results are available.
     /// - Function call opcodes backup the current program counter into the call stack and jump to the function entry point.
     ///   The stack frame for function calls is handled during codegen.
     fn process_opcode_internal(&mut self) -> VMStatus<F> {
@@ -328,10 +333,10 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                     self.increment_program_counter()
                 }
             }
-            Opcode::Cast { destination: destination_address, source: source_address, bit_size } => {
-                let source_value = self.memory.read(*source_address);
+            Opcode::Cast { destination, source, bit_size } => {
+                let source_value = self.memory.read(*source);
                 let casted_value = cast::cast(source_value, *bit_size);
-                self.memory.write(*destination_address, casted_value);
+                self.memory.write(*destination, casted_value);
                 self.increment_program_counter()
             }
             Opcode::Jump { location: destination } => self.set_program_counter(*destination),
@@ -339,12 +344,17 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                 // Check if condition is true
                 // We use 0 to mean false and any other value to mean true
                 let condition_value = self.memory.read(*condition);
-                if condition_value.expect_u1().expect("condition value is not a boolean") {
-                    self.fuzzing_trace_branching(*destination);
-                    return self.set_program_counter(*destination);
+                match condition_value.expect_u1() {
+                    Err(error) => self.fail(format!("condition value is not a boolean: {error}")),
+                    Ok(true) => {
+                        self.fuzzing_trace_branching(*destination);
+                        self.set_program_counter(*destination)
+                    }
+                    Ok(false) => {
+                        self.fuzzing_trace_branching(self.program_counter + 1);
+                        self.increment_program_counter()
+                    }
                 }
-                self.fuzzing_trace_branching(self.program_counter + 1);
-                self.increment_program_counter()
             }
             Opcode::CalldataCopy { destination_address, size_address, offset_address } => {
                 let size = self.memory.read(*size_address).to_usize();
@@ -384,14 +394,18 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
             Opcode::ConditionalMov { destination, source_a, source_b, condition } => {
                 let condition_value = self.memory.read(*condition);
 
-                let condition_value_bool =
-                    condition_value.expect_u1().expect("condition value is not a boolean");
-                if condition_value_bool {
+                let condition_value = match condition_value.expect_u1() {
+                    Err(error) => {
+                        return self.fail(format!("condition value is not a boolean: {error}"));
+                    }
+                    Ok(cond) => cond,
+                };
+                if condition_value {
                     self.memory.write(*destination, self.memory.read(*source_a));
                 } else {
                     self.memory.write(*destination, self.memory.read(*source_b));
                 }
-                self.fuzzing_trace_conditional_mov(condition_value_bool);
+                self.fuzzing_trace_conditional_mov(condition_value);
                 self.increment_program_counter()
             }
             Opcode::Trap { revert_data } => {
@@ -519,6 +533,10 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         Ok(())
     }
 
+    /// Process a unary negation operation.
+    ///
+    /// It returns `MemoryTypeError` if the value type does not match the type
+    /// indicated by `op_bit_size`.
     fn process_not(
         &mut self,
         source: MemoryAddress,

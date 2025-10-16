@@ -27,7 +27,10 @@ pub type BranchToFeatureMap = HashMap<Branch, UniqueFeatureIndex>;
 /// Context structure for all information necessary to compute the fuzzing trace
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub(super) struct FuzzingTrace {
-    /// Fuzzer tracing memory ddd
+    /// Fuzzer tracing memory.
+    ///
+    /// It records each time a key in the `branch_to_feature_map` was taken.
+    /// It's length is equal to that of the `branch_to_feature_map`.
     trace: Vec<u32>,
     /// Branch to feature map for fuzzing
     /// Maps program counter + feature to index in the trace vector

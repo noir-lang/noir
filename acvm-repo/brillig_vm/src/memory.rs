@@ -69,6 +69,7 @@ impl<F: std::fmt::Display> MemoryValue<F> {
         }
     }
 
+    /// Expects a `U32` value and converts it into `usize`, otherwise panics.
     pub fn to_usize(&self) -> usize {
         match self {
             MemoryValue::U32(value) => (*value).try_into().unwrap(),
