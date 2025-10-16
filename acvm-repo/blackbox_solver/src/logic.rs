@@ -44,11 +44,14 @@ fn mask_vector_le(bytes: &mut [u8], num_bits: usize) {
         // nothing to mask, all bits are used
         return;
     }
+
+    // Find which byte contains the last bit we want to keep
     let array_mask_index = num_bits / 8;
+    // Find how many bits to keep in that byte (0-7)
     let mask_power = num_bits % 8;
 
-    // Mask the partial byte if any. Otherwise, if our `remaining_bits` is a multiple of 8
-    // we will zero out the byte at `full_bytes`. 
+    // Mask the partial byte if any. Otherwise, if our `num_bits` is a multiple of 8
+    // we will get a `mask_power` of zero and thus zero out the byte at `array_mask_index`. 
     bytes[array_mask_index] &= 2u8.pow(mask_power as u32) - 1;
 
     // Zero out all remaining bytes
