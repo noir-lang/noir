@@ -7,9 +7,15 @@ use acir::{
     },
     native_types::{Expression, Witness},
 };
-use std::collections::{BTreeSet, HashSet};
+use std::collections::HashSet;
 
 /// Simulate a symbolic solve for a circuit
+/// Instead of evaluating witness values from the inputs, like the PWG module is doing,
+/// this pass simply mark the witness that can be evaluated, from the known inputs,
+/// and incrementally from the previously marked witnesses.
+/// This avoid any computation on a big field which makes the process efficient.
+/// When all the witness of an opcode are marked as solvable, it means that the
+/// opcode is solvable.
 #[derive(Default)]
 pub struct CircuitSimulator {
     /// Track the witnesses that can be solved
@@ -74,19 +80,13 @@ impl CircuitSimulator {
                 }
                 true
             }
-            Opcode::MemoryOp { block_id, op, predicate } => {
+            Opcode::MemoryOp { block_id, op } => {
                 if !self.initialized_blocks.contains(block_id) {
                     // Memory must be initialized before it can be used.
                     return false;
                 }
-
                 if !self.can_solve_expression(&op.index) {
                     return false;
-                }
-                if let Some(predicate) = predicate {
-                    if !self.can_solve_expression(predicate) {
-                        return false;
-                    }
                 }
                 if op.operation.is_zero() {
                     let Some(w) = op.value.to_witness() else {
@@ -154,8 +154,8 @@ impl CircuitSimulator {
     }
 
     pub fn can_solve_function_input<F: AcirField>(&self, input: &FunctionInput<F>) -> bool {
-        if !input.is_constant() {
-            return self.solvable_witness.contains(&input.to_witness());
+        if let FunctionInput::Witness(w) = input {
+            return self.solvable_witness.contains(w);
         }
         true
     }
@@ -183,11 +183,11 @@ impl CircuitSimulator {
         }
     }
 
-    pub(crate) fn expr_wit<F>(expr: &Expression<F>) -> BTreeSet<Witness> {
-        let mut result = BTreeSet::new();
-        result.extend(expr.mul_terms.iter().flat_map(|i| vec![i.1, i.2]));
-        result.extend(expr.linear_combinations.iter().map(|i| i.1));
-        result
+    pub(crate) fn expr_wit<F>(expr: &Expression<F>) -> impl Iterator<Item = Witness> {
+        expr.mul_terms
+            .iter()
+            .flat_map(|i| [i.1, i.2])
+            .chain(expr.linear_combinations.iter().map(|i| i.1))
     }
 }
 
@@ -200,7 +200,7 @@ mod tests {
         FieldElement,
         acir_field::AcirField,
         circuit::{
-            Circuit, ExpressionWidth, Opcode, PublicInputs,
+            Circuit, Opcode, PublicInputs,
             brillig::{BrilligFunctionId, BrilligInputs},
             opcodes::{BlockId, BlockType, MemOp},
         },
@@ -213,8 +213,8 @@ mod tests {
         public_parameters: PublicInputs,
     ) -> Circuit<FieldElement> {
         Circuit {
+            function_name: "test_circuit".to_string(),
             current_witness_index: 1,
-            expression_width: ExpressionWidth::Bounded { width: 4 },
             opcodes,
             private_parameters,
             public_parameters,
@@ -306,7 +306,6 @@ mod tests {
                         },
                         Witness(2),
                     ),
-                    predicate: None,
                 },
             ],
             BTreeSet::from([Witness(1)]),

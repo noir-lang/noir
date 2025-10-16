@@ -166,18 +166,6 @@ pub(crate) fn get_slice(
     }
 }
 
-/// Interpret the input as a slice, then map each element.
-/// Returns the values in the slice and the original type.
-pub(crate) fn get_slice_map<T>(
-    interner: &NodeInterner,
-    (value, location): (Value, Location),
-    f: impl Fn((Value, Location)) -> IResult<T>,
-) -> IResult<(Vec<T>, Type)> {
-    let (values, typ) = get_slice(interner, (value, location))?;
-    let values = try_vecmap(values, |value| f((value, location)))?;
-    Ok((values, typ))
-}
-
 /// Interpret the input as an array, then map each element.
 /// Returns the values in the array and the original array type.
 pub(crate) fn get_array_map<T>(
@@ -640,7 +628,7 @@ pub(super) fn hash_item<T: Hash>(
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
     item.hash(&mut hasher);
     let hash = hasher.finish();
-    Ok(Value::Field(SignedField::positive(hash as u128)))
+    Ok(Value::Field(SignedField::positive(u128::from(hash))))
 }
 
 pub(super) fn eq_item<T: Eq>(

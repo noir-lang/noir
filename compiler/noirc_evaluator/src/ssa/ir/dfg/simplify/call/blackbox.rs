@@ -75,7 +75,7 @@ pub(super) fn simplify_msm(
     call_stack: CallStackId,
 ) -> SimplifyResult {
     let mut is_constant;
-
+    let predicate = arguments[2];
     match (dfg.get_array_constant(arguments[0]), dfg.get_array_constant(arguments[1])) {
         (Some((points, _)), Some((scalars, _))) => {
             // We decompose points and scalars into constant and non-constant parts in order to simplify MSMs where a subset of the terms are constant.
@@ -197,7 +197,7 @@ pub(super) fn simplify_msm(
             let msm = dfg.import_intrinsic(Intrinsic::BlackBox(BlackBoxFunc::MultiScalarMul));
             SimplifyResult::SimplifiedToInstruction(Instruction::Call {
                 func: msm,
-                arguments: vec![points, scalars],
+                arguments: vec![points, scalars, predicate],
             })
         }
         _ => SimplifyResult::None,
@@ -211,8 +211,8 @@ pub(super) fn simplify_poseidon2_permutation(
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -> SimplifyResult {
-    match (dfg.get_array_constant(arguments[0]), dfg.get_numeric_constant(arguments[1])) {
-        (Some((state, _)), Some(state_length)) if array_is_constant(dfg, &state) => {
+    match dfg.get_array_constant(arguments[0]) {
+        Some((state, _)) if array_is_constant(dfg, &state) => {
             let state: Vec<FieldElement> = state
                 .iter()
                 .map(|id| {
@@ -221,11 +221,7 @@ pub(super) fn simplify_poseidon2_permutation(
                 })
                 .collect();
 
-            let Some(state_length) = state_length.try_to_u32() else {
-                return SimplifyResult::None;
-            };
-
-            let Ok(new_state) = solver.poseidon2_permutation(&state, state_length) else {
+            let Ok(new_state) = solver.poseidon2_permutation(&state) else {
                 return SimplifyResult::None;
             };
 
@@ -313,7 +309,7 @@ pub(super) fn simplify_hash(
 }
 
 type ECDSASignatureVerifier = fn(
-    hashed_msg: &[u8],
+    hashed_msg: &[u8; 32],
     public_key_x: &[u8; 32],
     public_key_y: &[u8; 32],
     signature: &[u8; 64],
@@ -329,17 +325,23 @@ pub(super) fn simplify_signature(
         dfg.get_array_constant(arguments[1]),
         dfg.get_array_constant(arguments[2]),
         dfg.get_array_constant(arguments[3]),
+        dfg.get_array_constant(arguments[4]),
     ) {
         (
             Some((public_key_x, _)),
             Some((public_key_y, _)),
             Some((signature, _)),
             Some((hashed_message, _)),
+            Some((predicate, _)),
         ) if array_is_constant(dfg, &public_key_x)
             && array_is_constant(dfg, &public_key_y)
             && array_is_constant(dfg, &signature)
             && array_is_constant(dfg, &hashed_message) =>
         {
+            if dfg.get_numeric_constant(predicate[0]) == Some(FieldElement::zero()) {
+                let valid_signature = dfg.make_constant(1_u128.into(), NumericType::bool());
+                return SimplifyResult::SimplifiedTo(valid_signature);
+            }
             let public_key_x: [u8; 32] = to_u8_vec(dfg, public_key_x)
                 .try_into()
                 .expect("ECDSA public key fields are 32 bytes");
@@ -348,7 +350,9 @@ pub(super) fn simplify_signature(
                 .expect("ECDSA public key fields are 32 bytes");
             let signature: [u8; 64] =
                 to_u8_vec(dfg, signature).try_into().expect("ECDSA signatures are 64 bytes");
-            let hashed_message: Vec<u8> = to_u8_vec(dfg, hashed_message);
+            let hashed_message: [u8; 32] = to_u8_vec(dfg, hashed_message)
+                .try_into()
+                .expect("ECDSA message hashes are 32 bytes");
 
             let valid_signature =
                 signature_verifier(&hashed_message, &public_key_x, &public_key_y, &signature)
@@ -375,7 +379,7 @@ mod multi_scalar_mul {
               b0():
                 v0 = make_array [Field 2, Field 3, Field 5, Field 5] : [(Field, Field); 2]
                 v1 = make_array [Field 1, Field 17631683881184975370165255887551781615748388533673675138860, u1 0, Field 1, Field 17631683881184975370165255887551781615748388533673675138860, u1 0] : [(Field, Field, u1); 2]
-                v2 = call multi_scalar_mul (v1, v0) -> [(Field, Field, u1); 1]
+                v2 = call multi_scalar_mul (v1, v0, u1 1) -> [(Field, Field, u1); 1]
                 return v2
             }"#;
         let ssa = Ssa::from_str_simplifying(src).unwrap();
@@ -400,7 +404,7 @@ mod multi_scalar_mul {
                 v2 = make_array [v0, Field 0, Field 0, Field 0, v0, Field 0] : [(Field, Field); 3]
                 v3 = make_array [
                 Field 0, Field 0, u1 1, v0, v1, u1 0, Field 1, v0, u1 0] : [(Field, Field, u1); 3]
-                v4 = call multi_scalar_mul (v3, v2) -> [(Field, Field, u1); 1]
+                v4 = call multi_scalar_mul (v3, v2, u1 1) -> [(Field, Field, u1); 1]
 
                 return v4
             
@@ -414,7 +418,7 @@ mod multi_scalar_mul {
             v7 = make_array [Field 0, Field 0, u1 1, v0, v1, u1 0, Field 1, v0, u1 0] : [(Field, Field, u1); 3]
             v8 = make_array [v0, Field 0] : [(Field, Field); 1]
             v9 = make_array [Field 1, v0, u1 0] : [(Field, Field, u1); 1]
-            v11 = call multi_scalar_mul(v9, v8) -> [(Field, Field, u1); 1]
+            v11 = call multi_scalar_mul(v9, v8, u1 1) -> [(Field, Field, u1); 1]
             return v11
         }
         ");
@@ -429,7 +433,7 @@ mod multi_scalar_mul {
                 v2 = make_array [Field 1, Field 0, v0, Field 0, Field 2, Field 0] : [(Field, Field); 3]
                 v3 = make_array [
                 Field 1, Field 17631683881184975370165255887551781615748388533673675138860, u1 0, v0, v1, u1 0, Field 1, Field 17631683881184975370165255887551781615748388533673675138860, u1 0] : [(Field, Field, u1); 3]
-                v4 = call multi_scalar_mul (v3, v2) -> [(Field, Field, u1); 1]
+                v4 = call multi_scalar_mul (v3, v2, u1 1) -> [(Field, Field, u1); 1]
                 return v4
             }"#;
         let ssa = Ssa::from_str_simplifying(src).unwrap();
@@ -441,8 +445,8 @@ mod multi_scalar_mul {
             v8 = make_array [Field 1, Field 17631683881184975370165255887551781615748388533673675138860, u1 0, v0, v1, u1 0, Field 1, Field 17631683881184975370165255887551781615748388533673675138860, u1 0] : [(Field, Field, u1); 3]
             v9 = make_array [v0, Field 0, Field 1, Field 0] : [(Field, Field); 2]
             v12 = make_array [v0, v1, u1 0, Field -3227352362257037263902424173275354266044964400219754872043023745437788450996, Field 8902249110305491597038405103722863701255802573786510474664632793109847672620, u1 0] : [(Field, Field, u1); 2]
-            v14 = call multi_scalar_mul(v12, v9) -> [(Field, Field, u1); 1]
-            return v14
+            v15 = call multi_scalar_mul(v12, v9, u1 1) -> [(Field, Field, u1); 1]
+            return v15
         }
         ");
     }

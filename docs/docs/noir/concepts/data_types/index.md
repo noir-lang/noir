@@ -54,7 +54,7 @@ All data types in Noir are private by default. Types are explicitly declared as 
 `pub` modifier:
 
 ```rust
-fn main(x : Field, y : pub Field) -> pub Field {
+fn main(x: u32, y: pub u32) -> pub u32 {
     x + y
 }
 ```

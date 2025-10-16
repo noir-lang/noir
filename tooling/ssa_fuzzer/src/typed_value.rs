@@ -91,6 +91,17 @@ impl Type {
         matches!(self, Type::Reference(_))
     }
 
+    pub fn type_contains_reference(&self) -> bool {
+        match self {
+            Type::Reference(_) => true,
+            Type::Array(element_types, _) => {
+                element_types.iter().any(|t| t.type_contains_reference())
+            }
+            Type::Slice(element_types) => element_types.iter().any(|t| t.type_contains_reference()),
+            Type::Numeric(_) => false,
+        }
+    }
+
     pub fn is_array(&self) -> bool {
         matches!(self, Type::Array(_, _))
     }

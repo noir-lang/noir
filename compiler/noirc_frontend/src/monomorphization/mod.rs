@@ -403,7 +403,10 @@ impl<'interner> Monomorphizer<'interner> {
         let unconstrained = self.in_unconstrained_function;
 
         let attributes = self.interner.function_attributes(&f);
-        let inline_type = InlineType::from(attributes);
+        let mut inline_type = InlineType::from(attributes);
+        if unconstrained {
+            inline_type = inline_type.into_unconstrained();
+        }
 
         let parameters = self.parameters(&meta.parameters)?;
         let body = self.expr(body_expr_id)?;
@@ -1950,7 +1953,7 @@ impl<'interner> Monomorphizer<'interner> {
         let int_type = Type::Integer(Signedness::Unsigned, arr_elem_bits);
 
         let bytes_as_expr = vecmap(bytes, |byte| {
-            let value = SignedField::positive(byte as u32);
+            let value = SignedField::positive(u32::from(byte));
             Expression::Literal(Literal::Integer(value, int_type.clone(), location))
         });
 

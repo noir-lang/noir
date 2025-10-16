@@ -16,8 +16,9 @@ pub const MIN_EXPRESSION_WIDTH: usize = 3;
 ///
 /// This is done by creating intermediate variables to hold partial calculations and then combining them
 /// to calculate the original expression.
-// Should we give it all of the opcodes?
-// Have a single transformer that you instantiate with a width, then pass many opcodes through
+///
+/// Pre-Condition:
+/// - General Optimizer must run before this pass
 pub(crate) struct CSatTransformer {
     width: usize,
     /// Track the witness that can be solved

@@ -3,7 +3,6 @@ use crate::ssa::{
         basic_block::BasicBlockId,
         dfg::DataFlowGraph,
         dom::DominatorTree,
-        function::Function,
         instruction::{Instruction, InstructionId},
         value::{Value, ValueId},
     },
@@ -47,7 +46,7 @@ impl InstructionResultCache {
             // This is a hacky solution to https://github.com/noir-lang/noir/issues/9477
             // We explicitly check that the cached result values are of the same type as expected by the instruction
             // being checked against the cache and reject if they differ.
-            if let CacheResult::Cached(results) = results {
+            if let CacheResult::Cached { results, .. } = results {
                 let old_results = dfg.instruction_results(id).to_vec();
 
                 results.len() == old_results.len()
@@ -63,12 +62,18 @@ impl InstructionResultCache {
 
     pub(super) fn cache(
         &mut self,
+        dom: &mut DominatorTree,
         instruction: Instruction,
         predicate: Option<ValueId>,
         block: BasicBlockId,
         results: Vec<ValueId>,
     ) {
-        self.0.entry(instruction).or_default().entry(predicate).or_default().cache(block, results);
+        self.0
+            .entry(instruction)
+            .or_default()
+            .entry(predicate)
+            .or_default()
+            .cache(block, dom, results);
     }
 
     pub(super) fn remove(
@@ -83,29 +88,29 @@ impl InstructionResultCache {
     pub(super) fn remove_possibly_mutated_cached_make_arrays(
         &mut self,
         instruction: &Instruction,
-        function: &Function,
+        dfg: &DataFlowGraph,
     ) {
         use Instruction::{ArraySet, Call, MakeArray, Store};
 
         /// Recursively remove from the cache any array values.
         fn go(
-            function: &Function,
+            dfg: &DataFlowGraph,
             cached_instruction_results: &mut InstructionResultCache,
             value: &ValueId,
         ) {
             // We expect globals to be immutable, so we can cache those results indefinitely.
-            if function.dfg.is_global(*value) {
+            if dfg.is_global(*value) {
                 return;
             };
 
             // We only care about arrays and slices. (`Store` can act on non-array values as well)
-            if !function.dfg.type_of_value(*value).is_array() {
+            if !dfg.type_of_value(*value).is_array() {
                 return;
             };
 
             // Look up the original instruction that created the value, which is the cache key.
-            let instruction = match &function.dfg[*value] {
-                Value::Instruction { instruction, .. } => &function.dfg[*instruction],
+            let instruction = match &dfg[*value] {
+                Value::Instruction { instruction, .. } => &dfg[*instruction],
                 _ => return,
             };
 
@@ -118,12 +123,12 @@ impl InstructionResultCache {
             // can be passed around, and through them their sub-arrays might be modified.
             if let MakeArray { elements, .. } = instruction {
                 for elem in elements {
-                    go(function, cached_instruction_results, elem);
+                    go(dfg, cached_instruction_results, elem);
                 }
             }
         }
 
-        let mut remove_if_array = |value| go(function, self, value);
+        let mut remove_if_array = |value| go(dfg, self, value);
 
         // Should we consider calls to slice_push_back and similar to be mutating operations as well?
         match instruction {
@@ -131,10 +136,10 @@ impl InstructionResultCache {
                 // If we write to a value, it's not safe for reuse, as its value has changed since its creation.
                 remove_if_array(value);
             }
-            Call { arguments, func } if function.runtime().is_brillig() => {
+            Call { arguments, func } if dfg.runtime().is_brillig() => {
                 // If we pass a value to a function, it might get modified, making it unsafe for reuse after the call.
-                let Value::Function(func_id) = &function.dfg[*func] else { return };
-                if matches!(function.dfg.purity_of(*func_id), None | Some(Purity::Impure)) {
+                let Value::Function(func_id) = &dfg[*func] else { return };
+                if matches!(dfg.purity_of(*func_id), None | Some(Purity::Impure)) {
                     // Arrays passed to functions might be mutated by them if there are no `inc_rc` instructions
                     // placed *before* the call to protect them. Currently we don't track the ref count in this
                     // context, so be conservative and do not reuse any array shared with a callee.
@@ -152,14 +157,19 @@ impl InstructionResultCache {
 /// Records the results of all duplicate [`Instruction`]s along with the blocks in which they sit.
 ///
 /// For more information see [`InstructionResultCache`].
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub(super) struct ResultCache {
     result: Option<(BasicBlockId, Vec<ValueId>)>,
 }
 impl ResultCache {
     /// Records that an `Instruction` in block `block` produced the result values `results`.
-    fn cache(&mut self, block: BasicBlockId, results: Vec<ValueId>) {
-        if self.result.is_none() {
+    fn cache(&mut self, block: BasicBlockId, dom: &mut DominatorTree, results: Vec<ValueId>) {
+        let overwrite = match self.result {
+            None => true,
+            Some((origin, _)) => origin != block && dom.dominates(block, origin),
+        };
+
+        if overwrite {
             self.result = Some((block, results));
         }
     }
@@ -176,13 +186,13 @@ impl ResultCache {
         dom: &mut DominatorTree,
         has_side_effects: bool,
     ) -> Option<CacheResult> {
-        self.result.as_ref().and_then(|(origin_block, results)| {
-            if dom.dominates(*origin_block, block) {
-                Some(CacheResult::Cached(results))
+        self.result.as_ref().and_then(|(origin, results)| {
+            if dom.dominates(*origin, block) {
+                Some(CacheResult::Cached { results })
             } else if !has_side_effects {
                 // Insert a copy of this instruction in the common dominator
-                let dominator = dom.common_dominator(*origin_block, block);
-                Some(CacheResult::NeedToHoistToCommonBlock(dominator))
+                let dominator = dom.common_dominator(*origin, block);
+                Some(CacheResult::NeedToHoistToCommonBlock { dominator })
             } else {
                 None
             }
@@ -192,6 +202,18 @@ impl ResultCache {
 
 #[derive(Debug)]
 pub(super) enum CacheResult<'a> {
-    Cached(&'a [ValueId]),
-    NeedToHoistToCommonBlock(BasicBlockId),
+    /// The result of an earlier instruction can be readily reused, because it was found
+    /// in a block that dominates the one where the current instruction is. We can drop
+    /// the current instruction and redefine its results in terms of the existing values.
+    Cached {
+        /// The value IDs we can reuse.
+        results: &'a [ValueId],
+    },
+    /// We found an identical instruction in a non-dominating block, so we cannot directly
+    /// reuse its results, because they are not visible in the current block. However, we
+    /// can hoist the instruction into the common dominator, and deduplicate later.
+    NeedToHoistToCommonBlock {
+        /// The common dominator where we can hoist the current instruction.
+        dominator: BasicBlockId,
+    },
 }

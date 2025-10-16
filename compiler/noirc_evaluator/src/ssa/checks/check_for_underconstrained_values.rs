@@ -8,6 +8,7 @@ use crate::ssa::ir::function::{Function, FunctionId};
 use crate::ssa::ir::instruction::{Hint, Instruction, InstructionId, Intrinsic};
 use crate::ssa::ir::value::{Value, ValueId};
 use crate::ssa::ssa_gen::Ssa;
+use crate::ssa::visit_once_deque::VisitOnceDeque;
 use im::HashMap;
 use noirc_errors::Location;
 use rayon::prelude::*;
@@ -521,7 +522,7 @@ impl DependencyContext {
                     // For array get operations, we check the Brillig calls for
                     // results involving the array in question, to properly
                     // populate the array element tainted sets
-                    Instruction::ArrayGet { array, index, offset: _ } => {
+                    Instruction::ArrayGet { array, index } => {
                         self.process_array_get(*array, *index, &results, function);
                         // Record all the used arguments as parents of the results
                         self.update_children(&arguments, &results);
@@ -650,8 +651,7 @@ impl DependencyContext {
 
 #[derive(Default)]
 struct Context {
-    visited_blocks: HashSet<BasicBlockId>,
-    block_queue: Vec<BasicBlockId>,
+    block_queue: VisitOnceDeque,
     value_sets: Vec<BTreeSet<ValueId>>,
     brillig_return_to_argument: HashMap<ValueId, Vec<ValueId>>,
     brillig_return_to_instruction_id: HashMap<ValueId, InstructionId>,
@@ -667,12 +667,8 @@ impl Context {
         all_functions: &BTreeMap<FunctionId, Function>,
     ) {
         // Go through each block in the function and create a list of sets of ValueIds connected by instructions
-        self.block_queue.push(function.entry_block());
-        while let Some(block) = self.block_queue.pop() {
-            if self.visited_blocks.contains(&block) {
-                continue;
-            }
-            self.visited_blocks.insert(block);
+        self.block_queue.push_back(function.entry_block());
+        while let Some(block) = self.block_queue.pop_back() {
             self.connect_value_ids_in_block(function, block, all_functions);
         }
         // Merge ValueIds into sets, where each original small set of ValueIds is merged with another set if they intersect

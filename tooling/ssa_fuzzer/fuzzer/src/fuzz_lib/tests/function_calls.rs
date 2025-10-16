@@ -8,7 +8,7 @@ use crate::fuzz_target_lib::fuzz_target;
 use crate::fuzzer::FuzzerData;
 use crate::instruction::{Argument, Instruction, InstructionBlock, NumericArgument};
 use crate::options::FuzzerOptions;
-use crate::tests::common::{default_input_types, default_witness};
+use crate::tests::common::{default_input_types, default_runtimes, default_witness};
 use acvm::AcirField;
 use acvm::FieldElement;
 use noir_ssa_fuzzer::typed_value::{NumericType, Type};
@@ -55,10 +55,14 @@ fn simple_function_call() {
         ],
         initial_witness: default_witness(),
     };
-    let result = fuzz_target(fuzzer_data, FuzzerOptions::default());
-    match result {
-        Some(result) => assert_eq!(result.get_return_values()[0], FieldElement::from(4_u32)),
-        None => panic!("Program failed to execute"),
+    let result = fuzz_target(fuzzer_data, default_runtimes(), FuzzerOptions::default());
+    match result.get_return_witnesses().is_empty() {
+        true => {
+            panic!("Program failed to execute");
+        }
+        false => {
+            assert_eq!(result.get_return_witnesses()[0], FieldElement::from(4_u32));
+        }
     }
 }
 
@@ -135,10 +139,14 @@ fn several_functions_several_calls() {
         functions: vec![main_func, f1_func, f2_func],
         initial_witness: default_witness(),
     };
-    let result = fuzz_target(fuzzer_data, FuzzerOptions::default());
-    match result {
-        Some(result) => assert_eq!(result.get_return_values()[0], FieldElement::from(12_u32)),
-        None => panic!("Program failed to execute"),
+    let result = fuzz_target(fuzzer_data, default_runtimes(), FuzzerOptions::default());
+    match result.get_return_witnesses().is_empty() {
+        true => {
+            panic!("Program failed to execute");
+        }
+        false => {
+            assert_eq!(result.get_return_witnesses()[0], FieldElement::from(12_u32));
+        }
     }
 }
 
@@ -239,11 +247,16 @@ fn call_in_if_else() {
             functions: vec![main_func, f1_func.clone(), f2_func.clone()],
             initial_witness: default_witness(),
         },
+        default_runtimes(),
         FuzzerOptions::default(),
     );
-    match result {
-        Some(result) => assert_eq!(result.get_return_values()[0], FieldElement::from(4_u32)),
-        None => panic!("Program failed to execute"),
+    match result.get_return_witnesses().is_empty() {
+        true => {
+            panic!("Program failed to execute");
+        }
+        false => {
+            assert_eq!(result.get_return_witnesses()[0], FieldElement::from(4_u32));
+        }
     }
 
     let arg_0_boolean = NumericArgument { index: 0, numeric_type: NumericType::Boolean };
@@ -272,10 +285,14 @@ fn call_in_if_else() {
         functions: vec![main_func, f1_func, f2_func],
         initial_witness: default_witness(),
     };
-    let result = fuzz_target(fuzzer_data, FuzzerOptions::default());
-    match result {
-        Some(result) => assert_eq!(result.get_return_values()[0], FieldElement::from(6_u32)),
-        None => panic!("Program failed to execute"),
+    let result = fuzz_target(fuzzer_data, default_runtimes(), FuzzerOptions::default());
+    match result.get_return_witnesses().is_empty() {
+        true => {
+            panic!("Program failed to execute");
+        }
+        false => {
+            assert_eq!(result.get_return_witnesses()[0], FieldElement::from(6_u32));
+        }
     }
 }
 
@@ -360,22 +377,28 @@ fn test_does_not_insert_too_many_instructions_with_function_calls() {
     };
     // with max 100 instructions only second function should be executed
     let options = FuzzerOptions { max_instructions_num: 100, ..FuzzerOptions::default() };
-    let result = fuzz_target(data.clone(), options);
-    match result {
-        Some(result) => assert_eq!(result.get_return_values()[0], FieldElement::from(1024_u32)),
-        None => panic!("Program failed to execute"),
+    let result = fuzz_target(data.clone(), default_runtimes(), options);
+    match result.get_return_witnesses().is_empty() {
+        true => {
+            panic!("Program failed to execute");
+        }
+        false => {
+            assert_eq!(result.get_return_witnesses()[0], FieldElement::from(1024_u32));
+        }
     }
     // with max 1000 instructions both functions should be executed
     // and the result should be the output of the first function
     let options = FuzzerOptions { max_instructions_num: 1000, ..FuzzerOptions::default() };
-    let result = fuzz_target(data.clone(), options);
-    match result {
-        Some(result) => {
+    let result = fuzz_target(data.clone(), default_runtimes(), options);
+    match result.get_return_witnesses().is_empty() {
+        true => {
+            panic!("Program failed to execute");
+        }
+        false => {
             assert_eq!(
-                result.get_return_values()[0],
+                result.get_return_witnesses()[0],
                 FieldElement::from(2_u32).pow(&FieldElement::from(200_u32)) // 2^200
             );
         }
-        None => panic!("Program failed to execute"),
     }
 }

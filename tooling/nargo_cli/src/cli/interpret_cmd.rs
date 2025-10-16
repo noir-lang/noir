@@ -72,6 +72,7 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
 
     let opts = args.compile_options.as_ssa_options(PathBuf::new());
     let ssa_passes = primary_passes(&opts);
+    let mut is_ok = true;
 
     for package in binary_packages {
         let ssa_options =
@@ -120,7 +121,7 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
         // correctness, it's enough if we make sure the flattened values match.
         let ssa_return = ssa_return.map(|ssa_return| {
             let main_function = &ssa.functions[&ssa.main_id];
-            if main_function.has_data_bus_return_data() {
+            if main_function.view().has_data_bus_return_data() {
                 let values = flatten_databus_values(ssa_return);
                 vec![Value::array(values, vec![Type::Numeric(NumericType::NativeField)])]
             } else {
@@ -132,7 +133,7 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
         let file_manager =
             if args.compile_options.with_ssa_locations { Some(&file_manager) } else { None };
 
-        print_and_interpret_ssa(
+        is_ok &= print_and_interpret_ssa(
             ssa_options,
             &args.ssa_pass,
             &mut ssa,
@@ -155,7 +156,7 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
                 .run(ssa)
                 .map_err(|e| CliError::Generic(format!("failed to run SSA pass {msg}: {e}")))?;
 
-            print_and_interpret_ssa(
+            is_ok &= print_and_interpret_ssa(
                 ssa_options,
                 &args.ssa_pass,
                 &mut ssa,
@@ -167,7 +168,11 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
             )?;
         }
     }
-    Ok(())
+    if is_ok {
+        Ok(())
+    } else {
+        Err(CliError::Generic("The interpreter encountered an error on one or more passes.".into()))
+    }
 }
 
 /// Compile the source code into the monomorphized AST, which is one step before SSA passes.
@@ -237,6 +242,12 @@ fn print_ssa(options: &SsaEvaluatorOptions, ssa: &mut Ssa, msg: &str, fm: Option
     }
 }
 
+/// Interpret the SSA if it's part of the selected passes.
+///
+/// The return value is:
+/// * `Ok(true)` if the interpretation was successful, or it was skipped.
+/// * `Ok(false)` if the interpreter returned an error, but we didn't have any expectation.
+/// * `Err(_)` if the returned result did not match the expectation.
 fn interpret_ssa(
     passes_to_interpret: &[String],
     ssa: &Ssa,
@@ -244,7 +255,7 @@ fn interpret_ssa(
     args: &[Value],
     return_value: &Option<Vec<Value>>,
     options: InterpreterOptions,
-) -> Result<(), CliError> {
+) -> Result<bool, CliError> {
     if passes_to_interpret.is_empty() || msg_matches(passes_to_interpret, msg) {
         // We need to give a fresh copy of arrays each time, because the shared structures are modified.
         let args = Value::snapshot_args(args);
@@ -258,6 +269,7 @@ fn interpret_ssa(
                 println!("--- Interpreter result after {msg}:\nErr({err})\n---");
             }
         }
+        let is_ok = result.is_ok();
         if let Some(return_value) = return_value {
             let result = result.expect("Expected a non-error result");
             if &result != return_value {
@@ -269,8 +281,10 @@ fn interpret_ssa(
                 return Err(CliError::Generic(error));
             }
         }
+        Ok(is_ok)
+    } else {
+        Ok(true)
     }
-    Ok(())
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -283,7 +297,7 @@ fn print_and_interpret_ssa(
     return_value: &Option<Vec<Value>>,
     interpreter_options: InterpreterOptions,
     fm: Option<&FileManager>,
-) -> Result<(), CliError> {
+) -> Result<bool, CliError> {
     print_ssa(options, ssa, msg, fm);
     interpret_ssa(passes_to_interpret, ssa, msg, args, return_value, interpreter_options)
 }

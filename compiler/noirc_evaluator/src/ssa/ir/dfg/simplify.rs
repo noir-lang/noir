@@ -1,14 +1,12 @@
-use crate::ssa::{
-    ir::{
-        basic_block::BasicBlockId,
-        instruction::{
-            ArrayOffset, Binary, BinaryOp, ConstrainError, Instruction,
-            binary::{truncate, truncate_field},
-        },
-        types::{NumericType, Type},
-        value::{Value, ValueId},
+use crate::ssa::ir::{
+    basic_block::BasicBlockId,
+    dfg::simplify::value_merger::ValueMerger,
+    instruction::{
+        Binary, BinaryOp, ConstrainError, Instruction,
+        binary::{truncate, truncate_field},
     },
-    opt::flatten_cfg::value_merger::ValueMerger,
+    types::{NumericType, Type},
+    value::{Value, ValueId},
 };
 use acvm::{AcirField as _, FieldElement};
 use binary::simplify_binary;
@@ -23,11 +21,13 @@ mod binary;
 mod call;
 mod cast;
 mod constrain;
+pub(crate) mod value_merger;
 
 pub(crate) use call::constant_to_radix;
 
 /// Contains the result to Instruction::simplify, specifying how the instruction
 /// should be simplified.
+#[derive(Debug)]
 pub(crate) enum SimplifyResult {
     /// Replace this function's result with the given value
     SimplifiedTo(ValueId),
@@ -110,18 +110,18 @@ pub(crate) fn simplify(
             }
         }
         Instruction::ConstrainNotEqual(..) => None,
-        Instruction::ArrayGet { array, index, offset } => {
+        Instruction::ArrayGet { array, index } => {
             if let Some(index) = dfg.get_numeric_constant(*index) {
                 return try_optimize_array_get_from_previous_set(dfg, *array, index);
             }
 
             let array_or_slice_type = dfg.type_of_value(*array);
             if matches!(array_or_slice_type, Type::Array(_, 1))
-                && array_or_slice_type.flattened_size() == 1
+                && array_or_slice_type.element_size() == 1
             {
                 // If the array is of length 1 then we know the only value which can be potentially read out of it.
                 // We can then simply assert that the index is equal to zero and return the array's contained value.
-                optimize_length_one_array_read(dfg, block, call_stack, *array, *index, *offset)
+                optimize_length_one_array_read(dfg, block, call_stack, *array, *index)
             } else {
                 None
             }
@@ -226,6 +226,18 @@ pub(crate) fn simplify(
                     zero,
                     assert_message.as_ref().map(|msg| ConstrainError::from(msg.clone())),
                 ))
+            } else if let Some(c) = dfg.get_numeric_constant(*value) {
+                if c.num_bits() > *max_bit_size {
+                    let zero = dfg.make_constant(FieldElement::zero(), NumericType::bool());
+                    let one = dfg.make_constant(FieldElement::one(), NumericType::bool());
+                    SimplifiedToInstruction(Instruction::Constrain(
+                        zero,
+                        one,
+                        assert_message.as_ref().map(|msg| ConstrainError::from(msg.clone())),
+                    ))
+                } else {
+                    Remove
+                }
             } else {
                 None
             }
@@ -324,13 +336,17 @@ pub(crate) fn simplify(
 /// v4 = array_get v2, index u32 0 -> Field
 /// ```
 /// We then attempt to resolve the array read immediately.
+///
+/// Note that this does not work if the array has length 1, but contains a complex type such as tuple,
+/// which consists of multiple elements. If that is the case than the `index` will most likely not be
+/// a constant, but a base plus an offset, and if the array contains repeated elements of the same type
+/// for example, we wouldn't be able to come up with a constant offset even if we knew the return type.
 fn optimize_length_one_array_read(
     dfg: &mut DataFlowGraph,
     block: BasicBlockId,
     call_stack: CallStackId,
     array: ValueId,
     index: ValueId,
-    offset: ArrayOffset,
 ) -> SimplifyResult {
     let zero = dfg.make_constant(FieldElement::zero(), NumericType::length_type());
     let index_constraint = Instruction::Constrain(
@@ -342,11 +358,7 @@ fn optimize_length_one_array_read(
 
     let result = try_optimize_array_get_from_previous_set(dfg, array, FieldElement::zero());
     if let SimplifyResult::None = result {
-        SimplifyResult::SimplifiedToInstruction(Instruction::ArrayGet {
-            array,
-            index: zero,
-            offset,
-        })
+        SimplifyResult::SimplifiedToInstruction(Instruction::ArrayGet { array, index: zero })
     } else {
         result
     }
@@ -358,7 +370,7 @@ fn optimize_length_one_array_read(
 /// v3 = array_set v2, index 2, value: 7
 /// v4 = array_get v3, index 1
 ///
-/// We want to optimize `v4` to `10`. To do this we need to follow the array value
+/// We want to optimize `v4` to `11`. To do this we need to follow the array value
 /// through several array sets. For each array set:
 /// - If the index is non-constant we fail the optimization since any index may be changed
 /// - If the index is constant and is our target index, we conservatively fail the optimization
@@ -367,6 +379,10 @@ fn optimize_length_one_array_read(
 /// - Otherwise, we check the array value of the array set.
 ///   - If the array value is constant, we use that array.
 ///   - If the array value is from a previous array-set, we recur.
+///
+/// That is, we have multiple `array_set` instructions setting various constant indexes
+/// of the same array, returning a modified version. We want to go backwards until we
+/// find the last `array_set` for the index we are interested in, and return the value set.
 fn try_optimize_array_get_from_previous_set(
     dfg: &DataFlowGraph,
     mut array_id: ValueId,
@@ -444,8 +460,8 @@ fn try_optimize_array_set_from_previous_get(
     target_value: ValueId,
 ) -> SimplifyResult {
     let array_from_get = match dfg.get_local_or_global_instruction(target_value) {
-        Some(Instruction::ArrayGet { array, index, offset }) => {
-            if *offset == ArrayOffset::None && *array == array_id && *index == target_index {
+        Some(Instruction::ArrayGet { array, index }) => {
+            if *array == array_id && *index == target_index {
                 // If array and index match from the value, we can immediately simplify
                 return SimplifyResult::SimplifiedTo(array_id);
             } else if *index == target_index {
@@ -508,25 +524,30 @@ mod tests {
 
     #[test]
     fn removes_range_constraints_on_constants() {
-        let src = "
+        let src = r#"
         acir(inline) fn main f0 {
-          b0(v0: Field):
+          b0(v0: Field, v1: u8):
             range_check Field 0 to 1 bits
             range_check Field 1 to 1 bits
+            range_check Field 2 to 1 bits, "2 > 1"
             range_check Field 255 to 8 bits
-            range_check Field 256 to 8 bits
+            range_check Field 256 to 8 bits, "256 > 255"
+            range_check v0 to 8 bits
+            range_check v1 to 8 bits
             return
         }
-        ";
+        "#;
         let ssa = Ssa::from_str_simplifying(src).unwrap();
 
-        assert_ssa_snapshot!(ssa, @r"
+        assert_ssa_snapshot!(ssa, @r#"
         acir(inline) fn main f0 {
-          b0(v0: Field):
-            range_check Field 256 to 8 bits
+          b0(v0: Field, v1: u8):
+            constrain u1 0 == u1 1, "2 > 1"
+            constrain u1 0 == u1 1, "256 > 255"
+            range_check v0 to 8 bits
             return
         }
-        ");
+        "#);
     }
 
     #[test]
@@ -630,6 +651,41 @@ mod tests {
             v2 = make_array [v0] : [Field; 1]
             constrain v1 == u32 0, "Index out of bounds"
             return v0
+        }
+        "#);
+    }
+
+    #[test]
+    fn does_not_use_flattened_size_for_length_one_array_check() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: u32):
+            v2 = make_array [v0, v0] : [Field; 2]
+            v3 = make_array [v2] : [[Field; 2]; 1]
+            v4 = make_array [] : [Field; 0]
+            v5 = make_array [v4, v0] : [([Field; 0], Field); 1]
+            v6 = array_get v3, index v1 -> [Field; 2]
+            v7 = add v1, u32 1
+            v8 = array_get v5, index v7 -> Field
+            return v6, v8
+        }
+        ";
+        // The flattened size of v3 is 2, but it has 1 element -> it can be optimized.
+        // The flattened size of v5 is 1, but it has 2 elements -> it cannot be optimized.
+
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: u32):
+            v2 = make_array [v0, v0] : [Field; 2]
+            v3 = make_array [v2] : [[Field; 2]; 1]
+            v4 = make_array [] : [Field; 0]
+            v5 = make_array [v4, v0] : [([Field; 0], Field); 1]
+            constrain v1 == u32 0, "Index out of bounds"
+            v8 = add v1, u32 1
+            v9 = array_get v5, index v8 -> Field
+            return v2, v9
         }
         "#);
     }

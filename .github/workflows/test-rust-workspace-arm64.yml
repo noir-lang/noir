@@ -23,6 +23,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      - name: Delete android SDK
+        run: sudo rm -rf /usr/local/lib/android/sdk
+
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.85.0
         with:
@@ -40,7 +43,7 @@ jobs:
           tool: nextest@0.9.88
 
       - name: Build and archive tests
-        run: cargo nextest archive --workspace --features noirc_frontend/nextest --archive-file nextest-archive-arm64.tar.zst
+        run: cargo nextest archive --workspace --archive-file nextest-archive-arm64.tar.zst
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -60,7 +63,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        partition: [1, 2, 3, 4]
+        partition: [1, 2, 3, 4, 5, 6, 7, 8]
     steps:
       - uses: actions/checkout@v5
 
@@ -82,7 +85,7 @@ jobs:
         run: |
           RUST_MIN_STACK=8388608 \
           cargo nextest run --archive-file nextest-archive-arm64.tar.zst \
-            --partition count:${{ matrix.partition }}/4 \
+            --partition count:${{ matrix.partition }}/8 \
             --profile ci-master
 
   # This is a job which depends on all test jobs and reports the overall status.

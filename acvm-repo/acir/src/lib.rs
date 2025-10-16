@@ -10,7 +10,6 @@
 #[doc = include_str!("../README.md")]
 pub mod circuit;
 pub mod native_types;
-#[cfg(test)]
 mod parser;
 mod proto;
 mod serialization;
@@ -58,7 +57,7 @@ mod reflection {
             AssertionPayload, Circuit, ExpressionOrMemory, ExpressionWidth, Opcode, OpcodeLocation,
             Program,
             brillig::{BrilligInputs, BrilligOutputs},
-            opcodes::{BlackBoxFuncCall, BlockType, ConstantOrWitnessEnum, FunctionInput},
+            opcodes::{BlackBoxFuncCall, BlockType, FunctionInput},
         },
         native_types::{Witness, WitnessMap, WitnessStack},
     };
@@ -89,7 +88,7 @@ mod reflection {
         tracer.trace_simple_type::<Opcode<FieldElement>>().unwrap();
         tracer.trace_simple_type::<OpcodeLocation>().unwrap();
         tracer.trace_simple_type::<BinaryFieldOp>().unwrap();
-        tracer.trace_simple_type::<ConstantOrWitnessEnum<FieldElement>>().unwrap();
+        tracer.trace_simple_type::<FunctionInput<FieldElement>>().unwrap();
         tracer.trace_simple_type::<FunctionInput<FieldElement>>().unwrap();
         tracer.trace_simple_type::<BlackBoxFuncCall<FieldElement>>().unwrap();
         tracer.trace_simple_type::<BrilligInputs<FieldElement>>().unwrap();

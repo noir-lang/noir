@@ -43,7 +43,9 @@ impl RedisManager {
                         return Err(e);
                     }
 
-                    std::thread::sleep(Duration::from_millis(100 * self.reconnect_attempts as u64));
+                    std::thread::sleep(Duration::from_millis(
+                        100 * u64::from(self.reconnect_attempts),
+                    ));
                     return self.get_connection();
                 }
             }

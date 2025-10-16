@@ -195,14 +195,14 @@ impl WitnessAddSubPowerOfTwoMutation {
 
                 WitnessValueNumeric::Field(FieldRepresentation {
                     high: if !sign {
-                        field.high.wrapping_add((is_high as i128 * power_of_two) as u128)
+                        field.high.wrapping_add((i128::from(is_high) * power_of_two) as u128)
                     } else {
-                        field.high.wrapping_sub((is_high as i128 * power_of_two) as u128)
+                        field.high.wrapping_sub((i128::from(is_high) * power_of_two) as u128)
                     },
                     low: if !sign {
-                        field.low.wrapping_add((!is_high as i128 * power_of_two) as u128)
+                        field.low.wrapping_add((i128::from(!is_high) * power_of_two) as u128)
                     } else {
-                        field.low.wrapping_sub((!is_high as i128 * power_of_two) as u128)
+                        field.low.wrapping_sub((i128::from(!is_high) * power_of_two) as u128)
                     },
                 })
             }
