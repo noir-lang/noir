@@ -78,7 +78,7 @@ Finite Field VM
 
 The Brillig VM operates over finite fields and supports using up to a 128 bit integer representation. The finite field Brillig supports is generalizable and based upon the field ACIR supports (where [Arkworks](https://github.com/arkworks-rs/algebra/tree/master/ff) is used for the finite field interface). The ACIR fields currently supported are the prime fields of the bn254 curve and the bls12-381 curve.
 
-All integers ultimately translate to the finite field which Brillig is based upon. For example when a BinaryIntOp is used, the field is first cast to a fixed bitsize integer that can be accommodated within the field, prior to performing operations. Certain operations, such as ordered comparison or signed division, only make sense in the context of BinaryIntOp. The exact maximum integer value the field can store should not be relied upon, however, it is assured to be capable of packing 3 32-bit integers.
+All integers ultimately translate to the finite field which Brillig is based upon. For example when a `BinaryIntOp` is used, the field is first cast to a fixed bitsize integer that can be accommodated within the field, prior to performing operations. Certain operations, such as ordered comparison or signed division, only make sense in the context of `BinaryIntOp`. The exact maximum integer value the field can store should not be relied upon, however, it is assured to be capable of packing 3 32-bit integers.
 
 The decision to have Brillig operate over finite fields simplifies SNARK proving and optimizes for efficiency, as ultimately all data types translate to a finite field which is the native data type for SNARKs.
 
@@ -101,13 +101,13 @@ The VM accepts four initialization parameters.
 3. The black-box solver, which is used to execute black-box functions
 4. A flag, that can be used for profiling purposes
 
-The VM then processes each opcode according to their [specification](02_opcode_listing.md).
+The VM then processes each opcode according to their [specification](./src/opcodes.rs).
 
 If the VM reaches a foreign call instruction it will first fetch the call's input according to the information inside of the instruction. Through an internal counter and the foreign call results supplied to the VM, the VM will determine whether the outputs have been resolved. If they have not been resolved, the VM will then pause and return a status containing the foreign call inputs. The caller of the VM should interpret the call information returned and update the Brillig process. Execution can then continue as normal. While technically the foreign call result is considered part of the VM's input along with bytecode and calldata, it is practically an input to the program.
 
 Error and Exception Handling
 ---
-Failed asserts, represented by the TRAP opcode, during the execution of an unconstrained function, result in an error in Brillig bytecode, accompanied by data detailing the failure. In a hedged trust blockchain environment, a prover might still want to generate a 'valid' proof of an error result so that incorrectness can be correctly attributed. This emphasizes the importance of handling errors and exceptions within the context of a blockchain-based VM.
+Failed asserts, represented by the `Trap` opcode, during the execution of an unconstrained function, result in an error in Brillig bytecode, accompanied by data detailing the failure. In a hedged trust blockchain environment, a prover might still want to generate a 'valid' proof of an error result so that incorrectness can be correctly attributed. This emphasizes the importance of handling errors and exceptions within the context of a blockchain-based VM.
 
 Conclusion
 ---
@@ -119,9 +119,9 @@ For the following Noir:
 
 ```noir
 fn main() {
-    let mut a = 10;
-    let mut b = 5;
-    let mut c = 0;
+    let mut a = 10_u32;
+    let mut b = 5_u32;
+    let mut c = 0_u32;
 
     c = a + b;
 
@@ -141,58 +141,62 @@ One possible Brillig output would be:
 [
     { // location = 0
         "Const": {
-            "destination": 0,
+            "destination": { "Direct": 0 },
+            "bit_size": { "Integer": "U32" },
             "value": { "inner": "10" }
         }
     },
     { // location = 1
         "Const": {
-            "destination": 1,
+            "destination": { "Direct": 1 },
+            "bit_size": { "Integer": "U32" },
             "value": { "inner": "5" }
         }
     },
     { // location = 2
         "Const": {
-            "destination": 2,
+            "destination": { "Direct": 2 },
+            "bit_size": { "Integer": "U32" },
             "value": { "inner": "0" }
         }
     },
     { // location = 3
         "Const": {
-            "destination": 3,
+            "destination": { "Direct": 3 },
+            "bit_size": { "Integer": "U32" },
             "value": { "inner": "15" }
         }
     },
     { // location = 4
         "BinaryIntOp": {
-            "destination": 2,
+            "destination": { "Direct": 2 },
             "op": "Add",
-            "bit_size": 32,
-            "lhs": 0,
-            "rhs": 1
+            "bit_size": { "Integer": "U32" },
+            "lhs": { "Direct": 0 },
+            "rhs": { "Direct": 1 }
         }
     },
     { // location = 5
         "BinaryIntOp": {
-            "destination": 4,
+            "destination": { "Direct": 4 },
             "op": "LessThanEquals",
-            "bit_size": 32,
-            "lhs": 2,
-            "rhs": 3
+            "bit_size": { "Integer": "U32" },
+            "lhs": { "Direct": 2 },
+            "rhs": { "Direct": 3 }
         }
     },
     { // location = 6
         "JumpIf": {
-            "condition": 4,
+            "condition": { "Direct": 4 },
             "location": 9
         }
     },
     { // location = 7
         "BinaryFieldOp": {
-            "destination": 0,
+            "destination": { "Direct": 0 },
             "op": "Multiply",
-            "lhs": 0,
-            "rhs": 1
+            "lhs": { "Direct": 0 },
+            "rhs": { "Direct": 1 }
         }
     },
     { // location = 8
@@ -202,20 +206,26 @@ One possible Brillig output would be:
     },
     { // location = 9
         "BinaryFieldOp": {
-            "destination": 1,
+            "destination": { "Direct": 1 },
             "op": "Add",
-            "lhs": 0,
-            "rhs": 1
+            "lhs": { "Direct": 0 },
+            "rhs": { "Direct": 1 }
         }
     },
     { // location = 10
         "ForeignCall": {
             "function": "print",
             "destination": [], // No output
-            "input": [
-                {"RegisterIndex": 0},
-                {"RegisterIndex": 1},
-                {"RegisterIndex": 2}
+            "destination_value_types": [],
+            "inputs": [
+                { "MemoryAddress": { "Direct": 0 } },
+                { "MemoryAddress": { "Direct": 1 } },
+                { "MemoryAddress": { "Direct": 2 } }
+            ],
+            "input_value_types": [
+                { "Simple": { "Integer": "U32" } },
+                { "Simple": { "Integer": "U32" } },
+                { "Simple": { "Integer": "U32" } }
             ]
         }
     },
