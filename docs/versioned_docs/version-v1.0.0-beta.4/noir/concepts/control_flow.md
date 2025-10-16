@@ -2,7 +2,7 @@
 title: Control Flow
 description:
   Learn how to use loops and if expressions in the Noir programming language. Discover the syntax
-  and examples for for loops and if-else statements.
+  and examples for loops and if-else statements.
 keywords: [Noir programming language, loops, for loop, if-else statements, Rust syntax]
 sidebar_position: 2
 ---
@@ -98,7 +98,7 @@ loop {
 
 ## While loops
 
-In unconstrained code, `while` is allowed for loops that end when a given condition is met. 
+In unconstrained code, `while` is allowed for loops that end when a given condition is met.
 This is only allowed in unconstrained code since normal constrained code requires that Noir knows exactly how many iterations
 a loop may have.
 

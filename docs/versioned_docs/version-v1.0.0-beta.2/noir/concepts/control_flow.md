@@ -2,7 +2,7 @@
 title: Control Flow
 description:
   Learn how to use loops and if expressions in the Noir programming language. Discover the syntax
-  and examples for for loops and if-else statements.
+  and examples for loops and if-else statements.
 keywords: [Noir programming language, loops, for loop, if-else statements, Rust syntax]
 sidebar_position: 2
 ---
