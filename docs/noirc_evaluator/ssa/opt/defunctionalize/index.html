@@ -3,7 +3,7 @@ Certain IR targets (e.g., Brillig and ACIR) do not support higher-order function
 <p>The pass eliminates higher-order functions (a function which accepts function values as arguments or returns functions)
 by transforming functions used as values (i.e., first-class functions)
 into constant numbers (fields) that represent their function IDs.</p>
-<p>Defunctionalization handles higher-order functions functions by lowering function values into
+<p>Defunctionalization handles higher-order functions by lowering function values into
 constant identifiers and replacing calls of function values with calls to a single
 dispatch <code>apply</code> function.</p>
 <h3 id="how-the-pass-works"><a class="doc-anchor" href="#how-the-pass-works">§</a>How the pass works:</h3>

@@ -2264,7 +2264,7 @@
 //! by transforming functions used as values (i.e., first-class functions)
 //! into constant numbers (fields) that represent their function IDs.
 //!
-//! Defunctionalization handles higher-order functions functions by lowering function values into
+//! Defunctionalization handles higher-order functions by lowering function values into
 //! constant identifiers and replacing calls of function values with calls to a single
 //! dispatch `apply` function.
 //!
@@ -2385,7 +2385,7 @@
             <span class="comment">// We mutate value types in `defunctionalize`, so to prevent that from affecting which
             // apply functions are chosen we replace all first-class function calls with calls to
             // the appropriate apply function beforehand.
-            </span><span class="self">self</span>.replace_fist_class_calls_with_apply_function(function);
+            </span><span class="self">self</span>.replace_first_class_calls_with_apply_function(function);
 
             <span class="comment">// Replace any first-class function values with field values. This will also mutate the
             // type of some values, such as block arguments
@@ -2396,7 +2396,7 @@
     <span class="doccomment">/// Replaces any function calls using first-class function values with calls to the
     /// appropriate `apply` function. Note that this must be done before types are mutated
     /// in `defunctionalize` since this uses the pre-mutated types to query apply functions.
-    </span><span class="kw">fn </span>replace_fist_class_calls_with_apply_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>, func: <span class="kw-2">&amp;mut </span>Function) {
+    </span><span class="kw">fn </span>replace_first_class_calls_with_apply_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>, func: <span class="kw-2">&amp;mut </span>Function) {
         <span class="kw">for </span>block_id <span class="kw">in </span>func.reachable_blocks() {
             <span class="kw">let </span>block = <span class="kw-2">&amp;mut </span>func.dfg[block_id];
 
@@ -2755,7 +2755,7 @@
         </span>} <span class="kw">else if </span>pre_runtime_filter_len != <span class="number">0 </span>&amp;&amp; caller_runtime.is_brillig() {
             <span class="comment">// We had variants, but they were all filtered out.
             // Frontend bug: only ACIR variants in a Brillig group.
-            </span><span class="macro">panic!</span>(<span class="string">"ICE: invalid defunctionalization: only ACIR variants for a Brillig runtime"</span>,);
+            </span><span class="macro">panic!</span>(<span class="string">"ICE: invalid defunctionalization: only ACIR variants for a Brillig runtime"</span>);
         } <span class="kw">else </span>{
             <span class="comment">// If no variants exist for a dynamic call we leave removing those dead calls and parameters to DIE.
             // However, we have to construct a dummy function for these dead calls as to keep a well formed SSA
