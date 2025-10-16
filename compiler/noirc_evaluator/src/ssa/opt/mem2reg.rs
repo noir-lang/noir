@@ -2509,4 +2509,33 @@ mod tests {
         ";
         assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
+
+    #[test]
+    fn keep_last_store() {
+        // This test check that used Store instructions are not simplified:
+        // - Allocate v1 and v3 and store into them
+        // - Put them in array v4 = [v1, v3]
+        // - Store v4 at v5
+        // - Pass v5 a function as an argument, so that v5 is used
+        // - This should keep the store to v5, and recursively to v1 and v3
+        let src = "
+    brillig(inline) fn main f0 {
+      b0():
+        v1 = allocate -> &mut Field
+        store Field 99 at v1
+        v3 = allocate -> &mut Field
+        store Field 88 at v3
+        v4 = make_array [v1, v3] : [&mut Field; 2]
+        v5 = allocate -> &mut [&mut Field; 2]
+        store v4 at v5
+        v6 = call f1(v5) -> Field
+        return v6
+    }
+    brillig(inline) fn helper f1 {
+      b0(v0: &mut [&mut Field; 2]):
+        return Field 0
+    }
+        ";
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
 }

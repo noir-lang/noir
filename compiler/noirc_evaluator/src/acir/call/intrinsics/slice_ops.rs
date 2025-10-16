@@ -44,7 +44,7 @@ impl Context<'_> {
 
         let new_slice_val = AcirValue::Array(new_slice);
 
-        Ok(vec![AcirValue::Var(new_slice_length, AcirType::field()), new_slice_val])
+        Ok(vec![AcirValue::Var(new_slice_length, AcirType::unsigned(32)), new_slice_val])
     }
 
     /// Pushes one or more elements to the front of a non-nested slice.
@@ -84,7 +84,7 @@ impl Context<'_> {
 
         let new_slice_val = AcirValue::Array(new_slice);
 
-        Ok(vec![AcirValue::Var(new_slice_length, AcirType::field()), new_slice_val])
+        Ok(vec![AcirValue::Var(new_slice_length, AcirType::unsigned(32)), new_slice_val])
     }
 
     /// Removes and returns one or more elements from the back of a non-nested slice.
@@ -142,8 +142,10 @@ impl Context<'_> {
         let slice = self.convert_value(slice_contents, dfg);
         let new_slice = self.read_array(slice)?;
 
-        let mut results =
-            vec![AcirValue::Var(new_slice_length, AcirType::field()), AcirValue::Array(new_slice)];
+        let mut results = vec![
+            AcirValue::Var(new_slice_length, AcirType::unsigned(32)),
+            AcirValue::Array(new_slice),
+        ];
         results.append(&mut popped_elements);
 
         Ok(results)
@@ -224,7 +226,7 @@ impl Context<'_> {
 
         new_slice = new_slice.slice(popped_elements_size..);
 
-        popped_elements.push(AcirValue::Var(new_slice_length, AcirType::field()));
+        popped_elements.push(AcirValue::Var(new_slice_length, AcirType::unsigned(32)));
         popped_elements.push(AcirValue::Array(new_slice));
 
         Ok(popped_elements)
@@ -390,7 +392,7 @@ impl Context<'_> {
             element_type_sizes,
         });
 
-        Ok(vec![AcirValue::Var(new_slice_length, AcirType::field()), result])
+        Ok(vec![AcirValue::Var(new_slice_length, AcirType::unsigned(32)), result])
     }
 
     /// Removes one or more elements from a slice at a given index.
@@ -535,7 +537,7 @@ impl Context<'_> {
             element_type_sizes,
         });
 
-        let mut result = vec![AcirValue::Var(new_slice_length, AcirType::field()), result];
+        let mut result = vec![AcirValue::Var(new_slice_length, AcirType::unsigned(32)), result];
         result.append(&mut popped_elements);
 
         Ok(result)

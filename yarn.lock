@@ -238,9 +238,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@aztec/bb.js@npm:v3.0.0-nightly.20251007":
-  version: 3.0.0-nightly.20251007
-  resolution: "@aztec/bb.js@npm:3.0.0-nightly.20251007"
+"@aztec/bb.js@npm:3.0.0-nightly.20251014":
+  version: 3.0.0-nightly.20251014
+  resolution: "@aztec/bb.js@npm:3.0.0-nightly.20251014"
   dependencies:
     comlink: "npm:^4.4.1"
     commander: "npm:^12.1.0"
@@ -251,7 +251,7 @@ __metadata:
     tslib: "npm:^2.4.0"
   bin:
     bb.js: dest/node/main.js
-  checksum: 10/f4503ac3305c9cfd98554e9f01ad8c01859bd8122f2b9ce64dc5ce3c9ab5d714ba9a6ce8be0d4f988250596a63212639ab41b8eaa111f4aa5b0db124ad863f1a
+  checksum: 10/33686fcfaefb1260b65e5c768fa607fb5bc6f2656510a427f5ebd05d4f13fa4994a28514620ec77dbbbd208693442d56c5b692cd38f31fda7b82bfd1ae5b17ca
   languageName: node
   linkType: hard
 
@@ -13230,7 +13230,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "browser_example@workspace:examples/browser"
   dependencies:
-    "@aztec/bb.js": "npm:v3.0.0-nightly.20251007"
+    "@aztec/bb.js": "npm:3.0.0-nightly.20251014"
     "@noir-lang/noir_js": "workspace:*"
     "@playwright/test": "npm:^1.49.0"
     "@types/node": "npm:^20.0.0"
@@ -19118,7 +19118,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "integration-tests@workspace:compiler/integration-tests"
   dependencies:
-    "@aztec/bb.js": "npm:v3.0.0-nightly.20251007"
+    "@aztec/bb.js": "npm:3.0.0-nightly.20251014"
     "@noir-lang/noir_js": "workspace:*"
     "@noir-lang/noir_wasm": "workspace:*"
     "@nomicfoundation/hardhat-chai-matchers": "npm:^2.0.8"
