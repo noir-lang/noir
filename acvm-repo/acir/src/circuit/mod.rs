@@ -5,6 +5,7 @@ pub mod brillig;
 pub mod opcodes;
 
 use crate::{
+    circuit::opcodes::display_opcode,
     native_types::{Expression, Witness},
     serialization::{deserialize_any_format, serialize_with_format_from_env},
 };
@@ -355,7 +356,8 @@ impl<F: AcirField> std::fmt::Display for Circuit<F> {
         write_witness_indices(f, &self.return_values.indices())?;
 
         for opcode in &self.opcodes {
-            writeln!(f, "{opcode}")?;
+            display_opcode(opcode, Some(&self.return_values), f)?;
+            writeln!(f)?;
         }
         Ok(())
     }
