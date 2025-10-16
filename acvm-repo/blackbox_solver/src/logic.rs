@@ -44,15 +44,15 @@ fn mask_vector_le(bytes: &mut [u8], num_bits: usize) {
         // nothing to mask, all bits are used
         return;
     }
-    let full_bytes = num_bits / 8;
-    let remaining_bits = num_bits % 8;
+    let array_mask_index = num_bits / 8;
+    let mask_power = num_bits % 8;
 
     // Mask the partial byte if any. Otherwise, if our `remaining_bits` is a multiple of 8
     // we will zero out the byte at `full_bytes`. 
-    bytes[full_bytes] &= 2u8.pow(remaining_bits as u32) - 1;
+    bytes[array_mask_index] &= 2u8.pow(mask_power as u32) - 1;
 
     // Zero out all remaining bytes
-    for byte in &mut bytes[(full_bytes + 1)..] {
+    for byte in &mut bytes[(array_mask_index + 1)..] {
         *byte = 0;
     }
 }
