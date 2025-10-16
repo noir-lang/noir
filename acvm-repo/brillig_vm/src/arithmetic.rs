@@ -27,26 +27,20 @@ pub(crate) fn evaluate_binary_field_op<F: AcirField>(
     lhs: MemoryValue<F>,
     rhs: MemoryValue<F>,
 ) -> Result<MemoryValue<F>, BrilligArithmeticError> {
-    let a = lhs.expect_field().map_err(|err| {
-        if let MemoryTypeError::MismatchedBitSize { value_bit_size, expected_bit_size } = err {
-            BrilligArithmeticError::MismatchedLhsBitSize {
-                lhs_bit_size: value_bit_size,
-                op_bit_size: expected_bit_size,
+    let expect_field = |operand: MemoryValue<F>| {
+        operand.expect_field().map_err(|err| {
+            if let MemoryTypeError::MismatchedBitSize { value_bit_size, expected_bit_size } = err {
+                BrilligArithmeticError::MismatchedLhsBitSize {
+                    lhs_bit_size: value_bit_size,
+                    op_bit_size: expected_bit_size,
+                }
+            } else {
+                unreachable!("MemoryTypeError NotInteger is only produced by to_u128")
             }
-        } else {
-            unreachable!("MemoryTypeError NotInteger is only produced by to_u128")
-        }
-    })?;
-    let b = rhs.expect_field().map_err(|err| {
-        if let MemoryTypeError::MismatchedBitSize { value_bit_size, expected_bit_size } = err {
-            BrilligArithmeticError::MismatchedRhsBitSize {
-                rhs_bit_size: value_bit_size,
-                op_bit_size: expected_bit_size,
-            }
-        } else {
-            unreachable!("MemoryTypeError NotInteger is only produced by to_u128")
-        }
-    })?;
+        })
+    };
+    let a = expect_field(lhs)?;
+    let b = expect_field(rhs)?;
 
     Ok(match op {
         // Perform addition, subtraction, multiplication, and division based on the BinaryOp variant.
@@ -243,8 +237,8 @@ pub(crate) fn evaluate_binary_int_op<F: AcirField>(
 /// - Err([BrilligArithmeticError::DivisionByZero]) if division by zero occurs.
 ///
 /// # Panics
-/// If an operation other than Add, Sub, Mul, Div, And, Or, Xor, Equals, LessThan,
-/// or LessThanEquals is supplied as an argument.
+/// If an operation other than `Add`, `Sub`, `Mul`, `Div`, `And`, `Or`, `Xor`, `Equals`, `LessThan`,
+/// or `LessThanEquals` is supplied as an argument.
 fn evaluate_binary_int_op_u1(
     op: &BinaryIntOp,
     lhs: bool,
@@ -269,11 +263,11 @@ fn evaluate_binary_int_op_u1(
     Ok(result)
 }
 
-/// Evaluates comparison operations (Equals, LessThan, LessThanEquals)
+/// Evaluates comparison operations (`Equals`, `LessThan`, `LessThanEquals`)
 /// between two values of an ordered type (e.g., fields are unordered).
 ///
 /// # Panics
-/// If an unsupported operator is provided (i.e., not Equals, LessThan, or LessThanEquals).
+/// If an unsupported operator is provided (i.e., not `Equals`, `LessThan`, or `LessThanEquals`).
 fn evaluate_binary_int_op_cmp<T: Ord + PartialEq>(op: &BinaryIntOp, lhs: T, rhs: T) -> bool {
     match op {
         BinaryIntOp::Equals => lhs == rhs,
@@ -283,11 +277,11 @@ fn evaluate_binary_int_op_cmp<T: Ord + PartialEq>(op: &BinaryIntOp, lhs: T, rhs:
     }
 }
 
-/// Evaluates shift operations (Shl, Shr) for unsigned integers.
+/// Evaluates shift operations (`Shl`, `Shr`) for unsigned integers.
 /// Ensures that shifting beyond the type width returns zero.
 ///
 /// # Panics
-/// If an unsupported operator is provided (i.e., not Shl or Shr).
+/// If an unsupported operator is provided (i.e., not `Shl` or `Shr`).
 fn evaluate_binary_int_op_shifts<T: ToPrimitive + Zero + Shl<Output = T> + Shr<Output = T>>(
     op: &BinaryIntOp,
     lhs: T,

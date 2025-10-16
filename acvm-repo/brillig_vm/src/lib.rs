@@ -511,9 +511,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         let rhs_value = self.memory.read(rhs);
 
         let result_value = evaluate_binary_field_op(&op, lhs_value, rhs_value)?;
-
         self.memory.write(result, result_value);
-
         self.fuzzing_trace_binary_field_op_comparison(&op, lhs_value, rhs_value, result_value);
         Ok(())
     }
