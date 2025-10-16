@@ -610,18 +610,16 @@ impl<'a> Parser<'a> {
         &mut self,
     ) -> Result<FunctionInput<FieldElement>, ParserError> {
         if let Some(value) = self.eat_field_element()? {
-            return Ok(FunctionInput::Constant(value));
+            Ok(FunctionInput::Constant(value))
+        } else if let Some(witness) = self.eat_witness()? {
+            Ok(FunctionInput::Witness(witness))
+        } else {
+            Err(ParserError::ExpectedOneOfTokens {
+                tokens: vec![Token::Int(FieldElement::zero()), Token::Witness(0)],
+                found: self.token.token().clone(),
+                span: self.token.span(),
+            })
         }
-
-        if let Some(witness) = self.eat_witness()? {
-            return Ok(FunctionInput::Witness(witness));
-        }
-
-        Err(ParserError::ExpectedOneOfTokens {
-            tokens: vec![Token::Int(FieldElement::zero()), Token::Witness(0)],
-            found: self.token.token().clone(),
-            span: self.token.span(),
-        })
     }
 
     fn parse_blackbox_output(&mut self) -> ParseResult<Witness> {
