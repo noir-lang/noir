@@ -93,8 +93,7 @@ pub(super) fn simplify_call(
         Intrinsic::ArrayLen => {
             let length = match dfg.type_of_value(arguments[0]) {
                 Type::Array(_, length) => {
-                    let length = FieldElement::from(u128::from(length));
-                    dfg.make_constant(length, NumericType::length_type())
+                    dfg.make_constant(FieldElement::from(length), NumericType::length_type())
                 }
                 Type::Numeric(NumericType::Unsigned { bit_size: 32 }) => {
                     assert!(matches!(dfg.type_of_value(arguments[1]), Type::Slice(_)));
