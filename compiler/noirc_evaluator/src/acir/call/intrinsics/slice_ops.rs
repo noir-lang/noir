@@ -292,7 +292,6 @@ impl Context<'_> {
         // We need to a fully flat list of AcirVar's as a dynamic array is represented with flat memory.
         let mut inner_elem_size_usize = 0;
         let mut flattened_elements = Vec::new();
-        let mut new_value_types = Vec::new();
         for elem in elements_to_insert {
             let element = self.convert_value(*elem, dfg);
             // Flatten into (AcirVar, NumericType) pairs
@@ -300,9 +299,8 @@ impl Context<'_> {
             let elem_size = flat_element.len();
             inner_elem_size_usize += elem_size;
             slice_size += elem_size;
-            for (var, typ) in flat_element {
+            for var in flat_element {
                 flattened_elements.push(var);
-                new_value_types.push(typ);
             }
         }
         let inner_elem_size = self.acir_context.add_constant(inner_elem_size_usize);
@@ -518,7 +516,7 @@ impl Context<'_> {
         // In practice `popped_elements_size` should never exceed the `slice_size` but we do a saturating sub to be safe.
         let result_size = slice_size.saturating_sub(popped_elements_size);
         self.initialize_array(result_block_id, result_size, None)?;
-        for (i, (current_value, _)) in flat_slice.iter().enumerate().take(result_size) {
+        for (i, current_value) in flat_slice.iter().enumerate().take(result_size) {
             let current_index = self.acir_context.add_constant(i);
 
             let shifted_index = self.acir_context.add_constant(i + popped_elements_size);
