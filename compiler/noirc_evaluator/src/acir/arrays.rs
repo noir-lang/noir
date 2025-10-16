@@ -1185,7 +1185,7 @@ impl Context<'_> {
     }
 }
 
-fn calculate_element_type_sizes_array(array: &im::Vector<AcirValue>) -> Vec<usize> {
+pub(super) fn calculate_element_type_sizes_array(array: &im::Vector<AcirValue>) -> Vec<usize> {
     let mut flat_elem_type_sizes = Vec::with_capacity(array.len());
     let mut total_size = 0;
     for value in array {
