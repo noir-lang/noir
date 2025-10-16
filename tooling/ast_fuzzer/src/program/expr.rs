@@ -32,7 +32,8 @@ pub fn gen_literal(
     use IntegerBitSize::*;
 
     let expr = match typ {
-        Type::Unit => Expression::Literal(Literal::Unit),
+        // TODO: WIP
+        // Type::Unit => Expression::Literal(Literal::Unit),
         Type::Bool => lit_bool(bool::arbitrary(u)?),
         Type::Field => {
             let field = SignedField::new(Field::from(u128::arbitrary(u)?), bool::arbitrary(u)?);

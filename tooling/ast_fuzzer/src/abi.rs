@@ -21,7 +21,8 @@ pub fn program_abi(program: &Program) -> Abi {
         .collect();
 
     let return_type = match &main.return_type {
-        Type::Unit => None,
+        // TODO: WIP
+        // Type::Unit => None,
         typ => Some(AbiReturnType {
             abi_type: to_abi_type(typ),
             visibility: to_abi_visibility(&program.return_visibility()),
@@ -34,8 +35,10 @@ pub fn program_abi(program: &Program) -> Abi {
 /// Check if a type is valid as an ABI parameter for the `main` function.
 fn is_valid_in_abi(typ: &Type) -> bool {
     match typ {
-        Type::Unit
-        | Type::FmtString(_, _)
+        // TODO: WIP
+        // Type::Unit
+        // | Type::FmtString(_, _)
+        Type::FmtString(_, _)
         | Type::Slice(_)
         | Type::Reference(_, _)
         | Type::Function(_, _, _, _) => false,
