@@ -763,23 +763,27 @@ impl<'a> Parser<'a> {
 
         let mut outputs = Vec::new();
         while !self.eat(Token::RightBracket)? {
-            let output = if self.eat(Token::LeftBracket)? {
-                let mut witnesses = Vec::new();
-                while !self.eat(Token::RightBracket)? {
-                    witnesses.push(self.eat_witness_or_error()?);
-                    self.eat(Token::Comma)?; // optional trailing comma
-                }
-                BrilligOutputs::Array(witnesses)
-            } else if let Some(witness) = self.eat_witness()? {
-                BrilligOutputs::Simple(witness)
-            } else {
-                return self.expected_one_of_tokens(&[Token::LeftBracket, Token::Witness(0)]);
-            };
+            let output = self.parse_brillig_output()?;
             outputs.push(output);
             self.eat(Token::Comma)?; // optional trailing comma
         }
 
         Ok(outputs)
+    }
+
+    fn parse_brillig_output(&mut self) -> Result<BrilligOutputs, ParserError> {
+        if self.eat(Token::LeftBracket)? {
+            let mut witnesses = Vec::new();
+            while !self.eat(Token::RightBracket)? {
+                witnesses.push(self.eat_witness_or_error()?);
+                self.eat(Token::Comma)?; // optional trailing comma
+            }
+            Ok(BrilligOutputs::Array(witnesses))
+        } else if let Some(witness) = self.eat_witness()? {
+            Ok(BrilligOutputs::Simple(witness))
+        } else {
+            self.expected_one_of_tokens(&[Token::LeftBracket, Token::Witness(0)])
+        }
     }
 
     fn parse_call(&mut self) -> ParseResult<Opcode<FieldElement>> {
