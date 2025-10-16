@@ -83,16 +83,10 @@ pub(super) fn optimize_internal<F: AcirField>(
     let (acir, acir_opcode_positions) =
         memory_optimizer.remove_unused_memory_initializations(acir_opcode_positions);
 
-    // let (acir, acir_opcode_positions) =
-    // ConstantBackpropagationOptimizer::backpropagate_constants(acir, acir_opcode_positions);
-
     // Range optimization pass
     let range_optimizer = RangeOptimizer::new(acir, brillig_side_effects);
     let (acir, acir_opcode_positions) =
         range_optimizer.replace_redundant_ranges(acir_opcode_positions);
-
-    // let (acir, acir_opcode_positions) =
-    // ConstantBackpropagationOptimizer::backpropagate_constants(acir, acir_opcode_positions);
 
     info!("Number of opcodes after: {}", acir.opcodes.len());
 

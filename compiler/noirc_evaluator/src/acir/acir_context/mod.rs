@@ -1271,8 +1271,6 @@ impl<F: AcirField> AcirContext<F> {
             limb_vars.reverse();
         }
 
-        // `Intrinsic::ToRadix` returns slices which are represented
-        // by tuples with the structure (length, slice contents)
         Ok(AcirValue::Array(limb_vars.into()))
     }
 
