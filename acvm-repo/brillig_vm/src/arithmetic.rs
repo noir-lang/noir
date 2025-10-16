@@ -27,20 +27,23 @@ pub(crate) fn evaluate_binary_field_op<F: AcirField>(
     lhs: MemoryValue<F>,
     rhs: MemoryValue<F>,
 ) -> Result<MemoryValue<F>, BrilligArithmeticError> {
-    let expect_field = |operand: MemoryValue<F>| {
-        operand.expect_field().map_err(|err| {
+    let expect_field = |value: MemoryValue<F>, make_err: fn(u32, u32) -> BrilligArithmeticError| {
+        value.expect_field().map_err(|err| {
             if let MemoryTypeError::MismatchedBitSize { value_bit_size, expected_bit_size } = err {
-                BrilligArithmeticError::MismatchedLhsBitSize {
-                    lhs_bit_size: value_bit_size,
-                    op_bit_size: expected_bit_size,
-                }
+                make_err(value_bit_size, expected_bit_size)
             } else {
                 unreachable!("MemoryTypeError NotInteger is only produced by to_u128")
             }
         })
     };
-    let a = expect_field(lhs)?;
-    let b = expect_field(rhs)?;
+    let a = expect_field(lhs, |vbs, ebs| BrilligArithmeticError::MismatchedLhsBitSize {
+        lhs_bit_size: vbs,
+        op_bit_size: ebs,
+    })?;
+    let b = expect_field(rhs, |vbs, ebs| BrilligArithmeticError::MismatchedRhsBitSize {
+        rhs_bit_size: vbs,
+        op_bit_size: ebs,
+    })?;
 
     Ok(match op {
         // Perform addition, subtraction, multiplication, and division based on the BinaryOp variant.
