@@ -651,13 +651,7 @@ impl<'a> Parser<'a> {
     fn parse_memory_init(&mut self) -> ParseResult<Opcode<FieldElement>> {
         self.eat_keyword_or_error(Keyword::MemoryInit)?;
 
-        let block_type = if self.eat_keyword(Keyword::CallData)? {
-            BlockType::CallData(self.eat_u32_or_error()?)
-        } else if self.eat_keyword(Keyword::ReturnData)? {
-            BlockType::ReturnData
-        } else {
-            BlockType::Memory
-        };
+        let block_type = self.parse_block_type()?;
 
         // blockId = [witness1, witness2, ...]
         let block_id = self.eat_block_id_or_error()?;
@@ -665,6 +659,16 @@ impl<'a> Parser<'a> {
         let init = self.parse_witness_vector()?;
 
         Ok(Opcode::MemoryInit { block_id, init, block_type })
+    }
+
+    fn parse_block_type(&mut self) -> Result<BlockType, ParserError> {
+        if self.eat_keyword(Keyword::CallData)? {
+            Ok(BlockType::CallData(self.eat_u32_or_error()?))
+        } else if self.eat_keyword(Keyword::ReturnData)? {
+            Ok(BlockType::ReturnData)
+        } else {
+            Ok(BlockType::Memory)
+        }
     }
 
     fn parse_memory_read(&mut self) -> ParseResult<Opcode<FieldElement>> {
