@@ -169,7 +169,7 @@ fn slice_pop_front() {
 }
 
 #[test]
-fn slice_insert() {
+fn slice_insert_no_predicate() {
     let src = "
     acir(inline) predicate_pure fn main f0 {
       b0(v0: u32, v1: u32):
@@ -222,45 +222,33 @@ fn slice_insert() {
     BLACKBOX::RANGE input: w14, bits: 1
     BLACKBOX::RANGE input: w15, bits: 64
     ASSERT w15 = -w1 - 18446744073709551616*w14 + 18446744073709551617
-    BRILLIG CALL func: 0, inputs: [-w1 + 18446744073709551616, 18446744073709551616], outputs: [w16, w17]
-    BLACKBOX::RANGE input: w16, bits: 1
-    BLACKBOX::RANGE input: w17, bits: 64
-    ASSERT w17 = -w1 - 18446744073709551616*w16 + 18446744073709551616
-    ASSERT w18 = -w14 + 1
-    READ w19 = b1[w18]
-    ASSERT w20 = w14*w16 - w14 + 1
-    ASSERT w21 = 1
-    ASSERT w22 = -10*w14*w16 + w19*w20 + 10*w14
-    WRITE b2[w21] = w22
-    BRILLIG CALL func: 0, inputs: [-w1 + 18446744073709551618, 18446744073709551616], outputs: [w23, w24]
-    BLACKBOX::RANGE input: w23, bits: 1
-    BLACKBOX::RANGE input: w24, bits: 64
-    ASSERT w24 = -w1 - 18446744073709551616*w23 + 18446744073709551618
-    BRILLIG CALL func: 0, inputs: [-w1 + 18446744073709551617, 18446744073709551616], outputs: [w25, w26]
-    BLACKBOX::RANGE input: w25, bits: 1
-    BLACKBOX::RANGE input: w26, bits: 64
-    ASSERT w26 = -w1 - 18446744073709551616*w25 + 18446744073709551617
-    ASSERT w27 = -w23 + 2
-    READ w28 = b1[w27]
-    ASSERT w29 = w23*w25 - w23 + 1
-    ASSERT w30 = -10*w23*w25 + w28*w29 + 10*w23
-    WRITE b2[w2] = w30
-    BRILLIG CALL func: 0, inputs: [-w1 + 18446744073709551619, 18446744073709551616], outputs: [w31, w32]
-    BLACKBOX::RANGE input: w31, bits: 1
-    BLACKBOX::RANGE input: w32, bits: 64
-    ASSERT w32 = -w1 - 18446744073709551616*w31 + 18446744073709551619
-    BRILLIG CALL func: 0, inputs: [-w1 + 18446744073709551618, 18446744073709551616], outputs: [w33, w34]
-    BLACKBOX::RANGE input: w33, bits: 1
-    BLACKBOX::RANGE input: w34, bits: 64
-    ASSERT w34 = -w1 - 18446744073709551616*w33 + 18446744073709551618
-    ASSERT w35 = -w31 + 3
-    READ w36 = b1[w35]
-    ASSERT w37 = w31*w33 - w31 + 1
-    ASSERT w38 = -10*w31*w33 + w36*w37 + 10*w31
-    WRITE b2[w3] = w38
+    ASSERT w16 = -w14 + 1
+    READ w17 = b1[w16]
+    ASSERT w18 = w7*w14 - w14 + 1
+    ASSERT w19 = 1
+    ASSERT w20 = -10*w7*w14 + w17*w18 + 10*w14
+    WRITE b2[w19] = w20
+    BRILLIG CALL func: 0, inputs: [-w1 + 18446744073709551618, 18446744073709551616], outputs: [w21, w22]
+    BLACKBOX::RANGE input: w21, bits: 1
+    BLACKBOX::RANGE input: w22, bits: 64
+    ASSERT w22 = -w1 - 18446744073709551616*w21 + 18446744073709551618
+    ASSERT w23 = -w21 + 2
+    READ w24 = b1[w23]
+    ASSERT w25 = w14*w21 - w21 + 1
+    ASSERT w26 = -10*w14*w21 + w24*w25 + 10*w21
+    WRITE b2[w2] = w26
+    BRILLIG CALL func: 0, inputs: [-w1 + 18446744073709551619, 18446744073709551616], outputs: [w27, w28]
+    BLACKBOX::RANGE input: w27, bits: 1
+    BLACKBOX::RANGE input: w28, bits: 64
+    ASSERT w28 = -w1 - 18446744073709551616*w27 + 18446744073709551619
+    ASSERT w29 = -w27 + 3
+    READ w30 = b1[w29]
+    ASSERT w31 = w21*w27 - w27 + 1
+    ASSERT w32 = -10*w21*w27 + w30*w31 + 10*w27
+    WRITE b2[w3] = w32
     ASSERT w1 = 4
-    ASSERT w39 = 20
-    WRITE b2[w0] = w39
+    ASSERT w33 = 20
+    WRITE b2[w0] = w33
 
     unconstrained func 0: directive_integer_quotient
     0: @10 = const u32 2
