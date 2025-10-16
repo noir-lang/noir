@@ -181,7 +181,7 @@ impl<F: AcirField> GeneratedAcir<F> {
         num_bits: Option<u32>,
         outputs: Vec<Witness>,
     ) -> Result<(), InternalError> {
-        fn into<T, U>(value: T) -> U
+        fn expect_into<T, U>(value: T) -> U
         where
             T: TryInto<U>,
             <T as TryInto<U>>::Error: std::fmt::Debug,
@@ -194,74 +194,74 @@ impl<F: AcirField> GeneratedAcir<F> {
         intrinsics_check_outputs(func_name, outputs.len());
         let black_box_func_call = match func_name {
             BlackBoxFunc::AES128Encrypt => {
-                let [inputs, iv, key] = into(function_inputs);
-                let iv = into(iv);
-                let key = into(key);
+                let [inputs, iv, key] = expect_into(function_inputs);
+                let iv = expect_into(iv);
+                let key = expect_into(key);
                 BlackBoxFuncCall::AES128Encrypt { inputs, iv, key, outputs }
             }
             BlackBoxFunc::AND => {
-                let [lhs, rhs] = into(function_inputs);
+                let [lhs, rhs] = expect_into(function_inputs);
                 let num_bits = num_bits.expect("missing num_bits");
                 BlackBoxFuncCall::AND { lhs: lhs[0], rhs: rhs[0], num_bits, output: outputs[0] }
             }
             BlackBoxFunc::XOR => {
-                let [lhs, rhs] = into(function_inputs);
+                let [lhs, rhs] = expect_into(function_inputs);
                 let num_bits = num_bits.expect("missing num_bits");
                 BlackBoxFuncCall::XOR { lhs: lhs[0], rhs: rhs[0], num_bits, output: outputs[0] }
             }
             BlackBoxFunc::RANGE => {
-                let [input] = into(function_inputs);
+                let [input] = expect_into(function_inputs);
                 let num_bits = num_bits.expect("missing num_bits");
                 BlackBoxFuncCall::RANGE { input: input[0], num_bits }
             }
             BlackBoxFunc::Blake2s => {
-                let [inputs] = into(function_inputs);
-                let outputs = into(outputs);
+                let [inputs] = expect_into(function_inputs);
+                let outputs = expect_into(outputs);
                 BlackBoxFuncCall::Blake2s { inputs: inputs.clone(), outputs }
             }
             BlackBoxFunc::Blake3 => {
-                let [inputs] = into(function_inputs);
-                let outputs = into(outputs);
+                let [inputs] = expect_into(function_inputs);
+                let outputs = expect_into(outputs);
                 BlackBoxFuncCall::Blake3 { inputs: inputs.clone(), outputs }
             }
             BlackBoxFunc::EcdsaSecp256k1 => {
                 let [public_key_x, public_key_y, signature, hashed_message, predicate] =
-                    into(function_inputs);
-                let [predicate] = into(predicate);
-                let [output] = into(outputs);
+                    expect_into(function_inputs);
+                let [predicate] = expect_into(predicate);
+                let [output] = expect_into(outputs);
                 BlackBoxFuncCall::EcdsaSecp256k1 {
                     // 32 bytes for each public key co-ordinate
-                    public_key_x: into(public_key_x),
-                    public_key_y: into(public_key_y),
+                    public_key_x: expect_into(public_key_x),
+                    public_key_y: expect_into(public_key_y),
                     // (r,s) are both 32 bytes each, so signature
                     // takes up 64 bytes
-                    signature: into(signature),
-                    hashed_message: into(hashed_message),
+                    signature: expect_into(signature),
+                    hashed_message: expect_into(hashed_message),
                     predicate,
                     output,
                 }
             }
             BlackBoxFunc::EcdsaSecp256r1 => {
                 let [public_key_x, public_key_y, signature, hashed_message, predicate] =
-                    into(function_inputs);
-                let [predicate] = into(predicate);
-                let [output] = into(outputs);
+                    expect_into(function_inputs);
+                let [predicate] = expect_into(predicate);
+                let [output] = expect_into(outputs);
                 BlackBoxFuncCall::EcdsaSecp256r1 {
                     // 32 bytes for each public key co-ordinate
-                    public_key_x: into(public_key_x),
-                    public_key_y: into(public_key_y),
+                    public_key_x: expect_into(public_key_x),
+                    public_key_y: expect_into(public_key_y),
                     // (r,s) are both 32 bytes each, so signature
                     // takes up 64 bytes
-                    signature: into(signature),
-                    hashed_message: into(hashed_message),
+                    signature: expect_into(signature),
+                    hashed_message: expect_into(hashed_message),
                     predicate,
                     output,
                 }
             }
             BlackBoxFunc::MultiScalarMul => {
-                let [points, scalars, predicate] = into(function_inputs);
-                let [predicate] = into(predicate);
-                let [output0, output1, output2] = into(outputs);
+                let [points, scalars, predicate] = expect_into(function_inputs);
+                let [predicate] = expect_into(predicate);
+                let [output0, output1, output2] = expect_into(outputs);
                 BlackBoxFuncCall::MultiScalarMul {
                     points,
                     scalars,
@@ -272,15 +272,15 @@ impl<F: AcirField> GeneratedAcir<F> {
 
             BlackBoxFunc::EmbeddedCurveAdd => {
                 let [input1_0, input1_1, input1_2, input2_0, input2_1, input2_2, predicate] =
-                    into(function_inputs);
-                let [input1_0] = into(input1_0);
-                let [input1_1] = into(input1_1);
-                let [input1_2] = into(input1_2);
-                let [input2_0] = into(input2_0);
-                let [input2_1] = into(input2_1);
-                let [input2_2] = into(input2_2);
-                let [predicate] = into(predicate);
-                let [output0, output1, output2] = into(outputs);
+                    expect_into(function_inputs);
+                let [input1_0] = expect_into(input1_0);
+                let [input1_1] = expect_into(input1_1);
+                let [input1_2] = expect_into(input1_2);
+                let [input2_0] = expect_into(input2_0);
+                let [input2_1] = expect_into(input2_1);
+                let [input2_2] = expect_into(input2_2);
+                let [predicate] = expect_into(predicate);
+                let [output0, output1, output2] = expect_into(outputs);
                 BlackBoxFuncCall::EmbeddedCurveAdd {
                     input1: Box::new([input1_0, input1_1, input1_2]),
                     input2: Box::new([input2_0, input2_1, input2_2]),
@@ -289,15 +289,18 @@ impl<F: AcirField> GeneratedAcir<F> {
                 }
             }
             BlackBoxFunc::Keccakf1600 => {
-                let [inputs] = into(function_inputs);
-                BlackBoxFuncCall::Keccakf1600 { inputs: into(inputs), outputs: into(outputs) }
+                let [inputs] = expect_into(function_inputs);
+                BlackBoxFuncCall::Keccakf1600 {
+                    inputs: expect_into(inputs),
+                    outputs: expect_into(outputs),
+                }
             }
             BlackBoxFunc::RecursiveAggregation => {
                 let [verification_key, proof, public_inputs, key_hash, predicate] =
-                    into(function_inputs);
-                let [key_hash] = into(key_hash);
-                let [proof_type] = into(constant_inputs);
-                let [predicate] = into(predicate);
+                    expect_into(function_inputs);
+                let [key_hash] = expect_into(key_hash);
+                let [proof_type] = expect_into(constant_inputs);
+                let [predicate] = expect_into(predicate);
                 BlackBoxFuncCall::RecursiveAggregation {
                     verification_key,
                     proof,
@@ -308,15 +311,15 @@ impl<F: AcirField> GeneratedAcir<F> {
                 }
             }
             BlackBoxFunc::Poseidon2Permutation => {
-                let [inputs] = into(function_inputs);
+                let [inputs] = expect_into(function_inputs);
                 BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs }
             }
             BlackBoxFunc::Sha256Compression => {
-                let [inputs, hash_values] = into(function_inputs);
+                let [inputs, hash_values] = expect_into(function_inputs);
                 BlackBoxFuncCall::Sha256Compression {
-                    inputs: into(inputs),
-                    hash_values: into(hash_values),
-                    outputs: into(outputs),
+                    inputs: expect_into(inputs),
+                    hash_values: expect_into(hash_values),
+                    outputs: expect_into(outputs),
                 }
             }
         };
