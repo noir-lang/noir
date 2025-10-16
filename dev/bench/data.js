@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1760633389644,
+  "lastUpdate": 1760633494174,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23321,48 +23321,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "b7c0c53625a6a16e66df1976dacf0018208269ce",
-          "message": "chore: ConstrainNotEqual requires acir predicate (#10062)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-10-07T12:36:40Z",
-          "tree_id": "ce09b1cda8f8a39fa20affa520e1b2825502f2d7",
-          "url": "https://github.com/noir-lang/noir/commit/b7c0c53625a6a16e66df1976dacf0018208269ce"
-        },
-        "date": 1759842284802,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 263764,
-            "range": "± 856",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 234623,
-            "range": "± 2168",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2792203,
-            "range": "± 2425",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -25414,6 +25372,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2786665,
             "range": "± 13476",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d293d1c97b5dad9a7ada3fe194f717379c62bdd3",
+          "message": "chore: remove incremental mutation tests (#10212)",
+          "timestamp": "2025-10-16T17:48:43+01:00",
+          "tree_id": "53d6d482b6e4ff291d357da9d2699e68b03903ab",
+          "url": "https://github.com/noir-lang/noir/commit/d293d1c97b5dad9a7ada3fe194f717379c62bdd3"
+        },
+        "date": 1760633470649,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 261951,
+            "range": "± 1813",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 229459,
+            "range": "± 864",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2786517,
+            "range": "± 5446",
             "unit": "ns/iter"
           }
         ]
