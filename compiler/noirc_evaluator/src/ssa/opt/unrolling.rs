@@ -33,9 +33,9 @@
 //!     used as loop bounds, into a form which loop unrolling may better identify.
 //!
 //! Conditions:
-//!   - Pre-conditions: No explicit pre-conditions strictly required to run this pass but in
-//!     practice since other passes affect this passes ability to unroll loops, some passes such as
-//!     inlining and mem2reg are required before running this on arbitrary noir code.
+//!   - Pre-condition: All loop headers have a single induction variable.
+//!   - Pre-condition: The SSA must be optimized to a point at which loop bounds are known.
+//!     Some passes such as inlining and mem2reg are de-facto required before running this pass on arbitrary noir code.
 //!   - Post-condition (ACIR-only): All loops in ACIR functions should be unrolled when this pass is
 //!     completed successfully. Any loops that are not unrolled (e.g. because of a mutable variable
 //!     used in the loop condition whose value is unknown) will result in an error.

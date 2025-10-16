@@ -7,6 +7,12 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct BlockId(pub u32);
 
+impl std::fmt::Display for BlockId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "b{}", self.0)
+    }
+}
+
 /// Operation on a block of memory
 /// We can either write or read at an index in memory
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Debug, Hash)]
