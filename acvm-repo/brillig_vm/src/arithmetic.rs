@@ -176,51 +176,19 @@ pub(crate) fn evaluate_binary_int_op<F: AcirField>(
                 }
             }
             (MemoryValue::U8(lhs), MemoryValue::U8(rhs), IntegerBitSize::U8) => {
-                if rhs < 8 {
-                    Ok(MemoryValue::U8(evaluate_binary_int_op_shifts(op, lhs, rhs)))
-                } else {
-                    Err(BrilligArithmeticError::BitshiftOverflow {
-                        bit_size: 8,
-                        shift_size: u128::from(rhs),
-                    })
-                }
+                Ok(MemoryValue::U8(evaluate_binary_int_op_shifts(op, lhs, rhs)?))
             }
             (MemoryValue::U16(lhs), MemoryValue::U16(rhs), IntegerBitSize::U16) => {
-                if rhs < 16 {
-                    Ok(MemoryValue::U16(evaluate_binary_int_op_shifts(op, lhs, rhs)))
-                } else {
-                    Err(BrilligArithmeticError::BitshiftOverflow {
-                        bit_size: 16,
-                        shift_size: u128::from(rhs),
-                    })
-                }
+                Ok(MemoryValue::U16(evaluate_binary_int_op_shifts(op, lhs, rhs)?))
             }
             (MemoryValue::U32(lhs), MemoryValue::U32(rhs), IntegerBitSize::U32) => {
-                if rhs < 32 {
-                    Ok(MemoryValue::U32(evaluate_binary_int_op_shifts(op, lhs, rhs)))
-                } else {
-                    Err(BrilligArithmeticError::BitshiftOverflow {
-                        bit_size: 32,
-                        shift_size: u128::from(rhs),
-                    })
-                }
+                Ok(MemoryValue::U32(evaluate_binary_int_op_shifts(op, lhs, rhs)?))
             }
             (MemoryValue::U64(lhs), MemoryValue::U64(rhs), IntegerBitSize::U64) => {
-                if rhs < 64 {
-                    Ok(MemoryValue::U64(evaluate_binary_int_op_shifts(op, lhs, rhs)))
-                } else {
-                    Err(BrilligArithmeticError::BitshiftOverflow {
-                        bit_size: 64,
-                        shift_size: u128::from(rhs),
-                    })
-                }
+                Ok(MemoryValue::U64(evaluate_binary_int_op_shifts(op, lhs, rhs)?))
             }
             (MemoryValue::U128(lhs), MemoryValue::U128(rhs), IntegerBitSize::U128) => {
-                if rhs < 128 {
-                    Ok(MemoryValue::U128(evaluate_binary_int_op_shifts(op, lhs, rhs)))
-                } else {
-                    Err(BrilligArithmeticError::BitshiftOverflow { bit_size: 128, shift_size: rhs })
-                }
+                Ok(MemoryValue::U128(evaluate_binary_int_op_shifts(op, lhs, rhs)?))
             }
             _ => Err(BrilligArithmeticError::MismatchedLhsBitSize {
                 lhs_bit_size: lhs.bit_size().to_u32::<F>(),
@@ -280,22 +248,30 @@ fn evaluate_binary_int_op_cmp<T: Ord + PartialEq>(op: &BinaryIntOp, lhs: T, rhs:
 /// Evaluates shift operations (`Shl`, `Shr`) for unsigned integers.
 /// Ensures that shifting beyond the type width returns zero.
 ///
+/// # Returns
+/// - Ok(result) if successful.
+/// - Err([BrilligArithmeticError::DivisionByZero]) if the RHS is not less than the bit size.
+///
 /// # Panics
 /// If an unsupported operator is provided (i.e., not `Shl` or `Shr`).
-fn evaluate_binary_int_op_shifts<T: ToPrimitive + Zero + Shl<Output = T> + Shr<Output = T>>(
+fn evaluate_binary_int_op_shifts<
+    T: ToPrimitive + Zero + Shl<Output = T> + Shr<Output = T> + Into<u128>,
+>(
     op: &BinaryIntOp,
     lhs: T,
     rhs: T,
-) -> T {
+) -> Result<T, BrilligArithmeticError> {
+    let bit_size = 8 * size_of::<T>();
+    let rhs_usize: usize = rhs.to_usize().expect("Could not convert rhs to usize");
+    if rhs_usize >= bit_size {
+        return Err(BrilligArithmeticError::BitshiftOverflow {
+            bit_size: bit_size as u32,
+            shift_size: rhs.into(),
+        });
+    }
     match op {
-        BinaryIntOp::Shl => {
-            let rhs_usize: usize = rhs.to_usize().expect("Could not convert rhs to usize");
-            if rhs_usize >= 8 * size_of::<T>() { T::zero() } else { lhs << rhs }
-        }
-        BinaryIntOp::Shr => {
-            let rhs_usize: usize = rhs.to_usize().expect("Could not convert rhs to usize");
-            if rhs_usize >= 8 * size_of::<T>() { T::zero() } else { lhs >> rhs }
-        }
+        BinaryIntOp::Shl => Ok(lhs << rhs),
+        BinaryIntOp::Shr => Ok(lhs >> rhs),
         _ => unreachable!("Operator not handled by this function: {op:?}"),
     }
 }
