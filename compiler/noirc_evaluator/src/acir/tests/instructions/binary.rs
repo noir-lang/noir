@@ -119,7 +119,7 @@ fn eq_field() {
     BRILLIG CALL func: 0, inputs: [w3], outputs: [w4]
     ASSERT w5 = -w3*w4 + 1
     ASSERT 0 = w3*w5
-    ASSERT w5 = w2
+    ASSERT w2 = w5
 
     unconstrained func 0: directive_invert
     0: @21 = const u32 1
@@ -174,7 +174,7 @@ fn checked_add_u8_no_predicate() {
     BLACKBOX::RANGE input: w1, bits: 8
     ASSERT w3 = w0 + w1
     BLACKBOX::RANGE input: w3, bits: 8
-    ASSERT w3 = w2
+    ASSERT w2 = w3
     ");
 }
 
@@ -201,7 +201,7 @@ fn checked_add_u8_with_predicate() {
     BLACKBOX::RANGE input: w2, bits: 1
     ASSERT w4 = w0*w2 + w1*w2
     BLACKBOX::RANGE input: w4, bits: 8
-    ASSERT w4 = w3
+    ASSERT w3 = w4
     ");
 }
 
@@ -229,7 +229,7 @@ fn checked_mul_u8_with_predicate() {
     ASSERT w4 = w0*w1
     ASSERT w5 = w2*w4
     BLACKBOX::RANGE input: w5, bits: 8
-    ASSERT w5 = w3
+    ASSERT w3 = w5
     ");
 }
 
@@ -267,7 +267,7 @@ fn div_u8_no_predicate_by_witness() {
     ASSERT w6 = w1 - w5 - 1
     BLACKBOX::RANGE input: w6, bits: 8
     ASSERT w5 = -w1*w4 + w0
-    ASSERT w4 = w2
+    ASSERT w2 = w4
 
     unconstrained func 0: directive_invert
     0: @21 = const u32 1
@@ -318,7 +318,7 @@ fn div_u8_no_predicate_by_constant() {
     ASSERT w4 = w3 + 1
     BLACKBOX::RANGE input: w4, bits: 3
     ASSERT w3 = w0 - 7*w2
-    ASSERT w2 = w1
+    ASSERT w1 = w2
 
     unconstrained func 0: directive_integer_quotient
     0: @10 = const u32 2
@@ -372,7 +372,7 @@ fn div_u8_with_predicate() {
     BLACKBOX::RANGE input: w8, bits: 8
     ASSERT w9 = w1*w6 + w7
     ASSERT 0 = w0*w2 - w2*w9
-    ASSERT w6 = w3
+    ASSERT w3 = w6
 
     unconstrained func 0: directive_invert
     0: @21 = const u32 1
@@ -424,7 +424,7 @@ fn mod_u8_no_predicate() {
     ASSERT w6 = w1 - w5 - 1
     BLACKBOX::RANGE input: w6, bits: 8
     ASSERT w5 = -w1*w4 + w0
-    ASSERT w5 = w2
+    ASSERT w2 = w5
 
     unconstrained func 0: directive_invert
     0: @21 = const u32 1
@@ -471,7 +471,7 @@ fn eq_u8() {
     BRILLIG CALL func: 0, inputs: [w3], outputs: [w4]
     ASSERT w5 = -w3*w4 + 1
     ASSERT 0 = w3*w5
-    ASSERT w5 = w2
+    ASSERT w2 = w5
 
     unconstrained func 0: directive_invert
     0: @21 = const u32 1
@@ -519,7 +519,7 @@ fn lt_u8() {
     BLACKBOX::RANGE input: w3, bits: 1
     BLACKBOX::RANGE input: w4, bits: 8
     ASSERT w4 = w0 - w1 - 256*w3 + 256
-    ASSERT w3 = -w2 + 1
+    ASSERT w2 = -w3 + 1
 
     unconstrained func 0: directive_integer_quotient
     0: @10 = const u32 2
@@ -574,7 +574,7 @@ fn and_u8() {
     BLACKBOX::RANGE input: w0, bits: 8
     BLACKBOX::RANGE input: w1, bits: 8
     BLACKBOX::AND lhs: w0, rhs: w1, output: w3, bits: 8
-    ASSERT w3 = w2
+    ASSERT w2 = w3
     ");
 }
 
@@ -625,7 +625,7 @@ fn or_u8() {
     ASSERT w3 = -w0 + 255
     ASSERT w4 = -w1 + 255
     BLACKBOX::AND lhs: w3, rhs: w4, output: w5, bits: 8
-    ASSERT w5 = -w2 + 255
+    ASSERT w2 = -w5 + 255
     ");
 }
 
@@ -673,6 +673,6 @@ fn xor_u8() {
     BLACKBOX::RANGE input: w0, bits: 8
     BLACKBOX::RANGE input: w1, bits: 8
     BLACKBOX::XOR lhs: w0, rhs: w1, output: w3, bits: 8
-    ASSERT w3 = w2
+    ASSERT w2 = w3
     ");
 }
