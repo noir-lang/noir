@@ -1750,14 +1750,14 @@
         <span class="self">self</span>.acir_context.truncate_var(var, bit_size, max_bit_size)
     }
 
-    <span class="doccomment">/// Fetch a flat list of ([AcirVar], [AcirType]).
+    <span class="doccomment">/// Fetch a flat list of [AcirVar].
     ///
-    /// Flattens an [AcirValue] into a vector of `(AcirVar, AcirType)`.
+    /// Flattens an [AcirValue] into a vector of `AcirVar`.
     ///
     /// This is an extension of [AcirValue::flatten] that also supports [AcirValue::DynamicArray].
-    </span><span class="kw">fn </span>flatten(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: <span class="kw-2">&amp;</span>AcirValue) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;(AcirVar, NumericType)&gt;, RuntimeError&gt; {
+    </span><span class="kw">fn </span>flatten(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: <span class="kw-2">&amp;</span>AcirValue) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;AcirVar&gt;, RuntimeError&gt; {
         <span class="prelude-val">Ok</span>(<span class="kw">match </span>value {
-            AcirValue::Var(var, typ) =&gt; <span class="macro">vec!</span>[(<span class="kw-2">*</span>var, typ.to_numeric_type())],
+            AcirValue::Var(var, <span class="kw">_</span>) =&gt; <span class="macro">vec!</span>[<span class="kw-2">*</span>var],
             AcirValue::Array(array) =&gt; {
                 <span class="kw">let </span><span class="kw-2">mut </span>result = Vec::new();
                 <span class="kw">for </span>elem <span class="kw">in </span>array {
@@ -1771,7 +1771,7 @@
 
                 <span class="kw">for </span>value <span class="kw">in </span>elements {
                     <span class="kw">match </span>value {
-                        AcirValue::Var(var, typ) =&gt; result.push((var, typ.to_numeric_type())),
+                        AcirValue::Var(var, <span class="kw">_</span>) =&gt; result.push(var),
                         <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: Dynamic memory should already be flat"</span>),
                     }
                 }
