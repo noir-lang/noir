@@ -2053,7 +2053,7 @@ fn serialize_test_with_a_previous_unrelated_definition() {
         x.serialize();
     }
     "#;
-    check_monomorphization_error(&src);
+    check_monomorphization_error(src);
 }
 
 #[test]
