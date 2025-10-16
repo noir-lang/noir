@@ -1611,8 +1611,7 @@
 <a href="#1610" id="1610">1610</a>
 <a href="#1611" id="1611">1611</a>
 <a href="#1612" id="1612">1612</a>
-<a href="#1613" id="1613">1613</a>
-<a href="#1614" id="1614">1614</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
+<a href="#1613" id="1613">1613</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
 //! of type information from SSA in order to allow efficient ACIR-gen.
 //!
 //! The [`AcirContext`] struct defines how to translate SSA instructions into equivalent ACIR constructs. This
@@ -2180,24 +2179,21 @@
         typ: AcirType,
         predicate: AcirVar,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;AcirVar, RuntimeError&gt; {
-        <span class="kw">let </span>numeric_type = <span class="kw">match </span>typ {
-            AcirType::NumericType(numeric_type) =&gt; numeric_type,
-            AcirType::Array(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
-                <span class="macro">unreachable!</span>(<span class="string">"cannot divide arrays. This should have been caught by the frontend"</span>)
-            }
-        };
-        <span class="kw">match </span>numeric_type {
-            NumericType::NativeField =&gt; {
+        <span class="kw">match </span>typ {
+            AcirType::NumericType(NumericType::NativeField) =&gt; {
                 <span class="kw">let </span>inv_rhs = <span class="self">self</span>.inv_var(rhs, predicate)<span class="question-mark">?</span>;
                 <span class="self">self</span>.mul_var(lhs, inv_rhs)
             }
-            NumericType::Unsigned { bit_size } =&gt; {
+            AcirType::NumericType(NumericType::Unsigned { bit_size }) =&gt; {
                 <span class="kw">let </span>(quotient_var, _remainder_var) =
                     <span class="self">self</span>.euclidean_division_var(lhs, rhs, bit_size, predicate)<span class="question-mark">?</span>;
                 <span class="prelude-val">Ok</span>(quotient_var)
             }
-            NumericType::Signed { .. } =&gt; {
+            AcirType::NumericType(NumericType::Signed { .. }) =&gt; {
                 <span class="macro">unreachable!</span>(<span class="string">"Signed division should have been removed before ACIRgen"</span>)
+            }
+            AcirType::Array(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
+                <span class="macro">unreachable!</span>(<span class="string">"cannot divide arrays. This should have been caught by the frontend"</span>)
             }
         }
     }
@@ -2689,20 +2685,22 @@
         bit_size: u32,
         predicate: AcirVar,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;AcirVar, RuntimeError&gt; {
-        <span class="kw">let </span>numeric_type = <span class="kw">match </span>typ {
-            AcirType::NumericType(numeric_type) =&gt; numeric_type,
+        <span class="kw">match </span>typ {
+            AcirType::NumericType(NumericType::Unsigned { .. }) =&gt; {
+                <span class="kw">let </span>(<span class="kw">_</span>, remainder_var) =
+                    <span class="self">self</span>.euclidean_division_var(lhs, rhs, bit_size, predicate)<span class="question-mark">?</span>;
+                <span class="prelude-val">Ok</span>(remainder_var)
+            }
+            AcirType::NumericType(NumericType::Signed { .. }) =&gt; {
+                <span class="macro">unreachable!</span>(<span class="string">"Signed modulo should have been removed before ACIRgen"</span>)
+            }
+            AcirType::NumericType(NumericType::NativeField) =&gt; {
+                <span class="macro">unreachable!</span>(<span class="string">"cannot module fields. This should have been caught by the frontend"</span>)
+            }
             AcirType::Array(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
                 <span class="macro">unreachable!</span>(<span class="string">"cannot modulo arrays. This should have been caught by the frontend"</span>)
             }
-        };
-
-        <span class="kw">let </span>(<span class="kw">_</span>, remainder_var) = <span class="kw">match </span>numeric_type {
-            NumericType::Signed { .. } =&gt; {
-                <span class="macro">unreachable!</span>(<span class="string">"Signed modulo should have been removed before ACIRgen"</span>)
-            }
-            <span class="kw">_ </span>=&gt; <span class="self">self</span>.euclidean_division_var(lhs, rhs, bit_size, predicate)<span class="question-mark">?</span>,
-        };
-        <span class="prelude-val">Ok</span>(remainder_var)
+        }
     }
 
     <span class="doccomment">/// Constrains the `AcirVar` variable to be of type `NumericType`.
