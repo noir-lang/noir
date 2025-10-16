@@ -754,11 +754,9 @@ impl<'a> Parser<'a> {
                     }
                     BrilligInputs::Array(exprs)
                 }
-                Token::Ident(s) if s == "MemoryArray" => {
-                    self.bump()?; // eat "MemoryArray"
-                    self.eat_or_error(Token::LeftParen)?;
-                    let block_id = self.eat_u32_or_error()?;
-                    self.eat_or_error(Token::RightParen)?;
+                Token::Block(block_id) => {
+                    let block_id = *block_id;
+                    self.bump()?; // eat block
                     BrilligInputs::MemoryArray(BlockId(block_id))
                 }
                 _ => {

@@ -50,7 +50,7 @@ impl<F: AcirField> std::fmt::Display for BrilligInputs<F> {
                 let joined = exprs.iter().map(|e| format!("{e}")).collect::<Vec<_>>().join(", ");
                 write!(f, "[{joined}]")
             }
-            BrilligInputs::MemoryArray(block_id) => write!(f, "MemoryArray({})", block_id.0),
+            BrilligInputs::MemoryArray(block_id) => write!(f, "b{}", block_id.0),
         }
     }
 }
