@@ -130,9 +130,7 @@ impl<'a> Parser<'a> {
         let mut functions: Vec<Circuit<FieldElement>> = Vec::new();
 
         // We expect top-level "func" keywords for each circuit
-        while let Some(Keyword::Function) = self.peek_keyword() {
-            self.bump()?;
-
+        while self.eat_keyword(Keyword::Function)? {
             let func_id = self.eat_u32_or_error()?;
             let expected_id = functions.len() as u32;
             if func_id != expected_id {
@@ -611,24 +609,18 @@ impl<'a> Parser<'a> {
     fn parse_blackbox_input_no_keyword(
         &mut self,
     ) -> Result<FunctionInput<FieldElement>, ParserError> {
-        Ok(match self.token.token() {
-            Token::Int(value) => {
-                let value = *value;
-                self.bump()?;
-                FunctionInput::Constant(value)
-            }
-            Token::Witness(index) => {
-                let witness = *index;
-                self.bump()?;
-                FunctionInput::Witness(Witness(witness))
-            }
-            other => {
-                return Err(ParserError::ExpectedOneOfTokens {
-                    tokens: vec![Token::Int(FieldElement::zero()), Token::Witness(0)],
-                    found: other.clone(),
-                    span: self.token.span(),
-                });
-            }
+        if let Some(value) = self.eat_field_element()? {
+            return Ok(FunctionInput::Constant(value));
+        }
+
+        if let Some(witness) = self.eat_witness()? {
+            return Ok(FunctionInput::Witness(witness));
+        }
+
+        Err(ParserError::ExpectedOneOfTokens {
+            tokens: vec![Token::Int(FieldElement::zero()), Token::Witness(0)],
+            found: self.token.token().clone(),
+            span: self.token.span(),
         })
     }
 
@@ -661,16 +653,12 @@ impl<'a> Parser<'a> {
     fn parse_memory_init(&mut self) -> ParseResult<Opcode<FieldElement>> {
         self.eat_keyword_or_error(Keyword::MemoryInit)?;
 
-        let block_type = match self.peek_keyword() {
-            Some(Keyword::CallData) => {
-                self.bump()?;
-                BlockType::CallData(self.eat_u32_or_error()?)
-            }
-            Some(Keyword::ReturnData) => {
-                self.bump()?;
-                BlockType::ReturnData
-            }
-            _ => BlockType::Memory,
+        let block_type = if self.eat_keyword(Keyword::CallData)? {
+            BlockType::CallData(self.eat_u32_or_error()?)
+        } else if self.eat_keyword(Keyword::ReturnData)? {
+            BlockType::ReturnData
+        } else {
+            BlockType::Memory
         };
 
         // blockId = [witness1, witness2, ...]
@@ -743,26 +731,19 @@ impl<'a> Parser<'a> {
 
         let mut inputs = Vec::new();
         while !self.eat(Token::RightBracket)? {
-            let input = match self.token.token() {
-                Token::LeftBracket => {
-                    // It's an array of expressions
-                    self.bump()?; // eat [
-                    let mut exprs = Vec::new();
-                    while !self.eat(Token::RightBracket)? {
-                        exprs.push(self.parse_arithmetic_expression()?);
-                        self.eat(Token::Comma)?; // allow trailing comma
-                    }
-                    BrilligInputs::Array(exprs)
+            let input = if self.eat(Token::LeftBracket)? {
+                // It's an array of expressions
+                let mut exprs = Vec::new();
+                while !self.eat(Token::RightBracket)? {
+                    exprs.push(self.parse_arithmetic_expression()?);
+                    self.eat(Token::Comma)?; // allow trailing comma
                 }
-                Token::Block(block_id) => {
-                    let block_id = *block_id;
-                    self.bump()?; // eat block
-                    BrilligInputs::MemoryArray(BlockId(block_id))
-                }
-                _ => {
-                    let expr = self.parse_arithmetic_expression()?;
-                    BrilligInputs::Single(expr)
-                }
+                BrilligInputs::Array(exprs)
+            } else if let Some(block_id) = self.eat_block_id()? {
+                BrilligInputs::MemoryArray(block_id)
+            } else {
+                let expr = self.parse_arithmetic_expression()?;
+                BrilligInputs::Single(expr)
             };
 
             inputs.push(input);
@@ -777,22 +758,18 @@ impl<'a> Parser<'a> {
 
         let mut outputs = Vec::new();
         while !self.eat(Token::RightBracket)? {
-            let output = match self.token.token() {
-                Token::LeftBracket => {
-                    self.bump()?; // eat [
-                    let mut witnesses = Vec::new();
-                    while !self.eat(Token::RightBracket)? {
-                        witnesses.push(self.eat_witness_or_error()?);
-                        self.eat(Token::Comma)?; // optional trailing comma
-                    }
-                    BrilligOutputs::Array(witnesses)
+            let output = if self.eat(Token::LeftBracket)? {
+                let mut witnesses = Vec::new();
+                while !self.eat(Token::RightBracket)? {
+                    witnesses.push(self.eat_witness_or_error()?);
+                    self.eat(Token::Comma)?; // optional trailing comma
                 }
-                Token::Witness(_) => BrilligOutputs::Simple(self.eat_witness_or_error()?),
-                _ => {
-                    return self.expected_one_of_tokens(&[Token::LeftBracket, Token::Witness(0)]);
-                }
+                BrilligOutputs::Array(witnesses)
+            } else if let Some(witness) = self.eat_witness()? {
+                BrilligOutputs::Simple(witness)
+            } else {
+                return self.expected_one_of_tokens(&[Token::LeftBracket, Token::Witness(0)]);
             };
-
             outputs.push(output);
             self.eat(Token::Comma)?; // optional trailing comma
         }
