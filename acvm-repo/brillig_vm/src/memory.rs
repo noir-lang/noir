@@ -319,12 +319,14 @@ impl<F: AcirField> Memory<F> {
         }
     }
 
-    /// Gets the value at address
+    /// Reads the numeric value at the address.
     pub fn read(&self, address: MemoryAddress) -> MemoryValue<F> {
         let resolved_addr = self.resolve(address);
         self.inner.get(resolved_addr).copied().unwrap_or_default()
     }
 
+    /// Reads the value at the address and returns it as a direct memory address,
+    /// without dereferencing the pointer itself to a numeric value.
     pub fn read_ref(&self, ptr: MemoryAddress) -> MemoryAddress {
         MemoryAddress::direct(self.read(ptr).to_usize())
     }

@@ -186,9 +186,9 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
 
     /// Updates the current status of the VM.
     /// Returns the given status.
-    fn status(&mut self, status: VMStatus<F>) -> VMStatus<F> {
+    fn status(&mut self, status: VMStatus<F>) -> &VMStatus<F> {
         self.status = status.clone();
-        status
+        &self.status
     }
 
     pub fn get_status(&self) -> VMStatus<F> {
@@ -196,7 +196,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
     }
 
     /// Sets the current status of the VM to Finished (completed execution).
-    fn finish(&mut self, return_data_offset: usize, return_data_size: usize) -> VMStatus<F> {
+    fn finish(&mut self, return_data_offset: usize, return_data_size: usize) -> &VMStatus<F> {
         self.status(VMStatus::Finished { return_data_offset, return_data_size })
     }
 
@@ -217,7 +217,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
 
     /// Sets the current status of the VM to `Failure`,
     /// indicating that the VM encountered a `Trap` Opcode.
-    fn trap(&mut self, revert_data_offset: usize, revert_data_size: usize) -> VMStatus<F> {
+    fn trap(&mut self, revert_data_offset: usize, revert_data_size: usize) -> &VMStatus<F> {
         self.status(VMStatus::Failure {
             call_stack: self.get_call_stack(),
             reason: FailureReason::Trap { revert_data_offset, revert_data_size },
@@ -226,7 +226,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
 
     /// Sets the current status of the VM to `Failure`,
     /// indicating that the VM encountered an invalid state.
-    fn fail(&mut self, message: String) -> VMStatus<F> {
+    fn fail(&mut self, message: String) -> &VMStatus<F> {
         self.status(VMStatus::Failure {
             call_stack: self.get_call_stack(),
             reason: FailureReason::RuntimeError { message },
@@ -284,7 +284,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
     }
 
     /// Process a single opcode and modify the program counter.
-    pub fn process_opcode(&mut self) -> VMStatus<F> {
+    pub fn process_opcode(&mut self) -> &VMStatus<F> {
         if self.profiling_active {
             let call_stack: Vec<usize> = self.get_call_stack();
             self.profiling_samples.push(BrilligProfilingSample { call_stack });
@@ -308,7 +308,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
     /// - Foreign call opcodes pause the VM until the foreign call results are available.
     /// - Function call opcodes backup the current program counter into the call stack and jump to the function entry point.
     ///   The stack frame for function calls is handled during codegen.
-    fn process_opcode_internal(&mut self) -> VMStatus<F> {
+    fn process_opcode_internal(&mut self) -> &VMStatus<F> {
         let opcode = &self.bytecode[self.program_counter];
         match opcode {
             Opcode::BinaryFieldOp { op, lhs, rhs, destination: result } => {
@@ -430,24 +430,25 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                     self.finish(0, 0)
                 }
             }
-            Opcode::Load { destination: destination_address, source_pointer } => {
-                // Convert our source_pointer to an address
+            Opcode::Load { destination, source_pointer } => {
+                // Convert the source_pointer to an address
                 let source = self.memory.read_ref(*source_pointer);
-                // Use our usize source index to lookup the value in memory
+                // Use the source address to lookup the value in memory
                 let value = self.memory.read(source);
-                self.memory.write(*destination_address, value);
+                self.memory.write(*destination, value);
                 self.increment_program_counter()
             }
             Opcode::Store { destination_pointer, source: source_address } => {
-                // Convert our destination_pointer to an address
+                // Convert the destination_pointer to an address
                 let destination = self.memory.read_ref(*destination_pointer);
-                // Use our usize destination index to set the value in memory
+                // Read the value at the source address
                 let value = self.memory.read(*source_address);
+                // Use the destination address to set the value in memory
                 self.memory.write(destination, value);
                 self.increment_program_counter()
             }
             Opcode::Call { location } => {
-                // Push a return location
+                // Push the return location to the call stack.
                 self.call_stack.push(self.program_counter);
                 self.set_program_counter(*location)
             }
@@ -457,16 +458,19 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                 self.increment_program_counter()
             }
             Opcode::IndirectConst { destination_pointer, bit_size, value } => {
-                // Convert our destination_pointer to an address
+                // Convert the destination_pointer to an address
                 let destination = self.memory.read_ref(*destination_pointer);
-                // Use our usize destination index to set the value in memory
+                // Use the destination address to set the value in memory
                 self.memory.write(destination, MemoryValue::new_from_field(*value, *bit_size));
                 self.increment_program_counter()
             }
             Opcode::BlackBox(black_box_op) => {
-                match evaluate_black_box(black_box_op, self.black_box_solver, &mut self.memory) {
-                    Ok(()) => self.increment_program_counter(),
-                    Err(e) => self.fail(e.to_string()),
+                if let Err(e) =
+                    evaluate_black_box(black_box_op, self.black_box_solver, &mut self.memory)
+                {
+                    self.fail(e.to_string())
+                } else {
+                    self.increment_program_counter()
                 }
             }
         }
@@ -478,23 +482,23 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
     }
 
     /// Increments the program counter by 1.
-    fn increment_program_counter(&mut self) -> VMStatus<F> {
+    fn increment_program_counter(&mut self) -> &VMStatus<F> {
         self.set_program_counter(self.program_counter + 1)
     }
 
-    /// Increments the program counter by `value`.
+    /// Sets the program counter to `value`.
     /// If the program counter no longer points to an opcode
-    /// in the bytecode, then the VMStatus reports halted.
-    fn set_program_counter(&mut self, value: usize) -> VMStatus<F> {
+    /// in the bytecode, then the VMStatus reports `Finished`.
+    fn set_program_counter(&mut self, value: usize) -> &VMStatus<F> {
         assert!(self.program_counter < self.bytecode.len());
         self.program_counter = value;
         if self.program_counter >= self.bytecode.len() {
             self.status = VMStatus::Finished { return_data_offset: 0, return_data_size: 0 };
         }
-        self.status.clone()
+        &self.status
     }
 
-    /// Process a binary operation.
+    /// Process a binary field operation.
     /// This method will not modify the program counter.
     fn process_binary_field_op(
         &mut self,
@@ -514,7 +518,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         Ok(())
     }
 
-    /// Process a binary operation.
+    /// Process a binary integer operation.
     /// This method will not modify the program counter.
     fn process_binary_int_op(
         &mut self,

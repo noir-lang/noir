@@ -46,7 +46,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
         destination_value_types: &[HeapValueType],
         inputs: &[ValueOrArray],
         input_value_types: &[HeapValueType],
-    ) -> VMStatus<F> {
+    ) -> &VMStatus<F> {
         assert_eq!(inputs.len(), input_value_types.len());
         assert_eq!(destinations.len(), destination_value_types.len());
 
@@ -242,7 +242,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
         &mut self,
         function: String,
         inputs: Vec<ForeignCallParam<F>>,
-    ) -> VMStatus<F> {
+    ) -> &VMStatus<F> {
         self.status(VMStatus::ForeignCallWait { function, inputs })
     }
 
