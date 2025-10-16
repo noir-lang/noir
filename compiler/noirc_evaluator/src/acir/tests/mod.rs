@@ -312,15 +312,15 @@ fn databus() {
 
     // Check that w0 is not replaced
     assert_circuit_snapshot!(program, @r"
-        func 0
-        private parameters: [w0, w1]
-        public parameters: []
-        return values: [w2]
-        BLACKBOX::RANGE input: w1, bits: 32
-        ASSERT w0 = 0
-        ASSERT w3 = w0 + w1
-        BLACKBOX::RANGE input: w3, bits: 32
-        ASSERT w3 = w2
+    func 0
+    private parameters: [w0, w1]
+    public parameters: []
+    return values: [w2]
+    BLACKBOX::RANGE input: w1, bits: 32
+    ASSERT w0 = 0
+    ASSERT w3 = w0 + w1
+    BLACKBOX::RANGE input: w3, bits: 32
+    ASSERT w2 = w3
     ");
 }
 
