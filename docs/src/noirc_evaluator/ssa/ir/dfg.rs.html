@@ -1787,7 +1787,7 @@
             <span class="kw">return </span><span class="bool-val">false</span>;
         };
         <span class="kw">let </span>results = <span class="self">self</span>.instruction_results(instruction_id);
-        results.iter().any(|id| <span class="kw-2">*</span>id == return_data)
+        results.contains(<span class="kw-2">&amp;</span>return_data)
     }
 }
 
