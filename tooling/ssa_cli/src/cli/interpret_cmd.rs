@@ -73,6 +73,7 @@ pub(super) fn run(args: InterpretCommand, ssa: Ssa) -> eyre::Result<()> {
             println_to_stdout!("--- Interpreter result:\nErr({err})\n---");
         }
     }
+    let is_ok = result.is_ok();
 
     if let Some(return_value) = ssa_return {
         let return_value_as_string = vecmap(&return_value, ToString::to_string).join(", ");
@@ -89,7 +90,7 @@ pub(super) fn run(args: InterpretCommand, ssa: Ssa) -> eyre::Result<()> {
         }
     }
 
-    Ok(())
+    if is_ok { Ok(()) } else { bail!("The interpreter encountered an error.") }
 }
 
 /// Derive an ABI description from the SSA parameters.

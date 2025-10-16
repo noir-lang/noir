@@ -37,6 +37,12 @@ lazy_static::lazy_static! {
     static ref TRANSPILER_BIN_PATH: String = std::env::var("TRANSPILER_BIN_PATH").expect("TRANSPILER_BIN_PATH must be set");
 }
 
+/// Global simulator process that stays alive across calls
+static SIMULATOR_PROCESS: OnceLock<Mutex<Option<SimulatorProcess>>> = OnceLock::new();
+
+/// Global artifacts suffix that stays alive across calls
+static ARTIFACTS_SUFFIX: OnceLock<String> = OnceLock::new();
+
 /// Placeholder for creating a base contract artifact to feed to the transpiler
 fn create_base_contract_artifact() -> Value {
     json!({
@@ -97,11 +103,11 @@ fn transpile(bytecode_base64: String) -> Result<String, String> {
     let contract_json = serde_json::to_string(&contract)
         .map_err(|e| format!("Failed to serialize contract: {e}"))?;
 
-    fs::write("contract_artifact.json", contract_json)
+    fs::write(format!("contract_artifact_{}.json", ARTIFACTS_SUFFIX.get().unwrap()), contract_json)
         .map_err(|e| format!("Failed to write contract artifact: {e}"))?;
     let output = Command::new(TRANSPILER_BIN_PATH.as_str())
-        .arg("contract_artifact.json")
-        .arg("output.json")
+        .arg(format!("contract_artifact_{}.json", ARTIFACTS_SUFFIX.get().unwrap()))
+        .arg(format!("output_{}.json", ARTIFACTS_SUFFIX.get().unwrap()))
         .output()
         .map_err(|e| format!("Failed to execute transpiler: {e}"))?;
 
@@ -112,8 +118,9 @@ fn transpile(bytecode_base64: String) -> Result<String, String> {
 
     log::debug!("Transpiler output: {output:?}");
 
-    let output_content = fs::read_to_string("output.json")
-        .map_err(|e| format!("Failed to read output.json: {e}"))?;
+    let output_content =
+        fs::read_to_string(format!("output_{}.json", ARTIFACTS_SUFFIX.get().unwrap()))
+            .map_err(|e| format!("Failed to read output.json: {e}"))?;
 
     let output_json: Value = serde_json::from_str(&output_content)
         .map_err(|e| format!("Failed to parse output.json: {e}"))?;
@@ -129,9 +136,6 @@ fn transpile(bytecode_base64: String) -> Result<String, String> {
     log::debug!("Transpilation time: {:?}", start_time.elapsed());
     Ok(bytecode.to_string())
 }
-
-/// Global simulator process that stays alive across calls
-static SIMULATOR_PROCESS: OnceLock<Mutex<Option<SimulatorProcess>>> = OnceLock::new();
 
 struct SimulatorProcess {
     child: Child,
@@ -315,10 +319,22 @@ fn get_or_create_simulator()
 }
 
 /// Initialize the simulator process
-fn initialize() {
+fn initialize_simulator() {
     let _mutex = get_or_create_simulator().expect("Failed to create simulator");
 }
 
+/// Initialize the artifacts suffix
+///
+/// This is used to avoid transpiler writing to the same file in multiple threaded fuzzing
+fn initialize_artifacts_suffix() {
+    // Set a random string to the ARTIFACTS_SUFFIX global variable
+    use rand::{Rng, distributions::Alphanumeric};
+
+    let random_string: String =
+        rand::thread_rng().sample_iter(&Alphanumeric).take(16).map(char::from).collect();
+
+    ARTIFACTS_SUFFIX.get_or_init(|| random_string);
+}
 /// Simulate Abstract VM bytecode execution
 fn simulate_abstract_vm(
     bytecode: String,
@@ -344,7 +360,8 @@ const TARGET_RUNTIMES: [RuntimeType; 1] = [BRILLIG_RUNTIME];
 libfuzzer_sys::fuzz_target!(
     init: {
         println!("Initializing simulator process");
-        initialize();
+        initialize_simulator();
+        initialize_artifacts_suffix();
     }, |data: &[u8]| -> Corpus {
 
     static COUNTERS: Counters<100000> = Counters::new();

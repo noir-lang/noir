@@ -43,7 +43,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         if data.is_empty() {
             return;
         }
-        let item_types = typ.clone().element_types();
+        let item_types = typ.element_types();
 
         // Find out if we are repeating the same item over and over
         let first_item = data.iter().take(item_types.len()).copied().collect();

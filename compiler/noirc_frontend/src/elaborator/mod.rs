@@ -518,8 +518,22 @@ impl<'context> Elaborator<'context> {
         let (hir_func, body_type) = match kind {
             FunctionKind::Builtin
             | FunctionKind::LowLevel
-            | FunctionKind::Oracle
-            | FunctionKind::TraitFunctionWithoutBody => (HirFunction::empty(), Type::Error),
+            | FunctionKind::TraitFunctionWithoutBody => {
+                if !body.statements.is_empty() {
+                    panic!(
+                        "Builtin, low-level, and trait function declarations cannot have a body"
+                    );
+                }
+                (HirFunction::empty(), Type::Error)
+            }
+            FunctionKind::Oracle => {
+                if !body.statements.is_empty() {
+                    self.push_err(ResolverError::OracleWithBody {
+                        location: func_meta.name.location,
+                    });
+                }
+                (HirFunction::empty(), Type::Error)
+            }
             FunctionKind::Normal => {
                 let return_type = func_meta.return_type();
                 let (block, body_type) = self.elaborate_block(body, Some(return_type));

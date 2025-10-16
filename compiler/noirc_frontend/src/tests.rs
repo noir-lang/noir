@@ -7,6 +7,7 @@ mod enums;
 mod imports;
 mod metaprogramming;
 mod name_shadowing;
+mod oracles;
 mod references;
 mod traits;
 mod turbofish;
@@ -1315,19 +1316,6 @@ fn deny_fold_attribute_on_unconstrained() {
         ^^^^^^^ misplaced #[fold] attribute on unconstrained function foo. Only allowed on constrained functions
         ~~~~~~~ misplaced #[fold] attribute
         unconstrained pub fn foo(x: Field, y: Field) {
-            assert(x != y);
-        }
-    "#;
-    check_errors!(src);
-}
-
-#[test]
-fn deny_oracle_attribute_on_non_unconstrained() {
-    let src = r#"
-        #[oracle(foo)]
-        ^^^^^^^^^^^^^^ Usage of the `#[oracle]` function attribute is only valid on unconstrained functions
-        pub fn foo(x: Field, y: Field) {
-               ~~~ Oracle functions must have the `unconstrained` keyword applied
             assert(x != y);
         }
     "#;

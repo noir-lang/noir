@@ -134,6 +134,10 @@ struct PerFunctionContext<'f> {
     /// from the middle of Vecs many times will be slower than a single call to `retain`.
     instructions_to_remove: HashSet<InstructionId>,
 
+    /// All instructions analyzed so far in the function.
+    /// Anything new can be reinserted,  while things that appear repeatedly have to be cloned.
+    instructions_analyzed: HashSet<InstructionId>,
+
     /// Track a value's last load across all blocks.
     /// If a value is not used in anymore loads we can remove the last store to that value.
     last_loads: HashSet<ValueId>,
@@ -159,6 +163,7 @@ impl<'f> PerFunctionContext<'f> {
             inserter: FunctionInserter::new(function),
             blocks: BTreeMap::new(),
             instructions_to_remove: HashSet::default(),
+            instructions_analyzed: HashSet::default(),
             last_loads: HashSet::default(),
             aliased_references: HashMap::default(),
             instruction_input_references: HashSet::default(),
@@ -419,7 +424,17 @@ impl<'f> PerFunctionContext<'f> {
         // and we need to mark those references as used to keep their stores alive.
         let (instruction, loc) = self.inserter.map_instruction(instruction_id);
 
-        match self.inserter.push_instruction_value(instruction, instruction_id, block_id, loc) {
+        // We track which instructions can be removed by ID; if we allowed the same ID to appear multiple times
+        // in a block then we could not tell them apart. When we see something the first time we can reuse it.
+        let allow_reinsert = self.instructions_analyzed.insert(instruction_id);
+
+        match self.inserter.push_instruction_value(
+            instruction,
+            instruction_id,
+            block_id,
+            loc,
+            allow_reinsert,
+        ) {
             InsertInstructionResult::Results(id, _) => {
                 self.analyze_possibly_simplified_instruction(references, id, false);
             }
@@ -2491,6 +2506,35 @@ mod tests {
           b0(v0: &mut Field):
             return v0
         }
+        ";
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    #[test]
+    fn keep_last_store() {
+        // This test check that used Store instructions are not simplified:
+        // - Allocate v1 and v3 and store into them
+        // - Put them in array v4 = [v1, v3]
+        // - Store v4 at v5
+        // - Pass v5 a function as an argument, so that v5 is used
+        // - This should keep the store to v5, and recursively to v1 and v3
+        let src = "
+    brillig(inline) fn main f0 {
+      b0():
+        v1 = allocate -> &mut Field
+        store Field 99 at v1
+        v3 = allocate -> &mut Field
+        store Field 88 at v3
+        v4 = make_array [v1, v3] : [&mut Field; 2]
+        v5 = allocate -> &mut [&mut Field; 2]
+        store v4 at v5
+        v6 = call f1(v5) -> Field
+        return v6
+    }
+    brillig(inline) fn helper f1 {
+      b0(v0: &mut [&mut Field; 2]):
+        return Field 0
+    }
         ";
         assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
