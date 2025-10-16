@@ -132,8 +132,7 @@ impl Context<'_> {
                 };
 
             let block_id = self.new_block_id();
-            // Clone new_slice to avoid any potential aliasing issues
-            self.initialize_array(block_id, len, Some(AcirValue::Array(new_slice.clone())))?;
+            self.initialize_array(block_id, len, Some(AcirValue::Array(new_slice)))?;
             let flattened_dynamic_array =
                 AcirDynamicArray { block_id, len, value_types, element_type_sizes };
 
