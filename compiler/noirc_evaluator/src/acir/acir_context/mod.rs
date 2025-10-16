@@ -566,24 +566,21 @@ impl<F: AcirField> AcirContext<F> {
         typ: AcirType,
         predicate: AcirVar,
     ) -> Result<AcirVar, RuntimeError> {
-        let numeric_type = match typ {
-            AcirType::NumericType(numeric_type) => numeric_type,
-            AcirType::Array(_, _) => {
-                unreachable!("cannot divide arrays. This should have been caught by the frontend")
-            }
-        };
-        match numeric_type {
-            NumericType::NativeField => {
+        match typ {
+            AcirType::NumericType(NumericType::NativeField) => {
                 let inv_rhs = self.inv_var(rhs, predicate)?;
                 self.mul_var(lhs, inv_rhs)
             }
-            NumericType::Unsigned { bit_size } => {
+            AcirType::NumericType(NumericType::Unsigned { bit_size }) => {
                 let (quotient_var, _remainder_var) =
                     self.euclidean_division_var(lhs, rhs, bit_size, predicate)?;
                 Ok(quotient_var)
             }
-            NumericType::Signed { .. } => {
+            AcirType::NumericType(NumericType::Signed { .. }) => {
                 unreachable!("Signed division should have been removed before ACIRgen")
+            }
+            AcirType::Array(_, _) => {
+                unreachable!("cannot divide arrays. This should have been caught by the frontend")
             }
         }
     }
