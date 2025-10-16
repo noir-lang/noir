@@ -134,6 +134,10 @@ pub(crate) enum Keyword {
     Function,
     /// input
     Input,
+    /// input1
+    Input1,
+    /// input2
+    Input2,
     /// inputs
     Inputs,
     /// output
@@ -142,6 +146,38 @@ pub(crate) enum Keyword {
     Outputs,
     /// bits
     Bits,
+    /// iv
+    Iv,
+    /// key
+    Key,
+    /// lhs
+    Lhs,
+    /// rhs
+    Rhs,
+    /// public_key_x
+    PublicKeyX,
+    /// public_key_y
+    PublicKeyY,
+    /// signature
+    Signature,
+    /// hashed_message
+    HashedMessage,
+    /// points
+    Points,
+    /// scalars
+    Scalars,
+    /// verification_key
+    VerificationKey,
+    /// proof
+    Proof,
+    /// public_inputs
+    PublicInputs,
+    /// key_hash
+    KeyHash,
+    /// proof_type
+    ProofType,
+    /// hash_values
+    HashValues,
 }
 
 impl Keyword {
@@ -165,10 +201,28 @@ impl Keyword {
             "RETURNDATA" => Keyword::ReturnData,
             "func" => Keyword::Function,
             "input" => Keyword::Input,
+            "input1" => Keyword::Input1,
+            "input2" => Keyword::Input2,
             "inputs" => Keyword::Inputs,
             "output" => Keyword::Output,
             "outputs" => Keyword::Outputs,
             "bits" => Keyword::Bits,
+            "iv" => Keyword::Iv,
+            "key" => Keyword::Key,
+            "lhs" => Keyword::Lhs,
+            "rhs" => Keyword::Rhs,
+            "public_key_x" => Keyword::PublicKeyX,
+            "public_key_y" => Keyword::PublicKeyY,
+            "signature" => Keyword::Signature,
+            "hashed_message" => Keyword::HashedMessage,
+            "points" => Keyword::Points,
+            "scalars" => Keyword::Scalars,
+            "verification_key" => Keyword::VerificationKey,
+            "proof" => Keyword::Proof,
+            "public_inputs" => Keyword::PublicInputs,
+            "key_hash" => Keyword::KeyHash,
+            "proof_type" => Keyword::ProofType,
+            "hash_values" => Keyword::HashValues,
             _ => return None,
         };
         Some(Token::Keyword(keyword))
@@ -196,10 +250,28 @@ impl std::fmt::Display for Keyword {
             Keyword::ReturnData => write!(f, "RETURNDATA"),
             Keyword::Function => write!(f, "func"),
             Keyword::Input => write!(f, "input"),
+            Keyword::Input1 => write!(f, "input1"),
+            Keyword::Input2 => write!(f, "input2"),
             Keyword::Inputs => write!(f, "inputs"),
             Keyword::Output => write!(f, "output"),
             Keyword::Outputs => write!(f, "outputs"),
             Keyword::Bits => write!(f, "bits"),
+            Keyword::Iv => write!(f, "iv"),
+            Keyword::Key => write!(f, "key"),
+            Keyword::Lhs => write!(f, "lhs"),
+            Keyword::Rhs => write!(f, "rhs"),
+            Keyword::PublicKeyX => write!(f, "public_key_x"),
+            Keyword::PublicKeyY => write!(f, "public_key_y"),
+            Keyword::Signature => write!(f, "signature"),
+            Keyword::HashedMessage => write!(f, "hashed_message"),
+            Keyword::Points => write!(f, "points"),
+            Keyword::Scalars => write!(f, "scalars"),
+            Keyword::VerificationKey => write!(f, "verification_key"),
+            Keyword::Proof => write!(f, "proof"),
+            Keyword::PublicInputs => write!(f, "public_inputs"),
+            Keyword::KeyHash => write!(f, "key_hash"),
+            Keyword::ProofType => write!(f, "proof_type"),
+            Keyword::HashValues => write!(f, "hash_values"),
         }
     }
 }

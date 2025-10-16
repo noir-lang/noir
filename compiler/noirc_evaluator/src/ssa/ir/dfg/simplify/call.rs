@@ -92,14 +92,17 @@ pub(super) fn simplify_call(
             }
         }
         Intrinsic::ArrayLen => {
-            if let Some(length) = dfg.try_get_array_length(arguments[0]) {
-                let length = FieldElement::from(u128::from(length));
-                SimplifyResult::SimplifiedTo(dfg.make_constant(length, NumericType::length_type()))
-            } else if matches!(dfg.type_of_value(arguments[1]), Type::Slice(_)) {
-                SimplifyResult::SimplifiedTo(arguments[0])
-            } else {
-                SimplifyResult::None
-            }
+            let length = match dfg.type_of_value(arguments[0]) {
+                Type::Array(_, length) => {
+                    dfg.make_constant(FieldElement::from(length), NumericType::length_type())
+                }
+                Type::Numeric(NumericType::Unsigned { bit_size: 32 }) => {
+                    assert!(matches!(dfg.type_of_value(arguments[1]), Type::Slice(_)));
+                    arguments[0]
+                }
+                _ => panic!("First argument to ArrayLen must be an array or a slice length"),
+            };
+            SimplifyResult::SimplifiedTo(length)
         }
         // Strings are already arrays of bytes in SSA
         Intrinsic::ArrayAsStrUnchecked => SimplifyResult::SimplifiedTo(arguments[0]),
@@ -879,5 +882,56 @@ mod tests {
             return v3
         }
         ");
+    }
+
+    #[test]
+    fn simplifies_array_len_for_array() {
+        let src = r#"
+        acir(inline) fn main func {
+          b0(v0: [Field; 3]):
+            v1 = call array_len(v0) -> u32
+            return v1
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3]):
+            return u32 3
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_array_len_for_slice() {
+        let src = r#"
+        acir(inline) fn main func {
+          b0(v0: u32, v1: [Field]):
+            v2 = call array_len(v0, v1) -> u32
+            return v2
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u32, v1: [Field]):
+            return v0
+        }
+        ");
+    }
+
+    #[should_panic(expected = "First argument to ArrayLen must be an array or a slice length")]
+    #[test]
+    fn panics_on_array_len_with_wrong_type() {
+        let src = r#"
+        acir(inline) fn main func {
+          b0(v0: u64):
+            v2 = call array_len(v0) -> u32
+            return v2
+        }
+        "#;
+        let _ = Ssa::from_str_simplifying(src).unwrap();
     }
 }
