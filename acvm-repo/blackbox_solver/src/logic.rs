@@ -48,7 +48,7 @@ fn mask_vector_le(bytes: &mut [u8], num_bits: usize) {
     let remaining_bits = num_bits % 8;
 
     // Mask the partial byte if any. Otherwise, if our `remaining_bits` is a multiple of 8
-    // we will zero out the byte at `full_bytes` and 
+    // we will zero out the byte at `full_bytes`. 
     bytes[full_bytes] &= 2u8.pow(remaining_bits as u32) - 1;
 
     // Zero out all remaining bytes

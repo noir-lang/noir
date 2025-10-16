@@ -1,7 +1,7 @@
 use criterion::{Criterion, criterion_group, criterion_main, black_box};
 use std::time::Duration;
 
-use acir::{AcirField, FieldElement};
+use acir::FieldElement;
 
 use pprof::criterion::{Output, PProfProfiler};
 
