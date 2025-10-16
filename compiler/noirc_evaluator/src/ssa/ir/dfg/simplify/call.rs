@@ -870,4 +870,55 @@ mod tests {
         }
         ");
     }
+
+    #[test]
+    fn simplifies_array_len_for_array() {
+        let src = r#"
+        acir(inline) fn main func {
+          b0(v0: [Field; 3]):
+            v1 = call array_len(v0) -> u32
+            return v1
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3]):
+            return u32 3
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_array_len_for_slice() {
+        let src = r#"
+        acir(inline) fn main func {
+          b0(v0: u32, v1: [Field]):
+            v2 = call array_len(v0, v1) -> u32
+            return v2
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u32, v1: [Field]):
+            return v0
+        }
+        ");
+    }
+
+    #[should_panic(expected = "First argument to ArrayLen must be an array or a slice length")]
+    #[test]
+    fn panics_on_array_len_with_wrong_type() {
+        let src = r#"
+        acir(inline) fn main func {
+          b0(v0: u64):
+            v2 = call array_len(v0) -> u32
+            return v2
+        }
+        "#;
+        let _ = Ssa::from_str_simplifying(src).unwrap();
+    }
 }
