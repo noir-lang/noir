@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1760626938452,
+  "lastUpdate": 1760633176239,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23361,48 +23361,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "52c48bce72d6f2ba99442f4e235b546b07ad644f",
-          "message": "chore: bump version of bb used in tests (#10093)",
-          "timestamp": "2025-10-07T13:35:58+01:00",
-          "tree_id": "8ef71bceebdcb78e9dfceb6c09a62ae9deed7d8e",
-          "url": "https://github.com/noir-lang/noir/commit/52c48bce72d6f2ba99442f4e235b546b07ad644f"
-        },
-        "date": 1759840709853,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 261160,
-            "range": "± 2221",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 232663,
-            "range": "± 1347",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2789675,
-            "range": "± 2038",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -25454,6 +25412,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2785376,
             "range": "± 7846",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9d70064a07a388dd62fcb513ca5f262029889bfe",
+          "message": "chore(ACIR): display/parse memory arrays as b0, b1, etc. (#10211)",
+          "timestamp": "2025-10-16T16:20:13Z",
+          "tree_id": "b49d7ed02fe291d3de9602a8479bb1c5ccdcefd7",
+          "url": "https://github.com/noir-lang/noir/commit/9d70064a07a388dd62fcb513ca5f262029889bfe"
+        },
+        "date": 1760633151505,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 264742,
+            "range": "± 3665",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 230196,
+            "range": "± 8022",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2786665,
+            "range": "± 13476",
             "unit": "ns/iter"
           }
         ]
