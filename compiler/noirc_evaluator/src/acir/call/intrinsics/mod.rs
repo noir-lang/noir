@@ -101,7 +101,11 @@ impl Context<'_> {
                 };
                 let slice_length = self.acir_context.add_constant(slice_length);
                 let acir_value = self.convert_value(array_contents, dfg);
-                Ok(vec![AcirValue::Var(slice_length, AcirType::unsigned(32)), acir_value])
+                let result = self.read_array(acir_value)?;
+                Ok(vec![
+                    AcirValue::Var(slice_length, AcirType::unsigned(32)),
+                    AcirValue::Array(result),
+                ])
             }
 
             Intrinsic::SlicePushBack => self.convert_slice_push_back(arguments, dfg),
