@@ -19,51 +19,42 @@ fn bitwise_op<F: AcirField>(lhs: F, rhs: F, num_bits: u32, op: fn(u8, u8) -> u8)
     //     num_bits
     // );
 
-    let lhs_bytes = mask_to_be_bytes(lhs, num_bits);
-    let rhs_bytes = mask_to_be_bytes(rhs, num_bits);
+    let lhs_bytes = mask_to_le_bytes(lhs, num_bits);
+    let rhs_bytes = mask_to_le_bytes(rhs, num_bits);
 
     let and_byte_arr: Vec<_> =
         lhs_bytes.into_iter().zip(rhs_bytes).map(|(left, right)| op(left, right)).collect();
 
-    F::from_be_bytes_reduce(&and_byte_arr)
+    F::from_le_bytes_reduce(&and_byte_arr)
 }
 
 // mask_to methods will not remove any bytes from the field
 // they are simply zeroed out
 // Whereas truncate_to will remove those bits and make the byte array smaller
-fn mask_to_be_bytes<F: AcirField>(field: F, num_bits: u32) -> Vec<u8> {
-    let mut bytes = field.to_be_bytes();
+fn mask_to_le_bytes<F: AcirField>(field: F, num_bits: u32) -> Vec<u8> {
+    let mut bytes = field.to_le_bytes();
     mask_vector_le(&mut bytes, num_bits as usize);
     bytes
 }
 
+/// Mask a byte array in-place to only keep the lowest `num_bits`
 fn mask_vector_le(bytes: &mut [u8], num_bits: usize) {
-    // reverse to big endian format
-    bytes.reverse();
-
-    let mask_power = num_bits % 8;
-    let array_mask_index = num_bits / 8;
-
-    for (index, byte) in bytes.iter_mut().enumerate() {
-        match index.cmp(&array_mask_index) {
-            std::cmp::Ordering::Less => {
-                // do nothing if the current index is less than
-                // the array index.
-            }
-            std::cmp::Ordering::Equal => {
-                let mask = 2u8.pow(mask_power as u32) - 1;
-                // mask the byte
-                *byte &= mask;
-            }
-            std::cmp::Ordering::Greater => {
-                // Anything greater than the array index
-                // will be set to zero
-                *byte = 0;
-            }
-        }
+    let total_bits = bytes.len() * 8;
+    if num_bits >= total_bits {
+        // nothing to mask, all bits are used
+        return;
     }
-    // reverse back to little endian
-    bytes.reverse();
+    let full_bytes = num_bits / 8;
+    let remaining_bits = num_bits % 8;
+
+    // Mask the partial byte if any. Otherwise, if our `remaining_bits` is a multiple of 8
+    // we will zero out the byte at `full_bytes` and 
+    bytes[full_bytes] &= 2u8.pow(remaining_bits as u32) - 1;
+
+    // Zero out all remaining bytes
+    for byte in &mut bytes[(full_bytes + 1)..] {
+        *byte = 0;
+    }
 }
 
 #[cfg(test)]
