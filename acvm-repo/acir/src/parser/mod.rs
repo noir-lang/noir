@@ -733,26 +733,29 @@ impl<'a> Parser<'a> {
 
         let mut inputs = Vec::new();
         while !self.eat(Token::RightBracket)? {
-            let input = if self.eat(Token::LeftBracket)? {
-                // It's an array of expressions
-                let mut exprs = Vec::new();
-                while !self.eat(Token::RightBracket)? {
-                    exprs.push(self.parse_arithmetic_expression()?);
-                    self.eat(Token::Comma)?; // allow trailing comma
-                }
-                BrilligInputs::Array(exprs)
-            } else if let Some(block_id) = self.eat_block_id()? {
-                BrilligInputs::MemoryArray(block_id)
-            } else {
-                let expr = self.parse_arithmetic_expression()?;
-                BrilligInputs::Single(expr)
-            };
-
+            let input = self.parse_brillig_input()?;
             inputs.push(input);
             self.eat(Token::Comma)?; // optional trailing comma
         }
 
         Ok(inputs)
+    }
+
+    fn parse_brillig_input(&mut self) -> Result<BrilligInputs<FieldElement>, ParserError> {
+        if self.eat(Token::LeftBracket)? {
+            // It's an array of expressions
+            let mut exprs = Vec::new();
+            while !self.eat(Token::RightBracket)? {
+                exprs.push(self.parse_arithmetic_expression()?);
+                self.eat(Token::Comma)?; // allow trailing comma
+            }
+            Ok(BrilligInputs::Array(exprs))
+        } else if let Some(block_id) = self.eat_block_id()? {
+            Ok(BrilligInputs::MemoryArray(block_id))
+        } else {
+            let expr = self.parse_arithmetic_expression()?;
+            Ok(BrilligInputs::Single(expr))
+        }
     }
 
     fn parse_brillig_outputs(&mut self) -> ParseResult<Vec<BrilligOutputs>> {
