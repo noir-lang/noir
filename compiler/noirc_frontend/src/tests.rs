@@ -37,11 +37,8 @@ use noirc_errors::{CustomDiagnostic, Span};
 
 use crate::hir::Context;
 use crate::hir::def_collector::dc_crate::CompilationError;
-use crate::node_interner::{NodeInterner, StmtId};
 
 use crate::ParsedModule;
-use crate::hir_def::expr::HirExpression;
-use crate::hir_def::stmt::HirStatement;
 
 pub(crate) fn get_program_using_features(
     src: &str,
