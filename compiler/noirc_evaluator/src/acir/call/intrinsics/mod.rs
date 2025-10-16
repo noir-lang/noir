@@ -92,19 +92,6 @@ impl Context<'_> {
                     .bit_decompose(endian, field, array_length, result_type[0].clone().into())
                     .map(|array| vec![array])
             }
-            Intrinsic::ArrayLen => {
-                let len = match self.convert_value(arguments[0], dfg) {
-                    AcirValue::Var(_, _) => {
-                        unreachable!("Non-array passed to array.len() method")
-                    }
-                    AcirValue::Array(values) => values.len(),
-                    AcirValue::DynamicArray(array) => array.len,
-                };
-                Ok(vec![AcirValue::Var(
-                    self.acir_context.add_constant(len),
-                    AcirType::unsigned(32),
-                )])
-            }
             Intrinsic::AsSlice => {
                 let slice_contents = arguments[0];
                 let slice_typ = dfg.type_of_value(slice_contents);
@@ -157,6 +144,7 @@ impl Context<'_> {
                 unreachable!("FieldLessThan can only be called in unconstrained")
             }
             Intrinsic::IsUnconstrained
+            | Intrinsic::ArrayLen
             | Intrinsic::ArrayAsStrUnchecked
             | Intrinsic::StrAsBytes
             | Intrinsic::StaticAssert
