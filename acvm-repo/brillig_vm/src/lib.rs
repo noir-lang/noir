@@ -81,65 +81,72 @@ pub enum VMStatus<F> {
     /// and update the Brillig process. The VM can then be restarted to fully solve the previously
     /// unresolved foreign call as well as the remaining Brillig opcodes.
     ForeignCallWait {
-        /// Interpreted by simulator context
+        /// Interpreted by simulator context.
         function: String,
-        /// Input values
-        /// Each input is a list of values as an input can be either a single value or a memory pointer
+        /// Input values.
+        /// Each input can be either a single value or an array of values read from a memory pointer.
         inputs: Vec<ForeignCallParam<F>>,
     },
 }
 
-/// All samples for each opcode that was executed
-pub type BrilligProfilingSamples = Vec<BrilligProfilingSample>;
-
-/// The position of an opcode that is currently being executed in the bytecode
+/// The position of an opcode that is currently being executed in the bytecode.
 pub type OpcodePosition = usize;
 
-/// The position of the next opcode that will be executed in the bytecode or an id of a specific state produced by the opcode
+/// The position of the next opcode that will be executed in the bytecode,
+/// or an id of a specific state produced by the opcode.
 pub type NextOpcodePositionOrState = usize;
 
-/// A sample for an executed opcode
+/// A sample for an executed opcode.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct BrilligProfilingSample {
     /// The call stack when processing a given opcode.
     pub call_stack: Vec<usize>,
 }
 
+/// All samples for each opcode that was executed.
+pub type BrilligProfilingSamples = Vec<BrilligProfilingSample>;
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 /// VM encapsulates the state of the Brillig VM during execution.
 pub struct VM<'a, F, B: BlackBoxFunctionSolver<F>> {
-    /// Calldata to the brillig function
+    /// Calldata to the brillig function.
     calldata: Vec<F>,
-    /// Instruction pointer
+    /// Instruction pointer.
     program_counter: usize,
     /// A counter maintained throughout a Brillig process that determines
     /// whether the caller has resolved the results of a [foreign call][Opcode::ForeignCall].
+    ///
+    /// Incremented when the results of a foreign call have been processed and the output
+    /// values were written to memory.
+    ///
+    /// * When the counter is less than the length of the results, it indicates that we have
+    ///   unprocessed responses returned from the external foreign call handler.
     foreign_call_counter: usize,
-    /// Represents the outputs of all foreign calls during a Brillig process
-    /// List is appended onto by the caller upon reaching a [VMStatus::ForeignCallWait]
+    /// Accumulates the outputs of all foreign calls during a Brillig process.
+    /// The list is appended onto by the caller upon reaching a [VMStatus::ForeignCallWait].
     foreign_call_results: Vec<ForeignCallResult<F>>,
-    /// Executable opcodes
+    /// Executable opcodes.
     bytecode: &'a [Opcode<F>],
-    /// Status of the VM
+    /// Status of the VM.
     status: VMStatus<F>,
-    /// Memory of the VM
+    /// Memory of the VM.
     memory: Memory<F>,
-    /// Call stack
+    /// Call stack.
     call_stack: Vec<usize>,
-    /// The solver for blackbox functions
+    /// The solver for blackbox functions.
     black_box_solver: &'a B,
     // Flag that determines whether we want to profile VM.
     profiling_active: bool,
     // Samples for profiling the VM execution.
     profiling_samples: BrilligProfilingSamples,
 
-    /// Fuzzing trace structure
-    /// If the field is `None` then fuzzing is inactive
+    /// Fuzzing trace structure.
+    /// If the field is `None` then fuzzing is inactive.
     fuzzing_trace: Option<FuzzingTrace>,
 }
 
 impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
-    /// Constructs a new VM instance
+    /// Constructs a new VM instance.
     pub fn new(
         calldata: Vec<F>,
         bytecode: &'a [Opcode<F>],
@@ -147,7 +154,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         profiling_active: bool,
         with_branch_to_feature_map: Option<&BranchToFeatureMap>,
     ) -> Self {
-        let fuzzing_trace = with_branch_to_feature_map.map(|map| FuzzingTrace::new(map.clone()));
+        let fuzzing_trace = with_branch_to_feature_map.cloned().map(FuzzingTrace::new);
 
         Self {
             calldata,
@@ -193,11 +200,16 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         self.status(VMStatus::Finished { return_data_offset, return_data_size })
     }
 
+    /// Check whether the latest foreign call result is available yet.
+    fn has_unprocessed_foreign_call_result(&self) -> bool {
+        self.foreign_call_counter < self.foreign_call_results.len()
+    }
+
     /// Provide the results of a Foreign Call to the VM
     /// and resume execution of the VM.
     pub fn resolve_foreign_call(&mut self, foreign_call_result: ForeignCallResult<F>) {
-        if self.foreign_call_counter < self.foreign_call_results.len() {
-            panic!("No unresolved foreign calls");
+        if self.has_unprocessed_foreign_call_result() {
+            panic!("No unresolved foreign calls; the previous results haven't been processed yet");
         }
         self.foreign_call_results.push(foreign_call_result);
         self.status(VMStatus::InProgress);

@@ -50,7 +50,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
         assert_eq!(inputs.len(), input_value_types.len());
         assert_eq!(destinations.len(), destination_value_types.len());
 
-        if self.foreign_call_counter >= self.foreign_call_results.len() {
+        if !self.has_unprocessed_foreign_call_result() {
             // When this opcode is called, it is possible that the results of a foreign call are
             // not yet known (not enough entries in `foreign_call_results`).
             // If that is the case, just resolve the inputs and pause the VM with a status
@@ -115,6 +115,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
             return self.fail(e);
         }
 
+        // Mark the foreign call result as processed.
         self.foreign_call_counter += 1;
         self.increment_program_counter()
     }
