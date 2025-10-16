@@ -18,7 +18,7 @@ use noirc_frontend::graph::CrateName;
 use super::fs::inputs::read_inputs_from_file;
 use crate::errors::CliError;
 
-use runtime_tracing::{create_trace_writer, TraceEventsFileFormat};
+use codetracer_trace_writer::{create_trace_writer, TraceEventsFileFormat};
 
 use super::NargoConfig;
 

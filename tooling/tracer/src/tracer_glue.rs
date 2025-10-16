@@ -2,10 +2,9 @@ use crate::{SourceLocation, StackFrame, stack_frame::Variable};
 
 use acvm::FieldElement;
 use acvm::acir::AcirField; // necessary, for `to_i128` to work
+use codetracer_trace_types::{EventLogKind, FullValueRecord, Line, TypeKind, ValueRecord};
+use codetracer_trace_writer::{TraceEventsFileFormat, trace_writer::TraceWriter};
 use noirc_printable_type::{PrintableType, PrintableValue};
-use runtime_tracing::{
-    EventLogKind, FullValueRecord, Line, TraceEventsFileFormat, TraceWriter, ValueRecord,
-};
 use std::path::{Path, PathBuf};
 
 pub fn begin_trace(
@@ -315,9 +314,9 @@ pub(crate) fn register_return(tracer: &mut dyn TraceWriter, return_value: &Optio
         let value_record = register_value(tracer, &return_value.value, &return_value.typ);
         TraceWriter::register_return(tracer, value_record);
     } else {
-        let type_id = TraceWriter::ensure_type_id(tracer, runtime_tracing::TypeKind::None, "()");
+        let type_id = TraceWriter::ensure_type_id(tracer, TypeKind::None, "()");
 
-        TraceWriter::register_return(tracer, runtime_tracing::ValueRecord::None { type_id });
+        TraceWriter::register_return(tracer, ValueRecord::None { type_id });
     }
 }
 
@@ -331,32 +330,32 @@ pub(crate) fn register_error(tracer: &mut dyn TraceWriter, s: &str) {
 
 fn printable_type_to_kind_and_name(
     printable_type: &PrintableType,
-) -> (runtime_tracing::TypeKind, String) {
+) -> (TypeKind, String) {
     match printable_type {
-        PrintableType::Field => (runtime_tracing::TypeKind::Int, "Field".to_string()),
+        PrintableType::Field => (TypeKind::Int, "Field".to_string()),
         PrintableType::UnsignedInteger { width } => {
-            (runtime_tracing::TypeKind::Int, format!("u{width}"))
+            (TypeKind::Int, format!("u{width}"))
         }
         PrintableType::SignedInteger { width } => {
-            (runtime_tracing::TypeKind::Int, format!("i{width}"))
+            (TypeKind::Int, format!("i{width}"))
         }
-        PrintableType::Boolean => (runtime_tracing::TypeKind::Bool, "Bool".to_string()),
-        PrintableType::Slice { .. } => (runtime_tracing::TypeKind::Slice, "&[..]".to_string()),
+        PrintableType::Boolean => (TypeKind::Bool, "Bool".to_string()),
+        PrintableType::Slice { .. } => (TypeKind::Slice, "&[..]".to_string()),
         PrintableType::Array { length, .. } => {
-            (runtime_tracing::TypeKind::Seq, format!("Array<{length}, ..>"))
+            (TypeKind::Seq, format!("Array<{length}, ..>"))
         }
-        PrintableType::String { .. } => (runtime_tracing::TypeKind::String, "String".to_string()),
-        PrintableType::Struct { name, .. } => (runtime_tracing::TypeKind::Struct, name.clone()),
-        PrintableType::Unit => (runtime_tracing::TypeKind::Raw, "()".to_string()),
-        PrintableType::Tuple { .. } => (runtime_tracing::TypeKind::Tuple, "(..)".to_string()),
-        PrintableType::Reference { .. } => (runtime_tracing::TypeKind::Ref, "&".to_string()),
+        PrintableType::String { .. } => (TypeKind::String, "String".to_string()),
+        PrintableType::Struct { name, .. } => (TypeKind::Struct, name.clone()),
+        PrintableType::Unit => (TypeKind::Raw, "()".to_string()),
+        PrintableType::Tuple { .. } => (TypeKind::Tuple, "(..)".to_string()),
+        PrintableType::Reference { .. } => (TypeKind::Ref, "&".to_string()),
         PrintableType::Function { unconstrained, .. } => {
             let type_name = if *unconstrained { "unconstrained fn" } else { "fn" };
-            (runtime_tracing::TypeKind::FunctionKind, type_name.to_string())
+            (TypeKind::FunctionKind, type_name.to_string())
         }
         PrintableType::FmtString { .. } => {
             // FmtString is ultimately traced as a regular String
-            (runtime_tracing::TypeKind::String, "String".to_string())
+            (TypeKind::String, "String".to_string())
         }
         PrintableType::Enum { .. } => {
             // As in the original code, tracing for enums is not yet implemented.

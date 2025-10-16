@@ -1114,6 +1114,53 @@ dependencies = [
 ]
 
 [[package]]
+name = "codetracer_trace_format_capnp"
+version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "37ce75c3c44afe5100f2a163ef819dc6eeb9ead0729f05f78e2962b695be34f4"
+dependencies = [
+ "capnp",
+ "capnpc",
+ "codetracer_trace_types",
+]
+
+[[package]]
+name = "codetracer_trace_format_cbor_zstd"
+version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b49be80d50bce87f88251c9488c54e5441569ee60f0f0056a63792f6944ff2d9"
+
+[[package]]
+name = "codetracer_trace_types"
+version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cd8fb115bb062d45ab7fcb9be3ef9b122b1ae417d16abd9efe7d4bfeebf60b0d"
+dependencies = [
+ "base64",
+ "num-derive",
+ "num-traits",
+ "schemars 0.8.22",
+ "serde",
+ "serde_json",
+ "serde_repr",
+]
+
+[[package]]
+name = "codetracer_trace_writer"
+version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "397104457fd56c4d573d2496b0cd310eba2484292d73c62396600953b9762d74"
+dependencies = [
+ "cbor4ii",
+ "codetracer_trace_format_capnp",
+ "codetracer_trace_format_cbor_zstd",
+ "codetracer_trace_types",
+ "ruzstd",
+ "serde_json",
+ "zeekstd",
+]
+
+[[package]]
 name = "color-eyre"
 version = "0.6.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1955,15 +2002,6 @@ checksum = "9564fc758e15025b46aa6643b1b77d047d1a56a1aea6e01002ac0c7026876213"
 dependencies = [
  "libc",
  "winapi",
-]
-
-[[package]]
-name = "fscommon"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "315ce685aca5ddcc5a3e7e436ef47d4a5d0064462849b6f0f628c28140103531"
-dependencies = [
- "log",
 ]
 
 [[package]]
@@ -3331,6 +3369,7 @@ dependencies = [
  "clap",
  "clap-markdown",
  "clap_complete",
+ "codetracer_trace_writer",
  "color-eyre",
  "const_format",
  "criterion",
@@ -3368,7 +3407,6 @@ dependencies = [
  "proptest",
  "rayon",
  "regex",
- "runtime_tracing",
  "rustc-hash",
  "serde",
  "serde_json",
@@ -3765,13 +3803,14 @@ name = "noir_tracer"
 version = "1.0.0-beta.14"
 dependencies = [
  "acvm",
+ "codetracer_trace_types",
+ "codetracer_trace_writer",
  "fm",
  "nargo",
  "noir_debugger",
  "noirc_abi",
  "noirc_artifacts",
  "noirc_printable_type",
- "runtime_tracing",
  "tracing",
 ]
 
@@ -5201,27 +5240,6 @@ name = "route-recognizer"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "afab94fb28594581f62d981211a9a4d53cc8130bbcbbb89a0440d9b8e81a7746"
-
-[[package]]
-name = "runtime_tracing"
-version = "0.14.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7874289fdd8682b5de4b23fa2172cbfb807a26c2fbd5a63d83484785b5431b5e"
-dependencies = [
- "base64",
- "capnp",
- "capnpc",
- "cbor4ii",
- "fscommon",
- "num-derive",
- "num-traits",
- "ruzstd",
- "schemars 0.8.22",
- "serde",
- "serde_json",
- "serde_repr",
- "zeekstd",
-]
 
 [[package]]
 name = "rust-embed"
