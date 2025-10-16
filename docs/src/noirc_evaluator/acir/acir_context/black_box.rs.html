@@ -255,7 +255,7 @@
             <span class="self">self</span>.var_to_witness(<span class="kw-2">*</span>var).expect(<span class="string">"variable was just created as witness"</span>)
         });
 
-        <span class="self">self</span>.acir_ir.call_black_box(name, <span class="kw-2">&amp;</span>inputs, constant_inputs, num_bits, output_witnesses)<span class="question-mark">?</span>;
+        <span class="self">self</span>.acir_ir.call_black_box(name, inputs, constant_inputs, num_bits, output_witnesses)<span class="question-mark">?</span>;
 
         <span class="comment">// Convert `Witness` values which are now constrained to be the output of the
         // black box function call into `AcirVar`s.

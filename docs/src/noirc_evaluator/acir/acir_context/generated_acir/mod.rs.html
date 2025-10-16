@@ -798,18 +798,7 @@
 <a href="#797" id="797">797</a>
 <a href="#798" id="798">798</a>
 <a href="#799" id="799">799</a>
-<a href="#800" id="800">800</a>
-<a href="#801" id="801">801</a>
-<a href="#802" id="802">802</a>
-<a href="#803" id="803">803</a>
-<a href="#804" id="804">804</a>
-<a href="#805" id="805">805</a>
-<a href="#806" id="806">806</a>
-<a href="#807" id="807">807</a>
-<a href="#808" id="808">808</a>
-<a href="#809" id="809">809</a>
-<a href="#810" id="810">810</a>
-<a href="#811" id="811">811</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `generated_acir` module is responsible for the lowest level tracking of ACIR-gen.
+<a href="#800" id="800">800</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `generated_acir` module is responsible for the lowest level tracking of ACIR-gen.
 //!
 //! This module defines the `GeneratedAcir` which is constructed as part of the ACIR-gen pass
 //! to accumulate all of the ACIR. This tracks properties such as which witnesses form part of the circuit interface
@@ -987,163 +976,152 @@
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>call_black_box(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         func_name: BlackBoxFunc,
-        function_inputs: <span class="kw-2">&amp;</span>[Vec&lt;FunctionInput&lt;F&gt;&gt;],
+        function_inputs: Vec&lt;Vec&lt;FunctionInput&lt;F&gt;&gt;&gt;,
         constant_inputs: Vec&lt;F&gt;,
         num_bits: <span class="prelude-ty">Option</span>&lt;u32&gt;,
         outputs: Vec&lt;Witness&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), InternalError&gt; {
+        <span class="kw">fn </span>expect_into&lt;T, U&gt;(value: T) -&gt; U
+        <span class="kw">where
+            </span>T: TryInto&lt;U&gt;,
+            &lt;T <span class="kw">as </span>TryInto&lt;U&gt;&gt;::Error: std::fmt::Debug,
+        {
+            value.try_into().expect(<span class="string">"Compiler should generate correct size inputs/outputs"</span>)
+        }
+
         <span class="kw">let </span>input_count = function_inputs.iter().fold(<span class="number">0usize</span>, |sum, val| sum + val.len());
         intrinsics_check_inputs(func_name, input_count);
         intrinsics_check_outputs(func_name, outputs.len());
         <span class="kw">let </span>black_box_func_call = <span class="kw">match </span>func_name {
-            BlackBoxFunc::AES128Encrypt =&gt; BlackBoxFuncCall::AES128Encrypt {
-                inputs: function_inputs[<span class="number">0</span>].clone(),
-                iv: function_inputs[<span class="number">1</span>]
-                    .clone()
-                    .try_into()
-                    .expect(<span class="string">"Compiler should generate correct size inputs"</span>),
-                key: function_inputs[<span class="number">2</span>]
-                    .clone()
-                    .try_into()
-                    .expect(<span class="string">"Compiler should generate correct size inputs"</span>),
-                outputs,
-            },
-            BlackBoxFunc::AND =&gt; BlackBoxFuncCall::AND {
-                lhs: function_inputs[<span class="number">0</span>][<span class="number">0</span>],
-                rhs: function_inputs[<span class="number">1</span>][<span class="number">0</span>],
-                num_bits: num_bits.expect(<span class="string">"missing num_bits"</span>),
-                output: outputs[<span class="number">0</span>],
-            },
-            BlackBoxFunc::XOR =&gt; BlackBoxFuncCall::XOR {
-                lhs: function_inputs[<span class="number">0</span>][<span class="number">0</span>],
-                rhs: function_inputs[<span class="number">1</span>][<span class="number">0</span>],
-                num_bits: num_bits.expect(<span class="string">"missing num_bits"</span>),
-                output: outputs[<span class="number">0</span>],
-            },
-            BlackBoxFunc::RANGE =&gt; BlackBoxFuncCall::RANGE {
-                input: function_inputs[<span class="number">0</span>][<span class="number">0</span>],
-                num_bits: num_bits.expect(<span class="string">"missing num_bits"</span>),
-            },
-            BlackBoxFunc::Blake2s =&gt; BlackBoxFuncCall::Blake2s {
-                inputs: function_inputs[<span class="number">0</span>].clone(),
-                outputs: outputs.try_into().expect(<span class="string">"Compiler should generate correct size outputs"</span>),
-            },
-            BlackBoxFunc::Blake3 =&gt; BlackBoxFuncCall::Blake3 {
-                inputs: function_inputs[<span class="number">0</span>].clone(),
-                outputs: outputs.try_into().expect(<span class="string">"Compiler should generate correct size outputs"</span>),
-            },
+            BlackBoxFunc::AES128Encrypt =&gt; {
+                <span class="kw">let </span>[inputs, iv, key] = expect_into(function_inputs);
+                <span class="kw">let </span>iv = expect_into(iv);
+                <span class="kw">let </span>key = expect_into(key);
+                BlackBoxFuncCall::AES128Encrypt { inputs, iv, key, outputs }
+            }
+            BlackBoxFunc::AND =&gt; {
+                <span class="kw">let </span>[lhs, rhs] = expect_into(function_inputs);
+                <span class="kw">let </span>num_bits = num_bits.expect(<span class="string">"missing num_bits"</span>);
+                BlackBoxFuncCall::AND { lhs: lhs[<span class="number">0</span>], rhs: rhs[<span class="number">0</span>], num_bits, output: outputs[<span class="number">0</span>] }
+            }
+            BlackBoxFunc::XOR =&gt; {
+                <span class="kw">let </span>[lhs, rhs] = expect_into(function_inputs);
+                <span class="kw">let </span>num_bits = num_bits.expect(<span class="string">"missing num_bits"</span>);
+                BlackBoxFuncCall::XOR { lhs: lhs[<span class="number">0</span>], rhs: rhs[<span class="number">0</span>], num_bits, output: outputs[<span class="number">0</span>] }
+            }
+            BlackBoxFunc::RANGE =&gt; {
+                <span class="kw">let </span>[input] = expect_into(function_inputs);
+                <span class="kw">let </span>num_bits = num_bits.expect(<span class="string">"missing num_bits"</span>);
+                BlackBoxFuncCall::RANGE { input: input[<span class="number">0</span>], num_bits }
+            }
+            BlackBoxFunc::Blake2s =&gt; {
+                <span class="kw">let </span>[inputs] = expect_into(function_inputs);
+                <span class="kw">let </span>outputs = expect_into(outputs);
+                BlackBoxFuncCall::Blake2s { inputs: inputs.clone(), outputs }
+            }
+            BlackBoxFunc::Blake3 =&gt; {
+                <span class="kw">let </span>[inputs] = expect_into(function_inputs);
+                <span class="kw">let </span>outputs = expect_into(outputs);
+                BlackBoxFuncCall::Blake3 { inputs: inputs.clone(), outputs }
+            }
             BlackBoxFunc::EcdsaSecp256k1 =&gt; {
-                <span class="kw">if </span>function_inputs[<span class="number">0</span>].len() != <span class="number">32
-                    </span>|| function_inputs[<span class="number">1</span>].len() != <span class="number">32
-                    </span>|| function_inputs[<span class="number">2</span>].len() != <span class="number">64
-                    </span>|| function_inputs[<span class="number">3</span>].len() != <span class="number">32
-                </span>{
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(InternalError::General {
-                        message: <span class="string">"Compiler should generate correct size inputs"</span>.to_string(),
-                        call_stack: <span class="self">self</span>.get_call_stack(),
-                    });
-                }
+                <span class="kw">let </span>[public_key_x, public_key_y, signature, hashed_message, predicate] =
+                    expect_into(function_inputs);
+                <span class="kw">let </span>[predicate] = expect_into(predicate);
+                <span class="kw">let </span>[output] = expect_into(outputs);
                 BlackBoxFuncCall::EcdsaSecp256k1 {
                     <span class="comment">// 32 bytes for each public key co-ordinate
-                    </span>public_key_x: function_inputs[<span class="number">0</span>]
-                        .clone()
-                        .try_into()
-                        .expect(<span class="string">"Compiler should generate correct size inputs"</span>),
-                    public_key_y: function_inputs[<span class="number">1</span>]
-                        .clone()
-                        .try_into()
-                        .expect(<span class="string">"Compiler should generate correct size inputs"</span>),
+                    </span>public_key_x: expect_into(public_key_x),
+                    public_key_y: expect_into(public_key_y),
                     <span class="comment">// (r,s) are both 32 bytes each, so signature
                     // takes up 64 bytes
-                    </span>signature: function_inputs[<span class="number">2</span>]
-                        .clone()
-                        .try_into()
-                        .expect(<span class="string">"Compiler should generate correct size inputs"</span>),
-                    hashed_message: function_inputs[<span class="number">3</span>]
-                        .clone()
-                        .try_into()
-                        .expect(<span class="string">"Compiler should generate correct size inputs"</span>),
-                    predicate: function_inputs[<span class="number">4</span>].clone()[<span class="number">0</span>],
-                    output: outputs[<span class="number">0</span>],
+                    </span>signature: expect_into(signature),
+                    hashed_message: expect_into(hashed_message),
+                    predicate,
+                    output,
                 }
             }
             BlackBoxFunc::EcdsaSecp256r1 =&gt; {
+                <span class="kw">let </span>[public_key_x, public_key_y, signature, hashed_message, predicate] =
+                    expect_into(function_inputs);
+                <span class="kw">let </span>[predicate] = expect_into(predicate);
+                <span class="kw">let </span>[output] = expect_into(outputs);
                 BlackBoxFuncCall::EcdsaSecp256r1 {
                     <span class="comment">// 32 bytes for each public key co-ordinate
-                    </span>public_key_x: function_inputs[<span class="number">0</span>]
-                        .clone()
-                        .try_into()
-                        .expect(<span class="string">"Compiler should generate correct size inputs"</span>),
-                    public_key_y: function_inputs[<span class="number">1</span>]
-                        .clone()
-                        .clone()
-                        .try_into()
-                        .expect(<span class="string">"Compiler should generate correct size inputs"</span>),
+                    </span>public_key_x: expect_into(public_key_x),
+                    public_key_y: expect_into(public_key_y),
                     <span class="comment">// (r,s) are both 32 bytes each, so signature
                     // takes up 64 bytes
-                    </span>signature: function_inputs[<span class="number">2</span>]
-                        .clone()
-                        .try_into()
-                        .expect(<span class="string">"Compiler should generate correct size inputs"</span>),
-                    hashed_message: function_inputs[<span class="number">3</span>]
-                        .clone()
-                        .try_into()
-                        .expect(<span class="string">"Compiler should generate correct size inputs"</span>),
-                    predicate: function_inputs[<span class="number">4</span>].clone()[<span class="number">0</span>],
-                    output: outputs[<span class="number">0</span>],
+                    </span>signature: expect_into(signature),
+                    hashed_message: expect_into(hashed_message),
+                    predicate,
+                    output,
                 }
             }
-            BlackBoxFunc::MultiScalarMul =&gt; BlackBoxFuncCall::MultiScalarMul {
-                points: function_inputs[<span class="number">0</span>].clone(),
-                scalars: function_inputs[<span class="number">1</span>].clone(),
-                predicate: function_inputs[<span class="number">2</span>].clone()[<span class="number">0</span>],
-                outputs: (outputs[<span class="number">0</span>], outputs[<span class="number">1</span>], outputs[<span class="number">2</span>]),
-            },
+            BlackBoxFunc::MultiScalarMul =&gt; {
+                <span class="kw">let </span>[points, scalars, predicate] = expect_into(function_inputs);
+                <span class="kw">let </span>[predicate] = expect_into(predicate);
+                <span class="kw">let </span>[output0, output1, output2] = expect_into(outputs);
+                BlackBoxFuncCall::MultiScalarMul {
+                    points,
+                    scalars,
+                    predicate,
+                    outputs: (output0, output1, output2),
+                }
+            }
 
-            BlackBoxFunc::EmbeddedCurveAdd =&gt; BlackBoxFuncCall::EmbeddedCurveAdd {
-                input1: Box::new([
-                    function_inputs[<span class="number">0</span>].clone()[<span class="number">0</span>],
-                    function_inputs[<span class="number">1</span>].clone()[<span class="number">0</span>],
-                    function_inputs[<span class="number">2</span>].clone()[<span class="number">0</span>],
-                ]),
-                input2: Box::new([
-                    function_inputs[<span class="number">3</span>].clone()[<span class="number">0</span>],
-                    function_inputs[<span class="number">4</span>].clone()[<span class="number">0</span>],
-                    function_inputs[<span class="number">5</span>].clone()[<span class="number">0</span>],
-                ]),
-                predicate: function_inputs[<span class="number">6</span>].clone()[<span class="number">0</span>],
-                outputs: (outputs[<span class="number">0</span>], outputs[<span class="number">1</span>], outputs[<span class="number">2</span>]),
-            },
-            BlackBoxFunc::Keccakf1600 =&gt; BlackBoxFuncCall::Keccakf1600 {
-                inputs: function_inputs[<span class="number">0</span>]
-                    .clone()
-                    .try_into()
-                    .expect(<span class="string">"Compiler should generate correct size inputs"</span>),
-                outputs: outputs.try_into().expect(<span class="string">"Compiler should generate correct size outputs"</span>),
-            },
-            BlackBoxFunc::RecursiveAggregation =&gt; BlackBoxFuncCall::RecursiveAggregation {
-                verification_key: function_inputs[<span class="number">0</span>].clone(),
-                proof: function_inputs[<span class="number">1</span>].clone(),
-                public_inputs: function_inputs[<span class="number">2</span>].clone(),
-                key_hash: function_inputs[<span class="number">3</span>].clone()[<span class="number">0</span>],
-                proof_type: constant_inputs[<span class="number">0</span>].to_u128() <span class="kw">as </span>u32,
-                predicate: function_inputs[<span class="number">4</span>].clone()[<span class="number">0</span>],
-            },
-            BlackBoxFunc::Poseidon2Permutation =&gt; BlackBoxFuncCall::Poseidon2Permutation {
-                inputs: function_inputs[<span class="number">0</span>].clone(),
-                outputs,
-            },
-            BlackBoxFunc::Sha256Compression =&gt; BlackBoxFuncCall::Sha256Compression {
-                inputs: function_inputs[<span class="number">0</span>]
-                    .clone()
-                    .try_into()
-                    .expect(<span class="string">"Compiler should generate correct size inputs"</span>),
-                hash_values: function_inputs[<span class="number">1</span>]
-                    .clone()
-                    .try_into()
-                    .expect(<span class="string">"Compiler should generate correct size inputs"</span>),
-                outputs: outputs.try_into().expect(<span class="string">"Compiler should generate correct size outputs"</span>),
-            },
+            BlackBoxFunc::EmbeddedCurveAdd =&gt; {
+                <span class="kw">let </span>[input1_0, input1_1, input1_2, input2_0, input2_1, input2_2, predicate] =
+                    expect_into(function_inputs);
+                <span class="kw">let </span>[input1_0] = expect_into(input1_0);
+                <span class="kw">let </span>[input1_1] = expect_into(input1_1);
+                <span class="kw">let </span>[input1_2] = expect_into(input1_2);
+                <span class="kw">let </span>[input2_0] = expect_into(input2_0);
+                <span class="kw">let </span>[input2_1] = expect_into(input2_1);
+                <span class="kw">let </span>[input2_2] = expect_into(input2_2);
+                <span class="kw">let </span>[predicate] = expect_into(predicate);
+                <span class="kw">let </span>[output0, output1, output2] = expect_into(outputs);
+                BlackBoxFuncCall::EmbeddedCurveAdd {
+                    input1: Box::new([input1_0, input1_1, input1_2]),
+                    input2: Box::new([input2_0, input2_1, input2_2]),
+                    predicate,
+                    outputs: (output0, output1, output2),
+                }
+            }
+            BlackBoxFunc::Keccakf1600 =&gt; {
+                <span class="kw">let </span>[inputs] = expect_into(function_inputs);
+                BlackBoxFuncCall::Keccakf1600 {
+                    inputs: expect_into(inputs),
+                    outputs: expect_into(outputs),
+                }
+            }
+            BlackBoxFunc::RecursiveAggregation =&gt; {
+                <span class="kw">let </span>[verification_key, proof, public_inputs, key_hash, predicate] =
+                    expect_into(function_inputs);
+                <span class="kw">let </span>[key_hash] = expect_into(key_hash);
+                <span class="kw">let </span>[proof_type] = expect_into(constant_inputs);
+                <span class="kw">let </span>[predicate] = expect_into(predicate);
+                BlackBoxFuncCall::RecursiveAggregation {
+                    verification_key,
+                    proof,
+                    public_inputs,
+                    key_hash,
+                    proof_type: proof_type.to_u128() <span class="kw">as </span>u32,
+                    predicate,
+                }
+            }
+            BlackBoxFunc::Poseidon2Permutation =&gt; {
+                <span class="kw">let </span>[inputs] = expect_into(function_inputs);
+                BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs }
+            }
+            BlackBoxFunc::Sha256Compression =&gt; {
+                <span class="kw">let </span>[inputs, hash_values] = expect_into(function_inputs);
+                BlackBoxFuncCall::Sha256Compression {
+                    inputs: expect_into(inputs),
+                    hash_values: expect_into(hash_values),
+                    outputs: expect_into(outputs),
+                }
+            }
         };
 
         <span class="self">self</span>.push_opcode(AcirOpcode::BlackBoxFuncCall(black_box_func_call));

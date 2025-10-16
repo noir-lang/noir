@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["BlackBoxFuncCall","FunctionInput"],"fn":["deserialize_big_array_into_box","serialize_big_array"],"struct":["InvalidInputBitSize"]};
+window.SIDEBAR_ITEMS = {"enum":["BlackBoxFuncCall","FunctionInput"],"fn":["deserialize_big_array_into_box","serialize_big_array","slice_to_string"],"struct":["InvalidInputBitSize"]};

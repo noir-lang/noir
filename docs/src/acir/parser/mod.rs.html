@@ -1098,7 +1098,39 @@
 <a href="#1097" id="1097">1097</a>
 <a href="#1098" id="1098">1098</a>
 <a href="#1099" id="1099">1099</a>
-<a href="#1100" id="1100">1100</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::BTreeSet, str::FromStr};
+<a href="#1100" id="1100">1100</a>
+<a href="#1101" id="1101">1101</a>
+<a href="#1102" id="1102">1102</a>
+<a href="#1103" id="1103">1103</a>
+<a href="#1104" id="1104">1104</a>
+<a href="#1105" id="1105">1105</a>
+<a href="#1106" id="1106">1106</a>
+<a href="#1107" id="1107">1107</a>
+<a href="#1108" id="1108">1108</a>
+<a href="#1109" id="1109">1109</a>
+<a href="#1110" id="1110">1110</a>
+<a href="#1111" id="1111">1111</a>
+<a href="#1112" id="1112">1112</a>
+<a href="#1113" id="1113">1113</a>
+<a href="#1114" id="1114">1114</a>
+<a href="#1115" id="1115">1115</a>
+<a href="#1116" id="1116">1116</a>
+<a href="#1117" id="1117">1117</a>
+<a href="#1118" id="1118">1118</a>
+<a href="#1119" id="1119">1119</a>
+<a href="#1120" id="1120">1120</a>
+<a href="#1121" id="1121">1121</a>
+<a href="#1122" id="1122">1122</a>
+<a href="#1123" id="1123">1123</a>
+<a href="#1124" id="1124">1124</a>
+<a href="#1125" id="1125">1125</a>
+<a href="#1126" id="1126">1126</a>
+<a href="#1127" id="1127">1127</a>
+<a href="#1128" id="1128">1128</a>
+<a href="#1129" id="1129">1129</a>
+<a href="#1130" id="1130">1130</a>
+<a href="#1131" id="1131">1131</a>
+<a href="#1132" id="1132">1132</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::BTreeSet, str::FromStr};
 
 <span class="kw">use </span>acir_field::{AcirField, FieldElement};
 
@@ -1358,7 +1390,7 @@
     }
 
     <span class="kw">fn </span>parse_assert_zero_expression(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; ParseResult&lt;Expression&lt;FieldElement&gt;&gt; {
-        <span class="comment">// 'CONSTRAIN'
+        <span class="comment">// 'ASSERT'
         </span><span class="self">self</span>.eat_keyword_or_error(Keyword::Assert)<span class="question-mark">?</span>;
 
         <span class="comment">// Parse the left-hand side terms
@@ -1443,8 +1475,7 @@
         <span class="prelude-val">Ok</span>(expression)
     }
 
-    <span class="comment">// TODO: Convert all assertions on input/output lengths to real errors
-    </span><span class="kw">fn </span>parse_blackbox_func_call(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; ParseResult&lt;BlackBoxFuncCall&lt;FieldElement&gt;&gt; {
+    <span class="kw">fn </span>parse_blackbox_func_call(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; ParseResult&lt;BlackBoxFuncCall&lt;FieldElement&gt;&gt; {
         <span class="self">self</span>.eat_keyword(Keyword::BlackBoxFuncCall)<span class="question-mark">?</span>;
         <span class="self">self</span>.eat_or_error(Token::Colon)<span class="question-mark">?</span>;
         <span class="self">self</span>.eat_or_error(Token::Colon)<span class="question-mark">?</span>;
@@ -1461,64 +1492,88 @@
 
         <span class="kw">let </span>func = <span class="kw">match </span>func_name {
             BlackBoxFunc::AES128Encrypt =&gt; {
-                <span class="kw">let </span><span class="kw-2">mut </span>inputs = <span class="self">self</span>.parse_blackbox_inputs()<span class="question-mark">?</span>;
+                <span class="kw">let </span>inputs = <span class="self">self</span>.parse_blackbox_inputs(Keyword::Inputs)<span class="question-mark">?</span>;
+                <span class="self">self</span>.eat_comma_or_error()<span class="question-mark">?</span>;
 
-                <span class="kw">let </span>key = <span class="self">self</span>.try_extract_tail::&lt;<span class="number">16</span>, <span class="kw">_</span>&gt;(<span class="kw-2">&amp;mut </span>inputs, <span class="string">"key"</span>)<span class="question-mark">?</span>;
-                <span class="kw">let </span>iv = <span class="self">self</span>.try_extract_tail::&lt;<span class="number">16</span>, <span class="kw">_</span>&gt;(<span class="kw-2">&amp;mut </span>inputs, <span class="string">"IV"</span>)<span class="question-mark">?</span>;
+                <span class="kw">let </span>iv = <span class="self">self</span>.parse_blackbox_inputs_array::&lt;<span class="number">16</span>&gt;(Keyword::Iv)<span class="question-mark">?</span>;
+                <span class="self">self</span>.eat_comma_or_error()<span class="question-mark">?</span>;
+
+                <span class="kw">let </span>key = <span class="self">self</span>.parse_blackbox_inputs_array::&lt;<span class="number">16</span>&gt;(Keyword::Key)<span class="question-mark">?</span>;
+                <span class="self">self</span>.eat_comma_or_error()<span class="question-mark">?</span>;
 
                 <span class="kw">let </span>outputs = <span class="self">self</span>.parse_blackbox_outputs()<span class="question-mark">?</span>;
 
                 BlackBoxFuncCall::AES128Encrypt { inputs, iv, key, outputs }
             }
             BlackBoxFunc::AND =&gt; {
-                <span class="kw">let </span>inputs = <span class="self">self</span>.parse_blackbox_inputs()<span class="question-mark">?</span>;
-                <span class="self">self</span>.expect_len(<span class="kw-2">&amp;</span>inputs, <span class="number">2</span>, <span class="string">"AND"</span>, <span class="bool-val">false</span>)<span class="question-mark">?</span>;
+                <span class="kw">let </span>lhs = <span class="self">self</span>.parse_blackbox_input(Keyword::Lhs)<span class="question-mark">?</span>;
+                <span class="self">self</span>.eat_comma_or_error()<span class="question-mark">?</span>;
 
-                <span class="kw">let </span>num_bits = <span class="self">self</span>.parse_blackbox_bit_size()<span class="question-mark">?</span>;
+                <span class="kw">let </span>rhs = <span class="self">self</span>.parse_blackbox_input(Keyword::Rhs)<span class="question-mark">?</span>;
+                <span class="self">self</span>.eat_comma_or_error()<span class="question-mark">?</span>;
+
                 <span class="kw">let </span>output = <span class="self">self</span>.parse_blackbox_output()<span class="question-mark">?</span>;
+                <span class="self">self</span>.eat_comma_or_error()<span class="question-mark">?</span>;
 
-                BlackBoxFuncCall::AND { lhs: inputs[<span class="number">0</span>], rhs: inputs[<span class="number">1</span>], num_bits, output }
+                <span class="kw">let </span>num_bits = <span class="self">self</span>.parse_blackbox_u32(Keyword::Bits)<span class="question-mark">?</span>;
+
+                BlackBoxFuncCall::AND { lhs, rhs, num_bits, output }
             }
             BlackBoxFunc::XOR =&gt; {
-                <span class="kw">let </span>inputs = <span class="self">self</span>.parse_blackbox_inputs()<span class="question-mark">?</span>;
-                <span class="self">self</span>.expect_len(<span class="kw-2">&amp;</span>inputs, <span class="number">2</span>, <span class="string">"XOR"</span>, <span class="bool-val">false</span>)<span class="question-mark">?</span>;
+                <span class="kw">let </span>lhs = <span class="self">self</span>.parse_blackbox_input(Keyword::Lhs)<span class="question-mark">?</span>;
+                <span class="self">self</span>.eat_comma_or_error()<span class="question-mark">?</span>;
 
-                <span class="kw">let </span>num_bits = <span class="self">self</span>.parse_blackbox_bit_size()<span class="question-mark">?</span>;
+                <span class="kw">let </span>rhs = <span class="self">self</span>.parse_blackbox_input(Keyword::Rhs)<span class="question-mark">?</span>;
+                <span class="self">self</span>.eat_comma_or_error()<span class="question-mark">?</span>;
+
                 <span class="kw">let </span>output = <span class="self">self</span>.parse_blackbox_output()<span class="question-mark">?</span>;
+                <span class="self">self</span>.eat_comma_or_error()<span class="question-mark">?</span>;
 
-                BlackBoxFuncCall::XOR { lhs: inputs[<span class="number">0</span>], rhs: inputs[<span class="number">1</span>], num_bits, output }
+                <span class="kw">let </span>num_bits = <span class="self">self</span>.parse_blackbox_u32(Keyword::Bits)<span class="question-mark">?</span>;
+
+                BlackBoxFuncCall::XOR { lhs, rhs, num_bits, output }
             }
             BlackBoxFunc::RANGE =&gt; {
-                <span class="self">self</span>.eat_keyword_or_error(Keyword::Input)<span class="question-mark">?</span>;
-                <span class="self">self</span>.eat_or_error(Token::Colon)<span class="question-mark">?</span>;
-                <span class="kw">let </span>input = <span class="self">self</span>.parse_blackbox_input()<span class="question-mark">?</span>;
-                <span class="kw">let </span>num_bits = <span class="self">self</span>.parse_blackbox_bit_size()<span class="question-mark">?</span>;
+                <span class="kw">let </span>input = <span class="self">self</span>.parse_blackbox_input(Keyword::Input)<span class="question-mark">?</span>;
+                <span class="self">self</span>.eat_comma_or_error()<span class="question-mark">?</span>;
+
+                <span class="kw">let </span>num_bits = <span class="self">self</span>.parse_blackbox_u32(Keyword::Bits)<span class="question-mark">?</span>;
 
                 BlackBoxFuncCall::RANGE { input, num_bits }
             }
             BlackBoxFunc::Blake2s =&gt; {
-                <span class="kw">let </span>inputs = <span class="self">self</span>.parse_blackbox_inputs()<span class="question-mark">?</span>;
-                <span class="kw">let </span>outputs = <span class="self">self</span>.parse_blackbox_outputs()<span class="question-mark">?</span>;
-                <span class="kw">let </span>outputs = <span class="self">self</span>.try_vec_to_array::&lt;<span class="number">32</span>, <span class="kw">_</span>&gt;(outputs, <span class="string">"Blake2s"</span>, <span class="bool-val">true</span>)<span class="question-mark">?</span>;
+                <span class="kw">let </span>inputs = <span class="self">self</span>.parse_blackbox_inputs(Keyword::Inputs)<span class="question-mark">?</span>;
+                <span class="self">self</span>.eat_comma_or_error()<span class="question-mark">?</span>;
+
+                <span class="kw">let </span>outputs = <span class="self">self</span>.parse_blackbox_outputs_array::&lt;<span class="number">32</span>&gt;()<span class="question-mark">?</span>;
 
                 BlackBoxFuncCall::Blake2s { inputs, outputs }
             }
             BlackBoxFunc::Blake3 =&gt; {
-                <span class="kw">let </span>inputs = <span class="self">self</span>.parse_blackbox_inputs()<span class="question-mark">?</span>;
-                <span class="kw">let </span>outputs = <span class="self">self</span>.parse_blackbox_outputs()<span class="question-mark">?</span>;
-                <span class="kw">let </span>outputs = <span class="self">self</span>.try_vec_to_array::&lt;<span class="number">32</span>, <span class="kw">_</span>&gt;(outputs, <span class="string">"Blake3"</span>, <span class="bool-val">true</span>)<span class="question-mark">?</span>;
+                <span class="kw">let </span>inputs = <span class="self">self</span>.parse_blackbox_inputs(Keyword::Inputs)<span class="question-mark">?</span>;
+                <span class="self">self</span>.eat_comma_or_error()<span class="question-mark">?</span>;
+
+                <span class="kw">let </span>outputs = <span class="self">self</span>.parse_blackbox_outputs_array::&lt;<span class="number">32</span>&gt;()<span class="question-mark">?</span>;
 
                 BlackBoxFuncCall::Blake3 { inputs, outputs }
             }
             BlackBoxFunc::EcdsaSecp256k1 =&gt; {
-                <span class="kw">let </span><span class="kw-2">mut </span>inputs = <span class="self">self</span>.parse_blackbox_inputs()<span class="question-mark">?</span>;
+                <span class="kw">let </span>public_key_x = <span class="self">self</span>.parse_blackbox_inputs_array::&lt;<span class="number">32</span>&gt;(Keyword::PublicKeyX)<span class="question-mark">?</span>;
+                <span class="self">self</span>.eat_comma_or_error()<span class="question-mark">?</span>;
 
-                <span class="kw">let </span>predicate = <span class="self">self</span>.try_extract_tail::&lt;<span class="number">1</span>, <span class="kw">_</span>&gt;(<span class="kw-2">&amp;mut </span>inputs, <span class="string">"predicate"</span>)<span class="question-mark">?</span>[<span class="number">0</span>];
+                <span class="kw">let </span>public_key_y = <span class="self">self</span>.parse_blackbox_inputs_array::&lt;<span class="number">32</span>&gt;(Keyword::PublicKeyY)<span class="question-mark">?</span>;
+                <span class="self">self</span>.eat_comma_or_error()<span class="question-mark">?</span>;
+
+                <span class="kw">let </span>signature = <span class="self">self</span>.parse_blackbox_inputs_array::&lt;<span class="number">64</span>&gt;(Keyword::Signature)<span class="question-mark">?</span>;
+                <span class="self">self</span>.eat_comma_or_error()<span class="question-mark">?</span>;
+
                 <span class="kw">let </span>hashed_message =
-                    <span class="self">self</span>.try_extract_tail::&lt;<span class="number">32</span>, <span class="kw">_</span>&gt;(<span class="kw-2">&amp;mut </span>inputs, <span class="string">"hashed_message"</span>)<span class="question-mark">?</span>;
-                <span class="kw">let </span>signature = <span class="self">self</span>.try_extract_tail::&lt;<span class="number">64</span>, <span class="kw">_</span>&gt;(<span class="kw-2">&amp;mut </span>inputs, <span class="string">"signature"</span>)<span class="question-mark">?</span>;
-                <span class="kw">let </span>public_key_y = <span class="self">self</span>.try_extract_tail::&lt;<span class="number">32</span>, <span class="kw">_</span>&gt;(<span class="kw-2">&amp;mut </span>inputs, <span class="string">"public_key_y"</span>)<span class="question-mark">?</span>;
-                <span class="kw">let </span>public_key_x = <span class="self">self</span>.try_extract_tail::&lt;<span class="number">32</span>, <span class="kw">_</span>&gt;(<span class="kw-2">&amp;mut </span>inputs, <span class="string">"public_key_x"</span>)<span class="question-mark">?</span>;
+                    <span class="self">self</span>.parse_blackbox_inputs_array::&lt;<span class="number">32</span>&gt;(Keyword::HashedMessage)<span class="question-mark">?</span>;
+                <span class="self">self</span>.eat_comma_or_error()<span class="question-mark">?</span>;
+
+                <span class="kw">let </span>predicate = <span class="self">self</span>.parse_blackbox_input(Keyword::Predicate)<span class="question-mark">?</span>;
+                <span class="self">self</span>.eat_comma_or_error()<span class="question-mark">?</span>;
+
                 <span class="kw">let </span>output = <span class="self">self</span>.parse_blackbox_output()<span class="question-mark">?</span>;
 
                 BlackBoxFuncCall::EcdsaSecp256k1 {
@@ -1531,14 +1586,22 @@
                 }
             }
             BlackBoxFunc::EcdsaSecp256r1 =&gt; {
-                <span class="kw">let </span><span class="kw-2">mut </span>inputs = <span class="self">self</span>.parse_blackbox_inputs()<span class="question-mark">?</span>;
+                <span class="kw">let </span>public_key_x = <span class="self">self</span>.parse_blackbox_inputs_array::&lt;<span class="number">32</span>&gt;(Keyword::PublicKeyX)<span class="question-mark">?</span>;
+                <span class="self">self</span>.eat_comma_or_error()<span class="question-mark">?</span>;
 
-                <span class="kw">let </span>predicate = <span class="self">self</span>.try_extract_tail::&lt;<span class="number">1</span>, <span class="kw">_</span>&gt;(<span class="kw-2">&amp;mut </span>inputs, <span class="string">"predicate"</span>)<span class="question-mark">?</span>[<span class="number">0</span>];
+                <span class="kw">let </span>public_key_y = <span class="self">self</span>.parse_blackbox_inputs_array::&lt;<span class="number">32</span>&gt;(Keyword::PublicKeyY)<span class="question-mark">?</span>;
+                <span class="self">self</span>.eat_comma_or_error()<span class="question-mark">?</span>;
+
+                <span class="kw">let </span>signature = <span class="self">self</span>.parse_blackbox_inputs_array::&lt;<span class="number">64</span>&gt;(Keyword::Signature)<span class="question-mark">?</span>;
+                <span class="self">self</span>.eat_comma_or_error()<span class="question-mark">?</span>;
+
                 <span class="kw">let </span>hashed_message =
-                    <span class="self">self</span>.try_extract_tail::&lt;<span class="number">32</span>, <span class="kw">_</span>&gt;(<span class="kw-2">&amp;mut </span>inputs, <span class="string">"hashed_message"</span>)<span class="question-mark">?</span>;
-                <span class="kw">let </span>signature = <span class="self">self</span>.try_extract_tail::&lt;<span class="number">64</span>, <span class="kw">_</span>&gt;(<span class="kw-2">&amp;mut </span>inputs, <span class="string">"signature"</span>)<span class="question-mark">?</span>;
-                <span class="kw">let </span>public_key_y = <span class="self">self</span>.try_extract_tail::&lt;<span class="number">32</span>, <span class="kw">_</span>&gt;(<span class="kw-2">&amp;mut </span>inputs, <span class="string">"public_key_y"</span>)<span class="question-mark">?</span>;
-                <span class="kw">let </span>public_key_x = <span class="self">self</span>.try_extract_tail::&lt;<span class="number">32</span>, <span class="kw">_</span>&gt;(<span class="kw-2">&amp;mut </span>inputs, <span class="string">"public_key_x"</span>)<span class="question-mark">?</span>;
+                    <span class="self">self</span>.parse_blackbox_inputs_array::&lt;<span class="number">32</span>&gt;(Keyword::HashedMessage)<span class="question-mark">?</span>;
+                <span class="self">self</span>.eat_comma_or_error()<span class="question-mark">?</span>;
+
+                <span class="kw">let </span>predicate = <span class="self">self</span>.parse_blackbox_input(Keyword::Predicate)<span class="question-mark">?</span>;
+                <span class="self">self</span>.eat_comma_or_error()<span class="question-mark">?</span>;
+
                 <span class="kw">let </span>output = <span class="self">self</span>.parse_blackbox_output()<span class="question-mark">?</span>;
 
                 BlackBoxFuncCall::EcdsaSecp256r1 {
@@ -1550,48 +1613,87 @@
                     predicate,
                 }
             }
-            BlackBoxFunc::MultiScalarMul =&gt; <span class="macro">todo!</span>(),
+            BlackBoxFunc::MultiScalarMul =&gt; {
+                <span class="kw">let </span>points = <span class="self">self</span>.parse_blackbox_inputs(Keyword::Points)<span class="question-mark">?</span>;
+                <span class="self">self</span>.eat_comma_or_error()<span class="question-mark">?</span>;
+
+                <span class="kw">let </span>scalars = <span class="self">self</span>.parse_blackbox_inputs(Keyword::Scalars)<span class="question-mark">?</span>;
+                <span class="self">self</span>.eat_comma_or_error()<span class="question-mark">?</span>;
+
+                <span class="kw">let </span>predicate = <span class="self">self</span>.parse_blackbox_input(Keyword::Predicate)<span class="question-mark">?</span>;
+                <span class="self">self</span>.eat_comma_or_error()<span class="question-mark">?</span>;
+
+                <span class="kw">let </span>outputs = <span class="self">self</span>.parse_blackbox_outputs_array::&lt;<span class="number">3</span>&gt;()<span class="question-mark">?</span>;
+                <span class="kw">let </span>outputs = (outputs[<span class="number">0</span>], outputs[<span class="number">1</span>], outputs[<span class="number">2</span>]);
+
+                BlackBoxFuncCall::MultiScalarMul { points, scalars, predicate, outputs }
+            }
             BlackBoxFunc::Keccakf1600 =&gt; {
-                <span class="kw">let </span>inputs = <span class="self">self</span>.parse_blackbox_inputs()<span class="question-mark">?</span>;
-                <span class="kw">let </span>inputs = <span class="self">self</span>.try_vec_to_array::&lt;<span class="number">25</span>, <span class="kw">_</span>&gt;(inputs, <span class="string">"Keccakf1600 inputs"</span>, <span class="bool-val">false</span>)<span class="question-mark">?</span>;
-                <span class="kw">let </span>outputs = <span class="self">self</span>.parse_blackbox_outputs()<span class="question-mark">?</span>;
-                <span class="kw">let </span>outputs =
-                    <span class="self">self</span>.try_vec_to_array::&lt;<span class="number">25</span>, <span class="kw">_</span>&gt;(outputs, <span class="string">"Keccakf1600 outputs"</span>, <span class="bool-val">true</span>)<span class="question-mark">?</span>;
+                <span class="kw">let </span>inputs = <span class="self">self</span>.parse_blackbox_inputs_array::&lt;<span class="number">25</span>&gt;(Keyword::Inputs)<span class="question-mark">?</span>;
+                <span class="self">self</span>.eat_comma_or_error()<span class="question-mark">?</span>;
+
+                <span class="kw">let </span>outputs = <span class="self">self</span>.parse_blackbox_outputs_array::&lt;<span class="number">25</span>&gt;()<span class="question-mark">?</span>;
 
                 BlackBoxFuncCall::Keccakf1600 { inputs, outputs }
             }
             BlackBoxFunc::RecursiveAggregation =&gt; {
-                <span class="macro">todo!</span>(<span class="string">"Need to change the format to dictate the size of each of input"</span>)
-            }
-            BlackBoxFunc::EmbeddedCurveAdd =&gt; {
-                <span class="kw">let </span><span class="kw-2">mut </span>inputs = <span class="self">self</span>.parse_blackbox_inputs()<span class="question-mark">?</span>;
-                <span class="kw">let </span>predicate = <span class="self">self</span>.try_extract_tail::&lt;<span class="number">1</span>, <span class="kw">_</span>&gt;(<span class="kw-2">&amp;mut </span>inputs, <span class="string">"predicate"</span>)<span class="question-mark">?</span>[<span class="number">0</span>];
-                <span class="kw">let </span>input2 = <span class="self">self</span>.try_extract_tail::&lt;<span class="number">3</span>, <span class="kw">_</span>&gt;(<span class="kw-2">&amp;mut </span>inputs, <span class="string">"EC add input2"</span>)<span class="question-mark">?</span>;
-                <span class="kw">let </span>input1 = <span class="self">self</span>.try_extract_tail::&lt;<span class="number">3</span>, <span class="kw">_</span>&gt;(<span class="kw-2">&amp;mut </span>inputs, <span class="string">"EC add input1"</span>)<span class="question-mark">?</span>;
-                <span class="kw">let </span>outputs = <span class="self">self</span>.parse_blackbox_outputs()<span class="question-mark">?</span>;
-                <span class="self">self</span>.expect_len(<span class="kw-2">&amp;</span>outputs, <span class="number">3</span>, <span class="string">"EmbeddedCurveAdd"</span>, <span class="bool-val">true</span>)<span class="question-mark">?</span>;
+                <span class="kw">let </span>verification_key = <span class="self">self</span>.parse_blackbox_inputs(Keyword::VerificationKey)<span class="question-mark">?</span>;
+                <span class="self">self</span>.eat_comma_or_error()<span class="question-mark">?</span>;
 
-                BlackBoxFuncCall::EmbeddedCurveAdd {
-                    input1,
-                    input2,
+                <span class="kw">let </span>proof = <span class="self">self</span>.parse_blackbox_inputs(Keyword::Proof)<span class="question-mark">?</span>;
+                <span class="self">self</span>.eat_comma_or_error()<span class="question-mark">?</span>;
+
+                <span class="kw">let </span>public_inputs = <span class="self">self</span>.parse_blackbox_inputs(Keyword::PublicInputs)<span class="question-mark">?</span>;
+                <span class="self">self</span>.eat_comma_or_error()<span class="question-mark">?</span>;
+
+                <span class="kw">let </span>key_hash = <span class="self">self</span>.parse_blackbox_input(Keyword::KeyHash)<span class="question-mark">?</span>;
+                <span class="self">self</span>.eat_comma_or_error()<span class="question-mark">?</span>;
+
+                <span class="kw">let </span>proof_type = <span class="self">self</span>.parse_blackbox_u32(Keyword::ProofType)<span class="question-mark">?</span>;
+                <span class="self">self</span>.eat_comma_or_error()<span class="question-mark">?</span>;
+
+                <span class="kw">let </span>predicate = <span class="self">self</span>.parse_blackbox_input(Keyword::Predicate)<span class="question-mark">?</span>;
+
+                BlackBoxFuncCall::RecursiveAggregation {
+                    verification_key,
+                    proof,
+                    public_inputs,
+                    key_hash,
+                    proof_type,
                     predicate,
-                    outputs: (outputs[<span class="number">0</span>], outputs[<span class="number">1</span>], outputs[<span class="number">2</span>]),
                 }
             }
+            BlackBoxFunc::EmbeddedCurveAdd =&gt; {
+                <span class="kw">let </span>input1 = <span class="self">self</span>.parse_blackbox_inputs_array::&lt;<span class="number">3</span>&gt;(Keyword::Input1)<span class="question-mark">?</span>;
+                <span class="self">self</span>.eat_comma_or_error()<span class="question-mark">?</span>;
+
+                <span class="kw">let </span>input2 = <span class="self">self</span>.parse_blackbox_inputs_array::&lt;<span class="number">3</span>&gt;(Keyword::Input2)<span class="question-mark">?</span>;
+                <span class="self">self</span>.eat_comma_or_error()<span class="question-mark">?</span>;
+
+                <span class="kw">let </span>predicate = <span class="self">self</span>.parse_blackbox_input(Keyword::Predicate)<span class="question-mark">?</span>;
+                <span class="self">self</span>.eat_comma_or_error()<span class="question-mark">?</span>;
+
+                <span class="kw">let </span>outputs = <span class="self">self</span>.parse_blackbox_outputs_array::&lt;<span class="number">3</span>&gt;()<span class="question-mark">?</span>;
+                <span class="kw">let </span>outputs = (outputs[<span class="number">0</span>], outputs[<span class="number">1</span>], outputs[<span class="number">2</span>]);
+
+                BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, predicate, outputs }
+            }
             BlackBoxFunc::Poseidon2Permutation =&gt; {
-                <span class="kw">let </span>inputs = <span class="self">self</span>.parse_blackbox_inputs()<span class="question-mark">?</span>;
+                <span class="kw">let </span>inputs = <span class="self">self</span>.parse_blackbox_inputs(Keyword::Inputs)<span class="question-mark">?</span>;
+                <span class="self">self</span>.eat_comma_or_error()<span class="question-mark">?</span>;
+
                 <span class="kw">let </span>outputs = <span class="self">self</span>.parse_blackbox_outputs()<span class="question-mark">?</span>;
+
                 BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs }
             }
             BlackBoxFunc::Sha256Compression =&gt; {
-                <span class="kw">let </span><span class="kw-2">mut </span>inputs = <span class="self">self</span>.parse_blackbox_inputs()<span class="question-mark">?</span>;
+                <span class="kw">let </span>inputs = <span class="self">self</span>.parse_blackbox_inputs_array::&lt;<span class="number">16</span>&gt;(Keyword::Inputs)<span class="question-mark">?</span>;
+                <span class="self">self</span>.eat_comma_or_error()<span class="question-mark">?</span>;
 
-                <span class="kw">let </span>hash_values = <span class="self">self</span>.try_extract_tail::&lt;<span class="number">8</span>, <span class="kw">_</span>&gt;(<span class="kw-2">&amp;mut </span>inputs, <span class="string">"hash_values"</span>)<span class="question-mark">?</span>;
-                <span class="kw">let </span>inputs = <span class="self">self</span>.try_extract_tail::&lt;<span class="number">16</span>, <span class="kw">_</span>&gt;(<span class="kw-2">&amp;mut </span>inputs, <span class="string">"inputs"</span>)<span class="question-mark">?</span>;
+                <span class="kw">let </span>hash_values = <span class="self">self</span>.parse_blackbox_inputs_array::&lt;<span class="number">8</span>&gt;(Keyword::HashValues)<span class="question-mark">?</span>;
+                <span class="self">self</span>.eat_comma_or_error()<span class="question-mark">?</span>;
 
-                <span class="kw">let </span>outputs = <span class="self">self</span>.parse_blackbox_outputs()<span class="question-mark">?</span>;
-                <span class="kw">let </span>outputs =
-                    <span class="self">self</span>.try_vec_to_array::&lt;<span class="number">8</span>, <span class="kw">_</span>&gt;(outputs, <span class="string">"Sha256Compression outputs"</span>, <span class="bool-val">true</span>)<span class="question-mark">?</span>;
+                <span class="kw">let </span>outputs = <span class="self">self</span>.parse_blackbox_outputs_array::&lt;<span class="number">8</span>&gt;()<span class="question-mark">?</span>;
 
                 BlackBoxFuncCall::Sha256Compression { inputs, hash_values, outputs }
             }
@@ -1599,15 +1701,26 @@
         <span class="prelude-val">Ok</span>(func)
     }
 
-    <span class="kw">fn </span>parse_blackbox_inputs(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; ParseResult&lt;Vec&lt;FunctionInput&lt;FieldElement&gt;&gt;&gt; {
-        <span class="self">self</span>.eat_keyword_or_error(Keyword::Inputs)<span class="question-mark">?</span>;
+    <span class="kw">fn </span>parse_blackbox_inputs_array&lt;<span class="kw">const </span>N: usize&gt;(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        keyword: Keyword,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;Box&lt;[FunctionInput&lt;FieldElement&gt;; N]&gt;, ParserError&gt; {
+        <span class="kw">let </span>inputs = <span class="self">self</span>.parse_blackbox_inputs(keyword)<span class="question-mark">?</span>;
+        <span class="self">self</span>.try_vec_to_array::&lt;N, <span class="kw">_</span>&gt;(inputs, keyword)
+    }
+
+    <span class="kw">fn </span>parse_blackbox_inputs(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        keyword: Keyword,
+    ) -&gt; ParseResult&lt;Vec&lt;FunctionInput&lt;FieldElement&gt;&gt;&gt; {
+        <span class="self">self</span>.eat_keyword_or_error(keyword)<span class="question-mark">?</span>;
         <span class="self">self</span>.eat_or_error(Token::Colon)<span class="question-mark">?</span>;
         <span class="self">self</span>.eat_or_error(Token::LeftBracket)<span class="question-mark">?</span>;
 
         <span class="kw">let </span><span class="kw-2">mut </span>inputs = Vec::new();
 
         <span class="kw">while </span>!<span class="self">self</span>.eat(Token::RightBracket)<span class="question-mark">? </span>{
-            <span class="kw">let </span>input = <span class="self">self</span>.parse_blackbox_input()<span class="question-mark">?</span>;
+            <span class="kw">let </span>input = <span class="self">self</span>.parse_blackbox_input_no_keyword()<span class="question-mark">?</span>;
             inputs.push(input);
 
             <span class="comment">// Eat a comma if there is another input, but do not error if there is no comma
@@ -1618,7 +1731,18 @@
         <span class="prelude-val">Ok</span>(inputs)
     }
 
-    <span class="kw">fn </span>parse_blackbox_input(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;FunctionInput&lt;FieldElement&gt;, ParserError&gt; {
+    <span class="kw">fn </span>parse_blackbox_input(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        keyword: Keyword,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;FunctionInput&lt;FieldElement&gt;, ParserError&gt; {
+        <span class="self">self</span>.eat_keyword_or_error(keyword)<span class="question-mark">?</span>;
+        <span class="self">self</span>.eat_or_error(Token::Colon)<span class="question-mark">?</span>;
+        <span class="self">self</span>.parse_blackbox_input_no_keyword()
+    }
+
+    <span class="kw">fn </span>parse_blackbox_input_no_keyword(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;FunctionInput&lt;FieldElement&gt;, ParserError&gt; {
         <span class="prelude-val">Ok</span>(<span class="kw">match </span><span class="self">self</span>.token.token() {
             Token::Int(value) =&gt; {
                 <span class="kw">let </span>value = <span class="kw-2">*</span>value;
@@ -1641,23 +1765,25 @@
     }
 
     <span class="kw">fn </span>parse_blackbox_output(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; ParseResult&lt;Witness&gt; {
-        <span class="self">self</span>.eat_or_error(Token::Comma)<span class="question-mark">?</span>;
         <span class="self">self</span>.eat_keyword_or_error(Keyword::Output)<span class="question-mark">?</span>;
         <span class="self">self</span>.eat_or_error(Token::Colon)<span class="question-mark">?</span>;
         <span class="kw">let </span>witness = <span class="self">self</span>.eat_witness_or_error()<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(witness)
     }
 
+    <span class="kw">fn </span>parse_blackbox_outputs_array&lt;<span class="kw">const </span>N: usize&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; ParseResult&lt;Box&lt;[Witness; N]&gt;&gt; {
+        <span class="kw">let </span>outputs = <span class="self">self</span>.parse_blackbox_outputs()<span class="question-mark">?</span>;
+        <span class="self">self</span>.try_vec_to_array::&lt;N, <span class="kw">_</span>&gt;(outputs, Keyword::Outputs)
+    }
+
     <span class="kw">fn </span>parse_blackbox_outputs(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; ParseResult&lt;Vec&lt;Witness&gt;&gt; {
-        <span class="self">self</span>.eat_or_error(Token::Comma)<span class="question-mark">?</span>;
         <span class="self">self</span>.eat_keyword_or_error(Keyword::Outputs)<span class="question-mark">?</span>;
         <span class="self">self</span>.eat_or_error(Token::Colon)<span class="question-mark">?</span>;
         <span class="self">self</span>.parse_witness_vector()
     }
 
-    <span class="kw">fn </span>parse_blackbox_bit_size(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; ParseResult&lt;u32&gt; {
-        <span class="self">self</span>.eat_or_error(Token::Comma)<span class="question-mark">?</span>;
-        <span class="self">self</span>.eat_keyword_or_error(Keyword::Bits)<span class="question-mark">?</span>;
+    <span class="kw">fn </span>parse_blackbox_u32(<span class="kw-2">&amp;mut </span><span class="self">self</span>, keyword: Keyword) -&gt; ParseResult&lt;u32&gt; {
+        <span class="self">self</span>.eat_keyword_or_error(keyword)<span class="question-mark">?</span>;
         <span class="self">self</span>.eat_or_error(Token::Colon)<span class="question-mark">?</span>;
         <span class="kw">let </span>num_bits = <span class="self">self</span>.eat_u32_or_error()<span class="question-mark">?</span>;
 
@@ -1960,6 +2086,10 @@
         <span class="kw">if let </span><span class="prelude-val">Some</span>(int) = <span class="self">self</span>.eat_block_id()<span class="question-mark">? </span>{ <span class="prelude-val">Ok</span>(int) } <span class="kw">else </span>{ <span class="self">self</span>.expected_block_id() }
     }
 
+    <span class="kw">fn </span>eat_comma_or_error(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; ParseResult&lt;()&gt; {
+        <span class="self">self</span>.eat_or_error(Token::Comma)
+    }
+
     <span class="kw">fn </span>eat_or_error(<span class="kw-2">&amp;mut </span><span class="self">self</span>, token: Token) -&gt; ParseResult&lt;()&gt; {
         <span class="kw">if </span><span class="self">self</span>.eat(token.clone())<span class="question-mark">? </span>{ <span class="prelude-val">Ok</span>(()) } <span class="kw">else </span>{ <span class="self">self</span>.expected_token(token) }
     }
@@ -1975,80 +2105,17 @@
         }
     }
 
-    <span class="kw">fn </span>expect_len&lt;T&gt;(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        items: <span class="kw-2">&amp;</span>[T],
-        expected: usize,
-        name: <span class="kw-2">&amp;</span>str,
-        is_output: bool,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), ParserError&gt; {
-        <span class="kw">if </span>items.len() != expected {
-            <span class="kw">if </span>is_output {
-                <span class="prelude-val">Err</span>(ParserError::IncorrectOutputLength {
-                    expected,
-                    found: items.len(),
-                    name: name.to_owned(),
-                    span: <span class="self">self</span>.token.span(),
-                })
-            } <span class="kw">else </span>{
-                <span class="prelude-val">Err</span>(ParserError::IncorrectInputLength {
-                    expected,
-                    found: items.len(),
-                    name: name.to_owned(),
-                    span: <span class="self">self</span>.token.span(),
-                })
-            }
-        } <span class="kw">else </span>{
-            <span class="prelude-val">Ok</span>(())
-        }
-    }
-
-    <span class="kw">fn </span>try_extract_tail&lt;<span class="kw">const </span>N: usize, T: Clone&gt;(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        items: <span class="kw-2">&amp;mut </span>Vec&lt;T&gt;,
-        name: <span class="kw-2">&amp;</span>str,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;Box&lt;[T; N]&gt;, ParserError&gt; {
-        <span class="kw">if </span>items.len() &lt; N {
-            <span class="kw">return </span><span class="prelude-val">Err</span>(ParserError::IncorrectInputLength {
-                expected: N,
-                found: items.len(),
-                name: name.to_owned(),
-                span: <span class="self">self</span>.token.span(),
-            });
-        }
-        <span class="kw">let </span>extracted = items.split_off(items.len() - N);
-        <span class="kw">let </span>len = extracted.len();
-        extracted.try_into().map_err(|<span class="kw">_</span>| ParserError::IncorrectInputLength {
-            expected: N,
-            found: len,
-            name: name.to_owned(),
-            span: <span class="self">self</span>.token.span(),
-        })
-    }
-
     <span class="kw">fn </span>try_vec_to_array&lt;<span class="kw">const </span>N: usize, T: Clone&gt;(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         vec: Vec&lt;T&gt;,
-        name: <span class="kw-2">&amp;</span>str,
-        is_output: bool,
+        keyword: Keyword,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;Box&lt;[T; N]&gt;, ParserError&gt; {
         <span class="kw">let </span>len = vec.len();
-        vec.try_into().map_err(|<span class="kw">_</span>| {
-            <span class="kw">if </span>is_output {
-                ParserError::IncorrectOutputLength {
-                    expected: N,
-                    found: len,
-                    name: name.to_owned(),
-                    span: <span class="self">self</span>.token.span(),
-                }
-            } <span class="kw">else </span>{
-                ParserError::IncorrectInputLength {
-                    expected: N,
-                    found: len,
-                    name: name.to_owned(),
-                    span: <span class="self">self</span>.token.span(),
-                }
-            }
+        vec.try_into().map_err(|<span class="kw">_</span>| ParserError::IncorrectValuesLength {
+            expected: N,
+            found: len,
+            name: keyword.to_string(),
+            span: <span class="self">self</span>.token.span(),
         })
     }
 
@@ -2170,10 +2237,8 @@
     </span>ExpectedBlackBoxFuncName { found: Token, span: Span },
     <span class="attr">#[error(<span class="string">"Number does not fit in u32, got: '{number}'"</span>)]
     </span>IntegerLargerThanU32 { number: FieldElement, span: Span },
-    <span class="attr">#[error(<span class="string">"Expected {expected} inputs for {name}, found {found}"</span>)]
-    </span>IncorrectInputLength { expected: usize, found: usize, name: String, span: Span },
-    <span class="attr">#[error(<span class="string">"Expected {expected} outputs for {name}, found {found}"</span>)]
-    </span>IncorrectOutputLength { expected: usize, found: usize, name: String, span: Span },
+    <span class="attr">#[error(<span class="string">"Expected {expected} values for {name}, found {found}"</span>)]
+    </span>IncorrectValuesLength { expected: usize, found: usize, name: String, span: Span },
     <span class="attr">#[error(<span class="string">"Expected function id {expected}, found {found}"</span>)]
     </span>UnexpectedFunctionId { expected: u32, found: u32, span: Span },
 }
@@ -2192,8 +2257,7 @@
             | ExpectedTerm { span, .. }
             | ExpectedBlackBoxFuncName { span, .. }
             | IntegerLargerThanU32 { span, .. }
-            | IncorrectInputLength { span, .. }
-            | IncorrectOutputLength { span, .. }
+            | IncorrectValuesLength { span, .. }
             | UnexpectedFunctionId { span, .. } =&gt; <span class="kw-2">*</span>span,
         }
     }
