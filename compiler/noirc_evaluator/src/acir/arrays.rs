@@ -146,6 +146,12 @@ impl Context<'_> {
         })
     }
 
+    pub(super) fn new_block_id(&mut self) -> BlockId {
+        let block_id = BlockId(self.max_block_id);
+        self.max_block_id += 1;
+        block_id
+    }
+
     /// Get the next BlockId for the internal element type sizes array.
     /// This is useful for referencing information that can
     /// only be accessed dynamically, such as the type structure
@@ -904,6 +910,47 @@ impl Context<'_> {
         }
     }
 
+    /// Read an array and reconstruct its structure based on the SSA type.
+    /// For DynamicArrays with nested arrays, this preserves the nested structure
+    /// instead of returning a flat array.
+    pub(super) fn read_array_with_type(
+        &mut self,
+        array: AcirValue,
+        array_typ: &Type,
+    ) -> Result<im::Vector<AcirValue>, RuntimeError> {
+        match array {
+            AcirValue::Var(_, _) => unreachable!("ICE: attempting to read a non-array value"),
+            //Array are already structured
+            AcirValue::Array(vars) => Ok(vars),
+            AcirValue::DynamicArray(AcirDynamicArray { block_id, len, .. }) => {
+                // For slices/arrays, reconstruct the structure based on the element type
+                let element_types = match array_typ {
+                    Type::Slice(types) | Type::Array(types, _) => types.as_ref(),
+                    _ => unreachable!("ICE: reading array into a non array type"),
+                };
+
+                // Calculate how many elements we have (number of outer array elements)
+                let element_flat_size: usize =
+                    element_types.iter().map(|t| t.flattened_size() as usize).sum();
+                assert_ne!(element_flat_size, 0, "ICE: array elements are empty");
+                let num_elements = len / element_flat_size;
+
+                let mut result = im::Vector::new();
+                let mut var_index = self.acir_context.add_constant(FieldElement::zero());
+                // Reconstruct each element with its proper structure
+                for _ in 0..num_elements {
+                    for element_typ in element_types.iter() {
+                        let element =
+                            self.array_get_value(element_typ, block_id, &mut var_index)?;
+                        result.push_back(element);
+                    }
+                }
+
+                Ok(result)
+            }
+        }
+    }
+
     pub(super) fn copy_array(
         &mut self,
         source: ValueId,
@@ -1102,7 +1149,7 @@ impl Context<'_> {
     }
 }
 
-fn calculate_element_type_sizes_array(array: &im::Vector<AcirValue>) -> Vec<usize> {
+pub(super) fn calculate_element_type_sizes_array(array: &im::Vector<AcirValue>) -> Vec<usize> {
     let mut flat_elem_type_sizes = Vec::new();
     flat_elem_type_sizes.push(0);
     for (i, value) in array.iter().enumerate() {

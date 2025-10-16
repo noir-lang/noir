@@ -11,6 +11,7 @@ use crate::ssa::ir::{
     basic_block::BasicBlockId,
     dfg::{DataFlowGraph, simplify::value_merger::ValueMerger},
     instruction::{Binary, BinaryOp, Endian, Hint, Instruction, Intrinsic},
+    integer::IntegerConstant,
     types::{NumericType, Type},
     value::{Value, ValueId},
 };
@@ -130,16 +131,28 @@ pub(super) fn simplify_call(
                 // TODO(#2752): We need to handle the element_type size to appropriately handle slices of complex types.
                 // This is reliant on dynamic indices of non-homogenous slices also being implemented.
                 if element_type.element_size() != 1 {
-                    // Old code before implementing multiple slice mergers
-                    for elem in &arguments[2..] {
-                        slice.push_back(*elem);
+                    if let Some(IntegerConstant::Unsigned { value: slice_len, .. }) =
+                        dfg.get_integer_constant(arguments[0])
+                    {
+                        // This simplification, which push back directly on the slice, only works if the real slice_len is the
+                        // the length of the slice.
+                        if slice_len as usize == slice.len() {
+                            // Old code before implementing multiple slice mergers
+                            for elem in &arguments[2..] {
+                                slice.push_back(*elem);
+                            }
+
+                            let new_slice_length =
+                                increment_slice_length(arguments[0], dfg, block, call_stack);
+
+                            let new_slice = make_array(dfg, slice, element_type, block, call_stack);
+                            return SimplifyResult::SimplifiedToMultiple(vec![
+                                new_slice_length,
+                                new_slice,
+                            ]);
+                        }
                     }
-
-                    let new_slice_length =
-                        increment_slice_length(arguments[0], dfg, block, call_stack);
-
-                    let new_slice = make_array(dfg, slice, element_type, block, call_stack);
-                    return SimplifyResult::SimplifiedToMultiple(vec![new_slice_length, new_slice]);
+                    return SimplifyResult::None;
                 }
 
                 simplify_slice_push_back(slice, element_type, arguments, dfg, block, call_stack)

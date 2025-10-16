@@ -191,6 +191,44 @@ pub(crate) fn flat_numeric_types(typ: &SsaType) -> Vec<NumericType> {
     }
 }
 
+/// Returns the fully flattened numeric types for one element of a slice/array,
+/// recursively flattening nested arrays.
+/// For example, for Slice([(u32, u32, [Field; 3])]), this returns [u32, u32, Field, Field, Field].
+pub(crate) fn flat_element_types(typ: &SsaType) -> Vec<NumericType> {
+    match typ {
+        SsaType::Slice(element_types) | SsaType::Array(element_types, _) => {
+            let mut flat_types = Vec::new();
+            for element_typ in element_types.iter() {
+                collect_fully_flattened_numeric_types(element_typ, &mut flat_types);
+            }
+            flat_types
+        }
+        _ => panic!("Called flat_element_types on a non-array/slice type"),
+    }
+}
+
+/// Helper function for `flat_element_types` that fully flattens arrays using the length.
+/// This is different from `collect_flat_numeric_types` which returns just the first element.
+fn collect_fully_flattened_numeric_types(typ: &SsaType, flat_types: &mut Vec<NumericType>) {
+    match typ {
+        SsaType::Numeric(numeric_type) => {
+            flat_types.push(*numeric_type);
+        }
+        SsaType::Array(types, len) => {
+            // For arrays, multiply by length to get the fully flattened representation
+            for _ in 0..*len {
+                for typ in types.iter() {
+                    collect_fully_flattened_numeric_types(typ, flat_types);
+                }
+            }
+        }
+        SsaType::Slice(_) => {
+            panic!("Cannot fully flatten a slice type - slices have dynamic length")
+        }
+        _ => panic!("Called collect_fully_flattened_numeric_types on unsupported type"),
+    }
+}
+
 /// Helper function for `flat_numeric_types` that recursively collects all numeric types
 /// into `flat_types`.
 fn collect_flat_numeric_types(typ: &SsaType, flat_types: &mut Vec<NumericType>) {
