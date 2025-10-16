@@ -5,7 +5,7 @@
 //! by transforming functions used as values (i.e., first-class functions)
 //! into constant numbers (fields) that represent their function IDs.
 //!
-//! Defunctionalization handles higher-order functions functions by lowering function values into
+//! Defunctionalization handles higher-order functions by lowering function values into
 //! constant identifiers and replacing calls of function values with calls to a single
 //! dispatch `apply` function.
 //!
@@ -126,7 +126,7 @@ impl DefunctionalizationContext {
             // We mutate value types in `defunctionalize`, so to prevent that from affecting which
             // apply functions are chosen we replace all first-class function calls with calls to
             // the appropriate apply function beforehand.
-            self.replace_fist_class_calls_with_apply_function(function);
+            self.replace_first_class_calls_with_apply_function(function);
 
             // Replace any first-class function values with field values. This will also mutate the
             // type of some values, such as block arguments
@@ -137,7 +137,7 @@ impl DefunctionalizationContext {
     /// Replaces any function calls using first-class function values with calls to the
     /// appropriate `apply` function. Note that this must be done before types are mutated
     /// in `defunctionalize` since this uses the pre-mutated types to query apply functions.
-    fn replace_fist_class_calls_with_apply_function(&mut self, func: &mut Function) {
+    fn replace_first_class_calls_with_apply_function(&mut self, func: &mut Function) {
         for block_id in func.reachable_blocks() {
             let block = &mut func.dfg[block_id];
 
@@ -496,7 +496,7 @@ fn create_apply_functions(
         } else if pre_runtime_filter_len != 0 && caller_runtime.is_brillig() {
             // We had variants, but they were all filtered out.
             // Frontend bug: only ACIR variants in a Brillig group.
-            panic!("ICE: invalid defunctionalization: only ACIR variants for a Brillig runtime",);
+            panic!("ICE: invalid defunctionalization: only ACIR variants for a Brillig runtime");
         } else {
             // If no variants exist for a dynamic call we leave removing those dead calls and parameters to DIE.
             // However, we have to construct a dummy function for these dead calls as to keep a well formed SSA
@@ -514,7 +514,7 @@ fn create_apply_functions(
 
 /// Transforms a [FunctionId] into a [FieldElement]
 fn function_id_to_field(function_id: FunctionId) -> FieldElement {
-    (function_id.to_u32() as u128).into()
+    u128::from(function_id.to_u32()).into()
 }
 
 /// Creates a single apply function to enable dispatch across multiple function variants
@@ -820,7 +820,15 @@ fn replacement_types(types: &[Type]) -> Option<Vec<Type>> {
 mod tests {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{ir::function::FunctionId, opt::defunctionalize::create_apply_functions},
+        ssa::{
+            interpreter::{
+                IResults,
+                tests::expect_value_with_args,
+                value::{NumericValue, Value},
+            },
+            ir::function::FunctionId,
+            opt::defunctionalize::create_apply_functions,
+        },
     };
 
     use super::{Ssa, find_variants};
@@ -1071,6 +1079,113 @@ mod tests {
         }
         "
         );
+    }
+
+    // This test shows that the following SSA returns a `NumericValue::Field` before
+    // `defunctionalize` is run, but returns a `FunctionId` after defunctionalize,
+    // when interpreted.
+    //
+    // Note that the ACIR 'main' fn returns a function
+    // (expected to be disallowed by the frontend).
+    #[test]
+    fn interpret_acir_returning_fn() {
+        let src = "
+          acir(inline) fn main f0 {
+            b0():
+              call f1()
+              return f1 
+          }
+          acir(inline) fn bar f1 {
+            b0():
+              return
+          }
+        ";
+
+        let defunctionalize_ssa = Ssa::from_str(src).unwrap();
+        let defunctionalize_ssa = defunctionalize_ssa.defunctionalize();
+        let defunctionalize_results = defunctionalize_ssa.interpret(vec![]);
+
+        let interpreter_return_values = expect_value_with_args(src, vec![]);
+
+        let expected_interpreter_return_values = Value::Function(FunctionId::test_new(1));
+        let expected_defunctionalize_results: IResults =
+            Ok(vec![Value::Numeric(NumericValue::Field(1u128.into()))]);
+
+        assert_eq!(defunctionalize_results, expected_defunctionalize_results);
+        assert_eq!(interpreter_return_values, expected_interpreter_return_values);
+
+        assert_ssa_snapshot!(defunctionalize_ssa, @r"
+          acir(inline) fn main f0 {
+            b0():
+              call f1()
+              return Field 1
+          }
+          acir(inline) fn bar f1 {
+            b0():
+              return
+          }
+        ");
+    }
+
+    // Test from SSA fuzzing to check behavior of 'defunctionalize' pass on
+    // an ACIR 'main' fn that accepts and returns a function parameter
+    // (expected to be disallowed by the frontend).
+    //
+    // When fuzzing, it was panicking with:
+    // "Could not find apply function"
+    #[test]
+    fn missing_fn_parameter_type() {
+        let src = "
+          acir(inline) fn get_t_c f3 {
+            b0(v0: function):
+              v1 = call v0() -> function
+              return v1
+          }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.defunctionalize();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn get_t_c f0 {
+          b0(v0: Field):
+            v2 = call f1() -> Field
+            return v2
+        }
+        acir(inline_always) pure fn apply_dummy f1 {
+          b0():
+            return Field 0
+        }
+        ");
+    }
+
+    // Test from SSA fuzzing to check behavior of 'defunctionalize' pass on
+    // a Brillig 'main' fn that accepts a function parameter (expected to be
+    // disallowed by the frontend).
+    #[test]
+    fn missing_fn() {
+        let src = "
+          brillig(inline) fn main f0 {
+            b0(v0: function, v1: u32):
+              v2 = call v0(v1) -> u32
+              return v2
+          }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.defunctionalize();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: Field, v1: u32):
+            v3 = call f1(v1) -> u32
+            return v3
+        }
+        brillig(inline_always) pure fn apply_dummy f1 {
+          b0(v0: u32):
+            return u32 0
+        }
+        ");
     }
 
     #[test]

@@ -103,10 +103,10 @@ impl<F: AcirField> MemoryValue<F> {
         match self {
             MemoryValue::Field(value) => *value,
             MemoryValue::U1(value) => F::from(*value),
-            MemoryValue::U8(value) => F::from(*value as u128),
-            MemoryValue::U16(value) => F::from(*value as u128),
-            MemoryValue::U32(value) => F::from(*value as u128),
-            MemoryValue::U64(value) => F::from(*value as u128),
+            MemoryValue::U8(value) => F::from(u128::from(*value)),
+            MemoryValue::U16(value) => F::from(u128::from(*value)),
+            MemoryValue::U32(value) => F::from(u128::from(*value)),
+            MemoryValue::U64(value) => F::from(u128::from(*value)),
             MemoryValue::U128(value) => F::from(*value),
         }
     }
@@ -115,11 +115,11 @@ impl<F: AcirField> MemoryValue<F> {
     pub fn to_u128(&self) -> Result<u128, MemoryTypeError> {
         match self {
             MemoryValue::Field(..) => Err(MemoryTypeError::NotAnInteger),
-            MemoryValue::U1(value) => Ok(*value as u8 as u128),
-            MemoryValue::U8(value) => Ok(*value as u128),
-            MemoryValue::U16(value) => Ok(*value as u128),
-            MemoryValue::U32(value) => Ok(*value as u128),
-            MemoryValue::U64(value) => Ok(*value as u128),
+            MemoryValue::U1(value) => Ok(u128::from(*value)),
+            MemoryValue::U8(value) => Ok(u128::from(*value)),
+            MemoryValue::U16(value) => Ok(u128::from(*value)),
+            MemoryValue::U32(value) => Ok(u128::from(*value)),
+            MemoryValue::U64(value) => Ok(u128::from(*value)),
             MemoryValue::U128(value) => Ok(*value),
         }
     }
@@ -363,5 +363,146 @@ impl<F: AcirField> Memory<F> {
     /// Returns the values of the memory
     pub fn values(&self) -> &[MemoryValue<F>] {
         &self.inner
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use acir::FieldElement;
+
+    #[test]
+    fn direct_write_and_read() {
+        let mut memory = Memory::<FieldElement>::default();
+        let addr = MemoryAddress::direct(5);
+
+        memory.write(addr, MemoryValue::U32(42));
+        assert_eq!(memory.read(addr).to_u128().unwrap(), 42);
+    }
+
+    #[test]
+    fn relative_write_and_read() {
+        let mut memory = Memory::<FieldElement>::default();
+        // Stack pointer = 10
+        memory.write(MemoryAddress::direct(0), MemoryValue::U32(10));
+
+        let addr = MemoryAddress::Relative(5);
+        memory.write(addr, MemoryValue::U32(42));
+        assert_eq!(memory.read(addr).to_u128().unwrap(), 42);
+
+        let resolved_addr = memory.resolve(addr);
+        // Stack pointer + offset
+        // 10 + 5 = 15
+        assert_eq!(resolved_addr, 15);
+        assert_eq!(memory.values()[resolved_addr].to_u128().unwrap(), 42);
+    }
+
+    #[test]
+    fn memory_growth() {
+        let mut memory = Memory::<FieldElement>::default();
+        let addr = MemoryAddress::direct(10);
+
+        memory.write(addr, MemoryValue::U32(123));
+
+        let mut expected = vec![MemoryValue::default(); 10];
+        expected.push(MemoryValue::U32(123));
+
+        assert_eq!(memory.values(), &expected);
+    }
+
+    #[test]
+    fn resize_to_fit_grows_memory() {
+        let mut memory = Memory::<FieldElement>::default();
+        memory.resize_to_fit(15);
+
+        assert_eq!(memory.values().len(), 15);
+        assert!(memory.values().iter().all(|v| *v == MemoryValue::default()));
+    }
+
+    #[test]
+    fn write_and_read_slice() {
+        let mut memory = Memory::<FieldElement>::default();
+        // [1, 2, 3, 4, 5]
+        let values: Vec<_> = (1..=5).map(MemoryValue::U32).collect();
+
+        // Write at an address > 0 to show resizing
+        memory.write_slice(MemoryAddress::direct(2), &values);
+        assert_eq!(
+            memory
+                .read_slice(MemoryAddress::direct(2), 3)
+                .iter()
+                .map(|v| v.to_u128().unwrap())
+                .collect::<Vec<_>>(),
+            vec![1, 2, 3]
+        );
+        assert_eq!(
+            memory
+                .read_slice(MemoryAddress::direct(5), 2)
+                .iter()
+                .map(|v| v.to_u128().unwrap())
+                .collect::<Vec<_>>(),
+            vec![4, 5]
+        );
+        let zero_field = FieldElement::zero();
+        assert_eq!(
+            memory
+                .read_slice(MemoryAddress::direct(0), 2)
+                .iter()
+                .map(|v| v.to_field())
+                .collect::<Vec<_>>(),
+            vec![zero_field, zero_field]
+        );
+        assert_eq!(
+            memory
+                .read_slice(MemoryAddress::direct(2), 5)
+                .iter()
+                .map(|v| v.to_u128().unwrap())
+                .collect::<Vec<_>>(),
+            vec![1, 2, 3, 4, 5]
+        );
+    }
+
+    #[test]
+    fn read_ref_returns_expected_address_and_reads_slice() {
+        let mut memory = Memory::<FieldElement>::default();
+
+        // Imagine we have a heap array starting at address 10
+        let heap_start = MemoryAddress::direct(10);
+        // [1, 2, 3]
+        let values: Vec<_> = (1..=3).map(MemoryValue::U32).collect();
+        memory.write_slice(heap_start, &values);
+
+        let array_pointer = MemoryAddress::direct(1);
+        // Store a pointer to that array at address 1 (after the stack pointer)
+        memory.write(array_pointer, MemoryValue::U32(10));
+
+        // `read_ref` should read that pointer and returns MemoryAddress::direct(10)
+        let array_start = memory.read_ref(array_pointer);
+        assert_eq!(array_start, MemoryAddress::direct(10));
+
+        // Use that reference to read the 3 element array
+        let got_slice = memory.read_slice(array_start, 3);
+        assert_eq!(got_slice, values);
+    }
+
+    #[test]
+    fn zero_length_slice() {
+        let memory = Memory::<FieldElement>::default();
+        assert_eq!(memory.read_slice(MemoryAddress::direct(20), 0), &[]);
+    }
+
+    #[test]
+    fn read_from_non_existent_memory() {
+        let memory = Memory::<FieldElement>::default();
+        let result = memory.read(MemoryAddress::direct(20));
+        // `Memory::read` returns zero at out of bounds indices
+        assert!(result.to_field().is_zero());
+    }
+
+    #[test]
+    #[should_panic(expected = "range end index 30 out of range for slice of length 0")]
+    fn read_slice_from_non_existent_memory() {
+        let memory = Memory::<FieldElement>::default();
+        let _ = memory.read_slice(MemoryAddress::direct(20), 10);
     }
 }

@@ -80,13 +80,8 @@ fn remove_unreachable_functions_post_check(ssa: &Ssa) {
 /// A sorted set of [`FunctionId`]s that are reachable from the entry points of the SSA.
 fn reachable_functions(ssa: &Ssa) -> HashSet<FunctionId> {
     // Identify entry points
-    let entry_points = ssa.functions.iter().filter_map(|(&id, func)| {
-        // Not using `Ssa::is_entry_point` because it could leave Brillig functions that nobody calls in the SSA,
-        // because it considers every Brillig function as an entry point.
-        let is_entry_point =
-            id == ssa.main_id || func.runtime().is_acir() && func.runtime().is_entry_point();
-        is_entry_point.then_some(id)
-    });
+    let entry_points =
+        ssa.functions.iter().filter_map(|(&id, _)| ssa.is_entry_point(id).then_some(id));
 
     // Build call graph dependencies using this passes definition of reachability.
     let dependencies = ssa.functions.iter().map(|(&id, func)| (id, used_functions(func))).collect();

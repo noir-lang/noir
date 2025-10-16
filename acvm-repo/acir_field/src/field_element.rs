@@ -69,7 +69,7 @@ impl<T: PrimeField> Serialize for FieldElement<T> {
     where
         S: serde::Serializer,
     {
-        self.to_hex().serialize(serializer)
+        self.to_be_bytes().serialize(serializer)
     }
 }
 
@@ -78,11 +78,8 @@ impl<'de, T: PrimeField> Deserialize<'de> for FieldElement<T> {
     where
         D: serde::Deserializer<'de>,
     {
-        let s: Cow<'de, str> = Deserialize::deserialize(deserializer)?;
-        match Self::from_hex(&s) {
-            Some(value) => Ok(value),
-            None => Err(serde::de::Error::custom(format!("Invalid hex for FieldElement: {s}",))),
-        }
+        let s: Cow<'de, [u8]> = Deserialize::deserialize(deserializer)?;
+        Ok(Self::from_be_bytes_reduce(&s))
     }
 }
 
@@ -127,7 +124,7 @@ impl<F: PrimeField> FieldElement<F> {
         self.0
     }
 
-    fn fits_in_u128(&self) -> bool {
+    pub fn fits_in_u128(&self) -> bool {
         self.num_bits() <= 128
     }
 
@@ -220,9 +217,9 @@ impl<F: PrimeField> AcirField for FieldElement<F> {
         let as_bigint = self.0.into_bigint();
         let limbs = as_bigint.as_ref();
 
-        let mut result = limbs[0] as u128;
+        let mut result = u128::from(limbs[0]);
         if limbs.len() > 1 {
-            let high_limb = limbs[1] as u128;
+            let high_limb = u128::from(limbs[1]);
             result += high_limb << 64;
         }
 

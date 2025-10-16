@@ -70,7 +70,7 @@ pub fn multi_scalar_mul(
         Ok((
             FieldElement::from_repr(out_x),
             FieldElement::from_repr(out_y),
-            FieldElement::from(output_point.is_zero() as u128),
+            FieldElement::from(u128::from(output_point.is_zero())),
         ))
     } else {
         Ok((FieldElement::from(0_u128), FieldElement::from(0_u128), FieldElement::from(1_u128)))
@@ -107,7 +107,7 @@ pub fn embedded_curve_add(
         Ok((
             FieldElement::from_repr(res_x),
             FieldElement::from_repr(res_y),
-            FieldElement::from(res.is_zero() as u128),
+            FieldElement::from(u128::from(res.is_zero())),
         ))
     } else if res.is_zero() {
         Ok((FieldElement::from(0_u128), FieldElement::from(0_u128), FieldElement::from(1_u128)))

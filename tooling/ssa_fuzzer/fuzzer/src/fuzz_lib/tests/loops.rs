@@ -8,7 +8,7 @@ use crate::fuzz_target_lib::fuzz_target;
 use crate::fuzzer::FuzzerData;
 use crate::instruction::{Argument, Instruction, InstructionBlock, NumericArgument};
 use crate::options::FuzzerOptions;
-use crate::tests::common::{default_input_types, default_witness};
+use crate::tests::common::{default_input_types, default_runtimes, default_witness};
 use acvm::FieldElement;
 use noir_ssa_fuzzer::typed_value::{NumericType, Type};
 
@@ -58,10 +58,14 @@ fn test_simple_loop() {
         }],
         initial_witness: default_witness(),
     };
-    let result = fuzz_target(data, FuzzerOptions::default());
-    match result {
-        Some(result) => assert_eq!(result.get_return_values()[0], FieldElement::from(1024_u32)),
-        None => panic!("Program failed to execute"),
+    let result = fuzz_target(data, default_runtimes(), FuzzerOptions::default());
+    match result.get_return_witnesses().is_empty() {
+        true => {
+            panic!("Program failed to execute");
+        }
+        false => {
+            assert_eq!(result.get_return_witnesses()[0], FieldElement::from(1024_u32));
+        }
     }
 }
 
@@ -129,10 +133,14 @@ fn test_nested_loop() {
         }],
         initial_witness: default_witness(),
     };
-    let result = fuzz_target(data, FuzzerOptions::default());
-    match result {
-        Some(result) => assert_eq!(result.get_return_values()[0], FieldElement::from(131072_u32)),
-        None => panic!("Program failed to execute"),
+    let result = fuzz_target(data, default_runtimes(), FuzzerOptions::default());
+    match result.get_return_witnesses().is_empty() {
+        true => {
+            panic!("Program failed to execute");
+        }
+        false => {
+            assert_eq!(result.get_return_witnesses()[0], FieldElement::from(131072_u32));
+        }
     }
 }
 
@@ -202,10 +210,14 @@ fn test_loop_broken_with_jmp() {
         }],
         initial_witness: default_witness(),
     };
-    let result = fuzz_target(data, FuzzerOptions::default());
-    match result {
-        Some(result) => assert_eq!(result.get_return_values()[0], FieldElement::from(4096_u32)),
-        None => panic!("Program failed to execute"),
+    let result = fuzz_target(data, default_runtimes(), FuzzerOptions::default());
+    match result.get_return_witnesses().is_empty() {
+        true => {
+            panic!("Program failed to execute");
+        }
+        false => {
+            assert_eq!(result.get_return_witnesses()[0], FieldElement::from(4096_u32));
+        }
     }
 }
 
@@ -275,10 +287,14 @@ fn test_jmp_if_in_cycle() {
         }],
         initial_witness: default_witness(),
     };
-    let result = fuzz_target(data, FuzzerOptions::default());
-    match result {
-        Some(result) => assert_eq!(result.get_return_values()[0], FieldElement::from(22_u32)),
-        None => panic!("Program failed to execute"),
+    let result = fuzz_target(data, default_runtimes(), FuzzerOptions::default());
+    match result.get_return_witnesses().is_empty() {
+        true => {
+            panic!("Program failed to execute");
+        }
+        false => {
+            assert_eq!(result.get_return_witnesses()[0], FieldElement::from(22_u32));
+        }
     }
 
     let arg_0_boolean = NumericArgument { index: 0, numeric_type: NumericType::Boolean };
@@ -311,9 +327,13 @@ fn test_jmp_if_in_cycle() {
         }],
         initial_witness: default_witness(),
     };
-    let result = fuzz_target(data, FuzzerOptions::default());
-    match result {
-        Some(result) => assert_eq!(result.get_return_values()[0], FieldElement::from(2048_u32)),
-        None => panic!("Program failed to execute"),
+    let result = fuzz_target(data, default_runtimes(), FuzzerOptions::default());
+    match result.get_return_witnesses().is_empty() {
+        true => {
+            panic!("Program failed to execute");
+        }
+        false => {
+            assert_eq!(result.get_return_witnesses()[0], FieldElement::from(2048_u32));
+        }
     }
 }

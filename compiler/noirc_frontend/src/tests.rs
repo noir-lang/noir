@@ -7,6 +7,7 @@ mod enums;
 mod imports;
 mod metaprogramming;
 mod name_shadowing;
+mod oracles;
 mod references;
 mod traits;
 mod turbofish;
@@ -1315,19 +1316,6 @@ fn deny_fold_attribute_on_unconstrained() {
         ^^^^^^^ misplaced #[fold] attribute on unconstrained function foo. Only allowed on constrained functions
         ~~~~~~~ misplaced #[fold] attribute
         unconstrained pub fn foo(x: Field, y: Field) {
-            assert(x != y);
-        }
-    "#;
-    check_errors!(src);
-}
-
-#[test]
-fn deny_oracle_attribute_on_non_unconstrained() {
-    let src = r#"
-        #[oracle(foo)]
-        ^^^^^^^^^^^^^^ Usage of the `#[oracle]` function attribute is only valid on unconstrained functions
-        pub fn foo(x: Field, y: Field) {
-               ~~~ Oracle functions must have the `unconstrained` keyword applied
             assert(x != y);
         }
     "#;
@@ -4284,6 +4272,32 @@ fn unconstrained_numeric_generic_in_impl() {
 }
 
 #[test]
+fn unconstrained_type_parameter_in_trait_impl() {
+    let src = r#"
+        pub trait Trait<T> {}
+        pub struct Foo<T> {}
+
+        impl<T, U> Trait<T> for Foo<T> {}
+                ^ The type parameter `U` is not constrained by the impl trait, self type, or predicates
+                ~ Hint: remove the `U` type parameter
+        "#;
+    check_errors!(src);
+}
+
+#[test]
+fn does_not_error_if_type_parameter_is_used_in_trait_bound_named_generic() {
+    let src = r#"
+    pub trait SomeTrait {}
+    pub trait AnotherTrait {
+        type AssocType;
+    }
+
+    impl<T, U> SomeTrait for T where T: AnotherTrait<AssocType=U> {}
+    "#;
+    assert_no_errors!(src);
+}
+
+#[test]
 fn resolves_generic_type_argument_via_self() {
     let src = "
     pub struct Foo<T> {}
@@ -4324,6 +4338,20 @@ fn attempt_to_divide_by_zero_at_comptime() {
             comptime {
                 255 as u8 / 0
                 ^^^^^^^^^^^^^ Attempt to divide by zero
+            }
+        }
+
+        "#;
+    check_errors!(src);
+}
+
+#[test]
+fn attempt_to_modulo_by_zero_at_comptime() {
+    let src = r#"
+        fn main() -> pub u8 {
+            comptime {
+                255 as u8 % 0
+                ^^^^^^^^^^^^^ Attempt to calculate the remainder with a divisor of zero
             }
         }
 
@@ -4485,6 +4513,19 @@ fn cannot_assign_to_nested_struct() {
         ^^^^^^^^ expected value got type
     }
     "#;
+    check_errors!(src);
+}
+
+#[test]
+fn cannot_return_slice_from_main() {
+    let src = r#"
+    fn main() -> pub [Field]{
+       ^^^^ Invalid type found in the entry point to a program
+       ~~~~ Slice is not a valid entry point type. Found: [Field]
+        &[1,2]
+        
+    }
+        "#;
     check_errors!(src);
 }
 

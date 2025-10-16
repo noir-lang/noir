@@ -66,8 +66,7 @@ impl BlockContext {
     /// Inserts an instruction that takes a single argument
     fn insert_instruction_with_single_arg(
         &mut self,
-        acir_builder: &mut FuzzerBuilder,
-        brillig_builder: &mut FuzzerBuilder,
+        builder: &mut FuzzerBuilder,
         arg: NumericArgument,
         instruction: InstructionWithOneArg,
     ) {
@@ -76,17 +75,14 @@ impl BlockContext {
             Some(value) => value,
             _ => return,
         };
-        let acir_result = instruction(acir_builder, value.clone());
-        // insert to brillig, assert id is the same
-        assert_eq!(acir_result, instruction(brillig_builder, value));
-        self.store_variable(&acir_result);
+        let result = instruction(builder, value.clone());
+        self.store_variable(&result);
     }
 
     /// Inserts an instruction that takes two arguments
     fn insert_instruction_with_double_args(
         &mut self,
-        acir_builder: &mut FuzzerBuilder,
-        brillig_builder: &mut FuzzerBuilder,
+        builder: &mut FuzzerBuilder,
         lhs: NumericArgument,
         rhs: NumericArgument,
         instruction: InstructionWithTwoArgs,
@@ -98,79 +94,52 @@ impl BlockContext {
             (Some(acir_lhs), Some(acir_rhs)) => (acir_lhs, acir_rhs),
             _ => return,
         };
-        let result = instruction(acir_builder, instr_lhs.clone(), instr_rhs.clone());
-        // insert to brillig, assert id of return is the same
-        assert_eq!(result, instruction(brillig_builder, instr_lhs, instr_rhs));
+        let result = instruction(builder, instr_lhs.clone(), instr_rhs.clone());
         self.store_variable(&result);
     }
 
     /// Inserts an instruction into both ACIR and Brillig programs
-    fn insert_instruction(
-        &mut self,
-        acir_builder: &mut FuzzerBuilder,
-        brillig_builder: &mut FuzzerBuilder,
-        instruction: Instruction,
-    ) {
+    fn insert_instruction(&mut self, builder: &mut FuzzerBuilder, instruction: Instruction) {
         match instruction {
             Instruction::AddChecked { lhs, rhs } => {
                 if !self.options.instruction_options.add_enabled {
                     return;
                 }
-                self.insert_instruction_with_double_args(
-                    acir_builder,
-                    brillig_builder,
-                    lhs,
-                    rhs,
-                    |builder, lhs, rhs| builder.insert_add_instruction_checked(lhs, rhs),
-                );
+                self.insert_instruction_with_double_args(builder, lhs, rhs, |builder, lhs, rhs| {
+                    builder.insert_add_instruction_checked(lhs, rhs)
+                });
             }
             Instruction::SubChecked { lhs, rhs } => {
                 if !self.options.instruction_options.sub_enabled {
                     return;
                 }
-                self.insert_instruction_with_double_args(
-                    acir_builder,
-                    brillig_builder,
-                    lhs,
-                    rhs,
-                    |builder, lhs, rhs| builder.insert_sub_instruction_checked(lhs, rhs),
-                );
+                self.insert_instruction_with_double_args(builder, lhs, rhs, |builder, lhs, rhs| {
+                    builder.insert_sub_instruction_checked(lhs, rhs)
+                });
             }
             Instruction::MulChecked { lhs, rhs } => {
                 if !self.options.instruction_options.mul_enabled {
                     return;
                 }
-                self.insert_instruction_with_double_args(
-                    acir_builder,
-                    brillig_builder,
-                    lhs,
-                    rhs,
-                    |builder, lhs, rhs| builder.insert_mul_instruction_checked(lhs, rhs),
-                );
+                self.insert_instruction_with_double_args(builder, lhs, rhs, |builder, lhs, rhs| {
+                    builder.insert_mul_instruction_checked(lhs, rhs)
+                });
             }
             Instruction::Div { lhs, rhs } => {
                 if !self.options.instruction_options.div_enabled {
                     return;
                 }
-                self.insert_instruction_with_double_args(
-                    acir_builder,
-                    brillig_builder,
-                    lhs,
-                    rhs,
-                    |builder, lhs, rhs| builder.insert_div_instruction(lhs, rhs),
-                );
+                self.insert_instruction_with_double_args(builder, lhs, rhs, |builder, lhs, rhs| {
+                    builder.insert_div_instruction(lhs, rhs)
+                });
             }
             Instruction::Eq { lhs, rhs } => {
                 if !self.options.instruction_options.eq_enabled {
                     return;
                 }
-                self.insert_instruction_with_double_args(
-                    acir_builder,
-                    brillig_builder,
-                    lhs,
-                    rhs,
-                    |builder, lhs, rhs| builder.insert_eq_instruction(lhs, rhs),
-                );
+                self.insert_instruction_with_double_args(builder, lhs, rhs, |builder, lhs, rhs| {
+                    builder.insert_eq_instruction(lhs, rhs)
+                });
             }
             Instruction::Cast { lhs, type_ } => {
                 if !self.options.instruction_options.cast_enabled {
@@ -181,12 +150,8 @@ impl BlockContext {
                     Some(value) => value,
                     _ => return,
                 };
-                let acir_result = acir_builder.insert_cast(value.clone(), Type::Numeric(type_));
-                assert_eq!(
-                    acir_result,
-                    brillig_builder.insert_cast(value.clone(), Type::Numeric(type_))
-                );
-                self.store_variable(&acir_result);
+                let result = builder.insert_cast(value.clone(), Type::Numeric(type_));
+                self.store_variable(&result);
             }
             Instruction::Mod { lhs, rhs } => {
                 if !self.options.instruction_options.mod_enabled {
@@ -196,13 +161,9 @@ impl BlockContext {
                 if lhs.numeric_type == NumericType::Field {
                     return;
                 }
-                self.insert_instruction_with_double_args(
-                    acir_builder,
-                    brillig_builder,
-                    lhs,
-                    rhs,
-                    |builder, lhs, rhs| builder.insert_mod_instruction(lhs, rhs),
-                );
+                self.insert_instruction_with_double_args(builder, lhs, rhs, |builder, lhs, rhs| {
+                    builder.insert_mod_instruction(lhs, rhs)
+                });
             }
             Instruction::Not { lhs } => {
                 if !self.options.instruction_options.not_enabled {
@@ -211,12 +172,9 @@ impl BlockContext {
                 if lhs.numeric_type == NumericType::Field {
                     return;
                 }
-                self.insert_instruction_with_single_arg(
-                    acir_builder,
-                    brillig_builder,
-                    lhs,
-                    |builder, lhs| builder.insert_not_instruction(lhs),
-                );
+                self.insert_instruction_with_single_arg(builder, lhs, |builder, lhs| {
+                    builder.insert_not_instruction(lhs)
+                });
             }
             Instruction::Shl { lhs, rhs } => {
                 if !self.options.instruction_options.shl_enabled {
@@ -226,13 +184,9 @@ impl BlockContext {
                 if lhs.numeric_type == NumericType::Field {
                     return;
                 }
-                self.insert_instruction_with_double_args(
-                    acir_builder,
-                    brillig_builder,
-                    lhs,
-                    rhs,
-                    |builder, lhs, rhs| builder.insert_shl_instruction(lhs, rhs),
-                );
+                self.insert_instruction_with_double_args(builder, lhs, rhs, |builder, lhs, rhs| {
+                    builder.insert_shl_instruction(lhs, rhs)
+                });
             }
             Instruction::Shr { lhs, rhs } => {
                 if !self.options.instruction_options.shr_enabled {
@@ -242,13 +196,9 @@ impl BlockContext {
                 if lhs.numeric_type == NumericType::Field {
                     return;
                 }
-                self.insert_instruction_with_double_args(
-                    acir_builder,
-                    brillig_builder,
-                    lhs,
-                    rhs,
-                    |builder, lhs, rhs| builder.insert_shr_instruction(lhs, rhs),
-                );
+                self.insert_instruction_with_double_args(builder, lhs, rhs, |builder, lhs, rhs| {
+                    builder.insert_shr_instruction(lhs, rhs)
+                });
             }
             Instruction::And { lhs, rhs } => {
                 if !self.options.instruction_options.and_enabled {
@@ -258,13 +208,9 @@ impl BlockContext {
                 if lhs.numeric_type == NumericType::Field {
                     return;
                 }
-                self.insert_instruction_with_double_args(
-                    acir_builder,
-                    brillig_builder,
-                    lhs,
-                    rhs,
-                    |builder, lhs, rhs| builder.insert_and_instruction(lhs, rhs),
-                );
+                self.insert_instruction_with_double_args(builder, lhs, rhs, |builder, lhs, rhs| {
+                    builder.insert_and_instruction(lhs, rhs)
+                });
             }
             Instruction::Or { lhs, rhs } => {
                 if !self.options.instruction_options.or_enabled {
@@ -274,13 +220,9 @@ impl BlockContext {
                 if lhs.numeric_type == NumericType::Field {
                     return;
                 }
-                self.insert_instruction_with_double_args(
-                    acir_builder,
-                    brillig_builder,
-                    lhs,
-                    rhs,
-                    |builder, lhs, rhs| builder.insert_or_instruction(lhs, rhs),
-                );
+                self.insert_instruction_with_double_args(builder, lhs, rhs, |builder, lhs, rhs| {
+                    builder.insert_or_instruction(lhs, rhs)
+                });
             }
             Instruction::Xor { lhs, rhs } => {
                 if !self.options.instruction_options.xor_enabled {
@@ -290,13 +232,9 @@ impl BlockContext {
                 if lhs.numeric_type == NumericType::Field {
                     return;
                 }
-                self.insert_instruction_with_double_args(
-                    acir_builder,
-                    brillig_builder,
-                    lhs,
-                    rhs,
-                    |builder, lhs, rhs| builder.insert_xor_instruction(lhs, rhs),
-                );
+                self.insert_instruction_with_double_args(builder, lhs, rhs, |builder, lhs, rhs| {
+                    builder.insert_xor_instruction(lhs, rhs)
+                });
             }
             Instruction::Lt { lhs, rhs } => {
                 if !self.options.instruction_options.lt_enabled {
@@ -306,13 +244,9 @@ impl BlockContext {
                 if lhs.numeric_type == NumericType::Field {
                     return;
                 }
-                self.insert_instruction_with_double_args(
-                    acir_builder,
-                    brillig_builder,
-                    lhs,
-                    rhs,
-                    |builder, lhs, rhs| builder.insert_lt_instruction(lhs, rhs),
-                );
+                self.insert_instruction_with_double_args(builder, lhs, rhs, |builder, lhs, rhs| {
+                    builder.insert_lt_instruction(lhs, rhs)
+                });
             }
 
             Instruction::AddSubConstrain { lhs, rhs } => {
@@ -323,29 +257,17 @@ impl BlockContext {
                     (Some(lhs_orig), Some(rhs)) => (lhs_orig, rhs),
                     _ => return,
                 };
-                // assert ids of add are the same for both builders
                 let lhs_add_rhs =
-                    acir_builder.insert_add_instruction_checked(lhs_orig.clone(), rhs.clone());
-                assert_eq!(
-                    lhs_add_rhs,
-                    brillig_builder.insert_add_instruction_checked(lhs_orig.clone(), rhs.clone())
-                );
+                    builder.insert_add_instruction_checked(lhs_orig.clone(), rhs.clone());
                 // inserts lhs'' = lhs' - rhs
                 let lhs = lhs_add_rhs;
-                let morphed = acir_builder.insert_sub_instruction_checked(lhs.clone(), rhs.clone());
-
-                // assert ids of sub are the same for both builders
-                assert_eq!(
-                    morphed,
-                    brillig_builder.insert_sub_instruction_checked(lhs.clone(), rhs.clone())
-                );
+                let morphed = builder.insert_sub_instruction_checked(lhs.clone(), rhs.clone());
 
                 if !self.options.constrain_idempotent_enabled {
                     return;
                 }
 
-                acir_builder.insert_constrain(lhs_orig.clone(), morphed.clone());
-                brillig_builder.insert_constrain(lhs_orig.clone(), morphed.clone());
+                builder.insert_constrain(lhs_orig.clone(), morphed.clone());
             }
             Instruction::MulDivConstrain { lhs, rhs } => {
                 let lhs_orig = self.get_stored_variable(&Type::Numeric(NumericType::Field), lhs);
@@ -355,27 +277,16 @@ impl BlockContext {
                     _ => return,
                 };
                 // inserts lhs' = lhs * rhs
-                // assert ids of mul are the same for both builders
                 let lhs_mul_rhs =
-                    acir_builder.insert_mul_instruction_checked(lhs_orig.clone(), rhs.clone());
-                assert_eq!(
-                    lhs_mul_rhs,
-                    brillig_builder.insert_mul_instruction_checked(lhs_orig.clone(), rhs.clone())
-                );
+                    builder.insert_mul_instruction_checked(lhs_orig.clone(), rhs.clone());
                 // lhs'' = lhs' / rhs
                 let lhs = lhs_mul_rhs;
-                // insert to both builders, assert ids of div are the same
-                let morphed = acir_builder.insert_div_instruction(lhs.clone(), rhs.clone());
-                assert_eq!(
-                    morphed,
-                    brillig_builder.insert_div_instruction(lhs.clone(), rhs.clone())
-                );
+                let morphed = builder.insert_div_instruction(lhs.clone(), rhs.clone());
 
                 if !self.options.constrain_idempotent_enabled {
                     return;
                 }
-                acir_builder.insert_constrain(lhs_orig.clone(), morphed.clone());
-                brillig_builder.insert_constrain(lhs_orig.clone(), morphed.clone());
+                builder.insert_constrain(lhs_orig.clone(), morphed.clone());
             }
             Instruction::AddToMemory { lhs } => {
                 if !self.options.instruction_options.alloc_enabled {
@@ -387,8 +298,7 @@ impl BlockContext {
                     _ => return,
                 };
 
-                let addr = acir_builder.insert_add_to_memory(value.clone());
-                assert_eq!(addr, brillig_builder.insert_add_to_memory(value.clone()));
+                let addr = builder.insert_add_to_memory(value.clone());
                 self.store_variable(&addr);
             }
             Instruction::LoadFromMemory { memory_addr } => {
@@ -400,8 +310,7 @@ impl BlockContext {
                     return;
                 }
                 let address = addresses[memory_addr.index % addresses.len()].clone();
-                let value = acir_builder.insert_load_from_memory(address.clone());
-                assert_eq!(value, brillig_builder.insert_load_from_memory(address.clone()));
+                let value = builder.insert_load_from_memory(address.clone());
                 self.store_variable(&value);
             }
             Instruction::SetToMemory { memory_addr_index, value } => {
@@ -414,25 +323,18 @@ impl BlockContext {
                     _ => return,
                 };
                 let address = if addresses.is_empty() {
-                    let addr = acir_builder.insert_add_to_memory(value.clone());
-                    assert_eq!(addr, brillig_builder.insert_add_to_memory(value.clone()));
+                    let addr = builder.insert_add_to_memory(value.clone());
                     self.store_variable(&addr);
                     addr
                 } else {
                     addresses[memory_addr_index % addresses.len()].clone()
                 };
-                acir_builder.insert_set_to_memory(address.clone(), value.clone());
-                brillig_builder.insert_set_to_memory(address, value);
+                builder.insert_set_to_memory(address.clone(), value.clone());
             }
 
             Instruction::CreateArray { elements_indices, element_type } => {
                 // insert to both acir and brillig builders
-                let array = match self.insert_array(
-                    acir_builder,
-                    brillig_builder,
-                    elements_indices,
-                    element_type,
-                ) {
+                let array = match self.insert_array(builder, elements_indices, element_type) {
                     Some(array) => array,
                     _ => return,
                 };
@@ -447,19 +349,14 @@ impl BlockContext {
                     _ => return,
                 };
                 let value = self.insert_array_get(
-                    acir_builder,
-                    brillig_builder,
+                    builder,
                     array_index,
                     index,
                     /*is constant =*/ false,
                     safe_index,
                 );
-                if let Some((value, is_references)) = value {
-                    if !is_references {
-                        self.store_variable(&value);
-                    } else {
-                        panic!("References are not supported for array get with dynamic index");
-                    }
+                if let Some(value) = value {
+                    self.store_variable(&value);
                 }
             }
             Instruction::ArraySet { array_index, index, value_index, safe_index } => {
@@ -472,48 +369,35 @@ impl BlockContext {
                 };
                 // cast the index to u32
                 let index_casted =
-                    acir_builder.insert_cast(index.clone(), Type::Numeric(NumericType::U32));
-                assert_eq!(
-                    index_casted,
-                    brillig_builder.insert_cast(index.clone(), Type::Numeric(NumericType::U32))
-                );
+                    builder.insert_cast(index.clone(), Type::Numeric(NumericType::U32));
 
                 // insert array set to both acir and brillig builders
                 let new_array = self.insert_array_set(
-                    acir_builder,
-                    brillig_builder,
+                    builder,
                     array_index,
                     index_casted,
                     /*index_is_constant =*/ false,
                     value_index,
                     safe_index,
                 );
-                if let Some((new_array, is_references)) = new_array {
-                    if is_references {
-                        panic!("References are not supported for array set with dynamic index");
-                    }
-                    let element_type = new_array.type_of_variable.unwrap_array_element_type();
-                    match element_type {
-                        Type::Numeric(_element_type) => {
-                            self.store_variable(&new_array);
-                        }
-                        _ => panic!("Expected NumericType, found {element_type:?}"),
-                    }
+                if let Some(new_array) = new_array {
+                    self.store_variable(&new_array);
                 }
             }
             Instruction::ArrayGetWithConstantIndex { array_index, index, safe_index } => {
+                // Array index should be limited to 32 bits
+                // Otherwise it fails at compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:133:40:
+                let index_32_bits = index & (u32::MAX as usize);
                 // insert constant index
-                let index_id = acir_builder.insert_constant(index, NumericType::U32);
-                assert_eq!(index_id, brillig_builder.insert_constant(index, NumericType::U32));
+                let index_id = builder.insert_constant(index_32_bits, NumericType::U32);
                 let value = self.insert_array_get(
-                    acir_builder,
-                    brillig_builder,
+                    builder,
                     array_index,
                     index_id,
                     /*is constant =*/ true,
                     safe_index,
                 );
-                if let Some((value, _is_references)) = value {
+                if let Some(value) = value {
                     self.store_variable(&value);
                 }
             }
@@ -523,61 +407,40 @@ impl BlockContext {
                 value_index,
                 safe_index,
             } => {
+                // Array index should be limited to 32 bits
+                // Otherwise it fails at compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:133:40:
+                let index_32_bits = index & (u32::MAX as usize);
                 // insert constant index
-                let index_id = acir_builder.insert_constant(index, NumericType::U32);
-                assert_eq!(index_id, brillig_builder.insert_constant(index, NumericType::U32));
+                let index_id = builder.insert_constant(index_32_bits, NumericType::U32);
                 let new_array = self.insert_array_set(
-                    acir_builder,
-                    brillig_builder,
+                    builder,
                     array_index,
                     index_id,
                     /*index_is_constant =*/ true,
                     value_index,
                     safe_index,
                 );
-                if let Some((new_array, is_references)) = new_array {
-                    let element_type = match new_array.type_of_variable.clone() {
-                        Type::Array(elements_type, _) => elements_type[0].clone(),
-                        _ => panic!("Expected ArrayType, found {:?}", new_array.type_of_variable),
-                    };
-                    match element_type {
-                        Type::Numeric(_element_type) => {
-                            assert!(
-                                !is_references,
-                                "Encountered numeric element in an array with references"
-                            );
-                            self.store_variable(&new_array);
-                        }
-                        Type::Reference(type_ref) => {
-                            assert!(
-                                is_references,
-                                "Encountered reference element in an array without references"
-                            );
-                            assert!(
-                                type_ref.is_numeric(),
-                                "Expected reference to a numeric type, found {type_ref:?}"
-                            );
-                            self.store_variable(&new_array);
-                        }
-                        _ => {
-                            panic!("Expected NumericType or ReferenceType, found {element_type:?}")
-                        }
-                    }
+                if let Some(new_array) = new_array {
+                    self.store_variable(&new_array);
                 }
             }
             Instruction::FieldToBytesToField { field_idx } => {
+                if !self.options.instruction_options.field_to_bytes_to_field_enabled {
+                    return;
+                }
                 let field = self.get_stored_variable(&Type::Numeric(NumericType::Field), field_idx);
                 let field = match field {
                     Some(field) => field,
                     _ => return,
                 };
-                let bytes = acir_builder.insert_to_le_radix(field.clone(), 256, 32);
-                assert_eq!(bytes, brillig_builder.insert_to_le_radix(field.clone(), 256, 32));
-                let field = acir_builder.insert_from_le_radix(bytes.clone(), 256);
-                assert_eq!(field, brillig_builder.insert_from_le_radix(bytes.clone(), 256));
+                let bytes = builder.insert_to_le_radix(field.clone(), 256, 32);
+                let field = builder.insert_from_le_radix(bytes.clone(), 256);
                 self.store_variable(&field);
             }
             Instruction::Blake2sHash { field_idx, limbs_count } => {
+                if !self.options.instruction_options.blake2s_hash_enabled {
+                    return;
+                }
                 let input = self.get_stored_variable(&Type::Numeric(NumericType::Field), field_idx);
                 let input = match input {
                     Some(input) => input,
@@ -586,18 +449,15 @@ impl BlockContext {
                 if limbs_count == 0 {
                     return;
                 }
-                let bytes = acir_builder.insert_to_le_radix(input.clone(), 256, limbs_count);
-                assert_eq!(
-                    bytes,
-                    brillig_builder.insert_to_le_radix(input.clone(), 256, limbs_count)
-                );
-                let hash = acir_builder.insert_blake2s_hash(bytes.clone());
-                assert_eq!(hash, brillig_builder.insert_blake2s_hash(bytes.clone()));
-                let hash_as_field = acir_builder.insert_from_le_radix(hash.clone(), 256);
-                assert_eq!(hash_as_field, brillig_builder.insert_from_le_radix(hash.clone(), 256));
+                let bytes = builder.insert_to_le_radix(input.clone(), 256, limbs_count);
+                let hash = builder.insert_blake2s_hash(bytes.clone());
+                let hash_as_field = builder.insert_from_le_radix(hash.clone(), 256);
                 self.store_variable(&hash_as_field);
             }
             Instruction::Blake3Hash { field_idx, limbs_count } => {
+                if !self.options.instruction_options.blake3_hash_enabled {
+                    return;
+                }
                 let input = self.get_stored_variable(&Type::Numeric(NumericType::Field), field_idx);
                 let input = match input {
                     Some(input) => input,
@@ -606,57 +466,42 @@ impl BlockContext {
                 if limbs_count == 0 {
                     return;
                 }
-                let bytes = acir_builder.insert_to_le_radix(input.clone(), 256, limbs_count);
-                assert_eq!(
-                    bytes,
-                    brillig_builder.insert_to_le_radix(input.clone(), 256, limbs_count)
-                );
-                let hash = acir_builder.insert_blake3_hash(bytes.clone());
-                assert_eq!(hash, brillig_builder.insert_blake3_hash(bytes.clone()));
-                let hash_as_field = acir_builder.insert_from_le_radix(hash.clone(), 256);
-                assert_eq!(hash_as_field, brillig_builder.insert_from_le_radix(hash.clone(), 256));
+                let bytes = builder.insert_to_le_radix(input.clone(), 256, limbs_count);
+                let hash = builder.insert_blake3_hash(bytes.clone());
+                let hash_as_field = builder.insert_from_le_radix(hash.clone(), 256);
                 self.store_variable(&hash_as_field);
             }
             Instruction::Keccakf1600Hash { u64_indices, load_elements_of_array } => {
+                if !self.options.instruction_options.keccakf1600_hash_enabled {
+                    return;
+                }
                 let input = match self.insert_array(
-                    acir_builder,
-                    brillig_builder,
+                    builder,
                     u64_indices.to_vec(),
                     Type::Numeric(NumericType::U64),
                 ) {
                     Some(input) => input,
                     _ => return,
                 };
-                let hash_array_u64 = acir_builder.insert_keccakf1600_permutation(input.clone());
-                assert_eq!(
-                    hash_array_u64,
-                    brillig_builder.insert_keccakf1600_permutation(input.clone())
-                );
+                let hash_array_u64 = builder.insert_keccakf1600_permutation(input.clone());
                 self.store_variable(&hash_array_u64);
                 if load_elements_of_array {
                     for i in 0..25_u32 {
-                        let index = acir_builder.insert_constant(i, NumericType::U32);
-                        assert_eq!(index, brillig_builder.insert_constant(i, NumericType::U32));
-                        let value = acir_builder.insert_array_get(
+                        let index = builder.insert_constant(i, NumericType::U32);
+                        let value = builder.insert_array_get(
                             hash_array_u64.clone(),
                             index.clone(),
                             Type::Numeric(NumericType::U64),
                             /*safe_index =*/ false,
-                        );
-                        assert_eq!(
-                            value,
-                            brillig_builder.insert_array_get(
-                                hash_array_u64.clone(),
-                                index.clone(),
-                                Type::Numeric(NumericType::U64),
-                                /*safe_index =*/ false
-                            )
                         );
                         self.store_variable(&value);
                     }
                 }
             }
             Instruction::Aes128Encrypt { input_idx, input_limbs_count, key_idx, iv_idx } => {
+                if !self.options.instruction_options.aes128_encrypt_enabled {
+                    return;
+                }
                 if input_limbs_count == 0 {
                     return;
                 }
@@ -675,30 +520,15 @@ impl BlockContext {
                     Some(iv) => iv,
                     _ => return,
                 };
-                let input_bytes =
-                    acir_builder.insert_to_le_radix(input.clone(), 256, input_limbs_count);
-                assert_eq!(
-                    input_bytes,
-                    brillig_builder.insert_to_le_radix(input.clone(), 256, input_limbs_count)
-                );
-                let key_bytes = acir_builder.insert_to_le_radix(key.clone(), 256, 16);
-                assert_eq!(key_bytes, brillig_builder.insert_to_le_radix(key.clone(), 256, 16));
-                let iv_bytes = acir_builder.insert_to_le_radix(iv.clone(), 256, 16);
-                assert_eq!(iv_bytes, brillig_builder.insert_to_le_radix(iv.clone(), 256, 16));
-                let encrypted = acir_builder.insert_aes128_encrypt(
+                let input_bytes = builder.insert_to_le_radix(input.clone(), 256, input_limbs_count);
+                let key_bytes = builder.insert_to_le_radix(key.clone(), 256, 16);
+                let iv_bytes = builder.insert_to_le_radix(iv.clone(), 256, 16);
+                let encrypted = builder.insert_aes128_encrypt(
                     input_bytes.clone(),
                     key_bytes.clone(),
                     iv_bytes.clone(),
                 );
-                assert_eq!(
-                    encrypted,
-                    brillig_builder.insert_aes128_encrypt(input_bytes, key_bytes, iv_bytes)
-                );
-                let encrypted_as_field = acir_builder.insert_from_le_radix(encrypted.clone(), 256);
-                assert_eq!(
-                    encrypted_as_field,
-                    brillig_builder.insert_from_le_radix(encrypted.clone(), 256)
-                );
+                let encrypted_as_field = builder.insert_from_le_radix(encrypted.clone(), 256);
                 self.store_variable(&encrypted_as_field);
             }
             Instruction::Sha256Compression {
@@ -706,9 +536,11 @@ impl BlockContext {
                 state_indices,
                 load_elements_of_array,
             } => {
+                if !self.options.instruction_options.sha256_compression_enabled {
+                    return;
+                }
                 let input = match self.insert_array(
-                    acir_builder,
-                    brillig_builder,
+                    builder,
                     input_indices.to_vec(),
                     Type::Numeric(NumericType::U32),
                 ) {
@@ -716,68 +548,52 @@ impl BlockContext {
                     _ => return,
                 };
                 let state = match self.insert_array(
-                    acir_builder,
-                    brillig_builder,
+                    builder,
                     state_indices.to_vec(),
                     Type::Numeric(NumericType::U32),
                 ) {
                     Some(state) => state,
                     _ => return,
                 };
-                let compressed =
-                    acir_builder.insert_sha256_compression(input.clone(), state.clone());
-                assert_eq!(compressed, brillig_builder.insert_sha256_compression(input, state));
+                let compressed = builder.insert_sha256_compression(input.clone(), state.clone());
                 self.store_variable(&compressed);
                 if load_elements_of_array {
                     for i in 0..8_u32 {
-                        let index = acir_builder.insert_constant(i, NumericType::U32);
-                        assert_eq!(index, brillig_builder.insert_constant(i, NumericType::U32));
-                        let value = acir_builder.insert_array_get(
+                        let index = builder.insert_constant(i, NumericType::U32);
+                        let value = builder.insert_array_get(
                             compressed.clone(),
                             index.clone(),
                             Type::Numeric(NumericType::U32),
                             /*safe_index =*/ false,
                         );
-                        assert_eq!(
-                            value,
-                            brillig_builder.insert_array_get(
-                                compressed.clone(),
-                                index,
-                                Type::Numeric(NumericType::U32),
-                                /*safe_index =*/ false
-                            )
-                        );
                         self.store_variable(&value);
                     }
                 }
             }
-            Instruction::PointAdd { p1, p2 } => {
+            Instruction::PointAdd { p1, p2, predicate } => {
                 if !self.options.instruction_options.point_add_enabled {
                     return;
                 }
-                let p1 = self.ssa_point_from_instruction_point(acir_builder, brillig_builder, p1);
-                let p2 = self.ssa_point_from_instruction_point(acir_builder, brillig_builder, p2);
+                let p1 = self.ssa_point_from_instruction_point(builder, p1);
+                let p2 = self.ssa_point_from_instruction_point(builder, p2);
                 if p1.is_none() || p2.is_none() {
                     return;
                 }
                 let p1 = p1.unwrap();
                 let p2 = p2.unwrap();
-                let acir_point = acir_builder.point_add(p1.clone(), p2.clone());
-                let brillig_point = brillig_builder.point_add(p1, p2);
-                assert_eq!(acir_point, brillig_point);
+                let acir_point = builder.point_add(p1.clone(), p2.clone(), predicate);
                 for typed_value in [&acir_point.x, &acir_point.y, &acir_point.is_infinite] {
                     self.store_variable(typed_value);
                 }
             }
-            Instruction::MultiScalarMul { points_and_scalars } => {
+            Instruction::MultiScalarMul { points_and_scalars, predicate } => {
                 if !self.options.instruction_options.multi_scalar_mul_enabled {
                     return;
                 }
                 let mut points_vec = Vec::new();
                 let mut scalars_vec = Vec::new();
                 for (p, s) in points_and_scalars.iter() {
-                    let point =
-                        self.ssa_point_from_instruction_point(acir_builder, brillig_builder, *p);
+                    let point = self.ssa_point_from_instruction_point(builder, *p);
                     let scalar = self.ssa_scalar_from_instruction_scalar(*s);
                     if point.is_none() || scalar.is_none() {
                         continue;
@@ -791,11 +607,9 @@ impl BlockContext {
                 if points_vec.len() != scalars_vec.len() {
                     unreachable!("points_vec.len() != scalars_vec.len()");
                 }
-                let acir_point =
-                    acir_builder.multi_scalar_mul(points_vec.clone(), scalars_vec.clone());
-                let brillig_point = brillig_builder.multi_scalar_mul(points_vec, scalars_vec);
-                assert_eq!(acir_point, brillig_point);
-                for typed_value in [&acir_point.x, &acir_point.y, &acir_point.is_infinite] {
+                let point =
+                    builder.multi_scalar_mul(points_vec.clone(), scalars_vec.clone(), predicate);
+                for typed_value in [&point.x, &point.y, &point.is_infinite] {
                     self.store_variable(typed_value);
                 }
             }
@@ -805,6 +619,7 @@ impl BlockContext {
                 corrupt_pubkey_x,
                 corrupt_pubkey_y,
                 corrupt_signature,
+                predicate,
             } => {
                 if !self.options.instruction_options.ecdsa_secp256r1_enabled {
                     return;
@@ -817,20 +632,12 @@ impl BlockContext {
                     corrupt_pubkey_y,
                     corrupt_signature,
                 );
-                let result = acir_builder.ecdsa_secp256r1(
+                let result = builder.ecdsa_secp256r1(
                     prepared_signature.public_key_x.clone(),
                     prepared_signature.public_key_y.clone(),
                     prepared_signature.hash.clone(),
                     prepared_signature.signature.clone(),
-                );
-                assert_eq!(
-                    result,
-                    brillig_builder.ecdsa_secp256r1(
-                        prepared_signature.public_key_x,
-                        prepared_signature.public_key_y,
-                        prepared_signature.hash,
-                        prepared_signature.signature,
-                    )
+                    predicate,
                 );
                 self.store_variable(&result);
             }
@@ -840,6 +647,7 @@ impl BlockContext {
                 corrupt_pubkey_x,
                 corrupt_pubkey_y,
                 corrupt_signature,
+                predicate,
             } => {
                 if !self.options.instruction_options.ecdsa_secp256k1_enabled {
                     return;
@@ -852,20 +660,12 @@ impl BlockContext {
                     corrupt_pubkey_y,
                     corrupt_signature,
                 );
-                let result = acir_builder.ecdsa_secp256k1(
+                let result = builder.ecdsa_secp256k1(
                     prepared_signature.public_key_x.clone(),
                     prepared_signature.public_key_y.clone(),
                     prepared_signature.hash.clone(),
                     prepared_signature.signature.clone(),
-                );
-                assert_eq!(
-                    result,
-                    brillig_builder.ecdsa_secp256k1(
-                        prepared_signature.public_key_x,
-                        prepared_signature.public_key_y,
-                        prepared_signature.hash,
-                        prepared_signature.signature,
-                    )
+                    predicate,
                 );
                 self.store_variable(&result);
             }
@@ -885,38 +685,25 @@ impl BlockContext {
     /// Takes point from [`super::instruction::Point`] and converts it to [`noir_ssa_fuzzer::typed_value::Point`]
     fn ssa_point_from_instruction_point(
         &mut self,
-        acir_builder: &mut FuzzerBuilder,
-        brillig_builder: &mut FuzzerBuilder,
+        builder: &mut FuzzerBuilder,
         point: InstructionPoint,
     ) -> Option<Point> {
         let scalar = self.ssa_scalar_from_instruction_scalar(point.scalar);
         scalar.as_ref()?; // wtf clippy forbid me to write if scalar.is_none() {return None}
         let scalar = scalar.unwrap();
-        let is_infinite = acir_builder.insert_constant(point.is_infinite, NumericType::Boolean);
-        assert_eq!(
-            is_infinite,
-            brillig_builder.insert_constant(point.is_infinite, NumericType::Boolean)
-        );
+        let is_infinite = builder.insert_constant(point.is_infinite, NumericType::Boolean);
 
         let point = if point.derive_from_scalar_mul {
-            let acir_point = acir_builder.base_scalar_mul(scalar.clone(), is_infinite.clone());
-            let brillig_point = brillig_builder.base_scalar_mul(scalar, is_infinite);
-            assert_eq!(acir_point, brillig_point);
-            acir_point
+            builder.base_scalar_mul(scalar.clone(), is_infinite.clone())
         } else {
-            let acir_point =
-                acir_builder.create_point_from_scalar(scalar.clone(), is_infinite.clone());
-            let brillig_point = brillig_builder.create_point_from_scalar(scalar, is_infinite);
-            assert_eq!(acir_point, brillig_point);
-            acir_point
+            builder.create_point_from_scalar(scalar.clone(), is_infinite.clone())
         };
         Some(point)
     }
 
     fn insert_array(
         &mut self,
-        acir_builder: &mut FuzzerBuilder,
-        brillig_builder: &mut FuzzerBuilder,
+        builder: &mut FuzzerBuilder,
         elements_indices: Vec<usize>,
         element_type: Type,
     ) -> Option<TypedValue> {
@@ -935,8 +722,7 @@ impl BlockContext {
         if elements.is_empty() {
             return None;
         }
-        let array = acir_builder.insert_array(elements.clone());
-        assert_eq!(array, brillig_builder.insert_array(elements));
+        let array = builder.insert_array(elements.clone());
         Some(array)
     }
 
@@ -950,17 +736,16 @@ impl BlockContext {
     /// * `safe_index` - If true, the index will be taken modulo the array length
     ///
     /// # Returns
-    /// * (TypedValue, is_references)
+    /// * TypedValue
     /// * None if the instruction is not enabled or the array is not stored
     fn insert_array_get(
         &mut self,
-        acir_builder: &mut FuzzerBuilder,
-        brillig_builder: &mut FuzzerBuilder,
+        builder: &mut FuzzerBuilder,
         array_index: usize,
         index: TypedValue,
         index_is_constant: bool,
         safe_index: bool,
-    ) -> Option<(TypedValue, bool)> {
+    ) -> Option<TypedValue> {
         if !self.options.instruction_options.array_get_enabled
             || !self.options.instruction_options.create_array_enabled
         {
@@ -979,31 +764,18 @@ impl BlockContext {
             _ => return None,
         };
         // references are not supported for array get with dynamic index
-        if array.type_of_variable.is_reference() && !index_is_constant {
+        if array.type_of_variable.type_contains_reference() && !index_is_constant {
             return None;
         }
         // cast the index to u32
-        let index_casted = acir_builder.insert_cast(index.clone(), Type::Numeric(NumericType::U32));
-        assert_eq!(
-            index_casted,
-            brillig_builder.insert_cast(index.clone(), Type::Numeric(NumericType::U32))
-        );
-        let value = acir_builder.insert_array_get(
+        let index_casted = builder.insert_cast(index.clone(), Type::Numeric(NumericType::U32));
+        let value = builder.insert_array_get(
             array.clone(),
             index_casted.clone(),
             array.type_of_variable.unwrap_array_element_type(),
             safe_index,
         );
-        assert_eq!(
-            value,
-            brillig_builder.insert_array_get(
-                array.clone(),
-                index_casted,
-                array.type_of_variable.unwrap_array_element_type(),
-                safe_index
-            )
-        );
-        Some((value, array.type_of_variable.is_reference()))
+        Some(value)
     }
 
     /// Inserts an array set instruction
@@ -1016,19 +788,17 @@ impl BlockContext {
     /// * `safe_index` - If true, the index will be taken modulo the array length
     ///
     /// # Returns
-    /// * (TypedValue referencing the new array, is_references)
+    /// * TypedValue referencing the new array
     /// * None if the instruction is not enabled or the array is not stored
-    #[allow(clippy::too_many_arguments)] // I don't want this refactoring
     fn insert_array_set(
         &mut self,
-        acir_builder: &mut FuzzerBuilder,
-        brillig_builder: &mut FuzzerBuilder,
+        builder: &mut FuzzerBuilder,
         array_index: usize,
         index: TypedValue,
         index_is_constant: bool,
         value_index: usize,
         safe_index: bool,
-    ) -> Option<(TypedValue, bool)> {
+    ) -> Option<TypedValue> {
         if !self.options.instruction_options.array_set_enabled {
             return None;
         }
@@ -1046,7 +816,7 @@ impl BlockContext {
         };
 
         let is_array_of_references =
-            array.type_of_variable.unwrap_array_element_type().is_reference();
+            array.type_of_variable.unwrap_array_element_type().type_contains_reference();
         // get the array from the stored arrays
         // references are not supported for array set with dynamic index
         if is_array_of_references && !index_is_constant {
@@ -1059,22 +829,17 @@ impl BlockContext {
             _ => return None,
         };
         let new_array =
-            acir_builder.insert_array_set(array.clone(), index.clone(), value.clone(), safe_index);
-        assert_eq!(
-            new_array,
-            brillig_builder.insert_array_set(array.clone(), index, value, safe_index)
-        );
-        Some((new_array, is_array_of_references))
+            builder.insert_array_set(array.clone(), index.clone(), value.clone(), safe_index);
+        Some(new_array)
     }
 
     pub(crate) fn insert_instructions(
         &mut self,
-        acir_builder: &mut FuzzerBuilder,
-        brillig_builder: &mut FuzzerBuilder,
+        builder: &mut FuzzerBuilder,
         instructions: &Vec<Instruction>,
     ) {
         for instruction in instructions {
-            self.insert_instruction(acir_builder, brillig_builder, instruction.clone());
+            self.insert_instruction(builder, instruction.clone());
         }
     }
 
@@ -1097,8 +862,7 @@ impl BlockContext {
     /// The only thing we know is that one boolean is defined
     fn find_values_with_type(
         &mut self,
-        acir_builder: &mut FuzzerBuilder,
-        brillig_builder: &mut FuzzerBuilder,
+        builder: &mut FuzzerBuilder,
         type_: &Type,
         index: Option<usize>,
     ) -> TypedValue {
@@ -1117,63 +881,38 @@ impl BlockContext {
             Type::Numeric(_) => {
                 let boolean_value =
                     self.get_stored_variable(&Type::Numeric(NumericType::Boolean), 0).unwrap();
-                let acir_value = acir_builder.insert_cast(boolean_value.clone(), type_.clone());
-                let brillig_value = brillig_builder.insert_cast(boolean_value, type_.clone());
-                assert_eq!(acir_value, brillig_value);
+                let acir_value = builder.insert_cast(boolean_value.clone(), type_.clone());
                 self.store_variable(&acir_value);
                 acir_value
             }
             // On reference, try to find value with reference type,
             // allocate and store it in memory
             Type::Reference(reference_type) => {
-                let value = self.find_values_with_type(
-                    acir_builder,
-                    brillig_builder,
-                    reference_type.as_ref(),
-                    None,
-                );
-                let acir_value = acir_builder.insert_add_to_memory(value.clone());
-                let brillig_value = brillig_builder.insert_add_to_memory(value);
-                assert_eq!(acir_value, brillig_value);
-                self.store_variable(&acir_value);
-                acir_value
+                let value = self.find_values_with_type(builder, reference_type.as_ref(), None);
+                let value = builder.insert_add_to_memory(value.clone());
+                self.store_variable(&value);
+                value
             }
             Type::Array(array_type, array_size) => {
                 let mut values = Vec::with_capacity((*array_size as usize) * array_type.len());
                 for _ in 0..*array_size {
                     let value = array_type.iter().map(|element_type| {
-                        self.find_values_with_type(
-                            acir_builder,
-                            brillig_builder,
-                            element_type,
-                            None,
-                        )
+                        self.find_values_with_type(builder, element_type, None)
                     });
                     values.extend(value);
                 }
-                let acir_value = acir_builder.insert_array(values.clone());
-                let brillig_value = brillig_builder.insert_array(values);
-                assert_eq!(acir_value, brillig_value);
-                self.store_variable(&acir_value);
-                acir_value
+                let value = builder.insert_array(values.clone());
+                self.store_variable(&value);
+                value
             }
             Type::Slice(slice_type) => {
                 let values = slice_type
                     .iter()
-                    .map(|element_type| {
-                        self.find_values_with_type(
-                            acir_builder,
-                            brillig_builder,
-                            element_type,
-                            None,
-                        )
-                    })
+                    .map(|element_type| self.find_values_with_type(builder, element_type, None))
                     .collect::<Vec<TypedValue>>();
-                let acir_value = acir_builder.insert_slice(values.clone());
-                let brillig_value = brillig_builder.insert_slice(values);
-                assert_eq!(acir_value, brillig_value);
-                self.store_variable(&acir_value);
-                acir_value
+                let value = builder.insert_slice(values.clone());
+                self.store_variable(&value);
+                value
             }
         }
     }
@@ -1181,32 +920,26 @@ impl BlockContext {
     /// Finalizes the function by setting the return value
     pub(crate) fn finalize_block_with_return(
         &mut self,
-        acir_builder: &mut FuzzerBuilder,
-        brillig_builder: &mut FuzzerBuilder,
+        builder: &mut FuzzerBuilder,
         return_type: Type,
     ) {
-        let return_value =
-            self.find_values_with_type(acir_builder, brillig_builder, &return_type, None);
-        acir_builder.finalize_function(&return_value);
-        brillig_builder.finalize_function(&return_value);
+        let return_value = self.find_values_with_type(builder, &return_type, None);
+        builder.finalize_function(&return_value);
     }
 
     pub(crate) fn finalize_block_with_jmp(
         &mut self,
-        acir_builder: &mut FuzzerBuilder,
-        brillig_builder: &mut FuzzerBuilder,
+        builder: &mut FuzzerBuilder,
         jmp_destination: BasicBlockId,
         args: Vec<TypedValue>,
     ) {
-        acir_builder.insert_jmp_instruction(jmp_destination, args.clone());
-        brillig_builder.insert_jmp_instruction(jmp_destination, args);
+        builder.insert_jmp_instruction(jmp_destination, args.clone());
         self.children_blocks.push(jmp_destination);
     }
 
     pub(crate) fn finalize_block_with_jmp_if(
         &mut self,
-        acir_builder: &mut FuzzerBuilder,
-        brillig_builder: &mut FuzzerBuilder,
+        builder: &mut FuzzerBuilder,
         then_destination: BasicBlockId,
         else_destination: BasicBlockId,
     ) {
@@ -1218,8 +951,7 @@ impl BlockContext {
             .expect("Should have at least one boolean")
             .value_id;
 
-        acir_builder.insert_jmpif_instruction(condition, then_destination, else_destination);
-        brillig_builder.insert_jmpif_instruction(condition, then_destination, else_destination);
+        builder.insert_jmpif_instruction(condition, then_destination, else_destination);
         self.children_blocks.push(then_destination);
         self.children_blocks.push(else_destination);
     }
@@ -1227,15 +959,13 @@ impl BlockContext {
     /// Inserts a function call to the given function with the given arguments and result type
     pub(crate) fn process_function_call(
         &mut self,
-        acir_builder: &mut FuzzerBuilder,
-        brillig_builder: &mut FuzzerBuilder,
+        builder: &mut FuzzerBuilder,
         function_id: Id<Function>,
         function_signature: FunctionInfo,
         args: &[usize],
     ) {
         // On SSA level you cannot just call a function by its id, you need to import it first
-        let func_as_value_id = acir_builder.insert_import(function_id);
-        assert_eq!(func_as_value_id, brillig_builder.insert_import(function_id));
+        let func_as_value_id = builder.insert_import(function_id);
 
         // Get values from stored_values map by indices
         let mut values = vec![];
@@ -1247,25 +977,13 @@ impl BlockContext {
             args_to_use.extend(vec![0; function_signature.input_types.len() - args.len()]);
         }
         for (value_type, index) in zip(function_signature.input_types, args_to_use) {
-            let value =
-                self.find_values_with_type(acir_builder, brillig_builder, &value_type, Some(index));
+            let value = self.find_values_with_type(builder, &value_type, Some(index));
             values.push(value);
         }
 
         // Insert a call to the function with the given arguments and result type
-        let ret_val = acir_builder.insert_call(
-            func_as_value_id,
-            &values,
-            function_signature.return_type.clone(),
-        );
-        assert_eq!(
-            ret_val,
-            brillig_builder.insert_call(
-                func_as_value_id,
-                &values,
-                function_signature.return_type.clone()
-            )
-        );
+        let ret_val =
+            builder.insert_call(func_as_value_id, &values, function_signature.return_type.clone());
         let typed_ret_val = TypedValue {
             value_id: ret_val,
             type_of_variable: function_signature.return_type.clone(),

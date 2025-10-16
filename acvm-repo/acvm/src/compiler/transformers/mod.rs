@@ -1,9 +1,36 @@
+/// This module applies backend specific transformation to a [`Circuit`].
+///
+/// ## CSAT: transforms AssertZero opcodes into  AssertZero opcodes having the required width.
+///
+/// For instance, if the width is 4, the AssertZero opcode x1 + x2 + x3 + x4 + x5 - y = 0 will be transformed using 2 intermediate variables (z1,z2):
+/// x1 + x2 + x3 = z1
+/// x4 + x5 = z2
+/// z1 + z2 - y = 0
+/// If x1,..x5 are inputs to the program, they are taggeg as 'solvable', and would be used to compute the value of y.
+/// If we generate the intermediate variable x4 + x5 - y = z3, we get an unsolvable circuit because this AssertZero opcode will have two unkwnon values: y and z3
+/// So the CSAT transformation keep track of which witness would be solved for each opcode in order to only generate solvable intermediat variables.
+///
+/// ## eliminate intermediate variables
+/// The 'eliminate intermediate variables' pass will remove any intermediate variables (for instance created by the previous transformation)
+/// that are used in exactly two AssertZero opcodes.
+/// This results in arithmetic opcodes having linear combinations of potentially large width.
+/// For instance if the intermediate variable is z1 is only used in y:
+/// z1 = x1 + x2 +x3
+/// y = z1 + x4
+/// We remove it, undoing the work done during the CSAT transformation: y = x1 + x2 + x3 + x4
+///
+/// We do this because the backend is expected to handle linear combinations of 'unbounded width' in a more efficient way
+/// than the 'CSAT transformation'.
+/// However, it is worth to compute intermediate variables if they are used in more than one other opcode.
+///
+/// ## redundant_range
+/// The 'range optimization' pass, from the optimizers module will remove any redundant range opcodes again.
 use std::collections::BTreeMap;
 
 use acir::{
     AcirField,
     circuit::{
-        self, Circuit, ExpressionWidth, Opcode,
+        Circuit, ExpressionWidth, Opcode,
         brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
         opcodes::{BlackBoxFuncCall, FunctionInput, MemOp},
     },
@@ -96,19 +123,12 @@ pub(super) fn transform_internal<F: AcirField>(
     (acir, acir_opcode_positions)
 }
 
-/// Applies backend specific optimizations to a [`Circuit`].
-///
 /// Accepts an injected `acir_opcode_positions` to allow transformations to be applied directly after optimizations.
 ///
 /// If the width is unbounded, it does nothing.
 /// If it is bounded, it first performs the 'CSAT transformation' in one pass, by creating intermediate variables when necessary.
-/// This results in arithmetic opcodes having the required width.
-/// Then the 'eliminate intermediate variables' pass will remove any intermediate variables (for instance created by the previous transformation)
-/// that are used in exactly two arithmetic opcodes.
-/// This results in arithmetic opcodes having linear combinations of potentially large width.
-/// Finally, the 'range optimization' pass will remove any redundant range opcodes.
-/// The backend is expected to handle linear combinations of 'unbounded width' in a more efficient way
-/// than the 'CSAT transformation'.
+/// Then it performs `eliminate_intermediate_variable()` which (re-)combine intermediate variables used only once.
+/// It concludes with a round of `replace_redundant_ranges()` which removes range checks made redundant by the previous pass.
 #[tracing::instrument(
     level = "trace",
     name = "transform_acir_once",
@@ -230,7 +250,6 @@ fn transform_internal_once<F: AcirField>(
 
     acir = Circuit {
         current_witness_index,
-        expression_width,
         opcodes: transformed_opcodes,
         // The transformer does not add new public inputs
         ..acir
@@ -317,14 +336,11 @@ where
                 self.fold_expr(expr);
             }
             Opcode::BlackBoxFuncCall(call) => self.fold_blackbox(call),
-            Opcode::MemoryOp { block_id: _, op, predicate } => {
+            Opcode::MemoryOp { block_id: _, op } => {
                 let MemOp { operation, index, value } = op;
                 self.fold_expr(operation);
                 self.fold_expr(index);
                 self.fold_expr(value);
-                if let Some(pred) = predicate {
-                    self.fold_expr(pred);
-                }
             }
             Opcode::MemoryInit { block_id: _, init, block_type: _ } => {
                 for w in init {
@@ -390,30 +406,30 @@ where
     fn fold_blackbox<F: AcirField>(&mut self, call: &BlackBoxFuncCall<F>) {
         match call {
             BlackBoxFuncCall::AES128Encrypt { inputs, iv, key, outputs } => {
-                self.fold_function_inputs(inputs.as_slice());
-                self.fold_function_inputs(iv.as_slice());
-                self.fold_function_inputs(key.as_slice());
+                self.fold_inputs(inputs.as_slice());
+                self.fold_inputs(iv.as_slice());
+                self.fold_inputs(key.as_slice());
                 self.fold_many(outputs.iter());
             }
-            BlackBoxFuncCall::AND { lhs, rhs, output } => {
-                self.fold_function_input(lhs);
-                self.fold_function_input(rhs);
+            BlackBoxFuncCall::AND { lhs, rhs, output, .. } => {
+                self.fold_input(lhs);
+                self.fold_input(rhs);
                 self.fold(*output);
             }
-            BlackBoxFuncCall::XOR { lhs, rhs, output } => {
-                self.fold_function_input(lhs);
-                self.fold_function_input(rhs);
+            BlackBoxFuncCall::XOR { lhs, rhs, output, .. } => {
+                self.fold_input(lhs);
+                self.fold_input(rhs);
                 self.fold(*output);
             }
-            BlackBoxFuncCall::RANGE { input } => {
-                self.fold_function_input(input);
+            BlackBoxFuncCall::RANGE { input, .. } => {
+                self.fold_input(input);
             }
             BlackBoxFuncCall::Blake2s { inputs, outputs } => {
-                self.fold_function_inputs(inputs.as_slice());
+                self.fold_inputs(inputs.as_slice());
                 self.fold_many(outputs.iter());
             }
             BlackBoxFuncCall::Blake3 { inputs, outputs } => {
-                self.fold_function_inputs(inputs.as_slice());
+                self.fold_inputs(inputs.as_slice());
                 self.fold_many(outputs.iter());
             }
             BlackBoxFuncCall::EcdsaSecp256k1 {
@@ -422,12 +438,14 @@ where
                 signature,
                 hashed_message,
                 output,
+                predicate,
             } => {
-                self.fold_function_inputs(public_key_x.as_slice());
-                self.fold_function_inputs(public_key_y.as_slice());
-                self.fold_function_inputs(signature.as_slice());
-                self.fold_function_inputs(hashed_message.as_slice());
+                self.fold_inputs(public_key_x.as_slice());
+                self.fold_inputs(public_key_y.as_slice());
+                self.fold_inputs(signature.as_slice());
+                self.fold_inputs(hashed_message.as_slice());
                 self.fold(*output);
+                self.fold_input(predicate);
             }
             BlackBoxFuncCall::EcdsaSecp256r1 {
                 public_key_x,
@@ -435,31 +453,35 @@ where
                 signature,
                 hashed_message,
                 output,
+                predicate,
             } => {
-                self.fold_function_inputs(public_key_x.as_slice());
-                self.fold_function_inputs(public_key_y.as_slice());
-                self.fold_function_inputs(signature.as_slice());
-                self.fold_function_inputs(hashed_message.as_slice());
+                self.fold_inputs(public_key_x.as_slice());
+                self.fold_inputs(public_key_y.as_slice());
+                self.fold_inputs(signature.as_slice());
+                self.fold_inputs(hashed_message.as_slice());
                 self.fold(*output);
+                self.fold_input(predicate);
             }
-            BlackBoxFuncCall::MultiScalarMul { points, scalars, outputs } => {
-                self.fold_function_inputs(points.as_slice());
-                self.fold_function_inputs(scalars.as_slice());
+            BlackBoxFuncCall::MultiScalarMul { points, scalars, predicate, outputs } => {
+                self.fold_inputs(points.as_slice());
+                self.fold_inputs(scalars.as_slice());
+                self.fold_input(predicate);
                 let (x, y, i) = outputs;
                 self.fold(*x);
                 self.fold(*y);
                 self.fold(*i);
             }
-            BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, outputs } => {
-                self.fold_function_inputs(input1.as_slice());
-                self.fold_function_inputs(input2.as_slice());
+            BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, predicate, outputs } => {
+                self.fold_inputs(input1.as_slice());
+                self.fold_inputs(input2.as_slice());
+                self.fold_input(predicate);
                 let (x, y, i) = outputs;
                 self.fold(*x);
                 self.fold(*y);
                 self.fold(*i);
             }
             BlackBoxFuncCall::Keccakf1600 { inputs, outputs } => {
-                self.fold_function_inputs(inputs.as_slice());
+                self.fold_inputs(inputs.as_slice());
                 self.fold_many(outputs.iter());
             }
             BlackBoxFuncCall::RecursiveAggregation {
@@ -468,43 +490,35 @@ where
                 public_inputs,
                 key_hash,
                 proof_type: _,
+                predicate,
             } => {
-                self.fold_function_inputs(verification_key.as_slice());
-                self.fold_function_inputs(proof.as_slice());
-                self.fold_function_inputs(public_inputs.as_slice());
-                self.fold_function_input(key_hash);
+                self.fold_inputs(verification_key.as_slice());
+                self.fold_inputs(proof.as_slice());
+                self.fold_inputs(public_inputs.as_slice());
+                self.fold_input(key_hash);
+                self.fold_input(predicate);
             }
-            BlackBoxFuncCall::BigIntAdd { .. }
-            | BlackBoxFuncCall::BigIntSub { .. }
-            | BlackBoxFuncCall::BigIntMul { .. }
-            | BlackBoxFuncCall::BigIntDiv { .. } => {}
-            BlackBoxFuncCall::BigIntFromLeBytes { inputs, modulus: _, output: _ } => {
-                self.fold_function_inputs(inputs.as_slice());
-            }
-            BlackBoxFuncCall::BigIntToLeBytes { input: _, outputs } => {
-                self.fold_many(outputs.iter());
-            }
-            BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs, len: _ } => {
-                self.fold_function_inputs(inputs.as_slice());
+            BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs } => {
+                self.fold_inputs(inputs.as_slice());
                 self.fold_many(outputs.iter());
             }
             BlackBoxFuncCall::Sha256Compression { inputs, hash_values, outputs } => {
-                self.fold_function_inputs(inputs.as_slice());
-                self.fold_function_inputs(hash_values.as_slice());
+                self.fold_inputs(inputs.as_slice());
+                self.fold_inputs(hash_values.as_slice());
                 self.fold_many(outputs.iter());
             }
         }
     }
 
-    fn fold_function_input<F: AcirField>(&mut self, input: &FunctionInput<F>) {
-        if let circuit::opcodes::ConstantOrWitnessEnum::Witness(witness) = input.input() {
-            self.fold(witness);
+    fn fold_inputs<F: AcirField>(&mut self, inputs: &[FunctionInput<F>]) {
+        for input in inputs {
+            self.fold_input(input);
         }
     }
 
-    fn fold_function_inputs<F: AcirField>(&mut self, inputs: &[FunctionInput<F>]) {
-        for input in inputs {
-            self.fold_function_input(input);
+    fn fold_input<F: AcirField>(&mut self, input: &FunctionInput<F>) {
+        if let FunctionInput::Witness(witness) = input {
+            self.fold(*witness);
         }
     }
 }

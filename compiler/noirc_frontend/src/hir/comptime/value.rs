@@ -214,11 +214,11 @@ impl Value {
                 Some(IntegerTypeSuffix::U1),
             )),
             Value::U8(value) => ExpressionKind::Literal(Literal::Integer(
-                SignedField::positive(value as u128),
+                SignedField::positive(u128::from(value)),
                 Some(IntegerTypeSuffix::U8),
             )),
             Value::U16(value) => ExpressionKind::Literal(Literal::Integer(
-                SignedField::positive(value as u128),
+                SignedField::positive(u128::from(value)),
                 Some(IntegerTypeSuffix::U16),
             )),
             Value::U32(value) => ExpressionKind::Literal(Literal::Integer(
@@ -387,12 +387,12 @@ impl Value {
             Value::U1(value) => {
                 HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value)))
             }
-            Value::U8(value) => {
-                HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value as u128)))
-            }
-            Value::U16(value) => {
-                HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value as u128)))
-            }
+            Value::U8(value) => HirExpression::Literal(HirLiteral::Integer(SignedField::positive(
+                u128::from(value),
+            ))),
+            Value::U16(value) => HirExpression::Literal(HirLiteral::Integer(
+                SignedField::positive(u128::from(value)),
+            )),
             Value::U32(value) => {
                 HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value)))
             }
@@ -540,18 +540,18 @@ impl Value {
             }
             Value::TypedExpr(TypedExpr::ExprId(expr_id)) => vec![Token::UnquoteMarker(expr_id)],
             Value::Bool(bool) => vec![Token::Bool(bool)],
-            Value::U1(bool) => vec![Token::Int((bool as u128).into(), None)],
+            Value::U1(bool) => vec![Token::Int(u128::from(bool).into(), None)],
             Value::U8(value) => {
-                vec![Token::Int((value as u128).into(), None)]
+                vec![Token::Int(u128::from(value).into(), None)]
             }
             Value::U16(value) => {
-                vec![Token::Int((value as u128).into(), None)]
+                vec![Token::Int(u128::from(value).into(), None)]
             }
             Value::U32(value) => {
-                vec![Token::Int((value as u128).into(), None)]
+                vec![Token::Int(u128::from(value).into(), None)]
             }
             Value::U64(value) => {
-                vec![Token::Int((value as u128).into(), None)]
+                vec![Token::Int(u128::from(value).into(), None)]
             }
             Value::U128(value) => vec![Token::Int(value.into(), None)],
             Value::I8(value) => {
@@ -612,6 +612,24 @@ impl Value {
                 | U64(_)
                 | U128(_)
         )
+    }
+
+    pub(crate) fn is_zero(&self) -> bool {
+        use Value::*;
+        match self {
+            Field(value) => value.is_zero(),
+            I8(value) => *value == 0,
+            I16(value) => *value == 0,
+            I32(value) => *value == 0,
+            I64(value) => *value == 0,
+            U1(value) => !*value,
+            U8(value) => *value == 0,
+            U16(value) => *value == 0,
+            U32(value) => *value == 0,
+            U64(value) => *value == 0,
+            U128(value) => *value == 0,
+            _ => false,
+        }
     }
 
     pub(crate) fn contains_function_or_closure(&self) -> bool {
@@ -676,10 +694,10 @@ impl Value {
             Self::I32(value) => (*value >= 0).then_some((*value as u128).into()),
             Self::I64(value) => (*value >= 0).then_some((*value as u128).into()),
             Self::U1(value) => Some(if *value { SignedField::one() } else { SignedField::zero() }),
-            Self::U8(value) => Some((*value as u128).into()),
-            Self::U16(value) => Some((*value as u128).into()),
-            Self::U32(value) => Some((*value as u128).into()),
-            Self::U64(value) => Some((*value as u128).into()),
+            Self::U8(value) => Some(u128::from(*value).into()),
+            Self::U16(value) => Some(u128::from(*value).into()),
+            Self::U32(value) => Some(u128::from(*value).into()),
+            Self::U64(value) => Some(u128::from(*value).into()),
             Self::U128(value) => Some((*value).into()),
             _ => None,
         }

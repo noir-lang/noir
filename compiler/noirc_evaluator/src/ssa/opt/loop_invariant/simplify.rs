@@ -6,11 +6,10 @@ use crate::ssa::{
             binary::{BinaryEvaluationResult, eval_constant_binary_op},
         },
         integer::IntegerConstant,
-        value::{Value, ValueId},
+        value::ValueId,
     },
     opt::loop_invariant::BlockContext,
 };
-use acvm::{FieldElement, acir::AcirField};
 use noirc_errors::call_stack::CallStackId;
 
 use super::{LoopContext, LoopInvariantContext};
@@ -37,7 +36,7 @@ impl LoopInvariantContext<'_> {
 
                 if left {
                     // If the induction variable is on the LHS, we're dividing with a constant.
-                    if !value.is_zero() {
+                    if !value.is_zero() && !value.is_minus_one() {
                         return true;
                     }
                 } else {
@@ -81,10 +80,8 @@ impl LoopInvariantContext<'_> {
         // Simplify the instruction and update it in the DFG.
         match self.simplify_induction_variable(loop_context, block_context, instruction_id) {
             SimplifyResult::SimplifiedTo(id) => {
-                let results =
-                    self.inserter.function.dfg.instruction_results(instruction_id).to_vec();
-                assert!(results.len() == 1);
-                self.inserter.map_value(results[0], id);
+                let [result] = self.inserter.function.dfg.instruction_result(instruction_id);
+                self.inserter.map_value(result, id);
                 true
             }
             SimplifyResult::SimplifiedToInstruction(instruction) => {
@@ -96,49 +93,6 @@ impl LoopInvariantContext<'_> {
                 "ICE - loop bounds simplification should only simplify to a value or an instruction"
             ),
         }
-    }
-
-    /// Simplify 'assert(lhs < rhs)' into 'assert(max(lhs) < rhs)' if lhs is an induction variable and rhs a loop invariant
-    /// For this simplification to be valid, we need to ensure that the induction variable takes all the values from min(induction) up to max(induction)
-    /// This means that the assert must be executed at each loop iteration, and that the loop processes all the iteration space
-    /// This is ensured via control dependence and the check for break patterns, before calling this function.
-    fn simplify_induction_in_constrain(
-        &mut self,
-        loop_context: &LoopContext,
-        lhs: ValueId,
-        rhs: ValueId,
-        err: &Option<ConstrainError>,
-        call_stack: CallStackId,
-    ) -> SimplifyResult {
-        let mut extract_variables = |rhs, lhs| {
-            let rhs_true =
-                self.inserter.function.dfg.get_numeric_constant(rhs)? == FieldElement::one();
-            let (is_left, min, max, binary) =
-                self.extract_induction_and_invariant(loop_context, lhs)?;
-            match (is_left, rhs_true) {
-                (true, true) => Some((max, binary.rhs)),
-                (false, true) => Some((binary.lhs, min)),
-                _ => None,
-            }
-        };
-        let Some((new_lhs, new_rhs)) = extract_variables(rhs, lhs) else {
-            return SimplifyResult::None;
-        };
-        let new_binary =
-            Instruction::Binary(Binary { lhs: new_lhs, rhs: new_rhs, operator: BinaryOp::Lt });
-        // The new comparison can be safely hoisted to the pre-header because it is loop invariant and control independent
-        let comparison_results = self
-            .inserter
-            .function
-            .dfg
-            .insert_instruction_and_results(new_binary, loop_context.pre_header(), None, call_stack)
-            .results();
-        assert!(comparison_results.len() == 1);
-        SimplifyResult::SimplifiedToInstruction(Instruction::Constrain(
-            comparison_results[0],
-            rhs,
-            err.clone(),
-        ))
     }
 
     /// Replace 'assert(invariant != induction)' with assert((invariant < min(induction) || (invariant > max(induction)))
@@ -181,27 +135,6 @@ impl LoopInvariantContext<'_> {
             self.true_value,
             err.clone(),
         ))
-    }
-
-    /// Returns the binary instruction only if the input value refers to a binary instruction
-    /// with invariant and induction variables as operands.
-    /// The return values are:
-    /// - a boolean indicating if the induction variable is on the lhs
-    /// - the minimum and maximum values of the induction variable, coming from the loop bounds
-    /// - the binary instruction itself
-    fn extract_induction_and_invariant(
-        &mut self,
-        loop_context: &LoopContext,
-        value: ValueId,
-    ) -> Option<(bool, ValueId, ValueId, Binary)> {
-        let Value::Instruction { instruction, .. } = &self.inserter.function.dfg[value] else {
-            return None;
-        };
-        let Instruction::Binary(binary) = self.inserter.function.dfg[*instruction].clone() else {
-            return None;
-        };
-        self.match_induction_and_invariant(loop_context, &binary.lhs, &binary.rhs)
-            .map(|(is_left, min, max)| (is_left, min, max, binary))
     }
 
     /// If the inputs are an induction and loop invariant variables, it returns
@@ -249,18 +182,6 @@ impl LoopInvariantContext<'_> {
                 binary,
                 block_context.is_header,
             ),
-            Instruction::Constrain(x, y, err) => {
-                // Ensure the loop is fully executed, so we know that if the constraint would fail for *some* value,
-                // then it *will* definitely take up that value, and not break out early.
-                if loop_context.no_break
-                    && block_context.can_simplify_control_dependent_instruction()
-                {
-                    assert!(block_context.does_execute, "executing a non executable loop");
-                    self.simplify_induction_in_constrain(loop_context, *x, *y, err, call_stack)
-                } else {
-                    SimplifyResult::None
-                }
-            }
             Instruction::ConstrainNotEqual(x, y, err) => {
                 // Ensure the loop is fully executed
                 if loop_context.no_break

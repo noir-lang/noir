@@ -99,13 +99,11 @@ pub(crate) struct StoredBlock {
 
 /// Main context for the fuzzer containing both ACIR and Brillig builders and their state
 pub(crate) struct FuzzerFunctionContext<'a> {
-    /// ACIR builder
-    acir_builder: &'a mut FuzzerBuilder,
-    /// Brillig builder
-    brillig_builder: &'a mut FuzzerBuilder,
-    /// Current ACIR and Brillig blocks
+    /// Builder
+    builder: &'a mut FuzzerBuilder,
+    /// Current blocks
     current_block: StoredBlock,
-    /// Stored ACIR and Brillig blocks that are not terminated
+    /// Stored blocks that are not terminated
     not_terminated_blocks: VecDeque<StoredBlock>,
     /// Instruction blocks
     instruction_blocks: &'a Vec<InstructionBlock>,
@@ -138,21 +136,18 @@ impl<'a> FuzzerFunctionContext<'a> {
         context_options: FunctionContextOptions,
         return_type: Type,
         defined_functions: BTreeMap<Id<Function>, FunctionInfo>,
-        acir_builder: &'a mut FuzzerBuilder,
-        brillig_builder: &'a mut FuzzerBuilder,
+        builder: &'a mut FuzzerBuilder,
     ) -> Self {
-        let mut acir_ids = HashMap::new();
+        let mut ids = HashMap::new();
         for type_ in types {
-            let acir_id = acir_builder.insert_variable(type_.clone().into());
-            let brillig_id = brillig_builder.insert_variable(type_.clone().into());
-            assert_eq!(acir_id, brillig_id);
-            acir_ids.entry(type_.clone()).or_insert(Vec::new()).push(acir_id);
+            let id = builder.insert_variable(type_.clone().into());
+            ids.entry(type_.clone()).or_insert(Vec::new()).push(id);
         }
 
-        let main_block = acir_builder.get_current_block();
+        let main_block = builder.get_current_block();
         let current_block = StoredBlock {
             context: BlockContext::new(
-                acir_ids.clone(),
+                ids.clone(),
                 VecDeque::new(),
                 SsaBlockOptions::from(context_options.clone()),
             ),
@@ -160,8 +155,7 @@ impl<'a> FuzzerFunctionContext<'a> {
         };
 
         Self {
-            acir_builder,
-            brillig_builder,
+            builder,
             current_block,
             not_terminated_blocks: VecDeque::new(),
             instruction_blocks,
@@ -186,29 +180,21 @@ impl<'a> FuzzerFunctionContext<'a> {
         context_options: FunctionContextOptions,
         return_type: Type,
         defined_functions: BTreeMap<Id<Function>, FunctionInfo>,
-        acir_builder: &'a mut FuzzerBuilder,
-        brillig_builder: &'a mut FuzzerBuilder,
+        builder: &'a mut FuzzerBuilder,
     ) -> Self {
-        let mut acir_ids = HashMap::new();
-        let mut brillig_ids = HashMap::new();
+        let mut ids = HashMap::new();
 
         for (value, type_) in values_types.into_iter() {
             let field_element = value;
-            acir_ids
-                .entry(Type::Numeric(type_))
+            ids.entry(Type::Numeric(type_))
                 .or_insert(Vec::new())
-                .push(acir_builder.insert_constant(field_element, type_));
-            brillig_ids
-                .entry(Type::Numeric(type_))
-                .or_insert(Vec::new())
-                .push(brillig_builder.insert_constant(field_element, type_));
-            assert_eq!(brillig_ids, acir_ids);
+                .push(builder.insert_constant(field_element, type_));
         }
 
-        let main_block = acir_builder.get_current_block();
+        let main_block = builder.get_current_block();
         let current_block = StoredBlock {
             context: BlockContext::new(
-                acir_ids.clone(),
+                ids.clone(),
                 VecDeque::new(),
                 SsaBlockOptions::from(context_options.clone()),
             ),
@@ -216,8 +202,7 @@ impl<'a> FuzzerFunctionContext<'a> {
         };
 
         Self {
-            acir_builder,
-            brillig_builder,
+            builder,
             current_block,
             not_terminated_blocks: VecDeque::new(),
             instruction_blocks,
@@ -232,36 +217,30 @@ impl<'a> FuzzerFunctionContext<'a> {
             return_type,
         }
     }
-    /// Inserts a new SSA block into both ACIR and Brillig builders and returns its id
+    /// Inserts a new SSA block into builder and returns its id
     fn insert_ssa_block(&mut self) -> BasicBlockId {
-        let block_id = self.acir_builder.insert_block();
-        assert_eq!(block_id, self.brillig_builder.insert_block());
-        block_id
+        self.builder.insert_block()
     }
 
-    /// Inserts a new constant into both ACIR and Brillig builders and returns its value
+    /// Inserts a new constant into builder and returns its value
     fn insert_constant(
         &mut self,
         value: impl Into<FieldElement> + Clone,
         type_: NumericType,
     ) -> TypedValue {
-        let typed_value = self.acir_builder.insert_constant(value.clone(), type_);
-        assert_eq!(typed_value, self.brillig_builder.insert_constant(value, type_));
-        typed_value
+        self.builder.insert_constant(value.clone(), type_)
     }
 
-    /// Inserts a new jmp instruction into both ACIR and Brillig builders
+    /// Inserts a new jmp instruction into builder
     fn insert_jmp_instruction(&mut self, block_id: BasicBlockId, params: Vec<TypedValue>) {
-        self.acir_builder.insert_jmp_instruction(block_id, params.clone());
-        self.brillig_builder.insert_jmp_instruction(block_id, params);
+        self.builder.insert_jmp_instruction(block_id, params.clone());
     }
 
     /// Switches to the block
     ///
-    /// This function is used to switch to the block in both ACIR and Brillig contexts.
+    /// This function is used to switch to the block in builder context.
     fn switch_to_block(&mut self, block_id: BasicBlockId) {
-        self.acir_builder.switch_to_block(block_id);
-        self.brillig_builder.switch_to_block(block_id);
+        self.builder.switch_to_block(block_id);
     }
 
     /// Stores variables of the current block
@@ -320,24 +299,17 @@ impl<'a> FuzzerFunctionContext<'a> {
 
         // inserts instructions into created blocks
         self.switch_to_block(block_then_id);
-        block_then_context.insert_instructions(
-            self.acir_builder,
-            self.brillig_builder,
-            &block_then_instruction_block.instructions,
-        );
+        block_then_context
+            .insert_instructions(self.builder, &block_then_instruction_block.instructions);
 
         self.switch_to_block(block_else_id);
-        block_else_context.insert_instructions(
-            self.acir_builder,
-            self.brillig_builder,
-            &block_else_instruction_block.instructions,
-        );
+        block_else_context
+            .insert_instructions(self.builder, &block_else_instruction_block.instructions);
 
         // terminates current block with jmp_if
         self.switch_to_block(self.current_block.block_id);
         self.current_block.context.finalize_block_with_jmp_if(
-            self.acir_builder,
-            self.brillig_builder,
+            self.builder,
             block_then_id,
             block_else_id,
         );
@@ -420,17 +392,12 @@ impl<'a> FuzzerFunctionContext<'a> {
         };
 
         // inserts instructions into the new block
-        destination_block_context.insert_instructions(
-            self.acir_builder,
-            self.brillig_builder,
-            &block.instructions,
-        );
+        destination_block_context.insert_instructions(self.builder, &block.instructions);
 
         // switches to the current block and terminates it with jmp
         self.switch_to_block(self.current_block.block_id);
         self.current_block.context.finalize_block_with_jmp(
-            self.acir_builder,
-            self.brillig_builder,
+            self.builder,
             destination_block_id,
             vec![],
         );
@@ -527,35 +494,19 @@ impl<'a> FuzzerFunctionContext<'a> {
         self.switch_to_block(block_if_id);
         // create iter
         let real_iter_id =
-            self.acir_builder.add_block_parameter(block_if_id, Type::Numeric(NumericType::U32));
-        assert_eq!(
-            real_iter_id,
-            self.brillig_builder.add_block_parameter(block_if_id, Type::Numeric(NumericType::U32))
-        );
+            self.builder.add_block_parameter(block_if_id, Type::Numeric(NumericType::U32));
         // condition = iter < end
         let condition =
-            self.acir_builder.insert_lt_instruction(real_iter_id.clone(), end_id.clone()).value_id;
-        assert_eq!(
-            condition,
-            self.brillig_builder
-                .insert_lt_instruction(real_iter_id.clone(), end_id.clone())
-                .value_id
-        );
+            self.builder.insert_lt_instruction(real_iter_id.clone(), end_id.clone()).value_id;
         // jmpif condition then: block_body, else: block_end
-        self.acir_builder.insert_jmpif_instruction(condition, block_body_id, block_end_id);
-        self.brillig_builder.insert_jmpif_instruction(condition, block_body_id, block_end_id);
+        self.builder.insert_jmpif_instruction(condition, block_body_id, block_end_id);
 
         // create iter block
         let block_iter_id = self.insert_ssa_block();
         self.switch_to_block(block_iter_id);
         // j = iter + 1
         let iterator_plus_one =
-            self.acir_builder.insert_add_instruction_checked(real_iter_id.clone(), one_id.clone());
-        assert_eq!(
-            iterator_plus_one,
-            self.brillig_builder
-                .insert_add_instruction_checked(real_iter_id.clone(), one_id.clone())
-        );
+            self.builder.insert_add_instruction_checked(real_iter_id.clone(), one_id.clone());
         // jump to the "if_block" with j = iter + 1
         self.insert_jmp_instruction(block_if_id, vec![iterator_plus_one.clone()]);
 
@@ -567,11 +518,7 @@ impl<'a> FuzzerFunctionContext<'a> {
         let mut block_body_context =
             BlockContext { children_blocks: vec![], ..self.current_block.context.clone() };
         self.switch_to_block(block_body_id);
-        block_body_context.insert_instructions(
-            self.acir_builder,
-            self.brillig_builder,
-            &block_body.instructions,
-        );
+        block_body_context.insert_instructions(self.builder, &block_body.instructions);
 
         let end_context =
             if self.cycle_bodies_to_iters_ids.contains_key(&self.current_block.block_id) {
@@ -614,11 +561,9 @@ impl<'a> FuzzerFunctionContext<'a> {
                 {
                     return;
                 }
-                self.current_block.context.insert_instructions(
-                    self.acir_builder,
-                    self.brillig_builder,
-                    &instruction_block.instructions,
-                );
+                self.current_block
+                    .context
+                    .insert_instructions(self.builder, &instruction_block.instructions);
                 self.inserted_instructions_count += instruction_block.instructions.len();
             }
             FuzzerFunctionCommand::InsertJmpIfBlock { block_then_idx, block_else_idx } => {
@@ -678,8 +623,7 @@ impl<'a> FuzzerFunctionContext<'a> {
                 self.inserted_instructions_count += unrolled_size;
 
                 self.current_block.context.process_function_call(
-                    self.acir_builder,
-                    self.brillig_builder,
+                    self.builder,
                     function_id,
                     function_info,
                     args,
@@ -712,21 +656,11 @@ impl<'a> FuzzerFunctionContext<'a> {
             ..closest_parent_block.context.clone()
         };
         self.switch_to_block(first_block.block_id);
-        first_block.context.finalize_block_with_jmp(
-            self.acir_builder,
-            self.brillig_builder,
-            merged_block_id,
-            vec![],
-        );
+        first_block.context.finalize_block_with_jmp(self.builder, merged_block_id, vec![]);
         self.stored_blocks.insert(first_block.block_id, first_block.clone());
 
         self.switch_to_block(second_block.block_id);
-        second_block.context.finalize_block_with_jmp(
-            self.acir_builder,
-            self.brillig_builder,
-            merged_block_id,
-            vec![],
-        );
+        second_block.context.finalize_block_with_jmp(self.builder, merged_block_id, vec![]);
         self.stored_blocks.insert(second_block.block_id, second_block.clone());
 
         let merged_block = StoredBlock { context: merged_block_context, block_id: merged_block_id };
@@ -893,12 +827,7 @@ impl<'a> FuzzerFunctionContext<'a> {
         // finalize last block with jmp to return block
         let mut last_block = self.merge_main_block();
         self.switch_to_block(last_block.block_id);
-        last_block.context.finalize_block_with_jmp(
-            self.acir_builder,
-            self.brillig_builder,
-            return_block_id,
-            vec![],
-        );
+        last_block.context.finalize_block_with_jmp(self.builder, return_block_id, vec![]);
 
         // add instructions to the return block
         self.switch_to_block(return_block_id);
@@ -907,16 +836,9 @@ impl<'a> FuzzerFunctionContext<'a> {
             parent_blocks_history: VecDeque::new(),
             ..last_block.context.clone()
         };
-        return_block_context.insert_instructions(
-            self.acir_builder,
-            self.brillig_builder,
-            &return_instruction_block.instructions,
-        );
+        return_block_context
+            .insert_instructions(self.builder, &return_instruction_block.instructions);
 
-        return_block_context.finalize_block_with_return(
-            self.acir_builder,
-            self.brillig_builder,
-            self.return_type.clone(),
-        );
+        return_block_context.finalize_block_with_return(self.builder, self.return_type.clone());
     }
 }

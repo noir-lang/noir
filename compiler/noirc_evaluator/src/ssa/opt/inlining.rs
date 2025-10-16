@@ -2,9 +2,13 @@
 //! The purpose of this pass is to inline the instructions of each function call
 //! within the function caller. If all function calls are known, there will only
 //! be a single function remaining when the pass finishes.
-use std::collections::{HashSet, VecDeque};
 
-use crate::errors::RuntimeError;
+use std::collections::HashSet;
+
+use crate::{
+    errors::RuntimeError,
+    ssa::{opt::inlining::inline_info::compute_bottom_up_order, visit_once_deque::VisitOnceDeque},
+};
 use acvm::acir::AcirField;
 use im::HashMap;
 use iter_extended::vecmap;
@@ -80,6 +84,7 @@ impl Ssa {
             let num_functions_before = self.functions.len();
 
             let call_graph = CallGraph::from_ssa_weighted(&self);
+
             let inline_infos = compute_inline_infos(
                 &self,
                 &call_graph,
@@ -87,7 +92,12 @@ impl Ssa {
                 small_function_max_instructions,
                 aggressiveness,
             );
-            self = Self::inline_functions_inner(self, &inline_infos)?;
+
+            // Bottom-up order, starting with the "leaf" functions.
+            let bottom_up = compute_bottom_up_order(&self, &call_graph);
+            let bottom_up = vecmap(bottom_up, |(id, _)| id);
+
+            self = Self::inline_functions_inner(self, &inline_infos, &bottom_up)?;
 
             let num_functions_after = self.functions.len();
             if num_functions_after == num_functions_before {
@@ -98,28 +108,39 @@ impl Ssa {
         Ok(self)
     }
 
-    fn inline_functions_inner(mut self, inline_infos: &InlineInfos) -> Result<Ssa, RuntimeError> {
-        let inline_targets = inline_infos.iter().filter_map(|(id, info)| {
-            let dfg = &self.functions[id].dfg;
-            info.is_inline_target(dfg).then_some(*id)
-        });
+    /// Inline entry points in the order of appearance in `inline_infos`, assuming it goes in bottom-up order.
+    fn inline_functions_inner(
+        mut self,
+        inline_infos: &InlineInfos,
+        bottom_up: &[FunctionId],
+    ) -> Result<Ssa, RuntimeError> {
+        let inline_targets = bottom_up
+            .iter()
+            .filter_map(|id| {
+                let info = inline_infos.get(id)?;
+                let dfg = &self.functions[id].dfg;
+                info.is_inline_target(dfg).then_some(*id)
+            })
+            .collect::<Vec<_>>();
 
         let should_inline_call = |callee: &Function| -> bool {
             // We defer to the inline info computation to determine whether a function should be inlined
             InlineInfo::should_inline(inline_infos, callee.id())
         };
 
-        // NOTE: Functions are processed independently of each other, with the final mapping replacing the original,
-        // instead of inlining the "leaf" functions, moving up towards the entry point.
-        let mut new_functions = std::collections::BTreeMap::new();
+        // We are going bottom up, so hopefully we can inline leaf functions into their callers and retain less memory.
+        let mut new_functions = HashSet::new();
         for entry_point in inline_targets {
             let function = &self.functions[&entry_point];
             let inlined = function.inlined(&self, &should_inline_call)?;
             assert_eq!(inlined.id(), entry_point);
-            new_functions.insert(entry_point, inlined);
+            self.functions.insert(entry_point, inlined);
+            new_functions.insert(entry_point);
         }
 
-        self.functions = new_functions;
+        // Drop functions that weren't inline targets.
+        self.functions.retain(|id, _| new_functions.contains(id));
+
         Ok(self)
     }
 }
@@ -337,7 +358,7 @@ impl<'function> PerFunctionContext<'function> {
     fn translate_block(
         &mut self,
         source_block: BasicBlockId,
-        block_queue: &mut VecDeque<BasicBlockId>,
+        block_queue: &mut VisitOnceDeque,
     ) -> BasicBlockId {
         if let Some(block) = self.blocks.get(&source_block) {
             return *block;
@@ -390,8 +411,7 @@ impl<'function> PerFunctionContext<'function> {
         ssa: &Ssa,
         should_inline_call: &impl Fn(&Function) -> bool,
     ) -> Result<Vec<ValueId>, RuntimeError> {
-        let mut seen_blocks = HashSet::new();
-        let mut block_queue = VecDeque::new();
+        let mut block_queue = VisitOnceDeque::default();
         block_queue.push_back(self.source_function.entry_block());
 
         // This Vec will contain each block with a Return instruction along with the
@@ -399,13 +419,9 @@ impl<'function> PerFunctionContext<'function> {
         let mut function_returns = vec![];
 
         while let Some(source_block_id) = block_queue.pop_front() {
-            if seen_blocks.contains(&source_block_id) {
-                continue;
-            }
             let translated_block_id = self.translate_block(source_block_id, &mut block_queue);
             self.context.builder.switch_to_block(translated_block_id);
 
-            seen_blocks.insert(source_block_id);
             self.inline_block_instructions(ssa, source_block_id, should_inline_call)?;
 
             if let Some((block, values)) =
@@ -612,7 +628,7 @@ impl<'function> PerFunctionContext<'function> {
     fn handle_terminator_instruction(
         &mut self,
         block_id: BasicBlockId,
-        block_queue: &mut VecDeque<BasicBlockId>,
+        block_queue: &mut VisitOnceDeque,
     ) -> Option<(BasicBlockId, Vec<ValueId>)> {
         match &self.source_function.dfg[block_id].unwrap_terminator() {
             TerminatorInstruction::Jmp { destination, arguments, call_stack } => {
@@ -1289,7 +1305,7 @@ mod test {
     fn brillig_global_constants_keep_same_value_ids() {
         let src = "
         g0 = Field 1
-    
+
         brillig(inline) fn main f0 {
           b0():
             v0 = call f1() -> Field
@@ -1316,7 +1332,7 @@ mod test {
 
         assert_ssa_snapshot!(ssa, @r"
         g0 = Field 1
-        
+
         brillig(inline) fn main f0 {
           b0():
             return Field 1

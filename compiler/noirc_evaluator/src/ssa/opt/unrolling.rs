@@ -33,9 +33,9 @@
 //!     used as loop bounds, into a form which loop unrolling may better identify.
 //!
 //! Conditions:
-//!   - Pre-conditions: No explicit pre-conditions strictly required to run this pass but in
-//!     practice since other passes affect this passes ability to unroll loops, some passes such as
-//!     inlining and mem2reg are required before running this on arbitrary noir code.
+//!   - Pre-condition: All loop headers have a single induction variable.
+//!   - Pre-condition: The SSA must be optimized to a point at which loop bounds are known.
+//!     Some passes such as inlining and mem2reg are de-facto required before running this pass on arbitrary noir code.
 //!   - Post-condition (ACIR-only): All loops in ACIR functions should be unrolled when this pass is
 //!     completed successfully. Any loops that are not unrolled (e.g. because of a mutable variable
 //!     used in the loop condition whose value is unknown) will result in an error.
@@ -730,7 +730,7 @@ impl Loop {
             instructions
                 .filter(|i| matches!(&function.dfg[**i], Instruction::Allocate))
                 // Get the value into which the allocation was stored.
-                .map(|i| function.dfg.instruction_results(*i)[0])
+                .map(|i| function.dfg.instruction_result::<1>(*i)[0])
         });
 
         // Collect reference parameters of the function itself.
@@ -770,7 +770,7 @@ impl Loop {
     fn count_all_instructions(&self, function: &Function) -> usize {
         let iter = self.blocks.iter().map(|block| {
             let block = &function.dfg[*block];
-            block.instructions().len() + block.terminator().is_some() as usize
+            block.instructions().len() + usize::from(block.terminator().is_some())
         });
         iter.sum()
     }
@@ -889,7 +889,12 @@ impl BoilerplateStats {
         // Be conservative and only assume that mem2reg gets rid of load followed by store.
         // NB we have not checked that these are actual pairs.
         let load_and_store = self.loads.min(self.stores) * 2;
-        self.all_instructions - self.increments - load_and_store - boilerplate
+        let total_boilerplate = self.increments + load_and_store + boilerplate;
+        debug_assert!(
+            total_boilerplate <= self.all_instructions,
+            "Boilerplate instructions exceed total instructions in loop"
+        );
+        self.all_instructions.saturating_sub(total_boilerplate)
     }
 
     /// Estimated number of instructions if we unroll the loop.
@@ -1136,7 +1141,7 @@ impl<'f> LoopIteration<'f> {
         // instances of the induction variable or any values that were changed as a result
         // of the new induction variable value.
         for instruction in instructions {
-            self.inserter.push_instruction(instruction, self.insert_block);
+            self.inserter.push_instruction(instruction, self.insert_block, false);
         }
         let mut terminator = self.dfg()[self.source_block].unwrap_terminator().clone();
 

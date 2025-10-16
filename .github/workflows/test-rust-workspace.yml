@@ -24,6 +24,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      - name: Delete android SDK
+        run: sudo rm -rf /usr/local/lib/android/sdk
+
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.85.0
         with:
@@ -41,7 +44,7 @@ jobs:
           tool: nextest@0.9.88
 
       - name: Build and archive tests
-        run: cargo nextest archive --workspace --features noirc_frontend/nextest --archive-file nextest-archive.tar.zst
+        run: cargo nextest archive --workspace --archive-file nextest-archive.tar.zst
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -61,7 +64,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        partition: [1, 2, 3, 4]
+        partition: [1, 2, 3, 4, 5, 6, 7, 8]
     steps:
       - uses: actions/checkout@v5
 
@@ -84,7 +87,7 @@ jobs:
           echo "Running with profile: $NEXTEST_PROFILE"
           RUST_MIN_STACK=8388608 \
           cargo nextest run --archive-file nextest-archive.tar.zst \
-            --partition count:${{ matrix.partition }}/4 \
+            --partition count:${{ matrix.partition }}/8 \
             --profile $NEXTEST_PROFILE
         env:
           NEXTEST_PROFILE: ${{ (github.event_name == 'merge_group' && 'merge-queue') || (github.ref == 'refs/heads/master' && 'ci-master') || 'ci' }}
@@ -96,7 +99,6 @@ jobs:
     permissions:
       contents: read
 
-
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -106,6 +108,45 @@ jobs:
 
       - name: Check for pending snapshots
         run: just check-pending-snapshots
+
+  incremental-mutation-test:
+    name: Incremental Mutation Test
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Fetch base commit
+        run: |
+          git fetch --depth=1 origin ${{ github.base_ref }}
+
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.85.0
+        with:
+          targets: x86_64-unknown-linux-gnu
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: x86_64-unknown-linux-gnu-debug
+          save-if: false
+
+      - name: Install just
+        uses: taiki-e/install-action@just
+
+      - name: Run incremental mutation test
+        run: just mutation-test ${{ github.base_ref }}
+
+      - name: Archive mutants.out
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mutants-incremental.out
+          path: mutants.out
 
   # This is a job which depends on all test jobs and reports the overall status.
   # This allows us to add/remove test jobs without having to update the required workflows.

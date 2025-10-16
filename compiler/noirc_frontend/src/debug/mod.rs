@@ -2,6 +2,7 @@ use crate::ast::PathSegment;
 use crate::parse_program;
 use crate::parser::{ParsedModule, ParsedSubModule};
 use crate::signed_field::SignedField;
+use crate::token::FunctionAttributeKind;
 use crate::{ast, ast::Path, parser::ItemKind};
 use fm::FileId;
 use noirc_errors::debug_info::{DebugFnId, DebugFunction};
@@ -107,6 +108,20 @@ impl DebugInstrumenter {
     }
 
     fn walk_fn(&mut self, func: &mut ast::FunctionDefinition) {
+        // Don't instrument functions that are not supposed to have a body
+        if let Some((func, _)) = &func.attributes.function {
+            match func.kind {
+                FunctionAttributeKind::Foreign(_)
+                | FunctionAttributeKind::Builtin(_)
+                | FunctionAttributeKind::Oracle(_) => return,
+                FunctionAttributeKind::Test(..)
+                | FunctionAttributeKind::Fold
+                | FunctionAttributeKind::NoPredicates
+                | FunctionAttributeKind::InlineAlways
+                | FunctionAttributeKind::FuzzingHarness(..) => (),
+            }
+        }
+
         let func_name = func.name.to_string();
         let func_args =
             func.parameters.iter().map(|param| pattern_to_string(&param.pattern)).collect();
@@ -351,7 +366,7 @@ impl DebugInstrumenter {
                         ast::LValue::MemberAccess { object, field_name, location } => {
                             cursor = object;
                             let field_name_id = self.insert_field_name(field_name.as_str());
-                            indexes.push(sint_expr(-(field_name_id.0 as i128), *location));
+                            indexes.push(sint_expr(-i128::from(field_name_id.0), *location));
                         }
                         ast::LValue::Index { index, array, location: _ } => {
                             cursor = array;
@@ -656,7 +671,7 @@ fn build_assign_var_stmt(var_id: SourceVarId, expr: ast::Expression) -> ast::Sta
             location,
         }),
         is_macro_call: false,
-        arguments: vec![uint_expr(var_id.0 as u128, location), expr],
+        arguments: vec![uint_expr(u128::from(var_id.0), location), expr],
     }));
     ast::Statement { kind: ast::StatementKind::Semi(ast::Expression { kind, location }), location }
 }
@@ -671,7 +686,7 @@ fn build_drop_var_stmt(var_id: SourceVarId, location: Location) -> ast::Statemen
             location,
         }),
         is_macro_call: false,
-        arguments: vec![uint_expr(var_id.0 as u128, location)],
+        arguments: vec![uint_expr(u128::from(var_id.0), location)],
     }));
     ast::Statement { kind: ast::StatementKind::Semi(ast::Expression { kind, location }), location }
 }
@@ -696,7 +711,7 @@ fn build_assign_member_stmt(
         }),
         is_macro_call: false,
         arguments: [
-            vec![uint_expr(var_id.0 as u128, location)],
+            vec![uint_expr(u128::from(var_id.0), location)],
             vec![expr.clone()],
             indexes.iter().rev().cloned().collect(),
         ]
@@ -715,7 +730,7 @@ fn build_debug_call_stmt(fname: &str, fn_id: DebugFnId, location: Location) -> a
             location,
         }),
         is_macro_call: false,
-        arguments: vec![uint_expr(fn_id.0 as u128, location)],
+        arguments: vec![uint_expr(u128::from(fn_id.0), location)],
     }));
     ast::Statement { kind: ast::StatementKind::Semi(ast::Expression { kind, location }), location }
 }

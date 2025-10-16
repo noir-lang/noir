@@ -9,7 +9,7 @@ use crate::fuzz_target_lib::fuzz_target;
 use crate::fuzzer::FuzzerData;
 use crate::instruction::{Instruction, InstructionBlock, NumericArgument};
 use crate::options::FuzzerOptions;
-use crate::tests::common::{default_input_types, default_witness};
+use crate::tests::common::{default_input_types, default_runtimes, default_witness};
 use acvm::FieldElement;
 use noir_ssa_fuzzer::typed_value::NumericType;
 use noir_ssa_fuzzer::typed_value::Type;
@@ -41,16 +41,20 @@ fn smoke_test_blake2s_hash() {
         functions: vec![main_func],
         initial_witness: default_witness(),
     };
-    let result = fuzz_target(fuzzer_data, FuzzerOptions::default());
-    match result {
-        Some(result) => assert_eq!(
-            result.get_return_values()[0],
-            FieldElement::try_from_str(
-                "-9211429028062209127175291049466917975585300944217240748738694765619842249938"
-            )
-            .unwrap()
-        ),
-        None => panic!("Program failed to execute"),
+    let result = fuzz_target(fuzzer_data, default_runtimes(), FuzzerOptions::default());
+    match result.get_return_witnesses().is_empty() {
+        true => {
+            panic!("Program failed to execute");
+        }
+        false => {
+            assert_eq!(
+                result.get_return_witnesses()[0],
+                FieldElement::try_from_str(
+                    "-9211429028062209127175291049466917975585300944217240748738694765619842249938"
+                )
+                .unwrap()
+            );
+        }
     }
 }
 
@@ -81,16 +85,20 @@ fn smoke_test_blake3_hash() {
         functions: vec![main_func],
         initial_witness: default_witness(),
     };
-    let result = fuzz_target(fuzzer_data, FuzzerOptions::default());
-    match result {
-        Some(result) => assert_eq!(
-            result.get_return_values()[0],
-            FieldElement::try_from_str(
-                "11496696481601359239189947342432058980836600577383371976100559912527609453094"
-            )
-            .unwrap()
-        ),
-        None => panic!("Program failed to execute"),
+    let result = fuzz_target(fuzzer_data, default_runtimes(), FuzzerOptions::default());
+    match result.get_return_witnesses().is_empty() {
+        true => {
+            panic!("Program failed to execute");
+        }
+        false => {
+            assert_eq!(
+                result.get_return_witnesses()[0],
+                FieldElement::try_from_str(
+                    "11496696481601359239189947342432058980836600577383371976100559912527609453094"
+                )
+                .unwrap()
+            );
+        }
     }
 }
 
@@ -126,16 +134,20 @@ fn smoke_test_aes128_encrypt() {
         functions: vec![main_func],
         initial_witness: default_witness(),
     };
-    let result = fuzz_target(fuzzer_data, FuzzerOptions::default());
-    match result {
-        Some(result) => assert_eq!(
-            result.get_return_values()[0],
-            FieldElement::try_from_str(
-                "7228449286344697221705732525592563926191809635549234005020486075743434697058"
-            )
-            .unwrap()
-        ),
-        None => panic!("Program failed to execute"),
+    let result = fuzz_target(fuzzer_data, default_runtimes(), FuzzerOptions::default());
+    match result.get_return_witnesses().is_empty() {
+        true => {
+            panic!("Program failed to execute");
+        }
+        false => {
+            assert_eq!(
+                result.get_return_witnesses()[0],
+                FieldElement::try_from_str(
+                    "7228449286344697221705732525592563926191809635549234005020486075743434697058"
+                )
+                .unwrap()
+            );
+        }
     }
 }
 
@@ -176,12 +188,17 @@ fn smoke_test_keccakf1600() {
         functions: vec![main_func],
         initial_witness: default_witness(),
     };
-    let result = fuzz_target(fuzzer_data, FuzzerOptions::default());
-    match result {
-        Some(result) => {
-            assert_eq!(result.get_return_values()[0], FieldElement::from(16929593379567477321_u64));
+    let result = fuzz_target(fuzzer_data, default_runtimes(), FuzzerOptions::default());
+    match result.get_return_witnesses().is_empty() {
+        true => {
+            panic!("Program failed to execute");
         }
-        None => panic!("Program failed to execute"),
+        false => {
+            assert_eq!(
+                result.get_return_witnesses()[0],
+                FieldElement::from(16929593379567477321_u64)
+            );
+        }
     }
 }
 
@@ -220,11 +237,13 @@ fn smoke_test_sha256_compression() {
         functions: vec![main_func],
         initial_witness: default_witness(),
     };
-    let result = fuzz_target(fuzzer_data, FuzzerOptions::default());
-    match result {
-        Some(result) => {
-            assert_eq!(result.get_return_values()[0], FieldElement::from(3205228454_u32));
+    let result = fuzz_target(fuzzer_data, default_runtimes(), FuzzerOptions::default());
+    match result.get_return_witnesses().is_empty() {
+        true => {
+            panic!("Program failed to execute");
         }
-        None => panic!("Program failed to execute"),
+        false => {
+            assert_eq!(result.get_return_witnesses()[0], FieldElement::from(3205228454_u32));
+        }
     }
 }

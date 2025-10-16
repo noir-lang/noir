@@ -117,7 +117,7 @@ The Brillig VM provides a flexible and efficient environment for executing uncon
 
 For the following Noir:
 
-```
+```noir
 fn main() {
     let mut a = 10;
     let mut b = 5;
@@ -182,7 +182,7 @@ One possible Brillig output would be:
         }
     },
     { // location = 6
-        "JumpIfNot": {
+        "JumpIf": {
             "condition": 4,
             "location": 9
         }

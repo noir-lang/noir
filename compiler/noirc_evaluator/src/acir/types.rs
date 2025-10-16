@@ -99,7 +99,10 @@ pub(super) struct AcirDynamicArray {
     /// Thus, we store a vector of types rather than a single type, as a dynamic non-homogenous array
     /// is still represented in ACIR by a single `AcirDynamicArray` structure.
     ///
-    /// The length of the value types vector must match the `len` field in this structure.
+    /// This vector only holds the numeric types for a single dynamic array element.
+    /// For example, if in Noir or SSA we have `[(u8, u32, Field); 3]` then `len` will be 3
+    /// and `value_types` will be `[u8, u32, Field]`. To know the type of the element at index `i`
+    /// we can fetch `value_types[i % value_types.len()]`.
     pub(super) value_types: Vec<NumericType>,
     /// Identification for the ACIR dynamic array
     /// inner element type sizes array
@@ -110,9 +113,10 @@ impl Debug for AcirDynamicArray {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(
             f,
-            "id: {}, len: {}, element_type_sizes: {:?}",
+            "id: {}, len: {}, value_types: {:?}, element_type_sizes: {:?}",
             self.block_id.0,
             self.len,
+            self.value_types,
             self.element_type_sizes.map(|block_id| block_id.0)
         )
     }
@@ -146,21 +150,18 @@ impl AcirValue {
         }
     }
 
+    /// Fetch a flat list of ([AcirVar], [AcirType]).
+    ///
+    /// # Panics
+    /// If [AcirValue::DynamicArray] is supplied or an inner element of an [AcirValue::Array].
+    /// This is because an [AcirValue::DynamicArray] is simply a pointer to an array
+    /// and fetching its internal [AcirValue::Var] would require laying down opcodes to read its content.
+    /// This method should only be used where dynamic arrays are not a possible type.
     pub(super) fn flatten(self) -> Vec<(AcirVar, AcirType)> {
         match self {
             AcirValue::Var(var, typ) => vec![(var, typ)],
             AcirValue::Array(array) => array.into_iter().flat_map(AcirValue::flatten).collect(),
             AcirValue::DynamicArray(_) => unimplemented!("Cannot flatten a dynamic array"),
-        }
-    }
-
-    pub(super) fn flat_numeric_types(self) -> Vec<NumericType> {
-        match self {
-            AcirValue::Array(_) => {
-                self.flatten().into_iter().map(|(_, typ)| typ.to_numeric_type()).collect()
-            }
-            AcirValue::DynamicArray(AcirDynamicArray { value_types, .. }) => value_types,
-            _ => unreachable!("An AcirValue::Var cannot be used as an array value"),
         }
     }
 }
@@ -172,5 +173,36 @@ pub(super) struct AcirVar(usize);
 impl AcirVar {
     pub(super) fn new(var: usize) -> Self {
         AcirVar(var)
+    }
+}
+
+/// Assumes `typ` is an array or slice type with nested numeric types, arrays or slices
+/// (recursively) and returns a flat list of all the contained numeric types.
+/// Panics if `self` is not an array or slice type or if a function or reference type
+/// is found along the way.
+pub(crate) fn flat_numeric_types(typ: &SsaType) -> Vec<NumericType> {
+    match typ {
+        SsaType::Array(..) | SsaType::Slice(..) => {
+            let mut flat_types = Vec::new();
+            collect_flat_numeric_types(typ, &mut flat_types);
+            flat_types
+        }
+        _ => panic!("Called flat_numeric_types on a non-array/slice type"),
+    }
+}
+
+/// Helper function for `flat_numeric_types` that recursively collects all numeric types
+/// into `flat_types`.
+fn collect_flat_numeric_types(typ: &SsaType, flat_types: &mut Vec<NumericType>) {
+    match typ {
+        SsaType::Numeric(numeric_type) => {
+            flat_types.push(*numeric_type);
+        }
+        SsaType::Array(types, _) | SsaType::Slice(types) => {
+            for typ in types.iter() {
+                collect_flat_numeric_types(typ, flat_types);
+            }
+        }
+        _ => panic!("Called collect_flat_numeric_types on non-array/slice/number type"),
     }
 }

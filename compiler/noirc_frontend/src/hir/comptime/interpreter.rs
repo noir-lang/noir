@@ -2,7 +2,6 @@ use std::collections::VecDeque;
 use std::{collections::hash_map::Entry, rc::Rc};
 
 use acvm::AcirField;
-use acvm::blackbox_solver::BigIntSolverWithId;
 use im::Vector;
 use iter_extended::try_vecmap;
 use noirc_errors::Location;
@@ -67,9 +66,6 @@ pub struct Interpreter<'local, 'interner> {
     /// multiple times. Without this map, when one of these inner functions exits we would
     /// unbind the generic completely instead of resetting it to its previous binding.
     bound_generics: Vec<HashMap<TypeVariable, (Type, Kind)>>,
-
-    /// Stateful bigint calculator.
-    bigint_solver: BigIntSolverWithId,
 }
 
 #[allow(unused)]
@@ -80,15 +76,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         current_function: Option<FuncId>,
     ) -> Self {
         let pedantic_solving = elaborator.pedantic_solving();
-        let bigint_solver = BigIntSolverWithId::with_pedantic_solving(pedantic_solving);
-        Self {
-            elaborator,
-            crate_id,
-            current_function,
-            bound_generics: Vec::new(),
-            in_loop: false,
-            bigint_solver,
-        }
+        Self { elaborator, crate_id, current_function, bound_generics: Vec::new(), in_loop: false }
     }
 
     pub(crate) fn call_function(
@@ -1736,11 +1724,11 @@ fn evaluate_prefix_with_value(rhs: Value, operator: UnaryOp, location: Location)
 
 fn to_u128(value: Value) -> Option<u128> {
     match value {
-        Value::U1(value) => Some(if value { 1_u128 } else { 0_u128 }),
-        Value::U8(value) => Some(value as u128),
-        Value::U16(value) => Some(value as u128),
-        Value::U32(value) => Some(value as u128),
-        Value::U64(value) => Some(value as u128),
+        Value::U1(value) => Some(u128::from(value)),
+        Value::U8(value) => Some(u128::from(value)),
+        Value::U16(value) => Some(u128::from(value)),
+        Value::U32(value) => Some(u128::from(value)),
+        Value::U64(value) => Some(u128::from(value)),
         Value::U128(value) => Some(value),
         _ => None,
     }
@@ -1748,10 +1736,10 @@ fn to_u128(value: Value) -> Option<u128> {
 
 fn to_i128(value: Value) -> Option<i128> {
     match value {
-        Value::I8(value) => Some(value as i128),
-        Value::I16(value) => Some(value as i128),
-        Value::I32(value) => Some(value as i128),
-        Value::I64(value) => Some(value as i128),
+        Value::I8(value) => Some(i128::from(value)),
+        Value::I16(value) => Some(i128::from(value)),
+        Value::I32(value) => Some(i128::from(value)),
+        Value::I64(value) => Some(i128::from(value)),
         _ => None,
     }
 }
