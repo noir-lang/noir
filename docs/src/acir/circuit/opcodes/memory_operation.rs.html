@@ -33,7 +33,13 @@
 <a href="#32" id="32">32</a>
 <a href="#33" id="33">33</a>
 <a href="#34" id="34">34</a>
-<a href="#35" id="35">35</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::native_types::{Expression, Witness};
+<a href="#35" id="35">35</a>
+<a href="#36" id="36">36</a>
+<a href="#37" id="37">37</a>
+<a href="#38" id="38">38</a>
+<a href="#39" id="39">39</a>
+<a href="#40" id="40">40</a>
+<a href="#41" id="41">41</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::native_types::{Expression, Witness};
 <span class="kw">use </span>acir_field::AcirField;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 
@@ -41,6 +47,12 @@
 </span><span class="attr">#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash, Copy, Default)]
 #[cfg_attr(feature = <span class="string">"arb"</span>, derive(proptest_derive::Arbitrary))]
 </span><span class="kw">pub struct </span>BlockId(<span class="kw">pub </span>u32);
+
+<span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>BlockId {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
+        <span class="macro">write!</span>(f, <span class="string">"b{}"</span>, <span class="self">self</span>.<span class="number">0</span>)
+    }
+}
 
 <span class="doccomment">/// Operation on a block of memory
 /// We can either write or read at an index in memory
