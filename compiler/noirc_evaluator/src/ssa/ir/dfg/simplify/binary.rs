@@ -7,7 +7,7 @@ use crate::ssa::ir::{
         Binary, BinaryOp, Instruction,
         binary::{BinaryEvaluationResult, eval_constant_binary_op},
     },
-    types::{NumericType, Type},
+    types::NumericType,
 };
 use noirc_errors::call_stack::CallStackId;
 
@@ -18,7 +18,6 @@ pub(super) fn simplify_binary(
     binary: &Binary,
     dfg: &mut DataFlowGraph,
     block: BasicBlockId,
-    ctrl_typevars: Option<Vec<Type>>,
     call_stack: CallStackId,
 ) -> SimplifyResult {
     let lhs = binary.lhs;
@@ -225,12 +224,8 @@ pub(super) fn simplify_binary(
                     let zero = dfg.make_constant(FieldElement::zero(), lhs_type);
                     let instruction =
                         Instruction::Binary(Binary { lhs: rhs, rhs: zero, operator: BinaryOp::Eq });
-                    let eq = dfg.insert_instruction_and_results(
-                        instruction,
-                        block,
-                        ctrl_typevars,
-                        call_stack,
-                    );
+                    let eq =
+                        dfg.insert_instruction_and_results(instruction, block, None, call_stack);
                     let eq = eq.results();
                     let eq = eq.first().unwrap();
                     let neq = Instruction::Not(*eq);
