@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1760616970082,
+  "lastUpdate": 1760617682751,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23391,48 +23391,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "58b733a9d965de59fdd4b534ebe89e6b5bbf86e4",
-          "message": "fix: hoist and then deduplicate (#10047)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-10-06T18:16:46Z",
-          "tree_id": "ac93b295003470f16107f61b094e00492bfba681",
-          "url": "https://github.com/noir-lang/noir/commit/58b733a9d965de59fdd4b534ebe89e6b5bbf86e4"
-        },
-        "date": 1759776405800,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 252290,
-            "range": "± 563",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 223906,
-            "range": "± 4321",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2786537,
-            "range": "± 9655",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "52610192+Aristotelis2002@users.noreply.github.com",
             "name": "Aristotelis",
             "username": "Aristotelis2002"
@@ -25484,6 +25442,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2788271,
             "range": "± 27648",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8d89dab4f5b5d3552a5f9a6f3f0a70bb65cf1c32",
+          "message": "chore: address clippy warnings (#10207)",
+          "timestamp": "2025-10-16T13:20:22+01:00",
+          "tree_id": "8d246a93d17eaa98e25420957816c06762f6c5a7",
+          "url": "https://github.com/noir-lang/noir/commit/8d89dab4f5b5d3552a5f9a6f3f0a70bb65cf1c32"
+        },
+        "date": 1760617658834,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 268476,
+            "range": "± 952",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 235042,
+            "range": "± 11725",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2786519,
+            "range": "± 1475",
             "unit": "ns/iter"
           }
         ]
