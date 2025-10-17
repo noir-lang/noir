@@ -1,4 +1,4 @@
-use crate::native_types::Witness;
+use crate::{circuit::PublicInputs, native_types::Witness};
 use acir_field::AcirField;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
@@ -51,7 +51,7 @@ impl<F: AcirField> Default for Expression<F> {
 
 impl<F: AcirField> std::fmt::Display for Expression<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        display_expression(self, false, f)
+        display_expression(self, false, None, f)
     }
 }
 
@@ -371,9 +371,12 @@ impl<F: AcirField> From<Witness> for Expression<F> {
 /// Displays an expression as a quadratic polynomial.
 /// If `as_equal_to_zero` is true, the expression is displayed as equaling zero,
 /// where it's tried to shown as a polynomial equal to the largest witness, if possible.
+/// If the optional `return_values` is provided, the expression is displayed preferring to show
+/// `ASSERT return_value = ...` when possible.
 pub(crate) fn display_expression<F: AcirField>(
     expr: &Expression<F>,
     as_equal_to_zero: bool,
+    return_values: Option<&PublicInputs>,
     f: &mut std::fmt::Formatter<'_>,
 ) -> std::fmt::Result {
     // This is set to an index if we show this expression "as a witness assignment", meaning
@@ -388,11 +391,21 @@ pub(crate) fn display_expression<F: AcirField>(
     // Find a linear combination with a coefficient of 1 or -1 and, if there are many,
     // keep the one with the largest witness.
     let linear_witness_one = if as_equal_to_zero {
-        expr.linear_combinations
-            .iter()
-            .enumerate()
-            .filter(|(_, (coefficient, _))| coefficient.is_one() || (-*coefficient).is_one())
-            .max_by_key(|(_, (_, witness))| witness)
+        // Prefer equating to a return value if possible
+        let linear_witness_one = return_values.and_then(|return_values| {
+            expr.linear_combinations.iter().enumerate().find(|(_, (coefficient, witness))| {
+                (coefficient.is_one() || (-*coefficient).is_one())
+                    && return_values.0.contains(witness)
+            })
+        });
+        linear_witness_one.or_else(|| {
+            // Otherwise just pick the largest witness
+            expr.linear_combinations
+                .iter()
+                .enumerate()
+                .filter(|(_, (coefficient, _))| coefficient.is_one() || (-*coefficient).is_one())
+                .max_by_key(|(_, (_, witness))| witness)
+        })
     } else {
         None
     };

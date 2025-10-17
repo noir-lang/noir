@@ -1,3 +1,4 @@
+use crate::acir::types::flat_numeric_types;
 use crate::acir::{AcirDynamicArray, AcirType, AcirValue};
 use crate::errors::RuntimeError;
 use crate::ssa::ir::{dfg::DataFlowGraph, value::ValueId};
@@ -43,7 +44,7 @@ impl Context<'_> {
 
         let new_slice_val = AcirValue::Array(new_slice);
 
-        Ok(vec![AcirValue::Var(new_slice_length, AcirType::field()), new_slice_val])
+        Ok(vec![AcirValue::Var(new_slice_length, AcirType::unsigned(32)), new_slice_val])
     }
 
     /// Pushes one or more elements to the front of a non-nested slice.
@@ -83,7 +84,7 @@ impl Context<'_> {
 
         let new_slice_val = AcirValue::Array(new_slice);
 
-        Ok(vec![AcirValue::Var(new_slice_length, AcirType::field()), new_slice_val])
+        Ok(vec![AcirValue::Var(new_slice_length, AcirType::unsigned(32)), new_slice_val])
     }
 
     /// Removes and returns one or more elements from the back of a non-nested slice.
@@ -141,8 +142,10 @@ impl Context<'_> {
         let slice = self.convert_value(slice_contents, dfg);
         let new_slice = self.read_array(slice)?;
 
-        let mut results =
-            vec![AcirValue::Var(new_slice_length, AcirType::field()), AcirValue::Array(new_slice)];
+        let mut results = vec![
+            AcirValue::Var(new_slice_length, AcirType::unsigned(32)),
+            AcirValue::Array(new_slice),
+        ];
         results.append(&mut popped_elements);
 
         Ok(results)
@@ -223,7 +226,7 @@ impl Context<'_> {
 
         new_slice = new_slice.slice(popped_elements_size..);
 
-        popped_elements.push(AcirValue::Var(new_slice_length, AcirType::field()));
+        popped_elements.push(AcirValue::Var(new_slice_length, AcirType::unsigned(32)));
         popped_elements.push(AcirValue::Array(new_slice));
 
         Ok(popped_elements)
@@ -289,7 +292,6 @@ impl Context<'_> {
         // We need to a fully flat list of AcirVar's as a dynamic array is represented with flat memory.
         let mut inner_elem_size_usize = 0;
         let mut flattened_elements = Vec::new();
-        let mut new_value_types = Vec::new();
         for elem in elements_to_insert {
             let element = self.convert_value(*elem, dfg);
             // Flatten into (AcirVar, NumericType) pairs
@@ -297,9 +299,8 @@ impl Context<'_> {
             let elem_size = flat_element.len();
             inner_elem_size_usize += elem_size;
             slice_size += elem_size;
-            for (var, typ) in flat_element {
+            for var in flat_element {
                 flattened_elements.push(var);
-                new_value_types.push(typ);
             }
         }
         let inner_elem_size = self.acir_context.add_constant(inner_elem_size_usize);
@@ -316,15 +317,39 @@ impl Context<'_> {
         let result_block_id = self.block_id(result_ids[1]);
         self.initialize_array(result_block_id, slice_size, None)?;
         let mut current_insert_index = 0;
+
+        // This caches each `is_after_insert` var for each index for an optimization that is
+        // explained below, above `is_after_insert`.
+        let mut cached_is_after_inserts = Vec::with_capacity(slice_size);
+
         for i in 0..slice_size {
             let current_index = self.acir_context.add_constant(i);
 
             // Check that we are above the lower bound of the insertion index
             let is_after_insert =
                 self.acir_context.more_than_eq_var(current_index, flat_user_index, 64)?;
+            cached_is_after_inserts.push(is_after_insert);
+
             // Check that we are below the upper bound of the insertion index
-            let is_before_insert =
-                self.acir_context.less_than_var(current_index, max_flat_user_index, 64)?;
+            let is_before_insert = if i >= inner_elem_size_usize {
+                // Optimization: we first note that `max_flat_user_index = flat_user_index + inner_elem_size`.
+                // Then we note that at each index we do these comparisons:
+                // - is_after_insert: `i >= flat_user_index`
+                // - is_before_insert: `i < (flat_user_index + inner_elem_size)`
+                //
+                // As `i` is incremented, for example to `i + n`, we get:
+                // - is_before_insert: `i + n < (flat_user_index + inner_elem_size)`
+                // If `n == inner_elem_size` then we have:
+                // - is_before_insert: `i + n < (flat_user_index + n)` which is equivalent to:
+                // - is_before_insert: `i < flat_user_index`
+                // Then we note that this is the opposite of `i >= flat_user_index`.
+                // So once `i >= inner_elem_size` we can use the previously made comparisons, negated,
+                // instead of performing them again (for dynamic indexes they incur a brillig call).
+                let cached_is_after_insert = cached_is_after_inserts[i - inner_elem_size_usize];
+                self.acir_context.sub_var(one, cached_is_after_insert)?
+            } else {
+                self.acir_context.less_than_var(current_index, max_flat_user_index, 64)?
+            };
 
             // Read from the original slice the value we want to insert into our new slice.
             // We need to make sure that we read the previous element when our current index is greater than insertion index.
@@ -380,14 +405,7 @@ impl Context<'_> {
                 None
             };
 
-        let mut value_types = slice.flat_numeric_types();
-        // We can safely append the value types to the end as we expect the types to be the same for each element.
-        value_types.append(&mut new_value_types);
-        assert_eq!(
-            value_types.len(),
-            slice_size,
-            "ICE: Value types array must match new slice size"
-        );
+        let value_types = flat_numeric_types(&slice_typ);
 
         let result = AcirValue::DynamicArray(AcirDynamicArray {
             block_id: result_block_id,
@@ -396,7 +414,7 @@ impl Context<'_> {
             element_type_sizes,
         });
 
-        Ok(vec![AcirValue::Var(new_slice_length, AcirType::field()), result])
+        Ok(vec![AcirValue::Var(new_slice_length, AcirType::unsigned(32)), result])
     }
 
     /// Removes one or more elements from a slice at a given index.
@@ -498,7 +516,7 @@ impl Context<'_> {
         // In practice `popped_elements_size` should never exceed the `slice_size` but we do a saturating sub to be safe.
         let result_size = slice_size.saturating_sub(popped_elements_size);
         self.initialize_array(result_block_id, result_size, None)?;
-        for (i, (current_value, _)) in flat_slice.iter().enumerate().take(result_size) {
+        for (i, current_value) in flat_slice.iter().enumerate().take(result_size) {
             let current_index = self.acir_context.add_constant(i);
 
             let shifted_index = self.acir_context.add_constant(i + popped_elements_size);
@@ -532,15 +550,7 @@ impl Context<'_> {
                 None
             };
 
-        let mut value_types = slice.flat_numeric_types();
-        // We can safely remove the value types based upon the popped elements size =
-        // as we expect the types to be the same for each element.
-        value_types.truncate(value_types.len() - popped_elements_size);
-        assert_eq!(
-            value_types.len(),
-            result_size,
-            "ICE: Value types array must match new slice size"
-        );
+        let value_types = flat_numeric_types(&slice_typ);
 
         let result = AcirValue::DynamicArray(AcirDynamicArray {
             block_id: result_block_id,
@@ -549,7 +559,7 @@ impl Context<'_> {
             element_type_sizes,
         });
 
-        let mut result = vec![AcirValue::Var(new_slice_length, AcirType::field()), result];
+        let mut result = vec![AcirValue::Var(new_slice_length, AcirType::unsigned(32)), result];
         result.append(&mut popped_elements);
 
         Ok(result)

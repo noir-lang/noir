@@ -51,7 +51,16 @@ warning: Unsafe block must have a safety comment above it
    │                                                    ------ The comment must start with the "Safety: " word
    │
 
-bug: Assertion is always false: attempt to multiply with overflow
+warning: Return variable contains a constant value
+   ┌─ src/main.nr:54:5
+   │
+54 │     G_B.4
+   │     ----- This variable contains a value which is constrained to be a constant. Consider removing this value as additional return values increase proving/verification time
+   │
+   = Call stack:
+     1. src/main.nr:54:5
+
+bug: Assertion is always false: Index out of bounds
    ┌─ src/main.nr:22:60
    │
 22 │                                             if (item_c.2 > unsafe { func_4([]) }[1532016929_u32].3) {

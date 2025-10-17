@@ -220,7 +220,14 @@ impl<'f> Validator<'f> {
                         composite_type
                     }
                     Type::Slice(composite_type) => {
-                        if elements.len() % composite_type.len() != 0 {
+                        if composite_type.is_empty() {
+                            if !elements.is_empty() {
+                                panic!(
+                                    "MakeArray slice has non-zero {} elements but composite type is empty",
+                                    elements.len(),
+                                );
+                            }
+                        } else if elements.len() % composite_type.len() != 0 {
                             panic!(
                                 "MakeArray slice has {} elements but composite type has {} types which don't divide the number of elements",
                                 elements.len(),
@@ -1537,6 +1544,18 @@ mod tests {
         acir(inline) fn main f0 {
           b0():
             v0 = make_array [u8 1, u8 2, u8 3] : [(u8, u8)]
+            return v0
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn make_array_slice_empty_composite_type() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = make_array [] : [()]
             return v0
         }
         ";

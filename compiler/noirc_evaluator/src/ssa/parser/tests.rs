@@ -114,6 +114,18 @@ fn test_make_composite_slice() {
 }
 
 #[test]
+fn test_make_empty_composite_array() {
+    let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = make_array [] : [(); 1]
+            return v0
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
 fn test_make_byte_array_with_string_literal() {
     let src = "
         acir(inline) fn main f0 {

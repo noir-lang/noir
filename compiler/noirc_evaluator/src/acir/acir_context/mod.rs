@@ -566,24 +566,21 @@ impl<F: AcirField> AcirContext<F> {
         typ: AcirType,
         predicate: AcirVar,
     ) -> Result<AcirVar, RuntimeError> {
-        let numeric_type = match typ {
-            AcirType::NumericType(numeric_type) => numeric_type,
-            AcirType::Array(_, _) => {
-                unreachable!("cannot divide arrays. This should have been caught by the frontend")
-            }
-        };
-        match numeric_type {
-            NumericType::NativeField => {
+        match typ {
+            AcirType::NumericType(NumericType::NativeField) => {
                 let inv_rhs = self.inv_var(rhs, predicate)?;
                 self.mul_var(lhs, inv_rhs)
             }
-            NumericType::Unsigned { bit_size } => {
+            AcirType::NumericType(NumericType::Unsigned { bit_size }) => {
                 let (quotient_var, _remainder_var) =
                     self.euclidean_division_var(lhs, rhs, bit_size, predicate)?;
                 Ok(quotient_var)
             }
-            NumericType::Signed { .. } => {
+            AcirType::NumericType(NumericType::Signed { .. }) => {
                 unreachable!("Signed division should have been removed before ACIRgen")
+            }
+            AcirType::Array(_, _) => {
+                unreachable!("cannot divide arrays. This should have been caught by the frontend")
             }
         }
     }
@@ -1075,20 +1072,22 @@ impl<F: AcirField> AcirContext<F> {
         bit_size: u32,
         predicate: AcirVar,
     ) -> Result<AcirVar, RuntimeError> {
-        let numeric_type = match typ {
-            AcirType::NumericType(numeric_type) => numeric_type,
+        match typ {
+            AcirType::NumericType(NumericType::Unsigned { .. }) => {
+                let (_, remainder_var) =
+                    self.euclidean_division_var(lhs, rhs, bit_size, predicate)?;
+                Ok(remainder_var)
+            }
+            AcirType::NumericType(NumericType::Signed { .. }) => {
+                unreachable!("Signed modulo should have been removed before ACIRgen")
+            }
+            AcirType::NumericType(NumericType::NativeField) => {
+                unreachable!("cannot module fields. This should have been caught by the frontend")
+            }
             AcirType::Array(_, _) => {
                 unreachable!("cannot modulo arrays. This should have been caught by the frontend")
             }
-        };
-
-        let (_, remainder_var) = match numeric_type {
-            NumericType::Signed { .. } => {
-                unreachable!("Signed modulo should have been removed before ACIRgen")
-            }
-            _ => self.euclidean_division_var(lhs, rhs, bit_size, predicate)?,
-        };
-        Ok(remainder_var)
+        }
     }
 
     /// Constrains the `AcirVar` variable to be of type `NumericType`.
@@ -1311,7 +1310,7 @@ impl<F: AcirField> AcirContext<F> {
 
                     Ok::<(AcirVar, AcirType), InternalError>((
                         self.read_from_memory(block_id, &index_var)?,
-                        value_types[i].into(),
+                        value_types[i % value_types.len()].into(),
                     ))
                 })
             }
@@ -1441,12 +1440,12 @@ impl<F: AcirField> AcirContext<F> {
                     self.initialize_array_inner(witnesses, value)?;
                 }
             }
-            AcirValue::DynamicArray(AcirDynamicArray { block_id, len, .. }) => {
+            AcirValue::DynamicArray(AcirDynamicArray { block_id, len, value_types, .. }) => {
                 let dynamic_array_values = try_vecmap(0..len, |i| {
                     let index_var = self.add_constant(i);
-
                     let read = self.read_from_memory(block_id, &index_var)?;
-                    Ok::<AcirValue, InternalError>(AcirValue::Var(read, AcirType::field()))
+                    let typ = value_types[i % value_types.len()];
+                    Ok::<AcirValue, InternalError>(AcirValue::Var(read, AcirType::NumericType(typ)))
                 })?;
                 for value in dynamic_array_values {
                     self.initialize_array_inner(witnesses, value)?;
