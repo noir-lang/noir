@@ -25,7 +25,6 @@ mod func;
 pub mod rewrite;
 pub mod scope;
 pub mod types;
-pub mod visitor;
 
 #[cfg(test)]
 mod tests;

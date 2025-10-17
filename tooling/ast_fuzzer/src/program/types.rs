@@ -1,12 +1,9 @@
 use std::collections::HashSet;
 
-use iter_extended::vecmap;
 use noirc_frontend::{
     ast::{BinaryOpKind, IntegerBitSize},
-    hir_def,
     monomorphization::ast::{BinaryOp, Type},
     shared::Signedness,
-    signed_field::SignedField,
 };
 use strum::IntoEnumIterator as _;
 
@@ -139,44 +136,6 @@ pub fn types_produced(typ: &Type) -> HashSet<Type> {
     let mut acc = HashSet::new();
     visit(&mut acc, typ);
     acc
-}
-
-pub fn to_hir_type(typ: &Type) -> hir_def::types::Type {
-    use hir_def::types::{Kind as HirKind, Type as HirType};
-
-    // Meet the expectations of `Type::evaluate_to_u32`.
-    let size_const = |size: u32| {
-        Box::new(HirType::Constant(
-            SignedField::from(size),
-            HirKind::Numeric(Box::new(HirType::Integer(
-                Signedness::Unsigned,
-                IntegerBitSize::ThirtyTwo,
-            ))),
-        ))
-    };
-
-    match typ {
-        Type::Unit => HirType::Unit,
-        Type::Bool => HirType::Bool,
-        Type::Field => HirType::FieldElement,
-        Type::Integer(signedness, integer_bit_size) => {
-            HirType::Integer(*signedness, *integer_bit_size)
-        }
-        Type::String(size) => HirType::String(size_const(*size)),
-        Type::Array(size, typ) => HirType::Array(size_const(*size), Box::new(to_hir_type(typ))),
-        Type::Tuple(items) => HirType::Tuple(items.iter().map(to_hir_type).collect()),
-        Type::Function(param_types, return_type, env_type, unconstrained) => HirType::Function(
-            vecmap(param_types, to_hir_type),
-            Box::new(to_hir_type(return_type)),
-            Box::new(to_hir_type(env_type)),
-            *unconstrained,
-        ),
-        Type::Reference(typ, mutable) => HirType::Reference(Box::new(to_hir_type(typ)), *mutable),
-        Type::Slice(typ) => HirType::Slice(Box::new(to_hir_type(typ))),
-        Type::FmtString(_, _) => {
-            unreachable!("unexpected type converting to HIR: {}", typ)
-        }
-    }
 }
 
 /// Check if the type is a number.

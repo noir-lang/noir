@@ -6,16 +6,19 @@ use nargo::errors::Location;
 use arbitrary::{Arbitrary, Unstructured};
 use noirc_frontend::{
     ast::{BinaryOpKind, IntegerBitSize, UnaryOp},
-    monomorphization::ast::{
-        ArrayLiteral, Assign, Binary, BinaryOp, Call, Cast, Definition, Expression, FuncId, Ident,
-        IdentId, If, LValue, Let, Literal, LocalId, Type, Unary,
+    monomorphization::{
+        ast::{
+            ArrayLiteral, Assign, Binary, BinaryOp, Call, Cast, Definition, Expression, FuncId,
+            Ident, IdentId, If, LValue, Let, Literal, LocalId, Type, Unary,
+        },
+        visitor::visit_expr,
     },
     signed_field::SignedField,
 };
 
 use crate::Config;
 
-use super::{Name, VariableId, types, visitor::visit_expr};
+use super::{Name, VariableId, types};
 
 /// Boolean literal.
 pub fn lit_bool(value: bool) -> Expression {
