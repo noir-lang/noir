@@ -1091,7 +1091,7 @@ impl TerminatorInstruction {
 
 /// Try to avoid mutation until we know something changed, to take advantage of
 /// structural sharing, and avoid needlessly calling `Arc::make_mut` which clones
-/// the content and increases memory use.
+/// the content and increases memory use by allocating more pointers on the heap.
 fn im_vec_map_values_mut<T, F>(xs: &mut im::Vector<T>, mut f: F)
 where
     T: Copy + PartialEq,
@@ -1099,31 +1099,25 @@ where
 {
     // Even `xs.iter_mut()` calls `get_mut` on each element, regardless of whether there is actual mutation.
     // If we go index-by-index, get the item, put it back only if it changed, then we can avoid
-    // allocating memory unless we need, them, however we incur O(n*log(n)) complexity, which
-    // has caused a large slowdown in `rollup-tx-base-public` compilation time.
+    // allocating memory unless we need to, however we incur O(n * log(n)) complexity,
+    // which caused a significant increase in `rollup-tx-base-public` compilation time.
     // Instead, we can iterate until we find a change, and then switch to mutation from there.
-    fn find_first_change<T: Copy + PartialEq>(
-        xs: &im::Vector<T>,
-        mut f: impl FnMut(T) -> T,
-    ) -> Option<(usize, T)> {
-        for (i, x) in xs.iter().enumerate() {
-            let y = f(*x);
-            if *x != y {
-                return Some((i, y));
-            }
+    let mut first_change = None;
+    for (i, x) in xs.iter().enumerate() {
+        let y = f(*x);
+        if *x != y {
+            first_change = Some((i, y));
+            break;
         }
-        None
     }
-    if let Some((c, y)) = find_first_change(xs, &mut f) {
-        xs[c] = y;
-        // We can potentially use `xs.skip(c+1).iter_mut()` from here,
-        // but it will call Arc::make_mut on everything from here on.
-        for i in (c + 1)..xs.len() {
-            let x = xs[i];
-            let y = f(x);
-            if x != y {
-                xs[i] = y;
-            }
+    if let Some((mut c, y)) = first_change {
+        let mut focus = xs.focus_mut();
+        focus.set(c, y);
+        // For the rest of the items, just iterate and incur the potential allocation,
+        // to avoid O(log(n)) updates.
+        while let Some(x) = focus.get_mut(c + 1) {
+            *x = f(*x);
+            c = c + 1;
         }
     }
 }
