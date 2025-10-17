@@ -1,7 +1,7 @@
 //! Tests for trait implementation validation.
-//! Validates duplicate impls, impl target correctness, missing associated items, blanket impls, and generic counts.
+//! Validates duplicate impls, impl target correctness, missing associated items, and generic counts.
 
-use crate::tests::{assert_no_errors, check_errors};
+use crate::tests::check_errors;
 
 #[test]
 fn check_trait_impl_for_non_type() {
