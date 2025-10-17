@@ -224,11 +224,10 @@ pub(super) fn simplify_binary(
                     let zero = dfg.make_constant(FieldElement::zero(), lhs_type);
                     let instruction =
                         Instruction::Binary(Binary { lhs: rhs, rhs: zero, operator: BinaryOp::Eq });
-                    let eq =
-                        dfg.insert_instruction_and_results(instruction, block, None, call_stack);
-                    let eq = eq.results();
-                    let eq = eq.first().unwrap();
-                    let neq = Instruction::Not(*eq);
+                    let eq = dfg
+                        .insert_instruction_and_results(instruction, block, None, call_stack)
+                        .first();
+                    let neq = Instruction::Not(eq);
                     return SimplifyResult::SimplifiedToInstruction(neq);
                 }
             }
