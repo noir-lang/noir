@@ -575,7 +575,7 @@ fn brillig_call_with_memory_array_input() {
     private parameters: [w0, w1, w2]
     public parameters: []
     return values: []
-    BRILLIG CALL func: 0, inputs: [2, MemoryArray(0)], outputs: []
+    BRILLIG CALL func: 0, inputs: [2, b0], outputs: []
     ";
     assert_circuit_roundtrip(src);
 }
