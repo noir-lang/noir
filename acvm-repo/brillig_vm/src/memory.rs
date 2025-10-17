@@ -1,4 +1,4 @@
-//! Implementation of the VM's memory
+//! Implementation of the VM's memory.
 use acir::{
     AcirField,
     brillig::{BitSize, IntegerBitSize, MemoryAddress},
@@ -70,16 +70,20 @@ impl<F: std::fmt::Display> MemoryValue<F> {
     }
 
     /// Expects a `U32` value and converts it into `usize`, otherwise panics.
+    ///
+    /// Primarily a convenience method for using values in memory operations as pointers, sizes and offsets.
     pub fn to_usize(&self) -> usize {
         match self {
             MemoryValue::U32(value) => (*value).try_into().unwrap(),
-            other => panic!("value is not typed as brillig usize: {other}"),
+            other => panic!("value is not typed as Brillig usize: {other}"),
         }
     }
 }
 
 impl<F: AcirField> MemoryValue<F> {
-    /// Builds a memory value from a field element.
+    /// Builds a memory value from a field element, either field or integer type.
+    ///
+    /// If the bit size indicates an integer type, the value is downcast to fit into the specified size.
     pub fn new_from_field(value: F, bit_size: BitSize) -> Self {
         if let BitSize::Integer(bit_size) = bit_size {
             MemoryValue::new_integer(value.to_u128(), bit_size)
@@ -88,7 +92,8 @@ impl<F: AcirField> MemoryValue<F> {
         }
     }
 
-    /// Builds a memory value from a field element, checking that the value is within the bit size.
+    /// Builds a memory value from a field element, checking that the value is within the bit size,
+    /// otherwise returns `None`.
     pub fn new_checked(value: F, bit_size: BitSize) -> Option<Self> {
         if let BitSize::Integer(bit_size) = bit_size {
             if value.num_bits() > bit_size.into() {
