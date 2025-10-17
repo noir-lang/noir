@@ -1,6 +1,7 @@
 use acvm::{AcirField as _, FieldElement};
 
 use crate::ssa::ir::{
+    basic_block::BasicBlockId,
     dfg::DataFlowGraph,
     instruction::{
         Binary, BinaryOp, Instruction,
@@ -8,11 +9,17 @@ use crate::ssa::ir::{
     },
     types::NumericType,
 };
+use noirc_errors::call_stack::CallStackId;
 
 use super::SimplifyResult;
 
 /// Try to simplify this binary instruction, returning the new value if possible.
-pub(super) fn simplify_binary(binary: &Binary, dfg: &mut DataFlowGraph) -> SimplifyResult {
+pub(super) fn simplify_binary(
+    binary: &Binary,
+    dfg: &mut DataFlowGraph,
+    block: BasicBlockId,
+    call_stack: CallStackId,
+) -> SimplifyResult {
     let lhs = binary.lhs;
     let rhs = binary.rhs;
 
@@ -211,6 +218,17 @@ pub(super) fn simplify_binary(binary: &Binary, dfg: &mut DataFlowGraph) -> Simpl
                         lhs,
                         zero,
                     ));
+                } else if lhs_is_zero && dfg.runtime.is_acir() {
+                    // `0 < rhs` for unsigned values is the same as `rhs != 0`,
+                    // which is slightly more performant in ACIR
+                    let zero = dfg.make_constant(FieldElement::zero(), lhs_type);
+                    let instruction =
+                        Instruction::Binary(Binary { lhs: rhs, rhs: zero, operator: BinaryOp::Eq });
+                    let eq = dfg
+                        .insert_instruction_and_results(instruction, block, None, call_stack)
+                        .first();
+                    let neq = Instruction::Not(eq);
+                    return SimplifyResult::SimplifiedToInstruction(neq);
                 }
             }
         }
@@ -338,6 +356,28 @@ mod tests {
         acir(inline) predicate_pure fn main f0 {
           b0(v0: u8):
             return v0
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_zero_less_than_unsigned_value_to_not_equals_in_acir() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u8):
+            v1 = lt u8 0, v0
+            return v1
+        }
+        ";
+
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u8):
+            v2 = eq v0, u8 0
+            v3 = not v2
+            return v3
         }
         ");
     }
