@@ -1,107 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1760716557575,
+  "lastUpdate": 1760716583119,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "84d900dc911ab71a69883936c566b1b1d4d3f837",
-          "message": "chore: Remove unnecessary allocation in `expr_with` (#10103)",
-          "timestamp": "2025-10-07T17:31:25Z",
-          "tree_id": "938e075a512e5d2715e52c0bb52d54b443dcc9a8",
-          "url": "https://github.com/noir-lang/noir/commit/84d900dc911ab71a69883936c566b1b1d4d3f837"
-        },
-        "date": 1759860496068,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 273.56,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 562.99,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 256.76,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 343.3,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 340.49,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 344.36,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 344.35,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 9710,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 9720,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 346.97,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 1360,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 6960,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 339.36,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 97.55,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 251.67,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -4949,6 +4850,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512_100_bytes",
             "value": 185.43,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "53568d3b2fee3945ae44b4c42403db4764e398ea",
+          "message": "chore(acvm): Optimize logic ops (#10222)",
+          "timestamp": "2025-10-17T15:13:46Z",
+          "tree_id": "809f4ebdc17be2339a083f6d62f573239dc89c90",
+          "url": "https://github.com/noir-lang/noir/commit/53568d3b2fee3945ae44b4c42403db4764e398ea"
+        },
+        "date": 1760716558384,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 265.5,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 493.18,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 247.54,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 340.02,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 337.42,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 340.43,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 339.76,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 6810,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 6810,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 344.07,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 1050,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 2890,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 337.64,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 92.18,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 185.44,
             "unit": "MB"
           }
         ]
