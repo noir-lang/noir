@@ -91,13 +91,7 @@
 <a href="#90" id="90">90</a>
 <a href="#91" id="91">91</a>
 <a href="#92" id="92">92</a>
-<a href="#93" id="93">93</a>
-<a href="#94" id="94">94</a>
-<a href="#95" id="95">95</a>
-<a href="#96" id="96">96</a>
-<a href="#97" id="97">97</a>
-<a href="#98" id="98">98</a>
-<a href="#99" id="99">99</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::AcirField;
+<a href="#93" id="93">93</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::AcirField;
 
 <span class="kw">pub fn </span>bit_and&lt;F: AcirField&gt;(lhs: F, rhs: F, num_bits: u32) -&gt; F {
     bitwise_op(lhs, rhs, num_bits, |lhs_byte, rhs_byte| lhs_byte &amp; rhs_byte)
@@ -118,51 +112,45 @@
     //     num_bits
     // );
 
-    </span><span class="kw">let </span>lhs_bytes = mask_to_be_bytes(lhs, num_bits);
-    <span class="kw">let </span>rhs_bytes = mask_to_be_bytes(rhs, num_bits);
+    </span><span class="kw">let </span>lhs_bytes = mask_to_le_bytes(lhs, num_bits);
+    <span class="kw">let </span>rhs_bytes = mask_to_le_bytes(rhs, num_bits);
 
     <span class="kw">let </span>and_byte_arr: Vec&lt;<span class="kw">_</span>&gt; =
         lhs_bytes.into_iter().zip(rhs_bytes).map(|(left, right)| op(left, right)).collect();
 
-    F::from_be_bytes_reduce(<span class="kw-2">&amp;</span>and_byte_arr)
+    F::from_le_bytes_reduce(<span class="kw-2">&amp;</span>and_byte_arr)
 }
 
 <span class="comment">// mask_to methods will not remove any bytes from the field
 // they are simply zeroed out
 // Whereas truncate_to will remove those bits and make the byte array smaller
-</span><span class="kw">fn </span>mask_to_be_bytes&lt;F: AcirField&gt;(field: F, num_bits: u32) -&gt; Vec&lt;u8&gt; {
-    <span class="kw">let </span><span class="kw-2">mut </span>bytes = field.to_be_bytes();
+</span><span class="kw">fn </span>mask_to_le_bytes&lt;F: AcirField&gt;(field: F, num_bits: u32) -&gt; Vec&lt;u8&gt; {
+    <span class="kw">let </span><span class="kw-2">mut </span>bytes = field.to_le_bytes();
     mask_vector_le(<span class="kw-2">&amp;mut </span>bytes, num_bits <span class="kw">as </span>usize);
     bytes
 }
 
-<span class="kw">fn </span>mask_vector_le(bytes: <span class="kw-2">&amp;mut </span>[u8], num_bits: usize) {
-    <span class="comment">// reverse to big endian format
-    </span>bytes.reverse();
-
-    <span class="kw">let </span>mask_power = num_bits % <span class="number">8</span>;
-    <span class="kw">let </span>array_mask_index = num_bits / <span class="number">8</span>;
-
-    <span class="kw">for </span>(index, byte) <span class="kw">in </span>bytes.iter_mut().enumerate() {
-        <span class="kw">match </span>index.cmp(<span class="kw-2">&amp;</span>array_mask_index) {
-            std::cmp::Ordering::Less =&gt; {
-                <span class="comment">// do nothing if the current index is less than
-                // the array index.
-            </span>}
-            std::cmp::Ordering::Equal =&gt; {
-                <span class="kw">let </span>mask = <span class="number">2u8</span>.pow(mask_power <span class="kw">as </span>u32) - <span class="number">1</span>;
-                <span class="comment">// mask the byte
-                </span><span class="kw-2">*</span>byte &amp;= mask;
-            }
-            std::cmp::Ordering::Greater =&gt; {
-                <span class="comment">// Anything greater than the array index
-                // will be set to zero
-                </span><span class="kw-2">*</span>byte = <span class="number">0</span>;
-            }
-        }
+<span class="doccomment">/// Mask a byte array in-place to only keep the lowest `num_bits`
+</span><span class="kw">fn </span>mask_vector_le(bytes: <span class="kw-2">&amp;mut </span>[u8], num_bits: usize) {
+    <span class="kw">let </span>total_bits = bytes.len() * <span class="number">8</span>;
+    <span class="kw">if </span>num_bits &gt;= total_bits {
+        <span class="comment">// nothing to mask, all bits are used
+        </span><span class="kw">return</span>;
     }
-    <span class="comment">// reverse back to little endian
-    </span>bytes.reverse();
+
+    <span class="comment">// Find which byte contains the last bit we want to keep
+    </span><span class="kw">let </span>array_mask_index = num_bits / <span class="number">8</span>;
+    <span class="comment">// Find how many bits to keep in that byte (0-7)
+    </span><span class="kw">let </span>mask_power = num_bits % <span class="number">8</span>;
+
+    <span class="comment">// Mask the partial byte if any. Otherwise, if our `num_bits` is a multiple of 8
+    // we will get a `mask_power` of zero and thus zero out the byte at `array_mask_index`.
+    </span>bytes[array_mask_index] &amp;= <span class="number">2u8</span>.pow(mask_power <span class="kw">as </span>u32) - <span class="number">1</span>;
+
+    <span class="comment">// Zero out all remaining bytes
+    </span><span class="kw">for </span>byte <span class="kw">in </span><span class="kw-2">&amp;mut </span>bytes[(array_mask_index + <span class="number">1</span>)..] {
+        <span class="kw-2">*</span>byte = <span class="number">0</span>;
+    }
 }
 
 <span class="attr">#[cfg(test)]

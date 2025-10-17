@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["bit_and","bit_xor","bitwise_op","mask_to_be_bytes","mask_vector_le"]};
+window.SIDEBAR_ITEMS = {"fn":["bit_and","bit_xor","bitwise_op","mask_to_le_bytes","mask_vector_le"]};
