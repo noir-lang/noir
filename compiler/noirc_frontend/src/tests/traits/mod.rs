@@ -1,7 +1,7 @@
 //! Tests for trait elaboration in the Noir frontend.
 //!
-//! This module contains tests that validate various aspects of trait resolution,
-//! including method signature validation, where clause constraints,
+//! This module contains tests that validate various aspects of trait resolution.
+//! Including method signature validation, where clause constraints,
 //! trait inheritance, method resolution, impl validation, associated items, and qualified path syntax.
 
 mod trait_aliases;
