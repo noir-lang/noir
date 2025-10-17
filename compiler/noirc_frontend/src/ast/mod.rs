@@ -651,6 +651,12 @@ pub enum ItemVisibility {
     Public,
 }
 
+impl ItemVisibility {
+    pub(crate) fn is_private(&self) -> bool {
+        matches!(self, ItemVisibility::Private)
+    }
+}
+
 impl std::fmt::Display for ItemVisibility {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
