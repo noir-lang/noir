@@ -1443,7 +1443,7 @@
                 NumericType::Unsigned { bit_size: <span class="number">1 </span>},
             ) =&gt; <span class="self">self</span>.builder.insert_truncate(value, <span class="number">1</span>, <span class="kw-2">*</span>incoming_type_size),
 
-            <span class="comment">// For mixed singed to unsigned:
+            <span class="comment">// For mixed signed to unsigned:
             </span>(
                 Type::Numeric(NumericType::Signed { bit_size: incoming_type_size }),
                 NumericType::Unsigned { bit_size: target_type_size },
