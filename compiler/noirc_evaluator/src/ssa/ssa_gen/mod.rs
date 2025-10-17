@@ -534,8 +534,16 @@ impl FunctionContext<'_> {
             .get_numeric_constant(array_len)
             .and_then(|value| value.try_to_u32());
 
-        // This optimization seems to cause regressions in brillig so we restrict it to ACIR.
         let runtime = self.builder.current_function.runtime();
+
+        if runtime.is_acir()
+            && array_len_constant.is_some()
+            && !self.builder.current_function.dfg.is_constant(index)
+        {
+            return;
+        }
+
+        // This optimization seems to cause regressions in brillig so we restrict it to ACIR.
         if runtime.is_acir() && array_len_constant.is_some_and(u32::is_power_of_two) {
             // If the array length is a power of two then we can make use of the range check opcode
             // to assert that the index fits in the relevant number of bits.
