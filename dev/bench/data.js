@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1760702469609,
+  "lastUpdate": 1760702947236,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23306,48 +23306,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "75c7d69cf14633c6ce8de84e1e204bdf8ecc33bd",
-          "message": "chore: use `u64` over `Field` in template program (#10096)",
-          "timestamp": "2025-10-07T13:43:36Z",
-          "tree_id": "52f81abe1d2767491806e41e6282c76a787c0396",
-          "url": "https://github.com/noir-lang/noir/commit/75c7d69cf14633c6ce8de84e1e204bdf8ecc33bd"
-        },
-        "date": 1759846275280,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 266294,
-            "range": "± 1513",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 233571,
-            "range": "± 2739",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2787928,
-            "range": "± 4590",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25399,6 +25357,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2785406,
             "range": "± 33581",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0c0d8cc72785fdbbcad742ee45bc558f5261f474",
+          "message": "fix(ACIR): correct brillig parameter slice length for dynamic arrays (#10198)",
+          "timestamp": "2025-10-17T11:33:22Z",
+          "tree_id": "349398ea9337d649c002a4be0325c629410e7785",
+          "url": "https://github.com/noir-lang/noir/commit/0c0d8cc72785fdbbcad742ee45bc558f5261f474"
+        },
+        "date": 1760702922282,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 264940,
+            "range": "± 420",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 231415,
+            "range": "± 4959",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2783411,
+            "range": "± 1039",
             "unit": "ns/iter"
           }
         ]
