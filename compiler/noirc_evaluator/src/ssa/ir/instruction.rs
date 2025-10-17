@@ -1101,23 +1101,22 @@ where
     // If we go index-by-index, get the item, put it back only if it changed, then we can avoid
     // allocating memory unless we need to, however we incur O(n * log(n)) complexity,
     // which caused a significant increase in `rollup-tx-base-public` compilation time.
-    // Instead, we can iterate until we find a change, and then switch to mutation from there.
-    let mut first_change = None;
+    // Collecting changes first and then updating only those positions proved to be the
+    // fastest among some alternatives that didn't sacrifice memory for speed or vice versa.
+    let mut changes = Vec::new();
     for (i, x) in xs.iter().enumerate() {
         let y = f(*x);
         if *x != y {
-            first_change = Some((i, y));
-            break;
+            changes.push((i, y));
         }
     }
-    if let Some((mut c, y)) = first_change {
-        let mut focus = xs.focus_mut();
-        focus.set(c, y);
-        // For the rest of the items, just iterate and incur the potential allocation,
-        // to avoid O(log(n)) updates.
-        while let Some(x) = focus.get_mut(c + 1) {
-            *x = f(*x);
-            c = c + 1;
-        }
+    if changes.is_empty() {
+        return;
+    }
+    // Using `Focus` allows us to only make mutable what is needed,
+    // and should be faster for batches than indexing individual items.
+    let mut focus = xs.focus_mut();
+    for (i, y) in changes {
+        focus.set(i, y);
     }
 }
