@@ -3,7 +3,8 @@
 //! and flattens them to reduce the number of basic blocks and improve performance.
 //!
 //! e.g: `if c {a} else {b}` would be flattened to `c*(a-b)+b`
-//! A simple conditional pattern is defined as an IF-THEN (with optional ELSE) statement, with no nested conditional nor loop statements
+//! A simple conditional pattern is defined as a conditional sub-graph of the form `jmpif c: A, else B`, where A and B are basic blocks which join
+//! on the same successor. This exclude the graph from having any nested conditional or loop statements.
 //! Performance improvement is based on a simple execution cost metric
 //!
 //! This pass does not have any pre/post conditions.
