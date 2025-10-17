@@ -101,6 +101,25 @@ fn trait_inheritance_dependency_cycle() {
 }
 
 #[test]
+fn removes_assumed_parent_traits_after_function_ends() {
+    let src = r#"
+    trait Foo {}
+    trait Bar: Foo {}
+
+    pub fn foo<T>()
+    where
+        T: Bar,
+    {}
+
+    pub fn bar<T>()
+    where
+        T: Foo,
+    {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn trait_inheritance_missing_parent_implementation() {
     let src = r#"
         pub trait Foo {}

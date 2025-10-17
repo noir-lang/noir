@@ -1,7 +1,7 @@
 //! Tests for trait method resolution and scope rules.
 //! Validates that trait methods are correctly resolved based on imports, handles ambiguity, and suggests missing imports.
 
-use crate::tests::{assert_no_errors, check_errors, check_monomorphization_error};
+use crate::tests::{assert_no_errors, check_errors};
 
 #[test]
 fn calls_trait_method_if_it_is_in_scope_with_multiple_candidates_but_only_one_decided_by_generics()

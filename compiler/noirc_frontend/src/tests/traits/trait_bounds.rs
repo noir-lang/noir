@@ -1,7 +1,122 @@
 //! Tests for trait bound checking and where clause validation.
 //! Validates that trait bounds are satisfied and constraints on associated types are correctly checked.
 
-use crate::tests::{assert_no_errors, check_errors, check_monomorphization_error};
+use crate::tests::{assert_no_errors, check_errors};
+
+#[test]
+fn trait_impl_for_a_type_that_implements_another_trait() {
+    let src = r#"
+    trait One {
+        fn one(self) -> i32;
+    }
+
+    impl One for i32 {
+        fn one(self) -> i32 {
+            self
+        }
+    }
+
+    trait Two {
+        fn two(self) -> i32;
+    }
+
+    impl<T> Two for T where T: One {
+        fn two(self) -> i32 {
+            self.one() + 1
+        }
+    }
+
+    pub fn use_it<T>(t: T) -> i32 where T: Two {
+        Two::two(t)
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn trait_impl_for_a_type_that_implements_another_trait_with_another_impl_used() {
+    let src = r#"
+    trait One {
+        fn one(self) -> i32;
+    }
+
+    impl One for i32 {
+        fn one(self) -> i32 {
+            let _ = self;
+            1
+        }
+    }
+
+    trait Two {
+        fn two(self) -> i32;
+    }
+
+    impl<T> Two for T where T: One {
+        fn two(self) -> i32 {
+            self.one() + 1
+        }
+    }
+
+    impl Two for u32 {
+        fn two(self) -> i32 {
+            let _ = self;
+            0
+        }
+    }
+
+    pub fn use_it(t: u32) -> i32 {
+        Two::two(t)
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn check_trait_implemented_for_all_t() {
+    let src = "
+    trait Default2 {
+        fn default2() -> Self;
+    }
+
+    trait Eq2 {
+        fn eq2(self, other: Self) -> bool;
+    }
+
+    trait IsDefault {
+        fn is_default(self) -> bool;
+    }
+
+    impl<T> IsDefault for T where T: Default2 + Eq2 {
+        fn is_default(self) -> bool {
+            self.eq2(T::default2())
+        }
+    }
+
+    struct Foo {
+        a: u64,
+    }
+
+    impl Eq2 for Foo {
+        fn eq2(self, other: Foo) -> bool { self.a == other.a }
+    }
+
+    impl Default2 for u64 {
+        fn default2() -> Self {
+            0
+        }
+    }
+
+    impl Default2 for Foo {
+        fn default2() -> Self {
+            Foo { a: Default2::default2() }
+        }
+    }
+
+    fn main(a: Foo) -> pub bool {
+        a.is_default()
+    }";
+    assert_no_errors(src);
+}
 
 #[test]
 fn check_trait_as_type_as_fn_parameter() {
@@ -18,6 +133,7 @@ fn check_trait_as_type_as_fn_parameter() {
         fn eq2(self, other: Foo) -> bool { self.a == other.a }
     }
 
+    // `impl T` syntax is expected to be desugared to a `where` clause
     fn test_eq(x: impl Eq2) -> bool {
         x.eq2(x)
     }
@@ -51,6 +167,7 @@ fn check_trait_as_type_as_two_fn_parameters() {
         fn test(self) -> bool { self == self }
     }
 
+    // `impl T` syntax is expected to be desugared to a `where` clause
     fn test_eq(x: impl Eq2, y: impl Test) -> bool {
         x.eq2(x) == y.test()
     }
@@ -157,25 +274,6 @@ fn errors_on_unknown_type_in_trait_where_clause() {
         }
     "#;
     check_errors(src);
-}
-
-#[test]
-fn removes_assumed_parent_traits_after_function_ends() {
-    let src = r#"
-    trait Foo {}
-    trait Bar: Foo {}
-
-    pub fn foo<T>()
-    where
-        T: Bar,
-    {}
-
-    pub fn bar<T>()
-    where
-        T: Foo,
-    {}
-    "#;
-    assert_no_errors(src);
 }
 
 #[test]
@@ -426,7 +524,7 @@ fn short_syntax_for_trait_constraint_on_trait_generic() {
 
     fn main() {}
     "#;
-    check_monomorphization_error(src);
+    assert_no_errors(src);
 }
 
 #[test]

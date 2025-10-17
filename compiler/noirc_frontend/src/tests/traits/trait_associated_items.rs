@@ -1,7 +1,7 @@
 //! Tests for associated types and associated constants in traits.
 //! Validates accessing, computing with, and constraining associated items.
 
-use crate::tests::{assert_no_errors, check_errors, check_monomorphization_error};
+use crate::tests::{assert_no_errors, check_errors};
 
 #[test]
 fn passes_trait_with_associated_number_to_generic_function() {
@@ -139,7 +139,7 @@ fn serialize_test_with_a_previous_unrelated_definition() {
         x.serialize();
     }
     "#;
-    check_monomorphization_error(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -173,7 +173,7 @@ fn associated_constant_of_generic_type_used_in_another_associated_constant() {
         let _ = Foo {}.serialize();
     }
     "#;
-    check_monomorphization_error(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -191,7 +191,7 @@ fn associated_constant_of_generic_type_used_in_expression() {
         let _ = <[Field; 3] as Serialize>::N;
     }
     "#;
-    check_monomorphization_error(src);
+    assert_no_errors(src);
 }
 
 #[test]
