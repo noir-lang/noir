@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1760713276650,
+  "lastUpdate": 1760715733612,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23311,48 +23311,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "84d900dc911ab71a69883936c566b1b1d4d3f837",
-          "message": "chore: Remove unnecessary allocation in `expr_with` (#10103)",
-          "timestamp": "2025-10-07T17:31:25Z",
-          "tree_id": "938e075a512e5d2715e52c0bb52d54b443dcc9a8",
-          "url": "https://github.com/noir-lang/noir/commit/84d900dc911ab71a69883936c566b1b1d4d3f837"
-        },
-        "date": 1759859702129,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 263793,
-            "range": "± 376",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 228908,
-            "range": "± 2735",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2788021,
-            "range": "± 1333",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "c33e006defd5076a207c92f66b189ae121dc5832",
           "message": "chore: More BTreeSet avoidance (#10107)",
           "timestamp": "2025-10-08T09:55:56Z",
@@ -25394,6 +25352,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2788424,
             "range": "± 2128",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "53568d3b2fee3945ae44b4c42403db4764e398ea",
+          "message": "chore(acvm): Optimize logic ops (#10222)",
+          "timestamp": "2025-10-17T15:13:46Z",
+          "tree_id": "809f4ebdc17be2339a083f6d62f573239dc89c90",
+          "url": "https://github.com/noir-lang/noir/commit/53568d3b2fee3945ae44b4c42403db4764e398ea"
+        },
+        "date": 1760715710280,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 256408,
+            "range": "± 771",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 229083,
+            "range": "± 9124",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2797329,
+            "range": "± 12535",
             "unit": "ns/iter"
           }
         ]
