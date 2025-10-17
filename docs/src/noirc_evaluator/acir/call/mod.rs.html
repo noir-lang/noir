@@ -293,7 +293,18 @@
 <a href="#292" id="292">292</a>
 <a href="#293" id="293">293</a>
 <a href="#294" id="294">294</a>
-<a href="#295" id="295">295</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::AcirField;
+<a href="#295" id="295">295</a>
+<a href="#296" id="296">296</a>
+<a href="#297" id="297">297</a>
+<a href="#298" id="298">298</a>
+<a href="#299" id="299">299</a>
+<a href="#300" id="300">300</a>
+<a href="#301" id="301">301</a>
+<a href="#302" id="302">302</a>
+<a href="#303" id="303">303</a>
+<a href="#304" id="304">304</a>
+<a href="#305" id="305">305</a>
+<a href="#306" id="306">306</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::AcirField;
 <span class="kw">use </span>acvm::acir::circuit::opcodes::AcirFunctionId;
 <span class="kw">use </span>iter_extended::vecmap;
 
@@ -483,8 +494,19 @@
                         .get(<span class="kw-2">&amp;</span>value_id)
                         .expect(<span class="string">"ICE: Unknown slice input to brillig"</span>)
                     {
-                        AcirValue::DynamicArray(AcirDynamicArray { len, .. }) =&gt; <span class="kw-2">*</span>len,
-                        AcirValue::Array(array) =&gt; array.len(),
+                        AcirValue::DynamicArray(AcirDynamicArray { len, .. }) =&gt; {
+                            <span class="comment">// len holds the flattened length of all elements in the slice,
+                            // so to get the no-flattened length we need to divide by the flattened
+                            // length of a single slice entry
+                            </span><span class="kw">let </span>sum: u32 = item_types.iter().map(|typ| typ.flattened_size()).sum();
+                            <span class="kw">if </span>sum == <span class="number">0 </span>{ <span class="number">0 </span>} <span class="kw">else </span>{ <span class="kw-2">*</span>len / sum <span class="kw">as </span>usize }
+                        }
+                        AcirValue::Array(array) =&gt; {
+                            <span class="comment">// len holds the non-flattened length of all elements in the slice,
+                            // so here we need to divide by the non-flattened length of a single
+                            // slice entry
+                            </span><span class="kw">if </span>item_types.len() == <span class="number">0 </span>{ <span class="number">0 </span>} <span class="kw">else </span>{ array.len() / item_types.len() }
+                        }
                         <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: Slice value is not an array"</span>),
                     };
 
@@ -493,7 +515,7 @@
                             .iter()
                             .map(BrilligFunctionContext::ssa_type_to_parameter)
                             .collect(),
-                        len / item_types.len(),
+                        len,
                     )
                 } <span class="kw">else </span>{
                     BrilligFunctionContext::ssa_type_to_parameter(<span class="kw-2">&amp;</span>typ)
