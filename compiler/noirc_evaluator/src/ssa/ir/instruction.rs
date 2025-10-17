@@ -1099,8 +1099,7 @@ where
 {
     // Even `xs.iter_mut()` calls `get_mut` on each element, regardless of whether there is actual mutation.
     // If we go index-by-index, get the item, put it back only if it changed, then we can avoid
-    // allocating memory unless we need to, however we incur O(n * log(n)) complexity,
-    // which caused a significant increase in `rollup-tx-base-public` compilation time.
+    // allocating memory unless we need to, however we incur O(n * log(n)) complexity.
     // Collecting changes first and then updating only those positions proved to be the
     // fastest among some alternatives that didn't sacrifice memory for speed or vice versa.
     let mut changes = Vec::new();
