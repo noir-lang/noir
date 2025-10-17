@@ -254,7 +254,8 @@ impl Context<'_> {
 
         let block_id = self.ensure_array_is_initialized(slice_contents, dfg)?;
 
-        let item_size = dfg.type_of_value(slice_contents).element_size();
+        let slice_type = dfg.type_of_value(slice_contents);
+        let item_size = slice_type.element_size();
         let item_size = self.acir_context.add_constant(item_size);
         var_index = self.acir_context.mul_var(var_index, item_size)?;
 
@@ -265,7 +266,7 @@ impl Context<'_> {
         }
 
         let slice = self.convert_value(slice_contents, dfg);
-        let new_slice = self.read_array(slice)?;
+        let new_slice = self.read_array_with_type(slice, &slice_type)?;
 
         let mut results = vec![
             AcirValue::Var(new_slice_length, AcirType::unsigned(32)),
