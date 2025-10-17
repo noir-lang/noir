@@ -19,7 +19,7 @@ use black_box::evaluate_black_box;
 // Re-export `brillig`.
 pub use acir::brillig;
 use memory::MemoryTypeError;
-pub use memory::{MEMORY_ADDRESSING_BIT_SIZE, Memory, MemoryValue};
+pub use memory::{MEMORY_ADDRESSING_BIT_SIZE, Memory, MemoryValue, STACK_POINTER_ADDRESS};
 
 pub use crate::fuzzing::BranchToFeatureMap;
 use crate::fuzzing::FuzzingTrace;

@@ -14,6 +14,8 @@ pub enum MemoryAddress {
     /// Specifies an index relative to the stack pointer.
     ///
     /// It is resolved as the current stack pointer plus the offset stored here.
+    ///
+    /// The current stack pointer is wherever slot 0 of the `Memory` points at.
     Relative(usize),
 }
 
