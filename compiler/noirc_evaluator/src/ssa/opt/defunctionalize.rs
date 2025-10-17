@@ -5,7 +5,7 @@
 //! by transforming functions used as values (i.e., first-class functions)
 //! into constant numbers (fields) that represent their function IDs.
 //!
-//! Defunctionalization handles higher-order functions functions by lowering function values into
+//! Defunctionalization handles higher-order functions by lowering function values into
 //! constant identifiers and replacing calls of function values with calls to a single
 //! dispatch `apply` function.
 //!
@@ -126,7 +126,7 @@ impl DefunctionalizationContext {
             // We mutate value types in `defunctionalize`, so to prevent that from affecting which
             // apply functions are chosen we replace all first-class function calls with calls to
             // the appropriate apply function beforehand.
-            self.replace_fist_class_calls_with_apply_function(function);
+            self.replace_first_class_calls_with_apply_function(function);
 
             // Replace any first-class function values with field values. This will also mutate the
             // type of some values, such as block arguments
@@ -137,7 +137,7 @@ impl DefunctionalizationContext {
     /// Replaces any function calls using first-class function values with calls to the
     /// appropriate `apply` function. Note that this must be done before types are mutated
     /// in `defunctionalize` since this uses the pre-mutated types to query apply functions.
-    fn replace_fist_class_calls_with_apply_function(&mut self, func: &mut Function) {
+    fn replace_first_class_calls_with_apply_function(&mut self, func: &mut Function) {
         for block_id in func.reachable_blocks() {
             let block = &mut func.dfg[block_id];
 
@@ -496,7 +496,7 @@ fn create_apply_functions(
         } else if pre_runtime_filter_len != 0 && caller_runtime.is_brillig() {
             // We had variants, but they were all filtered out.
             // Frontend bug: only ACIR variants in a Brillig group.
-            panic!("ICE: invalid defunctionalization: only ACIR variants for a Brillig runtime",);
+            panic!("ICE: invalid defunctionalization: only ACIR variants for a Brillig runtime");
         } else {
             // If no variants exist for a dynamic call we leave removing those dead calls and parameters to DIE.
             // However, we have to construct a dummy function for these dead calls as to keep a well formed SSA
@@ -2127,22 +2127,22 @@ mod tests {
         brillig(inline_always) fn apply f6 {
           b0(v0: Field):
             v2 = eq v0, Field 1
-            jmpif v2 then: b3, else: b2
+            jmpif v2 then: b2, else: b1
           b1():
-            return
-          b2():
             v5 = eq v0, Field 2
-            jmpif v5 then: b5, else: b4
-          b3():
+            jmpif v5 then: b4, else: b3
+          b2():
             call f1()
-            jmp b1()
-          b4():
+            jmp b5()
+          b3():
             constrain v0 == Field 5
             call f5()
-            jmp b1()
-          b5():
+            jmp b5()
+          b4():
             call f2()
-            jmp b1()
+            jmp b5()
+          b5():
+            return
         }
         ");
     }
