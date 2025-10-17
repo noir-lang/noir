@@ -1097,12 +1097,33 @@ where
     T: Copy + PartialEq,
     F: FnMut(T) -> T,
 {
-    // Even `xs.iter_mut()` calls `get_mut` on each element.
-    for i in 0..xs.len() {
-        let x = xs[i];
-        let y = f(x);
-        if x != y {
-            xs[i] = y;
+    // Even `xs.iter_mut()` calls `get_mut` on each element, regardless of whether there is actual mutation.
+    // If we go index-by-index, get the item, put it back only if it changed, then we can avoid
+    // allocating memory unless we need, them, however we incur O(n*log(n)) complexity, which
+    // has caused a large slowdown in `rollup-tx-base-public` compilation time.
+    // Instead, we can iterate until we find a change, and then switch to mutation from there.
+    fn find_first_change<T: Copy + PartialEq>(
+        xs: &im::Vector<T>,
+        mut f: impl FnMut(T) -> T,
+    ) -> Option<(usize, T)> {
+        for (i, x) in xs.iter().enumerate() {
+            let y = f(*x);
+            if *x != y {
+                return Some((i, y));
+            }
+        }
+        None
+    }
+    if let Some((c, y)) = find_first_change(xs, &mut f) {
+        xs[c] = y;
+        // We can potentially use `xs.skip(c+1).iter_mut()` from here,
+        // but it will call Arc::make_mut on everything from here on.
+        for i in (c + 1)..xs.len() {
+            let x = xs[i];
+            let y = f(x);
+            if x != y {
+                xs[i] = y;
+            }
         }
     }
 }
