@@ -1,7 +1,8 @@
 use std::collections::{BTreeSet, HashMap};
 
-use noirc_driver::CrateId;
-use noirc_frontend::{
+use crate::graph::{CrateGraph, CrateId};
+use crate::hir::printer::items::ItemBuilder;
+use crate::{
     DataType, Generics, Kind, NamedGeneric, Type,
     ast::{Ident, ItemVisibility},
     graph::Dependency,
@@ -21,12 +22,34 @@ use noirc_frontend::{
     token::{FunctionAttributeKind, LocatedToken, SecondaryAttribute, SecondaryAttributeKind},
 };
 
-use super::items::{Impl, Import, Item, Module, TraitImpl};
+mod items;
 
-mod hir;
-mod types;
+use items::{Impl, Import, Item, Module, Trait, TraitImpl};
 
-pub(super) struct ItemPrinter<'context, 'string> {
+/// Returns the HIR as human-readable code for the given crate.
+/// At this point it is expected that all macros and comptime blocks have been expanded.
+pub fn display_crate(
+    crate_id: CrateId,
+    crate_graph: &CrateGraph,
+    def_maps: &DefMaps,
+    interner: &NodeInterner,
+) -> String {
+    let root_module_id = def_maps[&crate_id].root();
+    let module_id = ModuleId { krate: crate_id, local_id: root_module_id };
+
+    let mut builder = ItemBuilder::new(crate_id, interner, def_maps);
+    let item = builder.build_module(module_id);
+
+    let dependencies = &crate_graph[crate_id].dependencies;
+
+    let mut string = String::new();
+    let mut printer = ItemPrinter::new(crate_id, interner, def_maps, dependencies, &mut string);
+    printer.show_item(item);
+
+    string
+}
+
+struct ItemPrinter<'context, 'string> {
     crate_id: CrateId,
     interner: &'context NodeInterner,
     def_maps: &'context DefMaps,
@@ -213,7 +236,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         }
     }
 
-    fn show_data_type(&mut self, item_data_type: super::items::DataType) {
+    fn show_data_type(&mut self, item_data_type: items::DataType) {
         let type_id = item_data_type.id;
         let shared_data_type = self.interner.get_type(type_id);
         let data_type = shared_data_type.borrow();
@@ -335,7 +358,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         self.push(';');
     }
 
-    fn show_trait(&mut self, item_trait: super::items::Trait) {
+    fn show_trait(&mut self, item_trait: Trait) {
         let trait_id = item_trait.id;
         let trait_ = self.interner.get_trait(trait_id);
 

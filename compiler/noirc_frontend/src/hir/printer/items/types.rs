@@ -1,15 +1,15 @@
-use noirc_frontend::{NamedGeneric, Type, TypeBinding, hir::def_map::ModuleDefId};
+use crate::{NamedGeneric, Type, TypeBinding, hir::def_map::ModuleDefId};
 
-use super::ItemPrinter;
+use crate::hir::printer::ItemPrinter;
 
 impl ItemPrinter<'_, '_> {
-    pub(super) fn show_types_separated_by_comma(&mut self, types: &[Type]) {
+    pub(crate) fn show_types_separated_by_comma(&mut self, types: &[Type]) {
         self.show_separated_by_comma(types, |this, typ| {
             this.show_type(typ);
         });
     }
 
-    pub(super) fn show_type(&mut self, typ: &Type) {
+    pub(crate) fn show_type(&mut self, typ: &Type) {
         self.show_type_impl(typ, false /* as expression */);
     }
 

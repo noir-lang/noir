@@ -6,7 +6,9 @@ use crate::hir::{
     },
 };
 
-use crate::tests::{assert_no_errors, check_errors, get_program_errors};
+use crate::tests::{
+    assert_no_errors, assert_no_errors_and_to_string, check_errors, get_program_errors,
+};
 
 // Regression for #5388
 #[test]
@@ -82,7 +84,32 @@ fn unquoted_integer_as_integer_token() {
     }
     "#;
 
-    assert_no_errors(src);
+    let expanded = assert_no_errors_and_to_string(src);
+    insta::assert_snapshot!(expanded, @r"
+    trait Serialize<let N: u32> {
+        fn serialize() {
+        }
+    }
+    
+    impl Serialize<1> for Field {
+        fn serialize() {
+        }
+    }
+    
+    pub fn foobar() {
+    }
+    
+    comptime fn attr(_f: FunctionDefinition) -> Quoted {
+        let serialized_len: Field = 1_Field;
+        quote {
+            impl Serialize < $serialized_len > for Field {
+                fn serialize() {
+                    
+                }
+            }
+        }
+    }
+    ");
 }
 
 #[test]
@@ -101,7 +128,59 @@ fn allows_references_to_structs_generated_by_macros() {
     }
     "#;
 
-    assert_no_errors(src);
+    let expanded = assert_no_errors_and_to_string(src);
+    insta::assert_snapshot!(expanded, @r"
+    comptime fn make_new_struct(_s: TypeDefinition) -> Quoted {
+        quote {
+            struct Bar {
+                
+            }
+        }
+    }
+    
+    struct Bar {
+    }
+    
+    struct Foo {
+    }
+    
+    fn main() {
+        let _: Foo = Foo { };
+        let _: Bar = Bar { };
+    }
+    ");
+}
+
+#[test]
+fn generate_function_with_macros() {
+    let src = "
+    #[foo]
+    comptime fn foo(_f: FunctionDefinition) -> Quoted {
+        quote {
+            pub fn bar(x: i32) -> i32  {  
+                let y = x + 1;
+                y + 2
+            }
+        }
+    }
+    ";
+
+    let expanded = assert_no_errors_and_to_string(src);
+    insta::assert_snapshot!(expanded, @r"
+    comptime fn foo(_f: FunctionDefinition) -> Quoted {
+        quote {
+            pub fn bar(x: i32) -> i32 {
+                let y = x + 1;
+                y + 2
+            }
+        }
+    }
+    
+    pub fn bar(x: i32) -> i32 {
+        let y: i32 = x + 1_i32;
+        y + 2_i32
+    }
+    ");
 }
 
 #[test]
@@ -211,6 +290,32 @@ fn quote_code_fragments() {
         }
     "#;
     check_errors(src);
+}
+
+#[test]
+fn quote_code_fragments_no_failure() {
+    let src = r#"
+        fn main() {
+            comptime {
+                concat!(quote { assert( }, quote { true); });
+            }
+        }
+
+        comptime fn concat(a: Quoted, b: Quoted) -> Quoted {
+            quote { $a $b }
+        }
+    "#;
+
+    let expanded = assert_no_errors_and_to_string(src);
+    insta::assert_snapshot!(expanded, @r"
+    fn main() {
+        ()
+    }
+    
+    comptime fn concat(a: Quoted, b: Quoted) -> Quoted {
+        quote { $a $b }
+    }    
+    ");
 }
 
 #[test]

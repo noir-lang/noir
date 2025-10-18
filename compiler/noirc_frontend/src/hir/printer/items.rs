@@ -3,8 +3,10 @@
 //! This final code has all macros expanded and is mainly gathered from data
 //! inside `NodeInterner`, modules in `DefMaps` and function bodies from `HirExpression`s.
 
-use noirc_errors::Location;
-use noirc_frontend::{
+mod hir_def;
+mod types;
+
+use crate::{
     Kind, NamedGeneric, Type,
     ast::ItemVisibility,
     hir::def_map::ModuleId,
@@ -13,10 +15,11 @@ use noirc_frontend::{
         FuncId, GlobalId, ImplMethod, Methods, TraitId, TraitImplId, TypeAliasId, TypeId,
     },
 };
+use noirc_errors::Location;
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 
-use noirc_driver::CrateId;
-use noirc_frontend::{
+use crate::graph::CrateId;
+use crate::{
     ast::Ident,
     hir::def_map::{DefMaps, ModuleDefId},
     node_interner::NodeInterner,
@@ -256,10 +259,7 @@ impl<'context> ItemBuilder<'context> {
         Impl { generics, typ, methods }
     }
 
-    fn build_data_type_trait_impls(
-        &mut self,
-        data_type: &noirc_frontend::DataType,
-    ) -> Vec<TraitImpl> {
+    fn build_data_type_trait_impls(&mut self, data_type: &crate::DataType) -> Vec<TraitImpl> {
         let mut trait_impls = self
             .trait_impls
             .iter()
@@ -485,7 +485,7 @@ fn gather_named_type_vars(typ: &Type, type_vars: &mut BTreeSet<(String, Kind)>) 
     }
 }
 
-fn type_mentions_data_type(typ: &Type, data_type: &noirc_frontend::DataType) -> bool {
+fn type_mentions_data_type(typ: &Type, data_type: &crate::DataType) -> bool {
     match typ {
         Type::Array(length, typ) => {
             type_mentions_data_type(length, data_type) || type_mentions_data_type(typ, data_type)

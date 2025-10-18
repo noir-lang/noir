@@ -1,4 +1,4 @@
-use noirc_frontend::{
+use crate::{
     NamedGeneric, Type, TypeBindings,
     ast::{ItemVisibility, UnaryOp},
     hir::def_map::ModuleDefId,
@@ -13,7 +13,7 @@ use noirc_frontend::{
     token::FmtStrFragment,
 };
 
-use super::ItemPrinter;
+use crate::hir::printer::ItemPrinter;
 
 impl ItemPrinter<'_, '_> {
     fn show_hir_expression_id(&mut self, expr_id: ExprId) {
@@ -61,7 +61,7 @@ impl ItemPrinter<'_, '_> {
         }
     }
 
-    pub(super) fn show_hir_expression(&mut self, hir_expr: HirExpression, expr_id: ExprId) {
+    pub(crate) fn show_hir_expression(&mut self, hir_expr: HirExpression, expr_id: ExprId) {
         match hir_expr {
             HirExpression::Ident(hir_ident, generics) => {
                 self.show_hir_ident(hir_ident, Some(expr_id));
@@ -258,7 +258,7 @@ impl ItemPrinter<'_, '_> {
         }
     }
 
-    pub(super) fn show_hir_lambda(&mut self, hir_lambda: HirLambda) {
+    pub(crate) fn show_hir_lambda(&mut self, hir_lambda: HirLambda) {
         self.push('|');
         self.show_separated_by_comma(&hir_lambda.parameters, |this, (parameter, typ)| {
             this.show_hir_pattern(parameter.clone());
