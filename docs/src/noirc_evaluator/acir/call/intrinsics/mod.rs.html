@@ -147,16 +147,7 @@
 <a href="#146" id="146">146</a>
 <a href="#147" id="147">147</a>
 <a href="#148" id="148">148</a>
-<a href="#149" id="149">149</a>
-<a href="#150" id="150">150</a>
-<a href="#151" id="151">151</a>
-<a href="#152" id="152">152</a>
-<a href="#153" id="153">153</a>
-<a href="#154" id="154">154</a>
-<a href="#155" id="155">155</a>
-<a href="#156" id="156">156</a>
-<a href="#157" id="157">157</a>
-<a href="#158" id="158">158</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#149" id="149">149</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 
 <span class="kw">use </span><span class="kw">crate</span>::acir::{
     arrays,
@@ -251,24 +242,15 @@
                     .map(|array| <span class="macro">vec!</span>[array])
             }
             Intrinsic::AsSlice =&gt; {
-                <span class="kw">let </span>slice_contents = arguments[<span class="number">0</span>];
-                <span class="kw">let </span>slice_typ = dfg.type_of_value(slice_contents);
-                <span class="macro">assert!</span>(!slice_typ.is_nested_slice(), <span class="string">"ICE: Nested slice used in ACIR generation"</span>);
-
-                <span class="kw">let </span>flattened_length =
-                    slice_typ.element_types().iter().map(|typ| typ.flattened_size()).sum::&lt;u32&gt;();
-                <span class="kw">let </span>slice_length = <span class="self">self</span>.flattened_size(slice_contents, dfg);
-                <span class="kw">let </span>slice_length = <span class="kw">if </span>flattened_length == <span class="number">0 </span>{
-                    <span class="number">0
-                </span>} <span class="kw">else </span>{
-                    slice_length / flattened_length <span class="kw">as </span>usize
+                <span class="kw">let </span>array_contents = arguments[<span class="number">0</span>];
+                <span class="kw">let </span>array_type = dfg.type_of_value(array_contents);
+                <span class="macro">assert!</span>(!array_type.is_nested_slice(), <span class="string">"ICE: Nested slice used in ACIR generation"</span>);
+                <span class="kw">let </span>Type::Array(<span class="kw">_</span>, slice_length) = array_type <span class="kw">else </span>{
+                    <span class="macro">unreachable!</span>(<span class="string">"Expected Array input for `as_slice` intrinsic"</span>);
                 };
-
                 <span class="kw">let </span>slice_length = <span class="self">self</span>.acir_context.add_constant(slice_length);
-
-                <span class="kw">let </span>acir_value = <span class="self">self</span>.convert_value(slice_contents, dfg);
+                <span class="kw">let </span>acir_value = <span class="self">self</span>.convert_value(array_contents, dfg);
                 <span class="kw">let </span>result = <span class="self">self</span>.read_array(acir_value)<span class="question-mark">?</span>;
-
                 <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[
                     AcirValue::Var(slice_length, AcirType::unsigned(<span class="number">32</span>)),
                     AcirValue::Array(result),
