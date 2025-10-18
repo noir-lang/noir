@@ -93,24 +93,15 @@ impl Context<'_> {
                     .map(|array| vec![array])
             }
             Intrinsic::AsSlice => {
-                let slice_contents = arguments[0];
-                let slice_typ = dfg.type_of_value(slice_contents);
-                assert!(!slice_typ.is_nested_slice(), "ICE: Nested slice used in ACIR generation");
-
-                let flattened_length =
-                    slice_typ.element_types().iter().map(|typ| typ.flattened_size()).sum::<u32>();
-                let slice_length = self.flattened_size(slice_contents, dfg);
-                let slice_length = if flattened_length == 0 {
-                    0
-                } else {
-                    slice_length / flattened_length as usize
+                let array_contents = arguments[0];
+                let array_type = dfg.type_of_value(array_contents);
+                assert!(!array_type.is_nested_slice(), "ICE: Nested slice used in ACIR generation");
+                let Type::Array(_, slice_length) = array_type else {
+                    unreachable!("Expected Array input for `as_slice` intrinsic");
                 };
-
                 let slice_length = self.acir_context.add_constant(slice_length);
-
-                let acir_value = self.convert_value(slice_contents, dfg);
+                let acir_value = self.convert_value(array_contents, dfg);
                 let result = self.read_array(acir_value)?;
-
                 Ok(vec![
                     AcirValue::Var(slice_length, AcirType::unsigned(32)),
                     AcirValue::Array(result),
