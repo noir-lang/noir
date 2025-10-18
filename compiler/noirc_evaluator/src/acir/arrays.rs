@@ -881,8 +881,14 @@ impl Context<'_> {
             AcirValue::Array(values) => {
                 let flat_elem_type_sizes = calculate_element_type_sizes_array(values);
 
+                // If there's already a block with these same sizes, reuse it. It's fine do to so
+                // because the element type sizes array is never mutated.
+                if let Some(block_id) = self.type_sizes_to_blocks.get(&flat_elem_type_sizes) {
+                    return Ok(*block_id);
+                }
+
                 // The final array should will the flattened index at each outer array index
-                let init_values = vecmap(flat_elem_type_sizes, |type_size| {
+                let init_values = vecmap(flat_elem_type_sizes.clone(), |type_size| {
                     let var = self.acir_context.add_constant(type_size);
                     AcirValue::Var(var, AcirType::field())
                 });
@@ -892,6 +898,8 @@ impl Context<'_> {
                     element_type_sizes_len,
                     Some(AcirValue::Array(init_values.into())),
                 )?;
+
+                self.type_sizes_to_blocks.insert(flat_elem_type_sizes, element_type_sizes);
 
                 Ok(element_type_sizes)
             }
