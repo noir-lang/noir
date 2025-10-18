@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1760814871242,
+  "lastUpdate": 1760816703206,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23286,48 +23286,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "b5cbbae9d579a1d6f7c2ce007b35fe89546ab0f6",
-          "message": "chore: add brillig_call submodule (#10108)",
-          "timestamp": "2025-10-08T11:43:04Z",
-          "tree_id": "2695e827c1ed740ef0ff97d6357ec63b439fda37",
-          "url": "https://github.com/noir-lang/noir/commit/b5cbbae9d579a1d6f7c2ce007b35fe89546ab0f6"
-        },
-        "date": 1759925262957,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 263518,
-            "range": "± 694",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 228194,
-            "range": "± 10394",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2788733,
-            "range": "± 3557",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "michaeljklein@users.noreply.github.com",
             "name": "Michael J Klein",
             "username": "michaeljklein"
@@ -25379,6 +25337,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2796738,
             "range": "± 1936",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "28406cda5dcba5b0a8095f861dae695e9a8b5e3a",
+          "message": "chore(frontend): Re-organize frontend tests  (#10221)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-10-18T19:19:25Z",
+          "tree_id": "c7bff4eac0f925df5e35baab90df15e249e58a09",
+          "url": "https://github.com/noir-lang/noir/commit/28406cda5dcba5b0a8095f861dae695e9a8b5e3a"
+        },
+        "date": 1760816679609,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 258772,
+            "range": "± 437",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 231930,
+            "range": "± 841",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2799844,
+            "range": "± 3800",
             "unit": "ns/iter"
           }
         ]
