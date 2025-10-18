@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.0.0-beta.15](https://github.com/noir-lang/noir/compare/v1.0.0-beta.14...v1.0.0-beta.15) (2025-10-18)
+
+
+### Features
+
+* **ACIR:** Exact element_type_sizes_array ([#10188](https://github.com/noir-lang/noir/issues/10188)) ([82ec52a](https://github.com/noir-lang/noir/commit/82ec52a8c755d30ce655a2005834186a4acfa0c7))
+* Attempt to inline successors in `simplify_cfg` ([#9608](https://github.com/noir-lang/noir/issues/9608)) ([8d78787](https://github.com/noir-lang/noir/commit/8d787871c097c315193fed23204e56fa396003a7))
+
+
+### Bug Fixes
+
+* **ACIR:** Correct brillig parameter slice length for dynamic arrays ([#10198](https://github.com/noir-lang/noir/issues/10198)) ([0c0d8cc](https://github.com/noir-lang/noir/commit/0c0d8cc72785fdbbcad742ee45bc558f5261f474))
+* **ACIR:** Correctly display the zero expression ([#10124](https://github.com/noir-lang/noir/issues/10124)) ([37f0c99](https://github.com/noir-lang/noir/commit/37f0c99df4fa99b3436e0211801a521e63abf170))
+* **ACIR:** Incorrect slice length in AsSlice ([#10168](https://github.com/noir-lang/noir/issues/10168)) ([5e1fe51](https://github.com/noir-lang/noir/commit/5e1fe519ee70ea3c2c9eb1708f4b8347f528c2a8))
+* Address off-by-one error when removing casts before constraining to constant ([#10194](https://github.com/noir-lang/noir/issues/10194)) ([64d5926](https://github.com/noir-lang/noir/commit/64d592629184fab1bd938ad3c3cf4c3a1fbcf3ba))
+* Do not carry over `#[fold]` to unconstrained functions during monomorphization ([#10155](https://github.com/noir-lang/noir/issues/10155)) ([11c175d](https://github.com/noir-lang/noir/commit/11c175d38783514e833a733a2160225fcb0c2f71))
+* Emit error on oracle functions with function bodies ([#10132](https://github.com/noir-lang/noir/issues/10132)) ([96fb819](https://github.com/noir-lang/noir/commit/96fb8193436323f4469e5e6f6c7090a0be99be8f))
+* **ssa-interpreter:** Ignore index overflow when side effects are disabled ([#10183](https://github.com/noir-lang/noir/issues/10183)) ([f8b6e72](https://github.com/noir-lang/noir/commit/f8b6e72a31836f824f11a44d2ba8754af8d990a1))
+* **ssa:** SSA Interpreter handle overflow by promoting to Field ([#10097](https://github.com/noir-lang/noir/issues/10097)) ([d09585f](https://github.com/noir-lang/noir/commit/d09585f1a9b1370c3be58ffb3477eb0fa4349fd7))
+* **ssa:** Use `Type::element_size` instead of `Type::flattened_size` for `optimize_length_one_array_read` ([#10146](https://github.com/noir-lang/noir/issues/10146)) ([dbc6cfe](https://github.com/noir-lang/noir/commit/dbc6cfe7f0ead4e6780167de99e184909a486db8))
+
 ## [1.0.0-beta.14](https://github.com/noir-lang/noir/compare/v1.0.0-beta.13...v1.0.0-beta.14) (2025-10-06)
 
 
