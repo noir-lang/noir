@@ -61,6 +61,7 @@ fn main(x: Field, y: pub Field) {
     regression_4418(x);
     regression_slice_call_result(x, y);
     regression_4506();
+    regression_slice_to_brillig(x as u32 % 3);
 }
 
 // Ensure that slices of struct/tuple values work.
@@ -345,4 +346,30 @@ fn regression_slice_call_result(x: Field, y: Field) {
 fn regression_4506() {
     let slice: [Field] = &[1, 2, 3];
     assert(slice == slice);
+}
+
+struct foo {
+    a: u32,
+    b: u32,
+    c: [Field; 3],
+}
+fn regression_slice_to_brillig(x: u32) {
+    let mut slice = &[foo { a: 0, b: 0, c: [0, 0, 0] }, foo { a: 1, b: 1, c: [0, 0, 0] }];
+    let mut foo1 = foo { a: 10, b: 10, c: [0, 0, 0] };
+    foo1.c[x] = 7;
+    slice = slice.push_back(foo1);
+    slice = slice.push_back(foo { a: 0, b: 0, c: [0, 0, 0] });
+    let (new_slice, _) = slice.pop_back();
+    slice = new_slice;
+    // Safety: for testing purposes
+    let ok = unsafe { bar(slice) };
+    assert(ok);
+}
+
+unconstrained fn bar(slice: [foo]) -> bool {
+    if slice.len() != 0 {
+        slice[0].a == 0
+    } else {
+        false
+    }
 }

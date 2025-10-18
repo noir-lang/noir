@@ -1,8 +1,10 @@
-use crate::acir::types::flat_numeric_types;
+use crate::acir::types::{flat_element_types, flat_numeric_types};
 use crate::acir::{AcirDynamicArray, AcirType, AcirValue};
 use crate::errors::RuntimeError;
+use crate::ssa::ir::types::Type;
 use crate::ssa::ir::{dfg::DataFlowGraph, value::ValueId};
 use acvm::{AcirField, FieldElement};
+use iter_extended::vecmap;
 
 use super::Context;
 
@@ -31,18 +33,137 @@ impl Context<'_> {
 
         // Increase the slice length by one to enable accessing more elements in the slice.
         let one = self.acir_context.add_constant(FieldElement::one());
-        let new_slice_length = self.acir_context.add_var(slice_length, one)?;
 
         let slice = self.convert_value(slice_contents, dfg);
-        let mut new_slice = self.read_array(slice)?;
+        let slice_typ = dfg.type_of_value(slice_contents);
 
-        // We must directly push back elements for non-nested slices
-        for elem in elements_to_push {
-            let element = self.convert_value(*elem, dfg);
-            new_slice.push_back(element);
-        }
+        let (new_slice_length, new_slice_val) = if let Some(len_const) =
+            dfg.get_numeric_constant(arguments[0])
+        {
+            // Length is known at compile time - we can precisely determine where to write
+            let mut new_slice = self.read_array_with_type(slice, &slice_typ)?;
+            let old_slice_len = new_slice.len();
+            // length of Acir Values slice
+            let len = len_const.to_u128() as usize * elements_to_push.len();
 
-        let new_slice_val = AcirValue::Array(new_slice);
+            for (i, elem) in elements_to_push.iter().enumerate() {
+                let element = self.convert_value(*elem, dfg);
+                let write_index = len + i;
+
+                // If the array is already large enough, replace the element at the write position.
+                // Otherwise, append to the end.
+                if write_index < new_slice.len() {
+                    new_slice[write_index] = element;
+                } else {
+                    new_slice.push_back(element);
+                }
+            }
+            let new_slice_length = if new_slice.len() > old_slice_len {
+                self.acir_context.add_var(slice_length, one)?
+            } else {
+                slice_length
+            };
+            (new_slice_length, AcirValue::Array(new_slice))
+        } else {
+            // Length is not known, we are going to:
+            // 1. Push dummy data to the slice, so that it's capacity covers for the push_back
+            // 2. Generate a DynamicArray corresponding to the new slice flattened content
+            // 3. Write the elements to push to this array at the correct length
+            let value_types = flat_element_types(&slice_typ);
+            let Type::Slice(slice_types) = &slice_typ else {
+                unreachable!("ICE: slice operation on a non slice type");
+            };
+
+            let mut elements_var = Vec::new();
+            let mut element_size = 0;
+            let mut new_slice = self.read_array_with_type(slice, &slice_typ)?;
+            let zero = self.acir_context.add_constant(FieldElement::zero());
+
+            // 1. Convert the elements-to-push into flattened acir_var and at the same time
+            // push_back corresponding dummy zero values to the AcirValues slice.
+            for (elem, ssa_typ) in elements_to_push.iter().zip(slice_types.to_vec()) {
+                let element = self.convert_value(*elem, dfg);
+                element_size += super::arrays::flattened_value_size(&element);
+                match element {
+                    AcirValue::Var(acir_var, acir_type) => {
+                        new_slice.push_back(AcirValue::Var(zero, acir_type));
+                        elements_var.push(acir_var);
+                    }
+                    AcirValue::Array(vector) => {
+                        let zero_value = self.array_zero_value(&ssa_typ)?;
+                        new_slice.push_back(zero_value);
+                        for acir_value in vector {
+                            let acir_vars = self.flatten(&acir_value)?;
+                            for var in acir_vars {
+                                elements_var.push(var);
+                            }
+                        }
+                    }
+                    AcirValue::DynamicArray(_) => {
+                        unimplemented!("pushing a dynamic array into a slice is not yet supported");
+                    }
+                }
+            }
+
+            // The actual flattened size of new_slice after the dummy push_back
+            let len = super::arrays::flattened_value_size(&AcirValue::Array(new_slice.clone()));
+
+            // 2. Copy the slice into an AcirDynamicArray
+            // Generates the element_type_sizes array
+            let element_type_sizes =
+                if super::arrays::array_has_constant_element_size(&slice_typ).is_none() {
+                    let element_type_sizes = self.new_block_id();
+                    let flat_elem_type_sizes =
+                        super::arrays::calculate_element_type_sizes_array(&new_slice);
+                    // The final array should will the flattened index at each outer array index
+                    let init_values = vecmap(flat_elem_type_sizes, |type_size| {
+                        let var = self.acir_context.add_constant(type_size);
+                        AcirValue::Var(var, AcirType::field())
+                    });
+                    let element_type_sizes_len = init_values.len();
+                    self.initialize_array(
+                        element_type_sizes,
+                        element_type_sizes_len,
+                        Some(AcirValue::Array(init_values.into())),
+                    )?;
+                    Some(element_type_sizes)
+                } else {
+                    None
+                };
+
+            let block_id = self.new_block_id();
+            self.initialize_array(block_id, len, Some(AcirValue::Array(new_slice)))?;
+            let flattened_dynamic_array =
+                AcirDynamicArray { block_id, len, value_types, element_type_sizes };
+
+            // 3. Write to the dynamic array
+
+            // 3.1 Computes the flatten_idx where to write into the dynamic array:
+            // Use element_type_size if it exists; convert the user index (slice_length) into the AcirValues index,
+            // and then flatten it with element_type_size
+            let mut flatten_idx = if let Some(element_type_sizes) = element_type_sizes {
+                let predicate_index = self
+                    .acir_context
+                    .mul_var(slice_length, self.current_side_effects_enabled_var)?;
+                let acir_element_size = self.acir_context.add_constant(elements_to_push.len());
+                let acir_value_index =
+                    self.acir_context.mul_var(predicate_index, acir_element_size)?;
+                self.acir_context
+                    .read_from_memory(element_type_sizes, &acir_value_index)
+                    .map_err(RuntimeError::from)?
+            } else {
+                // If it does not exist; the array is homogenous and we can simply multiply by size of the array elements
+                let element_size_var = self.acir_context.add_constant(element_size);
+                self.acir_context.mul_var(slice_length, element_size_var)?
+            };
+            // Write the elements to the dynamic array
+            for element in &elements_var {
+                self.acir_context.write_to_memory(block_id, &flatten_idx, element)?;
+                flatten_idx = self.acir_context.add_var(flatten_idx, one)?;
+            }
+            let new_slice_length = self.acir_context.add_var(slice_length, one)?;
+            (new_slice_length, AcirValue::DynamicArray(flattened_dynamic_array))
+        };
 
         Ok(vec![AcirValue::Var(new_slice_length, AcirType::unsigned(32)), new_slice_val])
     }
@@ -133,6 +254,11 @@ impl Context<'_> {
 
         let block_id = self.ensure_array_is_initialized(slice_contents, dfg)?;
 
+        let slice_type = dfg.type_of_value(slice_contents);
+        let item_size = slice_type.element_size();
+        let item_size = self.acir_context.add_constant(item_size);
+        var_index = self.acir_context.mul_var(var_index, item_size)?;
+
         let mut popped_elements = Vec::new();
         for res in &result_ids[2..] {
             let elem = self.array_get_value(&dfg.type_of_value(*res), block_id, &mut var_index)?;
@@ -140,7 +266,7 @@ impl Context<'_> {
         }
 
         let slice = self.convert_value(slice_contents, dfg);
-        let new_slice = self.read_array(slice)?;
+        let new_slice = self.read_array_with_type(slice, &slice_type)?;
 
         let mut results = vec![
             AcirValue::Var(new_slice_length, AcirType::unsigned(32)),
@@ -283,11 +409,14 @@ impl Context<'_> {
 
         let mut slice_size = super::arrays::flattened_value_size(&slice);
 
+        let elements_to_insert = &arguments[3..];
+
         // Fetch the flattened index from the user provided index argument.
+        let item_size = self.acir_context.add_constant(elements_to_insert.len());
+        let insert_index = self.acir_context.mul_var(insert_index, item_size)?;
         let flat_user_index =
             self.get_flattened_index(&slice_typ, slice_contents, insert_index, dfg)?;
 
-        let elements_to_insert = &arguments[3..];
         // Determine the elements we need to write into our resulting dynamic array.
         // We need to a fully flat list of AcirVar's as a dynamic array is represented with flat memory.
         let mut inner_elem_size_usize = 0;
@@ -483,6 +612,10 @@ impl Context<'_> {
             slice_size,
             "ICE: The read flattened slice should match the computed size"
         );
+
+        let item_size = slice_typ.element_size();
+        let item_size = self.acir_context.add_constant(item_size);
+        let remove_index = self.acir_context.mul_var(remove_index, item_size)?;
 
         // Fetch the flattened index from the user provided index argument.
         let flat_user_index =
