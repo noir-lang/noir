@@ -1,3 +1,5 @@
+//! Visibility checking for functions, struct fields, and type privacy.
+
 use noirc_errors::Location;
 
 use crate::{

@@ -1,3 +1,5 @@
+//! Non-trait impl block collection and method declaration.
+
 use noirc_errors::Location;
 
 use crate::{

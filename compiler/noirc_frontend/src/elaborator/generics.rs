@@ -1,3 +1,5 @@
+//! Generic parameter resolution and type parameter handling.
+
 use std::rc::Rc;
 
 use iter_extended::vecmap;

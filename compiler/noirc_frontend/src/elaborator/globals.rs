@@ -1,3 +1,5 @@
+//! Global constant definition elaboration and comptime evaluation.
+
 use crate::{
     ast::{ExpressionKind, Literal, Pattern},
     hir::{def_collector::dc_crate::UnresolvedGlobal, resolution::errors::ResolverError},

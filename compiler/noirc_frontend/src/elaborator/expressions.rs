@@ -1,3 +1,5 @@
+//! Expression elaboration, covering all expression [kinds][ExpressionKind].
+
 use iter_extended::vecmap;
 use noirc_errors::{Located, Location};
 use rustc_hash::FxHashSet as HashSet;

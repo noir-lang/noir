@@ -1,3 +1,53 @@
+//! # The Elaborator
+//!
+//! The elaborator is the core semantic analysis phase of the compiler. It transforms collected,
+//! unresolved AST items into fully resolved and type-checked HIR through simultaneous and intertwined
+//! name resolution, type checking, trait resolution, and macro expansion. It also handles pattern
+//! elaboration, generic type processing, comptime interpretation, reference validation, and scope management.
+//!
+//! ## Architecture Overview
+//!
+//! The elaborator operates in several distinct phases, processing items in a specific order to handle
+//! dependencies correctly:
+//!
+//! ### Early Resolution
+//! 1. Literal globals - Fully elaborated first since they may be used as numeric generics in struct definitions
+//! 2. Non-literal globals - Deferred for elaboration later after type resolution
+//! 3. Type aliases - Defined to allow their use in subsequent type definitions
+//!
+//! ### Type Collection
+//! 1. Struct definitions - Collected so their types are available for use
+//! 2. Enum definitions - Collected so their types are available for use
+//! 3. Trait definitions - Collected so trait bounds can be resolved
+//!
+//! ### Function metadata and Implementations
+//! 1. Function metadata - Signatures extracted and type-checked before bodies are elaborated
+//! 2. Trait methods - Method signatures collected from trait definitions
+//! 3. Impl blocks - Methods organized into their proper modules based on the impl's type
+//! 4. Trait impls - Bound to their corresponding traits and validated
+//!
+//! ### Non-literal Global Elaboration
+//! - Non-literal globals - Elaborated after type resolution since structs need global type information
+//!
+//! ### Attribute Processing
+//! - Comptime attributes - Executed before function body elaboration, as generated items must be checked beforehand
+//!
+//! ### Full Item Elaboration
+//! 1. Functions - Function bodies elaborated and type-checked
+//! 2. Traits - Trait default method implementations elaborated
+//! 3. Impls - Implementation method bodies elaborated
+//! 4. Trait impls - Trait implementation method bodies elaborated and validated against trait signatures
+//!
+//! ### Dependency Analysis
+//! Detect and report dependency cycles to prevent infinite elaboration loops
+//!
+//! ## Error Handling
+//!
+//! The elaborator accumulates errors rather than failing fast, allowing it to report multiple
+//! errors in a single compilation pass. Errors are collected throughout elaboration and may be
+//! wrapped with additional context when elaborating generated code (e.g., from attributes or
+//! comptime calls).
+
 use std::{
     cell::RefCell,
     collections::{BTreeMap, BTreeSet},

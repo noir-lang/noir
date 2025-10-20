@@ -1,3 +1,5 @@
+//! Primitive type definitions
+
 use noirc_errors::Location;
 
 use crate::{
