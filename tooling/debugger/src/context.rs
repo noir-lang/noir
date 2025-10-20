@@ -1087,8 +1087,7 @@ mod tests {
         acir::{
             AcirField,
             brillig::{HeapVector, IntegerBitSize},
-            circuit::brillig::{BrilligFunctionId, BrilligInputs},
-            native_types::Expression,
+            circuit::brillig::BrilligFunctionId,
         },
         blackbox_solver::StubbedBlackBoxSolver,
         brillig_vm::brillig::{
@@ -1135,18 +1134,16 @@ mod tests {
                 },
             ],
         };
-        let opcodes = vec![Opcode::BrilligCall {
-            id: BrilligFunctionId(0),
-            inputs: vec![BrilligInputs::Single(Expression {
-                linear_combinations: vec![(fe_1, w_x)],
-                ..Expression::default()
-            })],
-            outputs: vec![],
-            predicate: None,
-        }];
         let brillig_functions = &[brillig_bytecode];
-        let current_witness_index = 2;
-        let circuit = Circuit { current_witness_index, opcodes, ..Circuit::default() };
+        let src = format!(
+            "
+        private parameters: []
+        public parameters: []
+        return values: []
+        BRILLIG CALL func: 0, inputs: [{w_x}], outputs: []
+        "
+        );
+        let circuit = Circuit::from_str(&src).unwrap();
         let circuits = &[circuit];
 
         let debug_symbols = vec![];

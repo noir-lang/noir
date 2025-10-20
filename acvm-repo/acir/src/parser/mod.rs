@@ -135,6 +135,12 @@ impl Expression<FieldElement> {
     }
 }
 
+pub fn parse_opcodes(src: &str) -> Result<Vec<Opcode<FieldElement>>, AcirParserErrorWithSource> {
+    let mut parser =
+        Parser::new(src).map_err(|err| AcirParserErrorWithSource::parse_error(err, src))?;
+    parser.parse_opcodes().map_err(|err| AcirParserErrorWithSource::parse_error(err, src))
+}
+
 struct Parser<'a> {
     lexer: Lexer<'a>,
     token: SpannedToken,
