@@ -1106,7 +1106,20 @@
 <a href="#1105" id="1105">1105</a>
 <a href="#1106" id="1106">1106</a>
 <a href="#1107" id="1107">1107</a>
-<a href="#1108" id="1108">1108</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
+<a href="#1108" id="1108">1108</a>
+<a href="#1109" id="1109">1109</a>
+<a href="#1110" id="1110">1110</a>
+<a href="#1111" id="1111">1111</a>
+<a href="#1112" id="1112">1112</a>
+<a href="#1113" id="1113">1113</a>
+<a href="#1114" id="1114">1114</a>
+<a href="#1115" id="1115">1115</a>
+<a href="#1116" id="1116">1116</a>
+<a href="#1117" id="1117">1117</a>
+<a href="#1118" id="1118">1118</a>
+<a href="#1119" id="1119">1119</a>
+<a href="#1120" id="1120">1120</a>
+<a href="#1121" id="1121">1121</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 <span class="kw">use </span>rustc_stable_hash::{FromStableHash, SipHasher128Hash};
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="kw">use </span>std::hash::Hash;
@@ -2199,19 +2212,32 @@
 
 <span class="doccomment">/// Try to avoid mutation until we know something changed, to take advantage of
 /// structural sharing, and avoid needlessly calling `Arc::make_mut` which clones
-/// the content and increases memory use.
+/// the content and increases memory use by allocating more pointers on the heap.
 </span><span class="kw">fn </span>im_vec_map_values_mut&lt;T, F&gt;(xs: <span class="kw-2">&amp;mut </span>im::Vector&lt;T&gt;, <span class="kw-2">mut </span>f: F)
 <span class="kw">where
     </span>T: Copy + PartialEq,
     F: FnMut(T) -&gt; T,
 {
-    <span class="comment">// Even `xs.iter_mut()` calls `get_mut` on each element.
-    </span><span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..xs.len() {
-        <span class="kw">let </span>x = xs[i];
-        <span class="kw">let </span>y = f(x);
-        <span class="kw">if </span>x != y {
-            xs[i] = y;
+    <span class="comment">// Even `xs.iter_mut()` calls `get_mut` on each element, regardless of whether there is actual mutation.
+    // If we go index-by-index, get the item, put it back only if it changed, then we can avoid
+    // allocating memory unless we need to, however we incur O(n * log(n)) complexity.
+    // Collecting changes first and then updating only those positions proved to be the
+    // fastest among some alternatives that didn't sacrifice memory for speed or vice versa.
+    </span><span class="kw">let </span><span class="kw-2">mut </span>changes = Vec::new();
+    <span class="kw">for </span>(i, x) <span class="kw">in </span>xs.iter().enumerate() {
+        <span class="kw">let </span>y = f(<span class="kw-2">*</span>x);
+        <span class="kw">if </span><span class="kw-2">*</span>x != y {
+            changes.push((i, y));
         }
+    }
+    <span class="kw">if </span>changes.is_empty() {
+        <span class="kw">return</span>;
+    }
+    <span class="comment">// Using `Focus` allows us to only make mutable what is needed,
+    // and should be faster for batches than indexing individual items.
+    </span><span class="kw">let </span><span class="kw-2">mut </span>focus = xs.focus_mut();
+    <span class="kw">for </span>(i, y) <span class="kw">in </span>changes {
+        focus.set(i, y);
     }
 }
 </code></pre></div></section></main></body></html>
