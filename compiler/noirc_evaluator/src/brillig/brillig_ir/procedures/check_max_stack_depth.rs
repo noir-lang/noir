@@ -17,7 +17,8 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 /// The stack start should be computed earlier after allocating space for globals and the entry point.
 ///
 /// Remember that the memory layout for entry points is as follows:
-/// {reserved} {scratch} {globals} {entry point (call data + return data)} {stack} {heap}
+///
+/// `{reserved} {scratch} {globals} {entry point (call data + return data)} {stack} {heap}`
 pub(super) fn compile_check_max_stack_depth_procedure<F: AcirField + DebugToString>(
     brillig_context: &mut BrilligContext<F, ScratchSpace>,
     stack_start: usize,
@@ -27,11 +28,13 @@ pub(super) fn compile_check_max_stack_depth_procedure<F: AcirField + DebugToStri
     let max_stack_size = brillig_context.registers.layout().max_stack_size();
     let max_frame_size = brillig_context.registers.layout().max_stack_frame_size();
 
+    let last_possible_stack_start = stack_start + max_stack_size - max_frame_size;
+
     brillig_context.codegen_usize_op(
         ReservedRegisters::stack_pointer(),
         in_range.address,
         BrilligBinaryOp::LessThan,
-        max_stack_size - max_frame_size + stack_start,
+        last_possible_stack_start,
     );
     brillig_context.codegen_constrain(in_range, Some("Stack too deep".to_string()));
     brillig_context.deallocate_single_addr(in_range);

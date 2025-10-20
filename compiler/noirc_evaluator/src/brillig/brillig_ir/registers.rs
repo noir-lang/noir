@@ -57,10 +57,12 @@ impl LayoutConfig {
         Self { max_stack_frame_size, max_stack_size, max_scratch_space }
     }
 
+    /// The maximum size of an individual stack frame.
     pub(crate) fn max_stack_frame_size(&self) -> usize {
         self.max_stack_frame_size
     }
 
+    /// The overall maximum stack size is the maximum number of frames times the maximum size of an individual stack frame.
     pub(crate) fn max_stack_size(&self) -> usize {
         self.max_stack_size
     }
@@ -70,19 +72,21 @@ impl LayoutConfig {
     }
 
     /// Start of the entry point region:
-    /// {reserved} {scratch space} {globals} [call data]
+    /// `{reserved} {scratch space} {globals} [call data]`
+    ///
+    /// Returns the point where `call data` can start.
     pub(crate) fn entry_point_start(&self, globals_size: usize) -> usize {
         ScratchSpace::end_with_layout(self) + globals_size
     }
 
     /// Start of the return data within the entry point region:
-    /// {reserved} {scratch space} {globals} {call data} [return data]
+    /// `{reserved} {scratch space} {globals} {call data} [return data]`
     pub(crate) fn return_data_start(&self, globals_size: usize, calldata_size: usize) -> usize {
         self.entry_point_start(globals_size) + calldata_size
     }
 }
 
-/// These constants represent expert chosen defaults that are appropriate for the majority of programs
+// These constants represent expert chosen defaults that are appropriate for the majority of programs
 pub(crate) const NUM_STACK_FRAMES: usize = 16;
 pub(crate) const MAX_STACK_FRAME_SIZE: usize = 2048;
 pub(crate) const MAX_SCRATCH_SPACE: usize = 64;
@@ -208,10 +212,12 @@ impl ScratchSpace {
         index >= self.start() && index < self.end()
     }
 
+    /// Return the end of `{reserved}` where `{scratch space}` can start.
     pub(super) fn start() -> usize {
         ReservedRegisters::len()
     }
 
+    /// Return the end of `{reserved} {scratch space}`
     pub(super) fn end_with_layout(layout: &LayoutConfig) -> usize {
         ReservedRegisters::len() + layout.max_scratch_space()
     }
