@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1760964533555,
+  "lastUpdate": 1760964632343,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23181,48 +23181,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "bf7d3631382c7ccc171ef5cf9c3b8fd752887a1d",
-          "message": "chore(ACIR): don't override output count in black box function (#10123)",
-          "timestamp": "2025-10-09T11:11:17Z",
-          "tree_id": "d43191a8bc34ab4e4e5a5c7eb63a3f49a87eba75",
-          "url": "https://github.com/noir-lang/noir/commit/bf7d3631382c7ccc171ef5cf9c3b8fd752887a1d"
-        },
-        "date": 1760009743455,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 258456,
-            "range": "± 259",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 226537,
-            "range": "± 4771",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2783850,
-            "range": "± 9369",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -25274,6 +25232,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2798732,
             "range": "± 10580",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0ec7e299b011ba21c752eba18f11cb1720e05b6b",
+          "message": "chore(frontend): HIR printer module for inline macro expansion unit tests  (#10232)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
+          "timestamp": "2025-10-20T12:26:53Z",
+          "tree_id": "dc400d20337e576878a4cfbf7c96f0d4e8eaa3b1",
+          "url": "https://github.com/noir-lang/noir/commit/0ec7e299b011ba21c752eba18f11cb1720e05b6b"
+        },
+        "date": 1760964608046,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 256733,
+            "range": "± 829",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 229062,
+            "range": "± 3310",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2796401,
+            "range": "± 1438",
             "unit": "ns/iter"
           }
         ]
