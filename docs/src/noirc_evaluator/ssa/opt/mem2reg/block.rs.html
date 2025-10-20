@@ -255,7 +255,41 @@
 <a href="#254" id="254">254</a>
 <a href="#255" id="255">255</a>
 <a href="#256" id="256">256</a>
-<a href="#257" id="257">257</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
+<a href="#257" id="257">257</a>
+<a href="#258" id="258">258</a>
+<a href="#259" id="259">259</a>
+<a href="#260" id="260">260</a>
+<a href="#261" id="261">261</a>
+<a href="#262" id="262">262</a>
+<a href="#263" id="263">263</a>
+<a href="#264" id="264">264</a>
+<a href="#265" id="265">265</a>
+<a href="#266" id="266">266</a>
+<a href="#267" id="267">267</a>
+<a href="#268" id="268">268</a>
+<a href="#269" id="269">269</a>
+<a href="#270" id="270">270</a>
+<a href="#271" id="271">271</a>
+<a href="#272" id="272">272</a>
+<a href="#273" id="273">273</a>
+<a href="#274" id="274">274</a>
+<a href="#275" id="275">275</a>
+<a href="#276" id="276">276</a>
+<a href="#277" id="277">277</a>
+<a href="#278" id="278">278</a>
+<a href="#279" id="279">279</a>
+<a href="#280" id="280">280</a>
+<a href="#281" id="281">281</a>
+<a href="#282" id="282">282</a>
+<a href="#283" id="283">283</a>
+<a href="#284" id="284">284</a>
+<a href="#285" id="285">285</a>
+<a href="#286" id="286">286</a>
+<a href="#287" id="287">287</a>
+<a href="#288" id="288">288</a>
+<a href="#289" id="289">289</a>
+<a href="#290" id="290">290</a>
+<a href="#291" id="291">291</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
     function::Function,
@@ -337,6 +371,40 @@
             </span><span class="kw">for </span>alias <span class="kw">in </span>aliases.iter() {
                 <span class="self">self</span>.references.remove(<span class="kw-2">&amp;</span>alias);
             }
+        }
+
+        <span class="comment">// Issue https://github.com/noir-lang/noir/issues/10070
+        // When setting the value at `address`, it may impact any expression having unknown aliases
+        // because the `address` could reference such expressions.
+        // This is what happens in the issue linked above. An array of references is modified in two branches
+        // and as a result the parameter of the block joining the two branches is set to unknown aliases in `handle_terminator()`.
+        // Any value set here may be done on an address to the unknown aliases. Since we do no know them, we must conservatively
+        // invalidate their values.
+        // Furthermore, if the aliases are known and include the modified `address`, then we must invalidate the aliases values as well.
+        </span><span class="kw">let </span>addresses_to_invalidate: Vec&lt;ValueId&gt; = <span class="self">self
+            </span>.expressions
+            .iter()
+            .filter_map(|(other_address, other_expression)| {
+                <span class="comment">// Skip the address we're storing to, since its value is known
+                </span><span class="kw">if </span><span class="kw-2">*</span>other_address == address {
+                    <span class="kw">return </span><span class="prelude-val">None</span>;
+                }
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(other_aliases) = <span class="self">self</span>.aliases.get(other_expression) {
+                    <span class="kw">if </span>other_aliases.is_unknown() {
+                        <span class="comment">// other_address with unknown alias set could alias anything and must be conservatively invalidated
+                        </span><span class="kw">return </span><span class="prelude-val">Some</span>(<span class="kw-2">*</span>other_address);
+                    }
+                    <span class="kw">if </span>other_aliases.iter().any(|alias| alias == address) {
+                        <span class="comment">//other_address's alias set contains the address we're storing to, so it must be invalidated
+                        </span><span class="kw">return </span><span class="prelude-val">Some</span>(<span class="kw-2">*</span>other_address);
+                    }
+                }
+                <span class="prelude-val">None
+            </span>})
+            .collect();
+        <span class="comment">// Invalidate addresses with possible aliasing to `address`
+        </span><span class="kw">for </span>addr <span class="kw">in </span>addresses_to_invalidate {
+            <span class="self">self</span>.references.remove(<span class="kw-2">&amp;</span>addr);
         }
 
         <span class="comment">// We always know address points to value
