@@ -2602,7 +2602,19 @@
 <a href="#2601" id="2601">2601</a>
 <a href="#2602" id="2602">2602</a>
 <a href="#2603" id="2603">2603</a>
-<a href="#2604" id="2604">2604</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
+<a href="#2604" id="2604">2604</a>
+<a href="#2605" id="2605">2605</a>
+<a href="#2606" id="2606">2606</a>
+<a href="#2607" id="2607">2607</a>
+<a href="#2608" id="2608">2608</a>
+<a href="#2609" id="2609">2609</a>
+<a href="#2610" id="2610">2610</a>
+<a href="#2611" id="2611">2611</a>
+<a href="#2612" id="2612">2612</a>
+<a href="#2613" id="2613">2613</a>
+<a href="#2614" id="2614">2614</a>
+<a href="#2615" id="2615">2615</a>
+<a href="#2616" id="2616">2616</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
 //! addresses with the value stored at that address, if it is also known. This pass will also remove
 //! any `Store` instructions within a block that are no longer needed because no more loads occur in
 //! between the Store in question and the next Store.
@@ -3137,7 +3149,6 @@
                 <span class="kw">let </span>value = <span class="kw-2">*</span>value;
 
                 <span class="kw">let </span>address_aliases = references.get_aliases_for_value(address);
-
                 <span class="comment">// If there was another store to this instruction without any (unremoved) loads or
                 // function calls in-between, we can remove the previous store.
                 </span><span class="kw">if </span>!<span class="self">self</span>.aliased_references.contains_key(<span class="kw-2">&amp;</span>address) &amp;&amp; !address_aliases.is_unknown()
@@ -3173,12 +3184,21 @@
                         .extend(references.get_aliases_for_value(array).iter());
                     references.mark_value_used(array, <span class="self">self</span>.inserter.function);
 
-                    <span class="comment">// An expression for the array might already exist, so try to fetch it first
+                    <span class="comment">// An expression for the value might already exist, so try to fetch it first
                     </span><span class="kw">let </span>expression = references.expressions.get(<span class="kw-2">&amp;</span>array).copied();
                     <span class="kw">let </span>expression = expression.unwrap_or(Expression::Other(array));
-
                     <span class="kw">if let </span><span class="prelude-val">Some</span>(aliases) = references.aliases.get_mut(<span class="kw-2">&amp;</span>expression) {
                         aliases.insert(result);
+                    }
+
+                    <span class="comment">// Any aliases of the array need to be updated to also include the result of the array get in their alias sets.
+                    </span><span class="kw">for </span>alias <span class="kw">in </span>(<span class="kw-2">*</span>references.get_aliases_for_value(array)).clone().iter() {
+                        <span class="comment">// An expression for the alias might already exist, so try to fetch it first
+                        </span><span class="kw">let </span>expression = references.expressions.get(<span class="kw-2">&amp;</span>alias).copied();
+                        <span class="kw">let </span>expression = expression.unwrap_or(Expression::Other(alias));
+                        <span class="kw">if let </span><span class="prelude-val">Some</span>(aliases) = references.aliases.get_mut(<span class="kw-2">&amp;</span>expression) {
+                            aliases.insert(result);
+                        }
                     }
 
                     <span class="comment">// In this SSA:
@@ -3212,11 +3232,15 @@
                     } <span class="kw">else </span>{
                         AliasSet::unknown()
                     };
-
                     aliases.unify(<span class="kw-2">&amp;</span>references.get_aliases_for_value(<span class="kw-2">*</span>value));
 
                     references.expressions.insert(result, expression);
-                    references.aliases.insert(expression, aliases);
+                    references.aliases.insert(expression, aliases.clone());
+
+                    <span class="comment">// The value being stored in the array also needs its aliases updated to match the array itself
+                    </span><span class="kw">let </span>value_expression = references.expressions.get(value).copied();
+                    <span class="kw">let </span>value_expression = value_expression.unwrap_or(Expression::Other(<span class="kw-2">*</span>value));
+                    references.aliases.insert(value_expression, aliases);
 
                     <span class="comment">// Similar to how we remember that we used a value in a `Store` instruction,
                     // take note that it was used in the `ArraySet`. If this instruction is not
