@@ -1,107 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1760975098264,
+  "lastUpdate": 1760975694509,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "da35eca7a0e1ff8de506fdcdac81076e6f0ad239",
-          "message": "chore(brillig_vm): Expand arithmetic int ops tests and add field ops tests (#10101)",
-          "timestamp": "2025-10-09T13:12:09Z",
-          "tree_id": "0b3e8a840a69224c088859f350c7d4e9e68e4792",
-          "url": "https://github.com/noir-lang/noir/commit/da35eca7a0e1ff8de506fdcdac81076e6f0ad239"
-        },
-        "date": 1760017800231,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 273.55,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 562.99,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 256.78,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 343.3,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 340.5,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 344.32,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 344.35,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 9710,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 9720,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 346.97,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 1360,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 6960,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 339.37,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 97.55,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 251.55,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -4903,6 +4804,100 @@ window.BENCHMARK_DATA = {
           },
           {
             "name": "rollup-checkpoint-root",
+            "value": 6810,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 344.07,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 1050,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 2890,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 337.64,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 92.18,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 185.48,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6424d4ac90d4a78560d3689066762d5fb6a2640d",
+          "message": "chore(frontend): Split up traits tests module into submodules (#10229)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
+          "timestamp": "2025-10-20T14:58:03Z",
+          "tree_id": "3883d248321f0d2ce2fd52e3809cc0f4e61c23da",
+          "url": "https://github.com/noir-lang/noir/commit/6424d4ac90d4a78560d3689066762d5fb6a2640d"
+        },
+        "date": 1760975671204,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 265.5,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 493.18,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 247.54,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 340.02,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 337.42,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 340.43,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 339.76,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
             "value": 6810,
             "unit": "MB"
           },
