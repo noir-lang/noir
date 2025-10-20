@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1760975696816,
+  "lastUpdate": 1760988481244,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23091,48 +23091,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "e6e45e93861623f29f272fc68109f7ca5d4841e7",
-          "message": "chore: unhide `inliner-aggressiveness` option (#10137)",
-          "timestamp": "2025-10-09T15:26:23Z",
-          "tree_id": "db182d917d27c527addbbc26bdeb7c091c3e9533",
-          "url": "https://github.com/noir-lang/noir/commit/e6e45e93861623f29f272fc68109f7ca5d4841e7"
-        },
-        "date": 1760025380097,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 266381,
-            "range": "± 385",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 231271,
-            "range": "± 6642",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2785321,
-            "range": "± 3837",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -25184,6 +25142,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2792856,
             "range": "± 116926",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "077dd5ebf93b737c363f97491376681e88395bd0",
+          "message": "fix(mem2reg): Update array set value alias set and propagate array get result as alias  (#10242)",
+          "timestamp": "2025-10-20T19:00:28Z",
+          "tree_id": "09fa8aab9dd17a9875f13d58a1265738610686e3",
+          "url": "https://github.com/noir-lang/noir/commit/077dd5ebf93b737c363f97491376681e88395bd0"
+        },
+        "date": 1760988457380,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 259405,
+            "range": "± 941",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 229338,
+            "range": "± 3083",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2799647,
+            "range": "± 2697",
             "unit": "ns/iter"
           }
         ]
