@@ -2,8 +2,8 @@
 use acir::{
     AcirField,
     brillig::{
-        BitSize, ForeignCallParam, HeapArray, HeapValueType, HeapVector, IntegerBitSize,
-        MemoryAddress, ValueOrArray,
+        ArrayAddress, BitSize, ForeignCallParam, HeapArray, HeapValueType, HeapVector,
+        IntegerBitSize, MemoryAddress, ValueOrArray, VectorAddress,
     },
 };
 use acvm_blackbox_solver::BlackBoxFunctionSolver;
@@ -190,19 +190,22 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                             vec![self.memory.read(value_address)]
                         }
                         HeapValueType::Array { value_types, size } => {
-                            let array_address = self.memory.read_ref(value_address);
+                            let array_address =
+                                ArrayAddress::from(self.memory.read_ref(value_address));
 
                             self.read_slice_of_values_from_memory(
-                                array_address.offset(1),
+                                array_address.items_start(),
                                 *size,
                                 value_types,
                             )
                         }
                         HeapValueType::Vector { value_types } => {
-                            let vector_address = self.memory.read_ref(value_address);
-                            let size_address = vector_address.offset(1);
-                            let items_start = vector_address.offset(2);
-                            let vector_size = self.memory.read(size_address).to_usize();
+                            let vector_address =
+                                VectorAddress::from(self.memory.read_ref(value_address));
+
+                            let side_addr = vector_address.size_addr();
+                            let items_start = vector_address.items_start();
+                            let vector_size = self.memory.read(side_addr).to_usize();
                             self.read_slice_of_values_from_memory(
                                 items_start,
                                 vector_size,
@@ -491,15 +494,16 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                             }
                             HeapValueType::Array { .. } => {
                                 // The next memory destination is an array, somewhere else in memory where the pointer points to.
-                                let destination = self.memory.read_ref(current_pointer);
-                                // Items in the array start after the ref-count, so offset by 1.
-                                let destination = destination.offset(1);
+                                let destination =
+                                    ArrayAddress::from(self.memory.read_ref(current_pointer));
+
                                 self.write_flattened_values_to_memory(
-                                    destination,
+                                    destination.items_start(),
                                     values,
                                     values_idx,
                                     typ,
                                 )?;
+
                                 // Move on to the next slot in *this* array.
                                 current_pointer = current_pointer.offset(1);
                             }
