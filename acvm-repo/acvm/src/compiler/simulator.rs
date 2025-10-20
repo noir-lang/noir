@@ -220,6 +220,59 @@ mod tests {
     }
 
     #[test]
+    fn reports_none_for_blackbout_output() {
+        let src = "
+        private parameters: [w0, w1]
+        public parameters: []
+        return values: []
+        BLACKBOX::AND lhs: w0, rhs: w1, output: w2, bits: 32
+        ASSERT w3 = w2
+        ";
+        let connected_circuit = Circuit::from_str(src).unwrap();
+        assert!(CircuitSimulator::default().check_circuit(&connected_circuit).is_none());
+    }
+
+    #[test]
+    fn reports_none_for_read_memory() {
+        let src = "
+        private parameters: [w0]
+        public parameters: []
+        return values: []
+        INIT b0 = [w0]
+        READ w1 = b0[0]
+        ASSERT w2 = w1
+        ";
+        let connected_circuit = Circuit::from_str(src).unwrap();
+        assert!(CircuitSimulator::default().check_circuit(&connected_circuit).is_none());
+    }
+
+    #[test]
+    fn reports_none_for_call_output() {
+        let src = "
+        private parameters: [w0]
+        public parameters: []
+        return values: []
+        CALL func: 0, inputs: [w0], outputs: [w1]
+        ASSERT w2 = w1
+        ";
+        let connected_circuit = Circuit::from_str(src).unwrap();
+        assert!(CircuitSimulator::default().check_circuit(&connected_circuit).is_none());
+    }
+
+    #[test]
+    fn reports_none_for_brillig_call_output() {
+        let src = "
+        private parameters: [w0]
+        public parameters: []
+        return values: []
+        BRILLIG CALL func: 0, inputs: [w0], outputs: [w1]
+        ASSERT w2 = w1
+        ";
+        let connected_circuit = Circuit::from_str(src).unwrap();
+        assert!(CircuitSimulator::default().check_circuit(&connected_circuit).is_none());
+    }
+
+    #[test]
     fn reports_some_for_disconnected_circuit() {
         let src = "
         private parameters: [w1]
