@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["display_crate"],"mod":["items"],"struct":["ItemPrinter"]};

@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["Item"],"fn":["gather_named_type_vars","type_mentions_data_type"],"struct":["DataType","Impl","Import","ItemBuilder","Module","Trait","TraitImpl"]};

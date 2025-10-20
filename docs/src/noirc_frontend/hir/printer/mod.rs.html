@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `tooling/nargo_expand/src/printer.rs`."><title>printer.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-46132b98.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="nargo_expand" data-themes="" data-resource-suffix="" data-rustdoc-version="1.85.0 (4d91de4e4 2025-02-17)" data-channel="1.85.0" data-search-js="search-75f5ac3e.js" data-settings-js="settings-0f613d39.js" ><script src="../../static.files/storage-59e33391.js"></script><script defer src="../../static.files/src-script-56102188.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">nargo_expand/</div>printer.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `compiler/noirc_frontend/src/hir/printer/mod.rs`."><title>mod.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-46132b98.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="noirc_frontend" data-themes="" data-resource-suffix="" data-rustdoc-version="1.85.0 (4d91de4e4 2025-02-17)" data-channel="1.85.0" data-search-js="search-75f5ac3e.js" data-settings-js="settings-0f613d39.js" ><script src="../../../../static.files/storage-59e33391.js"></script><script defer src="../../../../static.files/src-script-56102188.js"></script><script defer src="../../../../src-files.js"></script><script defer src="../../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noirc_frontend/hir/printer/</div>mod.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
 <a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
@@ -1291,10 +1291,34 @@
 <a href="#1290" id="1290">1290</a>
 <a href="#1291" id="1291">1291</a>
 <a href="#1292" id="1292">1292</a>
-<a href="#1293" id="1293">1293</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeSet, HashMap};
+<a href="#1293" id="1293">1293</a>
+<a href="#1294" id="1294">1294</a>
+<a href="#1295" id="1295">1295</a>
+<a href="#1296" id="1296">1296</a>
+<a href="#1297" id="1297">1297</a>
+<a href="#1298" id="1298">1298</a>
+<a href="#1299" id="1299">1299</a>
+<a href="#1300" id="1300">1300</a>
+<a href="#1301" id="1301">1301</a>
+<a href="#1302" id="1302">1302</a>
+<a href="#1303" id="1303">1303</a>
+<a href="#1304" id="1304">1304</a>
+<a href="#1305" id="1305">1305</a>
+<a href="#1306" id="1306">1306</a>
+<a href="#1307" id="1307">1307</a>
+<a href="#1308" id="1308">1308</a>
+<a href="#1309" id="1309">1309</a>
+<a href="#1310" id="1310">1310</a>
+<a href="#1311" id="1311">1311</a>
+<a href="#1312" id="1312">1312</a>
+<a href="#1313" id="1313">1313</a>
+<a href="#1314" id="1314">1314</a>
+<a href="#1315" id="1315">1315</a>
+<a href="#1316" id="1316">1316</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeSet, HashMap};
 
-<span class="kw">use </span>noirc_driver::CrateId;
-<span class="kw">use </span>noirc_frontend::{
+<span class="kw">use </span><span class="kw">crate</span>::graph::{CrateGraph, CrateId};
+<span class="kw">use </span><span class="kw">crate</span>::hir::printer::items::ItemBuilder;
+<span class="kw">use crate</span>::{
     DataType, Generics, Kind, NamedGeneric, Type,
     ast::{Ident, ItemVisibility},
     graph::Dependency,
@@ -1314,12 +1338,34 @@
     token::{FunctionAttributeKind, LocatedToken, SecondaryAttribute, SecondaryAttributeKind},
 };
 
-<span class="kw">use </span><span class="kw">super</span>::items::{Impl, Import, Item, Module, TraitImpl};
+<span class="kw">mod </span>items;
 
-<span class="kw">mod </span>hir;
-<span class="kw">mod </span>types;
+<span class="kw">use </span>items::{Impl, Import, Item, Module, Trait, TraitImpl};
 
-<span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">struct </span>ItemPrinter&lt;<span class="lifetime">'context</span>, <span class="lifetime">'string</span>&gt; {
+<span class="doccomment">/// Returns the HIR as human-readable code for the given crate.
+/// At this point it is expected that all macros and comptime blocks have been expanded.
+</span><span class="kw">pub fn </span>display_crate(
+    crate_id: CrateId,
+    crate_graph: <span class="kw-2">&amp;</span>CrateGraph,
+    def_maps: <span class="kw-2">&amp;</span>DefMaps,
+    interner: <span class="kw-2">&amp;</span>NodeInterner,
+) -&gt; String {
+    <span class="kw">let </span>root_module_id = def_maps[<span class="kw-2">&amp;</span>crate_id].root();
+    <span class="kw">let </span>module_id = ModuleId { krate: crate_id, local_id: root_module_id };
+
+    <span class="kw">let </span><span class="kw-2">mut </span>builder = ItemBuilder::new(crate_id, interner, def_maps);
+    <span class="kw">let </span>item = builder.build_module(module_id);
+
+    <span class="kw">let </span>dependencies = <span class="kw-2">&amp;</span>crate_graph[crate_id].dependencies;
+
+    <span class="kw">let </span><span class="kw-2">mut </span>string = String::new();
+    <span class="kw">let </span><span class="kw-2">mut </span>printer = ItemPrinter::new(crate_id, interner, def_maps, dependencies, <span class="kw-2">&amp;mut </span>string);
+    printer.show_item(item);
+
+    string
+}
+
+<span class="kw">struct </span>ItemPrinter&lt;<span class="lifetime">'context</span>, <span class="lifetime">'string</span>&gt; {
     crate_id: CrateId,
     interner: <span class="kw-2">&amp;</span><span class="lifetime">'context </span>NodeInterner,
     def_maps: <span class="kw-2">&amp;</span><span class="lifetime">'context </span>DefMaps,
@@ -1506,7 +1552,7 @@
         }
     }
 
-    <span class="kw">fn </span>show_data_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, item_data_type: <span class="kw">super</span>::items::DataType) {
+    <span class="kw">fn </span>show_data_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, item_data_type: items::DataType) {
         <span class="kw">let </span>type_id = item_data_type.id;
         <span class="kw">let </span>shared_data_type = <span class="self">self</span>.interner.get_type(type_id);
         <span class="kw">let </span>data_type = shared_data_type.borrow();
@@ -1628,7 +1674,7 @@
         <span class="self">self</span>.push(<span class="string">';'</span>);
     }
 
-    <span class="kw">fn </span>show_trait(<span class="kw-2">&amp;mut </span><span class="self">self</span>, item_trait: <span class="kw">super</span>::items::Trait) {
+    <span class="kw">fn </span>show_trait(<span class="kw-2">&amp;mut </span><span class="self">self</span>, item_trait: Trait) {
         <span class="kw">let </span>trait_id = item_trait.id;
         <span class="kw">let </span>trait_ = <span class="self">self</span>.interner.get_trait(trait_id);
 

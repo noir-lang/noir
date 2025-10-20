@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["get_expanded_crate"],"mod":["items","printer"]};
+window.SIDEBAR_ITEMS = {"fn":["get_expanded_crate"]};
