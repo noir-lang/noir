@@ -576,6 +576,12 @@ impl<'f> PerFunctionContext<'f> {
                         aliases.insert(result);
                     }
 
+                    // Any aliases of the array need to be updated to also include the result of the array access.
+                    // We update the alias set of those values by pointing them to the new array expression.
+                    for alias in (*references.get_aliases_for_value(array)).clone().iter() {
+                        references.expressions.insert(alias, expression);
+                    }
+
                     // In this SSA:
                     //
                     // v2 = array_get v0, index v1 -> Field
@@ -610,7 +616,12 @@ impl<'f> PerFunctionContext<'f> {
                     aliases.unify(&references.get_aliases_for_value(*value));
 
                     references.expressions.insert(result, expression);
-                    references.aliases.insert(expression, aliases);
+                    references.aliases.insert(expression, aliases.clone());
+
+                    // The value being stored in the array also needs its aliases updated to match the array itself
+                    let value_expression = references.expressions.get(value).copied();
+                    let value_expression = value_expression.unwrap_or(Expression::Other(*value));
+                    references.aliases.insert(value_expression, aliases);
 
                     // Similar to how we remember that we used a value in a `Store` instruction,
                     // take note that it was used in the `ArraySet`. If this instruction is not
@@ -834,6 +845,8 @@ impl<'f> PerFunctionContext<'f> {
 
 #[cfg(test)]
 mod tests {
+    use serde_json::from_str;
+
     use crate::{
         assert_ssa_snapshot,
         ssa::{Ssa, opt::assert_ssa_does_not_change},
@@ -1452,8 +1465,7 @@ mod tests {
             v2 = call f1(v0) -> [&mut u32; 1]
             v4 = array_get v2, index u32 0 -> &mut u32
             store u32 1 at v4
-            v6 = load v4 -> u1
-            return v6
+            return u32 1
         }
         brillig(inline_always) fn foo f1 {
           b0(v0: u32):
@@ -1842,8 +1854,7 @@ mod tests {
             constrain v0 == u32 0
             v8 = array_get v4, index v0 -> &mut u1
             store u1 0 at v8
-            v9 = load v8 -> u1
-            return v9
+            return u1 0
         }
         ");
     }
@@ -1879,10 +1890,9 @@ mod tests {
             v3 = load v1 -> [Field; 1]
             store v2 at v0
             store v3 at v1
-            v4 = load v1 -> [Field; 1]
-            v6 = make_array [Field 0] : [Field; 1]
-            store v6 at v1
-            return v1, v4
+            v5 = make_array [Field 0] : [Field; 1]
+            store v5 at v1
+            return v1, v3
         }
         ");
     }

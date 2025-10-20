@@ -82,6 +82,9 @@ impl Block {
                 self.references.remove(&alias);
             }
         }
+
+        // We always know address points to value
+        self.set_reference_value(address, value);
     }
 
     fn set_reference_value(&mut self, address: ValueId, value: Option<ValueId>) {
