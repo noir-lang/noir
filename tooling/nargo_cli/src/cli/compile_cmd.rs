@@ -239,11 +239,11 @@ fn compile_programs(
         // If the compiled program is the same as the cached one, we don't apply transformations again, unless the target width has changed.
         // The transformations might not be idempotent, which would risk creating witnesses that don't work with earlier versions,
         // based on which we might have generated a verifier already.
-        if cached_hash == Some(rustc_hash::FxBuildHasher.hash_one(&program))
-            && program.expression_width == target_width
-        {
-            return Ok(((), warnings));
-        }
+        // if cached_hash == Some(rustc_hash::FxBuildHasher.hash_one(&program))
+        //     && program.expression_width == target_width
+        // {
+        //     return Ok(((), warnings));
+        // }
         // Run ACVM optimizations and set the target width.
         let program = nargo::ops::transform_program(program, target_width);
         // Check solvability.
