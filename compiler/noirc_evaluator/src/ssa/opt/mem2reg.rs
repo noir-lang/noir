@@ -575,8 +575,7 @@ impl<'f> PerFunctionContext<'f> {
                         aliases.insert(result);
                     }
 
-                    // Any aliases of the array need to be updated to also include the result of the array access.
-                    // We update the alias set of those values by pointing them to the new array expression.
+                    // Any aliases of the array need to be updated to also include the result of the array get in their alias sets.
                     for alias in (*references.get_aliases_for_value(array)).clone().iter() {
                         // An expression for the alias might already exist, so try to fetch it first
                         let expression = references.expressions.get(&alias).copied();
