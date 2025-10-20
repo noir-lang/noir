@@ -7,6 +7,7 @@ use super::{
         function::{Function, FunctionId, RuntimeType},
         instruction::{Binary, BinaryOp, ConstrainError, Instruction, TerminatorInstruction},
         types::Type,
+        value::Value as IrValue,
         value::ValueId,
     },
 };
@@ -686,12 +687,38 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             return Err(internal(InternalError::TruncateToZeroBits { value_id, max_bit_size }));
         }
 
+        let is_sub = if let IrValue::Instruction { instruction, .. } = self.dfg()[value_id] {
+            matches!(
+                self.dfg()[instruction],
+                Instruction::Binary(Binary { operator: BinaryOp::Sub { .. }, .. })
+            )
+        } else {
+            false
+        };
+
+        // Based on acir::Context::convert_ssa_truncate: subtractions must first have the integer modulus added to avoid underflow.
+        fn truncate_unfit(
+            mut value: FieldElement,
+            bit_size: u32,
+            max_bit_size: u32,
+            is_sub: bool,
+        ) -> FieldElement {
+            if is_sub {
+                let max_bit_size = FieldElement::from(max_bit_size);
+                let integer_modulus = FieldElement::from(2u128).pow(&max_bit_size);
+                value = value + integer_modulus;
+            }
+            truncate_field(value, bit_size)
+        }
+
         // Truncate an unsigned value.
         fn truncate_fitted<F, T>(
             cons: F,
             typ: NumericType,
             value: Fitted<T>,
             bit_size: u32,
+            max_bit_size: u32,
+            is_sub: bool,
         ) -> IResult<NumericValue>
         where
             T: TryFrom<u128>,
@@ -702,7 +729,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             match value {
                 Fit(value) => Ok(cons(Fit(truncate_unsigned(value, bit_size)?))),
                 Unfit(value) => {
-                    let truncated = truncate_field(value, bit_size);
+                    let truncated = truncate_unfit(value, bit_size, max_bit_size, is_sub);
                     NumericValue::from_constant(truncated, typ)
                         .or_else(|_| Ok(cons(Unfit(truncated))))
                 }
@@ -711,13 +738,13 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
         // Truncate a signed value via unsigned cast and back.
         macro_rules! truncate_via {
-            ($cons:expr, $typ:expr, $value:ident, $bit_size:ident, $signed:ty, $unsigned:ty) => {
+            ($cons:expr, $typ:expr, $value:ident, $bit_size:ident, $max_bit_size:ident, $is_sub:ident, $signed:ty, $unsigned:ty) => {
                 match $value {
                     Fit(value) => {
                         $cons(Fit(truncate_unsigned(value as $unsigned, $bit_size)? as $signed))
                     }
                     Unfit(value) => {
-                        let truncated = truncate_field(value, bit_size);
+                        let truncated = truncate_unfit(value, bit_size, max_bit_size, is_sub);
                         NumericValue::from_constant(truncated, typ)
                             .unwrap_or_else(|_| $cons(Unfit(truncated)))
                     }
@@ -728,15 +755,15 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         let truncated = match value {
             Field(value) => Field(truncate_field(value, bit_size)),
             U1(value) => U1(value),
-            U8(value) => truncate_fitted(U8, typ, value, bit_size)?,
-            U16(value) => truncate_fitted(U16, typ, value, bit_size)?,
-            U32(value) => truncate_fitted(U32, typ, value, bit_size)?,
-            U64(value) => truncate_fitted(U64, typ, value, bit_size)?,
-            U128(value) => truncate_fitted(U128, typ, value, bit_size)?,
-            I8(value) => truncate_via!(I8, typ, value, bit_size, i8, u8),
-            I16(value) => truncate_via!(I16, typ, value, bit_size, i16, u16),
-            I32(value) => truncate_via!(I32, typ, value, bit_size, i32, u32),
-            I64(value) => truncate_via!(I64, typ, value, bit_size, i64, u64),
+            U8(value) => truncate_fitted(U8, typ, value, bit_size, max_bit_size, is_sub)?,
+            U16(value) => truncate_fitted(U16, typ, value, bit_size, max_bit_size, is_sub)?,
+            U32(value) => truncate_fitted(U32, typ, value, bit_size, max_bit_size, is_sub)?,
+            U64(value) => truncate_fitted(U64, typ, value, bit_size, max_bit_size, is_sub)?,
+            U128(value) => truncate_fitted(U128, typ, value, bit_size, max_bit_size, is_sub)?,
+            I8(value) => truncate_via!(I8, typ, value, bit_size, max_bit_size, is_sub, i8, u8),
+            I16(value) => truncate_via!(I16, typ, value, bit_size, max_bit_size, is_sub, i16, u16),
+            I32(value) => truncate_via!(I32, typ, value, bit_size, max_bit_size, is_sub, i32, u32),
+            I64(value) => truncate_via!(I64, typ, value, bit_size, max_bit_size, is_sub, i64, u64),
         };
 
         self.define(result, Value::Numeric(truncated))
