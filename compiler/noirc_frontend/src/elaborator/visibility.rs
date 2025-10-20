@@ -4,7 +4,9 @@ use crate::{
     DataType, Type,
     ast::{Ident, ItemVisibility},
     hir::resolution::{
-        errors::ResolverError, import::PathResolutionError, visibility::method_call_is_visible,
+        errors::ResolverError,
+        import::PathResolutionError,
+        visibility::{method_call_is_visible, struct_member_is_visible},
     },
     hir_def::function::FuncMeta,
     node_interner::{FuncId, FunctionModifiers},
@@ -29,6 +31,24 @@ impl Elaborator<'_> {
         ) {
             self.push_err(ResolverError::PathResolutionError(PathResolutionError::Private(
                 name.clone(),
+            )));
+        }
+    }
+
+    pub(super) fn check_struct_field_visibility(
+        &mut self,
+        struct_type: &DataType,
+        field_name: &str,
+        visibility: ItemVisibility,
+        location: Location,
+    ) {
+        if self.silence_field_visibility_errors > 0 {
+            return;
+        }
+
+        if !struct_member_is_visible(struct_type.id, visibility, self.module_id(), self.def_maps) {
+            self.push_err(ResolverError::PathResolutionError(PathResolutionError::Private(
+                Ident::new(field_name.to_string(), location),
             )));
         }
     }
