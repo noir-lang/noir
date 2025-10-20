@@ -228,8 +228,8 @@ mod tests {
         BLACKBOX::AND lhs: w0, rhs: w1, output: w2, bits: 32
         ASSERT w3 = w2
         ";
-        let connected_circuit = Circuit::from_str(src).unwrap();
-        assert!(CircuitSimulator::default().check_circuit(&connected_circuit).is_none());
+        let circuit = Circuit::from_str(src).unwrap();
+        assert!(CircuitSimulator::default().check_circuit(&circuit).is_none());
     }
 
     #[test]
@@ -242,8 +242,8 @@ mod tests {
         READ w1 = b0[0]
         ASSERT w2 = w1
         ";
-        let connected_circuit = Circuit::from_str(src).unwrap();
-        assert!(CircuitSimulator::default().check_circuit(&connected_circuit).is_none());
+        let circuit = Circuit::from_str(src).unwrap();
+        assert!(CircuitSimulator::default().check_circuit(&circuit).is_none());
     }
 
     #[test]
@@ -255,8 +255,8 @@ mod tests {
         CALL func: 0, inputs: [w0], outputs: [w1]
         ASSERT w2 = w1
         ";
-        let connected_circuit = Circuit::from_str(src).unwrap();
-        assert!(CircuitSimulator::default().check_circuit(&connected_circuit).is_none());
+        let circuit = Circuit::from_str(src).unwrap();
+        assert!(CircuitSimulator::default().check_circuit(&circuit).is_none());
     }
 
     #[test]
@@ -268,8 +268,8 @@ mod tests {
         BRILLIG CALL func: 0, inputs: [w0], outputs: [w1]
         ASSERT w2 = w1
         ";
-        let connected_circuit = Circuit::from_str(src).unwrap();
-        assert!(CircuitSimulator::default().check_circuit(&connected_circuit).is_none());
+        let circuit = Circuit::from_str(src).unwrap();
+        assert!(CircuitSimulator::default().check_circuit(&circuit).is_none());
     }
 
     #[test]
