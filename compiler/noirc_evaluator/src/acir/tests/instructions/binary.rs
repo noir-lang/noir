@@ -573,7 +573,7 @@ fn and_u8() {
     return values: [w2]
     BLACKBOX::RANGE input: w0, bits: 8
     BLACKBOX::RANGE input: w1, bits: 8
-    BLACKBOX::AND inputs: [w0, w1], bits: 8, output: w3
+    BLACKBOX::AND lhs: w0, rhs: w1, output: w3, bits: 8
     ASSERT w2 = w3
     ");
 }
@@ -624,7 +624,7 @@ fn or_u8() {
     BLACKBOX::RANGE input: w1, bits: 8
     ASSERT w3 = -w0 + 255
     ASSERT w4 = -w1 + 255
-    BLACKBOX::AND inputs: [w3, w4], bits: 8, output: w5
+    BLACKBOX::AND lhs: w3, rhs: w4, output: w5, bits: 8
     ASSERT w2 = -w5 + 255
     ");
 }
@@ -672,7 +672,7 @@ fn xor_u8() {
     return values: [w2]
     BLACKBOX::RANGE input: w0, bits: 8
     BLACKBOX::RANGE input: w1, bits: 8
-    BLACKBOX::XOR inputs: [w0, w1], bits: 8, output: w3
+    BLACKBOX::XOR lhs: w0, rhs: w1, output: w3, bits: 8
     ASSERT w2 = w3
     ");
 }

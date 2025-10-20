@@ -87,7 +87,7 @@ pub(super) struct AcirDynamicArray {
     /// Identification for the Acir dynamic array
     /// This is essentially a ACIR pointer to the array
     pub(super) block_id: BlockId,
-    /// Length of the array
+    /// Flattened length of the elements in the array
     pub(super) len: usize,
     /// An ACIR dynamic array is a flat structure, so we use
     /// the inner structure of an `AcirType::NumericType` directly.

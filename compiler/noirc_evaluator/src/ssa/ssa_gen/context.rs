@@ -413,7 +413,7 @@ impl<'a> FunctionContext<'a> {
                 NumericType::Unsigned { bit_size: 1 },
             ) => self.builder.insert_truncate(value, 1, *incoming_type_size),
 
-            // For mixed singed to unsigned:
+            // For mixed signed to unsigned:
             (
                 Type::Numeric(NumericType::Signed { bit_size: incoming_type_size }),
                 NumericType::Unsigned { bit_size: target_type_size },
