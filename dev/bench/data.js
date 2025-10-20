@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1760975093180,
+  "lastUpdate": 1760975094998,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4943,105 +4943,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "da35eca7a0e1ff8de506fdcdac81076e6f0ad239",
-          "message": "chore(brillig_vm): Expand arithmetic int ops tests and add field ops tests (#10101)",
-          "timestamp": "2025-10-09T13:12:09Z",
-          "tree_id": "0b3e8a840a69224c088859f350c7d4e9e68e4792",
-          "url": "https://github.com/noir-lang/noir/commit/da35eca7a0e1ff8de506fdcdac81076e6f0ad239"
-        },
-        "date": 1760017465262,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.766,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 9.394,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.372,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 1.412,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 1.42,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1.48,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 1.468,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 223,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 210,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.554,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 18.84,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 80.56,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 1.444,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.822,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.672,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -9846,6 +9747,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 2.166,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6424d4ac90d4a78560d3689066762d5fb6a2640d",
+          "message": "chore(frontend): Split up traits tests module into submodules (#10229)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
+          "timestamp": "2025-10-20T14:58:03Z",
+          "tree_id": "3883d248321f0d2ce2fd52e3809cc0f4e61c23da",
+          "url": "https://github.com/noir-lang/noir/commit/6424d4ac90d4a78560d3689066762d5fb6a2640d"
+        },
+        "date": 1760975071340,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.704,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.82,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.344,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 1.47,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 1.41,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1.47,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 1.496,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.638,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 18.92,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 76.98,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 1.374,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.799,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 2.235,
             "unit": "s"
           }
         ]
