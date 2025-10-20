@@ -259,4 +259,18 @@ mod tests {
         let circuit = Circuit::from_str(src).unwrap();
         assert!(CircuitSimulator::default().check_circuit(&circuit).is_some());
     }
+
+    #[test]
+    fn reports_false_when_unknown_witness_is_multiplied_by_itself() {
+        // If an AssertZero contains just one unknown witness, it might still not possible
+        // to solve if: if that unknown witness is being multiplied by itself.
+        let src = "
+        private parameters: [w0]
+        public parameters: []
+        return values: []
+        ASSERT w0 = w1*w1
+        ";
+        let circuit = Circuit::from_str(src).unwrap();
+        assert!(CircuitSimulator::default().check_circuit(&circuit).is_some());
+    }
 }
