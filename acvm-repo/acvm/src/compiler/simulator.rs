@@ -197,7 +197,7 @@ mod tests {
     use acir::circuit::Circuit;
 
     #[test]
-    fn reports_true_for_empty_circuit() {
+    fn reports_none_for_empty_circuit() {
         let src = "
         private parameters: []
         public parameters: []
@@ -208,7 +208,7 @@ mod tests {
     }
 
     #[test]
-    fn reports_true_for_connected_circuit() {
+    fn reports_none_for_connected_circuit() {
         let src = "
         private parameters: [w1]
         public parameters: []
@@ -220,7 +220,7 @@ mod tests {
     }
 
     #[test]
-    fn reports_false_for_disconnected_circuit() {
+    fn reports_some_for_disconnected_circuit() {
         let src = "
         private parameters: [w1]
         public parameters: []
@@ -229,26 +229,24 @@ mod tests {
         ASSERT w4 = w3
         ";
         let disconnected_circuit = Circuit::from_str(src).unwrap();
-        assert!(CircuitSimulator::default().check_circuit(&disconnected_circuit).is_some());
+        assert_eq!(CircuitSimulator::default().check_circuit(&disconnected_circuit), Some(1));
     }
 
     #[test]
-    fn reports_true_when_memory_block_passed_to_brillig_and_then_written_to() {
+    fn reports_some_when_memory_block_is_passed_an_unknown_witness() {
         let src = "
         private parameters: [w1]
         public parameters: []
         return values: []
         ASSERT w1 = 0
         INIT b0 = [w0]
-        BRILLIG CALL func: 0, inputs: [b0], outputs: []
-        READ w2 = b0[1]
         ";
         let circuit = Circuit::from_str(src).unwrap();
-        assert!(CircuitSimulator::default().check_circuit(&circuit).is_some());
+        assert_eq!(CircuitSimulator::default().check_circuit(&circuit), Some(1));
     }
 
     #[test]
-    fn reports_false_when_attempting_to_reinitialize_memory_block() {
+    fn reports_some_when_attempting_to_reinitialize_memory_block() {
         let src = "
         private parameters: [w0]
         public parameters: []
@@ -257,11 +255,11 @@ mod tests {
         INIT b0 = [w0]
         ";
         let circuit = Circuit::from_str(src).unwrap();
-        assert!(CircuitSimulator::default().check_circuit(&circuit).is_some());
+        assert_eq!(CircuitSimulator::default().check_circuit(&circuit), Some(1));
     }
 
     #[test]
-    fn reports_false_when_unknown_witness_is_multiplied_by_itself() {
+    fn reports_some_when_unknown_witness_is_multiplied_by_itself() {
         // If an AssertZero contains just one unknown witness, it might still not possible
         // to solve if: if that unknown witness is being multiplied by itself.
         let src = "
@@ -271,6 +269,6 @@ mod tests {
         ASSERT w0 = w1*w1
         ";
         let circuit = Circuit::from_str(src).unwrap();
-        assert!(CircuitSimulator::default().check_circuit(&circuit).is_some());
+        assert_eq!(CircuitSimulator::default().check_circuit(&circuit), Some(0));
     }
 }
