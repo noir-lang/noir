@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1760965221771,
+  "lastUpdate": 1760965949173,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4943,105 +4943,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "bf7d3631382c7ccc171ef5cf9c3b8fd752887a1d",
-          "message": "chore(ACIR): don't override output count in black box function (#10123)",
-          "timestamp": "2025-10-09T11:11:17Z",
-          "tree_id": "d43191a8bc34ab4e4e5a5c7eb63a3f49a87eba75",
-          "url": "https://github.com/noir-lang/noir/commit/bf7d3631382c7ccc171ef5cf9c3b8fd752887a1d"
-        },
-        "date": 1760010434395,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.78,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 8.08,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.48,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 1.422,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 1.45,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1.5,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 1.452,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 211,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 203,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.506,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 19.52,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 80.14,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 1.352,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.809,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.668,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -9856,6 +9757,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 2.164,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0ec7e299b011ba21c752eba18f11cb1720e05b6b",
+          "message": "chore(frontend): HIR printer module for inline macro expansion unit tests  (#10232)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
+          "timestamp": "2025-10-20T12:26:53Z",
+          "tree_id": "dc400d20337e576878a4cfbf7c96f0d4e8eaa3b1",
+          "url": "https://github.com/noir-lang/noir/commit/0ec7e299b011ba21c752eba18f11cb1720e05b6b"
+        },
+        "date": 1760965925439,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.838,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.108,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.386,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 1.414,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 1.36,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1.47,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 1.452,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.474,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 18.18,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 76.62,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 1.71,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.79,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 2.166,
             "unit": "s"
           }
         ]
