@@ -15,9 +15,7 @@ use crate::{
     hir::{
         comptime::{self, InterpreterError},
         def_collector::dc_crate::CompilationError,
-        resolution::{
-            errors::ResolverError, import::PathResolutionError, visibility::method_call_is_visible,
-        },
+        resolution::errors::ResolverError,
         type_check::{Source, TypeCheckError, generics::TraitGenerics},
     },
     hir_def::{
@@ -823,21 +821,6 @@ impl Elaborator<'_> {
         self.interner.push_expr_location(id, location);
         self.interner.push_expr_type(id, typ.clone());
         (id, typ)
-    }
-
-    fn check_method_call_visibility(&mut self, func_id: FuncId, object_type: &Type, name: &Ident) {
-        if !method_call_is_visible(
-            self.self_type.as_ref(),
-            object_type,
-            func_id,
-            self.module_id(),
-            self.interner,
-            self.def_maps,
-        ) {
-            self.push_err(ResolverError::PathResolutionError(PathResolutionError::Private(
-                name.clone(),
-            )));
-        }
     }
 
     fn elaborate_constructor(

@@ -3,14 +3,36 @@ use noirc_errors::Location;
 use crate::{
     DataType, Type,
     ast::{Ident, ItemVisibility},
-    hir::resolution::errors::ResolverError,
+    hir::resolution::{
+        errors::ResolverError, import::PathResolutionError, visibility::method_call_is_visible,
+    },
     hir_def::function::FuncMeta,
-    node_interner::FunctionModifiers,
+    node_interner::{FuncId, FunctionModifiers},
 };
 
 use super::Elaborator;
 
 impl Elaborator<'_> {
+    pub(super) fn check_method_call_visibility(
+        &mut self,
+        func_id: FuncId,
+        object_type: &Type,
+        name: &Ident,
+    ) {
+        if !method_call_is_visible(
+            self.self_type.as_ref(),
+            object_type,
+            func_id,
+            self.module_id(),
+            self.interner,
+            self.def_maps,
+        ) {
+            self.push_err(ResolverError::PathResolutionError(PathResolutionError::Private(
+                name.clone(),
+            )));
+        }
+    }
+
     /// Find the struct in the parent module so we can know its visibility
     pub(super) fn find_struct_visibility(&self, struct_type: &DataType) -> Option<ItemVisibility> {
         let parent_module_id = struct_type.id.parent_module_id(self.def_maps);
