@@ -131,7 +131,7 @@ fn main() {
         b = a + b;
     }
 
-    print(a, b, c);
+    println((a, b, c));
 }
 ```
 
@@ -242,6 +242,8 @@ The execution and interpretation of the program would be as follows:
 4. If reg4 is 0 (so c > 15), jump to location 9 where we set b = a + b then go to location 10. Otherwise if c <= 15, we fall through to location 7, set a = a * b, and then go to location 10.
 5. At location 10, we queue up inputs to a foreign call from reg0, reg1, reg2 (variables a, b, and c). This interrupts execution, calls to the outer system, and then returns to Brillig execution. If this had outputs, they might be written to registers and memory.
 6. We finally reach the final location where we `Stop`. If this were a function to be called by another Brillig function, we would `Return`.
+
+The output above is only for illustrative purposes. To see the actual opcodes, use the `--show-brillig` CLI option.
 
 ## Usage in Noir
 
