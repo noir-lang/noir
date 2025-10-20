@@ -58,12 +58,14 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Find the struct in the parent module so we can know its visibility
-    pub(super) fn find_struct_visibility(&self, struct_type: &DataType) -> Option<ItemVisibility> {
+    /// Returns a struct's visibility.
+    pub(super) fn find_struct_visibility(&self, struct_type: &DataType) -> ItemVisibility {
         let parent_module_id = struct_type.id.parent_module_id(self.def_maps);
         let parent_module_data = self.get_module(parent_module_id);
         let per_ns = parent_module_data.find_name(&struct_type.name);
-        per_ns.types.map(|(_, vis, _)| vis)
+        let (_, visibility, _) =
+            per_ns.types.expect("Expected to find struct in its parent module");
+        visibility
     }
 
     /// Check whether a functions return value and args should be checked for private type visibility.
@@ -80,13 +82,12 @@ impl Elaborator<'_> {
         if func_meta.trait_impl.is_some() {
             return false;
         }
-        // Public struct functions should not expose private types.
-        if let Some(struct_visibility) = func_meta.type_id.and_then(|id| {
-            let struct_def = self.get_type(id);
+        // Non-private struct functions should not expose private types.
+        if let Some(struct_id) = func_meta.type_id {
+            let struct_def = self.get_type(struct_id);
             let struct_def = struct_def.borrow();
-            self.find_struct_visibility(&struct_def)
-        }) {
-            return struct_visibility != ItemVisibility::Private;
+            let visibility = self.find_struct_visibility(&struct_def);
+            return visibility != ItemVisibility::Private;
         }
         // Standalone functions should be checked
         true
@@ -109,14 +110,13 @@ impl Elaborator<'_> {
                 // then it's either accessible (all good) or it's not, in which case a different
                 // error will happen somewhere else, but no need to error again here.
                 if struct_module_id.krate == self.crate_id {
-                    if let Some(aliased_visibility) = self.find_struct_visibility(&struct_type) {
-                        if aliased_visibility < visibility {
-                            self.push_err(ResolverError::TypeIsMorePrivateThenItem {
-                                typ: struct_type.name.to_string(),
-                                item: name.to_string(),
-                                location,
-                            });
-                        }
+                    let aliased_visibility = self.find_struct_visibility(&struct_type);
+                    if aliased_visibility < visibility {
+                        self.push_err(ResolverError::TypeIsMorePrivateThenItem {
+                            typ: struct_type.name.to_string(),
+                            item: name.to_string(),
+                            location,
+                        });
                     }
                 }
 
