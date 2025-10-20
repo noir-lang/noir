@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1760962220164,
+  "lastUpdate": 1760963174365,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23206,48 +23206,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "a4e966573812324da6c59274e89b9702907273da",
-          "message": "chore(test): Add `interpret_execution_failure` tests (#9912)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-10-09T10:28:31Z",
-          "tree_id": "f3486ed3cf1d312f09b25849c2b7a8909a6acfa5",
-          "url": "https://github.com/noir-lang/noir/commit/a4e966573812324da6c59274e89b9702907273da"
-        },
-        "date": 1760007183133,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 267830,
-            "range": "± 725",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 233672,
-            "range": "± 3487",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2787218,
-            "range": "± 1946",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25299,6 +25257,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2799147,
             "range": "± 3184",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "935dc3690a20587a6053046759a9de3db1f6ea42",
+          "message": "chore(frontend): Modularize the Elaborator (#10202)",
+          "timestamp": "2025-10-20T11:59:24Z",
+          "tree_id": "5068079aacc1f290f3511bd04e87133bd276a062",
+          "url": "https://github.com/noir-lang/noir/commit/935dc3690a20587a6053046759a9de3db1f6ea42"
+        },
+        "date": 1760963150044,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 258161,
+            "range": "± 960",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 228847,
+            "range": "± 4217",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2798732,
+            "range": "± 10580",
             "unit": "ns/iter"
           }
         ]
