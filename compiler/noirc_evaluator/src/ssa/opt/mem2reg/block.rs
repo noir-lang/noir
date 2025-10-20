@@ -237,6 +237,16 @@ impl Block {
         Cow::Owned(AliasSet::unknown())
     }
 
+    pub(super) fn set_alias_for_value(&mut self, value: ValueId, alias: ValueId) {
+        // An expression for the value might already exist, so try to fetch it first
+        let expression = self.expressions.get(&value).copied();
+        let expression = expression.unwrap_or(Expression::Other(value));
+
+        if let Some(aliases) = self.aliases.get_mut(&expression) {
+            aliases.insert(alias);
+        }
+    }
+
     pub(super) fn set_last_load(&mut self, address: ValueId, instruction: InstructionId) {
         let aliases = self.get_aliases_for_value(address);
         if !aliases.is_unknown() {

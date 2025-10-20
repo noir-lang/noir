@@ -568,10 +568,9 @@ impl<'f> PerFunctionContext<'f> {
                         .extend(references.get_aliases_for_value(array).iter());
                     references.mark_value_used(array, self.inserter.function);
 
-                    // An expression for the array might already exist, so try to fetch it first
+                    // An expression for the value might already exist, so try to fetch it first
                     let expression = references.expressions.get(&array).copied();
                     let expression = expression.unwrap_or(Expression::Other(array));
-
                     if let Some(aliases) = references.aliases.get_mut(&expression) {
                         aliases.insert(result);
                     }
@@ -579,7 +578,12 @@ impl<'f> PerFunctionContext<'f> {
                     // Any aliases of the array need to be updated to also include the result of the array access.
                     // We update the alias set of those values by pointing them to the new array expression.
                     for alias in (*references.get_aliases_for_value(array)).clone().iter() {
-                        references.expressions.insert(alias, expression);
+                        // An expression for the alias might already exist, so try to fetch it first
+                        let expression = references.expressions.get(&alias).copied();
+                        let expression = expression.unwrap_or(Expression::Other(alias));
+                        if let Some(aliases) = references.aliases.get_mut(&expression) {
+                            aliases.insert(result);
+                        }
                     }
 
                     // In this SSA:
