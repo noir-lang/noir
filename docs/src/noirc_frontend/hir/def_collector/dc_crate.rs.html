@@ -595,20 +595,7 @@
 <a href="#594" id="594">594</a>
 <a href="#595" id="595">595</a>
 <a href="#596" id="596">596</a>
-<a href="#597" id="597">597</a>
-<a href="#598" id="598">598</a>
-<a href="#599" id="599">599</a>
-<a href="#600" id="600">600</a>
-<a href="#601" id="601">601</a>
-<a href="#602" id="602">602</a>
-<a href="#603" id="603">603</a>
-<a href="#604" id="604">604</a>
-<a href="#605" id="605">605</a>
-<a href="#606" id="606">606</a>
-<a href="#607" id="607">607</a>
-<a href="#608" id="608">608</a>
-<a href="#609" id="609">609</a>
-<a href="#610" id="610">610</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">super</span>::dc_mod::collect_defs;
+<a href="#597" id="597">597</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">super</span>::dc_mod::collect_defs;
 <span class="kw">use </span><span class="kw">super</span>::errors::{DefCollectorErrorKind, DuplicateType};
 <span class="kw">use </span><span class="kw">crate</span>::elaborator::Elaborator;
 <span class="kw">use </span><span class="kw">crate</span>::graph::CrateId;
@@ -631,9 +618,8 @@
 };
 
 <span class="kw">use </span><span class="kw">crate</span>::ast::{
-    ExpressionKind, Ident, ItemVisibility, LetStatement, Literal, NoirFunction, NoirStruct,
-    NoirTrait, Path, PathSegment, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
-    UnsupportedNumericGenericType,
+    Ident, ItemVisibility, LetStatement, NoirFunction, NoirStruct, NoirTrait, Path, PathSegment,
+    UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnsupportedNumericGenericType,
 };
 
 <span class="kw">use </span><span class="kw">crate</span>::elaborator::FrontendOptions;
@@ -1205,17 +1191,5 @@
             }
         }
     }
-}
-
-<span class="doccomment">/// Separate the globals Vec into two. The first element in the tuple will be the
-/// literal globals, except for arrays, and the second will be all other globals.
-/// We exclude array literals as they can contain complex types
-</span><span class="kw">pub fn </span>filter_literal_globals(
-    globals: Vec&lt;UnresolvedGlobal&gt;,
-) -&gt; (Vec&lt;UnresolvedGlobal&gt;, Vec&lt;UnresolvedGlobal&gt;) {
-    globals.into_iter().partition(|global| <span class="kw">match </span><span class="kw-2">&amp;</span>global.stmt_def.expression.kind {
-        ExpressionKind::Literal(literal) =&gt; !<span class="macro">matches!</span>(literal, Literal::Array(<span class="kw">_</span>)),
-        <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
-    })
 }
 </code></pre></div></section></main></body></html>

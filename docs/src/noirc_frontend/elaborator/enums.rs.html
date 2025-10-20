@@ -1405,7 +1405,66 @@
 <a href="#1404" id="1404">1404</a>
 <a href="#1405" id="1405">1405</a>
 <a href="#1406" id="1406">1406</a>
-<a href="#1407" id="1407">1407</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet};
+<a href="#1407" id="1407">1407</a>
+<a href="#1408" id="1408">1408</a>
+<a href="#1409" id="1409">1409</a>
+<a href="#1410" id="1410">1410</a>
+<a href="#1411" id="1411">1411</a>
+<a href="#1412" id="1412">1412</a>
+<a href="#1413" id="1413">1413</a>
+<a href="#1414" id="1414">1414</a>
+<a href="#1415" id="1415">1415</a>
+<a href="#1416" id="1416">1416</a>
+<a href="#1417" id="1417">1417</a>
+<a href="#1418" id="1418">1418</a>
+<a href="#1419" id="1419">1419</a>
+<a href="#1420" id="1420">1420</a>
+<a href="#1421" id="1421">1421</a>
+<a href="#1422" id="1422">1422</a>
+<a href="#1423" id="1423">1423</a>
+<a href="#1424" id="1424">1424</a>
+<a href="#1425" id="1425">1425</a>
+<a href="#1426" id="1426">1426</a>
+<a href="#1427" id="1427">1427</a>
+<a href="#1428" id="1428">1428</a>
+<a href="#1429" id="1429">1429</a>
+<a href="#1430" id="1430">1430</a>
+<a href="#1431" id="1431">1431</a>
+<a href="#1432" id="1432">1432</a>
+<a href="#1433" id="1433">1433</a>
+<a href="#1434" id="1434">1434</a>
+<a href="#1435" id="1435">1435</a>
+<a href="#1436" id="1436">1436</a>
+<a href="#1437" id="1437">1437</a>
+<a href="#1438" id="1438">1438</a>
+<a href="#1439" id="1439">1439</a>
+<a href="#1440" id="1440">1440</a>
+<a href="#1441" id="1441">1441</a>
+<a href="#1442" id="1442">1442</a>
+<a href="#1443" id="1443">1443</a>
+<a href="#1444" id="1444">1444</a>
+<a href="#1445" id="1445">1445</a>
+<a href="#1446" id="1446">1446</a>
+<a href="#1447" id="1447">1447</a>
+<a href="#1448" id="1448">1448</a>
+<a href="#1449" id="1449">1449</a>
+<a href="#1450" id="1450">1450</a>
+<a href="#1451" id="1451">1451</a>
+<a href="#1452" id="1452">1452</a>
+<a href="#1453" id="1453">1453</a>
+<a href="#1454" id="1454">1454</a>
+<a href="#1455" id="1455">1455</a>
+<a href="#1456" id="1456">1456</a>
+<a href="#1457" id="1457">1457</a>
+<a href="#1458" id="1458">1458</a>
+<a href="#1459" id="1459">1459</a>
+<a href="#1460" id="1460">1460</a>
+<a href="#1461" id="1461">1461</a>
+<a href="#1462" id="1462">1462</a>
+<a href="#1463" id="1463">1463</a>
+<a href="#1464" id="1464">1464</a>
+<a href="#1465" id="1465">1465</a>
+<a href="#1466" id="1466">1466</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet};
 
 <span class="kw">use </span>iter_extended::{btree_map, try_vecmap, vecmap};
 <span class="kw">use </span>noirc_errors::Location;
@@ -1413,14 +1472,16 @@
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
 
 <span class="kw">use crate</span>::{
-    DataType, Kind, Shared, Type,
+    DataType, EnumVariant <span class="kw">as </span>HirEnumVariant, Kind, Shared, Type,
     ast::{
         ConstructorExpression, EnumVariant, Expression, ExpressionKind, FunctionKind, Ident,
         ItemVisibility, Literal, NoirEnumeration, StatementKind, UnresolvedType,
+        UnresolvedTypeData,
     },
-    elaborator::path_resolution::PathResolutionItem,
+    elaborator::{UnstableFeature, path_resolution::PathResolutionItem},
     hir::{
         comptime::Value,
+        def_collector::dc_crate::UnresolvedEnum,
         resolution::{errors::ResolverError, import::PathResolutionError},
         type_check::TypeCheckError,
     },
@@ -1432,7 +1493,9 @@
         function::{FuncMeta, FunctionBody, HirFunction, Parameters},
         stmt::{HirLetStatement, HirPattern, HirStatement},
     },
-    node_interner::{DefinitionId, DefinitionKind, ExprId, FunctionModifiers, GlobalValue, TypeId},
+    node_interner::{
+        DefinitionId, DefinitionKind, ExprId, FunctionModifiers, GlobalValue, ReferenceId, TypeId,
+    },
     shared::Visibility,
     signed_field::SignedField,
     token::Attributes,
@@ -1515,6 +1578,61 @@
 }
 
 <span class="kw">impl </span>Elaborator&lt;<span class="lifetime">'_</span>&gt; {
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>collect_enum_definitions(<span class="kw-2">&amp;mut </span><span class="self">self</span>, enums: <span class="kw-2">&amp;</span>BTreeMap&lt;TypeId, UnresolvedEnum&gt;) {
+        <span class="kw">for </span>(type_id, typ) <span class="kw">in </span>enums {
+            <span class="self">self</span>.local_module = typ.module_id;
+            <span class="self">self</span>.generics.clear();
+
+            <span class="kw">let </span>datatype = <span class="self">self</span>.interner.get_type(<span class="kw-2">*</span>type_id);
+            <span class="kw">let </span>datatype_ref = datatype.borrow();
+            <span class="kw">let </span>generics = datatype_ref.generic_types();
+            <span class="self">self</span>.add_existing_generics(<span class="kw-2">&amp;</span>typ.enum_def.generics, <span class="kw-2">&amp;</span>datatype_ref.generics);
+
+            <span class="self">self</span>.use_unstable_feature(UnstableFeature::Enums, datatype_ref.name.location());
+            drop(datatype_ref);
+
+            <span class="kw">let </span>self_type = Type::DataType(datatype.clone(), generics);
+            <span class="kw">let </span>self_type_id = <span class="self">self</span>.interner.push_quoted_type(self_type.clone());
+            <span class="kw">let </span>location = typ.enum_def.location;
+            <span class="kw">let </span>unresolved =
+                UnresolvedType { typ: UnresolvedTypeData::Resolved(self_type_id), location };
+
+            datatype.borrow_mut().init_variants();
+            <span class="self">self</span>.resolving_ids.insert(<span class="kw-2">*</span>type_id);
+
+            <span class="kw">let </span>wildcard_allowed = <span class="bool-val">false</span>;
+            <span class="kw">for </span>(i, variant) <span class="kw">in </span>typ.enum_def.variants.iter().enumerate() {
+                <span class="kw">let </span>parameters = variant.item.parameters.as_ref();
+                <span class="kw">let </span>types = parameters.map(|params| {
+                    vecmap(params, |typ| <span class="self">self</span>.resolve_type(typ.clone(), wildcard_allowed))
+                });
+                <span class="kw">let </span>name = variant.item.name.clone();
+
+                <span class="kw">let </span>is_function = types.is_some();
+                <span class="kw">let </span>params = types.clone().unwrap_or_default();
+                datatype.borrow_mut().push_variant(HirEnumVariant::new(name, params, is_function));
+
+                <span class="self">self</span>.define_enum_variant_constructor(
+                    <span class="kw-2">&amp;</span>typ.enum_def,
+                    <span class="kw-2">*</span>type_id,
+                    <span class="kw-2">&amp;</span>variant.item,
+                    types,
+                    i,
+                    <span class="kw-2">&amp;</span>datatype,
+                    <span class="kw-2">&amp;</span>self_type,
+                    unresolved.clone(),
+                );
+
+                <span class="kw">let </span>reference_id = ReferenceId::EnumVariant(<span class="kw-2">*</span>type_id, i);
+                <span class="kw">let </span>location = variant.item.name.location();
+                <span class="self">self</span>.interner.add_definition_location(reference_id, location);
+            }
+
+            <span class="self">self</span>.resolving_ids.remove(type_id);
+        }
+        <span class="self">self</span>.generics.clear();
+    }
+
     <span class="doccomment">/// Defines the value of an enum variant that we resolve an enum
     /// variant expression to. E.g. `Foo::Bar` in `Foo::Bar(baz)`.
     ///
