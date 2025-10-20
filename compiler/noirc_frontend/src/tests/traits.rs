@@ -1,7 +1,579 @@
 use crate::{
-    assert_no_errors, check_errors, check_monomorphization_error, elaborator::FrontendOptions,
-    get_program_with_options,
+    elaborator::FrontendOptions,
+    test_utils::get_program_with_options,
+    tests::{assert_no_errors, check_errors, check_monomorphization_error},
 };
+
+#[test]
+fn check_trait_implemented_for_all_t() {
+    let src = "
+    trait Default2 {
+        fn default2() -> Self;
+    }
+
+    trait Eq2 {
+        fn eq2(self, other: Self) -> bool;
+    }
+
+    trait IsDefault {
+        fn is_default(self) -> bool;
+    }
+
+    impl<T> IsDefault for T where T: Default2 + Eq2 {
+        fn is_default(self) -> bool {
+            self.eq2(T::default2())
+        }
+    }
+
+    struct Foo {
+        a: u64,
+    }
+
+    impl Eq2 for Foo {
+        fn eq2(self, other: Foo) -> bool { self.a == other.a }
+    }
+
+    impl Default2 for u64 {
+        fn default2() -> Self {
+            0
+        }
+    }
+
+    impl Default2 for Foo {
+        fn default2() -> Self {
+            Foo { a: Default2::default2() }
+        }
+    }
+
+    fn main(a: Foo) -> pub bool {
+        a.is_default()
+    }";
+    assert_no_errors(src);
+}
+
+#[test]
+fn trait_impl_for_a_type_that_implements_another_trait() {
+    let src = r#"
+    trait One {
+        fn one(self) -> i32;
+    }
+
+    impl One for i32 {
+        fn one(self) -> i32 {
+            self
+        }
+    }
+
+    trait Two {
+        fn two(self) -> i32;
+    }
+
+    impl<T> Two for T where T: One {
+        fn two(self) -> i32 {
+            self.one() + 1
+        }
+    }
+
+    pub fn use_it<T>(t: T) -> i32 where T: Two {
+        Two::two(t)
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn trait_impl_for_a_type_that_implements_another_trait_with_another_impl_used() {
+    let src = r#"
+    trait One {
+        fn one(self) -> i32;
+    }
+
+    impl One for i32 {
+        fn one(self) -> i32 {
+            let _ = self;
+            1
+        }
+    }
+
+    trait Two {
+        fn two(self) -> i32;
+    }
+
+    impl<T> Two for T where T: One {
+        fn two(self) -> i32 {
+            self.one() + 1
+        }
+    }
+
+    impl Two for u32 {
+        fn two(self) -> i32 {
+            let _ = self;
+            0
+        }
+    }
+
+    pub fn use_it(t: u32) -> i32 {
+        Two::two(t)
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn check_trait_implementation_duplicate_method() {
+    let src = "
+    trait Default2 {
+        fn default(x: Field, y: Field) -> Field;
+    }
+
+    struct Foo {
+        bar: Field,
+        array: [Field; 2],
+    }
+
+    impl Default2 for Foo {
+        // Duplicate trait methods should not compile
+        fn default(x: Field, y: Field) -> Field {
+           ~~~~~~~ First trait associated item found here
+            y + 2 * x
+        }
+        // Duplicate trait methods should not compile
+        fn default(x: Field, y: Field) -> Field {
+           ^^^^^^^ Duplicate definitions of trait associated item with name default found
+           ~~~~~~~ Second trait associated item found here
+            x + 2 * y
+        }
+    }
+
+    fn main() {
+        let _ = Foo { bar: 1, array: [2, 3] }; // silence Foo never constructed warning
+    }";
+    check_errors(src);
+}
+
+#[test]
+fn check_trait_wrong_method_return_type() {
+    let src = "
+    trait Default2 {
+        fn default() -> Self;
+    }
+
+    struct Foo {
+    }
+
+    impl Default2 for Foo {
+        fn default() -> Field {
+                        ^^^^^ Expected type Foo, found type Field
+            0
+        }
+    }
+
+    fn main() {
+        let _ = Foo {}; // silence Foo never constructed warning
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn check_trait_wrong_method_return_type2() {
+    let src = "
+    trait Default2 {
+        fn default(x: Field, y: Field) -> Self;
+    }
+
+    struct Foo {
+        bar: Field,
+        array: [Field; 2],
+    }
+
+    impl Default2 for Foo {
+        fn default(x: Field, _y: Field) -> Field {
+                                           ^^^^^ Expected type Foo, found type Field
+            x
+        }
+    }
+
+    fn main() {
+        let _ = Foo { bar: 1, array: [2, 3] }; // silence Foo never constructed warning
+    }";
+    check_errors(src);
+}
+
+#[test]
+fn check_trait_wrong_method_return_type3() {
+    let src = "
+    trait Default2 {
+        fn default(x: Field, y: Field) -> Self;
+    }
+
+    struct Foo {
+        bar: Field,
+        array: [Field; 2],
+    }
+
+    impl Default2 for Foo {
+        fn default(_x: Field, _y: Field) {
+                                        ^ Expected type Foo, found type ()
+        }
+    }
+
+    fn main() {
+        let _ = Foo { bar: 1, array: [2, 3] }; // silence Foo never constructed warning
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn check_trait_missing_implementation() {
+    let src = "
+    trait Default2 {
+        fn default(x: Field, y: Field) -> Self;
+
+        fn method2(x: Field) -> Field;
+
+    }
+
+    struct Foo {
+        bar: Field,
+        array: [Field; 2],
+    }
+
+    impl Default2 for Foo {
+                      ^^^ Method `method2` from trait `Default2` is not implemented
+                      ~~~ Please implement method2 here
+        fn default(x: Field, y: Field) -> Self {
+            Self { bar: x, array: [x,y] }
+        }
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn check_trait_not_in_scope() {
+    let src = "
+    struct Foo {
+        bar: Field,
+        array: [Field; 2],
+    }
+
+    impl Default2 for Foo {
+         ^^^^^^^^ Trait Default2 not found
+        fn default(x: Field, y: Field) -> Self {
+            Self { bar: x, array: [x,y] }
+        }
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn check_trait_wrong_method_name() {
+    let src = "
+    trait Default2 {
+    }
+
+    struct Foo {
+        bar: Field,
+        array: [Field; 2],
+    }
+
+    impl Default2 for Foo {
+        fn does_not_exist(x: Field, y: Field) -> Self {
+           ^^^^^^^^^^^^^^ Method with name `does_not_exist` is not part of trait `Default2`, therefore it can't be implemented
+            Self { bar: x, array: [x,y] }
+        }
+    }
+
+    fn main() {
+        let _ = Foo { bar: 1, array: [2, 3] }; // silence Foo never constructed warning
+    }";
+    check_errors(src);
+}
+
+#[test]
+fn check_trait_wrong_parameter() {
+    let src = "
+    trait Default2 {
+        fn default(x: Field) -> Self;
+    }
+
+    struct Foo {
+        bar: u32,
+    }
+
+    impl Default2 for Foo {
+        fn default(x: u32) -> Self {
+                      ^^^ Parameter #1 of method `default` must be of type Field, not u32
+            Foo {bar: x}
+        }
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn check_trait_wrong_parameter2() {
+    let src = "
+    trait Default2 {
+        fn default(x: Field, y: Field) -> Self;
+    }
+
+    struct Foo {
+        bar: Field,
+        array: [Field; 2],
+    }
+
+    impl Default2 for Foo {
+        fn default(x: Field, y: Foo) -> Self {
+                                ^^^ Parameter #2 of method `default` must be of type Field, not Foo
+            Self { bar: x, array: [x, y.bar] }
+        }
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn check_trait_wrong_parameter_type() {
+    let src = "
+    pub trait Default2 {
+        fn default(x: Field, y: NotAType) -> Field;
+                                ^^^^^^^^ Could not resolve 'NotAType' in path
+    }
+
+    fn main(x: Field, y: Field) {
+        assert(y == x);
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn check_trait_wrong_parameters_count() {
+    let src = "
+    trait Default2 {
+        fn default(x: Field, y: Field) -> Self;
+    }
+
+    struct Foo {
+        bar: Field,
+        array: [Field; 2],
+    }
+
+    impl Default2 for Foo {
+        fn default(x: Field) -> Self {
+           ^^^^^^^ `Default2::default` expects 2 parameters, but this method has 1
+            Self { bar: x, array: [x, x] }
+        }
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn check_trait_impl_for_non_type() {
+    let src = "
+    trait Default2 {
+        fn default(x: Field, y: Field) -> Field;
+    }
+
+    impl Default2 for main {
+                      ^^^^ expected type got function
+        fn default(x: Field, y: Field) -> Field {
+            x + y
+        }
+    }
+
+    fn main() {}
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn check_impl_struct_not_trait() {
+    let src = "
+    struct Foo {
+        bar: Field,
+        array: [Field; 2],
+    }
+
+    struct Default2 {
+        x: Field,
+        z: Field,
+    }
+
+    impl Default2 for Foo {
+         ^^^^^^^^ Default2 is not a trait, therefore it can't be implemented
+        fn default(x: Field, y: Field) -> Self {
+            Self { bar: x, array: [x,y] }
+        }
+    }
+
+    fn main() {
+        let _ = Default2 { x: 1, z: 1 }; // silence Default2 never constructed warning
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn check_trait_duplicate_declaration() {
+    let src = "
+    trait Default2 {
+          ~~~~~~~~ First trait definition found here
+        fn default(x: Field, y: Field) -> Self;
+    }
+
+    struct Foo {
+        bar: Field,
+        array: [Field; 2],
+    }
+
+    impl Default2 for Foo {
+        fn default(x: Field,y: Field) -> Self {
+            Self { bar: x, array: [x,y] }
+        }
+    }
+
+    trait Default2 {
+          ^^^^^^^^ Duplicate definitions of trait definition with name Default2 found
+          ~~~~~~~~ Second trait definition found here
+        fn default(x: Field) -> Self;
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn check_trait_duplicate_implementation() {
+    let src = "
+    trait Default2 {
+    }
+    struct Foo {
+        bar: Field,
+    }
+
+    impl Default2 for Foo {
+         ~~~~~~~~ Previous impl defined here
+    }
+    impl Default2 for Foo {
+                      ^^^ Impl for type `Foo` overlaps with existing impl
+                      ~~~ Overlapping impl
+    }
+    fn main() {
+        let _ = Foo { bar: 1 }; // silence Foo never constructed warning
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn check_trait_duplicate_implementation_with_alias() {
+    let src = "
+    trait Default2 {
+    }
+
+    struct MyStruct {
+    }
+
+    type MyType = MyStruct;
+
+    impl Default2 for MyStruct {
+         ~~~~~~~~ Previous impl defined here
+    }
+
+    impl Default2 for MyType {
+                      ^^^^^^ Impl for type `MyType` overlaps with existing impl
+                      ~~~~~~ Overlapping impl
+    }
+
+    fn main() {
+        let _ = MyStruct {}; // silence MyStruct never constructed warning
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn test_impl_self_within_default_def() {
+    let src = "
+    trait Bar {
+        fn ok(self) -> Self;
+
+        fn ref_ok(self) -> Self {
+            self.ok()
+        }
+    }
+
+    impl<T> Bar for (T, T) where T: Bar {
+        fn ok(self) -> Self {
+            self
+        }
+    }
+    ";
+    assert_no_errors(src);
+}
+
+#[test]
+fn check_trait_as_type_as_fn_parameter() {
+    let src = "
+    trait Eq2 {
+        fn eq2(self, other: Self) -> bool;
+    }
+
+    struct Foo {
+        a: u64,
+    }
+
+    impl Eq2 for Foo {
+        fn eq2(self, other: Foo) -> bool { self.a == other.a }
+    }
+
+    fn test_eq(x: impl Eq2) -> bool {
+        x.eq2(x)
+    }
+
+    fn main(a: Foo) -> pub bool {
+        test_eq(a)
+    }";
+    assert_no_errors(src);
+}
+
+#[test]
+fn check_trait_as_type_as_two_fn_parameters() {
+    let src = "
+    trait Eq2 {
+        fn eq2(self, other: Self) -> bool;
+    }
+
+    trait Test {
+        fn test(self) -> bool;
+    }
+
+    struct Foo {
+        a: u64,
+    }
+
+    impl Eq2 for Foo {
+        fn eq2(self, other: Foo) -> bool { self.a == other.a }
+    }
+
+    impl Test for u64 {
+        fn test(self) -> bool { self == self }
+    }
+
+    fn test_eq(x: impl Eq2, y: impl Test) -> bool {
+        x.eq2(x) == y.test()
+    }
+
+    fn main(a: Foo, b: u64) -> pub bool {
+        test_eq(a, b)
+    }";
+    assert_no_errors(src);
+}
 
 #[test]
 fn trait_inheritance() {
@@ -22,7 +594,7 @@ fn trait_inheritance() {
             (baz.foo(), baz.bar(), baz.baz())
         }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -40,7 +612,7 @@ fn trait_inheritance_with_generics() {
             x.foo()
         }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -58,7 +630,7 @@ fn trait_inheritance_with_generics_2() {
             x.foo()
         }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -72,7 +644,7 @@ fn trait_inheritance_with_generics_3() {
 
         impl Bar<i32> for () {}
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -86,7 +658,7 @@ fn trait_inheritance_with_generics_4() {
 
         impl Bar<i32> for () {}
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -97,7 +669,7 @@ fn trait_inheritance_dependency_cycle() {
               ~~~ 'Foo' recursively depends on itself: Foo -> Bar -> Foo
         trait Bar: Foo {}
     "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
 #[test]
@@ -117,7 +689,7 @@ fn trait_inheritance_missing_parent_implementation() {
         fn main() {
         }
     "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
 #[test]
@@ -129,7 +701,7 @@ fn errors_on_unknown_type_in_trait_where_clause() {
         fn main() {
         }
     "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
 #[test]
@@ -160,7 +732,7 @@ fn does_not_error_if_impl_trait_constraint_is_satisfied_for_concrete_type() {
 
         impl Foo<SomeGreeter> for Bar {}
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -184,7 +756,7 @@ fn does_not_error_if_impl_trait_constraint_is_satisfied_for_type_variable() {
         fn main() {
         }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -215,7 +787,7 @@ fn errors_if_impl_trait_constraint_is_not_satisfied() {
                                   ^^^ The trait bound `SomeGreeter: Greeter` is not satisfied
                                   ~~~ The trait `Greeter` is not implemented for `SomeGreeter`
     "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
 #[test]
@@ -233,7 +805,7 @@ fn regression_6314_single_inheritance() {
 
         fn main() { }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -273,7 +845,7 @@ fn regression_6314_double_inheritance() {
             assert(0.foo().bar() == baz(0));
         }"#;
 
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -298,7 +870,7 @@ fn trait_alias_single_member() {
             let _ = baz(x);
         }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -334,7 +906,7 @@ fn trait_alias_two_members() {
             assert(0.foo().bar() == baz(0));
         }"#;
 
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -370,7 +942,7 @@ fn trait_alias_polymorphic_inheritance() {
             assert(0.foo().bar() == baz(0));
         }"#;
 
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 // TODO(https://github.com/noir-lang/noir/issues/6467): currently failing, so
@@ -399,7 +971,7 @@ fn trait_alias_with_where_clause_has_equivalent_errors() {
             ^^^^^^^ No method named 'baz' found for type 'T'
         }
     "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
 // TODO(https://github.com/noir-lang/noir/issues/6467): currently failing, so
@@ -423,7 +995,7 @@ fn trait_alias_with_where_clause_has_equivalent_errors_2() {
             ^^^^^^^ No method named 'baz' found for type 'T'
         }
     "#;
-    check_errors!(alias_src);
+    check_errors(alias_src);
 }
 
 #[test]
@@ -442,7 +1014,7 @@ fn removes_assumed_parent_traits_after_function_ends() {
         T: Foo,
     {}
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -493,7 +1065,7 @@ fn trait_bounds_which_are_dependent_on_generic_types_are_resolved_correctly() {
             let _ = foo.bar();
         }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -506,8 +1078,7 @@ fn does_not_crash_on_as_trait_path_with_empty_path() {
 
     let allow_parser_errors = true;
     let options = FrontendOptions::test_default();
-    let (_, _, errors) =
-        get_program_with_options!(src, Expect::Error, allow_parser_errors, options);
+    let (_, _, errors) = get_program_with_options(src, allow_parser_errors, options);
     assert!(!errors.is_empty());
 }
 
@@ -534,7 +1105,7 @@ fn warns_if_trait_is_not_in_scope_for_function_call_and_there_is_only_one_trait_
         }
     }
     "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
 #[test]
@@ -561,7 +1132,7 @@ fn calls_trait_function_if_it_is_in_scope() {
         }
     }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -598,7 +1169,7 @@ fn calls_trait_function_if_it_is_only_candidate_in_scope() {
         }
     }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -626,7 +1197,7 @@ fn calls_trait_function_if_it_is_only_candidate_in_scope_in_nested_module_using_
         }
     }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -663,7 +1234,7 @@ fn errors_if_trait_is_not_in_scope_for_function_call_and_there_are_multiple_cand
         }
     }
     "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
 #[test]
@@ -703,7 +1274,7 @@ fn errors_if_multiple_trait_methods_are_in_scope_for_function_call() {
         }
     }
     "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
 #[test]
@@ -731,7 +1302,7 @@ fn warns_if_trait_is_not_in_scope_for_method_call_and_there_is_only_one_trait_me
         }
     }
     "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
 #[test]
@@ -760,7 +1331,7 @@ fn calls_trait_method_if_it_is_in_scope() {
         }
     }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -799,7 +1370,7 @@ fn errors_if_trait_is_not_in_scope_for_method_call_and_there_are_multiple_candid
         }
     }
     "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
 #[test]
@@ -841,7 +1412,7 @@ fn errors_if_multiple_trait_methods_are_in_scope_for_method_call() {
         }
     }
     "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
 #[test]
@@ -873,7 +1444,7 @@ fn calls_trait_method_if_it_is_in_scope_with_multiple_candidates_but_only_one_de
         let _: u32 = foo.convert();
     }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -889,7 +1460,7 @@ fn type_checks_trait_default_method_and_errors() {
             }
         }
     "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
 #[test]
@@ -902,7 +1473,7 @@ fn type_checks_trait_default_method_and_does_not_error() {
             }
         }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -919,7 +1490,7 @@ fn type_checks_trait_default_method_and_does_not_error_using_self() {
             }
         }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -942,7 +1513,7 @@ fn warns_if_trait_is_not_in_scope_for_primitive_function_call_and_there_is_only_
         }
     }
     "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
 #[test]
@@ -966,7 +1537,7 @@ fn warns_if_trait_is_not_in_scope_for_primitive_method_call_and_there_is_only_on
         }
     }
     "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
 #[test]
@@ -990,7 +1561,7 @@ fn warns_if_trait_is_not_in_scope_for_generic_function_call_and_there_is_only_on
         }
     }
     "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
 #[test]
@@ -1011,7 +1582,7 @@ fn error_on_duplicate_impl_with_associated_type() {
             type Bar = u8;
         }
     "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
 #[test]
@@ -1032,7 +1603,7 @@ fn error_on_duplicate_impl_with_associated_constant() {
             let Bar: u32 = 6;
         }
     "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
 // See https://github.com/noir-lang/noir/issues/6530
@@ -1076,7 +1647,7 @@ fn regression_6530() {
         let _: Field = foo.into2();
     }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1101,7 +1672,7 @@ fn calls_trait_method_using_struct_name_when_multiple_impls_exist() {
         let _ = U60Repr::from2(1);
     }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1134,7 +1705,7 @@ fn as_trait_path_in_expression() {
             fn bar<Z>(_x: Z) {}
         }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1155,7 +1726,7 @@ fn allows_renaming_trait_during_import() {
         x.foo();
     }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1178,7 +1749,7 @@ fn renaming_trait_avoids_name_collisions() {
         x.foo();
     }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1203,7 +1774,7 @@ fn passes_trait_with_associated_number_to_generic_function() {
         T: Trait,
     {}
     ";
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1232,7 +1803,7 @@ fn passes_trait_with_associated_number_to_generic_function_inside_struct_impl() 
         bar.bar::<Foo>();
     }
     ";
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1265,7 +1836,7 @@ fn returns_self_in_trait_method_1() {
         }
     }
     ";
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1294,7 +1865,7 @@ fn returns_self_in_trait_method_2() {
         }
     }
     ";
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1319,7 +1890,7 @@ fn returns_self_in_trait_method_3() {
         }
     }
     ";
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1341,7 +1912,7 @@ fn trait_impl_with_where_clause_with_trait_with_associated_numeric() {
         fn foo<B>(_: B) where B: Bar {} 
     }
     ";
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1363,7 +1934,7 @@ fn trait_impl_with_where_clause_with_trait_with_associated_type() {
         fn foo<B>(_: B) where B: Bar {} 
     }
     ";
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1380,7 +1951,7 @@ fn errors_if_constrained_trait_definition_has_unconstrained_impl() {
         }
     }
     "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
 #[test]
@@ -1397,7 +1968,7 @@ fn errors_if_unconstrained_trait_definition_has_constrained_impl() {
         }
     }
     "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
 #[test]
@@ -1421,7 +1992,7 @@ fn accesses_associated_type_inside_trait_impl_using_self() {
         let _ = i32::foo();
     }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1443,7 +2014,7 @@ fn accesses_associated_type_inside_trait_using_self() {
         let _ = i32::foo();
     }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1482,7 +2053,7 @@ fn serialize_test_with_a_previous_unrelated_definition() {
         x.serialize();
     }
     "#;
-    check_monomorphization_error!(&src);
+    check_monomorphization_error(src);
 }
 
 #[test]
@@ -1508,7 +2079,7 @@ fn errors_on_incorrect_generics_in_type_trait_call() {
                        ^^^^^^^^^ struct U60Repr expects 0 generics but 1 was given
     }
     "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
 #[test]
@@ -1525,7 +2096,7 @@ fn trait_impl_with_child_constraint() {
     impl<T: Parent> Parent for Struct<T> {}
     impl<T: Child> Child for Struct<T> {}
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1549,7 +2120,7 @@ fn trait_with_same_generic_in_different_default_methods() {
         Struct {}.bar("Hello");
     }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1583,7 +2154,7 @@ fn associated_constant_of_generic_type_used_in_another_associated_constant() {
         let _ = Foo {}.serialize();
     }
     "#;
-    check_monomorphization_error!(src);
+    check_monomorphization_error(src);
 }
 
 #[test]
@@ -1601,7 +2172,7 @@ fn associated_constant_of_generic_type_used_in_expression() {
         let _ = <[Field; 3] as Serialize>::N;
     }
     "#;
-    check_monomorphization_error!(src);
+    check_monomorphization_error(src);
 }
 
 #[test]
@@ -1627,7 +2198,7 @@ fn as_trait_path_called_multiple_times_for_different_t_1() {
         let _ = load::<i32>();
     }
     "#;
-    check_monomorphization_error!(src);
+    check_monomorphization_error(src);
 }
 
 #[test]
@@ -1653,7 +2224,7 @@ fn as_trait_path_called_multiple_times_for_different_t_2() {
         let _ = load::<i32>();
     }
     "#;
-    check_monomorphization_error!(src);
+    check_monomorphization_error(src);
 }
 
 #[test]
@@ -1673,7 +2244,7 @@ fn short_syntax_for_trait_constraint_on_trait_generic() {
 
     fn main() {}
     "#;
-    check_monomorphization_error!(src);
+    check_monomorphization_error(src);
 }
 
 #[test]
@@ -1689,7 +2260,7 @@ fn ambiguous_associated_type() {
                ~~~~~~~~~~ If there were a type named `Example` that implemented `MyTrait`, you could use the fully-qualified path: `<Example as MyTrait>::X`
     }
     "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
 #[test]
@@ -1709,7 +2280,7 @@ fn as_trait_path_self_type() {
         let _ = <Bn254 as BigCurve<()>>::one();
     }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1734,7 +2305,7 @@ fn suggests_importing_trait_via_reexport() {
         ^^^^^^^^^^^^^ trait `one::Trait` which provides `method` is implemented but not in scope, please import it
     }
     "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
 #[test]
@@ -1761,7 +2332,7 @@ fn suggests_importing_trait_via_module_reexport() {
         ^^^^^^^^^^^^^ trait `one::three::Trait` which provides `method` is implemented but not in scope, please import it
     }
     "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
 #[test]
@@ -1795,7 +2366,7 @@ fn associated_constant_sum_of_other_constants() {
         f([0; 2]);
     }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1817,7 +2388,7 @@ fn regression_9245_small_code() {
         foo::<u8>();
     }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1849,7 +2420,7 @@ fn associated_constant_sum_of_other_constants_2() {
         let _ = f([0; X + 1]);
     }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1881,7 +2452,7 @@ fn associated_constant_sum_of_other_constants_3() {
         let _ = f([0; X]);
     }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1913,7 +2484,7 @@ fn associated_constant_mul_of_other_constants() {
         let _ = f([0; X]);
     }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1934,7 +2505,7 @@ fn trait_bound_with_associated_constant() {
 
     impl Trait<Field> for i32 {}
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1953,7 +2524,7 @@ fn trait_method_call_when_it_has_bounds_on_generic() {
         let _: Curve = BigCurve::new();
     }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1972,7 +2543,7 @@ fn trait_bound_constraining_two_generics() {
     pub struct HasBaz1 {}
     impl Baz<HasFoo1, ()> for HasBaz1 {}
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -2001,7 +2572,7 @@ fn trait_where_clause_associated_type_constraint_expected_order() {
     pub struct HasBaz1 {}
     impl Baz<HasFoo1> for HasBaz1 {}
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -2030,7 +2601,7 @@ fn trait_where_clause_associated_type_constraint_unexpected_order() {
     pub struct HasBaz1 {}
     impl Baz<HasFoo1> for HasBaz1 {}
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -2054,7 +2625,7 @@ fn trait_method_numeric_generic_on_function() {
         foo::<Field>();
     }
     "#;
-    check_monomorphization_error!(src);
+    check_monomorphization_error(src);
 }
 
 #[test]
@@ -2089,5 +2660,407 @@ fn trait_bound_on_implementing_type() {
         GenericStruct::<Field>::bar();
     }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
+}
+
+#[test]
+fn impl_stricter_than_trait_no_trait_method_constraints() {
+    // This test ensures that the error we get from the where clause on the trait impl method
+    // is a `DefCollectorErrorKind::ImplIsStricterThanTrait` error.
+    let src = r#"
+    trait Serialize<let N: u32> {
+        // We want to make sure we trigger the error when override a trait method
+        // which itself has no trait constraints.
+        fn serialize(self) -> [Field; N];
+           ~~~~~~~~~ definition of `serialize` from trait
+    }
+
+    trait ToField {
+        fn to_field(self) -> Field;
+    }
+
+    fn process_array<let N: u32>(array: [Field; N]) -> Field {
+        array[0]
+    }
+
+    fn serialize_thing<A, let N: u32>(thing: A) -> [Field; N] where A: Serialize<N> {
+        thing.serialize()
+    }
+
+    struct MyType<T> {
+        a: T,
+        b: T,
+    }
+
+    impl<T> Serialize<2> for MyType<T> {
+        fn serialize(self) -> [Field; 2] where T: ToField {
+                                                  ^^^^^^^ impl has stricter requirements than trait
+                                                  ~~~~~~~ impl has extra requirement `T: ToField`
+            [ self.a.to_field(), self.b.to_field() ]
+        }
+    }
+
+    impl<T> MyType<T> {
+        fn do_thing_with_serialization_with_extra_steps(self) -> Field {
+            process_array(serialize_thing(self))
+        }
+    }
+
+    fn main() {
+        let _ = MyType { a: 1, b: 1 }; // silence MyType never constructed warning
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn impl_stricter_than_trait_different_generics() {
+    let src = r#"
+    trait Default2 { }
+
+    // Object type of the trait constraint differs
+    trait Foo<T> {
+        fn foo_good<U>() where T: Default2;
+
+        fn foo_bad<U>() where T: Default2;
+           ~~~~~~~ definition of `foo_bad` from trait
+    }
+
+    impl<A> Foo<A> for () {
+        fn foo_good<B>() where A: Default2 {}
+
+        fn foo_bad<B>() where B: Default2 {}
+                                 ^^^^^^^^ impl has stricter requirements than trait
+                                 ~~~~~~~~ impl has extra requirement `B: Default2`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn impl_stricter_than_trait_different_object_generics() {
+    let src = r#"
+    trait MyTrait { }
+
+    trait OtherTrait {}
+
+    struct Option2<T> {
+        inner: T
+    }
+
+    struct OtherOption<T> {
+        inner: Option2<T>,
+    }
+
+    trait Bar<T> {
+        fn bar_good<U>() where Option2<T>: MyTrait, OtherOption<Option2<T>>: OtherTrait;
+
+        fn bar_bad<U>() where Option2<T>: MyTrait, OtherOption<Option2<T>>: OtherTrait;
+           ~~~~~~~ definition of `bar_bad` from trait
+
+        fn array_good<U>() where [T; 8]: MyTrait;
+
+        fn array_bad<U>() where [T; 8]: MyTrait;
+           ~~~~~~~~~ definition of `array_bad` from trait
+
+        fn tuple_good<U>() where (Option2<T>, Option2<U>): MyTrait;
+
+        fn tuple_bad<U>() where (Option2<T>, Option2<U>): MyTrait;
+           ~~~~~~~~~ definition of `tuple_bad` from trait
+    }
+
+    impl<A> Bar<A> for () {
+        fn bar_good<B>()
+        where
+            OtherOption<Option2<A>>: OtherTrait,
+            Option2<A>: MyTrait { }
+
+        fn bar_bad<B>()
+        where
+            OtherOption<Option2<A>>: OtherTrait,
+            Option2<B>: MyTrait { }
+                        ^^^^^^^ impl has stricter requirements than trait
+                        ~~~~~~~ impl has extra requirement `Option2<B>: MyTrait`
+
+        fn array_good<B>() where [A; 8]: MyTrait { }
+
+        fn array_bad<B>() where [B; 8]: MyTrait { }
+                                        ^^^^^^^ impl has stricter requirements than trait
+                                        ~~~~~~~ impl has extra requirement `[B; 8]: MyTrait`
+
+        fn tuple_good<B>() where (Option2<A>, Option2<B>): MyTrait { }
+
+        fn tuple_bad<B>() where (Option2<B>, Option2<A>): MyTrait { }
+                                                          ^^^^^^^ impl has stricter requirements than trait
+                                                          ~~~~~~~ impl has extra requirement `(Option2<B>, Option2<A>): MyTrait`
+    }
+
+    fn main() {
+        let _ = OtherOption { inner: Option2 { inner: 1 } }; // silence unused warnings
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn impl_stricter_than_trait_different_trait() {
+    let src = r#"
+    trait Default2 { }
+
+    trait OtherDefault { }
+
+    struct Option2<T> {
+        inner: T
+    }
+
+    trait Bar<T> {
+        fn bar<U>() where Option2<T>: Default2;
+           ~~~ definition of `bar` from trait
+    }
+
+    impl<A> Bar<A> for () {
+        // Trait constraint differs due to the trait even though the constraint
+        // types are the same.
+        fn bar<B>() where Option2<A>: OtherDefault {}
+                                      ^^^^^^^^^^^^ impl has stricter requirements than trait
+                                      ~~~~~~~~~~~~ impl has extra requirement `Option2<A>: OtherDefault`
+    }
+
+    fn main() {
+        let _ = Option2 { inner: 1 }; // silence Option2 never constructed warning
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn trait_impl_where_clause_stricter_pass() {
+    let src = r#"
+    trait MyTrait {
+        fn good_foo<T, H>() where H: OtherTrait;
+
+        fn bad_foo<T, H>() where H: OtherTrait;
+           ~~~~~~~ definition of `bad_foo` from trait
+    }
+
+    trait OtherTrait {}
+
+    struct Option2<T> {
+        inner: T
+    }
+
+    impl<T> MyTrait for [T] where Option2<T>: MyTrait {
+        fn good_foo<A, B>() where B: OtherTrait { }
+
+        fn bad_foo<A, B>() where A: OtherTrait { }
+                                    ^^^^^^^^^^ impl has stricter requirements than trait
+                                    ~~~~~~~~~~ impl has extra requirement `A: OtherTrait`
+    }
+
+    fn main() {
+        let _ = Option2 { inner: 1 }; // silence Option2 never constructed warning
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn impl_stricter_than_trait_different_trait_generics() {
+    let src = r#"
+    trait Foo<T> {
+        fn foo<U>() where T: T2<T>;
+           ~~~ definition of `foo` from trait
+    }
+
+    impl<A> Foo<A> for () {
+        // Should be A: T2<A>
+        fn foo<B>() where A: T2<B> {}
+                             ^^ impl has stricter requirements than trait
+                             ~~ impl has extra requirement `A: T2<B>`
+    }
+
+    trait T2<C> {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn trait_impl_generics_count_mismatch() {
+    let src = r#"
+    trait Foo {}
+
+    impl Foo<()> for Field {}
+         ^^^ Foo expects 0 generics but 1 was given
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn trait_constraint_on_tuple_type() {
+    let src = r#"
+    trait Foo<A> {
+        fn foo(self, x: A) -> bool;
+    }
+
+    pub fn bar<T, U, V>(x: (T, U), y: V) -> bool where (T, U): Foo<V> {
+        x.foo(y)
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn trait_constraint_on_tuple_type_pub_crate() {
+    let src = r#"
+    pub(crate) trait Foo<A> {
+        fn foo(self, x: A) -> bool;
+    }
+
+    pub fn bar<T, U, V>(x: (T, U), y: V) -> bool where (T, U): Foo<V> {
+        x.foo(y)
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn uses_self_type_inside_trait() {
+    let src = r#"
+    trait Foo {
+        fn foo() -> Self {
+            Self::bar()
+        }
+
+        fn bar() -> Self;
+    }
+
+    impl Foo for Field {
+        fn bar() -> Self {
+            1
+        }
+    }
+
+    fn main() {
+        let _: Field = Foo::foo();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn as_trait_path_syntax_resolves_outside_impl() {
+    let src = r#"
+    trait Foo {
+        type Assoc;
+    }
+
+    struct Bar {}
+
+    impl Foo for Bar {
+        type Assoc = i32;
+    }
+
+    fn main() {
+        // AsTraitPath syntax is a bit silly when associated types
+        // are explicitly specified
+        let _: i64 = 1 as <Bar as Foo<Assoc = i32>>::Assoc;
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Expected type i64, found type i32
+
+        let _ = Bar {}; // silence Bar never constructed warning
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn as_trait_path_syntax_no_impl() {
+    let src = r#"
+    trait Foo {
+        type Assoc;
+    }
+
+    struct Bar {}
+
+    impl Foo for Bar {
+        type Assoc = i32;
+    }
+
+    fn main() {
+        let _: i64 = 1 as <Bar as Foo<Assoc = i8>>::Assoc;
+                                  ^^^ No matching impl found for `Bar: Foo<Assoc = i8>`
+                                  ~~~ No impl for `Bar: Foo<Assoc = i8>`
+
+        let _ = Bar {}; // silence Bar never constructed warning
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn uses_self_type_in_trait_where_clause() {
+    let src = r#"
+    pub trait Trait {
+        fn trait_func(self) -> bool;
+    }
+
+    pub trait Foo where Self: Trait {
+                              ~~~~~ required by this bound in `Foo`
+        fn foo(self) -> bool {
+            self.trait_func()
+            ^^^^^^^^^^^^^^^^^ No method named 'trait_func' found for type 'Bar'
+        }
+    }
+
+    struct Bar {}
+
+    impl Foo for Bar {
+                 ^^^ The trait bound `_: Trait` is not satisfied
+                 ~~~ The trait `Trait` is not implemented for `_`
+
+    }
+
+    fn main() {
+        let _ = Bar {}; // silence Bar never constructed warning
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn impl_missing_associated_type() {
+    let src = r#"
+    trait Foo {
+        type Assoc;
+    }
+
+    impl Foo for () {}
+         ^^^ `Foo` is missing the associated type `Assoc`
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn unconstrained_type_parameter_in_trait_impl() {
+    let src = r#"
+        pub trait Trait<T> {}
+        pub struct Foo<T> {}
+
+        impl<T, U> Trait<T> for Foo<T> {}
+                ^ The type parameter `U` is not constrained by the impl trait, self type, or predicates
+                ~ Hint: remove the `U` type parameter
+        "#;
+    check_errors(src);
+}
+
+#[test]
+fn does_not_error_if_type_parameter_is_used_in_trait_bound_named_generic() {
+    let src = r#"
+    pub trait SomeTrait {}
+    pub trait AnotherTrait {
+        type AssocType;
+    }
+
+    impl<T, U> SomeTrait for T where T: AnotherTrait<AssocType=U> {}
+    "#;
+    assert_no_errors(src);
 }

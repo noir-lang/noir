@@ -1,15 +1,12 @@
-use crate::{
-    check_errors,
-    hir::{
-        comptime::ComptimeError,
-        def_collector::{
-            dc_crate::CompilationError,
-            errors::{DefCollectorErrorKind, DuplicateType},
-        },
+use crate::hir::{
+    comptime::ComptimeError,
+    def_collector::{
+        dc_crate::CompilationError,
+        errors::{DefCollectorErrorKind, DuplicateType},
     },
 };
 
-use crate::{assert_no_errors, get_program_errors};
+use crate::tests::{assert_no_errors, check_errors, get_program_errors};
 
 // Regression for #5388
 #[test]
@@ -18,7 +15,7 @@ fn comptime_let() {
         comptime let my_var = 2;
         assert_eq(my_var, 2);
     }"#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -31,7 +28,7 @@ fn comptime_code_rejects_dynamic_variable() {
         assert_eq(my_var, 2);
     }
     "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
 #[test]
@@ -41,7 +38,7 @@ fn comptime_type_in_runtime_code() {
                    ^^^^^^^^^^^^^^^^^^ Comptime-only type `FunctionDefinition` cannot be used in runtime code
                    ~~~~~~~~~~~~~~~~~~ Comptime-only type used here
     ";
-    check_errors!(source);
+    check_errors(source);
 }
 
 #[test]
@@ -59,7 +56,7 @@ fn macro_result_type_mismatch() {
             q
         }
     "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
 #[test]
@@ -85,7 +82,7 @@ fn unquoted_integer_as_integer_token() {
     }
     "#;
 
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -104,7 +101,7 @@ fn allows_references_to_structs_generated_by_macros() {
     }
     "#;
 
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -131,7 +128,7 @@ fn errors_if_macros_inject_functions_with_name_collisions() {
     }
     "#;
 
-    let mut errors = get_program_errors!(src);
+    let mut errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
 
     let CompilationError::ComptimeError(ComptimeError::ErrorRunningAttribute { error, .. }) =
@@ -167,7 +164,7 @@ fn uses_correct_type_for_attribute_arguments() {
         let _ = y == i[0];
     }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -192,5 +189,94 @@ fn does_not_fail_to_parse_macro_on_parser_warning() {
         bar()
     }
     "#;
-    check_errors!(src);
+    check_errors(src);
+}
+
+#[test]
+fn quote_code_fragments() {
+    // TODO: have the error also point to `contact!` as a secondary
+    // This test ensures we can quote (and unquote/splice) code fragments
+    // which by themselves are not valid code. They only need to be valid
+    // by the time they are unquoted into the macro's call site.
+    let src = r#"
+        fn main() {
+            comptime {
+                concat!(quote { assert( }, quote { false); });
+                                                   ^^^^^ Assertion failed
+            }
+        }
+
+        comptime fn concat(a: Quoted, b: Quoted) -> Quoted {
+            quote { $a $b }
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn attempt_to_add_with_overflow_at_comptime() {
+    let src = r#"
+        fn main() -> pub u8 {
+            comptime {
+                255 as u8 + 1 as u8
+                ^^^^^^^^^^^^^^^^^^^ Attempt to add with overflow
+            }
+        }
+
+        "#;
+    check_errors(src);
+}
+
+#[test]
+fn attempt_to_divide_by_zero_at_comptime() {
+    let src = r#"
+        fn main() -> pub u8 {
+            comptime {
+                255 as u8 / 0
+                ^^^^^^^^^^^^^ Attempt to divide by zero
+            }
+        }
+
+        "#;
+    check_errors(src);
+}
+
+#[test]
+fn attempt_to_modulo_by_zero_at_comptime() {
+    let src = r#"
+        fn main() -> pub u8 {
+            comptime {
+                255 as u8 % 0
+                ^^^^^^^^^^^^^ Attempt to calculate the remainder with a divisor of zero
+            }
+        }
+
+        "#;
+    check_errors(src);
+}
+
+#[test]
+fn subtract_to_int_min() {
+    // This would cause an integer underflow panic before
+    let src = r#"
+        fn main() {
+            let _x: i8 = comptime {
+                let y: i8 = -127;
+                let z = y - 1;
+                z
+            };
+        }
+    "#;
+
+    assert_no_errors(src);
+}
+
+#[test]
+fn error_if_attribute_not_in_scope() {
+    let src = r#"
+        #[not_in_scope]
+        ^^^^^^^^^^^^^^^ Attribute function `not_in_scope` is not in scope
+        fn main() {}
+    "#;
+    check_errors(src);
 }
