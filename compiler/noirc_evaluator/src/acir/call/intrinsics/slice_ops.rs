@@ -16,6 +16,8 @@ impl Context<'_> {
     /// * `arguments[0]` - Current slice length
     /// * `arguments[1]` - Slice contents
     /// * `arguments[2..]` - Elements to push back
+    /// * `result_ids[0]` - Updated slice length
+    /// * `result_ids[1]` - Update slice contents
     ///
     /// # Returns
     ///
@@ -26,6 +28,7 @@ impl Context<'_> {
         &mut self,
         arguments: &[ValueId],
         dfg: &DataFlowGraph,
+        result_ids: &[ValueId],
     ) -> Result<Vec<AcirValue>, RuntimeError> {
         let slice_length = self.convert_value(arguments[0], dfg).into_var()?;
         let slice_contents = arguments[1];
@@ -131,7 +134,8 @@ impl Context<'_> {
                     None
                 };
 
-            let block_id = self.new_block_id();
+            // The block ID for the new slice is the one for the resulting slice
+            let block_id = self.block_id(result_ids[1]);
             self.initialize_array(block_id, len, Some(AcirValue::Array(new_slice)))?;
             let flattened_dynamic_array =
                 AcirDynamicArray { block_id, len, value_types, element_type_sizes };

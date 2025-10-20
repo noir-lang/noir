@@ -85,12 +85,9 @@ fn slice_push_back_unknown_length() {
     READ w11 = b2[w6]
     READ w12 = b2[w8]
     READ w13 = b2[w3]
-    READ w14 = b2[w6]
-    READ w15 = b2[w8]
-    READ w16 = b2[w3]
-    INIT b4 = [w14, w15, w16]
-    ASSERT w17 = 20
-    WRITE b4[w0] = w17
+    INIT b3 = [w11, w12, w13]
+    ASSERT w14 = 20
+    WRITE b3[w0] = w14
     ");
 }
 

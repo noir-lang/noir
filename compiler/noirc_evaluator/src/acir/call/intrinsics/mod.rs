@@ -108,7 +108,7 @@ impl Context<'_> {
                 ])
             }
 
-            Intrinsic::SlicePushBack => self.convert_slice_push_back(arguments, dfg),
+            Intrinsic::SlicePushBack => self.convert_slice_push_back(arguments, dfg, result_ids),
             Intrinsic::SlicePushFront => self.convert_slice_push_front(arguments, dfg),
             Intrinsic::SlicePopBack => self.convert_slice_pop_back(arguments, dfg, result_ids),
             Intrinsic::SlicePopFront => self.convert_slice_pop_front(arguments, dfg, result_ids),
