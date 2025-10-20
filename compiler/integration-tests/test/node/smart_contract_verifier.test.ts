@@ -6,7 +6,7 @@ import { resolve } from 'path';
 import toml from 'toml';
 
 import { Noir } from '@noir-lang/noir_js';
-import { UltraHonkBackend } from '@aztec/bb.js';
+import { Barretenberg, RawBuffer, UltraHonkBackend } from '@aztec/bb.js';
 
 import { compile, createFileManager } from '@noir-lang/noir_wasm';
 
@@ -43,18 +43,26 @@ test_cases.forEach((testInfo) => {
     const program = new Noir(noir_program);
 
     // JS Proving
-
+console.log("proving testcase:", test_case);
     const prover_toml = readFileSync(resolve(`${base_relative_path}/${test_case}/Prover.toml`)).toString();
     const inputs = toml.parse(prover_toml);
     const { witness } = await program.execute(inputs);
+    console.log("witnesses:");
     console.log(witness);
     const backend = new UltraHonkBackend(noir_program.bytecode);
     const proofData = await backend.generateProof(witness, { keccakZK: true });
-
+console.log("proof: ", proofData);
     // JS verification
 
     const verified = await backend.verifyProof(proofData, { keccakZK: true });
     expect(verified, 'Proof fails verification in JS').to.be.true;
+
+    // VK, for debug:
+    const innerCircuitVerificationKey = await backend.getVerificationKey();
+  const barretenbergAPI = await Barretenberg.new({ threads: 1 });
+  const vkAsFields = await barretenbergAPI.acirVkAsFieldsUltraHonk(new RawBuffer(innerCircuitVerificationKey));
+  const vkHash = await barretenbergAPI.poseidon2Hash(vkAsFields);
+console.log("vk:", vkHash);
 
     // Smart contract verification
 
