@@ -409,11 +409,8 @@ impl PublicInputs {
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        Circuit, Compression, Opcode,
-        opcodes::{BlackBoxFuncCall, FunctionInput},
-    };
-    use crate::{circuit::Program, native_types::Witness};
+    use super::{Circuit, Compression};
+    use crate::circuit::Program;
     use acir_field::{AcirField, FieldElement};
     use serde::{Deserialize, Serialize};
 
