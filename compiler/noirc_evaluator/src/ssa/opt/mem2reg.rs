@@ -845,8 +845,6 @@ impl<'f> PerFunctionContext<'f> {
 
 #[cfg(test)]
 mod tests {
-    use serde_json::from_str;
-
     use crate::{
         assert_ssa_snapshot,
         ssa::{Ssa, opt::assert_ssa_does_not_change},
