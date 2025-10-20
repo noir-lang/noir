@@ -24,14 +24,14 @@ fn read_heap_vector<'a, F: AcirField>(
 }
 
 /// Write values to a [vector][HeapVector] in memory.
-fn write_heap_vector<'a, F: AcirField>(
-    memory: &'a mut Memory<F>,
+fn write_heap_vector<F: AcirField>(
+    memory: &mut Memory<F>,
     vector: &HeapVector,
     values: &[MemoryValue<F>],
 ) {
     let items_start = memory.read_ref(vector.pointer);
     memory.write(vector.size, values.len().into());
-    memory.write_slice(items_start, values)
+    memory.write_slice(items_start, values);
 }
 
 /// Reads a fixed-size [array][HeapArray] from memory.
@@ -46,13 +46,13 @@ fn read_heap_array<'a, F: AcirField>(
 }
 
 /// Write values to a [array][HeapArray] in memory.
-fn write_heap_array<'a, F: AcirField>(
-    memory: &'a mut Memory<F>,
+fn write_heap_array<F: AcirField>(
+    memory: &mut Memory<F>,
     array: &HeapArray,
     values: &[MemoryValue<F>],
 ) {
     let items_start = memory.read_ref(array.pointer);
-    memory.write_slice(items_start, values)
+    memory.write_slice(items_start, values);
 }
 
 /// Extracts the last byte of every value

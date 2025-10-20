@@ -43,7 +43,7 @@ impl FuzzingTrace {
     }
 
     fn log_range_state(log: usize) -> usize {
-        FUZZING_COMPARISON_LOG_RANGE_START_STATE + usize::from(log)
+        FUZZING_COMPARISON_LOG_RANGE_START_STATE + log
     }
 
     pub(super) fn new(branch_to_feature_map: HashMap<(usize, usize), usize>) -> Self {
