@@ -20,13 +20,19 @@ pub enum MemoryAddress {
 }
 
 impl MemoryAddress {
+    /// Create a `Direct` address.
     pub fn direct(address: usize) -> Self {
         MemoryAddress::Direct(address)
     }
+
+    /// Create a `Relative` address.
     pub fn relative(offset: usize) -> Self {
         MemoryAddress::Relative(offset)
     }
 
+    /// Return the index in a `Direct` address.
+    ///
+    /// Panics if it's `Relative`.
     pub fn unwrap_direct(self) -> usize {
         match self {
             MemoryAddress::Direct(address) => address,
@@ -34,6 +40,9 @@ impl MemoryAddress {
         }
     }
 
+    /// Return the index in a `Relative` address.
+    ///
+    /// Panics if it's `Direct`.
     pub fn unwrap_relative(self) -> usize {
         match self {
             MemoryAddress::Direct(_) => panic!("Expected relative memory address"),
@@ -41,6 +50,7 @@ impl MemoryAddress {
         }
     }
 
+    /// Return the index in the address.
     pub fn to_usize(self) -> usize {
         match self {
             MemoryAddress::Direct(address) => address,
@@ -55,6 +65,11 @@ impl MemoryAddress {
         }
     }
 
+    pub fn is_direct(&self) -> bool {
+        !self.is_relative()
+    }
+
+    /// Offset the address by `amount`, while preserving its type.
     pub fn offset(&self, amount: usize) -> Self {
         match self {
             MemoryAddress::Direct(address) => MemoryAddress::Direct(address + amount),
@@ -292,8 +307,8 @@ pub enum ValueOrArray {
     /// For a foreign call output, the value is written directly to memory.
     MemoryAddress(MemoryAddress),
     /// An array to be passed to or from an external call.
-    /// In the case of a foreign call input, the array is read from this Brillig memory location + `usize` more cells.
-    /// In the case of a foreign call output, the array is written to this Brillig memory location with the `usize` being here just as a sanity check for the write size.
+    /// In the case of a foreign call input, the array is read from this Brillig memory location + `size` more cells.
+    /// In the case of a foreign call output, the array is written to this Brillig memory location with the `size` being here just as a sanity check for the write size.
     HeapArray(HeapArray),
     /// A vector to be passed to or from an external call.
     /// In the case of a foreign call input, the vector is read from this Brillig memory location + as many cells as the second address indicates.
