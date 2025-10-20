@@ -1699,7 +1699,7 @@ impl Elaborator<'_> {
         // If this access is just a field offset, we want to avoid dereferencing
         let dereference_lhs = (!access.is_offset).then_some(dereference_lhs);
 
-        match self.check_field_access(&lhs_type, access.rhs.as_str(), location, dereference_lhs) {
+        match self.check_field_access(&lhs_type, &access.rhs, dereference_lhs) {
             Some((element_type, index)) => {
                 self.interner.set_field_index(expr_id, index);
                 // We must update `access` in case we added any dereferences to it

@@ -3,7 +3,7 @@ use noirc_errors::Location;
 use crate::{
     Type,
     ast::{
-        AssignStatement, Expression, ForLoopStatement, ForRange, IntegerBitSize, LValue,
+        AssignStatement, Expression, ForLoopStatement, ForRange, Ident, IntegerBitSize, LValue,
         LetStatement, Statement, StatementKind, WhileStatement,
     },
     elaborator::PathResolutionTarget,
@@ -454,14 +454,8 @@ impl Elaborator<'_> {
                     *mutable_ref = true;
                 };
 
-                let name = field_name.as_str();
                 let (object_type, field_index) = self
-                    .check_field_access(
-                        &lhs_type,
-                        name,
-                        field_name.location(),
-                        Some(dereference_lhs),
-                    )
+                    .check_field_access(&lhs_type, &field_name, Some(dereference_lhs))
                     .unwrap_or((Type::Error, 0));
 
                 let field_index = Some(field_index);
@@ -612,25 +606,25 @@ impl Elaborator<'_> {
     pub(super) fn check_field_access(
         &mut self,
         lhs_type: &Type,
-        field_name: &str,
-        location: Location,
+        field_name: &Ident,
         dereference_lhs: Option<impl FnMut(&mut Self, Type, Type)>,
     ) -> Option<(Type, usize)> {
         let lhs_type = lhs_type.follow_bindings();
+        let location = field_name.location();
 
         match &lhs_type {
             Type::DataType(s, args) => {
                 let s = s.borrow();
-                if let Some((field, visibility, index)) = s.get_field(field_name, args) {
+                if let Some((field, visibility, index)) = s.get_field(field_name.as_str(), args) {
                     self.interner.add_struct_member_reference(s.id, index, location);
 
-                    self.check_struct_field_visibility(&s, field_name, visibility, location);
+                    self.check_struct_field_visibility(&s, field_name, visibility);
 
                     return Some((field, index));
                 }
             }
             Type::Tuple(elements) => {
-                if let Ok(index) = field_name.parse::<usize>() {
+                if let Ok(index) = field_name.as_str().parse::<usize>() {
                     let length = elements.len();
                     if index < length {
                         return Some((elements[index].clone(), index));
@@ -649,15 +643,10 @@ impl Elaborator<'_> {
             Type::Reference(element, mutable) => {
                 if let Some(mut dereference_lhs) = dereference_lhs {
                     dereference_lhs(self, lhs_type.clone(), element.as_ref().clone());
-                    return self.check_field_access(
-                        element,
-                        field_name,
-                        location,
-                        Some(dereference_lhs),
-                    );
+                    return self.check_field_access(element, field_name, Some(dereference_lhs));
                 } else {
                     let (element, index) =
-                        self.check_field_access(element, field_name, location, dereference_lhs)?;
+                        self.check_field_access(element, field_name, dereference_lhs)?;
                     return Some((Type::Reference(Box::new(element), *mutable), index));
                 }
             }
@@ -671,8 +660,7 @@ impl Elaborator<'_> {
         } else if lhs_type != Type::Error {
             self.push_err(TypeCheckError::AccessUnknownMember {
                 lhs_type,
-                field_name: field_name.to_string(),
-                location,
+                field_name: field_name.clone(),
             });
         }
 
