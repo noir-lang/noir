@@ -88,6 +88,9 @@ impl std::fmt::Display for MemoryAddress {
 }
 
 /// Wrapper for array addresses, with convenience methods for various offsets.
+///
+/// The array consists of a ref-count followed by a number of items according
+/// the size indicated by the type.
 pub struct ArrayAddress(MemoryAddress);
 
 impl ArrayAddress {
@@ -103,9 +106,15 @@ impl From<MemoryAddress> for ArrayAddress {
 }
 
 /// Wrapper for vector addresses, with convenience methods for various offsets.
+///
+/// The vector consists of a ref-count, followed by the capacity, and then a
+/// number of items indicated by the capacity.
+///
+/// The semantic length of the vector is maintained at a separate address.
 pub struct VectorAddress(MemoryAddress);
 
 impl VectorAddress {
+    /// Capacity of the vector.
     pub fn size_addr(&self) -> MemoryAddress {
         self.0.offset(1)
     }
@@ -209,7 +218,11 @@ impl std::fmt::Display for HeapValueType {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy, Hash)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct HeapArray {
+    /// Pointer to a memory address which hold the address to the start of the items in the array.
+    ///
+    /// That is to say, the address retrieved from the pointer doesn't need any more offsetting.
     pub pointer: MemoryAddress,
+    /// Statically known size of the array.
     pub size: usize,
 }
 
@@ -229,7 +242,11 @@ impl std::fmt::Display for HeapArray {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy, Hash)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct HeapVector {
+    /// Pointer to a memory address which hold the address to the start of the items in the vector.
+    ///
+    /// That is to say, the address retrieved from the pointer doesn't need any more offsetting.
     pub pointer: MemoryAddress,
+    /// Address to a memory slot holding the semantic length of the vector.
     pub size: MemoryAddress,
 }
 
