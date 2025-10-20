@@ -440,7 +440,7 @@ impl<'context> Elaborator<'context> {
 
         self.run_function_lints(&func_meta, &modifiers);
 
-        // Check arg and return-value visibility of standalone functions.
+        // Check arg and return-value are not more private than the function they are in.
         if self.should_check_function_args_and_return_are_not_more_private_than_function(
             &func_meta, &modifiers,
         ) {
