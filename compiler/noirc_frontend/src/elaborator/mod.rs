@@ -441,7 +441,9 @@ impl<'context> Elaborator<'context> {
         self.run_function_lints(&func_meta, &modifiers);
 
         // Check arg and return-value visibility of standalone functions.
-        if self.should_check_function_visibility(&func_meta, &modifiers) {
+        if self.should_check_function_args_and_return_are_not_more_private_than_function(
+            &func_meta, &modifiers,
+        ) {
             let name = Ident::new(
                 self.interner.definition_name(func_meta.name.id).to_string(),
                 func_meta.name.location,

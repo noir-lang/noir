@@ -68,8 +68,8 @@ impl Elaborator<'_> {
         visibility
     }
 
-    /// Check whether a functions return value and args should be checked for private type visibility.
-    pub(super) fn should_check_function_visibility(
+    /// Check whether a function's args and return value should be checked for private type visibility.
+    pub(super) fn should_check_function_args_and_return_are_not_more_private_than_function(
         &self,
         func_meta: &FuncMeta,
         modifiers: &FunctionModifiers,
