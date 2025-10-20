@@ -533,7 +533,6 @@ impl<'f> PerFunctionContext<'f> {
                 let value = *value;
 
                 let address_aliases = references.get_aliases_for_value(address);
-
                 // If there was another store to this instruction without any (unremoved) loads or
                 // function calls in-between, we can remove the previous store.
                 if !self.aliased_references.contains_key(&address) && !address_aliases.is_unknown()
@@ -608,7 +607,6 @@ impl<'f> PerFunctionContext<'f> {
                     } else {
                         AliasSet::unknown()
                     };
-
                     aliases.unify(&references.get_aliases_for_value(*value));
 
                     references.expressions.insert(result, expression);
@@ -1454,7 +1452,8 @@ mod tests {
             v2 = call f1(v0) -> [&mut u32; 1]
             v4 = array_get v2, index u32 0 -> &mut u32
             store u32 1 at v4
-            return u32 1
+            v6 = load v4 -> u1
+            return v6
         }
         brillig(inline_always) fn foo f1 {
           b0(v0: u32):
@@ -1843,7 +1842,8 @@ mod tests {
             constrain v0 == u32 0
             v8 = array_get v4, index v0 -> &mut u1
             store u1 0 at v8
-            return u1 0
+            v9 = load v8 -> u1
+            return v9
         }
         ");
     }
@@ -1879,9 +1879,10 @@ mod tests {
             v3 = load v1 -> [Field; 1]
             store v2 at v0
             store v3 at v1
-            v5 = make_array [Field 0] : [Field; 1]
-            store v5 at v1
-            return v1, v3
+            v4 = load v1 -> [Field; 1]
+            v6 = make_array [Field 0] : [Field; 1]
+            store v6 at v1
+            return v1, v4
         }
         ");
     }
