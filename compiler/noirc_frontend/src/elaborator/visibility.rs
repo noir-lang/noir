@@ -15,6 +15,9 @@ use crate::{
 use super::Elaborator;
 
 impl Elaborator<'_> {
+    /// Checks whether calling the method `func_id` on an object of type `object_type` is allowed
+    /// from the current location. If not, a visibility error is pushed to the error list.
+    /// The passed `name` is used for error reporting.
     pub(super) fn check_method_call_visibility(
         &mut self,
         func_id: FuncId,
@@ -35,6 +38,9 @@ impl Elaborator<'_> {
         }
     }
 
+    /// Checks whether accessing the struct field `field_name` of type `struct_type`, that has
+    /// the given `visibility`, is allowed from the current location. If not, a visibility
+    /// error is pushed to the error list.
     pub(super) fn check_struct_field_visibility(
         &mut self,
         struct_type: &DataType,
