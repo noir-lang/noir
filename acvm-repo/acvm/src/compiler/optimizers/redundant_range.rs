@@ -183,7 +183,7 @@ impl<'a, F: AcirField> RangeOptimizer<'a, F> {
     /// a minimal number of times that still allows us to avoid executing
     /// any new side effects due to their removal.
     ///
-    /// The idea is to keep only the RANGE opcodes that have stricly smaller bit-size requirements
+    /// The idea is to keep only the RANGE opcodes that have strictly smaller bit-size requirements
     /// than before, i.e the ones that are at a 'switch point'.
     /// Furthermore, we only keep the switch points that are last before
     /// a 'side-effect' opcode (i.e a Brillig call).
