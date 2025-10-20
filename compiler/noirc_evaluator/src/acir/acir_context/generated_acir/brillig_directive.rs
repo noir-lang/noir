@@ -9,6 +9,7 @@ use acvm::acir::{
 
 use crate::brillig::brillig_ir::artifact::GeneratedBrillig;
 
+// TODO: consider making an issue to use Option<BrilligFunctionId> or another enum in place of this PLACEHOLDER_BRILLIG_INDEX
 /// Brillig calls such as for the Brillig std lib are resolved only after code generation is finished.
 /// This index should be used when adding a Brillig call during code generation.
 /// Code generation should then keep track of that unresolved call opcode which will be resolved with the

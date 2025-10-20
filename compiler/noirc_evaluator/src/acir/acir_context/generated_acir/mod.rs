@@ -44,7 +44,7 @@ pub struct GeneratedAcir<F: AcirField> {
     /// This field is private should only ever be accessed through its getter and setter.
     ///
     /// Equivalent to acvm::acir::circuit::Circuit's field of the same name.
-    pub current_witness_index: Option<u32>,
+    current_witness_index: Option<u32>,
 
     /// The opcodes of which the compiled ACIR will comprise.
     pub opcodes: Vec<AcirOpcode<F>>,
@@ -63,7 +63,6 @@ pub struct GeneratedAcir<F: AcirField> {
     pub brillig_locations: BTreeMap<BrilligFunctionId, BrilligOpcodeToLocationsMap>,
 
     /// Source code location of the current instruction being processed
-    /// None if we do not know the location
     pub(crate) call_stack_id: CallStackId,
 
     /// Correspondence between an opcode index and the error message associated with it.
@@ -600,7 +599,7 @@ impl<F: AcirField> GeneratedAcir<F> {
         brillig_function_index: BrilligFunctionId,
         stdlib_func: Option<BrilligStdlibFunc>,
     ) {
-        // Check whether we have a call to this Brillig function already exists.
+        // Check whether a call to this Brillig function already exists.
         // This helps us optimize the Brillig metadata to only be stored once per Brillig entry point.
         let inserted_func_before = self.brillig_locations.contains_key(&brillig_function_index);
 
@@ -731,15 +730,13 @@ fn black_box_expected_output_size(name: BlackBoxFunc) -> Option<usize> {
 
         BlackBoxFunc::Sha256Compression => Some(8),
 
-        // Can only apply a range constraint to one
-        // witness at a time.
         BlackBoxFunc::RANGE => Some(0),
 
         // Signature verification algorithms will return a boolean
         BlackBoxFunc::EcdsaSecp256k1 | BlackBoxFunc::EcdsaSecp256r1 => Some(1),
 
         // Output of operations over the embedded curve
-        // will be 2 field elements representing the point.
+        // will be 3 field elements representing the point, i.e. (x,y,infinite)
         BlackBoxFunc::MultiScalarMul | BlackBoxFunc::EmbeddedCurveAdd => Some(3),
 
         // Recursive aggregation has a variable number of outputs

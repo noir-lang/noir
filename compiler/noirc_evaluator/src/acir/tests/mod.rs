@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 use acvm::{
     AcirField, FieldElement,
     acir::{
@@ -243,13 +245,10 @@ fn properly_constrains_quotient_when_truncating_fields() {
     let main = &acir_functions[0];
 
     let initial_witness = WitnessMap::from(BTreeMap::from([(Witness(0), input)]));
-    let mut acvm = ACVM::new(
-        &StubbedBlackBoxSolver(true),
-        main.opcodes(),
-        initial_witness,
-        &brillig_functions,
-        &[],
-    );
+    let pedantic_solving = true;
+    let blackbox_solver = StubbedBlackBoxSolver(pedantic_solving);
+    let mut acvm =
+        ACVM::new(&blackbox_solver, main.opcodes(), initial_witness, &brillig_functions, &[]);
 
     assert!(matches!(acvm.solve(), ACVMStatus::Failure::<FieldElement>(_)));
 }
@@ -310,13 +309,10 @@ fn execute_ssa(
         .expect("Should compile manually written SSA into ACIR");
     assert_eq!(acir_functions.len(), 1);
     let main = &acir_functions[0];
-    let mut acvm = ACVM::new(
-        &StubbedBlackBoxSolver(true),
-        main.opcodes(),
-        initial_witness,
-        &brillig_functions,
-        &[],
-    );
+    let pedantic_solving = true;
+    let blackbox_solver = StubbedBlackBoxSolver(pedantic_solving);
+    let mut acvm =
+        ACVM::new(&blackbox_solver, main.opcodes(), initial_witness, &brillig_functions, &[]);
     let status = acvm.solve();
     if status == ACVMStatus::Solved {
         (status, output.map(|o| acvm.witness_map()[o]))
@@ -416,9 +412,9 @@ fn test_operators(
         let acir_execution_result = execute_ssa(ssa, initial_witness.clone(), output.as_ref());
 
         match (ssa_interpreter_result, acir_execution_result) {
-            // Both execution failed, so it is the same behavior, as expected.
+            // Both executions failed, so it is the same behavior, as expected.
             (Err(_), (ACVMStatus::Failure(_), _)) => (),
-            // Both execution succeeded and output the same value
+            // Both executions succeeded and output the same value
             (Ok(ssa_inner_result), (ACVMStatus::Solved, acvm_result)) => {
                 let ssa_result = if let Some(result) = ssa_inner_result.first() {
                     result.as_numeric().map(|v| v.convert_to_field())
@@ -433,113 +429,136 @@ fn test_operators(
 }
 
 proptest! {
-#[test]
-fn test_binary_on_field(lhs in 0u128.., rhs in 0u128..) {
-            let lhs = FieldElement::from(lhs);
-            let rhs = FieldElement::from(rhs);
-    // Test the following Binary operation on Fields
-    let operators = [
-        "add",
-        "sub",
-        "mul",
-        "div",
-        "eq",
-        // Bitwise operations are not allowed on field elements
-        // SSA interpreter will emit an error but not ACVM
-        // "and",
-        // "xor",
-        "unchecked_add",
-        "unchecked_sub",
-        "unchecked_mul",
-        "range_check 32",
-        "truncate 32 254",
-    ];
-    let inputs = [lhs, rhs];
-    test_operators(&operators, "Field", &inputs);
-}
-
-#[test]
-fn test_u32(lhs in 0u32.., rhs in 0u32..) {
-    let lhs = FieldElement::from(lhs);
-    let rhs = FieldElement::from(rhs);
-
-    // Test the following operations on u32
-    let operators = [
-        "add",
-        "sub",
-        "mul",
-        "div",
-        "eq",
-        "and",
-        "xor",
-        "mod",
-        "lt",
-        "or",
-        "not",
-        "range_check 8",
-        "truncate 8 32",
-    ];
-    let inputs = [lhs, rhs];
-    test_operators(&operators, "u32", &inputs);
-
-    //unchecked operations assume no under/over-flow
-    let mut unchecked_operators = vec![];
-    if (lhs + rhs).to_u128() <= u128::from(u32::MAX) {
-        unchecked_operators.push("unchecked_add");
+    #[test]
+    fn test_binary_on_field(lhs in 0u128.., rhs in 0u128..) {
+        let lhs = FieldElement::from(lhs);
+        let rhs = FieldElement::from(rhs);
+        // Test the following Binary operation on Fields
+        let operators = [
+            "add",
+            "sub",
+            "mul",
+            "div",
+            "eq",
+            // Bitwise operations are not allowed on field elements
+            // SSA interpreter will emit an error but not ACVM
+            // "and",
+            // "xor",
+            "unchecked_add",
+            "unchecked_sub",
+            "unchecked_mul",
+            "range_check 32",
+            "truncate 32 254",
+        ];
+        let inputs = [lhs, rhs];
+        test_operators(&operators, "Field", &inputs);
     }
-    if (lhs * rhs).to_u128() <= u128::from(u32::MAX) {
-    unchecked_operators.push("unchecked_mul");
+
+    #[test]
+    #[should_panic(expected = "Cannot use `and` with field elements")]
+    fn test_and_on_field(lhs in 0u128.., rhs in 0u128..) {
+        let lhs = FieldElement::from(lhs);
+        let rhs = FieldElement::from(rhs);
+        let operators = [
+            "and",
+        ];
+        let inputs = [lhs, rhs];
+        test_operators(&operators, "Field", &inputs);
     }
-    if lhs >= rhs {
-        unchecked_operators.push("unchecked_sub");
+
+    #[test]
+    #[should_panic(expected = "Cannot use `xor` with field elements")]
+    fn test_xor_on_field(lhs in 0u128.., rhs in 0u128..) {
+        let lhs = FieldElement::from(lhs);
+        let rhs = FieldElement::from(rhs);
+        let operators = [
+            "xor",
+        ];
+        let inputs = [lhs, rhs];
+        test_operators(&operators, "Field", &inputs);
     }
-    test_operators(&unchecked_operators, "u32", &inputs);
-}
+
+    #[test]
+    fn test_u32(lhs in 0u32.., rhs in 0u32..) {
+        let lhs = FieldElement::from(lhs);
+        let rhs = FieldElement::from(rhs);
+
+        // Test the following operations on u32
+        let operators = [
+            "add",
+            "sub",
+            "mul",
+            "div",
+            "eq",
+            "and",
+            "xor",
+            "mod",
+            "lt",
+            "or",
+            "not",
+            "range_check 8",
+            "truncate 8 32",
+        ];
+        let inputs = [lhs, rhs];
+        test_operators(&operators, "u32", &inputs);
+
+        //unchecked operations assume no under/over-flow
+        let mut unchecked_operators = vec![];
+        if (lhs + rhs).to_u128() <= u128::from(u32::MAX) {
+            unchecked_operators.push("unchecked_add");
+        }
+        if (lhs * rhs).to_u128() <= u128::from(u32::MAX) {
+        unchecked_operators.push("unchecked_mul");
+        }
+        if lhs >= rhs {
+            unchecked_operators.push("unchecked_sub");
+        }
+        test_operators(&unchecked_operators, "u32", &inputs);
+    }
 
 
- #[test]
-fn test_constraint_field(lhs in 0u128.., rhs in 0u128..) {
-    let lhs = FieldElement::from(lhs);
-    let rhs = FieldElement::from(rhs);
-    let operators = ["constrain ==", "constrain !="];
-    test_operators(&operators, "Field", &[lhs,rhs]);
-    test_operators(&operators, "u128", &[lhs,rhs]);
-}
+     #[test]
+    fn test_constraint_field(lhs in 0u128.., rhs in 0u128..) {
+        let lhs = FieldElement::from(lhs);
+        let rhs = FieldElement::from(rhs);
+        let operators = ["constrain ==", "constrain !="];
+        test_operators(&operators, "Field", &[lhs,rhs]);
+        test_operators(&operators, "u128", &[lhs,rhs]);
+    }
 
-#[test]
-fn test_constraint_u32(lhs in 0u32.., rhs in 0u32..) {
-    let lhs = FieldElement::from(lhs);
-    let rhs = FieldElement::from(rhs);
-    let operators = ["constrain ==", "constrain !="];
-    test_operators(&operators, "u32", &[lhs,rhs]);
-    test_operators(&operators, "i32", &[lhs,rhs]);
-}
+    #[test]
+    fn test_constraint_u32(lhs in 0u32.., rhs in 0u32..) {
+        let lhs = FieldElement::from(lhs);
+        let rhs = FieldElement::from(rhs);
+        let operators = ["constrain ==", "constrain !="];
+        test_operators(&operators, "u32", &[lhs,rhs]);
+        test_operators(&operators, "i32", &[lhs,rhs]);
+    }
 
-#[test]
-fn test_constraint_u64(lhs in 0u64.., rhs in 0u64..) {
-    let lhs = FieldElement::from(lhs);
-    let rhs = FieldElement::from(rhs);
-    let operators = ["constrain ==", "constrain !="];
-    test_operators(&operators, "u64", &[lhs,rhs]);
-    test_operators(&operators, "i64", &[lhs,rhs]);
-}
+    #[test]
+    fn test_constraint_u64(lhs in 0u64.., rhs in 0u64..) {
+        let lhs = FieldElement::from(lhs);
+        let rhs = FieldElement::from(rhs);
+        let operators = ["constrain ==", "constrain !="];
+        test_operators(&operators, "u64", &[lhs,rhs]);
+        test_operators(&operators, "i64", &[lhs,rhs]);
+    }
 
-#[test]
-fn test_constraint_u16(lhs in 0u16.., rhs in 0u16..) {
-    let lhs = FieldElement::from(u128::from(lhs));
-    let rhs = FieldElement::from(u128::from(rhs));
-    let operators = ["constrain ==", "constrain !="];
-    test_operators(&operators, "u16", &[lhs,rhs]);
-    test_operators(&operators, "i16", &[lhs,rhs]);
-}
+    #[test]
+    fn test_constraint_u16(lhs in 0u16.., rhs in 0u16..) {
+        let lhs = FieldElement::from(u128::from(lhs));
+        let rhs = FieldElement::from(u128::from(rhs));
+        let operators = ["constrain ==", "constrain !="];
+        test_operators(&operators, "u16", &[lhs,rhs]);
+        test_operators(&operators, "i16", &[lhs,rhs]);
+    }
 
-#[test]
-fn test_constraint_u8(lhs in 0u8.., rhs in 0u8..) {
-    let lhs = FieldElement::from(u128::from(lhs));
-    let rhs = FieldElement::from(u128::from(rhs));
-    let operators = ["constrain ==", "constrain !="];
-    test_operators(&operators, "u8", &[lhs,rhs]);
-    test_operators(&operators, "i8", &[lhs,rhs]);
-}
-
+    #[test]
+    fn test_constraint_u8(lhs in 0u8.., rhs in 0u8..) {
+        let lhs = FieldElement::from(u128::from(lhs));
+        let rhs = FieldElement::from(u128::from(rhs));
+        let operators = ["constrain ==", "constrain !="];
+        test_operators(&operators, "u8", &[lhs,rhs]);
+        test_operators(&operators, "i8", &[lhs,rhs]);
+    }
 }

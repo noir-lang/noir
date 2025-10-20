@@ -345,6 +345,7 @@ impl<F: AcirField> AcirContext<F> {
         let diff_expr = &lhs_expr - &rhs_expr;
         // TODO: WIP
         // let lhs_eq_rhs = diff_expr.is_const() && diff_expr.is_zero();
+        // Check to see if equality can be determined at compile-time.
         let lhs_eq_rhs = diff_expr.is_zero();
         if lhs_eq_rhs {
             // x ^ x == 0
@@ -394,6 +395,7 @@ impl<F: AcirField> AcirContext<F> {
         let diff_expr = &lhs_expr - &rhs_expr;
         // TODO: WIP
         // let lhs_eq_rhs = diff_expr.is_const() && diff_expr.is_zero();
+        // Check to see if equality can be determined at compile-time.
         let lhs_eq_rhs = diff_expr.is_zero();
         if lhs_eq_rhs {
             // x & x == x
@@ -436,6 +438,7 @@ impl<F: AcirField> AcirContext<F> {
         let diff_expr = &lhs_expr - &rhs_expr;
         // TODO: WIP
         // let lhs_eq_rhs = diff_expr.is_const() && diff_expr.is_zero();
+        // Check to see if equality can be determined at compile-time.
         let lhs_eq_rhs = diff_expr.is_zero();
         if lhs_eq_rhs {
             // x | x == x
@@ -502,6 +505,7 @@ impl<F: AcirField> AcirContext<F> {
                 .assertion_payloads
                 .insert(self.acir_ir.last_acir_opcode_location(), payload);
         }
+        // TODO: make issue for this TODO?
         // TODO: is this sensitive to the location at which variables are marked equivalent or when
         // assert_eq_var is called?
         self.mark_variables_equivalent(lhs, rhs)?;
@@ -1277,7 +1281,9 @@ impl<F: AcirField> AcirContext<F> {
         result_element_type: AcirType,
     ) -> Result<AcirValue, RuntimeError> {
         let radix = match self.vars[&radix_var].as_constant() {
-            Some(radix) => u32::try_from(radix.to_u128()).expect("expected radix to fit within a u32"),
+            Some(radix) => {
+                u32::try_from(radix.to_u128()).expect("expected radix to fit within a u32")
+            }
             None => {
                 return Err(RuntimeError::InternalError(InternalError::NotAConstant {
                     name: "radix".to_string(),
@@ -1477,7 +1483,6 @@ impl<F: AcirField> AcirContext<F> {
                     let value = AcirValue::Var(read, AcirType::NumericType(typ));
                     self.initialize_array_inner(witnesses, value)?;
                 }
-
             }
         }
         Ok(())
