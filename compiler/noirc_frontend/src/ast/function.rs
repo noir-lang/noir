@@ -77,7 +77,7 @@ impl NoirFunction {
     pub fn location(&self) -> Location {
         self.def.location
     }
-    /// Both the #[fold] and #[no_predicates] alter a function's inline type and code generation in similar ways.
+    /// Both the `#[fold]` and `#[no_predicates]` alter a function's inline type and code generation in similar ways.
     /// In certain cases such as type checking (for which the following flag will be used) both attributes
     /// indicate we should code generate in the same way. Thus, we unify the attributes into one flag here.
     pub(crate) fn has_inline_attribute(&self) -> bool {
