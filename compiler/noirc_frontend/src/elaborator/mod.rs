@@ -24,7 +24,7 @@
 //! 1. Function metadata - Signatures collected before bodies are elaborated
 //! 2. Trait methods - Method signatures collected from trait definitions
 //! 3. Impl blocks - Methods organized into their proper modules based on the impl's type
-//! 4. Trait impls - Bound to their corresponding traits and validated
+//! 4. Trait impls - Linked to their corresponding traits and validated
 //!
 //! ### Non-literal Global Elaboration
 //! - Non-literal globals - Elaborated after type resolution since structs need global type information
