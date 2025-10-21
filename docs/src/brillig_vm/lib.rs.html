@@ -527,7 +527,41 @@
 <a href="#526" id="526">526</a>
 <a href="#527" id="527">527</a>
 <a href="#528" id="528">528</a>
-<a href="#529" id="529">529</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#529" id="529">529</a>
+<a href="#530" id="530">530</a>
+<a href="#531" id="531">531</a>
+<a href="#532" id="532">532</a>
+<a href="#533" id="533">533</a>
+<a href="#534" id="534">534</a>
+<a href="#535" id="535">535</a>
+<a href="#536" id="536">536</a>
+<a href="#537" id="537">537</a>
+<a href="#538" id="538">538</a>
+<a href="#539" id="539">539</a>
+<a href="#540" id="540">540</a>
+<a href="#541" id="541">541</a>
+<a href="#542" id="542">542</a>
+<a href="#543" id="543">543</a>
+<a href="#544" id="544">544</a>
+<a href="#545" id="545">545</a>
+<a href="#546" id="546">546</a>
+<a href="#547" id="547">547</a>
+<a href="#548" id="548">548</a>
+<a href="#549" id="549">549</a>
+<a href="#550" id="550">550</a>
+<a href="#551" id="551">551</a>
+<a href="#552" id="552">552</a>
+<a href="#553" id="553">553</a>
+<a href="#554" id="554">554</a>
+<a href="#555" id="555">555</a>
+<a href="#556" id="556">556</a>
+<a href="#557" id="557">557</a>
+<a href="#558" id="558">558</a>
+<a href="#559" id="559">559</a>
+<a href="#560" id="560">560</a>
+<a href="#561" id="561">561</a>
+<a href="#562" id="562">562</a>
+<a href="#563" id="563">563</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 </span><span class="doccomment">//! The Brillig VM is a specialized VM which allows the [ACVM][acvm] to perform custom non-determinism.
@@ -548,7 +582,7 @@
 <span class="comment">// Re-export `brillig`.
 </span><span class="kw">pub use </span>acir::brillig;
 <span class="kw">use </span>memory::MemoryTypeError;
-<span class="kw">pub use </span>memory::{MEMORY_ADDRESSING_BIT_SIZE, Memory, MemoryValue};
+<span class="kw">pub use </span>memory::{MEMORY_ADDRESSING_BIT_SIZE, Memory, MemoryValue, STACK_POINTER_ADDRESS};
 
 <span class="kw">pub use </span><span class="kw">crate</span>::fuzzing::BranchToFeatureMap;
 <span class="kw">use </span><span class="kw">crate</span>::fuzzing::FuzzingTrace;
@@ -610,65 +644,72 @@
     /// and update the Brillig process. The VM can then be restarted to fully solve the previously
     /// unresolved foreign call as well as the remaining Brillig opcodes.
     </span>ForeignCallWait {
-        <span class="doccomment">/// Interpreted by simulator context
+        <span class="doccomment">/// Interpreted by simulator context.
         </span>function: String,
-        <span class="doccomment">/// Input values
-        /// Each input is a list of values as an input can be either a single value or a memory pointer
+        <span class="doccomment">/// Input values.
+        /// Each input can be either a single value or an array of values read from a memory pointer.
         </span>inputs: Vec&lt;ForeignCallParam&lt;F&gt;&gt;,
     },
 }
 
-<span class="doccomment">/// All samples for each opcode that was executed
-</span><span class="kw">pub type </span>BrilligProfilingSamples = Vec&lt;BrilligProfilingSample&gt;;
-
-<span class="doccomment">/// The position of an opcode that is currently being executed in the bytecode
+<span class="doccomment">/// The position of an opcode that is currently being executed in the bytecode.
 </span><span class="kw">pub type </span>OpcodePosition = usize;
 
-<span class="doccomment">/// The position of the next opcode that will be executed in the bytecode or an id of a specific state produced by the opcode
+<span class="doccomment">/// The position of the next opcode that will be executed in the bytecode,
+/// or an id of a specific state produced by the opcode.
 </span><span class="kw">pub type </span>NextOpcodePositionOrState = usize;
 
-<span class="doccomment">/// A sample for an executed opcode
+<span class="doccomment">/// A sample for an executed opcode.
 </span><span class="attr">#[derive(Debug, PartialEq, Eq, Clone)]
 </span><span class="kw">pub struct </span>BrilligProfilingSample {
     <span class="doccomment">/// The call stack when processing a given opcode.
     </span><span class="kw">pub </span>call_stack: Vec&lt;usize&gt;,
 }
 
+<span class="doccomment">/// All samples for each opcode that was executed.
+</span><span class="kw">pub type </span>BrilligProfilingSamples = Vec&lt;BrilligProfilingSample&gt;;
+
 <span class="attr">#[derive(Debug, PartialEq, Eq, Clone)]
 </span><span class="doccomment">/// VM encapsulates the state of the Brillig VM during execution.
 </span><span class="kw">pub struct </span>VM&lt;<span class="lifetime">'a</span>, F, B: BlackBoxFunctionSolver&lt;F&gt;&gt; {
-    <span class="doccomment">/// Calldata to the brillig function
+    <span class="doccomment">/// Calldata to the brillig function.
     </span>calldata: Vec&lt;F&gt;,
-    <span class="doccomment">/// Instruction pointer
+    <span class="doccomment">/// Instruction pointer.
     </span>program_counter: usize,
     <span class="doccomment">/// A counter maintained throughout a Brillig process that determines
     /// whether the caller has resolved the results of a [foreign call][Opcode::ForeignCall].
+    ///
+    /// Incremented when the results of a foreign call have been processed and the output
+    /// values were written to memory.
+    ///
+    /// * When the counter is less than the length of the results, it indicates that we have
+    ///   unprocessed responses returned from the external foreign call handler.
     </span>foreign_call_counter: usize,
-    <span class="doccomment">/// Represents the outputs of all foreign calls during a Brillig process
-    /// List is appended onto by the caller upon reaching a [VMStatus::ForeignCallWait]
+    <span class="doccomment">/// Accumulates the outputs of all foreign calls during a Brillig process.
+    /// The list is appended onto by the caller upon reaching a [VMStatus::ForeignCallWait].
     </span>foreign_call_results: Vec&lt;ForeignCallResult&lt;F&gt;&gt;,
-    <span class="doccomment">/// Executable opcodes
+    <span class="doccomment">/// Executable opcodes.
     </span>bytecode: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>[Opcode&lt;F&gt;],
-    <span class="doccomment">/// Status of the VM
+    <span class="doccomment">/// Status of the VM.
     </span>status: VMStatus&lt;F&gt;,
-    <span class="doccomment">/// Memory of the VM
+    <span class="doccomment">/// Memory of the VM.
     </span>memory: Memory&lt;F&gt;,
-    <span class="doccomment">/// Call stack
+    <span class="doccomment">/// Call stack.
     </span>call_stack: Vec&lt;usize&gt;,
-    <span class="doccomment">/// The solver for blackbox functions
+    <span class="doccomment">/// The solver for blackbox functions.
     </span>black_box_solver: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>B,
     <span class="comment">// Flag that determines whether we want to profile VM.
     </span>profiling_active: bool,
     <span class="comment">// Samples for profiling the VM execution.
     </span>profiling_samples: BrilligProfilingSamples,
 
-    <span class="doccomment">/// Fuzzing trace structure
-    /// If the field is `None` then fuzzing is inactive
+    <span class="doccomment">/// Fuzzing trace structure.
+    /// If the field is `None` then fuzzing is inactive.
     </span>fuzzing_trace: <span class="prelude-ty">Option</span>&lt;FuzzingTrace&gt;,
 }
 
 <span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, F: AcirField, B: BlackBoxFunctionSolver&lt;F&gt;&gt; VM&lt;<span class="lifetime">'a</span>, F, B&gt; {
-    <span class="doccomment">/// Constructs a new VM instance
+    <span class="doccomment">/// Constructs a new VM instance.
     </span><span class="kw">pub fn </span>new(
         calldata: Vec&lt;F&gt;,
         bytecode: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>[Opcode&lt;F&gt;],
@@ -676,7 +717,7 @@
         profiling_active: bool,
         with_branch_to_feature_map: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>BranchToFeatureMap&gt;,
     ) -&gt; <span class="self">Self </span>{
-        <span class="kw">let </span>fuzzing_trace = with_branch_to_feature_map.map(|map| FuzzingTrace::new(map.clone()));
+        <span class="kw">let </span>fuzzing_trace = with_branch_to_feature_map.cloned().map(FuzzingTrace::new);
 
         <span class="self">Self </span>{
             calldata,
@@ -708,9 +749,9 @@
 
     <span class="doccomment">/// Updates the current status of the VM.
     /// Returns the given status.
-    </span><span class="kw">fn </span>status(<span class="kw-2">&amp;mut </span><span class="self">self</span>, status: VMStatus&lt;F&gt;) -&gt; VMStatus&lt;F&gt; {
+    </span><span class="kw">fn </span>status(<span class="kw-2">&amp;mut </span><span class="self">self</span>, status: VMStatus&lt;F&gt;) -&gt; <span class="kw-2">&amp;</span>VMStatus&lt;F&gt; {
         <span class="self">self</span>.status = status.clone();
-        status
+        <span class="kw-2">&amp;</span><span class="self">self</span>.status
     }
 
     <span class="kw">pub fn </span>get_status(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; VMStatus&lt;F&gt; {
@@ -718,46 +759,45 @@
     }
 
     <span class="doccomment">/// Sets the current status of the VM to Finished (completed execution).
-    </span><span class="kw">fn </span>finish(<span class="kw-2">&amp;mut </span><span class="self">self</span>, return_data_offset: usize, return_data_size: usize) -&gt; VMStatus&lt;F&gt; {
+    </span><span class="kw">fn </span>finish(<span class="kw-2">&amp;mut </span><span class="self">self</span>, return_data_offset: usize, return_data_size: usize) -&gt; <span class="kw-2">&amp;</span>VMStatus&lt;F&gt; {
         <span class="self">self</span>.status(VMStatus::Finished { return_data_offset, return_data_size })
+    }
+
+    <span class="doccomment">/// Check whether the latest foreign call result is available yet.
+    </span><span class="kw">fn </span>has_unprocessed_foreign_call_result(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="self">self</span>.foreign_call_counter &lt; <span class="self">self</span>.foreign_call_results.len()
     }
 
     <span class="doccomment">/// Provide the results of a Foreign Call to the VM
     /// and resume execution of the VM.
     </span><span class="kw">pub fn </span>resolve_foreign_call(<span class="kw-2">&amp;mut </span><span class="self">self</span>, foreign_call_result: ForeignCallResult&lt;F&gt;) {
-        <span class="kw">if </span><span class="self">self</span>.foreign_call_counter &lt; <span class="self">self</span>.foreign_call_results.len() {
-            <span class="macro">panic!</span>(<span class="string">"No unresolved foreign calls"</span>);
+        <span class="kw">if </span><span class="self">self</span>.has_unprocessed_foreign_call_result() {
+            <span class="macro">panic!</span>(<span class="string">"No unresolved foreign calls; the previous results haven't been processed yet"</span>);
         }
         <span class="self">self</span>.foreign_call_results.push(foreign_call_result);
         <span class="self">self</span>.status(VMStatus::InProgress);
     }
 
-    <span class="kw">fn </span>get_error_stack(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;usize&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>error_stack: Vec&lt;<span class="kw">_</span>&gt; = <span class="self">self</span>.call_stack.clone();
-        error_stack.push(<span class="self">self</span>.program_counter);
-        error_stack
-    }
-
-    <span class="doccomment">/// Sets the current status of the VM to `fail`.
-    /// Indicating that the VM encountered a `Trap` Opcode
-    /// or an invalid state.
-    </span><span class="kw">fn </span>trap(<span class="kw-2">&amp;mut </span><span class="self">self</span>, revert_data_offset: usize, revert_data_size: usize) -&gt; VMStatus&lt;F&gt; {
+    <span class="doccomment">/// Sets the current status of the VM to `Failure`,
+    /// indicating that the VM encountered a `Trap` Opcode.
+    </span><span class="kw">fn </span>trap(<span class="kw-2">&amp;mut </span><span class="self">self</span>, revert_data_offset: usize, revert_data_size: usize) -&gt; <span class="kw-2">&amp;</span>VMStatus&lt;F&gt; {
         <span class="self">self</span>.status(VMStatus::Failure {
-            call_stack: <span class="self">self</span>.get_error_stack(),
+            call_stack: <span class="self">self</span>.get_call_stack(),
             reason: FailureReason::Trap { revert_data_offset, revert_data_size },
-        });
-        <span class="self">self</span>.status.clone()
+        })
     }
 
-    <span class="kw">fn </span>fail(<span class="kw-2">&amp;mut </span><span class="self">self</span>, message: String) -&gt; VMStatus&lt;F&gt; {
+    <span class="doccomment">/// Sets the current status of the VM to `Failure`,
+    /// indicating that the VM encountered an invalid state.
+    </span><span class="kw">fn </span>fail(<span class="kw-2">&amp;mut </span><span class="self">self</span>, message: String) -&gt; <span class="kw-2">&amp;</span>VMStatus&lt;F&gt; {
         <span class="self">self</span>.status(VMStatus::Failure {
-            call_stack: <span class="self">self</span>.get_error_stack(),
+            call_stack: <span class="self">self</span>.get_call_stack(),
             reason: FailureReason::RuntimeError { message },
-        });
-        <span class="self">self</span>.status.clone()
+        })
     }
 
-    <span class="doccomment">/// Loop over the bytecode and update the program counter
+    <span class="doccomment">/// Process opcodes in a loop until a status of `Finished`,
+    /// `Failure` or `ForeignCallWait` is encountered.
     </span><span class="kw">pub fn </span>process_opcodes(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; VMStatus&lt;F&gt; {
         <span class="kw">while </span>!<span class="macro">matches!</span>(
             <span class="self">self</span>.process_opcode(),
@@ -766,11 +806,17 @@
         <span class="self">self</span>.status.clone()
     }
 
-    <span class="kw">pub fn </span>get_memory(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[MemoryValue&lt;F&gt;] {
+    <span class="doccomment">/// Read memory slots.
+    ///
+    /// Used by the debugger to inspect the contents of the memory.
+    </span><span class="kw">pub fn </span>get_memory(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[MemoryValue&lt;F&gt;] {
         <span class="self">self</span>.memory.values()
     }
 
-    <span class="kw">pub fn </span>take_memory(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; Memory&lt;F&gt; {
+    <span class="doccomment">/// Take all the contents of the memory, leaving it empty.
+    ///
+    /// Used only for testing purposes.
+    </span><span class="kw">pub fn </span>take_memory(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; Memory&lt;F&gt; {
         std::mem::take(<span class="kw-2">&amp;mut </span><span class="self">self</span>.memory)
     }
 
@@ -778,17 +824,22 @@
         <span class="self">self</span>.foreign_call_counter
     }
 
-    <span class="kw">pub fn </span>write_memory_at(<span class="kw-2">&amp;mut </span><span class="self">self</span>, ptr: usize, value: MemoryValue&lt;F&gt;) {
+    <span class="doccomment">/// Write a numeric value to direct memory slot.
+    ///
+    /// Used by the debugger to alter memory.
+    </span><span class="kw">pub fn </span>write_memory_at(<span class="kw-2">&amp;mut </span><span class="self">self</span>, ptr: usize, value: MemoryValue&lt;F&gt;) {
         <span class="self">self</span>.memory.write(MemoryAddress::direct(ptr), value);
     }
 
     <span class="doccomment">/// Returns the VM's current call stack, including the actual program
     /// counter in the last position of the returned vector.
     </span><span class="kw">pub fn </span>get_call_stack(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;usize&gt; {
-        <span class="self">self</span>.call_stack.iter().copied().chain(std::iter::once(<span class="self">self</span>.program_counter)).collect()
+        <span class="kw">let </span><span class="kw-2">mut </span>call_stack = <span class="self">self</span>.get_call_stack_no_current_counter();
+        call_stack.push(<span class="self">self</span>.program_counter);
+        call_stack
     }
 
-    <span class="doccomment">/// Returns the VM's call stack but unlike [Self::get_call_stack] without the attaching
+    <span class="doccomment">/// Returns the VM's call stack, but unlike [Self::get_call_stack] without the attaching
     /// the program counter in the last position of the returned vector.
     /// This is meant only for fetching the call stack after execution has completed.
     </span><span class="kw">pub fn </span>get_call_stack_no_current_counter(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;usize&gt; {
@@ -796,7 +847,7 @@
     }
 
     <span class="doccomment">/// Process a single opcode and modify the program counter.
-    </span><span class="kw">pub fn </span>process_opcode(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; VMStatus&lt;F&gt; {
+    </span><span class="kw">pub fn </span>process_opcode(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>VMStatus&lt;F&gt; {
         <span class="kw">if </span><span class="self">self</span>.profiling_active {
             <span class="kw">let </span>call_stack: Vec&lt;usize&gt; = <span class="self">self</span>.get_call_stack();
             <span class="self">self</span>.profiling_samples.push(BrilligProfilingSample { call_stack });
@@ -812,15 +863,15 @@
     <span class="doccomment">/// Execute a single opcode:
     /// 1. Retrieve the current opcode using the program counter
     /// 2. Execute the opcode.
-    ///    - For instance a binary 'result = lhs+rhs' opcode will read the VM memory at the lhs and rhs addresses,
+    ///    - For instance a binary 'result = lhs+rhs' opcode will read the VM memory at the 'lhs' and 'rhs' addresses,
     ///      compute the sum and write it to the 'result' memory address.
     /// 3. Update the program counter, usually by incrementing it.
     ///
     /// - Control flow opcodes jump around the bytecode by setting the program counter.
-    /// - Foreign call opcodes pause the VM until the foreign call results are available
+    /// - Foreign call opcodes pause the VM until the foreign call results are available.
     /// - Function call opcodes backup the current program counter into the call stack and jump to the function entry point.
     ///   The stack frame for function calls is handled during codegen.
-    </span><span class="kw">fn </span>process_opcode_internal(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; VMStatus&lt;F&gt; {
+    </span><span class="kw">fn </span>process_opcode_internal(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>VMStatus&lt;F&gt; {
         <span class="kw">let </span>opcode = <span class="kw-2">&amp;</span><span class="self">self</span>.bytecode[<span class="self">self</span>.program_counter];
         <span class="kw">match </span>opcode {
             Opcode::BinaryFieldOp { op, lhs, rhs, destination: result } =&gt; {
@@ -845,10 +896,10 @@
                     <span class="self">self</span>.increment_program_counter()
                 }
             }
-            Opcode::Cast { destination: destination_address, source: source_address, bit_size } =&gt; {
-                <span class="kw">let </span>source_value = <span class="self">self</span>.memory.read(<span class="kw-2">*</span>source_address);
+            Opcode::Cast { destination, source, bit_size } =&gt; {
+                <span class="kw">let </span>source_value = <span class="self">self</span>.memory.read(<span class="kw-2">*</span>source);
                 <span class="kw">let </span>casted_value = cast::cast(source_value, <span class="kw-2">*</span>bit_size);
-                <span class="self">self</span>.memory.write(<span class="kw-2">*</span>destination_address, casted_value);
+                <span class="self">self</span>.memory.write(<span class="kw-2">*</span>destination, casted_value);
                 <span class="self">self</span>.increment_program_counter()
             }
             Opcode::Jump { location: destination } =&gt; <span class="self">self</span>.set_program_counter(<span class="kw-2">*</span>destination),
@@ -856,12 +907,19 @@
                 <span class="comment">// Check if condition is true
                 // We use 0 to mean false and any other value to mean true
                 </span><span class="kw">let </span>condition_value = <span class="self">self</span>.memory.read(<span class="kw-2">*</span>condition);
-                <span class="kw">if </span>condition_value.expect_u1().expect(<span class="string">"condition value is not a boolean"</span>) {
+                <span class="kw">let </span>condition_value = <span class="kw">match </span>condition_value.expect_u1() {
+                    <span class="prelude-val">Err</span>(error) =&gt; {
+                        <span class="kw">return </span><span class="self">self</span>.fail(<span class="macro">format!</span>(<span class="string">"condition value is not a boolean: {error}"</span>));
+                    }
+                    <span class="prelude-val">Ok</span>(cond) =&gt; cond,
+                };
+                <span class="kw">if </span>condition_value {
                     <span class="self">self</span>.fuzzing_trace_branching(<span class="kw-2">*</span>destination);
-                    <span class="kw">return </span><span class="self">self</span>.set_program_counter(<span class="kw-2">*</span>destination);
+                    <span class="self">self</span>.set_program_counter(<span class="kw-2">*</span>destination)
+                } <span class="kw">else </span>{
+                    <span class="self">self</span>.fuzzing_trace_branching(<span class="self">self</span>.program_counter + <span class="number">1</span>);
+                    <span class="self">self</span>.increment_program_counter()
                 }
-                <span class="self">self</span>.fuzzing_trace_branching(<span class="self">self</span>.program_counter + <span class="number">1</span>);
-                <span class="self">self</span>.increment_program_counter()
             }
             Opcode::CalldataCopy { destination_address, size_address, offset_address } =&gt; {
                 <span class="kw">let </span>size = <span class="self">self</span>.memory.read(<span class="kw-2">*</span>size_address).to_usize();
@@ -901,14 +959,18 @@
             Opcode::ConditionalMov { destination, source_a, source_b, condition } =&gt; {
                 <span class="kw">let </span>condition_value = <span class="self">self</span>.memory.read(<span class="kw-2">*</span>condition);
 
-                <span class="kw">let </span>condition_value_bool =
-                    condition_value.expect_u1().expect(<span class="string">"condition value is not a boolean"</span>);
-                <span class="kw">if </span>condition_value_bool {
+                <span class="kw">let </span>condition_value = <span class="kw">match </span>condition_value.expect_u1() {
+                    <span class="prelude-val">Err</span>(error) =&gt; {
+                        <span class="kw">return </span><span class="self">self</span>.fail(<span class="macro">format!</span>(<span class="string">"condition value is not a boolean: {error}"</span>));
+                    }
+                    <span class="prelude-val">Ok</span>(cond) =&gt; cond,
+                };
+                <span class="kw">if </span>condition_value {
                     <span class="self">self</span>.memory.write(<span class="kw-2">*</span>destination, <span class="self">self</span>.memory.read(<span class="kw-2">*</span>source_a));
                 } <span class="kw">else </span>{
                     <span class="self">self</span>.memory.write(<span class="kw-2">*</span>destination, <span class="self">self</span>.memory.read(<span class="kw-2">*</span>source_b));
                 }
-                <span class="self">self</span>.fuzzing_trace_conditional_mov(condition_value_bool);
+                <span class="self">self</span>.fuzzing_trace_conditional_mov(condition_value);
                 <span class="self">self</span>.increment_program_counter()
             }
             Opcode::Trap { revert_data } =&gt; {
@@ -933,24 +995,25 @@
                     <span class="self">self</span>.finish(<span class="number">0</span>, <span class="number">0</span>)
                 }
             }
-            Opcode::Load { destination: destination_address, source_pointer } =&gt; {
-                <span class="comment">// Convert our source_pointer to an address
+            Opcode::Load { destination, source_pointer } =&gt; {
+                <span class="comment">// Convert the source_pointer to an address
                 </span><span class="kw">let </span>source = <span class="self">self</span>.memory.read_ref(<span class="kw-2">*</span>source_pointer);
-                <span class="comment">// Use our usize source index to lookup the value in memory
+                <span class="comment">// Use the source address to lookup the value in memory
                 </span><span class="kw">let </span>value = <span class="self">self</span>.memory.read(source);
-                <span class="self">self</span>.memory.write(<span class="kw-2">*</span>destination_address, value);
+                <span class="self">self</span>.memory.write(<span class="kw-2">*</span>destination, value);
                 <span class="self">self</span>.increment_program_counter()
             }
             Opcode::Store { destination_pointer, source: source_address } =&gt; {
-                <span class="comment">// Convert our destination_pointer to an address
+                <span class="comment">// Convert the destination_pointer to an address
                 </span><span class="kw">let </span>destination = <span class="self">self</span>.memory.read_ref(<span class="kw-2">*</span>destination_pointer);
-                <span class="comment">// Use our usize destination index to set the value in memory
+                <span class="comment">// Read the value at the source address
                 </span><span class="kw">let </span>value = <span class="self">self</span>.memory.read(<span class="kw-2">*</span>source_address);
-                <span class="self">self</span>.memory.write(destination, value);
+                <span class="comment">// Use the destination address to set the value in memory
+                </span><span class="self">self</span>.memory.write(destination, value);
                 <span class="self">self</span>.increment_program_counter()
             }
             Opcode::Call { location } =&gt; {
-                <span class="comment">// Push a return location
+                <span class="comment">// Push the return location to the call stack.
                 </span><span class="self">self</span>.call_stack.push(<span class="self">self</span>.program_counter);
                 <span class="self">self</span>.set_program_counter(<span class="kw-2">*</span>location)
             }
@@ -960,16 +1023,19 @@
                 <span class="self">self</span>.increment_program_counter()
             }
             Opcode::IndirectConst { destination_pointer, bit_size, value } =&gt; {
-                <span class="comment">// Convert our destination_pointer to an address
+                <span class="comment">// Convert the destination_pointer to an address
                 </span><span class="kw">let </span>destination = <span class="self">self</span>.memory.read_ref(<span class="kw-2">*</span>destination_pointer);
-                <span class="comment">// Use our usize destination index to set the value in memory
+                <span class="comment">// Use the destination address to set the value in memory
                 </span><span class="self">self</span>.memory.write(destination, MemoryValue::new_from_field(<span class="kw-2">*</span>value, <span class="kw-2">*</span>bit_size));
                 <span class="self">self</span>.increment_program_counter()
             }
             Opcode::BlackBox(black_box_op) =&gt; {
-                <span class="kw">match </span>evaluate_black_box(black_box_op, <span class="self">self</span>.black_box_solver, <span class="kw-2">&amp;mut </span><span class="self">self</span>.memory) {
-                    <span class="prelude-val">Ok</span>(()) =&gt; <span class="self">self</span>.increment_program_counter(),
-                    <span class="prelude-val">Err</span>(e) =&gt; <span class="self">self</span>.fail(e.to_string()),
+                <span class="kw">if let </span><span class="prelude-val">Err</span>(e) =
+                    evaluate_black_box(black_box_op, <span class="self">self</span>.black_box_solver, <span class="kw-2">&amp;mut </span><span class="self">self</span>.memory)
+                {
+                    <span class="self">self</span>.fail(e.to_string())
+                } <span class="kw">else </span>{
+                    <span class="self">self</span>.increment_program_counter()
                 }
             }
         }
@@ -981,23 +1047,23 @@
     }
 
     <span class="doccomment">/// Increments the program counter by 1.
-    </span><span class="kw">fn </span>increment_program_counter(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; VMStatus&lt;F&gt; {
+    </span><span class="kw">fn </span>increment_program_counter(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>VMStatus&lt;F&gt; {
         <span class="self">self</span>.set_program_counter(<span class="self">self</span>.program_counter + <span class="number">1</span>)
     }
 
-    <span class="doccomment">/// Increments the program counter by `value`.
+    <span class="doccomment">/// Sets the program counter to `value`.
     /// If the program counter no longer points to an opcode
-    /// in the bytecode, then the VMStatus reports halted.
-    </span><span class="kw">fn </span>set_program_counter(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: usize) -&gt; VMStatus&lt;F&gt; {
+    /// in the bytecode, then the VMStatus reports `Finished`.
+    </span><span class="kw">fn </span>set_program_counter(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: usize) -&gt; <span class="kw-2">&amp;</span>VMStatus&lt;F&gt; {
         <span class="macro">assert!</span>(<span class="self">self</span>.program_counter &lt; <span class="self">self</span>.bytecode.len());
         <span class="self">self</span>.program_counter = value;
         <span class="kw">if </span><span class="self">self</span>.program_counter &gt;= <span class="self">self</span>.bytecode.len() {
             <span class="self">self</span>.status = VMStatus::Finished { return_data_offset: <span class="number">0</span>, return_data_size: <span class="number">0 </span>};
         }
-        <span class="self">self</span>.status.clone()
+        <span class="kw-2">&amp;</span><span class="self">self</span>.status
     }
 
-    <span class="doccomment">/// Process a binary operation.
+    <span class="doccomment">/// Process a binary field operation.
     /// This method will not modify the program counter.
     </span><span class="kw">fn </span>process_binary_field_op(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
@@ -1010,14 +1076,12 @@
         <span class="kw">let </span>rhs_value = <span class="self">self</span>.memory.read(rhs);
 
         <span class="kw">let </span>result_value = evaluate_binary_field_op(<span class="kw-2">&amp;</span>op, lhs_value, rhs_value)<span class="question-mark">?</span>;
-
         <span class="self">self</span>.memory.write(result, result_value);
-
         <span class="self">self</span>.fuzzing_trace_binary_field_op_comparison(<span class="kw-2">&amp;</span>op, lhs_value, rhs_value, result_value);
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="doccomment">/// Process a binary operation.
+    <span class="doccomment">/// Process a binary integer operation.
     /// This method will not modify the program counter.
     </span><span class="kw">fn </span>process_binary_int_op(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
@@ -1036,7 +1100,11 @@
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">fn </span>process_not(
+    <span class="doccomment">/// Process a unary negation operation.
+    ///
+    /// It returns `MemoryTypeError` if the value type does not match the type
+    /// indicated by `op_bit_size`.
+    </span><span class="kw">fn </span>process_not(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         source: MemoryAddress,
         destination: MemoryAddress,

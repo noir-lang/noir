@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["BinaryFieldOp","BinaryIntOp","BitSize","BrilligOpcode","HeapValueType","IntegerBitSize","MemoryAddress","ValueOrArray"],"struct":["HeapArray","HeapVector"],"type":["Label"]};
+window.SIDEBAR_ITEMS = {"enum":["BinaryFieldOp","BinaryIntOp","BitSize","BrilligOpcode","HeapValueType","IntegerBitSize","MemoryAddress","ValueOrArray"],"struct":["ArrayAddress","HeapArray","HeapVector","VectorAddress"],"type":["Label"]};

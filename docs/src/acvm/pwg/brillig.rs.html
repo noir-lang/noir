@@ -608,7 +608,7 @@
     }
 
     <span class="kw">pub fn </span>step(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;BrilligSolverStatus&lt;F&gt;, OpcodeResolutionError&lt;F&gt;&gt; {
-        <span class="kw">let </span>status = <span class="self">self</span>.vm.process_opcode();
+        <span class="kw">let </span>status = <span class="self">self</span>.vm.process_opcode().clone();
         <span class="self">self</span>.handle_vm_status(status)
     }
 

@@ -536,23 +536,12 @@
 <a href="#535" id="535">535</a>
 <a href="#536" id="536">536</a>
 <a href="#537" id="537">537</a>
-<a href="#538" id="538">538</a>
-<a href="#539" id="539">539</a>
-<a href="#540" id="540">540</a>
-<a href="#541" id="541">541</a>
-<a href="#542" id="542">542</a>
-<a href="#543" id="543">543</a>
-<a href="#544" id="544">544</a>
-<a href="#545" id="545">545</a>
-<a href="#546" id="546">546</a>
-<a href="#547" id="547">547</a>
-<a href="#548" id="548">548</a>
-<a href="#549" id="549">549</a></pre></div><pre class="rust"><code><span class="doccomment">//! Implementation for [foreign calls][acir::brillig::Opcode::ForeignCall]
+<a href="#538" id="538">538</a></pre></div><pre class="rust"><code><span class="doccomment">//! Implementation for [foreign calls][acir::brillig::Opcode::ForeignCall]
 </span><span class="kw">use </span>acir::{
     AcirField,
     brillig::{
-        BitSize, ForeignCallParam, HeapArray, HeapValueType, HeapVector, IntegerBitSize,
-        MemoryAddress, ValueOrArray,
+        ArrayAddress, BitSize, ForeignCallParam, HeapArray, HeapValueType, HeapVector,
+        IntegerBitSize, MemoryAddress, ValueOrArray, VectorAddress,
     },
 };
 <span class="kw">use </span>acvm_blackbox_solver::BlackBoxFunctionSolver;
@@ -595,11 +584,11 @@
         destination_value_types: <span class="kw-2">&amp;</span>[HeapValueType],
         inputs: <span class="kw-2">&amp;</span>[ValueOrArray],
         input_value_types: <span class="kw-2">&amp;</span>[HeapValueType],
-    ) -&gt; VMStatus&lt;F&gt; {
+    ) -&gt; <span class="kw-2">&amp;</span>VMStatus&lt;F&gt; {
         <span class="macro">assert_eq!</span>(inputs.len(), input_value_types.len());
         <span class="macro">assert_eq!</span>(destinations.len(), destination_value_types.len());
 
-        <span class="kw">if </span><span class="self">self</span>.foreign_call_counter &gt;= <span class="self">self</span>.foreign_call_results.len() {
+        <span class="kw">if </span>!<span class="self">self</span>.has_unprocessed_foreign_call_result() {
             <span class="comment">// When this opcode is called, it is possible that the results of a foreign call are
             // not yet known (not enough entries in `foreign_call_results`).
             // If that is the case, just resolve the inputs and pause the VM with a status
@@ -664,7 +653,8 @@
             <span class="kw">return </span><span class="self">self</span>.fail(e);
         }
 
-        <span class="self">self</span>.foreign_call_counter += <span class="number">1</span>;
+        <span class="comment">// Mark the foreign call result as processed.
+        </span><span class="self">self</span>.foreign_call_counter += <span class="number">1</span>;
         <span class="self">self</span>.increment_program_counter()
     }
 
@@ -675,14 +665,14 @@
         value_type: <span class="kw-2">&amp;</span>HeapValueType,
     ) -&gt; ForeignCallParam&lt;F&gt; {
         <span class="kw">match </span>(input, value_type) {
-            (ValueOrArray::MemoryAddress(value_index), HeapValueType::Simple(<span class="kw">_</span>)) =&gt; {
-                ForeignCallParam::Single(<span class="self">self</span>.memory.read(value_index).to_field())
+            (ValueOrArray::MemoryAddress(value_addr), HeapValueType::Simple(<span class="kw">_</span>)) =&gt; {
+                ForeignCallParam::Single(<span class="self">self</span>.memory.read(value_addr).to_field())
             }
             (
-                ValueOrArray::HeapArray(HeapArray { pointer: pointer_index, size }),
+                ValueOrArray::HeapArray(HeapArray { pointer, size }),
                 HeapValueType::Array { value_types, size: type_size },
             ) <span class="kw">if </span><span class="kw-2">*</span>type_size == size =&gt; {
-                <span class="kw">let </span>start = <span class="self">self</span>.memory.read_ref(pointer_index);
+                <span class="kw">let </span>start = <span class="self">self</span>.memory.read_ref(pointer);
                 <span class="self">self</span>.read_slice_of_values_from_memory(start, size, value_types)
                     .into_iter()
                     .map(|mem_value| mem_value.to_field())
@@ -690,11 +680,11 @@
                     .into()
             }
             (
-                ValueOrArray::HeapVector(HeapVector { pointer: pointer_index, size: size_index }),
+                ValueOrArray::HeapVector(HeapVector { pointer, size: size_addr }),
                 HeapValueType::Vector { value_types },
             ) =&gt; {
-                <span class="kw">let </span>start = <span class="self">self</span>.memory.read_ref(pointer_index);
-                <span class="kw">let </span>size = <span class="self">self</span>.memory.read(size_index).to_usize();
+                <span class="kw">let </span>start = <span class="self">self</span>.memory.read_ref(pointer);
+                <span class="kw">let </span>size = <span class="self">self</span>.memory.read(size_addr).to_usize();
                 <span class="self">self</span>.read_slice_of_values_from_memory(start, size, value_types)
                     .into_iter()
                     .map(|mem_value| mem_value.to_field())
@@ -715,7 +705,7 @@
         size: usize,
         value_types: <span class="kw-2">&amp;</span>[HeapValueType],
     ) -&gt; Vec&lt;MemoryValue&lt;F&gt;&gt; {
-        <span class="macro">assert!</span>(!start.is_relative(), <span class="string">"read_slice_of_values_from_memory requires direct addresses"</span>);
+        <span class="macro">assert!</span>(start.is_direct(), <span class="string">"read_slice_of_values_from_memory requires direct addresses"</span>);
         <span class="kw">if </span>HeapValueType::all_simple(value_types) {
             <span class="self">self</span>.memory.read_slice(start, size).to_vec()
         } <span class="kw">else </span>{
@@ -738,20 +728,22 @@
                             <span class="macro">vec!</span>[<span class="self">self</span>.memory.read(value_address)]
                         }
                         HeapValueType::Array { value_types, size } =&gt; {
-                            <span class="kw">let </span>array_address = <span class="self">self</span>.memory.read_ref(value_address);
+                            <span class="kw">let </span>array_address =
+                                ArrayAddress::from(<span class="self">self</span>.memory.read_ref(value_address));
 
                             <span class="self">self</span>.read_slice_of_values_from_memory(
-                                array_address.offset(<span class="number">1</span>),
+                                array_address.items_start(),
                                 <span class="kw-2">*</span>size,
                                 value_types,
                             )
                         }
                         HeapValueType::Vector { value_types } =&gt; {
-                            <span class="kw">let </span>vector_address = <span class="self">self</span>.memory.read_ref(value_address);
-                            <span class="kw">let </span>size_address =
-                                MemoryAddress::direct(vector_address.unwrap_direct() + <span class="number">1</span>);
-                            <span class="kw">let </span>items_start = vector_address.offset(<span class="number">2</span>);
-                            <span class="kw">let </span>vector_size = <span class="self">self</span>.memory.read(size_address).to_usize();
+                            <span class="kw">let </span>vector_address =
+                                VectorAddress::from(<span class="self">self</span>.memory.read_ref(value_address));
+
+                            <span class="kw">let </span>side_addr = vector_address.size_addr();
+                            <span class="kw">let </span>items_start = vector_address.items_start();
+                            <span class="kw">let </span>vector_size = <span class="self">self</span>.memory.read(side_addr).to_usize();
                             <span class="self">self</span>.read_slice_of_values_from_memory(
                                 items_start,
                                 vector_size,
@@ -790,7 +782,7 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         function: String,
         inputs: Vec&lt;ForeignCallParam&lt;F&gt;&gt;,
-    ) -&gt; VMStatus&lt;F&gt; {
+    ) -&gt; <span class="kw-2">&amp;</span>VMStatus&lt;F&gt; {
         <span class="self">self</span>.status(VMStatus::ForeignCallWait { function, inputs })
     }
 
@@ -808,7 +800,8 @@
         destination_value_types: <span class="kw-2">&amp;</span>[HeapValueType],
         foreign_call_index: usize,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), String&gt; {
-        <span class="kw">let </span>values = std::mem::take(<span class="kw-2">&amp;mut </span><span class="self">self</span>.foreign_call_results[foreign_call_index].values);
+        <span class="comment">// Take ownership of values to allow calling mutating methods on self.
+        </span><span class="kw">let </span>values = std::mem::take(<span class="kw-2">&amp;mut </span><span class="self">self</span>.foreign_call_results[foreign_call_index].values);
 
         <span class="kw">if </span>destinations.len() != values.len() {
             <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(
@@ -823,16 +816,12 @@
             destination_value_types.len(),
             <span class="string">"Number of destinations must match number of value types"</span>,
         );
-        <span class="macro">debug_assert_eq!</span>(
-            destinations.len(),
-            values.len(),
-            <span class="string">"Number of foreign call return values must match number of destinations"</span>,
-        );
+
         <span class="kw">for </span>((destination, value_type), output) <span class="kw">in
             </span>destinations.iter().zip(destination_value_types).zip(<span class="kw-2">&amp;</span>values)
         {
             <span class="kw">match </span>(destination, value_type) {
-                (ValueOrArray::MemoryAddress(value_index), HeapValueType::Simple(bit_size)) =&gt; {
+                (ValueOrArray::MemoryAddress(value_addr), HeapValueType::Simple(bit_size)) =&gt; {
                     <span class="kw">let </span>output_fields = output.fields();
                     <span class="kw">if </span>value_type
                         .flattened_size()
@@ -847,7 +836,7 @@
 
                     <span class="kw">match </span>output {
                         ForeignCallParam::Single(value) =&gt; {
-                            <span class="self">self</span>.write_value_to_memory(<span class="kw-2">*</span>value_index, value, <span class="kw-2">*</span>bit_size)<span class="question-mark">?</span>;
+                            <span class="self">self</span>.write_value_to_memory(<span class="kw-2">*</span>value_addr, value, <span class="kw-2">*</span>bit_size)<span class="question-mark">?</span>;
                         }
                         <span class="kw">_ </span>=&gt; {
                             <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(
@@ -857,9 +846,14 @@
                     }
                 }
                 (
-                    ValueOrArray::HeapArray(HeapArray { pointer: pointer_index, size }),
+                    ValueOrArray::HeapArray(HeapArray { pointer, size }),
                     HeapValueType::Array { value_types, size: type_size },
-                ) <span class="kw">if </span>size == type_size =&gt; {
+                ) =&gt; {
+                    <span class="kw">if </span>size != type_size {
+                        <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(
+                            <span class="string">"Destination array size of {size} does not match the type size of {type_size}"
+                        </span>));
+                    }
                     <span class="kw">let </span>output_fields = output.fields();
                     <span class="kw">if </span>value_type
                         .flattened_size()
@@ -873,50 +867,39 @@
                     }
 
                     <span class="kw">if </span>HeapValueType::all_simple(value_types) {
-                        <span class="kw">match </span>output {
-                            ForeignCallParam::Array(values) =&gt; {
-                                <span class="kw">if </span>values.len() != <span class="kw-2">*</span>size {
-                                    <span class="comment">// foreign call returning flattened values into a nested type, so the sizes do not match
-                                    </span><span class="kw">let </span>destination = <span class="self">self</span>.memory.read_ref(<span class="kw-2">*</span>pointer_index);
+                        <span class="kw">let </span>ForeignCallParam::Array(values) = output <span class="kw">else </span>{
+                            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="string">"Foreign call returned a single value for an array type"
+                                </span>.to_string());
+                        };
+                        <span class="kw">if </span>values.len() != <span class="kw-2">*</span>size {
+                            <span class="comment">// foreign call returning flattened values into a nested type, so the sizes do not match
+                            </span><span class="kw">let </span>destination = <span class="self">self</span>.memory.read_ref(<span class="kw-2">*</span>pointer);
 
-                                    <span class="kw">let </span><span class="kw-2">mut </span>flatten_values_idx = <span class="number">0</span>; <span class="comment">//index of values read from flatten_values
-                                    </span><span class="self">self</span>.write_slice_of_values_to_memory(
-                                        destination,
-                                        <span class="kw-2">&amp;</span>output_fields,
-                                        <span class="kw-2">&amp;mut </span>flatten_values_idx,
-                                        value_type,
-                                    )<span class="question-mark">?</span>;
-                                    <span class="comment">// Should be caught earlier but we want to be explicit.
-                                    </span><span class="macro">debug_assert_eq!</span>(
-                                        flatten_values_idx,
-                                        output_fields.len(),
-                                        <span class="string">"Not all values were written to memory"
-                                    </span>);
-                                } <span class="kw">else </span>{
-                                    <span class="self">self</span>.write_values_to_memory_slice(
-                                        <span class="kw-2">*</span>pointer_index,
-                                        values,
-                                        value_types,
-                                    )<span class="question-mark">?</span>;
-                                }
-                            }
-                            <span class="kw">_ </span>=&gt; {
-                                <span class="kw">return </span><span class="prelude-val">Err</span>(
-                                    <span class="string">"Function result size does not match brillig bytecode size"
-                                        </span>.to_string(),
-                                );
-                            }
+                            <span class="kw">let </span><span class="kw-2">mut </span>flatten_values_idx = <span class="number">0</span>; <span class="comment">//index of values read from flatten_values
+                            </span><span class="self">self</span>.write_flattened_values_to_memory(
+                                destination,
+                                <span class="kw-2">&amp;</span>output_fields,
+                                <span class="kw-2">&amp;mut </span>flatten_values_idx,
+                                value_type,
+                            )<span class="question-mark">?</span>;
+                            <span class="comment">// Should be caught earlier but we want to be explicit.
+                            </span><span class="macro">debug_assert_eq!</span>(
+                                flatten_values_idx,
+                                output_fields.len(),
+                                <span class="string">"Not all values were written to memory"
+                            </span>);
+                        } <span class="kw">else </span>{
+                            <span class="self">self</span>.write_values_to_memory(<span class="kw-2">*</span>pointer, values, value_types)<span class="question-mark">?</span>;
                         }
                     } <span class="kw">else </span>{
                         <span class="comment">// foreign call returning flattened values into a nested type, so the sizes do not match
-                        </span><span class="kw">let </span>destination = <span class="self">self</span>.memory.read_ref(<span class="kw-2">*</span>pointer_index);
-                        <span class="kw">let </span>return_type = value_type;
+                        </span><span class="kw">let </span>destination = <span class="self">self</span>.memory.read_ref(<span class="kw-2">*</span>pointer);
                         <span class="kw">let </span><span class="kw-2">mut </span>flatten_values_idx = <span class="number">0</span>; <span class="comment">//index of values read from flatten_values
-                        </span><span class="self">self</span>.write_slice_of_values_to_memory(
+                        </span><span class="self">self</span>.write_flattened_values_to_memory(
                             destination,
                             <span class="kw-2">&amp;</span>output_fields,
                             <span class="kw-2">&amp;mut </span>flatten_values_idx,
-                            return_type,
+                            value_type,
                         )<span class="question-mark">?</span>;
                         <span class="macro">debug_assert_eq!</span>(
                             flatten_values_idx,
@@ -926,34 +909,22 @@
                     }
                 }
                 (
-                    ValueOrArray::HeapVector(HeapVector {
-                        pointer: pointer_index,
-                        size: size_index,
-                    }),
+                    ValueOrArray::HeapVector(HeapVector { pointer, size: size_addr }),
                     HeapValueType::Vector { value_types },
                 ) =&gt; {
                     <span class="kw">if </span>HeapValueType::all_simple(value_types) {
-                        <span class="kw">match </span>output {
-                            ForeignCallParam::Array(values) =&gt; {
-                                <span class="kw">if </span>values.len() % value_types.len() != <span class="number">0 </span>{
-                                    <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="string">"Returned data does not match vector element size"
-                                        </span>.to_string());
-                                }
-                                <span class="comment">// Set our size in the size address
-                                </span><span class="self">self</span>.memory.write(<span class="kw-2">*</span>size_index, values.len().into());
-                                <span class="self">self</span>.write_values_to_memory_slice(
-                                    <span class="kw-2">*</span>pointer_index,
-                                    values,
-                                    value_types,
-                                )<span class="question-mark">?</span>;
-                            }
-                            <span class="kw">_ </span>=&gt; {
-                                <span class="kw">return </span><span class="prelude-val">Err</span>(
-                                    <span class="string">"Function result size does not match brillig bytecode size"
-                                        </span>.to_string(),
-                                );
-                            }
+                        <span class="kw">let </span>ForeignCallParam::Array(values) = output <span class="kw">else </span>{
+                            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="string">"Foreign call returned a single value for an vector type"
+                                </span>.to_string());
+                        };
+                        <span class="kw">if </span>values.len() % value_types.len() != <span class="number">0 </span>{
+                            <span class="kw">return </span><span class="prelude-val">Err</span>(
+                                <span class="string">"Returned data does not match vector element size"</span>.to_string()
+                            );
                         }
+                        <span class="comment">// Set the size in the size address
+                        </span><span class="self">self</span>.memory.write(<span class="kw-2">*</span>size_addr, values.len().into());
+                        <span class="self">self</span>.write_values_to_memory(<span class="kw-2">*</span>pointer, values, value_types)<span class="question-mark">?</span>;
                     } <span class="kw">else </span>{
                         <span class="macro">unimplemented!</span>(<span class="string">"deflattening heap vectors from foreign calls"</span>);
                     }
@@ -971,7 +942,8 @@
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">fn </span>write_value_to_memory(
+    <span class="doccomment">/// Write a single numeric value to the destination address, ensuring that the bit size matches the expectation.
+    </span><span class="kw">fn </span>write_value_to_memory(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         destination: MemoryAddress,
         value: <span class="kw-2">&amp;</span>F,
@@ -989,9 +961,10 @@
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">fn </span>write_values_to_memory_slice(
+    <span class="doccomment">/// Write an array or slice to the destination under the pointer.
+    </span><span class="kw">fn </span>write_values_to_memory(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        pointer_index: MemoryAddress,
+        pointer: MemoryAddress,
         values: <span class="kw-2">&amp;</span>[F],
         value_types: <span class="kw-2">&amp;</span>[HeapValueType],
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), String&gt; {
@@ -1003,9 +976,9 @@
             })
             .cycle();
 
-        <span class="comment">// Convert the destination pointer to a usize
-        </span><span class="kw">let </span>destination = <span class="self">self</span>.memory.read_ref(pointer_index);
-        <span class="comment">// Write to our destination memory
+        <span class="comment">// Convert the destination pointer to an address.
+        </span><span class="kw">let </span>destination = <span class="self">self</span>.memory.read_ref(pointer);
+        <span class="comment">// Write to the destination memory.
         </span><span class="kw">let </span>memory_values: <span class="prelude-ty">Option</span>&lt;Vec&lt;<span class="kw">_</span>&gt;&gt; = values
             .iter()
             .zip(bit_sizes_iterator)
@@ -1021,12 +994,12 @@
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="doccomment">/// Writes flattened values to memory, using the provided type
-    /// Function calls itself recursively in order to work with recursive types (nested arrays)
-    /// values_idx is the current index in the values vector and is incremented every time
-    /// a value is written to memory
-    /// The function returns the address of the next value to be written
-    </span><span class="kw">fn </span>write_slice_of_values_to_memory(
+    <span class="doccomment">/// Writes flattened values to memory, using the provided type.
+    ///
+    /// The method calls itself recursively in order to work with recursive types (nested arrays).
+    /// `values_idx` is the current index in the `values` vector and is incremented every time
+    /// a value is written to memory.
+    </span><span class="kw">fn </span>write_flattened_values_to_memory(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         destination: MemoryAddress,
         values: <span class="kw-2">&amp;</span>Vec&lt;F&gt;,
@@ -1034,10 +1007,9 @@
         value_type: <span class="kw-2">&amp;</span>HeapValueType,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), String&gt; {
         <span class="macro">assert!</span>(
-            !destination.is_relative(),
-            <span class="string">"write_slice_of_values_to_memory requires direct addresses"
+            destination.is_direct(),
+            <span class="string">"write_flattened_values_to_memory requires direct addresses"
         </span>);
-        <span class="kw">let </span><span class="kw-2">mut </span>current_pointer = destination;
         <span class="kw">match </span>value_type {
             HeapValueType::Simple(bit_size) =&gt; {
                 <span class="self">self</span>.write_value_to_memory(destination, <span class="kw-2">&amp;</span>values[<span class="kw-2">*</span>values_idx], <span class="kw-2">*</span>bit_size)<span class="question-mark">?</span>;
@@ -1045,27 +1017,33 @@
                 <span class="prelude-val">Ok</span>(())
             }
             HeapValueType::Array { value_types, size } =&gt; {
+                <span class="kw">let </span><span class="kw-2">mut </span>current_pointer = destination;
                 <span class="kw">for _ in </span><span class="number">0</span>..<span class="kw-2">*</span>size {
                     <span class="kw">for </span>typ <span class="kw">in </span>value_types {
                         <span class="kw">match </span>typ {
-                            HeapValueType::Simple(len) =&gt; {
+                            HeapValueType::Simple(bit_size) =&gt; {
                                 <span class="self">self</span>.write_value_to_memory(
                                     current_pointer,
                                     <span class="kw-2">&amp;</span>values[<span class="kw-2">*</span>values_idx],
-                                    <span class="kw-2">*</span>len,
+                                    <span class="kw-2">*</span>bit_size,
                                 )<span class="question-mark">?</span>;
                                 <span class="kw-2">*</span>values_idx += <span class="number">1</span>;
                                 current_pointer = current_pointer.offset(<span class="number">1</span>);
                             }
                             HeapValueType::Array { .. } =&gt; {
-                                <span class="kw">let </span>destination = <span class="self">self</span>.memory.read_ref(current_pointer).offset(<span class="number">1</span>);
-                                <span class="self">self</span>.write_slice_of_values_to_memory(
-                                    destination,
+                                <span class="comment">// The next memory destination is an array, somewhere else in memory where the pointer points to.
+                                </span><span class="kw">let </span>destination =
+                                    ArrayAddress::from(<span class="self">self</span>.memory.read_ref(current_pointer));
+
+                                <span class="self">self</span>.write_flattened_values_to_memory(
+                                    destination.items_start(),
                                     values,
                                     values_idx,
                                     typ,
                                 )<span class="question-mark">?</span>;
-                                current_pointer = current_pointer.offset(<span class="number">1</span>);
+
+                                <span class="comment">// Move on to the next slot in *this* array.
+                                </span>current_pointer = current_pointer.offset(<span class="number">1</span>);
                             }
                             HeapValueType::Vector { .. } =&gt; {
                                 <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(

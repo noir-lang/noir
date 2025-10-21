@@ -423,7 +423,36 @@
 <a href="#422" id="422">422</a>
 <a href="#423" id="423">423</a>
 <a href="#424" id="424">424</a>
-<a href="#425" id="425">425</a></pre></div><pre class="rust"><code><span class="doccomment">//! Implementations for VM native [black box functions][acir::brillig::Opcode::BlackBox].
+<a href="#425" id="425">425</a>
+<a href="#426" id="426">426</a>
+<a href="#427" id="427">427</a>
+<a href="#428" id="428">428</a>
+<a href="#429" id="429">429</a>
+<a href="#430" id="430">430</a>
+<a href="#431" id="431">431</a>
+<a href="#432" id="432">432</a>
+<a href="#433" id="433">433</a>
+<a href="#434" id="434">434</a>
+<a href="#435" id="435">435</a>
+<a href="#436" id="436">436</a>
+<a href="#437" id="437">437</a>
+<a href="#438" id="438">438</a>
+<a href="#439" id="439">439</a>
+<a href="#440" id="440">440</a>
+<a href="#441" id="441">441</a>
+<a href="#442" id="442">442</a>
+<a href="#443" id="443">443</a>
+<a href="#444" id="444">444</a>
+<a href="#445" id="445">445</a>
+<a href="#446" id="446">446</a>
+<a href="#447" id="447">447</a>
+<a href="#448" id="448">448</a>
+<a href="#449" id="449">449</a>
+<a href="#450" id="450">450</a>
+<a href="#451" id="451">451</a>
+<a href="#452" id="452">452</a>
+<a href="#453" id="453">453</a>
+<a href="#454" id="454">454</a></pre></div><pre class="rust"><code><span class="doccomment">//! Implementations for VM native [black box functions][acir::brillig::Opcode::BlackBox].
 </span><span class="kw">use </span>acir::brillig::{BlackBoxOp, HeapArray, HeapVector};
 <span class="kw">use </span>acir::{AcirField, BlackBoxFunc};
 <span class="kw">use </span>acvm_blackbox_solver::{
@@ -437,20 +466,47 @@
 <span class="kw">use </span><span class="kw">crate</span>::memory::MemoryValue;
 
 <span class="doccomment">/// Reads a dynamically-sized [vector][HeapVector] from memory.
+///
+/// The data is not expected to contain pointers to nested arrays or vector.
 </span><span class="kw">fn </span>read_heap_vector&lt;<span class="lifetime">'a</span>, F: AcirField&gt;(
     memory: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>Memory&lt;F&gt;,
     vector: <span class="kw-2">&amp;</span>HeapVector,
 ) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'a </span>[MemoryValue&lt;F&gt;] {
+    <span class="kw">let </span>items_start = memory.read_ref(vector.pointer);
     <span class="kw">let </span>size = memory.read(vector.size);
-    memory.read_slice(memory.read_ref(vector.pointer), size.to_usize())
+    memory.read_slice(items_start, size.to_usize())
+}
+
+<span class="doccomment">/// Write values to a [vector][HeapVector] in memory.
+</span><span class="kw">fn </span>write_heap_vector&lt;F: AcirField&gt;(
+    memory: <span class="kw-2">&amp;mut </span>Memory&lt;F&gt;,
+    vector: <span class="kw-2">&amp;</span>HeapVector,
+    values: <span class="kw-2">&amp;</span>[MemoryValue&lt;F&gt;],
+) {
+    <span class="kw">let </span>items_start = memory.read_ref(vector.pointer);
+    memory.write(vector.size, values.len().into());
+    memory.write_slice(items_start, values);
 }
 
 <span class="doccomment">/// Reads a fixed-size [array][HeapArray] from memory.
+///
+/// The data is not expected to contain pointers to nested arrays or vector.
 </span><span class="kw">fn </span>read_heap_array&lt;<span class="lifetime">'a</span>, F: AcirField&gt;(
     memory: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>Memory&lt;F&gt;,
     array: <span class="kw-2">&amp;</span>HeapArray,
 ) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'a </span>[MemoryValue&lt;F&gt;] {
-    memory.read_slice(memory.read_ref(array.pointer), array.size)
+    <span class="kw">let </span>items_start = memory.read_ref(array.pointer);
+    memory.read_slice(items_start, array.size)
+}
+
+<span class="doccomment">/// Write values to a [array][HeapArray] in memory.
+</span><span class="kw">fn </span>write_heap_array&lt;F: AcirField&gt;(
+    memory: <span class="kw-2">&amp;mut </span>Memory&lt;F&gt;,
+    array: <span class="kw-2">&amp;</span>HeapArray,
+    values: <span class="kw-2">&amp;</span>[MemoryValue&lt;F&gt;],
+) {
+    <span class="kw">let </span>items_start = memory.read_ref(array.pointer);
+    memory.write_slice(items_start, values);
 }
 
 <span class="doccomment">/// Extracts the last byte of every value
@@ -507,21 +563,20 @@
                 })<span class="question-mark">?</span>;
             <span class="kw">let </span>ciphertext = aes128_encrypt(<span class="kw-2">&amp;</span>inputs, iv, key)<span class="question-mark">?</span>;
 
-            memory.write(outputs.size, ciphertext.len().into());
-            memory.write_slice(memory.read_ref(outputs.pointer), <span class="kw-2">&amp;</span>to_value_vec(<span class="kw-2">&amp;</span>ciphertext));
+            write_heap_vector(memory, outputs, <span class="kw-2">&amp;</span>to_value_vec(<span class="kw-2">&amp;</span>ciphertext));
 
             <span class="prelude-val">Ok</span>(())
         }
         BlackBoxOp::Blake2s { message, output } =&gt; {
             <span class="kw">let </span>message = to_u8_vec(read_heap_vector(memory, message));
             <span class="kw">let </span>bytes = blake2s(message.as_slice())<span class="question-mark">?</span>;
-            memory.write_slice(memory.read_ref(output.pointer), <span class="kw-2">&amp;</span>to_value_vec(<span class="kw-2">&amp;</span>bytes));
+            write_heap_array(memory, output, <span class="kw-2">&amp;</span>to_value_vec(<span class="kw-2">&amp;</span>bytes));
             <span class="prelude-val">Ok</span>(())
         }
         BlackBoxOp::Blake3 { message, output } =&gt; {
             <span class="kw">let </span>message = to_u8_vec(read_heap_vector(memory, message));
             <span class="kw">let </span>bytes = blake3(message.as_slice())<span class="question-mark">?</span>;
-            memory.write_slice(memory.read_ref(output.pointer), <span class="kw-2">&amp;</span>to_value_vec(<span class="kw-2">&amp;</span>bytes));
+            write_heap_array(memory, output, <span class="kw-2">&amp;</span>to_value_vec(<span class="kw-2">&amp;</span>bytes));
             <span class="prelude-val">Ok</span>(())
         }
         BlackBoxOp::Keccakf1600 { input, output } =&gt; {
@@ -534,7 +589,7 @@
             <span class="kw">let </span>new_state = keccakf1600(state)<span class="question-mark">?</span>;
 
             <span class="kw">let </span>new_state: Vec&lt;MemoryValue&lt;F&gt;&gt; = new_state.into_iter().map(|x| x.into()).collect();
-            memory.write_slice(memory.read_ref(output.pointer), <span class="kw-2">&amp;</span>new_state);
+            write_heap_array(memory, output, <span class="kw-2">&amp;</span>new_state);
             <span class="prelude-val">Ok</span>(())
         }
         BlackBoxOp::EcdsaSecp256k1 {
@@ -620,8 +675,9 @@
                 }
             }
             <span class="kw">let </span>(x, y, is_infinite) = solver.multi_scalar_mul(<span class="kw-2">&amp;</span>points, <span class="kw-2">&amp;</span>scalars_lo, <span class="kw-2">&amp;</span>scalars_hi)<span class="question-mark">?</span>;
-            memory.write_slice(
-                memory.read_ref(result.pointer),
+            write_heap_array(
+                memory,
+                result,
                 <span class="kw-2">&amp;</span>[
                     MemoryValue::new_field(x),
                     MemoryValue::new_field(y),
@@ -653,8 +709,10 @@
                 <span class="kw-2">&amp;</span>input2_y,
                 <span class="kw-2">&amp;</span>input2_infinite.into(),
             )<span class="question-mark">?</span>;
-            memory.write_slice(
-                memory.read_ref(result.pointer),
+
+            write_heap_array(
+                memory,
+                result,
                 <span class="kw-2">&amp;</span>[
                     MemoryValue::new_field(x),
                     MemoryValue::new_field(y),
@@ -671,7 +729,7 @@
             <span class="kw">for </span>i <span class="kw">in </span>result {
                 values.push(MemoryValue::new_field(i));
             }
-            memory.write_slice(memory.read_ref(output.pointer), <span class="kw-2">&amp;</span>values);
+            write_heap_array(memory, output, <span class="kw-2">&amp;</span>values);
             <span class="prelude-val">Ok</span>(())
         }
         BlackBoxOp::Sha256Compression { input, hash_values, output } =&gt; {
@@ -701,7 +759,7 @@
             sha256_compression(<span class="kw-2">&amp;mut </span>state, <span class="kw-2">&amp;</span>message);
             <span class="kw">let </span>state = state.map(|x| x.into());
 
-            memory.write_slice(memory.read_ref(output.pointer), <span class="kw-2">&amp;</span>state);
+            write_heap_array(memory, output, <span class="kw-2">&amp;</span>state);
             <span class="prelude-val">Ok</span>(())
         }
         BlackBoxOp::ToRadix { input, radix, output_pointer, num_limbs, output_bits } =&gt; {

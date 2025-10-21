@@ -153,15 +153,15 @@
 </span><span class="attr">#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Hash)]
 #[cfg_attr(feature = <span class="string">"arb"</span>, derive(proptest_derive::Arbitrary))]
 </span><span class="kw">pub enum </span>BlackBoxOp {
-    <span class="doccomment">/// Encrypts a message using AES128.
+    <span class="doccomment">/// Encrypts a message using AES-128.
     </span>AES128Encrypt { inputs: HeapVector, iv: HeapArray, key: HeapArray, outputs: HeapVector },
     <span class="doccomment">/// Calculates the Blake2s hash of the inputs.
     </span>Blake2s { message: HeapVector, output: HeapArray },
     <span class="doccomment">/// Calculates the Blake3 hash of the inputs.
     </span>Blake3 { message: HeapVector, output: HeapArray },
-    <span class="doccomment">/// Keccak Permutation function of 1600 width
+    <span class="doccomment">/// Keccak permutation function of 1600 width.
     </span>Keccakf1600 { input: HeapArray, output: HeapArray },
-    <span class="doccomment">/// Verifies a ECDSA signature over the secp256k1 curve.
+    <span class="doccomment">/// Verifies an ECDSA signature over the secp256k1 curve.
     </span>EcdsaSecp256k1 {
         hashed_msg: HeapVector,
         public_key_x: HeapArray,
@@ -169,7 +169,7 @@
         signature: HeapArray,
         result: MemoryAddress,
     },
-    <span class="doccomment">/// Verifies a ECDSA signature over the secp256r1 curve.
+    <span class="doccomment">/// Verifies an ECDSA signature over the secp256r1 curve.
     </span>EcdsaSecp256r1 {
         hashed_msg: HeapVector,
         public_key_x: HeapArray,

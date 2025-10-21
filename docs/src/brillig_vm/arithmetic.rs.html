@@ -939,34 +939,7 @@
 <a href="#938" id="938">938</a>
 <a href="#939" id="939">939</a>
 <a href="#940" id="940">940</a>
-<a href="#941" id="941">941</a>
-<a href="#942" id="942">942</a>
-<a href="#943" id="943">943</a>
-<a href="#944" id="944">944</a>
-<a href="#945" id="945">945</a>
-<a href="#946" id="946">946</a>
-<a href="#947" id="947">947</a>
-<a href="#948" id="948">948</a>
-<a href="#949" id="949">949</a>
-<a href="#950" id="950">950</a>
-<a href="#951" id="951">951</a>
-<a href="#952" id="952">952</a>
-<a href="#953" id="953">953</a>
-<a href="#954" id="954">954</a>
-<a href="#955" id="955">955</a>
-<a href="#956" id="956">956</a>
-<a href="#957" id="957">957</a>
-<a href="#958" id="958">958</a>
-<a href="#959" id="959">959</a>
-<a href="#960" id="960">960</a>
-<a href="#961" id="961">961</a>
-<a href="#962" id="962">962</a>
-<a href="#963" id="963">963</a>
-<a href="#964" id="964">964</a>
-<a href="#965" id="965">965</a>
-<a href="#966" id="966">966</a>
-<a href="#967" id="967">967</a>
-<a href="#968" id="968">968</a></pre></div><pre class="rust"><code><span class="doccomment">//! Implementations for [binary field operations][acir::brillig::Opcode::BinaryFieldOp] and
+<a href="#941" id="941">941</a></pre></div><pre class="rust"><code><span class="doccomment">//! Implementations for [binary field operations][acir::brillig::Opcode::BinaryFieldOp] and
 //! [binary integer operations][acir::brillig::Opcode::BinaryIntOp].
 </span><span class="kw">use </span>std::ops::{BitAnd, BitOr, BitXor, Shl, Shr};
 
@@ -995,25 +968,22 @@
     lhs: MemoryValue&lt;F&gt;,
     rhs: MemoryValue&lt;F&gt;,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;MemoryValue&lt;F&gt;, BrilligArithmeticError&gt; {
-    <span class="kw">let </span>a = lhs.expect_field().map_err(|err| {
-        <span class="kw">if let </span>MemoryTypeError::MismatchedBitSize { value_bit_size, expected_bit_size } = err {
-            BrilligArithmeticError::MismatchedLhsBitSize {
-                lhs_bit_size: value_bit_size,
-                op_bit_size: expected_bit_size,
+    <span class="kw">let </span>expect_field = |value: MemoryValue&lt;F&gt;, make_err: <span class="kw">fn</span>(u32, u32) -&gt; BrilligArithmeticError| {
+        value.expect_field().map_err(|err| {
+            <span class="kw">if let </span>MemoryTypeError::MismatchedBitSize { value_bit_size, expected_bit_size } = err {
+                make_err(value_bit_size, expected_bit_size)
+            } <span class="kw">else </span>{
+                <span class="macro">unreachable!</span>(<span class="string">"MemoryTypeError NotInteger is only produced by to_u128"</span>)
             }
-        } <span class="kw">else </span>{
-            <span class="macro">unreachable!</span>(<span class="string">"MemoryTypeError NotInteger is only produced by to_u128"</span>)
-        }
+        })
+    };
+    <span class="kw">let </span>a = expect_field(lhs, |vbs, ebs| BrilligArithmeticError::MismatchedLhsBitSize {
+        lhs_bit_size: vbs,
+        op_bit_size: ebs,
     })<span class="question-mark">?</span>;
-    <span class="kw">let </span>b = rhs.expect_field().map_err(|err| {
-        <span class="kw">if let </span>MemoryTypeError::MismatchedBitSize { value_bit_size, expected_bit_size } = err {
-            BrilligArithmeticError::MismatchedRhsBitSize {
-                rhs_bit_size: value_bit_size,
-                op_bit_size: expected_bit_size,
-            }
-        } <span class="kw">else </span>{
-            <span class="macro">unreachable!</span>(<span class="string">"MemoryTypeError NotInteger is only produced by to_u128"</span>)
-        }
+    <span class="kw">let </span>b = expect_field(rhs, |vbs, ebs| BrilligArithmeticError::MismatchedRhsBitSize {
+        rhs_bit_size: vbs,
+        op_bit_size: ebs,
     })<span class="question-mark">?</span>;
 
     <span class="prelude-val">Ok</span>(<span class="kw">match </span>op {
@@ -1150,51 +1120,19 @@
                 }
             }
             (MemoryValue::U8(lhs), MemoryValue::U8(rhs), IntegerBitSize::U8) =&gt; {
-                <span class="kw">if </span>rhs &lt; <span class="number">8 </span>{
-                    <span class="prelude-val">Ok</span>(MemoryValue::U8(evaluate_binary_int_op_shifts(op, lhs, rhs)))
-                } <span class="kw">else </span>{
-                    <span class="prelude-val">Err</span>(BrilligArithmeticError::BitshiftOverflow {
-                        bit_size: <span class="number">8</span>,
-                        shift_size: u128::from(rhs),
-                    })
-                }
+                <span class="prelude-val">Ok</span>(MemoryValue::U8(evaluate_binary_int_op_shifts(op, lhs, rhs)<span class="question-mark">?</span>))
             }
             (MemoryValue::U16(lhs), MemoryValue::U16(rhs), IntegerBitSize::U16) =&gt; {
-                <span class="kw">if </span>rhs &lt; <span class="number">16 </span>{
-                    <span class="prelude-val">Ok</span>(MemoryValue::U16(evaluate_binary_int_op_shifts(op, lhs, rhs)))
-                } <span class="kw">else </span>{
-                    <span class="prelude-val">Err</span>(BrilligArithmeticError::BitshiftOverflow {
-                        bit_size: <span class="number">16</span>,
-                        shift_size: u128::from(rhs),
-                    })
-                }
+                <span class="prelude-val">Ok</span>(MemoryValue::U16(evaluate_binary_int_op_shifts(op, lhs, rhs)<span class="question-mark">?</span>))
             }
             (MemoryValue::U32(lhs), MemoryValue::U32(rhs), IntegerBitSize::U32) =&gt; {
-                <span class="kw">if </span>rhs &lt; <span class="number">32 </span>{
-                    <span class="prelude-val">Ok</span>(MemoryValue::U32(evaluate_binary_int_op_shifts(op, lhs, rhs)))
-                } <span class="kw">else </span>{
-                    <span class="prelude-val">Err</span>(BrilligArithmeticError::BitshiftOverflow {
-                        bit_size: <span class="number">32</span>,
-                        shift_size: u128::from(rhs),
-                    })
-                }
+                <span class="prelude-val">Ok</span>(MemoryValue::U32(evaluate_binary_int_op_shifts(op, lhs, rhs)<span class="question-mark">?</span>))
             }
             (MemoryValue::U64(lhs), MemoryValue::U64(rhs), IntegerBitSize::U64) =&gt; {
-                <span class="kw">if </span>rhs &lt; <span class="number">64 </span>{
-                    <span class="prelude-val">Ok</span>(MemoryValue::U64(evaluate_binary_int_op_shifts(op, lhs, rhs)))
-                } <span class="kw">else </span>{
-                    <span class="prelude-val">Err</span>(BrilligArithmeticError::BitshiftOverflow {
-                        bit_size: <span class="number">64</span>,
-                        shift_size: u128::from(rhs),
-                    })
-                }
+                <span class="prelude-val">Ok</span>(MemoryValue::U64(evaluate_binary_int_op_shifts(op, lhs, rhs)<span class="question-mark">?</span>))
             }
             (MemoryValue::U128(lhs), MemoryValue::U128(rhs), IntegerBitSize::U128) =&gt; {
-                <span class="kw">if </span>rhs &lt; <span class="number">128 </span>{
-                    <span class="prelude-val">Ok</span>(MemoryValue::U128(evaluate_binary_int_op_shifts(op, lhs, rhs)))
-                } <span class="kw">else </span>{
-                    <span class="prelude-val">Err</span>(BrilligArithmeticError::BitshiftOverflow { bit_size: <span class="number">128</span>, shift_size: rhs })
-                }
+                <span class="prelude-val">Ok</span>(MemoryValue::U128(evaluate_binary_int_op_shifts(op, lhs, rhs)<span class="question-mark">?</span>))
             }
             <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(BrilligArithmeticError::MismatchedLhsBitSize {
                 lhs_bit_size: lhs.bit_size().to_u32::&lt;F&gt;(),
@@ -1211,8 +1149,8 @@
 /// - Err([BrilligArithmeticError::DivisionByZero]) if division by zero occurs.
 ///
 /// # Panics
-/// If an operation other than Add, Sub, Mul, Div, And, Or, Xor, Equals, LessThan,
-/// or LessThanEquals is supplied as an argument.
+/// If an operation other than `Add`, `Sub`, `Mul`, `Div`, `And`, `Or`, `Xor`, `Equals`, `LessThan`,
+/// or `LessThanEquals` is supplied as an argument.
 </span><span class="kw">fn </span>evaluate_binary_int_op_u1(
     op: <span class="kw-2">&amp;</span>BinaryIntOp,
     lhs: bool,
@@ -1237,11 +1175,11 @@
     <span class="prelude-val">Ok</span>(result)
 }
 
-<span class="doccomment">/// Evaluates comparison operations (Equals, LessThan, LessThanEquals)
+<span class="doccomment">/// Evaluates comparison operations (`Equals`, `LessThan`, `LessThanEquals`)
 /// between two values of an ordered type (e.g., fields are unordered).
 ///
 /// # Panics
-/// If an unsupported operator is provided (i.e., not Equals, LessThan, or LessThanEquals).
+/// If an unsupported operator is provided (i.e., not `Equals`, `LessThan`, or `LessThanEquals`).
 </span><span class="kw">fn </span>evaluate_binary_int_op_cmp&lt;T: Ord + PartialEq&gt;(op: <span class="kw-2">&amp;</span>BinaryIntOp, lhs: T, rhs: T) -&gt; bool {
     <span class="kw">match </span>op {
         BinaryIntOp::Equals =&gt; lhs == rhs,
@@ -1251,25 +1189,33 @@
     }
 }
 
-<span class="doccomment">/// Evaluates shift operations (Shl, Shr) for unsigned integers.
+<span class="doccomment">/// Evaluates shift operations (`Shl`, `Shr`) for unsigned integers.
 /// Ensures that shifting beyond the type width returns zero.
 ///
+/// # Returns
+/// - Ok(result) if successful.
+/// - Err([BrilligArithmeticError::DivisionByZero]) if the RHS is not less than the bit size.
+///
 /// # Panics
-/// If an unsupported operator is provided (i.e., not Shl or Shr).
-</span><span class="kw">fn </span>evaluate_binary_int_op_shifts&lt;T: ToPrimitive + Zero + Shl&lt;Output = T&gt; + Shr&lt;Output = T&gt;&gt;(
+/// If an unsupported operator is provided (i.e., not `Shl` or `Shr`).
+</span><span class="kw">fn </span>evaluate_binary_int_op_shifts&lt;
+    T: ToPrimitive + Zero + Shl&lt;Output = T&gt; + Shr&lt;Output = T&gt; + Into&lt;u128&gt;,
+&gt;(
     op: <span class="kw-2">&amp;</span>BinaryIntOp,
     lhs: T,
     rhs: T,
-) -&gt; T {
+) -&gt; <span class="prelude-ty">Result</span>&lt;T, BrilligArithmeticError&gt; {
+    <span class="kw">let </span>bit_size = <span class="number">8 </span>* size_of::&lt;T&gt;();
+    <span class="kw">let </span>rhs_usize: usize = rhs.to_usize().expect(<span class="string">"Could not convert rhs to usize"</span>);
+    <span class="kw">if </span>rhs_usize &gt;= bit_size {
+        <span class="kw">return </span><span class="prelude-val">Err</span>(BrilligArithmeticError::BitshiftOverflow {
+            bit_size: bit_size <span class="kw">as </span>u32,
+            shift_size: rhs.into(),
+        });
+    }
     <span class="kw">match </span>op {
-        BinaryIntOp::Shl =&gt; {
-            <span class="kw">let </span>rhs_usize: usize = rhs.to_usize().expect(<span class="string">"Could not convert rhs to usize"</span>);
-            <span class="kw">if </span>rhs_usize &gt;= <span class="number">8 </span>* size_of::&lt;T&gt;() { T::zero() } <span class="kw">else </span>{ lhs &lt;&lt; rhs }
-        }
-        BinaryIntOp::Shr =&gt; {
-            <span class="kw">let </span>rhs_usize: usize = rhs.to_usize().expect(<span class="string">"Could not convert rhs to usize"</span>);
-            <span class="kw">if </span>rhs_usize &gt;= <span class="number">8 </span>* size_of::&lt;T&gt;() { T::zero() } <span class="kw">else </span>{ lhs &gt;&gt; rhs }
-        }
+        BinaryIntOp::Shl =&gt; <span class="prelude-val">Ok</span>(lhs &lt;&lt; rhs),
+        BinaryIntOp::Shr =&gt; <span class="prelude-val">Ok</span>(lhs &gt;&gt; rhs),
         <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"Operator not handled by this function: {op:?}"</span>),
     }
 }

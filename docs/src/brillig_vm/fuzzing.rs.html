@@ -184,7 +184,9 @@
 <a href="#183" id="183">183</a>
 <a href="#184" id="184">184</a>
 <a href="#185" id="185">185</a>
-<a href="#186" id="186">186</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::AcirField;
+<a href="#186" id="186">186</a>
+<a href="#187" id="187">187</a>
+<a href="#188" id="188">188</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::AcirField;
 <span class="kw">use </span>acvm_blackbox_solver::BlackBoxFunctionSolver;
 <span class="kw">use </span>num_bigint::BigUint;
 
@@ -213,14 +215,25 @@
 <span class="doccomment">/// Context structure for all information necessary to compute the fuzzing trace
 </span><span class="attr">#[derive(Debug, PartialEq, Eq, Clone, Default)]
 </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">struct </span>FuzzingTrace {
-    <span class="doccomment">/// Fuzzer tracing memory ddd
+    <span class="doccomment">/// Fuzzer tracing memory.
+    ///
+    /// It records each time a key in the `branch_to_feature_map` was observed.
+    /// Its length is equal to that of the `branch_to_feature_map`.
     </span>trace: Vec&lt;u32&gt;,
-    <span class="doccomment">/// Branch to feature map for fuzzing
-    /// Maps program counter + feature to index in the trace vector
+    <span class="doccomment">/// Branch to feature map for fuzzing.
+    /// Maps program counter + feature to index in the trace vector.
     </span>branch_to_feature_map: HashMap&lt;(usize, usize), usize&gt;,
 }
 
 <span class="kw">impl </span>FuzzingTrace {
+    <span class="kw">fn </span>branch_state(cond: bool) -&gt; usize {
+        <span class="kw">if </span>cond { FUZZING_COMPARISON_TRUE_STATE } <span class="kw">else </span>{ FUZZING_COMPARISON_FALSE_STATE }
+    }
+
+    <span class="kw">fn </span>log_range_state(log: usize) -&gt; usize {
+        FUZZING_COMPARISON_LOG_RANGE_START_STATE + log
+    }
+
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>new(branch_to_feature_map: HashMap&lt;(usize, usize), usize&gt;) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>len = branch_to_feature_map.len();
         <span class="self">Self </span>{ trace: <span class="macro">vec!</span>[<span class="number">0</span>; len], branch_to_feature_map }
@@ -232,10 +245,7 @@
     }
 
     <span class="kw">fn </span>record_conditional_mov(<span class="kw-2">&amp;mut </span><span class="self">self</span>, pc: usize, branch: bool) {
-        <span class="kw">let </span>index = <span class="self">self</span>.branch_to_feature_map[<span class="kw-2">&amp;</span>(
-            pc,
-            <span class="kw">if </span>branch { FUZZING_COMPARISON_TRUE_STATE } <span class="kw">else </span>{ FUZZING_COMPARISON_FALSE_STATE },
-        )];
+        <span class="kw">let </span>index = <span class="self">self</span>.branch_to_feature_map[<span class="kw-2">&amp;</span>(pc, <span class="self">Self</span>::branch_state(branch))];
         <span class="self">self</span>.trace[index] += <span class="number">1</span>;
     }
 
@@ -248,37 +258,33 @@
         result: MemoryValue&lt;F&gt;,
     ) {
         <span class="kw">match </span>op {
+            BinaryFieldOp::Equals | BinaryFieldOp::LessThan | BinaryFieldOp::LessThanEquals =&gt; {
+                <span class="kw">let </span>MemoryValue::Field(a) = lhs <span class="kw">else </span>{
+                    <span class="kw">return</span>;
+                };
+                <span class="kw">let </span>MemoryValue::Field(b) = rhs <span class="kw">else </span>{
+                    <span class="kw">return</span>;
+                };
+                <span class="kw">let </span>MemoryValue::U1(c) = result <span class="kw">else </span>{
+                    <span class="kw">return</span>;
+                };
+
+                <span class="comment">// Logarithm of the difference between LHS as RHS as the number of bits required to represent its value:
+                </span><span class="kw">let </span>diff_log = BigUint::from_bytes_be(<span class="kw-2">&amp;</span>(b - a).to_be_bytes()).bits();
+
+                <span class="kw">let </span>approach_index =
+                    <span class="self">self</span>.branch_to_feature_map[<span class="kw-2">&amp;</span>(pc, <span class="self">Self</span>::log_range_state(diff_log <span class="kw">as </span>usize))];
+
+                <span class="kw">let </span>condition_index = <span class="self">self</span>.branch_to_feature_map[<span class="kw-2">&amp;</span>(pc, <span class="self">Self</span>::branch_state(c))];
+
+                <span class="self">self</span>.trace[approach_index] += <span class="number">1</span>;
+                <span class="self">self</span>.trace[condition_index] += <span class="number">1</span>;
+            }
             BinaryFieldOp::Add
             | BinaryFieldOp::Sub
             | BinaryFieldOp::Mul
             | BinaryFieldOp::Div
             | BinaryFieldOp::IntegerDiv =&gt; {}
-            BinaryFieldOp::Equals | BinaryFieldOp::LessThan | BinaryFieldOp::LessThanEquals =&gt; {
-                <span class="kw">let </span>a = <span class="kw">match </span>lhs {
-                    MemoryValue::Field(a) =&gt; a,
-                    <span class="kw">_ </span>=&gt; <span class="kw">return</span>,
-                };
-                <span class="kw">let </span>b = <span class="kw">match </span>rhs {
-                    MemoryValue::Field(b) =&gt; b,
-                    <span class="kw">_ </span>=&gt; <span class="kw">return</span>,
-                };
-                <span class="kw">let </span>c = <span class="kw">match </span>result {
-                    MemoryValue::U1(value) =&gt; value,
-                    <span class="kw">_ </span>=&gt; <span class="kw">return</span>,
-                };
-
-                <span class="kw">let </span>approach_index = <span class="self">self</span>.branch_to_feature_map[<span class="kw-2">&amp;</span>(
-                    pc,
-                    FUZZING_COMPARISON_LOG_RANGE_START_STATE
-                        + BigUint::from_bytes_be(<span class="kw-2">&amp;</span>(b - a).to_be_bytes()).bits() <span class="kw">as </span>usize,
-                )];
-                <span class="kw">let </span>condition_index = <span class="self">self</span>.branch_to_feature_map[<span class="kw-2">&amp;</span>(
-                    pc,
-                    <span class="kw">if </span>c { FUZZING_COMPARISON_TRUE_STATE } <span class="kw">else </span>{ FUZZING_COMPARISON_FALSE_STATE },
-                )];
-                <span class="self">self</span>.trace[approach_index] += <span class="number">1</span>;
-                <span class="self">self</span>.trace[condition_index] += <span class="number">1</span>;
-            }
         }
     }
 
@@ -291,6 +297,25 @@
         result: MemoryValue&lt;F&gt;,
     ) {
         <span class="kw">match </span>op {
+            BinaryIntOp::Equals | BinaryIntOp::LessThan | BinaryIntOp::LessThanEquals =&gt; {
+                <span class="kw">let </span>lhs_val = lhs.to_u128().expect(<span class="string">"lhs is not an integer"</span>);
+                <span class="kw">let </span>rhs_val = rhs.to_u128().expect(<span class="string">"rhs is not an integer"</span>);
+                <span class="kw">let </span>c = <span class="kw">match </span>result {
+                    MemoryValue::U1(value) =&gt; value,
+                    <span class="kw">_ </span>=&gt; <span class="kw">return</span>,
+                };
+
+                <span class="kw">let </span>diff_log =
+                    rhs_val.abs_diff(lhs_val).checked_ilog2().map_or_else(|| <span class="number">0</span>, |x| x + <span class="number">1</span>);
+
+                <span class="kw">let </span>approach_index =
+                    <span class="self">self</span>.branch_to_feature_map[<span class="kw-2">&amp;</span>(pc, <span class="self">Self</span>::log_range_state(diff_log <span class="kw">as </span>usize))];
+
+                <span class="kw">let </span>condition_index = <span class="self">self</span>.branch_to_feature_map[<span class="kw-2">&amp;</span>(pc, <span class="self">Self</span>::branch_state(c))];
+
+                <span class="self">self</span>.trace[approach_index] += <span class="number">1</span>;
+                <span class="self">self</span>.trace[condition_index] += <span class="number">1</span>;
+            }
             BinaryIntOp::Add
             | BinaryIntOp::Sub
             | BinaryIntOp::Mul
@@ -300,27 +325,6 @@
             | BinaryIntOp::Xor
             | BinaryIntOp::Shl
             | BinaryIntOp::Shr =&gt; {}
-            BinaryIntOp::Equals | BinaryIntOp::LessThan | BinaryIntOp::LessThanEquals =&gt; {
-                <span class="kw">let </span>lhs_val = lhs.to_u128().expect(<span class="string">"lhs is not an integer"</span>);
-                <span class="kw">let </span>rhs_val = rhs.to_u128().expect(<span class="string">"rhs is not an integer"</span>);
-                <span class="kw">let </span>c = <span class="kw">match </span>result {
-                    MemoryValue::U1(value) =&gt; value,
-                    <span class="kw">_ </span>=&gt; <span class="kw">return</span>,
-                };
-
-                <span class="kw">let </span>approach_index = <span class="self">self</span>.branch_to_feature_map[<span class="kw-2">&amp;</span>(
-                    pc,
-                    FUZZING_COMPARISON_LOG_RANGE_START_STATE
-                        + rhs_val.abs_diff(lhs_val).checked_ilog2().map_or_else(|| <span class="number">0</span>, |x| x + <span class="number">1</span>)
-                            <span class="kw">as </span>usize,
-                )];
-                <span class="kw">let </span>condition_index = <span class="self">self</span>.branch_to_feature_map[<span class="kw-2">&amp;</span>(
-                    pc,
-                    <span class="kw">if </span>c { FUZZING_COMPARISON_TRUE_STATE } <span class="kw">else </span>{ FUZZING_COMPARISON_FALSE_STATE },
-                )];
-                <span class="self">self</span>.trace[approach_index] += <span class="number">1</span>;
-                <span class="self">self</span>.trace[condition_index] += <span class="number">1</span>;
-            }
         }
     }
 
@@ -338,7 +342,7 @@
         rhs: MemoryValue&lt;F&gt;,
         result: MemoryValue&lt;F&gt;,
     ) {
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(trace) = <span class="kw-2">&amp;mut </span><span class="self">self</span>.fuzzing_trace {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">ref mut </span>trace) = <span class="self">self</span>.fuzzing_trace {
             trace.record_binary_field_op_comparison(<span class="self">self</span>.program_counter, op, lhs, rhs, result);
         }
     }
@@ -351,21 +355,21 @@
         rhs: MemoryValue&lt;F&gt;,
         result: MemoryValue&lt;F&gt;,
     ) {
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(trace) = <span class="kw-2">&amp;mut </span><span class="self">self</span>.fuzzing_trace {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">ref mut </span>trace) = <span class="self">self</span>.fuzzing_trace {
             trace.record_binary_int_op_comparison(<span class="self">self</span>.program_counter, op, lhs, rhs, result);
         }
     }
 
     <span class="doccomment">/// Mark the execution of a particular branch in the fuzzing trace
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>fuzzing_trace_branching(<span class="kw-2">&amp;mut </span><span class="self">self</span>, destination: NextOpcodePositionOrState) {
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(trace) = <span class="kw-2">&amp;mut </span><span class="self">self</span>.fuzzing_trace {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">ref mut </span>trace) = <span class="self">self</span>.fuzzing_trace {
             trace.record_branch(<span class="self">self</span>.program_counter, destination);
         }
     }
 
     <span class="doccomment">/// Mark the execution of a conditional move in the fuzzing trace
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>fuzzing_trace_conditional_mov(<span class="kw-2">&amp;mut </span><span class="self">self</span>, branch: bool) {
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(trace) = <span class="kw-2">&amp;mut </span><span class="self">self</span>.fuzzing_trace {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">ref mut </span>trace) = <span class="self">self</span>.fuzzing_trace {
             trace.record_conditional_mov(<span class="self">self</span>.program_counter, branch);
         }
     }

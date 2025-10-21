@@ -62,7 +62,11 @@
 <a href="#61" id="61">61</a>
 <a href="#62" id="62">62</a>
 <a href="#63" id="63">63</a>
-<a href="#64" id="64">64</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir_field::AcirField;
+<a href="#64" id="64">64</a>
+<a href="#65" id="65">65</a>
+<a href="#66" id="66">66</a>
+<a href="#67" id="67">67</a>
+<a href="#68" id="68">68</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir_field::AcirField;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 
 <span class="doccomment">/// Single input or output of a [foreign call][crate::Opcode::ForeignCall].
@@ -94,7 +98,8 @@
         }
     }
 
-    <span class="kw">pub fn </span>unwrap_field(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; F {
+    <span class="doccomment">/// Unwrap the field in a `Single` input. Panics if it's an `Array`.
+    </span><span class="kw">pub fn </span>unwrap_field(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; F {
         <span class="kw">match </span><span class="self">self </span>{
             ForeignCallParam::Single(value) =&gt; <span class="kw-2">*</span>value,
             ForeignCallParam::Array(<span class="kw">_</span>) =&gt; <span class="macro">panic!</span>(<span class="string">"Expected single value, found array"</span>),
@@ -109,19 +114,22 @@
     </span><span class="kw">pub </span>values: Vec&lt;ForeignCallParam&lt;F&gt;&gt;,
 }
 
-<span class="kw">impl</span>&lt;F&gt; From&lt;F&gt; <span class="kw">for </span>ForeignCallResult&lt;F&gt; {
+<span class="doccomment">/// Result of a call returning a one output value.
+</span><span class="kw">impl</span>&lt;F&gt; From&lt;F&gt; <span class="kw">for </span>ForeignCallResult&lt;F&gt; {
     <span class="kw">fn </span>from(value: F) -&gt; <span class="self">Self </span>{
         ForeignCallResult { values: <span class="macro">vec!</span>[value.into()] }
     }
 }
 
-<span class="kw">impl</span>&lt;F&gt; From&lt;Vec&lt;F&gt;&gt; <span class="kw">for </span>ForeignCallResult&lt;F&gt; {
+<span class="doccomment">/// Result of a call returning a one output array.
+</span><span class="kw">impl</span>&lt;F&gt; From&lt;Vec&lt;F&gt;&gt; <span class="kw">for </span>ForeignCallResult&lt;F&gt; {
     <span class="kw">fn </span>from(values: Vec&lt;F&gt;) -&gt; <span class="self">Self </span>{
         ForeignCallResult { values: <span class="macro">vec!</span>[values.into()] }
     }
 }
 
-<span class="kw">impl</span>&lt;F&gt; From&lt;Vec&lt;ForeignCallParam&lt;F&gt;&gt;&gt; <span class="kw">for </span>ForeignCallResult&lt;F&gt; {
+<span class="doccomment">/// Result of a call returning multiple outputs.
+</span><span class="kw">impl</span>&lt;F&gt; From&lt;Vec&lt;ForeignCallParam&lt;F&gt;&gt;&gt; <span class="kw">for </span>ForeignCallResult&lt;F&gt; {
     <span class="kw">fn </span>from(values: Vec&lt;ForeignCallParam&lt;F&gt;&gt;) -&gt; <span class="self">Self </span>{
         ForeignCallResult { values }
     }

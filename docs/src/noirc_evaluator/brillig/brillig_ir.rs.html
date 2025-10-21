@@ -538,10 +538,7 @@
 <a href="#537" id="537">537</a>
 <a href="#538" id="538">538</a>
 <a href="#539" id="539">539</a>
-<a href="#540" id="540">540</a>
-<a href="#541" id="541">541</a>
-<a href="#542" id="542">542</a>
-<a href="#543" id="543">543</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module is an abstraction layer over `Brillig`.
+<a href="#540" id="540">540</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module is an abstraction layer over `Brillig`.
 //! To allow for separation of concerns, it knows nothing
 //! about SSA types, and can therefore be tested independently.
 //! `brillig_gen` is therefore the module which combines both
@@ -578,6 +575,7 @@
 <span class="kw">use </span>acvm::{
     AcirField,
     acir::brillig::{MemoryAddress, Opcode <span class="kw">as </span>BrilligOpcode},
+    brillig_vm::STACK_POINTER_ADDRESS,
 };
 <span class="kw">use </span>debug_show::DebugShow;
 
@@ -588,15 +586,8 @@
 /// memory has 2^32 memory slots.
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const </span>BRILLIG_MEMORY_ADDRESSING_BIT_SIZE: u32 = <span class="number">32</span>;
 
-<span class="comment">// Registers reserved in runtime for special purposes.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>ReservedRegisters {
-    <span class="doccomment">/// This register stores the stack pointer. All relative memory addresses are relative to this pointer.
-    </span>StackPointer = <span class="number">0</span>,
-    <span class="doccomment">/// This register stores the free memory pointer. Allocations must be done after this pointer.
-    </span>FreeMemoryPointer = <span class="number">1</span>,
-    <span class="doccomment">/// This register stores a 1_usize constant.
-    </span>UsizeOne = <span class="number">2</span>,
-}
+<span class="doccomment">/// Registers reserved in runtime for special purposes.
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>ReservedRegisters;
 
 <span class="kw">impl </span>ReservedRegisters {
     <span class="doccomment">/// The number of reserved registers. These are allocated in the first memory positions.
@@ -608,16 +599,19 @@
         <span class="self">Self</span>::NUM_RESERVED_REGISTERS
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>stack_pointer() -&gt; MemoryAddress {
-        MemoryAddress::direct(ReservedRegisters::StackPointer <span class="kw">as </span>usize)
+    <span class="doccomment">/// This register stores the stack pointer. All relative memory addresses are relative to this pointer.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>stack_pointer() -&gt; MemoryAddress {
+        STACK_POINTER_ADDRESS
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>free_memory_pointer() -&gt; MemoryAddress {
-        MemoryAddress::direct(ReservedRegisters::FreeMemoryPointer <span class="kw">as </span>usize)
+    <span class="doccomment">/// This register stores the free memory pointer. Allocations must be done after this pointer.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>free_memory_pointer() -&gt; MemoryAddress {
+        MemoryAddress::direct(<span class="number">1</span>)
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>usize_one() -&gt; MemoryAddress {
-        MemoryAddress::direct(ReservedRegisters::UsizeOne <span class="kw">as </span>usize)
+    <span class="doccomment">/// This register stores a 1_usize constant.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>usize_one() -&gt; MemoryAddress {
+        MemoryAddress::direct(<span class="number">2</span>)
     }
 }
 
