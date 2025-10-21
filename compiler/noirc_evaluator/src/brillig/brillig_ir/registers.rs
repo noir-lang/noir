@@ -506,12 +506,6 @@ impl<F, Registers: RegisterAllocator> BrilligContext<F, Registers> {
 
     /// Resets the registers to a new list of allocated ones.
     pub(crate) fn set_allocated_registers(&mut self, allocated_registers: Vec<MemoryAddress>) {
-        // XXX: This currently fails, which means something doesn't deallocate registers.
-        // assert_eq!(
-        //     self.registers.start(),
-        //     self.registers.empty_registers_start().to_usize(),
-        //     "The registers should be empty before being overwritten"
-        // );
         self.registers = Rc::new(RefCell::new(Registers::from_preallocated_registers(
             allocated_registers,
             self.layout(),
@@ -709,6 +703,11 @@ impl<A, R: RegisterAllocator> Allocated<A, R> {
         a.sort();
         a.dedup();
         a
+    }
+
+    /// Manually deallocate a register when it's no longer needed.
+    pub(crate) fn deallocate(self) {
+        drop(self);
     }
 }
 

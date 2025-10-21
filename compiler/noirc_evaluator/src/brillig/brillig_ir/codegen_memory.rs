@@ -442,6 +442,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             3,
         );
         self.codegen_allocate_mem(vector.pointer, *allocation_size);
+        allocation_size.deallocate();
 
         self.codegen_initialize_vector_metadata(vector, size, capacity);
     }
