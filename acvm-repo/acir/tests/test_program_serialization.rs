@@ -9,40 +9,26 @@
 //! Generally in this situation we just need to refresh the `expected_serialization` variables to match the
 //! actual output, **HOWEVER** note that this results in a breaking change to the backend ACIR format.
 
-use std::collections::BTreeSet;
-
 use acir::{
-    circuit::{
-        Circuit, Opcode, Program, PublicInputs,
-        brillig::{BrilligBytecode, BrilligFunctionId, BrilligInputs, BrilligOutputs},
-        opcodes::{AcirFunctionId, BlackBoxFuncCall, BlockId, FunctionInput, MemOp},
-    },
-    native_types::{Expression, Witness},
+    circuit::{Circuit, Program, brillig::BrilligBytecode},
+    native_types::Witness,
 };
-use acir_field::{AcirField, FieldElement};
+use acir_field::FieldElement;
 use brillig::{
     BitSize, HeapArray, HeapValueType, HeapVector, IntegerBitSize, MemoryAddress, ValueOrArray,
 };
 
 #[test]
 fn addition_circuit() {
-    let addition = Opcode::AssertZero(Expression {
-        mul_terms: Vec::new(),
-        linear_combinations: vec![
-            (FieldElement::one(), Witness(1)),
-            (FieldElement::one(), Witness(2)),
-            (-FieldElement::one(), Witness(3)),
-        ],
-        q_c: FieldElement::zero(),
-    });
+    let src = "
+    private parameters: [w1, w2]
+    public parameters: []
+    return values: [w3]
+    ASSERT 0 = w1 + w2 - w3
+    ";
+    let mut circuit = Circuit::from_str(src).unwrap();
+    circuit.current_witness_index = 4;
 
-    let circuit: Circuit<FieldElement> = Circuit {
-        current_witness_index: 4,
-        opcodes: vec![addition],
-        private_parameters: BTreeSet::from([Witness(1), Witness(2)]),
-        return_values: PublicInputs([Witness(3)].into()),
-        ..Circuit::<FieldElement>::default()
-    };
     let program = Program { functions: vec![circuit], unconstrained_functions: vec![] };
 
     let bytes = Program::serialize_program(&program);
@@ -55,32 +41,15 @@ fn addition_circuit() {
 
 #[test]
 fn multi_scalar_mul_circuit() {
-    let multi_scalar_mul: Opcode<FieldElement> =
-        Opcode::BlackBoxFuncCall(BlackBoxFuncCall::MultiScalarMul {
-            points: vec![
-                FunctionInput::Witness(Witness(1)),
-                FunctionInput::Witness(Witness(2)),
-                FunctionInput::Witness(Witness(3)),
-            ],
-            scalars: vec![FunctionInput::Witness(Witness(4)), FunctionInput::Witness(Witness(5))],
-            predicate: FunctionInput::Witness(Witness(6)),
-            outputs: (Witness(7), Witness(8), Witness(9)),
-        });
+    let src = "
+    private parameters: [w1, w2, w3, w4, w5, w6]
+    public parameters: []
+    return values: [w7, w8, w9]
+    BLACKBOX::MULTI_SCALAR_MUL points: [w1, w2, w3], scalars: [w4, w5], predicate: w6, outputs: [w7, w8, w9]
+    ";
+    let mut circuit = Circuit::from_str(src).unwrap();
+    circuit.current_witness_index = 10;
 
-    let circuit = Circuit {
-        current_witness_index: 10,
-        opcodes: vec![multi_scalar_mul],
-        private_parameters: BTreeSet::from([
-            Witness(1),
-            Witness(2),
-            Witness(3),
-            Witness(4),
-            Witness(5),
-            Witness(6),
-        ]),
-        return_values: PublicInputs(BTreeSet::from_iter(vec![Witness(7), Witness(8), Witness(9)])),
-        ..Circuit::default()
-    };
     let program = Program { functions: vec![circuit], unconstrained_functions: vec![] };
 
     let bytes = Program::serialize_program(&program);
@@ -131,24 +100,17 @@ fn simple_brillig_foreign_call() {
         ],
     };
 
-    let opcodes = vec![Opcode::BrilligCall {
-        id: BrilligFunctionId(0),
-        inputs: vec![
-            BrilligInputs::Single(w_input.into()), // Input Register 0,
-        ],
-        // This tells the BrilligSolver which witnesses its output values correspond to
-        outputs: vec![
-            BrilligOutputs::Simple(w_inverted), // Output Register 1
-        ],
-        predicate: None,
-    }];
+    let src = format!(
+        "
+    private parameters: [{w_input}, {w_inverted}]
+    public parameters: []
+    return values: []
+    BRILLIG CALL func: 0, inputs: [{w_input}], outputs: [{w_inverted}]
+    "
+    );
+    let mut circuit = Circuit::from_str(&src).unwrap();
+    circuit.current_witness_index = 8;
 
-    let circuit: Circuit<FieldElement> = Circuit {
-        current_witness_index: 8,
-        opcodes,
-        private_parameters: BTreeSet::from([Witness(1), Witness(2)]),
-        ..Circuit::default()
-    };
     let program =
         Program { functions: vec![circuit], unconstrained_functions: vec![brillig_bytecode] };
 
@@ -162,8 +124,6 @@ fn simple_brillig_foreign_call() {
 
 #[test]
 fn complex_brillig_foreign_call() {
-    let fe_0 = FieldElement::zero();
-    let fe_1 = FieldElement::one();
     let a = Witness(1);
     let b = Witness(2);
     let c = Witness(3);
@@ -259,37 +219,13 @@ fn complex_brillig_foreign_call() {
         ],
     };
 
-    let opcodes = vec![Opcode::BrilligCall {
-        id: BrilligFunctionId(0),
-        inputs: vec![
-            // Input 0,1,2
-            BrilligInputs::Array(vec![
-                Expression::from(a),
-                Expression::from(b),
-                Expression::from(c),
-            ]),
-            // Input 3
-            BrilligInputs::Single(Expression {
-                mul_terms: vec![],
-                linear_combinations: vec![(fe_1, a), (fe_1, b), (fe_1, c)],
-                q_c: fe_0,
-            }),
-        ],
-        // This tells the BrilligSolver which witnesses its output values correspond to
-        outputs: vec![
-            BrilligOutputs::Array(vec![a_times_2, b_times_3, c_times_4]), // Output 0,1,2
-            BrilligOutputs::Simple(a_plus_b_plus_c),                      // Output 3
-            BrilligOutputs::Simple(a_plus_b_plus_c_times_2),              // Output 4
-        ],
-        predicate: None,
-    }];
-
-    let circuit = Circuit {
-        current_witness_index: 8,
-        opcodes,
-        private_parameters: BTreeSet::from([Witness(1), Witness(2), Witness(3)]),
-        ..Circuit::default()
-    };
+    let src = format!("
+    private parameters: [{a}, {b}, {c}]
+    public parameters: []
+    return values: []
+    BRILLIG CALL func: 0, inputs: [[{a}, {b}, {c}], {a} + {b} + {c}], outputs: [[{a_times_2}, {b_times_3}, {c_times_4}], {a_plus_b_plus_c}, {a_plus_b_plus_c_times_2}]
+    ");
+    let circuit = Circuit::from_str(&src).unwrap();
     let program =
         Program { functions: vec![circuit], unconstrained_functions: vec![brillig_bytecode] };
 
@@ -303,29 +239,17 @@ fn complex_brillig_foreign_call() {
 
 #[test]
 fn memory_op_circuit() {
-    let init = vec![Witness(1), Witness(2)];
+    let src = "
+    private parameters: [w1, w2, w3]
+    public parameters: []
+    return values: [w4]
+    INIT b0 = [w1, w2]
+    WRITE b0[1] = w3
+    READ w4 = b0[1]
+    ";
+    let mut circuit = Circuit::from_str(src).unwrap();
+    circuit.current_witness_index = 5;
 
-    let memory_init = Opcode::MemoryInit {
-        block_id: BlockId(0),
-        init,
-        block_type: acir::circuit::opcodes::BlockType::Memory,
-    };
-    let write = Opcode::MemoryOp {
-        block_id: BlockId(0),
-        op: MemOp::write_to_mem_index(FieldElement::from(1u128).into(), Witness(3).into()),
-    };
-    let read = Opcode::MemoryOp {
-        block_id: BlockId(0),
-        op: MemOp::read_at_mem_index(FieldElement::one().into(), Witness(4)),
-    };
-
-    let circuit = Circuit {
-        current_witness_index: 5,
-        opcodes: vec![memory_init, write, read],
-        private_parameters: BTreeSet::from([Witness(1), Witness(2), Witness(3)]),
-        return_values: PublicInputs([Witness(4)].into()),
-        ..Circuit::default()
-    };
     let program = Program { functions: vec![circuit], unconstrained_functions: vec![] };
 
     let bytes = Program::serialize_program(&program);
@@ -353,75 +277,32 @@ fn nested_acir_call_circuit() {
     //     assert(x == y);
     //     x
     // }
-    let nested_call = Opcode::Call {
-        id: AcirFunctionId(1),
-        inputs: vec![Witness(0), Witness(1)],
-        outputs: vec![Witness(2)],
-        predicate: None,
-    };
-    let nested_call_two = Opcode::Call {
-        id: AcirFunctionId(1),
-        inputs: vec![Witness(0), Witness(1)],
-        outputs: vec![Witness(3)],
-        predicate: None,
-    };
+    let src = "
+    private parameters: [w0]
+    public parameters: [w1]
+    return values: []
+    CALL func: 1, inputs: [w0, w1], outputs: [w2]
+    CALL func: 1, inputs: [w0, w1], outputs: [w3]
+    ASSERT 0 = w2 - w3
+    ";
+    let main = Circuit::from_str(src).unwrap();
 
-    let assert_nested_call_results = Opcode::AssertZero(Expression {
-        mul_terms: Vec::new(),
-        linear_combinations: vec![
-            (FieldElement::one(), Witness(2)),
-            (-FieldElement::one(), Witness(3)),
-        ],
-        q_c: FieldElement::zero(),
-    });
+    let src = "
+    private parameters: [w0, w1]
+    public parameters: []
+    return values: [w3]
+    ASSERT 0 = w0 - w2 + 2
+    CALL func: 2, inputs: [w2, w1], outputs: [w3]
+    ";
+    let nested_call = Circuit::from_str(src).unwrap();
 
-    let main = Circuit {
-        current_witness_index: 3,
-        private_parameters: BTreeSet::from([Witness(0)]),
-        public_parameters: PublicInputs([Witness(1)].into()),
-        opcodes: vec![nested_call, nested_call_two, assert_nested_call_results],
-        ..Circuit::default()
-    };
-
-    let call_parameter_addition = Opcode::AssertZero(Expression {
-        mul_terms: Vec::new(),
-        linear_combinations: vec![
-            (FieldElement::one(), Witness(0)),
-            (-FieldElement::one(), Witness(2)),
-        ],
-        q_c: FieldElement::one() + FieldElement::one(),
-    });
-    let call = Opcode::Call {
-        id: AcirFunctionId(2),
-        inputs: vec![Witness(2), Witness(1)],
-        outputs: vec![Witness(3)],
-        predicate: None,
-    };
-
-    let nested_call = Circuit {
-        current_witness_index: 3,
-        private_parameters: BTreeSet::from([Witness(0), Witness(1)]),
-        return_values: PublicInputs([Witness(3)].into()),
-        opcodes: vec![call_parameter_addition, call],
-        ..Circuit::default()
-    };
-
-    let assert_param_equality = Opcode::AssertZero(Expression {
-        mul_terms: Vec::new(),
-        linear_combinations: vec![
-            (FieldElement::one(), Witness(0)),
-            (-FieldElement::one(), Witness(1)),
-        ],
-        q_c: FieldElement::zero(),
-    });
-
-    let inner_call = Circuit {
-        current_witness_index: 1,
-        private_parameters: BTreeSet::from([Witness(0), Witness(1)]),
-        return_values: PublicInputs([Witness(0)].into()),
-        opcodes: vec![assert_param_equality],
-        ..Circuit::default()
-    };
+    let src = "
+    private parameters: [w0, w1]
+    public parameters: []
+    return values: [w0]
+    ASSERT 0 = w0 - w1
+    ";
+    let inner_call = Circuit::from_str(src).unwrap();
 
     let program =
         Program { functions: vec![main, nested_call, inner_call], unconstrained_functions: vec![] };
