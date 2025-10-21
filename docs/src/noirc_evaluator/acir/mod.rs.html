@@ -900,7 +900,9 @@
 <a href="#899" id="899">899</a>
 <a href="#900" id="900">900</a>
 <a href="#901" id="901">901</a>
-<a href="#902" id="902">902</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir` module contains all the logic necessary for noirc's ACIR-gen pass which
+<a href="#902" id="902">902</a>
+<a href="#903" id="903">903</a>
+<a href="#904" id="904">904</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir` module contains all the logic necessary for noirc's ACIR-gen pass which
 //! generates the output ACIR program.
 //!
 //! # Usage
@@ -1533,7 +1535,7 @@
     /// because instructions results are converted when the corresponding instruction is
     /// encountered. (An instruction result cannot be referenced before the instruction occurs.)
     ///
-    /// It is not safe to call this function on value ids that represent addresses. Instructions
+    /// It is not safe to call this function on value ids that represent pointers. Instructions
     /// involving such values are evaluated via a separate path and stored in
     /// `ssa_value_to_array_address` instead.
     </span><span class="kw">fn </span>convert_value(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value_id: ValueId, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) -&gt; AcirValue {
@@ -1547,7 +1549,9 @@
                 <span class="kw">let </span>typ = AcirType::from(Type::Numeric(<span class="kw-2">*</span>typ));
                 AcirValue::Var(<span class="self">self</span>.acir_context.add_constant(<span class="kw-2">*</span>constant), typ)
             }
-            Value::Intrinsic(..) =&gt; <span class="macro">todo!</span>(),
+            Value::Intrinsic(..) =&gt; {
+                <span class="macro">unreachable!</span>(<span class="string">"ICE: Intrinsics should be resolved via separate logic"</span>)
+            }
             Value::Function(function_id) =&gt; {
                 <span class="comment">// This conversion is for debugging support only, to allow the
                 // debugging instrumentation code to work. Taking the reference
