@@ -10,13 +10,13 @@ Noir is not fully audited and is not recommended for use in production.
 
 ## Reporting a Vulnerability
 
-Security is one of Noir's core principles. We thank you for taking the time to responsibly disclose any vulnerabilities you find.
+Noir sets out to be a secure language for developing zero-knowledge proofs. We thank you for taking the time to responsibly disclose any vulnerabilities you find.
 
 ### Bugs vs Vulnerabilities
 
 Bugs are all unexpected behaviors in the system, while vulnerabilities are a subset of bugs that are abusable for malicious intents:
-- If your bug is not abusable, [create a public bug report](https://github.com/noir-lang/noir/issues/new?template=bug_report.yml)
-- If your bug is abusable, report following the steps below
+- If your bug is not necessarily abusable for malicious intents, [create a public bug report](https://github.com/noir-lang/noir/issues/new?template=bug_report.yml)
+- If your bug is abusable, report it following the steps below
 
 ### How to Report
 
