@@ -1,22 +1,74 @@
+//! Visibility checking for functions, struct fields, and type privacy.
+
 use noirc_errors::Location;
 
 use crate::{
     DataType, Type,
     ast::{Ident, ItemVisibility},
-    hir::resolution::errors::ResolverError,
+    hir::resolution::{
+        errors::ResolverError,
+        import::PathResolutionError,
+        visibility::{method_call_is_visible, struct_member_is_visible},
+    },
     hir_def::function::FuncMeta,
-    node_interner::FunctionModifiers,
+    node_interner::{FuncId, FunctionModifiers},
 };
 
 use super::Elaborator;
 
 impl Elaborator<'_> {
-    /// Find the struct in the parent module so we can know its visibility
-    pub(super) fn find_struct_visibility(&self, struct_type: &DataType) -> Option<ItemVisibility> {
+    /// Checks whether calling the method `func_id` on an object of type `object_type` is allowed
+    /// from the current location. If not, a visibility error is pushed to the error list.
+    /// The passed `name` is used for error reporting.
+    pub(super) fn check_method_call_visibility(
+        &mut self,
+        func_id: FuncId,
+        object_type: &Type,
+        name: &Ident,
+    ) {
+        if !method_call_is_visible(
+            self.self_type.as_ref(),
+            object_type,
+            func_id,
+            self.module_id(),
+            self.interner,
+            self.def_maps,
+        ) {
+            self.push_err(ResolverError::PathResolutionError(PathResolutionError::Private(
+                name.clone(),
+            )));
+        }
+    }
+
+    /// Checks whether accessing the struct field `field_name` of type `struct_type`, that has
+    /// the given `visibility`, is allowed from the current location. If not, a visibility
+    /// error is pushed to the error list.
+    pub(super) fn check_struct_field_visibility(
+        &mut self,
+        struct_type: &DataType,
+        field_name: &str,
+        visibility: ItemVisibility,
+        location: Location,
+    ) {
+        if self.silence_field_visibility_errors > 0 {
+            return;
+        }
+
+        if !struct_member_is_visible(struct_type.id, visibility, self.module_id(), self.def_maps) {
+            self.push_err(ResolverError::PathResolutionError(PathResolutionError::Private(
+                Ident::new(field_name.to_string(), location),
+            )));
+        }
+    }
+
+    /// Returns a struct's visibility.
+    pub(super) fn find_struct_visibility(&self, struct_type: &DataType) -> ItemVisibility {
         let parent_module_id = struct_type.id.parent_module_id(self.def_maps);
         let parent_module_data = self.get_module(parent_module_id);
         let per_ns = parent_module_data.find_name(&struct_type.name);
-        per_ns.types.map(|(_, vis, _)| vis)
+        let (_, visibility, _) =
+            per_ns.types.expect("Expected to find struct in its parent module");
+        visibility
     }
 
     pub(super) fn check_function_visibility(
@@ -27,7 +79,9 @@ impl Elaborator<'_> {
         location: Location,
     ) {
         // Check arg and return-value visibility of standalone functions.
-        if self.should_check_function_visibility(func_meta, modifiers) {
+        if self.should_check_function_args_and_return_are_not_more_private_than_function(
+            func_meta, modifiers,
+        ) {
             for (_, typ, _) in func_meta.parameters.iter() {
                 self.check_type_is_not_more_private_then_item(
                     name,
@@ -45,8 +99,8 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Check whether a functions return value and args should be checked for private type visibility.
-    pub(super) fn should_check_function_visibility(
+    /// Check whether a function's args and return value should be checked for private type visibility.
+    pub(super) fn should_check_function_args_and_return_are_not_more_private_than_function(
         &self,
         func_meta: &FuncMeta,
         modifiers: &FunctionModifiers,
@@ -59,13 +113,12 @@ impl Elaborator<'_> {
         if func_meta.trait_impl.is_some() {
             return false;
         }
-        // Public struct functions should not expose private types.
-        if let Some(struct_visibility) = func_meta.type_id.and_then(|id| {
-            let struct_def = self.get_type(id);
+        // Non-private struct functions should not expose private types.
+        if let Some(struct_id) = func_meta.type_id {
+            let struct_def = self.get_type(struct_id);
             let struct_def = struct_def.borrow();
-            self.find_struct_visibility(&struct_def)
-        }) {
-            return struct_visibility != ItemVisibility::Private;
+            let visibility = self.find_struct_visibility(&struct_def);
+            return visibility != ItemVisibility::Private;
         }
         // Standalone functions should be checked
         true
@@ -88,14 +141,13 @@ impl Elaborator<'_> {
                 // then it's either accessible (all good) or it's not, in which case a different
                 // error will happen somewhere else, but no need to error again here.
                 if struct_module_id.krate == self.crate_id {
-                    if let Some(aliased_visibility) = self.find_struct_visibility(&struct_type) {
-                        if aliased_visibility < visibility {
-                            self.push_err(ResolverError::TypeIsMorePrivateThenItem {
-                                typ: struct_type.name.to_string(),
-                                item: name.to_string(),
-                                location,
-                            });
-                        }
+                    let aliased_visibility = self.find_struct_visibility(&struct_type);
+                    if aliased_visibility < visibility {
+                        self.push_err(ResolverError::TypeIsMorePrivateThenItem {
+                            typ: struct_type.name.to_string(),
+                            item: name.to_string(),
+                            location,
+                        });
                     }
                 }
 

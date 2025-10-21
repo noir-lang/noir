@@ -1,3 +1,5 @@
+//! Trait definition collection, bounds resolution, and associated types.
+
 use std::{collections::BTreeMap, rc::Rc};
 
 use iter_extended::vecmap;
