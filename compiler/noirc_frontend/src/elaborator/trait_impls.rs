@@ -1,3 +1,5 @@
+//! Trait implementation collection, method matching, and coherence checking.
+
 use crate::{
     Kind, NamedGeneric, ResolvedGeneric, Shared, TypeBindings, TypeVariable,
     ast::{Ident, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},

@@ -1,3 +1,5 @@
+//! Path resolution for types, values, and trait methods across modules.
+
 use iter_extended::vecmap;
 use noirc_errors::{Located, Location, Span};
 

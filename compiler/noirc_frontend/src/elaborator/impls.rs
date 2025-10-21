@@ -1,3 +1,5 @@
+//! Inherent type implementations collection and method declaration.
+
 use noirc_errors::Location;
 
 use crate::{

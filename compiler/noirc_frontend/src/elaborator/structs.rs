@@ -1,3 +1,5 @@
+//! Struct definition collection and field resolution.
+
 use std::collections::BTreeMap;
 
 use iter_extended::vecmap;
