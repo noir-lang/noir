@@ -30,7 +30,7 @@ pub(super) struct FuzzingTrace {
     /// Fuzzer tracing memory.
     ///
     /// It records each time a key in the `branch_to_feature_map` was observed.
-    /// It's length is equal to that of the `branch_to_feature_map`.
+    /// Its length is equal to that of the `branch_to_feature_map`.
     trace: Vec<u32>,
     /// Branch to feature map for fuzzing.
     /// Maps program counter + feature to index in the trace vector.
