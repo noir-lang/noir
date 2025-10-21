@@ -208,7 +208,16 @@
 <a href="#207" id="207">207</a>
 <a href="#208" id="208">208</a>
 <a href="#209" id="209">209</a>
-<a href="#210" id="210">210</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::Type;
+<a href="#210" id="210">210</a>
+<a href="#211" id="211">211</a>
+<a href="#212" id="212">212</a>
+<a href="#213" id="213">213</a>
+<a href="#214" id="214">214</a>
+<a href="#215" id="215">215</a>
+<a href="#216" id="216">216</a>
+<a href="#217" id="217">217</a>
+<a href="#218" id="218">218</a>
+<a href="#219" id="219">219</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::Type;
 <span class="kw">use </span><span class="kw">crate</span>::node_interner::{FuncId, NodeInterner, TraitId, TypeId};
 
 <span class="kw">use </span><span class="kw">crate</span>::ast::ItemVisibility;
@@ -281,7 +290,8 @@
     module_data.is_type &amp;&amp; module_data.parent == <span class="prelude-val">Some</span>(current)
 }
 
-<span class="kw">pub fn </span>struct_member_is_visible(
+<span class="doccomment">/// Returns whether a struct member with the given visibility is visible from `current_module_id`.
+</span><span class="kw">pub fn </span>struct_member_is_visible(
     struct_id: TypeId,
     visibility: ItemVisibility,
     current_module_id: ModuleId,
@@ -290,7 +300,8 @@
     type_member_is_visible(struct_id.module_id(), visibility, current_module_id, def_maps)
 }
 
-<span class="kw">pub fn </span>trait_member_is_visible(
+<span class="doccomment">/// Returns whether a trait member with the given visibility is visible from `current_module_id`.
+</span><span class="kw">pub fn </span>trait_member_is_visible(
     trait_id: TraitId,
     visibility: ItemVisibility,
     current_module_id: ModuleId,
@@ -299,7 +310,8 @@
     type_member_is_visible(trait_id.<span class="number">0</span>, visibility, current_module_id, def_maps)
 }
 
-<span class="kw">fn </span>type_member_is_visible(
+<span class="doccomment">/// Returns whether a struct or trait member with the given visibility is visible from `current_module_id`.
+</span><span class="kw">fn </span>type_member_is_visible(
     type_module_id: ModuleId,
     visibility: ItemVisibility,
     current_module_id: ModuleId,
@@ -333,7 +345,12 @@
     }
 }
 
-<span class="kw">pub fn </span>method_call_is_visible(
+<span class="doccomment">/// Returns whether a method call `func_id` on an object of type `object_type` is visible from
+/// `current_module`.
+/// If there's a self type at the current location it must be passed as `self_type`. This is
+/// used for the case of calling, inside a generic trait impl, a private method on the same
+/// type as `self_type` regardless of its generic arguments (in this case the call is allowed).
+</span><span class="kw">pub fn </span>method_call_is_visible(
     self_type: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Type&gt;,
     object_type: <span class="kw-2">&amp;</span>Type,
     func_id: FuncId,
@@ -398,7 +415,8 @@
     }
 }
 
-<span class="kw">fn </span>is_same_type_regardless_generics(type1: <span class="kw-2">&amp;</span>Type, type2: <span class="kw-2">&amp;</span>Type) -&gt; bool {
+<span class="doccomment">/// Returns whether two types are the same disregarding their generic arguments.
+</span><span class="kw">fn </span>is_same_type_regardless_generics(type1: <span class="kw-2">&amp;</span>Type, type2: <span class="kw-2">&amp;</span>Type) -&gt; bool {
     <span class="kw">if </span>type1 == type2 {
         <span class="kw">return </span><span class="bool-val">true</span>;
     }

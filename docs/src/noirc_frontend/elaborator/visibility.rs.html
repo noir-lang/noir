@@ -131,29 +131,127 @@
 <a href="#130" id="130">130</a>
 <a href="#131" id="131">131</a>
 <a href="#132" id="132">132</a>
-<a href="#133" id="133">133</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
+<a href="#133" id="133">133</a>
+<a href="#134" id="134">134</a>
+<a href="#135" id="135">135</a>
+<a href="#136" id="136">136</a>
+<a href="#137" id="137">137</a>
+<a href="#138" id="138">138</a>
+<a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a>
+<a href="#141" id="141">141</a>
+<a href="#142" id="142">142</a>
+<a href="#143" id="143">143</a>
+<a href="#144" id="144">144</a>
+<a href="#145" id="145">145</a>
+<a href="#146" id="146">146</a>
+<a href="#147" id="147">147</a>
+<a href="#148" id="148">148</a>
+<a href="#149" id="149">149</a>
+<a href="#150" id="150">150</a>
+<a href="#151" id="151">151</a>
+<a href="#152" id="152">152</a>
+<a href="#153" id="153">153</a>
+<a href="#154" id="154">154</a>
+<a href="#155" id="155">155</a>
+<a href="#156" id="156">156</a>
+<a href="#157" id="157">157</a>
+<a href="#158" id="158">158</a>
+<a href="#159" id="159">159</a>
+<a href="#160" id="160">160</a>
+<a href="#161" id="161">161</a>
+<a href="#162" id="162">162</a>
+<a href="#163" id="163">163</a>
+<a href="#164" id="164">164</a>
+<a href="#165" id="165">165</a>
+<a href="#166" id="166">166</a>
+<a href="#167" id="167">167</a>
+<a href="#168" id="168">168</a>
+<a href="#169" id="169">169</a>
+<a href="#170" id="170">170</a>
+<a href="#171" id="171">171</a>
+<a href="#172" id="172">172</a>
+<a href="#173" id="173">173</a>
+<a href="#174" id="174">174</a>
+<a href="#175" id="175">175</a>
+<a href="#176" id="176">176</a>
+<a href="#177" id="177">177</a>
+<a href="#178" id="178">178</a>
+<a href="#179" id="179">179</a>
+<a href="#180" id="180">180</a>
+<a href="#181" id="181">181</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
     DataType, Type,
     ast::{Ident, ItemVisibility},
-    hir::resolution::errors::ResolverError,
+    hir::resolution::{
+        errors::ResolverError,
+        import::PathResolutionError,
+        visibility::{method_call_is_visible, struct_member_is_visible},
+    },
     hir_def::function::FuncMeta,
-    node_interner::FunctionModifiers,
+    node_interner::{FuncId, FunctionModifiers},
 };
 
 <span class="kw">use </span><span class="kw">super</span>::Elaborator;
 
 <span class="kw">impl </span>Elaborator&lt;<span class="lifetime">'_</span>&gt; {
-    <span class="doccomment">/// Find the struct in the parent module so we can know its visibility
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>find_struct_visibility(<span class="kw-2">&amp;</span><span class="self">self</span>, struct_type: <span class="kw-2">&amp;</span>DataType) -&gt; <span class="prelude-ty">Option</span>&lt;ItemVisibility&gt; {
+    <span class="doccomment">/// Checks whether calling the method `func_id` on an object of type `object_type` is allowed
+    /// from the current location. If not, a visibility error is pushed to the error list.
+    /// The passed `name` is used for error reporting.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>check_method_call_visibility(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        func_id: FuncId,
+        object_type: <span class="kw-2">&amp;</span>Type,
+        name: <span class="kw-2">&amp;</span>Ident,
+    ) {
+        <span class="kw">if </span>!method_call_is_visible(
+            <span class="self">self</span>.self_type.as_ref(),
+            object_type,
+            func_id,
+            <span class="self">self</span>.module_id(),
+            <span class="self">self</span>.interner,
+            <span class="self">self</span>.def_maps,
+        ) {
+            <span class="self">self</span>.push_err(ResolverError::PathResolutionError(PathResolutionError::Private(
+                name.clone(),
+            )));
+        }
+    }
+
+    <span class="doccomment">/// Checks whether accessing the struct field `field_name` of type `struct_type`, that has
+    /// the given `visibility`, is allowed from the current location. If not, a visibility
+    /// error is pushed to the error list.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>check_struct_field_visibility(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        struct_type: <span class="kw-2">&amp;</span>DataType,
+        field_name: <span class="kw-2">&amp;</span>str,
+        visibility: ItemVisibility,
+        location: Location,
+    ) {
+        <span class="kw">if </span><span class="self">self</span>.silence_field_visibility_errors &gt; <span class="number">0 </span>{
+            <span class="kw">return</span>;
+        }
+
+        <span class="kw">if </span>!struct_member_is_visible(struct_type.id, visibility, <span class="self">self</span>.module_id(), <span class="self">self</span>.def_maps) {
+            <span class="self">self</span>.push_err(ResolverError::PathResolutionError(PathResolutionError::Private(
+                Ident::new(field_name.to_string(), location),
+            )));
+        }
+    }
+
+    <span class="doccomment">/// Returns a struct's visibility.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>find_struct_visibility(<span class="kw-2">&amp;</span><span class="self">self</span>, struct_type: <span class="kw-2">&amp;</span>DataType) -&gt; ItemVisibility {
         <span class="kw">let </span>parent_module_id = struct_type.id.parent_module_id(<span class="self">self</span>.def_maps);
         <span class="kw">let </span>parent_module_data = <span class="self">self</span>.get_module(parent_module_id);
         <span class="kw">let </span>per_ns = parent_module_data.find_name(<span class="kw-2">&amp;</span>struct_type.name);
-        per_ns.types.map(|(<span class="kw">_</span>, vis, <span class="kw">_</span>)| vis)
+        <span class="kw">let </span>(<span class="kw">_</span>, visibility, <span class="kw">_</span>) =
+            per_ns.types.expect(<span class="string">"Expected to find struct in its parent module"</span>);
+        visibility
     }
 
-    <span class="doccomment">/// Check whether a functions return value and args should be checked for private type visibility.
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>should_check_function_visibility(
+    <span class="doccomment">/// Check whether a function's args and return value should be checked for private type visibility.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>should_check_function_args_and_return_are_not_more_private_than_function(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         func_meta: <span class="kw-2">&amp;</span>FuncMeta,
         modifiers: <span class="kw-2">&amp;</span>FunctionModifiers,
@@ -166,13 +264,12 @@
         </span><span class="kw">if </span>func_meta.trait_impl.is_some() {
             <span class="kw">return </span><span class="bool-val">false</span>;
         }
-        <span class="comment">// Public struct functions should not expose private types.
-        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(struct_visibility) = func_meta.type_id.and_then(|id| {
-            <span class="kw">let </span>struct_def = <span class="self">self</span>.get_type(id);
+        <span class="comment">// Non-private struct functions should not expose private types.
+        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(struct_id) = func_meta.type_id {
+            <span class="kw">let </span>struct_def = <span class="self">self</span>.get_type(struct_id);
             <span class="kw">let </span>struct_def = struct_def.borrow();
-            <span class="self">self</span>.find_struct_visibility(<span class="kw-2">&amp;</span>struct_def)
-        }) {
-            <span class="kw">return </span>struct_visibility != ItemVisibility::Private;
+            <span class="kw">let </span>visibility = <span class="self">self</span>.find_struct_visibility(<span class="kw-2">&amp;</span>struct_def);
+            <span class="kw">return </span>visibility != ItemVisibility::Private;
         }
         <span class="comment">// Standalone functions should be checked
         </span><span class="bool-val">true
@@ -195,14 +292,13 @@
                 // then it's either accessible (all good) or it's not, in which case a different
                 // error will happen somewhere else, but no need to error again here.
                 </span><span class="kw">if </span>struct_module_id.krate == <span class="self">self</span>.crate_id {
-                    <span class="kw">if let </span><span class="prelude-val">Some</span>(aliased_visibility) = <span class="self">self</span>.find_struct_visibility(<span class="kw-2">&amp;</span>struct_type) {
-                        <span class="kw">if </span>aliased_visibility &lt; visibility {
-                            <span class="self">self</span>.push_err(ResolverError::TypeIsMorePrivateThenItem {
-                                typ: struct_type.name.to_string(),
-                                item: name.to_string(),
-                                location,
-                            });
-                        }
+                    <span class="kw">let </span>aliased_visibility = <span class="self">self</span>.find_struct_visibility(<span class="kw-2">&amp;</span>struct_type);
+                    <span class="kw">if </span>aliased_visibility &lt; visibility {
+                        <span class="self">self</span>.push_err(ResolverError::TypeIsMorePrivateThenItem {
+                            typ: struct_type.name.to_string(),
+                            item: name.to_string(),
+                            location,
+                        });
                     }
                 }
 

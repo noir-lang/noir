@@ -28,7 +28,7 @@
 <a href="#27" id="27">27</a></pre></div><pre class="rust"><code><span class="kw">use </span>serde::{Deserialize, Serialize};
 
 <span class="attr">#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
-</span><span class="doccomment">/// Represents whether the parameter is public or known only to the prover.
+</span><span class="doccomment">/// Represents whether a parameter or return value is public or known only to the prover.
 </span><span class="kw">pub enum </span>Visibility {
     Public,
     <span class="comment">// Constants are not allowed in the ABI for main at the moment.

@@ -560,7 +560,7 @@
                 <span class="kw">let </span>visibility = <span class="kw">if </span><span class="kw-2">*</span>visibility == ItemVisibility::Private {
                     <span class="string">""</span>.to_string()
                 } <span class="kw">else </span>{
-                    visibility.to_string()
+                    <span class="macro">format!</span>(<span class="string">"{visibility} "</span>)
                 };
                 <span class="kw">let </span>is_comptime = <span class="kw">if </span><span class="kw-2">*</span>is_comptime { <span class="string">"comptime " </span>} <span class="kw">else </span>{ <span class="string">"" </span>};
 

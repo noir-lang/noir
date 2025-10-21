@@ -1419,7 +1419,9 @@
 <a href="#1418" id="1418">1418</a>
 <a href="#1419" id="1419">1419</a>
 <a href="#1420" id="1420">1420</a>
-<a href="#1421" id="1421">1421</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#1421" id="1421">1421</a>
+<a href="#1422" id="1422">1422</a>
+<a href="#1423" id="1423">1423</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     cell::RefCell,
     collections::{BTreeMap, BTreeSet},
     rc::Rc,
@@ -1861,8 +1863,10 @@
 
         <span class="self">self</span>.run_function_lints(<span class="kw-2">&amp;</span>func_meta, <span class="kw-2">&amp;</span>modifiers);
 
-        <span class="comment">// Check arg and return-value visibility of standalone functions.
-        </span><span class="kw">if </span><span class="self">self</span>.should_check_function_visibility(<span class="kw-2">&amp;</span>func_meta, <span class="kw-2">&amp;</span>modifiers) {
+        <span class="comment">// Check arg and return-value are not more private than the function they are in.
+        </span><span class="kw">if </span><span class="self">self</span>.should_check_function_args_and_return_are_not_more_private_than_function(
+            <span class="kw-2">&amp;</span>func_meta, <span class="kw-2">&amp;</span>modifiers,
+        ) {
             <span class="kw">let </span>name = Ident::new(
                 <span class="self">self</span>.interner.definition_name(func_meta.name.id).to_string(),
                 func_meta.name.location,

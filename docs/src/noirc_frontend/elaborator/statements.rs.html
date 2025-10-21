@@ -693,42 +693,18 @@
 <a href="#692" id="692">692</a>
 <a href="#693" id="693">693</a>
 <a href="#694" id="694">694</a>
-<a href="#695" id="695">695</a>
-<a href="#696" id="696">696</a>
-<a href="#697" id="697">697</a>
-<a href="#698" id="698">698</a>
-<a href="#699" id="699">699</a>
-<a href="#700" id="700">700</a>
-<a href="#701" id="701">701</a>
-<a href="#702" id="702">702</a>
-<a href="#703" id="703">703</a>
-<a href="#704" id="704">704</a>
-<a href="#705" id="705">705</a>
-<a href="#706" id="706">706</a>
-<a href="#707" id="707">707</a>
-<a href="#708" id="708">708</a>
-<a href="#709" id="709">709</a>
-<a href="#710" id="710">710</a>
-<a href="#711" id="711">711</a>
-<a href="#712" id="712">712</a>
-<a href="#713" id="713">713</a>
-<a href="#714" id="714">714</a>
-<a href="#715" id="715">715</a>
-<a href="#716" id="716">716</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
+<a href="#695" id="695">695</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
-    DataType, Type,
+    Type,
     ast::{
-        AssignStatement, Expression, ForLoopStatement, ForRange, Ident, IntegerBitSize,
-        ItemVisibility, LValue, LetStatement, Statement, StatementKind, WhileStatement,
+        AssignStatement, Expression, ForLoopStatement, ForRange, IntegerBitSize, LValue,
+        LetStatement, Statement, StatementKind, WhileStatement,
     },
     elaborator::PathResolutionTarget,
     hir::{
         def_collector::dc_crate::CompilationError,
-        resolution::{
-            errors::ResolverError, import::PathResolutionError,
-            visibility::struct_member_is_visible,
-        },
+        resolution::errors::ResolverError,
         type_check::{Source, TypeCheckError},
     },
     hir_def::{
@@ -1397,24 +1373,6 @@
 
         <span class="prelude-val">None
     </span>}
-
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>check_struct_field_visibility(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        struct_type: <span class="kw-2">&amp;</span>DataType,
-        field_name: <span class="kw-2">&amp;</span>str,
-        visibility: ItemVisibility,
-        location: Location,
-    ) {
-        <span class="kw">if </span><span class="self">self</span>.silence_field_visibility_errors &gt; <span class="number">0 </span>{
-            <span class="kw">return</span>;
-        }
-
-        <span class="kw">if </span>!struct_member_is_visible(struct_type.id, visibility, <span class="self">self</span>.module_id(), <span class="self">self</span>.def_maps) {
-            <span class="self">self</span>.push_err(ResolverError::PathResolutionError(PathResolutionError::Private(
-                Ident::new(field_name.to_string(), location),
-            )));
-        }
-    }
 
     <span class="kw">fn </span>elaborate_comptime_statement(<span class="kw-2">&amp;mut </span><span class="self">self</span>, statement: Statement) -&gt; (HirStatement, Type) {
         <span class="kw">let </span>location = statement.location;
