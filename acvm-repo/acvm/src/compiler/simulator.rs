@@ -220,7 +220,7 @@ mod tests {
     }
 
     #[test]
-    fn reports_none_for_blackbout_output() {
+    fn reports_none_for_blackbox_output() {
         let src = "
         private parameters: [w0, w1]
         public parameters: []
