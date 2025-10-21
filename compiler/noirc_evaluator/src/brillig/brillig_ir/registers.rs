@@ -106,14 +106,14 @@ pub(crate) trait RegisterAllocator {
     fn allocate_register(&mut self) -> MemoryAddress;
     /// Push a register to the deallocation list, ready for reuse.
     fn deallocate_register(&mut self, register_index: MemoryAddress);
-    /// Ensures a register is allocated, allocating it if necessary
+    /// Ensures a register is allocated, allocating it if necessary.
     fn ensure_register_is_allocated(&mut self, register: MemoryAddress);
     /// Creates a new register context from a set of registers allocated previously.
     fn from_preallocated_registers(
         preallocated_registers: Vec<MemoryAddress>,
         layout: LayoutConfig,
     ) -> Self;
-    /// Finds the first register that is available based upon the deallocation list
+    /// Finds the first register which is followed only by free registers.
     fn empty_registers_start(&self) -> MemoryAddress;
     /// Return the memory layout used by this allocator.
     fn layout(&self) -> LayoutConfig;
@@ -128,18 +128,22 @@ pub(crate) struct Stack {
 
 impl Stack {
     pub(crate) fn new(layout: LayoutConfig) -> Self {
-        let start = Self::start();
-        Self { storage: DeallocationListAllocator::new(start), layout }
+        Self { storage: DeallocationListAllocator::new(Self::start()), layout }
     }
 
+    /// Check if a `Relative` address is within the bounds of the stack.
+    ///
+    /// Panics if the address is `Direct`.
     fn is_within_bounds(&self, register: MemoryAddress) -> bool {
         let offset = register.unwrap_relative();
         offset >= self.start() && offset < self.end()
     }
 
-    /// Static start method for constructors
+    /// Static start address.
+    ///
+    /// The addressable space starts at offset 1; at offset 0 is the previous stack pointer.
     pub(super) fn start() -> usize {
-        1 // Previous stack pointer is the first stack item
+        1
     }
 }
 
@@ -171,14 +175,14 @@ impl RegisterAllocator for Stack {
         preallocated_registers: Vec<MemoryAddress>,
         layout: LayoutConfig,
     ) -> Self {
-        let mock = Stack::new(layout);
+        let empty = Stack::new(layout);
         for register in &preallocated_registers {
-            assert!(mock.is_within_bounds(*register), "Register out of stack bounds");
+            assert!(empty.is_within_bounds(*register), "Register out of stack bounds");
         }
 
         Self {
             storage: DeallocationListAllocator::from_preallocated_registers(
-                mock.start(),
+                empty.start(),
                 vecmap(preallocated_registers, |r| r.unwrap_relative()),
             ),
             layout,
@@ -186,7 +190,7 @@ impl RegisterAllocator for Stack {
     }
 
     fn empty_registers_start(&self) -> MemoryAddress {
-        MemoryAddress::relative(self.storage.empty_registers_start(self.start()))
+        MemoryAddress::relative(self.storage.empty_registers_start())
     }
 
     fn layout(&self) -> LayoutConfig {
@@ -207,6 +211,9 @@ impl ScratchSpace {
         Self { storage: DeallocationListAllocator::new(Self::start()), layout }
     }
 
+    /// Check if a `Direct` address is within the bounds of the scratch space.
+    ///
+    /// Panics if the address is `Relative`.
     fn is_within_bounds(&self, register: MemoryAddress) -> bool {
         let index = register.unwrap_direct();
         index >= self.start() && index < self.end()
@@ -251,14 +258,14 @@ impl RegisterAllocator for ScratchSpace {
         preallocated_registers: Vec<MemoryAddress>,
         layout: LayoutConfig,
     ) -> Self {
-        let mock = Self::new(layout);
+        let empty = Self::new(layout);
         for register in &preallocated_registers {
-            assert!(mock.is_within_bounds(*register), "Register out of scratch space bounds");
+            assert!(empty.is_within_bounds(*register), "Register out of scratch space bounds");
         }
 
         Self {
             storage: DeallocationListAllocator::from_preallocated_registers(
-                mock.start(),
+                empty.start(),
                 vecmap(preallocated_registers, |r| r.unwrap_direct()),
             ),
             layout,
@@ -266,7 +273,7 @@ impl RegisterAllocator for ScratchSpace {
     }
 
     fn empty_registers_start(&self) -> MemoryAddress {
-        MemoryAddress::direct(self.storage.empty_registers_start(self.start()))
+        MemoryAddress::direct(self.storage.empty_registers_start())
     }
 
     fn layout(&self) -> LayoutConfig {
@@ -290,11 +297,15 @@ impl GlobalSpace {
         Self { storage: DeallocationListAllocator::new(start), max_memory_address: start, layout }
     }
 
+    /// Check if a `Direct` address is within the bounds of the global space.
+    ///
+    /// Panics if the address is `Relative`.
     fn is_within_bounds(&self, register: MemoryAddress) -> bool {
         let index = register.unwrap_direct();
         index >= self.start()
     }
 
+    /// Expand the global space to fit a new register if necessary.
     fn update_max_address(&mut self, register: MemoryAddress) {
         let index = register.unwrap_direct();
         assert!(index >= self.start(), "Global space malformed");
@@ -307,7 +318,9 @@ impl GlobalSpace {
         self.max_memory_address
     }
 
-    /// Computes the first valid memory address for global space
+    /// Computes the first valid memory address for global space.
+    ///
+    /// The `{global space}` starts after the `{scratch space}`.
     pub(crate) fn start_with_layout(layout: &LayoutConfig) -> usize {
         ScratchSpace::end_with_layout(layout)
     }
@@ -341,23 +354,23 @@ impl RegisterAllocator for GlobalSpace {
         preallocated_registers: Vec<MemoryAddress>,
         layout: LayoutConfig,
     ) -> Self {
-        let mock = Self::new(layout);
+        let empty = Self::new(layout);
         for register in &preallocated_registers {
-            assert!(mock.is_within_bounds(*register), "Register out of global space bounds");
+            assert!(empty.is_within_bounds(*register), "Register out of global space bounds");
         }
 
         Self {
             storage: DeallocationListAllocator::from_preallocated_registers(
-                mock.start(),
+                empty.start(),
                 vecmap(preallocated_registers, |r| r.unwrap_direct()),
             ),
-            max_memory_address: mock.start(),
+            max_memory_address: empty.start(),
             layout,
         }
     }
 
     fn empty_registers_start(&self) -> MemoryAddress {
-        MemoryAddress::direct(self.storage.empty_registers_start(self.start()))
+        MemoryAddress::direct(self.storage.empty_registers_start())
     }
 
     fn layout(&self) -> LayoutConfig {
@@ -365,29 +378,48 @@ impl RegisterAllocator for GlobalSpace {
     }
 }
 
+/// Register allocator that tracks a contiguous range of register slots using:
+/// * the highest ever allocated register slot, and
+/// * the set of deallocated registers.
+///
+/// When asked to allocate a new register, it returns a deallocated one,
+/// or expands the high water mark of registers.
 #[derive(Default)]
 struct DeallocationListAllocator {
     /// A free-list of registers that have been deallocated and can be used again.
     deallocated_registers: BTreeSet<usize>,
-    /// A usize indicating the next un-used register.
+    /// A usize indicating the next unused register.
     next_free_register_index: usize,
+    /// Original start index.
+    start_register_index: usize,
 }
 
 impl DeallocationListAllocator {
+    /// Create a new allocator, starting a specific slot (could be direct or relative).
     fn new(start: usize) -> Self {
-        Self { deallocated_registers: BTreeSet::new(), next_free_register_index: start }
+        Self {
+            deallocated_registers: BTreeSet::new(),
+            next_free_register_index: start,
+            start_register_index: start,
+        }
     }
 
+    /// Ensure that a register index is allocated by:
+    /// * expanding the range, if the index is beyond the current maximum, or
+    /// * removing it from the deallocated registers.
+    ///
+    /// If the register is already allocated (ie. it fits and isn't deallocated) then nothing happens.
     fn ensure_register_is_allocated(&mut self, index: usize) {
         if index < self.next_free_register_index {
             // If it could be allocated, check if it's in the deallocated list and remove it from there
-            self.deallocated_registers.retain(|&r| r != index);
+            self.deallocated_registers.remove(&index);
         } else {
             // If it couldn't yet be, expand the register space.
             self.next_free_register_index = index + 1;
         }
     }
 
+    /// Returns the first deallocated register, or expands the range to fit a new one.
     fn allocate_register(&mut self) -> usize {
         // If we have a register in our free list of deallocated registers,
         // consume it first. This prioritizes reuse.
@@ -400,35 +432,44 @@ impl DeallocationListAllocator {
         register
     }
 
+    /// Adds the register to the deallocation list.
+    ///
+    /// Panics if:
+    /// * The register is already deallocated.
+    /// * The register is not within the tracked range.
     fn deallocate_register(&mut self, register_index: usize) {
-        assert!(!self.deallocated_registers.contains(&register_index));
+        assert!(
+            !self.deallocated_registers.contains(&register_index),
+            "register already deallocated"
+        );
+        assert!(register_index < self.next_free_register_index, "deallocate after next free");
+        assert!(register_index >= self.start_register_index, "deallocate before start");
         self.deallocated_registers.insert(register_index);
     }
 
+    /// Create an allocator that ranges from `start` to just after the highest
+    /// preallocated register, with everything not on that list considered deallocated
+    /// and ready to be used.
     fn from_preallocated_registers(start: usize, preallocated_registers: Vec<usize>) -> Self {
         let next_free_register_index = preallocated_registers.iter().fold(
             start,
             |free_register_index, &preallocated_register| {
-                if preallocated_register < free_register_index {
-                    free_register_index
-                } else {
-                    preallocated_register + 1
-                }
+                free_register_index.max(preallocated_register + 1)
             },
         );
-        let mut deallocated_registers = BTreeSet::new();
-        for i in start..next_free_register_index {
-            if !preallocated_registers.contains(&i) {
-                deallocated_registers.insert(i);
-            }
+
+        let mut deallocated_registers = (start..next_free_register_index).collect::<BTreeSet<_>>();
+        for pr in preallocated_registers {
+            deallocated_registers.remove(&pr);
         }
 
-        Self { deallocated_registers, next_free_register_index }
+        Self { deallocated_registers, next_free_register_index, start_register_index: start }
     }
 
-    fn empty_registers_start(&self, start: usize) -> usize {
+    /// Find the first register after which there are only free registers.
+    fn empty_registers_start(&self) -> usize {
         let mut first_free = self.next_free_register_index;
-        while first_free > start {
+        while first_free > self.start_register_index {
             if !self.deallocated_registers.contains(&(first_free - 1)) {
                 break;
             }
@@ -473,7 +514,7 @@ impl<F, Registers: RegisterAllocator> BrilligContext<F, Registers> {
 mod tests {
     use crate::brillig::brillig_ir::{
         LayoutConfig,
-        registers::{RegisterAllocator, Stack},
+        registers::{DeallocationListAllocator, RegisterAllocator, Stack},
     };
 
     #[test]
@@ -488,5 +529,26 @@ mod tests {
 
         let one_again = stack.allocate_register();
         assert_eq!(one, one_again);
+    }
+
+    #[test]
+    #[should_panic]
+    fn deallocation_list_deallocate_before_start() {
+        let mut allocator = DeallocationListAllocator::new(10);
+        allocator.deallocate_register(5);
+    }
+
+    #[test]
+    #[should_panic]
+    fn deallocation_list_deallocate_after_end() {
+        let mut allocator = DeallocationListAllocator::new(10);
+        allocator.deallocate_register(15);
+    }
+
+    #[test]
+    #[should_panic]
+    fn deallocation_list_deallocate_twice() {
+        let mut allocator = DeallocationListAllocator::from_preallocated_registers(0, vec![10]);
+        allocator.deallocate_register(5);
     }
 }
