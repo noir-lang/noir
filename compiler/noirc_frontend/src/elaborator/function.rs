@@ -163,7 +163,7 @@ impl Elaborator<'_> {
     /// Returns (trait_id, trait_generics, path_location).
     fn resolve_trait_impl_trait_path(
         &mut self,
-        trait_impl: &mut UnresolvedTraitImpl,
+        trait_impl: &UnresolvedTraitImpl,
     ) -> (Option<TraitId>, GenericTypeArgs, Location) {
         match &trait_impl.r#trait.typ {
             UnresolvedTypeData::Named(trait_path, trait_generics, _) => {
@@ -320,7 +320,6 @@ impl Elaborator<'_> {
         trait_impl.resolved_trait_generics = ordered_generics;
         self.interner.set_associated_types_for_impl(impl_id, named_generics);
 
-        // trait_impl.impl_id = self.current_trait_impl.take();
         trait_impl.unresolved_associated_types = associated_types;
     }
 
