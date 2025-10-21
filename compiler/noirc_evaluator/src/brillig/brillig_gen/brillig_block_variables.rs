@@ -16,11 +16,8 @@ use rustc_hash::FxHashSet as HashSet;
 use crate::{
     brillig::brillig_ir::{
         BrilligContext,
-        brillig_variable::{
-            BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable,
-            get_bit_size_from_ssa_type,
-        },
-        registers::RegisterAllocator,
+        brillig_variable::{BrilligVariable, SingleAddrVariable, get_bit_size_from_ssa_type},
+        registers::{Allocated, RegisterAllocator},
     },
     ssa::ir::{
         dfg::DataFlowGraph,
@@ -52,9 +49,9 @@ impl BlockVariables {
     }
 
     /// Returns all variables that have not been removed at this point.
-    pub(crate) fn get_available_variables(
+    pub(crate) fn get_available_variables<Registers: RegisterAllocator>(
         &self,
-        function_context: &FunctionContext,
+        function_context: &FunctionContext<Registers>,
     ) -> Vec<BrilligVariable> {
         self.available_variables
             .iter()
@@ -64,21 +61,22 @@ impl BlockVariables {
                     .get(value_id)
                     .unwrap_or_else(|| panic!("ICE: Value not found in cache {value_id}"))
             })
-            .cloned()
+            .map(|allocated| **allocated)
             .collect()
     }
 
     /// For a given SSA value id, define the variable and return the corresponding cached allocation.
     pub(crate) fn define_variable<Registers: RegisterAllocator>(
         &mut self,
-        function_context: &mut FunctionContext,
+        function_context: &mut FunctionContext<Registers>,
         brillig_context: &mut BrilligContext<FieldElement, Registers>,
         value_id: ValueId,
         dfg: &DataFlowGraph,
     ) -> BrilligVariable {
-        let variable = allocate_value(value_id, brillig_context, dfg);
+        let allocated = allocate_value(value_id, brillig_context, dfg);
 
-        if function_context.ssa_value_allocations.insert(value_id, variable).is_some() {
+        let variable = *allocated;
+        if function_context.ssa_value_allocations.insert(value_id, allocated).is_some() {
             unreachable!("ICE: ValueId {value_id:?} was already in cache");
         }
 
@@ -90,7 +88,7 @@ impl BlockVariables {
     /// Defines a variable that fits in a single register and returns the allocated register.
     pub(crate) fn define_single_addr_variable<Registers: RegisterAllocator>(
         &mut self,
-        function_context: &mut FunctionContext,
+        function_context: &mut FunctionContext<Registers>,
         brillig_context: &mut BrilligContext<FieldElement, Registers>,
         value: ValueId,
         dfg: &DataFlowGraph,
@@ -103,15 +101,14 @@ impl BlockVariables {
     pub(crate) fn remove_variable<Registers: RegisterAllocator>(
         &mut self,
         value_id: &ValueId,
-        function_context: &mut FunctionContext,
-        brillig_context: &mut BrilligContext<FieldElement, Registers>,
+        function_context: &mut FunctionContext<Registers>,
     ) {
         assert!(self.available_variables.remove(value_id), "ICE: Variable is not available");
-        let variable = function_context
+
+        function_context
             .ssa_value_allocations
             .get(value_id)
             .expect("ICE: Variable allocation not found");
-        brillig_context.deallocate_register(variable.extract_register());
     }
 
     /// Checks if a variable is allocated.
@@ -120,9 +117,9 @@ impl BlockVariables {
     }
 
     /// For a given SSA value id, return the corresponding cached allocation.
-    pub(crate) fn get_allocation(
+    pub(crate) fn get_allocation<Registers: RegisterAllocator>(
         &mut self,
-        function_context: &FunctionContext,
+        function_context: &FunctionContext<Registers>,
         value_id: ValueId,
     ) -> BrilligVariable {
         assert!(
@@ -130,10 +127,12 @@ impl BlockVariables {
             "ICE: ValueId {value_id:?} is not available"
         );
 
-        *function_context
+        let allocation = function_context
             .ssa_value_allocations
             .get(&value_id)
-            .unwrap_or_else(|| panic!("ICE: Value not found in cache {value_id}"))
+            .unwrap_or_else(|| panic!("ICE: Value not found in cache {value_id}"));
+
+        **allocation
     }
 }
 
@@ -147,7 +146,7 @@ pub(crate) fn allocate_value<F, Registers: RegisterAllocator>(
     value_id: ValueId,
     brillig_context: &mut BrilligContext<F, Registers>,
     dfg: &DataFlowGraph,
-) -> BrilligVariable {
+) -> Allocated<BrilligVariable, Registers> {
     let typ = dfg.type_of_value(value_id);
 
     allocate_value_with_type(brillig_context, typ)
@@ -157,20 +156,16 @@ pub(crate) fn allocate_value<F, Registers: RegisterAllocator>(
 pub(crate) fn allocate_value_with_type<F, Registers: RegisterAllocator>(
     brillig_context: &mut BrilligContext<F, Registers>,
     typ: Type,
-) -> BrilligVariable {
+) -> Allocated<BrilligVariable, Registers> {
     match typ {
-        Type::Numeric(_) | Type::Reference(_) | Type::Function => {
-            BrilligVariable::SingleAddr(SingleAddrVariable {
-                address: brillig_context.allocate_register(),
-                bit_size: get_bit_size_from_ssa_type(&typ),
-            })
+        Type::Numeric(_) | Type::Reference(_) | Type::Function => brillig_context
+            .allocate_single_addr(get_bit_size_from_ssa_type(&typ))
+            .map(BrilligVariable::SingleAddr),
+        Type::Array(item_typ, elem_count) => brillig_context
+            .allocate_brillig_array(compute_array_length(&item_typ, elem_count as usize))
+            .map(BrilligVariable::BrilligArray),
+        Type::Slice(_) => {
+            brillig_context.allocate_brillig_vector().map(BrilligVariable::BrilligVector)
         }
-        Type::Array(item_typ, elem_count) => BrilligVariable::BrilligArray(BrilligArray {
-            pointer: brillig_context.allocate_register(),
-            size: compute_array_length(&item_typ, elem_count as usize),
-        }),
-        Type::Slice(_) => BrilligVariable::BrilligVector(BrilligVector {
-            pointer: brillig_context.allocate_register(),
-        }),
     }
 }

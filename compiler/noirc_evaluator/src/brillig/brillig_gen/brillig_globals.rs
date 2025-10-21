@@ -288,7 +288,21 @@ impl Brillig {
         brillig_context.return_instruction();
 
         let artifact = brillig_context.artifact();
-        (artifact, function_context.ssa_value_allocations, globals_size, hoisted_global_constants)
+
+        // The global registers going to become pre-allocated registers when we compile other functions,
+        // so we can stop tracking their allocation life cycles and keep just the memory addresses.
+        let ssa_value_allocations = function_context
+            .ssa_value_allocations
+            .into_iter()
+            .map(|(id, variable)| (id, *variable))
+            .collect();
+
+        let hoisted_global_constants = hoisted_global_constants
+            .into_iter()
+            .map(|(field, variable)| (field, *variable))
+            .collect();
+
+        (artifact, ssa_value_allocations, globals_size, hoisted_global_constants)
     }
 }
 

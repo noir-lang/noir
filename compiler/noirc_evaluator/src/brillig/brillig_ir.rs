@@ -176,12 +176,12 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             .make_constant_instruction(((1_u128 << (num.bit_size - 1)) - 1).into(), num.bit_size);
 
         // Compute if num is negative
-        self.binary_instruction(max_positive, num, result_is_negative, BrilligBinaryOp::LessThan);
+        self.binary_instruction(*max_positive, num, result_is_negative, BrilligBinaryOp::LessThan);
 
         // Two's complement of num
         let zero = self.make_constant_instruction(0_usize.into(), num.bit_size);
-        let twos_complement = SingleAddrVariable::new(self.allocate_register(), num.bit_size);
-        self.binary_instruction(zero, num, twos_complement, BrilligBinaryOp::Sub);
+        let twos_complement = self.allocate_single_addr(num.bit_size);
+        self.binary_instruction(*zero, num, *twos_complement, BrilligBinaryOp::Sub);
 
         // absolute_value = result_is_negative ? twos_complement : num
         self.codegen_branch(result_is_negative.address, |ctx, is_negative| {
@@ -191,10 +191,6 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                 ctx.mov_instruction(absolute_value.address, num.address);
             }
         });
-
-        self.deallocate_single_addr(zero);
-        self.deallocate_single_addr(max_positive);
-        self.deallocate_single_addr(twos_complement);
     }
 
     pub(crate) fn convert_signed_division(
@@ -203,31 +199,31 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         right: SingleAddrVariable,
         result: SingleAddrVariable,
     ) {
-        let left_is_negative = SingleAddrVariable::new(self.allocate_register(), 1);
-        let left_abs_value = SingleAddrVariable::new(self.allocate_register(), left.bit_size);
+        let left_is_negative = self.allocate_single_addr_bool();
+        let left_abs_value = self.allocate_single_addr(left.bit_size);
 
-        let right_is_negative = SingleAddrVariable::new(self.allocate_register(), 1);
-        let right_abs_value = SingleAddrVariable::new(self.allocate_register(), right.bit_size);
+        let right_is_negative = self.allocate_single_addr_bool();
+        let right_abs_value = self.allocate_single_addr(right.bit_size);
 
-        let result_is_negative = SingleAddrVariable::new(self.allocate_register(), 1);
+        let result_is_negative = self.allocate_single_addr_bool();
 
         // Compute both absolute values
-        self.absolute_value(left, left_abs_value, left_is_negative);
-        self.absolute_value(right, right_abs_value, right_is_negative);
+        self.absolute_value(left, *left_abs_value, *left_is_negative);
+        self.absolute_value(right, *right_abs_value, *right_is_negative);
 
         // Perform the division on the absolute values
         self.binary_instruction(
-            left_abs_value,
-            right_abs_value,
+            *left_abs_value,
+            *right_abs_value,
             result,
             BrilligBinaryOp::UnsignedDiv,
         );
 
         // Compute result sign
         self.binary_instruction(
-            left_is_negative,
-            right_is_negative,
-            result_is_negative,
+            *left_is_negative,
+            *right_is_negative,
+            *result_is_negative,
             BrilligBinaryOp::Xor,
         );
 
@@ -235,30 +231,21 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             if is_negative {
                 // If result has to be negative, perform two's complement
                 let zero = ctx.make_constant_instruction(0_usize.into(), result.bit_size);
-                ctx.binary_instruction(zero, result, result, BrilligBinaryOp::Sub);
-                ctx.deallocate_single_addr(zero);
+                ctx.binary_instruction(*zero, result, result, BrilligBinaryOp::Sub);
             } else {
                 // else the result is positive and so it must be less than '2**(bit_size-1)'
                 let max = 1_u128 << (left.bit_size - 1);
                 let max = ctx.make_constant_instruction(max.into(), left.bit_size);
-                let no_overflow = SingleAddrVariable::new(ctx.allocate_register(), 1);
-                ctx.binary_instruction(result, max, no_overflow, BrilligBinaryOp::LessThan);
+                let no_overflow = ctx.allocate_single_addr_bool();
+                ctx.binary_instruction(result, *max, *no_overflow, BrilligBinaryOp::LessThan);
                 ctx.codegen_if_not(no_overflow.address, |ctx2| {
                     ctx2.codegen_constrain(
-                        no_overflow,
+                        *no_overflow,
                         Some("Attempt to divide with overflow".to_string()),
                     );
                 });
-                ctx.deallocate_single_addr(max);
-                ctx.deallocate_single_addr(no_overflow);
             }
         });
-
-        self.deallocate_single_addr(left_is_negative);
-        self.deallocate_single_addr(left_abs_value);
-        self.deallocate_single_addr(right_is_negative);
-        self.deallocate_single_addr(right_abs_value);
-        self.deallocate_single_addr(result_is_negative);
     }
 }
 

@@ -3,7 +3,6 @@ use acvm::AcirField;
 use super::ProcedureId;
 use crate::brillig::brillig_ir::{
     BrilligBinaryOp, BrilligContext, ReservedRegisters,
-    brillig_variable::SingleAddrVariable,
     debug_show::DebugToString,
     registers::{RegisterAllocator, ScratchSpace},
 };
@@ -23,7 +22,7 @@ pub(super) fn compile_check_max_stack_depth_procedure<F: AcirField + DebugToStri
     brillig_context: &mut BrilligContext<F, ScratchSpace>,
     stack_start: usize,
 ) {
-    let in_range = SingleAddrVariable::new(brillig_context.allocate_register(), 1);
+    let in_range = brillig_context.allocate_single_addr_bool();
 
     let max_stack_size = brillig_context.registers().layout().max_stack_size();
     let max_frame_size = brillig_context.registers().layout().max_stack_frame_size();
@@ -36,6 +35,5 @@ pub(super) fn compile_check_max_stack_depth_procedure<F: AcirField + DebugToStri
         BrilligBinaryOp::LessThan,
         last_possible_stack_start,
     );
-    brillig_context.codegen_constrain(in_range, Some("Stack too deep".to_string()));
-    brillig_context.deallocate_single_addr(in_range);
+    brillig_context.codegen_constrain(*in_range, Some("Stack too deep".to_string()));
 }

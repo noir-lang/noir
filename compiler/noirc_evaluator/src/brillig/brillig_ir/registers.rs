@@ -30,11 +30,15 @@
 use std::{
     cell::{Ref, RefCell, RefMut},
     collections::BTreeSet,
+    ops::{Deref, DerefMut},
     rc::Rc,
 };
 
 use acvm::acir::brillig::{HeapArray, HeapVector, MemoryAddress};
 use iter_extended::vecmap;
+use smallvec::{SmallVec, smallvec};
+
+use crate::brillig::brillig_ir::brillig_variable::{BrilligArray, BrilligVector};
 
 use super::{BrilligContext, ReservedRegisters, brillig_variable::SingleAddrVariable};
 
@@ -109,7 +113,7 @@ pub(crate) trait RegisterAllocator {
     /// Allocates a new register.
     fn allocate_register(&mut self) -> MemoryAddress;
     /// Push a register to the deallocation list, ready for reuse.
-    fn deallocate_register(&mut self, register_index: MemoryAddress);
+    fn deallocate_register(&mut self, register: MemoryAddress);
     /// Ensures a register is allocated, allocating it if necessary.
     fn ensure_register_is_allocated(&mut self, register: MemoryAddress);
     /// Creates a new register context from a set of registers allocated previously.
@@ -171,8 +175,8 @@ impl RegisterAllocator for Stack {
         allocated
     }
 
-    fn deallocate_register(&mut self, register_index: MemoryAddress) {
-        self.storage.deallocate_register(register_index.unwrap_relative());
+    fn deallocate_register(&mut self, register: MemoryAddress) {
+        self.storage.deallocate_register(register.unwrap_relative());
     }
 
     fn from_preallocated_registers(
@@ -254,8 +258,8 @@ impl RegisterAllocator for ScratchSpace {
         allocated
     }
 
-    fn deallocate_register(&mut self, register_index: MemoryAddress) {
-        self.storage.deallocate_register(register_index.unwrap_direct());
+    fn deallocate_register(&mut self, register: MemoryAddress) {
+        self.storage.deallocate_register(register.unwrap_direct());
     }
 
     fn from_preallocated_registers(
@@ -345,8 +349,8 @@ impl RegisterAllocator for GlobalSpace {
         allocated
     }
 
-    fn deallocate_register(&mut self, register_index: MemoryAddress) {
-        self.storage.deallocate_register(register_index.unwrap_direct());
+    fn deallocate_register(&mut self, register: MemoryAddress) {
+        self.storage.deallocate_register(register.unwrap_direct());
     }
 
     fn ensure_register_is_allocated(&mut self, register: MemoryAddress) {
@@ -495,8 +499,9 @@ impl<F, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     }
 
     /// Allocates an unused register.
-    pub(crate) fn allocate_register(&mut self) -> MemoryAddress {
-        self.registers_mut().allocate_register()
+    pub(crate) fn allocate_register(&mut self) -> Allocated<MemoryAddress, Registers> {
+        let addr = self.registers_mut().allocate_register();
+        Allocated::new_addr(addr, self.registers.clone())
     }
 
     /// Resets the registers to a new list of allocated ones.
@@ -513,25 +518,211 @@ impl<F, Registers: RegisterAllocator> BrilligContext<F, Registers> {
         )));
     }
 
-    /// Push a register to the deallocation list, ready for reuse.
-    pub(crate) fn deallocate_register(&mut self, register_index: MemoryAddress) {
-        self.registers_mut().deallocate_register(register_index);
+    /// Wrap some value in [Allocated].
+    pub(crate) fn allocate_pure<T>(&self, value: T) -> Allocated<T, Registers> {
+        Allocated::pure(value)
     }
 
-    /// Deallocates the address where the single address variable is stored
-    pub(crate) fn deallocate_single_addr(&mut self, var: SingleAddrVariable) {
-        self.deallocate_register(var.address);
+    /// Allocate a [SingleAddrVariable].
+    pub(crate) fn allocate_single_addr(
+        &mut self,
+        bit_size: u32,
+    ) -> Allocated<SingleAddrVariable, Registers> {
+        self.allocate_register().map(|a| SingleAddrVariable::new(a, bit_size))
     }
 
-    /// Deallocates the array pointer.
-    pub(crate) fn deallocate_heap_array(&mut self, arr: HeapArray) {
-        self.deallocate_register(arr.pointer);
+    /// Allocate a [SingleAddrVariable] with the size of a Brillig memory address.
+    pub(crate) fn allocate_single_addr_usize(
+        &mut self,
+    ) -> Allocated<SingleAddrVariable, Registers> {
+        self.allocate_register().map(SingleAddrVariable::new_usize)
     }
 
-    /// Deallocates the vector pointer and the size address.
-    pub(crate) fn deallocate_heap_vector(&mut self, vec: HeapVector) {
-        self.deallocate_register(vec.pointer);
-        self.deallocate_register(vec.size);
+    /// Allocate a [SingleAddrVariable] with a size of 1 bit.
+    pub(crate) fn allocate_single_addr_bool(&mut self) -> Allocated<SingleAddrVariable, Registers> {
+        self.allocate_register().map(|a| SingleAddrVariable::new(a, 1))
+    }
+
+    /// Allocate a [BrilligVector].
+    pub(crate) fn allocate_brillig_vector(&mut self) -> Allocated<BrilligVector, Registers> {
+        self.allocate_register().map(|a| BrilligVector { pointer: a })
+    }
+
+    /// Allocate a [BrilligActor].
+    pub(crate) fn allocate_brillig_array(
+        &mut self,
+        size: usize,
+    ) -> Allocated<BrilligArray, Registers> {
+        self.allocate_register().map(|a| BrilligArray { pointer: a, size })
+    }
+
+    /// Allocate a [HeapVector].
+    pub(crate) fn allocate_heap_vector(&mut self) -> Allocated<HeapVector, Registers> {
+        let pointer = self.allocate_register();
+        let size = self.allocate_register();
+        pointer.map2(size, |pointer, size| HeapVector { pointer, size })
+    }
+
+    /// Allocate a [HeapArray].
+    pub(crate) fn allocate_heap_array(&mut self, size: usize) -> Allocated<HeapArray, Registers> {
+        self.allocate_register().map(|pointer| HeapArray { pointer, size })
+    }
+}
+
+/// Convenience helper for calling `BrilligContext::set_allocated_registers` with a list
+/// of memory addresses we manually declared, without risking forgetting one that subsequently
+/// gets overwritten by some fresh allocation.
+///
+/// # Example
+/// ```text
+///     let scratch_start = brillig_context.registers().start();
+///     set_allocated_registers!(brillig_context, {
+///         let source_vector_pointer_arg = MemoryAddress::direct(scratch_start);
+///         let index_arg                 = MemoryAddress::direct(scratch_start + 1);
+///         let item_count_arg            = MemoryAddress::direct(scratch_start + 2);
+///         let new_vector_pointer_return = MemoryAddress::direct(scratch_start + 3);
+///         let write_pointer_return      = MemoryAddress::direct(scratch_start + 4);
+///     });
+/// ```
+#[macro_export]
+macro_rules! set_allocated_registers {
+    ($ctx:ident, { $(let $name:ident = $reg:expr);+ $(;)? }) => {
+        $(let $name = $reg;)+
+        $ctx.set_allocated_registers(vec![ $($name),+ ]);
+    };
+}
+
+/// Wrapper for a memory address which automatically deallocates itself
+/// when it goes out of scope.
+pub(crate) struct Allocated<T, R: RegisterAllocator> {
+    /// The inner structure is optional, so that we can map it to a different value
+    /// and let the original wrapper be dropped without any effect.
+    inner: Option<AllocatedInner<T, R>>,
+}
+
+/// Address list with enough slots for `HeapVector`.
+type AddressList = SmallVec<[MemoryAddress; 2]>;
+
+struct AllocatedInner<A, R> {
+    /// The value that we actually wanted to use, holding the allocated `MemoryAddress`.
+    value: A,
+    /// Addresses allocated.
+    addresses: AddressList,
+    /// Reference to the registers, for deallocation.
+    /// Optional so that pure values don't have to clone the registers.
+    registers: Option<Rc<RefCell<R>>>,
+}
+
+impl<A, R: RegisterAllocator> Drop for Allocated<A, R> {
+    fn drop(&mut self) {
+        let Some(mut inner) = self.inner.take() else {
+            return;
+        };
+        let Some(registers) = inner.registers.take() else {
+            return;
+        };
+        let addresses = std::mem::take(&mut inner.addresses);
+        let mut registers = registers.borrow_mut();
+        for addr in addresses {
+            registers.deallocate_register(addr);
+        }
+    }
+}
+
+/// Construct a new allocated address.
+impl<R: RegisterAllocator> Allocated<MemoryAddress, R> {
+    /// Wrap single allocated memory address.
+    fn new_addr(addr: MemoryAddress, registers: Rc<RefCell<R>>) -> Self {
+        Self::new(addr, smallvec![addr], registers)
+    }
+}
+
+impl<A, R: RegisterAllocator> Allocated<A, R> {
+    /// Wrap a value in [Allocated] without deallocating any address at the end.
+    fn pure(value: A) -> Self {
+        Self::from_inner(AllocatedInner { value, addresses: smallvec![], registers: None })
+    }
+
+    /// Create an [Allocated] value that deallocates its associated addresses at the end.
+    fn new(value: A, addresses: AddressList, registers: Rc<RefCell<R>>) -> Self {
+        Self::from_inner(AllocatedInner { value, addresses, registers: Some(registers) })
+    }
+
+    fn from_inner(inner: AllocatedInner<A, R>) -> Self {
+        Self { inner: Some(inner) }
+    }
+
+    /// Take the inner, leaving `self` ready to be dropped without any effect.
+    fn into_inner(mut self) -> AllocatedInner<A, R> {
+        self.inner.take().expect("allocated value already taken")
+    }
+
+    fn inner(&self) -> &AllocatedInner<A, R> {
+        self.inner.as_ref().expect("allocated value already taken")
+    }
+
+    fn inner_mut(&mut self) -> &mut AllocatedInner<A, R> {
+        self.inner.as_mut().expect("allocated value already taken")
+    }
+
+    /// Map the `value` to something else.
+    ///
+    /// The deallocation of addresses is deferred to when the new value goes out of scope.
+    pub(crate) fn map<B>(self, f: impl FnOnce(A) -> B) -> Allocated<B, R> {
+        let inner = self.into_inner();
+        Allocated::from_inner(AllocatedInner {
+            value: f(inner.value),
+            addresses: inner.addresses,
+            registers: inner.registers,
+        })
+    }
+
+    /// Map two values into one.
+    ///
+    /// The addresses of the two values are merged, with the implicit assumption that the
+    /// underlying registers are the same.
+    pub(crate) fn map2<B>(self, other: Self, f: impl FnOnce(A, A) -> B) -> Allocated<B, R> {
+        let inner = self.into_inner();
+        let other = other.into_inner();
+        Allocated::from_inner(AllocatedInner {
+            value: f(inner.value, other.value),
+            addresses: Self::merge_addresses(inner.addresses, other.addresses),
+            registers: inner.registers.or(other.registers),
+        })
+    }
+
+    /// Map the `value` to something else that involves allocation.
+    ///
+    /// The resulting value keeps both addresses alive.
+    pub(crate) fn and_then<B>(self, f: impl FnOnce(A) -> Allocated<B, R>) -> Allocated<B, R> {
+        let inner = self.into_inner();
+        let other = f(inner.value).into_inner();
+        Allocated::from_inner(AllocatedInner {
+            value: other.value,
+            addresses: Self::merge_addresses(inner.addresses, other.addresses),
+            registers: inner.registers.or(other.registers),
+        })
+    }
+
+    fn merge_addresses(mut a: AddressList, mut b: AddressList) -> AddressList {
+        a.append(&mut b);
+        a.sort();
+        a.dedup();
+        a
+    }
+}
+
+impl<A, R: RegisterAllocator> Deref for Allocated<A, R> {
+    type Target = A;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner().value
+    }
+}
+
+impl<A, R: RegisterAllocator> DerefMut for Allocated<A, R> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.inner_mut().value
     }
 }
 

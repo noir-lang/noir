@@ -3,7 +3,7 @@ use acvm::acir::circuit::opcodes::AcirFunctionId;
 use iter_extended::vecmap;
 
 use crate::acir::AcirVar;
-use crate::brillig::brillig_gen::brillig_fn::FunctionContext as BrilligFunctionContext;
+use crate::brillig::brillig_gen::brillig_fn;
 use crate::brillig::brillig_gen::gen_brillig_for;
 use crate::brillig::brillig_ir::artifact::BrilligParameter;
 use crate::errors::{RuntimeError, SsaReport};
@@ -205,14 +205,11 @@ impl Context<'_> {
                     };
 
                     BrilligParameter::Slice(
-                        item_types
-                            .iter()
-                            .map(BrilligFunctionContext::ssa_type_to_parameter)
-                            .collect(),
+                        item_types.iter().map(brillig_fn::ssa_type_to_parameter).collect(),
                         len,
                     )
                 } else {
-                    BrilligFunctionContext::ssa_type_to_parameter(&typ)
+                    brillig_fn::ssa_type_to_parameter(&typ)
                 }
             })
             .collect()

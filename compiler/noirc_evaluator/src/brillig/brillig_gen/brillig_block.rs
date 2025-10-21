@@ -4,7 +4,7 @@ use crate::brillig::brillig_ir::brillig_variable::{
     BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable,
 };
 
-use crate::brillig::brillig_ir::registers::RegisterAllocator;
+use crate::brillig::brillig_ir::registers::{Allocated, RegisterAllocator};
 use crate::brillig::brillig_ir::{BrilligBinaryOp, BrilligContext};
 use crate::ssa::ir::{
     basic_block::BasicBlockId,
@@ -29,7 +29,7 @@ use super::constant_allocation::InstructionLocation;
 /// Context structure for compiling a [function block][crate::ssa::ir::basic_block::BasicBlock] into Brillig bytecode.
 pub(crate) struct BrilligBlock<'block, Registers: RegisterAllocator> {
     /// Per-function context shared across all of a function's blocks
-    pub(crate) function_context: &'block mut FunctionContext,
+    pub(crate) function_context: &'block mut FunctionContext<Registers>,
     /// The basic block that is being converted
     pub(crate) block_id: BasicBlockId,
     /// Context for creating brillig opcodes
@@ -56,7 +56,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     /// This method contains the necessary initial variable and register setup for compiling
     /// an SSA block by accessing the pre-computed liveness context.
     pub(crate) fn compile(
-        function_context: &'block mut FunctionContext,
+        function_context: &'block mut FunctionContext<Registers>,
         brillig_context: &'block mut BrilligContext<FieldElement, Registers>,
         block_id: BasicBlockId,
         dfg: &DataFlowGraph,
@@ -128,7 +128,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         used_globals: &HashSet<ValueId>,
         call_stacks: &mut CallStackHelper,
         hoisted_global_constants: &BTreeSet<(FieldElement, NumericType)>,
-    ) -> HashMap<(FieldElement, NumericType), BrilligVariable> {
+    ) -> HashMap<(FieldElement, NumericType), Allocated<BrilligVariable, Registers>> {
         // Using the end of the global memory space adds more complexity as we
         // have to account for possible register de-allocations as part of regular global compilation.
         // Thus, we want to allocate any reserved global slots first.
@@ -398,11 +398,9 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 // SSA generates redundant range checks. A range check with a max bit size >= value.bit_size will always pass.
                 if value.bit_size > *max_bit_size {
                     // Cast original value to field
-                    let left = SingleAddrVariable {
-                        address: self.brillig_context.allocate_register(),
-                        bit_size: FieldElement::max_num_bits(),
-                    };
-                    self.convert_cast(left, value);
+                    let left =
+                        self.brillig_context.allocate_single_addr(FieldElement::max_num_bits());
+                    self.convert_cast(*left, value);
 
                     // Create a field constant with the max
                     let max = BigUint::from(2_u128).pow(*max_bit_size) - BigUint::from(1_u128);
@@ -412,19 +410,15 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     );
 
                     // Check if lte max
-                    let condition =
-                        SingleAddrVariable::new(self.brillig_context.allocate_register(), 1);
+                    let condition = self.brillig_context.allocate_single_addr_bool();
                     self.brillig_context.binary_instruction(
-                        left,
-                        right,
-                        condition,
+                        *left,
+                        *right,
+                        *condition,
                         BrilligBinaryOp::LessThanEquals,
                     );
 
-                    self.brillig_context.codegen_constrain(condition, assert_message.clone());
-                    self.brillig_context.deallocate_single_addr(condition);
-                    self.brillig_context.deallocate_single_addr(left);
-                    self.brillig_context.deallocate_single_addr(right);
+                    self.brillig_context.codegen_constrain(*condition, assert_message.clone());
                 }
             }
             Instruction::IncrementRc { value } => {
@@ -469,9 +463,10 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                             then_condition,
                             SingleAddrVariable::new_usize(then_array.pointer),
                             SingleAddrVariable::new_usize(else_array.pointer),
-                            SingleAddrVariable::new_usize(pointer),
+                            SingleAddrVariable::new_usize(*pointer),
                         );
-                        let if_else_array = BrilligArray { pointer, size: then_array.size };
+                        let if_else_array =
+                            BrilligArray { pointer: *pointer, size: then_array.size };
                         // Copy the if-else array to the result
                         self.brillig_context
                             .call_array_copy_procedure(if_else_array, result.extract_array());
@@ -486,9 +481,9 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                             then_condition,
                             SingleAddrVariable::new_usize(then_vector.pointer),
                             SingleAddrVariable::new_usize(else_vector.pointer),
-                            SingleAddrVariable::new_usize(pointer),
+                            SingleAddrVariable::new_usize(*pointer),
                         );
-                        let if_else_vector = BrilligVector { pointer };
+                        let if_else_vector = BrilligVector { pointer: *pointer };
                         // Copy the if-else vector to the result
                         self.brillig_context
                             .call_vector_copy_procedure(if_else_vector, result.extract_vector());
@@ -512,11 +507,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 // Globals are reserved throughout the entirety of the program
                 let not_hoisted_global = self.get_hoisted_global(dfg, *dead_variable).is_none();
                 if !dfg.is_global(*dead_variable) && not_hoisted_global {
-                    self.variables.remove_variable(
-                        dead_variable,
-                        self.function_context,
-                        self.brillig_context,
-                    );
+                    self.variables.remove_variable(dead_variable, self.function_context);
                 }
             }
         }

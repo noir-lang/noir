@@ -4,7 +4,7 @@ use crate::ssa::ir::function::FunctionId;
 
 use super::{
     BrilligBinaryOp, BrilligContext, ReservedRegisters,
-    brillig_variable::{BrilligVariable, SingleAddrVariable},
+    brillig_variable::BrilligVariable,
     debug_show::DebugToString,
     registers::{RegisterAllocator, Stack},
 };
@@ -16,11 +16,11 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         arguments: &[BrilligVariable],
         returns: &[BrilligVariable],
     ) {
-        let stack_size_register = SingleAddrVariable::new_usize(self.allocate_register());
+        let stack_size_register = self.allocate_single_addr_usize();
         let previous_stack_pointer = self.registers().empty_registers_start();
         let stack_size = previous_stack_pointer.unwrap_relative();
         // Write the stack size
-        self.const_instruction(stack_size_register, stack_size.into());
+        self.const_instruction(*stack_size_register, stack_size.into());
         // Pass the previous stack pointer
         self.mov_instruction(previous_stack_pointer, ReservedRegisters::stack_pointer());
         // Pass the arguments
@@ -54,7 +54,6 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             );
             current_return_location += 1;
         }
-        self.deallocate_single_addr(stack_size_register);
     }
 
     /// Codegens a return from the current function.
@@ -70,7 +69,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             destinations.push(destination_register);
         }
         destinations.iter().for_each(|destination| {
-            self.registers_mut().ensure_register_is_allocated(*destination)
+            self.registers_mut().ensure_register_is_allocated(*destination);
         });
         self.codegen_mov_registers_to_registers(sources, destinations);
         self.return_instruction();

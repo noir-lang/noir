@@ -9,7 +9,7 @@ use acvm::{
     },
 };
 
-use crate::ssa::ir::function::FunctionId;
+use crate::{brillig::brillig_ir::registers::Allocated, ssa::ir::function::FunctionId};
 
 use super::{
     BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, BrilligContext, ReservedRegisters,
@@ -158,20 +158,17 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         let bit_size = left.bit_size;
         assert!(bit_size != BitSize::Field.to_u32::<F>(), "Attempt to modulo fields");
 
-        let scratch_var_i = SingleAddrVariable::new(self.allocate_register(), bit_size);
-        let scratch_var_j = SingleAddrVariable::new(self.allocate_register(), bit_size);
+        let scratch_var_i = self.allocate_single_addr(bit_size);
+        let scratch_var_j = self.allocate_single_addr(bit_size);
 
         // i = left / right
-        self.binary(left, right, scratch_var_i, BrilligBinaryOp::UnsignedDiv);
+        self.binary(left, right, *scratch_var_i, BrilligBinaryOp::UnsignedDiv);
 
         // j = i * right
-        self.binary(scratch_var_i, right, scratch_var_j, BrilligBinaryOp::Mul);
+        self.binary(*scratch_var_i, right, *scratch_var_j, BrilligBinaryOp::Mul);
 
         // result_register = left - j
-        self.binary(left, scratch_var_j, result, BrilligBinaryOp::Sub);
-        // Free scratch registers
-        self.deallocate_single_addr(scratch_var_i);
-        self.deallocate_single_addr(scratch_var_j);
+        self.binary(left, *scratch_var_j, result, BrilligBinaryOp::Sub);
     }
 
     fn binary_result_bit_size(operation: BrilligBinaryOp, arguments_bit_size: u32) -> u32 {
@@ -417,17 +414,20 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         &mut self,
         constant: F,
         bit_size: u32,
-    ) -> SingleAddrVariable {
-        let var = SingleAddrVariable::new(self.allocate_register(), bit_size);
-        self.const_instruction(var, constant);
+    ) -> Allocated<SingleAddrVariable, Registers> {
+        let var = self.allocate_single_addr(bit_size);
+        self.const_instruction(*var, constant);
         var
     }
 
     /// Returns a register which holds the value of an usize constant
-    pub(crate) fn make_usize_constant_instruction(&mut self, constant: F) -> SingleAddrVariable {
+    pub(crate) fn make_usize_constant_instruction(
+        &mut self,
+        constant: F,
+    ) -> Allocated<SingleAddrVariable, Registers> {
         let register = self.allocate_register();
-        self.usize_const_instruction(register, constant);
-        SingleAddrVariable::new_usize(register)
+        self.usize_const_instruction(*register, constant);
+        register.map(SingleAddrVariable::new_usize)
     }
 
     pub(super) fn calldata_copy_instruction(
@@ -445,8 +445,6 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             size_address: size_var.address,
             offset_address: offset_var.address,
         });
-        self.deallocate_single_addr(size_var);
-        self.deallocate_single_addr(offset_var);
     }
 
     pub(super) fn trap_instruction(&mut self, revert_data: HeapVector) {
