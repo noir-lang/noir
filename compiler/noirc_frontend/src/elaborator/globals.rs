@@ -1,4 +1,28 @@
 //! Global constant definition elaboration and comptime evaluation.
+//!
+//! ## Design
+//!
+//! Global constants in Noir are elaborated in a two-phase process:
+//!
+//! ### Name resolution and type Checking and HIR Generation
+//! [Elaborator::elaborate_global] validates the global definition and generates its HIR
+//! representation. Key constraints enforced:
+//! - Globals must be immutable (unless marked `comptime` for compile-time mutation)
+//! - Global types cannot contain references
+//! - ABI attributes are only valid within contracts
+//!
+//! ### Comptime Evaluation
+//! The [Elaborator::elaborate_comptime_global] function evaluates the global's initializer expression
+//! at compile time using the interpreter. The resulting value is stored in the interner and can be used
+//! later for compile-time operations such as a type-level arithmetic.
+//!
+//! ### Dependency Ordering
+//! Globals are assumed to be elaborated in dependency order. This means if global `A` references global `B`, then `B`
+//! must be elaborated first. It is assumed that the caller of this module has enforced elaborating globals in their dependency order.
+//!
+//! The [filter_literal_globals] function separates simple literals (which have no dependencies) from complex expressions, allowing
+//! the simple cases to be processed first without dependency analysis. It is also necessary to elaborate these literal globals first
+//! as struct type definitions can reference global literals as numeric generics.
 
 use crate::{
     ast::{ExpressionKind, Literal, Pattern},
@@ -11,7 +35,12 @@ use crate::{
 use super::Elaborator;
 
 impl Elaborator<'_> {
+    /// Elaborates a global constant definition, performing name resolution, type checking, and compile-time evaluation.
+    ///
+    /// See the [module-level documentation][self] for more details.
     pub(super) fn elaborate_global(&mut self, global: UnresolvedGlobal) {
+        // Set up the elaboration context for this global. We need to ensure that name resolution
+        // happens in the module where the global was defined, not where it's being referenced.
         let old_module = std::mem::replace(&mut self.local_module, global.module_id);
         let old_item = self.current_item.take();
 
@@ -19,6 +48,8 @@ impl Elaborator<'_> {
         self.current_item = Some(DependencyId::Global(global_id));
         let let_stmt = global.stmt_def;
 
+        // In LSP mode, we need to register the global's name for IDE features like
+        // hover information and go-to-definition.
         let name = if self.interner.is_in_lsp_mode() {
             Some(let_stmt.pattern.name_ident().to_string())
         } else {
@@ -27,6 +58,7 @@ impl Elaborator<'_> {
 
         let location = let_stmt.pattern.location();
 
+        // ABI attributes are only meaningful within contracts, so error if used elsewhere.
         if !self.in_contract() {
             for attr in &let_stmt.attributes {
                 if matches!(attr.kind, SecondaryAttributeKind::Abi(_)) {
@@ -37,33 +69,49 @@ impl Elaborator<'_> {
             }
         }
 
+        // Non-comptime globals must be immutable. Comptime globals can be mutable during
+        // compile-time execution, but all globals are immutable at runtime.
         if !let_stmt.comptime && matches!(let_stmt.pattern, Pattern::Mutable(..)) {
             self.push_err(ResolverError::MutableGlobal { location });
         }
 
+        // Elaborate the let statement in a comptime context. This ensures that the expression
+        // is type-checked and converted to HIR.
         let (let_statement, _typ) = self
             .elaborate_in_comptime_context(|this| this.elaborate_let(let_stmt, Some(global_id)));
 
+        // References cannot be stored in globals because they would outlive their referents.
+        // All data in globals must be owned.
         if let_statement.r#type.contains_reference() {
             self.push_err(ResolverError::ReferencesNotAllowedInGlobals { location });
         }
 
         let let_statement = HirStatement::Let(let_statement);
 
+        // Replace the placeholder statement that was created during def collection with
+        // the fully elaborated HIR statement.
         let statement_id = self.interner.get_global(global_id).let_statement;
         self.interner.replace_statement(statement_id, let_statement);
 
+        // Evaluate the global at compile time to get its constant value.
         self.elaborate_comptime_global(global_id);
 
+        // Register this global in the LSP database for IDE features.
         if let Some(name) = name {
             self.interner.register_global(global_id, name, location, global.visibility);
         }
 
+        // Restore the previous elaboration context.
         self.local_module = old_module;
         self.current_item = old_item;
     }
 
+    /// Evaluates the global's initializer expression at compile time and stores the resulting value.
+    /// The comptime [interpreter][crate::hir::comptime::Interpreter] is used for evaluating the expression.
+    ///
+    /// See the [module-level documentation][self] for more details.
     pub(super) fn elaborate_comptime_global(&mut self, global_id: GlobalId) {
+        // Retrieve the HIR let statement that was generated in elaborate_global.
         let let_statement = self
             .interner
             .get_global_let_statement(global_id)
@@ -74,20 +122,29 @@ impl Elaborator<'_> {
         let location = global.location;
         let mut interpreter = self.setup_interpreter();
 
+        // Evaluate the global's initializer expression at compile time using the interpreter.
         if let Err(error) = interpreter.evaluate_let(let_statement) {
             self.push_err(error);
         } else {
+            // The interpreter has now computed the constant value. Look it up and store it
+            // in the interner for use during compilation.
             let value = interpreter
                 .lookup_id(definition_id, location)
                 .expect("The global should be defined since evaluate_let did not error");
 
             self.debug_comptime(location, |interner| value.display(interner).to_string());
 
+            // Store the resolved value so it can be used later
             self.interner.get_global_mut(global_id).value = GlobalValue::Resolved(value);
         }
     }
 
-    /// If the given global is unresolved, elaborate it and return true
+    /// If the given global is unresolved, elaborate it and return true.
+    ///
+    /// This is used for dependency resolution. When we encounter a reference to a global
+    /// while elaborating another item, we check if that global needs to be elaborated first.
+    /// Returns true if the global was unresolved and has now been elaborated, false if it was
+    /// already elaborated (or doesn't exist in the unresolved set).
     pub(super) fn elaborate_global_if_unresolved(&mut self, global_id: &GlobalId) -> bool {
         if let Some(global) = self.unresolved_globals.remove(global_id) {
             self.elaborate_global(global);
