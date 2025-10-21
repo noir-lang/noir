@@ -1,5 +1,3 @@
-#![cfg(test)]
-
 use acvm::{
     AcirField, FieldElement,
     acir::{

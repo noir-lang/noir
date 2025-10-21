@@ -878,7 +878,7 @@ impl<'a> Context<'a> {
 
                 for value in elements {
                     match value? {
-                        AcirValue::Var(var, typ) => result.push((var, typ.to_numeric_type())),
+                        AcirValue::Var(var, _typ) => result.push(var),
                         _ => unreachable!("ICE: Dynamic memory should already be flat"),
                     }
                 }
