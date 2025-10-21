@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1761056658685,
+  "lastUpdate": 1761056753445,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23085,48 +23085,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "f19c641a630bdd04cddab0804195fe70197e788b",
-          "message": "chore: Try to optimize compilation memory (#10113)",
-          "timestamp": "2025-10-09T19:27:19Z",
-          "tree_id": "289689365ee714ef6a469ebf25e0d5269032376e",
-          "url": "https://github.com/noir-lang/noir/commit/f19c641a630bdd04cddab0804195fe70197e788b"
-        },
-        "date": 1760039474040,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 273593,
-            "range": "± 678",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 240245,
-            "range": "± 7001",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2791058,
-            "range": "± 49006",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "d09585f1a9b1370c3be58ffb3477eb0fa4349fd7",
           "message": "fix(ssa): SSA Interpreter handle overflow by promoting to Field (#10097)",
@@ -25169,6 +25127,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2798299,
             "range": "± 4454",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "65083f9d5ece1b1db152af00ba02cf3709e31750",
+          "message": "chore(ACIR): more Circuit, Expression and Opcode parsing (#10250)",
+          "timestamp": "2025-10-21T13:57:52Z",
+          "tree_id": "c8cc41e85771fbd5280cca77808689d8832d2966",
+          "url": "https://github.com/noir-lang/noir/commit/65083f9d5ece1b1db152af00ba02cf3709e31750"
+        },
+        "date": 1761056728926,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 267354,
+            "range": "± 3697",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 236775,
+            "range": "± 7572",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2802837,
+            "range": "± 25876",
             "unit": "ns/iter"
           }
         ]
