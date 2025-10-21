@@ -325,19 +325,7 @@
 <a href="#324" id="324">324</a>
 <a href="#325" id="325">325</a>
 <a href="#326" id="326">326</a>
-<a href="#327" id="327">327</a>
-<a href="#328" id="328">328</a>
-<a href="#329" id="329">329</a>
-<a href="#330" id="330">330</a>
-<a href="#331" id="331">331</a>
-<a href="#332" id="332">332</a>
-<a href="#333" id="333">333</a>
-<a href="#334" id="334">334</a>
-<a href="#335" id="335">335</a>
-<a href="#336" id="336">336</a>
-<a href="#337" id="337">337</a>
-<a href="#338" id="338">338</a>
-<a href="#339" id="339">339</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{
+<a href="#327" id="327">327</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{
     AcirField,
     circuit::{
         Circuit, Opcode,
@@ -532,148 +520,136 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
-    <span class="kw">use </span>std::collections::BTreeSet;
-
     <span class="kw">use </span><span class="kw">crate</span>::compiler::CircuitSimulator;
-    <span class="kw">use </span>acir::{
-        FieldElement,
-        acir_field::AcirField,
-        circuit::{
-            Circuit, Opcode, PublicInputs,
-            brillig::{BrilligFunctionId, BrilligInputs},
-            opcodes::{BlockId, BlockType, MemOp},
-        },
-        native_types::{Expression, Witness},
-    };
-
-    <span class="kw">fn </span>test_circuit(
-        opcodes: Vec&lt;Opcode&lt;FieldElement&gt;&gt;,
-        private_parameters: BTreeSet&lt;Witness&gt;,
-        public_parameters: PublicInputs,
-    ) -&gt; Circuit&lt;FieldElement&gt; {
-        Circuit {
-            function_name: <span class="string">"test_circuit"</span>.to_string(),
-            current_witness_index: <span class="number">1</span>,
-            opcodes,
-            private_parameters,
-            public_parameters,
-            return_values: PublicInputs::default(),
-            assert_messages: Default::default(),
-        }
-    }
+    <span class="kw">use </span>acir::circuit::Circuit;
 
     <span class="attr">#[test]
-    </span><span class="kw">fn </span>reports_true_for_empty_circuit() {
-        <span class="kw">let </span>empty_circuit = test_circuit(<span class="macro">vec!</span>[], BTreeSet::default(), PublicInputs::default());
-
+    </span><span class="kw">fn </span>reports_none_for_empty_circuit() {
+        <span class="kw">let </span>src = <span class="string">"
+        private parameters: []
+        public parameters: []
+        return values: []
+        "</span>;
+        <span class="kw">let </span>empty_circuit = Circuit::from_str(src).unwrap();
         <span class="macro">assert!</span>(CircuitSimulator::default().check_circuit(<span class="kw-2">&amp;</span>empty_circuit).is_none());
     }
 
     <span class="attr">#[test]
-    </span><span class="kw">fn </span>reports_true_for_connected_circuit() {
-        <span class="kw">let </span>connected_circuit = test_circuit(
-            <span class="macro">vec!</span>[Opcode::AssertZero(Expression {
-                mul_terms: Vec::new(),
-                linear_combinations: <span class="macro">vec!</span>[
-                    (FieldElement::one(), Witness(<span class="number">1</span>)),
-                    (-FieldElement::one(), Witness(<span class="number">2</span>)),
-                ],
-                q_c: FieldElement::zero(),
-            })],
-            BTreeSet::from([Witness(<span class="number">1</span>)]),
-            PublicInputs::default(),
-        );
-
+    </span><span class="kw">fn </span>reports_none_for_connected_circuit() {
+        <span class="kw">let </span>src = <span class="string">"
+        private parameters: [w1]
+        public parameters: []
+        return values: []
+        ASSERT w2 = w1
+        "</span>;
+        <span class="kw">let </span>connected_circuit = Circuit::from_str(src).unwrap();
         <span class="macro">assert!</span>(CircuitSimulator::default().check_circuit(<span class="kw-2">&amp;</span>connected_circuit).is_none());
     }
 
     <span class="attr">#[test]
-    </span><span class="kw">fn </span>reports_false_for_disconnected_circuit() {
-        <span class="kw">let </span>disconnected_circuit = test_circuit(
-            <span class="macro">vec!</span>[
-                Opcode::AssertZero(Expression {
-                    mul_terms: Vec::new(),
-                    linear_combinations: <span class="macro">vec!</span>[
-                        (FieldElement::one(), Witness(<span class="number">1</span>)),
-                        (-FieldElement::one(), Witness(<span class="number">2</span>)),
-                    ],
-                    q_c: FieldElement::zero(),
-                }),
-                Opcode::AssertZero(Expression {
-                    mul_terms: Vec::new(),
-                    linear_combinations: <span class="macro">vec!</span>[
-                        (FieldElement::one(), Witness(<span class="number">3</span>)),
-                        (-FieldElement::one(), Witness(<span class="number">4</span>)),
-                    ],
-                    q_c: FieldElement::zero(),
-                }),
-            ],
-            BTreeSet::from([Witness(<span class="number">1</span>)]),
-            PublicInputs::default(),
-        );
-
-        <span class="macro">assert!</span>(CircuitSimulator::default().check_circuit(<span class="kw-2">&amp;</span>disconnected_circuit).is_some());
+    </span><span class="kw">fn </span>reports_none_for_blackbox_output() {
+        <span class="kw">let </span>src = <span class="string">"
+        private parameters: [w0, w1]
+        public parameters: []
+        return values: []
+        BLACKBOX::AND lhs: w0, rhs: w1, output: w2, bits: 32
+        ASSERT w3 = w2
+        "</span>;
+        <span class="kw">let </span>circuit = Circuit::from_str(src).unwrap();
+        <span class="macro">assert!</span>(CircuitSimulator::default().check_circuit(<span class="kw-2">&amp;</span>circuit).is_none());
     }
 
     <span class="attr">#[test]
-    </span><span class="kw">fn </span>reports_true_when_memory_block_passed_to_brillig_and_then_written_to() {
-        <span class="kw">let </span>circuit = test_circuit(
-            <span class="macro">vec!</span>[
-                Opcode::AssertZero(Expression {
-                    mul_terms: Vec::new(),
-                    linear_combinations: <span class="macro">vec!</span>[(FieldElement::one(), Witness(<span class="number">1</span>))],
-                    q_c: FieldElement::zero(),
-                }),
-                Opcode::MemoryInit {
-                    block_id: BlockId(<span class="number">0</span>),
-                    init: <span class="macro">vec!</span>[Witness(<span class="number">0</span>)],
-                    block_type: BlockType::Memory,
-                },
-                Opcode::BrilligCall {
-                    id: BrilligFunctionId(<span class="number">0</span>),
-                    inputs: <span class="macro">vec!</span>[BrilligInputs::MemoryArray(BlockId(<span class="number">0</span>))],
-                    outputs: Vec::new(),
-                    predicate: <span class="prelude-val">None</span>,
-                },
-                Opcode::MemoryOp {
-                    block_id: BlockId(<span class="number">0</span>),
-                    op: MemOp::read_at_mem_index(
-                        Expression {
-                            mul_terms: Vec::new(),
-                            linear_combinations: Vec::new(),
-                            q_c: FieldElement::one(),
-                        },
-                        Witness(<span class="number">2</span>),
-                    ),
-                },
-            ],
-            BTreeSet::from([Witness(<span class="number">1</span>)]),
-            PublicInputs::default(),
-        );
-
-        <span class="macro">assert!</span>(CircuitSimulator::default().check_circuit(<span class="kw-2">&amp;</span>circuit).is_some());
+    </span><span class="kw">fn </span>reports_none_for_read_memory() {
+        <span class="kw">let </span>src = <span class="string">"
+        private parameters: [w0]
+        public parameters: []
+        return values: []
+        INIT b0 = [w0]
+        READ w1 = b0[0]
+        ASSERT w2 = w1
+        "</span>;
+        <span class="kw">let </span>circuit = Circuit::from_str(src).unwrap();
+        <span class="macro">assert!</span>(CircuitSimulator::default().check_circuit(<span class="kw-2">&amp;</span>circuit).is_none());
     }
 
     <span class="attr">#[test]
-    </span><span class="kw">fn </span>reports_false_when_attempting_to_reinitialize_memory_block() {
-        <span class="kw">let </span>circuit = test_circuit(
-            <span class="macro">vec!</span>[
-                Opcode::MemoryInit {
-                    block_id: BlockId(<span class="number">0</span>),
-                    init: <span class="macro">vec!</span>[Witness(<span class="number">0</span>)],
-                    block_type: BlockType::Memory,
-                },
-                Opcode::MemoryInit {
-                    block_id: BlockId(<span class="number">0</span>),
-                    init: <span class="macro">vec!</span>[Witness(<span class="number">0</span>)],
-                    block_type: BlockType::Memory,
-                },
-            ],
-            BTreeSet::from([Witness(<span class="number">0</span>)]),
-            PublicInputs::default(),
-        );
+    </span><span class="kw">fn </span>reports_none_for_call_output() {
+        <span class="kw">let </span>src = <span class="string">"
+        private parameters: [w0]
+        public parameters: []
+        return values: []
+        CALL func: 0, inputs: [w0], outputs: [w1]
+        ASSERT w2 = w1
+        "</span>;
+        <span class="kw">let </span>circuit = Circuit::from_str(src).unwrap();
+        <span class="macro">assert!</span>(CircuitSimulator::default().check_circuit(<span class="kw-2">&amp;</span>circuit).is_none());
+    }
 
-        <span class="macro">assert!</span>(CircuitSimulator::default().check_circuit(<span class="kw-2">&amp;</span>circuit).is_some());
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>reports_none_for_brillig_call_output() {
+        <span class="kw">let </span>src = <span class="string">"
+        private parameters: [w0]
+        public parameters: []
+        return values: []
+        BRILLIG CALL func: 0, inputs: [w0], outputs: [w1]
+        ASSERT w2 = w1
+        "</span>;
+        <span class="kw">let </span>circuit = Circuit::from_str(src).unwrap();
+        <span class="macro">assert!</span>(CircuitSimulator::default().check_circuit(<span class="kw-2">&amp;</span>circuit).is_none());
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>reports_some_for_disconnected_circuit() {
+        <span class="kw">let </span>src = <span class="string">"
+        private parameters: [w1]
+        public parameters: []
+        return values: []
+        ASSERT w2 = w1
+        ASSERT w4 = w3
+        "</span>;
+        <span class="kw">let </span>disconnected_circuit = Circuit::from_str(src).unwrap();
+        <span class="macro">assert_eq!</span>(CircuitSimulator::default().check_circuit(<span class="kw-2">&amp;</span>disconnected_circuit), <span class="prelude-val">Some</span>(<span class="number">1</span>));
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>reports_some_when_memory_block_is_passed_an_unknown_witness() {
+        <span class="kw">let </span>src = <span class="string">"
+        private parameters: [w1]
+        public parameters: []
+        return values: []
+        ASSERT w1 = 0
+        INIT b0 = [w0]
+        "</span>;
+        <span class="kw">let </span>circuit = Circuit::from_str(src).unwrap();
+        <span class="macro">assert_eq!</span>(CircuitSimulator::default().check_circuit(<span class="kw-2">&amp;</span>circuit), <span class="prelude-val">Some</span>(<span class="number">1</span>));
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>reports_some_when_attempting_to_reinitialize_memory_block() {
+        <span class="kw">let </span>src = <span class="string">"
+        private parameters: [w0]
+        public parameters: []
+        return values: []
+        INIT b0 = [w0]
+        INIT b0 = [w0]
+        "</span>;
+        <span class="kw">let </span>circuit = Circuit::from_str(src).unwrap();
+        <span class="macro">assert_eq!</span>(CircuitSimulator::default().check_circuit(<span class="kw-2">&amp;</span>circuit), <span class="prelude-val">Some</span>(<span class="number">1</span>));
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>reports_some_when_unknown_witness_is_multiplied_by_itself() {
+        <span class="comment">// If an AssertZero contains just one unknown witness, it might still not possible
+        // to solve if: if that unknown witness is being multiplied by itself.
+        </span><span class="kw">let </span>src = <span class="string">"
+        private parameters: [w0]
+        public parameters: []
+        return values: []
+        ASSERT w0 = w1*w1
+        "</span>;
+        <span class="kw">let </span>circuit = Circuit::from_str(src).unwrap();
+        <span class="macro">assert_eq!</span>(CircuitSimulator::default().check_circuit(<span class="kw-2">&amp;</span>circuit), <span class="prelude-val">Some</span>(<span class="number">0</span>));
     }
 }
 </code></pre></div></section></main></body></html>

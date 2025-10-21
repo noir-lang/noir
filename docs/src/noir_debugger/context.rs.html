@@ -1489,46 +1489,7 @@
 <a href="#1488" id="1488">1488</a>
 <a href="#1489" id="1489">1489</a>
 <a href="#1490" id="1490">1490</a>
-<a href="#1491" id="1491">1491</a>
-<a href="#1492" id="1492">1492</a>
-<a href="#1493" id="1493">1493</a>
-<a href="#1494" id="1494">1494</a>
-<a href="#1495" id="1495">1495</a>
-<a href="#1496" id="1496">1496</a>
-<a href="#1497" id="1497">1497</a>
-<a href="#1498" id="1498">1498</a>
-<a href="#1499" id="1499">1499</a>
-<a href="#1500" id="1500">1500</a>
-<a href="#1501" id="1501">1501</a>
-<a href="#1502" id="1502">1502</a>
-<a href="#1503" id="1503">1503</a>
-<a href="#1504" id="1504">1504</a>
-<a href="#1505" id="1505">1505</a>
-<a href="#1506" id="1506">1506</a>
-<a href="#1507" id="1507">1507</a>
-<a href="#1508" id="1508">1508</a>
-<a href="#1509" id="1509">1509</a>
-<a href="#1510" id="1510">1510</a>
-<a href="#1511" id="1511">1511</a>
-<a href="#1512" id="1512">1512</a>
-<a href="#1513" id="1513">1513</a>
-<a href="#1514" id="1514">1514</a>
-<a href="#1515" id="1515">1515</a>
-<a href="#1516" id="1516">1516</a>
-<a href="#1517" id="1517">1517</a>
-<a href="#1518" id="1518">1518</a>
-<a href="#1519" id="1519">1519</a>
-<a href="#1520" id="1520">1520</a>
-<a href="#1521" id="1521">1521</a>
-<a href="#1522" id="1522">1522</a>
-<a href="#1523" id="1523">1523</a>
-<a href="#1524" id="1524">1524</a>
-<a href="#1525" id="1525">1525</a>
-<a href="#1526" id="1526">1526</a>
-<a href="#1527" id="1527">1527</a>
-<a href="#1528" id="1528">1528</a>
-<a href="#1529" id="1529">1529</a>
-<a href="#1530" id="1530">1530</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::foreign_calls::DebugForeignCallExecutor;
+<a href="#1491" id="1491">1491</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::foreign_calls::DebugForeignCallExecutor;
 <span class="kw">use </span>acvm::acir::brillig::BitSize;
 <span class="kw">use </span>acvm::acir::circuit::brillig::{BrilligBytecode, BrilligFunctionId};
 <span class="kw">use </span>acvm::acir::circuit::{Circuit, Opcode, OpcodeLocation};
@@ -2617,11 +2578,7 @@
         acir::{
             AcirField,
             brillig::{HeapVector, IntegerBitSize},
-            circuit::{
-                brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
-                opcodes::{AcirFunctionId, BlockId, BlockType},
-            },
-            native_types::Expression,
+            circuit::brillig::BrilligFunctionId,
         },
         blackbox_solver::StubbedBlackBoxSolver,
         brillig_vm::brillig::{
@@ -2668,18 +2625,16 @@
                 },
             ],
         };
-        <span class="kw">let </span>opcodes = <span class="macro">vec!</span>[Opcode::BrilligCall {
-            id: BrilligFunctionId(<span class="number">0</span>),
-            inputs: <span class="macro">vec!</span>[BrilligInputs::Single(Expression {
-                linear_combinations: <span class="macro">vec!</span>[(fe_1, w_x)],
-                ..Expression::default()
-            })],
-            outputs: <span class="macro">vec!</span>[],
-            predicate: <span class="prelude-val">None</span>,
-        }];
         <span class="kw">let </span>brillig_functions = <span class="kw-2">&amp;</span>[brillig_bytecode];
-        <span class="kw">let </span>current_witness_index = <span class="number">2</span>;
-        <span class="kw">let </span>circuit = Circuit { current_witness_index, opcodes, ..Circuit::default() };
+        <span class="kw">let </span>src = <span class="macro">format!</span>(
+            <span class="string">"
+        private parameters: []
+        public parameters: []
+        return values: []
+        BRILLIG CALL func: 0, inputs: [{w_x}], outputs: []
+        "
+        </span>);
+        <span class="kw">let </span>circuit = Circuit::from_str(<span class="kw-2">&amp;</span>src).unwrap();
         <span class="kw">let </span>circuits = <span class="kw-2">&amp;</span>[circuit];
 
         <span class="kw">let </span>debug_symbols = <span class="macro">vec!</span>[];
@@ -2783,7 +2738,6 @@
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_break_brillig_block_while_stepping_acir_opcodes() {
         <span class="kw">let </span>solver = StubbedBlackBoxSolver::default();
-        <span class="kw">let </span>fe_0 = FieldElement::zero();
         <span class="kw">let </span>fe_1 = FieldElement::one();
         <span class="kw">let </span>w_x = Witness(<span class="number">1</span>);
         <span class="kw">let </span>w_y = Witness(<span class="number">2</span>);
@@ -2827,32 +2781,16 @@
                 },
             ],
         };
-        <span class="kw">let </span>opcodes = <span class="macro">vec!</span>[
-            <span class="comment">// z = x + y
-            </span>Opcode::BrilligCall {
-                id: BrilligFunctionId(<span class="number">0</span>),
-                inputs: <span class="macro">vec!</span>[
-                    BrilligInputs::Single(Expression {
-                        linear_combinations: <span class="macro">vec!</span>[(fe_1, w_x)],
-                        ..Expression::default()
-                    }),
-                    BrilligInputs::Single(Expression {
-                        linear_combinations: <span class="macro">vec!</span>[(fe_1, w_y)],
-                        ..Expression::default()
-                    }),
-                ],
-                outputs: <span class="macro">vec!</span>[BrilligOutputs::Simple(w_z)],
-                predicate: <span class="prelude-val">None</span>,
-            },
-            <span class="comment">// x + y - z = 0
-            </span>Opcode::AssertZero(Expression {
-                mul_terms: <span class="macro">vec!</span>[],
-                linear_combinations: <span class="macro">vec!</span>[(fe_1, w_x), (fe_1, w_y), (-fe_1, w_z)],
-                q_c: fe_0,
-            }),
-        ];
-        <span class="kw">let </span>current_witness_index = <span class="number">3</span>;
-        <span class="kw">let </span>circuit = Circuit { current_witness_index, opcodes, ..Circuit::default() };
+        <span class="kw">let </span>src = <span class="macro">format!</span>(
+            <span class="string">"
+        private parameters: []
+        public parameters: []
+        return values: []
+        BRILLIG CALL func: 0, inputs: [{w_x}, {w_y}], outputs: [{w_z}]
+        ASSERT {w_z} = {w_x} + {w_y}
+        "
+        </span>);
+        <span class="kw">let </span>circuit = Circuit::from_str(<span class="kw-2">&amp;</span>src).unwrap();
         <span class="kw">let </span>circuits = <span class="kw-2">&amp;</span>[circuit];
 
         <span class="kw">let </span>debug_symbols = <span class="macro">vec!</span>[];
@@ -2921,41 +2859,25 @@
             bytecode: <span class="macro">vec!</span>[BrilligOpcode::Return, BrilligOpcode::Return, BrilligOpcode::Return],
         };
 
-        <span class="kw">let </span>circuit_one = Circuit {
-            opcodes: <span class="macro">vec!</span>[
-                Opcode::MemoryInit {
-                    block_id: BlockId(<span class="number">0</span>),
-                    init: <span class="macro">vec!</span>[],
-                    block_type: BlockType::Memory,
-                },
-                Opcode::BrilligCall {
-                    id: BrilligFunctionId(<span class="number">0</span>),
-                    inputs: <span class="macro">vec!</span>[],
-                    outputs: <span class="macro">vec!</span>[],
-                    predicate: <span class="prelude-val">None</span>,
-                },
-                Opcode::Call {
-                    id: AcirFunctionId(<span class="number">1</span>),
-                    inputs: <span class="macro">vec!</span>[],
-                    outputs: <span class="macro">vec!</span>[],
-                    predicate: <span class="prelude-val">None</span>,
-                },
-                Opcode::AssertZero(Expression::default()),
-            ],
-            ..Circuit::default()
-        };
-        <span class="kw">let </span>circuit_two = Circuit {
-            opcodes: <span class="macro">vec!</span>[
-                Opcode::BrilligCall {
-                    id: BrilligFunctionId(<span class="number">1</span>),
-                    inputs: <span class="macro">vec!</span>[],
-                    outputs: <span class="macro">vec!</span>[],
-                    predicate: <span class="prelude-val">None</span>,
-                },
-                Opcode::AssertZero(Expression::default()),
-            ],
-            ..Circuit::default()
-        };
+        <span class="kw">let </span>src_one = <span class="string">"
+        private parameters: []
+        public parameters: []
+        return values: []
+        INIT b0 = []
+        BRILLIG CALL func: 0, inputs: [], outputs: []
+        CALL func: 1, inputs: [], outputs: []
+        ASSERT 0 = 0
+        "</span>;
+        <span class="kw">let </span>circuit_one = Circuit::from_str(src_one).unwrap();
+
+        <span class="kw">let </span>src_two = <span class="string">"
+        private parameters: []
+        public parameters: []
+        return values: []
+        BRILLIG CALL func: 1, inputs: [], outputs: []
+        ASSERT 0 = 0
+        "</span>;
+        <span class="kw">let </span>circuit_two = Circuit::from_str(src_two).unwrap();
         <span class="kw">let </span>circuits = <span class="macro">vec!</span>[circuit_one, circuit_two];
         <span class="kw">let </span>debug_artifact = DebugArtifact { debug_symbols: <span class="macro">vec!</span>[], file_map: BTreeMap::new() };
         <span class="kw">let </span>brillig_functions = <span class="kw-2">&amp;</span>[brillig_one, brillig_two];

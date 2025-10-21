@@ -516,44 +516,7 @@
 <a href="#515" id="515">515</a>
 <a href="#516" id="516">516</a>
 <a href="#517" id="517">517</a>
-<a href="#518" id="518">518</a>
-<a href="#519" id="519">519</a>
-<a href="#520" id="520">520</a>
-<a href="#521" id="521">521</a>
-<a href="#522" id="522">522</a>
-<a href="#523" id="523">523</a>
-<a href="#524" id="524">524</a>
-<a href="#525" id="525">525</a>
-<a href="#526" id="526">526</a>
-<a href="#527" id="527">527</a>
-<a href="#528" id="528">528</a>
-<a href="#529" id="529">529</a>
-<a href="#530" id="530">530</a>
-<a href="#531" id="531">531</a>
-<a href="#532" id="532">532</a>
-<a href="#533" id="533">533</a>
-<a href="#534" id="534">534</a>
-<a href="#535" id="535">535</a>
-<a href="#536" id="536">536</a>
-<a href="#537" id="537">537</a>
-<a href="#538" id="538">538</a>
-<a href="#539" id="539">539</a>
-<a href="#540" id="540">540</a>
-<a href="#541" id="541">541</a>
-<a href="#542" id="542">542</a>
-<a href="#543" id="543">543</a>
-<a href="#544" id="544">544</a>
-<a href="#545" id="545">545</a>
-<a href="#546" id="546">546</a>
-<a href="#547" id="547">547</a>
-<a href="#548" id="548">548</a>
-<a href="#549" id="549">549</a>
-<a href="#550" id="550">550</a>
-<a href="#551" id="551">551</a>
-<a href="#552" id="552">552</a>
-<a href="#553" id="553">553</a>
-<a href="#554" id="554">554</a>
-<a href="#555" id="555">555</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{cmp::Ordering, collections::HashSet};
+<a href="#518" id="518">518</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{cmp::Ordering, collections::HashSet};
 
 <span class="kw">use </span>acir::{
     AcirField,
@@ -985,7 +948,7 @@
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
-    <span class="kw">use </span>acir::{AcirField, FieldElement};
+    <span class="kw">use </span>acir::FieldElement;
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>simple_reduction_smoke_test() {
@@ -995,16 +958,7 @@
         <span class="kw">let </span>d = Witness(<span class="number">3</span>);
 
         <span class="comment">// a = b + c + d;
-        </span><span class="kw">let </span>opcode_a = Expression {
-            mul_terms: <span class="macro">vec!</span>[],
-            linear_combinations: <span class="macro">vec!</span>[
-                (FieldElement::one(), a),
-                (-FieldElement::one(), b),
-                (-FieldElement::one(), c),
-                (-FieldElement::one(), d),
-            ],
-            q_c: FieldElement::zero(),
-        };
+        </span><span class="kw">let </span>opcode_a = Expression::from_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{a} - {b} - {c} - {d}"</span>)).unwrap();
 
         <span class="kw">let </span><span class="kw-2">mut </span>intermediate_variables: IndexMap&lt;
             Expression&lt;FieldElement&gt;,
@@ -1027,25 +981,15 @@
         //
         // a - b + e = 0
         </span><span class="kw">let </span>e = Witness(<span class="number">4</span>);
-        <span class="kw">let </span>expected_optimized_opcode_a = Expression {
-            mul_terms: <span class="macro">vec!</span>[],
-            linear_combinations: <span class="macro">vec!</span>[
-                (FieldElement::one(), a),
-                (-FieldElement::one(), d),
-                (FieldElement::one(), e),
-            ],
-            q_c: FieldElement::zero(),
-        };
+        <span class="kw">let </span>expected_optimized_opcode_a =
+            Expression::from_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{a} - {d} + {e}"</span>)).unwrap();
+
         <span class="macro">assert_eq!</span>(expected_optimized_opcode_a, got_optimized_opcode_a);
 
         <span class="macro">assert_eq!</span>(intermediate_variables.len(), <span class="number">1</span>);
 
         <span class="comment">// e = - c - b
-        </span><span class="kw">let </span>expected_intermediate_opcode = Expression {
-            mul_terms: <span class="macro">vec!</span>[],
-            linear_combinations: <span class="macro">vec!</span>[(-FieldElement::one(), c), (-FieldElement::one(), b)],
-            q_c: FieldElement::zero(),
-        };
+        </span><span class="kw">let </span>expected_intermediate_opcode = Expression::from_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"-{c} - {b}"</span>)).unwrap();
         <span class="kw">let </span>(<span class="kw">_</span>, normalized_opcode) = CSatTransformer::normalize(expected_intermediate_opcode);
         <span class="macro">assert!</span>(intermediate_variables.contains_key(<span class="kw-2">&amp;</span>normalized_opcode));
         <span class="macro">assert_eq!</span>(intermediate_variables[<span class="kw-2">&amp;</span>normalized_opcode].<span class="number">1</span>, e);
@@ -1060,17 +1004,7 @@
         <span class="kw">let </span>e = Witness(<span class="number">4</span>);
 
         <span class="comment">// a = b + c + d + e;
-        </span><span class="kw">let </span>opcode_a = Expression {
-            mul_terms: <span class="macro">vec!</span>[],
-            linear_combinations: <span class="macro">vec!</span>[
-                (-FieldElement::one(), a),
-                (FieldElement::one(), b),
-                (FieldElement::one(), c),
-                (FieldElement::one(), d),
-                (FieldElement::one(), e),
-            ],
-            q_c: FieldElement::zero(),
-        };
+        </span><span class="kw">let </span>opcode_a = Expression::from_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"-{a} + {b} + {c} + {d} + {e}"</span>)).unwrap();
 
         <span class="kw">let </span><span class="kw-2">mut </span>intermediate_variables: IndexMap&lt;
             Expression&lt;FieldElement&gt;,
@@ -1096,15 +1030,7 @@
     </span><span class="kw">fn </span>recognize_expr_with_single_shared_witness_which_fits_in_single_identity() {
         <span class="comment">// Regression test for an expression which Zac found which should have been preserved but
         // was being split into two expressions.
-        </span><span class="kw">let </span>expr = Expression {
-            mul_terms: <span class="macro">vec!</span>[(-FieldElement::from(<span class="number">555u128</span>), Witness(<span class="number">8</span>), Witness(<span class="number">10</span>))],
-            linear_combinations: <span class="macro">vec!</span>[
-                (FieldElement::one(), Witness(<span class="number">10</span>)),
-                (FieldElement::one(), Witness(<span class="number">11</span>)),
-                (-FieldElement::one(), Witness(<span class="number">13</span>)),
-            ],
-            q_c: FieldElement::zero(),
-        };
+        </span><span class="kw">let </span>expr = Expression::from_str(<span class="string">"-555*w8*w10 + w10 + w11 - w13"</span>).unwrap();
         <span class="macro">assert!</span>(fits_in_one_identity(<span class="kw-2">&amp;</span>expr, <span class="number">4</span>));
     }
 }

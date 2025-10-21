@@ -529,30 +529,7 @@
 <a href="#528" id="528">528</a>
 <a href="#529" id="529">529</a>
 <a href="#530" id="530">530</a>
-<a href="#531" id="531">531</a>
-<a href="#532" id="532">532</a>
-<a href="#533" id="533">533</a>
-<a href="#534" id="534">534</a>
-<a href="#535" id="535">535</a>
-<a href="#536" id="536">536</a>
-<a href="#537" id="537">537</a>
-<a href="#538" id="538">538</a>
-<a href="#539" id="539">539</a>
-<a href="#540" id="540">540</a>
-<a href="#541" id="541">541</a>
-<a href="#542" id="542">542</a>
-<a href="#543" id="543">543</a>
-<a href="#544" id="544">544</a>
-<a href="#545" id="545">545</a>
-<a href="#546" id="546">546</a>
-<a href="#547" id="547">547</a>
-<a href="#548" id="548">548</a>
-<a href="#549" id="549">549</a>
-<a href="#550" id="550">550</a>
-<a href="#551" id="551">551</a>
-<a href="#552" id="552">552</a>
-<a href="#553" id="553">553</a>
-<a href="#554" id="554">554</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{circuit::PublicInputs, native_types::Witness};
+<a href="#531" id="531">531</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{circuit::PublicInputs, native_types::Witness};
 <span class="kw">use </span>acir_field::AcirField;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="kw">use </span>std::cmp::Ordering;
@@ -1064,40 +1041,17 @@
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
-    <span class="kw">use </span>acir_field::{AcirField, FieldElement};
+    <span class="kw">use </span>acir_field::FieldElement;
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>add_mul_smoke_test() {
-        <span class="kw">let </span>a = Expression {
-            mul_terms: <span class="macro">vec!</span>[(FieldElement::from(<span class="number">2u128</span>), Witness(<span class="number">1</span>), Witness(<span class="number">2</span>))],
-            ..Default::default()
-        };
+        <span class="kw">let </span>a = Expression::from_str(<span class="string">"2*w1*w2"</span>).unwrap();
 
         <span class="kw">let </span>k = FieldElement::from(<span class="number">10u128</span>);
-
-        <span class="kw">let </span>b = Expression {
-            mul_terms: <span class="macro">vec!</span>[
-                (FieldElement::from(<span class="number">3u128</span>), Witness(<span class="number">0</span>), Witness(<span class="number">2</span>)),
-                (FieldElement::from(<span class="number">3u128</span>), Witness(<span class="number">1</span>), Witness(<span class="number">2</span>)),
-                (FieldElement::from(<span class="number">4u128</span>), Witness(<span class="number">4</span>), Witness(<span class="number">5</span>)),
-            ],
-            linear_combinations: <span class="macro">vec!</span>[(FieldElement::from(<span class="number">4u128</span>), Witness(<span class="number">4</span>))],
-            q_c: FieldElement::one(),
-        };
+        <span class="kw">let </span>b = Expression::from_str(<span class="string">"3*w0*w2 + 3*w1*w2 + 4*w4*w5 + 4*w4 + 1"</span>).unwrap();
 
         <span class="kw">let </span>result = a.add_mul(k, <span class="kw-2">&amp;</span>b);
-        <span class="macro">assert_eq!</span>(
-            result,
-            Expression {
-                mul_terms: <span class="macro">vec!</span>[
-                    (FieldElement::from(<span class="number">30u128</span>), Witness(<span class="number">0</span>), Witness(<span class="number">2</span>)),
-                    (FieldElement::from(<span class="number">32u128</span>), Witness(<span class="number">1</span>), Witness(<span class="number">2</span>)),
-                    (FieldElement::from(<span class="number">40u128</span>), Witness(<span class="number">4</span>), Witness(<span class="number">5</span>)),
-                ],
-                linear_combinations: <span class="macro">vec!</span>[(FieldElement::from(<span class="number">40u128</span>), Witness(<span class="number">4</span>))],
-                q_c: FieldElement::from(<span class="number">10u128</span>)
-            }
-        );
+        <span class="macro">assert_eq!</span>(result.to_string(), <span class="string">"30*w0*w2 + 32*w1*w2 + 40*w4*w5 + 40*w4 + 10"</span>);
     }
 
     <span class="attr">#[test]

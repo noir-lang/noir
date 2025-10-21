@@ -685,54 +685,7 @@
 <a href="#684" id="684">684</a>
 <a href="#685" id="685">685</a>
 <a href="#686" id="686">686</a>
-<a href="#687" id="687">687</a>
-<a href="#688" id="688">688</a>
-<a href="#689" id="689">689</a>
-<a href="#690" id="690">690</a>
-<a href="#691" id="691">691</a>
-<a href="#692" id="692">692</a>
-<a href="#693" id="693">693</a>
-<a href="#694" id="694">694</a>
-<a href="#695" id="695">695</a>
-<a href="#696" id="696">696</a>
-<a href="#697" id="697">697</a>
-<a href="#698" id="698">698</a>
-<a href="#699" id="699">699</a>
-<a href="#700" id="700">700</a>
-<a href="#701" id="701">701</a>
-<a href="#702" id="702">702</a>
-<a href="#703" id="703">703</a>
-<a href="#704" id="704">704</a>
-<a href="#705" id="705">705</a>
-<a href="#706" id="706">706</a>
-<a href="#707" id="707">707</a>
-<a href="#708" id="708">708</a>
-<a href="#709" id="709">709</a>
-<a href="#710" id="710">710</a>
-<a href="#711" id="711">711</a>
-<a href="#712" id="712">712</a>
-<a href="#713" id="713">713</a>
-<a href="#714" id="714">714</a>
-<a href="#715" id="715">715</a>
-<a href="#716" id="716">716</a>
-<a href="#717" id="717">717</a>
-<a href="#718" id="718">718</a>
-<a href="#719" id="719">719</a>
-<a href="#720" id="720">720</a>
-<a href="#721" id="721">721</a>
-<a href="#722" id="722">722</a>
-<a href="#723" id="723">723</a>
-<a href="#724" id="724">724</a>
-<a href="#725" id="725">725</a>
-<a href="#726" id="726">726</a>
-<a href="#727" id="727">727</a>
-<a href="#728" id="728">728</a>
-<a href="#729" id="729">729</a>
-<a href="#730" id="730">730</a>
-<a href="#731" id="731">731</a>
-<a href="#732" id="732">732</a>
-<a href="#733" id="733">733</a>
-<a href="#734" id="734">734</a></pre></div><pre class="rust"><code><span class="doccomment">//! Native structures for representing ACIR
+<a href="#687" id="687">687</a></pre></div><pre class="rust"><code><span class="doccomment">//! Native structures for representing ACIR
 
 </span><span class="kw">pub mod </span>black_box_functions;
 <span class="kw">pub mod </span>brillig;
@@ -1143,51 +1096,21 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
-    <span class="kw">use </span>std::collections::BTreeSet;
-
-    <span class="kw">use super</span>::{
-        Circuit, Compression, Opcode, PublicInputs,
-        opcodes::{BlackBoxFuncCall, FunctionInput},
-    };
-    <span class="kw">use crate</span>::{circuit::Program, native_types::Witness};
+    <span class="kw">use super</span>::{Circuit, Compression};
+    <span class="kw">use </span><span class="kw">crate</span>::circuit::Program;
     <span class="kw">use </span>acir_field::{AcirField, FieldElement};
     <span class="kw">use </span>serde::{Deserialize, Serialize};
 
-    <span class="kw">fn </span>and_opcode&lt;F: AcirField&gt;() -&gt; Opcode&lt;F&gt; {
-        Opcode::BlackBoxFuncCall(BlackBoxFuncCall::AND {
-            lhs: FunctionInput::Witness(Witness(<span class="number">1</span>)),
-            rhs: FunctionInput::Witness(Witness(<span class="number">2</span>)),
-            num_bits: <span class="number">4</span>,
-            output: Witness(<span class="number">3</span>),
-        })
-    }
-
-    <span class="kw">fn </span>range_opcode&lt;F: AcirField&gt;() -&gt; Opcode&lt;F&gt; {
-        Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
-            input: FunctionInput::Witness(Witness(<span class="number">1</span>)),
-            num_bits: <span class="number">8</span>,
-        })
-    }
-
-    <span class="kw">fn </span>keccakf1600_opcode&lt;F: AcirField&gt;() -&gt; Opcode&lt;F&gt; {
-        <span class="kw">let </span>inputs: Box&lt;[FunctionInput&lt;F&gt;; <span class="number">25</span>]&gt; =
-            Box::new(std::array::from_fn(|i| FunctionInput::Witness(Witness(i <span class="kw">as </span>u32 + <span class="number">1</span>))));
-        <span class="kw">let </span>outputs: Box&lt;[Witness; <span class="number">25</span>]&gt; = Box::new(std::array::from_fn(|i| Witness(i <span class="kw">as </span>u32 + <span class="number">26</span>)));
-
-        Opcode::BlackBoxFuncCall(BlackBoxFuncCall::Keccakf1600 { inputs, outputs })
-    }
-
     <span class="attr">#[test]
     </span><span class="kw">fn </span>serialization_roundtrip() {
-        <span class="kw">let </span>circuit = Circuit {
-            function_name: <span class="string">"test"</span>.to_string(),
-            current_witness_index: <span class="number">5</span>,
-            opcodes: <span class="macro">vec!</span>[and_opcode::&lt;FieldElement&gt;(), range_opcode()],
-            private_parameters: BTreeSet::new(),
-            public_parameters: PublicInputs(BTreeSet::from_iter(<span class="macro">vec!</span>[Witness(<span class="number">2</span>), Witness(<span class="number">12</span>)])),
-            return_values: PublicInputs(BTreeSet::from_iter(<span class="macro">vec!</span>[Witness(<span class="number">4</span>), Witness(<span class="number">12</span>)])),
-            assert_messages: Default::default(),
-        };
+        <span class="kw">let </span>src = <span class="string">"
+        private parameters: []
+        public parameters: [w2, w12]
+        return values: [w4, w12]
+        BLACKBOX::AND lhs: w1, rhs: w2, output: w3, bits: 4
+        BLACKBOX::RANGE input: w1, bits: 8
+        "</span>;
+        <span class="kw">let </span>circuit = Circuit::from_str(src).unwrap();
         <span class="kw">let </span>program = Program { functions: <span class="macro">vec!</span>[circuit], unconstrained_functions: Vec::new() };
 
         <span class="kw">fn </span>read_write&lt;F: Serialize + <span class="kw">for</span>&lt;<span class="lifetime">'a</span>&gt; Deserialize&lt;<span class="lifetime">'a</span>&gt; + AcirField&gt;(
@@ -1204,24 +1127,16 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_serialize() {
-        <span class="kw">let </span>circuit = Circuit {
-            function_name: <span class="string">"test"</span>.to_string(),
-            current_witness_index: <span class="number">0</span>,
-            opcodes: <span class="macro">vec!</span>[
-                Opcode::AssertZero(<span class="kw">crate</span>::native_types::Expression {
-                    mul_terms: <span class="macro">vec!</span>[],
-                    linear_combinations: <span class="macro">vec!</span>[],
-                    q_c: FieldElement::from(<span class="number">8u128</span>),
-                }),
-                range_opcode(),
-                and_opcode(),
-                keccakf1600_opcode(),
-            ],
-            private_parameters: BTreeSet::new(),
-            public_parameters: PublicInputs(BTreeSet::from_iter(<span class="macro">vec!</span>[Witness(<span class="number">2</span>)])),
-            return_values: PublicInputs(BTreeSet::from_iter(<span class="macro">vec!</span>[Witness(<span class="number">2</span>)])),
-            assert_messages: Default::default(),
-        };
+        <span class="kw">let </span>src = <span class="string">"
+        private parameters: []
+        public parameters: [w2]
+        return values: [w2]
+        ASSERT 0 = 8
+        BLACKBOX::RANGE input: w1, bits: 8
+        BLACKBOX::AND lhs: w1, rhs: w2, output: w3, bits: 4
+        BLACKBOX::KECCAKF1600 inputs: [w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25], outputs: [w26, w27, w28, w29, w30, w31, w32, w33, w34, w35, w36, w37, w38, w39, w40, w41, w42, w43, w44, w45, w46, w47, w48, w49, w50]
+        "</span>;
+        <span class="kw">let </span>circuit = Circuit::from_str(src).unwrap();
         <span class="kw">let </span>program = Program { functions: <span class="macro">vec!</span>[circuit], unconstrained_functions: Vec::new() };
 
         <span class="kw">let </span>json = serde_json::to_string_pretty(<span class="kw-2">&amp;</span>program).unwrap();
@@ -1250,27 +1165,18 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>circuit_display_snapshot() {
-        <span class="kw">let </span>circuit = Circuit {
-            function_name: <span class="string">"test"</span>.to_string(),
-            current_witness_index: <span class="number">3</span>,
-            opcodes: <span class="macro">vec!</span>[
-                Opcode::AssertZero(<span class="kw">crate</span>::native_types::Expression {
-                    mul_terms: <span class="macro">vec!</span>[],
-                    linear_combinations: <span class="macro">vec!</span>[(FieldElement::from(<span class="number">2u128</span>), Witness(<span class="number">1</span>))],
-                    q_c: FieldElement::from(<span class="number">8u128</span>),
-                }),
-                range_opcode(),
-                and_opcode(),
-                keccakf1600_opcode(),
-            ],
-            private_parameters: BTreeSet::new(),
-            public_parameters: PublicInputs(BTreeSet::from_iter(<span class="macro">vec!</span>[Witness(<span class="number">2</span>)])),
-            return_values: PublicInputs(BTreeSet::from_iter(<span class="macro">vec!</span>[Witness(<span class="number">2</span>)])),
-            assert_messages: Default::default(),
-        };
+        <span class="kw">let </span>src = <span class="string">"
+        private parameters: []
+        public parameters: [w2]
+        return values: [w2]
+        ASSERT 0 = 2*w1 + 8
+        BLACKBOX::RANGE input: w1, bits: 8
+        BLACKBOX::AND lhs: w1, rhs: w2, output: w3, bits: 4
+        BLACKBOX::KECCAKF1600 inputs: [w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25], outputs: [w26, w27, w28, w29, w30, w31, w32, w33, w34, w35, w36, w37, w38, w39, w40, w41, w42, w43, w44, w45, w46, w47, w48, w49, w50]
+        "</span>;
+        <span class="kw">let </span>circuit = Circuit::from_str(src).unwrap();
 
-        <span class="comment">// We want to make sure that we witness indices are displayed in a unified format.
-        // All witnesses are expected to be formatted as `_{witness_index}`.
+        <span class="comment">// All witnesses are expected to be formatted as `w{witness_index}`.
         </span><span class="macro">insta::assert_snapshot!</span>(
             circuit.to_string(),
             @<span class="string">r"

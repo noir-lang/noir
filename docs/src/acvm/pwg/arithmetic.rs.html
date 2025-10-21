@@ -356,36 +356,7 @@
 <a href="#355" id="355">355</a>
 <a href="#356" id="356">356</a>
 <a href="#357" id="357">357</a>
-<a href="#358" id="358">358</a>
-<a href="#359" id="359">359</a>
-<a href="#360" id="360">360</a>
-<a href="#361" id="361">361</a>
-<a href="#362" id="362">362</a>
-<a href="#363" id="363">363</a>
-<a href="#364" id="364">364</a>
-<a href="#365" id="365">365</a>
-<a href="#366" id="366">366</a>
-<a href="#367" id="367">367</a>
-<a href="#368" id="368">368</a>
-<a href="#369" id="369">369</a>
-<a href="#370" id="370">370</a>
-<a href="#371" id="371">371</a>
-<a href="#372" id="372">372</a>
-<a href="#373" id="373">373</a>
-<a href="#374" id="374">374</a>
-<a href="#375" id="375">375</a>
-<a href="#376" id="376">376</a>
-<a href="#377" id="377">377</a>
-<a href="#378" id="378">378</a>
-<a href="#379" id="379">379</a>
-<a href="#380" id="380">380</a>
-<a href="#381" id="381">381</a>
-<a href="#382" id="382">382</a>
-<a href="#383" id="383">383</a>
-<a href="#384" id="384">384</a>
-<a href="#385" id="385">385</a>
-<a href="#386" id="386">386</a>
-<a href="#387" id="387">387</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{
+<a href="#358" id="358">358</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{
     AcirField,
     native_types::{Expression, Witness, WitnessMap},
 };
@@ -691,11 +662,7 @@
         <span class="kw">let </span>a = Witness(<span class="number">0</span>);
 
         <span class="comment">// a - 1 == 0;
-        </span><span class="kw">let </span>opcode_a = Expression {
-            mul_terms: <span class="macro">vec!</span>[],
-            linear_combinations: <span class="macro">vec!</span>[(FieldElement::one(), a)],
-            q_c: -FieldElement::one(),
-        };
+        </span><span class="kw">let </span>opcode_a = Expression::from_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{a} - 1"</span>)).unwrap();
 
         <span class="kw">let </span><span class="kw-2">mut </span>values = WitnessMap::new();
         <span class="macro">assert_eq!</span>(ExpressionSolver::solve(<span class="kw-2">&amp;mut </span>values, <span class="kw-2">&amp;</span>opcode_a), <span class="prelude-val">Ok</span>(()));
@@ -711,15 +678,7 @@
         <span class="kw">let </span>d = Witness(<span class="number">3</span>);
 
         <span class="comment">// a * b - b - c - d == 0;
-        </span><span class="kw">let </span>opcode_a = Expression {
-            mul_terms: <span class="macro">vec!</span>[(FieldElement::one(), a, b)],
-            linear_combinations: <span class="macro">vec!</span>[
-                (-FieldElement::one(), b),
-                (-FieldElement::one(), c),
-                (-FieldElement::one(), d),
-            ],
-            q_c: FieldElement::zero(),
-        };
+        </span><span class="kw">let </span>opcode_a = Expression::from_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{a}*{b} - {b} - {c} - {d}"</span>)).unwrap();
 
         <span class="kw">let </span><span class="kw-2">mut </span>values = WitnessMap::new();
         values.insert(b, FieldElement::from(<span class="number">2_i128</span>));
@@ -739,27 +698,10 @@
         <span class="kw">let </span>d = Witness(<span class="number">3</span>);
 
         <span class="comment">// a = b + c + d;
-        </span><span class="kw">let </span>opcode_a = Expression {
-            mul_terms: <span class="macro">vec!</span>[],
-            linear_combinations: <span class="macro">vec!</span>[
-                (FieldElement::one(), a),
-                (-FieldElement::one(), b),
-                (-FieldElement::one(), c),
-                (-FieldElement::one(), d),
-            ],
-            q_c: FieldElement::zero(),
-        };
+        </span><span class="kw">let </span>opcode_a = Expression::from_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{a} - {b} - {c} - {d}"</span>)).unwrap();
 
         <span class="kw">let </span>e = Witness(<span class="number">4</span>);
-        <span class="kw">let </span>opcode_b = Expression {
-            mul_terms: <span class="macro">vec!</span>[],
-            linear_combinations: <span class="macro">vec!</span>[
-                (FieldElement::one(), e),
-                (-FieldElement::one(), a),
-                (-FieldElement::one(), b),
-            ],
-            q_c: FieldElement::zero(),
-        };
+        <span class="kw">let </span>opcode_b = Expression::from_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{e} - {a} - {b}"</span>)).unwrap();
 
         <span class="kw">let </span><span class="kw-2">mut </span>values = WitnessMap::new();
         values.insert(b, FieldElement::from(<span class="number">2_i128</span>));
