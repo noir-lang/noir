@@ -4,7 +4,6 @@ use crate::errors::RuntimeError;
 use crate::ssa::ir::types::Type;
 use crate::ssa::ir::{dfg::DataFlowGraph, value::ValueId};
 use acvm::{AcirField, FieldElement};
-use iter_extended::vecmap;
 
 use super::Context;
 
@@ -79,7 +78,7 @@ impl Context<'_> {
 
             let mut elements_var = Vec::new();
             let mut element_size = 0;
-            let mut new_slice = self.read_array_with_type(slice, &slice_typ)?;
+            let mut new_slice = self.read_array_with_type(slice.clone(), &slice_typ)?;
             let zero = self.acir_context.add_constant(FieldElement::zero());
 
             // 1. Convert the elements-to-push into flattened acir_var and at the same time
@@ -107,34 +106,26 @@ impl Context<'_> {
             }
 
             // The actual flattened size of new_slice after the dummy push_back
-            let len = super::arrays::flattened_value_size(&AcirValue::Array(new_slice.clone()));
+            let new_slice_array = AcirValue::Array(new_slice);
+            let len = super::arrays::flattened_value_size(&new_slice_array);
 
             // 2. Copy the slice into an AcirDynamicArray
             // Generates the element_type_sizes array
             let element_type_sizes =
                 if super::arrays::array_has_constant_element_size(&slice_typ).is_none() {
-                    let element_type_sizes = self.new_block_id();
-                    let flat_elem_type_sizes =
-                        super::arrays::calculate_element_type_sizes_array(&new_slice);
-                    // The final array should will the flattened index at each outer array index
-                    let init_values = vecmap(flat_elem_type_sizes, |type_size| {
-                        let var = self.acir_context.add_constant(type_size);
-                        AcirValue::Var(var, AcirType::field())
-                    });
-                    let element_type_sizes_len = init_values.len();
-                    self.initialize_array(
-                        element_type_sizes,
-                        element_type_sizes_len,
-                        Some(AcirValue::Array(init_values.into())),
-                    )?;
-                    Some(element_type_sizes)
+                    Some(self.init_element_type_sizes_array(
+                        &slice_typ,
+                        slice_contents,
+                        Some(&new_slice_array),
+                        dfg,
+                    )?)
                 } else {
                     None
                 };
 
             // The block ID for the new slice is the one for the resulting slice
             let block_id = self.block_id(result_ids[1]);
-            self.initialize_array(block_id, len, Some(AcirValue::Array(new_slice)))?;
+            self.initialize_array(block_id, len, Some(new_slice_array))?;
             let flattened_dynamic_array =
                 AcirDynamicArray { block_id, len, value_types, element_type_sizes };
 

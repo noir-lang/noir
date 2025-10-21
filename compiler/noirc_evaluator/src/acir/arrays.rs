@@ -146,12 +146,6 @@ impl Context<'_> {
         })
     }
 
-    pub(super) fn new_block_id(&mut self) -> BlockId {
-        let block_id = BlockId(self.max_block_id);
-        self.max_block_id += 1;
-        block_id
-    }
-
     /// Get the next BlockId for the internal element type sizes array.
     /// This is useful for referencing information that can
     /// only be accessed dynamically, such as the type structure
