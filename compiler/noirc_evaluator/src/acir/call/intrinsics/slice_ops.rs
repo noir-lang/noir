@@ -97,9 +97,7 @@ impl Context<'_> {
                         new_slice.push_back(zero_value);
                         for acir_value in vector {
                             let acir_vars = self.flatten(&acir_value)?;
-                            for var in acir_vars {
-                                elements_var.push(var);
-                            }
+                            elements_var.extend(acir_vars);
                         }
                     }
                     AcirValue::DynamicArray(_) => {
