@@ -478,8 +478,112 @@
 <a href="#477" id="477">477</a>
 <a href="#478" id="478">478</a>
 <a href="#479" id="479">479</a>
-<a href="#480" id="480">480</a></pre></div><pre class="rust"><code><span class="doccomment">//! The redundant range constraint optimization pass aims to remove any [BlackBoxFunc::Range] opcodes
-//! which doesn't result in additional restrictions on the value of witnesses.
+<a href="#480" id="480">480</a>
+<a href="#481" id="481">481</a>
+<a href="#482" id="482">482</a>
+<a href="#483" id="483">483</a>
+<a href="#484" id="484">484</a>
+<a href="#485" id="485">485</a>
+<a href="#486" id="486">486</a>
+<a href="#487" id="487">487</a>
+<a href="#488" id="488">488</a>
+<a href="#489" id="489">489</a>
+<a href="#490" id="490">490</a>
+<a href="#491" id="491">491</a>
+<a href="#492" id="492">492</a>
+<a href="#493" id="493">493</a>
+<a href="#494" id="494">494</a>
+<a href="#495" id="495">495</a>
+<a href="#496" id="496">496</a>
+<a href="#497" id="497">497</a>
+<a href="#498" id="498">498</a>
+<a href="#499" id="499">499</a>
+<a href="#500" id="500">500</a>
+<a href="#501" id="501">501</a>
+<a href="#502" id="502">502</a>
+<a href="#503" id="503">503</a>
+<a href="#504" id="504">504</a>
+<a href="#505" id="505">505</a>
+<a href="#506" id="506">506</a>
+<a href="#507" id="507">507</a>
+<a href="#508" id="508">508</a>
+<a href="#509" id="509">509</a>
+<a href="#510" id="510">510</a>
+<a href="#511" id="511">511</a>
+<a href="#512" id="512">512</a>
+<a href="#513" id="513">513</a>
+<a href="#514" id="514">514</a>
+<a href="#515" id="515">515</a>
+<a href="#516" id="516">516</a>
+<a href="#517" id="517">517</a>
+<a href="#518" id="518">518</a>
+<a href="#519" id="519">519</a>
+<a href="#520" id="520">520</a>
+<a href="#521" id="521">521</a>
+<a href="#522" id="522">522</a>
+<a href="#523" id="523">523</a>
+<a href="#524" id="524">524</a>
+<a href="#525" id="525">525</a>
+<a href="#526" id="526">526</a>
+<a href="#527" id="527">527</a>
+<a href="#528" id="528">528</a>
+<a href="#529" id="529">529</a>
+<a href="#530" id="530">530</a>
+<a href="#531" id="531">531</a>
+<a href="#532" id="532">532</a>
+<a href="#533" id="533">533</a>
+<a href="#534" id="534">534</a>
+<a href="#535" id="535">535</a>
+<a href="#536" id="536">536</a>
+<a href="#537" id="537">537</a>
+<a href="#538" id="538">538</a>
+<a href="#539" id="539">539</a>
+<a href="#540" id="540">540</a>
+<a href="#541" id="541">541</a>
+<a href="#542" id="542">542</a>
+<a href="#543" id="543">543</a>
+<a href="#544" id="544">544</a>
+<a href="#545" id="545">545</a>
+<a href="#546" id="546">546</a>
+<a href="#547" id="547">547</a>
+<a href="#548" id="548">548</a>
+<a href="#549" id="549">549</a>
+<a href="#550" id="550">550</a>
+<a href="#551" id="551">551</a>
+<a href="#552" id="552">552</a>
+<a href="#553" id="553">553</a>
+<a href="#554" id="554">554</a>
+<a href="#555" id="555">555</a>
+<a href="#556" id="556">556</a>
+<a href="#557" id="557">557</a>
+<a href="#558" id="558">558</a>
+<a href="#559" id="559">559</a>
+<a href="#560" id="560">560</a>
+<a href="#561" id="561">561</a>
+<a href="#562" id="562">562</a>
+<a href="#563" id="563">563</a>
+<a href="#564" id="564">564</a>
+<a href="#565" id="565">565</a>
+<a href="#566" id="566">566</a>
+<a href="#567" id="567">567</a>
+<a href="#568" id="568">568</a>
+<a href="#569" id="569">569</a>
+<a href="#570" id="570">570</a>
+<a href="#571" id="571">571</a>
+<a href="#572" id="572">572</a>
+<a href="#573" id="573">573</a>
+<a href="#574" id="574">574</a>
+<a href="#575" id="575">575</a>
+<a href="#576" id="576">576</a>
+<a href="#577" id="577">577</a>
+<a href="#578" id="578">578</a>
+<a href="#579" id="579">579</a>
+<a href="#580" id="580">580</a>
+<a href="#581" id="581">581</a>
+<a href="#582" id="582">582</a>
+<a href="#583" id="583">583</a>
+<a href="#584" id="584">584</a></pre></div><pre class="rust"><code><span class="doccomment">//! The redundant range constraint optimization pass aims to remove any [BlackBoxFunc::Range] opcodes
+//! which doesn't result in additional restrictions on the values of witnesses.
 //!
 //! Suppose we had the following pseudo-code:
 //!
@@ -593,6 +697,10 @@
                     </span><span class="kw">if </span>expr.is_degree_one_univariate() {
                         <span class="kw">let </span>(k, witness) = expr.linear_combinations[<span class="number">0</span>];
                         <span class="kw">let </span>constant = expr.q_c;
+                        <span class="macro">assert!</span>(
+                            k != F::zero(),
+                            <span class="string">"collect_ranges: attempting to divide -constant by F::zero()"
+                        </span>);
                         <span class="kw">let </span>witness_value = -constant / k;
 
                         <span class="kw">if </span>witness_value.is_zero() {
@@ -637,8 +745,8 @@
                 <span class="kw">continue</span>;
             };
 
-            <span class="comment">// Check if the witness has already been recorded and if the witness
-            // size is more than the current one, we replace it
+            <span class="comment">// Check if the witness has already been recorded and if the witness'
+            // recorded size is more than the current one, we replace it
             </span>infos
                 .entry(witness)
                 .and_modify(|info| {
@@ -675,7 +783,7 @@
     ) -&gt; (Circuit&lt;F&gt;, Vec&lt;usize&gt;) {
         <span class="kw">let </span><span class="kw-2">mut </span>new_order_list = Vec::with_capacity(order_list.len());
         <span class="kw">let </span><span class="kw-2">mut </span>optimized_opcodes = Vec::with_capacity(<span class="self">self</span>.circuit.opcodes.len());
-        <span class="comment">// Consider the index beyond the last as a pseudo size effect by which time all constraints need to be inserted.
+        <span class="comment">// Consider the index beyond the last as a pseudo side effect by which time all constraints need to be inserted.
         </span><span class="kw">let </span><span class="kw-2">mut </span>next_side_effect = <span class="self">self</span>.circuit.opcodes.len();
         <span class="comment">// Going in reverse so we can propagate the side effect information backwards.
         </span><span class="kw">for </span>(idx, opcode) <span class="kw">in </span><span class="self">self</span>.circuit.opcodes.into_iter().enumerate().rev() {
@@ -741,12 +849,19 @@
     <span class="kw">use </span>std::collections::BTreeMap;
 
     <span class="kw">use crate</span>::{
-        assert_circuit_snapshot,
-        compiler::optimizers::redundant_range::{RangeOptimizer, memory_block_implied_max_bits},
+        FieldElement, assert_circuit_snapshot,
+        compiler::{
+            CircuitSimulator,
+            optimizers::{
+                Opcode,
+                redundant_range::{RangeOptimizer, memory_block_implied_max_bits},
+            },
+        },
     };
     <span class="kw">use </span>acir::{
+        AcirField,
         circuit::{Circuit, brillig::BrilligFunctionId},
-        native_types::Witness,
+        native_types::{Expression, Witness},
     };
 
     <span class="attr">#[test]
@@ -765,13 +880,14 @@
     </span><span class="kw">fn </span>retain_lowest_range_size() {
         <span class="comment">// The optimizer should keep the lowest bit size range constraint
         </span><span class="kw">let </span>src = <span class="string">"
-        private parameters: []
+        private parameters: [w1]
         public parameters: []
         return values: []
         BLACKBOX::RANGE input: w1, bits: 32
         BLACKBOX::RANGE input: w1, bits: 16
         "</span>;
         <span class="kw">let </span>circuit = Circuit::from_str(src).unwrap();
+        <span class="macro">assert!</span>(CircuitSimulator::check_circuit(<span class="kw-2">&amp;</span>circuit).is_none());
 
         <span class="kw">let </span>acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, <span class="kw">_</span>)| i).collect();
         <span class="kw">let </span>brillig_side_effects = BTreeMap::new();
@@ -787,8 +903,9 @@
         </span>);
 
         <span class="kw">let </span>(optimized_circuit, <span class="kw">_</span>) = optimizer.replace_redundant_ranges(acir_opcode_positions);
+        <span class="macro">assert!</span>(CircuitSimulator::check_circuit(<span class="kw-2">&amp;</span>optimized_circuit).is_none());
         <span class="macro">assert_circuit_snapshot!</span>(optimized_circuit, @<span class="string">r"
-        private parameters: []
+        private parameters: [w1]
         public parameters: []
         return values: []
         BLACKBOX::RANGE input: w1, bits: 16
@@ -799,7 +916,7 @@
     </span><span class="kw">fn </span>remove_duplicates() {
         <span class="comment">// The optimizer should remove all duplicate range opcodes.
         </span><span class="kw">let </span>src = <span class="string">"
-        private parameters: []
+        private parameters: [w1, w2]
         public parameters: []
         return values: []
         BLACKBOX::RANGE input: w1, bits: 16
@@ -808,13 +925,15 @@
         BLACKBOX::RANGE input: w2, bits: 23
         "</span>;
         <span class="kw">let </span>circuit = Circuit::from_str(src).unwrap();
+        <span class="macro">assert!</span>(CircuitSimulator::check_circuit(<span class="kw-2">&amp;</span>circuit).is_none());
 
         <span class="kw">let </span>acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, <span class="kw">_</span>)| i).collect();
         <span class="kw">let </span>brillig_side_effects = BTreeMap::new();
         <span class="kw">let </span>optimizer = RangeOptimizer::new(circuit, <span class="kw-2">&amp;</span>brillig_side_effects);
         <span class="kw">let </span>(optimized_circuit, <span class="kw">_</span>) = optimizer.replace_redundant_ranges(acir_opcode_positions);
+        <span class="macro">assert!</span>(CircuitSimulator::check_circuit(<span class="kw-2">&amp;</span>optimized_circuit).is_none());
         <span class="macro">assert_circuit_snapshot!</span>(optimized_circuit, @<span class="string">r"
-        private parameters: []
+        private parameters: [w1, w2]
         public parameters: []
         return values: []
         BLACKBOX::RANGE input: w1, bits: 16
@@ -827,7 +946,7 @@
         <span class="comment">// The optimizer should not remove or change non-range opcodes
         // The four AssertZero opcodes should remain unchanged.
         </span><span class="kw">let </span>src = <span class="string">"
-        private parameters: []
+        private parameters: [w1]
         public parameters: []
         return values: []
         BLACKBOX::RANGE input: w1, bits: 16
@@ -838,13 +957,15 @@
         ASSERT 0 = 0
         "</span>;
         <span class="kw">let </span>circuit = Circuit::from_str(src).unwrap();
+        <span class="macro">assert!</span>(CircuitSimulator::check_circuit(<span class="kw-2">&amp;</span>circuit).is_none());
 
         <span class="kw">let </span>acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, <span class="kw">_</span>)| i).collect();
         <span class="kw">let </span>brillig_side_effects = BTreeMap::new();
         <span class="kw">let </span>optimizer = RangeOptimizer::new(circuit, <span class="kw-2">&amp;</span>brillig_side_effects);
         <span class="kw">let </span>(optimized_circuit, <span class="kw">_</span>) = optimizer.replace_redundant_ranges(acir_opcode_positions);
+        <span class="macro">assert!</span>(CircuitSimulator::check_circuit(<span class="kw-2">&amp;</span>optimized_circuit).is_none());
         <span class="macro">assert_circuit_snapshot!</span>(optimized_circuit, @<span class="string">r"
-        private parameters: []
+        private parameters: [w1]
         public parameters: []
         return values: []
         BLACKBOX::RANGE input: w1, bits: 16
@@ -857,22 +978,26 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>constant_implied_ranges() {
-        <span class="comment">// The optimizer should use knowledge about constant witness assignments to remove range opcodes.
+        <span class="comment">// The optimizer should use knowledge about constant witness assignments to remove range opcodes, when possible.
+        // In this case, the `BLACKBOX::RANGE` opcode is expected to be removed because its range is larger than
+        // the range checked by the `ASSERT` opcode
         </span><span class="kw">let </span>src = <span class="string">"
-        private parameters: []
+        private parameters: [w1]
         public parameters: []
         return values: []
         BLACKBOX::RANGE input: w1, bits: 16
         ASSERT w1 = 0
         "</span>;
         <span class="kw">let </span>circuit = Circuit::from_str(src).unwrap();
+        <span class="macro">assert!</span>(CircuitSimulator::check_circuit(<span class="kw-2">&amp;</span>circuit).is_none());
 
         <span class="kw">let </span>acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, <span class="kw">_</span>)| i).collect();
         <span class="kw">let </span>brillig_side_effects = BTreeMap::new();
         <span class="kw">let </span>optimizer = RangeOptimizer::new(circuit, <span class="kw-2">&amp;</span>brillig_side_effects);
         <span class="kw">let </span>(optimized_circuit, <span class="kw">_</span>) = optimizer.replace_redundant_ranges(acir_opcode_positions);
+        <span class="macro">assert!</span>(CircuitSimulator::check_circuit(<span class="kw-2">&amp;</span>optimized_circuit).is_none());
         <span class="macro">assert_circuit_snapshot!</span>(optimized_circuit, @<span class="string">r"
-        private parameters: []
+        private parameters: [w1]
         public parameters: []
         return values: []
         ASSERT w1 = 0
@@ -880,10 +1005,39 @@
     }
 
     <span class="attr">#[test]
+    </span><span class="kw">fn </span>large_constant_implied_ranges() {
+        <span class="comment">// The optimizer should use knowledge about constant witness assignments to remove range opcodes, when possible.
+        // In this case, the `BLACKBOX::RANGE` opcode is expected to be retained because its range is smaller than
+        // the range checked by the `ASSERT` opcode
+        </span><span class="kw">let </span>src = <span class="string">"
+        private parameters: [w1]
+        public parameters: []
+        return values: []
+        BLACKBOX::RANGE input: w1, bits: 8
+        ASSERT w1 = 256
+        "</span>;
+        <span class="kw">let </span>circuit = Circuit::from_str(src).unwrap();
+        <span class="macro">assert!</span>(CircuitSimulator::check_circuit(<span class="kw-2">&amp;</span>circuit).is_none());
+
+        <span class="kw">let </span>acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, <span class="kw">_</span>)| i).collect();
+        <span class="kw">let </span>brillig_side_effects = BTreeMap::new();
+        <span class="kw">let </span>optimizer = RangeOptimizer::new(circuit, <span class="kw-2">&amp;</span>brillig_side_effects);
+        <span class="kw">let </span>(optimized_circuit, <span class="kw">_</span>) = optimizer.replace_redundant_ranges(acir_opcode_positions);
+        <span class="macro">assert!</span>(CircuitSimulator::check_circuit(<span class="kw-2">&amp;</span>optimized_circuit).is_none());
+        <span class="macro">assert_circuit_snapshot!</span>(optimized_circuit, @<span class="string">r"
+        private parameters: [w1]
+        public parameters: []
+        return values: []
+        BLACKBOX::RANGE input: w1, bits: 8
+        ASSERT w1 = 256
+        "</span>);
+    }
+
+    <span class="attr">#[test]
     </span><span class="kw">fn </span>potential_side_effects() {
         <span class="comment">// The optimizer should not remove range constraints if doing so might allow invalid side effects to go through.
         </span><span class="kw">let </span>src = <span class="string">"
-        private parameters: []
+        private parameters: [w1, w2]
         public parameters: []
         return values: []
         BLACKBOX::RANGE input: w1, bits: 32
@@ -902,6 +1056,7 @@
         ASSERT w1 = 0
         "</span>;
         <span class="kw">let </span>circuit = Circuit::from_str(src).unwrap();
+        <span class="macro">assert!</span>(CircuitSimulator::check_circuit(<span class="kw-2">&amp;</span>circuit).is_none());
 
         <span class="kw">let </span>acir_opcode_positions: Vec&lt;usize&gt; =
             circuit.opcodes.iter().enumerate().map(|(i, <span class="kw">_</span>)| i).collect();
@@ -912,10 +1067,11 @@
         <span class="kw">let </span>optimizer = RangeOptimizer::new(circuit, <span class="kw-2">&amp;</span>brillig_side_effects);
         <span class="kw">let </span>(optimized_circuit, <span class="kw">_</span>) =
             optimizer.replace_redundant_ranges(acir_opcode_positions.clone());
+        <span class="macro">assert!</span>(CircuitSimulator::check_circuit(<span class="kw-2">&amp;</span>optimized_circuit).is_none());
 
         <span class="comment">// `BLACKBOX::RANGE [w1]:32 bits []` remains: The minimum does not propagate backwards.
         </span><span class="macro">assert_circuit_snapshot!</span>(optimized_circuit, @<span class="string">r"
-        private parameters: []
+        private parameters: [w1, w2]
         public parameters: []
         return values: []
         BLACKBOX::RANGE input: w1, bits: 32
@@ -934,9 +1090,10 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>array_implied_ranges() {
-        <span class="comment">// The optimizer should use knowledge about array lengths and witnesses used to index these to remove range opcodes.
+        <span class="comment">// The optimizer should use knowledge about array lengths and witnesses used to index these to remove range opcodes, when possible.
+        // The `BLACKBOX::RANGE` call is removed because its range is larger than the array's length
         </span><span class="kw">let </span>src = <span class="string">"
-        private parameters: []
+        private parameters: [w0, w1]
         public parameters: []
         return values: []
         BLACKBOX::RANGE input: w1, bits: 16
@@ -944,18 +1101,69 @@
         READ w2 = b0[w1]
         "</span>;
         <span class="kw">let </span>circuit = Circuit::from_str(src).unwrap();
+        <span class="macro">assert!</span>(CircuitSimulator::check_circuit(<span class="kw-2">&amp;</span>circuit).is_none());
 
         <span class="kw">let </span>acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, <span class="kw">_</span>)| i).collect();
         <span class="kw">let </span>brillig_side_effects = BTreeMap::new();
         <span class="kw">let </span>optimizer = RangeOptimizer::new(circuit, <span class="kw-2">&amp;</span>brillig_side_effects);
         <span class="kw">let </span>(optimized_circuit, <span class="kw">_</span>) = optimizer.replace_redundant_ranges(acir_opcode_positions);
+        <span class="macro">assert!</span>(CircuitSimulator::check_circuit(<span class="kw-2">&amp;</span>optimized_circuit).is_none());
         <span class="macro">assert_circuit_snapshot!</span>(optimized_circuit, @<span class="string">r"
-        private parameters: []
+        private parameters: [w0, w1]
         public parameters: []
         return values: []
         INIT b0 = [w0, w0, w0, w0, w0, w0, w0, w0]
         READ w2 = b0[w1]
         "</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>large_array_implied_ranges() {
+        <span class="comment">// The optimizer should use knowledge about array lengths and witnesses used to index these to remove range opcodes, when possible.
+        // The `BLACKBOX::RANGE` call is not removed because its range is smaller than the array's length
+        </span><span class="kw">let </span>src = <span class="string">"
+        private parameters: [w0, w1]
+        public parameters: []
+        return values: []
+        BLACKBOX::RANGE input: w1, bits: 2
+        INIT b0 = [w0, w0, w0, w0, w0, w0, w0, w0]
+        READ w2 = b0[w1]
+        "</span>;
+        <span class="kw">let </span>circuit = Circuit::from_str(src).unwrap();
+        <span class="macro">assert!</span>(CircuitSimulator::check_circuit(<span class="kw-2">&amp;</span>circuit).is_none());
+
+        <span class="kw">let </span>acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, <span class="kw">_</span>)| i).collect();
+        <span class="kw">let </span>brillig_side_effects = BTreeMap::new();
+        <span class="kw">let </span>optimizer = RangeOptimizer::new(circuit, <span class="kw-2">&amp;</span>brillig_side_effects);
+        <span class="kw">let </span>(optimized_circuit, <span class="kw">_</span>) = optimizer.replace_redundant_ranges(acir_opcode_positions);
+        <span class="macro">assert!</span>(CircuitSimulator::check_circuit(<span class="kw-2">&amp;</span>optimized_circuit).is_none());
+        <span class="macro">assert_circuit_snapshot!</span>(optimized_circuit, @<span class="string">r"
+        private parameters: [w0, w1]
+        public parameters: []
+        return values: []
+        BLACKBOX::RANGE input: w1, bits: 2
+        INIT b0 = [w0, w0, w0, w0, w0, w0, w0, w0]
+        READ w2 = b0[w1]
+        "</span>);
+    }
+
+    <span class="attr">#[test]
+    #[should_panic(expected = <span class="string">"collect_ranges: attempting to divide -constant by F::zero()"</span>)]
+    </span><span class="kw">fn </span>collect_ranges_zero_linear_combination_panics() {
+        <span class="kw">let </span>src = <span class="string">"
+        private parameters: [w1]
+        public parameters: []
+        return values: []
+        "</span>;
+        <span class="kw">let </span><span class="kw-2">mut </span>circuit = Circuit::from_str(src).unwrap();
+        <span class="kw">let </span>expr = Expression {
+            mul_terms: <span class="macro">vec!</span>[],
+            linear_combinations: <span class="macro">vec!</span>[(FieldElement::zero(), Witness(<span class="number">0</span>))],
+            q_c: FieldElement::one(),
+        };
+        <span class="kw">let </span>opcode = Opcode::AssertZero(expr);
+        circuit.opcodes.push(opcode);
+        RangeOptimizer::collect_ranges(<span class="kw-2">&amp;</span>circuit);
     }
 }
 </code></pre></div></section></main></body></html>

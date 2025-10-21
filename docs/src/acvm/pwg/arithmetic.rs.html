@@ -356,7 +356,17 @@
 <a href="#355" id="355">355</a>
 <a href="#356" id="356">356</a>
 <a href="#357" id="357">357</a>
-<a href="#358" id="358">358</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{
+<a href="#358" id="358">358</a>
+<a href="#359" id="359">359</a>
+<a href="#360" id="360">360</a>
+<a href="#361" id="361">361</a>
+<a href="#362" id="362">362</a>
+<a href="#363" id="363">363</a>
+<a href="#364" id="364">364</a>
+<a href="#365" id="365">365</a>
+<a href="#366" id="366">366</a>
+<a href="#367" id="367">367</a>
+<a href="#368" id="368">368</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{
     AcirField,
     native_types::{Expression, Witness, WitnessMap},
 };
@@ -431,7 +441,7 @@
                         insert_value(<span class="kw-2">&amp;</span>w1, assignment, initial_witness)
                     }
                 } <span class="kw">else </span>{
-                    <span class="comment">// TODO: can we be more specific with this error?
+                    <span class="comment">// TODO(https://github.com/noir-lang/noir/issues/10191): can we be more specific with this error?
                     </span><span class="prelude-val">Err</span>(OpcodeResolutionError::OpcodeNotSolvable(
                         OpcodeNotSolvable::ExpressionHasTooManyUnknowns(opcode.clone()),
                     ))
@@ -640,6 +650,10 @@
     } <span class="kw">else if </span>denominator == -F::one() {
         -numerator
     } <span class="kw">else </span>{
+        <span class="macro">assert!</span>(
+            denominator != F::zero(),
+            <span class="string">"quick_invert: attempting to divide numerator by F::zero()"
+        </span>);
         numerator / denominator
     }
 }
@@ -655,6 +669,12 @@
         <span class="kw">let </span>numerator = FieldElement::from_be_bytes_reduce(<span class="string">"hello_world"</span>.as_bytes());
         <span class="macro">assert_eq!</span>(quick_invert(numerator, FieldElement::one()), numerator / FieldElement::one());
         <span class="macro">assert_eq!</span>(quick_invert(numerator, -FieldElement::one()), numerator / -FieldElement::one());
+    }
+
+    <span class="attr">#[test]
+    #[should_panic(expected = <span class="string">"quick_invert: attempting to divide numerator by F::zero()"</span>)]
+    </span><span class="kw">fn </span>quick_invert_zero_denominator() {
+        quick_invert(FieldElement::one(), FieldElement::zero());
     }
 
     <span class="attr">#[test]

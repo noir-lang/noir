@@ -516,7 +516,49 @@
 <a href="#515" id="515">515</a>
 <a href="#516" id="516">516</a>
 <a href="#517" id="517">517</a>
-<a href="#518" id="518">518</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{cmp::Ordering, collections::HashSet};
+<a href="#518" id="518">518</a>
+<a href="#519" id="519">519</a>
+<a href="#520" id="520">520</a>
+<a href="#521" id="521">521</a>
+<a href="#522" id="522">522</a>
+<a href="#523" id="523">523</a>
+<a href="#524" id="524">524</a>
+<a href="#525" id="525">525</a>
+<a href="#526" id="526">526</a>
+<a href="#527" id="527">527</a>
+<a href="#528" id="528">528</a>
+<a href="#529" id="529">529</a>
+<a href="#530" id="530">530</a>
+<a href="#531" id="531">531</a>
+<a href="#532" id="532">532</a>
+<a href="#533" id="533">533</a>
+<a href="#534" id="534">534</a>
+<a href="#535" id="535">535</a>
+<a href="#536" id="536">536</a>
+<a href="#537" id="537">537</a>
+<a href="#538" id="538">538</a>
+<a href="#539" id="539">539</a>
+<a href="#540" id="540">540</a>
+<a href="#541" id="541">541</a>
+<a href="#542" id="542">542</a>
+<a href="#543" id="543">543</a>
+<a href="#544" id="544">544</a>
+<a href="#545" id="545">545</a>
+<a href="#546" id="546">546</a>
+<a href="#547" id="547">547</a>
+<a href="#548" id="548">548</a>
+<a href="#549" id="549">549</a>
+<a href="#550" id="550">550</a>
+<a href="#551" id="551">551</a>
+<a href="#552" id="552">552</a>
+<a href="#553" id="553">553</a>
+<a href="#554" id="554">554</a>
+<a href="#555" id="555">555</a>
+<a href="#556" id="556">556</a>
+<a href="#557" id="557">557</a>
+<a href="#558" id="558">558</a>
+<a href="#559" id="559">559</a>
+<a href="#560" id="560">560</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{cmp::Ordering, collections::HashSet};
 
 <span class="kw">use </span>acir::{
     AcirField,
@@ -645,15 +687,15 @@
         // First check that this is not a simple opcode which does not need optimization
         //
         // If the opcode only has one mul term, then this algorithm cannot optimize it any further
-        // Either it can be represented in a single arithmetic equation or it's fan-in is too large and we need intermediate variables for those
-        // large-fan-in optimization is not this algorithms purpose.
+        // Either it can be represented in a single arithmetic equation or its fan-in is too large and we need intermediate variables for those
+        // Large-fan-in optimization is not this algorithm's purpose.
         // If the opcode has 0 mul terms, then it is an add opcode and similarly it can either fit into a single assert-zero opcode or it has a large fan-in
         </span><span class="kw">if </span>opcode.mul_terms.len() &lt;= <span class="number">1 </span>{
             <span class="kw">return </span>opcode;
         }
 
         <span class="comment">// We now know that this opcode has multiple mul terms and can possibly be simplified into multiple full opcodes
-        // We need to create a (wl, wr) IndexMap and then check the simplified fan-in to verify if we have terms both with wl and wr
+        // We need to create a (w_l, w_r) IndexMap and then check the simplified fan-in to verify if we have terms both with w_l and w_r
         // In general, we can then push more terms into the opcode until we are at width-1 then the last variable will be the intermediate variable
         //
 
@@ -661,33 +703,27 @@
         // subset of the terms that can be represented as full opcodes
         </span><span class="kw">let </span><span class="kw-2">mut </span>new_opcode = Expression::default();
         <span class="kw">let </span><span class="kw-2">mut </span>remaining_mul_terms = Vec::with_capacity(opcode.mul_terms.len());
-        <span class="kw">for </span>pair <span class="kw">in </span>opcode.mul_terms {
-            <span class="comment">// We want to layout solvable intermediate variable, if we cannot solve one of the witness
+        <span class="kw">for </span>(scale, w_l, w_r) <span class="kw">in </span>opcode.mul_terms {
+            <span class="comment">// We want to layout solvable intermediate variables, if we cannot solve one of the witnesses
             // that means the intermediate opcode will not be immediately solvable
-            </span><span class="kw">if </span>!<span class="self">self</span>.solvable_witness.contains(<span class="kw-2">&amp;</span>pair.<span class="number">1</span>) || !<span class="self">self</span>.solvable_witness.contains(<span class="kw-2">&amp;</span>pair.<span class="number">2</span>)
-            {
-                remaining_mul_terms.push(pair);
+            </span><span class="kw">if </span>!<span class="self">self</span>.solvable_witness.contains(<span class="kw-2">&amp;</span>w_l) || !<span class="self">self</span>.solvable_witness.contains(<span class="kw-2">&amp;</span>w_r) {
+                remaining_mul_terms.push((scale, w_l, w_r));
                 <span class="kw">continue</span>;
             }
 
-            <span class="comment">// Check if this pair is present in the simplified fan-in
+            <span class="comment">// Check if this (scale, w_l, w_r) triple is present in the simplified fan-in
             // We are assuming that the fan-in/fan-out has been simplified.
             // Note this function is not public, and can only be called within the optimize method, so this guarantee will always hold
             </span><span class="kw">let </span>index_wl =
-                opcode.linear_combinations.iter().position(|(_scale, witness)| <span class="kw-2">*</span>witness == pair.<span class="number">1</span>);
+                opcode.linear_combinations.iter().position(|(_scale, witness)| <span class="kw-2">*</span>witness == w_l);
             <span class="kw">let </span>index_wr =
-                opcode.linear_combinations.iter().position(|(_scale, witness)| <span class="kw-2">*</span>witness == pair.<span class="number">2</span>);
+                opcode.linear_combinations.iter().position(|(_scale, witness)| <span class="kw-2">*</span>witness == w_r);
 
             <span class="kw">match </span>(index_wl, index_wr) {
-                (<span class="prelude-val">None</span>, <span class="kw">_</span>) =&gt; {
+                (<span class="prelude-val">None</span>, <span class="kw">_</span>) | (<span class="kw">_</span>, <span class="prelude-val">None</span>) =&gt; {
                     <span class="comment">// This means that the polynomial does not contain both terms
                     // Just push the Qm term as it cannot form a full opcode
-                    </span>new_opcode.mul_terms.push(pair);
-                }
-                (<span class="kw">_</span>, <span class="prelude-val">None</span>) =&gt; {
-                    <span class="comment">// This means that the polynomial does not contain both terms
-                    // Just push the Qm term as it cannot form a full opcode
-                    </span>new_opcode.mul_terms.push(pair);
+                    </span>new_opcode.mul_terms.push((scale, w_l, w_r));
                 }
                 (<span class="prelude-val">Some</span>(x), <span class="prelude-val">Some</span>(y)) =&gt; {
                     <span class="comment">// This means that we can form a full opcode with this Qm term
@@ -699,7 +735,7 @@
                     <span class="comment">// Lets create an intermediate opcode to store this full opcode
                     //
                     </span><span class="kw">let </span><span class="kw-2">mut </span>intermediate_opcode = Expression::default();
-                    intermediate_opcode.mul_terms.push(pair);
+                    intermediate_opcode.mul_terms.push((scale, w_l, w_r));
 
                     <span class="comment">// Add the left and right wires
                     </span>intermediate_opcode.linear_combinations.push(left_wire_term);
@@ -720,7 +756,7 @@
                         }
                     }
 
-                    <span class="comment">// Now we have used up 2 spaces in our assert-zero opcode. The width now dictates, how many more we can add
+                    <span class="comment">// Now we have used up 2 spaces in our assert-zero opcode. The width now dictates how many more we can add
                     </span><span class="kw">let </span><span class="kw-2">mut </span>remaining_space = <span class="self">self</span>.width - <span class="number">2 </span>- <span class="number">1</span>; <span class="comment">// We minus 1 because we need an extra space to contain the intermediate variable
                     // Keep adding terms until we have no more left, or we reach the width
                     </span><span class="kw">let </span><span class="kw-2">mut </span>remaining_linear_terms =
@@ -741,27 +777,26 @@
                     }
                     opcode.linear_combinations.extend(remaining_linear_terms);
 
-                    <span class="comment">// Constraint this intermediate_opcode to be equal to the temp variable by adding it into the IndexMap
+                    <span class="comment">// Constrain this intermediate_opcode to be equal to the temp variable by adding it into the IndexMap
                     // We need a unique name for our intermediate variable
-                    // XXX: Another optimization, which could be applied in another algorithm
+                    // TODO(https://github.com/noir-lang/noir/issues/10192): Another optimization, which could be applied in another algorithm
                     // If two opcodes have a large fan-in/out and they share a few common terms, then we should create intermediate variables for them
                     // Do some sort of subset matching algorithm for this on the terms of the polynomial
-                    </span><span class="kw">let </span>inter_var = <span class="self">Self</span>::get_or_create_intermediate_vars(
+                    </span><span class="kw">let </span>intermediate_var = <span class="self">Self</span>::get_or_create_intermediate_var(
                         intermediate_variables,
                         intermediate_opcode,
                         num_witness,
                     );
 
                     <span class="comment">// Add intermediate variable to the new opcode instead of the full opcode
-                    </span><span class="self">self</span>.mark_solvable(inter_var.<span class="number">1</span>);
-                    new_opcode.linear_combinations.push(inter_var);
+                    </span><span class="self">self</span>.mark_solvable(intermediate_var.<span class="number">1</span>);
+                    new_opcode.linear_combinations.push(intermediate_var);
                 }
             };
         }
-        opcode.mul_terms = remaining_mul_terms;
 
         <span class="comment">// Add the rest of the elements back into the new_opcode
-        </span>new_opcode.mul_terms.extend(opcode.mul_terms);
+        </span>new_opcode.mul_terms.extend(remaining_mul_terms);
         new_opcode.linear_combinations.extend(opcode.linear_combinations);
         new_opcode.q_c = opcode.q_c;
         new_opcode.sort();
@@ -770,7 +805,7 @@
 
     <span class="doccomment">/// Normalize an expression by dividing it by its first coefficient
     /// The first coefficient here means coefficient of the first linear term, or of the first quadratic term if no linear terms exist.
-    /// The function panic if the input expression is constant
+    /// This function panics if the input expression is constant or if the first coefficient's inverse is F::zero()
     </span><span class="kw">fn </span>normalize&lt;F: AcirField&gt;(<span class="kw-2">mut </span>expr: Expression&lt;F&gt;) -&gt; (F, Expression&lt;F&gt;) {
         expr.sort();
         <span class="kw">let </span>a = <span class="kw">if </span>!expr.linear_combinations.is_empty() {
@@ -778,14 +813,16 @@
         </span>} <span class="kw">else </span>{
             expr.mul_terms[<span class="number">0</span>].<span class="number">0
         </span>};
-        (a, <span class="kw-2">&amp;</span>expr * a.inverse())
+        <span class="kw">let </span>a_inverse = a.inverse();
+        <span class="macro">assert!</span>(a_inverse != F::zero(), <span class="string">"normalize: the first coefficient is non-invertible"</span>);
+        (a, <span class="kw-2">&amp;</span>expr * a_inverse)
     }
 
     <span class="doccomment">/// Get or generate a scaled intermediate witness which is equal to the provided expression
     /// The sets of previously generated witness and their (normalized) expression is cached in the intermediate_variables map
     /// If there is no cache hit, we generate a new witness (and add the expression to the cache)
     /// else, we return the cached witness along with the scaling factor so it is equal to the provided expression
-    </span><span class="kw">fn </span>get_or_create_intermediate_vars&lt;F: AcirField&gt;(
+    </span><span class="kw">fn </span>get_or_create_intermediate_var&lt;F: AcirField&gt;(
         intermediate_variables: <span class="kw-2">&amp;mut </span>IndexMap&lt;Expression&lt;F&gt;, (F, Witness)&gt;,
         expr: Expression&lt;F&gt;,
         num_witness: <span class="kw-2">&amp;mut </span>u32,
@@ -794,6 +831,10 @@
 
         <span class="kw">if </span>intermediate_variables.contains_key(<span class="kw-2">&amp;</span>normalized_expr) {
             <span class="kw">let </span>(l, iv) = intermediate_variables[<span class="kw-2">&amp;</span>normalized_expr];
+            <span class="macro">assert!</span>(
+                l != F::zero(),
+                <span class="string">"get_or_create_intermediate_var: attempting to divide l by F::zero()"
+            </span>);
             (k / l, iv)
         } <span class="kw">else </span>{
             <span class="kw">let </span>inter_var = Witness(<span class="kw-2">*</span>num_witness);
@@ -813,7 +854,7 @@
     // One thing to note is that the multiplication wires do not match any of the fan-in/out wires. This is guaranteed as we have
     // just completed the full opcode optimization algorithm.
     //
-    //Actually we can optimize in two ways here: We can create an intermediate variable which is equal to the fan-in terms
+    // Actually we can optimize in two ways here: We can create an intermediate variable which is equal to the fan-in terms
     // t = qL1 * wL3 + qR1 * wR4 -&gt; width = 3
     // This `t` value can only use width - 1 terms
     // The opcode now looks like: qM1 * wL1 * wR2 + t + qR2 * wR5+ qO1 * wO5 + qC
@@ -830,7 +871,7 @@
     // Same Example: qM1 * wL1 * wR2 + qL1 * wL3 + qR1 * wR4+ qR2 * wR5 + qO1 * wO5 + qC
     // t = qM1 * wL1 * wR2
     // The opcode now looks like: t + qL1 * wL3 + qR1 * wR4+ qR2 * wR5 + qO1 * wO5 + qC
-    // Still assuming width3, we still need to use width-1 terms for the intermediate variables, however we can stop at an earlier stage because
+    // Still assuming width-3, we still need to use width-1 terms for the intermediate variables, however we can stop at an earlier stage because
     // the opcode does not need the multiplier term to match with any of the fan-in terms
     // t2 = t + qL1 * wL3
     // The opcode now looks like: t2 + qR1 * wR4+ qR2 * wR5 + qO1 * wO5 + qC
@@ -856,28 +897,26 @@
             <span class="kw">return </span>opcode;
         }
 
-        <span class="comment">// 2. Create Intermediate variables for the multiplication opcodes
+        <span class="comment">// Create Intermediate variables for the multiplication opcodes
         </span><span class="kw">let </span><span class="kw-2">mut </span>remaining_mul_terms = Vec::with_capacity(opcode.mul_terms.len());
-        <span class="kw">for </span>mul_term <span class="kw">in </span>opcode.mul_terms {
-            <span class="kw">if </span><span class="self">self</span>.solvable_witness.contains(<span class="kw-2">&amp;</span>mul_term.<span class="number">1</span>)
-                &amp;&amp; <span class="self">self</span>.solvable_witness.contains(<span class="kw-2">&amp;</span>mul_term.<span class="number">2</span>)
-            {
+        <span class="kw">for </span>(scale, w_l, w_r) <span class="kw">in </span>opcode.mul_terms {
+            <span class="kw">if </span><span class="self">self</span>.solvable_witness.contains(<span class="kw-2">&amp;</span>w_l) &amp;&amp; <span class="self">self</span>.solvable_witness.contains(<span class="kw-2">&amp;</span>w_r) {
                 <span class="kw">let </span><span class="kw-2">mut </span>intermediate_opcode = Expression::default();
 
                 <span class="comment">// Push mul term into the opcode
-                </span>intermediate_opcode.mul_terms.push(mul_term);
+                </span>intermediate_opcode.mul_terms.push((scale, w_l, w_r));
                 <span class="comment">// Get an intermediate variable which squashes the multiplication term
-                </span><span class="kw">let </span>inter_var = <span class="self">Self</span>::get_or_create_intermediate_vars(
+                </span><span class="kw">let </span>intermediate_var = <span class="self">Self</span>::get_or_create_intermediate_var(
                     intermediate_variables,
                     intermediate_opcode,
                     num_witness,
                 );
 
                 <span class="comment">// Add intermediate variable as a part of the fan-in for the original opcode
-                </span>opcode.linear_combinations.push(inter_var);
-                <span class="self">self</span>.mark_solvable(inter_var.<span class="number">1</span>);
+                </span>opcode.linear_combinations.push(intermediate_var);
+                <span class="self">self</span>.mark_solvable(intermediate_var.<span class="number">1</span>);
             } <span class="kw">else </span>{
-                remaining_mul_terms.push(mul_term);
+                remaining_mul_terms.push((scale, w_l, w_r));
             }
         }
 
@@ -894,7 +933,7 @@
 
         <span class="comment">// Stores the intermediate variables that are used to
         // reduce the fan in.
-        </span><span class="kw">let </span><span class="kw-2">mut </span>added = Vec::new();
+        </span><span class="kw">let </span><span class="kw-2">mut </span>added_vars = Vec::new();
 
         <span class="kw">while </span>opcode.linear_combinations.len() &gt; <span class="self">self</span>.width {
             <span class="comment">// Collect as many terms up to the given width-1 and constrain them to an intermediate variable
@@ -914,13 +953,13 @@
             opcode.linear_combinations = remaining_linear_terms;
             <span class="kw">let </span>not_full = intermediate_opcode.linear_combinations.len() &lt; <span class="self">self</span>.width - <span class="number">1</span>;
             <span class="kw">if </span>intermediate_opcode.linear_combinations.len() &gt; <span class="number">1 </span>{
-                <span class="kw">let </span>inter_var = <span class="self">Self</span>::get_or_create_intermediate_vars(
+                <span class="kw">let </span>intermediate_var = <span class="self">Self</span>::get_or_create_intermediate_var(
                     intermediate_variables,
                     intermediate_opcode,
                     num_witness,
                 );
-                <span class="self">self</span>.mark_solvable(inter_var.<span class="number">1</span>);
-                added.push(inter_var);
+                <span class="self">self</span>.mark_solvable(intermediate_var.<span class="number">1</span>);
+                added_vars.push(intermediate_var);
             }
             <span class="comment">// The intermediate opcode is not full, but the opcode still has too many terms
             </span><span class="kw">if </span>not_full &amp;&amp; opcode.linear_combinations.len() &gt; <span class="self">self</span>.width {
@@ -930,7 +969,7 @@
 
         <span class="comment">// Add back the intermediate variables to
         // keep consistency with the original equation.
-        </span>opcode.linear_combinations.extend(added);
+        </span>opcode.linear_combinations.extend(added_vars);
         <span class="self">self</span>.partial_opcode_scan_optimization(opcode, intermediate_variables, num_witness)
     }
 }
@@ -1032,6 +1071,51 @@
         // was being split into two expressions.
         </span><span class="kw">let </span>expr = Expression::from_str(<span class="string">"-555*w8*w10 + w10 + w11 - w13"</span>).unwrap();
         <span class="macro">assert!</span>(fits_in_one_identity(<span class="kw-2">&amp;</span>expr, <span class="number">4</span>));
+    }
+
+    <span class="attr">#[test]
+    #[should_panic(expected = <span class="string">"normalize: the first coefficient is non-invertible"</span>)]
+    </span><span class="kw">fn </span>normalize_on_zero_linear_combination_panics() {
+        <span class="kw">let </span>expr = Expression {
+            mul_terms: <span class="macro">vec!</span>[],
+            linear_combinations: <span class="macro">vec!</span>[(FieldElement::zero(), Witness(<span class="number">0</span>))],
+            q_c: FieldElement::zero(),
+        };
+        CSatTransformer::normalize(expr);
+    }
+
+    <span class="attr">#[test]
+    #[should_panic(expected = <span class="string">"normalize: the first coefficient is non-invertible"</span>)]
+    </span><span class="kw">fn </span>normalize_on_zero_mul_term_scale_panics() {
+        <span class="kw">let </span>expr = Expression {
+            mul_terms: <span class="macro">vec!</span>[(FieldElement::zero(), Witness(<span class="number">0</span>), Witness(<span class="number">1</span>))],
+            linear_combinations: <span class="macro">vec!</span>[],
+            q_c: FieldElement::zero(),
+        };
+        CSatTransformer::normalize(expr);
+    }
+
+    <span class="attr">#[test]
+    #[should_panic(
+        expected = <span class="string">"get_or_create_intermediate_var: attempting to divide l by F::zero()"
+    </span>)]
+    </span><span class="kw">fn </span>get_or_create_intermediate_var_with_zero_panics() {
+        <span class="kw">let </span>expr = Expression {
+            mul_terms: <span class="macro">vec!</span>[(FieldElement::one(), Witness(<span class="number">0</span>), Witness(<span class="number">1</span>))],
+            linear_combinations: <span class="macro">vec!</span>[],
+            q_c: FieldElement::zero(),
+        };
+
+        <span class="kw">let </span><span class="kw-2">mut </span>intermediate_variables = IndexMap::new();
+        intermediate_variables.insert(expr.clone(), (FieldElement::zero(), Witness(<span class="number">0</span>)));
+
+        <span class="kw">let </span><span class="kw-2">mut </span>num_witness = <span class="number">2</span>;
+
+        CSatTransformer::get_or_create_intermediate_var(
+            <span class="kw-2">&amp;mut </span>intermediate_variables,
+            expr,
+            <span class="kw-2">&amp;mut </span>num_witness,
+        );
     }
 }
 </code></pre></div></section></main></body></html>

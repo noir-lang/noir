@@ -117,7 +117,11 @@
 <a href="#116" id="116">116</a>
 <a href="#117" id="117">117</a>
 <a href="#118" id="118">118</a>
-<a href="#119" id="119">119</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{
+<a href="#119" id="119">119</a>
+<a href="#120" id="120">120</a>
+<a href="#121" id="121">121</a>
+<a href="#122" id="122">122</a>
+<a href="#123" id="123">123</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{
     AcirField,
     circuit::{Circuit, Opcode, brillig::BrilligInputs, opcodes::BlockId},
 };
@@ -195,7 +199,7 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
-    <span class="kw">use </span><span class="kw">crate</span>::assert_circuit_snapshot;
+    <span class="kw">use crate</span>::{assert_circuit_snapshot, compiler::CircuitSimulator};
 
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
 
@@ -209,9 +213,11 @@
         ASSERT w0 - w1 - w2 = 0
         "</span>;
         <span class="kw">let </span>circuit = Circuit::from_str(src).unwrap();
+        <span class="macro">assert!</span>(CircuitSimulator::check_circuit(<span class="kw-2">&amp;</span>circuit).is_none());
         <span class="kw">let </span>unused_memory = UnusedMemoryOptimizer::new(circuit);
         <span class="macro">assert_eq!</span>(unused_memory.unused_memory_initializations.len(), <span class="number">1</span>);
         <span class="kw">let </span>(circuit, <span class="kw">_</span>) = unused_memory.remove_unused_memory_initializations(<span class="macro">vec!</span>[<span class="number">0</span>, <span class="number">1</span>]);
+        <span class="macro">assert!</span>(CircuitSimulator::check_circuit(<span class="kw-2">&amp;</span>circuit).is_none());
         <span class="macro">assert_circuit_snapshot!</span>(circuit, @<span class="string">r"
         private parameters: [w0, w1]
         public parameters: []
@@ -230,9 +236,11 @@
         ASSERT w2 = w0 - w1
         "</span>;
         <span class="kw">let </span>circuit = Circuit::from_str(src).unwrap();
+        <span class="macro">assert!</span>(CircuitSimulator::check_circuit(<span class="kw-2">&amp;</span>circuit).is_none());
         <span class="kw">let </span>unused_memory = UnusedMemoryOptimizer::new(circuit.clone());
         <span class="macro">assert_eq!</span>(unused_memory.unused_memory_initializations.len(), <span class="number">1</span>);
         <span class="kw">let </span>(optimized_circuit, <span class="kw">_</span>) = unused_memory.remove_unused_memory_initializations(<span class="macro">vec!</span>[<span class="number">0</span>, <span class="number">1</span>]);
+        <span class="macro">assert!</span>(CircuitSimulator::check_circuit(<span class="kw-2">&amp;</span>optimized_circuit).is_none());
         <span class="macro">assert_eq!</span>(optimized_circuit, circuit);
     }
 }

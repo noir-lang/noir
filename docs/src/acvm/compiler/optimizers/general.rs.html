@@ -208,7 +208,25 @@
 <a href="#207" id="207">207</a>
 <a href="#208" id="208">208</a>
 <a href="#209" id="209">209</a>
-<a href="#210" id="210">210</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{
+<a href="#210" id="210">210</a>
+<a href="#211" id="211">211</a>
+<a href="#212" id="212">212</a>
+<a href="#213" id="213">213</a>
+<a href="#214" id="214">214</a>
+<a href="#215" id="215">215</a>
+<a href="#216" id="216">216</a>
+<a href="#217" id="217">217</a>
+<a href="#218" id="218">218</a>
+<a href="#219" id="219">219</a>
+<a href="#220" id="220">220</a>
+<a href="#221" id="221">221</a>
+<a href="#222" id="222">222</a>
+<a href="#223" id="223">223</a>
+<a href="#224" id="224">224</a>
+<a href="#225" id="225">225</a>
+<a href="#226" id="226">226</a>
+<a href="#227" id="227">227</a>
+<a href="#228" id="228">228</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{
     AcirField,
     native_types::{Expression, Witness},
 };
@@ -223,7 +241,7 @@
 
 <span class="kw">impl </span>GeneralOptimizer {
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>optimize&lt;F: AcirField&gt;(opcode: Expression&lt;F&gt;) -&gt; Expression&lt;F&gt; {
-        <span class="comment">// XXX: Perhaps this optimization can be done on the fly
+        <span class="comment">// TODO(https://github.com/noir-lang/noir/issues/10109): Perhaps this optimization can be done on the fly
         </span><span class="kw">let </span>opcode = simplify_mul_terms(opcode);
         simplify_linear_terms(opcode)
     }
@@ -260,7 +278,7 @@
 </span><span class="kw">fn </span>simplify_linear_terms&lt;F: AcirField&gt;(<span class="kw-2">mut </span>gate: Expression&lt;F&gt;) -&gt; Expression&lt;F&gt; {
     <span class="kw">let </span><span class="kw-2">mut </span>hash_map: IndexMap&lt;Witness, F&gt; = IndexMap::new();
 
-    <span class="comment">// Canonicalize the ordering of the terms, lets just order by variable name
+    <span class="comment">// Canonicalize the ordering of the terms, let's just order by variable name
     </span><span class="kw">for </span>(scale, witness) <span class="kw">in </span>gate.linear_combinations.into_iter() {
         <span class="kw-2">*</span>hash_map.entry(witness).or_insert_with(F::zero) += scale;
     }
@@ -407,6 +425,24 @@
         public parameters: []
         return values: []
         ASSERT w0 + 2*w0 - 3*w0 = 0
+        "</span>;
+        <span class="kw">let </span>circuit = Circuit::from_str(src).unwrap();
+        <span class="kw">let </span>optimized_circuit = optimize(circuit);
+        <span class="macro">assert_circuit_snapshot!</span>(optimized_circuit, @<span class="string">r"
+        private parameters: [w0, w1]
+        public parameters: []
+        return values: []
+        ASSERT 0 = 0
+        "</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>simplify_mul_terms_example() {
+        <span class="kw">let </span>src = <span class="string">"
+        private parameters: [w0, w1]
+        public parameters: []
+        return values: []
+        ASSERT 0*w1*w1 + 2*w2*w1 - w2*w1 - w1*w2 = 0
         "</span>;
         <span class="kw">let </span>circuit = Circuit::from_str(src).unwrap();
         <span class="kw">let </span>optimized_circuit = optimize(circuit);

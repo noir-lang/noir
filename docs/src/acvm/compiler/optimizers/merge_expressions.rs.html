@@ -405,7 +405,27 @@
 <a href="#404" id="404">404</a>
 <a href="#405" id="405">405</a>
 <a href="#406" id="406">406</a>
-<a href="#407" id="407">407</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet, HashMap};
+<a href="#407" id="407">407</a>
+<a href="#408" id="408">408</a>
+<a href="#409" id="409">409</a>
+<a href="#410" id="410">410</a>
+<a href="#411" id="411">411</a>
+<a href="#412" id="412">412</a>
+<a href="#413" id="413">413</a>
+<a href="#414" id="414">414</a>
+<a href="#415" id="415">415</a>
+<a href="#416" id="416">416</a>
+<a href="#417" id="417">417</a>
+<a href="#418" id="418">418</a>
+<a href="#419" id="419">419</a>
+<a href="#420" id="420">420</a>
+<a href="#421" id="421">421</a>
+<a href="#422" id="422">422</a>
+<a href="#423" id="423">423</a>
+<a href="#424" id="424">424</a>
+<a href="#425" id="425">425</a>
+<a href="#426" id="426">426</a>
+<a href="#427" id="427">427</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet, HashMap};
 
 <span class="kw">use </span>acir::{
     AcirField,
@@ -433,11 +453,12 @@
             deleted_gates: BTreeSet::new(),
         }
     }
+
     <span class="doccomment">/// This pass analyzes the circuit and identifies intermediate variables that are
     /// only used in two AssertZero opcodes. It then merges the opcode which produces the
     /// intermediate variable into the second one that uses it
     ///
-    /// The first pass maps witnesses to the index of the opcodes using them.
+    /// The first pass maps witnesses to the indices of the opcodes using them.
     /// Public inputs are not considered because they cannot be simplified.
     /// Witnesses used by MemoryInit opcodes are put in a separate map and marked as used by a Brillig call
     /// if the memory block is an input to the call.
@@ -455,12 +476,11 @@
     /// Then we will remove the first one and modify the second one like this:
     /// 2*w3*w4 + w4 - w2 - 1/2*w3 - 1/2*w2*w3 = 0
     ///
-    /// This transformation is relevant for Plonk-ish backends although they have a limited width because
-    /// they can potentially handle expressions with large linear combinations using 'big-add' gates.
-    ///
     /// Pre-condition:
-    /// - This pass is only relevant for backends that can handle unlimited width
-    /// - CSAT pass should have been run prior to this one.
+    /// - This pass is relevant for backends that can handle unlimited width and
+    ///   Plonk-ish backends. Although they have a limited width, they can potentially
+    ///   handle expressions with large linear combinations using 'big-add' gates.
+    /// - The CSAT pass should have been run prior to this one.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>eliminate_intermediate_variable(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         circuit: <span class="kw-2">&amp;</span>Circuit&lt;F&gt;,
@@ -475,7 +495,7 @@
         </span><span class="kw">let </span>circuit_io: BTreeSet&lt;Witness&gt; =
             circuit.circuit_arguments().union(<span class="kw-2">&amp;</span>circuit.public_inputs().<span class="number">0</span>).cloned().collect();
 
-        <span class="kw">let </span><span class="kw-2">mut </span>used_witness: BTreeMap&lt;Witness, BTreeSet&lt;usize&gt;&gt; = BTreeMap::new();
+        <span class="kw">let </span><span class="kw-2">mut </span>used_witnesses: BTreeMap&lt;Witness, BTreeSet&lt;usize&gt;&gt; = BTreeMap::new();
         <span class="kw">for </span>(i, opcode) <span class="kw">in </span>circuit.opcodes.iter().enumerate() {
             <span class="kw">let </span>witnesses = <span class="self">self</span>.witness_inputs(opcode);
             <span class="kw">if let </span>Opcode::MemoryInit { block_id, .. } = opcode {
@@ -484,40 +504,38 @@
             <span class="kw">for </span>w <span class="kw">in </span>witnesses {
                 <span class="comment">// We do not simplify circuit inputs and outputs
                 </span><span class="kw">if </span>!circuit_io.contains(<span class="kw-2">&amp;</span>w) {
-                    used_witness.entry(w).or_default().insert(i);
+                    used_witnesses.entry(w).or_default().insert(i);
                 }
             }
         }
 
         <span class="comment">// For each opcode, try to get a target opcode to merge with
-        </span><span class="kw">for </span>(i, opcode) <span class="kw">in </span>circuit.opcodes.iter().enumerate() {
+        </span><span class="kw">for </span>(op1, opcode) <span class="kw">in </span>circuit.opcodes.iter().enumerate() {
             <span class="kw">if </span>!<span class="macro">matches!</span>(opcode, Opcode::AssertZero(<span class="kw">_</span>)) {
                 <span class="kw">continue</span>;
             }
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(opcode) = <span class="self">self</span>.get_opcode(i, circuit) {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(opcode) = <span class="self">self</span>.get_opcode(op1, circuit) {
                 <span class="kw">let </span>input_witnesses = <span class="self">self</span>.witness_inputs(<span class="kw-2">&amp;</span>opcode);
                 <span class="kw">for </span>w <span class="kw">in </span>input_witnesses {
-                    <span class="kw">let </span><span class="prelude-val">Some</span>(gates_using_w) = used_witness.get(<span class="kw-2">&amp;</span>w) <span class="kw">else </span>{
+                    <span class="kw">let </span><span class="prelude-val">Some</span>(gates_using_w) = used_witnesses.get(<span class="kw-2">&amp;</span>w) <span class="kw">else </span>{
                         <span class="kw">continue</span>;
                     };
                     <span class="comment">// We only consider witness which are used in exactly two arithmetic gates
                     </span><span class="kw">if </span>gates_using_w.len() == <span class="number">2 </span>{
                         <span class="kw">let </span>first = <span class="kw-2">*</span>gates_using_w.first().expect(<span class="string">"gates_using_w.len == 2"</span>);
                         <span class="kw">let </span>second = <span class="kw-2">*</span>gates_using_w.last().expect(<span class="string">"gates_using_w.len == 2"</span>);
-                        <span class="kw">let </span>b = <span class="kw">if </span>second == i {
+                        <span class="kw">let </span>op2 = <span class="kw">if </span>second == op1 {
                             first
                         } <span class="kw">else </span>{
                             <span class="comment">// sanity check
-                            </span><span class="macro">assert!</span>(i == first);
+                            </span><span class="macro">assert!</span>(op1 == first);
                             second
                         };
+
                         <span class="comment">// Merge the opcode with smaller index into the other one
-                        // by updating modified_gates/deleted_gates/used_witness
+                        // by updating modified_gates/deleted_gates/used_witnesses
                         // returns false if it could not merge them
-                        </span><span class="kw">let </span><span class="kw-2">mut </span>merge_opcodes = |op1, op2| -&gt; bool {
-                            <span class="kw">if </span>op1 == op2 {
-                                <span class="kw">return </span><span class="bool-val">false</span>;
-                            }
+                        </span><span class="kw">if </span>op1 != op2 {
                             <span class="kw">let </span>(source, target) = <span class="kw">if </span>op1 &lt; op2 { (op1, op2) } <span class="kw">else </span>{ (op2, op1) };
                             <span class="kw">let </span>source_opcode = <span class="self">self</span>.get_opcode(source, circuit);
                             <span class="kw">let </span>target_opcode = <span class="self">self</span>.get_opcode(target, circuit);
@@ -532,29 +550,24 @@
                                 {
                                     <span class="self">self</span>.modified_gates.insert(target, Opcode::AssertZero(expr));
                                     <span class="self">self</span>.deleted_gates.insert(source);
-                                    <span class="comment">// Update the 'used_witness' map to account for the merge.
-                                    </span><span class="kw">let </span>witness_list = CircuitSimulator::expr_wit(<span class="kw-2">&amp;</span>expr_use);
+                                    <span class="comment">// Update the 'used_witnesses' map to account for the merge.
+                                    </span><span class="kw">let </span>witness_list = CircuitSimulator::expr_witness(<span class="kw-2">&amp;</span>expr_use);
                                     <span class="kw">let </span>witness_list = witness_list
-                                        .chain(CircuitSimulator::expr_wit(<span class="kw-2">&amp;</span>expr_define));
+                                        .chain(CircuitSimulator::expr_witness(<span class="kw-2">&amp;</span>expr_define));
 
                                     <span class="kw">for </span>w2 <span class="kw">in </span>witness_list {
                                         <span class="kw">if </span>!circuit_io.contains(<span class="kw-2">&amp;</span>w2) {
-                                            used_witness.entry(w2).and_modify(|v| {
+                                            used_witnesses.entry(w2).and_modify(|v| {
                                                 v.insert(target);
                                                 v.remove(<span class="kw-2">&amp;</span>source);
                                             });
                                         }
                                     }
-                                    <span class="kw">return </span><span class="bool-val">true</span>;
+                                    <span class="comment">// We need to stop here and continue with the next opcode
+                                    // because the merge invalidates the current opcode.
+                                    </span><span class="kw">break</span>;
                                 }
                             }
-                            <span class="bool-val">false
-                        </span>};
-
-                        <span class="kw">if </span>merge_opcodes(b, i) {
-                            <span class="comment">// We need to stop here and continue with the next opcode
-                            // because the merge invalidates the current opcode.
-                            </span><span class="kw">break</span>;
                         }
                     }
                 }
@@ -566,24 +579,24 @@
         <span class="kw">let </span><span class="kw-2">mut </span>new_acir_opcode_positions = Vec::new();
 
         <span class="kw">for </span>(i, opcode_position) <span class="kw">in </span>acir_opcode_positions.iter().enumerate() {
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(op) = <span class="self">self</span>.get_opcode(i, circuit) {
-                new_circuit.push(op);
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(opcode) = <span class="self">self</span>.get_opcode(i, circuit) {
+                new_circuit.push(opcode);
                 new_acir_opcode_positions.push(<span class="kw-2">*</span>opcode_position);
             }
         }
         (new_circuit, new_acir_opcode_positions)
     }
 
-    <span class="kw">fn </span>for_each_brillig_input_wit(<span class="kw-2">&amp;</span><span class="self">self</span>, input: <span class="kw-2">&amp;</span>BrilligInputs&lt;F&gt;, <span class="kw-2">mut </span>f: <span class="kw">impl </span>FnMut(Witness)) {
+    <span class="kw">fn </span>for_each_brillig_input_witness(<span class="kw-2">&amp;</span><span class="self">self</span>, input: <span class="kw-2">&amp;</span>BrilligInputs&lt;F&gt;, <span class="kw-2">mut </span>f: <span class="kw">impl </span>FnMut(Witness)) {
         <span class="kw">match </span>input {
             BrilligInputs::Single(expr) =&gt; {
-                <span class="kw">for </span>witness <span class="kw">in </span>CircuitSimulator::expr_wit(expr) {
+                <span class="kw">for </span>witness <span class="kw">in </span>CircuitSimulator::expr_witness(expr) {
                     f(witness);
                 }
             }
             BrilligInputs::Array(exprs) =&gt; {
                 <span class="kw">for </span>expr <span class="kw">in </span>exprs {
-                    <span class="kw">for </span>witness <span class="kw">in </span>CircuitSimulator::expr_wit(expr) {
+                    <span class="kw">for </span>witness <span class="kw">in </span>CircuitSimulator::expr_witness(expr) {
                         f(witness);
                     }
                 }
@@ -596,7 +609,7 @@
         }
     }
 
-    <span class="kw">fn </span>for_each_brillig_output_wit(<span class="kw-2">&amp;</span><span class="self">self</span>, output: <span class="kw-2">&amp;</span>BrilligOutputs, <span class="kw-2">mut </span>f: <span class="kw">impl </span>FnMut(Witness)) {
+    <span class="kw">fn </span>for_each_brillig_output_witness(<span class="kw-2">&amp;</span><span class="self">self</span>, output: <span class="kw-2">&amp;</span>BrilligOutputs, <span class="kw-2">mut </span>f: <span class="kw">impl </span>FnMut(Witness)) {
         <span class="kw">match </span>output {
             BrilligOutputs::Simple(witness) =&gt; f(<span class="kw-2">*</span>witness),
             BrilligOutputs::Array(witnesses) =&gt; {
@@ -610,7 +623,7 @@
     <span class="comment">// Returns the input witnesses used by the opcode
     </span><span class="kw">fn </span>witness_inputs(<span class="kw-2">&amp;</span><span class="self">self</span>, opcode: <span class="kw-2">&amp;</span>Opcode&lt;F&gt;) -&gt; BTreeSet&lt;Witness&gt; {
         <span class="kw">match </span>opcode {
-            Opcode::AssertZero(expr) =&gt; CircuitSimulator::expr_wit(expr).collect(),
+            Opcode::AssertZero(expr) =&gt; CircuitSimulator::expr_witness(expr).collect(),
             Opcode::BlackBoxFuncCall(bb_func) =&gt; {
                 <span class="kw">let </span><span class="kw-2">mut </span>witnesses = bb_func.get_input_witnesses();
                 witnesses.extend(bb_func.get_outputs_vec());
@@ -619,8 +632,8 @@
             }
             Opcode::MemoryOp { block_id: <span class="kw">_</span>, op } =&gt; {
                 <span class="comment">//index and value
-                </span><span class="kw">let </span>witnesses = CircuitSimulator::expr_wit(<span class="kw-2">&amp;</span>op.index);
-                witnesses.chain(CircuitSimulator::expr_wit(<span class="kw-2">&amp;</span>op.value)).collect()
+                </span><span class="kw">let </span>witnesses = CircuitSimulator::expr_witness(<span class="kw-2">&amp;</span>op.index);
+                witnesses.chain(CircuitSimulator::expr_witness(<span class="kw-2">&amp;</span>op.value)).collect()
             }
 
             Opcode::MemoryInit { block_id: <span class="kw">_</span>, init, block_type: <span class="kw">_ </span>} =&gt; {
@@ -629,12 +642,12 @@
             Opcode::BrilligCall { inputs, outputs, .. } =&gt; {
                 <span class="kw">let </span><span class="kw-2">mut </span>witnesses = BTreeSet::new();
                 <span class="kw">for </span>i <span class="kw">in </span>inputs {
-                    <span class="self">self</span>.for_each_brillig_input_wit(i, |witness| {
+                    <span class="self">self</span>.for_each_brillig_input_witness(i, |witness| {
                         witnesses.insert(witness);
                     });
                 }
                 <span class="kw">for </span>i <span class="kw">in </span>outputs {
-                    <span class="self">self</span>.for_each_brillig_output_wit(i, |witness| {
+                    <span class="self">self</span>.for_each_brillig_output_witness(i, |witness| {
                         witnesses.insert(witness);
                     });
                 }
@@ -645,7 +658,7 @@
                 witnesses.extend(outputs);
 
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(p) = predicate {
-                    witnesses.extend(CircuitSimulator::expr_wit(p));
+                    witnesses.extend(CircuitSimulator::expr_witness(p));
                 }
                 witnesses
             }
@@ -657,24 +670,28 @@
     </span><span class="kw">fn </span>merge_expression(
         target: <span class="kw-2">&amp;</span>Expression&lt;F&gt;,
         expr: <span class="kw-2">&amp;</span>Expression&lt;F&gt;,
-        w: Witness,
+        witness: Witness,
     ) -&gt; <span class="prelude-ty">Option</span>&lt;Expression&lt;F&gt;&gt; {
         <span class="comment">// Check that the witness is not part of multiplication terms
         </span><span class="kw">for </span>m <span class="kw">in </span><span class="kw-2">&amp;</span>target.mul_terms {
-            <span class="kw">if </span>m.<span class="number">1 </span>== w || m.<span class="number">2 </span>== w {
+            <span class="kw">if </span>m.<span class="number">1 </span>== witness || m.<span class="number">2 </span>== witness {
                 <span class="kw">return </span><span class="prelude-val">None</span>;
             }
         }
         <span class="kw">for </span>m <span class="kw">in </span><span class="kw-2">&amp;</span>expr.mul_terms {
-            <span class="kw">if </span>m.<span class="number">1 </span>== w || m.<span class="number">2 </span>== w {
+            <span class="kw">if </span>m.<span class="number">1 </span>== witness || m.<span class="number">2 </span>== witness {
                 <span class="kw">return </span><span class="prelude-val">None</span>;
             }
         }
 
         <span class="kw">for </span>k <span class="kw">in </span><span class="kw-2">&amp;</span>target.linear_combinations {
-            <span class="kw">if </span>k.<span class="number">1 </span>== w {
+            <span class="kw">if </span>k.<span class="number">1 </span>== witness {
                 <span class="kw">for </span>i <span class="kw">in </span><span class="kw-2">&amp;</span>expr.linear_combinations {
-                    <span class="kw">if </span>i.<span class="number">1 </span>== w {
+                    <span class="kw">if </span>i.<span class="number">1 </span>== witness {
+                        <span class="macro">assert!</span>(
+                            i.<span class="number">0 </span>!= F::zero(),
+                            <span class="string">"merge_expression: attempting to divide k.0 by F::zero"
+                        </span>);
                         <span class="kw">let </span>expr = target.add_mul(-(k.<span class="number">0 </span>/ i.<span class="number">0</span>), expr);
                         <span class="kw">let </span>expr = GeneralOptimizer::optimize(expr);
                         <span class="kw">return </span><span class="prelude-val">Some</span>(expr);
@@ -685,15 +702,15 @@
         <span class="prelude-val">None
     </span>}
 
-    <span class="doccomment">/// Returns the 'updated' opcode at index 'g' in the circuit
+    <span class="doccomment">/// Returns the 'updated' opcode at the given index in the circuit
     /// The modifications to the circuits are stored with 'deleted_gates' and 'modified_gates'
     /// These structures are used to give the 'updated' opcode.
     /// For instance, if the opcode has been deleted inside 'deleted_gates', then it returns None.
-    </span><span class="kw">fn </span>get_opcode(<span class="kw-2">&amp;</span><span class="self">self</span>, g: usize, circuit: <span class="kw-2">&amp;</span>Circuit&lt;F&gt;) -&gt; <span class="prelude-ty">Option</span>&lt;Opcode&lt;F&gt;&gt; {
-        <span class="kw">if </span><span class="self">self</span>.deleted_gates.contains(<span class="kw-2">&amp;</span>g) {
+    </span><span class="kw">fn </span>get_opcode(<span class="kw-2">&amp;</span><span class="self">self</span>, index: usize, circuit: <span class="kw-2">&amp;</span>Circuit&lt;F&gt;) -&gt; <span class="prelude-ty">Option</span>&lt;Opcode&lt;F&gt;&gt; {
+        <span class="kw">if </span><span class="self">self</span>.deleted_gates.contains(<span class="kw-2">&amp;</span>index) {
             <span class="kw">return </span><span class="prelude-val">None</span>;
         }
-        <span class="self">self</span>.modified_gates.get(<span class="kw-2">&amp;</span>g).or(circuit.opcodes.get(g)).cloned()
+        <span class="self">self</span>.modified_gates.get(<span class="kw-2">&amp;</span>index).or(circuit.opcodes.get(index)).cloned()
     }
 }
 
@@ -703,10 +720,14 @@
         assert_circuit_snapshot,
         compiler::{CircuitSimulator, optimizers::MergeExpressionsOptimizer},
     };
-    <span class="kw">use </span>acir::{FieldElement, circuit::Circuit};
+    <span class="kw">use </span>acir::{
+        AcirField, FieldElement,
+        circuit::Circuit,
+        native_types::{Expression, Witness},
+    };
 
     <span class="kw">fn </span>merge_expressions(circuit: Circuit&lt;FieldElement&gt;) -&gt; Circuit&lt;FieldElement&gt; {
-        <span class="macro">assert!</span>(CircuitSimulator::default().check_circuit(<span class="kw-2">&amp;</span>circuit).is_none());
+        <span class="macro">assert!</span>(CircuitSimulator::check_circuit(<span class="kw-2">&amp;</span>circuit).is_none());
         <span class="kw">let </span><span class="kw-2">mut </span>merge_optimizer = MergeExpressionsOptimizer::new();
         <span class="kw">let </span>acir_opcode_positions = <span class="macro">vec!</span>[<span class="number">0</span>; <span class="number">20</span>];
         <span class="kw">let </span>(opcodes, <span class="kw">_</span>) =
@@ -715,7 +736,7 @@
         optimized_circuit.opcodes = opcodes;
 
         <span class="comment">// check that the circuit is still valid after optimization
-        </span><span class="macro">assert!</span>(CircuitSimulator::default().check_circuit(<span class="kw-2">&amp;</span>optimized_circuit).is_none());
+        </span><span class="macro">assert!</span>(CircuitSimulator::check_circuit(<span class="kw-2">&amp;</span>optimized_circuit).is_none());
         optimized_circuit
     }
 
@@ -810,6 +831,25 @@
         <span class="kw">let </span>circuit = Circuit::from_str(src).unwrap();
         <span class="kw">let </span>optimized_circuit = merge_expressions(circuit.clone());
         <span class="macro">assert_eq!</span>(circuit, optimized_circuit);
+    }
+
+    <span class="attr">#[test]
+    #[should_panic(expected = <span class="string">"merge_expression: attempting to divide k.0 by F::zero"</span>)]
+    </span><span class="kw">fn </span>merge_expression_on_zero_linear_combination_panics() {
+        <span class="kw">let </span>opcode_a = Expression {
+            mul_terms: <span class="macro">vec!</span>[],
+            linear_combinations: <span class="macro">vec!</span>[(FieldElement::one(), Witness(<span class="number">0</span>))],
+            q_c: FieldElement::zero(),
+        };
+        <span class="kw">let </span>opcode_b = Expression {
+            mul_terms: <span class="macro">vec!</span>[],
+            linear_combinations: <span class="macro">vec!</span>[(FieldElement::zero(), Witness(<span class="number">0</span>))],
+            q_c: FieldElement::zero(),
+        };
+        <span class="macro">assert_eq!</span>(
+            MergeExpressionsOptimizer::merge_expression(<span class="kw-2">&amp;</span>opcode_a, <span class="kw-2">&amp;</span>opcode_b, Witness(<span class="number">0</span>),),
+            <span class="prelude-val">Some</span>(opcode_a)
+        );
     }
 }
 </code></pre></div></section></main></body></html>

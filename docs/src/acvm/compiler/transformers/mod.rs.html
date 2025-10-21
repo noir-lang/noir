@@ -522,33 +522,165 @@
 <a href="#521" id="521">521</a>
 <a href="#522" id="522">522</a>
 <a href="#523" id="523">523</a>
-<a href="#524" id="524">524</a></pre></div><pre class="rust"><code><span class="doccomment">/// This module applies backend specific transformation to a [`Circuit`].
+<a href="#524" id="524">524</a>
+<a href="#525" id="525">525</a>
+<a href="#526" id="526">526</a>
+<a href="#527" id="527">527</a>
+<a href="#528" id="528">528</a>
+<a href="#529" id="529">529</a>
+<a href="#530" id="530">530</a>
+<a href="#531" id="531">531</a>
+<a href="#532" id="532">532</a>
+<a href="#533" id="533">533</a>
+<a href="#534" id="534">534</a>
+<a href="#535" id="535">535</a>
+<a href="#536" id="536">536</a>
+<a href="#537" id="537">537</a>
+<a href="#538" id="538">538</a>
+<a href="#539" id="539">539</a>
+<a href="#540" id="540">540</a>
+<a href="#541" id="541">541</a>
+<a href="#542" id="542">542</a>
+<a href="#543" id="543">543</a>
+<a href="#544" id="544">544</a>
+<a href="#545" id="545">545</a>
+<a href="#546" id="546">546</a>
+<a href="#547" id="547">547</a>
+<a href="#548" id="548">548</a>
+<a href="#549" id="549">549</a>
+<a href="#550" id="550">550</a>
+<a href="#551" id="551">551</a>
+<a href="#552" id="552">552</a>
+<a href="#553" id="553">553</a>
+<a href="#554" id="554">554</a>
+<a href="#555" id="555">555</a>
+<a href="#556" id="556">556</a>
+<a href="#557" id="557">557</a>
+<a href="#558" id="558">558</a>
+<a href="#559" id="559">559</a>
+<a href="#560" id="560">560</a>
+<a href="#561" id="561">561</a>
+<a href="#562" id="562">562</a>
+<a href="#563" id="563">563</a>
+<a href="#564" id="564">564</a>
+<a href="#565" id="565">565</a>
+<a href="#566" id="566">566</a>
+<a href="#567" id="567">567</a>
+<a href="#568" id="568">568</a>
+<a href="#569" id="569">569</a>
+<a href="#570" id="570">570</a>
+<a href="#571" id="571">571</a>
+<a href="#572" id="572">572</a>
+<a href="#573" id="573">573</a>
+<a href="#574" id="574">574</a>
+<a href="#575" id="575">575</a>
+<a href="#576" id="576">576</a>
+<a href="#577" id="577">577</a>
+<a href="#578" id="578">578</a>
+<a href="#579" id="579">579</a>
+<a href="#580" id="580">580</a>
+<a href="#581" id="581">581</a>
+<a href="#582" id="582">582</a>
+<a href="#583" id="583">583</a>
+<a href="#584" id="584">584</a>
+<a href="#585" id="585">585</a>
+<a href="#586" id="586">586</a>
+<a href="#587" id="587">587</a>
+<a href="#588" id="588">588</a>
+<a href="#589" id="589">589</a>
+<a href="#590" id="590">590</a>
+<a href="#591" id="591">591</a>
+<a href="#592" id="592">592</a>
+<a href="#593" id="593">593</a>
+<a href="#594" id="594">594</a>
+<a href="#595" id="595">595</a>
+<a href="#596" id="596">596</a>
+<a href="#597" id="597">597</a>
+<a href="#598" id="598">598</a>
+<a href="#599" id="599">599</a>
+<a href="#600" id="600">600</a>
+<a href="#601" id="601">601</a>
+<a href="#602" id="602">602</a>
+<a href="#603" id="603">603</a>
+<a href="#604" id="604">604</a>
+<a href="#605" id="605">605</a>
+<a href="#606" id="606">606</a>
+<a href="#607" id="607">607</a>
+<a href="#608" id="608">608</a>
+<a href="#609" id="609">609</a>
+<a href="#610" id="610">610</a>
+<a href="#611" id="611">611</a>
+<a href="#612" id="612">612</a>
+<a href="#613" id="613">613</a>
+<a href="#614" id="614">614</a>
+<a href="#615" id="615">615</a>
+<a href="#616" id="616">616</a>
+<a href="#617" id="617">617</a>
+<a href="#618" id="618">618</a>
+<a href="#619" id="619">619</a>
+<a href="#620" id="620">620</a>
+<a href="#621" id="621">621</a>
+<a href="#622" id="622">622</a>
+<a href="#623" id="623">623</a>
+<a href="#624" id="624">624</a>
+<a href="#625" id="625">625</a>
+<a href="#626" id="626">626</a>
+<a href="#627" id="627">627</a>
+<a href="#628" id="628">628</a>
+<a href="#629" id="629">629</a>
+<a href="#630" id="630">630</a>
+<a href="#631" id="631">631</a>
+<a href="#632" id="632">632</a>
+<a href="#633" id="633">633</a>
+<a href="#634" id="634">634</a>
+<a href="#635" id="635">635</a>
+<a href="#636" id="636">636</a>
+<a href="#637" id="637">637</a>
+<a href="#638" id="638">638</a>
+<a href="#639" id="639">639</a>
+<a href="#640" id="640">640</a>
+<a href="#641" id="641">641</a>
+<a href="#642" id="642">642</a>
+<a href="#643" id="643">643</a>
+<a href="#644" id="644">644</a>
+<a href="#645" id="645">645</a>
+<a href="#646" id="646">646</a>
+<a href="#647" id="647">647</a>
+<a href="#648" id="648">648</a>
+<a href="#649" id="649">649</a>
+<a href="#650" id="650">650</a>
+<a href="#651" id="651">651</a>
+<a href="#652" id="652">652</a>
+<a href="#653" id="653">653</a>
+<a href="#654" id="654">654</a></pre></div><pre class="rust"><code><span class="doccomment">/// This module applies backend specific transformations to a [`Circuit`].
 ///
-/// ## CSAT: transforms AssertZero opcodes into  AssertZero opcodes having the required width.
+/// ## CSAT: transforms AssertZero opcodes into AssertZero opcodes having the required width.
 ///
 /// For instance, if the width is 4, the AssertZero opcode x1 + x2 + x3 + x4 + x5 - y = 0 will be transformed using 2 intermediate variables (z1,z2):
 /// x1 + x2 + x3 = z1
 /// x4 + x5 = z2
 /// z1 + z2 - y = 0
-/// If x1,..x5 are inputs to the program, they are taggeg as 'solvable', and would be used to compute the value of y.
-/// If we generate the intermediate variable x4 + x5 - y = z3, we get an unsolvable circuit because this AssertZero opcode will have two unkwnon values: y and z3
-/// So the CSAT transformation keep track of which witness would be solved for each opcode in order to only generate solvable intermediat variables.
+/// If x1,..x5 are inputs to the program, they are tagged as 'solvable', and would be used to compute the value of y.
+/// If we generate the intermediate variable x4 + x5 - y = z3, we get an unsolvable circuit because this AssertZero opcode will have two unknown values: y and z3
+/// So the CSAT transformation keeps track of which witnesses would be solved for each opcode in order to only generate solvable intermediate variables.
 ///
-/// ## eliminate intermediate variables
+/// ## Eliminate intermediate variables
+///
 /// The 'eliminate intermediate variables' pass will remove any intermediate variables (for instance created by the previous transformation)
 /// that are used in exactly two AssertZero opcodes.
 /// This results in arithmetic opcodes having linear combinations of potentially large width.
-/// For instance if the intermediate variable is z1 is only used in y:
-/// z1 = x1 + x2 +x3
+/// For instance if the intermediate variable is z1 and is only used in y:
+/// z1 = x1 + x2 + x3
 /// y = z1 + x4
 /// We remove it, undoing the work done during the CSAT transformation: y = x1 + x2 + x3 + x4
 ///
 /// We do this because the backend is expected to handle linear combinations of 'unbounded width' in a more efficient way
 /// than the 'CSAT transformation'.
-/// However, it is worth to compute intermediate variables if they are used in more than one other opcode.
+/// However, it is worthwhile to compute intermediate variables if they are used in more than one other opcode.
 ///
 /// ## redundant_range
-/// The 'range optimization' pass, from the optimizers module will remove any redundant range opcodes again.
+///
+/// The 'range optimization' pass, from the optimizers module, will remove any redundant range opcodes.
 </span><span class="kw">use </span>std::collections::BTreeMap;
 
 <span class="kw">use </span>acir::{
@@ -575,22 +707,32 @@
     transform_assert_messages,
 };
 
-<span class="doccomment">/// We need multiple passes to stabilize the output.
-/// The value was determined by running tests.
-</span><span class="kw">const </span>MAX_TRANSFORMER_PASSES: usize = <span class="number">3</span>;
+<span class="doccomment">/// We use multiple passes to stabilize the output in many cases
+</span><span class="kw">const </span>DEFAULT_MAX_TRANSFORMER_PASSES: usize = <span class="number">3</span>;
 
 <span class="doccomment">/// Applies backend specific optimizations to a [`Circuit`].
+///
+/// Pre-Conditions:
+/// - General Optimizer must run before this pass,
+///   when max_transformer_passes_or_default.unwrap_or(DEFAULT_MAX_TRANSFORMER_PASSES) is greater than 0
+/// - `expression_width` must be at least `MIN_EXPRESSION_WIDTH`, when bounded
 </span><span class="kw">pub fn </span>transform&lt;F: AcirField&gt;(
     acir: Circuit&lt;F&gt;,
     expression_width: ExpressionWidth,
     brillig_side_effects: <span class="kw-2">&amp;</span>BTreeMap&lt;BrilligFunctionId, bool&gt;,
+    max_transformer_passes_or_default: <span class="prelude-ty">Option</span>&lt;usize&gt;,
 ) -&gt; (Circuit&lt;F&gt;, AcirTransformationMap) {
     <span class="comment">// Track original acir opcode positions throughout the transformation passes of the compilation
     // by applying the modifications done to the circuit opcodes and also to the opcode_positions (delete and insert)
     </span><span class="kw">let </span>acir_opcode_positions = acir.opcodes.iter().enumerate().map(|(i, <span class="kw">_</span>)| i).collect();
 
-    <span class="kw">let </span>(<span class="kw-2">mut </span>acir, acir_opcode_positions) =
-        transform_internal(acir, expression_width, acir_opcode_positions, brillig_side_effects);
+    <span class="kw">let </span>(<span class="kw-2">mut </span>acir, acir_opcode_positions, _opcodes_hash_stabilized) = transform_internal(
+        acir,
+        expression_width,
+        acir_opcode_positions,
+        brillig_side_effects,
+        max_transformer_passes_or_default,
+    );
 
     <span class="kw">let </span>transformation_map = AcirTransformationMap::new(<span class="kw-2">&amp;</span>acir_opcode_positions);
 
@@ -604,24 +746,36 @@
 /// Accepts an injected `acir_opcode_positions` to allow transformations to be applied directly after optimizations.
 ///
 /// Does multiple passes until the output stabilizes.
+///
+/// Pre-Conditions:
+/// - General Optimizer must run before this pass,
+///   when max_transformer_passes_or_default.unwrap_or(DEFAULT_MAX_TRANSFORMER_PASSES) is greater than 0
+/// - `expression_width` must be at least `MIN_EXPRESSION_WIDTH`, when bounded
 </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, name = <span class="string">"transform_acir"</span>, skip(acir, acir_opcode_positions))]
 </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>transform_internal&lt;F: AcirField&gt;(
     <span class="kw-2">mut </span>acir: Circuit&lt;F&gt;,
     expression_width: ExpressionWidth,
     <span class="kw-2">mut </span>acir_opcode_positions: Vec&lt;usize&gt;,
     brillig_side_effects: <span class="kw-2">&amp;</span>BTreeMap&lt;BrilligFunctionId, bool&gt;,
-) -&gt; (Circuit&lt;F&gt;, Vec&lt;usize&gt;) {
+    max_transformer_passes_or_default: <span class="prelude-ty">Option</span>&lt;usize&gt;,
+) -&gt; (Circuit&lt;F&gt;, Vec&lt;usize&gt;, bool) {
     <span class="kw">if </span>acir.opcodes.len() == <span class="number">1 </span>&amp;&amp; <span class="macro">matches!</span>(acir.opcodes[<span class="number">0</span>], Opcode::BrilligCall { .. }) {
         <span class="macro">info!</span>(<span class="string">"Program is fully unconstrained, skipping transformation pass"</span>);
-        <span class="kw">return </span>(acir, acir_opcode_positions);
+        <span class="kw">return </span>(acir, acir_opcode_positions, <span class="bool-val">true</span>);
     }
 
     <span class="comment">// Allow multiple passes until we have stable output.
     </span><span class="kw">let </span><span class="kw-2">mut </span>prev_opcodes_hash = rustc_hash::FxBuildHasher.hash_one(<span class="kw-2">&amp;</span>acir.opcodes);
 
+    <span class="comment">// Checking for stable output after MAX_TRANSFORMER_PASSES
+    </span><span class="kw">let </span><span class="kw-2">mut </span>opcodes_hash_stabilized = <span class="bool-val">false</span>;
+
+    <span class="kw">let </span>max_transformer_passes =
+        max_transformer_passes_or_default.unwrap_or(DEFAULT_MAX_TRANSFORMER_PASSES);
+
     <span class="comment">// For most test programs it would be enough to loop here, but some of them
     // don't stabilize unless we also repeat the backend agnostic optimizations.
-    </span><span class="kw">for _ in </span><span class="number">0</span>..MAX_TRANSFORMER_PASSES {
+    </span><span class="kw">for _ in </span><span class="number">0</span>..max_transformer_passes {
         <span class="macro">info!</span>(<span class="string">"Number of opcodes {}"</span>, acir.opcodes.len());
         <span class="kw">let </span>(new_acir, new_acir_opcode_positions) = transform_internal_once(
             acir,
@@ -636,15 +790,17 @@
         <span class="kw">let </span>new_opcodes_hash = rustc_hash::FxBuildHasher.hash_one(<span class="kw-2">&amp;</span>acir.opcodes);
 
         <span class="kw">if </span>new_opcodes_hash == prev_opcodes_hash {
+            opcodes_hash_stabilized = <span class="bool-val">true</span>;
             <span class="kw">break</span>;
         }
         prev_opcodes_hash = new_opcodes_hash;
     }
+
     <span class="comment">// After the elimination of intermediate variables the `current_witness_index` is potentially higher than it needs to be,
     // which would cause gaps if we ran the optimization a second time, making it look like new variables were added.
     </span>acir.current_witness_index = max_witness(<span class="kw-2">&amp;</span>acir).witness_index();
 
-    (acir, acir_opcode_positions)
+    (acir, acir_opcode_positions, opcodes_hash_stabilized)
 }
 
 <span class="doccomment">/// Accepts an injected `acir_opcode_positions` to allow transformations to be applied directly after optimizations.
@@ -653,6 +809,10 @@
 /// If it is bounded, it first performs the 'CSAT transformation' in one pass, by creating intermediate variables when necessary.
 /// Then it performs `eliminate_intermediate_variable()` which (re-)combine intermediate variables used only once.
 /// It concludes with a round of `replace_redundant_ranges()` which removes range checks made redundant by the previous pass.
+///
+/// Pre-Conditions:
+/// - General Optimizer must run before this pass
+/// - `expression_width` must be at least `MIN_EXPRESSION_WIDTH`, when bounded
 </span><span class="attr">#[tracing::instrument(
     level = <span class="string">"trace"</span>,
     name = <span class="string">"transform_acir_once"</span>,
@@ -664,7 +824,12 @@
     acir_opcode_positions: Vec&lt;usize&gt;,
     brillig_side_effects: <span class="kw-2">&amp;</span>BTreeMap&lt;BrilligFunctionId, bool&gt;,
 ) -&gt; (Circuit&lt;F&gt;, Vec&lt;usize&gt;) {
-    <span class="comment">// If the expression width is unbounded, we don't need to do anything.
+    <span class="comment">// 1. CSAT transformation
+    // Process each opcode in the circuit by marking the solvable witnesses and transforming the AssertZero opcodes
+    // to the required width by creating intermediate variables.
+    // Knowing if a witness is solvable avoids creating un-solvable intermediate variables.
+
+    // If the expression width is unbounded, we don't need to do anything.
     </span><span class="kw">let </span><span class="kw-2">mut </span>transformer = <span class="kw">match </span><span class="kw-2">&amp;</span>expression_width {
         ExpressionWidth::Unbounded =&gt; {
             <span class="kw">return </span>(acir, acir_opcode_positions);
@@ -678,19 +843,14 @@
         }
     };
 
-    <span class="comment">// 1. CSAT transformation
-    // Process each opcode in the circuit by marking the solvable witnesses and transforming the AssertZero opcodes
-    // to the required width by creating intermediate variables.
-    // Knowing if a witness is solvable avoids creating un-solvable intermediate variables.
-
-    </span><span class="kw">let </span><span class="kw-2">mut </span>new_acir_opcode_positions: Vec&lt;usize&gt; = Vec::with_capacity(acir_opcode_positions.len());
+    <span class="kw">let </span><span class="kw-2">mut </span>new_acir_opcode_positions: Vec&lt;usize&gt; = Vec::with_capacity(acir_opcode_positions.len());
     <span class="comment">// Optimize the assert-zero gates by reducing them into the correct width and
     // creating intermediate variables when necessary
     </span><span class="kw">let </span><span class="kw-2">mut </span>transformed_opcodes = Vec::new();
 
     <span class="kw">let </span><span class="kw-2">mut </span>next_witness_index = acir.current_witness_index + <span class="number">1</span>;
     <span class="comment">// maps a normalized expression to the intermediate variable which represents the expression, along with its 'norm'
-    // the 'norm' is simply the value of the first non zero coefficient in the expression, taken from the linear terms, or quadratic terms if there is none.
+    // the 'norm' is simply the value of the first non-zero coefficient in the expression, taken from the linear terms, or quadratic terms if there is none.
     </span><span class="kw">let </span><span class="kw-2">mut </span>intermediate_variables: IndexMap&lt;Expression&lt;F&gt;, (F, Witness)&gt; = IndexMap::new();
     <span class="kw">for </span>(index, opcode) <span class="kw">in </span>acir.opcodes.into_iter().enumerate() {
         <span class="kw">match </span>opcode {
@@ -745,9 +905,9 @@
             Opcode::BrilligCall { <span class="kw-2">ref </span>outputs, .. } =&gt; {
                 <span class="kw">for </span>output <span class="kw">in </span>outputs {
                     <span class="kw">match </span>output {
-                        BrilligOutputs::Simple(w) =&gt; transformer.mark_solvable(<span class="kw-2">*</span>w),
-                        BrilligOutputs::Array(v) =&gt; {
-                            <span class="kw">for </span>witness <span class="kw">in </span>v {
+                        BrilligOutputs::Simple(witness) =&gt; transformer.mark_solvable(<span class="kw-2">*</span>witness),
+                        BrilligOutputs::Array(witnesses) =&gt; {
+                            <span class="kw">for </span>witness <span class="kw">in </span>witnesses {
                                 transformer.mark_solvable(<span class="kw-2">*</span>witness);
                             }
                         }
@@ -848,8 +1008,8 @@
 
     <span class="doccomment">/// Fold many witnesses into the state.
     </span><span class="kw">fn </span>fold_many&lt;<span class="lifetime">'w</span>, I: Iterator&lt;Item = <span class="kw-2">&amp;</span><span class="lifetime">'w </span>Witness&gt;&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, witnesses: I) {
-        <span class="kw">for </span>w <span class="kw">in </span>witnesses {
-            <span class="self">self</span>.fold(<span class="kw-2">*</span>w);
+        <span class="kw">for </span>witness <span class="kw">in </span>witnesses {
+            <span class="self">self</span>.fold(<span class="kw-2">*</span>witness);
         }
     }
 
@@ -867,8 +1027,8 @@
                 <span class="self">self</span>.fold_expr(value);
             }
             Opcode::MemoryInit { block_id: <span class="kw">_</span>, init, block_type: <span class="kw">_ </span>} =&gt; {
-                <span class="kw">for </span>w <span class="kw">in </span>init {
-                    <span class="self">self</span>.fold(<span class="kw-2">*</span>w);
+                <span class="kw">for </span>witness <span class="kw">in </span>init {
+                    <span class="self">self</span>.fold(<span class="kw-2">*</span>witness);
                 }
             }
             <span class="comment">// We keep the display for a BrilligCall and circuit Call separate as they
@@ -919,10 +1079,10 @@
     <span class="kw">fn </span>fold_brillig_outputs(<span class="kw-2">&amp;mut </span><span class="self">self</span>, outputs: <span class="kw-2">&amp;</span>[BrilligOutputs]) {
         <span class="kw">for </span>output <span class="kw">in </span>outputs {
             <span class="kw">match </span>output {
-                BrilligOutputs::Simple(w) =&gt; {
-                    <span class="self">self</span>.fold(<span class="kw-2">*</span>w);
+                BrilligOutputs::Simple(witness) =&gt; {
+                    <span class="self">self</span>.fold(<span class="kw-2">*</span>witness);
                 }
-                BrilligOutputs::Array(ws) =&gt; <span class="self">self</span>.fold_many(ws.iter()),
+                BrilligOutputs::Array(witnesses) =&gt; <span class="self">self</span>.fold_many(witnesses.iter()),
             }
         }
     }
@@ -1044,6 +1204,106 @@
         <span class="kw">if let </span>FunctionInput::Witness(witness) = input {
             <span class="self">self</span>.fold(<span class="kw-2">*</span>witness);
         }
+    }
+}
+
+<span class="attr">#[cfg(test)]
+</span><span class="kw">mod </span>tests {
+    <span class="kw">use </span><span class="kw">crate</span>::compiler::{CircuitSimulator, transform_internal};
+    <span class="kw">use </span>acir::circuit::{Circuit, ExpressionWidth, brillig::BrilligFunctionId};
+    <span class="kw">use </span>std::collections::BTreeMap;
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>test_max_transformer_passes() {
+        <span class="kw">let </span>formatted_acir = <span class="string">r#"private parameters: [w0]
+        public parameters: []
+        return values: [w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25, w26, w27, w28, w29, w30, w31]
+        BRILLIG CALL func: 0, inputs: [w0, 31, 256], outputs: [w32, w33, w34, w35, w36, w37, w38, w39, w40, w41, w42, w43, w44, w45, w46, w47, w48, w49, w50, w51, w52, w53, w54, w55, w56, w57, w58, w59, w60, w61, w62]
+        BLACKBOX::RANGE input: w35, bits: 8
+        BLACKBOX::RANGE input: w36, bits: 8
+        BLACKBOX::RANGE input: w37, bits: 8
+        BLACKBOX::RANGE input: w38, bits: 8
+        BLACKBOX::RANGE input: w39, bits: 8
+        BLACKBOX::RANGE input: w40, bits: 8
+        BLACKBOX::RANGE input: w41, bits: 8
+        BLACKBOX::RANGE input: w42, bits: 8
+        BLACKBOX::RANGE input: w43, bits: 8
+        BLACKBOX::RANGE input: w44, bits: 8
+        BLACKBOX::RANGE input: w45, bits: 8
+        BLACKBOX::RANGE input: w46, bits: 8
+        BLACKBOX::RANGE input: w47, bits: 8
+        BLACKBOX::RANGE input: w48, bits: 8
+        BLACKBOX::RANGE input: w49, bits: 8
+        BLACKBOX::RANGE input: w50, bits: 8
+        BLACKBOX::RANGE input: w51, bits: 8
+        BLACKBOX::RANGE input: w52, bits: 8
+        BLACKBOX::RANGE input: w53, bits: 8
+        BLACKBOX::RANGE input: w54, bits: 8
+        BLACKBOX::RANGE input: w55, bits: 8
+        BLACKBOX::RANGE input: w56, bits: 8
+        BLACKBOX::RANGE input: w57, bits: 8
+        BLACKBOX::RANGE input: w58, bits: 8
+        BLACKBOX::RANGE input: w59, bits: 8
+        BLACKBOX::RANGE input: w60, bits: 8
+        BLACKBOX::RANGE input: w61, bits: 8
+        BLACKBOX::RANGE input: w62, bits: 8
+        ASSERT w32 = w0 - 256*w33 - 65536*w34 - 16777216*w35 - 4294967296*w36 - 1099511627776*w37 - 281474976710656*w38 - 72057594037927936*w39 - 18446744073709551616*w40 - 4722366482869645213696*w41 - 1208925819614629174706176*w42 - 309485009821345068724781056*w43 - 79228162514264337593543950336*w44 - 20282409603651670423947251286016*w45 - 5192296858534827628530496329220096*w46 - 1329227995784915872903807060280344576*w47 - 340282366920938463463374607431768211456*w48 - 87112285931760246646623899502532662132736*w49 - 22300745198530623141535718272648361505980416*w50 - 5708990770823839524233143877797980545530986496*w51 - 1461501637330902918203684832716283019655932542976*w52 - 374144419156711147060143317175368453031918731001856*w53 - 95780971304118053647396689196894323976171195136475136*w54 - 24519928653854221733733552434404946937899825954937634816*w55 - 6277101735386680763835789423207666416102355444464034512896*w56 - 1606938044258990275541962092341162602522202993782792835301376*w57 - 411376139330301510538742295639337626245683966408394965837152256*w58 - 105312291668557186697918027683670432318895095400549111254310977536*w59 - 26959946667150639794667015087019630673637144422540572481103610249216*w60 - 6901746346790563787434755862277025452451108972170386555162524223799296*w61 - 1766847064778384329583297500742918515827483896875618958121606201292619776*w62
+        ASSERT w32 = 60
+        ASSERT w33 = 33
+        ASSERT w34 = 31
+        ASSERT w0 = 16777216*w35 + 4294967296*w36 + 1099511627776*w37 + 281474976710656*w38 + 72057594037927936*w39 + 18446744073709551616*w40 + 4722366482869645213696*w41 + 1208925819614629174706176*w42 + 309485009821345068724781056*w43 + 79228162514264337593543950336*w44 + 20282409603651670423947251286016*w45 + 5192296858534827628530496329220096*w46 + 1329227995784915872903807060280344576*w47 + 340282366920938463463374607431768211456*w48 + 87112285931760246646623899502532662132736*w49 + 22300745198530623141535718272648361505980416*w50 + 5708990770823839524233143877797980545530986496*w51 + 1461501637330902918203684832716283019655932542976*w52 + 374144419156711147060143317175368453031918731001856*w53 + 95780971304118053647396689196894323976171195136475136*w54 + 24519928653854221733733552434404946937899825954937634816*w55 + 6277101735386680763835789423207666416102355444464034512896*w56 + 1606938044258990275541962092341162602522202993782792835301376*w57 + 411376139330301510538742295639337626245683966408394965837152256*w58 + 105312291668557186697918027683670432318895095400549111254310977536*w59 + 26959946667150639794667015087019630673637144422540572481103610249216*w60 + 6901746346790563787434755862277025452451108972170386555162524223799296*w61 + 1766847064778384329583297500742918515827483896875618958121606201292619776*w62 + 2040124
+        ASSERT w62 = w1
+        ASSERT w61 = w2
+        ASSERT w60 = w3
+        ASSERT w59 = w4
+        ASSERT w58 = w5
+        ASSERT w57 = w6
+        ASSERT w56 = w7
+        ASSERT w55 = w8
+        ASSERT w54 = w9
+        ASSERT w53 = w10
+        ASSERT w52 = w11
+        ASSERT w51 = w12
+        ASSERT w50 = w13
+        ASSERT w49 = w14
+        ASSERT w48 = w15
+        ASSERT w47 = w16
+        ASSERT w46 = w17
+        ASSERT w45 = w18
+        ASSERT w44 = w19
+        ASSERT w43 = w20
+        ASSERT w42 = w21
+        ASSERT w41 = w22
+        ASSERT w40 = w23
+        ASSERT w39 = w24
+        ASSERT w38 = w25
+        ASSERT w37 = w26
+        ASSERT w36 = w27
+        ASSERT w35 = w28
+        ASSERT w29 = 31
+        ASSERT w30 = 33
+        ASSERT w31 = 60
+        "#</span>;
+
+        <span class="kw">let </span>acir = Circuit::from_str(formatted_acir).unwrap();
+        <span class="macro">assert!</span>(CircuitSimulator::check_circuit(<span class="kw-2">&amp;</span>acir).is_none());
+        <span class="kw">let </span>expression_width = ExpressionWidth::Bounded { width: <span class="number">4 </span>};
+        <span class="kw">let </span>acir_opcode_positions = <span class="macro">vec!</span>[
+            <span class="number">0</span>, <span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">4</span>, <span class="number">5</span>, <span class="number">6</span>, <span class="number">7</span>, <span class="number">8</span>, <span class="number">9</span>, <span class="number">10</span>, <span class="number">11</span>, <span class="number">12</span>, <span class="number">13</span>, <span class="number">14</span>, <span class="number">15</span>, <span class="number">16</span>, <span class="number">17</span>, <span class="number">18</span>, <span class="number">19</span>, <span class="number">20</span>, <span class="number">21</span>, <span class="number">22</span>, <span class="number">23</span>,
+            <span class="number">24</span>, <span class="number">25</span>, <span class="number">26</span>, <span class="number">27</span>, <span class="number">28</span>, <span class="number">29</span>, <span class="number">29</span>, <span class="number">29</span>, <span class="number">30</span>, <span class="number">31</span>, <span class="number">32</span>, <span class="number">33</span>, <span class="number">34</span>, <span class="number">35</span>, <span class="number">36</span>, <span class="number">37</span>, <span class="number">38</span>, <span class="number">39</span>, <span class="number">40</span>, <span class="number">41</span>, <span class="number">42</span>, <span class="number">43</span>,
+            <span class="number">44</span>, <span class="number">45</span>, <span class="number">46</span>, <span class="number">47</span>, <span class="number">48</span>, <span class="number">49</span>, <span class="number">50</span>, <span class="number">51</span>, <span class="number">52</span>, <span class="number">53</span>, <span class="number">54</span>, <span class="number">55</span>, <span class="number">56</span>, <span class="number">57</span>, <span class="number">58</span>, <span class="number">59</span>, <span class="number">60</span>, <span class="number">61</span>, <span class="number">62</span>, <span class="number">63</span>, <span class="number">64</span>,
+        ];
+        <span class="kw">let </span><span class="kw-2">mut </span>brillig_side_effects = BTreeMap::new();
+        brillig_side_effects.insert(BrilligFunctionId(<span class="number">0</span>), <span class="bool-val">false</span>);
+
+        <span class="kw">let </span>(<span class="kw">_</span>, <span class="kw">_</span>, opcodes_hash_stabilized) = transform_internal(
+            acir,
+            expression_width,
+            acir_opcode_positions.clone(),
+            <span class="kw-2">&amp;</span>brillig_side_effects,
+            <span class="prelude-val">None</span>,
+        );
+        <span class="macro">assert!</span>(!opcodes_hash_stabilized);
     }
 }
 </code></pre></div></section></main></body></html>
