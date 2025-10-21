@@ -44,6 +44,16 @@ libaes = "0.7.0"
 [dev-dependencies]
 proptest.workspace = true
 num-prime = { version = "0.4.4", default-features = false, features = ["big-int"] }
+criterion.workspace = true
+pprof.workspace = true
+
+[lib]
+# See https://bheisler.github.io/criterion.rs/book/faq.html#cargo-bench-gives-unrecognized-option-errors-for-valid-command-line-options
+bench = false
+
+[[bench]]
+name = "logic"
+harness = false
 
 [features]
 bn254 = ["acir/bn254"]

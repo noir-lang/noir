@@ -430,7 +430,7 @@ fn fits_in_one_identity<F: AcirField>(expr: &Expression<F>, width: usize) -> boo
 #[cfg(test)]
 mod tests {
     use super::*;
-    use acir::{AcirField, FieldElement};
+    use acir::FieldElement;
 
     #[test]
     fn simple_reduction_smoke_test() {
@@ -440,16 +440,7 @@ mod tests {
         let d = Witness(3);
 
         // a = b + c + d;
-        let opcode_a = Expression {
-            mul_terms: vec![],
-            linear_combinations: vec![
-                (FieldElement::one(), a),
-                (-FieldElement::one(), b),
-                (-FieldElement::one(), c),
-                (-FieldElement::one(), d),
-            ],
-            q_c: FieldElement::zero(),
-        };
+        let opcode_a = Expression::from_str(&format!("{a} - {b} - {c} - {d}")).unwrap();
 
         let mut intermediate_variables: IndexMap<
             Expression<FieldElement>,
@@ -472,25 +463,15 @@ mod tests {
         //
         // a - b + e = 0
         let e = Witness(4);
-        let expected_optimized_opcode_a = Expression {
-            mul_terms: vec![],
-            linear_combinations: vec![
-                (FieldElement::one(), a),
-                (-FieldElement::one(), d),
-                (FieldElement::one(), e),
-            ],
-            q_c: FieldElement::zero(),
-        };
+        let expected_optimized_opcode_a =
+            Expression::from_str(&format!("{a} - {d} + {e}")).unwrap();
+
         assert_eq!(expected_optimized_opcode_a, got_optimized_opcode_a);
 
         assert_eq!(intermediate_variables.len(), 1);
 
         // e = - c - b
-        let expected_intermediate_opcode = Expression {
-            mul_terms: vec![],
-            linear_combinations: vec![(-FieldElement::one(), c), (-FieldElement::one(), b)],
-            q_c: FieldElement::zero(),
-        };
+        let expected_intermediate_opcode = Expression::from_str(&format!("-{c} - {b}")).unwrap();
         let (_, normalized_opcode) = CSatTransformer::normalize(expected_intermediate_opcode);
         assert!(intermediate_variables.contains_key(&normalized_opcode));
         assert_eq!(intermediate_variables[&normalized_opcode].1, e);
@@ -505,17 +486,7 @@ mod tests {
         let e = Witness(4);
 
         // a = b + c + d + e;
-        let opcode_a = Expression {
-            mul_terms: vec![],
-            linear_combinations: vec![
-                (-FieldElement::one(), a),
-                (FieldElement::one(), b),
-                (FieldElement::one(), c),
-                (FieldElement::one(), d),
-                (FieldElement::one(), e),
-            ],
-            q_c: FieldElement::zero(),
-        };
+        let opcode_a = Expression::from_str(&format!("-{a} + {b} + {c} + {d} + {e}")).unwrap();
 
         let mut intermediate_variables: IndexMap<
             Expression<FieldElement>,
@@ -541,15 +512,7 @@ mod tests {
     fn recognize_expr_with_single_shared_witness_which_fits_in_single_identity() {
         // Regression test for an expression which Zac found which should have been preserved but
         // was being split into two expressions.
-        let expr = Expression {
-            mul_terms: vec![(-FieldElement::from(555u128), Witness(8), Witness(10))],
-            linear_combinations: vec![
-                (FieldElement::one(), Witness(10)),
-                (FieldElement::one(), Witness(11)),
-                (-FieldElement::one(), Witness(13)),
-            ],
-            q_c: FieldElement::zero(),
-        };
+        let expr = Expression::from_str("-555*w8*w10 + w10 + w11 - w13").unwrap();
         assert!(fits_in_one_identity(&expr, 4));
     }
 }

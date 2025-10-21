@@ -72,7 +72,7 @@ impl<F: AcirField> AcirContext<F> {
             self.var_to_witness(*var).expect("variable was just created as witness")
         });
 
-        self.acir_ir.call_black_box(name, &inputs, constant_inputs, num_bits, output_witnesses)?;
+        self.acir_ir.call_black_box(name, inputs, constant_inputs, num_bits, output_witnesses)?;
 
         // Convert `Witness` values which are now constrained to be the output of the
         // black box function call into `AcirVar`s.

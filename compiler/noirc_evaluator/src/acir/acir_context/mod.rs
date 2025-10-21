@@ -595,24 +595,21 @@ impl<F: AcirField> AcirContext<F> {
         typ: AcirType,
         predicate: AcirVar,
     ) -> Result<AcirVar, RuntimeError> {
-        let numeric_type = match typ {
-            AcirType::NumericType(numeric_type) => numeric_type,
-            AcirType::Array(_, _) => {
-                unreachable!("cannot divide arrays. This should have been caught by the frontend")
-            }
-        };
-        match numeric_type {
-            NumericType::NativeField => {
+        match typ {
+            AcirType::NumericType(NumericType::NativeField) => {
                 let inv_rhs = self.inv_var(rhs, predicate)?;
                 self.mul_var(lhs, inv_rhs)
             }
-            NumericType::Unsigned { bit_size } => {
+            AcirType::NumericType(NumericType::Unsigned { bit_size }) => {
                 let (quotient_var, _remainder_var) =
                     self.euclidean_division_var(lhs, rhs, bit_size, predicate)?;
                 Ok(quotient_var)
             }
-            NumericType::Signed { .. } => {
+            AcirType::NumericType(NumericType::Signed { .. }) => {
                 unreachable!("Signed division should have been removed before ACIRgen")
+            }
+            AcirType::Array(_, _) => {
+                unreachable!("cannot divide arrays. This should have been caught by the frontend")
             }
         }
     }
@@ -1105,20 +1102,22 @@ impl<F: AcirField> AcirContext<F> {
         bit_size: u32,
         predicate: AcirVar,
     ) -> Result<AcirVar, RuntimeError> {
-        let numeric_type = match typ {
-            AcirType::NumericType(numeric_type) => numeric_type,
+        match typ {
+            AcirType::NumericType(NumericType::Unsigned { .. }) => {
+                let (_, remainder_var) =
+                    self.euclidean_division_var(lhs, rhs, bit_size, predicate)?;
+                Ok(remainder_var)
+            }
+            AcirType::NumericType(NumericType::Signed { .. }) => {
+                unreachable!("Signed modulo should have been removed before ACIRgen")
+            }
+            AcirType::NumericType(NumericType::NativeField) => {
+                unreachable!("cannot module fields. This should have been caught by the frontend")
+            }
             AcirType::Array(_, _) => {
                 unreachable!("cannot modulo arrays. This should have been caught by the frontend")
             }
-        };
-
-        let (_, remainder_var) = match numeric_type {
-            NumericType::Signed { .. } => {
-                unreachable!("Signed modulo should have been removed before ACIRgen")
-            }
-            _ => self.euclidean_division_var(lhs, rhs, bit_size, predicate)?,
-        };
-        Ok(remainder_var)
+        }
     }
 
     /// Constrains the `AcirVar` variable to be of type `NumericType`.

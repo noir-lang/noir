@@ -193,147 +193,135 @@ impl CircuitSimulator {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeSet;
-
     use crate::compiler::CircuitSimulator;
-    use acir::{
-        FieldElement,
-        acir_field::AcirField,
-        circuit::{
-            Circuit, Opcode, PublicInputs,
-            brillig::{BrilligFunctionId, BrilligInputs},
-            opcodes::{BlockId, BlockType, MemOp},
-        },
-        native_types::{Expression, Witness},
-    };
-
-    fn test_circuit(
-        opcodes: Vec<Opcode<FieldElement>>,
-        private_parameters: BTreeSet<Witness>,
-        public_parameters: PublicInputs,
-    ) -> Circuit<FieldElement> {
-        Circuit {
-            function_name: "test_circuit".to_string(),
-            current_witness_index: 1,
-            opcodes,
-            private_parameters,
-            public_parameters,
-            return_values: PublicInputs::default(),
-            assert_messages: Default::default(),
-        }
-    }
+    use acir::circuit::Circuit;
 
     #[test]
-    fn reports_true_for_empty_circuit() {
-        let empty_circuit = test_circuit(vec![], BTreeSet::default(), PublicInputs::default());
-
+    fn reports_none_for_empty_circuit() {
+        let src = "
+        private parameters: []
+        public parameters: []
+        return values: []
+        ";
+        let empty_circuit = Circuit::from_str(src).unwrap();
         assert!(CircuitSimulator::default().check_circuit(&empty_circuit).is_none());
     }
 
     #[test]
-    fn reports_true_for_connected_circuit() {
-        let connected_circuit = test_circuit(
-            vec![Opcode::AssertZero(Expression {
-                mul_terms: Vec::new(),
-                linear_combinations: vec![
-                    (FieldElement::one(), Witness(1)),
-                    (-FieldElement::one(), Witness(2)),
-                ],
-                q_c: FieldElement::zero(),
-            })],
-            BTreeSet::from([Witness(1)]),
-            PublicInputs::default(),
-        );
-
+    fn reports_none_for_connected_circuit() {
+        let src = "
+        private parameters: [w1]
+        public parameters: []
+        return values: []
+        ASSERT w2 = w1
+        ";
+        let connected_circuit = Circuit::from_str(src).unwrap();
         assert!(CircuitSimulator::default().check_circuit(&connected_circuit).is_none());
     }
 
     #[test]
-    fn reports_false_for_disconnected_circuit() {
-        let disconnected_circuit = test_circuit(
-            vec![
-                Opcode::AssertZero(Expression {
-                    mul_terms: Vec::new(),
-                    linear_combinations: vec![
-                        (FieldElement::one(), Witness(1)),
-                        (-FieldElement::one(), Witness(2)),
-                    ],
-                    q_c: FieldElement::zero(),
-                }),
-                Opcode::AssertZero(Expression {
-                    mul_terms: Vec::new(),
-                    linear_combinations: vec![
-                        (FieldElement::one(), Witness(3)),
-                        (-FieldElement::one(), Witness(4)),
-                    ],
-                    q_c: FieldElement::zero(),
-                }),
-            ],
-            BTreeSet::from([Witness(1)]),
-            PublicInputs::default(),
-        );
-
-        assert!(CircuitSimulator::default().check_circuit(&disconnected_circuit).is_some());
+    fn reports_none_for_blackbox_output() {
+        let src = "
+        private parameters: [w0, w1]
+        public parameters: []
+        return values: []
+        BLACKBOX::AND lhs: w0, rhs: w1, output: w2, bits: 32
+        ASSERT w3 = w2
+        ";
+        let circuit = Circuit::from_str(src).unwrap();
+        assert!(CircuitSimulator::default().check_circuit(&circuit).is_none());
     }
 
     #[test]
-    fn reports_true_when_memory_block_passed_to_brillig_and_then_written_to() {
-        let circuit = test_circuit(
-            vec![
-                Opcode::AssertZero(Expression {
-                    mul_terms: Vec::new(),
-                    linear_combinations: vec![(FieldElement::one(), Witness(1))],
-                    q_c: FieldElement::zero(),
-                }),
-                Opcode::MemoryInit {
-                    block_id: BlockId(0),
-                    init: vec![Witness(0)],
-                    block_type: BlockType::Memory,
-                },
-                Opcode::BrilligCall {
-                    id: BrilligFunctionId(0),
-                    inputs: vec![BrilligInputs::MemoryArray(BlockId(0))],
-                    outputs: Vec::new(),
-                    predicate: None,
-                },
-                Opcode::MemoryOp {
-                    block_id: BlockId(0),
-                    op: MemOp::read_at_mem_index(
-                        Expression {
-                            mul_terms: Vec::new(),
-                            linear_combinations: Vec::new(),
-                            q_c: FieldElement::one(),
-                        },
-                        Witness(2),
-                    ),
-                },
-            ],
-            BTreeSet::from([Witness(1)]),
-            PublicInputs::default(),
-        );
-
-        assert!(CircuitSimulator::default().check_circuit(&circuit).is_some());
+    fn reports_none_for_read_memory() {
+        let src = "
+        private parameters: [w0]
+        public parameters: []
+        return values: []
+        INIT b0 = [w0]
+        READ w1 = b0[0]
+        ASSERT w2 = w1
+        ";
+        let circuit = Circuit::from_str(src).unwrap();
+        assert!(CircuitSimulator::default().check_circuit(&circuit).is_none());
     }
 
     #[test]
-    fn reports_false_when_attempting_to_reinitialize_memory_block() {
-        let circuit = test_circuit(
-            vec![
-                Opcode::MemoryInit {
-                    block_id: BlockId(0),
-                    init: vec![Witness(0)],
-                    block_type: BlockType::Memory,
-                },
-                Opcode::MemoryInit {
-                    block_id: BlockId(0),
-                    init: vec![Witness(0)],
-                    block_type: BlockType::Memory,
-                },
-            ],
-            BTreeSet::from([Witness(0)]),
-            PublicInputs::default(),
-        );
+    fn reports_none_for_call_output() {
+        let src = "
+        private parameters: [w0]
+        public parameters: []
+        return values: []
+        CALL func: 0, inputs: [w0], outputs: [w1]
+        ASSERT w2 = w1
+        ";
+        let circuit = Circuit::from_str(src).unwrap();
+        assert!(CircuitSimulator::default().check_circuit(&circuit).is_none());
+    }
 
-        assert!(CircuitSimulator::default().check_circuit(&circuit).is_some());
+    #[test]
+    fn reports_none_for_brillig_call_output() {
+        let src = "
+        private parameters: [w0]
+        public parameters: []
+        return values: []
+        BRILLIG CALL func: 0, inputs: [w0], outputs: [w1]
+        ASSERT w2 = w1
+        ";
+        let circuit = Circuit::from_str(src).unwrap();
+        assert!(CircuitSimulator::default().check_circuit(&circuit).is_none());
+    }
+
+    #[test]
+    fn reports_some_for_disconnected_circuit() {
+        let src = "
+        private parameters: [w1]
+        public parameters: []
+        return values: []
+        ASSERT w2 = w1
+        ASSERT w4 = w3
+        ";
+        let disconnected_circuit = Circuit::from_str(src).unwrap();
+        assert_eq!(CircuitSimulator::default().check_circuit(&disconnected_circuit), Some(1));
+    }
+
+    #[test]
+    fn reports_some_when_memory_block_is_passed_an_unknown_witness() {
+        let src = "
+        private parameters: [w1]
+        public parameters: []
+        return values: []
+        ASSERT w1 = 0
+        INIT b0 = [w0]
+        ";
+        let circuit = Circuit::from_str(src).unwrap();
+        assert_eq!(CircuitSimulator::default().check_circuit(&circuit), Some(1));
+    }
+
+    #[test]
+    fn reports_some_when_attempting_to_reinitialize_memory_block() {
+        let src = "
+        private parameters: [w0]
+        public parameters: []
+        return values: []
+        INIT b0 = [w0]
+        INIT b0 = [w0]
+        ";
+        let circuit = Circuit::from_str(src).unwrap();
+        assert_eq!(CircuitSimulator::default().check_circuit(&circuit), Some(1));
+    }
+
+    #[test]
+    fn reports_some_when_unknown_witness_is_multiplied_by_itself() {
+        // If an AssertZero contains just one unknown witness, it might still not possible
+        // to solve if: if that unknown witness is being multiplied by itself.
+        let src = "
+        private parameters: [w0]
+        public parameters: []
+        return values: []
+        ASSERT w0 = w1*w1
+        ";
+        let circuit = Circuit::from_str(src).unwrap();
+        assert_eq!(CircuitSimulator::default().check_circuit(&circuit), Some(0));
     }
 }

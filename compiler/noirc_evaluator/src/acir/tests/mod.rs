@@ -130,7 +130,7 @@ fn no_zero_bits_range_check() {
     ASSERT 0 = -w2*w6 + 85500948718122168836900022442411230814642048439125134155071110103811751936*w6
     ASSERT w7 = w3*w6
     ASSERT w7 = 0
-    ASSERT w3 = w1
+    ASSERT w1 = w3
 
     unconstrained func 0: directive_integer_quotient
     0: @10 = const u32 2
