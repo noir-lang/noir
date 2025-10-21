@@ -107,7 +107,7 @@ impl BlockVariables {
 
         function_context
             .ssa_value_allocations
-            .get(value_id)
+            .remove(value_id)
             .expect("ICE: Variable allocation not found");
     }
 
