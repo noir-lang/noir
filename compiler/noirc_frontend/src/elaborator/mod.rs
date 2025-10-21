@@ -33,7 +33,7 @@
 //! - Comptime attributes - Executed before function body elaboration, as generated items may change what is in scope or modify functions
 //!
 //! ### Full Item Elaboration
-//! 1. Functions - Function bodies elaborated and type-checked
+//! 1. Functions - Function bodies elaborated (resolved & type-checked)
 //! 2. Traits - Trait default method implementations elaborated
 //! 3. Impls - Implementation method bodies elaborated
 //! 4. Trait impls - Trait implementation method bodies elaborated and validated against trait signatures
