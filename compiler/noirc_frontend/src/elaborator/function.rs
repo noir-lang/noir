@@ -15,8 +15,8 @@ use noirc_errors::Location;
 use crate::{
     Kind, NamedGeneric, Type, TypeVariable,
     ast::{
-        BlockExpression, FunctionKind, GenericTypeArgs, NoirFunction, Param, UnresolvedGenerics,
-        UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
+        BlockExpression, FunctionKind, GenericTypeArgs, Ident, NoirFunction, Param,
+        UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
     },
     elaborator::lints,
     hir::{
@@ -446,11 +446,6 @@ impl Elaborator<'_> {
             source_file: location.file,
         };
 
-        let modifiers = self.interner.function_modifiers(&func_id).clone();
-
-        self.run_function_lints(&meta, &modifiers);
-        self.check_function_visibility(&meta, &modifiers, func.name_ident(), location);
-
         self.interner.push_fn_meta(meta, func_id);
         self.scopes.end_function();
         self.current_item = None;
@@ -667,6 +662,16 @@ impl Elaborator<'_> {
 
         self.trait_bounds = func_meta.all_trait_constraints().cloned().collect();
         self.push_function_context();
+
+        // Lints and visibility must be separately from function meta resolution as comptime attribute
+        // may possibly update a function's modifiers.
+        let modifiers = self.interner.function_modifiers(&id).clone();
+        self.run_function_lints(&func_meta, &modifiers);
+        let name = Ident::new(
+            self.interner.definition_name(func_meta.name.id).to_string(),
+            func_meta.name.location,
+        );
+        self.check_function_visibility(&func_meta, &modifiers, &name, func_meta.location);
 
         self.introduce_generics_into_scope(func_meta.all_generics.clone());
 
