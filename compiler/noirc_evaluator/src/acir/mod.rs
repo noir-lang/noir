@@ -645,9 +645,9 @@ impl<'a> Context<'a> {
                 let typ = AcirType::from(Type::Numeric(*typ));
                 AcirValue::Var(self.acir_context.add_constant(*constant), typ)
             }
-            Value::Intrinsic(..) => unreachable!(
-                "ICE: Intrinsics should be resolved via separate logic"
-            ),
+            Value::Intrinsic(..) => {
+                unreachable!("ICE: Intrinsics should be resolved via separate logic")
+            }
             Value::Function(function_id) => {
                 // This conversion is for debugging support only, to allow the
                 // debugging instrumentation code to work. Taking the reference
