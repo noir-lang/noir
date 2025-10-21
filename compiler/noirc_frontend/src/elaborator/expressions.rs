@@ -1014,7 +1014,14 @@ impl Elaborator<'_> {
 
             if let Some((index, visibility)) = expected_index_and_visibility {
                 let struct_type = struct_type.borrow();
-                self.check_struct_field_visibility(&struct_type, &field_name, *visibility);
+                let field_location = field_name.location();
+                let field_name = field_name.as_str();
+                self.check_struct_field_visibility(
+                    &struct_type,
+                    field_name,
+                    *visibility,
+                    field_location,
+                );
 
                 self.interner.add_struct_member_reference(struct_type.id, index, field_location);
             }

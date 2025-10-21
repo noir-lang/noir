@@ -315,7 +315,12 @@ impl Elaborator<'_> {
                 unseen_fields.remove(&field);
                 seen_fields.insert(field.clone());
 
-                self.check_struct_field_visibility(&struct_type.borrow(), &field, visibility);
+                self.check_struct_field_visibility(
+                    &struct_type.borrow(),
+                    field.as_str(),
+                    visibility,
+                    field.location(),
+                );
             } else if seen_fields.contains(&field) {
                 // duplicate field
                 self.push_err(ResolverError::DuplicateField { field: field.clone() });

@@ -92,7 +92,7 @@ pub enum TypeCheckError {
     #[error("Expected a function, but found a(n) {found}")]
     ExpectedFunction { found: Type, location: Location },
     #[error("Type {lhs_type} has no member named {field_name}")]
-    AccessUnknownMember { lhs_type: Type, field_name: Ident },
+    AccessUnknownMember { lhs_type: Type, field_name: String, location: Location },
     #[error("Function expects {expected} parameters but {found} were given")]
     ParameterCountMismatch { expected: usize, found: usize, location: Location },
     #[error("{} expects {} or {} parameters but {found} were given", kind, kind.required_arguments_count(), kind.required_arguments_count() + 1)]
@@ -292,6 +292,7 @@ impl TypeCheckError {
             | TypeCheckError::DownsizingCast { location, .. }
             | TypeCheckError::CannotCastNumericToBool { location, .. }
             | TypeCheckError::ExpectedFunction { location, .. }
+            | TypeCheckError::AccessUnknownMember { location, .. }
             | TypeCheckError::ParameterCountMismatch { location, .. }
             | TypeCheckError::AssertionParameterCountMismatch { location, .. }
             | TypeCheckError::GenericCountMismatch { location, .. }
@@ -350,8 +351,7 @@ impl TypeCheckError {
             | TypeCheckError::TypeAnnotationNeededOnArrayLiteral { location, .. } => *location,
 
             TypeCheckError::DuplicateNamedTypeArg { name: ident, .. }
-            | TypeCheckError::NoSuchNamedTypeArg { name: ident, .. }
-            | TypeCheckError::AccessUnknownMember { field_name: ident, .. } => ident.location(),
+            | TypeCheckError::NoSuchNamedTypeArg { name: ident, .. } => ident.location(),
 
             TypeCheckError::NoMatchingImplFound(no_matching_impl_found_error) => {
                 no_matching_impl_found_error.location
@@ -501,6 +501,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             }
 
             TypeCheckError::ExpectedFunction { location, .. }
+            | TypeCheckError::AccessUnknownMember { location, .. }
             | TypeCheckError::UnsupportedCast { location }
             | TypeCheckError::UnsupportedFieldCast { location }
             | TypeCheckError::TupleIndexOutOfBounds { location, .. }
@@ -525,9 +526,6 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             | TypeCheckError::StringIndexAssign { location }
             | TypeCheckError::InvalidShiftSize { location } => {
                 Diagnostic::simple_error(error.to_string(), String::new(), *location)
-            }
-            TypeCheckError::AccessUnknownMember { field_name, .. } => {
-                Diagnostic::simple_error(error.to_string(), String::new(), field_name.location())
             }
             TypeCheckError::InvalidBoolInfixOp { op, location } => {
                 let primary = match op {

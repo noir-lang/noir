@@ -44,8 +44,9 @@ impl Elaborator<'_> {
     pub(super) fn check_struct_field_visibility(
         &mut self,
         struct_type: &DataType,
-        field_name: &Ident,
+        field_name: &str,
         visibility: ItemVisibility,
+        location: Location,
     ) {
         if self.silence_field_visibility_errors > 0 {
             return;
@@ -53,7 +54,7 @@ impl Elaborator<'_> {
 
         if !struct_member_is_visible(struct_type.id, visibility, self.module_id(), self.def_maps) {
             self.push_err(ResolverError::PathResolutionError(PathResolutionError::Private(
-                field_name.clone(),
+                Ident::new(field_name.to_string(), location),
             )));
         }
     }
