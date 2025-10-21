@@ -19,6 +19,32 @@ impl Elaborator<'_> {
         per_ns.types.map(|(_, vis, _)| vis)
     }
 
+    pub(super) fn check_function_visibility(
+        &mut self,
+        func_meta: &FuncMeta,
+        modifiers: &FunctionModifiers,
+        name: &Ident,
+        location: Location,
+    ) {
+        // Check arg and return-value visibility of standalone functions.
+        if self.should_check_function_visibility(func_meta, modifiers) {
+            for (_, typ, _) in func_meta.parameters.iter() {
+                self.check_type_is_not_more_private_then_item(
+                    name,
+                    modifiers.visibility,
+                    typ,
+                    location,
+                );
+            }
+            self.check_type_is_not_more_private_then_item(
+                name,
+                modifiers.visibility,
+                func_meta.return_type(),
+                location,
+            );
+        }
+    }
+
     /// Check whether a functions return value and args should be checked for private type visibility.
     pub(super) fn should_check_function_visibility(
         &self,
