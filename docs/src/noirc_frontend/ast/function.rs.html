@@ -102,12 +102,32 @@
 <a href="#101" id="101">101</a>
 <a href="#102" id="102">102</a>
 <a href="#103" id="103">103</a>
-<a href="#104" id="104">104</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
+<a href="#104" id="104">104</a>
+<a href="#105" id="105">105</a>
+<a href="#106" id="106">106</a>
+<a href="#107" id="107">107</a>
+<a href="#108" id="108">108</a>
+<a href="#109" id="109">109</a>
+<a href="#110" id="110">110</a>
+<a href="#111" id="111">111</a>
+<a href="#112" id="112">112</a>
+<a href="#113" id="113">113</a>
+<a href="#114" id="114">114</a>
+<a href="#115" id="115">115</a>
+<a href="#116" id="116">116</a>
+<a href="#117" id="117">117</a>
+<a href="#118" id="118">118</a>
+<a href="#119" id="119">119</a>
+<a href="#120" id="120">120</a>
+<a href="#121" id="121">121</a>
+<a href="#122" id="122">122</a>
+<a href="#123" id="123">123</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
 
 <span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
     ast::{FunctionReturnType, Ident, Param},
+    hir::def_map::MAIN_FUNCTION,
     token::{Attributes, FunctionAttributeKind, SecondaryAttribute},
 };
 
@@ -179,6 +199,24 @@
     }
     <span class="kw">pub fn </span>location(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Location {
         <span class="self">self</span>.def.location
+    }
+    <span class="doccomment">/// Both the `#[fold]` and `#[no_predicates]` alter a function's inline type and code generation in similar ways.
+    /// In certain cases such as type checking (for which the following flag will be used) both attributes
+    /// indicate we should code generate in the same way. Thus, we unify the attributes into one flag here.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>has_inline_attribute(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="kw">let </span>attributes = <span class="self">self</span>.attributes();
+        attributes.is_no_predicates() || attributes.is_foldable()
+    }
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_entry_point(<span class="kw-2">&amp;</span><span class="self">self</span>, in_contract: bool) -&gt; bool {
+        <span class="kw">if </span>in_contract {
+            <span class="self">self</span>.attributes().is_contract_entry_point()
+        } <span class="kw">else </span>{
+            <span class="self">self</span>.name() == MAIN_FUNCTION
+        }
+    }
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_test_or_fuzz(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="kw">let </span>attributes = <span class="self">self</span>.attributes();
+        attributes.is_test_function() || attributes.is_fuzzing_harness()
     }
 }
 
