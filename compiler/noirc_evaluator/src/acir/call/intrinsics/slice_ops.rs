@@ -226,7 +226,7 @@ impl Context<'_> {
     ///
     /// A vector of [AcirValue]s containing:
     /// 1. Updated slice length (decremented by one)
-    /// 2. Slice contents (unchanged; accesses are always gated by the dynamic length)
+    /// 2. Updated slice contents with the back elements removed
     /// 3. Popped elements in order
     ///
     /// # Design
@@ -270,7 +270,10 @@ impl Context<'_> {
         }
 
         let slice = self.convert_value(slice_contents, dfg);
-        let new_slice = self.read_array_with_type(slice, &slice_type)?;
+        let mut new_slice = self.read_array_with_type(slice, &slice_type)?;
+        for _ in 0..popped_elements.len() {
+            new_slice.pop_back();
+        }
 
         let mut results = vec![
             AcirValue::Var(new_slice_length, AcirType::unsigned(32)),

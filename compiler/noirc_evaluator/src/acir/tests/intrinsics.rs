@@ -168,7 +168,7 @@ fn slice_pop_back() {
     READ w9 = b1[w5]
     ASSERT w1 = 1
     ASSERT w6 = 3
-    INIT b3 = [w8, w9]
+    INIT b3 = [w8]
     ASSERT w10 = 20
     WRITE b3[w0] = w10
     ");
