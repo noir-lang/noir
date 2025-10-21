@@ -631,7 +631,7 @@ impl<'a> Context<'a> {
     /// because instructions results are converted when the corresponding instruction is
     /// encountered. (An instruction result cannot be referenced before the instruction occurs.)
     ///
-    /// It is not safe to call this function on value ids that represent addresses. Instructions
+    /// It is not safe to call this function on value ids that represent pointers. Instructions
     /// involving such values are evaluated via a separate path and stored in
     /// `ssa_value_to_array_address` instead.
     fn convert_value(&mut self, value_id: ValueId, dfg: &DataFlowGraph) -> AcirValue {
