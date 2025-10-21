@@ -303,7 +303,7 @@ mod tests {
         BLACKBOX::RANGE input: w1, bits: 16
         ";
         let circuit = Circuit::from_str(src).unwrap();
-        assert!(CircuitSimulator::default().check_circuit(&circuit).is_none());
+        assert!(CircuitSimulator::check_circuit(&circuit).is_none());
 
         let acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, _)| i).collect();
         let brillig_side_effects = BTreeMap::new();
@@ -319,7 +319,7 @@ mod tests {
         );
 
         let (optimized_circuit, _) = optimizer.replace_redundant_ranges(acir_opcode_positions);
-        assert!(CircuitSimulator::default().check_circuit(&optimized_circuit).is_none());
+        assert!(CircuitSimulator::check_circuit(&optimized_circuit).is_none());
         assert_circuit_snapshot!(optimized_circuit, @r"
         private parameters: [w1]
         public parameters: []
@@ -341,13 +341,13 @@ mod tests {
         BLACKBOX::RANGE input: w2, bits: 23
         ";
         let circuit = Circuit::from_str(src).unwrap();
-        assert!(CircuitSimulator::default().check_circuit(&circuit).is_none());
+        assert!(CircuitSimulator::check_circuit(&circuit).is_none());
 
         let acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, _)| i).collect();
         let brillig_side_effects = BTreeMap::new();
         let optimizer = RangeOptimizer::new(circuit, &brillig_side_effects);
         let (optimized_circuit, _) = optimizer.replace_redundant_ranges(acir_opcode_positions);
-        assert!(CircuitSimulator::default().check_circuit(&optimized_circuit).is_none());
+        assert!(CircuitSimulator::check_circuit(&optimized_circuit).is_none());
         assert_circuit_snapshot!(optimized_circuit, @r"
         private parameters: [w1, w2]
         public parameters: []
@@ -373,13 +373,13 @@ mod tests {
         ASSERT 0 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
-        assert!(CircuitSimulator::default().check_circuit(&circuit).is_none());
+        assert!(CircuitSimulator::check_circuit(&circuit).is_none());
 
         let acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, _)| i).collect();
         let brillig_side_effects = BTreeMap::new();
         let optimizer = RangeOptimizer::new(circuit, &brillig_side_effects);
         let (optimized_circuit, _) = optimizer.replace_redundant_ranges(acir_opcode_positions);
-        assert!(CircuitSimulator::default().check_circuit(&optimized_circuit).is_none());
+        assert!(CircuitSimulator::check_circuit(&optimized_circuit).is_none());
         assert_circuit_snapshot!(optimized_circuit, @r"
         private parameters: [w1]
         public parameters: []
@@ -403,13 +403,13 @@ mod tests {
         ASSERT w1 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
-        assert!(CircuitSimulator::default().check_circuit(&circuit).is_none());
+        assert!(CircuitSimulator::check_circuit(&circuit).is_none());
 
         let acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, _)| i).collect();
         let brillig_side_effects = BTreeMap::new();
         let optimizer = RangeOptimizer::new(circuit, &brillig_side_effects);
         let (optimized_circuit, _) = optimizer.replace_redundant_ranges(acir_opcode_positions);
-        assert!(CircuitSimulator::default().check_circuit(&optimized_circuit).is_none());
+        assert!(CircuitSimulator::check_circuit(&optimized_circuit).is_none());
         assert_circuit_snapshot!(optimized_circuit, @r"
         private parameters: [w1]
         public parameters: []
@@ -429,13 +429,13 @@ mod tests {
         ASSERT w1 = 256
         ";
         let circuit = Circuit::from_str(src).unwrap();
-        assert!(CircuitSimulator::default().check_circuit(&circuit).is_none());
+        assert!(CircuitSimulator::check_circuit(&circuit).is_none());
 
         let acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, _)| i).collect();
         let brillig_side_effects = BTreeMap::new();
         let optimizer = RangeOptimizer::new(circuit, &brillig_side_effects);
         let (optimized_circuit, _) = optimizer.replace_redundant_ranges(acir_opcode_positions);
-        assert!(CircuitSimulator::default().check_circuit(&optimized_circuit).is_none());
+        assert!(CircuitSimulator::check_circuit(&optimized_circuit).is_none());
         assert_circuit_snapshot!(optimized_circuit, @r"
         private parameters: [w1]
         public parameters: []
@@ -468,7 +468,7 @@ mod tests {
         ASSERT w1 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
-        assert!(CircuitSimulator::default().check_circuit(&circuit).is_none());
+        assert!(CircuitSimulator::check_circuit(&circuit).is_none());
 
         let acir_opcode_positions: Vec<usize> =
             circuit.opcodes.iter().enumerate().map(|(i, _)| i).collect();
@@ -479,7 +479,7 @@ mod tests {
         let optimizer = RangeOptimizer::new(circuit, &brillig_side_effects);
         let (optimized_circuit, _) =
             optimizer.replace_redundant_ranges(acir_opcode_positions.clone());
-        assert!(CircuitSimulator::default().check_circuit(&optimized_circuit).is_none());
+        assert!(CircuitSimulator::check_circuit(&optimized_circuit).is_none());
 
         // `BLACKBOX::RANGE [w1]:32 bits []` remains: The minimum does not propagate backwards.
         assert_circuit_snapshot!(optimized_circuit, @r"
@@ -503,6 +503,7 @@ mod tests {
     #[test]
     fn array_implied_ranges() {
         // The optimizer should use knowledge about array lengths and witnesses used to index these to remove range opcodes, when possible.
+        // The `BLACKBOX::RANGE` call is removed because its range is larger than the array's length
         let src = "
         private parameters: [w0, w1]
         public parameters: []
@@ -512,13 +513,13 @@ mod tests {
         READ w2 = b0[w1]
         ";
         let circuit = Circuit::from_str(src).unwrap();
-        assert!(CircuitSimulator::default().check_circuit(&circuit).is_none());
+        assert!(CircuitSimulator::check_circuit(&circuit).is_none());
 
         let acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, _)| i).collect();
         let brillig_side_effects = BTreeMap::new();
         let optimizer = RangeOptimizer::new(circuit, &brillig_side_effects);
         let (optimized_circuit, _) = optimizer.replace_redundant_ranges(acir_opcode_positions);
-        assert!(CircuitSimulator::default().check_circuit(&optimized_circuit).is_none());
+        assert!(CircuitSimulator::check_circuit(&optimized_circuit).is_none());
         assert_circuit_snapshot!(optimized_circuit, @r"
         private parameters: [w0, w1]
         public parameters: []
@@ -531,6 +532,7 @@ mod tests {
     #[test]
     fn large_array_implied_ranges() {
         // The optimizer should use knowledge about array lengths and witnesses used to index these to remove range opcodes, when possible.
+        // The `BLACKBOX::RANGE` call is not removed because its range is smaller than the array's length
         let src = "
         private parameters: [w0, w1]
         public parameters: []
@@ -540,13 +542,13 @@ mod tests {
         READ w2 = b0[w1]
         ";
         let circuit = Circuit::from_str(src).unwrap();
-        assert!(CircuitSimulator::default().check_circuit(&circuit).is_none());
+        assert!(CircuitSimulator::check_circuit(&circuit).is_none());
 
         let acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, _)| i).collect();
         let brillig_side_effects = BTreeMap::new();
         let optimizer = RangeOptimizer::new(circuit, &brillig_side_effects);
         let (optimized_circuit, _) = optimizer.replace_redundant_ranges(acir_opcode_positions);
-        assert!(CircuitSimulator::default().check_circuit(&optimized_circuit).is_none());
+        assert!(CircuitSimulator::check_circuit(&optimized_circuit).is_none());
         assert_circuit_snapshot!(optimized_circuit, @r"
         private parameters: [w0, w1]
         public parameters: []

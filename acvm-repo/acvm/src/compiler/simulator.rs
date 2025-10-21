@@ -26,10 +26,14 @@ pub struct CircuitSimulator {
 }
 
 impl CircuitSimulator {
+    pub fn check_circuit<F: AcirField>(circuit: &Circuit<F>) -> Option<usize> {
+        Self::default().run_check_circuit(circuit)
+    }
+
     /// Simulate solving a circuit symbolically by keeping track of the witnesses that can be solved.
     /// Returns the index of an opcode that cannot be solved, if any.
     #[tracing::instrument(level = "trace", skip_all)]
-    pub fn check_circuit<F: AcirField>(&mut self, circuit: &Circuit<F>) -> Option<usize> {
+    fn run_check_circuit<F: AcirField>(&mut self, circuit: &Circuit<F>) -> Option<usize> {
         let circuit_inputs = circuit.circuit_arguments();
         self.solvable_witnesses.extend(circuit_inputs.iter());
         for (i, op) in circuit.opcodes.iter().enumerate() {
@@ -196,33 +200,7 @@ impl CircuitSimulator {
 #[cfg(test)]
 mod tests {
     use crate::compiler::CircuitSimulator;
-    use acir::{
-        FieldElement,
-        acir_field::AcirField,
-        circuit::{
-            Circuit, Opcode, PublicInputs,
-            opcodes::{BlackBoxFuncCall, FunctionInput},
-        },
-        native_types::{Expression, Witness},
-    };
-    use std::collections::BTreeSet;
-
-    // TODO(https://github.com/noir-lang/noir/issues/10122): Use `Circuit::from_str` to test ACVM's `CircuitSimulator`
-    fn test_circuit(
-        opcodes: Vec<Opcode<FieldElement>>,
-        private_parameters: BTreeSet<Witness>,
-        public_parameters: PublicInputs,
-    ) -> Circuit<FieldElement> {
-        Circuit {
-            function_name: "test_circuit".to_string(),
-            current_witness_index: 1,
-            opcodes,
-            private_parameters,
-            public_parameters,
-            return_values: PublicInputs::default(),
-            assert_messages: Default::default(),
-        }
-    }
+    use acir::circuit::Circuit;
 
     #[test]
     fn reports_none_for_empty_circuit() {
@@ -232,7 +210,7 @@ mod tests {
         return values: []
         ";
         let empty_circuit = Circuit::from_str(src).unwrap();
-        assert!(CircuitSimulator::default().check_circuit(&empty_circuit).is_none());
+        assert!(CircuitSimulator::check_circuit(&empty_circuit).is_none());
     }
 
     #[test]
@@ -244,59 +222,35 @@ mod tests {
         ASSERT w2 = w1
         ";
         let connected_circuit = Circuit::from_str(src).unwrap();
-        assert!(CircuitSimulator::default().check_circuit(&connected_circuit).is_none());
+        assert!(CircuitSimulator::check_circuit(&connected_circuit).is_none());
     }
 
     #[test]
     fn reports_true_for_connected_circuit_with_range() {
-        let connected_circuit = test_circuit(
-            vec![
-                Opcode::AssertZero(Expression {
-                    mul_terms: Vec::new(),
-                    linear_combinations: vec![
-                        (FieldElement::one(), Witness(1)),
-                        (-FieldElement::one(), Witness(2)),
-                    ],
-                    q_c: FieldElement::zero(),
-                }),
-                Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
-                    input: FunctionInput::Witness(Witness(3)),
-                    num_bits: 8,
-                }),
-            ],
-            BTreeSet::from([Witness(1), Witness(3)]),
-            PublicInputs::default(),
-        );
+        let src = "
+        private parameters: [w1, w3]
+        public parameters: []
+        return values: []
+        ASSERT w2 = w1
+        BLACKBOX::RANGE input: w3, bits: 8
+        ";
+        let connected_circuit = Circuit::from_str(src).unwrap();
 
-        assert!(CircuitSimulator::default().check_circuit(&connected_circuit).is_none());
+        assert!(CircuitSimulator::check_circuit(&connected_circuit).is_none());
     }
 
     #[test]
     fn reports_false_for_disconnected_circuit() {
-        let disconnected_circuit = test_circuit(
-            vec![
-                Opcode::AssertZero(Expression {
-                    mul_terms: Vec::new(),
-                    linear_combinations: vec![
-                        (FieldElement::one(), Witness(1)),
-                        (-FieldElement::one(), Witness(2)),
-                    ],
-                    q_c: FieldElement::zero(),
-                }),
-                Opcode::AssertZero(Expression {
-                    mul_terms: Vec::new(),
-                    linear_combinations: vec![
-                        (FieldElement::one(), Witness(3)),
-                        (-FieldElement::one(), Witness(4)),
-                    ],
-                    q_c: FieldElement::zero(),
-                }),
-            ],
-            BTreeSet::from([Witness(1)]),
-            PublicInputs::default(),
-        );
+        let src = "
+        private parameters: [w1]
+        public parameters: []
+        return values: []
+        ASSERT w2 = w1
+        ASSERT w4 = w3
+        ";
+        let disconnected_circuit = Circuit::from_str(src).unwrap();
 
-        assert!(CircuitSimulator::default().check_circuit(&disconnected_circuit).is_some());
+        assert!(CircuitSimulator::check_circuit(&disconnected_circuit).is_some());
     }
 
     #[test]
@@ -309,7 +263,7 @@ mod tests {
         ASSERT w3 = w2
         ";
         let circuit = Circuit::from_str(src).unwrap();
-        assert!(CircuitSimulator::default().check_circuit(&circuit).is_none());
+        assert!(CircuitSimulator::check_circuit(&circuit).is_none());
     }
 
     #[test]
@@ -323,7 +277,7 @@ mod tests {
         ASSERT w2 = w1
         ";
         let circuit = Circuit::from_str(src).unwrap();
-        assert!(CircuitSimulator::default().check_circuit(&circuit).is_none());
+        assert!(CircuitSimulator::check_circuit(&circuit).is_none());
     }
 
     #[test]
@@ -336,7 +290,7 @@ mod tests {
         ASSERT w2 = w1
         ";
         let circuit = Circuit::from_str(src).unwrap();
-        assert!(CircuitSimulator::default().check_circuit(&circuit).is_none());
+        assert!(CircuitSimulator::check_circuit(&circuit).is_none());
     }
 
     #[test]
@@ -349,7 +303,7 @@ mod tests {
         ASSERT w2 = w1
         ";
         let circuit = Circuit::from_str(src).unwrap();
-        assert!(CircuitSimulator::default().check_circuit(&circuit).is_none());
+        assert!(CircuitSimulator::check_circuit(&circuit).is_none());
     }
 
     #[test]
@@ -362,7 +316,7 @@ mod tests {
         ASSERT w4 = w3
         ";
         let disconnected_circuit = Circuit::from_str(src).unwrap();
-        assert_eq!(CircuitSimulator::default().check_circuit(&disconnected_circuit), Some(1));
+        assert_eq!(CircuitSimulator::check_circuit(&disconnected_circuit), Some(1));
     }
 
     #[test]
@@ -375,7 +329,7 @@ mod tests {
         INIT b0 = [w0]
         ";
         let circuit = Circuit::from_str(src).unwrap();
-        assert_eq!(CircuitSimulator::default().check_circuit(&circuit), Some(1));
+        assert_eq!(CircuitSimulator::check_circuit(&circuit), Some(1));
     }
 
     #[test]
@@ -388,7 +342,7 @@ mod tests {
         INIT b0 = [w0]
         ";
         let circuit = Circuit::from_str(src).unwrap();
-        assert_eq!(CircuitSimulator::default().check_circuit(&circuit), Some(1));
+        assert_eq!(CircuitSimulator::check_circuit(&circuit), Some(1));
     }
 
     #[test]
@@ -402,6 +356,6 @@ mod tests {
         ASSERT w0 = w1*w1
         ";
         let circuit = Circuit::from_str(src).unwrap();
-        assert_eq!(CircuitSimulator::default().check_circuit(&circuit), Some(0));
+        assert_eq!(CircuitSimulator::check_circuit(&circuit), Some(0));
     }
 }

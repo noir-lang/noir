@@ -128,7 +128,7 @@ fn transform_assert_messages<F: Clone>(
 /// Applies backend specific optimizations to a [`Circuit`].
 ///
 /// optimize_internal:
-/// - General optimizer: canonalize AssertZero opcodes.
+/// - General optimizer: canonicalize AssertZero opcodes.
 /// - Unused Memory: remove unused MemoryInit opcodes.
 /// - Redundant Ranges: remove RANGE opcodes that are redundant.
 ///
