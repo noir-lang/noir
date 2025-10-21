@@ -344,16 +344,18 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                 // Check if condition is true
                 // We use 0 to mean false and any other value to mean true
                 let condition_value = self.memory.read(*condition);
-                match condition_value.expect_u1() {
-                    Err(error) => self.fail(format!("condition value is not a boolean: {error}")),
-                    Ok(true) => {
-                        self.fuzzing_trace_branching(*destination);
-                        self.set_program_counter(*destination)
+                let condition_value = match condition_value.expect_u1() {
+                    Err(error) => {
+                        return self.fail(format!("condition value is not a boolean: {error}"));
                     }
-                    Ok(false) => {
-                        self.fuzzing_trace_branching(self.program_counter + 1);
-                        self.increment_program_counter()
-                    }
+                    Ok(cond) => cond,
+                };
+                if condition_value {
+                    self.fuzzing_trace_branching(*destination);
+                    self.set_program_counter(*destination)
+                } else {
+                    self.fuzzing_trace_branching(self.program_counter + 1);
+                    self.increment_program_counter()
                 }
             }
             Opcode::CalldataCopy { destination_address, size_address, offset_address } => {
