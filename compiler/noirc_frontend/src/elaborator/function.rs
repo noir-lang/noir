@@ -111,11 +111,6 @@ impl Elaborator<'_> {
         let (trait_id, trait_generics, path_location) =
             self.resolve_trait_impl_trait_path(trait_impl);
 
-        // If we could not find a trait we can skip elaborating the remaining functions in the trait impl
-        // as we should push errors that a trait is missing.
-        if trait_id.is_none() {
-            return;
-        }
         trait_impl.trait_id = trait_id;
 
         let (constraints, new_generics_trait_constraints) =
