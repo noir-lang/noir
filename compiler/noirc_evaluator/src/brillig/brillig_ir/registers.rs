@@ -548,7 +548,7 @@ impl<F, Registers: RegisterAllocator> BrilligContext<F, Registers> {
         self.allocate_register().map(|a| BrilligVector { pointer: a })
     }
 
-    /// Allocate a [BrilligActor].
+    /// Allocate a [BrilligArray].
     pub(crate) fn allocate_brillig_array(
         &mut self,
         size: usize,

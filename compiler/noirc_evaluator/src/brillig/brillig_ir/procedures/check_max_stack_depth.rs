@@ -24,8 +24,9 @@ pub(super) fn compile_check_max_stack_depth_procedure<F: AcirField + DebugToStri
 ) {
     let in_range = brillig_context.allocate_single_addr_bool();
 
-    let max_stack_size = brillig_context.registers().layout().max_stack_size();
-    let max_frame_size = brillig_context.registers().layout().max_stack_frame_size();
+    let layout = brillig_context.layout();
+    let max_stack_size = layout.max_stack_size();
+    let max_frame_size = layout.max_stack_frame_size();
 
     let last_possible_stack_start = stack_start + max_stack_size - max_frame_size;
 
