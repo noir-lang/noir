@@ -19,10 +19,6 @@
 //! ### Dependency Ordering
 //! Globals are assumed to be elaborated in dependency order. This means if global `A` references global `B`, then `B`
 //! must be elaborated first. It is assumed that the caller of this module has enforced elaborating globals in their dependency order.
-//!
-//! The [filter_literal_globals] function separates simple literals (which have no dependencies) from complex expressions, allowing
-//! the simple cases to be processed first without dependency analysis. It is also necessary to elaborate these literal globals first
-//! as struct type definitions can reference global literals as numeric generics.
 
 use crate::{
     ast::Pattern,
