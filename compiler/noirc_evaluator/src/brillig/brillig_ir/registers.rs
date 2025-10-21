@@ -485,7 +485,14 @@ impl<F, Registers: RegisterAllocator> BrilligContext<F, Registers> {
         self.registers.allocate_register()
     }
 
+    /// Resets the registers to a new list of allocated ones.
     pub(crate) fn set_allocated_registers(&mut self, allocated_registers: Vec<MemoryAddress>) {
+        // XXX: This currently fails, which means something doesn't deallocate registers.
+        // assert_eq!(
+        //     self.registers.start(),
+        //     self.registers.empty_registers_start().to_usize(),
+        //     "The registers should be empty before being overwritten"
+        // );
         let layout = self.registers.layout();
         self.registers = Registers::from_preallocated_registers(allocated_registers, layout);
     }
@@ -500,10 +507,12 @@ impl<F, Registers: RegisterAllocator> BrilligContext<F, Registers> {
         self.deallocate_register(var.address);
     }
 
+    /// Deallocates the array pointer.
     pub(crate) fn deallocate_heap_array(&mut self, arr: HeapArray) {
         self.deallocate_register(arr.pointer);
     }
 
+    /// Deallocates the vector pointer and the size address.
     pub(crate) fn deallocate_heap_vector(&mut self, vec: HeapVector) {
         self.deallocate_register(vec.pointer);
         self.deallocate_register(vec.size);
