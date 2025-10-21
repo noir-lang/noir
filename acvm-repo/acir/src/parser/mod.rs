@@ -111,6 +111,36 @@ impl Circuit<FieldElement> {
     }
 }
 
+impl FromStr for Expression<FieldElement> {
+    type Err = AcirParserErrorWithSource;
+
+    fn from_str(src: &str) -> Result<Self, Self::Err> {
+        Self::from_str_impl(src)
+    }
+}
+
+impl Expression<FieldElement> {
+    /// Creates a [Expression] object from the given string.
+    #[allow(clippy::should_implement_trait)]
+    pub fn from_str(src: &str) -> Result<Self, AcirParserErrorWithSource> {
+        FromStr::from_str(src)
+    }
+
+    pub fn from_str_impl(src: &str) -> Result<Self, AcirParserErrorWithSource> {
+        let mut parser =
+            Parser::new(src).map_err(|err| AcirParserErrorWithSource::parse_error(err, src))?;
+        parser
+            .parse_arithmetic_expression()
+            .map_err(|err| AcirParserErrorWithSource::parse_error(err, src))
+    }
+}
+
+pub fn parse_opcodes(src: &str) -> Result<Vec<Opcode<FieldElement>>, AcirParserErrorWithSource> {
+    let mut parser =
+        Parser::new(src).map_err(|err| AcirParserErrorWithSource::parse_error(err, src))?;
+    parser.parse_opcodes().map_err(|err| AcirParserErrorWithSource::parse_error(err, src))
+}
+
 struct Parser<'a> {
     lexer: Lexer<'a>,
     token: SpannedToken,
@@ -130,9 +160,7 @@ impl<'a> Parser<'a> {
         let mut functions: Vec<Circuit<FieldElement>> = Vec::new();
 
         // We expect top-level "func" keywords for each circuit
-        while let Some(Keyword::Function) = self.peek_keyword() {
-            self.bump()?;
-
+        while self.eat_keyword(Keyword::Function)? {
             let func_id = self.eat_u32_or_error()?;
             let expected_id = functions.len() as u32;
             if func_id != expected_id {
@@ -197,26 +225,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_witness_vector(&mut self) -> ParseResult<Vec<Witness>> {
-        self.eat_or_error(Token::LeftBracket)?;
-
-        let mut witnesses = Vec::new();
-
-        while !self.eat(Token::RightBracket)? {
-            let witness = self.eat_witness_or_error()?;
-            witnesses.push(witness);
-
-            // Eat optional comma
-            if self.eat(Token::Comma)? {
-                continue;
-            }
-
-            // If no comma, expect closing bracket next
-            if self.token.token() != &Token::RightBracket {
-                return self.expected_token(Token::RightBracket);
-            }
-        }
-
-        Ok(witnesses)
+        self.parse_bracketed_list(|parser| parser.eat_witness_or_error())
     }
 
     fn parse_witness_ordered_set(&mut self) -> ParseResult<BTreeSet<Witness>> {
@@ -583,20 +592,7 @@ impl<'a> Parser<'a> {
     ) -> ParseResult<Vec<FunctionInput<FieldElement>>> {
         self.eat_keyword_or_error(keyword)?;
         self.eat_or_error(Token::Colon)?;
-        self.eat_or_error(Token::LeftBracket)?;
-
-        let mut inputs = Vec::new();
-
-        while !self.eat(Token::RightBracket)? {
-            let input = self.parse_blackbox_input_no_keyword()?;
-            inputs.push(input);
-
-            // Eat a comma if there is another input, but do not error if there is no comma
-            // as this means we have reached the end of the inputs.
-            self.eat(Token::Comma)?;
-        }
-
-        Ok(inputs)
+        self.parse_bracketed_list(|parser| parser.parse_blackbox_input_no_keyword())
     }
 
     fn parse_blackbox_input(
@@ -611,25 +607,17 @@ impl<'a> Parser<'a> {
     fn parse_blackbox_input_no_keyword(
         &mut self,
     ) -> Result<FunctionInput<FieldElement>, ParserError> {
-        Ok(match self.token.token() {
-            Token::Int(value) => {
-                let value = *value;
-                self.bump()?;
-                FunctionInput::Constant(value)
-            }
-            Token::Witness(index) => {
-                let witness = *index;
-                self.bump()?;
-                FunctionInput::Witness(Witness(witness))
-            }
-            other => {
-                return Err(ParserError::ExpectedOneOfTokens {
-                    tokens: vec![Token::Int(FieldElement::zero()), Token::Witness(0)],
-                    found: other.clone(),
-                    span: self.token.span(),
-                });
-            }
-        })
+        if let Some(value) = self.eat_field_element()? {
+            Ok(FunctionInput::Constant(value))
+        } else if let Some(witness) = self.eat_witness()? {
+            Ok(FunctionInput::Witness(witness))
+        } else {
+            Err(ParserError::ExpectedOneOfTokens {
+                tokens: vec![Token::Int(FieldElement::zero()), Token::Witness(0)],
+                found: self.token.token().clone(),
+                span: self.token.span(),
+            })
+        }
     }
 
     fn parse_blackbox_output(&mut self) -> ParseResult<Witness> {
@@ -661,17 +649,7 @@ impl<'a> Parser<'a> {
     fn parse_memory_init(&mut self) -> ParseResult<Opcode<FieldElement>> {
         self.eat_keyword_or_error(Keyword::MemoryInit)?;
 
-        let block_type = match self.peek_keyword() {
-            Some(Keyword::CallData) => {
-                self.bump()?;
-                BlockType::CallData(self.eat_u32_or_error()?)
-            }
-            Some(Keyword::ReturnData) => {
-                self.bump()?;
-                BlockType::ReturnData
-            }
-            _ => BlockType::Memory,
-        };
+        let block_type = self.parse_block_type()?;
 
         // blockId = [witness1, witness2, ...]
         let block_id = self.eat_block_id_or_error()?;
@@ -679,6 +657,16 @@ impl<'a> Parser<'a> {
         let init = self.parse_witness_vector()?;
 
         Ok(Opcode::MemoryInit { block_id, init, block_type })
+    }
+
+    fn parse_block_type(&mut self) -> Result<BlockType, ParserError> {
+        if self.eat_keyword(Keyword::CallData)? {
+            Ok(BlockType::CallData(self.eat_u32_or_error()?))
+        } else if self.eat_keyword(Keyword::ReturnData)? {
+            Ok(BlockType::ReturnData)
+        } else {
+            Ok(BlockType::Memory)
+        }
     }
 
     fn parse_memory_read(&mut self) -> ParseResult<Opcode<FieldElement>> {
@@ -739,67 +727,35 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_brillig_inputs(&mut self) -> ParseResult<Vec<BrilligInputs<FieldElement>>> {
-        self.eat_or_error(Token::LeftBracket)?;
+        self.parse_bracketed_list(|parser| parser.parse_brillig_input())
+    }
 
-        let mut inputs = Vec::new();
-        while !self.eat(Token::RightBracket)? {
-            let input = match self.token.token() {
-                Token::LeftBracket => {
-                    // It's an array of expressions
-                    self.bump()?; // eat [
-                    let mut exprs = Vec::new();
-                    while !self.eat(Token::RightBracket)? {
-                        exprs.push(self.parse_arithmetic_expression()?);
-                        self.eat(Token::Comma)?; // allow trailing comma
-                    }
-                    BrilligInputs::Array(exprs)
-                }
-                Token::Ident(s) if s == "MemoryArray" => {
-                    self.bump()?; // eat "MemoryArray"
-                    self.eat_or_error(Token::LeftParen)?;
-                    let block_id = self.eat_u32_or_error()?;
-                    self.eat_or_error(Token::RightParen)?;
-                    BrilligInputs::MemoryArray(BlockId(block_id))
-                }
-                _ => {
-                    let expr = self.parse_arithmetic_expression()?;
-                    BrilligInputs::Single(expr)
-                }
-            };
-
-            inputs.push(input);
-            self.eat(Token::Comma)?; // optional trailing comma
+    fn parse_brillig_input(&mut self) -> Result<BrilligInputs<FieldElement>, ParserError> {
+        if self.at(Token::LeftBracket) {
+            // It's an array of expressions
+            let exprs = self.parse_bracketed_list(|parser| parser.parse_arithmetic_expression())?;
+            Ok(BrilligInputs::Array(exprs))
+        } else if let Some(block_id) = self.eat_block_id()? {
+            Ok(BrilligInputs::MemoryArray(block_id))
+        } else {
+            let expr = self.parse_arithmetic_expression()?;
+            Ok(BrilligInputs::Single(expr))
         }
-
-        Ok(inputs)
     }
 
     fn parse_brillig_outputs(&mut self) -> ParseResult<Vec<BrilligOutputs>> {
-        self.eat_or_error(Token::LeftBracket)?;
+        self.parse_bracketed_list(|parser| parser.parse_brillig_output())
+    }
 
-        let mut outputs = Vec::new();
-        while !self.eat(Token::RightBracket)? {
-            let output = match self.token.token() {
-                Token::LeftBracket => {
-                    self.bump()?; // eat [
-                    let mut witnesses = Vec::new();
-                    while !self.eat(Token::RightBracket)? {
-                        witnesses.push(self.eat_witness_or_error()?);
-                        self.eat(Token::Comma)?; // optional trailing comma
-                    }
-                    BrilligOutputs::Array(witnesses)
-                }
-                Token::Witness(_) => BrilligOutputs::Simple(self.eat_witness_or_error()?),
-                _ => {
-                    return self.expected_one_of_tokens(&[Token::LeftBracket, Token::Witness(0)]);
-                }
-            };
-
-            outputs.push(output);
-            self.eat(Token::Comma)?; // optional trailing comma
+    fn parse_brillig_output(&mut self) -> Result<BrilligOutputs, ParserError> {
+        if self.at(Token::LeftBracket) {
+            let witnesses = self.parse_witness_vector()?;
+            Ok(BrilligOutputs::Array(witnesses))
+        } else if let Some(witness) = self.eat_witness()? {
+            Ok(BrilligOutputs::Simple(witness))
+        } else {
+            self.expected_one_of_tokens(&[Token::LeftBracket, Token::Witness(0)])
         }
-
-        Ok(outputs)
     }
 
     fn parse_call(&mut self) -> ParseResult<Opcode<FieldElement>> {
@@ -830,6 +786,31 @@ impl<'a> Parser<'a> {
             predicate = Some(expr);
         }
         Ok(predicate)
+    }
+
+    fn parse_bracketed_list<T, F>(&mut self, parser: F) -> ParseResult<Vec<T>>
+    where
+        F: Fn(&mut Parser<'a>) -> ParseResult<T>,
+    {
+        self.eat_or_error(Token::LeftBracket)?;
+
+        let mut values = Vec::new();
+
+        while !self.eat(Token::RightBracket)? {
+            let value = parser(self)?;
+            values.push(value);
+
+            // Eat optional comma
+            if self.eat(Token::Comma)? {
+                continue;
+            }
+
+            // If no comma, expect closing bracket next
+            self.eat_or_error(Token::RightBracket)?;
+            break;
+        }
+
+        Ok(values)
     }
 
     fn eat_ident_or_error(&mut self) -> ParseResult<String> {
@@ -960,6 +941,10 @@ impl<'a> Parser<'a> {
 
     fn eat_or_error(&mut self, token: Token) -> ParseResult<()> {
         if self.eat(token.clone())? { Ok(()) } else { self.expected_token(token) }
+    }
+
+    fn at(&mut self, token: Token) -> bool {
+        self.token.token() == &token
     }
 
     /// Returns true if the token is eaten and bumps to the next token.

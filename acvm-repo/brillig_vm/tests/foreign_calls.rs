@@ -27,7 +27,7 @@ fn run_foreign_call_test<F: AcirField>(
 
     vm.resolve_foreign_call(ForeignCallResult { values: foreign_call_result });
     let status = vm.process_opcode();
-    assert_eq!(status, expected_final_status);
+    assert_eq!(*status, expected_final_status);
     let counter = vm.foreign_call_counter();
     (vm.take_memory(), counter)
 }

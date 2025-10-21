@@ -172,7 +172,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
     }
 
     pub fn step(&mut self) -> Result<BrilligSolverStatus<F>, OpcodeResolutionError<F>> {
-        let status = self.vm.process_opcode();
+        let status = self.vm.process_opcode().clone();
         self.handle_vm_status(status)
     }
 

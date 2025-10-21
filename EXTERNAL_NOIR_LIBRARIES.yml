@@ -34,7 +34,7 @@ libraries:
     critical: true
   noir_bigcurve:
     repo: noir-lang/noir_bigcurve
-    timeout: 450
+    timeout: 500
     critical: true
   noir_base64:
     repo: noir-lang/noir_base64
