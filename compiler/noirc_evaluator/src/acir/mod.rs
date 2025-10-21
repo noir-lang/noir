@@ -646,7 +646,7 @@ impl<'a> Context<'a> {
                 AcirValue::Var(self.acir_context.add_constant(*constant), typ)
             }
             Value::Intrinsic(..) => unreachable!(
-                "Intrinsics should only appear in function calls, not generally in SSA values"
+                "ICE: Intrinsics should be resolved via separate logic"
             ),
             Value::Function(function_id) => {
                 // This conversion is for debugging support only, to allow the
