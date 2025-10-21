@@ -30,7 +30,7 @@
 //! - Non-literal globals - Elaborated after type resolution since they may use struct types which need global type information
 //!
 //! ### Attribute Processing
-//! - Comptime attributes - Executed before function body elaboration, as generated items must be checked beforehand
+//! - Comptime attributes - Executed before function body elaboration, as generated items may change what is in scope or modify functions
 //!
 //! ### Full Item Elaboration
 //! 1. Functions - Function bodies elaborated and type-checked
