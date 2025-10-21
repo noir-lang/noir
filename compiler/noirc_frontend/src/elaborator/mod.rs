@@ -27,7 +27,7 @@
 //! 4. Trait impls - Linked to their corresponding traits and validated
 //!
 //! ### Non-literal Global Elaboration
-//! - Non-literal globals - Elaborated after type resolution since structs need global type information
+//! - Non-literal globals - Elaborated after type resolution since they may use struct types which need global type information
 //!
 //! ### Attribute Processing
 //! - Comptime attributes - Executed before function body elaboration, as generated items must be checked beforehand
