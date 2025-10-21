@@ -25,7 +25,7 @@
 //! as struct type definitions can reference global literals as numeric generics.
 
 use crate::{
-    ast::{ExpressionKind, Literal, Pattern},
+    ast::Pattern,
     hir::{def_collector::dc_crate::UnresolvedGlobal, resolution::errors::ResolverError},
     hir_def::stmt::HirStatement,
     node_interner::{DependencyId, GlobalId, GlobalValue},
@@ -35,10 +35,22 @@ use crate::{
 use super::Elaborator;
 
 impl Elaborator<'_> {
+    pub(super) fn set_unresolved_globals_ordering(&mut self, globals: Vec<UnresolvedGlobal>) {
+        for global in globals {
+            self.unresolved_globals.insert(global.global_id, global);
+        }
+    }
+
+    pub(super) fn elaborate_remaining_globals(&mut self) {
+        while let Some((_, global)) = self.unresolved_globals.pop_first() {
+            self.elaborate_global(global);
+        }
+    }
+
     /// Elaborates a global constant definition, performing name resolution, type checking, and compile-time evaluation.
     ///
     /// See the [module-level documentation][self] for more details.
-    pub(super) fn elaborate_global(&mut self, global: UnresolvedGlobal) {
+    fn elaborate_global(&mut self, global: UnresolvedGlobal) {
         // Set up the elaboration context for this global. We need to ensure that name resolution
         // happens in the module where the global was defined, not where it's being referenced.
         let old_module = std::mem::replace(&mut self.local_module, global.module_id);
@@ -110,7 +122,7 @@ impl Elaborator<'_> {
     /// The comptime [interpreter][crate::hir::comptime::Interpreter] is used for evaluating the expression.
     ///
     /// See the [module-level documentation][self] for more details.
-    pub(super) fn elaborate_comptime_global(&mut self, global_id: GlobalId) {
+    fn elaborate_comptime_global(&mut self, global_id: GlobalId) {
         // Retrieve the HIR let statement that was generated in elaborate_global.
         let let_statement = self
             .interner
@@ -153,16 +165,4 @@ impl Elaborator<'_> {
             false
         }
     }
-}
-
-/// Separate the globals Vec into two. The first element in the tuple will be the
-/// literal globals, except for arrays, and the second will be all other globals.
-/// We exclude array literals as they can contain complex types
-pub(super) fn filter_literal_globals(
-    globals: Vec<UnresolvedGlobal>,
-) -> (Vec<UnresolvedGlobal>, Vec<UnresolvedGlobal>) {
-    globals.into_iter().partition(|global| match &global.stmt_def.expression.kind {
-        ExpressionKind::Literal(literal) => !matches!(literal, Literal::Array(_)),
-        _ => false,
-    })
 }
