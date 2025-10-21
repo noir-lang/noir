@@ -28,7 +28,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 pub(super) fn compile_mem_copy_procedure<F: AcirField + DebugToString>(
     brillig_context: &mut BrilligContext<F, ScratchSpace>,
 ) {
-    let scratch_start = brillig_context.registers.start();
+    let scratch_start = brillig_context.registers().start();
     let source_pointer = MemoryAddress::direct(scratch_start);
     let destination_pointer = MemoryAddress::direct(scratch_start + 1);
     let num_elements_variable = MemoryAddress::direct(scratch_start + 2);

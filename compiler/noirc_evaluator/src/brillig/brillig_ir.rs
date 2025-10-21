@@ -24,6 +24,8 @@ mod codegen_stack;
 mod entry_point;
 mod instructions;
 
+use std::{cell::RefCell, rc::Rc};
+
 use artifact::Label;
 use brillig_variable::SingleAddrVariable;
 pub(crate) use instructions::BrilligBinaryOp;
@@ -80,7 +82,7 @@ impl ReservedRegisters {
 pub(crate) struct BrilligContext<F, Registers> {
     obj: BrilligArtifact<F>,
     /// Tracks register allocations
-    registers: Registers,
+    registers: Rc<RefCell<Registers>>,
     /// Context label, must be unique with respect to the function
     /// being linked.
     context_label: Label,
@@ -99,12 +101,14 @@ pub(crate) struct BrilligContext<F, Registers> {
     count_arrays_copied: bool,
 
     globals_memory_size: Option<usize>,
-
-    /// Memory layout information. See [self::registers] for more information about the memory layout.
-    layout: LayoutConfig,
 }
 
 impl<F, R: RegisterAllocator> BrilligContext<F, R> {
+    /// Memory layout information. See [self::registers] for more information about the memory layout.
+    pub(crate) fn layout(&self) -> LayoutConfig {
+        self.registers().layout()
+    }
+
     /// Enable the insertion of bytecode with extra assertions during testing.
     pub(crate) fn enable_debug_assertions(&self) -> bool {
         self.enable_debug_assertions
@@ -119,7 +123,7 @@ impl<F, R: RegisterAllocator> BrilligContext<F, R> {
         );
 
         // The copy counter is always put in the first global slot
-        MemoryAddress::Direct(GlobalSpace::start_with_layout(&self.registers.layout()))
+        MemoryAddress::Direct(GlobalSpace::start_with_layout(&self.layout()))
     }
 
     pub(crate) fn count_array_copies(&self) -> bool {
@@ -146,7 +150,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         obj.name = function_name.to_owned();
         BrilligContext {
             obj,
-            registers: Stack::new(options.layout),
+            registers: Rc::new(RefCell::new(Stack::new(options.layout))),
             context_label: Label::entrypoint(),
             current_section: 0,
             next_section: 1,
@@ -155,7 +159,6 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
             count_arrays_copied: options.enable_array_copy_counter,
             can_call_procedures: true,
             globals_memory_size: None,
-            layout: options.layout,
         }
     }
 }
@@ -269,7 +272,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, ScratchSpace> {
         obj.procedure = Some(procedure_id);
         BrilligContext {
             obj,
-            registers: ScratchSpace::new(options.layout),
+            registers: Rc::new(RefCell::new(ScratchSpace::new(options.layout))),
             context_label: Label::entrypoint(),
             current_section: 0,
             next_section: 1,
@@ -278,7 +281,6 @@ impl<F: AcirField + DebugToString> BrilligContext<F, ScratchSpace> {
             count_arrays_copied: options.enable_array_copy_counter,
             can_call_procedures: false,
             globals_memory_size: None,
-            layout: options.layout,
         }
     }
 }
@@ -291,7 +293,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, GlobalSpace> {
     ) -> BrilligContext<F, GlobalSpace> {
         BrilligContext {
             obj: BrilligArtifact::default(),
-            registers: GlobalSpace::new(options.layout),
+            registers: Rc::new(RefCell::new(GlobalSpace::new(options.layout))),
             context_label: Label::globals_init(entry_point),
             current_section: 0,
             next_section: 1,
@@ -300,13 +302,12 @@ impl<F: AcirField + DebugToString> BrilligContext<F, GlobalSpace> {
             count_arrays_copied: options.enable_array_copy_counter,
             can_call_procedures: false,
             globals_memory_size: None,
-            layout: options.layout,
         }
     }
 
     pub(crate) fn global_space_size(&self) -> usize {
         // `GlobalSpace::start` is inclusive so we must add one to get the accurate total global memory size
-        (self.registers.max_memory_address() + 1) - self.registers.start()
+        (self.registers().max_memory_address() + 1) - self.registers().start()
     }
 }
 

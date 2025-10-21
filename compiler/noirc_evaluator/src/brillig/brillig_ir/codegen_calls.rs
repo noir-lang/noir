@@ -17,7 +17,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         returns: &[BrilligVariable],
     ) {
         let stack_size_register = SingleAddrVariable::new_usize(self.allocate_register());
-        let previous_stack_pointer = self.registers.empty_registers_start();
+        let previous_stack_pointer = self.registers().empty_registers_start();
         let stack_size = previous_stack_pointer.unwrap_relative();
         // Write the stack size
         self.const_instruction(stack_size_register, stack_size.into());
@@ -65,13 +65,13 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         for (destination_index, return_register) in return_registers.iter().enumerate() {
             // In case we have fewer return registers than indices to write to, ensure we've allocated this register
             let destination_register = MemoryAddress::relative(Stack::start() + destination_index);
-            self.registers.ensure_register_is_allocated(destination_register);
+            self.registers_mut().ensure_register_is_allocated(destination_register);
             sources.push(*return_register);
             destinations.push(destination_register);
         }
-        destinations
-            .iter()
-            .for_each(|destination| self.registers.ensure_register_is_allocated(*destination));
+        destinations.iter().for_each(|destination| {
+            self.registers_mut().ensure_register_is_allocated(*destination)
+        });
         self.codegen_mov_registers_to_registers(sources, destinations);
         self.return_instruction();
     }

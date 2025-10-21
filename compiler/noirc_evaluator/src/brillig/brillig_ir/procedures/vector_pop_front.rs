@@ -38,7 +38,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 pub(super) fn compile_vector_pop_front_procedure<F: AcirField + DebugToString>(
     brillig_context: &mut BrilligContext<F, ScratchSpace>,
 ) {
-    let scratch_start = brillig_context.registers.start();
+    let scratch_start = brillig_context.registers().start();
     let source_vector_length_arg = MemoryAddress::direct(scratch_start);
     let source_vector_pointer_arg = MemoryAddress::direct(scratch_start + 1);
     let item_pop_count_arg = MemoryAddress::direct(scratch_start + 2);

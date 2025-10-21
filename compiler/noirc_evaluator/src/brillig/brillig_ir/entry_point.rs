@@ -42,13 +42,13 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
     fn calldata_start_offset(&self) -> usize {
         let globals_size =
             self.globals_memory_size.expect("The memory size of globals should be set");
-        self.layout.entry_point_start(globals_size)
+        self.layout().entry_point_start(globals_size)
     }
 
     fn return_data_start_offset(&self, calldata_size: usize) -> usize {
         let globals_size =
             self.globals_memory_size.expect("The memory size of globals should be set");
-        self.layout.return_data_start(globals_size, calldata_size)
+        self.layout().return_data_start(globals_size, calldata_size)
     }
 
     /// Adds the instructions needed to handle entry point parameters
@@ -85,7 +85,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         // Set initial value of free memory pointer: `return_data_start + return_data_size + self.layout.max_stack_size()`
         self.const_instruction(
             SingleAddrVariable::new_usize(ReservedRegisters::free_memory_pointer()),
-            (return_data_start + return_data_size + self.layout.max_stack_size()).into(),
+            (return_data_start + return_data_size + self.layout().max_stack_size()).into(),
         );
 
         // The stack begins after the calldata region (calldata + return data)

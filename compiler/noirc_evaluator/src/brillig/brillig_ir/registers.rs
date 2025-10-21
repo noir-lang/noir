@@ -27,7 +27,11 @@
 //! - [RegisterAllocator]: Trait implemented by all memory region allocators. Each allocator is expected
 //!   to enforce its own bounds checks and allocation/deallocation logic.
 //! - [Stack], [ScratchSpace], and [GlobalSpace]: Register allocator implementations for each memory region.
-use std::collections::BTreeSet;
+use std::{
+    cell::{Ref, RefCell, RefMut},
+    collections::BTreeSet,
+    rc::Rc,
+};
 
 use acvm::acir::brillig::{HeapArray, HeapVector, MemoryAddress};
 use iter_extended::vecmap;
@@ -480,9 +484,19 @@ impl DeallocationListAllocator {
 }
 
 impl<F, Registers: RegisterAllocator> BrilligContext<F, Registers> {
+    /// Read-only reference to the registers.
+    pub(crate) fn registers(&self) -> Ref<Registers> {
+        self.registers.borrow()
+    }
+
+    /// Read-write reference to the registers.
+    pub(crate) fn registers_mut(&self) -> RefMut<Registers> {
+        self.registers.borrow_mut()
+    }
+
     /// Allocates an unused register.
     pub(crate) fn allocate_register(&mut self) -> MemoryAddress {
-        self.registers.allocate_register()
+        self.registers_mut().allocate_register()
     }
 
     /// Resets the registers to a new list of allocated ones.
@@ -493,13 +507,15 @@ impl<F, Registers: RegisterAllocator> BrilligContext<F, Registers> {
         //     self.registers.empty_registers_start().to_usize(),
         //     "The registers should be empty before being overwritten"
         // );
-        let layout = self.registers.layout();
-        self.registers = Registers::from_preallocated_registers(allocated_registers, layout);
+        self.registers = Rc::new(RefCell::new(Registers::from_preallocated_registers(
+            allocated_registers,
+            self.layout(),
+        )));
     }
 
     /// Push a register to the deallocation list, ready for reuse.
     pub(crate) fn deallocate_register(&mut self, register_index: MemoryAddress) {
-        self.registers.deallocate_register(register_index);
+        self.registers_mut().deallocate_register(register_index);
     }
 
     /// Deallocates the address where the single address variable is stored
