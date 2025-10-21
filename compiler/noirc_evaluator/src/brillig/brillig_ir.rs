@@ -35,6 +35,7 @@ use self::{artifact::BrilligArtifact, debug_show::DebugToString, registers::Stac
 use acvm::{
     AcirField,
     acir::brillig::{MemoryAddress, Opcode as BrilligOpcode},
+    brillig_vm::STACK_POINTER_ADDRESS,
 };
 use debug_show::DebugShow;
 
@@ -45,15 +46,8 @@ use super::{BrilligOptions, FunctionId, GlobalSpace, ProcedureId};
 /// memory has 2^32 memory slots.
 pub(crate) const BRILLIG_MEMORY_ADDRESSING_BIT_SIZE: u32 = 32;
 
-// Registers reserved in runtime for special purposes.
-pub(crate) enum ReservedRegisters {
-    /// This register stores the stack pointer. All relative memory addresses are relative to this pointer.
-    StackPointer = 0,
-    /// This register stores the free memory pointer. Allocations must be done after this pointer.
-    FreeMemoryPointer = 1,
-    /// This register stores a 1_usize constant.
-    UsizeOne = 2,
-}
+/// Registers reserved in runtime for special purposes.
+pub(crate) struct ReservedRegisters;
 
 impl ReservedRegisters {
     /// The number of reserved registers. These are allocated in the first memory positions.
@@ -65,16 +59,19 @@ impl ReservedRegisters {
         Self::NUM_RESERVED_REGISTERS
     }
 
+    /// This register stores the stack pointer. All relative memory addresses are relative to this pointer.
     pub(crate) fn stack_pointer() -> MemoryAddress {
-        MemoryAddress::direct(ReservedRegisters::StackPointer as usize)
+        STACK_POINTER_ADDRESS
     }
 
+    /// This register stores the free memory pointer. Allocations must be done after this pointer.
     pub(crate) fn free_memory_pointer() -> MemoryAddress {
-        MemoryAddress::direct(ReservedRegisters::FreeMemoryPointer as usize)
+        MemoryAddress::direct(1)
     }
 
+    /// This register stores a 1_usize constant.
     pub(crate) fn usize_one() -> MemoryAddress {
-        MemoryAddress::direct(ReservedRegisters::UsizeOne as usize)
+        MemoryAddress::direct(2)
     }
 }
 
