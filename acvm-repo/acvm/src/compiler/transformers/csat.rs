@@ -271,10 +271,9 @@ impl CSatTransformer {
 
         if intermediate_variables.contains_key(&normalized_expr) {
             let (l, iv) = intermediate_variables[&normalized_expr];
-            let div_k_l = k / l;
             assert!(
-                k == F::zero() || div_k_l != F::zero(),
-                "get_or_create_intermediate_var: k != 0 and k / l == 0"
+                l != F::zero(),
+                "get_or_create_intermediate_var: attempting to divide l by F::zero()"
             );
             (k / l, iv)
         } else {
@@ -537,7 +536,9 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "get_or_create_intermediate_var: k != 0 and k / l == 0")]
+    #[should_panic(
+        expected = "get_or_create_intermediate_var: attempting to divide l by F::zero()"
+    )]
     fn get_or_create_intermediate_var_with_zero_panics() {
         let expr = Expression {
             mul_terms: vec![(FieldElement::one(), Witness(0), Witness(1))],

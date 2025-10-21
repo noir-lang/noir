@@ -113,11 +113,11 @@ impl<'a, F: AcirField> RangeOptimizer<'a, F> {
                     if expr.is_degree_one_univariate() {
                         let (k, witness) = expr.linear_combinations[0];
                         let constant = expr.q_c;
-                        let witness_value = -constant / k;
                         assert!(
-                            constant == F::zero() || witness_value != F::zero(),
-                            "collect_ranges: constant != 0 and -constant / k == 0"
+                            k != F::zero(),
+                            "collect_ranges: attempting to divide -constant by F::zero()"
                         );
+                        let witness_value = -constant / k;
 
                         if witness_value.is_zero() {
                             Some((witness, 0, true))
@@ -395,6 +395,8 @@ mod tests {
     #[test]
     fn constant_implied_ranges() {
         // The optimizer should use knowledge about constant witness assignments to remove range opcodes, when possible.
+        // In this case, the `BLACKBOX::RANGE` opcode is expected to be removed because its range is larger than
+        // the range checked by the `ASSERT` opcode
         let src = "
         private parameters: [w1]
         public parameters: []
@@ -421,6 +423,8 @@ mod tests {
     #[test]
     fn large_constant_implied_ranges() {
         // The optimizer should use knowledge about constant witness assignments to remove range opcodes, when possible.
+        // In this case, the `BLACKBOX::RANGE` opcode is expected to be retained because its range is smaller than
+        // the range checked by the `ASSERT` opcode
         let src = "
         private parameters: [w1]
         public parameters: []
@@ -560,7 +564,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "collect_ranges: constant != 0 and -constant / k == 0")]
+    #[should_panic(expected = "collect_ranges: attempting to divide -constant by F::zero()")]
     fn collect_ranges_zero_linear_combination_panics() {
         let src = "
         private parameters: [w1]

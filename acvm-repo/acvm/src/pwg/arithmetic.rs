@@ -282,12 +282,11 @@ fn quick_invert<F: AcirField>(numerator: F, denominator: F) -> F {
     } else if denominator == -F::one() {
         -numerator
     } else {
-        let div_numerator_denominator = numerator / denominator;
         assert!(
-            numerator == F::zero() || div_numerator_denominator != F::zero(),
-            "quick_invert: numerator != 0 and numerator / denominator == 0"
+            denominator != F::zero(),
+            "quick_invert: attempting to divide numerator by F::zero()"
         );
-        div_numerator_denominator
+        numerator / denominator
     }
 }
 
@@ -305,7 +304,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "quick_invert: numerator != 0 and numerator / denominator == 0")]
+    #[should_panic(expected = "quick_invert: attempting to divide numerator by F::zero()")]
     fn quick_invert_zero_denominator() {
         quick_invert(FieldElement::one(), FieldElement::zero());
     }

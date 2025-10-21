@@ -647,7 +647,7 @@ mod tests {
             expression_width,
             acir_opcode_positions.clone(),
             &brillig_side_effects,
-            Some(3),
+            None,
         );
         assert!(!opcodes_hash_stabilized);
     }

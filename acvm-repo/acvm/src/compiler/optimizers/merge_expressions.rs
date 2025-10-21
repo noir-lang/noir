@@ -50,8 +50,8 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
     /// 2*w3*w4 + w4 - w2 - 1/2*w3 - 1/2*w2*w3 = 0
     ///
     /// Pre-condition:
-    /// - This pass is only relevant for backends that can handle unlimited width or e.g.
-    ///   Plonk-ish backends although they have a limited width because they can potentially
+    /// - This pass is relevant for backends that can handle unlimited width and
+    ///   Plonk-ish backends. Although they have a limited width, they can potentially
     ///   handle expressions with large linear combinations using 'big-add' gates.
     /// - The CSAT pass should have been run prior to this one.
     pub(crate) fn eliminate_intermediate_variable(
@@ -261,12 +261,11 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
             if k.1 == witness {
                 for i in &expr.linear_combinations {
                     if i.1 == witness {
-                        let div_k0_i0 = k.0 / i.0;
                         assert!(
-                            k.0 == F::zero() || div_k0_i0 != F::zero(),
-                            "merge_expression: k.0 != 0 and k.0 / i.0 == 0"
+                            i.0 != F::zero(),
+                            "merge_expression: attempting to divide k.0 by F::zero"
                         );
-                        let expr = target.add_mul(-div_k0_i0, expr);
+                        let expr = target.add_mul(-(k.0 / i.0), expr);
                         let expr = GeneralOptimizer::optimize(expr);
                         return Some(expr);
                     }
@@ -408,7 +407,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "merge_expression: k.0 != 0 and k.0 / i.0 == 0")]
+    #[should_panic(expected = "merge_expression: attempting to divide k.0 by F::zero")]
     fn merge_expression_on_zero_linear_combination_panics() {
         let opcode_a = Expression {
             mul_terms: vec![],
