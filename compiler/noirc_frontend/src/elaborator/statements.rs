@@ -1,18 +1,15 @@
 use noirc_errors::Location;
 
 use crate::{
-    DataType, Type,
+    Type,
     ast::{
-        AssignStatement, Expression, ForLoopStatement, ForRange, Ident, IntegerBitSize,
-        ItemVisibility, LValue, LetStatement, Statement, StatementKind, WhileStatement,
+        AssignStatement, Expression, ForLoopStatement, ForRange, IntegerBitSize, LValue,
+        LetStatement, Statement, StatementKind, WhileStatement,
     },
     elaborator::PathResolutionTarget,
     hir::{
         def_collector::dc_crate::CompilationError,
-        resolution::{
-            errors::ResolverError, import::PathResolutionError,
-            visibility::struct_member_is_visible,
-        },
+        resolution::errors::ResolverError,
         type_check::{Source, TypeCheckError},
     },
     hir_def::{
@@ -680,24 +677,6 @@ impl Elaborator<'_> {
         }
 
         None
-    }
-
-    pub(super) fn check_struct_field_visibility(
-        &mut self,
-        struct_type: &DataType,
-        field_name: &str,
-        visibility: ItemVisibility,
-        location: Location,
-    ) {
-        if self.silence_field_visibility_errors > 0 {
-            return;
-        }
-
-        if !struct_member_is_visible(struct_type.id, visibility, self.module_id(), self.def_maps) {
-            self.push_err(ResolverError::PathResolutionError(PathResolutionError::Private(
-                Ident::new(field_name.to_string(), location),
-            )));
-        }
     }
 
     fn elaborate_comptime_statement(&mut self, statement: Statement) -> (HirStatement, Type) {
