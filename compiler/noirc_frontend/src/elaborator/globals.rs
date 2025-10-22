@@ -31,13 +31,17 @@ use crate::{
 use super::Elaborator;
 
 impl Elaborator<'_> {
+    /// Order the set of unresolved globals by their [GlobalId]
+    /// This set will be used to determine the ordering in which globals are elaborated.
     pub(super) fn set_unresolved_globals_ordering(&mut self, globals: Vec<UnresolvedGlobal>) {
         for global in globals {
             self.unresolved_globals.insert(global.global_id, global);
         }
     }
 
+    /// Elaborate any globals which were not brought into scope by other items through [Self::elaborate_global_if_unresolved].
     pub(super) fn elaborate_remaining_globals(&mut self) {
+        // Start at the first global IDs to maintain the dependency order
         while let Some((_, global)) = self.unresolved_globals.pop_first() {
             self.elaborate_global(global);
         }

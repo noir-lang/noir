@@ -11,8 +11,7 @@
 //! dependencies correctly:
 //!
 //! ### Early Resolution
-//! 1. Literal globals - Fully elaborated first since they may be used as numeric generics in struct definitions
-//! 2. Non-literal globals - Deferred for elaboration later after type resolution
+//! 2. Globals - Set up their dependency ordering. Deferred for elaboration later after type resolution.
 //! 3. Type aliases - Defined to allow their use in subsequent type definitions
 //!
 //! ### Type Collection
@@ -26,8 +25,8 @@
 //! 3. Impl blocks - Methods organized into their proper modules based on the impl's type
 //! 4. Trait impls - Linked to their corresponding traits and validated
 //!
-//! ### Non-literal Global Elaboration
-//! - Non-literal globals - Elaborated after type resolution since they may use struct types which need global type information
+//! ### Global Elaboration
+//! - Elaborated after type resolution since they may use struct types which need global type information
 //!
 //! ### Attribute Processing
 //! - Comptime attributes - Executed before function body elaboration, as generated items may change what is in scope or modify functions
