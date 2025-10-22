@@ -199,7 +199,6 @@ impl Type {
             | Type::Bool
             | Type::Unit
             | Type::Constant(_, _)
-            | Type::Slice(_)
             | Type::Function(_, _, _, _)
             | Type::FmtString(_, _)
             | Type::InfixExpr(..)
@@ -225,7 +224,7 @@ impl Type {
                 let alias = alias.borrow();
                 alias.get_type(generics).is_valid_for_unconstrained_boundary()
             }
-
+            Type::Slice(element) => element.is_valid_for_unconstrained_boundary(),
             Type::Array(length, element) => {
                 length.is_valid_for_unconstrained_boundary()
                     && element.is_valid_for_unconstrained_boundary()
