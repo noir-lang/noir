@@ -655,13 +655,13 @@ impl Elaborator<'_> {
 
     /// Prepares a trait impl for function metadata definition.
     ///
-    /// This method handles the complex setup required for trait impls:
+    /// This method handles the setup required for trait impls:
     /// - Resolves the trait path and validates it exists
     /// - Sets up generics including where clause desugaring
+    /// - Assigns the impl ID
     /// - Resolves and registers associated types
     /// - Resolves the self type for the impl
     /// - Manages trait constraint scoping
-    /// - Assigns the impl ID
     ///
     /// Returns the new generics trait constraints that were created from desugaring
     /// the where clause. These need to be passed to function meta definition.
