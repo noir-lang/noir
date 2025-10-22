@@ -1,10 +1,10 @@
 //! Visibility checking for functions, struct fields, and type privacy.
 
-use noirc_errors::Location;
+use noirc_errors::{Located, Location};
 
 use crate::{
-    DataType, Type,
-    ast::{Ident, ItemVisibility},
+    DataType, StructField, Type,
+    ast::{Ident, ItemVisibility, NoirStruct},
     hir::resolution::{
         errors::ResolverError,
         import::PathResolutionError,
@@ -37,6 +37,31 @@ impl Elaborator<'_> {
             self.push_err(ResolverError::PathResolutionError(PathResolutionError::Private(
                 name.clone(),
             )));
+        }
+    }
+
+    /// Checks that a public struct does not have fields with more private types.
+    ///
+    /// For example, a public struct cannot have a public field of a private type,
+    /// as this would allow external code to access the private type through the public struct.
+    pub(super) fn check_struct_field_type_visibility(
+        &mut self,
+        struct_def: &NoirStruct,
+        fields: &[StructField],
+    ) {
+        if !struct_def.visibility.is_private() {
+            for field in fields {
+                let ident = Ident::from(Located::from(
+                    field.name.location(),
+                    format!("{}::{}", struct_def.name, field.name),
+                ));
+                self.check_type_is_not_more_private_then_item(
+                    &ident,
+                    field.visibility,
+                    &field.typ,
+                    field.name.location(),
+                );
+            }
         }
     }
 
