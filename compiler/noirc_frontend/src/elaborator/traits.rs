@@ -1,6 +1,6 @@
 //! Trait definition collection, bounds resolution, and associated types.
 //!
-//! # Terminology: 
+//! # Terminology:
 //!
 //! ## TraitConstraint & TraitBound
 //!
@@ -157,7 +157,7 @@
 //!     impl constraints are obtained from the impl definition but care should be taken to
 //!     instantiate them with the original instantiation bindings before checking them so that they
 //!     are not bound over. Using the Eq example above, we may have the constraint `[i32]: Eq` at
-//!     this step which we may solve for, finding `[T]: Eq`. We instantiate the later with `T := _0` to 
+//!     this step which we may solve for, finding `[T]: Eq`. We instantiate the later with `T := _0` to
 //!     `[_0]: Eq` to see if it unifies with `[i32]`, and it does producing `_0 := i32`. The impl
 //!     also requires `T: Eq` though, so now we must instantiate this with the impl instantiation
 //!     bindings to get `_0: Eq`, and then apply the previous unification binding to get `i32: Eq`,
