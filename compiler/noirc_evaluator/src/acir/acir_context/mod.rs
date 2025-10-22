@@ -991,8 +991,7 @@ impl<F: AcirField> AcirContext<F> {
     /// if lhs>rhs, rhs-lhs = p+rhs-lhs > p-2^bits >= 2^bits  (if log(p) >= bits + 1)
     /// n.b: we do NOT check here that lhs and rhs are indeed 'bits' size
     /// lhs < rhs <=> a+1<=b
-    /// TODO: make issue for TODO?
-    /// TODO: Consolidate this with bounds_check function.
+    /// TODO(<https://github.com/noir-lang/noir/issues/10270>): Consolidate this with bounds_check function.
     pub(super) fn bound_constraint_with_offset(
         &mut self,
         lhs: AcirVar,
@@ -1243,7 +1242,7 @@ impl<F: AcirField> AcirContext<F> {
     ///
     /// The `AcirVar`s for the `radix_var` and `limb_count_var` must be a constant
     ///
-    /// TODO(https://github.com/noir-lang/noir/issues/10258): support radix larger than field modulus
+    /// TODO(<https://github.com/noir-lang/noir/issues/10258>): support radix larger than field modulus
     pub(crate) fn radix_decompose(
         &mut self,
         endian: Endian,
