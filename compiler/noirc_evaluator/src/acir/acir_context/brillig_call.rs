@@ -17,10 +17,10 @@ impl<F: AcirField> AcirContext<F> {
         &mut self,
         predicate: AcirVar,
         brillig_stdlib_func: BrilligStdlibFunc,
-        stdlib_func_bytecode: &GeneratedBrillig<F>,
         inputs: Vec<AcirValue>,
         outputs: Vec<AcirType>,
     ) -> Result<Vec<AcirValue>, RuntimeError> {
+        let stdlib_func_bytecode = &self.brillig_stdlib.get_code(brillig_stdlib_func).clone();
         self.brillig_call(
             predicate,
             stdlib_func_bytecode,
@@ -158,13 +158,15 @@ impl<F: AcirField> AcirContext<F> {
                     self.brillig_array_input(var_expressions, var)?;
                 }
             }
-            AcirValue::DynamicArray(AcirDynamicArray { block_id, len, .. }) => {
+            AcirValue::DynamicArray(AcirDynamicArray { block_id, len, value_types, .. }) => {
                 for i in 0..len {
                     // We generate witnesses corresponding to the array values
                     let index_var = self.add_constant(i);
 
                     let value_read_var = self.read_from_memory(block_id, &index_var)?;
-                    let value_read = AcirValue::Var(value_read_var, AcirType::field());
+                    let value_typ = value_types[i % value_types.len()];
+                    let value_read =
+                        AcirValue::Var(value_read_var, AcirType::NumericType(value_typ));
 
                     self.brillig_array_input(var_expressions, value_read)?;
                 }

@@ -1,4 +1,4 @@
-use crate::native_types::Witness;
+use crate::{circuit::PublicInputs, native_types::Witness};
 use acir_field::AcirField;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
@@ -49,18 +49,9 @@ impl<F: AcirField> Default for Expression<F> {
     }
 }
 
-impl<F: std::fmt::Display> std::fmt::Display for Expression<F> {
+impl<F: AcirField> std::fmt::Display for Expression<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "EXPR [ ")?;
-        for i in &self.mul_terms {
-            write!(f, "({}, {}, {}) ", i.0, i.1, i.2)?;
-        }
-        for i in &self.linear_combinations {
-            write!(f, "({}, {}) ", i.0, i.1)?;
-        }
-        write!(f, "{}", self.q_c)?;
-
-        write!(f, " ]")
+        display_expression(self, false, None, f)
     }
 }
 
@@ -377,42 +368,164 @@ impl<F: AcirField> From<Witness> for Expression<F> {
     }
 }
 
+/// Displays an expression as a quadratic polynomial.
+/// If `as_equal_to_zero` is true, the expression is displayed as equaling zero,
+/// where it's tried to shown as a polynomial equal to the largest witness, if possible.
+/// If the optional `return_values` is provided, the expression is displayed preferring to show
+/// `ASSERT return_value = ...` when possible.
+pub(crate) fn display_expression<F: AcirField>(
+    expr: &Expression<F>,
+    as_equal_to_zero: bool,
+    return_values: Option<&PublicInputs>,
+    f: &mut std::fmt::Formatter<'_>,
+) -> std::fmt::Result {
+    // This is set to an index if we show this expression "as a witness assignment", meaning
+    // that the linear combination at this index must not be printed again.
+    let mut assignment_witness: Option<usize> = None;
+
+    // If true, negate all coefficients when printing.
+    // This is set to true if we show this expression "as a witness assignment", and the witness
+    // had a coefficient of 1 and we "moved" everything to the right of the equal sign.
+    let mut negate_coefficients = false;
+
+    // Find a linear combination with a coefficient of 1 or -1 and, if there are many,
+    // keep the one with the largest witness.
+    let linear_witness_one = if as_equal_to_zero {
+        // Prefer equating to a return value if possible
+        let linear_witness_one = return_values.and_then(|return_values| {
+            expr.linear_combinations.iter().enumerate().find(|(_, (coefficient, witness))| {
+                (coefficient.is_one() || (-*coefficient).is_one())
+                    && return_values.0.contains(witness)
+            })
+        });
+        linear_witness_one.or_else(|| {
+            // Otherwise just pick the largest witness
+            expr.linear_combinations
+                .iter()
+                .enumerate()
+                .filter(|(_, (coefficient, _))| coefficient.is_one() || (-*coefficient).is_one())
+                .max_by_key(|(_, (_, witness))| witness)
+        })
+    } else {
+        None
+    };
+
+    // If we find one, show the expression as equaling this witness to everything else
+    // (this is likely to happen as in ACIR gen we tend to equate a witness to previous expressions)
+    if let Some((index, (coefficient, witness))) = linear_witness_one {
+        assignment_witness = Some(index);
+        negate_coefficients = coefficient.is_one();
+        write!(f, "{witness} = ")?;
+    } else if as_equal_to_zero {
+        write!(f, "0 = ")?;
+    }
+
+    let mut printed_term = false;
+
+    for (coefficient, witness1, witness2) in &expr.mul_terms {
+        let witnesses = [*witness1, *witness2];
+        display_term(*coefficient, witnesses, printed_term, negate_coefficients, f)?;
+        printed_term = true;
+    }
+
+    for (index, (coefficient, witness)) in expr.linear_combinations.iter().enumerate() {
+        if assignment_witness
+            .is_some_and(|show_as_assignment_index| show_as_assignment_index == index)
+        {
+            // We already printed this term as part of the assignment
+            continue;
+        }
+
+        let witnesses = [*witness];
+        display_term(*coefficient, witnesses, printed_term, negate_coefficients, f)?;
+        printed_term = true;
+    }
+
+    if expr.q_c.is_zero() {
+        if !printed_term {
+            write!(f, "0")?;
+        }
+    } else {
+        let coefficient = expr.q_c;
+        let coefficient = if negate_coefficients { -coefficient } else { coefficient };
+        let coefficient_as_string = coefficient.to_string();
+        let coefficient_is_negative = coefficient_as_string.starts_with('-');
+
+        if printed_term {
+            if coefficient_is_negative {
+                write!(f, " - ")?;
+            } else {
+                write!(f, " + ")?;
+            }
+        }
+
+        let coefficient =
+            if printed_term && coefficient_is_negative { -coefficient } else { coefficient };
+        write!(f, "{coefficient}")?;
+    }
+
+    Ok(())
+}
+
+fn display_term<F: AcirField, const N: usize>(
+    coefficient: F,
+    witnesses: [Witness; N],
+    printed_term: bool,
+    negate_coefficients: bool,
+    f: &mut std::fmt::Formatter<'_>,
+) -> std::fmt::Result {
+    let coefficient = if negate_coefficients { -coefficient } else { coefficient };
+    let coefficient_as_string = coefficient.to_string();
+    let coefficient_is_negative = coefficient_as_string.starts_with('-');
+
+    if printed_term {
+        if coefficient_is_negative {
+            write!(f, " - ")?;
+        } else {
+            write!(f, " + ")?;
+        }
+    }
+
+    let coefficient =
+        if printed_term && coefficient_is_negative { -coefficient } else { coefficient };
+
+    if coefficient.is_one() {
+        // Don't print the coefficient
+    } else if (-coefficient).is_one() {
+        write!(f, "-")?;
+    } else {
+        write!(f, "{coefficient}*")?;
+    }
+
+    for (index, witness) in witnesses.iter().enumerate() {
+        if index != 0 {
+            write!(f, "*")?;
+        }
+        write!(f, "{witness}")?;
+    }
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use acir_field::{AcirField, FieldElement};
+    use acir_field::FieldElement;
 
     #[test]
     fn add_mul_smoke_test() {
-        let a = Expression {
-            mul_terms: vec![(FieldElement::from(2u128), Witness(1), Witness(2))],
-            ..Default::default()
-        };
+        let a = Expression::from_str("2*w1*w2").unwrap();
 
         let k = FieldElement::from(10u128);
-
-        let b = Expression {
-            mul_terms: vec![
-                (FieldElement::from(3u128), Witness(0), Witness(2)),
-                (FieldElement::from(3u128), Witness(1), Witness(2)),
-                (FieldElement::from(4u128), Witness(4), Witness(5)),
-            ],
-            linear_combinations: vec![(FieldElement::from(4u128), Witness(4))],
-            q_c: FieldElement::one(),
-        };
+        let b = Expression::from_str("3*w0*w2 + 3*w1*w2 + 4*w4*w5 + 4*w4 + 1").unwrap();
 
         let result = a.add_mul(k, &b);
-        assert_eq!(
-            result,
-            Expression {
-                mul_terms: vec![
-                    (FieldElement::from(30u128), Witness(0), Witness(2)),
-                    (FieldElement::from(32u128), Witness(1), Witness(2)),
-                    (FieldElement::from(40u128), Witness(4), Witness(5)),
-                ],
-                linear_combinations: vec![(FieldElement::from(40u128), Witness(4))],
-                q_c: FieldElement::from(10u128)
-            }
-        );
+        assert_eq!(result.to_string(), "30*w0*w2 + 32*w1*w2 + 40*w4*w5 + 40*w4 + 10");
+    }
+
+    #[test]
+    fn display_zero() {
+        let zero = Expression::<FieldElement>::default();
+        assert_eq!(zero.to_string(), "0");
     }
 }

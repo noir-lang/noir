@@ -28,6 +28,7 @@
 
 use super::opcodes::BlockId;
 use crate::native_types::{Expression, Witness};
+use acir_field::AcirField;
 use brillig::Opcode as BrilligOpcode;
 use serde::{Deserialize, Serialize};
 
@@ -41,15 +42,15 @@ pub enum BrilligInputs<F> {
     MemoryArray(BlockId),
 }
 
-impl<F: std::fmt::Display> std::fmt::Display for BrilligInputs<F> {
+impl<F: AcirField> std::fmt::Display for BrilligInputs<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            BrilligInputs::Single(expr) => write!(f, "{expr}"),
+            BrilligInputs::Single(expr) => expr.fmt(f),
             BrilligInputs::Array(exprs) => {
                 let joined = exprs.iter().map(|e| format!("{e}")).collect::<Vec<_>>().join(", ");
                 write!(f, "[{joined}]")
             }
-            BrilligInputs::MemoryArray(block_id) => write!(f, "MemoryArray({})", block_id.0),
+            BrilligInputs::MemoryArray(block_id) => block_id.fmt(f),
         }
     }
 }

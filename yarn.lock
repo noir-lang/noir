@@ -238,9 +238,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@aztec/bb.js@npm:v3.0.0-nightly.20250916":
-  version: 3.0.0-nightly.20250916
-  resolution: "@aztec/bb.js@npm:3.0.0-nightly.20250916"
+"@aztec/bb.js@npm:3.0.0-nightly.20251014":
+  version: 3.0.0-nightly.20251014
+  resolution: "@aztec/bb.js@npm:3.0.0-nightly.20251014"
   dependencies:
     comlink: "npm:^4.4.1"
     commander: "npm:^12.1.0"
@@ -251,7 +251,7 @@ __metadata:
     tslib: "npm:^2.4.0"
   bin:
     bb.js: dest/node/main.js
-  checksum: 10/82b846ba847eaa37c062eeb75e3f2e8c5eabd9990ad47260ddc39912c3d11da018ef8260bec7b002f60527d2e1cb8d2d32b4a5e4de3078cb78e0b82d3f4894ce
+  checksum: 10/33686fcfaefb1260b65e5c768fa607fb5bc6f2656510a427f5ebd05d4f13fa4994a28514620ec77dbbbd208693442d56c5b692cd38f31fda7b82bfd1ae5b17ca
   languageName: node
   linkType: hard
 
@@ -13226,6 +13226,19 @@ __metadata:
   languageName: node
   linkType: hard
 
+"browser_example@workspace:examples/browser":
+  version: 0.0.0-use.local
+  resolution: "browser_example@workspace:examples/browser"
+  dependencies:
+    "@aztec/bb.js": "npm:3.0.0-nightly.20251014"
+    "@noir-lang/noir_js": "workspace:*"
+    "@playwright/test": "npm:^1.49.0"
+    "@types/node": "npm:^20.0.0"
+    typescript: "npm:^5.8.3"
+    vite: "npm:^7.0.6"
+  languageName: unknown
+  linkType: soft
+
 "browserify-fs@npm:^1.0.0":
   version: 1.0.0
   resolution: "browserify-fs@npm:1.0.0"
@@ -15732,19 +15745,6 @@ __metadata:
     typedoc-plugin-markdown: "npm:4.4.2"
     typedoc-plugin-merge-modules: "npm:^6.1.0"
     typescript: "npm:^5.8.3"
-  languageName: unknown
-  linkType: soft
-
-"docs_tutorials_browser@workspace:examples/browser":
-  version: 0.0.0-use.local
-  resolution: "docs_tutorials_browser@workspace:examples/browser"
-  dependencies:
-    "@aztec/bb.js": "npm:v3.0.0-nightly.20250916"
-    "@noir-lang/noir_js": "workspace:*"
-    "@playwright/test": "npm:^1.49.0"
-    "@types/node": "npm:^20.0.0"
-    typescript: "npm:^5.8.3"
-    vite: "npm:^7.0.6"
   languageName: unknown
   linkType: soft
 
@@ -19118,7 +19118,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "integration-tests@workspace:compiler/integration-tests"
   dependencies:
-    "@aztec/bb.js": "npm:v3.0.0-nightly.20250916"
+    "@aztec/bb.js": "npm:3.0.0-nightly.20251014"
     "@noir-lang/noir_js": "workspace:*"
     "@noir-lang/noir_wasm": "workspace:*"
     "@nomicfoundation/hardhat-chai-matchers": "npm:^2.0.8"

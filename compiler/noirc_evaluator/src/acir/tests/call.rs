@@ -56,23 +56,19 @@ fn basic_call_with_outputs_assert(inline_type: InlineType) {
     let program = ssa_to_acir_program(src);
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w3
     private parameters: [w0, w1]
     public parameters: []
     return values: []
-    CALL func 1: PREDICATE: EXPR [ 1 ]
-    inputs: [w0, w1], outputs: [w2]
-    CALL func 1: PREDICATE: EXPR [ 1 ]
-    inputs: [w0, w1], outputs: [w3]
-    EXPR [ (1, w2) (-1, w3) 0 ]
-    
+    CALL func: 1, predicate: 1, inputs: [w0, w1], outputs: [w2]
+    CALL func: 1, predicate: 1, inputs: [w0, w1], outputs: [w3]
+    ASSERT w3 = w2
+
     func 1
-    current witness: w2
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
-    EXPR [ (1, w0) (-1, w1) 0 ]
-    EXPR [ (-1, w0) (1, w2) 0 ]
+    ASSERT w1 = w0
+    ASSERT w2 = w0
     ");
 }
 
@@ -99,23 +95,19 @@ fn call_output_as_next_call_input(inline_type: InlineType) {
     // the input witnesses of the `Call` opcodes will be different. The differences can discerned from the output below.
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w3
     private parameters: [w0, w1]
     public parameters: []
     return values: []
-    CALL func 1: PREDICATE: EXPR [ 1 ]
-    inputs: [w0, w1], outputs: [w2]
-    CALL func 1: PREDICATE: EXPR [ 1 ]
-    inputs: [w2, w1], outputs: [w3]
-    EXPR [ (1, w2) (-1, w3) 0 ]
-    
+    CALL func: 1, predicate: 1, inputs: [w0, w1], outputs: [w2]
+    CALL func: 1, predicate: 1, inputs: [w2, w1], outputs: [w3]
+    ASSERT w3 = w2
+
     func 1
-    current witness: w2
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
-    EXPR [ (1, w0) (-1, w1) 0 ]
-    EXPR [ (-1, w0) (1, w2) 0 ]
+    ASSERT w1 = w0
+    ASSERT w2 = w0
     ");
 }
 
@@ -146,32 +138,61 @@ fn basic_nested_call(inline_type: InlineType) {
     let program = ssa_to_acir_program(src);
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w3
     private parameters: [w0, w1]
     public parameters: []
     return values: []
-    CALL func 1: PREDICATE: EXPR [ 1 ]
-    inputs: [w0, w1], outputs: [w2]
-    CALL func 1: PREDICATE: EXPR [ 1 ]
-    inputs: [w0, w1], outputs: [w3]
-    EXPR [ (1, w2) (-1, w3) 0 ]
-    
+    CALL func: 1, predicate: 1, inputs: [w0, w1], outputs: [w2]
+    CALL func: 1, predicate: 1, inputs: [w0, w1], outputs: [w3]
+    ASSERT w3 = w2
+
     func 1
-    current witness: w4
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
-    EXPR [ (1, w0) (-1, w3) 2 ]
-    CALL func 2: PREDICATE: EXPR [ 1 ]
-    inputs: [w3, w1], outputs: [w4]
-    EXPR [ (1, w2) (-1, w4) 0 ]
-    
+    ASSERT w3 = w0 + 2
+    CALL func: 2, predicate: 1, inputs: [w3, w1], outputs: [w4]
+    ASSERT w2 = w4
+
     func 2
-    current witness: w2
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
-    EXPR [ (1, w0) (-1, w1) 0 ]
-    EXPR [ (-1, w0) (1, w2) 0 ]
+    ASSERT w1 = w0
+    ASSERT w2 = w0
+    ");
+}
+
+#[test]
+fn call_with_predicate() {
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: Field, v1: u1):
+        enable_side_effects v1
+        v2 = call f1(v0) -> Field
+        return v2
+    }
+
+    acir(fold) fn one f1 {
+      b0(v0: Field):
+        v1 = add v0, Field 1
+        return v1
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0, w1]
+    public parameters: []
+    return values: [w2]
+    BLACKBOX::RANGE input: w1, bits: 1
+    CALL func: 1, predicate: w1, inputs: [w0], outputs: [w3]
+    ASSERT w2 = w3
+
+    func 1
+    private parameters: [w0]
+    public parameters: []
+    return values: [w1]
+    ASSERT w1 = w0 + 1
     ");
 }

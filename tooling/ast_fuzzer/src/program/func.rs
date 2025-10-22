@@ -1073,7 +1073,6 @@ impl<'a> FunctionContext<'a> {
         // Find a type we can produce in the current scope which we can pass as input
         // to the operations we selected, and it returns the desired output.
         fn collect_input_types<'a, K: Ord>(
-            this: &FunctionContext,
             op: BinaryOp,
             type_out: &Type,
             scope: &'a Scope<K>,
@@ -1081,16 +1080,15 @@ impl<'a> FunctionContext<'a> {
             scope
                 .types_produced()
                 .filter(|type_in| types::can_binary_op_return_from_input(&op, type_in, type_out))
-                .filter(|type_in| !this.ctx.should_avoid_literals(type_in))
                 .collect::<Vec<_>>()
         }
 
         // Try local variables first.
-        let mut lhs_opts = collect_input_types(self, op, typ, self.locals.current());
+        let mut lhs_opts = collect_input_types(op, typ, self.locals.current());
 
         // If the locals don't have any type compatible with `op`, try the globals.
         if lhs_opts.is_empty() {
-            lhs_opts = collect_input_types(self, op, typ, &self.globals);
+            lhs_opts = collect_input_types(op, typ, &self.globals);
         }
 
         // We might not have any input that works for this operation.
@@ -1256,8 +1254,7 @@ impl<'a> FunctionContext<'a> {
         // Generate a type or choose an existing one.
         let max_depth = self.max_depth();
         let comptime_friendly = self.config().comptime_friendly;
-        let mut typ =
-            self.ctx.gen_type(u, max_depth, false, false, true, comptime_friendly, true)?;
+        let mut typ = self.ctx.gen_type(u, max_depth, false, false, comptime_friendly, true)?;
 
         // If we picked the target type to be a slice, we can consider popping from it.
         if let Type::Slice(ref item_type) = typ {

@@ -1,3 +1,5 @@
+//! Comptime expression evaluation and macro expansion via the interpreter.
+
 use std::{collections::BTreeMap, fmt::Display};
 
 use iter_extended::vecmap;

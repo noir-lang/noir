@@ -1,3 +1,5 @@
+//! Type resolution, unification, and method resolution (for both types and traits).
+
 use std::{borrow::Cow, rc::Rc};
 
 use im::HashSet;

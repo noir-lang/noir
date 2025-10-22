@@ -1,0 +1,17 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+global G_B: [(str<2>, Field)] = &[
+    ("SM", 193432430920915057603408161267722629873),
+    ("QK", 28517051330822917784420357897851281178),
+    ("XJ", -303354957477210748157621923488550325890),
+];
+
+fn main(b: bool) -> pub Field {
+    if b {
+        G_B[1783103175_u32 % G_B.len()].1
+    } else {
+        G_B[1771627614_u32].1 / G_B[2334904280_u32].1
+    }
+}

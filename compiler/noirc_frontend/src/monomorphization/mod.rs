@@ -451,7 +451,10 @@ impl<'interner> Monomorphizer<'interner> {
         let unconstrained = self.in_unconstrained_function;
 
         let attributes = self.interner.function_attributes(&f);
-        let inline_type = InlineType::from(attributes);
+        let mut inline_type = InlineType::from(attributes);
+        if unconstrained {
+            inline_type = inline_type.into_unconstrained();
+        }
 
         let parameters = self.parameters(&meta.parameters)?;
         let body = self.expr(body_expr_id)?;

@@ -273,46 +273,30 @@ impl<F: AcirField> AcirContext<F> {
         predicate: AcirVar,
     ) -> Result<AcirVar, RuntimeError> {
         let var_data = &self.vars[&var];
-        if let AcirVarData::Const(constant) = var_data {
+        let inverted_var = if let AcirVarData::Const(constant) = var_data {
             // Note that this will return a 0 if the inverse is not available
-            let inverted_var = self.add_data(AcirVarData::Const(constant.inverse()));
-
-            // Check that the inverted var is valid.
-            // This check prevents invalid divisions by zero.
-            let should_be_one = self.mul_var(inverted_var, var)?;
-            self.maybe_eq_predicate(should_be_one, predicate)?;
-
-            return Ok(inverted_var);
-        }
-
-        let results = self.stdlib_brillig_call(
-            predicate,
-            BrilligStdlibFunc::Inverse,
-            &self.brillig_stdlib.get_code(BrilligStdlibFunc::Inverse).clone(),
-            vec![AcirValue::Var(var, AcirType::field())],
-            vec![AcirType::field()],
-        )?;
-        let inverted_var = Self::expect_one_var(results);
+            self.add_data(AcirVarData::Const(constant.inverse()))
+        } else {
+            let results = self.stdlib_brillig_call(
+                predicate,
+                BrilligStdlibFunc::Inverse,
+                vec![AcirValue::Var(var, AcirType::field())],
+                vec![AcirType::field()],
+            )?;
+            Self::expect_one_var(results)
+        };
 
         // Check that the inverted var is valid.
         // This check prevents invalid divisions by zero.
         let should_be_one = self.mul_var(inverted_var, var)?;
-        self.maybe_eq_predicate(should_be_one, predicate)?;
+
+        //    `predicate * should_be_one = predicate`
+        // -> `predicate * (should_be_one - 1) = 0`
+        // so either `should_be_one` is one or `predicate` is zero
+        let pred_mul_should_be_one = self.mul_var(should_be_one, predicate)?;
+        self.assert_eq_var(pred_mul_should_be_one, predicate, None)?;
 
         Ok(inverted_var)
-    }
-
-    // Constrains `var` to be equal to predicate if the predicate is true
-    // or to be equal to 0 if the predicate is false.
-    //
-    // Since we multiply `var` by the predicate, this is a no-op if the predicate is false
-    pub(crate) fn maybe_eq_predicate(
-        &mut self,
-        var: AcirVar,
-        predicate: AcirVar,
-    ) -> Result<(), RuntimeError> {
-        let pred_mul_var = self.mul_var(var, predicate)?;
-        self.assert_eq_var(pred_mul_var, predicate, None)
     }
 
     // Returns the variable from the results, assuming it is the only result
@@ -582,26 +566,21 @@ impl<F: AcirField> AcirContext<F> {
         typ: AcirType,
         predicate: AcirVar,
     ) -> Result<AcirVar, RuntimeError> {
-        let numeric_type = match typ {
-            AcirType::NumericType(numeric_type) => numeric_type,
-            AcirType::Array(_, _) => {
-                unreachable!("cannot divide arrays. This should have been caught by the frontend")
-            }
-        };
-        match numeric_type {
-            NumericType::NativeField => {
+        match typ {
+            AcirType::NumericType(NumericType::NativeField) => {
                 let inv_rhs = self.inv_var(rhs, predicate)?;
                 self.mul_var(lhs, inv_rhs)
             }
-            NumericType::Unsigned { bit_size } => {
+            AcirType::NumericType(NumericType::Unsigned { bit_size }) => {
                 let (quotient_var, _remainder_var) =
                     self.euclidean_division_var(lhs, rhs, bit_size, predicate)?;
                 Ok(quotient_var)
             }
-            NumericType::Signed { bit_size } => {
-                let (quotient_var, _remainder_var) =
-                    self.signed_division_var(lhs, rhs, bit_size, predicate)?;
-                Ok(quotient_var)
+            AcirType::NumericType(NumericType::Signed { .. }) => {
+                unreachable!("Signed division should have been removed before ACIRgen")
+            }
+            AcirType::Array(_, _) => {
+                unreachable!("cannot divide arrays. This should have been caught by the frontend")
             }
         }
     }
@@ -882,7 +861,6 @@ impl<F: AcirField> AcirContext<F> {
             .stdlib_brillig_call(
                 predicate,
                 BrilligStdlibFunc::Quotient,
-                &self.brillig_stdlib.get_code(BrilligStdlibFunc::Quotient).clone(),
                 vec![
                     AcirValue::Var(lhs, AcirType::unsigned(bit_size)),
                     AcirValue::Var(rhs, AcirType::unsigned(bit_size)),
@@ -1085,94 +1063,6 @@ impl<F: AcirField> AcirContext<F> {
         Ok(())
     }
 
-    // Returns the 2-complement of lhs, using the provided sign bit in 'leading'
-    // if leading is zero, it returns lhs
-    // if leading is one, it returns 2^bit_size-lhs
-    fn two_complement(
-        &mut self,
-        lhs: AcirVar,
-        leading: AcirVar,
-        max_bit_size: u32,
-    ) -> Result<AcirVar, RuntimeError> {
-        let max_power_of_two = self.add_constant(power_of_two::<F>(max_bit_size - 1));
-
-        let intermediate = self.sub_var(max_power_of_two, lhs)?;
-        let intermediate = self.mul_var(intermediate, leading)?;
-
-        self.add_mul_var(lhs, F::from(2_u128), intermediate)
-    }
-
-    /// Returns the quotient and remainder such that lhs = rhs * quotient + remainder
-    /// and |remainder| < |rhs|
-    /// and remainder has the same sign than lhs
-    /// Note that this is not the euclidean division, where we have instead remainder < |rhs|
-    fn signed_division_var(
-        &mut self,
-        lhs: AcirVar,
-        rhs: AcirVar,
-        bit_size: u32,
-        predicate: AcirVar,
-    ) -> Result<(AcirVar, AcirVar), RuntimeError> {
-        // We derive the signed division from the unsigned euclidean division.
-        // note that this is not euclidean division!
-        // If `x` is a signed integer, then `sign(x)x >= 0`
-        // so if `a` and `b` are signed integers, we can do the unsigned division:
-        // `sign(a)a = q1*sign(b)b + r1`
-        // => `a = sign(a)sign(b)q1*b + sign(a)r1`
-        // => `a = qb+r`, with `|r|<|b|` and `a` and `r` have the same sign.
-
-        assert_ne!(bit_size, 0, "signed integer should have at least one bit");
-
-        // 2^{max_bit size-1}
-        let max_power_of_two = self.add_constant(power_of_two::<F>(bit_size - 1));
-        let zero = self.add_constant(F::zero());
-        let one = self.add_constant(F::one());
-
-        // Get the sign bit of rhs by computing rhs / max_power_of_two
-        let (rhs_leading, _) = self.euclidean_division_var(rhs, max_power_of_two, bit_size, one)?;
-
-        // Get the sign bit of lhs by computing lhs / max_power_of_two
-        let (lhs_leading, _) = self.euclidean_division_var(lhs, max_power_of_two, bit_size, one)?;
-
-        // Signed to unsigned:
-        let unsigned_lhs = self.two_complement(lhs, lhs_leading, bit_size)?;
-        let unsigned_rhs = self.two_complement(rhs, rhs_leading, bit_size)?;
-
-        // Performs the division using the unsigned values of lhs and rhs
-        let (q1, r1) =
-            self.euclidean_division_var(unsigned_lhs, unsigned_rhs, bit_size, predicate)?;
-
-        // Unsigned to signed: derive q and r from q1,r1 and the signs of lhs and rhs
-        // Quotient sign is lhs sign * rhs sign, whose resulting sign bit is the XOR of the sign bits
-        let q_sign = self.xor_var(lhs_leading, rhs_leading, AcirType::unsigned(1))?;
-        let quotient = self.two_complement(q1, q_sign, bit_size)?;
-        let remainder = self.two_complement(r1, lhs_leading, bit_size)?;
-
-        // Issue #5129 - When q1 is zero and quotient sign is -1, we compute -0=2^{bit_size},
-        // which is not valid because we do not wrap integer operations
-        // Similar case can happen with the remainder.
-        let q_is_0 = self.eq_var(q1, zero)?;
-        let q_is_not_0 = self.not_var(q_is_0, AcirType::unsigned(1))?;
-        let quotient = self.mul_var(quotient, q_is_not_0)?;
-        let r_is_0 = self.eq_var(r1, zero)?;
-        let r_is_not_0 = self.not_var(r_is_0, AcirType::unsigned(1))?;
-        let remainder = self.mul_var(remainder, r_is_not_0)?;
-
-        // The quotient must be a valid signed integer.
-        // For instance -128/-1 = 128, but 128 is not a valid i8
-        // Because it is the only possible overflow that can happen due to signed representation,
-        // we simply check for this case: quotient is negative, or distinct from 2^{bit_size-1}
-        // Indeed, negative quotient cannot 'overflow' because the division will not increase its absolute value
-        let assert_message =
-            self.generate_assertion_message_payload("Attempt to divide with overflow".to_string());
-        let unsigned = self.not_var(q_sign, AcirType::unsigned(1))?;
-        // We just use `unsigned` for the predicate of assert_neq_var because if the `predicate` is false, the quotient
-        // we get from the unsigned division under the predicate will not be 2^{bit_size-1} anyways.
-        self.assert_neq_var(quotient, max_power_of_two, unsigned, Some(assert_message))?;
-
-        Ok((quotient, remainder))
-    }
-
     /// Returns a variable which is constrained to be `lhs mod rhs`
     pub(crate) fn modulo_var(
         &mut self,
@@ -1182,20 +1072,22 @@ impl<F: AcirField> AcirContext<F> {
         bit_size: u32,
         predicate: AcirVar,
     ) -> Result<AcirVar, RuntimeError> {
-        let numeric_type = match typ {
-            AcirType::NumericType(numeric_type) => numeric_type,
+        match typ {
+            AcirType::NumericType(NumericType::Unsigned { .. }) => {
+                let (_, remainder_var) =
+                    self.euclidean_division_var(lhs, rhs, bit_size, predicate)?;
+                Ok(remainder_var)
+            }
+            AcirType::NumericType(NumericType::Signed { .. }) => {
+                unreachable!("Signed modulo should have been removed before ACIRgen")
+            }
+            AcirType::NumericType(NumericType::NativeField) => {
+                unreachable!("cannot module fields. This should have been caught by the frontend")
+            }
             AcirType::Array(_, _) => {
                 unreachable!("cannot modulo arrays. This should have been caught by the frontend")
             }
-        };
-
-        let (_, remainder_var) = match numeric_type {
-            NumericType::Signed { bit_size } => {
-                self.signed_division_var(lhs, rhs, bit_size, predicate)?
-            }
-            _ => self.euclidean_division_var(lhs, rhs, bit_size, predicate)?,
-        };
-        Ok(remainder_var)
+        }
     }
 
     /// Constrains the `AcirVar` variable to be of type `NumericType`.
@@ -1255,58 +1147,6 @@ impl<F: AcirField> AcirContext<F> {
         let (_, remainder) = self.euclidean_division_var(lhs, divisor, max_bit_size, one)?;
 
         Ok(remainder)
-    }
-
-    /// Returns an 'AcirVar' containing the boolean value lhs<rhs, assuming lhs and rhs are signed integers of size bit_count.
-    /// Like in the unsigned case, we compute the difference diff = lhs-rhs+2^n (and we avoid underflow)
-    /// The result depends on the diff and the signs of the inputs:
-    /// If same sign, lhs<rhs <=> diff<2^n, because the 2-complement representation keeps the ordering (e.g in 8 bits -1 is 255 > -2 = 254)
-    /// If not, lhs positive => diff > 2^n
-    /// and lhs negative => diff <= 2^n => diff < 2^n (because signs are not the same, so lhs != rhs and so diff != 2^n)
-    pub(crate) fn less_than_signed(
-        &mut self,
-        lhs: AcirVar,
-        rhs: AcirVar,
-        bit_count: u32,
-    ) -> Result<AcirVar, RuntimeError> {
-        let pow_last = self.add_constant(F::from(1_u128 << (bit_count - 1)));
-        let pow = self.add_constant(F::from(1_u128 << (bit_count)));
-
-        // We check whether the inputs have same sign or not by computing the XOR of their bit sign
-
-        // Predicate is always active as `pow_last` is known to be non-zero.
-        let one = self.add_constant(1_u128);
-        let lhs_sign = self.div_var(
-            lhs,
-            pow_last,
-            AcirType::NumericType(NumericType::Unsigned { bit_size: bit_count }),
-            one,
-        )?;
-        let rhs_sign = self.div_var(
-            rhs,
-            pow_last,
-            AcirType::NumericType(NumericType::Unsigned { bit_size: bit_count }),
-            one,
-        )?;
-        let same_sign = self.xor_var(
-            lhs_sign,
-            rhs_sign,
-            AcirType::NumericType(NumericType::Unsigned { bit_size: 1 }),
-        )?;
-
-        // We compute the input difference
-        let no_underflow = self.add_var(lhs, pow)?;
-        let diff = self.sub_var(no_underflow, rhs)?;
-
-        // We check the 'bit sign' of the difference
-        let diff_sign = self.less_than_var(diff, pow, bit_count + 1)?;
-
-        // Then the result is simply diff_sign XOR same_sign (can be checked with a truth table)
-        self.xor_var(
-            diff_sign,
-            same_sign,
-            AcirType::NumericType(NumericType::Unsigned { bit_size: 1 }),
-        )
     }
 
     /// Returns an `AcirVar` which will be `1` if lhs >= rhs
@@ -1431,8 +1271,6 @@ impl<F: AcirField> AcirContext<F> {
             limb_vars.reverse();
         }
 
-        // `Intrinsic::ToRadix` returns slices which are represented
-        // by tuples with the structure (length, slice contents)
         Ok(AcirValue::Array(limb_vars.into()))
     }
 
@@ -1470,7 +1308,7 @@ impl<F: AcirField> AcirContext<F> {
 
                     Ok::<(AcirVar, AcirType), InternalError>((
                         self.read_from_memory(block_id, &index_var)?,
-                        value_types[i].into(),
+                        value_types[i % value_types.len()].into(),
                     ))
                 })
             }
@@ -1600,12 +1438,12 @@ impl<F: AcirField> AcirContext<F> {
                     self.initialize_array_inner(witnesses, value)?;
                 }
             }
-            AcirValue::DynamicArray(AcirDynamicArray { block_id, len, .. }) => {
+            AcirValue::DynamicArray(AcirDynamicArray { block_id, len, value_types, .. }) => {
                 let dynamic_array_values = try_vecmap(0..len, |i| {
                     let index_var = self.add_constant(i);
-
                     let read = self.read_from_memory(block_id, &index_var)?;
-                    Ok::<AcirValue, InternalError>(AcirValue::Var(read, AcirType::field()))
+                    let typ = value_types[i % value_types.len()];
+                    Ok::<AcirValue, InternalError>(AcirValue::Var(read, AcirType::NumericType(typ)))
                 })?;
                 for value in dynamic_array_values {
                     self.initialize_array_inner(witnesses, value)?;

@@ -100,23 +100,23 @@ impl CompareComptime {
         // Include the print part of stdlib for the elaborator to be able to use the print oracle
         let import_print = r#"
         #[oracle(print)]
-        unconstrained fn print_oracle<T>(with_newline: bool, input: T) {{}}
+        unconstrained fn print_oracle<T>(with_newline: bool, input: T) {}
 
-        unconstrained fn print_unconstrained<T>(with_newline: bool, input: T) {{
+        unconstrained fn print_unconstrained<T>(with_newline: bool, input: T) {
             print_oracle(with_newline, input);
-        }}
+        }
 
-        pub fn println<T>(input: T) {{
-            unsafe {{
+        pub fn println<T>(input: T) {
+            unsafe {
                 print_unconstrained(true, input);
-            }}
-        }}
+            }
+        }
 
-        pub fn print<T>(input: T) {{
-            unsafe {{
+        pub fn print<T>(input: T) {
+            unsafe {
                 print_unconstrained(false, input);
-            }}
-        }}
+            }
+        }
         "#;
 
         // Add comptime modifier for main
@@ -275,6 +275,7 @@ impl CompareComptime {
             || msg.contains("cannot fit into") // covers signed overflows
             || msg.contains("divide by zero")
             || msg.contains("division by zero")
+            || msg.contains("the remainder with a divisor of zero")
             || msg.contains("out of bounds")
     }
 

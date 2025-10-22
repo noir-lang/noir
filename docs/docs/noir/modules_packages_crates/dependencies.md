@@ -105,7 +105,7 @@ For example, the [phy_vector](https://github.com/resurgencelabs/phy_vector) libr
 ```rust
 use phy_vector;
 
-fn main(x : Field, y : pub Field) {
+fn main(x : u32, y : pub u32) {
   //...
   let f = phy_vector::fraction::toFraction(true, 2, 1);
   //...

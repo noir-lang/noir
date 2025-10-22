@@ -3,6 +3,73 @@ use acvm::{acir::circuit::Opcode, assert_circuit_snapshot};
 use crate::acir::tests::ssa_to_acir_program;
 
 #[test]
+fn array_set_not_mutable() {
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: [Field; 3], v1: u32, v2: Field):
+        v3 = array_get v0, index v1 -> Field
+        v4 = array_set v0, index v1, value v2
+        return v4
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    // Note how the non-mutable array_set ends up using a different block (b1)
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0, w1, w2, w3, w4]
+    public parameters: []
+    return values: [w5, w6, w7]
+    INIT b0 = [w0, w1, w2]
+    READ w8 = b0[w3]
+    INIT b1 = [w0, w1, w2]
+    WRITE b1[w3] = w4
+    ASSERT w9 = 0
+    READ w10 = b1[w9]
+    ASSERT w11 = 1
+    READ w12 = b1[w11]
+    ASSERT w13 = 2
+    READ w14 = b1[w13]
+    ASSERT w5 = w10
+    ASSERT w6 = w12
+    ASSERT w7 = w14
+    ");
+}
+
+#[test]
+fn array_set_mutable() {
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: [Field; 3], v1: u32, v2: Field):
+        v3 = array_get v0, index v1 -> Field
+        v4 = array_set mut v0, index v1, value v2
+        return v4
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    // Now how the mutable array_set ends up using the same block (b0)
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0, w1, w2, w3, w4]
+    public parameters: []
+    return values: [w5, w6, w7]
+    INIT b0 = [w0, w1, w2]
+    READ w8 = b0[w3]
+    WRITE b0[w3] = w4
+    ASSERT w9 = 0
+    READ w10 = b0[w9]
+    ASSERT w11 = 1
+    READ w12 = b0[w11]
+    ASSERT w13 = 2
+    READ w14 = b0[w13]
+    ASSERT w5 = w10
+    ASSERT w6 = w12
+    ASSERT w7 = w14
+    ");
+}
+
+#[test]
 fn does_not_generate_memory_blocks_without_dynamic_accesses() {
     let src = "
         acir(inline) fn main f0 {
@@ -45,16 +112,15 @@ fn constant_array_access_out_of_bounds() {
     // This means memory checks will be laid down and array access OOB checks will be handled there.
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w3
     private parameters: []
     public parameters: []
     return values: []
-    EXPR [ (-1, w0) 0 ]
-    EXPR [ (-1, w1) 1 ]
-    INIT (id: 0, len: 2, witnesses: [w0, w1])
-    EXPR [ (-1, w2) 5 ]
-    MEM (id: 0, read at: EXPR [ (1, w2) 0 ], value: EXPR [ (1, w3) 0 ]) 
-    EXPR [ (1, w3) 0 ]
+    ASSERT w0 = 0
+    ASSERT w1 = 1
+    INIT b0 = [w0, w1]
+    ASSERT w2 = 5
+    READ w3 = b0[w2]
+    ASSERT w3 = 0
     ");
 }
 
@@ -91,13 +157,12 @@ fn generates_memory_op_for_dynamic_read() {
 
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w4
     private parameters: [w0, w1, w2, w3]
     public parameters: []
     return values: []
-    INIT (id: 0, len: 3, witnesses: [w0, w1, w2])
-    MEM (id: 0, read at: EXPR [ (1, w3) 0 ], value: EXPR [ (1, w4) 0 ]) 
-    EXPR [ (1, w4) -10 ]
+    INIT b0 = [w0, w1, w2]
+    READ w4 = b0[w3]
+    ASSERT w4 = 10
     ");
 }
 
@@ -115,22 +180,21 @@ fn generates_memory_op_for_dynamic_write() {
     // All logic after the write is expected as we generate new witnesses for return values
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w13
     private parameters: [w0, w1, w2, w3]
     public parameters: []
     return values: [w4, w5, w6]
-    INIT (id: 1, len: 3, witnesses: [w0, w1, w2])
-    EXPR [ (-1, w7) 10 ]
-    MEM (id: 1, write EXPR [ (1, w7) 0 ] at: EXPR [ (1, w3) 0 ]) 
-    EXPR [ (-1, w8) 0 ]
-    MEM (id: 1, read at: EXPR [ (1, w8) 0 ], value: EXPR [ (1, w9) 0 ]) 
-    EXPR [ (-1, w10) 1 ]
-    MEM (id: 1, read at: EXPR [ (1, w10) 0 ], value: EXPR [ (1, w11) 0 ]) 
-    EXPR [ (-1, w12) 2 ]
-    MEM (id: 1, read at: EXPR [ (1, w12) 0 ], value: EXPR [ (1, w13) 0 ]) 
-    EXPR [ (1, w4) (-1, w9) 0 ]
-    EXPR [ (1, w5) (-1, w11) 0 ]
-    EXPR [ (1, w6) (-1, w13) 0 ]
+    INIT b1 = [w0, w1, w2]
+    ASSERT w7 = 10
+    WRITE b1[w3] = w7
+    ASSERT w8 = 0
+    READ w9 = b1[w8]
+    ASSERT w10 = 1
+    READ w11 = b1[w10]
+    ASSERT w12 = 2
+    READ w13 = b1[w12]
+    ASSERT w4 = w9
+    ASSERT w5 = w11
+    ASSERT w6 = w13
     ");
 }
 
@@ -149,21 +213,20 @@ fn generates_predicated_index_for_dynamic_read() {
 
     // w0, w1, w2 represents the array
     // So w3 represents our index and w4 is our predicate
-    // We can see that before the read we have `EXPR [ (1, w3, w4) (-1, w5) 0 ]`
+    // We can see that before the read we have `w3*w4 - w5 = 0`
     // As the index is zero this is a simplified version of `index*predicate + (1-predicate)*offset`
     // w5 is then used as the index which we use to read from the memory block
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w6
     private parameters: [w0, w1, w2, w3, w4]
     public parameters: []
     return values: []
-    INIT (id: 0, len: 3, witnesses: [w0, w1, w2])
-    BLACKBOX::RANGE [w3]:32 bits []
-    BLACKBOX::RANGE [w4]:1 bits []
-    EXPR [ (1, w3, w4) (-1, w5) 0 ]
-    MEM (id: 0, read at: EXPR [ (1, w5) 0 ], value: EXPR [ (1, w6) 0 ]) 
-    EXPR [ (1, w6) -10 ]
+    INIT b0 = [w0, w1, w2]
+    BLACKBOX::RANGE input: w3, bits: 32
+    BLACKBOX::RANGE input: w4, bits: 1
+    ASSERT w5 = w3*w4
+    READ w6 = b0[w5]
+    ASSERT w6 = 10
     ");
 }
 
@@ -180,39 +243,38 @@ fn generates_predicated_index_and_dummy_value_for_dynamic_write() {
     let program = ssa_to_acir_program(src);
 
     // Similar to the `generates_predicated_index_for_dynamic_read` test we can
-    // see how `EXPR [ (1, w3, w4) (-1, w8) 0 ]` forms our predicated index.
+    // see how `w3*w4 - w8 = 0` forms our predicated index.
     // However, now we also have extra logic for generating a dummy value.
     // The original value we want to write is `Field 10` and our predicate is `w4`.
     // We read the value at the predicated index into `w9`. This is our dummy value.
     // We can then see how we form our new store value with:
-    // `EXPR [ (-1, w4, w9) (10, w4) (1, w9) (-1, w10) 0 ]` -> (predicate*value + (1-predicate)*dummy)
-    // `(10, w4)` -> predicate*value
-    // `(-1, w4, w9)` -> (-predicate * dummy)
-    // `(1, w9)` -> dummy
+    // `ASSERT -w4*w9 + 10*w4 + w9 - w10 = 0` -> (predicate*value + (1-predicate)*dummy)
+    // `10*w4` -> predicate*value
+    // `-w4*w9` -> (-predicate * dummy)
+    // `w9` -> dummy
     // As expected, we then store `w10` at the predicated index `w8`.
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w16
     private parameters: [w0, w1, w2, w3, w4]
     public parameters: []
     return values: [w5, w6, w7]
-    INIT (id: 0, len: 3, witnesses: [w0, w1, w2])
-    BLACKBOX::RANGE [w3]:32 bits []
-    BLACKBOX::RANGE [w4]:1 bits []
-    EXPR [ (1, w3, w4) (-1, w8) 0 ]
-    MEM (id: 0, read at: EXPR [ (1, w8) 0 ], value: EXPR [ (1, w9) 0 ]) 
-    INIT (id: 1, len: 3, witnesses: [w0, w1, w2])
-    EXPR [ (-1, w4, w9) (10, w4) (1, w9) (-1, w10) 0 ]
-    MEM (id: 1, write EXPR [ (1, w10) 0 ] at: EXPR [ (1, w8) 0 ]) 
-    EXPR [ (-1, w11) 0 ]
-    MEM (id: 1, read at: EXPR [ (1, w11) 0 ], value: EXPR [ (1, w12) 0 ]) 
-    EXPR [ (-1, w13) 1 ]
-    MEM (id: 1, read at: EXPR [ (1, w13) 0 ], value: EXPR [ (1, w14) 0 ]) 
-    EXPR [ (-1, w15) 2 ]
-    MEM (id: 1, read at: EXPR [ (1, w15) 0 ], value: EXPR [ (1, w16) 0 ]) 
-    EXPR [ (1, w5) (-1, w12) 0 ]
-    EXPR [ (1, w6) (-1, w14) 0 ]
-    EXPR [ (1, w7) (-1, w16) 0 ]
+    INIT b0 = [w0, w1, w2]
+    BLACKBOX::RANGE input: w3, bits: 32
+    BLACKBOX::RANGE input: w4, bits: 1
+    ASSERT w8 = w3*w4
+    READ w9 = b0[w8]
+    INIT b1 = [w0, w1, w2]
+    ASSERT w10 = -w4*w9 + 10*w4 + w9
+    WRITE b1[w8] = w10
+    ASSERT w11 = 0
+    READ w12 = b1[w11]
+    ASSERT w13 = 1
+    READ w14 = b1[w13]
+    ASSERT w15 = 2
+    READ w16 = b1[w15]
+    ASSERT w5 = w12
+    ASSERT w6 = w14
+    ASSERT w7 = w16
     ");
 }
 
@@ -233,11 +295,10 @@ fn zero_length_array_constant() {
     // We expect ever expression to equal zero when executed. Thus, this circuit will always fail.
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w0
     private parameters: []
     public parameters: []
     return values: []
-    EXPR [ 1 ]
+    ASSERT 0 = 1
     ");
 }
 
@@ -260,10 +321,9 @@ fn zero_length_array_dynamic_predicate() {
     // However, we must gate it by the predicate in case the branch is inactive.
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w0
     private parameters: [w0]
     public parameters: []
     return values: []
-    EXPR [ (1, w0) 0 ]
+    ASSERT w0 = 0
     ");
 }

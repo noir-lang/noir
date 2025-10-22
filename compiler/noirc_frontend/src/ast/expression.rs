@@ -798,7 +798,7 @@ impl Display for MatchExpression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "match {} {{", self.expression)?;
         for (pattern, branch) in &self.rules {
-            writeln!(f, "    {pattern} -> {branch},")?;
+            writeln!(f, "    {pattern} => {branch},")?;
         }
         write!(f, "}}")
     }
