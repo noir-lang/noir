@@ -68,10 +68,10 @@ impl Elaborator<'_> {
     /// This method:
     /// - Sets up the generic context from the struct's generic parameters
     /// - Resolves each field's type in the context of the struct's generics
-    /// - Tracks the struct in [Self::resolving_ids] to detect circular dependencies
+    /// - Tracks the struct id to detect circular dependencies
     ///
     /// The generic scope is automatically recovered after resolution completes.
-    pub fn resolve_struct_fields(
+    fn resolve_struct_fields(
         &mut self,
         unresolved: &NoirStruct,
         struct_id: TypeId,
