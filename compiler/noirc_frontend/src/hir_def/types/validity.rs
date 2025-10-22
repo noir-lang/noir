@@ -1,6 +1,6 @@
 use noirc_errors::Location;
 
-use crate::{NamedGeneric, Type, TypeBinding, ast::Ident};
+use crate::{Type, ast::Ident};
 
 /// An type incorrectly used as a program input.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -185,61 +185,6 @@ impl Type {
                     None
                 } else {
                     Some(InvalidType::Enum(self.clone()))
-                }
-            }
-        }
-    }
-
-    /// Returns true if a value of this type can safely pass between constrained and
-    /// unconstrained functions (and vice-versa).
-    pub(crate) fn is_valid_for_unconstrained_boundary(&self) -> bool {
-        match self {
-            Type::FieldElement
-            | Type::Integer(_, _)
-            | Type::Bool
-            | Type::Unit
-            | Type::Constant(_, _)
-            | Type::Function(_, _, _, _)
-            | Type::FmtString(_, _)
-            | Type::InfixExpr(..)
-            | Type::Error => true,
-
-            Type::TypeVariable(type_var) | Type::NamedGeneric(NamedGeneric { type_var, .. }) => {
-                if let TypeBinding::Bound(typ) = &*type_var.borrow() {
-                    typ.is_valid_for_unconstrained_boundary()
-                } else {
-                    true
-                }
-            }
-
-            Type::CheckedCast { to, .. } => to.is_valid_for_unconstrained_boundary(),
-
-            // Quoted objects only exist at compile-time where the only execution
-            // environment is the interpreter. In this environment, they are valid.
-            Type::Quoted(_) => true,
-
-            Type::Reference(..) | Type::Forall(_, _) | Type::TraitAsType(..) => false,
-
-            Type::Alias(alias, generics) => {
-                let alias = alias.borrow();
-                alias.get_type(generics).is_valid_for_unconstrained_boundary()
-            }
-            Type::Slice(element) => element.is_valid_for_unconstrained_boundary(),
-            Type::Array(length, element) => {
-                length.is_valid_for_unconstrained_boundary()
-                    && element.is_valid_for_unconstrained_boundary()
-            }
-            Type::String(length) => length.is_valid_for_unconstrained_boundary(),
-            Type::Tuple(elements) => {
-                elements.iter().all(|elem| elem.is_valid_for_unconstrained_boundary())
-            }
-            Type::DataType(definition, generics) => {
-                if let Some(fields) = definition.borrow().get_fields(generics) {
-                    fields
-                        .into_iter()
-                        .all(|(_, field, _)| field.is_valid_for_unconstrained_boundary())
-                } else {
-                    false
                 }
             }
         }

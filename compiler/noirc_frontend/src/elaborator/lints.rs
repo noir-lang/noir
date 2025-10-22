@@ -151,7 +151,7 @@ pub(super) fn unconstrained_function_args(
     function_args
         .iter()
         .filter_map(|(typ, _, location)| {
-            if !typ.is_valid_for_unconstrained_boundary() {
+            if typ.contains_reference() {
                 Some(TypeCheckError::ConstrainedReferenceToUnconstrained { location: *location })
             } else {
                 None
@@ -167,7 +167,7 @@ pub(super) fn unconstrained_function_return(
 ) -> Option<TypeCheckError> {
     if return_type.contains_slice() {
         Some(TypeCheckError::UnconstrainedSliceReturnToConstrained { location })
-    } else if !return_type.is_valid_for_unconstrained_boundary() {
+    } else if return_type.contains_reference() {
         Some(TypeCheckError::UnconstrainedReferenceToConstrained { location })
     } else {
         None
