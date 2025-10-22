@@ -17,10 +17,10 @@ impl Elaborator<'_> {
     /// Collects and resolves all struct definitions.
     ///
     /// This method performs several tasks:
-    /// 1. Resolves the types of all struct fields
-    /// 2. Validates visibility constraints (public structs cannot expose private types)
-    /// 3. Registers LSP definition locations for IDE support
-    /// 4. Checks for disallowed nested slice types
+    /// - Resolves the types of all struct fields
+    /// - Validates visibility constraints (public structs cannot expose private types)
+    /// - Registers LSP definition locations for IDE support
+    /// - Checks for disallowed nested slice types
     ///
     /// Structs must already be interned from the earlier definition collection phase.
     /// This method fills in the field information for each struct.
