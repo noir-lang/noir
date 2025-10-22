@@ -276,7 +276,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 
     /// Internal function used to compute the section labels
     fn compute_section_label(&self, section: usize) -> Label {
-        self.context_label.add_section(section)
+        self.context_label.with_section(section)
     }
 
     /// Returns the current section label

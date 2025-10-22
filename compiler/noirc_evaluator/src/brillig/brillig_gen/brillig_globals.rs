@@ -19,8 +19,8 @@ use crate::{
     },
 };
 
-/// Context structure for generating Brillig globals
-/// it stores globals related data required for code generation of regular Brillig functions.
+/// Context structure for generating Brillig globals.
+/// It stores globals related data required for the code generation of regular Brillig functions.
 #[derive(Default)]
 pub(crate) struct BrilligGlobals {
     /// Both `used_globals` and `brillig_entry_points` need to be built
@@ -35,9 +35,8 @@ pub(crate) struct BrilligGlobals {
     brillig_entry_points: BTreeMap<FunctionId, BTreeSet<FunctionId>>,
     /// Maps a Brillig entry point to constants shared across the entry point and its nested calls.
     hoisted_global_constants: HashMap<FunctionId, ConstantCounterMap>,
-
-    /// Maps an inner call to its Brillig entry point
-    /// This is simply used to simplify fetching global allocations when compiling
+    /// Maps an inner call to its Brillig entry point.
+    /// This is used to simplify fetching global allocations when compiling
     /// individual Brillig functions.
     inner_call_to_entry_point: HashMap<FunctionId, BTreeSet<FunctionId>>,
     /// Final map that associated an entry point with its Brillig global allocations
@@ -49,41 +48,57 @@ pub(crate) struct BrilligGlobals {
     entry_point_hoisted_globals_map: HashMap<FunctionId, HoistedConstantsToBrilligGlobals>,
 }
 
-/// Mapping of SSA value ids to their Brillig allocations
+/// Mapping of SSA value ids to their Brillig allocations.
 pub(crate) type SsaToBrilligGlobals = HashMap<ValueId, BrilligVariable>;
-/// Mapping of constant values shared across functions hoisted to the global memory space
+
+/// Mapping of constant values shared across functions hoisted to the global memory space.
 pub(crate) type HoistedConstantsToBrilligGlobals =
     HashMap<(FieldElement, NumericType), BrilligVariable>;
-/// Mapping of a constant value and the number of functions in which it occurs
+
+/// Mapping of a constant value to the number of functions in which it occurs.
 pub(crate) type ConstantCounterMap = HashMap<(FieldElement, NumericType), usize>;
 
+#[derive(Default)]
+struct ConstantAllocationCache(HashMap<FunctionId, ConstantAllocation>);
+
+impl ConstantAllocationCache {
+    fn get_constants(&mut self, func: &Function) -> &ConstantAllocation {
+        self.0.entry(func.id()).or_insert_with(|| ConstantAllocation::from_function(func))
+    }
+}
+
 impl BrilligGlobals {
-    pub(crate) fn new(
-        ssa: &Ssa,
-        mut used_globals: HashMap<FunctionId, HashSet<ValueId>>,
-        main_id: FunctionId,
-    ) -> Self {
+    pub(crate) fn new(ssa: &Ssa, main_id: FunctionId) -> Self {
+        let mut used_globals = ssa.used_globals_in_functions();
         let call_graph = CallGraph::from_ssa(ssa);
         let brillig_entry_points =
             get_brillig_entry_points_with_reachability(&ssa.functions, main_id, &call_graph);
 
         let mut hoisted_global_constants: HashMap<FunctionId, ConstantCounterMap> =
             HashMap::default();
+
+        let mut constant_allocations = ConstantAllocationCache::default();
+
         // Mark any globals used in a Brillig entry point.
-        // Using the information collected we can determine which globals
-        // an entry point must initialize.
+        // Using the information collected we can determine which globals an entry point must initialize.
         for (entry_point, entry_point_inner_calls) in brillig_entry_points.iter() {
+            // Increment the use-count of local constants in this entry point.
+            let entry_func = &ssa.functions[entry_point];
             Self::mark_globals_for_hoisting(
                 &mut hoisted_global_constants,
                 *entry_point,
-                &ssa.functions[entry_point],
+                entry_func,
+                constant_allocations.get_constants(entry_func),
             );
 
+            // Increment the use-count of local constants in all functions called by the entry point.
             for inner_call in entry_point_inner_calls.iter() {
+                let inner_func = &ssa.functions[entry_point];
                 Self::mark_globals_for_hoisting(
                     &mut hoisted_global_constants,
                     *entry_point,
-                    &ssa.functions[inner_call],
+                    inner_func,
+                    constant_allocations.get_constants(inner_func),
                 );
 
                 let inner_globals = used_globals
@@ -114,22 +129,26 @@ impl BrilligGlobals {
 
     /// Helper for marking that a constant was instantiated in a given function.
     /// For a given entry point, we want to determine which constants are shared across multiple functions.
+    ///
+    /// Increments the used-in-functions counter for each non-global constant,
+    /// which then can be considered for hoisting.
     fn mark_globals_for_hoisting(
         hoisted_global_constants: &mut HashMap<FunctionId, ConstantCounterMap>,
         entry_point: FunctionId,
         function: &Function,
+        constants: &ConstantAllocation,
     ) {
         // We can potentially have multiple local constants with the same value and type
-        let constants = ConstantAllocation::from_function(function);
         for constant in constants.get_constants() {
-            let value = function.dfg.get_numeric_constant(constant);
-            let value = value.unwrap();
-            let typ = function.dfg.type_of_value(constant);
+            let value = function.dfg.get_numeric_constant_with_type(constant);
+            let (value, typ) = value.expect("it was found by constant allocation");
+            // If the value is an actual global then there is nothing to hoist;
+            // otherwise increment the number of functions it is used in.
             if !function.dfg.is_global(constant) {
                 hoisted_global_constants
                     .entry(entry_point)
                     .or_default()
-                    .entry((value, typ.unwrap_numeric()))
+                    .entry((value, typ))
                     .and_modify(|counter| *counter += 1)
                     .or_insert(1);
             }

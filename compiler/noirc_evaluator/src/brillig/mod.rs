@@ -45,13 +45,13 @@ pub struct BrilligOptions {
     pub layout: LayoutConfig,
 }
 
-/// Context structure for the brillig pass.
-/// It stores brillig-related data required for brillig generation.
+/// Context structure for the Brillig pass.
+/// It stores Brillig-related data required for Brillig generation.
 #[derive(Default, Clone)]
 pub struct Brillig {
     /// Maps SSA function labels to their brillig artifact
     ssa_function_to_brillig: HashMap<FunctionId, BrilligArtifact<FieldElement>>,
-    pub call_stacks: CallStackHelper,
+    call_stacks: CallStackHelper,
     globals: HashMap<FunctionId, BrilligArtifact<FieldElement>>,
     globals_memory_size: HashMap<FunctionId, usize>,
 }
@@ -127,6 +127,10 @@ impl Brillig {
 
         brillig_context.artifact()
     }
+
+    pub fn call_stacks(&self) -> &CallStackHelper {
+        &self.call_stacks
+    }
 }
 
 impl std::ops::Index<FunctionId> for Brillig {
@@ -140,10 +144,9 @@ impl Ssa {
     /// Compile Brillig functions and ACIR functions reachable from them.
     #[tracing::instrument(level = "trace", skip_all)]
     pub fn to_brillig(&self, options: &BrilligOptions) -> Brillig {
-        let used_globals_map = self.used_globals_in_functions();
-
-        // Collect all the function ids that are reachable from brillig
-        // That means all the functions marked as brillig and ACIR functions called by them
+        // Collect all the function ids that are reachable from Brillig.
+        // That means all the functions marked as Brillig and ACIR functions called by them,
+        // but we should already have monomorphized ACIR functions as a Brillig as well.
         let brillig_reachable_function_ids = self
             .functions
             .iter()
@@ -156,7 +159,7 @@ impl Ssa {
             return brillig;
         }
 
-        let mut brillig_globals = BrilligGlobals::new(self, used_globals_map, self.main_id);
+        let mut brillig_globals = BrilligGlobals::new(self, self.main_id);
 
         // SSA Globals are computed once at compile time and shared across all functions,
         // thus we can just fetch globals from the main function.
