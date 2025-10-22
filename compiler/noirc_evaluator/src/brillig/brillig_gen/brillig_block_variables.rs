@@ -48,10 +48,15 @@ impl BlockVariables {
         BlockVariables { available_variables: live_in }
     }
 
-    /// Returns all variables that have not been removed at this point.
-    pub(crate) fn get_available_variables<Registers: RegisterAllocator>(
+    /// Returns the allocations for all variables that are currently available.
+    ///
+    /// These might have been technically removed earlier in a different block,
+    /// because of the order in which we process blocks, but we expect that the
+    /// `FunctionContext` will remember the earlier allocations, and return them
+    /// so that we can restore them as pre-allocations in the next slot.
+    pub(crate) fn get_available_variable_allocations(
         &self,
-        function_context: &FunctionContext<Registers>,
+        function_context: &FunctionContext,
     ) -> Vec<BrilligVariable> {
         self.available_variables
             .iter()
@@ -61,22 +66,24 @@ impl BlockVariables {
                     .get(value_id)
                     .unwrap_or_else(|| panic!("ICE: Value not found in cache {value_id}"))
             })
-            .map(|allocated| **allocated)
+            .copied()
             .collect()
     }
 
     /// For a given SSA value id, define the variable and return the corresponding cached allocation.
     pub(crate) fn define_variable<Registers: RegisterAllocator>(
         &mut self,
-        function_context: &mut FunctionContext<Registers>,
+        function_context: &mut FunctionContext,
         brillig_context: &mut BrilligContext<FieldElement, Registers>,
         value_id: ValueId,
         dfg: &DataFlowGraph,
     ) -> BrilligVariable {
         let allocated = allocate_value(value_id, brillig_context, dfg);
 
-        let variable = *allocated;
-        if function_context.ssa_value_allocations.insert(value_id, allocated).is_some() {
+        // We need to track the allocation across multiple allocators, managing deallocation manually.
+        let variable = allocated.detach();
+
+        if function_context.ssa_value_allocations.insert(value_id, variable).is_some() {
             unreachable!("ICE: ValueId {value_id:?} was already in cache");
         }
 
@@ -88,7 +95,7 @@ impl BlockVariables {
     /// Defines a variable that fits in a single register and returns the allocated register.
     pub(crate) fn define_single_addr_variable<Registers: RegisterAllocator>(
         &mut self,
-        function_context: &mut FunctionContext<Registers>,
+        function_context: &mut FunctionContext,
         brillig_context: &mut BrilligContext<FieldElement, Registers>,
         value: ValueId,
         dfg: &DataFlowGraph,
@@ -101,14 +108,21 @@ impl BlockVariables {
     pub(crate) fn remove_variable<Registers: RegisterAllocator>(
         &mut self,
         value_id: &ValueId,
-        function_context: &mut FunctionContext<Registers>,
+        function_context: &mut FunctionContext,
+        brillig_context: &mut BrilligContext<FieldElement, Registers>,
     ) {
         assert!(self.available_variables.remove(value_id), "ICE: Variable is not available");
 
-        function_context
+        // Do not remove the allocation, just get it so we can mark it as free in memory.
+        let variable = function_context
             .ssa_value_allocations
-            .remove(value_id)
+            .get(value_id)
             .expect("ICE: Variable allocation not found");
+
+        // Explicitly deallocate the memory; note that this might be a different register
+        // than the one the variable was defined in, which is why don't rely on automation.
+        let register = variable.extract_register();
+        brillig_context.deallocate_register(register);
     }
 
     /// Checks if a variable is allocated.
@@ -117,9 +131,9 @@ impl BlockVariables {
     }
 
     /// For a given SSA value id, return the corresponding cached allocation.
-    pub(crate) fn get_allocation<Registers: RegisterAllocator>(
+    pub(crate) fn get_allocation(
         &mut self,
-        function_context: &FunctionContext<Registers>,
+        function_context: &FunctionContext,
         value_id: ValueId,
     ) -> BrilligVariable {
         assert!(
@@ -127,12 +141,12 @@ impl BlockVariables {
             "ICE: ValueId {value_id:?} is not available"
         );
 
-        let allocation = function_context
+        let variable = function_context
             .ssa_value_allocations
             .get(&value_id)
             .unwrap_or_else(|| panic!("ICE: Value not found in cache {value_id}"));
 
-        **allocation
+        *variable
     }
 }
 

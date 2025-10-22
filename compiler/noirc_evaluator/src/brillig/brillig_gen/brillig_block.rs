@@ -29,7 +29,7 @@ use super::constant_allocation::InstructionLocation;
 /// Context structure for compiling a [function block][crate::ssa::ir::basic_block::BasicBlock] into Brillig bytecode.
 pub(crate) struct BrilligBlock<'block, Registers: RegisterAllocator> {
     /// Per-function context shared across all of a function's blocks
-    pub(crate) function_context: &'block mut FunctionContext<Registers>,
+    pub(crate) function_context: &'block mut FunctionContext,
     /// The basic block that is being converted
     pub(crate) block_id: BasicBlockId,
     /// Context for creating brillig opcodes
@@ -56,7 +56,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     /// This method contains the necessary initial variable and register setup for compiling
     /// an SSA block by accessing the pre-computed liveness context.
     pub(crate) fn compile(
-        function_context: &'block mut FunctionContext<Registers>,
+        function_context: &'block mut FunctionContext,
         brillig_context: &'block mut BrilligContext<FieldElement, Registers>,
         block_id: BasicBlockId,
         dfg: &DataFlowGraph,
@@ -80,9 +80,12 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
         let variables = BlockVariables::new(live_in_no_globals);
 
+        // Replace the previous registers with a new instance, where the currently live variables are pre-allocated.
+        // These might be deallocated and reused if their last use in this block indicates they are dead,
+        // but then become pre-allocated in a new block again, depending on the order of processing.
         brillig_context.set_allocated_registers(
             variables
-                .get_available_variables(function_context)
+                .get_available_variable_allocations(function_context)
                 .into_iter()
                 .map(|variable| variable.extract_register())
                 .collect(),
@@ -507,7 +510,11 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 // Globals are reserved throughout the entirety of the program
                 let not_hoisted_global = self.get_hoisted_global(dfg, *dead_variable).is_none();
                 if !dfg.is_global(*dead_variable) && not_hoisted_global {
-                    self.variables.remove_variable(dead_variable, self.function_context);
+                    self.variables.remove_variable(
+                        dead_variable,
+                        self.function_context,
+                        self.brillig_context,
+                    );
                 }
             }
         }

@@ -498,6 +498,13 @@ impl<F, Registers: RegisterAllocator> BrilligContext<F, Registers> {
         self.registers.borrow_mut()
     }
 
+    /// Manually deallocates a register which is no longer in use.
+    ///
+    /// This could be one of the pre-allocated ones which doesn't have automation.
+    pub(crate) fn deallocate_register(&mut self, register: MemoryAddress) {
+        self.registers_mut().deallocate_register(register);
+    }
+
     /// Allocates an unused register.
     pub(crate) fn allocate_register(&mut self) -> Allocated<MemoryAddress, Registers> {
         let addr = self.registers_mut().allocate_register();
@@ -708,6 +715,15 @@ impl<A, R: RegisterAllocator> Allocated<A, R> {
     /// Manually deallocate a register when it's no longer needed.
     pub(crate) fn deallocate(self) {
         drop(self);
+    }
+
+    /// Detach the allocated value from the registers, promising to take care of ownership in a different way.
+    ///
+    /// This is used when we allocate an address in a register, then create a new register where we consider the
+    /// value pre-allocated, and finally want to deallocate the address in the new register, not the old one,
+    /// so that we can reuse the memory for something else.
+    pub(crate) fn detach(self) -> A {
+        self.into_inner().value
     }
 }
 

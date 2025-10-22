@@ -1,7 +1,7 @@
 use acvm::{AcirField, FieldElement};
 
 use crate::brillig::brillig_gen::brillig_block::{BrilligBlock, type_of_binary_operation};
-use crate::brillig::brillig_gen::brillig_fn::ssa_type_to_parameter;
+use crate::brillig::brillig_gen::brillig_fn::FunctionContext;
 use crate::brillig::brillig_ir::brillig_variable::SingleAddrVariable;
 use crate::brillig::brillig_ir::registers::RegisterAllocator;
 use crate::brillig::brillig_ir::{BrilligBinaryOp, BrilligContext};
@@ -321,7 +321,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                 let payload_values = vecmap(values, |value| self.convert_ssa_value(*value, dfg));
                 let payload_as_params = vecmap(values, |value| {
                     let value_type = dfg.type_of_value(*value);
-                    ssa_type_to_parameter(&value_type)
+                    FunctionContext::ssa_type_to_parameter(&value_type)
                 });
                 self.brillig_context.codegen_constrain_with_revert_data(
                     *condition,

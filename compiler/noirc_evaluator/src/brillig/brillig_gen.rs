@@ -21,9 +21,7 @@ use super::{
         artifact::{BrilligParameter, GeneratedBrillig},
     },
 };
-use crate::{
-    brillig::brillig_ir::registers::Stack, errors::InternalError, ssa::ir::function::Function,
-};
+use crate::{errors::InternalError, ssa::ir::function::Function};
 
 /// Generates a complete Brillig entry point artifact for a given SSA-level [Function], linking all dependencies.
 ///
@@ -60,7 +58,7 @@ pub(crate) fn gen_brillig_for(
 
     let (mut entry_point, stack_start) = BrilligContext::new_entry_point_artifact(
         arguments,
-        FunctionContext::<Stack>::return_values(func),
+        FunctionContext::return_values(func),
         func.id(),
         true,
         globals_memory_size,

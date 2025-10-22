@@ -5,7 +5,6 @@ use crate::{
     brillig::brillig_ir::{
         artifact::BrilligParameter,
         brillig_variable::{BrilligVariable, get_bit_size_from_ssa_type},
-        registers::RegisterAllocator,
     },
     ssa::ir::{
         basic_block::BasicBlockId,
@@ -18,7 +17,6 @@ use crate::{
 use rustc_hash::FxHashMap as HashMap;
 
 use super::{constant_allocation::ConstantAllocation, variable_liveness::VariableLiveness};
-use crate::brillig::brillig_ir::registers::Allocated;
 
 /// Information required to compile an SSA [Function] into Brillig bytecode.
 ///
@@ -26,12 +24,23 @@ use crate::brillig::brillig_ir::registers::Allocated;
 /// It can also represent a non-function context (e.g., global instantiation) to reuse block codegen logic
 /// by leaving its `function_id` field unset.
 #[derive(Default)]
-pub(crate) struct FunctionContext<Registers: RegisterAllocator> {
+pub(crate) struct FunctionContext {
     /// A `FunctionContext` is necessary for using a Brillig block's code gen, but sometimes
     /// such as with globals, we are not within a function and do not have a [FunctionId].
     function_id: Option<FunctionId>,
-    /// Map from SSA values its allocation. Since values can be only defined once in SSA form, we insert them here on when we allocate them at their definition.
-    pub(crate) ssa_value_allocations: HashMap<ValueId, Allocated<BrilligVariable, Registers>>,
+    /// Map from SSA values its allocation. Since values can be only defined once in SSA form,
+    /// we insert them here on when we allocate them at their definition.
+    ///
+    /// Multiple variables could be assigned the same slot, because this structure accumulates
+    /// historical allocations, not just the currently active ones. This is needed so that
+    /// when we start processing a block, we can always look up the allocation of the variables
+    /// which are live at the beginning of it, even if they were deemed dead by another block
+    /// we already visited.
+    ///
+    /// Note that we don't use `Allocated<BrilligVariable>` here, because we create a fresh
+    /// allocator for each block we process, and something that is allocated in e.g. block 1
+    /// might be deallocated in block 2, so it has to be done manually.
+    pub(crate) ssa_value_allocations: HashMap<ValueId, BrilligVariable>,
     /// The block ids of the function in reverse post order.
     pub(crate) blocks: Vec<BasicBlockId>,
     /// Liveness information for each variable in the function.
@@ -42,7 +51,7 @@ pub(crate) struct FunctionContext<Registers: RegisterAllocator> {
     pub(crate) is_entry_point: bool,
 }
 
-impl<Registers: RegisterAllocator> FunctionContext<Registers> {
+impl FunctionContext {
     /// Creates a new function context. It will allocate parameters for all blocks and compute the liveness of every variable.
     pub(crate) fn new(function: &Function, is_entry_point: bool) -> Self {
         let id = function.id();
@@ -72,31 +81,34 @@ impl<Registers: RegisterAllocator> FunctionContext<Registers> {
             .iter()
             .map(|&value_id| {
                 let typ = func.dfg.type_of_value(value_id);
-                ssa_type_to_parameter(&typ)
+                Self::ssa_type_to_parameter(&typ)
             })
             .collect()
     }
-}
 
-/// Converts an SSA [Type] into a corresponding [BrilligParameter].
-///
-/// This conversion defines the calling convention for Brillig functions,
-/// ensuring that SSA values are correctly mapped to memory layouts understood by the VM.
-///
-/// # Panics
-/// Panics if called with a slice type, as a slice's memory layout cannot be inferred without runtime data.
-pub(crate) fn ssa_type_to_parameter(typ: &Type) -> BrilligParameter {
-    match typ {
-        Type::Numeric(_) | Type::Reference(_) => {
-            BrilligParameter::SingleAddr(get_bit_size_from_ssa_type(typ))
+    /// Converts an SSA [Type] into a corresponding [BrilligParameter].
+    ///
+    /// This conversion defines the calling convention for Brillig functions,
+    /// ensuring that SSA values are correctly mapped to memory layouts understood by the VM.
+    ///
+    /// # Panics
+    /// Panics if called with a slice type, as a slice's memory layout cannot be inferred without runtime data.
+    pub(crate) fn ssa_type_to_parameter(typ: &Type) -> BrilligParameter {
+        match typ {
+            Type::Numeric(_) | Type::Reference(_) => {
+                BrilligParameter::SingleAddr(get_bit_size_from_ssa_type(typ))
+            }
+            Type::Array(item_type, size) => BrilligParameter::Array(
+                vecmap(item_type.iter(), Self::ssa_type_to_parameter),
+                *size as usize,
+            ),
+            Type::Slice(_) => {
+                panic!("ICE: Slice parameters cannot be derived from type information")
+            }
+            // Treat functions as field values
+            Type::Function => {
+                BrilligParameter::SingleAddr(get_bit_size_from_ssa_type(&Type::field()))
+            }
         }
-        Type::Array(item_type, size) => {
-            BrilligParameter::Array(vecmap(item_type.iter(), ssa_type_to_parameter), *size as usize)
-        }
-        Type::Slice(_) => {
-            panic!("ICE: Slice parameters cannot be derived from type information")
-        }
-        // Treat functions as field values
-        Type::Function => BrilligParameter::SingleAddr(get_bit_size_from_ssa_type(&Type::field())),
     }
 }
