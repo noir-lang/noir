@@ -154,6 +154,8 @@ impl BrilligGlobalsInit {
         function: &Function,
         constants: &ConstantAllocation,
     ) {
+        let entry_const_usage = hoisted_global_constants.entry(entry_point).or_default();
+
         // We can potentially have multiple local constants with the same value and type
         for constant in constants.get_constants() {
             let value = function.dfg.get_numeric_constant_with_type(constant);
@@ -161,9 +163,7 @@ impl BrilligGlobalsInit {
             // If the value is an actual global then there is nothing to hoist;
             // otherwise increment the number of functions it is used in.
             if !function.dfg.is_global(constant) {
-                hoisted_global_constants
-                    .entry(entry_point)
-                    .or_default()
+                entry_const_usage
                     .entry((value, typ))
                     .and_modify(|counter| *counter += 1)
                     .or_insert(1);
