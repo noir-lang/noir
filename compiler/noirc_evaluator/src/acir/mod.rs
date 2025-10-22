@@ -233,11 +233,12 @@ impl<'a> Context<'a> {
         let (return_vars, return_warnings) =
             self.convert_ssa_return(entry_block.unwrap_terminator(), dfg)?;
 
-        // TODO: make issue for this TODO?
-        // TODO: This is a naive method of assigning the return values to their witnesses as
+        // This is a naive method of assigning the return values to their witnesses as
         // we're likely to get a number of constraints which are asserting one witness to be equal to another.
         //
-        // We should search through the program and relabel these witnesses so we can remove this constraint.
+        // But an attempt at searching through the program and relabeling these witnesses so we could remove
+        // this constraint was [closed](https://github.com/noir-lang/noir/pull/10112#event-20171150226)
+        // because "the opcode count doesn't even change in real circuits."
         for (witness_var, return_var) in return_witness_vars.iter().zip(return_vars) {
             self.acir_context.assert_eq_var(*witness_var, return_var, None)?;
         }
