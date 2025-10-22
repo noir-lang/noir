@@ -8,16 +8,13 @@ use acvm::{
 };
 
 use super::ProcedureId;
-use crate::{
-    allocate_scratch_registers,
-    brillig::{
-        BrilligVariable,
-        brillig_ir::{
-            BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, BrilligBinaryOp, BrilligContext, ReservedRegisters,
-            brillig_variable::{BrilligArray, SingleAddrVariable},
-            debug_show::DebugToString,
-            registers::{Allocated, RegisterAllocator, ScratchSpace},
-        },
+use crate::brillig::{
+    BrilligVariable,
+    brillig_ir::{
+        BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, BrilligBinaryOp, BrilligContext, ReservedRegisters,
+        brillig_variable::{BrilligArray, SingleAddrVariable},
+        debug_show::DebugToString,
+        registers::{Allocated, RegisterAllocator, ScratchSpace},
     },
 };
 
@@ -46,10 +43,8 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 pub(super) fn compile_array_copy_procedure<F: AcirField + DebugToString>(
     brillig_context: &mut BrilligContext<F, ScratchSpace>,
 ) {
-    allocate_scratch_registers!(
-        brillig_context,
-        [source_array_pointer_arg, source_array_memory_size_arg, new_array_pointer_return]
-    );
+    let [source_array_pointer_arg, source_array_memory_size_arg, new_array_pointer_return] =
+        brillig_context.allocate_scratch_registers();
 
     let rc = brillig_context.allocate_single_addr_usize();
     brillig_context.load_instruction(rc.address, source_array_pointer_arg);

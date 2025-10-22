@@ -579,6 +579,17 @@ impl<F, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     }
 }
 
+impl<F> BrilligContext<F, ScratchSpace> {
+    /// Allocate a number of consecutive scratch registers and replace the current allocator with
+    /// one that has the new registers pre-allocated.
+    pub(crate) fn allocate_scratch_registers<const N: usize>(&mut self) -> [MemoryAddress; N] {
+        let scratch_start = self.registers().start();
+        let registers = std::array::from_fn(|i| MemoryAddress::direct(scratch_start + i));
+        self.set_allocated_registers(registers.iter().copied().collect());
+        registers
+    }
+}
+
 /// Convenience helper for calling `BrilligContext::set_allocated_registers` with a list
 /// of memory addresses we manually declared, without risking forgetting one that subsequently
 /// gets overwritten by some fresh allocation.
@@ -594,32 +605,12 @@ impl<F, Registers: RegisterAllocator> BrilligContext<F, Registers> {
 ///         let write_pointer_return      = MemoryAddress::direct(scratch_start + 4);
 ///     });
 /// ```
+///
+/// For the above exact use case, `BrilligContext::allocate_scratch_registers` is a better alternative.
 #[macro_export]
 macro_rules! set_allocated_registers {
     ($ctx:ident, { $(let $name:ident = $reg:expr);+ $(;)? }) => {
         $(let $name = $reg;)+
-        $ctx.set_allocated_registers(vec![ $($name),+ ]);
-    };
-}
-
-/// Create a number of direct addresses.
-pub(crate) fn make_scratch_registers<const N: usize>(scratch_start: usize) -> [MemoryAddress; N] {
-    std::array::from_fn(|i| MemoryAddress::direct(scratch_start + i))
-}
-
-/// Another convenience helper for declaring a contiguous pre-allocated scratch registers.
-///
-/// # Example
-/// ```text
-///    allocate_scratch_registers!(
-///        brillig_context,
-///        [source_array_pointer_arg, source_array_memory_size_arg, new_array_pointer_return]
-///    );
-/// ```
-#[macro_export]
-macro_rules! allocate_scratch_registers {
-    ($ctx:ident, [$($name:ident),+ $(,)?]) => {
-        let [$($name),+] = $crate::brillig::brillig_ir::registers::make_scratch_registers($ctx.registers().start());
         $ctx.set_allocated_registers(vec![ $($name),+ ]);
     };
 }
