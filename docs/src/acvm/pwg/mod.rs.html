@@ -973,7 +973,23 @@
 <a href="#972" id="972">972</a>
 <a href="#973" id="973">973</a>
 <a href="#974" id="974">974</a>
-<a href="#975" id="975">975</a></pre></div><pre class="rust"><code><span class="comment">// Re-usable methods that backends can use to implement their PWG
+<a href="#975" id="975">975</a>
+<a href="#976" id="976">976</a>
+<a href="#977" id="977">977</a>
+<a href="#978" id="978">978</a>
+<a href="#979" id="979">979</a>
+<a href="#980" id="980">980</a>
+<a href="#981" id="981">981</a>
+<a href="#982" id="982">982</a>
+<a href="#983" id="983">983</a>
+<a href="#984" id="984">984</a>
+<a href="#985" id="985">985</a>
+<a href="#986" id="986">986</a>
+<a href="#987" id="987">987</a>
+<a href="#988" id="988">988</a>
+<a href="#989" id="989">989</a>
+<a href="#990" id="990">990</a>
+<a href="#991" id="991">991</a></pre></div><pre class="rust"><code><span class="comment">// Re-usable methods that backends can use to implement their PWG
 
 </span><span class="doccomment">//! This module contains methods to implement the partial witness generation (PWG) of an ACIR program.
 //! The goal of ACIR execution is to compute the values of all the ACIR witnesses, or an error if it could not compute them all.
@@ -1921,7 +1937,7 @@
         parse_opcodes,
     };
 
-    <span class="kw">use </span><span class="kw">crate</span>::pwg::{ACVM, ACVMStatus};
+    <span class="kw">use </span><span class="kw">crate</span>::pwg::{ACVM, ACVMStatus, OpcodeResolutionError};
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>solve_simple_circuit() {
@@ -1941,11 +1957,27 @@
         "</span>;
         <span class="kw">let </span>opcodes = parse_opcodes(src).unwrap();
 
-        <span class="kw">let </span>empty1 = Vec::new();
-        <span class="kw">let </span>empty2 = Vec::new();
-        <span class="kw">let </span><span class="kw-2">mut </span>acvm = ACVM::new(<span class="kw-2">&amp;</span>backend, <span class="kw-2">&amp;</span>opcodes, initial_witness, <span class="kw-2">&amp;</span>empty1, <span class="kw-2">&amp;</span>empty2);
+        <span class="kw">let </span><span class="kw-2">mut </span>acvm = ACVM::new(<span class="kw-2">&amp;</span>backend, <span class="kw-2">&amp;</span>opcodes, initial_witness, <span class="kw-2">&amp;</span>[], <span class="kw-2">&amp;</span>[]);
         <span class="macro">assert_eq!</span>(acvm.solve(), ACVMStatus::Solved);
         <span class="macro">assert_eq!</span>(acvm.witness_map()[<span class="kw-2">&amp;</span>Witness(<span class="number">5</span>)], FieldElement::from(<span class="number">0u128</span>));
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>errors_when_calling_function_zero() {
+        <span class="kw">let </span>initial_witness =
+            WitnessMap::from(BTreeMap::from_iter([(Witness(<span class="number">1</span>), FieldElement::from(<span class="number">1u128</span>))]));
+        <span class="kw">let </span>backend = acvm_blackbox_solver::StubbedBlackBoxSolver(<span class="bool-val">false</span>);
+
+        <span class="kw">let </span>src = <span class="string">"
+        CALL func: 0, inputs: [w1], outputs: [w2]
+        "</span>;
+        <span class="kw">let </span>opcodes = parse_opcodes(src).unwrap();
+
+        <span class="kw">let </span><span class="kw-2">mut </span>acvm = ACVM::new(<span class="kw-2">&amp;</span>backend, <span class="kw-2">&amp;</span>opcodes, initial_witness, <span class="kw-2">&amp;</span>[], <span class="kw-2">&amp;</span>[]);
+        <span class="macro">assert!</span>(<span class="macro">matches!</span>(
+            acvm.solve(),
+            ACVMStatus::Failure(OpcodeResolutionError::AcirMainCallAttempted { .. })
+        ));
     }
 }
 </code></pre></div></section></main></body></html>
