@@ -1574,79 +1574,103 @@ impl Type {
 
     pub(crate) fn contains_slice(&self) -> bool {
         match self {
-            Type::Slice(_) => true,
-            Type::DataType(typ, generics) => {
-                let typ = typ.borrow();
-                if let Some(fields) = typ.get_fields(generics) {
-                    if fields.iter().any(|(_, field, _)| field.contains_slice()) {
-                        return true;
-                    }
-                } else if let Some(variants) = typ.get_variants(generics) {
-                    if variants.iter().flat_map(|(_, args)| args).any(|typ| typ.contains_slice()) {
-                        return true;
-                    }
+            Type::Slice(..) => true,
+
+            Type::FieldElement
+            | Type::Bool
+            | Type::String(_)
+            | Type::Integer(..)
+            | Type::Unit
+            | Type::TraitAsType(..)
+            | Type::Constant(..)
+            | Type::Quoted(..)
+            | Type::InfixExpr(..)
+            | Type::Error => false,
+
+            Type::Reference(typ, _) => typ.contains_slice(),
+
+            Type::Array(_, element) => element.contains_slice(),
+            Type::FmtString(_, environment) => environment.contains_slice(),
+            Type::Tuple(fields) => fields.iter().any(|field| field.contains_slice()),
+            Type::DataType(datatype, generics) => {
+                let datatype = datatype.borrow();
+                if let Some(fields) = datatype.get_fields(generics) {
+                    fields.iter().any(|(_, field, _)| field.contains_slice())
+                } else if let Some(variants) = datatype.get_variants(generics) {
+                    variants.iter().any(|(_, variant_args)| {
+                        variant_args.iter().any(|arg| arg.contains_slice())
+                    })
+                } else {
+                    false
                 }
-                false
             }
-            Type::Tuple(types) => {
-                for typ in types.iter() {
-                    if typ.contains_slice() {
-                        return true;
-                    }
-                }
-                false
+            Type::Alias(alias, generics) => alias.borrow().get_type(generics).contains_slice(),
+            Type::TypeVariable(type_variable) => match &*type_variable.borrow() {
+                TypeBinding::Bound(binding) => binding.contains_slice(),
+                TypeBinding::Unbound(..) => false,
+            },
+            Type::NamedGeneric(named_generic) => match &*named_generic.type_var.borrow() {
+                TypeBinding::Bound(binding) => binding.contains_slice(),
+                TypeBinding::Unbound(..) => false,
+            },
+            Type::CheckedCast { to, .. } => to.contains_slice(),
+            Type::Function(_args, _ret, env, _unconstrained) => {
+                // Only the environment of a function is counted as an actual reference value.
+                // Otherwise we can't return functions accepting references as arguments from if
+                // expressions.
+                env.contains_slice()
             }
-            _ => false,
+            Type::Forall(_, typ) => typ.contains_slice(),
         }
     }
 
     pub(crate) fn contains_reference(&self) -> bool {
         match self {
-            Type::Unit
+            Type::FieldElement
             | Type::Bool
-            | Type::String(..)
+            | Type::String(_)
             | Type::Integer(..)
-            | Type::FieldElement
-            | Type::Quoted(..)
-            | Type::Constant(..)
-            | Type::Function(..)
+            | Type::Unit
             | Type::TraitAsType(..)
-            | Type::Forall(..)
+            | Type::Constant(..)
+            | Type::Quoted(..)
+            | Type::InfixExpr(..)
             | Type::Error => false,
-            Type::Array(length, typ) => length.contains_reference() || typ.contains_reference(),
-            Type::Slice(length) => length.contains_reference(),
-            Type::FmtString(length, typ) => length.contains_reference() || typ.contains_reference(),
-            Type::Tuple(types) => types.iter().any(|typ| typ.contains_reference()),
-            Type::DataType(typ, generics) => {
-                let typ = typ.borrow();
-                if let Some(fields) = typ.get_fields(generics) {
-                    if fields.iter().any(|(_, field, _)| field.contains_reference()) {
-                        return true;
-                    }
-                } else if let Some(variants) = typ.get_variants(generics) {
-                    if variants
-                        .iter()
-                        .flat_map(|(_, args)| args)
-                        .any(|typ| typ.contains_reference())
-                    {
-                        return true;
-                    }
-                }
-                false
-            }
-            Type::Alias(alias, generics) => alias.borrow().get_type(generics).is_nested_slice(),
-            Type::TypeVariable(type_variable)
-            | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
-                match &*type_variable.borrow() {
-                    TypeBinding::Bound(binding) => binding.contains_reference(),
-                    TypeBinding::Unbound(_, _) => false,
+
+            Type::Reference(_, _) => true,
+
+            Type::Array(_, element) | Type::Slice(element) => element.contains_reference(),
+            Type::FmtString(_, environment) => environment.contains_reference(),
+            Type::Tuple(fields) => fields.iter().any(|field| field.contains_reference()),
+            Type::DataType(datatype, generics) => {
+                let datatype = datatype.borrow();
+                if let Some(fields) = datatype.get_fields(generics) {
+                    fields.iter().any(|(_, field, _)| field.contains_reference())
+                } else if let Some(variants) = datatype.get_variants(generics) {
+                    variants.iter().any(|(_, variant_args)| {
+                        variant_args.iter().any(|arg| arg.contains_reference())
+                    })
+                } else {
+                    false
                 }
             }
-            Type::CheckedCast { from: _, to } => to.contains_reference(),
-            Type::InfixExpr(lhs, _op, rhs, _) => {
-                lhs.contains_reference() || rhs.contains_reference()
+            Type::Alias(alias, generics) => alias.borrow().get_type(generics).contains_reference(),
+            Type::TypeVariable(type_variable) => match &*type_variable.borrow() {
+                TypeBinding::Bound(binding) => binding.contains_reference(),
+                TypeBinding::Unbound(..) => false,
+            },
+            Type::NamedGeneric(named_generic) => match &*named_generic.type_var.borrow() {
+                TypeBinding::Bound(binding) => binding.contains_reference(),
+                TypeBinding::Unbound(..) => false,
+            },
+            Type::CheckedCast { to, .. } => to.contains_reference(),
+            Type::Function(_args, _ret, env, _unconstrained) => {
+                // Only the environment of a function is counted as an actual reference value.
+                // Otherwise we can't return functions accepting references as arguments from if
+                // expressions.
+                env.contains_reference()
             }
-            Type::Reference(..) => true,
+            Type::Forall(_, typ) => typ.contains_reference(),
         }
     }
 
