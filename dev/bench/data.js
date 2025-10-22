@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1761149501487,
+  "lastUpdate": 1761162619528,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23036,48 +23036,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "975d580919f5e934b65eea21b9f6aada9408f8a4",
-          "message": "chore(brillig_vm): Memory unit tests (#10144)",
-          "timestamp": "2025-10-13T10:24:27Z",
-          "tree_id": "692a9896fcc37084869ef53941a3b18fa5ec20f9",
-          "url": "https://github.com/noir-lang/noir/commit/975d580919f5e934b65eea21b9f6aada9408f8a4"
-        },
-        "date": 1760352403811,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 252157,
-            "range": "± 587",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 224053,
-            "range": "± 3761",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2257035,
-            "range": "± 2512",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25129,6 +25087,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2797707,
             "range": "± 1912",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8989770e5104f32fa83457f345643a6965134044",
+          "message": "chore: Add some detail to the trait documentation (#10273)",
+          "timestamp": "2025-10-22T19:20:24Z",
+          "tree_id": "10947ddf9125373c701e41591d90ae2b88b7fe37",
+          "url": "https://github.com/noir-lang/noir/commit/8989770e5104f32fa83457f345643a6965134044"
+        },
+        "date": 1761162595750,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 264214,
+            "range": "± 546",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 232209,
+            "range": "± 4285",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2794574,
+            "range": "± 19826",
             "unit": "ns/iter"
           }
         ]
