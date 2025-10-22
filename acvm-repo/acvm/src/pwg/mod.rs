@@ -966,9 +966,7 @@ mod tests {
         ";
         let opcodes = parse_opcodes(src).unwrap();
 
-        let empty1 = Vec::new();
-        let empty2 = Vec::new();
-        let mut acvm = ACVM::new(&backend, &opcodes, initial_witness, &empty1, &empty2);
+        let mut acvm = ACVM::new(&backend, &opcodes, initial_witness, &[], &[]);
         assert_eq!(acvm.solve(), ACVMStatus::Solved);
         assert_eq!(acvm.witness_map()[&Witness(5)], FieldElement::from(0u128));
     }
@@ -984,9 +982,7 @@ mod tests {
         ";
         let opcodes = parse_opcodes(src).unwrap();
 
-        let empty1 = Vec::new();
-        let empty2 = Vec::new();
-        let mut acvm = ACVM::new(&backend, &opcodes, initial_witness, &empty1, &empty2);
+        let mut acvm = ACVM::new(&backend, &opcodes, initial_witness, &[], &[]);
         assert!(matches!(
             acvm.solve(),
             ACVMStatus::Failure(OpcodeResolutionError::AcirMainCallAttempted { .. })
