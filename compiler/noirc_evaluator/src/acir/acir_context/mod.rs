@@ -1162,8 +1162,11 @@ impl<F: AcirField> AcirContext<F> {
         // - We assert at the beginning that `2^{max_bits+1}` does not overflow the field, so neither c.
 
         // Ensure that 2^{max_bits + 1} is less than the field size
-        //
-        // TODO: perhaps this should be a user error, instead of an assert
+        // In fact, `more_than_eq_var` is either called directly with the bit_size of an unsigned
+        // type, or via `less_than_var` which is also called with the bit_size of an unsigned type
+        // or with 64, so we can also assume that max_bits is at most 128, in which case the field
+        // size should be 129 or less for this assertion to fail.
+        assert!(max_bits <= 128);
         assert!(max_bits + 1 < F::max_num_bits());
 
         let two_max_bits = self.add_constant(power_of_two::<F>(max_bits));
