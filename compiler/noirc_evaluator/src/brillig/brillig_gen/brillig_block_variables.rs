@@ -80,7 +80,10 @@ impl BlockVariables {
     ) -> BrilligVariable {
         let allocated = allocate_value(value_id, brillig_context, dfg);
 
-        // We need to track the allocation across multiple allocators, managing deallocation manually.
+        // Allocators get replaced in each block, with all visible variables becoming pre-allocated
+        // in the next block; what is allocated in one block might be deallocated in the next block,
+        // in a different allocator. Because of this we can detach from the allocator, and have to
+        // manage deallocation manually.
         let variable = allocated.detach();
 
         if function_context.ssa_value_allocations.insert(value_id, variable).is_some() {
