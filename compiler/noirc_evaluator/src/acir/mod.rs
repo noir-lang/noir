@@ -712,7 +712,6 @@ impl<'a> Context<'a> {
         }
 
         let binary_type = AcirType::from(binary_type);
-        let bit_count = binary_type.bit_size::<FieldElement>();
         let num_type = binary_type.to_numeric_type();
         let result = match binary.operator {
             BinaryOp::Add { .. } => self.acir_context.add_var(lhs, rhs),
@@ -733,9 +732,14 @@ impl<'a> Context<'a> {
             BinaryOp::Xor => self.acir_context.xor_var(lhs, rhs, binary_type),
             BinaryOp::And => self.acir_context.and_var(lhs, rhs, binary_type),
             BinaryOp::Or => self.acir_context.or_var(lhs, rhs, binary_type),
-            BinaryOp::Mod => {
-                self.acir_context.modulo_var(lhs, rhs, binary_type.clone(), bit_count, predicate)
-            }
+            BinaryOp::Mod => match binary_type {
+                AcirType::NumericType(NumericType::Unsigned { bit_size }) => {
+                    self.acir_context.modulo_var(lhs, rhs, bit_size, predicate)
+                }
+                _ => {
+                    panic!("ICE: unexpected binary type for Mod operation: {binary_type:?}")
+                }
+            },
             BinaryOp::Shl | BinaryOp::Shr => unreachable!(
                 "ICE - bit shift operators do not exist in ACIR and should have been replaced"
             ),
