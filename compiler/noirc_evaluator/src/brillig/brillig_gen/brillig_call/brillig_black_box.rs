@@ -276,7 +276,7 @@ fn convert_array_or_vector<F: AcirField + DebugToString, Registers: RegisterAllo
             brillig_context.usize_const_instruction(vector.size, array.size.into());
             vector
         }),
-        ValueOrArray::HeapVector(vector) => brillig_context.allocate_pure(vector),
+        ValueOrArray::HeapVector(vector) => Allocated::pure(vector),
         _ => unreachable!(
             "ICE: {} expected an array or a vector, but got {:?}",
             bb_func.name(),

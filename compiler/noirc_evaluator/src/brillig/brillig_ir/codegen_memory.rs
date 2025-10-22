@@ -279,7 +279,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     ) -> Allocated<ValueOrArray, Registers> {
         match variable {
             BrilligVariable::SingleAddr(SingleAddrVariable { address, .. }) => {
-                self.allocate_pure(ValueOrArray::MemoryAddress(address))
+                Allocated::pure(ValueOrArray::MemoryAddress(address))
             }
             BrilligVariable::BrilligArray(array) => {
                 self.codegen_brillig_array_to_heap_array(array).map(ValueOrArray::HeapArray)

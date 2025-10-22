@@ -6,6 +6,7 @@ use im::Vector;
 
 use crate::brillig::brillig_gen::brillig_block::BrilligBlock;
 use crate::brillig::brillig_ir::brillig_variable::{BrilligVariable, SingleAddrVariable};
+use crate::brillig::brillig_ir::registers::Allocated;
 use crate::brillig::brillig_ir::{
     BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, BrilligBinaryOp, BrilligContext, ReservedRegisters,
     registers::RegisterAllocator,
@@ -207,7 +208,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         has_offset: bool,
     ) {
         let items_pointer = if has_offset {
-            self.brillig_context.allocate_pure(array_variable.extract_register())
+            Allocated::pure(array_variable.extract_register())
         } else {
             self.brillig_context.codegen_make_array_or_vector_items_pointer(array_variable)
         };
@@ -261,7 +262,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
 
         // Then set the value in the newly created array
         let items_pointer = if has_offset {
-            self.brillig_context.allocate_pure(destination_for_store.extract_register())
+            Allocated::pure(destination_for_store.extract_register())
         } else {
             self.brillig_context.codegen_make_array_or_vector_items_pointer(destination_for_store)
         };

@@ -522,11 +522,6 @@ impl<F, Registers: RegisterAllocator> BrilligContext<F, Registers> {
         )));
     }
 
-    /// Wrap some value in [Allocated].
-    pub(crate) fn allocate_pure<T>(&self, value: T) -> Allocated<T, Registers> {
-        Allocated::pure(value)
-    }
-
     /// Allocate a [SingleAddrVariable].
     pub(crate) fn allocate_single_addr(
         &mut self,
@@ -662,12 +657,12 @@ impl<R: RegisterAllocator> Allocated<MemoryAddress, R> {
 
 impl<A, R: RegisterAllocator> Allocated<A, R> {
     /// Wrap a value in [Allocated] without deallocating any address at the end.
-    fn pure(value: A) -> Self {
+    pub(crate) fn pure(value: A) -> Self {
         Self::from_inner(AllocatedInner { value, addresses: smallvec![], registers: None })
     }
 
     /// Create an [Allocated] value that deallocates its associated addresses at the end.
-    fn new(value: A, addresses: AddressList, registers: Rc<RefCell<R>>) -> Self {
+    pub(crate) fn new(value: A, addresses: AddressList, registers: Rc<RefCell<R>>) -> Self {
         Self::from_inner(AllocatedInner { value, addresses, registers: Some(registers) })
     }
 

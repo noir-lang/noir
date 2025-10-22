@@ -3,7 +3,7 @@ use acvm::{AcirField, FieldElement};
 use crate::brillig::brillig_gen::brillig_block::{BrilligBlock, type_of_binary_operation};
 use crate::brillig::brillig_gen::brillig_fn::FunctionContext;
 use crate::brillig::brillig_ir::brillig_variable::SingleAddrVariable;
-use crate::brillig::brillig_ir::registers::RegisterAllocator;
+use crate::brillig::brillig_ir::registers::{Allocated, RegisterAllocator};
 use crate::brillig::brillig_ir::{BrilligBinaryOp, BrilligContext};
 use crate::ssa::ir::instruction::{BinaryOp, InstructionId, binary::Binary};
 use crate::ssa::ir::types::{NumericType, Type};
@@ -295,13 +295,13 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                 if constant == FieldElement::one() =>
             {
                 let var = self.convert_ssa_single_addr_value(rhs, dfg);
-                self.brillig_context.allocate_pure(var)
+                Allocated::pure(var)
             }
             (None, Some((constant, NumericType::Unsigned { bit_size: 1 })))
                 if constant == FieldElement::one() =>
             {
                 let var = self.convert_ssa_single_addr_value(lhs, dfg);
-                self.brillig_context.allocate_pure(var)
+                Allocated::pure(var)
             }
 
             // Otherwise we need to perform the equality explicitly.
