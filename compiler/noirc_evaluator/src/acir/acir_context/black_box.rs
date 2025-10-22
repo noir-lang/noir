@@ -149,7 +149,8 @@ impl<F: AcirField> AcirContext<F> {
 
     /// [`BlackBoxFunc::EmbeddedCurveAdd`] has 6 inputs representing the two points to add
     /// Each point must be either all constants, or all witnesses,
-    /// where the constants are converted to witnesses here if mixed constant and witnesses,
+    /// where constants are converted to witnesses here if mixed constant and witnesses are
+    /// encountered
     fn all_variables_or_constants_for_ec_add(
         &mut self,
         inputs: Vec<Vec<FunctionInput<F>>>,
@@ -167,7 +168,8 @@ impl<F: AcirField> AcirContext<F> {
 
             if i % 3 == 2 {
                 if has_constant && has_witness {
-                    // Convert the constants to witnesses if mixed constants and witnesses,
+                    // Convert the constants to witnesses if mixed constants and witnesses are
+                    // encountered
                     for j in i - 2..i + 1 {
                         if let FunctionInput::Constant(constant) = inputs[j][0] {
                             let constant = self.add_constant(constant);
