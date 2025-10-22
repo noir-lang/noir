@@ -585,31 +585,6 @@ impl<F> BrilligContext<F, ScratchSpace> {
     }
 }
 
-/// Convenience helper for calling `BrilligContext::set_allocated_registers` with a list
-/// of memory addresses we manually declared, without risking forgetting one that subsequently
-/// gets overwritten by some fresh allocation.
-///
-/// # Example
-/// ```text
-///     let scratch_start = brillig_context.registers().start();
-///     set_allocated_registers!(brillig_context, {
-///         let source_vector_pointer_arg = MemoryAddress::direct(scratch_start);
-///         let index_arg                 = MemoryAddress::direct(scratch_start + 1);
-///         let item_count_arg            = MemoryAddress::direct(scratch_start + 2);
-///         let new_vector_pointer_return = MemoryAddress::direct(scratch_start + 3);
-///         let write_pointer_return      = MemoryAddress::direct(scratch_start + 4);
-///     });
-/// ```
-///
-/// For the above exact use case, `BrilligContext::allocate_scratch_registers` is a better alternative.
-#[macro_export]
-macro_rules! set_allocated_registers {
-    ($ctx:ident, { $(let $name:ident = $reg:expr);+ $(;)? }) => {
-        $(let $name = $reg;)+
-        $ctx.set_allocated_registers(vec![ $($name),+ ]);
-    };
-}
-
 /// Wrapper for a memory address which automatically deallocates itself
 /// when it goes out of scope.
 pub(crate) struct Allocated<T, R: RegisterAllocator> {
