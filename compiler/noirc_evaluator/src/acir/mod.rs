@@ -723,10 +723,12 @@ impl<'a> Context<'a> {
             // this Eq instruction is being used for a constrain statement
             BinaryOp::Eq => self.acir_context.eq_var(lhs, rhs),
             BinaryOp::Lt => match binary_type {
-                AcirType::NumericType(NumericType::Signed { .. }) => {
-                    panic!("ICE - signed less than should have been removed before ACIRgen")
+                AcirType::NumericType(NumericType::Unsigned { bit_size }) => {
+                    self.acir_context.less_than_var(lhs, rhs, bit_size)
                 }
-                _ => self.acir_context.less_than_var(lhs, rhs, bit_count),
+                _ => {
+                    panic!("ICE: unexpected binary type for Lt operation: {binary_type:?}")
+                }
             },
             BinaryOp::Xor => self.acir_context.xor_var(lhs, rhs, binary_type),
             BinaryOp::And => self.acir_context.and_var(lhs, rhs, binary_type),
