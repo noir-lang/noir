@@ -43,8 +43,7 @@ pub(super) fn codegen_acir(
 
     let used_globals = ssa.used_globals_in_functions();
 
-    // TODO: make issue for this TODO?
-    // TODO: can we parallelize this?
+    // TODO(https://github.com/noir-lang/noir/issues/10269): can we parallelize this?
     let mut shared_context = SharedContext::new(brillig_stdlib.clone(), used_globals);
 
     for function in ssa.functions.values() {

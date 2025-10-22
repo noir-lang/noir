@@ -339,15 +339,7 @@ impl<F: AcirField> AcirContext<F> {
         let lhs_expr = self.var_to_expression(lhs)?;
         let rhs_expr = self.var_to_expression(rhs)?;
 
-        // TODO: WIP
-        // if lhs_expr == rhs_expr {
-        // `lhs == rhs` => `lhs - rhs == 0`
-        let diff_expr = &lhs_expr - &rhs_expr;
-        // TODO: WIP
-        // let lhs_eq_rhs = diff_expr.is_const() && diff_expr.is_zero();
-        // Check to see if equality can be determined at compile-time.
-        let lhs_eq_rhs = diff_expr.is_zero();
-        if lhs_eq_rhs {
+        if lhs_expr == rhs_expr {
             // x ^ x == 0
             let zero = self.add_constant(F::zero());
             return Ok(zero);
@@ -390,14 +382,7 @@ impl<F: AcirField> AcirContext<F> {
         let lhs_expr = self.var_to_expression(lhs)?;
         let rhs_expr = self.var_to_expression(rhs)?;
 
-        // TODO: WIP
-        // if lhs_expr == rhs_expr {
-        let diff_expr = &lhs_expr - &rhs_expr;
-        // TODO: WIP
-        // let lhs_eq_rhs = diff_expr.is_const() && diff_expr.is_zero();
-        // Check to see if equality can be determined at compile-time.
-        let lhs_eq_rhs = diff_expr.is_zero();
-        if lhs_eq_rhs {
+        if lhs_expr == rhs_expr {
             // x & x == x
             return Ok(lhs);
         } else if lhs_expr.is_zero() || rhs_expr.is_zero() {
@@ -433,14 +418,7 @@ impl<F: AcirField> AcirContext<F> {
         let lhs_expr = self.var_to_expression(lhs)?;
         let rhs_expr = self.var_to_expression(rhs)?;
 
-        // TODO: WIP
-        // if lhs_expr == rhs_expr {
-        let diff_expr = &lhs_expr - &rhs_expr;
-        // TODO: WIP
-        // let lhs_eq_rhs = diff_expr.is_const() && diff_expr.is_zero();
-        // Check to see if equality can be determined at compile-time.
-        let lhs_eq_rhs = diff_expr.is_zero();
-        if lhs_eq_rhs {
+        if lhs_expr == rhs_expr {
             // x | x == x
             return Ok(lhs);
         } else if lhs_expr.is_zero() {
@@ -505,9 +483,6 @@ impl<F: AcirField> AcirContext<F> {
                 .assertion_payloads
                 .insert(self.acir_ir.last_acir_opcode_location(), payload);
         }
-        // TODO: make issue for this TODO?
-        // TODO: is this sensitive to the location at which variables are marked equivalent or when
-        // assert_eq_var is called?
         self.mark_variables_equivalent(lhs, rhs)?;
 
         Ok(())
@@ -1208,8 +1183,7 @@ impl<F: AcirField> AcirContext<F> {
 
         // Ensure that 2^{max_bits + 1} is less than the field size
         //
-        // TODO: make issue for this TODO
-        // TODO: perhaps this should be a user error, instead of an assert
+        // TODO(https://github.com/noir-lang/noir/issues/10257): perhaps this should be a user error, instead of an assert
         assert!(max_bits + 1 < F::max_num_bits());
 
         let two_max_bits = self.add_constant(power_of_two::<F>(max_bits));
@@ -1269,8 +1243,7 @@ impl<F: AcirField> AcirContext<F> {
     ///
     /// The `AcirVar`s for the `radix_var` and `limb_count_var` must be a constant
     ///
-    /// TODO: add issue for this TODO
-    /// TODO: support radix larger than field modulus
+    /// TODO(https://github.com/noir-lang/noir/issues/10258): support radix larger than field modulus
     pub(crate) fn radix_decompose(
         &mut self,
         endian: Endian,
