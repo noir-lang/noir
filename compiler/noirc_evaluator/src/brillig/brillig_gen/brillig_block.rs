@@ -136,13 +136,14 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         // have to account for possible register de-allocations as part of regular global compilation.
         // Thus, we want to allocate any reserved global slots first.
 
-        // Make sure it's not deallocated until we are finished with the globals.
-        let array_copy_count = self.brillig_context.count_array_copies().then(|| {
-            let new_variable = allocate_value_with_type(self.brillig_context, Type::unsigned(32));
+        // If we want to print the array copy count in the end, we reserve teh 0 slot.
+        if self.brillig_context.count_array_copies() {
+            // Detach from the register so it's never deallocated.
+            let new_variable =
+                allocate_value_with_type(self.brillig_context, Type::unsigned(32)).detach();
             self.brillig_context
                 .const_instruction(new_variable.extract_single_addr(), FieldElement::zero());
-            new_variable
-        });
+        };
 
         for (id, value) in globals.values_iter() {
             if !used_globals.contains(&id) {
@@ -172,7 +173,6 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             }
         }
 
-        drop(array_copy_count);
         new_hoisted_constants
     }
 
