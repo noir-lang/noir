@@ -20,6 +20,9 @@ pub enum MonomorphizationError {
     CannotComputeAssociatedConstant { name: String, err: TypeCheckError, location: Location },
     ReferenceReturnedFromIfOrMatch { typ: String, location: Location },
     AssignedToVarContainingReference { typ: String, location: Location },
+    ConstrainedReferenceToUnconstrained { location: Location },
+    UnconstrainedReferenceToConstrained { location: Location },
+    UnconstrainedSliceReturnToConstrained { location: Location },
 }
 
 impl MonomorphizationError {
@@ -36,7 +39,12 @@ impl MonomorphizationError {
             | MonomorphizationError::NoDefaultType { location, .. }
             | MonomorphizationError::ReferenceReturnedFromIfOrMatch { location, .. }
             | MonomorphizationError::AssignedToVarContainingReference { location, .. }
-            | MonomorphizationError::CannotComputeAssociatedConstant { location, .. } => *location,
+            | MonomorphizationError::CannotComputeAssociatedConstant { location, .. }
+            | MonomorphizationError::ConstrainedReferenceToUnconstrained { location }
+            | MonomorphizationError::UnconstrainedReferenceToConstrained { location }
+            | MonomorphizationError::UnconstrainedSliceReturnToConstrained { location } => {
+                *location
+            }
             MonomorphizationError::InterpreterError(error) => error.location(),
         }
     }
@@ -107,6 +115,15 @@ impl From<MonomorphizationError> for CustomDiagnostic {
                     )
                 };
                 return CustomDiagnostic::simple_error(message, secondary, *location);
+            }
+            MonomorphizationError::ConstrainedReferenceToUnconstrained { .. } => {
+                "Cannot pass a mutable reference from a constrained runtime to an unconstrained runtime".to_string()
+            }
+            MonomorphizationError::UnconstrainedReferenceToConstrained { .. } => {
+                "Cannot pass a mutable reference from a unconstrained runtime to an constrained runtime".to_string()
+            }
+            MonomorphizationError::UnconstrainedSliceReturnToConstrained { .. } => {
+                "Slices cannot be returned from an unconstrained runtime to a constrained runtime".to_string()
             }
         };
 

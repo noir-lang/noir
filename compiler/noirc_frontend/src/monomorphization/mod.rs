@@ -1708,6 +1708,13 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> Result<ast::Expression, MonomorphizationError> {
         let original_func = Box::new(self.extract_function(call.func)?);
 
+        let crossing_runtime_boundaries =
+            !self.in_unconstrained_function && self.function_is_unconstrained(call.func);
+
+        if crossing_runtime_boundaries {
+            self.check_arguments_crossing_runtime_boundaries(&call)?;
+        }
+
         let mut arguments = try_vecmap(&call.arguments, |id| self.expr(*id))?;
         let hir_arguments = vecmap(&call.arguments, |id| self.interner.expression(id));
 
@@ -1715,6 +1722,11 @@ impl<'interner> Monomorphizer<'interner> {
 
         let return_type = self.interner.id_type(id);
         let location = self.interner.expr_location(&id);
+
+        if crossing_runtime_boundaries {
+            self.check_return_type_crossing_runtime_boundaries(&return_type, location)?;
+        }
+
         let return_type = Self::convert_type(&return_type, location)?;
 
         let location = call.location;
@@ -1786,6 +1798,39 @@ impl<'interner> Monomorphizer<'interner> {
         } else {
             Ok(call)
         }
+    }
+
+    fn check_arguments_crossing_runtime_boundaries(
+        &mut self,
+        call: &HirCallExpression,
+    ) -> Result<(), MonomorphizationError> {
+        for argument in &call.arguments {
+            let typ = self.interner.id_type(argument);
+            if typ.contains_reference() {
+                let location = self.interner.id_location(argument);
+                return Err(MonomorphizationError::ConstrainedReferenceToUnconstrained {
+                    location,
+                });
+            }
+        }
+
+        Ok(())
+    }
+
+    fn check_return_type_crossing_runtime_boundaries(
+        &mut self,
+        return_type: &Type,
+        location: Location,
+    ) -> Result<(), MonomorphizationError> {
+        if return_type.contains_slice() {
+            return Err(MonomorphizationError::UnconstrainedSliceReturnToConstrained { location });
+        }
+
+        if return_type.contains_reference() {
+            return Err(MonomorphizationError::UnconstrainedReferenceToConstrained { location });
+        }
+
+        Ok(())
     }
 
     /// Adds a function argument that contains type metadata that is required to tell
@@ -2506,6 +2551,16 @@ impl<'interner> Monomorphizer<'interner> {
             }
             tuple => Ok(ast::Expression::ExtractTupleField(Box::new(tuple), index)),
         }
+    }
+
+    fn function_is_unconstrained(&self, function: ExprId) -> bool {
+        if let HirExpression::Ident(ident, _) = self.interner.expression(&function) {
+            if let DefinitionKind::Function(func_id) = self.interner.definition(ident.id).kind {
+                return self.interner.function_modifiers(&func_id).is_unconstrained;
+            }
+        }
+
+        false
     }
 }
 
