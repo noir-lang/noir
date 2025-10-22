@@ -31,7 +31,7 @@ use crate::{
 use super::Elaborator;
 
 impl Elaborator<'_> {
-    /// Order the set of unresolved globals by their [GlobalId]
+    /// Order the set of unresolved globals by their [GlobalId].
     /// This set will be used to determine the ordering in which globals are elaborated.
     pub(super) fn set_unresolved_globals_ordering(&mut self, globals: Vec<UnresolvedGlobal>) {
         for global in globals {
