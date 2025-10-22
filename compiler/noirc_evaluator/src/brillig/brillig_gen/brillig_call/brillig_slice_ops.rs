@@ -258,9 +258,9 @@ mod tests {
             let (_, mut function_context, mut context) = create_test_environment();
 
             // Allocate the parameters
-            let source_len_var = context.allocate_single_addr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE);
+            let source_len_var = context.allocate_single_addr_mem();
             let source_vector = context.allocate_brillig_vector();
-            let item_to_insert = context.allocate_single_addr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE);
+            let item_to_insert = context.allocate_single_addr_mem();
 
             // Allocate the results
             let target_vector = context.allocate_brillig_vector();
@@ -444,12 +444,12 @@ mod tests {
             let (_, mut function_context, mut context) = create_test_environment();
 
             // Allocate the parameters
-            let source_len_var = context.allocate_single_addr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE);
+            let source_len_var = context.allocate_single_addr_mem();
             let source_vector = context.allocate_brillig_vector();
 
             // Allocate the results
             let target_vector = context.allocate_brillig_vector();
-            let removed_item = context.allocate_single_addr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE);
+            let removed_item = context.allocate_single_addr_mem();
 
             let brillig_globals = HashMap::default();
             let hoisted_globals = HashMap::default();
@@ -595,8 +595,8 @@ mod tests {
 
             // Allocate the parameters
             let source_vector = context.allocate_brillig_vector();
-            let item_to_insert = context.allocate_single_addr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE);
-            let index_to_insert = context.allocate_single_addr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE);
+            let item_to_insert = context.allocate_single_addr_mem();
+            let index_to_insert = context.allocate_single_addr_mem();
 
             // Allocate the results
             let target_vector = context.allocate_brillig_vector();
@@ -736,11 +736,11 @@ mod tests {
 
             // Allocate the parameters
             let source_vector = context.allocate_brillig_vector();
-            let index_to_insert = context.allocate_single_addr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE);
+            let index_to_insert = context.allocate_single_addr_mem();
 
             // Allocate the results
             let target_vector = context.allocate_brillig_vector();
-            let removed_item = context.allocate_single_addr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE);
+            let removed_item = context.allocate_single_addr_mem();
 
             let brillig_globals = HashMap::default();
             let hoisted_globals = HashMap::default();

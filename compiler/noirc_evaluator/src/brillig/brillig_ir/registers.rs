@@ -38,7 +38,10 @@ use acvm::acir::brillig::{HeapArray, HeapVector, MemoryAddress};
 use iter_extended::vecmap;
 use smallvec::{SmallVec, smallvec};
 
-use crate::brillig::brillig_ir::brillig_variable::{BrilligArray, BrilligVector};
+use crate::brillig::brillig_ir::{
+    BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+    brillig_variable::{BrilligArray, BrilligVector},
+};
 
 use super::{BrilligContext, ReservedRegisters, brillig_variable::SingleAddrVariable};
 
@@ -541,7 +544,13 @@ impl<F, Registers: RegisterAllocator> BrilligContext<F, Registers> {
 
     /// Allocate a [SingleAddrVariable] with a size of 1 bit.
     pub(crate) fn allocate_single_addr_bool(&mut self) -> Allocated<SingleAddrVariable, Registers> {
-        self.allocate_register().map(|a| SingleAddrVariable::new(a, 1))
+        self.allocate_single_addr(1)
+    }
+
+    /// Allocate a [SingleAddrVariable] with a size of `BRILLIG_MEMORY_ADDRESSING_BIT_SIZE` bit.
+    #[allow(unused)]
+    pub(crate) fn allocate_single_addr_mem(&mut self) -> Allocated<SingleAddrVariable, Registers> {
+        self.allocate_single_addr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)
     }
 
     /// Allocate a [BrilligVector].
