@@ -1,3 +1,134 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Trait definition collection, bounds resolution, and associated types."><title>noirc_frontend::elaborator::traits - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-46132b98.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noirc_frontend" data-themes="" data-resource-suffix="" data-rustdoc-version="1.85.0 (4d91de4e4 2025-02-17)" data-channel="1.85.0" data-search-js="search-75f5ac3e.js" data-settings-js="settings-0f613d39.js" ><script src="../../../static.files/storage-59e33391.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../noirc_frontend/index.html">noirc_<wbr>frontend</a><span class="version">1.0.0-beta.14</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module traits</a></h2><h3><a href="#functions">Module Items</a></h3><ul class="block"><li><a href="#functions" title="Functions">Functions</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In noirc_<wbr>frontend::<wbr>elaborator</a></h2></div></div></nav><div class="sidebar-resizer"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><span class="rustdoc-breadcrumbs"><a href="../../index.html">noirc_frontend</a>::<wbr><a href="../index.html">elaborator</a></span><h1>Module <span>traits</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../src/noirc_frontend/elaborator/traits.rs.html#1-752">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Trait definition collection, bounds resolution, and associated types.</p>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Trait definition collection, bounds resolution, and associated types."><title>noirc_frontend::elaborator::traits - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-46132b98.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noirc_frontend" data-themes="" data-resource-suffix="" data-rustdoc-version="1.85.0 (4d91de4e4 2025-02-17)" data-channel="1.85.0" data-search-js="search-75f5ac3e.js" data-settings-js="settings-0f613d39.js" ><script src="../../../static.files/storage-59e33391.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../noirc_frontend/index.html">noirc_<wbr>frontend</a><span class="version">1.0.0-beta.14</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module traits</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#terminology" title="Terminology:">Terminology:</a><ul><li><a href="#traitconstraint--traitbound" title="TraitConstraint &#38; TraitBound">TraitConstraint &amp; TraitBound</a></li><li><a href="#assumed-implementations" title="Assumed Implementations">Assumed Implementations</a></li><li><a href="#impl-candidate-or-just-candidate" title="Impl Candidate (or just candidate)">Impl Candidate (or just candidate)</a></li><li><a href="#solving-a-traitconstraint" title="Solving a TraitConstraint">Solving a TraitConstraint</a></li></ul></li><li><a href="#explanation-of-core-concepts" title="Explanation of Core Concepts">Explanation of Core Concepts</a><ul><li><a href="#self" title="Self">Self</a></li><li><a href="#associated-types--associated-constants" title="Associated Types &#38; Associated Constants">Associated Types &amp; Associated Constants</a></li><li><a href="#how-traitconstraints-are-resolved" title="How TraitConstraints are resolved">How TraitConstraints are resolved</a></li></ul></li></ul><h3><a href="#functions">Module Items</a></h3><ul class="block"><li><a href="#functions" title="Functions">Functions</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In noirc_<wbr>frontend::<wbr>elaborator</a></h2></div></div></nav><div class="sidebar-resizer"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><span class="rustdoc-breadcrumbs"><a href="../../index.html">noirc_frontend</a>::<wbr><a href="../index.html">elaborator</a></span><h1>Module <span>traits</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../src/noirc_frontend/elaborator/traits.rs.html#1-916">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Trait definition collection, bounds resolution, and associated types.</p>
+<h2 id="terminology"><a class="doc-anchor" href="#terminology">§</a>Terminology:</h2><h3 id="traitconstraint--traitbound"><a class="doc-anchor" href="#traitconstraint--traitbound">§</a>TraitConstraint &amp; TraitBound</h3>
+<p>In the following code:</p>
+<div class="example-wrap"><pre class="language-noir"><code>fn foo&lt;T: Eq&gt;(x: T) -&gt; bool {
+    x.eq(x)
+}</code></pre></div>
+<p>We call <code>T: Eq</code> a TraitConstraint, while <code>Eq</code> alone (along with any generics)
+is the TraitBound (although the two are sometimes informally used interchangeably).</p>
+<h3 id="assumed-implementations"><a class="doc-anchor" href="#assumed-implementations">§</a>Assumed Implementations</h3>
+<p>A “real” trait implementation corresponds to an <code>impl</code> block in noir source code.
+We can also have “assumed” impls though. These are implementations that we assume
+to exist, but may not. These most often correspond to trait constraints on generic
+functions:</p>
+<div class="example-wrap"><pre class="language-noir"><code>fn foo&lt;T: Eq&gt;(x: T) {}</code></pre></div>
+<p>Locally within <code>foo</code>, we say that <code>T: Eq</code> is an assumed impl. Within the body of <code>foo</code>,
+we can assume such an impl exists even if there are no impls for <code>Eq</code> at all in the program.
+It is up to the caller to find an impl when the type of <code>T</code> becomes known.</p>
+<p>Assumed impls may be present anywhere a generic trait constraint may be.</p>
+<h3 id="impl-candidate-or-just-candidate"><a class="doc-anchor" href="#impl-candidate-or-just-candidate">§</a>Impl Candidate (or just candidate)</h3>
+<p>An impl candidate is any impl being considered as a potential solution when solving a trait
+constraint. An impl candidate may be any trait impl for the same trait as the one in the trait
+constraint, including assumed impls.</p>
+<h3 id="solving-a-traitconstraint"><a class="doc-anchor" href="#solving-a-traitconstraint">§</a>Solving a TraitConstraint</h3>
+<p>Solving a trait constraint is finding the single matching impl candidate it refers to.
+If it may refer to zero or more than one, the constraint can’t be solved and an error should be
+issued.</p>
+<h2 id="explanation-of-core-concepts"><a class="doc-anchor" href="#explanation-of-core-concepts">§</a>Explanation of Core Concepts</h2><h3 id="self"><a class="doc-anchor" href="#self">§</a>Self</h3>
+<p>In addition to its declared generics, traits have an additional implicit generic
+called <code>Self</code>. This is not stored in the normal list of generics on a trait so it often
+must be specially handled.</p>
+<p>When we have a trait and an impl:</p>
+<div class="example-wrap"><pre class="language-noir"><code>trait Foo&lt;A&gt; {
+    fn foo&lt;B&gt;();
+}
+
+impl Foo&lt;i32&gt; for Bar {
+    fn foo&lt;B&gt;(){}
+}
+
+fn caller&lt;T, U&gt;() where T: Foo&lt;U&gt; { ... }</code></pre></div>
+<p>The expected trait to impl bindings would be <code>[Self =&gt; Bar, A =&gt; i32]</code>. <code>B</code> in the example
+above is on the <code>foo</code> method itself rather than the trait or impl. If <code>B</code> were bound to a
+concrete type like <code>u32</code> in the impl bindings, <code>foo</code> would no longer be properly generic.</p>
+<p>Inlining <code>Self</code> into a trait’s generics list directly may provide some
+intuition in how <code>Self</code> should be handled (that is, like any other trait generic):</p>
+<div class="example-wrap"><pre class="language-noir"><code>fn caller&lt;T, U&gt;() where Foo&lt;T, U&gt; { ... }</code></pre></div><h3 id="associated-types--associated-constants"><a class="doc-anchor" href="#associated-types--associated-constants">§</a>Associated Types &amp; Associated Constants</h3>
+<p>Associated types and associated constants are both represented internally as associated
+types. Constants are represented as <code>Type::Constant</code> variants or <code>Type::InfixExpr</code> when
+operators are involved such as <code>N + 1</code>. Generally, this representation is non-leaky and
+there are very few locations where we need to distinguish between associated types &amp; constants.</p>
+<div class="example-wrap"><pre class="language-noir"><code>trait Foo&lt;A&gt; {
+    type B;
+    let C: u32;
+    fn foo&lt;D&gt;();
+}
+
+impl Foo&lt;i32&gt; for Bar {
+    type B = Field;
+    let C: u32 = 42;
+    fn foo&lt;D&gt;() {}
+}
+
+fn caller&lt;T, U&gt;() where T: Foo&lt;U&gt; {}</code></pre></div>
+<p>Similar to the implicit <code>Self</code> generic, associated types (and constants) are also implicit
+generics on traits - just generics that are restricted to only have one value for a given set of the
+trait’s other generics. For example, we may think of <code>Foo</code> above as being <code>Foo&lt;Self, A, B, C&gt;</code>
+internally, but if we already have an implementation for <code>Foo&lt;i32, i32, i32, 0&gt;</code>, it’d be
+invalid to also have an implementation for <code>Foo&lt;i32, i32, u32, 1&gt;</code> - because the last two
+generics are associated types.</p>
+<p>That said, these are still represented as generics internally because code using them - such as
+<code>caller</code> - still need to be generic over any possible value for these associated types. With
+this in mind, we can think of <code>caller</code> as being equivalent to:</p>
+<div class="example-wrap"><pre class="language-noir"><code>fn caller&lt;T, U, BB, let CC: u32&gt;() where Foo&lt;T, U, BB, CC&gt; {}</code></pre></div>
+<p>Where <code>BB</code> and <code>CC</code> are implicitly added generics to the function. These may also be specified
+explicitly via <code>T: Foo&lt;U, B = MyB, C = MyC&gt;</code> but this isn’t very relevant to the inner workings
+of how the compiler handles associated types.</p>
+<h3 id="how-traitconstraints-are-resolved"><a class="doc-anchor" href="#how-traitconstraints-are-resolved">§</a>How TraitConstraints are resolved</h3>
+<p>This section is an attempt at a primer on how TraitConstraints are resolved by the elaborator.</p>
+<p>The elaborator starts by seeing parsed code and must:</p>
+<ol>
+<li>Resolve &amp; type-check code (type_check_variable_with_bindings)</li>
+</ol>
+<ul>
+<li>In doing so, determine if the snippet has a trait constraint which needs to be solved</li>
+<li>Some variables have trait constraints because they refer to a generic function with
+one or more trait constraints. Others have trait constraints because they directly refer
+to a method from a trait. For this later case, we must set the “select the impl” so that
+when the constraint is later solved for, the variable is replaced by a variable referring
+to the selected impl’s method directly. This replacement is done during monomorphization
+but we must set the flag during elaboration.</li>
+</ul>
+<ol start="2">
+<li>Push each required trait constraint to the function context</li>
+</ol>
+<ul>
+<li>When variables are used they are instantiated by the type system. This means we replace
+any generics from their definition type with fresh type variables. This mapping is stored
+as the <code>instantiation_bindings</code> and is later used by the monomorphizer. This mapping
+is applied to the trait constraint as well. So if the original constraint was
+<code>T: Foo&lt;U&gt;</code> where <code>T</code> and <code>U</code> are generics, the new constraint may be <code>_0: Foo&lt;_1&gt;</code> where
+<code>_0</code> and <code>_1</code> are unbound type variables. Because we don’t always push down types, we
+may not have the constraints needed to solve what <code>_0</code> and <code>_1</code> are yet. Therefore, we
+push the constraint to the function context to solve after type checking the function
+instead.</li>
+</ul>
+<ol start="3">
+<li>When the function is finished being elaborated, go through and solve any trait constraints
+that were pushed to the function context.</li>
+</ol>
+<ul>
+<li>Since the function is done being elaborated, we should have more type constraints now which
+should hopefully bind the type variables <code>_0</code> and <code>_1</code> to concrete types. Our new trait
+constraint may look like <code>A: Foo&lt;i32&gt;</code>.</li>
+<li>For each pushed trait constraint, solve the constraint by looking through the list of all
+trait impls in the program for the relevant trait, along with the list of assumed impls.
+A constraint is solved when a matching impl is found, along with a matching impl for any
+nested trait constraints that impl may require (e.g. <code>[T]: Eq</code> requires <code>T: Eq</code>).
+A matching impl here is simply one for which all types used in the impl unify with all the types
+in the trait constraint.</li>
+<li>Although the core idea is simple, we must carefully handle unification bindings such that
+we only keep the ones from the impl(s) which were selected. Impls is plural since an impl
+can require more trait constraints which need to be solved recursively. These recursive
+impl constraints are obtained from the impl definition but care should be taken to
+instantiate them with the original instantiation bindings before checking them so that they
+are not bound over. Using the Eq example above, we may have the constraint <code>[i32]: Eq</code> at
+this step which we may solve for, finding <code>[T]: Eq</code>. We instantiate the later with <code>T := _0</code> to
+<code>[_0]: Eq</code> to see if it unifies with <code>[i32]</code>, and it does producing <code>_0 := i32</code>. The impl
+also requires <code>T: Eq</code> though, so now we must instantiate this with the impl instantiation
+bindings to get <code>_0: Eq</code>, and then apply the previous unification binding to get <code>i32: Eq</code>,
+which is trivially solved by finding the corresponding impl.</li>
+<li>If a single impl candidate is found, it is used. Otherwise, an error is issued.</li>
+</ul>
 </div></details><h2 id="functions" class="section-header">Functions<a href="#functions" class="anchor">§</a></h2><ul class="item-table"><li><div class="item-name"><a class="fn" href="fn.check_function_type_matches_expected_type.html" title="fn noirc_frontend::elaborator::traits::check_function_type_matches_expected_type">check_<wbr>function_<wbr>type_<wbr>matches_<wbr>expected_<wbr>type</a><span title="Restricted Visibility">&nbsp;🔒</span> </div></li><li><div class="item-name"><a class="fn" href="fn.check_trait_impl_method_matches_declaration.html" title="fn noirc_frontend::elaborator::traits::check_trait_impl_method_matches_declaration">check_<wbr>trait_<wbr>impl_<wbr>method_<wbr>matches_<wbr>declaration</a><span title="Restricted Visibility">&nbsp;🔒</span> </div><div class="desc docblock-short">Checks that the type of a function in a trait impl matches the type
 of the corresponding function declaration in the trait itself.</div></li></ul></section></div></main></body></html>

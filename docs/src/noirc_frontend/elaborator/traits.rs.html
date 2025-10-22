@@ -750,7 +750,335 @@
 <a href="#749" id="749">749</a>
 <a href="#750" id="750">750</a>
 <a href="#751" id="751">751</a>
-<a href="#752" id="752">752</a></pre></div><pre class="rust"><code><span class="doccomment">//! Trait definition collection, bounds resolution, and associated types.
+<a href="#752" id="752">752</a>
+<a href="#753" id="753">753</a>
+<a href="#754" id="754">754</a>
+<a href="#755" id="755">755</a>
+<a href="#756" id="756">756</a>
+<a href="#757" id="757">757</a>
+<a href="#758" id="758">758</a>
+<a href="#759" id="759">759</a>
+<a href="#760" id="760">760</a>
+<a href="#761" id="761">761</a>
+<a href="#762" id="762">762</a>
+<a href="#763" id="763">763</a>
+<a href="#764" id="764">764</a>
+<a href="#765" id="765">765</a>
+<a href="#766" id="766">766</a>
+<a href="#767" id="767">767</a>
+<a href="#768" id="768">768</a>
+<a href="#769" id="769">769</a>
+<a href="#770" id="770">770</a>
+<a href="#771" id="771">771</a>
+<a href="#772" id="772">772</a>
+<a href="#773" id="773">773</a>
+<a href="#774" id="774">774</a>
+<a href="#775" id="775">775</a>
+<a href="#776" id="776">776</a>
+<a href="#777" id="777">777</a>
+<a href="#778" id="778">778</a>
+<a href="#779" id="779">779</a>
+<a href="#780" id="780">780</a>
+<a href="#781" id="781">781</a>
+<a href="#782" id="782">782</a>
+<a href="#783" id="783">783</a>
+<a href="#784" id="784">784</a>
+<a href="#785" id="785">785</a>
+<a href="#786" id="786">786</a>
+<a href="#787" id="787">787</a>
+<a href="#788" id="788">788</a>
+<a href="#789" id="789">789</a>
+<a href="#790" id="790">790</a>
+<a href="#791" id="791">791</a>
+<a href="#792" id="792">792</a>
+<a href="#793" id="793">793</a>
+<a href="#794" id="794">794</a>
+<a href="#795" id="795">795</a>
+<a href="#796" id="796">796</a>
+<a href="#797" id="797">797</a>
+<a href="#798" id="798">798</a>
+<a href="#799" id="799">799</a>
+<a href="#800" id="800">800</a>
+<a href="#801" id="801">801</a>
+<a href="#802" id="802">802</a>
+<a href="#803" id="803">803</a>
+<a href="#804" id="804">804</a>
+<a href="#805" id="805">805</a>
+<a href="#806" id="806">806</a>
+<a href="#807" id="807">807</a>
+<a href="#808" id="808">808</a>
+<a href="#809" id="809">809</a>
+<a href="#810" id="810">810</a>
+<a href="#811" id="811">811</a>
+<a href="#812" id="812">812</a>
+<a href="#813" id="813">813</a>
+<a href="#814" id="814">814</a>
+<a href="#815" id="815">815</a>
+<a href="#816" id="816">816</a>
+<a href="#817" id="817">817</a>
+<a href="#818" id="818">818</a>
+<a href="#819" id="819">819</a>
+<a href="#820" id="820">820</a>
+<a href="#821" id="821">821</a>
+<a href="#822" id="822">822</a>
+<a href="#823" id="823">823</a>
+<a href="#824" id="824">824</a>
+<a href="#825" id="825">825</a>
+<a href="#826" id="826">826</a>
+<a href="#827" id="827">827</a>
+<a href="#828" id="828">828</a>
+<a href="#829" id="829">829</a>
+<a href="#830" id="830">830</a>
+<a href="#831" id="831">831</a>
+<a href="#832" id="832">832</a>
+<a href="#833" id="833">833</a>
+<a href="#834" id="834">834</a>
+<a href="#835" id="835">835</a>
+<a href="#836" id="836">836</a>
+<a href="#837" id="837">837</a>
+<a href="#838" id="838">838</a>
+<a href="#839" id="839">839</a>
+<a href="#840" id="840">840</a>
+<a href="#841" id="841">841</a>
+<a href="#842" id="842">842</a>
+<a href="#843" id="843">843</a>
+<a href="#844" id="844">844</a>
+<a href="#845" id="845">845</a>
+<a href="#846" id="846">846</a>
+<a href="#847" id="847">847</a>
+<a href="#848" id="848">848</a>
+<a href="#849" id="849">849</a>
+<a href="#850" id="850">850</a>
+<a href="#851" id="851">851</a>
+<a href="#852" id="852">852</a>
+<a href="#853" id="853">853</a>
+<a href="#854" id="854">854</a>
+<a href="#855" id="855">855</a>
+<a href="#856" id="856">856</a>
+<a href="#857" id="857">857</a>
+<a href="#858" id="858">858</a>
+<a href="#859" id="859">859</a>
+<a href="#860" id="860">860</a>
+<a href="#861" id="861">861</a>
+<a href="#862" id="862">862</a>
+<a href="#863" id="863">863</a>
+<a href="#864" id="864">864</a>
+<a href="#865" id="865">865</a>
+<a href="#866" id="866">866</a>
+<a href="#867" id="867">867</a>
+<a href="#868" id="868">868</a>
+<a href="#869" id="869">869</a>
+<a href="#870" id="870">870</a>
+<a href="#871" id="871">871</a>
+<a href="#872" id="872">872</a>
+<a href="#873" id="873">873</a>
+<a href="#874" id="874">874</a>
+<a href="#875" id="875">875</a>
+<a href="#876" id="876">876</a>
+<a href="#877" id="877">877</a>
+<a href="#878" id="878">878</a>
+<a href="#879" id="879">879</a>
+<a href="#880" id="880">880</a>
+<a href="#881" id="881">881</a>
+<a href="#882" id="882">882</a>
+<a href="#883" id="883">883</a>
+<a href="#884" id="884">884</a>
+<a href="#885" id="885">885</a>
+<a href="#886" id="886">886</a>
+<a href="#887" id="887">887</a>
+<a href="#888" id="888">888</a>
+<a href="#889" id="889">889</a>
+<a href="#890" id="890">890</a>
+<a href="#891" id="891">891</a>
+<a href="#892" id="892">892</a>
+<a href="#893" id="893">893</a>
+<a href="#894" id="894">894</a>
+<a href="#895" id="895">895</a>
+<a href="#896" id="896">896</a>
+<a href="#897" id="897">897</a>
+<a href="#898" id="898">898</a>
+<a href="#899" id="899">899</a>
+<a href="#900" id="900">900</a>
+<a href="#901" id="901">901</a>
+<a href="#902" id="902">902</a>
+<a href="#903" id="903">903</a>
+<a href="#904" id="904">904</a>
+<a href="#905" id="905">905</a>
+<a href="#906" id="906">906</a>
+<a href="#907" id="907">907</a>
+<a href="#908" id="908">908</a>
+<a href="#909" id="909">909</a>
+<a href="#910" id="910">910</a>
+<a href="#911" id="911">911</a>
+<a href="#912" id="912">912</a>
+<a href="#913" id="913">913</a>
+<a href="#914" id="914">914</a>
+<a href="#915" id="915">915</a>
+<a href="#916" id="916">916</a></pre></div><pre class="rust"><code><span class="doccomment">//! Trait definition collection, bounds resolution, and associated types.
+//!
+//! # Terminology:
+//!
+//! ## TraitConstraint &amp; TraitBound
+//!
+//! In the following code:
+//! ```noir
+//! fn foo&lt;T: Eq&gt;(x: T) -&gt; bool {
+//!     x.eq(x)
+//! }
+//! ```
+//! We call `T: Eq` a TraitConstraint, while `Eq` alone (along with any generics)
+//! is the TraitBound (although the two are sometimes informally used interchangeably).
+//!
+//! ## Assumed Implementations
+//!
+//! A "real" trait implementation corresponds to an `impl` block in noir source code.
+//! We can also have "assumed" impls though. These are implementations that we assume
+//! to exist, but may not. These most often correspond to trait constraints on generic
+//! functions:
+//!
+//! ```noir
+//! fn foo&lt;T: Eq&gt;(x: T) {}
+//! ```
+//!
+//! Locally within `foo`, we say that `T: Eq` is an assumed impl. Within the body of `foo`,
+//! we can assume such an impl exists even if there are no impls for `Eq` at all in the program.
+//! It is up to the caller to find an impl when the type of `T` becomes known.
+//!
+//! Assumed impls may be present anywhere a generic trait constraint may be.
+//!
+//! ## Impl Candidate (or just candidate)
+//!
+//! An impl candidate is any impl being considered as a potential solution when solving a trait
+//! constraint. An impl candidate may be any trait impl for the same trait as the one in the trait
+//! constraint, including assumed impls.
+//!
+//! ## Solving a TraitConstraint
+//!
+//! Solving a trait constraint is finding the single matching impl candidate it refers to.
+//! If it may refer to zero or more than one, the constraint can't be solved and an error should be
+//! issued.
+//!
+//! # Explanation of Core Concepts
+//!
+//! ## Self
+//!
+//! In addition to its declared generics, traits have an additional implicit generic
+//! called `Self`. This is not stored in the normal list of generics on a trait so it often
+//! must be specially handled.
+//!
+//! When we have a trait and an impl:
+//!
+//! ```noir
+//! trait Foo&lt;A&gt; {
+//!     fn foo&lt;B&gt;();
+//! }
+//!
+//! impl Foo&lt;i32&gt; for Bar {
+//!     fn foo&lt;B&gt;(){}
+//! }
+//!
+//! fn caller&lt;T, U&gt;() where T: Foo&lt;U&gt; { ... }
+//! ```
+//!
+//! The expected trait to impl bindings would be `[Self =&gt; Bar, A =&gt; i32]`. `B` in the example
+//! above is on the `foo` method itself rather than the trait or impl. If `B` were bound to a
+//! concrete type like `u32` in the impl bindings, `foo` would no longer be properly generic.
+//!
+//! Inlining `Self` into a trait's generics list directly may provide some
+//! intuition in how `Self` should be handled (that is, like any other trait generic):
+//!
+//! ```noir
+//! fn caller&lt;T, U&gt;() where Foo&lt;T, U&gt; { ... }
+//! ```
+//!
+//! ## Associated Types &amp; Associated Constants
+//!
+//! Associated types and associated constants are both represented internally as associated
+//! types. Constants are represented as `Type::Constant` variants or `Type::InfixExpr` when
+//! operators are involved such as `N + 1`. Generally, this representation is non-leaky and
+//! there are very few locations where we need to distinguish between associated types &amp; constants.
+//!
+//! ```noir
+//! trait Foo&lt;A&gt; {
+//!     type B;
+//!     let C: u32;
+//!     fn foo&lt;D&gt;();
+//! }
+//!
+//! impl Foo&lt;i32&gt; for Bar {
+//!     type B = Field;
+//!     let C: u32 = 42;
+//!     fn foo&lt;D&gt;() {}
+//! }
+//!
+//! fn caller&lt;T, U&gt;() where T: Foo&lt;U&gt; {}
+//! ```
+//!
+//! Similar to the implicit `Self` generic, associated types (and constants) are also implicit
+//! generics on traits - just generics that are restricted to only have one value for a given set of the
+//! trait's other generics. For example, we may think of `Foo` above as being `Foo&lt;Self, A, B, C&gt;`
+//! internally, but if we already have an implementation for `Foo&lt;i32, i32, i32, 0&gt;`, it'd be
+//! invalid to also have an implementation for `Foo&lt;i32, i32, u32, 1&gt;` - because the last two
+//! generics are associated types.
+//!
+//! That said, these are still represented as generics internally because code using them - such as
+//! `caller` - still need to be generic over any possible value for these associated types. With
+//! this in mind, we can think of `caller` as being equivalent to:
+//!
+//! ```noir
+//! fn caller&lt;T, U, BB, let CC: u32&gt;() where Foo&lt;T, U, BB, CC&gt; {}
+//! ```
+//!
+//! Where `BB` and `CC` are implicitly added generics to the function. These may also be specified
+//! explicitly via `T: Foo&lt;U, B = MyB, C = MyC&gt;` but this isn't very relevant to the inner workings
+//! of how the compiler handles associated types.
+//!
+//! ## How TraitConstraints are resolved
+//!
+//! This section is an attempt at a primer on how TraitConstraints are resolved by the elaborator.
+//!
+//! The elaborator starts by seeing parsed code and must:
+//! 1. Resolve &amp; type-check code (type_check_variable_with_bindings)
+//!   - In doing so, determine if the snippet has a trait constraint which needs to be solved
+//!   - Some variables have trait constraints because they refer to a generic function with
+//!     one or more trait constraints. Others have trait constraints because they directly refer
+//!     to a method from a trait. For this later case, we must set the "select the impl" so that
+//!     when the constraint is later solved for, the variable is replaced by a variable referring
+//!     to the selected impl's method directly. This replacement is done during monomorphization
+//!     but we must set the flag during elaboration.
+//! 2. Push each required trait constraint to the function context
+//!   - When variables are used they are instantiated by the type system. This means we replace
+//!     any generics from their definition type with fresh type variables. This mapping is stored
+//!     as the `instantiation_bindings` and is later used by the monomorphizer. This mapping
+//!     is applied to the trait constraint as well. So if the original constraint was
+//!     `T: Foo&lt;U&gt;` where `T` and `U` are generics, the new constraint may be `_0: Foo&lt;_1&gt;` where
+//!     `_0` and `_1` are unbound type variables. Because we don't always push down types, we
+//!     may not have the constraints needed to solve what `_0` and `_1` are yet. Therefore, we
+//!     push the constraint to the function context to solve after type checking the function
+//!     instead.
+//! 3. When the function is finished being elaborated, go through and solve any trait constraints
+//!    that were pushed to the function context.
+//!   - Since the function is done being elaborated, we should have more type constraints now which
+//!     should hopefully bind the type variables `_0` and `_1` to concrete types. Our new trait
+//!     constraint may look like `A: Foo&lt;i32&gt;`.
+//!   - For each pushed trait constraint, solve the constraint by looking through the list of all
+//!     trait impls in the program for the relevant trait, along with the list of assumed impls.
+//!     A constraint is solved when a matching impl is found, along with a matching impl for any
+//!     nested trait constraints that impl may require (e.g. `[T]: Eq` requires `T: Eq`).
+//!     A matching impl here is simply one for which all types used in the impl unify with all the types
+//!     in the trait constraint.
+//!   - Although the core idea is simple, we must carefully handle unification bindings such that
+//!     we only keep the ones from the impl(s) which were selected. Impls is plural since an impl
+//!     can require more trait constraints which need to be solved recursively. These recursive
+//!     impl constraints are obtained from the impl definition but care should be taken to
+//!     instantiate them with the original instantiation bindings before checking them so that they
+//!     are not bound over. Using the Eq example above, we may have the constraint `[i32]: Eq` at
+//!     this step which we may solve for, finding `[T]: Eq`. We instantiate the later with `T := _0` to
+//!     `[_0]: Eq` to see if it unifies with `[i32]`, and it does producing `_0 := i32`. The impl
+//!     also requires `T: Eq` though, so now we must instantiate this with the impl instantiation
+//!     bindings to get `_0: Eq`, and then apply the previous unification binding to get `i32: Eq`,
+//!     which is trivially solved by finding the corresponding impl.
+//!   - If a single impl candidate is found, it is used. Otherwise, an error is issued.
 
 </span><span class="kw">use </span>std::{collections::BTreeMap, rc::Rc};
 
