@@ -1,19 +1,19 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use acir::InvalidInputBitSize;
+use acir::acir_field::GenericFieldElement;
 use acir::brillig::{BitSize, HeapVector, IntegerBitSize};
 use acir::{
     AcirField, FieldElement,
-    acir_field::GenericFieldElement,
     brillig::{BinaryFieldOp, MemoryAddress, Opcode as BrilligOpcode, ValueOrArray},
     circuit::{
         Opcode, OpcodeLocation,
-        brillig::{BrilligBytecode, BrilligFunctionId, BrilligInputs, BrilligOutputs},
-        opcodes::{BlackBoxFuncCall, BlockId, BlockType, FunctionInput, MemOp},
+        brillig::{BrilligBytecode, BrilligFunctionId},
+        opcodes::{BlackBoxFuncCall, FunctionInput},
     },
     native_types::{Expression, Witness, WitnessMap},
 };
+use acir::{InvalidInputBitSize, parse_opcodes};
 
 use acvm::pwg::{ACVM, ACVMStatus, ErrorLocation, ForeignCallWaitInfo, OpcodeResolutionError};
 use acvm_blackbox_solver::StubbedBlackBoxSolver;
@@ -68,8 +68,6 @@ fn inversion_brillig_oracle_equivalence() {
     // }
     // Also performs an unrelated equality check
     // just for the sake of testing multiple brillig opcodes.
-    let fe_0 = FieldElement::zero();
-    let fe_1 = FieldElement::one();
     let w_x = Witness(1);
     let w_y = Witness(2);
     let w_oracle = Witness(3);
@@ -78,43 +76,15 @@ fn inversion_brillig_oracle_equivalence() {
     let w_x_plus_y = Witness(6);
     let w_equal_res = Witness(7);
 
-    let opcodes = vec![
-        Opcode::BrilligCall {
-            id: BrilligFunctionId(0),
-            inputs: vec![
-                BrilligInputs::Single(Expression {
-                    // Input Register 0
-                    mul_terms: vec![],
-                    linear_combinations: vec![(fe_1, w_x), (fe_1, w_y)],
-                    q_c: fe_0,
-                }),
-                BrilligInputs::Single(Expression::default()), // Input Register 1
-            ],
-            // This tells the BrilligSolver which witnesses its output values correspond to
-            outputs: vec![
-                BrilligOutputs::Simple(w_x_plus_y), // Output Register 0 - from input
-                BrilligOutputs::Simple(w_oracle),   // Output Register 1
-                BrilligOutputs::Simple(w_equal_res), // Output Register 2
-            ],
-            predicate: None,
-        },
-        Opcode::AssertZero(Expression {
-            mul_terms: vec![],
-            linear_combinations: vec![(fe_1, w_x), (fe_1, w_y), (-fe_1, w_z)],
-            q_c: fe_0,
-        }),
-        // Opcode::Directive(Directive::Invert { x: w_z, result: w_z_inverse }),
-        Opcode::AssertZero(Expression {
-            mul_terms: vec![(fe_1, w_z, w_z_inverse)],
-            linear_combinations: vec![],
-            q_c: -fe_1,
-        }),
-        Opcode::AssertZero(Expression {
-            mul_terms: vec![],
-            linear_combinations: vec![(-fe_1, w_oracle), (fe_1, w_z_inverse)],
-            q_c: fe_0,
-        }),
-    ];
+    let src = format!(
+        "
+    BRILLIG CALL func: 0, inputs: [{w_x} + {w_y}, 0], outputs: [{w_x_plus_y}, {w_oracle}, {w_equal_res}]
+    ASSERT {w_z} = {w_x} + {w_y}
+    ASSERT 0 = {w_z}*{w_z_inverse} - 1
+    ASSERT {w_z_inverse} = {w_oracle}
+    "
+    );
+    let opcodes = parse_opcodes(&src).unwrap();
 
     let equal_opcode = BrilligOpcode::BinaryFieldOp {
         op: BinaryFieldOp::Equals,
@@ -210,8 +180,6 @@ fn double_inversion_brillig_oracle() {
     // }
     // Also performs an unrelated equality check
     // just for the sake of testing multiple brillig opcodes.
-    let fe_0 = FieldElement::zero();
-    let fe_1 = FieldElement::one();
     let w_x = Witness(1);
     let w_y = Witness(2);
     let w_oracle = Witness(3);
@@ -224,50 +192,15 @@ fn double_inversion_brillig_oracle() {
     let w_ij_oracle = Witness(10);
     let w_i_plus_j = Witness(11);
 
-    let opcodes = vec![
-        Opcode::BrilligCall {
-            id: BrilligFunctionId(0),
-            inputs: vec![
-                BrilligInputs::Single(Expression {
-                    // Input Register 0
-                    mul_terms: vec![],
-                    linear_combinations: vec![(fe_1, w_x), (fe_1, w_y)],
-                    q_c: fe_0,
-                }),
-                BrilligInputs::Single(Expression::default()), // Input Register 1
-                BrilligInputs::Single(Expression {
-                    // Input Register 2
-                    mul_terms: vec![],
-                    linear_combinations: vec![(fe_1, w_i), (fe_1, w_j)],
-                    q_c: fe_0,
-                }),
-            ],
-            outputs: vec![
-                BrilligOutputs::Simple(w_x_plus_y), // Output Register 0 - from input
-                BrilligOutputs::Simple(w_oracle),   // Output Register 1
-                BrilligOutputs::Simple(w_i_plus_j), // Output Register 2 - from input
-                BrilligOutputs::Simple(w_ij_oracle), // Output Register 3
-                BrilligOutputs::Simple(w_equal_res), // Output Register 4
-            ],
-            predicate: None,
-        },
-        Opcode::AssertZero(Expression {
-            mul_terms: vec![],
-            linear_combinations: vec![(fe_1, w_x), (fe_1, w_y), (-fe_1, w_z)],
-            q_c: fe_0,
-        }),
-        // Opcode::Directive(Directive::Invert { x: w_z, result: w_z_inverse }),
-        Opcode::AssertZero(Expression {
-            mul_terms: vec![(fe_1, w_z, w_z_inverse)],
-            linear_combinations: vec![],
-            q_c: -fe_1,
-        }),
-        Opcode::AssertZero(Expression {
-            mul_terms: vec![],
-            linear_combinations: vec![(-fe_1, w_oracle), (fe_1, w_z_inverse)],
-            q_c: fe_0,
-        }),
-    ];
+    let src = format!(
+        "
+    BRILLIG CALL func: 0, inputs: [{w_x} + {w_y}, 0, {w_i} + {w_j}], outputs: [{w_x_plus_y}, {w_oracle}, {w_i_plus_j}, {w_ij_oracle}, {w_equal_res}]
+    ASSERT {w_z} = {w_x} + {w_y}
+    ASSERT 0 = {w_z}*{w_z_inverse} - 1
+    ASSERT {w_z_inverse} = {w_oracle}
+    "
+    );
+    let opcodes = parse_opcodes(&src).unwrap();
 
     let zero_usize = MemoryAddress::direct(5);
     let three_usize = MemoryAddress::direct(6);
@@ -394,8 +327,6 @@ fn oracle_dependent_execution() {
     // }
     // Also performs an unrelated equality check
     // just for the sake of testing multiple brillig opcodes.
-    let fe_0 = FieldElement::zero();
-    let fe_1 = FieldElement::one();
     let w_x = Witness(1);
     let w_y = Witness(2);
     let w_x_inv = Witness(3);
@@ -448,40 +379,17 @@ fn oracle_dependent_execution() {
         ],
     };
 
+    let src = format!(
+        "
     // This equality check can be executed immediately before resolving any foreign calls.
-    let equality_check = Expression {
-        mul_terms: vec![],
-        linear_combinations: vec![(-fe_1, w_x), (fe_1, w_y)],
-        q_c: fe_0,
-    };
-
+    ASSERT {w_y} = {w_x}
+    BRILLIG CALL func: 0, inputs: [{w_x}, 0, {w_y}], outputs: [{w_x}, {w_y_inv}, {w_y}, {w_y_inv}]
     // This equality check relies on the outputs of the Brillig call.
     // It then cannot be solved until the foreign calls are resolved.
-    let inverse_equality_check = Expression {
-        mul_terms: vec![],
-        linear_combinations: vec![(-fe_1, w_x_inv), (fe_1, w_y_inv)],
-        q_c: fe_0,
-    };
-
-    let opcodes = vec![
-        Opcode::AssertZero(equality_check),
-        Opcode::BrilligCall {
-            id: BrilligFunctionId(0),
-            inputs: vec![
-                BrilligInputs::Single(w_x.into()),            // Input Register 0
-                BrilligInputs::Single(Expression::default()), // Input Register 1
-                BrilligInputs::Single(w_y.into()),            // Input Register 2,
-            ],
-            outputs: vec![
-                BrilligOutputs::Simple(w_x),     // Output Register 0 - from input
-                BrilligOutputs::Simple(w_y_inv), // Output Register 1
-                BrilligOutputs::Simple(w_y),     // Output Register 2 - from input
-                BrilligOutputs::Simple(w_y_inv), // Output Register 3
-            ],
-            predicate: None,
-        },
-        Opcode::AssertZero(inverse_equality_check),
-    ];
+    ASSERT {w_y_inv} = {w_x_inv}
+    "
+    );
+    let opcodes = parse_opcodes(&src).unwrap();
 
     let witness_assignments =
         BTreeMap::from([(w_x, FieldElement::from(2u128)), (w_y, FieldElement::from(2u128))]).into();
@@ -533,8 +441,6 @@ fn oracle_dependent_execution() {
 #[test]
 fn brillig_oracle_predicate() {
     let solver = StubbedBlackBoxSolver::default();
-    let fe_0 = FieldElement::zero();
-    let fe_1 = FieldElement::one();
     let w_x = Witness(1);
     let w_y = Witness(2);
     let w_oracle = Witness(3);
@@ -579,24 +485,12 @@ fn brillig_oracle_predicate() {
         ],
     };
 
-    let opcodes = vec![Opcode::BrilligCall {
-        id: BrilligFunctionId(0),
-        inputs: vec![
-            BrilligInputs::Single(Expression {
-                mul_terms: vec![],
-                linear_combinations: vec![(fe_1, w_x), (fe_1, w_y)],
-                q_c: fe_0,
-            }),
-            BrilligInputs::Single(Expression::default()),
-        ],
-        outputs: vec![
-            BrilligOutputs::Simple(w_x_plus_y),
-            BrilligOutputs::Simple(w_oracle),
-            BrilligOutputs::Simple(w_equal_res),
-            BrilligOutputs::Simple(w_lt_res),
-        ],
-        predicate: Some(Expression::default()),
-    }];
+    let src = format!(
+        "
+    BRILLIG CALL func: 0, predicate: 0, inputs: [{w_x} + {w_y}, 0], outputs: [{w_x_plus_y}, {w_oracle}, {w_equal_res}, {w_lt_res}]
+    "
+    );
+    let opcodes = parse_opcodes(&src).unwrap();
 
     let witness_assignments = BTreeMap::from([
         (Witness(1), FieldElement::from(2u128)),
@@ -620,25 +514,15 @@ fn unsatisfied_opcode_resolved() {
     let c = Witness(2);
     let d = Witness(3);
 
-    // a = b + c + d;
-    let opcode_a = Expression {
-        mul_terms: vec![],
-        linear_combinations: vec![
-            (FieldElement::one(), a),
-            (-FieldElement::one(), b),
-            (-FieldElement::one(), c),
-            (-FieldElement::one(), d),
-        ],
-        q_c: FieldElement::zero(),
-    };
-
     let mut values = WitnessMap::new();
     values.insert(a, FieldElement::from(4_i128));
     values.insert(b, FieldElement::from(2_i128));
     values.insert(c, FieldElement::from(1_i128));
     values.insert(d, FieldElement::from(2_i128));
 
-    let opcodes = vec![Opcode::AssertZero(opcode_a)];
+    let src = format!("ASSERT {a} = {b} + {c} + {d}");
+    let opcodes = parse_opcodes(&src).unwrap();
+
     let unconstrained_functions = vec![];
     let mut acvm = ACVM::new(&solver, &opcodes, values, &unconstrained_functions, &[]);
     let solver_status = acvm.solve();
@@ -660,8 +544,6 @@ fn unsatisfied_opcode_resolved_brillig() {
     let c = Witness(2);
     let d = Witness(3);
 
-    let fe_1 = FieldElement::one();
-    let fe_0 = FieldElement::zero();
     let w_x = Witness(4);
     let w_y = Witness(5);
     let w_result = Witness(6);
@@ -724,17 +606,6 @@ fn unsatisfied_opcode_resolved_brillig() {
         ],
     };
 
-    let opcode_a = Expression {
-        mul_terms: vec![],
-        linear_combinations: vec![
-            (FieldElement::one(), a),
-            (-FieldElement::one(), b),
-            (-FieldElement::one(), c),
-            (-FieldElement::one(), d),
-        ],
-        q_c: FieldElement::zero(),
-    };
-
     let mut values = WitnessMap::new();
     values.insert(a, FieldElement::from(4_i128));
     values.insert(b, FieldElement::from(2_i128));
@@ -744,26 +615,14 @@ fn unsatisfied_opcode_resolved_brillig() {
     values.insert(w_y, FieldElement::from(1_i128));
     values.insert(w_result, FieldElement::from(0_i128));
 
-    let opcodes = vec![
-        Opcode::BrilligCall {
-            id: BrilligFunctionId(0),
-            inputs: vec![
-                BrilligInputs::Single(Expression {
-                    mul_terms: vec![],
-                    linear_combinations: vec![(fe_1, w_x)],
-                    q_c: fe_0,
-                }),
-                BrilligInputs::Single(Expression {
-                    mul_terms: vec![],
-                    linear_combinations: vec![(fe_1, w_y)],
-                    q_c: fe_0,
-                }),
-            ],
-            outputs: vec![BrilligOutputs::Simple(w_result)],
-            predicate: Some(Expression::one()),
-        },
-        Opcode::AssertZero(opcode_a),
-    ];
+    let src = format!(
+        "
+    BRILLIG CALL func: 0, predicate: 1, inputs: [{w_x}, {w_y}], outputs: [{w_result}]
+    ASSERT {a} = {b} + {c} + {d}
+    "
+    );
+    let opcodes = parse_opcodes(&src).unwrap();
+
     let unconstrained_functions = vec![brillig_bytecode];
     let mut acvm = ACVM::new(&solver, &opcodes, values, &unconstrained_functions, &[]);
     let solver_status = acvm.solve();
@@ -791,27 +650,13 @@ fn memory_operations() {
         (Witness(6), FieldElement::from(4u128)),
     ]));
 
-    let block_id = BlockId(0);
+    let src = "
+    INIT b0 = [w1, w2, w3, w4, w5]
+    READ w7 = b0[w6]
+    ASSERT w8 = w7 + 1
+    ";
+    let opcodes = parse_opcodes(src).unwrap();
 
-    let init = Opcode::MemoryInit {
-        block_id,
-        init: (1..6).map(Witness).collect(),
-        block_type: BlockType::Memory,
-    };
-
-    let read_op =
-        Opcode::MemoryOp { block_id, op: MemOp::read_at_mem_index(Witness(6).into(), Witness(7)) };
-
-    let expression = Opcode::AssertZero(Expression {
-        mul_terms: Vec::new(),
-        linear_combinations: vec![
-            (FieldElement::one(), Witness(7)),
-            (-FieldElement::one(), Witness(8)),
-        ],
-        q_c: FieldElement::one(),
-    });
-
-    let opcodes = vec![init, read_op, expression];
     let unconstrained_functions = vec![];
     let mut acvm = ACVM::new(&solver, &opcodes, initial_witness, &unconstrained_functions, &[]);
     let solver_status = acvm.solve();

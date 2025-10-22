@@ -73,6 +73,7 @@ impl Block {
             // Now we have to invalidate every reference we know of
             self.invalidate_all_references();
         } else if let Some(alias) = aliases.single_alias() {
+            // We always know address points to value
             self.set_reference_value(alias, value);
         } else {
             // More than one alias. We're not sure which it refers to so we have to

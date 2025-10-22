@@ -1,6 +1,4 @@
-use crate::check_errors;
-
-use crate::assert_no_errors;
+use crate::tests::{assert_no_errors, check_errors};
 
 #[test]
 fn use_super() {
@@ -17,7 +15,7 @@ fn use_super() {
 
     fn main() { }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -26,7 +24,7 @@ fn no_super() {
     use super::some_func;
         ^^^^^ There is no super module
     ";
-    check_errors!(src);
+    check_errors(src);
 }
 
 #[test]
@@ -42,7 +40,7 @@ fn use_super_in_path() {
 
     fn main() { }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -60,7 +58,7 @@ fn can_use_pub_use_item() {
         foo::baz();
     }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -80,7 +78,7 @@ fn warns_on_re_export_of_item_with_less_visibility() {
         foo::baz();
     }
     "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
 #[test]
@@ -96,5 +94,5 @@ fn errors_if_using_alias_in_import() {
     fn main() {
     }
     "#;
-    check_errors!(src);
+    check_errors(src);
 }

@@ -90,12 +90,14 @@ dependencies = [
  "acir",
  "blake2",
  "blake3",
+ "criterion",
  "k256",
  "keccak",
  "libaes",
  "log",
  "num-prime",
  "p256",
+ "pprof",
  "proptest",
  "sha2",
  "thiserror 1.0.69",
@@ -3432,11 +3434,8 @@ dependencies = [
 name = "nargo_expand"
 version = "1.0.0-beta.14"
 dependencies = [
- "fm",
- "nargo",
  "nargo_fmt",
  "noirc_driver",
- "noirc_errors",
  "noirc_frontend",
 ]
 

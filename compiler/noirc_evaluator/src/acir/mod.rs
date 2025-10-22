@@ -631,7 +631,7 @@ impl<'a> Context<'a> {
     /// because instructions results are converted when the corresponding instruction is
     /// encountered. (An instruction result cannot be referenced before the instruction occurs.)
     ///
-    /// It is not safe to call this function on value ids that represent addresses. Instructions
+    /// It is not safe to call this function on value ids that represent pointers. Instructions
     /// involving such values are evaluated via a separate path and stored in
     /// `ssa_value_to_array_address` instead.
     fn convert_value(&mut self, value_id: ValueId, dfg: &DataFlowGraph) -> AcirValue {
@@ -645,7 +645,9 @@ impl<'a> Context<'a> {
                 let typ = AcirType::from(Type::Numeric(*typ));
                 AcirValue::Var(self.acir_context.add_constant(*constant), typ)
             }
-            Value::Intrinsic(..) => todo!(),
+            Value::Intrinsic(..) => {
+                unreachable!("ICE: Intrinsics should be resolved via separate logic")
+            }
             Value::Function(function_id) => {
                 // This conversion is for debugging support only, to allow the
                 // debugging instrumentation code to work. Taking the reference
@@ -848,14 +850,14 @@ impl<'a> Context<'a> {
         self.acir_context.truncate_var(var, bit_size, max_bit_size)
     }
 
-    /// Fetch a flat list of ([AcirVar], [AcirType]).
+    /// Fetch a flat list of [AcirVar].
     ///
-    /// Flattens an [AcirValue] into a vector of `(AcirVar, AcirType)`.
+    /// Flattens an [AcirValue] into a vector of `AcirVar`.
     ///
     /// This is an extension of [AcirValue::flatten] that also supports [AcirValue::DynamicArray].
-    fn flatten(&mut self, value: &AcirValue) -> Result<Vec<(AcirVar, NumericType)>, RuntimeError> {
+    fn flatten(&mut self, value: &AcirValue) -> Result<Vec<AcirVar>, RuntimeError> {
         Ok(match value {
-            AcirValue::Var(var, typ) => vec![(*var, typ.to_numeric_type())],
+            AcirValue::Var(var, _) => vec![*var],
             AcirValue::Array(array) => {
                 let mut result = Vec::new();
                 for elem in array {
@@ -869,7 +871,7 @@ impl<'a> Context<'a> {
 
                 for value in elements {
                     match value {
-                        AcirValue::Var(var, typ) => result.push((var, typ.to_numeric_type())),
+                        AcirValue::Var(var, _) => result.push(var),
                         _ => unreachable!("ICE: Dynamic memory should already be flat"),
                     }
                 }
