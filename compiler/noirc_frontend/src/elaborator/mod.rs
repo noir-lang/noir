@@ -12,6 +12,7 @@
 //!
 //! ### Early Resolution
 //! 2. Globals - Set up their dependency ordering. Deferred for elaboration later after type resolution.
+//!    Globals will be lazily elaborated when other types or expressions bring them into scope. 
 //! 3. Type aliases - Defined to allow their use in subsequent type definitions
 //!
 //! ### Type Collection
@@ -26,7 +27,8 @@
 //! 4. Trait impls - Linked to their corresponding traits and validated
 //!
 //! ### Global Elaboration
-//! - Elaborated after type resolution since they may use struct types which need global type information
+//! - Elaborate any remaining globals which were not brought into scope. 
+//!   Elaborated after type resolution since they may use struct types which need global type information
 //!
 //! ### Attribute Processing
 //! - Comptime attributes - Executed before function body elaboration, as generated items may change what is in scope or modify functions
