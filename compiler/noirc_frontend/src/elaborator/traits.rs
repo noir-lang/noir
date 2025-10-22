@@ -1,4 +1,168 @@
 //! Trait definition collection, bounds resolution, and associated types.
+//!
+//! # Terminology: 
+//!
+//! ## TraitConstraint & TraitBound
+//!
+//! In the following code:
+//! ```noir
+//! fn foo<T: Eq>(x: T) -> bool {
+//!     x.eq(x)
+//! }
+//! ```
+//! We call `T: Eq` a TraitConstraint, while `Eq` alone (along with any generics)
+//! is the TraitBound (although the two are sometimes informally used interchangeably).
+//!
+//! ## Assumed Implementations
+//!
+//! A "real" trait implementation corresponds to an `impl` block in noir source code.
+//! We can also have "assumed" impls though. These are implementations that we assume
+//! to exist, but may not. These most often correspond to trait constraints on generic
+//! functions:
+//!
+//! ```noir
+//! fn foo<T: Eq>(x: T) {}
+//! ```
+//!
+//! Locally within `foo`, we say that `T: Eq` is an assumed impl. Within the body of `foo`,
+//! we can assume such an impl exists even if there are no impls for `Eq` at all in the program.
+//! It is up to the caller to find an impl when the type of `T` becomes known.
+//!
+//! Assumed impls may be present anywhere a generic trait constraint may be.
+//!
+//! ## Impl Candidate (or just candidate)
+//!
+//! An impl candidate is any impl being considered as a potential solution when solving a trait
+//! constraint. An impl candidate may be any trait impl for the same trait as the one in the trait
+//! constraint, including assumed impls.
+//!
+//! ## Solving a TraitConstraint
+//!
+//! Solving a trait constraint is finding the single matching impl candidate it refers to.
+//! If it may refer to zero or more than one, the constraint can't be solved and an error should be
+//! issued.
+//!
+//! # Explanation of Core Concepts
+//!
+//! ## Self
+//!
+//! In addition to its declared generics, traits have an additional implicit generic
+//! called `Self`. This is not stored in the normal list of generics on a trait so it often
+//! must be specially handled.
+//!
+//! When we have a trait and an impl:
+//!
+//! ```noir
+//! trait Foo<A> {
+//!     fn foo<B>();
+//! }
+//!
+//! impl Foo<i32> for Bar {
+//!     fn foo<B>(){}
+//! }
+//!
+//! fn caller<T, U>() where T: Foo<U> { ... }
+//! ```
+//!
+//! The expected trait to impl bindings would be `[Self => Bar, A => i32]`. `B` in the example
+//! above is on the `foo` method itself rather than the trait or impl. If `B` were bound to a
+//! concrete type like `u32` in the impl bindings, `foo` would no longer be properly generic.
+//!
+//! Inlining `Self` into a trait's generics list directly may provide some
+//! intuition in how `Self` should be handled (that is, like any other trait generic):
+//!
+//! ```noir
+//! fn caller<T, U>() where Foo<T, U> { ... }
+//! ```
+//!
+//! ## Associated Types & Associated Constants
+//!
+//! Associated types and associated constants are both represented internally as associated
+//! types. Constants are represented as `Type::Constant` variants or `Type::InfixExpr` when
+//! operators are involved such as `N + 1`. Generally, this representation is non-leaky and
+//! there are very few locations where we need to distinguish between associated types & constants.
+//!
+//! ```noir
+//! trait Foo<A> {
+//!     type B;
+//!     let C: u32;
+//!     fn foo<D>();
+//! }
+//!
+//! impl Foo<i32> for Bar {
+//!     type B = Field;
+//!     let C: u32 = 42;
+//!     fn foo<D>() {}
+//! }
+//!
+//! fn caller<T, U>() where T: Foo<U> {}
+//! ```
+//!
+//! Similar to the implicit `Self` generic, associated types (and constants) are also implicit
+//! generics on traits - just generics that are restricted to only have one value for a given set of the
+//! trait's other generics. For example, we may think of `Foo` above as being `Foo<Self, A, B, C>`
+//! internally, but if we already have an implementation for `Foo<i32, i32, i32, 0>`, it'd be
+//! invalid to also have an implementation for `Foo<i32, i32, u32, 1>` - because the last two
+//! generics are associated types.
+//!
+//! That said, these are still represented as generics internally because code using them - such as
+//! `caller` - still need to be generic over any possible value for these associated types. With
+//! this in mind, we can think of `caller` as being equivalent to:
+//!
+//! ```noir
+//! fn caller<T, U, BB, let CC: u32>() where Foo<T, U, BB, CC> {}
+//! ```
+//!
+//! Where `BB` and `CC` are implicitly added generics to the function. These may also be specified
+//! explicitly via `T: Foo<U, B = MyB, C = MyC>` but this isn't very relevant to the inner workings
+//! of how the compiler handles associated types.
+//!
+//! ## How TraitConstraints are resolved
+//!
+//! This section is an attempt at a primer on how TraitConstraints are resolved by the elaborator.
+//!
+//! The elaborator starts by seeing parsed code and must:
+//! 1. Resolve & type-check code (type_check_variable_with_bindings)
+//!   - In doing so, determine if the snippet has a trait constraint which needs to be solved
+//!   - Some variables have trait constraints because they refer to a generic function with
+//!     one or more trait constraints. Others have trait constraints because they directly refer
+//!     to a method from a trait. For this later case, we must set the "select the impl" so that
+//!     when the constraint is later solved for, the variable is replaced by a variable referring
+//!     to the selected impl's method directly. This replacement is done during monomorphization
+//!     but we must set the flag during elaboration.
+//! 2. Push each required trait constraint to the function context
+//!   - When variables are used they are instantiated by the type system. This means we replace
+//!     any generics from their definition type with fresh type variables. This mapping is stored
+//!     as the `instantiation_bindings` and is later used by the monomorphizer. This mapping
+//!     is applied to the trait constraint as well. So if the original constraint was
+//!     `T: Foo<U>` where `T` and `U` are generics, the new constraint may be `_0: Foo<_1>` where
+//!     `_0` and `_1` are unbound type variables. Because we don't always push down types, we
+//!     may not have the constraints needed to solve what `_0` and `_1` are yet. Therefore, we
+//!     push the constraint to the function context to solve after type checking the function
+//!     instead.
+//! 3. When the function is finished being elaborated, go through and solve any trait constraints
+//!    that were pushed to the function context.
+//!   - Since the function is done being elaborated, we should have more type constraints now which
+//!     should hopefully bind the type variables `_0` and `_1` to concrete types. Our new trait
+//!     constraint may look like `A: Foo<i32>`.
+//!   - For each pushed trait constraint, solve the constraint by looking through the list of all
+//!     trait impls in the program for the relevant trait, along with the list of assumed impls.
+//!     A constraint is solved when a matching impl is found, along with a matching impl for any
+//!     nested trait constraints that impl may require (e.g. `[T]: Eq` requires `T: Eq`).
+//!     A matching impl here is simply one for which all types used in the impl unify with all the types
+//!     in the trait constraint.
+//!   - Although the core idea is simple, we must carefully handle unification bindings such that
+//!     we only keep the ones from the impl(s) which were selected. Impls is plural since an impl
+//!     can require more trait constraints which need to be solved recursively. These recursive
+//!     impl constraints are obtained from the impl definition but care should be taken to
+//!     instantiate them with the original instantiation bindings before checking them so that they
+//!     are not bound over. Using the Eq example above, we may have the constraint `[i32]: Eq` at
+//!     this step which we may solve for, finding `[T]: Eq`. We instantiate the later with `T := _0` to 
+//!     `[_0]: Eq` to see if it unifies with `[i32]`, and it does producing `_0 := i32`. The impl
+//!     also requires `T: Eq` though, so now we must instantiate this with the impl instantiation
+//!     bindings to get `_0: Eq`, and then apply the previous unification binding to get `i32: Eq`,
+//!     which is trivially solved by finding the corresponding impl.
+//!   - If a single impl candidate is found, it is used. Otherwise, an error is issued.
 
 use std::{collections::BTreeMap, rc::Rc};
 
