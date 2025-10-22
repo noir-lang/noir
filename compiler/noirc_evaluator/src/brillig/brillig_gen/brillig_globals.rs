@@ -174,6 +174,8 @@ impl BrilligGlobalsInit {
     /// A one-time initialization of the entry-points-to-globals maps.
     ///
     /// Selects the constants to be hoisted based on their usage count, then declares Brillig variables in the global memory space.
+    ///
+    /// The bytecode for each global is inserted into the [Brillig] structure.
     pub(crate) fn declare_globals(
         mut self,
         globals_dfg: &DataFlowGraph,

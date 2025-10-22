@@ -59,7 +59,7 @@ pub struct Brillig {
 }
 
 impl Brillig {
-    /// Compiles a function into brillig and store the compilation artifacts
+    /// Compiles a function into brillig and store the compilation artifacts.
     pub(crate) fn compile(
         &mut self,
         func: &Function,
@@ -78,7 +78,7 @@ impl Brillig {
         self.ssa_function_to_brillig.insert(func.id(), obj);
     }
 
-    /// Finds a brillig artifact by its label
+    /// Finds a brillig artifact by its label.
     pub(crate) fn find_by_label(
         &self,
         function_label: Label,
@@ -167,6 +167,7 @@ impl Ssa {
         let globals = (*self.functions[&self.main_id].dfg.globals).clone();
         let globals_dfg = DataFlowGraph::from(globals);
 
+        // Produce the brillig bytecode and variable allocation for each entry point.
         let brillig_globals = BrilligGlobals::init(self, self.main_id).declare_globals(
             &globals_dfg,
             &mut brillig,
@@ -174,11 +175,9 @@ impl Ssa {
         );
 
         for brillig_function_id in brillig_reachable_function_ids {
-            let empty_allocations = HashMap::default();
-            let empty_const_allocations = HashMap::default();
             let (globals_allocations, hoisted_constant_allocations) = brillig_globals
                 .get_brillig_globals(brillig_function_id)
-                .unwrap_or((&empty_allocations, &empty_const_allocations));
+                .expect("ICE: should find each function in Brillig globals");
 
             let func = &self.functions[&brillig_function_id];
             let is_entry_point = brillig_globals.is_entry_point(&brillig_function_id);
