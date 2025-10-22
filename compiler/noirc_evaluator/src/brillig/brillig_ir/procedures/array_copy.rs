@@ -9,6 +9,7 @@ use acvm::{
 
 use super::ProcedureId;
 use crate::{
+    allocate_scratch_registers,
     brillig::{
         BrilligVariable,
         brillig_ir::{
@@ -18,7 +19,6 @@ use crate::{
             registers::{Allocated, RegisterAllocator, ScratchSpace},
         },
     },
-    set_allocated_registers,
 };
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
@@ -46,13 +46,10 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 pub(super) fn compile_array_copy_procedure<F: AcirField + DebugToString>(
     brillig_context: &mut BrilligContext<F, ScratchSpace>,
 ) {
-    let scratch_start = brillig_context.registers().start();
-
-    set_allocated_registers!(brillig_context, {
-        let source_array_pointer_arg = MemoryAddress::direct(scratch_start);
-        let source_array_memory_size_arg = MemoryAddress::direct(scratch_start + 1);
-        let new_array_pointer_return = MemoryAddress::direct(scratch_start + 2);
-    });
+    allocate_scratch_registers!(
+        brillig_context,
+        [source_array_pointer_arg, source_array_memory_size_arg, new_array_pointer_return]
+    );
 
     let rc = brillig_context.allocate_single_addr_usize();
     brillig_context.load_instruction(rc.address, source_array_pointer_arg);

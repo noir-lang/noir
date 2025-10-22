@@ -602,6 +602,28 @@ macro_rules! set_allocated_registers {
     };
 }
 
+/// Create a number of direct addresses.
+pub(crate) fn make_scratch_registers<const N: usize>(scratch_start: usize) -> [MemoryAddress; N] {
+    std::array::from_fn(|i| MemoryAddress::direct(scratch_start + i))
+}
+
+/// Another convenience helper for declaring a contiguous pre-allocated scratch registers.
+///
+/// # Example
+/// ```text
+///    allocate_scratch_registers!(
+///        brillig_context,
+///        [source_array_pointer_arg, source_array_memory_size_arg, new_array_pointer_return]
+///    );
+/// ```
+#[macro_export]
+macro_rules! allocate_scratch_registers {
+    ($ctx:ident, [$($name:ident),+ $(,)?]) => {
+        let [$($name),+] = $crate::brillig::brillig_ir::registers::make_scratch_registers($ctx.registers().start());
+        $ctx.set_allocated_registers(vec![ $($name),+ ]);
+    };
+}
+
 /// Wrapper for a memory address which automatically deallocates itself
 /// when it goes out of scope.
 pub(crate) struct Allocated<T, R: RegisterAllocator> {

@@ -4,13 +4,13 @@ use acvm::{AcirField, acir::brillig::MemoryAddress};
 
 use super::ProcedureId;
 use crate::{
+    allocate_scratch_registers,
     brillig::brillig_ir::{
         BrilligBinaryOp, BrilligContext,
         brillig_variable::{BrilligVector, SingleAddrVariable},
         debug_show::DebugToString,
         registers::{RegisterAllocator, ScratchSpace},
     },
-    set_allocated_registers,
 };
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
@@ -51,15 +51,16 @@ pub(super) fn compile_prepare_vector_push_procedure<F: AcirField + DebugToString
     brillig_context: &mut BrilligContext<F, ScratchSpace>,
     push_back: bool,
 ) {
-    let scratch_start = brillig_context.registers().start();
-
-    set_allocated_registers!(brillig_context, {
-        let source_vector_length_arg = MemoryAddress::direct(scratch_start);
-        let source_vector_pointer_arg = MemoryAddress::direct(scratch_start + 1);
-        let item_push_count_arg = MemoryAddress::direct(scratch_start + 2);
-        let new_vector_pointer_return = MemoryAddress::direct(scratch_start + 3);
-        let write_pointer_return = MemoryAddress::direct(scratch_start + 4);
-    });
+    allocate_scratch_registers!(
+        brillig_context,
+        [
+            source_vector_length_arg,
+            source_vector_pointer_arg,
+            item_push_count_arg,
+            new_vector_pointer_return,
+            write_pointer_return,
+        ]
+    );
 
     let source_vector = BrilligVector { pointer: source_vector_pointer_arg };
     let target_vector = BrilligVector { pointer: new_vector_pointer_return };
