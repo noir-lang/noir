@@ -631,7 +631,7 @@ impl<'a> Context<'a> {
     /// because instructions results are converted when the corresponding instruction is
     /// encountered. (An instruction result cannot be referenced before the instruction occurs.)
     ///
-    /// It is not safe to call this function on value ids that represent addresses. Instructions
+    /// It is not safe to call this function on value ids that represent pointers. Instructions
     /// involving such values are evaluated via a separate path and stored in
     /// `ssa_value_to_array_address` instead.
     fn convert_value(&mut self, value_id: ValueId, dfg: &DataFlowGraph) -> AcirValue {
@@ -645,7 +645,9 @@ impl<'a> Context<'a> {
                 let typ = AcirType::from(Type::Numeric(*typ));
                 AcirValue::Var(self.acir_context.add_constant(*constant), typ)
             }
-            Value::Intrinsic(..) => todo!(),
+            Value::Intrinsic(..) => {
+                unreachable!("ICE: Intrinsics should be resolved via separate logic")
+            }
             Value::Function(function_id) => {
                 // This conversion is for debugging support only, to allow the
                 // debugging instrumentation code to work. Taking the reference

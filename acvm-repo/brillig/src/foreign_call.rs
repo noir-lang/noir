@@ -30,6 +30,7 @@ impl<F: AcirField> ForeignCallParam<F> {
         }
     }
 
+    /// Unwrap the field in a `Single` input. Panics if it's an `Array`.
     pub fn unwrap_field(&self) -> F {
         match self {
             ForeignCallParam::Single(value) => *value,
@@ -45,18 +46,21 @@ pub struct ForeignCallResult<F> {
     pub values: Vec<ForeignCallParam<F>>,
 }
 
+/// Result of a call returning a one output value.
 impl<F> From<F> for ForeignCallResult<F> {
     fn from(value: F) -> Self {
         ForeignCallResult { values: vec![value.into()] }
     }
 }
 
+/// Result of a call returning a one output array.
 impl<F> From<Vec<F>> for ForeignCallResult<F> {
     fn from(values: Vec<F>) -> Self {
         ForeignCallResult { values: vec![values.into()] }
     }
 }
 
+/// Result of a call returning multiple outputs.
 impl<F> From<Vec<ForeignCallParam<F>>> for ForeignCallResult<F> {
     fn from(values: Vec<ForeignCallParam<F>>) -> Self {
         ForeignCallResult { values }

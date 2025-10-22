@@ -13,7 +13,7 @@ pub(crate) struct GeneralOptimizer;
 
 impl GeneralOptimizer {
     pub(crate) fn optimize<F: AcirField>(opcode: Expression<F>) -> Expression<F> {
-        // XXX: Perhaps this optimization can be done on the fly
+        // TODO(https://github.com/noir-lang/noir/issues/10109): Perhaps this optimization can be done on the fly
         let opcode = simplify_mul_terms(opcode);
         simplify_linear_terms(opcode)
     }
@@ -50,7 +50,7 @@ fn simplify_mul_terms<F: AcirField>(mut gate: Expression<F>) -> Expression<F> {
 fn simplify_linear_terms<F: AcirField>(mut gate: Expression<F>) -> Expression<F> {
     let mut hash_map: IndexMap<Witness, F> = IndexMap::new();
 
-    // Canonicalize the ordering of the terms, lets just order by variable name
+    // Canonicalize the ordering of the terms, let's just order by variable name
     for (scale, witness) in gate.linear_combinations.into_iter() {
         *hash_map.entry(witness).or_insert_with(F::zero) += scale;
     }
@@ -197,6 +197,24 @@ mod tests {
         public parameters: []
         return values: []
         ASSERT w0 + 2*w0 - 3*w0 = 0
+        ";
+        let circuit = Circuit::from_str(src).unwrap();
+        let optimized_circuit = optimize(circuit);
+        assert_circuit_snapshot!(optimized_circuit, @r"
+        private parameters: [w0, w1]
+        public parameters: []
+        return values: []
+        ASSERT 0 = 0
+        ");
+    }
+
+    #[test]
+    fn simplify_mul_terms_example() {
+        let src = "
+        private parameters: [w0, w1]
+        public parameters: []
+        return values: []
+        ASSERT 0*w1*w1 + 2*w2*w1 - w2*w1 - w1*w2 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
         let optimized_circuit = optimize(circuit);

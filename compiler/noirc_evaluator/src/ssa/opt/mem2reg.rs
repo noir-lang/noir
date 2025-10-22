@@ -533,7 +533,6 @@ impl<'f> PerFunctionContext<'f> {
                 let value = *value;
 
                 let address_aliases = references.get_aliases_for_value(address);
-
                 // If there was another store to this instruction without any (unremoved) loads or
                 // function calls in-between, we can remove the previous store.
                 if !self.aliased_references.contains_key(&address) && !address_aliases.is_unknown()
@@ -569,12 +568,21 @@ impl<'f> PerFunctionContext<'f> {
                         .extend(references.get_aliases_for_value(array).iter());
                     references.mark_value_used(array, self.inserter.function);
 
-                    // An expression for the array might already exist, so try to fetch it first
+                    // An expression for the value might already exist, so try to fetch it first
                     let expression = references.expressions.get(&array).copied();
                     let expression = expression.unwrap_or(Expression::Other(array));
-
                     if let Some(aliases) = references.aliases.get_mut(&expression) {
                         aliases.insert(result);
+                    }
+
+                    // Any aliases of the array need to be updated to also include the result of the array get in their alias sets.
+                    for alias in (*references.get_aliases_for_value(array)).clone().iter() {
+                        // An expression for the alias might already exist, so try to fetch it first
+                        let expression = references.expressions.get(&alias).copied();
+                        let expression = expression.unwrap_or(Expression::Other(alias));
+                        if let Some(aliases) = references.aliases.get_mut(&expression) {
+                            aliases.insert(result);
+                        }
                     }
 
                     // In this SSA:
@@ -608,11 +616,15 @@ impl<'f> PerFunctionContext<'f> {
                     } else {
                         AliasSet::unknown()
                     };
-
                     aliases.unify(&references.get_aliases_for_value(*value));
 
                     references.expressions.insert(result, expression);
-                    references.aliases.insert(expression, aliases);
+                    references.aliases.insert(expression, aliases.clone());
+
+                    // The value being stored in the array also needs its aliases updated to match the array itself
+                    let value_expression = references.expressions.get(value).copied();
+                    let value_expression = value_expression.unwrap_or(Expression::Other(*value));
+                    references.aliases.insert(value_expression, aliases);
 
                     // Similar to how we remember that we used a value in a `Store` instruction,
                     // take note that it was used in the `ArraySet`. If this instruction is not

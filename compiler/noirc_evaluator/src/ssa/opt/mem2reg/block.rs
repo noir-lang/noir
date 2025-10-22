@@ -73,6 +73,7 @@ impl Block {
             // Now we have to invalidate every reference we know of
             self.invalidate_all_references();
         } else if let Some(alias) = aliases.single_alias() {
+            // We always know address points to value
             self.set_reference_value(alias, value);
         } else {
             // More than one alias. We're not sure which it refers to so we have to
@@ -80,40 +81,6 @@ impl Block {
             for alias in aliases.iter() {
                 self.references.remove(&alias);
             }
-        }
-
-        // Issue https://github.com/noir-lang/noir/issues/10070
-        // When setting the value at `address`, it may impact any expression having unknown aliases
-        // because the `address` could reference such expressions.
-        // This is what happens in the issue linked above. An array of references is modified in two branches
-        // and as a result the parameter of the block joining the two branches is set to unknown aliases in `handle_terminator()`.
-        // Any value set here may be done on an address to the unknown aliases. Since we do no know them, we must conservatively
-        // invalidate their values.
-        // Furthermore, if the aliases are known and include the modified `address`, then we must invalidate the aliases values as well.
-        let addresses_to_invalidate: Vec<ValueId> = self
-            .expressions
-            .iter()
-            .filter_map(|(other_address, other_expression)| {
-                // Skip the address we're storing to, since its value is known
-                if *other_address == address {
-                    return None;
-                }
-                if let Some(other_aliases) = self.aliases.get(other_expression) {
-                    if other_aliases.is_unknown() {
-                        // other_address with unknown alias set could alias anything and must be conservatively invalidated
-                        return Some(*other_address);
-                    }
-                    if other_aliases.iter().any(|alias| alias == address) {
-                        //other_address's alias set contains the address we're storing to, so it must be invalidated
-                        return Some(*other_address);
-                    }
-                }
-                None
-            })
-            .collect();
-        // Invalidate addresses with possible aliasing to `address`
-        for addr in addresses_to_invalidate {
-            self.references.remove(&addr);
         }
 
         // We always know address points to value
