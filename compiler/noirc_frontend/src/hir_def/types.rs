@@ -1614,12 +1614,7 @@ impl Type {
                 TypeBinding::Unbound(..) => false,
             },
             Type::CheckedCast { to, .. } => to.contains_slice(),
-            Type::Function(_args, _ret, env, _unconstrained) => {
-                // Only the environment of a function is counted as an actual reference value.
-                // Otherwise we can't return functions accepting references as arguments from if
-                // expressions.
-                env.contains_slice()
-            }
+            Type::Function(_args, _ret, env, _unconstrained) => env.contains_slice(),
             Type::Forall(_, typ) => typ.contains_slice(),
         }
     }
