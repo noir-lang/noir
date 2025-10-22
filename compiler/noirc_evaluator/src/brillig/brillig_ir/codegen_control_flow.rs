@@ -26,7 +26,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             &T,
         ) -> Allocated<SingleAddrVariable, Registers>,
         on_iteration: impl FnOnce(&mut BrilligContext<F, Registers>, &T),
-        cleanup: impl FnOnce(&mut BrilligContext<F, Registers>, T),
+        clean_iterator: impl FnOnce(&mut BrilligContext<F, Registers>, T),
     ) {
         let iterator = make_iterator(self);
 
@@ -51,7 +51,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.enter_section(exit_loop_section);
 
         // Free any resources held by the iterator.
-        cleanup(self, iterator);
+        clean_iterator(self, iterator);
     }
 
     /// This codegen will issue a loop for (let iterator_register = loop_start; i < loop_bound; i += step)
