@@ -203,14 +203,18 @@ impl BrilligGlobalsInit {
                 .collect();
 
             // Compile a separate global bytecode and allocation for each entry point.
-            let (artifact, brillig_globals, globals_size, hoisted_global_constants) = brillig
-                .convert_ssa_globals(
-                    options,
-                    globals_dfg,
-                    &used_globals,
-                    &hoisted_global_constants,
-                    entry_point,
-                );
+            let BrilligGlobalsArtifact {
+                artifact,
+                brillig_globals,
+                globals_size,
+                hoisted_global_constants,
+            } = brillig.convert_ssa_globals(
+                options,
+                globals_dfg,
+                &used_globals,
+                &hoisted_global_constants,
+                entry_point,
+            );
 
             entry_point_globals_map.insert(entry_point, brillig_globals);
             entry_point_hoisted_globals_map.insert(entry_point, hoisted_global_constants);
@@ -290,17 +294,17 @@ impl BrilligGlobals {
 
 /// A globals artifact containing all information necessary for utilizing
 /// globals from SSA during Brillig code generation.
-pub(crate) type BrilligGlobalsArtifact = (
-    // The actual bytecode declaring globals and any metadata needing for linking.
-    BrilligArtifact<FieldElement>,
-    // The SSA value -> Brillig global allocations.
-    // This will be used for fetching global values when compiling functions to Brillig.
-    HashMap<ValueId, BrilligVariable>,
-    // The size of the global memory.
-    usize,
-    // Duplicate SSA constants local to a function -> Brillig global allocations.
-    HashMap<(FieldElement, NumericType), BrilligVariable>,
-);
+pub(crate) struct BrilligGlobalsArtifact {
+    /// The actual bytecode declaring globals and any metadata needing for linking.
+    pub artifact: BrilligArtifact<FieldElement>,
+    /// The SSA value -> Brillig global allocations.
+    /// This will be used for fetching global values when compiling functions to Brillig.
+    pub brillig_globals: HashMap<ValueId, BrilligVariable>,
+    /// The size of the global memory.
+    pub globals_size: usize,
+    /// Duplicate SSA constants local to a function -> Brillig global allocations.
+    pub hoisted_global_constants: HashMap<(FieldElement, NumericType), BrilligVariable>,
+}
 
 impl Brillig {
     /// Compile global opcodes and return the bytecode along with the memory allocations
@@ -355,7 +359,12 @@ impl Brillig {
             .map(|(field, variable)| (field, variable.detach()))
             .collect();
 
-        (artifact, function_context.ssa_value_allocations, globals_size, hoisted_global_constants)
+        BrilligGlobalsArtifact {
+            artifact,
+            brillig_globals: function_context.ssa_value_allocations,
+            globals_size,
+            hoisted_global_constants,
+        }
     }
 }
 
