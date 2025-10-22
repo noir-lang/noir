@@ -252,6 +252,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 
 /// Special brillig context to codegen compiler intrinsic shared procedures
 impl<F: AcirField + DebugToString> BrilligContext<F, ScratchSpace> {
+    /// Create a `BrilligContext` with a `ScratchSpace` for passing procedure arguments.
     pub(crate) fn new_for_procedure(
         procedure_id: ProcedureId,
         options: &BrilligOptions,
@@ -275,6 +276,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, ScratchSpace> {
 
 /// Special brillig context to codegen global values initialization
 impl<F: AcirField + DebugToString> BrilligContext<F, GlobalSpace> {
+    /// Create a `BrilligContext` with a `GlobalSpace` for memory allocations.
     pub(crate) fn new_for_global_init(
         options: &BrilligOptions,
         entry_point: FunctionId,

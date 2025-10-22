@@ -188,7 +188,7 @@ impl BrilligGlobals {
                 .remove(&entry_point)
                 .expect("entry point should be in used globals");
 
-            // Select set of constants which can be hoisted from function's to the global memory space
+            // Select the set of constants which can be hoisted from the function to the global memory space
             // for a given entry point: hoist anything that has more than 1 use.
             let hoisted_global_constants = self
                 .hoisted_global_constants
@@ -198,6 +198,7 @@ impl BrilligGlobals {
                 .filter_map(|(&value, &num_occurrences)| (num_occurrences > 1).then_some(value))
                 .collect();
 
+            // Compile a separate global bytecode and allocation for each entry point.
             let (artifact, brillig_globals, globals_size, hoisted_global_constants) = brillig
                 .convert_ssa_globals(
                     options,
@@ -282,6 +283,9 @@ pub(crate) type BrilligGlobalsArtifact = (
 );
 
 impl Brillig {
+    /// Compile global opcodes and return the bytecode along with the memory allocations
+    /// of global variables and hoisted constants, so that we can use them as pre-allocated
+    /// registers when we compile functions.
     pub(crate) fn convert_ssa_globals(
         &mut self,
         options: &BrilligOptions,
@@ -321,11 +325,11 @@ impl Brillig {
 
         brillig_context.return_instruction();
 
+        // The artifact contains the Brillig bytecode to initialize the global variables and constants.
         let artifact = brillig_context.artifact();
 
-        // The global registers going to become pre-allocated registers when we compile other functions,
+        // The global registers are going to become pre-allocated registers when we compile functions,
         // so we can stop tracking their allocation life cycles and keep just the memory addresses.
-
         let hoisted_global_constants = hoisted_global_constants
             .into_iter()
             .map(|(field, variable)| (field, variable.detach()))

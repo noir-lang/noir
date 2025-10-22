@@ -52,7 +52,9 @@ pub struct Brillig {
     /// Maps SSA function labels to their brillig artifact
     ssa_function_to_brillig: HashMap<FunctionId, BrilligArtifact<FieldElement>>,
     call_stacks: CallStackHelper,
+    /// Bytecode for globals for each Brillig entry point.
     globals: HashMap<FunctionId, BrilligArtifact<FieldElement>>,
+    /// The size of the global space for each Brillig entry point.
     globals_memory_size: HashMap<FunctionId, usize>,
 }
 
