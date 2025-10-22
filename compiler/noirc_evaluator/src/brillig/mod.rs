@@ -159,14 +159,17 @@ impl Ssa {
             return brillig;
         }
 
-        let mut brillig_globals = BrilligGlobals::new(self, self.main_id);
-
         // SSA Globals are computed once at compile time and shared across all functions,
         // thus we can just fetch globals from the main function.
         // This same globals graph will then be used to declare Brillig globals for the respective entry points.
         let globals = (*self.functions[&self.main_id].dfg.globals).clone();
         let globals_dfg = DataFlowGraph::from(globals);
-        brillig_globals.declare_globals(&globals_dfg, &mut brillig, options);
+
+        let brillig_globals = BrilligGlobals::new(self, self.main_id).declare_globals(
+            &globals_dfg,
+            &mut brillig,
+            options,
+        );
 
         for brillig_function_id in brillig_reachable_function_ids {
             let empty_allocations = HashMap::default();
@@ -176,7 +179,7 @@ impl Ssa {
                 .unwrap_or((&empty_allocations, &empty_const_allocations));
 
             let func = &self.functions[&brillig_function_id];
-            let is_entry_point = brillig_globals.entry_points().contains_key(&brillig_function_id);
+            let is_entry_point = brillig_globals.is_entry_point(&brillig_function_id);
 
             brillig.compile(
                 func,

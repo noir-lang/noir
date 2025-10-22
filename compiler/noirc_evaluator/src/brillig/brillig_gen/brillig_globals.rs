@@ -32,12 +32,16 @@ pub(crate) struct BrilligGlobals {
     /// Maps a Brillig entry point to all functions called in that entry point.
     /// This includes any nested calls as well, as we want to be able to associate
     /// any Brillig function with the appropriate global allocations.
-    brillig_entry_points: BTreeMap<FunctionId, BTreeSet<FunctionId>>,
+    ///
+    /// This is the reverse of `inner_call_to_entry_point`.
+    entry_point_to_inner_calls: BTreeMap<FunctionId, BTreeSet<FunctionId>>,
     /// Maps a Brillig entry point to constants shared across the entry point and its nested calls.
     hoisted_global_constants: HashMap<FunctionId, ConstantCounterMap>,
-    /// Maps an inner call to its Brillig entry point.
+    /// Maps an inner call to its Brillig entry points.
     /// This is used to simplify fetching global allocations when compiling
     /// individual Brillig functions.
+    ///
+    /// This is the reverse of `entry_point_to_inner_calls`.
     inner_call_to_entry_point: HashMap<FunctionId, BTreeSet<FunctionId>>,
     /// Final map that associated an entry point with its Brillig global allocations
     entry_point_globals_map: HashMap<FunctionId, SsaToBrilligGlobals>,
@@ -68,6 +72,11 @@ impl ConstantAllocationCache {
 }
 
 impl BrilligGlobals {
+    /// Collect information about global usage for each Brillig entry point:
+    /// * which globals are used by an entry point and its callees,
+    /// * how many times each constant is used by an entry point and its callees.
+    ///
+    /// The population of allocation related information is deferred to `declare_globals`.
     pub(crate) fn new(ssa: &Ssa, main_id: FunctionId) -> Self {
         let mut used_globals = ssa.used_globals_in_functions();
         let call_graph = CallGraph::from_ssa(ssa);
@@ -101,13 +110,15 @@ impl BrilligGlobals {
                     constant_allocations.get_constants(inner_func),
                 );
 
+                // Consider each global used by the inner function to be also used by the entry point.
                 let inner_globals = used_globals
                     .get(inner_call)
-                    .expect("Should have a slot for each function")
+                    .expect("ICE: inner function should be in used globals")
                     .clone();
+
                 used_globals
                     .get_mut(entry_point)
-                    .expect("ICE: should have func")
+                    .expect("ICE: entry point should be in used globals")
                     .extend(inner_globals);
             }
         }
@@ -116,15 +127,16 @@ impl BrilligGlobals {
 
         Self {
             used_globals,
-            brillig_entry_points,
+            entry_point_to_inner_calls: brillig_entry_points,
             inner_call_to_entry_point,
             hoisted_global_constants,
             ..Default::default()
         }
     }
 
-    pub(crate) fn entry_points(&self) -> &BTreeMap<FunctionId, BTreeSet<FunctionId>> {
-        &self.brillig_entry_points
+    /// Check whether a function is a Brillig entry point.
+    pub(crate) fn is_entry_point(&self, func_id: &FunctionId) -> bool {
+        self.entry_point_to_inner_calls.contains_key(func_id)
     }
 
     /// Helper for marking that a constant was instantiated in a given function.
@@ -155,32 +167,35 @@ impl BrilligGlobals {
         }
     }
 
+    /// A one-time initialization of the entry-points-to-globals maps.
+    ///
+    /// Selects the constants to be hoisted based on their usage count, then declares Brillig variables in the global memory space.
+    ///
+    /// This method destroys the `used_globals` and `hoisted_global_constants`, so it could be separated out.
     pub(crate) fn declare_globals(
-        &mut self,
+        mut self,
         globals_dfg: &DataFlowGraph,
         brillig: &mut Brillig,
         options: &BrilligOptions,
-    ) {
-        let mut entry_point_globals_map = HashMap::default();
-        let mut entry_point_hoisted_globals_map = HashMap::default();
+    ) -> Self {
+        assert!(self.entry_point_globals_map.is_empty(), "globals already declared");
+        assert!(self.entry_point_hoisted_globals_map.is_empty(), "globals already declared");
 
         // We only need to generate globals for entry points
-        for (entry_point, _) in self.brillig_entry_points.iter() {
-            let entry_point = *entry_point;
+        for entry_point in self.entry_point_to_inner_calls.keys().copied() {
+            let used_globals = self
+                .used_globals
+                .remove(&entry_point)
+                .expect("entry point should be in used globals");
 
-            let used_globals = self.used_globals.remove(&entry_point).unwrap_or_default();
             // Select set of constants which can be hoisted from function's to the global memory space
-            // for a given entry point.
+            // for a given entry point: hoist anything that has more than 1 use.
             let hoisted_global_constants = self
                 .hoisted_global_constants
                 .remove(&entry_point)
-                .unwrap_or_default()
+                .expect("entry point should have hoisted constants")
                 .iter()
-                .filter_map(
-                    |(&value, &num_occurrences)| {
-                        if num_occurrences > 1 { Some(value) } else { None }
-                    },
-                )
+                .filter_map(|(&value, &num_occurrences)| (num_occurrences > 1).then_some(value))
                 .collect();
 
             let (artifact, brillig_globals, globals_size, hoisted_global_constants) = brillig
@@ -192,15 +207,14 @@ impl BrilligGlobals {
                     entry_point,
                 );
 
-            entry_point_globals_map.insert(entry_point, brillig_globals);
-            entry_point_hoisted_globals_map.insert(entry_point, hoisted_global_constants);
+            self.entry_point_globals_map.insert(entry_point, brillig_globals);
+            self.entry_point_hoisted_globals_map.insert(entry_point, hoisted_global_constants);
 
             brillig.globals.insert(entry_point, artifact);
             brillig.globals_memory_size.insert(entry_point, globals_size);
         }
 
-        self.entry_point_globals_map = entry_point_globals_map;
-        self.entry_point_hoisted_globals_map = entry_point_hoisted_globals_map;
+        self
     }
 
     /// Fetch the global allocations that can possibly be accessed
@@ -256,14 +270,14 @@ impl BrilligGlobals {
 /// A globals artifact containing all information necessary for utilizing
 /// globals from SSA during Brillig code generation.
 pub(crate) type BrilligGlobalsArtifact = (
-    // The actual bytecode declaring globals and any metadata needing for linking
+    // The actual bytecode declaring globals and any metadata needing for linking.
     BrilligArtifact<FieldElement>,
-    // The SSA value -> Brillig global allocations
+    // The SSA value -> Brillig global allocations.
     // This will be used for fetching global values when compiling functions to Brillig.
     HashMap<ValueId, BrilligVariable>,
-    // The size of the global memory
+    // The size of the global memory.
     usize,
-    // Duplicate SSA constants local to a function -> Brillig global allocations
+    // Duplicate SSA constants local to a function -> Brillig global allocations.
     HashMap<(FieldElement, NumericType), BrilligVariable>,
 );
 
@@ -277,7 +291,7 @@ impl Brillig {
         entry_point: FunctionId,
     ) -> BrilligGlobalsArtifact {
         let mut brillig_context = BrilligContext::new_for_global_init(options, entry_point);
-        // The global space does not have globals itself
+        // The global space does not have globals itself.
         let empty_globals = HashMap::default();
         // We can use any ID here as this context is only going to be used for globals which does not differentiate
         // by functions and blocks. The only Label that should be used in the globals context is `Label::globals_init()`
