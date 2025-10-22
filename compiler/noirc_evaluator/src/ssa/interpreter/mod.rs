@@ -706,7 +706,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             if is_sub {
                 let max_bit_size = FieldElement::from(max_bit_size);
                 let integer_modulus = FieldElement::from(2u128).pow(&max_bit_size);
-                value = value + integer_modulus;
+                value += integer_modulus;
             }
             truncate_field(value, bit_size)
         }
