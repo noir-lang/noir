@@ -116,16 +116,24 @@
 <a href="#115" id="115">115</a>
 <a href="#116" id="116">116</a>
 <a href="#117" id="117">117</a>
-<a href="#118" id="118">118</a></pre></div><pre class="rust"><code><span class="doccomment">//! Struct definition collection and field resolution.
+<a href="#118" id="118">118</a>
+<a href="#119" id="119">119</a>
+<a href="#120" id="120">120</a>
+<a href="#121" id="121">121</a>
+<a href="#122" id="122">122</a>
+<a href="#123" id="123">123</a>
+<a href="#124" id="124">124</a>
+<a href="#125" id="125">125</a>
+<a href="#126" id="126">126</a>
+<a href="#127" id="127">127</a></pre></div><pre class="rust"><code><span class="doccomment">//! Struct definition collection and field resolution.
 
 </span><span class="kw">use </span>std::collections::BTreeMap;
 
 <span class="kw">use </span>iter_extended::vecmap;
-<span class="kw">use </span>noirc_errors::Located;
 
 <span class="kw">use crate</span>::{
     StructField,
-    ast::{Ident, NoirStruct},
+    ast::NoirStruct,
     hir::{def_collector::dc_crate::UnresolvedStruct, resolution::errors::ResolverError},
     node_interner::{DependencyId, ReferenceId, TypeId},
 };
@@ -133,7 +141,17 @@
 <span class="kw">use </span><span class="kw">super</span>::Elaborator;
 
 <span class="kw">impl </span>Elaborator&lt;<span class="lifetime">'_</span>&gt; {
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>collect_struct_definitions(
+    <span class="doccomment">/// Collects and resolves all struct definitions.
+    ///
+    /// This method performs several tasks:
+    /// - Resolves the types of all struct fields
+    /// - Validates visibility constraints (public structs cannot expose private types)
+    /// - Registers LSP definition locations for IDE support
+    /// - Checks for disallowed nested slice types
+    ///
+    /// Structs must already be interned from the earlier definition collection phase.
+    /// This method fills in the field information for each struct.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>collect_struct_definitions(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         structs: <span class="kw-2">&amp;</span>BTreeMap&lt;TypeId, UnresolvedStruct&gt;,
     ) {
@@ -154,21 +172,7 @@
                 }
             }
 
-            <span class="comment">// Check that the a public struct doesn't have a private type as a public field.
-            </span><span class="kw">if </span>!typ.struct_def.visibility.is_private() {
-                <span class="kw">for </span>field <span class="kw">in </span><span class="kw-2">&amp;</span>fields {
-                    <span class="kw">let </span>ident = Ident::from(Located::from(
-                        field.name.location(),
-                        <span class="macro">format!</span>(<span class="string">"{}::{}"</span>, typ.struct_def.name, field.name),
-                    ));
-                    <span class="self">self</span>.check_type_is_not_more_private_then_item(
-                        <span class="kw-2">&amp;</span>ident,
-                        field.visibility,
-                        <span class="kw-2">&amp;</span>field.typ,
-                        field.name.location(),
-                    );
-                }
-            }
+            <span class="self">self</span>.check_struct_field_type_visibility(<span class="kw-2">&amp;</span>typ.struct_def, <span class="kw-2">&amp;</span>fields);
 
             <span class="kw">if </span><span class="self">self</span>.interner.is_in_lsp_mode() {
                 <span class="kw">for </span>(field_index, field) <span class="kw">in </span>fields.iter().enumerate() {
@@ -183,27 +187,18 @@
             });
         }
 
-        <span class="comment">// Check whether the struct fields have nested slices
-        // We need to check after all structs are resolved to
-        // make sure every struct's fields is accurately set.
-        </span><span class="kw">for </span>id <span class="kw">in </span>struct_ids {
-            <span class="kw">let </span>struct_type = <span class="self">self</span>.interner.get_type(id);
-
-            <span class="comment">// Only handle structs without generics as any generics args will be checked
-            // after monomorphization when performing SSA codegen
-            </span><span class="kw">if </span>struct_type.borrow().generics.is_empty() {
-                <span class="kw">let </span>fields = struct_type.borrow().get_fields(<span class="kw-2">&amp;</span>[]).unwrap();
-                <span class="kw">for </span>(<span class="kw">_</span>, field_type, <span class="kw">_</span>) <span class="kw">in </span>fields.iter() {
-                    <span class="kw">if </span>field_type.is_nested_slice() {
-                        <span class="kw">let </span>location = struct_type.borrow().location;
-                        <span class="self">self</span>.push_err(ResolverError::NestedSlices { location });
-                    }
-                }
-            }
-        }
+        <span class="self">self</span>.check_for_nested_slices(<span class="kw-2">&amp;</span>struct_ids);
     }
 
-    <span class="kw">pub fn </span>resolve_struct_fields(
+    <span class="doccomment">/// Resolves the field types for a single struct definition.
+    ///
+    /// This method:
+    /// - Sets up the generic context from the struct's generic parameters
+    /// - Resolves each field's type in the context of the struct's generics
+    /// - Tracks the struct id to detect circular dependencies
+    ///
+    /// The generic scope is automatically recovered after resolution completes.
+    </span><span class="kw">fn </span>resolve_struct_fields(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         unresolved: <span class="kw-2">&amp;</span>NoirStruct,
         struct_id: TypeId,
@@ -232,6 +227,29 @@
 
             fields
         })
+    }
+
+    <span class="doccomment">/// Checks all resolved structs for nested slice types, which are not allowed.
+    ///
+    /// This check must happen after all struct fields are resolved to ensure we have
+    /// complete type information. We only check structs without generics here, as
+    /// generic structs are validated after monomorphization during SSA codegen.
+    </span><span class="kw">fn </span>check_for_nested_slices(<span class="kw-2">&amp;mut </span><span class="self">self</span>, struct_ids: <span class="kw-2">&amp;</span>[TypeId]) {
+        <span class="kw">for </span>id <span class="kw">in </span>struct_ids {
+            <span class="kw">let </span>struct_type = <span class="self">self</span>.interner.get_type(<span class="kw-2">*</span>id);
+
+            <span class="comment">// Only handle structs without generics as any generics args will be checked
+            // after monomorphization when performing SSA codegen
+            </span><span class="kw">if </span>struct_type.borrow().generics.is_empty() {
+                <span class="kw">let </span>fields = struct_type.borrow().get_fields(<span class="kw-2">&amp;</span>[]).unwrap();
+                <span class="kw">for </span>(<span class="kw">_</span>, field_type, <span class="kw">_</span>) <span class="kw">in </span>fields.iter() {
+                    <span class="kw">if </span>field_type.is_nested_slice() {
+                        <span class="kw">let </span>location = struct_type.borrow().location;
+                        <span class="self">self</span>.push_err(ResolverError::NestedSlices { location });
+                    }
+                }
+            }
+        }
     }
 }
 </code></pre></div></section></main></body></html>
