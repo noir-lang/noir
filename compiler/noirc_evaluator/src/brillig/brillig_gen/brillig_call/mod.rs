@@ -2,7 +2,6 @@ pub(super) mod brillig_black_box;
 pub(super) mod brillig_slice_ops;
 pub(super) mod code_gen_call;
 
-use acvm::acir::brillig::MemoryAddress;
 use iter_extended::vecmap;
 
 use crate::brillig::BrilligBlock;
@@ -145,39 +144,6 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
             )
         });
         self.brillig_context.codegen_call(func_id, &argument_variables, &return_variables);
-    }
-
-    /// Gets the "user-facing" length of an array.
-    /// An array of structs with two fields would be stored as an 2 * array.len() array/vector.
-    /// So we divide the length by the number of subitems in an item to get the user-facing length.
-    fn convert_ssa_array_len(
-        &mut self,
-        array_id: ValueId,
-        result_register: MemoryAddress,
-        dfg: &DataFlowGraph,
-    ) {
-        let array_variable = self.convert_ssa_value(array_id, dfg);
-        let element_size = dfg.type_of_value(array_id).element_size();
-
-        match array_variable {
-            BrilligVariable::BrilligArray(BrilligArray { size, .. }) => {
-                self.brillig_context
-                    .usize_const_instruction(result_register, (size / element_size).into());
-            }
-            BrilligVariable::BrilligVector(vector) => {
-                let size = self.brillig_context.codegen_make_vector_length(vector);
-
-                self.brillig_context.codegen_usize_op(
-                    size.address,
-                    result_register,
-                    BrilligBinaryOp::UnsignedDiv,
-                    element_size,
-                );
-            }
-            _ => {
-                unreachable!("ICE: Cannot get length of {array_variable:?}")
-            }
-        }
     }
 
     /// Increase or decrease the slice length by 1.
