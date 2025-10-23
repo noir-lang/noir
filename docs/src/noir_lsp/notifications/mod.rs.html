@@ -485,10 +485,21 @@
 <a href="#484" id="484">484</a>
 <a href="#485" id="485">485</a>
 <a href="#486" id="486">486</a>
-<a href="#487" id="487">487</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
+<a href="#487" id="487">487</a>
+<a href="#488" id="488">488</a>
+<a href="#489" id="489">489</a>
+<a href="#490" id="490">490</a>
+<a href="#491" id="491">491</a>
+<a href="#492" id="492">492</a>
+<a href="#493" id="493">493</a>
+<a href="#494" id="494">494</a>
+<a href="#495" id="495">495</a>
+<a href="#496" id="496">496</a>
+<a href="#497" id="497">497</a>
+<a href="#498" id="498">498</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 <span class="kw">use </span>std::collections::{BTreeMap, HashSet};
 <span class="kw">use </span>std::ops::ControlFlow;
-<span class="kw">use </span>std::path::PathBuf;
+<span class="kw">use </span>std::path::{Path, PathBuf};
 <span class="kw">use </span>std::str::FromStr <span class="kw">as _</span>;
 
 <span class="kw">use crate</span>::{
@@ -770,7 +781,7 @@
     <span class="kw">for </span>custom_diagnostic <span class="kw">in </span>custom_diagnostics.into_iter() {
         <span class="kw">let </span>file = custom_diagnostic.file;
         <span class="kw">let </span>path = fm.path(file).expect(<span class="string">"file must exist to have emitted diagnostic"</span>);
-        <span class="kw">if let </span><span class="prelude-val">Ok</span>(uri) = Url::from_file_path(path) {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(uri) = uri_from_path(path) {
             <span class="kw">if let </span><span class="prelude-val">Some</span>(diagnostic) =
                 custom_diagnostic_to_diagnostic(custom_diagnostic, files, fm, uri.clone())
             {
@@ -843,6 +854,7 @@
     <span class="kw">let </span>call_stack = diagnostic
         .call_stack
         .into_iter()
+        .rev()
         .filter_map(|frame| call_stack_frame_to_related_information(frame, files, fm));
     <span class="kw">let </span>related_information: Vec&lt;<span class="kw">_</span>&gt; = secondaries.chain(notes).chain(call_stack).collect();
 
@@ -867,10 +879,20 @@
 ) -&gt; <span class="prelude-ty">Option</span>&lt;DiagnosticRelatedInformation&gt; {
     <span class="kw">let </span>secondary_file = secondary.location.file;
     <span class="kw">let </span>path = fm.path(secondary_file)<span class="question-mark">?</span>;
-    <span class="kw">let </span>uri = Url::from_file_path(path).ok()<span class="question-mark">?</span>;
+    <span class="kw">let </span>uri = uri_from_path(path)<span class="question-mark">?</span>;
     <span class="kw">let </span>range = byte_span_to_range(files, secondary_file, secondary.location.span.into())<span class="question-mark">?</span>;
     <span class="kw">let </span>message = secondary.message;
     <span class="prelude-val">Some</span>(DiagnosticRelatedInformation { location: lsp_types::Location { uri, range }, message })
+}
+
+<span class="kw">fn </span>uri_from_path(path: <span class="kw-2">&amp;</span>Path) -&gt; <span class="prelude-ty">Option</span>&lt;Url&gt; {
+    <span class="kw">if let </span><span class="prelude-val">Ok</span>(uri) = Url::from_file_path(path) {
+        <span class="prelude-val">Some</span>(uri)
+    } <span class="kw">else if </span>path.starts_with(<span class="string">"std"</span>) {
+        <span class="prelude-val">Some</span>(Url::parse(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"noir-std://{}"</span>, path.to_string_lossy())).unwrap())
+    } <span class="kw">else </span>{
+        <span class="prelude-val">None
+    </span>}
 }
 
 <span class="kw">fn </span>call_stack_frame_to_related_information(
@@ -879,7 +901,7 @@
     fm: <span class="kw-2">&amp;</span>FileManager,
 ) -&gt; <span class="prelude-ty">Option</span>&lt;DiagnosticRelatedInformation&gt; {
     <span class="kw">let </span>path = fm.path(frame.file)<span class="question-mark">?</span>;
-    <span class="kw">let </span>uri = Url::from_file_path(path).ok()<span class="question-mark">?</span>;
+    <span class="kw">let </span>uri = uri_from_path(path)<span class="question-mark">?</span>;
     <span class="kw">let </span>range = byte_span_to_range(files, frame.file, frame.span.into())<span class="question-mark">?</span>;
     <span class="prelude-val">Some</span>(DiagnosticRelatedInformation {
         location: lsp_types::Location { uri, range },
