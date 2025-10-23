@@ -364,10 +364,13 @@ mod test {
     use crate::brillig::brillig_gen::constant_allocation::ConstantAllocation;
     use crate::brillig::brillig_gen::variable_liveness::VariableLiveness;
     use crate::ssa::function_builder::FunctionBuilder;
+    use crate::ssa::ir::basic_block::BasicBlockId;
     use crate::ssa::ir::function::RuntimeType;
     use crate::ssa::ir::instruction::BinaryOp;
     use crate::ssa::ir::map::Id;
     use crate::ssa::ir::types::{NumericType, Type};
+    use crate::ssa::ir::value::ValueId;
+    use crate::ssa::ssa_gen::Ssa;
 
     #[test]
     fn simple_back_propagation() {
@@ -680,5 +683,45 @@ mod test {
 
         assert_eq!(liveness.get_live_in(&b1), &FxHashSet::from_iter([v1, v2].into_iter()));
         assert_eq!(liveness.get_live_in(&b2), &FxHashSet::from_iter([v1, v2].into_iter()));
+    }
+
+    /// A block parameter should be considered used, even if it's not actually used in the SSA.
+    #[test]
+    fn unused_block_parameter() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32, v1: u1):
+            jmpif v1 then: b1, else: b2
+          b1():
+            v7 = add v0, u32 10
+            jmp b3(v0, v7)
+          b2():
+            jmp b3(u32 1, u32 2)
+          b3(v2: u32, v3: u32):
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let func = ssa.main();
+        let constants = ConstantAllocation::from_function(func);
+        let liveness = VariableLiveness::from_function(func, &constants);
+
+        let [b0, b1, b2, b3] = block_ids();
+        let [_v0, _v1, v2, v3] = value_ids();
+
+        for p in [v2, v3] {
+            assert!(liveness.param_definitions[&b0].contains(&p), "{p} should be allocated in b0");
+            for b in [b1, b2, b3] {
+                assert!(liveness.live_in[&b].contains(&p), "{p} should be live in {b}");
+            }
+        }
+    }
+
+    fn value_ids<const N: usize>() -> [ValueId; N] {
+        std::array::from_fn(|i| ValueId::new(i as u32))
+    }
+
+    fn block_ids<const N: usize>() -> [BasicBlockId; N] {
+        std::array::from_fn(|i| BasicBlockId::new(i as u32))
     }
 }
