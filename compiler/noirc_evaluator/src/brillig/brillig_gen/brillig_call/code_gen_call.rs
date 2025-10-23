@@ -37,6 +37,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
             let value_type = dfg.type_of_value(*value_id);
             type_to_heap_value_type(&value_type)
         });
+
         let output_variables =
             vecmap(result_ids, |value_id| self.allocate_external_call_result(*value_id, dfg));
         let output_values = vecmap(&output_variables, |variable| {
@@ -46,40 +47,29 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
             let value_type = dfg.type_of_value(*value_id);
             type_to_heap_value_type(&value_type)
         });
+
         self.brillig_context.foreign_call_instruction(
             func_name.to_owned(),
-            &input_values,
+            &vecmap(input_values, |v| *v),
             &input_value_types,
-            &output_values,
+            &vecmap(&output_values, |v| **v),
             &output_value_types,
         );
 
-        // Deallocate the temporary heap arrays and vectors of the inputs
-        for input_value in input_values {
-            match input_value {
-                ValueOrArray::HeapArray(array) => {
-                    self.brillig_context.deallocate_heap_array(array);
-                }
-                ValueOrArray::HeapVector(vector) => {
-                    self.brillig_context.deallocate_heap_vector(vector);
-                }
-                _ => {}
-            }
-        }
-
-        // Deallocate the temporary heap arrays and vectors of the outputs
+        // Massage the return value.
         for (i, (output_register, output_variable)) in
             output_values.iter().zip(output_variables).enumerate()
         {
-            match output_register {
+            match **output_register {
                 // Returned vectors need to emit some bytecode to format the result as a BrilligVector
                 ValueOrArray::HeapVector(heap_vector) => {
                     self.brillig_context.initialize_externally_returned_vector(
                         output_variable.extract_vector(),
-                        *heap_vector,
+                        heap_vector,
                     );
-                    // Update the dynamic slice length maintained in SSA
-                    if let ValueOrArray::MemoryAddress(len_index) = output_values[i - 1] {
+                    // Update the dynamic slice length maintained in SSA,
+                    // which is the parameter preceding the vector.
+                    if let ValueOrArray::MemoryAddress(len_index) = *output_values[i - 1] {
                         let element_size = dfg[result_ids[i]].get_type().element_size();
                         self.brillig_context.mov_instruction(len_index, heap_vector.size);
                         self.brillig_context.codegen_usize_op_in_place(
@@ -92,12 +82,8 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                             "ICE: a vector must be preceded by a register containing its length"
                         );
                     }
-                    self.brillig_context.deallocate_heap_vector(*heap_vector);
                 }
-                ValueOrArray::HeapArray(array) => {
-                    self.brillig_context.deallocate_heap_array(*array);
-                }
-                ValueOrArray::MemoryAddress(_) => {}
+                ValueOrArray::HeapArray(_) | ValueOrArray::MemoryAddress(_) => {}
             }
         }
     }
@@ -246,7 +232,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
 
         self.brillig_context.codegen_initialize_vector(
             destination_vector,
-            source_size_register,
+            *source_size_register,
             None,
         );
 
@@ -257,14 +243,10 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
             self.brillig_context.codegen_make_array_items_pointer(source_array);
 
         self.brillig_context.codegen_mem_copy(
-            array_items_pointer,
-            vector_items_pointer,
-            source_size_register,
+            *array_items_pointer,
+            *vector_items_pointer,
+            *source_size_register,
         );
-
-        self.brillig_context.deallocate_single_addr(source_size_register);
-        self.brillig_context.deallocate_register(vector_items_pointer);
-        self.brillig_context.deallocate_register(array_items_pointer);
     }
 
     pub(crate) fn call_gen(
@@ -326,12 +308,10 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                         self.brillig_context.codegen_to_radix(
                             source,
                             target_array,
-                            two,
+                            *two,
                             matches!(endianness, Endian::Little),
                             true,
                         );
-
-                        self.brillig_context.deallocate_single_addr(two);
                     }
 
                     Intrinsic::ToRadix(endianness) => {

@@ -72,6 +72,9 @@ impl BrilligVariable {
         }
     }
 
+    /// Extract the memory address that can be deallocated to make the memory available for reuse.
+    ///
+    /// Note that this is a single address even for vectors, because this is a `BrilligVector`, not a `HeapVector`.
     pub(crate) fn extract_register(self) -> MemoryAddress {
         match self {
             BrilligVariable::SingleAddr(single_addr) => single_addr.address,

@@ -29,8 +29,6 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         } else {
             let const_register = self.make_usize_constant_instruction(F::from(constant));
             self.memory_op_instruction(operand, const_register.address, destination, op);
-            // Mark as no longer used for this purpose, frees for reuse
-            self.deallocate_single_addr(const_register);
         }
     }
 

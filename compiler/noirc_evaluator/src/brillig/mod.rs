@@ -96,7 +96,7 @@ impl Brillig {
         }
     }
 
-    /// Converting an SSA function into Brillig bytecode.
+    /// Convert an SSA function into Brillig bytecode.
     pub(crate) fn convert_ssa_function(
         &mut self,
         func: &Function,
@@ -137,7 +137,7 @@ impl std::ops::Index<FunctionId> for Brillig {
 }
 
 impl Ssa {
-    /// Compile Brillig functions and ACIR functions reachable from them
+    /// Compile Brillig functions and ACIR functions reachable from them.
     #[tracing::instrument(level = "trace", skip_all)]
     pub fn to_brillig(&self, options: &BrilligOptions) -> Brillig {
         let used_globals_map = self.used_globals_in_functions();
