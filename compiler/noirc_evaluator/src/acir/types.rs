@@ -7,7 +7,7 @@ use crate::{
     ssa::ir::{types::NumericType, types::Type as SsaType},
 };
 use noirc_errors::call_stack::CallStack;
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+
 /// High level Type descriptor for Variables.
 ///
 /// One can think of Expression/Witness/Const
@@ -17,6 +17,7 @@ use noirc_errors::call_stack::CallStack;
 /// We could store this information when we do a range constraint
 /// but this information is readily available by the caller so
 /// we allow the user to pass it in.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum AcirType {
     NumericType(NumericType),
     Array(Vec<AcirType>, usize),
