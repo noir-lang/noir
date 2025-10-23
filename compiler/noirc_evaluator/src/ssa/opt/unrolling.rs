@@ -976,7 +976,7 @@ struct LoopIteration<'f> {
     original_blocks: HashMap<BasicBlockId, BasicBlockId>,
     visited_blocks: HashSet<BasicBlockId>,
 
-    /// Has `unroll_loop_iteration` reached the `loop_header_id`
+    /// Has `unroll_loop_iteration` reached the `loop_header_id`?
     encountered_loop_header: bool,
 
     insert_block: BasicBlockId,
