@@ -356,6 +356,7 @@ fn custom_diagnostic_to_diagnostic(
     let call_stack = diagnostic
         .call_stack
         .into_iter()
+        .rev()
         .filter_map(|frame| call_stack_frame_to_related_information(frame, files, fm));
     let related_information: Vec<_> = secondaries.chain(notes).chain(call_stack).collect();
 
