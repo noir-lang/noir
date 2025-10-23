@@ -238,7 +238,7 @@ impl<'a> Context<'a> {
         //
         // But an attempt at searching through the program and relabeling these witnesses so we could remove
         // this constraint was [closed](https://github.com/noir-lang/noir/pull/10112#event-20171150226)
-        // because "the opcode count doesn't even change in real circuits."
+        // but "the opcode count doesn't even change in real circuits."
         for (witness_var, return_var) in return_witness_vars.iter().zip(return_vars) {
             self.acir_context.assert_eq_var(*witness_var, return_var, None)?;
         }
