@@ -1237,8 +1237,6 @@ impl<F: AcirField> AcirContext<F> {
     /// over given radix.
     ///
     /// The `AcirVar`s for the `radix_var` and `limb_count_var` must be a constant
-    ///
-    /// TODO: support radix larger than field modulus
     pub(crate) fn radix_decompose(
         &mut self,
         endian: Endian,
@@ -1256,6 +1254,11 @@ impl<F: AcirField> AcirContext<F> {
                 }));
             }
         };
+
+        // Match the assertions of `Field::to_le_radix` and `Field::to_be_radix`.
+        assert!(2 <= radix);
+        assert!(radix <= 256);
+        assert!(radix.is_power_of_two());
 
         let input_expr = self.var_to_expression(input_var)?;
 
