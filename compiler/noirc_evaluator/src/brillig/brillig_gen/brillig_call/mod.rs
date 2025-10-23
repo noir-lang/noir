@@ -100,24 +100,21 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
             for element_type in types.iter() {
                 match element_type {
                     Type::Array(_, nested_size) => {
-                        let inner_array = BrilligArray {
-                            pointer: self.brillig_context.allocate_register(),
-                            size: *nested_size as usize,
-                        };
-                        self.allocate_foreign_call_result_array(element_type, inner_array);
+                        let inner_array =
+                            self.brillig_context.allocate_brillig_array(*nested_size as usize);
+
+                        self.allocate_foreign_call_result_array(element_type, *inner_array);
 
                         // We add one since array.pointer points to [RC, ...items]
                         let idx = self
                             .brillig_context
                             .make_usize_constant_instruction((index + 1).into());
+
                         self.brillig_context.codegen_store_with_offset(
                             array.pointer,
-                            idx,
+                            *idx,
                             inner_array.pointer,
                         );
-
-                        self.brillig_context.deallocate_single_addr(idx);
-                        self.brillig_context.deallocate_register(inner_array.pointer);
                     }
                     Type::Slice(_) => unreachable!(
                         "ICE: unsupported slice type in allocate_nested_array(), expects an array or a numeric type"
@@ -176,8 +173,6 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                     BrilligBinaryOp::UnsignedDiv,
                     element_size,
                 );
-
-                self.brillig_context.deallocate_single_addr(size);
             }
             _ => {
                 unreachable!("ICE: Cannot get length of {array_variable:?}")
@@ -432,8 +427,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
 
                 self.update_slice_length(target_len, source_len, BrilligBinaryOp::Add);
 
-                self.slice_insert_operation(target_vector, source_vector, converted_index, &items);
-                self.brillig_context.deallocate_single_addr(converted_index);
+                self.slice_insert_operation(target_vector, source_vector, *converted_index, &items);
             }
             Value::Intrinsic(Intrinsic::SliceRemove) => {
                 let target_len = match self.variables.define_variable(
@@ -483,11 +477,9 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                 self.slice_remove_operation(
                     target_vector,
                     source_vector,
-                    converted_index,
+                    *converted_index,
                     &removed_items,
                 );
-
-                self.brillig_context.deallocate_single_addr(converted_index);
             }
             _ => unreachable!("ICE: Slice operation not supported"),
         }
