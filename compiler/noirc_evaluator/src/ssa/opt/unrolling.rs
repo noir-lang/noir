@@ -220,25 +220,27 @@ impl Function {
 
 /// Describe the blocks that constitute up a loop.
 #[derive(Debug)]
-pub(super) struct Loop {
+pub(crate) struct Loop {
     /// The header block of a loop is the block which dominates all the
     /// other blocks in the loop.
-    pub(super) header: BasicBlockId,
+    pub(crate) header: BasicBlockId,
 
     /// The start of the back_edge n -> d is the block n at the end of
     /// the loop that jumps back to the header block d which restarts the loop.
-    back_edge_start: BasicBlockId,
+    pub(crate) back_edge_start: BasicBlockId,
 
     /// All the blocks contained within the loop, including `header` and `back_edge_start`.
-    pub(super) blocks: BTreeSet<BasicBlockId>,
+    pub(crate) blocks: BTreeSet<BasicBlockId>,
 }
 
 /// All the unrolled loops in the SSA.
-pub(super) struct Loops {
+pub(crate) struct Loops {
     /// Loops that haven't been unrolled yet, which is all the loops currently in the CFG.
-    pub(super) yet_to_unroll: Vec<Loop>,
+    pub(crate) yet_to_unroll: Vec<Loop>,
     /// The CFG so we can query the predecessors of blocks when needed.
-    pub(super) cfg: ControlFlowGraph,
+    pub(crate) cfg: ControlFlowGraph,
+    /// The [DominatorTree] used during the discovery of loops.
+    pub(crate) dom: DominatorTree,
 }
 
 impl Loops {
@@ -273,7 +275,7 @@ impl Loops {
     ///
     /// Returns all groups of blocks that look like a loop, even if we might not be able to unroll them,
     /// which we can use to check whether we were able to unroll all blocks.
-    pub(super) fn find_all(function: &Function) -> Self {
+    pub(crate) fn find_all(function: &Function) -> Self {
         let cfg = ControlFlowGraph::with_function(function);
         let post_order = PostOrder::with_function(function);
         let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
@@ -296,7 +298,7 @@ impl Loops {
         // their loop range. We will start popping loops from the back.
         loops.sort_by_key(|loop_| loop_.blocks.len());
 
-        Self { yet_to_unroll: loops, cfg }
+        Self { yet_to_unroll: loops, cfg, dom: dom_tree }
     }
 }
 

@@ -6,23 +6,28 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::ssa::ir::{
     basic_block::BasicBlockId,
-    cfg::ControlFlowGraph,
     dfg::DataFlowGraph,
     dom::DominatorTree,
     function::Function,
     instruction::InstructionId,
-    post_order::PostOrder,
     value::{Value, ValueId},
 };
 
 use super::variable_liveness::{collect_variables_of_value, variables_used_in_instruction};
+use crate::ssa::opt::Loops;
 
+/// Indicate where a variable was used in a block.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub(crate) enum InstructionLocation {
     Instruction(InstructionId),
     Terminator,
 }
 
+/// Decisions about which block a constant should be allocated in.
+///
+/// The allocation points can further be hoisted into the global
+/// space if they are shared across functions. That algorithm is
+/// based on these per-function results.
 #[derive(Default)]
 pub(crate) struct ConstantAllocation {
     constant_usage: BTreeMap<ValueId, BTreeMap<BasicBlockId, Vec<InstructionLocation>>>,
@@ -32,15 +37,16 @@ pub(crate) struct ConstantAllocation {
 }
 
 impl ConstantAllocation {
+    /// Run the constant allocation algorithm for a [Function] and return the decisions.
     pub(crate) fn from_function(func: &Function) -> Self {
-        let cfg = ControlFlowGraph::with_function(func);
-        let post_order = PostOrder::with_function(func);
-        let mut dominator_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
-        let blocks_within_loops = find_all_blocks_within_loops(func, &cfg, &mut dominator_tree);
+        let loops = Loops::find_all(func);
+        let blocks_within_loops =
+            loops.yet_to_unroll.into_iter().flat_map(|_loop| _loop.blocks).collect();
+
         let mut instance = ConstantAllocation {
             constant_usage: BTreeMap::default(),
             allocation_points: BTreeMap::default(),
-            dominator_tree,
+            dominator_tree: loops.dom,
             blocks_within_loops,
         };
         instance.collect_constant_usage(func);
@@ -68,7 +74,7 @@ impl ConstantAllocation {
     fn collect_constant_usage(&mut self, func: &Function) {
         let mut record_if_constant =
             |block_id: BasicBlockId, value_id: ValueId, location: InstructionLocation| {
-                if is_constant_value(value_id, &func.dfg) {
+                if is_numeric_constant(value_id, &func.dfg) {
                     self.constant_usage
                         .entry(value_id)
                         .or_default()
@@ -171,57 +177,6 @@ impl ConstantAllocation {
     }
 }
 
-pub(crate) fn is_constant_value(id: ValueId, dfg: &DataFlowGraph) -> bool {
+fn is_numeric_constant(id: ValueId, dfg: &DataFlowGraph) -> bool {
     matches!(&dfg[id], Value::NumericConstant { .. })
-}
-
-/// For a given function, finds all the blocks that are within loops
-fn find_all_blocks_within_loops(
-    func: &Function,
-    cfg: &ControlFlowGraph,
-    dominator_tree: &mut DominatorTree,
-) -> BTreeSet<BasicBlockId> {
-    let mut blocks_in_loops = BTreeSet::default();
-    for block_id in func.reachable_blocks() {
-        let block = &func.dfg[block_id];
-        let successors = block.successors();
-        for successor_id in successors {
-            if dominator_tree.dominates(successor_id, block_id) {
-                blocks_in_loops.extend(find_blocks_in_loop(successor_id, block_id, cfg));
-            }
-        }
-    }
-
-    blocks_in_loops
-}
-
-/// Return each block that is in a loop starting in the given header block.
-/// Expects back_edge_start -> header to be the back edge of the loop.
-fn find_blocks_in_loop(
-    header: BasicBlockId,
-    back_edge_start: BasicBlockId,
-    cfg: &ControlFlowGraph,
-) -> BTreeSet<BasicBlockId> {
-    let mut blocks = BTreeSet::default();
-    blocks.insert(header);
-
-    let mut insert = |block, stack: &mut Vec<BasicBlockId>| {
-        if !blocks.contains(&block) {
-            blocks.insert(block);
-            stack.push(block);
-        }
-    };
-
-    // Starting from the back edge of the loop, each predecessor of this block until
-    // the header is within the loop.
-    let mut stack = vec![];
-    insert(back_edge_start, &mut stack);
-
-    while let Some(block) = stack.pop() {
-        for predecessor in cfg.predecessors(block) {
-            insert(predecessor, &mut stack);
-        }
-    }
-
-    blocks
 }

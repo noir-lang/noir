@@ -892,11 +892,11 @@ mod test {
     use crate::ssa::ir::function::RuntimeType;
     use crate::ssa::ir::instruction::{Instruction, Intrinsic, TerminatorInstruction};
     use crate::ssa::ir::types::Type;
+    use crate::ssa::opt::Loops;
     use crate::ssa::opt::loop_invariant::{
         CanBeHoistedResult, LoopContext, LoopInvariantContext, can_be_hoisted,
     };
     use crate::ssa::opt::pure::Purity;
-    use crate::ssa::opt::unrolling::Loops;
     use crate::ssa::opt::{assert_normalized_ssa_equals, assert_ssa_does_not_change};
     use acvm::AcirField;
     use noirc_frontend::monomorphization::ast::InlineType;
