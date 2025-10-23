@@ -346,15 +346,23 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                         let array = array.extract_register();
                         self.brillig_context.load_instruction(destination, array);
                     }
-                    Intrinsic::IsUnconstrained
-                    | Intrinsic::DerivePedersenGenerators
-                    | Intrinsic::ApplyRangeConstraint
-                    | Intrinsic::StrAsBytes
-                    | Intrinsic::AssertConstant
-                    | Intrinsic::StaticAssert
-                    | Intrinsic::ArrayAsStrUnchecked
-                    | Intrinsic::ArrayLen => {
+                    Intrinsic::ApplyRangeConstraint => {
+                        unreachable!(
+                            "ICE: `Intrinsic::ApplyRangeConstraint` calls should be transformed into an `Instruction::RangeCheck`"
+                        );
+                    }
+                    Intrinsic::DerivePedersenGenerators => {
                         unreachable!("unsupported function call type {:?}", dfg[func])
+                    }
+                    Intrinsic::IsUnconstrained
+                    | Intrinsic::ArrayLen
+                    | Intrinsic::ArrayAsStrUnchecked
+                    | Intrinsic::StrAsBytes
+                    | Intrinsic::StaticAssert
+                    | Intrinsic::AssertConstant => {
+                        unreachable!(
+                            "Expected {intrinsic} to have been removing during SSA optimizations"
+                        )
                     }
                 }
             }
