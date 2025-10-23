@@ -13,7 +13,7 @@ use crate::ssa::ir::{
     value::{Value, ValueId},
 };
 
-use super::variable_liveness::{collect_variables_of_value, variables_used_in_instruction};
+use super::variable_liveness::{is_variable, variables_used_in_instruction};
 use crate::ssa::opt::Loops;
 
 /// Indicate where a variable was used in a block.
@@ -30,9 +30,13 @@ pub(crate) enum InstructionLocation {
 /// based on these per-function results.
 #[derive(Default)]
 pub(crate) struct ConstantAllocation {
+    /// Map each constant to the blocks and instructions in which it is used.
     constant_usage: BTreeMap<ValueId, BTreeMap<BasicBlockId, Vec<InstructionLocation>>>,
+    /// Map each block and instruction to the list of constants that should be allocated at that point.
     allocation_points: BTreeMap<BasicBlockId, BTreeMap<InstructionLocation, Vec<ValueId>>>,
+    /// The dominator tree is used to find the common dominator of all the blocks that share a constant.
     dominator_tree: DominatorTree,
+    /// Further to finding the common dominator, we try to find a dominator that isn't part of a loop.
     blocks_within_loops: BTreeSet<BasicBlockId>,
 }
 
@@ -55,12 +59,14 @@ impl ConstantAllocation {
         instance
     }
 
+    /// Collect all constants allocated in a given block.
     pub(crate) fn allocated_in_block(&self, block_id: BasicBlockId) -> Vec<ValueId> {
         self.allocation_points.get(&block_id).map_or(Vec::default(), |allocations| {
-            allocations.iter().flat_map(|(_, constants)| constants.iter()).copied().collect()
+            allocations.iter().flat_map(|(_, constants)| constants).copied().collect()
         })
     }
 
+    /// Collect all constants allocated in a given block at a specific location.
     pub(crate) fn allocated_at_location(
         &self,
         block_id: BasicBlockId,
@@ -71,6 +77,7 @@ impl ConstantAllocation {
         })
     }
 
+    /// Visit all constant variables in the function and record their locations.
     fn collect_constant_usage(&mut self, func: &Function) {
         let mut record_if_constant =
             |block_id: BasicBlockId, value_id: ValueId, location: InstructionLocation| {
@@ -97,14 +104,16 @@ impl ConstantAllocation {
             }
             if let Some(terminator_instruction) = block.terminator() {
                 terminator_instruction.for_each_value(|value_id| {
-                    if let Some(variable) = collect_variables_of_value(value_id, &func.dfg) {
-                        record_if_constant(block_id, variable, InstructionLocation::Terminator);
+                    if is_variable(value_id, &func.dfg) {
+                        record_if_constant(block_id, value_id, InstructionLocation::Terminator);
                     }
                 });
             }
         }
     }
 
+    /// Based on the `constant_usage` collected, find the common dominator of all the block where a constant is used
+    /// and mark it as the allocation point for the constant.
     fn decide_allocation_points(&mut self, func: &Function) {
         for (constant_id, usage_in_blocks) in self.constant_usage.iter() {
             let block_ids: Vec<_> = usage_in_blocks.keys().copied().collect();
@@ -132,26 +141,23 @@ impl ConstantAllocation {
         }
     }
 
+    /// Decide where to allocate a constant, based on the list of blocks it's used in:
+    /// *
     fn decide_allocation_point(
         &self,
         constant_id: ValueId,
-        blocks_where_is_used: &[BasicBlockId],
+        used_in_blocks: &[BasicBlockId],
         func: &Function,
     ) -> BasicBlockId {
         // Find the common dominator of all the blocks where the constant is used.
-        let common_dominator = if blocks_where_is_used.len() == 1 {
-            blocks_where_is_used[0]
-        } else {
-            let mut common_dominator = blocks_where_is_used[0];
+        let common_dominator = used_in_blocks
+            .iter()
+            .copied()
+            .reduce(|a, b| self.dominator_tree.common_dominator(a, b))
+            .unwrap_or(used_in_blocks[0]);
 
-            for block_id in blocks_where_is_used.iter().skip(1) {
-                common_dominator =
-                    self.dominator_tree.common_dominator(common_dominator, *block_id);
-            }
-
-            common_dominator
-        };
-        // If the value only contains constants, it's safe to hoist outside of any loop
+        // If the value only contains constants, it's safe to hoist outside of any loop.
+        // Technically we know this is going to be true, because we only collected values which are `Value::NumericConstant`.
         if func.dfg.is_constant(constant_id) {
             self.exit_loops(common_dominator)
         } else {

@@ -44,23 +44,22 @@ fn find_back_edges(
     back_edges
 }
 
-/// Collects the underlying variables inside a value id. It might be more than one, for example in constant arrays that are constructed with multiple vars.
-pub(crate) fn collect_variables_of_value(
-    value_id: ValueId,
-    dfg: &DataFlowGraph,
-) -> Option<ValueId> {
+/// Check if the [Value] behind the [ValueId] is some kind of an SSA variable like `v1`,
+/// rather than a global function like `f1`, an intrinsic, or foreign function.
+pub(crate) fn is_variable(value_id: ValueId, dfg: &DataFlowGraph) -> bool {
     let value = &dfg[value_id];
 
     match value {
         Value::Instruction { .. }
         | Value::Param { .. }
         | Value::NumericConstant { .. }
-        | Value::Global(_) => Some(value_id),
+        | Value::Global(_) => true,
         // Functions are not variables in a defunctionalized SSA. Only constant function values should appear.
-        Value::ForeignFunction(_) | Value::Function(_) | Value::Intrinsic(..) => None,
+        Value::ForeignFunction(_) | Value::Function(_) | Value::Intrinsic(..) => false,
     }
 }
 
+/// Collect all [ValueId]s used in an [Instruction].
 pub(crate) fn variables_used_in_instruction(
     instruction: &Instruction,
     dfg: &DataFlowGraph,
@@ -68,13 +67,17 @@ pub(crate) fn variables_used_in_instruction(
     let mut used = HashSet::default();
 
     instruction.for_each_value(|value_id| {
-        let underlying_ids = collect_variables_of_value(value_id, dfg);
-        used.extend(underlying_ids);
+        if is_variable(value_id, dfg) {
+            used.insert(value_id);
+        }
     });
 
     used
 }
 
+/// Collect all [ValueId]s used in an [BasicBlock] which refer to variables.
+///
+/// Includes all the variables in the parameters, instructions and the terminator.
 fn variables_used_in_block(block: &BasicBlock, dfg: &DataFlowGraph) -> Variables {
     let mut used: Variables = block
         .instructions()
@@ -90,7 +93,9 @@ fn variables_used_in_block(block: &BasicBlock, dfg: &DataFlowGraph) -> Variables
 
     if let Some(terminator) = block.terminator() {
         terminator.for_each_value(|value_id| {
-            used.extend(collect_variables_of_value(value_id, dfg));
+            if is_variable(value_id, dfg) {
+                used.insert(value_id);
+            }
         });
     }
 
@@ -306,8 +311,9 @@ impl VariableLiveness {
             // First, handle the terminator
             if let Some(terminator_instruction) = block.terminator() {
                 terminator_instruction.for_each_value(|value_id| {
-                    let underlying_vars = collect_variables_of_value(value_id, &func.dfg);
-                    used_after.extend(underlying_vars);
+                    if is_variable(value_id, &func.dfg) {
+                        used_after.insert(value_id);
+                    }
                 });
             }
 
