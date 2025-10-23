@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1761163481816,
+  "lastUpdate": 1761214892582,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23040,48 +23040,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "5e1fe519ee70ea3c2c9eb1708f4b8347f528c2a8",
-          "message": "fix(ACIR): incorrect slice length in AsSlice (#10168)",
-          "timestamp": "2025-10-13T10:26:03Z",
-          "tree_id": "b065cb3e7d2df14c58e98739a8dedd3476fd6825",
-          "url": "https://github.com/noir-lang/noir/commit/5e1fe519ee70ea3c2c9eb1708f4b8347f528c2a8"
-        },
-        "date": 1760352511309,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 265029,
-            "range": "± 1305",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 231816,
-            "range": "± 2212",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2784091,
-            "range": "± 1811",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "d6fce8304762df46a0c3dd003415b73d693ad1c0",
           "message": "chore(ACIR): use more correct types instead of Field (#10139)",
@@ -25124,6 +25082,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2794574,
             "range": "± 19826",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ca04e9cb1a1df5a9378ff380f624adf999d1c8bf",
+          "message": "feat(brillig): Automatic register deallocation (#10253)",
+          "timestamp": "2025-10-23T09:57:51Z",
+          "tree_id": "76523ec7e19c30d7dd07b486ca06b36556d1869c",
+          "url": "https://github.com/noir-lang/noir/commit/ca04e9cb1a1df5a9378ff380f624adf999d1c8bf"
+        },
+        "date": 1761214867964,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 265479,
+            "range": "± 2424",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 238232,
+            "range": "± 2810",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2798161,
+            "range": "± 2665",
             "unit": "ns/iter"
           }
         ]
