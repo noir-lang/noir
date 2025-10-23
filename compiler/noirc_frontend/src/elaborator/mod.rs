@@ -113,6 +113,7 @@ mod trait_impls;
 mod traits;
 pub mod types;
 mod unquote;
+mod variable;
 mod visibility;
 
 use function_context::FunctionContext;
