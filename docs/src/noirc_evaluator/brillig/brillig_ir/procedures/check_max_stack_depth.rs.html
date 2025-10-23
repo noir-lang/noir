@@ -36,12 +36,13 @@
 <a href="#35" id="35">35</a>
 <a href="#36" id="36">36</a>
 <a href="#37" id="37">37</a>
-<a href="#38" id="38">38</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::AcirField;
+<a href="#38" id="38">38</a>
+<a href="#39" id="39">39</a>
+<a href="#40" id="40">40</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::AcirField;
 
 <span class="kw">use </span><span class="kw">super</span>::ProcedureId;
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::{
     BrilligBinaryOp, BrilligContext, ReservedRegisters,
-    brillig_variable::SingleAddrVariable,
     debug_show::DebugToString,
     registers::{RegisterAllocator, ScratchSpace},
 };
@@ -55,23 +56,26 @@
 <span class="doccomment">/// The stack start should be computed earlier after allocating space for globals and the entry point.
 ///
 /// Remember that the memory layout for entry points is as follows:
-/// {reserved} {scratch} {globals} {entry point (call data + return data)} {stack} {heap}
+///
+/// `{reserved} {scratch} {globals} {entry point (call data + return data)} {stack} {heap}`
 </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>compile_check_max_stack_depth_procedure&lt;F: AcirField + DebugToString&gt;(
     brillig_context: <span class="kw-2">&amp;mut </span>BrilligContext&lt;F, ScratchSpace&gt;,
     stack_start: usize,
 ) {
-    <span class="kw">let </span>in_range = SingleAddrVariable::new(brillig_context.allocate_register(), <span class="number">1</span>);
+    <span class="kw">let </span>in_range = brillig_context.allocate_single_addr_bool();
 
-    <span class="kw">let </span>max_stack_size = brillig_context.registers.layout().max_stack_size();
-    <span class="kw">let </span>max_frame_size = brillig_context.registers.layout().max_stack_frame_size();
+    <span class="kw">let </span>layout = brillig_context.layout();
+    <span class="kw">let </span>max_stack_size = layout.max_stack_size();
+    <span class="kw">let </span>max_frame_size = layout.max_stack_frame_size();
+
+    <span class="kw">let </span>last_possible_stack_start = stack_start + max_stack_size - max_frame_size;
 
     brillig_context.codegen_usize_op(
         ReservedRegisters::stack_pointer(),
         in_range.address,
         BrilligBinaryOp::LessThan,
-        max_stack_size - max_frame_size + stack_start,
+        last_possible_stack_start,
     );
-    brillig_context.codegen_constrain(in_range, <span class="prelude-val">Some</span>(<span class="string">"Stack too deep"</span>.to_string()));
-    brillig_context.deallocate_single_addr(in_range);
+    brillig_context.codegen_constrain(<span class="kw-2">*</span>in_range, <span class="prelude-val">Some</span>(<span class="string">"Stack too deep"</span>.to_string()));
 }
 </code></pre></div></section></main></body></html>

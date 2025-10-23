@@ -103,7 +103,16 @@
 <a href="#102" id="102">102</a>
 <a href="#103" id="103">103</a>
 <a href="#104" id="104">104</a>
-<a href="#105" id="105">105</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module containing Brillig-gen logic specific to SSA [Function]'s.
+<a href="#105" id="105">105</a>
+<a href="#106" id="106">106</a>
+<a href="#107" id="107">107</a>
+<a href="#108" id="108">108</a>
+<a href="#109" id="109">109</a>
+<a href="#110" id="110">110</a>
+<a href="#111" id="111">111</a>
+<a href="#112" id="112">112</a>
+<a href="#113" id="113">113</a>
+<a href="#114" id="114">114</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module containing Brillig-gen logic specific to SSA [Function]'s.
 </span><span class="kw">use </span>iter_extended::vecmap;
 
 <span class="kw">use crate</span>::{
@@ -133,7 +142,18 @@
     <span class="doccomment">/// A `FunctionContext` is necessary for using a Brillig block's code gen, but sometimes
     /// such as with globals, we are not within a function and do not have a [FunctionId].
     </span>function_id: <span class="prelude-ty">Option</span>&lt;FunctionId&gt;,
-    <span class="doccomment">/// Map from SSA values its allocation. Since values can be only defined once in SSA form, we insert them here on when we allocate them at their definition.
+    <span class="doccomment">/// Map from SSA values its allocation. Since values can be only defined once in SSA form,
+    /// we insert them here on when we allocate them at their definition.
+    ///
+    /// Multiple variables could be assigned the same slot, because this structure accumulates
+    /// historical allocations, not just the currently active ones. This is needed so that
+    /// when we start processing a block, we can always look up the allocation of the variables
+    /// which are live at the beginning of it, even if they were deemed dead by another block
+    /// we already visited.
+    ///
+    /// Note that we don't use `Allocated&lt;BrilligVariable&gt;` here, because we create a fresh
+    /// allocator for each block we process, and something that is allocated in e.g. block 1
+    /// might be deallocated in block 2, so it has to be done manually.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) ssa_value_allocations: HashMap&lt;ValueId, BrilligVariable&gt;,
     <span class="doccomment">/// The block ids of the function in reverse post order.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) blocks: Vec&lt;BasicBlockId&gt;,
@@ -168,6 +188,18 @@
         <span class="self">self</span>.function_id.expect(<span class="string">"ICE: function_id should already be set"</span>)
     }
 
+    <span class="doccomment">/// Collects the return values of a given function
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>return_values(func: <span class="kw-2">&amp;</span>Function) -&gt; Vec&lt;BrilligParameter&gt; {
+        func.returns()
+            .unwrap_or_default()
+            .iter()
+            .map(|<span class="kw-2">&amp;</span>value_id| {
+                <span class="kw">let </span>typ = func.dfg.type_of_value(value_id);
+                <span class="self">Self</span>::ssa_type_to_parameter(<span class="kw-2">&amp;</span>typ)
+            })
+            .collect()
+    }
+
     <span class="doccomment">/// Converts an SSA [Type] into a corresponding [BrilligParameter].
     ///
     /// This conversion defines the calling convention for Brillig functions,
@@ -181,9 +213,7 @@
                 BrilligParameter::SingleAddr(get_bit_size_from_ssa_type(typ))
             }
             Type::Array(item_type, size) =&gt; BrilligParameter::Array(
-                vecmap(item_type.iter(), |item_typ| {
-                    FunctionContext::ssa_type_to_parameter(item_typ)
-                }),
+                vecmap(item_type.iter(), <span class="self">Self</span>::ssa_type_to_parameter),
                 <span class="kw-2">*</span>size <span class="kw">as </span>usize,
             ),
             Type::Slice(<span class="kw">_</span>) =&gt; {
@@ -194,18 +224,6 @@
                 BrilligParameter::SingleAddr(get_bit_size_from_ssa_type(<span class="kw-2">&amp;</span>Type::field()))
             }
         }
-    }
-
-    <span class="doccomment">/// Collects the return values of a given function
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>return_values(func: <span class="kw-2">&amp;</span>Function) -&gt; Vec&lt;BrilligParameter&gt; {
-        func.returns()
-            .unwrap_or_default()
-            .iter()
-            .map(|<span class="kw-2">&amp;</span>value_id| {
-                <span class="kw">let </span>typ = func.dfg.type_of_value(value_id);
-                FunctionContext::ssa_type_to_parameter(<span class="kw-2">&amp;</span>typ)
-            })
-            .collect()
     }
 }
 </code></pre></div></section></main></body></html>

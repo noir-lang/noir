@@ -341,7 +341,20 @@
 <a href="#340" id="340">340</a>
 <a href="#341" id="341">341</a>
 <a href="#342" id="342">342</a>
-<a href="#343" id="343">343</a></pre></div><pre class="rust"><code><span class="doccomment">//! The post-order for a given function represented as a vector of basic block ids.
+<a href="#343" id="343">343</a>
+<a href="#344" id="344">344</a>
+<a href="#345" id="345">345</a>
+<a href="#346" id="346">346</a>
+<a href="#347" id="347">347</a>
+<a href="#348" id="348">348</a>
+<a href="#349" id="349">349</a>
+<a href="#350" id="350">350</a>
+<a href="#351" id="351">351</a>
+<a href="#352" id="352">352</a>
+<a href="#353" id="353">353</a>
+<a href="#354" id="354">354</a>
+<a href="#355" id="355">355</a>
+<a href="#356" id="356">356</a></pre></div><pre class="rust"><code><span class="doccomment">//! The post-order for a given function represented as a vector of basic block ids.
 //!
 //! This ordering is beneficial to the efficiency of various algorithms, such as those for dead
 //! code elimination and calculating dominance trees.
@@ -358,7 +371,8 @@
     Last,
 }
 
-<span class="attr">#[derive(Default, Clone)]
+<span class="doccomment">/// In the post-order, a block is visited before its successors.
+</span><span class="attr">#[derive(Default, Clone)]
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>PostOrder(Vec&lt;BasicBlockId&gt;);
 
 <span class="kw">impl </span>PostOrder {
@@ -384,7 +398,19 @@
         <span class="self">self</span>.<span class="number">0
     </span>}
 
-    <span class="doccomment">/// Return blocks in reverse-post-order a.k.a. forward-order.
+    <span class="doccomment">/// Return blocks in reverse-post-order (RPO).
+    ///
+    /// In RPO, each block is visited before any of its successors, however this is not
+    /// the same as topological sorting. Take this CFG for example:
+    /// ```text
+    ///      b0
+    ///      |
+    ///      b1&lt;-+
+    ///     /  \ |
+    ///    b3   b2
+    /// ```
+    /// Intuitively we would like to see `[b0, b1, b2, b3]`,
+    /// but the actual RPO is `[b0, b1, b3, b2]`.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>into_vec_reverse(<span class="self">self</span>) -&gt; Vec&lt;BasicBlockId&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>blocks = <span class="self">self</span>.into_vec();
         blocks.reverse();

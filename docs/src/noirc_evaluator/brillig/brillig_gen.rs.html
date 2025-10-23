@@ -172,7 +172,7 @@
 <a href="#171" id="171">171</a>
 <a href="#172" id="172">172</a>
 <a href="#173" id="173">173</a>
-<a href="#174" id="174">174</a></pre></div><pre class="rust"><code><span class="doccomment">//! The code generation logic for converting [crate::ssa] objects into their respective [Brillig] artifacts.  
+<a href="#174" id="174">174</a></pre></div><pre class="rust"><code><span class="doccomment">//! The code generation logic for converting [crate::ssa] objects into their respective [Brillig] artifacts.
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>brillig_block;
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>brillig_block_variables;
 <span class="kw">mod </span>brillig_call;
@@ -279,7 +279,7 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>entry_point_setup_basic() {
-        <span class="kw">let </span>src = <span class="string">" 
+        <span class="kw">let </span>src = <span class="string">"
         brillig(inline) fn main f0 {
           b0(v0: u32, v1: u32):
             v2 = add v0, v1

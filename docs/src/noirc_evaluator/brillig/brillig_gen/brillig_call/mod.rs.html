@@ -485,15 +485,7 @@
 <a href="#484" id="484">484</a>
 <a href="#485" id="485">485</a>
 <a href="#486" id="486">486</a>
-<a href="#487" id="487">487</a>
-<a href="#488" id="488">488</a>
-<a href="#489" id="489">489</a>
-<a href="#490" id="490">490</a>
-<a href="#491" id="491">491</a>
-<a href="#492" id="492">492</a>
-<a href="#493" id="493">493</a>
-<a href="#494" id="494">494</a>
-<a href="#495" id="495">495</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">mod </span>brillig_black_box;
+<a href="#487" id="487">487</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">mod </span>brillig_black_box;
 <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">mod </span>brillig_slice_ops;
 <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">mod </span>code_gen_call;
 
@@ -595,24 +587,21 @@
             <span class="kw">for </span>element_type <span class="kw">in </span>types.iter() {
                 <span class="kw">match </span>element_type {
                     Type::Array(<span class="kw">_</span>, nested_size) =&gt; {
-                        <span class="kw">let </span>inner_array = BrilligArray {
-                            pointer: <span class="self">self</span>.brillig_context.allocate_register(),
-                            size: <span class="kw-2">*</span>nested_size <span class="kw">as </span>usize,
-                        };
-                        <span class="self">self</span>.allocate_foreign_call_result_array(element_type, inner_array);
+                        <span class="kw">let </span>inner_array =
+                            <span class="self">self</span>.brillig_context.allocate_brillig_array(<span class="kw-2">*</span>nested_size <span class="kw">as </span>usize);
+
+                        <span class="self">self</span>.allocate_foreign_call_result_array(element_type, <span class="kw-2">*</span>inner_array);
 
                         <span class="comment">// We add one since array.pointer points to [RC, ...items]
                         </span><span class="kw">let </span>idx = <span class="self">self
                             </span>.brillig_context
                             .make_usize_constant_instruction((index + <span class="number">1</span>).into());
+
                         <span class="self">self</span>.brillig_context.codegen_store_with_offset(
                             array.pointer,
-                            idx,
+                            <span class="kw-2">*</span>idx,
                             inner_array.pointer,
                         );
-
-                        <span class="self">self</span>.brillig_context.deallocate_single_addr(idx);
-                        <span class="self">self</span>.brillig_context.deallocate_register(inner_array.pointer);
                     }
                     Type::Slice(<span class="kw">_</span>) =&gt; <span class="macro">unreachable!</span>(
                         <span class="string">"ICE: unsupported slice type in allocate_nested_array(), expects an array or a numeric type"
@@ -671,8 +660,6 @@
                     BrilligBinaryOp::UnsignedDiv,
                     element_size,
                 );
-
-                <span class="self">self</span>.brillig_context.deallocate_single_addr(size);
             }
             <span class="kw">_ </span>=&gt; {
                 <span class="macro">unreachable!</span>(<span class="string">"ICE: Cannot get length of {array_variable:?}"</span>)
@@ -927,8 +914,7 @@
 
                 <span class="self">self</span>.update_slice_length(target_len, source_len, BrilligBinaryOp::Add);
 
-                <span class="self">self</span>.slice_insert_operation(target_vector, source_vector, converted_index, <span class="kw-2">&amp;</span>items);
-                <span class="self">self</span>.brillig_context.deallocate_single_addr(converted_index);
+                <span class="self">self</span>.slice_insert_operation(target_vector, source_vector, <span class="kw-2">*</span>converted_index, <span class="kw-2">&amp;</span>items);
             }
             Value::Intrinsic(Intrinsic::SliceRemove) =&gt; {
                 <span class="kw">let </span>target_len = <span class="kw">match </span><span class="self">self</span>.variables.define_variable(
@@ -978,11 +964,9 @@
                 <span class="self">self</span>.slice_remove_operation(
                     target_vector,
                     source_vector,
-                    converted_index,
+                    <span class="kw-2">*</span>converted_index,
                     <span class="kw-2">&amp;</span>removed_items,
                 );
-
-                <span class="self">self</span>.brillig_context.deallocate_single_addr(converted_index);
             }
             <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: Slice operation not supported"</span>),
         }

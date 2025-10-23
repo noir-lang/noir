@@ -144,29 +144,7 @@
 <a href="#143" id="143">143</a>
 <a href="#144" id="144">144</a>
 <a href="#145" id="145">145</a>
-<a href="#146" id="146">146</a>
-<a href="#147" id="147">147</a>
-<a href="#148" id="148">148</a>
-<a href="#149" id="149">149</a>
-<a href="#150" id="150">150</a>
-<a href="#151" id="151">151</a>
-<a href="#152" id="152">152</a>
-<a href="#153" id="153">153</a>
-<a href="#154" id="154">154</a>
-<a href="#155" id="155">155</a>
-<a href="#156" id="156">156</a>
-<a href="#157" id="157">157</a>
-<a href="#158" id="158">158</a>
-<a href="#159" id="159">159</a>
-<a href="#160" id="160">160</a>
-<a href="#161" id="161">161</a>
-<a href="#162" id="162">162</a>
-<a href="#163" id="163">163</a>
-<a href="#164" id="164">164</a>
-<a href="#165" id="165">165</a>
-<a href="#166" id="166">166</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::vec;
-
-<span class="kw">use </span>acvm::{AcirField, acir::brillig::MemoryAddress};
+<a href="#146" id="146">146</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, acir::brillig::MemoryAddress};
 
 <span class="kw">use super</span>::{ProcedureId, prepare_vector_push::reallocate_vector_for_insertion};
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::{
@@ -207,40 +185,33 @@
 <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>compile_prepare_vector_insert_procedure&lt;F: AcirField + DebugToString&gt;(
     brillig_context: <span class="kw-2">&amp;mut </span>BrilligContext&lt;F, ScratchSpace&gt;,
 ) {
-    <span class="kw">let </span>scratch_start = brillig_context.registers.start();
-    <span class="kw">let </span>source_vector_pointer_arg = MemoryAddress::direct(scratch_start);
-    <span class="kw">let </span>index_arg = MemoryAddress::direct(scratch_start + <span class="number">1</span>);
-    <span class="kw">let </span>item_count_arg = MemoryAddress::direct(scratch_start + <span class="number">2</span>);
-    <span class="kw">let </span>new_vector_pointer_return = MemoryAddress::direct(scratch_start + <span class="number">3</span>);
-    <span class="kw">let </span>write_pointer_return = MemoryAddress::direct(scratch_start + <span class="number">4</span>);
-
-    brillig_context.set_allocated_registers(<span class="macro">vec!</span>[
+    <span class="kw">let </span>[
         source_vector_pointer_arg,
         index_arg,
         item_count_arg,
         new_vector_pointer_return,
         write_pointer_return,
-    ]);
+    ] = brillig_context.allocate_scratch_registers();
 
     <span class="kw">let </span>source_vector = BrilligVector { pointer: source_vector_pointer_arg };
     <span class="kw">let </span>target_vector = BrilligVector { pointer: new_vector_pointer_return };
     <span class="kw">let </span>index = SingleAddrVariable::new_usize(index_arg);
 
-    <span class="kw">let </span>source_rc = SingleAddrVariable::new_usize(brillig_context.allocate_register());
-    <span class="kw">let </span>source_size = SingleAddrVariable::new_usize(brillig_context.allocate_register());
-    <span class="kw">let </span>source_capacity = SingleAddrVariable::new_usize(brillig_context.allocate_register());
-    <span class="kw">let </span>source_items_pointer = SingleAddrVariable::new_usize(brillig_context.allocate_register());
+    <span class="kw">let </span>source_rc = brillig_context.allocate_single_addr_usize();
+    <span class="kw">let </span>source_size = brillig_context.allocate_single_addr_usize();
+    <span class="kw">let </span>source_capacity = brillig_context.allocate_single_addr_usize();
+    <span class="kw">let </span>source_items_pointer = brillig_context.allocate_single_addr_usize();
     brillig_context.codegen_read_vector_metadata(
         source_vector,
-        source_rc,
-        source_size,
-        source_capacity,
-        source_items_pointer,
+        <span class="kw-2">*</span>source_rc,
+        <span class="kw-2">*</span>source_size,
+        <span class="kw-2">*</span>source_capacity,
+        <span class="kw-2">*</span>source_items_pointer,
         <span class="prelude-val">None</span>,
     );
 
     <span class="comment">// Target size is source size + item_count
-    </span><span class="kw">let </span>target_size = SingleAddrVariable::new_usize(brillig_context.allocate_register());
+    </span><span class="kw">let </span>target_size = brillig_context.allocate_single_addr_usize();
     brillig_context.memory_op_instruction(
         source_size.address,
         item_count_arg,
@@ -252,16 +223,16 @@
     </span>reallocate_vector_for_insertion(
         brillig_context,
         source_vector,
-        source_rc,
-        source_capacity,
+        <span class="kw-2">*</span>source_rc,
+        <span class="kw-2">*</span>source_capacity,
         target_vector,
-        target_size,
+        <span class="kw-2">*</span>target_size,
     );
 
     <span class="kw">let </span>target_vector_items_pointer =
         brillig_context.codegen_make_vector_items_pointer(target_vector);
 
-    <span class="kw">let </span>was_reused = SingleAddrVariable::new(brillig_context.allocate_register(), <span class="number">1</span>);
+    <span class="kw">let </span>was_reused = brillig_context.allocate_single_addr_bool();
     brillig_context.memory_op_instruction(
         source_vector.pointer,
         target_vector.pointer,
@@ -273,7 +244,7 @@
         <span class="comment">// Copy the elements to the left of the index
         </span>brillig_context.codegen_mem_copy(
             source_items_pointer.address,
-            target_vector_items_pointer,
+            <span class="kw-2">*</span>target_vector_items_pointer,
             index,
         );
     });
@@ -283,13 +254,13 @@
     brillig_context.memory_op_instruction(
         source_items_pointer.address,
         index_arg,
-        source_pointer_at_index,
+        <span class="kw-2">*</span>source_pointer_at_index,
         BrilligBinaryOp::Add,
     );
 
     <span class="comment">// Compute the target pointer after the inserted elements
     </span>brillig_context.memory_op_instruction(
-        target_vector_items_pointer,
+        <span class="kw-2">*</span>target_vector_items_pointer,
         index.address,
         write_pointer_return,
         BrilligBinaryOp::Add,
@@ -299,7 +270,7 @@
     brillig_context.memory_op_instruction(
         write_pointer_return,
         item_count_arg,
-        target_pointer_after_index,
+        <span class="kw-2">*</span>target_pointer_after_index,
         BrilligBinaryOp::Add,
     );
 
@@ -308,26 +279,15 @@
     brillig_context.memory_op_instruction(
         source_size.address,
         index.address,
-        element_count_to_the_right,
+        <span class="kw-2">*</span>element_count_to_the_right,
         BrilligBinaryOp::Sub,
     );
 
     <span class="comment">// Copy the elements to the right of the index
     </span>brillig_context.codegen_mem_copy_from_the_end(
-        source_pointer_at_index,
-        target_pointer_after_index,
-        SingleAddrVariable::new_usize(element_count_to_the_right),
+        <span class="kw-2">*</span>source_pointer_at_index,
+        <span class="kw-2">*</span>target_pointer_after_index,
+        SingleAddrVariable::new_usize(<span class="kw-2">*</span>element_count_to_the_right),
     );
-
-    brillig_context.deallocate_single_addr(source_rc);
-    brillig_context.deallocate_single_addr(source_size);
-    brillig_context.deallocate_single_addr(source_capacity);
-    brillig_context.deallocate_single_addr(source_items_pointer);
-    brillig_context.deallocate_single_addr(target_size);
-    brillig_context.deallocate_register(target_vector_items_pointer);
-    brillig_context.deallocate_single_addr(was_reused);
-    brillig_context.deallocate_register(source_pointer_at_index);
-    brillig_context.deallocate_register(target_pointer_after_index);
-    brillig_context.deallocate_register(element_count_to_the_right);
 }
 </code></pre></div></section></main></body></html>

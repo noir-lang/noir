@@ -395,26 +395,7 @@
 <a href="#394" id="394">394</a>
 <a href="#395" id="395">395</a>
 <a href="#396" id="396">396</a>
-<a href="#397" id="397">397</a>
-<a href="#398" id="398">398</a>
-<a href="#399" id="399">399</a>
-<a href="#400" id="400">400</a>
-<a href="#401" id="401">401</a>
-<a href="#402" id="402">402</a>
-<a href="#403" id="403">403</a>
-<a href="#404" id="404">404</a>
-<a href="#405" id="405">405</a>
-<a href="#406" id="406">406</a>
-<a href="#407" id="407">407</a>
-<a href="#408" id="408">408</a>
-<a href="#409" id="409">409</a>
-<a href="#410" id="410">410</a>
-<a href="#411" id="411">411</a>
-<a href="#412" id="412">412</a>
-<a href="#413" id="413">413</a>
-<a href="#414" id="414">414</a>
-<a href="#415" id="415">415</a>
-<a href="#416" id="416">416</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
+<a href="#397" id="397">397</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
     AcirField,
     acir::{
         brillig::{HeapVector, MemoryAddress},
@@ -422,12 +403,12 @@
     },
 };
 
-<span class="kw">use </span><span class="kw">crate</span>::ssa::ir::instruction::ErrorType;
+<span class="kw">use crate</span>::{brillig::brillig_ir::registers::Allocated, ssa::ir::instruction::ErrorType};
 
 <span class="kw">use super</span>::{
     BrilligBinaryOp, BrilligContext, ReservedRegisters,
     artifact::BrilligParameter,
-    brillig_variable::{BrilligArray, BrilligVariable, SingleAddrVariable},
+    brillig_variable::{BrilligVariable, SingleAddrVariable},
     debug_show::DebugToString,
     registers::RegisterAllocator,
 };
@@ -437,7 +418,10 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         make_iterator: <span class="kw">impl </span>FnOnce(<span class="kw-2">&amp;mut </span>BrilligContext&lt;F, Registers&gt;) -&gt; T,
         update_iterator: <span class="kw">impl </span>FnOnce(<span class="kw-2">&amp;mut </span>BrilligContext&lt;F, Registers&gt;, <span class="kw-2">&amp;</span>T),
-        make_finish_condition: <span class="kw">impl </span>FnOnce(<span class="kw-2">&amp;mut </span>BrilligContext&lt;F, Registers&gt;, <span class="kw-2">&amp;</span>T) -&gt; SingleAddrVariable,
+        make_finish_condition: <span class="kw">impl </span>FnOnce(
+            <span class="kw-2">&amp;mut </span>BrilligContext&lt;F, Registers&gt;,
+            <span class="kw-2">&amp;</span>T,
+        ) -&gt; Allocated&lt;SingleAddrVariable, Registers&gt;,
         on_iteration: <span class="kw">impl </span>FnOnce(<span class="kw-2">&amp;mut </span>BrilligContext&lt;F, Registers&gt;, <span class="kw-2">&amp;</span>T),
         clean_iterator: <span class="kw">impl </span>FnOnce(<span class="kw-2">&amp;mut </span>BrilligContext&lt;F, Registers&gt;, T),
     ) {
@@ -463,9 +447,8 @@
         <span class="comment">// Exit the loop
         </span><span class="self">self</span>.enter_section(exit_loop_section);
 
-        <span class="comment">// Deallocate our temporary registers
-        </span><span class="self">self</span>.deallocate_single_addr(should_end);
-        clean_iterator(<span class="self">self</span>, iterator);
+        <span class="comment">// Free any resources held by the iterator.
+        </span>clean_iterator(<span class="self">self</span>, iterator);
     }
 
     <span class="doccomment">/// This codegen will issue a loop for (let iterator_register = loop_start; i &lt; loop_bound; i += step)
@@ -478,7 +461,7 @@
         </span>on_iteration: <span class="kw">impl </span>FnOnce(<span class="kw-2">&amp;mut </span>BrilligContext&lt;F, Registers&gt;, SingleAddrVariable),
     ) {
         <span class="kw">let </span>iterator_register = <span class="kw">if let </span><span class="prelude-val">Some</span>(loop_start) = loop_start {
-            <span class="kw">let </span>iterator_register = SingleAddrVariable::new_usize(<span class="self">self</span>.allocate_register());
+            <span class="kw">let </span>iterator_register = <span class="self">self</span>.allocate_single_addr_usize();
             <span class="self">self</span>.mov_instruction(iterator_register.address, loop_start);
             iterator_register
         } <span class="kw">else </span>{
@@ -493,8 +476,7 @@
         <span class="comment">// Loop body
 
         // Check if iterator &lt; loop_bound
-        </span><span class="kw">let </span>iterator_reached_bound =
-            SingleAddrVariable { address: <span class="self">self</span>.allocate_register(), bit_size: <span class="number">1 </span>};
+        </span><span class="kw">let </span>iterator_reached_bound = <span class="self">self</span>.allocate_single_addr_bool();
 
         <span class="self">self</span>.memory_op_instruction(
             loop_bound,
@@ -508,7 +490,7 @@
         <span class="self">self</span>.jump_if_instruction(iterator_reached_bound.address, exit_loop_label);
 
         <span class="comment">// Call the on iteration function
-        </span>on_iteration(<span class="self">self</span>, iterator_register);
+        </span>on_iteration(<span class="self">self</span>, <span class="kw-2">*</span>iterator_register);
 
         <span class="comment">// Add step to the iterator register
         </span><span class="self">self</span>.memory_op_instruction(
@@ -522,10 +504,6 @@
 
         <span class="comment">// Exit the loop
         </span><span class="self">self</span>.enter_section(exit_loop_section);
-
-        <span class="comment">// Deallocate our temporary registers
-        </span><span class="self">self</span>.deallocate_single_addr(iterator_reached_bound);
-        <span class="self">self</span>.deallocate_single_addr(iterator_register);
     }
 
     <span class="doccomment">/// This codegen will issue a loop that will iterate from 0 to iteration_count
@@ -615,19 +593,20 @@
             <span class="comment">// + 1 due to the revert data id being the first item returned
             </span><span class="kw">let </span>revert_data_size = <span class="self">Self</span>::flattened_tuple_size(<span class="kw-2">&amp;</span>revert_data_types) + <span class="number">1</span>;
             <span class="kw">let </span>revert_data_size_var = ctx.make_usize_constant_instruction(revert_data_size.into());
-            <span class="kw">let </span>revert_data =
-                HeapVector { pointer: ctx.allocate_register(), size: revert_data_size_var.address };
+            <span class="kw">let </span>revert_data = ctx
+                .allocate_register()
+                .map(|pointer| HeapVector { pointer, size: revert_data_size_var.address });
             ctx.codegen_allocate_immediate_mem(revert_data.pointer, revert_data_size);
 
             <span class="kw">let </span>current_revert_data_pointer = ctx.allocate_register();
-            ctx.mov_instruction(current_revert_data_pointer, revert_data.pointer);
+            ctx.mov_instruction(<span class="kw-2">*</span>current_revert_data_pointer, revert_data.pointer);
             ctx.indirect_const_instruction(
-                current_revert_data_pointer,
+                <span class="kw-2">*</span>current_revert_data_pointer,
                 <span class="number">64</span>,
                 u128::from(error_selector.as_u64()).into(),
             );
 
-            ctx.codegen_usize_op_in_place(current_revert_data_pointer, BrilligBinaryOp::Add, <span class="number">1</span>);
+            ctx.codegen_usize_op_in_place(<span class="kw-2">*</span>current_revert_data_pointer, BrilligBinaryOp::Add, <span class="number">1</span>);
             <span class="kw">for </span>(revert_variable, revert_param) <span class="kw">in
                 </span>revert_data_items.into_iter().zip(revert_data_types.into_iter())
             {
@@ -635,7 +614,7 @@
                 <span class="kw">match </span>revert_param {
                     BrilligParameter::SingleAddr(<span class="kw">_</span>) =&gt; {
                         ctx.store_instruction(
-                            current_revert_data_pointer,
+                            <span class="kw-2">*</span>current_revert_data_pointer,
                             revert_variable.extract_single_addr().address,
                         );
                     }
@@ -646,26 +625,21 @@
                         ctx.flatten_array(
                             <span class="kw-2">&amp;</span>item_type,
                             item_count,
-                            current_revert_data_pointer,
-                            deflattened_items_pointer,
+                            <span class="kw-2">*</span>current_revert_data_pointer,
+                            <span class="kw-2">*</span>deflattened_items_pointer,
                         );
-
-                        ctx.deallocate_register(deflattened_items_pointer);
                     }
                     BrilligParameter::Slice(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
                         <span class="macro">unimplemented!</span>(<span class="string">"Slices are not supported as revert data"</span>)
                     }
                 }
                 ctx.codegen_usize_op_in_place(
-                    current_revert_data_pointer,
+                    <span class="kw-2">*</span>current_revert_data_pointer,
                     BrilligBinaryOp::Add,
                     flattened_size,
                 );
             }
-            ctx.trap_instruction(revert_data);
-            ctx.deallocate_single_addr(revert_data_size_var);
-            ctx.deallocate_register(revert_data.pointer);
-            ctx.deallocate_register(current_revert_data_pointer);
+            ctx.trap_instruction(<span class="kw-2">*</span>revert_data);
         });
     }
 
@@ -682,12 +656,12 @@
             <span class="kw">if let </span><span class="prelude-val">Some</span>(assert_message) = assert_message {
                 ctx.revert_with_string(assert_message);
             } <span class="kw">else </span>{
-                <span class="kw">let </span>revert_data = HeapVector {
-                    pointer: ReservedRegisters::free_memory_pointer(),
-                    size: ctx.make_usize_constant_instruction(<span class="number">0_usize</span>.into()).address,
-                };
-                ctx.trap_instruction(revert_data);
-                ctx.deallocate_register(revert_data.size);
+                <span class="kw">let </span>revert_data =
+                    ctx.make_usize_constant_instruction(<span class="number">0_usize</span>.into()).map(|size| HeapVector {
+                        pointer: ReservedRegisters::free_memory_pointer(),
+                        size: size.address,
+                    });
+                ctx.trap_instruction(<span class="kw-2">*</span>revert_data);
             };
         });
     }
@@ -765,13 +739,13 @@
                         BrilligParameter::SingleAddr(<span class="kw">_</span>) =&gt; {
                             <span class="self">self</span>.codegen_load_with_offset(
                                 deflattened_items_pointer,
-                                source_index,
-                                movement_register,
+                                <span class="kw-2">*</span>source_index,
+                                <span class="kw-2">*</span>movement_register,
                             );
                             <span class="self">self</span>.codegen_store_with_offset(
                                 flattened_array_pointer,
-                                target_index,
-                                movement_register,
+                                <span class="kw-2">*</span>target_index,
+                                <span class="kw-2">*</span>movement_register,
                             );
                             target_offset += <span class="number">1</span>;
                         }
@@ -779,54 +753,42 @@
                             nested_array_item_type,
                             nested_array_item_count,
                         ) =&gt; {
-                            <span class="kw">let </span>deflattened_nested_array = BrilligArray {
-                                pointer: <span class="self">self</span>.allocate_register(),
-                                size: <span class="kw-2">*</span>nested_array_item_count,
-                            };
+                            <span class="kw">let </span>deflattened_nested_array =
+                                <span class="self">self</span>.allocate_brillig_array(<span class="kw-2">*</span>nested_array_item_count);
 
                             <span class="self">self</span>.codegen_load_with_offset(
                                 deflattened_items_pointer,
-                                source_index,
+                                <span class="kw-2">*</span>source_index,
                                 deflattened_nested_array.pointer,
                             );
                             <span class="kw">let </span>deflattened_nested_array_items =
-                                <span class="self">self</span>.codegen_make_array_items_pointer(deflattened_nested_array);
+                                <span class="self">self</span>.codegen_make_array_items_pointer(<span class="kw-2">*</span>deflattened_nested_array);
 
                             <span class="kw">let </span>flattened_nested_array_pointer = <span class="self">self</span>.allocate_register();
                             <span class="self">self</span>.memory_op_instruction(
                                 flattened_array_pointer,
                                 target_index.address,
-                                flattened_nested_array_pointer,
+                                <span class="kw-2">*</span>flattened_nested_array_pointer,
                                 BrilligBinaryOp::Add,
                             );
 
                             <span class="self">self</span>.flatten_array(
                                 nested_array_item_type,
                                 <span class="kw-2">*</span>nested_array_item_count,
-                                flattened_nested_array_pointer,
-                                deflattened_nested_array_items,
+                                <span class="kw-2">*</span>flattened_nested_array_pointer,
+                                <span class="kw-2">*</span>deflattened_nested_array_items,
                             );
-
-                            <span class="self">self</span>.deallocate_register(deflattened_nested_array.pointer);
-                            <span class="self">self</span>.deallocate_register(deflattened_nested_array_items);
-                            <span class="self">self</span>.deallocate_register(flattened_nested_array_pointer);
 
                             target_offset += <span class="self">Self</span>::flattened_size(subitem);
                         }
                         BrilligParameter::Slice(..) =&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: Cannot flatten slices"</span>),
                     }
-
-                    <span class="self">self</span>.deallocate_single_addr(source_index);
-                    <span class="self">self</span>.deallocate_single_addr(target_index);
                 }
             }
-
-            <span class="self">self</span>.deallocate_register(movement_register);
         } <span class="kw">else </span>{
             <span class="kw">let </span>item_count =
                 <span class="self">self</span>.make_usize_constant_instruction((item_count * item_type.len()).into());
-            <span class="self">self</span>.codegen_mem_copy(deflattened_items_pointer, flattened_array_pointer, item_count);
-            <span class="self">self</span>.deallocate_single_addr(item_count);
+            <span class="self">self</span>.codegen_mem_copy(deflattened_items_pointer, flattened_array_pointer, <span class="kw-2">*</span>item_count);
         }
     }
 }

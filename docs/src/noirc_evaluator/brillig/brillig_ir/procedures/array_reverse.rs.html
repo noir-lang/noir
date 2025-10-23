@@ -31,15 +31,7 @@
 <a href="#30" id="30">30</a>
 <a href="#31" id="31">31</a>
 <a href="#32" id="32">32</a>
-<a href="#33" id="33">33</a>
-<a href="#34" id="34">34</a>
-<a href="#35" id="35">35</a>
-<a href="#36" id="36">36</a>
-<a href="#37" id="37">37</a>
-<a href="#38" id="38">38</a>
-<a href="#39" id="39">39</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::vec;
-
-<span class="kw">use </span>acvm::{AcirField, acir::brillig::MemoryAddress};
+<a href="#33" id="33">33</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, acir::brillig::MemoryAddress};
 
 <span class="kw">use </span><span class="kw">super</span>::ProcedureId;
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::{
@@ -68,11 +60,7 @@
 <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>compile_array_reverse_procedure&lt;F: AcirField + DebugToString&gt;(
     brillig_context: <span class="kw-2">&amp;mut </span>BrilligContext&lt;F, ScratchSpace&gt;,
 ) {
-    <span class="kw">let </span>scratch_start = brillig_context.registers.start();
-    <span class="kw">let </span>source_pointer = MemoryAddress::direct(scratch_start);
-    <span class="kw">let </span>size_register = MemoryAddress::direct(scratch_start + <span class="number">1</span>);
-
-    brillig_context.set_allocated_registers(<span class="macro">vec!</span>[source_pointer, size_register]);
+    <span class="kw">let </span>[source_pointer, size_register] = brillig_context.allocate_scratch_registers();
 
     brillig_context.codegen_array_reverse(source_pointer, size_register);
 }

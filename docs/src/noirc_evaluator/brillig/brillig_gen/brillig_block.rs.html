@@ -683,7 +683,7 @@
     BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable,
 };
 
-<span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::registers::RegisterAllocator;
+<span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::registers::{Allocated, RegisterAllocator};
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::{BrilligBinaryOp, BrilligContext};
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
     basic_block::BasicBlockId,
@@ -759,9 +759,12 @@
 
         <span class="kw">let </span>variables = BlockVariables::new(live_in_no_globals);
 
-        brillig_context.set_allocated_registers(
+        <span class="comment">// Replace the previous registers with a new instance, where the currently live variables are pre-allocated.
+        // These might be deallocated and reused if their last use in this block indicates they are dead,
+        // but then become pre-allocated in a new block again, depending on the order of processing.
+        </span>brillig_context.set_allocated_registers(
             variables
-                .get_available_variables(function_context)
+                .get_available_variable_allocations(function_context)
                 .into_iter()
                 .map(|variable| variable.extract_register())
                 .collect(),
@@ -807,17 +810,19 @@
         used_globals: <span class="kw-2">&amp;</span>HashSet&lt;ValueId&gt;,
         call_stacks: <span class="kw-2">&amp;mut </span>CallStackHelper,
         hoisted_global_constants: <span class="kw-2">&amp;</span>BTreeSet&lt;(FieldElement, NumericType)&gt;,
-    ) -&gt; HashMap&lt;(FieldElement, NumericType), BrilligVariable&gt; {
+    ) -&gt; HashMap&lt;(FieldElement, NumericType), Allocated&lt;BrilligVariable, Registers&gt;&gt; {
         <span class="comment">// Using the end of the global memory space adds more complexity as we
         // have to account for possible register de-allocations as part of regular global compilation.
         // Thus, we want to allocate any reserved global slots first.
-        //
-        // If this flag is set, compile the array copy counter as a global
+
+        // If we want to print the array copy count in the end, we reserve teh 0 slot.
         </span><span class="kw">if </span><span class="self">self</span>.brillig_context.count_array_copies() {
-            <span class="kw">let </span>new_variable = allocate_value_with_type(<span class="self">self</span>.brillig_context, Type::unsigned(<span class="number">32</span>));
+            <span class="comment">// Detach from the register so it's never deallocated.
+            </span><span class="kw">let </span>new_variable =
+                allocate_value_with_type(<span class="self">self</span>.brillig_context, Type::unsigned(<span class="number">32</span>)).detach();
             <span class="self">self</span>.brillig_context
                 .const_instruction(new_variable.extract_single_addr(), FieldElement::zero());
-        }
+        };
 
         <span class="kw">for </span>(id, value) <span class="kw">in </span>globals.values_iter() {
             <span class="kw">if </span>!used_globals.contains(<span class="kw-2">&amp;</span>id) {
@@ -1077,11 +1082,9 @@
                 <span class="comment">// SSA generates redundant range checks. A range check with a max bit size &gt;= value.bit_size will always pass.
                 </span><span class="kw">if </span>value.bit_size &gt; <span class="kw-2">*</span>max_bit_size {
                     <span class="comment">// Cast original value to field
-                    </span><span class="kw">let </span>left = SingleAddrVariable {
-                        address: <span class="self">self</span>.brillig_context.allocate_register(),
-                        bit_size: FieldElement::max_num_bits(),
-                    };
-                    <span class="self">self</span>.convert_cast(left, value);
+                    </span><span class="kw">let </span>left =
+                        <span class="self">self</span>.brillig_context.allocate_single_addr(FieldElement::max_num_bits());
+                    <span class="self">self</span>.convert_cast(<span class="kw-2">*</span>left, value);
 
                     <span class="comment">// Create a field constant with the max
                     </span><span class="kw">let </span>max = BigUint::from(<span class="number">2_u128</span>).pow(<span class="kw-2">*</span>max_bit_size) - BigUint::from(<span class="number">1_u128</span>);
@@ -1091,19 +1094,15 @@
                     );
 
                     <span class="comment">// Check if lte max
-                    </span><span class="kw">let </span>condition =
-                        SingleAddrVariable::new(<span class="self">self</span>.brillig_context.allocate_register(), <span class="number">1</span>);
+                    </span><span class="kw">let </span>condition = <span class="self">self</span>.brillig_context.allocate_single_addr_bool();
                     <span class="self">self</span>.brillig_context.binary_instruction(
-                        left,
-                        right,
-                        condition,
+                        <span class="kw-2">*</span>left,
+                        <span class="kw-2">*</span>right,
+                        <span class="kw-2">*</span>condition,
                         BrilligBinaryOp::LessThanEquals,
                     );
 
-                    <span class="self">self</span>.brillig_context.codegen_constrain(condition, assert_message.clone());
-                    <span class="self">self</span>.brillig_context.deallocate_single_addr(condition);
-                    <span class="self">self</span>.brillig_context.deallocate_single_addr(left);
-                    <span class="self">self</span>.brillig_context.deallocate_single_addr(right);
+                    <span class="self">self</span>.brillig_context.codegen_constrain(<span class="kw-2">*</span>condition, assert_message.clone());
                 }
             }
             Instruction::IncrementRc { value } =&gt; {
@@ -1148,9 +1147,10 @@
                             then_condition,
                             SingleAddrVariable::new_usize(then_array.pointer),
                             SingleAddrVariable::new_usize(else_array.pointer),
-                            SingleAddrVariable::new_usize(pointer),
+                            SingleAddrVariable::new_usize(<span class="kw-2">*</span>pointer),
                         );
-                        <span class="kw">let </span>if_else_array = BrilligArray { pointer, size: then_array.size };
+                        <span class="kw">let </span>if_else_array =
+                            BrilligArray { pointer: <span class="kw-2">*</span>pointer, size: then_array.size };
                         <span class="comment">// Copy the if-else array to the result
                         </span><span class="self">self</span>.brillig_context
                             .call_array_copy_procedure(if_else_array, result.extract_array());
@@ -1165,9 +1165,9 @@
                             then_condition,
                             SingleAddrVariable::new_usize(then_vector.pointer),
                             SingleAddrVariable::new_usize(else_vector.pointer),
-                            SingleAddrVariable::new_usize(pointer),
+                            SingleAddrVariable::new_usize(<span class="kw-2">*</span>pointer),
                         );
-                        <span class="kw">let </span>if_else_vector = BrilligVector { pointer };
+                        <span class="kw">let </span>if_else_vector = BrilligVector { pointer: <span class="kw-2">*</span>pointer };
                         <span class="comment">// Copy the if-else vector to the result
                         </span><span class="self">self</span>.brillig_context
                             .call_vector_copy_procedure(if_else_vector, result.extract_vector());

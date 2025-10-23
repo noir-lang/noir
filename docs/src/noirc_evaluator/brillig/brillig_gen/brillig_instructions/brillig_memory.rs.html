@@ -476,27 +476,7 @@
 <a href="#475" id="475">475</a>
 <a href="#476" id="476">476</a>
 <a href="#477" id="477">477</a>
-<a href="#478" id="478">478</a>
-<a href="#479" id="479">479</a>
-<a href="#480" id="480">480</a>
-<a href="#481" id="481">481</a>
-<a href="#482" id="482">482</a>
-<a href="#483" id="483">483</a>
-<a href="#484" id="484">484</a>
-<a href="#485" id="485">485</a>
-<a href="#486" id="486">486</a>
-<a href="#487" id="487">487</a>
-<a href="#488" id="488">488</a>
-<a href="#489" id="489">489</a>
-<a href="#490" id="490">490</a>
-<a href="#491" id="491">491</a>
-<a href="#492" id="492">492</a>
-<a href="#493" id="493">493</a>
-<a href="#494" id="494">494</a>
-<a href="#495" id="495">495</a>
-<a href="#496" id="496">496</a>
-<a href="#497" id="497">497</a>
-<a href="#498" id="498">498</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
+<a href="#478" id="478">478</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>acvm::acir::brillig::MemoryAddress;
 <span class="kw">use </span>acvm::{AcirField, FieldElement};
@@ -504,6 +484,7 @@
 
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_gen::brillig_block::BrilligBlock;
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::brillig_variable::{BrilligVariable, SingleAddrVariable};
+<span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::registers::Allocated;
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::{
     BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, BrilligBinaryOp, BrilligContext, ReservedRegisters,
     registers::RegisterAllocator,
@@ -610,8 +591,7 @@
             <span class="kw">let </span>step_variable =
                 <span class="self">self</span>.brillig_context.make_usize_constant_instruction(item_types.len().into());
 
-            <span class="kw">let </span>subitem_pointer =
-                SingleAddrVariable::new_usize(<span class="self">self</span>.brillig_context.allocate_register());
+            <span class="kw">let </span>subitem_pointer = <span class="self">self</span>.brillig_context.allocate_single_addr_usize();
 
             <span class="comment">// Initializes a single subitem
             </span><span class="kw">let </span>initializer_fn =
@@ -639,9 +619,6 @@
                 <span class="prelude-val">Some</span>(step_variable.address),
                 initializer_fn,
             );
-
-            <span class="self">self</span>.brillig_context.deallocate_single_addr(step_variable);
-            <span class="self">self</span>.brillig_context.deallocate_single_addr(subitem_pointer);
         } <span class="kw">else </span>{
             <span class="kw">let </span>subitem = subitem_to_repeat_variables.into_iter().next().unwrap();
 
@@ -658,7 +635,6 @@
                 initializer_fn,
             );
         }
-        <span class="self">self</span>.brillig_context.deallocate_single_addr(end_pointer_variable);
     }
 
     <span class="doccomment">/// Codegens Brillig instructions to initialize a constant array at compile time.
@@ -678,26 +654,24 @@
         <span class="comment">// Allocate a register for the iterator
         </span><span class="kw">let </span>write_pointer_register = <span class="self">self</span>.brillig_context.allocate_register();
 
-        <span class="self">self</span>.brillig_context.mov_instruction(write_pointer_register, pointer);
+        <span class="self">self</span>.brillig_context.mov_instruction(<span class="kw-2">*</span>write_pointer_register, pointer);
 
         <span class="kw">for </span>(element_idx, element_id) <span class="kw">in </span>data.iter().enumerate() {
             <span class="kw">let </span>element_variable = <span class="self">self</span>.convert_ssa_value(<span class="kw-2">*</span>element_id, dfg);
             <span class="comment">// Store the item in memory
             </span><span class="self">self</span>.brillig_context
-                .store_instruction(write_pointer_register, element_variable.extract_register());
+                .store_instruction(<span class="kw-2">*</span>write_pointer_register, element_variable.extract_register());
 
             <span class="kw">if </span>element_idx != data.len() - <span class="number">1 </span>{
                 <span class="comment">// Increment the write_pointer_register
                 </span><span class="self">self</span>.brillig_context.memory_op_instruction(
-                    write_pointer_register,
+                    <span class="kw-2">*</span>write_pointer_register,
                     ReservedRegisters::usize_one(),
-                    write_pointer_register,
+                    <span class="kw-2">*</span>write_pointer_register,
                     BrilligBinaryOp::Add,
                 );
             }
         }
-
-        <span class="self">self</span>.brillig_context.deallocate_register(write_pointer_register);
     }
 
     <span class="doccomment">/// Load from an array variable at a specific index into a specified destination
@@ -712,20 +686,16 @@
         has_offset: bool,
     ) {
         <span class="kw">let </span>items_pointer = <span class="kw">if </span>has_offset {
-            array_variable.extract_register()
+            Allocated::pure(array_variable.extract_register())
         } <span class="kw">else </span>{
             <span class="self">self</span>.brillig_context.codegen_make_array_or_vector_items_pointer(array_variable)
         };
 
         <span class="self">self</span>.brillig_context.codegen_load_with_offset(
-            items_pointer,
+            <span class="kw-2">*</span>items_pointer,
             index_variable,
             destination_variable.extract_register(),
         );
-
-        <span class="kw">if </span>!has_offset {
-            <span class="self">self</span>.brillig_context.deallocate_register(items_pointer);
-        }
     }
 
     <span class="doccomment">/// Array set operation in SSA returns a new array or vector that is a copy of the parameter array or vector
@@ -770,13 +740,13 @@
 
         <span class="comment">// Then set the value in the newly created array
         </span><span class="kw">let </span>items_pointer = <span class="kw">if </span>has_offset {
-            destination_for_store.extract_register()
+            Allocated::pure(destination_for_store.extract_register())
         } <span class="kw">else </span>{
             <span class="self">self</span>.brillig_context.codegen_make_array_or_vector_items_pointer(destination_for_store)
         };
 
         <span class="self">self</span>.brillig_context.codegen_store_with_offset(
-            items_pointer,
+            <span class="kw-2">*</span>items_pointer,
             index_register,
             value_variable.extract_register(),
         );
@@ -788,10 +758,6 @@
                 source_variable.extract_register(),
             );
         }
-
-        <span class="kw">if </span>!has_offset {
-            <span class="self">self</span>.brillig_context.deallocate_register(items_pointer);
-        }
     }
 
     <span class="doccomment">/// Debug utility method to determine whether an array's reference count (RC) is zero.
@@ -800,11 +766,11 @@
     ///
     /// Should only be called if [BrilligContext::enable_debug_assertions] returns true.
     </span><span class="kw">fn </span>assert_rc_neq_zero(<span class="kw-2">&amp;mut </span><span class="self">self</span>, rc_register: MemoryAddress) {
-        <span class="kw">let </span>zero = SingleAddrVariable::new(<span class="self">self</span>.brillig_context.allocate_register(), <span class="number">32</span>);
+        <span class="kw">let </span>zero = <span class="self">self</span>.brillig_context.allocate_single_addr(<span class="number">32</span>);
 
-        <span class="self">self</span>.brillig_context.const_instruction(zero, FieldElement::zero());
+        <span class="self">self</span>.brillig_context.const_instruction(<span class="kw-2">*</span>zero, FieldElement::zero());
 
-        <span class="kw">let </span>condition = SingleAddrVariable::new(<span class="self">self</span>.brillig_context.allocate_register(), <span class="number">1</span>);
+        <span class="kw">let </span>condition = <span class="self">self</span>.brillig_context.allocate_single_addr_bool();
 
         <span class="self">self</span>.brillig_context.memory_op_instruction(
             zero.address,
@@ -812,10 +778,9 @@
             condition.address,
             BrilligBinaryOp::Equals,
         );
-        <span class="self">self</span>.brillig_context.not_instruction(condition, condition);
+        <span class="self">self</span>.brillig_context.not_instruction(<span class="kw-2">*</span>condition, <span class="kw-2">*</span>condition);
         <span class="self">self</span>.brillig_context
-            .codegen_constrain(condition, <span class="prelude-val">Some</span>(<span class="string">"array ref-count underflow detected"</span>.to_owned()));
-        <span class="self">self</span>.brillig_context.deallocate_single_addr(condition);
+            .codegen_constrain(<span class="kw-2">*</span>condition, <span class="prelude-val">Some</span>(<span class="string">"array ref-count underflow detected"</span>.to_owned()));
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_allocate(<span class="kw-2">&amp;mut </span><span class="self">self</span>, instruction_id: InstructionId, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) {
@@ -943,8 +908,7 @@
                 BrilligVariable::BrilligVector(vector) =&gt; {
                     <span class="kw">let </span>size =
                         <span class="self">self</span>.brillig_context.make_usize_constant_instruction(array.len().into());
-                    <span class="self">self</span>.brillig_context.codegen_initialize_vector(vector, size, <span class="prelude-val">None</span>);
-                    <span class="self">self</span>.brillig_context.deallocate_single_addr(size);
+                    <span class="self">self</span>.brillig_context.codegen_initialize_vector(vector, <span class="kw-2">*</span>size, <span class="prelude-val">None</span>);
                 }
                 <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: Cannot initialize array value created as {new_variable:?}"</span>),
             };
@@ -953,9 +917,7 @@
             </span><span class="kw">let </span>items_pointer =
                 <span class="self">self</span>.brillig_context.codegen_make_array_or_vector_items_pointer(new_variable);
 
-            <span class="self">self</span>.initialize_constant_array(array, typ, dfg, items_pointer);
-
-            <span class="self">self</span>.brillig_context.deallocate_register(items_pointer);
+            <span class="self">self</span>.initialize_constant_array(array, typ, dfg, <span class="kw-2">*</span>items_pointer);
         }
     }
 
@@ -964,34 +926,32 @@
         <span class="kw">let </span>rc_register = <span class="self">self</span>.brillig_context.allocate_register();
 
         <span class="comment">// RC is always directly pointed by the array/vector pointer
-        </span><span class="self">self</span>.brillig_context.load_instruction(rc_register, array_or_vector.extract_register());
+        </span><span class="self">self</span>.brillig_context.load_instruction(<span class="kw-2">*</span>rc_register, array_or_vector.extract_register());
 
         <span class="comment">// Ensure we're not incrementing from 0 back to 1
         </span><span class="kw">if </span><span class="self">self</span>.brillig_context.enable_debug_assertions() {
-            <span class="self">self</span>.assert_rc_neq_zero(rc_register);
+            <span class="self">self</span>.assert_rc_neq_zero(<span class="kw-2">*</span>rc_register);
         }
 
-        <span class="self">self</span>.brillig_context.codegen_usize_op_in_place(rc_register, BrilligBinaryOp::Add, <span class="number">1</span>);
-        <span class="self">self</span>.brillig_context.store_instruction(array_or_vector.extract_register(), rc_register);
-        <span class="self">self</span>.brillig_context.deallocate_register(rc_register);
+        <span class="self">self</span>.brillig_context.codegen_usize_op_in_place(<span class="kw-2">*</span>rc_register, BrilligBinaryOp::Add, <span class="number">1</span>);
+        <span class="self">self</span>.brillig_context.store_instruction(array_or_vector.extract_register(), <span class="kw-2">*</span>rc_register);
     }
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>decrement_rc(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: ValueId, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) {
         <span class="kw">let </span>array_or_vector = <span class="self">self</span>.convert_ssa_value(value, dfg);
         <span class="kw">let </span>array_register = array_or_vector.extract_register();
 
         <span class="kw">let </span>rc_register = <span class="self">self</span>.brillig_context.allocate_register();
-        <span class="self">self</span>.brillig_context.load_instruction(rc_register, array_register);
+        <span class="self">self</span>.brillig_context.load_instruction(<span class="kw-2">*</span>rc_register, array_register);
 
         <span class="comment">// Check that the refcount isn't already 0 before we decrement. If we allow it to underflow
         // and become usize::MAX, and then return to 1, then it will indicate
         // an array as mutable when it probably shouldn't be.
         </span><span class="kw">if </span><span class="self">self</span>.brillig_context.enable_debug_assertions() {
-            <span class="self">self</span>.assert_rc_neq_zero(rc_register);
+            <span class="self">self</span>.assert_rc_neq_zero(<span class="kw-2">*</span>rc_register);
         }
 
-        <span class="self">self</span>.brillig_context.codegen_usize_op_in_place(rc_register, BrilligBinaryOp::Sub, <span class="number">1</span>);
-        <span class="self">self</span>.brillig_context.store_instruction(array_register, rc_register);
-        <span class="self">self</span>.brillig_context.deallocate_register(rc_register);
+        <span class="self">self</span>.brillig_context.codegen_usize_op_in_place(<span class="kw-2">*</span>rc_register, BrilligBinaryOp::Sub, <span class="number">1</span>);
+        <span class="self">self</span>.brillig_context.store_instruction(array_register, <span class="kw-2">*</span>rc_register);
     }
 }
 </code></pre></div></section></main></body></html>

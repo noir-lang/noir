@@ -92,14 +92,7 @@
 <a href="#91" id="91">91</a>
 <a href="#92" id="92">92</a>
 <a href="#93" id="93">93</a>
-<a href="#94" id="94">94</a>
-<a href="#95" id="95">95</a>
-<a href="#96" id="96">96</a>
-<a href="#97" id="97">97</a>
-<a href="#98" id="98">98</a>
-<a href="#99" id="99">99</a>
-<a href="#100" id="100">100</a>
-<a href="#101" id="101">101</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::{
+<a href="#94" id="94">94</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::{
     AcirField,
     brillig::{BlackBoxOp, IntegerBitSize},
 };
@@ -136,12 +129,11 @@
         <span class="comment">// If we are truncating a value down to a natively supported integer, we can just use the cast instruction
         </span><span class="kw">if </span>IntegerBitSize::try_from(bit_size).is_ok() {
             <span class="comment">// We cast back and forth to ensure that the value is truncated.
-            </span><span class="kw">let </span>intermediate_register = SingleAddrVariable::new(<span class="self">self</span>.allocate_register(), bit_size);
+            </span><span class="kw">let </span>intermediate_register = <span class="self">self</span>.allocate_single_addr(bit_size);
 
-            <span class="self">self</span>.cast_instruction(intermediate_register, value_to_truncate);
-            <span class="self">self</span>.cast_instruction(destination_of_truncated_value, intermediate_register);
+            <span class="self">self</span>.cast_instruction(<span class="kw-2">*</span>intermediate_register, value_to_truncate);
+            <span class="self">self</span>.cast_instruction(destination_of_truncated_value, <span class="kw-2">*</span>intermediate_register);
 
-            <span class="self">self</span>.deallocate_single_addr(intermediate_register);
             <span class="kw">return</span>;
         }
 
@@ -155,12 +147,10 @@
 
         <span class="self">self</span>.binary_instruction(
             value_to_truncate,
-            modulus_var,
+            <span class="kw-2">*</span>modulus_var,
             destination_of_truncated_value,
             BrilligBinaryOp::Modulo,
         );
-
-        <span class="self">self</span>.deallocate_single_addr(modulus_var);
     }
 
     <span class="doccomment">/// Issues a to_radix instruction. This instruction will write the modulus of the source register
@@ -185,19 +175,15 @@
         </span><span class="self">self</span>.black_box_op_instruction(BlackBoxOp::ToRadix {
             input: source_field.address,
             radix: radix.address,
-            output_pointer: pointer,
+            output_pointer: <span class="kw-2">*</span>pointer,
             num_limbs: num_limbs.address,
             output_bits: bits_register.address,
         });
 
         <span class="kw">if </span>little_endian {
             <span class="kw">let </span>items_len = <span class="self">self</span>.make_usize_constant_instruction(target_array.size.into());
-            <span class="self">self</span>.codegen_array_reverse(pointer, items_len.address);
-            <span class="self">self</span>.deallocate_single_addr(items_len);
+            <span class="self">self</span>.codegen_array_reverse(<span class="kw-2">*</span>pointer, items_len.address);
         }
-        <span class="self">self</span>.deallocate_register(pointer);
-        <span class="self">self</span>.deallocate_single_addr(bits_register);
-        <span class="self">self</span>.deallocate_single_addr(num_limbs);
     }
 }
 </code></pre></div></section></main></body></html>

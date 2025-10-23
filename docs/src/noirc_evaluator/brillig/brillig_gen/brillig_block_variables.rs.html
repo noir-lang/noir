@@ -174,7 +174,19 @@
 <a href="#173" id="173">173</a>
 <a href="#174" id="174">174</a>
 <a href="#175" id="175">175</a>
-<a href="#176" id="176">176</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module handles allocation, tracking, and lifetime management of variables
+<a href="#176" id="176">176</a>
+<a href="#177" id="177">177</a>
+<a href="#178" id="178">178</a>
+<a href="#179" id="179">179</a>
+<a href="#180" id="180">180</a>
+<a href="#181" id="181">181</a>
+<a href="#182" id="182">182</a>
+<a href="#183" id="183">183</a>
+<a href="#184" id="184">184</a>
+<a href="#185" id="185">185</a>
+<a href="#186" id="186">186</a>
+<a href="#187" id="187">187</a>
+<a href="#188" id="188">188</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module handles allocation, tracking, and lifetime management of variables
 //! within a Brillig compiled SSA basic block.
 //!
 //! [BlockVariables] maintains a set of SSA [ValueId]s that are live and available
@@ -192,11 +204,8 @@
 <span class="kw">use crate</span>::{
     brillig::brillig_ir::{
         BrilligContext,
-        brillig_variable::{
-            BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable,
-            get_bit_size_from_ssa_type,
-        },
-        registers::RegisterAllocator,
+        brillig_variable::{BrilligVariable, SingleAddrVariable, get_bit_size_from_ssa_type},
+        registers::{Allocated, RegisterAllocator},
     },
     ssa::ir::{
         dfg::DataFlowGraph,
@@ -227,8 +236,13 @@
         BlockVariables { available_variables: live_in }
     }
 
-    <span class="doccomment">/// Returns all variables that have not been removed at this point.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_available_variables(
+    <span class="doccomment">/// Returns the allocations for all variables that are currently available.
+    ///
+    /// These might have been technically removed earlier in a different block,
+    /// because of the order in which we process blocks, but we expect that the
+    /// `FunctionContext` will remember the earlier allocations, and return them
+    /// so that we can restore them as pre-allocations in the next slot.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_available_variable_allocations(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         function_context: <span class="kw-2">&amp;</span>FunctionContext,
     ) -&gt; Vec&lt;BrilligVariable&gt; {
@@ -240,7 +254,7 @@
                     .get(value_id)
                     .unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">"ICE: Value not found in cache {value_id}"</span>))
             })
-            .cloned()
+            .copied()
             .collect()
     }
 
@@ -252,7 +266,13 @@
         value_id: ValueId,
         dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
     ) -&gt; BrilligVariable {
-        <span class="kw">let </span>variable = allocate_value(value_id, brillig_context, dfg);
+        <span class="kw">let </span>allocated = allocate_value(value_id, brillig_context, dfg);
+
+        <span class="comment">// Allocators get replaced in each block, with all visible variables becoming pre-allocated
+        // in the next block; what is allocated in one block might be deallocated in the next block,
+        // in a different allocator. Because of this we can detach from the allocator, and have to
+        // manage deallocation manually.
+        </span><span class="kw">let </span>variable = allocated.detach();
 
         <span class="kw">if </span>function_context.ssa_value_allocations.insert(value_id, variable).is_some() {
             <span class="macro">unreachable!</span>(<span class="string">"ICE: ValueId {value_id:?} was already in cache"</span>);
@@ -283,11 +303,17 @@
         brillig_context: <span class="kw-2">&amp;mut </span>BrilligContext&lt;FieldElement, Registers&gt;,
     ) {
         <span class="macro">assert!</span>(<span class="self">self</span>.available_variables.remove(value_id), <span class="string">"ICE: Variable is not available"</span>);
-        <span class="kw">let </span>variable = function_context
+
+        <span class="comment">// Do not remove the allocation, just get it so we can mark it as free in memory.
+        </span><span class="kw">let </span>variable = function_context
             .ssa_value_allocations
             .get(value_id)
             .expect(<span class="string">"ICE: Variable allocation not found"</span>);
-        brillig_context.deallocate_register(variable.extract_register());
+
+        <span class="comment">// Explicitly deallocate the memory; note that this might be a different register
+        // than the one the variable was defined in, which is why don't rely on automation.
+        </span><span class="kw">let </span>register = variable.extract_register();
+        brillig_context.deallocate_register(register);
     }
 
     <span class="doccomment">/// Checks if a variable is allocated.
@@ -306,10 +332,12 @@
             <span class="string">"ICE: ValueId {value_id:?} is not available"
         </span>);
 
-        <span class="kw-2">*</span>function_context
+        <span class="kw">let </span>variable = function_context
             .ssa_value_allocations
             .get(<span class="kw-2">&amp;</span>value_id)
-            .unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">"ICE: Value not found in cache {value_id}"</span>))
+            .unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">"ICE: Value not found in cache {value_id}"</span>));
+
+        <span class="kw-2">*</span>variable
     }
 }
 
@@ -323,7 +351,7 @@
     value_id: ValueId,
     brillig_context: <span class="kw-2">&amp;mut </span>BrilligContext&lt;F, Registers&gt;,
     dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
-) -&gt; BrilligVariable {
+) -&gt; Allocated&lt;BrilligVariable, Registers&gt; {
     <span class="kw">let </span>typ = dfg.type_of_value(value_id);
 
     allocate_value_with_type(brillig_context, typ)
@@ -333,21 +361,17 @@
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>allocate_value_with_type&lt;F, Registers: RegisterAllocator&gt;(
     brillig_context: <span class="kw-2">&amp;mut </span>BrilligContext&lt;F, Registers&gt;,
     typ: Type,
-) -&gt; BrilligVariable {
+) -&gt; Allocated&lt;BrilligVariable, Registers&gt; {
     <span class="kw">match </span>typ {
-        Type::Numeric(<span class="kw">_</span>) | Type::Reference(<span class="kw">_</span>) | Type::Function =&gt; {
-            BrilligVariable::SingleAddr(SingleAddrVariable {
-                address: brillig_context.allocate_register(),
-                bit_size: get_bit_size_from_ssa_type(<span class="kw-2">&amp;</span>typ),
-            })
+        Type::Numeric(<span class="kw">_</span>) | Type::Reference(<span class="kw">_</span>) | Type::Function =&gt; brillig_context
+            .allocate_single_addr(get_bit_size_from_ssa_type(<span class="kw-2">&amp;</span>typ))
+            .map(BrilligVariable::SingleAddr),
+        Type::Array(item_typ, elem_count) =&gt; brillig_context
+            .allocate_brillig_array(compute_array_length(<span class="kw-2">&amp;</span>item_typ, elem_count <span class="kw">as </span>usize))
+            .map(BrilligVariable::BrilligArray),
+        Type::Slice(<span class="kw">_</span>) =&gt; {
+            brillig_context.allocate_brillig_vector().map(BrilligVariable::BrilligVector)
         }
-        Type::Array(item_typ, elem_count) =&gt; BrilligVariable::BrilligArray(BrilligArray {
-            pointer: brillig_context.allocate_register(),
-            size: compute_array_length(<span class="kw-2">&amp;</span>item_typ, elem_count <span class="kw">as </span>usize),
-        }),
-        Type::Slice(<span class="kw">_</span>) =&gt; BrilligVariable::BrilligVector(BrilligVector {
-            pointer: brillig_context.allocate_register(),
-        }),
     }
 }
 </code></pre></div></section></main></body></html>

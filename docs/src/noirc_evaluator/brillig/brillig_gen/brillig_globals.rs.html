@@ -654,7 +654,17 @@
 <a href="#653" id="653">653</a>
 <a href="#654" id="654">654</a>
 <a href="#655" id="655">655</a>
-<a href="#656" id="656">656</a></pre></div><pre class="rust"><code><span class="doccomment">//! Codegen for converting SSA globals to Brillig bytecode.
+<a href="#656" id="656">656</a>
+<a href="#657" id="657">657</a>
+<a href="#658" id="658">658</a>
+<a href="#659" id="659">659</a>
+<a href="#660" id="660">660</a>
+<a href="#661" id="661">661</a>
+<a href="#662" id="662">662</a>
+<a href="#663" id="663">663</a>
+<a href="#664" id="664">664</a>
+<a href="#665" id="665">665</a>
+<a href="#666" id="666">666</a></pre></div><pre class="rust"><code><span class="doccomment">//! Codegen for converting SSA globals to Brillig bytecode.
 </span><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet};
 
 <span class="kw">use </span>acvm::FieldElement;
@@ -819,6 +829,7 @@
                     },
                 )
                 .collect();
+
             <span class="kw">let </span>(artifact, brillig_globals, globals_size, hoisted_global_constants) = brillig
                 .convert_ssa_globals(
                     options,
@@ -944,6 +955,15 @@
         brillig_context.return_instruction();
 
         <span class="kw">let </span>artifact = brillig_context.artifact();
+
+        <span class="comment">// The global registers going to become pre-allocated registers when we compile other functions,
+        // so we can stop tracking their allocation life cycles and keep just the memory addresses.
+
+        </span><span class="kw">let </span>hoisted_global_constants = hoisted_global_constants
+            .into_iter()
+            .map(|(field, variable)| (field, variable.detach()))
+            .collect();
+
         (artifact, function_context.ssa_value_allocations, globals_size, hoisted_global_constants)
     }
 }

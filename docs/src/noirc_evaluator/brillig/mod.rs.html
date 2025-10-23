@@ -427,7 +427,7 @@
         }
     }
 
-    <span class="doccomment">/// Converting an SSA function into Brillig bytecode.
+    <span class="doccomment">/// Convert an SSA function into Brillig bytecode.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>convert_ssa_function(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         func: <span class="kw-2">&amp;</span>Function,
@@ -468,7 +468,7 @@
 }
 
 <span class="kw">impl </span>Ssa {
-    <span class="doccomment">/// Compile Brillig functions and ACIR functions reachable from them
+    <span class="doccomment">/// Compile Brillig functions and ACIR functions reachable from them.
     </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
     </span><span class="kw">pub fn </span>to_brillig(<span class="kw-2">&amp;</span><span class="self">self</span>, options: <span class="kw-2">&amp;</span>BrilligOptions) -&gt; Brillig {
         <span class="kw">let </span>used_globals_map = <span class="self">self</span>.used_globals_in_functions();

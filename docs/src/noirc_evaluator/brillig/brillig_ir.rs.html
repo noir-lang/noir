@@ -526,19 +526,7 @@
 <a href="#525" id="525">525</a>
 <a href="#526" id="526">526</a>
 <a href="#527" id="527">527</a>
-<a href="#528" id="528">528</a>
-<a href="#529" id="529">529</a>
-<a href="#530" id="530">530</a>
-<a href="#531" id="531">531</a>
-<a href="#532" id="532">532</a>
-<a href="#533" id="533">533</a>
-<a href="#534" id="534">534</a>
-<a href="#535" id="535">535</a>
-<a href="#536" id="536">536</a>
-<a href="#537" id="537">537</a>
-<a href="#538" id="538">538</a>
-<a href="#539" id="539">539</a>
-<a href="#540" id="540">540</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module is an abstraction layer over `Brillig`.
+<a href="#528" id="528">528</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module is an abstraction layer over `Brillig`.
 //! To allow for separation of concerns, it knows nothing
 //! about SSA types, and can therefore be tested independently.
 //! `brillig_gen` is therefore the module which combines both
@@ -563,6 +551,8 @@
 <span class="kw">mod </span>codegen_stack;
 <span class="kw">mod </span>entry_point;
 <span class="kw">mod </span>instructions;
+
+<span class="kw">use </span>std::{cell::RefCell, rc::Rc};
 
 <span class="kw">use </span>artifact::Label;
 <span class="kw">use </span>brillig_variable::SingleAddrVariable;
@@ -620,7 +610,7 @@
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>BrilligContext&lt;F, Registers&gt; {
     obj: BrilligArtifact&lt;F&gt;,
     <span class="doccomment">/// Tracks register allocations
-    </span>registers: Registers,
+    </span>registers: Rc&lt;RefCell&lt;Registers&gt;&gt;,
     <span class="doccomment">/// Context label, must be unique with respect to the function
     /// being linked.
     </span>context_label: Label,
@@ -639,12 +629,14 @@
     </span>count_arrays_copied: bool,
 
     globals_memory_size: <span class="prelude-ty">Option</span>&lt;usize&gt;,
-
-    <span class="doccomment">/// Memory layout information. See [self::registers] for more information about the memory layout.
-    </span>layout: LayoutConfig,
 }
 
 <span class="kw">impl</span>&lt;F, R: RegisterAllocator&gt; BrilligContext&lt;F, R&gt; {
+    <span class="doccomment">/// Memory layout information. See [self::registers] for more information about the memory layout.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>layout(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; LayoutConfig {
+        <span class="self">self</span>.registers().layout()
+    }
+
     <span class="doccomment">/// Enable the insertion of bytecode with extra assertions during testing.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>enable_debug_assertions(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
         <span class="self">self</span>.enable_debug_assertions
@@ -659,7 +651,7 @@
         </span>);
 
         <span class="comment">// The copy counter is always put in the first global slot
-        </span>MemoryAddress::Direct(GlobalSpace::start_with_layout(<span class="kw-2">&amp;</span><span class="self">self</span>.registers.layout()))
+        </span>MemoryAddress::Direct(GlobalSpace::start_with_layout(<span class="kw-2">&amp;</span><span class="self">self</span>.layout()))
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>count_array_copies(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
@@ -686,7 +678,7 @@
         obj.name = function_name.to_owned();
         BrilligContext {
             obj,
-            registers: Stack::new(options.layout),
+            registers: Rc::new(RefCell::new(Stack::new(options.layout))),
             context_label: Label::entrypoint(),
             current_section: <span class="number">0</span>,
             next_section: <span class="number">1</span>,
@@ -695,7 +687,6 @@
             count_arrays_copied: options.enable_array_copy_counter,
             can_call_procedures: <span class="bool-val">true</span>,
             globals_memory_size: <span class="prelude-val">None</span>,
-            layout: options.layout,
         }
     }
 }
@@ -713,12 +704,12 @@
             </span>.make_constant_instruction(((<span class="number">1_u128 </span>&lt;&lt; (num.bit_size - <span class="number">1</span>)) - <span class="number">1</span>).into(), num.bit_size);
 
         <span class="comment">// Compute if num is negative
-        </span><span class="self">self</span>.binary_instruction(max_positive, num, result_is_negative, BrilligBinaryOp::LessThan);
+        </span><span class="self">self</span>.binary_instruction(<span class="kw-2">*</span>max_positive, num, result_is_negative, BrilligBinaryOp::LessThan);
 
         <span class="comment">// Two's complement of num
         </span><span class="kw">let </span>zero = <span class="self">self</span>.make_constant_instruction(<span class="number">0_usize</span>.into(), num.bit_size);
-        <span class="kw">let </span>twos_complement = SingleAddrVariable::new(<span class="self">self</span>.allocate_register(), num.bit_size);
-        <span class="self">self</span>.binary_instruction(zero, num, twos_complement, BrilligBinaryOp::Sub);
+        <span class="kw">let </span>twos_complement = <span class="self">self</span>.allocate_single_addr(num.bit_size);
+        <span class="self">self</span>.binary_instruction(<span class="kw-2">*</span>zero, num, <span class="kw-2">*</span>twos_complement, BrilligBinaryOp::Sub);
 
         <span class="comment">// absolute_value = result_is_negative ? twos_complement : num
         </span><span class="self">self</span>.codegen_branch(result_is_negative.address, |ctx, is_negative| {
@@ -728,10 +719,6 @@
                 ctx.mov_instruction(absolute_value.address, num.address);
             }
         });
-
-        <span class="self">self</span>.deallocate_single_addr(zero);
-        <span class="self">self</span>.deallocate_single_addr(max_positive);
-        <span class="self">self</span>.deallocate_single_addr(twos_complement);
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>convert_signed_division(
@@ -740,31 +727,31 @@
         right: SingleAddrVariable,
         result: SingleAddrVariable,
     ) {
-        <span class="kw">let </span>left_is_negative = SingleAddrVariable::new(<span class="self">self</span>.allocate_register(), <span class="number">1</span>);
-        <span class="kw">let </span>left_abs_value = SingleAddrVariable::new(<span class="self">self</span>.allocate_register(), left.bit_size);
+        <span class="kw">let </span>left_is_negative = <span class="self">self</span>.allocate_single_addr_bool();
+        <span class="kw">let </span>left_abs_value = <span class="self">self</span>.allocate_single_addr(left.bit_size);
 
-        <span class="kw">let </span>right_is_negative = SingleAddrVariable::new(<span class="self">self</span>.allocate_register(), <span class="number">1</span>);
-        <span class="kw">let </span>right_abs_value = SingleAddrVariable::new(<span class="self">self</span>.allocate_register(), right.bit_size);
+        <span class="kw">let </span>right_is_negative = <span class="self">self</span>.allocate_single_addr_bool();
+        <span class="kw">let </span>right_abs_value = <span class="self">self</span>.allocate_single_addr(right.bit_size);
 
-        <span class="kw">let </span>result_is_negative = SingleAddrVariable::new(<span class="self">self</span>.allocate_register(), <span class="number">1</span>);
+        <span class="kw">let </span>result_is_negative = <span class="self">self</span>.allocate_single_addr_bool();
 
         <span class="comment">// Compute both absolute values
-        </span><span class="self">self</span>.absolute_value(left, left_abs_value, left_is_negative);
-        <span class="self">self</span>.absolute_value(right, right_abs_value, right_is_negative);
+        </span><span class="self">self</span>.absolute_value(left, <span class="kw-2">*</span>left_abs_value, <span class="kw-2">*</span>left_is_negative);
+        <span class="self">self</span>.absolute_value(right, <span class="kw-2">*</span>right_abs_value, <span class="kw-2">*</span>right_is_negative);
 
         <span class="comment">// Perform the division on the absolute values
         </span><span class="self">self</span>.binary_instruction(
-            left_abs_value,
-            right_abs_value,
+            <span class="kw-2">*</span>left_abs_value,
+            <span class="kw-2">*</span>right_abs_value,
             result,
             BrilligBinaryOp::UnsignedDiv,
         );
 
         <span class="comment">// Compute result sign
         </span><span class="self">self</span>.binary_instruction(
-            left_is_negative,
-            right_is_negative,
-            result_is_negative,
+            <span class="kw-2">*</span>left_is_negative,
+            <span class="kw-2">*</span>right_is_negative,
+            <span class="kw-2">*</span>result_is_negative,
             BrilligBinaryOp::Xor,
         );
 
@@ -772,30 +759,21 @@
             <span class="kw">if </span>is_negative {
                 <span class="comment">// If result has to be negative, perform two's complement
                 </span><span class="kw">let </span>zero = ctx.make_constant_instruction(<span class="number">0_usize</span>.into(), result.bit_size);
-                ctx.binary_instruction(zero, result, result, BrilligBinaryOp::Sub);
-                ctx.deallocate_single_addr(zero);
+                ctx.binary_instruction(<span class="kw-2">*</span>zero, result, result, BrilligBinaryOp::Sub);
             } <span class="kw">else </span>{
                 <span class="comment">// else the result is positive and so it must be less than '2**(bit_size-1)'
                 </span><span class="kw">let </span>max = <span class="number">1_u128 </span>&lt;&lt; (left.bit_size - <span class="number">1</span>);
                 <span class="kw">let </span>max = ctx.make_constant_instruction(max.into(), left.bit_size);
-                <span class="kw">let </span>no_overflow = SingleAddrVariable::new(ctx.allocate_register(), <span class="number">1</span>);
-                ctx.binary_instruction(result, max, no_overflow, BrilligBinaryOp::LessThan);
+                <span class="kw">let </span>no_overflow = ctx.allocate_single_addr_bool();
+                ctx.binary_instruction(result, <span class="kw-2">*</span>max, <span class="kw-2">*</span>no_overflow, BrilligBinaryOp::LessThan);
                 ctx.codegen_if_not(no_overflow.address, |ctx2| {
                     ctx2.codegen_constrain(
-                        no_overflow,
+                        <span class="kw-2">*</span>no_overflow,
                         <span class="prelude-val">Some</span>(<span class="string">"Attempt to divide with overflow"</span>.to_string()),
                     );
                 });
-                ctx.deallocate_single_addr(max);
-                ctx.deallocate_single_addr(no_overflow);
             }
         });
-
-        <span class="self">self</span>.deallocate_single_addr(left_is_negative);
-        <span class="self">self</span>.deallocate_single_addr(left_abs_value);
-        <span class="self">self</span>.deallocate_single_addr(right_is_negative);
-        <span class="self">self</span>.deallocate_single_addr(right_abs_value);
-        <span class="self">self</span>.deallocate_single_addr(result_is_negative);
     }
 }
 
@@ -809,7 +787,7 @@
         obj.procedure = <span class="prelude-val">Some</span>(procedure_id);
         BrilligContext {
             obj,
-            registers: ScratchSpace::new(options.layout),
+            registers: Rc::new(RefCell::new(ScratchSpace::new(options.layout))),
             context_label: Label::entrypoint(),
             current_section: <span class="number">0</span>,
             next_section: <span class="number">1</span>,
@@ -818,7 +796,6 @@
             count_arrays_copied: options.enable_array_copy_counter,
             can_call_procedures: <span class="bool-val">false</span>,
             globals_memory_size: <span class="prelude-val">None</span>,
-            layout: options.layout,
         }
     }
 }
@@ -831,7 +808,7 @@
     ) -&gt; BrilligContext&lt;F, GlobalSpace&gt; {
         BrilligContext {
             obj: BrilligArtifact::default(),
-            registers: GlobalSpace::new(options.layout),
+            registers: Rc::new(RefCell::new(GlobalSpace::new(options.layout))),
             context_label: Label::globals_init(entry_point),
             current_section: <span class="number">0</span>,
             next_section: <span class="number">1</span>,
@@ -840,13 +817,12 @@
             count_arrays_copied: options.enable_array_copy_counter,
             can_call_procedures: <span class="bool-val">false</span>,
             globals_memory_size: <span class="prelude-val">None</span>,
-            layout: options.layout,
         }
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>global_space_size(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
         <span class="comment">// `GlobalSpace::start` is inclusive so we must add one to get the accurate total global memory size
-        </span>(<span class="self">self</span>.registers.max_memory_address() + <span class="number">1</span>) - <span class="self">self</span>.registers.start()
+        </span>(<span class="self">self</span>.registers().max_memory_address() + <span class="number">1</span>) - <span class="self">self</span>.registers().start()
     }
 }
 

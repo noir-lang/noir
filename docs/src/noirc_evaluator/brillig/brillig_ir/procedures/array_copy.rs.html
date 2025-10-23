@@ -182,22 +182,13 @@
 <a href="#181" id="181">181</a>
 <a href="#182" id="182">182</a>
 <a href="#183" id="183">183</a>
-<a href="#184" id="184">184</a>
-<a href="#185" id="185">185</a>
-<a href="#186" id="186">186</a>
-<a href="#187" id="187">187</a>
-<a href="#188" id="188">188</a>
-<a href="#189" id="189">189</a>
-<a href="#190" id="190">190</a>
-<a href="#191" id="191">191</a>
-<a href="#192" id="192">192</a>
-<a href="#193" id="193">193</a>
-<a href="#194" id="194">194</a>
-<a href="#195" id="195">195</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::vec;
+<a href="#184" id="184">184</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::vec;
 
 <span class="kw">use </span>acvm::{
     AcirField,
-    acir::brillig::{BitSize, HeapValueType, IntegerBitSize, MemoryAddress, ValueOrArray},
+    acir::brillig::{
+        BitSize, HeapArray, HeapValueType, IntegerBitSize, MemoryAddress, ValueOrArray,
+    },
 };
 
 <span class="kw">use </span><span class="kw">super</span>::ProcedureId;
@@ -207,7 +198,7 @@
         BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, BrilligBinaryOp, BrilligContext, ReservedRegisters,
         brillig_variable::{BrilligArray, SingleAddrVariable},
         debug_show::DebugToString,
-        registers::{RegisterAllocator, ScratchSpace},
+        registers::{Allocated, RegisterAllocator, ScratchSpace},
     },
 };
 
@@ -236,21 +227,13 @@
 <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>compile_array_copy_procedure&lt;F: AcirField + DebugToString&gt;(
     brillig_context: <span class="kw-2">&amp;mut </span>BrilligContext&lt;F, ScratchSpace&gt;,
 ) {
-    <span class="kw">let </span>scratch_start = brillig_context.registers.start();
-    <span class="kw">let </span>source_array_pointer_arg = MemoryAddress::direct(scratch_start);
-    <span class="kw">let </span>source_array_memory_size_arg = MemoryAddress::direct(scratch_start + <span class="number">1</span>);
-    <span class="kw">let </span>new_array_pointer_return = MemoryAddress::direct(scratch_start + <span class="number">2</span>);
+    <span class="kw">let </span>[source_array_pointer_arg, source_array_memory_size_arg, new_array_pointer_return] =
+        brillig_context.allocate_scratch_registers();
 
-    brillig_context.set_allocated_registers(<span class="macro">vec!</span>[
-        source_array_pointer_arg,
-        source_array_memory_size_arg,
-        new_array_pointer_return,
-    ]);
-
-    <span class="kw">let </span>rc = SingleAddrVariable::new_usize(brillig_context.allocate_register());
+    <span class="kw">let </span>rc = brillig_context.allocate_single_addr_usize();
     brillig_context.load_instruction(rc.address, source_array_pointer_arg);
 
-    <span class="kw">let </span>is_rc_one = SingleAddrVariable::new(brillig_context.allocate_register(), <span class="number">1</span>);
+    <span class="kw">let </span>is_rc_one = brillig_context.allocate_single_addr_bool();
     brillig_context.codegen_usize_op(rc.address, is_rc_one.address, BrilligBinaryOp::Equals, <span class="number">1</span>);
 
     brillig_context.codegen_branch(is_rc_one.address, |ctx, cond| {
@@ -292,21 +275,18 @@
 </span><span class="kw">fn </span>literal_string_to_value&lt;F: AcirField + DebugToString, Registers: RegisterAllocator&gt;(
     target: <span class="kw-2">&amp;</span>str,
     brillig_context: <span class="kw-2">&amp;mut </span>BrilligContext&lt;F, Registers&gt;,
-) -&gt; ValueOrArray {
-    <span class="kw">let </span>brillig_array =
-        BrilligArray { pointer: brillig_context.allocate_register(), size: target.len() };
+) -&gt; Allocated&lt;ValueOrArray, Registers&gt; {
+    <span class="kw">let </span>brillig_array = brillig_context.allocate_brillig_array(target.len());
 
-    brillig_context.codegen_initialize_array(brillig_array);
+    brillig_context.codegen_initialize_array(<span class="kw-2">*</span>brillig_array);
 
-    <span class="kw">let </span>items_pointer = brillig_context.codegen_make_array_items_pointer(brillig_array);
+    <span class="kw">let </span>items_pointer = brillig_context.codegen_make_array_items_pointer(<span class="kw-2">*</span>brillig_array);
 
-    initialize_constant_string(brillig_context, target, items_pointer);
-    brillig_context.deallocate_register(items_pointer);
+    initialize_constant_string(brillig_context, target, <span class="kw-2">*</span>items_pointer);
 
-    ValueOrArray::HeapArray(acvm::acir::brillig::HeapArray {
-        pointer: brillig_context.codegen_make_array_items_pointer(brillig_array),
-        size: brillig_array.size,
-    })
+    brillig_array
+        .and_then(|array| brillig_context.codegen_make_array_items_pointer(array))
+        .map(|pointer| ValueOrArray::HeapArray(HeapArray { pointer, size: target.len() }))
 }
 
 <span class="comment">// This function was adapted from `initialize_constant_array_comptime`
@@ -317,25 +297,23 @@
 ) {
     <span class="comment">// Allocate a register for the iterator
     </span><span class="kw">let </span>write_pointer_register = brillig_context.allocate_register();
-    brillig_context.mov_instruction(write_pointer_register, pointer);
+    brillig_context.mov_instruction(<span class="kw-2">*</span>write_pointer_register, pointer);
 
     <span class="kw">for </span>(element_idx, byte) <span class="kw">in </span>data.bytes().enumerate() {
         <span class="kw">let </span>byte_field = AcirField::from_le_bytes_reduce(<span class="kw-2">&amp;</span>[byte]);
         <span class="comment">// Store the item in memory
-        </span>brillig_context.indirect_const_instruction(write_pointer_register, <span class="number">32</span>, byte_field);
+        </span>brillig_context.indirect_const_instruction(<span class="kw-2">*</span>write_pointer_register, <span class="number">32</span>, byte_field);
 
         <span class="kw">if </span>element_idx != data.len() - <span class="number">1 </span>{
             <span class="comment">// Increment the write_pointer_register
             </span>brillig_context.memory_op_instruction(
-                write_pointer_register,
+                <span class="kw-2">*</span>write_pointer_register,
                 ReservedRegisters::usize_one(),
-                write_pointer_register,
+                <span class="kw-2">*</span>write_pointer_register,
                 BrilligBinaryOp::Add,
             );
         }
     }
-
-    brillig_context.deallocate_register(write_pointer_register);
 }
 
 <span class="kw">impl</span>&lt;F: AcirField + DebugToString, Registers: RegisterAllocator&gt; BrilligContext&lt;F, Registers&gt; {
@@ -356,10 +334,10 @@
 
         <span class="kw">let </span>inputs = [
             newline, <span class="comment">// true
-            </span>message,
+            </span><span class="kw-2">*</span>message,
             item_count,     <span class="comment">// 1
             </span>value_to_print, <span class="comment">// array clone counter
-            </span>type_string_metadata,
+            </span><span class="kw-2">*</span>type_string_metadata,
             is_fmt_string, <span class="comment">// true
         </span>];
 

@@ -399,27 +399,7 @@
 <a href="#398" id="398">398</a>
 <a href="#399" id="399">399</a>
 <a href="#400" id="400">400</a>
-<a href="#401" id="401">401</a>
-<a href="#402" id="402">402</a>
-<a href="#403" id="403">403</a>
-<a href="#404" id="404">404</a>
-<a href="#405" id="405">405</a>
-<a href="#406" id="406">406</a>
-<a href="#407" id="407">407</a>
-<a href="#408" id="408">408</a>
-<a href="#409" id="409">409</a>
-<a href="#410" id="410">410</a>
-<a href="#411" id="411">411</a>
-<a href="#412" id="412">412</a>
-<a href="#413" id="413">413</a>
-<a href="#414" id="414">414</a>
-<a href="#415" id="415">415</a>
-<a href="#416" id="416">416</a>
-<a href="#417" id="417">417</a>
-<a href="#418" id="418">418</a>
-<a href="#419" id="419">419</a>
-<a href="#420" id="420">420</a>
-<a href="#421" id="421">421</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::BlackBoxFunc;
+<a href="#401" id="401">401</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::BlackBoxFunc;
 <span class="kw">use </span>acvm::acir::brillig::ValueOrArray;
 <span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>iter_extended::vecmap;
@@ -458,6 +438,7 @@
             <span class="kw">let </span>value_type = dfg.type_of_value(<span class="kw-2">*</span>value_id);
             type_to_heap_value_type(<span class="kw-2">&amp;</span>value_type)
         });
+
         <span class="kw">let </span>output_variables =
             vecmap(result_ids, |value_id| <span class="self">self</span>.allocate_external_call_result(<span class="kw-2">*</span>value_id, dfg));
         <span class="kw">let </span>output_values = vecmap(<span class="kw-2">&amp;</span>output_variables, |variable| {
@@ -467,40 +448,29 @@
             <span class="kw">let </span>value_type = dfg.type_of_value(<span class="kw-2">*</span>value_id);
             type_to_heap_value_type(<span class="kw-2">&amp;</span>value_type)
         });
+
         <span class="self">self</span>.brillig_context.foreign_call_instruction(
             func_name.to_owned(),
-            <span class="kw-2">&amp;</span>input_values,
+            <span class="kw-2">&amp;</span>vecmap(input_values, |v| <span class="kw-2">*</span>v),
             <span class="kw-2">&amp;</span>input_value_types,
-            <span class="kw-2">&amp;</span>output_values,
+            <span class="kw-2">&amp;</span>vecmap(<span class="kw-2">&amp;</span>output_values, |v| <span class="kw-2">**</span>v),
             <span class="kw-2">&amp;</span>output_value_types,
         );
 
-        <span class="comment">// Deallocate the temporary heap arrays and vectors of the inputs
-        </span><span class="kw">for </span>input_value <span class="kw">in </span>input_values {
-            <span class="kw">match </span>input_value {
-                ValueOrArray::HeapArray(array) =&gt; {
-                    <span class="self">self</span>.brillig_context.deallocate_heap_array(array);
-                }
-                ValueOrArray::HeapVector(vector) =&gt; {
-                    <span class="self">self</span>.brillig_context.deallocate_heap_vector(vector);
-                }
-                <span class="kw">_ </span>=&gt; {}
-            }
-        }
-
-        <span class="comment">// Deallocate the temporary heap arrays and vectors of the outputs
+        <span class="comment">// Massage the return value.
         </span><span class="kw">for </span>(i, (output_register, output_variable)) <span class="kw">in
             </span>output_values.iter().zip(output_variables).enumerate()
         {
-            <span class="kw">match </span>output_register {
+            <span class="kw">match </span><span class="kw-2">**</span>output_register {
                 <span class="comment">// Returned vectors need to emit some bytecode to format the result as a BrilligVector
                 </span>ValueOrArray::HeapVector(heap_vector) =&gt; {
                     <span class="self">self</span>.brillig_context.initialize_externally_returned_vector(
                         output_variable.extract_vector(),
-                        <span class="kw-2">*</span>heap_vector,
+                        heap_vector,
                     );
-                    <span class="comment">// Update the dynamic slice length maintained in SSA
-                    </span><span class="kw">if let </span>ValueOrArray::MemoryAddress(len_index) = output_values[i - <span class="number">1</span>] {
+                    <span class="comment">// Update the dynamic slice length maintained in SSA,
+                    // which is the parameter preceding the vector.
+                    </span><span class="kw">if let </span>ValueOrArray::MemoryAddress(len_index) = <span class="kw-2">*</span>output_values[i - <span class="number">1</span>] {
                         <span class="kw">let </span>element_size = dfg[result_ids[i]].get_type().element_size();
                         <span class="self">self</span>.brillig_context.mov_instruction(len_index, heap_vector.size);
                         <span class="self">self</span>.brillig_context.codegen_usize_op_in_place(
@@ -513,12 +483,8 @@
                             <span class="string">"ICE: a vector must be preceded by a register containing its length"
                         </span>);
                     }
-                    <span class="self">self</span>.brillig_context.deallocate_heap_vector(<span class="kw-2">*</span>heap_vector);
                 }
-                ValueOrArray::HeapArray(array) =&gt; {
-                    <span class="self">self</span>.brillig_context.deallocate_heap_array(<span class="kw-2">*</span>array);
-                }
-                ValueOrArray::MemoryAddress(<span class="kw">_</span>) =&gt; {}
+                ValueOrArray::HeapArray(<span class="kw">_</span>) | ValueOrArray::MemoryAddress(<span class="kw">_</span>) =&gt; {}
             }
         }
     }
@@ -667,7 +633,7 @@
 
         <span class="self">self</span>.brillig_context.codegen_initialize_vector(
             destination_vector,
-            source_size_register,
+            <span class="kw-2">*</span>source_size_register,
             <span class="prelude-val">None</span>,
         );
 
@@ -678,14 +644,10 @@
             <span class="self">self</span>.brillig_context.codegen_make_array_items_pointer(source_array);
 
         <span class="self">self</span>.brillig_context.codegen_mem_copy(
-            array_items_pointer,
-            vector_items_pointer,
-            source_size_register,
+            <span class="kw-2">*</span>array_items_pointer,
+            <span class="kw-2">*</span>vector_items_pointer,
+            <span class="kw-2">*</span>source_size_register,
         );
-
-        <span class="self">self</span>.brillig_context.deallocate_single_addr(source_size_register);
-        <span class="self">self</span>.brillig_context.deallocate_register(vector_items_pointer);
-        <span class="self">self</span>.brillig_context.deallocate_register(array_items_pointer);
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>call_gen(
@@ -747,12 +709,10 @@
                         <span class="self">self</span>.brillig_context.codegen_to_radix(
                             source,
                             target_array,
-                            two,
+                            <span class="kw-2">*</span>two,
                             <span class="macro">matches!</span>(endianness, Endian::Little),
                             <span class="bool-val">true</span>,
                         );
-
-                        <span class="self">self</span>.brillig_context.deallocate_single_addr(two);
                     }
 
                     Intrinsic::ToRadix(endianness) =&gt; {

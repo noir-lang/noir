@@ -37,9 +37,7 @@
 <a href="#36" id="36">36</a>
 <a href="#37" id="37">37</a>
 <a href="#38" id="38">38</a>
-<a href="#39" id="39">39</a>
-<a href="#40" id="40">40</a>
-<a href="#41" id="41">41</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, acir::brillig::MemoryAddress};
+<a href="#39" id="39">39</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, acir::brillig::MemoryAddress};
 
 <span class="kw">use super</span>::{
     BrilligContext, ReservedRegisters, debug_show::DebugToString, instructions::BrilligBinaryOp,
@@ -70,8 +68,6 @@
         } <span class="kw">else </span>{
             <span class="kw">let </span>const_register = <span class="self">self</span>.make_usize_constant_instruction(F::from(constant));
             <span class="self">self</span>.memory_op_instruction(operand, const_register.address, destination, op);
-            <span class="comment">// Mark as no longer used for this purpose, frees for reuse
-            </span><span class="self">self</span>.deallocate_single_addr(const_register);
         }
     }
 

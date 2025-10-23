@@ -106,7 +106,10 @@
 <a href="#105" id="105">105</a>
 <a href="#106" id="106">106</a>
 <a href="#107" id="107">107</a>
-<a href="#108" id="108">108</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
+<a href="#108" id="108">108</a>
+<a href="#109" id="109">109</a>
+<a href="#110" id="110">110</a>
+<a href="#111" id="111">111</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
     FieldElement,
     acir::{AcirField, brillig::BitSize},
     brillig_vm::brillig::{HeapValueType, MemoryAddress},
@@ -180,7 +183,10 @@
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>extract_register(<span class="self">self</span>) -&gt; MemoryAddress {
+    <span class="doccomment">/// Extract the memory address that can be deallocated to make the memory available for reuse.
+    ///
+    /// Note that this is a single address even for vectors, because this is a `BrilligVector`, not a `HeapVector`.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>extract_register(<span class="self">self</span>) -&gt; MemoryAddress {
         <span class="kw">match </span><span class="self">self </span>{
             BrilligVariable::SingleAddr(single_addr) =&gt; single_addr.address,
             BrilligVariable::BrilligArray(array) =&gt; array.pointer,

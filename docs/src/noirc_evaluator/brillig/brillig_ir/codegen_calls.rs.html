@@ -75,14 +75,13 @@
 <a href="#74" id="74">74</a>
 <a href="#75" id="75">75</a>
 <a href="#76" id="76">76</a>
-<a href="#77" id="77">77</a>
-<a href="#78" id="78">78</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, acir::brillig::MemoryAddress};
+<a href="#77" id="77">77</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, acir::brillig::MemoryAddress};
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::function::FunctionId;
 
 <span class="kw">use super</span>::{
     BrilligBinaryOp, BrilligContext, ReservedRegisters,
-    brillig_variable::{BrilligVariable, SingleAddrVariable},
+    brillig_variable::BrilligVariable,
     debug_show::DebugToString,
     registers::{RegisterAllocator, Stack},
 };
@@ -94,11 +93,11 @@
         arguments: <span class="kw-2">&amp;</span>[BrilligVariable],
         returns: <span class="kw-2">&amp;</span>[BrilligVariable],
     ) {
-        <span class="kw">let </span>stack_size_register = SingleAddrVariable::new_usize(<span class="self">self</span>.allocate_register());
-        <span class="kw">let </span>previous_stack_pointer = <span class="self">self</span>.registers.empty_registers_start();
+        <span class="kw">let </span>stack_size_register = <span class="self">self</span>.allocate_single_addr_usize();
+        <span class="kw">let </span>previous_stack_pointer = <span class="self">self</span>.registers().empty_registers_start();
         <span class="kw">let </span>stack_size = previous_stack_pointer.unwrap_relative();
         <span class="comment">// Write the stack size
-        </span><span class="self">self</span>.const_instruction(stack_size_register, stack_size.into());
+        </span><span class="self">self</span>.const_instruction(<span class="kw-2">*</span>stack_size_register, stack_size.into());
         <span class="comment">// Pass the previous stack pointer
         </span><span class="self">self</span>.mov_instruction(previous_stack_pointer, ReservedRegisters::stack_pointer());
         <span class="comment">// Pass the arguments
@@ -132,7 +131,6 @@
             );
             current_return_location += <span class="number">1</span>;
         }
-        <span class="self">self</span>.deallocate_single_addr(stack_size_register);
     }
 
     <span class="doccomment">/// Codegens a return from the current function.
@@ -143,13 +141,13 @@
         <span class="kw">for </span>(destination_index, return_register) <span class="kw">in </span>return_registers.iter().enumerate() {
             <span class="comment">// In case we have fewer return registers than indices to write to, ensure we've allocated this register
             </span><span class="kw">let </span>destination_register = MemoryAddress::relative(Stack::start() + destination_index);
-            <span class="self">self</span>.registers.ensure_register_is_allocated(destination_register);
+            <span class="self">self</span>.registers_mut().ensure_register_is_allocated(destination_register);
             sources.push(<span class="kw-2">*</span>return_register);
             destinations.push(destination_register);
         }
-        destinations
-            .iter()
-            .for_each(|destination| <span class="self">self</span>.registers.ensure_register_is_allocated(<span class="kw-2">*</span>destination));
+        destinations.iter().for_each(|destination| {
+            <span class="self">self</span>.registers_mut().ensure_register_is_allocated(<span class="kw-2">*</span>destination);
+        });
         <span class="self">self</span>.codegen_mov_registers_to_registers(sources, destinations);
         <span class="self">self</span>.return_instruction();
     }

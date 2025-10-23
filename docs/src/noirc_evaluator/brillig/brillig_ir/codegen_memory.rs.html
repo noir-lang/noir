@@ -503,29 +503,12 @@
 <a href="#502" id="502">502</a>
 <a href="#503" id="503">503</a>
 <a href="#504" id="504">504</a>
-<a href="#505" id="505">505</a>
-<a href="#506" id="506">506</a>
-<a href="#507" id="507">507</a>
-<a href="#508" id="508">508</a>
-<a href="#509" id="509">509</a>
-<a href="#510" id="510">510</a>
-<a href="#511" id="511">511</a>
-<a href="#512" id="512">512</a>
-<a href="#513" id="513">513</a>
-<a href="#514" id="514">514</a>
-<a href="#515" id="515">515</a>
-<a href="#516" id="516">516</a>
-<a href="#517" id="517">517</a>
-<a href="#518" id="518">518</a>
-<a href="#519" id="519">519</a>
-<a href="#520" id="520">520</a>
-<a href="#521" id="521">521</a>
-<a href="#522" id="522">522</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
+<a href="#505" id="505">505</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
     AcirField,
     acir::brillig::{HeapArray, HeapVector, MemoryAddress, ValueOrArray},
 };
 
-<span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::BrilligBinaryOp;
+<span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::{BrilligBinaryOp, registers::Allocated};
 
 <span class="kw">use super</span>::{
     BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, BrilligContext, ReservedRegisters,
@@ -570,10 +553,8 @@
     ) {
         <span class="macro">assert!</span>(index.bit_size == BRILLIG_MEMORY_ADDRESSING_BIT_SIZE);
         <span class="kw">let </span>final_index = <span class="self">self</span>.allocate_register();
-        <span class="self">self</span>.memory_op_instruction(base_ptr, index.address, final_index, BrilligBinaryOp::Add);
-        <span class="self">self</span>.load_instruction(result, final_index);
-        <span class="comment">// Free up temporary register
-        </span><span class="self">self</span>.deallocate_register(final_index);
+        <span class="self">self</span>.memory_op_instruction(base_ptr, index.address, <span class="kw-2">*</span>final_index, BrilligBinaryOp::Add);
+        <span class="self">self</span>.load_instruction(result, <span class="kw-2">*</span>final_index);
     }
 
     <span class="doccomment">/// Stores value at base_ptr + index
@@ -588,13 +569,11 @@
         <span class="self">self</span>.binary_instruction(
             SingleAddrVariable::new_usize(base_ptr),
             index,
-            SingleAddrVariable::new_usize(final_index),
+            SingleAddrVariable::new_usize(<span class="kw-2">*</span>final_index),
             BrilligBinaryOp::Add,
         );
 
-        <span class="self">self</span>.store_instruction(final_index, value);
-        <span class="comment">// Free up temporary register
-        </span><span class="self">self</span>.deallocate_register(final_index);
+        <span class="self">self</span>.store_instruction(<span class="kw-2">*</span>final_index, value);
     }
 
     <span class="doccomment">/// Copies the values of memory pointed by source with length stored in `num_elements_register`
@@ -619,7 +598,7 @@
             <span class="self">self</span>.memory_op_instruction(
                 source_pointer,
                 num_elements_variable.address,
-                end_source_pointer,
+                <span class="kw-2">*</span>end_source_pointer,
                 BrilligBinaryOp::Add,
             );
 
@@ -628,46 +607,40 @@
                     <span class="kw">let </span>source_iterator = brillig_context.allocate_register();
                     <span class="kw">let </span>target_iterator = brillig_context.allocate_register();
 
-                    brillig_context.mov_instruction(source_iterator, source_pointer);
-                    brillig_context.mov_instruction(target_iterator, destination_pointer);
+                    brillig_context.mov_instruction(<span class="kw-2">*</span>source_iterator, source_pointer);
+                    brillig_context.mov_instruction(<span class="kw-2">*</span>target_iterator, destination_pointer);
 
                     (source_iterator, target_iterator)
                 },
-                |brillig_context, <span class="kw-2">&amp;</span>(source_iterator, target_iterator)| {
+                |brillig_context, (source_iterator, target_iterator)| {
                     brillig_context.codegen_usize_op_in_place(
-                        source_iterator,
+                        <span class="kw-2">**</span>source_iterator,
                         BrilligBinaryOp::Add,
                         <span class="number">1</span>,
                     );
                     brillig_context.codegen_usize_op_in_place(
-                        target_iterator,
+                        <span class="kw-2">**</span>target_iterator,
                         BrilligBinaryOp::Add,
                         <span class="number">1</span>,
                     );
                 },
-                |brillig_context, <span class="kw-2">&amp;</span>(source_iterator, <span class="kw">_</span>)| {
+                |brillig_context, (source_iterator, <span class="kw">_</span>)| {
                     <span class="comment">// We have finished when the source/target pointer is less than the source/target start
-                    </span><span class="kw">let </span>finish_condition =
-                        SingleAddrVariable::new(brillig_context.allocate_register(), <span class="number">1</span>);
+                    </span><span class="kw">let </span>finish_condition = brillig_context.allocate_single_addr_bool();
                     brillig_context.memory_op_instruction(
-                        source_iterator,
-                        end_source_pointer,
+                        <span class="kw-2">**</span>source_iterator,
+                        <span class="kw-2">*</span>end_source_pointer,
                         finish_condition.address,
                         BrilligBinaryOp::Equals,
                     );
                     finish_condition
                 },
-                |brillig_context, <span class="kw-2">&amp;</span>(source_iterator, target_iterator)| {
-                    brillig_context.load_instruction(value_register, source_iterator);
-                    brillig_context.store_instruction(target_iterator, value_register);
-                },
                 |brillig_context, (source_iterator, target_iterator)| {
-                    brillig_context.deallocate_register(source_iterator);
-                    brillig_context.deallocate_register(target_iterator);
+                    brillig_context.load_instruction(<span class="kw-2">*</span>value_register, <span class="kw-2">**</span>source_iterator);
+                    brillig_context.store_instruction(<span class="kw-2">**</span>target_iterator, <span class="kw-2">*</span>value_register);
                 },
+                |<span class="kw">_</span>, <span class="kw">_</span>| {},
             );
-            <span class="self">self</span>.deallocate_register(value_register);
-            <span class="self">self</span>.deallocate_register(end_source_pointer);
         }
     }
 
@@ -684,53 +657,55 @@
                 </span><span class="kw">let </span>num_items_minus_one = brillig_context.allocate_register();
                 brillig_context.codegen_usize_op(
                     num_elements_variable.address,
-                    num_items_minus_one,
+                    <span class="kw-2">*</span>num_items_minus_one,
                     BrilligBinaryOp::Sub,
                     <span class="number">1</span>,
                 );
                 <span class="kw">let </span>target_pointer = brillig_context.allocate_register();
                 brillig_context.memory_op_instruction(
                     target_start,
-                    num_items_minus_one,
-                    target_pointer,
+                    <span class="kw-2">*</span>num_items_minus_one,
+                    <span class="kw-2">*</span>target_pointer,
                     BrilligBinaryOp::Add,
                 );
                 <span class="kw">let </span>source_pointer = brillig_context.allocate_register();
                 brillig_context.memory_op_instruction(
                     source_start,
-                    num_items_minus_one,
-                    source_pointer,
+                    <span class="kw-2">*</span>num_items_minus_one,
+                    <span class="kw-2">*</span>source_pointer,
                     BrilligBinaryOp::Add,
                 );
-                brillig_context.deallocate_register(num_items_minus_one);
                 (source_pointer, target_pointer)
             },
-            |brillig_context, <span class="kw-2">&amp;</span>(source_pointer, target_pointer)| {
-                brillig_context.codegen_usize_op_in_place(source_pointer, BrilligBinaryOp::Sub, <span class="number">1</span>);
-                brillig_context.codegen_usize_op_in_place(target_pointer, BrilligBinaryOp::Sub, <span class="number">1</span>);
+            |brillig_context, (source_pointer, target_pointer)| {
+                brillig_context.codegen_usize_op_in_place(
+                    <span class="kw-2">**</span>source_pointer,
+                    BrilligBinaryOp::Sub,
+                    <span class="number">1</span>,
+                );
+                brillig_context.codegen_usize_op_in_place(
+                    <span class="kw-2">**</span>target_pointer,
+                    BrilligBinaryOp::Sub,
+                    <span class="number">1</span>,
+                );
             },
-            |brillig_context, <span class="kw-2">&amp;</span>(source_pointer, <span class="kw">_</span>)| {
+            |brillig_context, (source_pointer, <span class="kw">_</span>)| {
                 <span class="comment">// We have finished when the source/target pointer is less than the source/target start
-                </span><span class="kw">let </span>finish_condition =
-                    SingleAddrVariable::new(brillig_context.allocate_register(), <span class="number">1</span>);
+                </span><span class="kw">let </span>finish_condition = brillig_context.allocate_single_addr_bool();
                 brillig_context.memory_op_instruction(
-                    source_pointer,
+                    <span class="kw-2">**</span>source_pointer,
                     source_start,
                     finish_condition.address,
                     BrilligBinaryOp::LessThan,
                 );
                 finish_condition
             },
-            |brillig_context, <span class="kw-2">&amp;</span>(source_pointer, target_pointer)| {
-                <span class="kw">let </span>value_register = brillig_context.allocate_register();
-                brillig_context.load_instruction(value_register, source_pointer);
-                brillig_context.store_instruction(target_pointer, value_register);
-                brillig_context.deallocate_register(value_register);
-            },
             |brillig_context, (source_pointer, target_pointer)| {
-                brillig_context.deallocate_register(source_pointer);
-                brillig_context.deallocate_register(target_pointer);
+                <span class="kw">let </span>value_register = brillig_context.allocate_register();
+                brillig_context.load_instruction(<span class="kw-2">*</span>value_register, <span class="kw-2">**</span>source_pointer);
+                brillig_context.store_instruction(<span class="kw-2">**</span>target_pointer, <span class="kw-2">*</span>value_register);
             },
+            |<span class="kw">_</span>, <span class="kw">_</span>| {},
         );
     }
 
@@ -746,45 +721,43 @@
         }
 
         <span class="kw">let </span>iteration_count = <span class="self">self</span>.allocate_register();
-        <span class="self">self</span>.codegen_usize_op(size, iteration_count, BrilligBinaryOp::UnsignedDiv, <span class="number">2</span>);
+        <span class="self">self</span>.codegen_usize_op(size, <span class="kw-2">*</span>iteration_count, BrilligBinaryOp::UnsignedDiv, <span class="number">2</span>);
 
         <span class="kw">let </span>start_value_register = <span class="self">self</span>.allocate_register();
         <span class="kw">let </span>end_value_register = <span class="self">self</span>.allocate_register();
         <span class="kw">let </span>index_at_end_of_array = <span class="self">self</span>.allocate_register();
 
-        <span class="self">self</span>.mov_instruction(index_at_end_of_array, size);
+        <span class="self">self</span>.mov_instruction(<span class="kw-2">*</span>index_at_end_of_array, size);
 
-        <span class="self">self</span>.codegen_loop(iteration_count, |ctx, iterator_register| {
+        <span class="self">self</span>.codegen_loop(<span class="kw-2">*</span>iteration_count, |ctx, iterator_register| {
             <span class="comment">// The index at the end of array is size - 1 - iterator
-            </span>ctx.codegen_usize_op_in_place(index_at_end_of_array, BrilligBinaryOp::Sub, <span class="number">1</span>);
-            <span class="kw">let </span>index_at_end_of_array_var = SingleAddrVariable::new_usize(index_at_end_of_array);
+            </span>ctx.codegen_usize_op_in_place(<span class="kw-2">*</span>index_at_end_of_array, BrilligBinaryOp::Sub, <span class="number">1</span>);
+            <span class="kw">let </span>index_at_end_of_array_var = SingleAddrVariable::new_usize(<span class="kw-2">*</span>index_at_end_of_array);
 
             <span class="comment">// Load both values
-            </span>ctx.codegen_load_with_offset(items_pointer, iterator_register, start_value_register);
+            </span>ctx.codegen_load_with_offset(items_pointer, iterator_register, <span class="kw-2">*</span>start_value_register);
             ctx.codegen_load_with_offset(
                 items_pointer,
                 index_at_end_of_array_var,
-                end_value_register,
+                <span class="kw-2">*</span>end_value_register,
             );
 
             <span class="comment">// Write both values
-            </span>ctx.codegen_store_with_offset(items_pointer, iterator_register, end_value_register);
+            </span>ctx.codegen_store_with_offset(items_pointer, iterator_register, <span class="kw-2">*</span>end_value_register);
             ctx.codegen_store_with_offset(
                 items_pointer,
                 index_at_end_of_array_var,
-                start_value_register,
+                <span class="kw-2">*</span>start_value_register,
             );
         });
-
-        <span class="self">self</span>.deallocate_register(iteration_count);
-        <span class="self">self</span>.deallocate_register(start_value_register);
-        <span class="self">self</span>.deallocate_register(end_value_register);
-        <span class="self">self</span>.deallocate_register(index_at_end_of_array);
     }
 
     <span class="doccomment">/// Converts a BrilligArray (pointer to `[RC, ...items]`) to a HeapArray (pointer to `[items]`)
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_brillig_array_to_heap_array(<span class="kw-2">&amp;mut </span><span class="self">self</span>, array: BrilligArray) -&gt; HeapArray {
-        <span class="kw">let </span>heap_array = HeapArray { pointer: <span class="self">self</span>.allocate_register(), size: array.size };
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_brillig_array_to_heap_array(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        array: BrilligArray,
+    ) -&gt; Allocated&lt;HeapArray, Registers&gt; {
+        <span class="kw">let </span>heap_array = <span class="self">self</span>.allocate_heap_array(array.size);
         <span class="self">self</span>.codegen_usize_op(array.pointer, heap_array.pointer, BrilligBinaryOp::Add, <span class="number">1</span>);
         heap_array
     }
@@ -792,31 +765,32 @@
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_brillig_vector_to_heap_vector(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         vector: BrilligVector,
-    ) -&gt; HeapVector {
-        <span class="kw">let </span>heap_vector =
-            HeapVector { pointer: <span class="self">self</span>.allocate_register(), size: <span class="self">self</span>.allocate_register() };
+    ) -&gt; Allocated&lt;HeapVector, Registers&gt; {
+        <span class="kw">let </span>heap_vector = <span class="self">self</span>.allocate_heap_vector();
         <span class="kw">let </span>current_pointer = <span class="self">self</span>.allocate_register();
 
         <span class="comment">// Prepare a pointer to the size
-        </span><span class="self">self</span>.codegen_usize_op(vector.pointer, current_pointer, BrilligBinaryOp::Add, <span class="number">1</span>);
-        <span class="self">self</span>.load_instruction(heap_vector.size, current_pointer);
+        </span><span class="self">self</span>.codegen_usize_op(vector.pointer, <span class="kw-2">*</span>current_pointer, BrilligBinaryOp::Add, <span class="number">1</span>);
+        <span class="self">self</span>.load_instruction(heap_vector.size, <span class="kw-2">*</span>current_pointer);
         <span class="comment">// Now prepare the pointer to the items
-        </span><span class="self">self</span>.codegen_usize_op(current_pointer, heap_vector.pointer, BrilligBinaryOp::Add, <span class="number">2</span>);
+        </span><span class="self">self</span>.codegen_usize_op(<span class="kw-2">*</span>current_pointer, heap_vector.pointer, BrilligBinaryOp::Add, <span class="number">2</span>);
 
-        <span class="self">self</span>.deallocate_register(current_pointer);
         heap_vector
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>variable_to_value_or_array(<span class="kw-2">&amp;mut </span><span class="self">self</span>, variable: BrilligVariable) -&gt; ValueOrArray {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>variable_to_value_or_array(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        variable: BrilligVariable,
+    ) -&gt; Allocated&lt;ValueOrArray, Registers&gt; {
         <span class="kw">match </span>variable {
             BrilligVariable::SingleAddr(SingleAddrVariable { address, .. }) =&gt; {
-                ValueOrArray::MemoryAddress(address)
+                Allocated::pure(ValueOrArray::MemoryAddress(address))
             }
             BrilligVariable::BrilligArray(array) =&gt; {
-                ValueOrArray::HeapArray(<span class="self">self</span>.codegen_brillig_array_to_heap_array(array))
+                <span class="self">self</span>.codegen_brillig_array_to_heap_array(array).map(ValueOrArray::HeapArray)
             }
             BrilligVariable::BrilligVector(vector) =&gt; {
-                ValueOrArray::HeapVector(<span class="self">self</span>.codegen_brillig_vector_to_heap_vector(vector))
+                <span class="self">self</span>.codegen_brillig_vector_to_heap_vector(vector).map(ValueOrArray::HeapVector)
             }
         }
     }
@@ -825,8 +799,8 @@
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_make_vector_length(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         vector: BrilligVector,
-    ) -&gt; SingleAddrVariable {
-        <span class="kw">let </span>result = SingleAddrVariable::new_usize(<span class="self">self</span>.allocate_register());
+    ) -&gt; Allocated&lt;SingleAddrVariable, Registers&gt; {
+        <span class="kw">let </span>result = <span class="self">self</span>.allocate_single_addr_usize();
         <span class="self">self</span>.codegen_usize_op(vector.pointer, result.address, BrilligBinaryOp::Add, <span class="number">1</span>);
         <span class="self">self</span>.load_instruction(result.address, result.address);
         result
@@ -839,17 +813,16 @@
         new_length: SingleAddrVariable,
     ) {
         <span class="kw">let </span>write_pointer = <span class="self">self</span>.allocate_register();
-        <span class="self">self</span>.codegen_usize_op(vector.pointer, write_pointer, BrilligBinaryOp::Add, <span class="number">1</span>);
-        <span class="self">self</span>.store_instruction(write_pointer, new_length.address);
-        <span class="self">self</span>.deallocate_register(write_pointer);
+        <span class="self">self</span>.codegen_usize_op(vector.pointer, <span class="kw-2">*</span>write_pointer, BrilligBinaryOp::Add, <span class="number">1</span>);
+        <span class="self">self</span>.store_instruction(<span class="kw-2">*</span>write_pointer, new_length.address);
     }
 
     <span class="doccomment">/// Returns a variable holding the capacity of a given vector
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_make_vector_capacity(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         vector: BrilligVector,
-    ) -&gt; SingleAddrVariable {
-        <span class="kw">let </span>result = SingleAddrVariable::new_usize(<span class="self">self</span>.allocate_register());
+    ) -&gt; Allocated&lt;SingleAddrVariable, Registers&gt; {
+        <span class="kw">let </span>result = <span class="self">self</span>.allocate_register().map(SingleAddrVariable::new_usize);
         <span class="self">self</span>.codegen_usize_op(vector.pointer, result.address, BrilligBinaryOp::Add, <span class="number">2</span>);
         <span class="self">self</span>.load_instruction(result.address, result.address);
         result
@@ -869,9 +842,9 @@
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_make_vector_items_pointer(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         vector: BrilligVector,
-    ) -&gt; MemoryAddress {
+    ) -&gt; Allocated&lt;MemoryAddress, Registers&gt; {
         <span class="kw">let </span>result = <span class="self">self</span>.allocate_register();
-        <span class="self">self</span>.codegen_vector_items_pointer(vector, result);
+        <span class="self">self</span>.codegen_vector_items_pointer(vector, <span class="kw-2">*</span>result);
         result
     }
 
@@ -895,17 +868,15 @@
         <span class="comment">// Vector layout: [ref_count, size, capacity, items...]
         </span><span class="self">self</span>.load_instruction(rc.address, vector.pointer);
         <span class="kw">let </span>read_pointer = <span class="self">self</span>.allocate_register();
-        <span class="self">self</span>.codegen_usize_op(vector.pointer, read_pointer, BrilligBinaryOp::Add, <span class="number">1</span>);
+        <span class="self">self</span>.codegen_usize_op(vector.pointer, <span class="kw-2">*</span>read_pointer, BrilligBinaryOp::Add, <span class="number">1</span>);
         <span class="kw">if let </span><span class="prelude-val">Some</span>((length, item_size)) = semantic_length_and_item_size {
             <span class="self">self</span>.codegen_vector_flattened_size(size.address, length, item_size);
         } <span class="kw">else </span>{
-            <span class="self">self</span>.load_instruction(size.address, read_pointer);
+            <span class="self">self</span>.load_instruction(size.address, <span class="kw-2">*</span>read_pointer);
         }
-        <span class="self">self</span>.codegen_usize_op_in_place(read_pointer, BrilligBinaryOp::Add, <span class="number">1</span>);
-        <span class="self">self</span>.load_instruction(capacity.address, read_pointer);
-        <span class="self">self</span>.codegen_usize_op(read_pointer, items_pointer.address, BrilligBinaryOp::Add, <span class="number">1</span>);
-
-        <span class="self">self</span>.deallocate_register(read_pointer);
+        <span class="self">self</span>.codegen_usize_op_in_place(<span class="kw-2">*</span>read_pointer, BrilligBinaryOp::Add, <span class="number">1</span>);
+        <span class="self">self</span>.load_instruction(capacity.address, <span class="kw-2">*</span>read_pointer);
+        <span class="self">self</span>.codegen_usize_op(<span class="kw-2">*</span>read_pointer, items_pointer.address, BrilligBinaryOp::Add, <span class="number">1</span>);
     }
 
     <span class="doccomment">/// Generate code to calculate the flattened vector size from its semantic length and the item size.
@@ -925,16 +896,16 @@
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_make_array_items_pointer(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         array: BrilligArray,
-    ) -&gt; MemoryAddress {
+    ) -&gt; Allocated&lt;MemoryAddress, Registers&gt; {
         <span class="kw">let </span>result = <span class="self">self</span>.allocate_register();
-        <span class="self">self</span>.codegen_usize_op(array.pointer, result, BrilligBinaryOp::Add, <span class="number">1</span>);
+        <span class="self">self</span>.codegen_usize_op(array.pointer, <span class="kw-2">*</span>result, BrilligBinaryOp::Add, <span class="number">1</span>);
         result
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_make_array_or_vector_items_pointer(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         variable: BrilligVariable,
-    ) -&gt; MemoryAddress {
+    ) -&gt; Allocated&lt;MemoryAddress, Registers&gt; {
         <span class="kw">match </span>variable {
             BrilligVariable::BrilligArray(array) =&gt; <span class="self">self</span>.codegen_make_array_items_pointer(array),
             BrilligVariable::BrilligVector(vector) =&gt; {
@@ -971,12 +942,12 @@
         <span class="comment">// Allocation size = capacity + 3 (rc, size, capacity)
         </span><span class="self">self</span>.codegen_usize_op(
             capacity.unwrap_or(size).address,
-            allocation_size,
+            <span class="kw-2">*</span>allocation_size,
             BrilligBinaryOp::Add,
             <span class="number">3</span>,
         );
-        <span class="self">self</span>.codegen_allocate_mem(vector.pointer, allocation_size);
-        <span class="self">self</span>.deallocate_register(allocation_size);
+        <span class="self">self</span>.codegen_allocate_mem(vector.pointer, <span class="kw-2">*</span>allocation_size);
+        allocation_size.deallocate();
 
         <span class="self">self</span>.codegen_initialize_vector_metadata(vector, size, capacity);
     }
@@ -993,14 +964,12 @@
 
         <span class="comment">// Write size
         </span><span class="kw">let </span>write_pointer = <span class="self">self</span>.allocate_register();
-        <span class="self">self</span>.codegen_usize_op(vector.pointer, write_pointer, BrilligBinaryOp::Add, <span class="number">1</span>);
-        <span class="self">self</span>.store_instruction(write_pointer, size.address);
+        <span class="self">self</span>.codegen_usize_op(vector.pointer, <span class="kw-2">*</span>write_pointer, BrilligBinaryOp::Add, <span class="number">1</span>);
+        <span class="self">self</span>.store_instruction(<span class="kw-2">*</span>write_pointer, size.address);
 
         <span class="comment">// Write capacity
-        </span><span class="self">self</span>.codegen_usize_op_in_place(write_pointer, BrilligBinaryOp::Add, <span class="number">1</span>);
-        <span class="self">self</span>.store_instruction(write_pointer, capacity.unwrap_or(size).address);
-
-        <span class="self">self</span>.deallocate_register(write_pointer);
+        </span><span class="self">self</span>.codegen_usize_op_in_place(<span class="kw-2">*</span>write_pointer, BrilligBinaryOp::Add, <span class="number">1</span>);
+        <span class="self">self</span>.store_instruction(<span class="kw-2">*</span>write_pointer, capacity.unwrap_or(size).address);
     }
 
     <span class="doccomment">/// We don't know the length of a vector returned externally before the call
@@ -1014,12 +983,12 @@
         <span class="kw">let </span>total_size = <span class="self">self</span>.allocate_register();
         <span class="self">self</span>.codegen_usize_op(
             resulting_heap_vector.size,
-            total_size,
+            <span class="kw-2">*</span>total_size,
             BrilligBinaryOp::Add,
             <span class="number">3</span>, <span class="comment">// Rc, length and capacity
         </span>);
 
-        <span class="self">self</span>.increase_free_memory_pointer_instruction(total_size);
+        <span class="self">self</span>.increase_free_memory_pointer_instruction(<span class="kw-2">*</span>total_size);
         <span class="kw">let </span>write_pointer = <span class="self">self</span>.allocate_register();
 
         <span class="comment">// Vectors are [RC, Size, Capacity, ...items]
@@ -1031,15 +1000,12 @@
         );
 
         <span class="comment">// Initialize size
-        </span><span class="self">self</span>.codegen_usize_op(vector.pointer, write_pointer, BrilligBinaryOp::Add, <span class="number">1_usize</span>);
-        <span class="self">self</span>.store_instruction(write_pointer, resulting_heap_vector.size);
+        </span><span class="self">self</span>.codegen_usize_op(vector.pointer, <span class="kw-2">*</span>write_pointer, BrilligBinaryOp::Add, <span class="number">1_usize</span>);
+        <span class="self">self</span>.store_instruction(<span class="kw-2">*</span>write_pointer, resulting_heap_vector.size);
 
         <span class="comment">// Initialize capacity
-        </span><span class="self">self</span>.codegen_usize_op_in_place(write_pointer, BrilligBinaryOp::Add, <span class="number">1_usize</span>);
-        <span class="self">self</span>.store_instruction(write_pointer, resulting_heap_vector.size);
-
-        <span class="self">self</span>.deallocate_register(write_pointer);
-        <span class="self">self</span>.deallocate_register(total_size);
+        </span><span class="self">self</span>.codegen_usize_op_in_place(<span class="kw-2">*</span>write_pointer, BrilligBinaryOp::Add, <span class="number">1_usize</span>);
+        <span class="self">self</span>.store_instruction(<span class="kw-2">*</span>write_pointer, resulting_heap_vector.size);
     }
 }
 </code></pre></div></section></main></body></html>

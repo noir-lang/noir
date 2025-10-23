@@ -509,9 +509,7 @@
 <a href="#508" id="508">508</a>
 <a href="#509" id="509">509</a>
 <a href="#510" id="510">510</a>
-<a href="#511" id="511">511</a>
-<a href="#512" id="512">512</a>
-<a href="#513" id="513">513</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
+<a href="#511" id="511">511</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
     FieldElement,
     acir::{
         AcirField,
@@ -522,7 +520,7 @@
     },
 };
 
-<span class="kw">use </span><span class="kw">crate</span>::ssa::ir::function::FunctionId;
+<span class="kw">use crate</span>::{brillig::brillig_ir::registers::Allocated, ssa::ir::function::FunctionId};
 
 <span class="kw">use super</span>::{
     BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, BrilligContext, ReservedRegisters,
@@ -671,20 +669,17 @@
         <span class="kw">let </span>bit_size = left.bit_size;
         <span class="macro">assert!</span>(bit_size != BitSize::Field.to_u32::&lt;F&gt;(), <span class="string">"Attempt to modulo fields"</span>);
 
-        <span class="kw">let </span>scratch_var_i = SingleAddrVariable::new(<span class="self">self</span>.allocate_register(), bit_size);
-        <span class="kw">let </span>scratch_var_j = SingleAddrVariable::new(<span class="self">self</span>.allocate_register(), bit_size);
+        <span class="kw">let </span>scratch_var_i = <span class="self">self</span>.allocate_single_addr(bit_size);
+        <span class="kw">let </span>scratch_var_j = <span class="self">self</span>.allocate_single_addr(bit_size);
 
         <span class="comment">// i = left / right
-        </span><span class="self">self</span>.binary(left, right, scratch_var_i, BrilligBinaryOp::UnsignedDiv);
+        </span><span class="self">self</span>.binary(left, right, <span class="kw-2">*</span>scratch_var_i, BrilligBinaryOp::UnsignedDiv);
 
         <span class="comment">// j = i * right
-        </span><span class="self">self</span>.binary(scratch_var_i, right, scratch_var_j, BrilligBinaryOp::Mul);
+        </span><span class="self">self</span>.binary(<span class="kw-2">*</span>scratch_var_i, right, <span class="kw-2">*</span>scratch_var_j, BrilligBinaryOp::Mul);
 
         <span class="comment">// result_register = left - j
-        </span><span class="self">self</span>.binary(left, scratch_var_j, result, BrilligBinaryOp::Sub);
-        <span class="comment">// Free scratch registers
-        </span><span class="self">self</span>.deallocate_single_addr(scratch_var_i);
-        <span class="self">self</span>.deallocate_single_addr(scratch_var_j);
+        </span><span class="self">self</span>.binary(left, <span class="kw-2">*</span>scratch_var_j, result, BrilligBinaryOp::Sub);
     }
 
     <span class="kw">fn </span>binary_result_bit_size(operation: BrilligBinaryOp, arguments_bit_size: u32) -&gt; u32 {
@@ -930,17 +925,20 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         constant: F,
         bit_size: u32,
-    ) -&gt; SingleAddrVariable {
-        <span class="kw">let </span>var = SingleAddrVariable::new(<span class="self">self</span>.allocate_register(), bit_size);
-        <span class="self">self</span>.const_instruction(var, constant);
+    ) -&gt; Allocated&lt;SingleAddrVariable, Registers&gt; {
+        <span class="kw">let </span>var = <span class="self">self</span>.allocate_single_addr(bit_size);
+        <span class="self">self</span>.const_instruction(<span class="kw-2">*</span>var, constant);
         var
     }
 
     <span class="doccomment">/// Returns a register which holds the value of an usize constant
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>make_usize_constant_instruction(<span class="kw-2">&amp;mut </span><span class="self">self</span>, constant: F) -&gt; SingleAddrVariable {
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>make_usize_constant_instruction(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        constant: F,
+    ) -&gt; Allocated&lt;SingleAddrVariable, Registers&gt; {
         <span class="kw">let </span>register = <span class="self">self</span>.allocate_register();
-        <span class="self">self</span>.usize_const_instruction(register, constant);
-        SingleAddrVariable::new_usize(register)
+        <span class="self">self</span>.usize_const_instruction(<span class="kw-2">*</span>register, constant);
+        register.map(SingleAddrVariable::new_usize)
     }
 
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>calldata_copy_instruction(
@@ -958,8 +956,6 @@
             size_address: size_var.address,
             offset_address: offset_var.address,
         });
-        <span class="self">self</span>.deallocate_single_addr(size_var);
-        <span class="self">self</span>.deallocate_single_addr(offset_var);
     }
 
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>trap_instruction(<span class="kw-2">&amp;mut </span><span class="self">self</span>, revert_data: HeapVector) {
