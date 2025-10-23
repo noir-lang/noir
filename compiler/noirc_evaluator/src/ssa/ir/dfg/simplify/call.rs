@@ -111,14 +111,25 @@ pub(super) fn simplify_call(
                 panic!("Expected as_slice input to be an array")
             };
 
-            let slice_length = dfg.make_constant(length.into(), NumericType::length_type());
-
             let array = dfg.get_array_constant(arguments[0]);
             if let Some((array, _array_type)) = array {
+                let slice_length = dfg.make_constant(length.into(), NumericType::length_type());
                 let new_slice =
                     make_array(dfg, array, Type::Slice(element_types), block, call_stack);
-                SimplifyResult::SimplifiedToMultiple(vec![slice_length, new_slice])
-            } else {
+                return SimplifyResult::SimplifiedToMultiple(vec![slice_length, new_slice]);
+            }
+
+            // In ACIR we can simplify `as_slice(array)`, to:
+            //
+            // ```
+            // v0 = array_get array, index u32 0 -> T
+            // v1 = array_get array, index u32 1 -> T
+            // ...
+            // vN = make_array [v0, v1, ...]
+            // ```
+            //
+            // We don't do this for Brillig because it sometimes leads to more opcodes.
+            if dfg.runtime().is_acir() {
                 let mut elements = im::Vector::default();
                 let mut index: u32 = 0;
                 for _ in 0..length {
@@ -141,10 +152,13 @@ pub(super) fn simplify_call(
                 }
                 let make_array =
                     Instruction::MakeArray { elements, typ: Type::Slice(element_types.clone()) };
+                let slice_length = dfg.make_constant(length.into(), NumericType::length_type());
                 let new_slice =
                     dfg.insert_instruction_and_results(make_array, block, None, call_stack).first();
-                SimplifyResult::SimplifiedToMultiple(vec![slice_length, new_slice])
+                return SimplifyResult::SimplifiedToMultiple(vec![slice_length, new_slice]);
             }
+
+            return SimplifyResult::None;
         }
         Intrinsic::SlicePushBack => {
             let slice = dfg.get_array_constant(arguments[1]);
@@ -964,7 +978,7 @@ mod tests {
     }
 
     #[test]
-    fn simplifies_as_slice_for_unknown_array() {
+    fn simplifies_as_slice_for_unknown_array_in_acir() {
         let src = r#"
         acir(inline) fn main func {
           b0(v0: [Field; 3]):
@@ -982,6 +996,26 @@ mod tests {
             v6 = array_get v0, index u32 2 -> Field
             v7 = make_array [v2, v4, v6] : [Field]
             return u32 3, v7
+        }
+        ");
+    }
+
+    #[test]
+    fn does_not_simplify_as_slice_for_unknown_array_in_brillig() {
+        let src = r#"
+        brillig(inline) fn main func {
+          b0(v0: [Field; 3]):
+            v1, v2 = call as_slice(v0) -> (u32, [Field])
+            return v1, v2
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: [Field; 3]):
+            v2, v3 = call as_slice(v0) -> (u32, [Field])
+            return v2, v3
         }
         ");
     }
