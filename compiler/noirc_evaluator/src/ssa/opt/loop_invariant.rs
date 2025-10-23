@@ -852,7 +852,8 @@ fn can_be_hoisted(instruction: &Instruction, dfg: &DataFlowGraph) -> CanBeHoiste
             // A cast may have dependence on a range-check, which may not be hoisted, so we cannot always hoist a cast.
             // We can safely hoist a cast from a smaller to a larger type as no range check is necessary in this case.
             let source_type = dfg.type_of_value(*source).unwrap_numeric();
-            (source_type.bit_size() <= target_type.bit_size()).into()
+            (source_type.bit_size::<FieldElement>() <= target_type.bit_size::<FieldElement>())
+                .into()
         }
 
         // These instructions can always be hoisted

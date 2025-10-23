@@ -132,7 +132,7 @@ use crate::ssa::ir::{
 
 use super::{
     AcirVar, Context,
-    types::{AcirDynamicArray, AcirType, AcirValue},
+    types::{AcirDynamicArray, AcirValue},
 };
 
 impl Context<'_> {
@@ -481,7 +481,7 @@ impl Context<'_> {
                 let false_pred = self.acir_context.mul_var(not_pred, *dummy_var)?;
                 // predicate*value + (1-predicate)*dummy
                 let new_value = self.acir_context.add_var(true_pred, false_pred)?;
-                Ok(AcirValue::Var(new_value, typ.clone()))
+                Ok(AcirValue::Var(new_value, *typ))
             }
             (AcirValue::Array(values), AcirValue::Array(dummy_values)) => {
                 let mut elements = im::Vector::new();
@@ -612,10 +612,8 @@ impl Context<'_> {
     ) -> Result<AcirValue, RuntimeError> {
         if let AcirValue::Var(value_var, typ) = &value {
             let array_typ = dfg.type_of_value(array);
-            if let (Type::Numeric(numeric_type), AcirType::NumericType(num)) =
-                (array_typ.first(), typ)
-            {
-                if numeric_type.bit_size() <= num.bit_size() {
+            if let Type::Numeric(numeric_type) = array_typ.first() {
+                if numeric_type.bit_size::<FieldElement>() <= typ.bit_size::<FieldElement>() {
                     // first element is compatible
                     index_side_effect = false;
                 }
@@ -624,7 +622,7 @@ impl Context<'_> {
             if index_side_effect {
                 value = AcirValue::Var(
                     self.acir_context.mul_var(*value_var, self.current_side_effects_enabled_var)?,
-                    typ.clone(),
+                    *typ,
                 );
             }
         }
@@ -646,8 +644,7 @@ impl Context<'_> {
                 // Increment the var_index in case of a nested array
                 *var_index = self.acir_context.add_var(*var_index, one)?;
 
-                let typ = AcirType::NumericType(numeric_type);
-                Ok(AcirValue::Var(read, typ))
+                Ok(AcirValue::Var(read, numeric_type))
             }
             Type::Array(element_types, len) => {
                 let mut values = im::Vector::new();
@@ -673,8 +670,7 @@ impl Context<'_> {
         match ssa_type.clone() {
             Type::Numeric(numeric_type) => {
                 let zero = self.acir_context.add_constant(FieldElement::zero());
-                let typ = AcirType::NumericType(numeric_type);
-                Ok(AcirValue::Var(zero, typ))
+                Ok(AcirValue::Var(zero, numeric_type))
             }
             Type::Array(element_types, len) => {
                 let mut values = im::Vector::new();
@@ -781,7 +777,7 @@ impl Context<'_> {
 
                     let read = self.acir_context.read_from_memory(*inner_block_id, &index_var)?;
                     let typ = value_types[i % value_types.len()];
-                    Ok::<AcirValue, RuntimeError>(AcirValue::Var(read, AcirType::NumericType(typ)))
+                    Ok::<AcirValue, RuntimeError>(AcirValue::Var(read, typ))
                 })?;
                 self.array_set_value(&AcirValue::Array(values.into()), block_id, var_index)?;
             }
@@ -884,7 +880,7 @@ impl Context<'_> {
                 // The final array should will the flattened index at each outer array index
                 let init_values = vecmap(flat_elem_type_sizes, |type_size| {
                     let var = self.acir_context.add_constant(type_size);
-                    AcirValue::Var(var, AcirType::field())
+                    AcirValue::Var(var, NumericType::NativeField)
                 });
                 let element_type_sizes_len = init_values.len();
                 self.initialize_array(
@@ -975,7 +971,7 @@ impl Context<'_> {
             let read = self.acir_context.read_from_memory(source, &index_var)?;
             let typ = value_types[i % value_types.len()];
 
-            Ok::<AcirValue, RuntimeError>(AcirValue::Var(read, AcirType::NumericType(typ)))
+            Ok::<AcirValue, RuntimeError>(AcirValue::Var(read, typ))
         })?;
         Ok(init_values.into())
     }

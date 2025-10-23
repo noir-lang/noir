@@ -294,9 +294,12 @@ impl Context<'_> {
                 }
                 AcirValue::Array(element_values)
             }
-            typ => {
+            Type::Numeric(numeric_type) => {
                 let var = vars.next().unwrap();
-                AcirValue::Var(var, typ.into())
+                AcirValue::Var(var, *numeric_type)
+            }
+            typ => {
+                panic!("Unexpected type {typ} in convert_var_type_to_values");
             }
         }
     }

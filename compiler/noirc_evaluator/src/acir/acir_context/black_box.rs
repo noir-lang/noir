@@ -1,9 +1,12 @@
 use acvm::acir::{AcirField, BlackBoxFunc, circuit::opcodes::FunctionInput};
 use iter_extended::vecmap;
 
-use crate::errors::{InternalError, RuntimeError};
+use crate::{
+    errors::{InternalError, RuntimeError},
+    ssa::ir::types::NumericType,
+};
 
-use super::{AcirContext, AcirType, AcirValue, AcirVar};
+use super::{AcirContext, AcirValue, AcirVar};
 
 impl<F: AcirField> AcirContext<F> {
     /// Calls a Blackbox function on the given inputs and returns a given set of outputs
@@ -60,7 +63,7 @@ impl<F: AcirField> AcirContext<F> {
                         }));
                     }
                 };
-                inputs.push(AcirValue::Var(predicate.unwrap(), AcirType::unsigned(1)));
+                inputs.push(AcirValue::Var(predicate.unwrap(), NumericType::bool()));
                 vec![proof_type_constant]
             }
             _ => Vec::new(),

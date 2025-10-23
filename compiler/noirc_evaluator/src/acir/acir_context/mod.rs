@@ -280,7 +280,7 @@ impl<F: AcirField> AcirContext<F> {
             let results = self.stdlib_brillig_call(
                 predicate,
                 BrilligStdlibFunc::Inverse,
-                vec![AcirValue::Var(var, AcirType::field())],
+                vec![AcirValue::Var(var, NumericType::NativeField)],
                 vec![AcirType::field()],
             )?;
             Self::expect_one_var(results)
@@ -334,7 +334,7 @@ impl<F: AcirField> AcirContext<F> {
         &mut self,
         lhs: AcirVar,
         rhs: AcirVar,
-        typ: AcirType,
+        typ: NumericType,
     ) -> Result<AcirVar, RuntimeError> {
         let lhs_expr = self.var_to_expression(lhs)?;
         let rhs_expr = self.var_to_expression(rhs)?;
@@ -351,7 +351,7 @@ impl<F: AcirField> AcirContext<F> {
             return Ok(lhs);
         }
 
-        match typ.to_numeric_type() {
+        match typ {
             NumericType::Signed { bit_size: 1 } | NumericType::Unsigned { bit_size: 1 } => {
                 // Operands are booleans.
                 //
@@ -361,7 +361,7 @@ impl<F: AcirField> AcirContext<F> {
                 self.add_mul_var(sum, -F::from(2_u128), prod)
             }
             NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => {
-                let inputs = vec![AcirValue::Var(lhs, typ.clone()), AcirValue::Var(rhs, typ)];
+                let inputs = vec![AcirValue::Var(lhs, typ), AcirValue::Var(rhs, typ)];
                 let outputs =
                     self.black_box_function(BlackBoxFunc::XOR, inputs, Some(bit_size), 1, None)?;
                 Ok(outputs[0])
@@ -377,7 +377,7 @@ impl<F: AcirField> AcirContext<F> {
         &mut self,
         lhs: AcirVar,
         rhs: AcirVar,
-        typ: AcirType,
+        typ: NumericType,
     ) -> Result<AcirVar, RuntimeError> {
         let lhs_expr = self.var_to_expression(lhs)?;
         let rhs_expr = self.var_to_expression(rhs)?;
@@ -391,13 +391,13 @@ impl<F: AcirField> AcirContext<F> {
             return Ok(zero);
         }
 
-        match typ.to_numeric_type() {
+        match typ {
             NumericType::Signed { bit_size: 1 } | NumericType::Unsigned { bit_size: 1 } => {
                 // Operands are booleans.
                 self.mul_var(lhs, rhs)
             }
             NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => {
-                let inputs = vec![AcirValue::Var(lhs, typ.clone()), AcirValue::Var(rhs, typ)];
+                let inputs = vec![AcirValue::Var(lhs, typ), AcirValue::Var(rhs, typ)];
                 let outputs =
                     self.black_box_function(BlackBoxFunc::AND, inputs, Some(bit_size), 1, None)?;
                 Ok(outputs[0])
@@ -413,7 +413,7 @@ impl<F: AcirField> AcirContext<F> {
         &mut self,
         lhs: AcirVar,
         rhs: AcirVar,
-        typ: AcirType,
+        typ: NumericType,
     ) -> Result<AcirVar, RuntimeError> {
         let lhs_expr = self.var_to_expression(lhs)?;
         let rhs_expr = self.var_to_expression(rhs)?;
@@ -425,7 +425,7 @@ impl<F: AcirField> AcirContext<F> {
             return Ok(lhs);
         }
 
-        match typ.to_numeric_type() {
+        match typ {
             NumericType::Signed { bit_size: 1 } | NumericType::Unsigned { bit_size: 1 } => {
                 // Operands are booleans
                 // a + b - ab
@@ -436,9 +436,9 @@ impl<F: AcirField> AcirContext<F> {
             NumericType::Signed { .. } | NumericType::Unsigned { .. } => {
                 // Implement OR in terms of AND
                 // (NOT a) AND (NOT b) => NOT (a OR b)
-                let a = self.not_var(lhs, typ.clone())?;
-                let b = self.not_var(rhs, typ.clone())?;
-                let a_and_b = self.and_var(a, b, typ.clone())?;
+                let a = self.not_var(lhs, typ)?;
+                let b = self.not_var(rhs, typ)?;
+                let a_and_b = self.and_var(a, b, typ)?;
                 self.not_var(a_and_b, typ)
             }
             NumericType::NativeField => {
@@ -563,24 +563,21 @@ impl<F: AcirField> AcirContext<F> {
         &mut self,
         lhs: AcirVar,
         rhs: AcirVar,
-        typ: AcirType,
+        typ: NumericType,
         predicate: AcirVar,
     ) -> Result<AcirVar, RuntimeError> {
         match typ {
-            AcirType::NumericType(NumericType::NativeField) => {
+            NumericType::NativeField => {
                 let inv_rhs = self.inv_var(rhs, predicate)?;
                 self.mul_var(lhs, inv_rhs)
             }
-            AcirType::NumericType(NumericType::Unsigned { bit_size }) => {
+            NumericType::Unsigned { bit_size } => {
                 let (quotient_var, _remainder_var) =
                     self.euclidean_division_var(lhs, rhs, bit_size, predicate)?;
                 Ok(quotient_var)
             }
-            AcirType::NumericType(NumericType::Signed { .. }) => {
+            NumericType::Signed { .. } => {
                 unreachable!("Signed division should have been removed before ACIRgen")
-            }
-            AcirType::Array(_, _) => {
-                unreachable!("cannot divide arrays. This should have been caught by the frontend")
             }
         }
     }
@@ -746,7 +743,11 @@ impl<F: AcirField> AcirContext<F> {
     }
 
     /// Adds a new variable that is constrained to be the logical NOT of `x`.
-    pub(crate) fn not_var(&mut self, x: AcirVar, typ: AcirType) -> Result<AcirVar, RuntimeError> {
+    pub(crate) fn not_var(
+        &mut self,
+        x: AcirVar,
+        typ: NumericType,
+    ) -> Result<AcirVar, RuntimeError> {
         let bit_size = typ.bit_size::<F>();
         // Subtracting from max flips the bits
         let max = power_of_two::<F>(bit_size) - F::one();
@@ -862,8 +863,8 @@ impl<F: AcirField> AcirContext<F> {
                 predicate,
                 BrilligStdlibFunc::Quotient,
                 vec![
-                    AcirValue::Var(lhs, AcirType::unsigned(bit_size)),
-                    AcirValue::Var(rhs, AcirType::unsigned(bit_size)),
+                    AcirValue::Var(lhs, NumericType::unsigned(bit_size)),
+                    AcirValue::Var(rhs, NumericType::unsigned(bit_size)),
                 ],
                 vec![AcirType::unsigned(max_q_bits), AcirType::unsigned(max_rhs_bits)],
             )?
@@ -1068,24 +1069,21 @@ impl<F: AcirField> AcirContext<F> {
         &mut self,
         lhs: AcirVar,
         rhs: AcirVar,
-        typ: AcirType,
+        typ: NumericType,
         bit_size: u32,
         predicate: AcirVar,
     ) -> Result<AcirVar, RuntimeError> {
         match typ {
-            AcirType::NumericType(NumericType::Unsigned { .. }) => {
+            NumericType::Unsigned { .. } => {
                 let (_, remainder_var) =
                     self.euclidean_division_var(lhs, rhs, bit_size, predicate)?;
                 Ok(remainder_var)
             }
-            AcirType::NumericType(NumericType::Signed { .. }) => {
+            NumericType::Signed { .. } => {
                 unreachable!("Signed modulo should have been removed before ACIRgen")
             }
-            AcirType::NumericType(NumericType::NativeField) => {
+            NumericType::NativeField => {
                 unreachable!("cannot module fields. This should have been caught by the frontend")
-            }
-            AcirType::Array(_, _) => {
-                unreachable!("cannot modulo arrays. This should have been caught by the frontend")
             }
         }
     }
@@ -1245,7 +1243,7 @@ impl<F: AcirField> AcirContext<F> {
         input_var: AcirVar,
         radix_var: AcirVar,
         limb_count: u32,
-        result_element_type: AcirType,
+        result_element_type: NumericType,
     ) -> Result<AcirValue, RuntimeError> {
         let radix = match self.vars[&radix_var].as_constant() {
             Some(radix) => radix.to_u128() as u32,
@@ -1264,7 +1262,7 @@ impl<F: AcirField> AcirContext<F> {
 
         let mut limb_vars = vecmap(limbs, |witness| {
             let witness = self.add_data(AcirVarData::Witness(witness));
-            AcirValue::Var(witness, result_element_type.clone())
+            AcirValue::Var(witness, result_element_type)
         });
 
         if endian == Endian::Big {
@@ -1280,7 +1278,7 @@ impl<F: AcirField> AcirContext<F> {
         endian: Endian,
         input_var: AcirVar,
         limb_count: u32,
-        result_element_type: AcirType,
+        result_element_type: NumericType,
     ) -> Result<AcirValue, RuntimeError> {
         let two_var = self.add_constant(2_u128);
         self.radix_decompose(endian, input_var, two_var, limb_count, result_element_type)
@@ -1292,7 +1290,7 @@ impl<F: AcirField> AcirContext<F> {
     pub(crate) fn flatten(
         &mut self,
         value: AcirValue,
-    ) -> Result<Vec<(AcirVar, AcirType)>, InternalError> {
+    ) -> Result<Vec<(AcirVar, NumericType)>, InternalError> {
         match value {
             AcirValue::Var(acir_var, typ) => Ok(vec![(acir_var, typ)]),
             AcirValue::Array(array) => {
@@ -1306,9 +1304,9 @@ impl<F: AcirField> AcirContext<F> {
                 try_vecmap(0..len, |i| {
                     let index_var = self.add_constant(i);
 
-                    Ok::<(AcirVar, AcirType), InternalError>((
+                    Ok::<(AcirVar, NumericType), InternalError>((
                         self.read_from_memory(block_id, &index_var)?,
-                        value_types[i % value_types.len()].into(),
+                        value_types[i % value_types.len()],
                     ))
                 })
             }
@@ -1443,7 +1441,7 @@ impl<F: AcirField> AcirContext<F> {
                     let index_var = self.add_constant(i);
                     let read = self.read_from_memory(block_id, &index_var)?;
                     let typ = value_types[i % value_types.len()];
-                    Ok::<AcirValue, InternalError>(AcirValue::Var(read, AcirType::NumericType(typ)))
+                    Ok::<AcirValue, InternalError>(AcirValue::Var(read, typ))
                 })?;
                 for value in dynamic_array_values {
                     self.initialize_array_inner(witnesses, value)?;

@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use acvm::{AcirField, acir::circuit::opcodes::BlockId};
+use acvm::acir::circuit::opcodes::BlockId;
 
 use crate::{
     errors::InternalError,
@@ -23,22 +23,6 @@ pub(crate) enum AcirType {
 }
 
 impl AcirType {
-    pub(crate) fn new(typ: NumericType) -> Self {
-        Self::NumericType(typ)
-    }
-
-    /// Returns the bit size of the underlying type
-    pub(crate) fn bit_size<F: AcirField>(&self) -> u32 {
-        match self {
-            AcirType::NumericType(numeric_type) => match numeric_type {
-                NumericType::Signed { bit_size } => *bit_size,
-                NumericType::Unsigned { bit_size } => *bit_size,
-                NumericType::NativeField => F::max_num_bits(),
-            },
-            AcirType::Array(_, _) => unreachable!("cannot fetch bit size of array type"),
-        }
-    }
-
     /// Returns a field type
     pub(crate) fn field() -> Self {
         AcirType::NumericType(NumericType::NativeField)
@@ -47,13 +31,6 @@ impl AcirType {
     /// Returns an unsigned type of the specified bit size
     pub(crate) fn unsigned(bit_size: u32) -> Self {
         AcirType::NumericType(NumericType::Unsigned { bit_size })
-    }
-
-    pub(crate) fn to_numeric_type(&self) -> NumericType {
-        match self {
-            AcirType::NumericType(numeric_type) => *numeric_type,
-            AcirType::Array(_, _) => unreachable!("cannot fetch a numeric type for an array type"),
-        }
     }
 }
 
@@ -124,7 +101,7 @@ impl Debug for AcirDynamicArray {
 
 #[derive(Debug, Clone)]
 pub(crate) enum AcirValue {
-    Var(AcirVar, AcirType),
+    Var(AcirVar, NumericType),
     Array(im::Vector<AcirValue>),
     DynamicArray(AcirDynamicArray),
 }
@@ -157,7 +134,7 @@ impl AcirValue {
     /// This is because an [AcirValue::DynamicArray] is simply a pointer to an array
     /// and fetching its internal [AcirValue::Var] would require laying down opcodes to read its content.
     /// This method should only be used where dynamic arrays are not a possible type.
-    pub(super) fn flatten(self) -> Vec<(AcirVar, AcirType)> {
+    pub(super) fn flatten(self) -> Vec<(AcirVar, NumericType)> {
         match self {
             AcirValue::Var(var, typ) => vec![(var, typ)],
             AcirValue::Array(array) => array.into_iter().flat_map(AcirValue::flatten).collect(),
