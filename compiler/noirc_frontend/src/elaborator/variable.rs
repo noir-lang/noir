@@ -1,3 +1,6 @@
+//! Everything to do with elaboration of variables.
+//! Notably, variables may require trait constraints to be solved later on.
+
 use super::Elaborator;
 use crate::TypeAlias;
 use crate::ast::{Expression, ExpressionKind, Path, TypePath, UnresolvedTypeExpression};
