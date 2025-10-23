@@ -139,7 +139,7 @@
 
     <span class="kw">let </span>used_globals = ssa.used_globals_in_functions();
 
-    <span class="comment">// TODO: can we parallelize this?
+    <span class="comment">// TODO(https://github.com/noir-lang/noir/issues/10269): can we parallelize this?
     </span><span class="kw">let </span><span class="kw-2">mut </span>shared_context = SharedContext::new(brillig_stdlib.clone(), used_globals);
 
     <span class="kw">for </span>function <span class="kw">in </span>ssa.functions.values() {
@@ -168,12 +168,12 @@
             }
 
             <span class="comment">// Fetch the Brillig stdlib calls to resolve for this function
-            </span><span class="kw">if let </span><span class="prelude-val">Some</span>(calls_to_resolve) = shared_context.get_call_to_resolve(function.id()) {
+            </span><span class="kw">if let </span><span class="prelude-val">Some</span>(calls_to_resolve) = shared_context.remove_call_to_resolve(function.id()) {
                 <span class="comment">// Resolve the Brillig stdlib calls
                 // We have to do a separate loop as the generated ACIR cannot be borrowed as mutable after an immutable borrow
                 </span><span class="kw">for </span>(opcode_location, brillig_function_pointer) <span class="kw">in </span>calls_to_resolve {
                     generated_acir
-                        .resolve_brillig_stdlib_call(<span class="kw-2">*</span>opcode_location, <span class="kw-2">*</span>brillig_function_pointer);
+                        .resolve_brillig_stdlib_call(opcode_location, brillig_function_pointer);
                 }
             }
 

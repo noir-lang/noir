@@ -795,10 +795,7 @@
 <a href="#794" id="794">794</a>
 <a href="#795" id="795">795</a>
 <a href="#796" id="796">796</a>
-<a href="#797" id="797">797</a>
-<a href="#798" id="798">798</a>
-<a href="#799" id="799">799</a>
-<a href="#800" id="800">800</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `generated_acir` module is responsible for the lowest level tracking of ACIR-gen.
+<a href="#797" id="797">797</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `generated_acir` module is responsible for the lowest level tracking of ACIR-gen.
 //!
 //! This module defines the `GeneratedAcir` which is constructed as part of the ACIR-gen pass
 //! to accumulate all of the ACIR. This tracks properties such as which witnesses form part of the circuit interface
@@ -844,7 +841,7 @@
     /// This field is private should only ever be accessed through its getter and setter.
     ///
     /// Equivalent to acvm::acir::circuit::Circuit's field of the same name.
-    </span><span class="kw">pub </span>current_witness_index: <span class="prelude-ty">Option</span>&lt;u32&gt;,
+    </span>current_witness_index: <span class="prelude-ty">Option</span>&lt;u32&gt;,
 
     <span class="doccomment">/// The opcodes of which the compiled ACIR will comprise.
     </span><span class="kw">pub </span>opcodes: Vec&lt;AcirOpcode&lt;F&gt;&gt;,
@@ -863,7 +860,6 @@
     </span><span class="kw">pub </span>brillig_locations: BTreeMap&lt;BrilligFunctionId, BrilligOpcodeToLocationsMap&gt;,
 
     <span class="doccomment">/// Source code location of the current instruction being processed
-    /// None if we do not know the location
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) call_stack_id: CallStackId,
 
     <span class="doccomment">/// Correspondence between an opcode index and the error message associated with it.
@@ -1136,7 +1132,7 @@
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>radix_le_decompose(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         input_expr: <span class="kw-2">&amp;</span>Expression&lt;F&gt;,
-        radix: u32,
+        radix: u128,
         limb_count: u32,
         bit_size: u32,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;Witness&gt;, RuntimeError&gt; {
@@ -1187,7 +1183,7 @@
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>brillig_to_radix(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         expr: <span class="kw-2">&amp;</span>Expression&lt;F&gt;,
-        radix: u32,
+        radix: u128,
         limb_count: u32,
     ) -&gt; Vec&lt;Witness&gt; {
         <span class="comment">// Create the witness for the result
@@ -1204,7 +1200,7 @@
         <span class="kw">let </span>radix_expr = Expression {
             mul_terms: Vec::new(),
             linear_combinations: Vec::new(),
-            q_c: F::from(u128::from(radix)),
+            q_c: F::from(radix),
         };
         <span class="kw">let </span>inputs = <span class="macro">vec!</span>[
             BrilligInputs::Single(expr.clone()),
@@ -1389,7 +1385,7 @@
         brillig_function_index: BrilligFunctionId,
         stdlib_func: <span class="prelude-ty">Option</span>&lt;BrilligStdlibFunc&gt;,
     ) {
-        <span class="comment">// Check whether we have a call to this Brillig function already exists.
+        <span class="comment">// Check whether a call to this Brillig function already exists.
         // This helps us optimize the Brillig metadata to only be stored once per Brillig entry point.
         </span><span class="kw">let </span>inserted_func_before = <span class="self">self</span>.brillig_locations.contains_key(<span class="kw-2">&amp;</span>brillig_function_index);
 
@@ -1520,15 +1516,13 @@
 
         BlackBoxFunc::Sha256Compression =&gt; <span class="prelude-val">Some</span>(<span class="number">8</span>),
 
-        <span class="comment">// Can only apply a range constraint to one
-        // witness at a time.
-        </span>BlackBoxFunc::RANGE =&gt; <span class="prelude-val">Some</span>(<span class="number">0</span>),
+        BlackBoxFunc::RANGE =&gt; <span class="prelude-val">Some</span>(<span class="number">0</span>),
 
         <span class="comment">// Signature verification algorithms will return a boolean
         </span>BlackBoxFunc::EcdsaSecp256k1 | BlackBoxFunc::EcdsaSecp256r1 =&gt; <span class="prelude-val">Some</span>(<span class="number">1</span>),
 
         <span class="comment">// Output of operations over the embedded curve
-        // will be 2 field elements representing the point.
+        // will be 3 field elements representing the point, i.e. (x,y,infinite)
         </span>BlackBoxFunc::MultiScalarMul | BlackBoxFunc::EmbeddedCurveAdd =&gt; <span class="prelude-val">Some</span>(<span class="number">3</span>),
 
         <span class="comment">// Recursive aggregation has a variable number of outputs

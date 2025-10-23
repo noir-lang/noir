@@ -529,7 +529,12 @@
 <a href="#528" id="528">528</a>
 <a href="#529" id="529">529</a>
 <a href="#530" id="530">530</a>
-<a href="#531" id="531">531</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{circuit::PublicInputs, native_types::Witness};
+<a href="#531" id="531">531</a>
+<a href="#532" id="532">532</a>
+<a href="#533" id="533">533</a>
+<a href="#534" id="534">534</a>
+<a href="#535" id="535">535</a>
+<a href="#536" id="536">536</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{circuit::PublicInputs, native_types::Witness};
 <span class="kw">use </span>acir_field::AcirField;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="kw">use </span>std::cmp::Ordering;
@@ -668,6 +673,11 @@
     </span><span class="kw">pub fn </span>sort(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="self">self</span>.mul_terms.sort_by(|a, b| a.<span class="number">1</span>.cmp(<span class="kw-2">&amp;</span>b.<span class="number">1</span>).then(a.<span class="number">2</span>.cmp(<span class="kw-2">&amp;</span>b.<span class="number">2</span>)));
         <span class="self">self</span>.linear_combinations.sort_by(|a, b| a.<span class="number">1</span>.cmp(<span class="kw-2">&amp;</span>b.<span class="number">1</span>));
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_sorted(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="self">self</span>.mul_terms.iter().is_sorted_by(|a, b| a.<span class="number">1</span>.cmp(<span class="kw-2">&amp;</span>b.<span class="number">1</span>).then(a.<span class="number">2</span>.cmp(<span class="kw-2">&amp;</span>b.<span class="number">2</span>)).is_le())
+            &amp;&amp; <span class="self">self</span>.linear_combinations.iter().is_sorted_by(|a, b| a.<span class="number">1</span>.cmp(<span class="kw-2">&amp;</span>b.<span class="number">1</span>).is_le())
     }
 }
 

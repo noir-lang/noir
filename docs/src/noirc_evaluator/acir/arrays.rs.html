@@ -1186,7 +1186,9 @@
 <a href="#1185" id="1185">1185</a>
 <a href="#1186" id="1186">1186</a>
 <a href="#1187" id="1187">1187</a>
-<a href="#1188" id="1188">1188</a></pre></div><pre class="rust"><code><span class="doccomment">//! Array handling in ACIR.
+<a href="#1188" id="1188">1188</a>
+<a href="#1189" id="1189">1189</a>
+<a href="#1190" id="1190">1190</a></pre></div><pre class="rust"><code><span class="doccomment">//! Array handling in ACIR.
 //!
 //! This modules how Noir's SSA array semantics are lowered into ACIR's flat memory model.
 //! Arrays in SSA can appear as constants or dynamically allocated blocks.
@@ -1199,7 +1201,7 @@
 //! [BlockId]. This module provides helpers for translating SSA array
 //! operations into ACIR memory reads and writes.
 //!
-//! ACIR generation use twos different array types for representing arrays:
+//! ACIR generation use two different array types for representing arrays:
 //!
 //! [Constant arrays][AcirValue::Array]
 //!   - Known at compile time.
@@ -1259,7 +1261,7 @@
 //! We then use the resulting type to increment the index appropriately and fetch ever element of `bar.inner`.
 //!
 //! This element type sizes array is dynamic as we still need to access it based upon the index which itself can be dynamic.
-//! The module will also attempt to not create this array when possible (e.g., we have a simple homogenous array).
+//! The module will also attempt to not create this array when possible (e.g., when we have a simple homogenous array).
 //!
 //! ### Side effects and Predication
 //!
@@ -1286,7 +1288,7 @@
 //!
 //! #### Writes
 //!
-//! When the predicate is not a constant one, instead of actually overwriting memory, we compute a "dummy value".
+//! When the predicate is not a constant, instead of actually overwriting memory, we compute a "dummy value".
 //! The dummy value is fetched from the same array at the requested `predicate_index`.
 //! The store value of an array write is then converted from a `store_value` to `predicate * store_value + (1 - predicate) * dummy`
 //! This ensures the memory remains unchanged when the write is disabled. In the case of a false predicate, the value stored will be itself.
@@ -1295,7 +1297,7 @@
 //!
 //! If we perform an array read under a false predicate we will read from `offset`. As arrays are not always homogenous
 //! the result at index `offset` may contain a value that will overflow the resulting type of the array read.
-//! When we read a value from a non-homogenous array we multiply any resulting [AcirValue::Var] by the predicate
+//! When we read a value from a non-homogenous array, we multiply any resulting [AcirValue::Var] by the predicate
 //! to avoid any possible mismatch. In the case of a false predicate, the value will now be zero.
 //! For homogenous arrays, the fallback `offset` will produce a value with a compatible type.
 //!
@@ -1510,13 +1512,13 @@
         store_value: <span class="prelude-ty">Option</span>&lt;AcirValue&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;bool, RuntimeError&gt; {
         <span class="kw">let </span>array_size: usize = array.len();
-        <span class="kw">let </span>index = <span class="kw">match </span>index.try_to_u64() {
+        <span class="kw">let </span>index = <span class="kw">match </span>index.try_to_u32() {
             <span class="prelude-val">Some</span>(index_const) =&gt; index_const <span class="kw">as </span>usize,
             <span class="prelude-val">None </span>=&gt; {
                 <span class="kw">let </span>call_stack = <span class="self">self</span>.acir_context.get_call_stack();
                 <span class="kw">return </span><span class="prelude-val">Err</span>(RuntimeError::TypeConversion {
                     from: <span class="string">"array index"</span>.to_string(),
-                    into: <span class="string">"u64"</span>.to_string(),
+                    into: <span class="string">"u32"</span>.to_string(),
                     call_stack,
                 });
             }
@@ -1701,7 +1703,9 @@
                     <span class="string">"ICE: The store value and dummy must have the same number of inner values"
                 </span>);
 
-                <span class="kw">let </span>values = <span class="self">self</span>.read_dynamic_array(<span class="kw-2">*</span>block_id, <span class="kw-2">*</span>len, value_types)<span class="question-mark">?</span>;
+                <span class="kw">let </span>values: Vec&lt;<span class="kw">_</span>&gt; = <span class="self">self
+                    </span>.read_dynamic_array(<span class="kw-2">*</span>block_id, <span class="kw-2">*</span>len, value_types)
+                    .collect::&lt;<span class="prelude-ty">Result</span>&lt;<span class="kw">_</span>, <span class="kw">_</span>&gt;&gt;()<span class="question-mark">?</span>;
                 <span class="kw">let </span><span class="kw-2">mut </span>elements = im::Vector::new();
                 <span class="kw">for </span>(val, dummy_val) <span class="kw">in </span>values.iter().zip(dummy_values) {
                     elements.push_back(<span class="self">self</span>.convert_array_set_store_value(val, <span class="kw-2">&amp;</span>dummy_val)<span class="question-mark">?</span>);
@@ -2123,7 +2127,7 @@
             AcirValue::Var(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: attempting to copy a non-array value"</span>),
             AcirValue::Array(vars) =&gt; <span class="prelude-val">Ok</span>(vars),
             AcirValue::DynamicArray(AcirDynamicArray { block_id, len, value_types, .. }) =&gt; {
-                <span class="self">self</span>.read_dynamic_array(block_id, len, <span class="kw-2">&amp;</span>value_types)
+                <span class="self">self</span>.read_dynamic_array(block_id, len, <span class="kw-2">&amp;</span>value_types).collect()
             }
         }
     }
@@ -2156,16 +2160,15 @@
         source: BlockId,
         array_len: usize,
         value_types: <span class="kw-2">&amp;</span>[NumericType],
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;im::Vector&lt;AcirValue&gt;, RuntimeError&gt; {
-        <span class="kw">let </span>init_values = try_vecmap(<span class="number">0</span>..array_len, |i| {
+    ) -&gt; <span class="kw">impl </span>Iterator&lt;Item = <span class="prelude-ty">Result</span>&lt;AcirValue, RuntimeError&gt;&gt; {
+        (<span class="number">0</span>..array_len).map(<span class="kw">move </span>|i| {
             <span class="kw">let </span>index_var = <span class="self">self</span>.acir_context.add_constant(i);
 
             <span class="kw">let </span>read = <span class="self">self</span>.acir_context.read_from_memory(source, <span class="kw-2">&amp;</span>index_var)<span class="question-mark">?</span>;
             <span class="kw">let </span>typ = value_types[i % value_types.len()];
 
             <span class="prelude-val">Ok</span>::&lt;AcirValue, RuntimeError&gt;(AcirValue::Var(read, AcirType::NumericType(typ)))
-        })<span class="question-mark">?</span>;
-        <span class="prelude-val">Ok</span>(init_values.into())
+        })
     }
 
     <span class="kw">fn </span>copy_dynamic_array(
@@ -2175,7 +2178,8 @@
         array_len: usize,
         value_types: <span class="kw-2">&amp;</span>[NumericType],
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), RuntimeError&gt; {
-        <span class="kw">let </span>array = <span class="self">self</span>.read_dynamic_array(source, array_len, value_types)<span class="question-mark">?</span>;
+        <span class="kw">let </span>array =
+            <span class="self">self</span>.read_dynamic_array(source, array_len, value_types).collect::&lt;<span class="prelude-ty">Result</span>&lt;<span class="kw">_</span>, <span class="kw">_</span>&gt;&gt;()<span class="question-mark">?</span>;
         <span class="self">self</span>.initialize_array(destination, array_len, <span class="prelude-val">Some</span>(AcirValue::Array(array)))<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(())
     }

@@ -315,7 +315,8 @@
 <a href="#314" id="314">314</a>
 <a href="#315" id="315">315</a>
 <a href="#316" id="316">316</a>
-<a href="#317" id="317">317</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::{
+<a href="#317" id="317">317</a>
+<a href="#318" id="318">318</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::{
     AcirField,
     brillig::{
         BinaryFieldOp, BinaryIntOp, BitSize, HeapVector, IntegerBitSize, MemoryAddress,
@@ -326,7 +327,8 @@
 
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::artifact::GeneratedBrillig;
 
-<span class="doccomment">/// Brillig calls such as for the Brillig std lib are resolved only after code generation is finished.
+<span class="comment">// TODO(https://github.com/noir-lang/noir/issues/10256): Use `Option&lt;BrilligFunctionId&gt;` in place of `PLACEHOLDER_BRILLIG_INDEX`
+</span><span class="doccomment">/// Brillig calls such as for the Brillig std lib are resolved only after code generation is finished.
 /// This index should be used when adding a Brillig call during code generation.
 /// Code generation should then keep track of that unresolved call opcode which will be resolved with the
 /// correct function index after code generation.
@@ -366,11 +368,11 @@
     ToLeBytes,
 }
 
-<span class="doccomment">/// Generates brillig bytecode which computes the inverse of its input if not null, and zero else.
+<span class="doccomment">/// Generates brillig bytecode which computes the inverse of its input if not null, else zero.
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>directive_invert&lt;F: AcirField&gt;() -&gt; GeneratedBrillig&lt;F&gt; {
-    <span class="comment">//  We generate the following code:
+    <span class="comment">// We generate the following code:
     // fn invert(x : Field) -&gt; Field {
-    //    1/ x
+    //    1 / x
     // }
 
     // The input argument, ie the value that will be inverted.
@@ -468,28 +470,28 @@
                 offset_address: MemoryAddress::direct(<span class="number">11</span>),
             },
             <span class="comment">// No cast, since calldata is typed as field by default
-            //q = a/b is set into register (2)
+            // q = a/b is set into register (2)
             </span>BrilligOpcode::BinaryFieldOp {
                 op: BinaryFieldOp::IntegerDiv, <span class="comment">// We want integer division, not field division!
                 </span>lhs: MemoryAddress::direct(<span class="number">0</span>),
                 rhs: MemoryAddress::direct(<span class="number">1</span>),
                 destination: MemoryAddress::direct(<span class="number">2</span>),
             },
-            <span class="comment">//(1)= q*b
+            <span class="comment">// (1)= q*b
             </span>BrilligOpcode::BinaryFieldOp {
                 op: BinaryFieldOp::Mul,
                 lhs: MemoryAddress::direct(<span class="number">2</span>),
                 rhs: MemoryAddress::direct(<span class="number">1</span>),
                 destination: MemoryAddress::direct(<span class="number">1</span>),
             },
-            <span class="comment">//(1) = a-q*b
+            <span class="comment">// (1) = a-q*b
             </span>BrilligOpcode::BinaryFieldOp {
                 op: BinaryFieldOp::Sub,
                 lhs: MemoryAddress::direct(<span class="number">0</span>),
                 rhs: MemoryAddress::direct(<span class="number">1</span>),
                 destination: MemoryAddress::direct(<span class="number">1</span>),
             },
-            <span class="comment">//(0) = q
+            <span class="comment">// (0) = q
             </span>BrilligOpcode::Mov {
                 destination: MemoryAddress::direct(<span class="number">0</span>),
                 source: MemoryAddress::direct(<span class="number">2</span>),
@@ -579,14 +581,14 @@
             rhs: radix,
             destination: MemoryAddress::direct(<span class="number">3</span>),
         },
-        <span class="comment">//(4) = (3)*256
+        <span class="comment">// (4) = (3)*256
         </span>BrilligOpcode::BinaryFieldOp {
             op: BinaryFieldOp::Mul,
             lhs: MemoryAddress::direct(<span class="number">3</span>),
             rhs: radix,
             destination: MemoryAddress::direct(<span class="number">4</span>),
         },
-        <span class="comment">//(4) = a-(3)*256 (remainder)
+        <span class="comment">// (4) = a-(3)*256 (remainder)
         </span>BrilligOpcode::BinaryFieldOp {
             op: BinaryFieldOp::Sub,
             lhs: MemoryAddress::direct(<span class="number">0</span>),
@@ -606,7 +608,7 @@
             destination: result_pointer,
             bit_size: memory_adr_int_size,
         },
-        <span class="comment">//a := quotient
+        <span class="comment">// a := quotient
         </span>BrilligOpcode::Mov {
             destination: MemoryAddress::direct(<span class="number">0</span>),
             source: MemoryAddress::direct(<span class="number">3</span>),

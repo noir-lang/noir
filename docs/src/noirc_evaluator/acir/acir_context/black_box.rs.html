@@ -181,7 +181,12 @@
 <a href="#180" id="180">180</a>
 <a href="#181" id="181">181</a>
 <a href="#182" id="182">182</a>
-<a href="#183" id="183">183</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::{AcirField, BlackBoxFunc, circuit::opcodes::FunctionInput};
+<a href="#183" id="183">183</a>
+<a href="#184" id="184">184</a>
+<a href="#185" id="185">185</a>
+<a href="#186" id="186">186</a>
+<a href="#187" id="187">187</a>
+<a href="#188" id="188">188</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::{AcirField, BlackBoxFunc, circuit::opcodes::FunctionInput};
 <span class="kw">use </span>iter_extended::vecmap;
 
 <span class="kw">use </span><span class="kw">crate</span>::errors::{InternalError, RuntimeError};
@@ -216,7 +221,7 @@
 
                 <span class="macro">assert_eq!</span>(
                     output_count,
-                    input_size + (<span class="number">16 </span>- input_size % <span class="number">16</span>),
+                    input_size + <span class="number">16 </span>- input_size % <span class="number">16</span>,
                     <span class="string">"output count mismatch"
                 </span>);
 
@@ -288,7 +293,7 @@
         </span><span class="kw">let </span><span class="kw-2">mut </span>inputs =
             <span class="self">self</span>.prepare_inputs_for_black_box_func_call(inputs, allow_constant_inputs)<span class="question-mark">?</span>;
         <span class="kw">if </span>name == BlackBoxFunc::EmbeddedCurveAdd {
-            inputs = <span class="self">self</span>.all_or_nothing_for_ec_add(inputs)<span class="question-mark">?</span>;
+            inputs = <span class="self">self</span>.all_variables_or_constants_for_ec_add(inputs)<span class="question-mark">?</span>;
         }
         <span class="prelude-val">Ok</span>(inputs)
     }
@@ -330,9 +335,11 @@
         <span class="prelude-val">Ok</span>(witnesses)
     }
 
-    <span class="doccomment">/// EcAdd has 6 inputs representing the two points to add
-    /// Each point must be either all constant, or all witnesses
-    </span><span class="kw">fn </span>all_or_nothing_for_ec_add(
+    <span class="doccomment">/// [`BlackBoxFunc::EmbeddedCurveAdd`] has 6 inputs representing the two points to add
+    /// Each point must be either all constants, or all witnesses,
+    /// where constants are converted to witnesses here if mixed constant and witnesses are
+    /// encountered
+    </span><span class="kw">fn </span>all_variables_or_constants_for_ec_add(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         inputs: Vec&lt;Vec&lt;FunctionInput&lt;F&gt;&gt;&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;Vec&lt;FunctionInput&lt;F&gt;&gt;&gt;, RuntimeError&gt; {
@@ -340,14 +347,17 @@
         <span class="kw">let </span><span class="kw-2">mut </span>has_witness = <span class="bool-val">false</span>;
         <span class="kw">let </span><span class="kw-2">mut </span>result = inputs.clone();
         <span class="kw">for </span>(i, input) <span class="kw">in </span>inputs.iter().enumerate() {
+            <span class="macro">assert_eq!</span>(input.len(), <span class="number">1</span>);
             <span class="kw">if </span>input[<span class="number">0</span>].is_constant() {
                 has_constant = <span class="bool-val">true</span>;
             } <span class="kw">else </span>{
                 has_witness = <span class="bool-val">true</span>;
             }
+
             <span class="kw">if </span>i % <span class="number">3 </span>== <span class="number">2 </span>{
                 <span class="kw">if </span>has_constant &amp;&amp; has_witness {
-                    <span class="comment">// Convert the constants to witness if mixed constant and witness,
+                    <span class="comment">// Convert the constants to witnesses if mixed constants and witnesses are
+                    // encountered
                     </span><span class="kw">for </span>j <span class="kw">in </span>i - <span class="number">2</span>..i + <span class="number">1 </span>{
                         <span class="kw">if let </span>FunctionInput::Constant(constant) = inputs[j][<span class="number">0</span>] {
                             <span class="kw">let </span>constant = <span class="self">self</span>.add_constant(constant);

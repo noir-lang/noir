@@ -228,7 +228,8 @@
 <a href="#227" id="227">227</a>
 <a href="#228" id="228">228</a>
 <a href="#229" id="229">229</a>
-<a href="#230" id="230">230</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::{
+<a href="#230" id="230">230</a>
+<a href="#231" id="231">231</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::{
     AcirField,
     circuit::brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
     native_types::{Expression, Witness},
@@ -251,12 +252,13 @@
         outputs: Vec&lt;AcirType&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;AcirValue&gt;, RuntimeError&gt; {
         <span class="kw">let </span>stdlib_func_bytecode = <span class="kw-2">&amp;</span><span class="self">self</span>.brillig_stdlib.get_code(brillig_stdlib_func).clone();
+        <span class="kw">let </span>safe_return_values = <span class="bool-val">false</span>;
         <span class="self">self</span>.brillig_call(
             predicate,
             stdlib_func_bytecode,
             inputs,
             outputs,
-            <span class="bool-val">false</span>,
+            safe_return_values,
             PLACEHOLDER_BRILLIG_INDEX,
             <span class="prelude-val">Some</span>(brillig_stdlib_func),
         )

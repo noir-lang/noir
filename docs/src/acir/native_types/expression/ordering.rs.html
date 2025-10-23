@@ -93,7 +93,11 @@
 <a href="#92" id="92">92</a>
 <a href="#93" id="93">93</a>
 <a href="#94" id="94">94</a>
-<a href="#95" id="95">95</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::native_types::Witness;
+<a href="#95" id="95">95</a>
+<a href="#96" id="96">96</a>
+<a href="#97" id="97">97</a>
+<a href="#98" id="98">98</a>
+<a href="#99" id="99">99</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::native_types::Witness;
 <span class="kw">use </span>std::cmp::Ordering;
 
 <span class="kw">use </span><span class="kw">super</span>::Expression;
@@ -103,6 +107,10 @@
 
 </span><span class="kw">impl</span>&lt;F: Ord&gt; Ord <span class="kw">for </span>Expression&lt;F&gt; {
     <span class="kw">fn </span>cmp(<span class="kw-2">&amp;</span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; Ordering {
+        <span class="comment">// `get_max_term` has a comment: "This function assumes the gate is sorted"
+        </span><span class="macro">assert!</span>(<span class="self">self</span>.is_sorted());
+        <span class="macro">assert!</span>(other.is_sorted());
+
         <span class="kw">let </span><span class="kw-2">mut </span>i1 = <span class="self">self</span>.get_max_idx();
         <span class="kw">let </span><span class="kw-2">mut </span>i2 = other.get_max_idx();
         <span class="kw">let </span><span class="kw-2">mut </span>result = Ordering::Equal;

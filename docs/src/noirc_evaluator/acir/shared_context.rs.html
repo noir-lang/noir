@@ -313,7 +313,12 @@
 <a href="#312" id="312">312</a>
 <a href="#313" id="313">313</a>
 <a href="#314" id="314">314</a>
-<a href="#315" id="315">315</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `shared_context` module contains any shared state needed while lowering SSA → ACIR.
+<a href="#315" id="315">315</a>
+<a href="#316" id="316">316</a>
+<a href="#317" id="317">317</a>
+<a href="#318" id="318">318</a>
+<a href="#319" id="319">319</a>
+<a href="#320" id="320">320</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `shared_context` module contains any shared state needed while lowering SSA → ACIR.
 //! Specifically, it manages Brillig function pointers, stdlib calls, and global usage.
 //!
 //! ## Design
@@ -413,6 +418,11 @@
 
     <span class="doccomment">/// Finalize this context, consuming it and returning all generated Brillig functions.
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>finish(<span class="self">self</span>) -&gt; Vec&lt;GeneratedBrillig&lt;F&gt;&gt; {
+        <span class="macro">assert_eq!</span>(
+            <span class="self">self</span>.brillig_stdlib_calls_to_resolve.len(),
+            <span class="number">0</span>,
+            <span class="string">"expected zero remaining 'brillig_stdlib_calls_to_resolve'"
+        </span>);
         <span class="self">self</span>.generated_brillig
     }
 
@@ -470,12 +480,12 @@
         <span class="self">self</span>.brillig_stdlib_calls_to_resolve.entry(func_id).or_default().push(call_to_resolve);
     }
 
-    <span class="doccomment">/// Get the list of unresolved stdlib call sites for a given function
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>get_call_to_resolve(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
+    <span class="doccomment">/// Get and remove the list of unresolved stdlib call sites for a given function
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>remove_call_to_resolve(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         func_id: FunctionId,
-    ) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Vec&lt;(OpcodeLocation, BrilligFunctionId)&gt;&gt; {
-        <span class="self">self</span>.brillig_stdlib_calls_to_resolve.get(<span class="kw-2">&amp;</span>func_id)
+    ) -&gt; <span class="prelude-ty">Option</span>&lt;Vec&lt;(OpcodeLocation, BrilligFunctionId)&gt;&gt; {
+        <span class="self">self</span>.brillig_stdlib_calls_to_resolve.remove(<span class="kw-2">&amp;</span>func_id)
     }
 
     <span class="doccomment">/// Remove and return the set of globals used by the given function,
@@ -600,7 +610,7 @@
         }
 
         <span class="comment">// Calls to resolve should be 2 per variant
-        </span><span class="kw">let </span>calls = context.get_call_to_resolve(func_id).unwrap();
+        </span><span class="kw">let </span>calls = context.remove_call_to_resolve(func_id).unwrap();
         <span class="macro">assert_eq!</span>(calls.len(), variants.len() * <span class="number">2</span>);
 
         <span class="comment">// Check that each call matches the expected stdlib function pointer

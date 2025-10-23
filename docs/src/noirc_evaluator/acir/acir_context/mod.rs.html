@@ -1612,7 +1612,9 @@
 <a href="#1611" id="1611">1611</a>
 <a href="#1612" id="1612">1612</a>
 <a href="#1613" id="1613">1613</a>
-<a href="#1614" id="1614">1614</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
+<a href="#1614" id="1614">1614</a>
+<a href="#1615" id="1615">1615</a>
+<a href="#1616" id="1616">1616</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
 //! of type information from SSA in order to allow efficient ACIR-gen.
 //!
 //! The [`AcirContext`] struct defines how to translate SSA instructions into equivalent ACIR constructs. This
@@ -1700,7 +1702,7 @@
         <span class="self">self</span>.acir_ir.current_witness_index()
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>extract_witness(<span class="kw-2">&amp;</span><span class="self">self</span>, inputs: <span class="kw-2">&amp;</span>[AcirValue]) -&gt; Vec&lt;Witness&gt; {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>extract_witnesses(<span class="kw-2">&amp;</span><span class="self">self</span>, inputs: <span class="kw-2">&amp;</span>[AcirValue]) -&gt; Vec&lt;Witness&gt; {
         inputs
             .iter()
             .flat_map(|value| value.clone().flatten())
@@ -1943,7 +1945,7 @@
         <span class="prelude-val">Ok</span>(result_var)
     }
 
-    <span class="doccomment">/// Returns an `AcirVar` that is the XOR result of `lhs` &amp; `rhs`.
+    <span class="doccomment">/// Returns an `AcirVar` that is the XOR result of `lhs` and `rhs`.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>xor_var(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         lhs: AcirVar,
@@ -1986,7 +1988,7 @@
         }
     }
 
-    <span class="doccomment">/// Returns an `AcirVar` that is the AND result of `lhs` &amp; `rhs`.
+    <span class="doccomment">/// Returns an `AcirVar` that is the AND result of `lhs` and `rhs`.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>and_var(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         lhs: AcirVar,
@@ -2022,7 +2024,7 @@
         }
     }
 
-    <span class="doccomment">/// Returns an `AcirVar` that is the OR result of `lhs` &amp; `rhs`.
+    <span class="doccomment">/// Returns an `AcirVar` that is the OR result of `lhs` and `rhs`.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>or_var(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         lhs: AcirVar,
@@ -2031,7 +2033,11 @@
     ) -&gt; <span class="prelude-ty">Result</span>&lt;AcirVar, RuntimeError&gt; {
         <span class="kw">let </span>lhs_expr = <span class="self">self</span>.var_to_expression(lhs)<span class="question-mark">?</span>;
         <span class="kw">let </span>rhs_expr = <span class="self">self</span>.var_to_expression(rhs)<span class="question-mark">?</span>;
-        <span class="kw">if </span>lhs_expr.is_zero() {
+
+        <span class="kw">if </span>lhs_expr == rhs_expr {
+            <span class="comment">// x | x == x
+            </span><span class="kw">return </span><span class="prelude-val">Ok</span>(lhs);
+        } <span class="kw">else if </span>lhs_expr.is_zero() {
             <span class="comment">// 0 | x == x
             </span><span class="kw">return </span><span class="prelude-val">Ok</span>(rhs);
         } <span class="kw">else if </span>rhs_expr.is_zero() {
@@ -2042,7 +2048,7 @@
         <span class="kw">match </span>typ.to_numeric_type() {
             NumericType::Signed { bit_size: <span class="number">1 </span>} | NumericType::Unsigned { bit_size: <span class="number">1 </span>} =&gt; {
                 <span class="comment">// Operands are booleans
-                // a + b - ab
+                // a + b - a*b
                 </span><span class="kw">let </span>mul = <span class="self">self</span>.mul_var(lhs, rhs)<span class="question-mark">?</span>;
                 <span class="kw">let </span>sum = <span class="self">self</span>.add_var(lhs, rhs)<span class="question-mark">?</span>;
                 <span class="self">self</span>.sub_var(sum, mul)
@@ -2149,7 +2155,7 @@
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>vars_to_expressions_or_memory(
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>values_to_expressions_or_memory(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         values: <span class="kw-2">&amp;</span>[AcirValue],
     ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;ExpressionOrMemory&lt;F&gt;&gt;, RuntimeError&gt; {
@@ -2159,9 +2165,9 @@
                 AcirValue::Var(var, <span class="kw">_</span>) =&gt; {
                     result.push(ExpressionOrMemory::Expression(<span class="self">self</span>.var_to_expression(<span class="kw-2">*</span>var)<span class="question-mark">?</span>));
                 }
-                AcirValue::Array(vars) =&gt; {
-                    <span class="kw">let </span>vars_as_vec: Vec&lt;<span class="kw">_</span>&gt; = vars.iter().cloned().collect();
-                    result.extend(<span class="self">self</span>.vars_to_expressions_or_memory(<span class="kw-2">&amp;</span>vars_as_vec)<span class="question-mark">?</span>);
+                AcirValue::Array(values) =&gt; {
+                    <span class="kw">let </span>values_as_vec: Vec&lt;<span class="kw">_</span>&gt; = values.iter().cloned().collect();
+                    result.extend(<span class="self">self</span>.values_to_expressions_or_memory(<span class="kw-2">&amp;</span>values_as_vec)<span class="question-mark">?</span>);
                 }
                 AcirValue::DynamicArray(AcirDynamicArray { block_id, .. }) =&gt; {
                     result.push(ExpressionOrMemory::Memory(<span class="kw-2">*</span>block_id));
@@ -2396,7 +2402,7 @@
                     <span class="kw">let </span>lhs_const = lhs_const.to_u128();
                     <span class="kw">let </span>rhs_const = rhs_const.to_u128();
                     <span class="kw">let </span>quotient = lhs_const / rhs_const;
-                    <span class="kw">let </span>remainder = lhs_const - quotient * rhs_const;
+                    <span class="kw">let </span>remainder = lhs_const % rhs_const;
 
                     <span class="kw">let </span>quotient_var = <span class="self">self</span>.add_constant(quotient);
                     <span class="kw">let </span>remainder_var = <span class="self">self</span>.add_constant(remainder);
@@ -2453,7 +2459,7 @@
             // can't assume that the RHS will never have more bits than the operand.
             // Alternatively if the RHS is a result of an underflow, it could be a negative number which
             // is represented by a very large positive Field, which could fail to compile to ACIR in
-            // `range_constrain_var` below, because it can use all 254 bits.
+            // `range_constrain_var` below, because it can use all Field bits.
 
             // To avoid any uncertainty about how the rest of the calls would behave if we pretended that we
             // didn't know that the RHS has more bits than the operation assumes, we return zero and add an
@@ -2601,7 +2607,7 @@
     /// if lhs&gt;rhs, rhs-lhs = p+rhs-lhs &gt; p-2^bits &gt;= 2^bits  (if log(p) &gt;= bits + 1)
     /// n.b: we do NOT check here that lhs and rhs are indeed 'bits' size
     /// lhs &lt; rhs &lt;=&gt; a+1&lt;=b
-    /// TODO: Consolidate this with bounds_check function.
+    /// TODO(&lt;https://github.com/noir-lang/noir/issues/10270&gt;): Consolidate this with bounds_check function.
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>bound_constraint_with_offset(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         lhs: AcirVar,
@@ -2621,7 +2627,7 @@
 
         <span class="macro">assert!</span>(
             bits &lt; F::max_num_bits(),
-            <span class="string">"range check with bit size of the prime field is not implemented yet"
+            <span class="string">"range check with bit size &gt;= the prime field size is not implemented yet"
         </span>);
 
         <span class="kw">let </span><span class="kw-2">mut </span>lhs_offset = <span class="self">self</span>.add_var(lhs, offset)<span class="question-mark">?</span>;
@@ -2646,7 +2652,7 @@
             </span><span class="kw">let </span>two_pow_bit_size_minus_one =
                 <span class="kw">if </span>bit_size == <span class="number">128 </span>{ u128::MAX } <span class="kw">else </span>{ (<span class="number">1_u128 </span>&lt;&lt; bit_size) - <span class="number">1 </span>};
             <span class="kw">let </span>r = two_pow_bit_size_minus_one - rhs_offset;
-            <span class="comment">// however, since it is a constant, we can compute it's actual bit size
+            <span class="comment">// however, since it is a constant, we can compute its actual bit size
             </span><span class="kw">let </span>r_bit_size = bit_size_u128(r);
 
             <span class="comment">//we need to ensure lhs_offset + r does not overflow
@@ -2665,8 +2671,8 @@
                 <span class="kw">return </span><span class="prelude-val">Ok</span>(());
             }
         }
-        <span class="comment">// General case:  lhs_offset&lt;=rhs &lt;=&gt; rhs-lhs_offset&gt;=0 &lt;=&gt; rhs-lhs_offset is a 'bits' bit integer
-        </span><span class="kw">let </span>sub_expression = <span class="self">self</span>.sub_var(rhs, lhs_offset)<span class="question-mark">?</span>; <span class="comment">//rhs-lhs_offset
+        <span class="comment">// General case: lhs_offset&lt;=rhs &lt;=&gt; rhs-lhs_offset&gt;=0 &lt;=&gt; rhs-lhs_offset is a 'bits' bit integer
+        </span><span class="kw">let </span>sub_expression = <span class="self">self</span>.sub_var(rhs, lhs_offset)<span class="question-mark">?</span>; <span class="comment">// rhs-lhs_offset
         </span><span class="self">self</span>.range_constrain_var(
             sub_expression,
             <span class="kw-2">&amp;</span>NumericType::Unsigned { bit_size: bits },
@@ -2788,18 +2794,18 @@
         // In other words, `1` means `a &gt;= b` and `0` means `b &gt; a`.
         // The important thing here is that `c` does not overflow nor underflow the field;
         // - By construction we have `c &gt;= 0`, so there is no underflow
-        // - We assert at the beginning that `2^{max_bits+1}` does not overflow the field, so neither c.
+        // - We assert at the beginning that `2^{max_bits+1}` does not overflow the field, so neither does c.
 
         // Ensure that 2^{max_bits + 1} is less than the field size
         //
-        // TODO: perhaps this should be a user error, instead of an assert
+        // TODO(https://github.com/noir-lang/noir/issues/10257): perhaps this should be a user error, instead of an assert
         </span><span class="macro">assert!</span>(max_bits + <span class="number">1 </span>&lt; F::max_num_bits());
 
         <span class="kw">let </span>two_max_bits = <span class="self">self</span>.add_constant(power_of_two::&lt;F&gt;(max_bits));
         <span class="kw">let </span>diff = <span class="self">self</span>.sub_var(lhs, rhs)<span class="question-mark">?</span>;
         <span class="kw">let </span>comparison_evaluation = <span class="self">self</span>.add_var(diff, two_max_bits)<span class="question-mark">?</span>;
 
-        <span class="comment">// Euclidean division by 2^{max_bits}  : 2^{max_bits} + a - b = q * 2^{max_bits} + r
+        <span class="comment">// Euclidean division by 2^{max_bits} : 2^{max_bits} + a - b = q * 2^{max_bits} + r
         //
         // 2^{max_bits} is of max_bits+1 bit size
         // If a&gt;b, then a-b is less than 2^{max_bits} - 1, so 2^{max_bits} + a - b is less than 2^{max_bits} + 2^{max_bits} - 1 = 2^{max_bits+1} - 1
@@ -2844,7 +2850,7 @@
         </span><span class="kw">let </span>comparison = <span class="self">self</span>.more_than_eq_var(lhs, rhs, bit_size)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>one = <span class="self">self</span>.add_constant(F::one());
-        <span class="self">self</span>.sub_var(one, comparison) <span class="comment">// comparison_negated
+        <span class="self">self</span>.sub_var(one, comparison) <span class="comment">// comparison negated
     </span>}
 
     <span class="doccomment">/// Returns a vector of `AcirVar`s constrained to be the decomposition of the given input
@@ -2860,7 +2866,7 @@
         result_element_type: AcirType,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;AcirValue, RuntimeError&gt; {
         <span class="kw">let </span>radix = <span class="kw">match </span><span class="self">self</span>.vars[<span class="kw-2">&amp;</span>radix_var].as_constant() {
-            <span class="prelude-val">Some</span>(radix) =&gt; radix.to_u128() <span class="kw">as </span>u32,
+            <span class="prelude-val">Some</span>(radix) =&gt; radix.try_into_u128().expect(<span class="string">"expected radix to fit within a u128"</span>),
             <span class="prelude-val">None </span>=&gt; {
                 <span class="kw">return </span><span class="prelude-val">Err</span>(RuntimeError::InternalError(InternalError::NotAConstant {
                     name: <span class="string">"radix"</span>.to_string(),
@@ -2876,7 +2882,7 @@
 
         <span class="kw">let </span>input_expr = <span class="self">self</span>.var_to_expression(input_var)<span class="question-mark">?</span>;
 
-        <span class="kw">let </span>bit_size = u32::BITS - (radix - <span class="number">1</span>).leading_zeros();
+        <span class="kw">let </span>bit_size = u128::BITS - (radix - <span class="number">1</span>).leading_zeros();
         <span class="kw">let </span>limbs = <span class="self">self</span>.acir_ir.radix_le_decompose(<span class="kw-2">&amp;</span>input_expr, radix, limb_count, bit_size)<span class="question-mark">?</span>;
 
         <span class="kw">let </span><span class="kw-2">mut </span>limb_vars = vecmap(limbs, |witness| {
@@ -3024,9 +3030,9 @@
                 <span class="kw">let </span>zero_witness = <span class="self">self</span>.var_to_witness(zero)<span class="question-mark">?</span>;
                 <span class="macro">vec!</span>[zero_witness; len]
             }
-            <span class="prelude-val">Some</span>(optional_value) =&gt; {
+            <span class="prelude-val">Some</span>(value) =&gt; {
                 <span class="kw">let </span><span class="kw-2">mut </span>values = Vec::new();
-                <span class="self">self</span>.initialize_array_inner(<span class="kw-2">&amp;mut </span>values, optional_value)<span class="question-mark">?</span>;
+                <span class="self">self</span>.initialize_array_inner(<span class="kw-2">&amp;mut </span>values, value)<span class="question-mark">?</span>;
                 values
             }
         };
@@ -3056,13 +3062,11 @@
                 }
             }
             AcirValue::DynamicArray(AcirDynamicArray { block_id, len, value_types, .. }) =&gt; {
-                <span class="kw">let </span>dynamic_array_values = try_vecmap(<span class="number">0</span>..len, |i| {
+                <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..len {
                     <span class="kw">let </span>index_var = <span class="self">self</span>.add_constant(i);
                     <span class="kw">let </span>read = <span class="self">self</span>.read_from_memory(block_id, <span class="kw-2">&amp;</span>index_var)<span class="question-mark">?</span>;
                     <span class="kw">let </span>typ = value_types[i % value_types.len()];
-                    <span class="prelude-val">Ok</span>::&lt;AcirValue, InternalError&gt;(AcirValue::Var(read, AcirType::NumericType(typ)))
-                })<span class="question-mark">?</span>;
-                <span class="kw">for </span>value <span class="kw">in </span>dynamic_array_values {
+                    <span class="kw">let </span>value = AcirValue::Var(read, AcirType::NumericType(typ));
                     <span class="self">self</span>.initialize_array_inner(witnesses, value)<span class="question-mark">?</span>;
                 }
             }

@@ -301,7 +301,9 @@
 <a href="#300" id="300">300</a>
 <a href="#301" id="301">301</a>
 <a href="#302" id="302">302</a>
-<a href="#303" id="303">303</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::AcirField;
+<a href="#303" id="303">303</a>
+<a href="#304" id="304">304</a>
+<a href="#305" id="305">305</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::AcirField;
 <span class="kw">use </span>acvm::acir::circuit::opcodes::AcirFunctionId;
 <span class="kw">use </span>iter_extended::vecmap;
 
@@ -441,12 +443,13 @@
             <span class="self">self</span>.shared_context.generated_brillig_pointer(func.id(), arguments.clone())
         {
             <span class="kw">let </span>code = <span class="self">self</span>.shared_context.generated_brillig(generated_pointer.as_usize());
+            <span class="kw">let </span>safe_return_values = <span class="bool-val">false</span>;
             <span class="self">self</span>.acir_context.brillig_call(
                 <span class="self">self</span>.current_side_effects_enabled_var,
                 code,
                 inputs,
                 outputs,
-                <span class="bool-val">false</span>,
+                safe_return_values,
                 <span class="kw-2">*</span>generated_pointer,
                 <span class="prelude-val">None</span>,
             )<span class="question-mark">?
@@ -454,12 +457,13 @@
             <span class="kw">let </span>code =
                 gen_brillig_for(func, arguments.clone(), <span class="self">self</span>.brillig, <span class="self">self</span>.brillig_options)<span class="question-mark">?</span>;
             <span class="kw">let </span>generated_pointer = <span class="self">self</span>.shared_context.new_generated_pointer();
+            <span class="kw">let </span>safe_return_values = <span class="bool-val">false</span>;
             <span class="kw">let </span>output_values = <span class="self">self</span>.acir_context.brillig_call(
                 <span class="self">self</span>.current_side_effects_enabled_var,
                 <span class="kw-2">&amp;</span>code,
                 inputs,
                 outputs,
-                <span class="bool-val">false</span>,
+                safe_return_values,
                 generated_pointer,
                 <span class="prelude-val">None</span>,
             )<span class="question-mark">?</span>;
