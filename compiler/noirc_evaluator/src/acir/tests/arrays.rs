@@ -140,6 +140,13 @@ fn constant_array_access_in_bounds() {
     // We know the circuit above to be trivially true
     assert_eq!(program.functions.len(), 1);
     assert_eq!(program.functions[0].opcodes.len(), 0);
+
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: []
+    public parameters: []
+    return values: []
+    ");
 }
 
 #[test]
