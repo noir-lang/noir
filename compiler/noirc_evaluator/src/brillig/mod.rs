@@ -175,9 +175,8 @@ impl Ssa {
         );
 
         for brillig_function_id in brillig_reachable_function_ids {
-            let (globals_allocations, hoisted_constant_allocations) = brillig_globals
-                .get_brillig_globals(brillig_function_id)
-                .expect("ICE: should find each function in Brillig globals");
+            let (globals_allocations, hoisted_constant_allocations) =
+                brillig_globals.get_brillig_globals(brillig_function_id);
 
             let func = &self.functions[&brillig_function_id];
             let is_entry_point = brillig_globals.is_entry_point(&brillig_function_id);

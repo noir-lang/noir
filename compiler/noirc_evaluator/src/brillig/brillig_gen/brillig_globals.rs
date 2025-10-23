@@ -250,14 +250,15 @@ impl BrilligGlobals {
     ///
     /// These allocations can then be used when compiling the Brillig function
     /// and resolving global variables.
+    ///
+    /// Panics if the function hasn't been prepared during initialization.
     pub(crate) fn get_brillig_globals(
         &self,
         brillig_function_id: FunctionId,
-    ) -> Option<(&SsaToBrilligGlobals, &HoistedConstantsToBrilligGlobals)> {
+    ) -> (&SsaToBrilligGlobals, &HoistedConstantsToBrilligGlobals) {
         // Check whether `brillig_function_id` is itself an entry point.
         // If so, return the global allocations directly.
-        let entry_point_globals = self.get_entry_point_globals(&brillig_function_id);
-        if entry_point_globals.is_some() {
+        if let Some(entry_point_globals) = self.get_entry_point_globals(&brillig_function_id) {
             return entry_point_globals;
         }
 
@@ -272,24 +273,22 @@ impl BrilligGlobals {
         assert_eq!(entry_points.len(), 1, "ICE: {brillig_function_id} has multiple entry points");
         let entry_point = entry_points.first().expect("ICE: Inner call should have an entry point");
 
-        self.get_entry_point_globals(entry_point)
+        self.get_entry_point_globals(entry_point).expect("ICE: Entry point should have globals")
     }
 
-    /// Fetch the global allocations for a given entry point.
+    /// Try to fetch the global allocations for a given entry point.
+    ///
     /// This contains both the user specified globals, as well as any constants shared
     /// across functions that have been hoisted into the global space.
+    ///
+    /// Returns `None` if the function is not an entry point.
     fn get_entry_point_globals(
         &self,
-        entry_point: &FunctionId,
+        brillig_function_id: &FunctionId,
     ) -> Option<(&SsaToBrilligGlobals, &HoistedConstantsToBrilligGlobals)> {
-        if let (Some(globals), Some(hoisted_constants)) = (
-            self.entry_point_globals_map.get(entry_point),
-            self.entry_point_hoisted_globals_map.get(entry_point),
-        ) {
-            Some((globals, hoisted_constants))
-        } else {
-            None
-        }
+        let globals = self.entry_point_globals_map.get(brillig_function_id)?;
+        let hoisted_constants = self.entry_point_hoisted_globals_map.get(brillig_function_id)?;
+        Some((globals, hoisted_constants))
     }
 }
 
