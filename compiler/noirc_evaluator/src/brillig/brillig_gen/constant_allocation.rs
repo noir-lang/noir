@@ -165,6 +165,7 @@ impl ConstantAllocation {
         current_block
     }
 
+    /// Return the SSA [ValueId] of all constants (they might have the same value).
     pub(crate) fn get_constants(&self) -> BTreeSet<ValueId> {
         self.constant_usage.keys().copied().collect()
     }

@@ -110,7 +110,7 @@ impl BrilligGlobalsInit {
 
             // Increment the use-count of local constants in all functions called by the entry point.
             for inner_call in entry_point_inner_calls.iter() {
-                let inner_func = &ssa.functions[entry_point];
+                let inner_func = &ssa.functions[inner_call];
                 Self::mark_globals_for_hoisting(
                     &mut constant_usage,
                     *entry_point,
@@ -156,7 +156,8 @@ impl BrilligGlobalsInit {
     ) {
         let entry_const_usage = hoisted_global_constants.entry(entry_point).or_default();
 
-        // We can potentially have multiple local constants with the same value and type
+        // We can potentially have multiple local constants with the same value and type,
+        // in which case even one function will count as multiple occurrences.
         for constant in constants.get_constants() {
             let value = function.dfg.get_numeric_constant_with_type(constant);
             let (value, typ) = value.expect("it was found by constant allocation");
@@ -644,10 +645,11 @@ mod tests {
         assert_eq!(brillig.globals.len(), 1, "Should have a single entry point");
         for (func_id, artifact) in brillig.globals {
             assert_eq!(func_id.to_u32(), 1);
+            // We expect constants 0 and 1 to be hoisted. Not 20 because it only appears in one function.
             assert_eq!(
                 artifact.byte_code.len(),
                 3,
-                "Expected enough opcodes to initialize the hoisted constants"
+                "Expected enough opcodes to initialize the hoisted constants:\n{artifact}"
             );
             let Opcode::Const { destination, bit_size, value } = &artifact.byte_code[0] else {
                 panic!("First opcode is expected to be `Const`");
@@ -660,7 +662,7 @@ mod tests {
             assert_eq!(*value, FieldElement::from(0u128));
 
             let Opcode::Const { destination, bit_size, value } = &artifact.byte_code[1] else {
-                panic!("First opcode is expected to be `Const`");
+                panic!("Second opcode is expected to be `Const`");
             };
             assert_eq!(
                 destination.unwrap_direct(),
