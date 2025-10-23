@@ -567,13 +567,9 @@ impl Loop {
         let mut unroll_into = self.get_pre_header(function, cfg)?;
         let mut jump_value = get_induction_variable(&function.dfg, unroll_into)?;
 
-        // TODO: WIP
-        while let (Some(context), loop_header_id) =
+        while let Some((context, loop_header_id)) =
             self.unroll_header(function, unroll_into, jump_value)?
         {
-            // TODO: WIP
-            // context.visited_blocks.insert(loop_header_id);
-
             (unroll_into, jump_value) = context.unroll_loop_iteration(loop_header_id);
         }
 
@@ -606,23 +602,19 @@ impl Loop {
 
     /// Unrolls the header block of the loop. This is the block that dominates all other blocks in the
     /// loop and contains the jmpif instruction that lets us know if we should continue looping.
-    /// Returns Some(iteration context) if we should perform another iteration.
-    /// // TODO: WIP
-    /// and the loop header's BasicBlockId
+    /// Returns Some((iteration context, loop_header_id)) if we should perform another iteration.
     fn unroll_header<'a>(
         &'a self,
         function: &'a mut Function,
         unroll_into: BasicBlockId,
         induction_value: ValueId,
-        // TODO: WIP
-    ) -> Result<(Option<LoopIteration<'a>>, BasicBlockId), CallStack> {
+    ) -> Result<Option<(LoopIteration<'a>, BasicBlockId)>, CallStack> {
         // We insert into a fresh block first and move instructions into the unroll_into block later
         // only once we verify the jmpif instruction has a constant condition. If it does not, we can
         // just discard this fresh block and leave the loop unmodified.
         let fresh_block = function.dfg.make_block();
 
         let mut context = LoopIteration::new(function, self, fresh_block, self.header);
-        // TODO: WIP
         let loop_header_id = context.source_block;
         let source_block = &context.dfg()[loop_header_id];
         assert_eq!(source_block.parameters().len(), 1, "Expected only 1 argument in loop header");
@@ -664,11 +656,11 @@ impl Loop {
                     // have no more loops to unroll, because that block was not part of the loop itself,
                     // ie. it wasn't between `loop_header` and `loop_body`. Otherwise we have the `loop_body`
                     // in `source_block` and can unroll that into the destination.
-                    // TODO: WIP
-                    Ok((
-                        self.blocks.contains(&context.source_block).then_some(context),
-                        loop_header_id,
-                    ))
+                    Ok(self
+                        .blocks
+                        .contains(&context.source_block)
+                        .then_some(context)
+                        .map(|iteration_context| (iteration_context, loop_header_id)))
                 } else {
                     // If this case is reached the loop either uses non-constant indices or we need
                     // another pass, such as mem2reg to resolve them to constants.
@@ -984,9 +976,7 @@ struct LoopIteration<'f> {
     original_blocks: HashMap<BasicBlockId, BasicBlockId>,
     visited_blocks: HashSet<BasicBlockId>,
 
-    // TODO: WIP
-    // #[cfg(test)]
-    // loop_header_id: Option<BasicBlockId>,
+    /// Has `unroll_loop_iteration` reached the `loop_header_id`
     encountered_loop_header: bool,
 
     insert_block: BasicBlockId,
@@ -1014,7 +1004,6 @@ impl<'f> LoopIteration<'f> {
             blocks: HashMap::default(),
             original_blocks: HashMap::default(),
             visited_blocks: HashSet::default(),
-            // TODO: WIP
             encountered_loop_header: false,
 
             induction_value: None,
@@ -1027,23 +1016,14 @@ impl<'f> LoopIteration<'f> {
     /// It is expected the terminator instructions are set up to branch into an empty block
     /// for further unrolling. When the loop is finished this will need to be mutated to
     /// jump to the end of the loop instead.
-    // TODO: WIP
-    fn unroll_loop_iteration(mut self, loop_header: BasicBlockId) -> (BasicBlockId, ValueId) {
-        // TODO: WIP
-        // Mark the loop header as visited
-        self.visited_blocks.insert(loop_header);
-
+    fn unroll_loop_iteration(mut self, loop_header_id: BasicBlockId) -> (BasicBlockId, ValueId) {
         // Kick off the unrolling from the initial source block.
         let mut next_blocks = self.unroll_loop_block();
 
         while let Some(block) = next_blocks.pop() {
             self.insert_block = block;
             self.source_block = self.get_original_block(block);
-
-            // TODO: WIP
-            // if cfg!(test) {
-            self.encountered_loop_header |= self.visited_blocks.contains(&self.source_block);
-            // }
+            self.encountered_loop_header |= loop_header_id == self.source_block;
 
             if !self.visited_blocks.contains(&self.source_block) {
                 let mut blocks = self.unroll_loop_block();
@@ -1056,13 +1036,10 @@ impl<'f> LoopIteration<'f> {
             .induction_value
             .expect("Expected to find the induction variable by end of loop iteration");
 
-        // TODO: WIP
-        // if cfg!(test) {
         assert!(
             self.encountered_loop_header,
             "expected to encounter loop header when visiting blocks"
         );
-        // }
 
         (end_block, induction_value)
     }
