@@ -375,31 +375,7 @@
 <a href="#374" id="374">374</a>
 <a href="#375" id="375">375</a>
 <a href="#376" id="376">376</a>
-<a href="#377" id="377">377</a>
-<a href="#378" id="378">378</a>
-<a href="#379" id="379">379</a>
-<a href="#380" id="380">380</a>
-<a href="#381" id="381">381</a>
-<a href="#382" id="382">382</a>
-<a href="#383" id="383">383</a>
-<a href="#384" id="384">384</a>
-<a href="#385" id="385">385</a>
-<a href="#386" id="386">386</a>
-<a href="#387" id="387">387</a>
-<a href="#388" id="388">388</a>
-<a href="#389" id="389">389</a>
-<a href="#390" id="390">390</a>
-<a href="#391" id="391">391</a>
-<a href="#392" id="392">392</a>
-<a href="#393" id="393">393</a>
-<a href="#394" id="394">394</a>
-<a href="#395" id="395">395</a>
-<a href="#396" id="396">396</a>
-<a href="#397" id="397">397</a>
-<a href="#398" id="398">398</a>
-<a href="#399" id="399">399</a>
-<a href="#400" id="400">400</a>
-<a href="#401" id="401">401</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::BlackBoxFunc;
+<a href="#377" id="377">377</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::BlackBoxFunc;
 <span class="kw">use </span>acvm::acir::brillig::ValueOrArray;
 <span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>iter_extended::vecmap;
@@ -409,7 +385,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::instruction::{Endian, Hint, InstructionId, Intrinsic};
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
     dfg::DataFlowGraph,
-    types::{NumericType, Type},
+    types::NumericType,
     value::{Value, ValueId},
 };
 
@@ -486,36 +462,6 @@
                 }
                 ValueOrArray::HeapArray(<span class="kw">_</span>) | ValueOrArray::MemoryAddress(<span class="kw">_</span>) =&gt; {}
             }
-        }
-    }
-
-    <span class="doccomment">/// Converts the ArrayLen intrinsic to Brillig bytecode.
-    ///
-    /// For slices (represented as tuples of (length, contents)), this directly moves
-    /// the length field. For arrays, it calculates the length based on the array size.
-    </span><span class="kw">fn </span>convert_ssa_array_len_intrinsic(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        arguments: <span class="kw-2">&amp;</span>[ValueId],
-        instruction_id: InstructionId,
-        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
-    ) {
-        <span class="kw">let </span>[result_value] = dfg.instruction_result(instruction_id);
-        <span class="kw">let </span>result_variable = <span class="self">self</span>.variables.define_single_addr_variable(
-            <span class="self">self</span>.function_context,
-            <span class="self">self</span>.brillig_context,
-            result_value,
-            dfg,
-        );
-        <span class="kw">let </span>param_id = arguments[<span class="number">0</span>];
-        <span class="comment">// Slices are represented as a tuple in the form: (length, slice contents).
-        // Thus, we can expect the first argument to a field in the case of a slice
-        // or an array in the case of an array.
-        </span><span class="kw">if let </span>Type::Numeric(<span class="kw">_</span>) = dfg.type_of_value(param_id) {
-            <span class="kw">let </span>len_variable = <span class="self">self</span>.convert_ssa_value(arguments[<span class="number">0</span>], dfg);
-            <span class="kw">let </span>length = len_variable.extract_single_addr();
-            <span class="self">self</span>.brillig_context.mov_instruction(result_variable.address, length.address);
-        } <span class="kw">else </span>{
-            <span class="self">self</span>.convert_ssa_array_len(arguments[<span class="number">0</span>], result_variable.address, dfg);
         }
     }
 
@@ -669,9 +615,6 @@
                 <span class="comment">// This match could be combined with the above but without it rust analyzer
                 // can't automatically insert any missing cases
                 </span><span class="kw">match </span>intrinsic {
-                    Intrinsic::ArrayLen =&gt; {
-                        <span class="self">self</span>.convert_ssa_array_len_intrinsic(arguments, instruction_id, dfg);
-                    }
                     Intrinsic::AsSlice =&gt; {
                         <span class="self">self</span>.convert_ssa_as_slice(arguments, instruction_id, dfg);
                     }
@@ -780,14 +723,23 @@
                         <span class="kw">let </span>array = array.extract_register();
                         <span class="self">self</span>.brillig_context.load_instruction(destination, array);
                     }
-                    Intrinsic::IsUnconstrained
-                    | Intrinsic::DerivePedersenGenerators
-                    | Intrinsic::ApplyRangeConstraint
-                    | Intrinsic::StrAsBytes
-                    | Intrinsic::AssertConstant
-                    | Intrinsic::StaticAssert
-                    | Intrinsic::ArrayAsStrUnchecked =&gt; {
+                    Intrinsic::ApplyRangeConstraint =&gt; {
+                        <span class="macro">unreachable!</span>(
+                            <span class="string">"ICE: `Intrinsic::ApplyRangeConstraint` calls should be transformed into an `Instruction::RangeCheck`"
+                        </span>);
+                    }
+                    Intrinsic::DerivePedersenGenerators =&gt; {
                         <span class="macro">unreachable!</span>(<span class="string">"unsupported function call type {:?}"</span>, dfg[func])
+                    }
+                    Intrinsic::IsUnconstrained
+                    | Intrinsic::ArrayLen
+                    | Intrinsic::ArrayAsStrUnchecked
+                    | Intrinsic::StrAsBytes
+                    | Intrinsic::StaticAssert
+                    | Intrinsic::AssertConstant =&gt; {
+                        <span class="macro">unreachable!</span>(
+                            <span class="string">"Expected {intrinsic} to have been removing during SSA optimizations"
+                        </span>)
                     }
                 }
             }
