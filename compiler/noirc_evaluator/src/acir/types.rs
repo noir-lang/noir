@@ -42,12 +42,6 @@ impl From<&SsaType> for AcirType {
     }
 }
 
-impl From<NumericType> for AcirType {
-    fn from(value: NumericType) -> Self {
-        AcirType::NumericType(value)
-    }
-}
-
 #[derive(Clone)]
 pub(super) struct AcirDynamicArray {
     /// Identification for the Acir dynamic array
