@@ -281,7 +281,7 @@ impl<F: AcirField> AcirContext<F> {
                 predicate,
                 BrilligStdlibFunc::Inverse,
                 vec![AcirValue::Var(var, NumericType::NativeField)],
-                vec![AcirType::field()],
+                vec![AcirType::NumericType(NumericType::NativeField)],
             )?;
             Self::expect_one_var(results)
         };
@@ -866,7 +866,10 @@ impl<F: AcirField> AcirContext<F> {
                     AcirValue::Var(lhs, NumericType::unsigned(bit_size)),
                     AcirValue::Var(rhs, NumericType::unsigned(bit_size)),
                 ],
-                vec![AcirType::unsigned(max_q_bits), AcirType::unsigned(max_rhs_bits)],
+                vec![
+                    AcirType::NumericType(NumericType::unsigned(max_q_bits)),
+                    AcirType::NumericType(NumericType::unsigned(max_rhs_bits)),
+                ],
             )?
             .try_into()
             .expect("quotient only returns two values");

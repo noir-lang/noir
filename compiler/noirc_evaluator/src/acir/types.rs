@@ -23,18 +23,6 @@ pub(crate) enum AcirType {
     Array(Vec<AcirType>, usize),
 }
 
-impl AcirType {
-    /// Returns a field type
-    pub(crate) fn field() -> Self {
-        AcirType::NumericType(NumericType::NativeField)
-    }
-
-    /// Returns an unsigned type of the specified bit size
-    pub(crate) fn unsigned(bit_size: u32) -> Self {
-        AcirType::NumericType(NumericType::Unsigned { bit_size })
-    }
-}
-
 impl From<SsaType> for AcirType {
     fn from(value: SsaType) -> Self {
         AcirType::from(&value)
