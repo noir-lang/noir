@@ -42,6 +42,37 @@ impl From<&SsaType> for AcirType {
     }
 }
 
+/// Represents an array whose size is not known during compile time,
+/// and which might be indexed with a dynamic index.
+///
+/// For example, in this Noir program:
+///
+/// ```noir
+/// fn main(array: [Field; 3], index: u32) -> pub Field {
+///     array[index]
+/// }
+/// ```
+///
+/// the array, first represented as an [AcirValue::Array], will be put in
+/// an [AcirValue::DynamicArray]:
+///
+/// ```acir
+/// private parameters: [w0, w1, w2, w3]
+/// public parameters: []
+/// return values: [w4]
+/// INIT b0 = [w0, w1, w2]
+/// READ w5 = b0[w3]
+/// ASSERT w4 = w5
+/// ```
+///
+/// Every dynamic array has an associated [BlockId] where its contents are stored,
+/// in this case `b0`. Then the block can be read or written using dynamic indexes.
+///
+/// Dynamic arrays might result from other operations. For example:
+/// - setting the value of an array element with a dynamic index
+/// - pushing back to a slice where it's length is not known at compile time
+/// - inserting to a slice with a dynamic index
+/// - removing from a slice at a dynamic index
 #[derive(Clone)]
 pub(super) struct AcirDynamicArray {
     /// Identification for the Acir dynamic array
@@ -82,10 +113,44 @@ impl Debug for AcirDynamicArray {
     }
 }
 
+/// All possible variants of values in ACIR.
 #[derive(Debug, Clone)]
 pub(crate) enum AcirValue {
+    /// Represents a single numeric value in ACIR.
     Var(AcirVar, NumericType),
+    /// Represents a fixed-size array of ACIR values that are never indexed with
+    /// a dynamic index.
+    ///
+    /// For example, in this Noir program:
+    ///
+    /// ```noir
+    /// fn main(array: [Field; 3]) {
+    ///     // Safety: example
+    ///     unsafe { call(array) };
+    /// }
+    ///
+    /// unconstrained fn call(array: [Field; 3]) {
+    ///     println(array);
+    /// }
+    /// ```
+    ///
+    /// the array will be represented as an [AcirValue::Array]
+    /// but we can see that it's simply a list of variables:
+    ///
+    /// ```acir
+    /// private parameters: [w0, w1, w2]
+    /// public parameters: []
+    /// return values: []
+    /// BRILLIG CALL func: 0, inputs: [[w0, w1, w2]], outputs: []
+    /// ```
+    ///
+    /// Compare this with `DynamicArray` below.
     Array(im::Vector<AcirValue>),
+    /// Represents an array whose size is not known during compile time,
+    /// and which might be indexed with a dynamic index.
+    ///
+    /// See [AcirDynamicArray] for more details and how this differs from
+    /// [AcirValue::Array].
     DynamicArray(AcirDynamicArray),
 }
 
