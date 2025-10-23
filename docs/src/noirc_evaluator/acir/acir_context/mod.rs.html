@@ -1609,7 +1609,10 @@
 <a href="#1608" id="1608">1608</a>
 <a href="#1609" id="1609">1609</a>
 <a href="#1610" id="1610">1610</a>
-<a href="#1611" id="1611">1611</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
+<a href="#1611" id="1611">1611</a>
+<a href="#1612" id="1612">1612</a>
+<a href="#1613" id="1613">1613</a>
+<a href="#1614" id="1614">1614</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
 //! of type information from SSA in order to allow efficient ACIR-gen.
 //!
 //! The [`AcirContext`] struct defines how to translate SSA instructions into equivalent ACIR constructs. This
@@ -2848,8 +2851,6 @@
     /// over given radix.
     ///
     /// The `AcirVar`s for the `radix_var` and `limb_count_var` must be a constant
-    ///
-    /// TODO: support radix larger than field modulus
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>radix_decompose(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         endian: Endian,
@@ -2867,6 +2868,11 @@
                 }));
             }
         };
+
+        <span class="comment">// Match the assertions of `Field::to_le_radix` and `Field::to_be_radix`.
+        </span><span class="macro">assert!</span>(<span class="number">2 </span>&lt;= radix);
+        <span class="macro">assert!</span>(radix &lt;= <span class="number">256</span>);
+        <span class="macro">assert!</span>(radix.is_power_of_two());
 
         <span class="kw">let </span>input_expr = <span class="self">self</span>.var_to_expression(input_var)<span class="question-mark">?</span>;
 
