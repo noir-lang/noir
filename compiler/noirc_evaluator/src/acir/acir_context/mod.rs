@@ -1252,9 +1252,7 @@ impl<F: AcirField> AcirContext<F> {
         result_element_type: AcirType,
     ) -> Result<AcirValue, RuntimeError> {
         let radix = match self.vars[&radix_var].as_constant() {
-            Some(radix) => {
-                u32::try_from(radix.to_u128()).expect("expected radix to fit within a u32")
-            }
+            Some(radix) => radix.try_into_u128().expect("expected radix to fit within a u128"),
             None => {
                 return Err(RuntimeError::InternalError(InternalError::NotAConstant {
                     name: "radix".to_string(),
@@ -1265,7 +1263,7 @@ impl<F: AcirField> AcirContext<F> {
 
         let input_expr = self.var_to_expression(input_var)?;
 
-        let bit_size = u32::BITS - (radix - 1).leading_zeros();
+        let bit_size = u128::BITS - (radix - 1).leading_zeros();
         let limbs = self.acir_ir.radix_le_decompose(&input_expr, radix, limb_count, bit_size)?;
 
         let mut limb_vars = vecmap(limbs, |witness| {

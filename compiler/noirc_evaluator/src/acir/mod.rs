@@ -411,15 +411,14 @@ impl<'a> Context<'a> {
         let instruction = &dfg[instruction_id];
         self.acir_context.set_call_stack(dfg.get_instruction_call_stack(instruction_id));
         let mut warnings = Vec::new();
-        // Disable the side effects if the binary instruction does not require them
-        let one = self.acir_context.add_constant(FieldElement::one());
 
         match instruction {
             Instruction::Binary(binary) => {
+                // Disable the side effects if the binary instruction does not require them
                 let predicate = if instruction.requires_acir_gen_predicate(dfg) {
                     self.current_side_effects_enabled_var
                 } else {
-                    one
+                    self.acir_context.add_constant(FieldElement::one())
                 };
                 let result_acir_var = self.convert_ssa_binary(binary, dfg, predicate)?;
                 self.define_result_var(dfg, instruction_id, result_acir_var);
@@ -482,6 +481,7 @@ impl<'a> Context<'a> {
             }
             Instruction::RangeCheck { value, max_bit_size, assert_message } => {
                 let acir_var = self.convert_numeric_value(*value, dfg)?;
+                let one = self.acir_context.add_constant(FieldElement::one());
                 // Predicate is one because the predicate has already been
                 // handled in the RangeCheck instruction during the flattening pass.
                 self.acir_context.range_constrain_var(
