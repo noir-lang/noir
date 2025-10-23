@@ -5,32 +5,19 @@ use noirc_errors::{Located, Location};
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
-    DataType, Kind, Shared, Type, TypeAlias, TypeBindings,
-    ast::{
-        ERROR_IDENT, Ident, ItemVisibility, Path,
-        PathSegment, Pattern,
-    },
-    elaborator::
-        Turbofish
-    ,
+    DataType, Kind, Shared, Type, TypeAlias,
+    ast::{ERROR_IDENT, Ident, ItemVisibility, Path, PathSegment, Pattern},
+    elaborator::Turbofish,
     hir::{
-        def_collector::dc_crate::CompilationError,
         resolution::{errors::ResolverError, import::PathResolutionError},
         type_check::{Source, TypeCheckError},
     },
-    hir_def::{
-        expr::{HirIdent, ImplKind},
-        stmt::HirPattern,
-    },
-    node_interner::{
-        DefinitionId, DefinitionKind, ExprId, FuncId, GlobalId, TraitImplKind,
-        TypeAliasId, TypeId,
-    },
+    hir_def::{expr::HirIdent, stmt::HirPattern},
+    node_interner::{DefinitionId, DefinitionKind, FuncId, GlobalId, TypeAliasId, TypeId},
 };
 
 use super::{
     Elaborator, ResolverMeta,
-    function_context::BindableTypeVariableKind,
     path_resolution::{PathResolutionItem, TypedPath, TypedPathSegment},
 };
 
@@ -637,228 +624,6 @@ impl Elaborator<'_> {
             )
         } else {
             alias_generics
-        }
-    }
-
-    pub(crate) fn handle_hir_ident(
-        &mut self,
-        hir_ident: &HirIdent,
-        var_scope_index: usize,
-        location: Location,
-    ) {
-        if hir_ident.id == DefinitionId::dummy_id() {
-            return;
-        }
-
-        match self.interner.definition(hir_ident.id).kind {
-            DefinitionKind::Function(func_id) => {
-                if let Some(current_item) = self.current_item {
-                    self.interner.add_function_dependency(current_item, func_id);
-                }
-
-                self.interner.add_function_reference(func_id, hir_ident.location);
-            }
-            DefinitionKind::Global(global_id) => {
-                self.elaborate_global_if_unresolved(&global_id);
-                if let Some(current_item) = self.current_item {
-                    self.interner.add_global_dependency(current_item, global_id);
-                }
-
-                self.interner.add_global_reference(global_id, hir_ident.location);
-            }
-            DefinitionKind::NumericGeneric(_, ref numeric_typ) => {
-                // Initialize numeric generics to a polymorphic integer type in case
-                // they're used in expressions. We must do this here since type_check_variable
-                // does not check definition kinds and otherwise expects parameters to
-                // already be typed.
-                if self.interner.definition_type(hir_ident.id) == Type::Error {
-                    let type_var_kind = Kind::Numeric(numeric_typ.clone());
-                    let typ = self.type_variable_with_kind(type_var_kind);
-                    self.interner.push_definition_type(hir_ident.id, typ);
-                }
-            }
-            DefinitionKind::Local(_) => {
-                // only local variables can be captured by closures.
-                self.resolve_local_variable(hir_ident.clone(), var_scope_index);
-
-                self.interner.add_local_reference(hir_ident.id, location);
-            }
-            DefinitionKind::AssociatedConstant(..) => {
-                // Nothing to do here
-            }
-        }
-    }
-
-    pub(crate) fn type_check_variable(
-        &mut self,
-        ident: HirIdent,
-        expr_id: ExprId,
-        generics: Option<Vec<Type>>,
-    ) -> Type {
-        let bindings = TypeBindings::default();
-        // TODO: set this to `true`. See https://github.com/noir-lang/noir/issues/8687
-        let push_required_type_variables = self.current_trait.is_none();
-        self.type_check_variable_with_bindings(
-            ident,
-            expr_id,
-            generics,
-            bindings,
-            push_required_type_variables,
-        )
-    }
-
-    pub(crate) fn type_check_variable_with_bindings(
-        &mut self,
-        ident: HirIdent,
-        expr_id: ExprId,
-        generics: Option<Vec<Type>>,
-        mut bindings: TypeBindings,
-        push_required_type_variables: bool,
-    ) -> Type {
-        // Add type bindings from any constraints that were used.
-        // We need to do this first since otherwise instantiating the type below
-        // will replace each trait generic with a fresh type variable, rather than
-        // the type used in the trait constraint (if it exists). See #4088.
-        if let ImplKind::TraitItem(method) = &ident.impl_kind {
-            self.bind_generics_from_trait_constraint(
-                &method.constraint,
-                method.assumed,
-                &mut bindings,
-            );
-        }
-
-        // An identifiers type may be forall-quantified in the case of generic functions.
-        // E.g. `fn foo<T>(t: T, field: Field) -> T` has type `forall T. fn(T, Field) -> T`.
-        // We must instantiate identifiers at every call site to replace this T with a new type
-        // variable to handle generic functions.
-        let t = self.interner.id_type_substitute_trait_as_type(ident.id);
-
-        let definition = self.interner.try_definition(ident.id);
-        let function_generic_count = definition.map_or(0, |definition| match &definition.kind {
-            DefinitionKind::Function(function) => {
-                self.interner.function_modifiers(function).generic_count
-            }
-            _ => 0,
-        });
-
-        let location = self.interner.expr_location(&expr_id);
-
-        // This instantiates a trait's generics as well which need to be set
-        // when the constraint below is later solved for when the function is
-        // finished. How to link the two?
-        let (typ, bindings) =
-            self.instantiate(t, bindings, generics, function_generic_count, location);
-
-        if let ImplKind::TraitItem(mut method) = ident.impl_kind {
-            method.constraint.apply_bindings(&bindings);
-            if method.assumed {
-                let trait_generics = method.constraint.trait_bound.trait_generics.clone();
-                let object_type = method.constraint.typ;
-                let trait_impl = TraitImplKind::Assumed { object_type, trait_generics };
-                self.interner.select_impl_for_expression(expr_id, trait_impl);
-            } else {
-                self.push_trait_constraint(
-                    method.constraint,
-                    expr_id,
-                    true, // this constraint should lead to choosing a trait impl method
-                );
-            }
-        }
-
-        // Push any trait constraints required by this definition to the context
-        // to be checked later when the type of this variable is further constrained.
-        //
-        // This must be done before the above trait constraint in case the above one further
-        // restricts types.
-        //
-        // For example, in this code:
-        //
-        // ```noir
-        // trait One {}
-        //
-        // trait Two<O: One> {
-        //     fn new() -> Self;
-        // }
-        //
-        // fn foo<X: One, T: Two<X>>() {
-        //     let _: T = Two::new();
-        // }
-        // ```
-        //
-        // when type-checking `Two::new` we'll have a return type `'2` which is constrained by `'2: Two<'1>`.
-        // Then the definition for `new` has a constraint on it, `O: One`, which translates to `'1: One`.
-        //
-        // Because of the explicit type in the `let`, `'2` will be unified with `T`.
-        // Then we must first verify the constraint `'2: Two<'1>`, which is now `T: Two<'1>`, to find
-        // that the implementation is the assumed one `T: Two<X>` so that `'1` is bound to `X`.
-        // Then we can successfully verify the constraint `'1: One` which now became `X: One` which holds
-        // because of the assumed constraint.
-        //
-        // If we try to find a trait implementation for `'1` before finding one for `'2` we'll never find it.
-        if let Some(definition) = self.interner.try_definition(ident.id) {
-            if let DefinitionKind::Function(function) = definition.kind {
-                let function = self.interner.function_meta(&function);
-                for mut constraint in function.all_trait_constraints().cloned().collect::<Vec<_>>()
-                {
-                    constraint.apply_bindings(&bindings);
-
-                    self.push_trait_constraint(
-                        constraint, expr_id,
-                        false, // This constraint shouldn't lead to choosing a trait impl method
-                    );
-                }
-            }
-        }
-
-        if push_required_type_variables {
-            for (type_variable, _kind, typ) in bindings.values() {
-                self.push_required_type_variable(
-                    type_variable.id(),
-                    typ.clone(),
-                    BindableTypeVariableKind::Ident(ident.id),
-                    ident.location,
-                );
-            }
-        }
-
-        self.interner.store_instantiation_bindings(expr_id, bindings);
-        typ
-    }
-
-    fn instantiate(
-        &mut self,
-        typ: Type,
-        bindings: TypeBindings,
-        turbofish_generics: Option<Vec<Type>>,
-        function_generic_count: usize,
-        location: Location,
-    ) -> (Type, TypeBindings) {
-        match turbofish_generics {
-            Some(turbofish_generics) => {
-                if turbofish_generics.len() != function_generic_count {
-                    let type_check_err = TypeCheckError::IncorrectTurbofishGenericCount {
-                        expected_count: function_generic_count,
-                        actual_count: turbofish_generics.len(),
-                        location,
-                    };
-                    self.push_err(CompilationError::TypeError(type_check_err));
-                    typ.instantiate_with_bindings(bindings, self.interner)
-                } else {
-                    // Fetch the count of any implicit generics on the function, such as
-                    // for a method within a generic impl.
-                    let implicit_generic_count = match &typ {
-                        Type::Forall(generics, _) => generics.len() - function_generic_count,
-                        _ => 0,
-                    };
-                    typ.instantiate_with_bindings_and_turbofish(
-                        bindings,
-                        turbofish_generics,
-                        self.interner,
-                        implicit_generic_count,
-                    )
-                }
-            }
-            None => typ.instantiate_with_bindings(bindings, self.interner),
         }
     }
 
