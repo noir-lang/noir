@@ -66,15 +66,16 @@ impl Context<'_> {
                 else {
                     unreachable!("ICE: ToRadix result must be an array");
                 };
+                assert!(
+                    result_type.len() == 1,
+                    "ICE: ToRadix result type must have a single element type"
+                );
+                let Type::Numeric(numeric_type) = result_type[0] else {
+                    unreachable!("ICE: ToRadix result element type must be numeric");
+                };
 
                 self.acir_context
-                    .radix_decompose(
-                        endian,
-                        field,
-                        radix,
-                        array_length,
-                        result_type[0].clone().into(),
-                    )
+                    .radix_decompose(endian, field, radix, array_length, numeric_type)
                     .map(|array| vec![array])
             }
             Intrinsic::ToBits(endian) => {
@@ -84,9 +85,16 @@ impl Context<'_> {
                 else {
                     unreachable!("ICE: ToBits result must be an array");
                 };
+                assert!(
+                    result_type.len() == 1,
+                    "ICE: ToBits result type must have a single element type"
+                );
+                let Type::Numeric(numeric_type) = result_type[0] else {
+                    unreachable!("ICE: ToBits result element type must be numeric");
+                };
 
                 self.acir_context
-                    .bit_decompose(endian, field, array_length, result_type[0].clone().into())
+                    .bit_decompose(endian, field, array_length, numeric_type)
                     .map(|array| vec![array])
             }
 
