@@ -635,7 +635,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
     fn interpret_not(&mut self, id: ValueId, result: ValueId) -> IResult<()> {
         let num_value = self.lookup_numeric(id, "not instruction")?;
-        let bit_size = num_value.get_type().bit_size();
+        let bit_size = num_value.get_type().bit_size::<FieldElement>();
 
         // Based on AcirContext::not_var
         fn fitted_not<T: std::ops::Not<Output = T>>(value: Fitted<T>, bit_size: u32) -> Fitted<T> {

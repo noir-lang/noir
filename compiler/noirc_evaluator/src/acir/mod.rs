@@ -366,8 +366,7 @@ impl<'a> Context<'a> {
     ) -> Result<AcirValue, RuntimeError> {
         match param_type {
             Type::Numeric(numeric_type) => {
-                let typ = AcirType::new(*numeric_type);
-                Ok(AcirValue::Var(make_var(self, *numeric_type)?, typ))
+                Ok(AcirValue::Var(make_var(self, *numeric_type)?, *numeric_type))
             }
             Type::Array(element_types, length) => {
                 let mut elements = im::Vector::new();
@@ -560,7 +559,7 @@ impl<'a> Context<'a> {
         result: AcirVar,
     ) {
         let [result_id] = dfg.instruction_result(instruction);
-        let typ = dfg.type_of_value(result_id).into();
+        let typ = dfg.type_of_value(result_id).unwrap_numeric();
         self.define_result(dfg, instruction, AcirValue::Var(result, typ));
     }
 
@@ -650,8 +649,7 @@ impl<'a> Context<'a> {
 
         let acir_value = match value {
             Value::NumericConstant { constant, typ } => {
-                let typ = AcirType::from(Type::Numeric(*typ));
-                AcirValue::Var(self.acir_context.add_constant(*constant), typ)
+                AcirValue::Var(self.acir_context.add_constant(*constant), *typ)
             }
             Value::Intrinsic(..) => {
                 unreachable!("ICE: Intrinsics should be resolved via separate logic")
@@ -661,7 +659,7 @@ impl<'a> Context<'a> {
                 // debugging instrumentation code to work. Taking the reference
                 // of a function in ACIR is useless.
                 let id = self.acir_context.add_constant(function_id.to_u32());
-                AcirValue::Var(id, AcirType::field())
+                AcirValue::Var(id, NumericType::NativeField)
             }
             Value::ForeignFunction(_) => unimplemented!(
                 "Oracle calls directly in constrained functions are not yet available."
@@ -706,9 +704,9 @@ impl<'a> Context<'a> {
     ) -> Result<AcirVar, RuntimeError> {
         let lhs = self.convert_numeric_value(binary.lhs, dfg)?;
         let rhs = self.convert_numeric_value(binary.rhs, dfg)?;
-        let binary_type = self.type_of_binary_operation(binary, dfg);
+        let num_type = self.type_of_binary_operation(binary, dfg).unwrap_numeric();
 
-        if binary_type.is_signed()
+        if num_type.is_signed()
             && matches!(
                 binary.operator,
                 BinaryOp::Add { unchecked: false }
@@ -719,33 +717,31 @@ impl<'a> Context<'a> {
             panic!("Checked signed operations should all be removed before ACIRgen")
         }
 
-        let binary_type = AcirType::from(binary_type);
-        let num_type = binary_type.to_numeric_type();
         let result = match binary.operator {
             BinaryOp::Add { .. } => self.acir_context.add_var(lhs, rhs),
             BinaryOp::Sub { .. } => self.acir_context.sub_var(lhs, rhs),
             BinaryOp::Mul { .. } => self.acir_context.mul_var(lhs, rhs),
-            BinaryOp::Div => self.acir_context.div_var(lhs, rhs, binary_type.clone(), predicate),
+            BinaryOp::Div => self.acir_context.div_var(lhs, rhs, num_type, predicate),
             // Note: that this produces unnecessary constraints when
             // this Eq instruction is being used for a constrain statement
             BinaryOp::Eq => self.acir_context.eq_var(lhs, rhs),
-            BinaryOp::Lt => match binary_type {
-                AcirType::NumericType(NumericType::Unsigned { bit_size }) => {
+            BinaryOp::Lt => match num_type {
+                NumericType::Unsigned { bit_size } => {
                     self.acir_context.less_than_var(lhs, rhs, bit_size)
                 }
                 _ => {
-                    panic!("ICE: unexpected binary type for Lt operation: {binary_type:?}")
+                    panic!("ICE: unexpected binary type for Lt operation: {num_type:?}")
                 }
             },
-            BinaryOp::Xor => self.acir_context.xor_var(lhs, rhs, binary_type),
-            BinaryOp::And => self.acir_context.and_var(lhs, rhs, binary_type),
-            BinaryOp::Or => self.acir_context.or_var(lhs, rhs, binary_type),
-            BinaryOp::Mod => match binary_type {
-                AcirType::NumericType(NumericType::Unsigned { bit_size }) => {
+            BinaryOp::Xor => self.acir_context.xor_var(lhs, rhs, num_type),
+            BinaryOp::And => self.acir_context.and_var(lhs, rhs, num_type),
+            BinaryOp::Or => self.acir_context.or_var(lhs, rhs, num_type),
+            BinaryOp::Mod => match num_type {
+                NumericType::Unsigned { bit_size } => {
                     self.acir_context.modulo_var(lhs, rhs, bit_size, predicate)
                 }
                 _ => {
-                    panic!("ICE: unexpected binary type for Mod operation: {binary_type:?}")
+                    panic!("ICE: unexpected binary type for Mod operation: {num_type:?}")
                 }
             },
             BinaryOp::Shl | BinaryOp::Shr => unreachable!(
