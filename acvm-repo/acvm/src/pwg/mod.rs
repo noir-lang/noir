@@ -946,7 +946,7 @@ mod tests {
         parse_opcodes,
     };
 
-    use crate::pwg::{ACVM, ACVMStatus};
+    use crate::pwg::{ACVM, ACVMStatus, OpcodeResolutionError};
 
     #[test]
     fn solve_simple_circuit() {
@@ -966,10 +966,26 @@ mod tests {
         ";
         let opcodes = parse_opcodes(src).unwrap();
 
-        let empty1 = Vec::new();
-        let empty2 = Vec::new();
-        let mut acvm = ACVM::new(&backend, &opcodes, initial_witness, &empty1, &empty2);
+        let mut acvm = ACVM::new(&backend, &opcodes, initial_witness, &[], &[]);
         assert_eq!(acvm.solve(), ACVMStatus::Solved);
         assert_eq!(acvm.witness_map()[&Witness(5)], FieldElement::from(0u128));
+    }
+
+    #[test]
+    fn errors_when_calling_function_zero() {
+        let initial_witness =
+            WitnessMap::from(BTreeMap::from_iter([(Witness(1), FieldElement::from(1u128))]));
+        let backend = acvm_blackbox_solver::StubbedBlackBoxSolver(false);
+
+        let src = "
+        CALL func: 0, inputs: [w1], outputs: [w2]
+        ";
+        let opcodes = parse_opcodes(src).unwrap();
+
+        let mut acvm = ACVM::new(&backend, &opcodes, initial_witness, &[], &[]);
+        assert!(matches!(
+            acvm.solve(),
+            ACVMStatus::Failure(OpcodeResolutionError::AcirMainCallAttempted { .. })
+        ));
     }
 }
