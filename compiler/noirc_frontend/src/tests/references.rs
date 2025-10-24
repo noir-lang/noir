@@ -151,23 +151,3 @@ fn allows_calling_unconstrained_fn_from_unconstrained_lambda() {
     ";
     check_monomorphization_error(src);
 }
-
-#[test]
-fn disallows_calling_unconstrained_function_from_non_unconstrained_lambda() {
-    let src = "
-    fn main() {
-        // Safety:
-        let f = unsafe { foo() };
-        f(&mut 0);
-    }
-
-    unconstrained fn foo() -> fn(&mut Field) {
-        |x| bar(x)
-            ^^^^^^ Call to unconstrained function is unsafe and must be in an unconstrained function or unsafe block
-                ^ Cannot pass a mutable reference from a constrained runtime to an unconstrained runtime
-    }
-
-    unconstrained fn bar(_: &mut Field) {}
-    ";
-    check_errors(src);
-}

@@ -1312,24 +1312,14 @@ impl<'context> Elaborator<'context> {
     /// True if we're currently within a constrained function.
     /// Defaults to `true` if the current function is unknown.
     fn in_constrained_function(&self) -> bool {
-        // Comptime is considered unconstrained
         if self.in_comptime_context() {
             return false;
         }
 
-        // If inside a lambda:
-        // - if the lambda is explicitly marked as unconstrained, then we are definitely not
-        //   in a constrained context
-        // - if the lambda is not explicitly marked as unconstrained, then it can be
-        //   called from a constrained or an unconstrained context, meaning that during
-        //   monomorphization it might have a constrained variant and an unconstrained one,
-        //   so we must consider it constrained
-        //   it as inside a constrained context
-        if let Some(LambdaContext { unconstrained, .. }) = self.lambda_stack.last() {
-            return !*unconstrained;
+        if let Some(LambdaContext { unconstrained: true, .. }) = self.lambda_stack.last() {
+            return false;
         }
 
-        // If inside a function, that function's constrainedness determines the result
         if let Some(DependencyId::Function(id)) = &self.current_item {
             return !self.interner.function_modifiers(id).is_unconstrained;
         }
