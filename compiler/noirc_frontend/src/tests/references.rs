@@ -1,6 +1,6 @@
 use crate::{
     elaborator::UnstableFeature,
-    tests::{check_errors, check_monomorphization_error, get_program_using_features},
+    tests::{assert_no_errors, check_errors, get_program_using_features},
 };
 
 #[test]
@@ -122,5 +122,18 @@ fn infers_lambda_to_be_unconstrained() {
 
     unconstrained fn bar(_: &mut Field) {}
     ";
-    check_monomorphization_error(src);
+    assert_no_errors(src);
+}
+
+#[test]
+fn disallows_passing_unconstrained_lambda_to_constrained_fn() {
+    let src = "
+    unconstrained fn main() {
+        foo(unconstrained || {})
+            ^^^^^^^^^^^^^^^^^^^ Converting an unconstrained fn to a non-unconstrained fn is unsafe
+    }
+
+    unconstrained fn foo(_: fn()) {}
+    ";
+    check_errors(src);
 }
