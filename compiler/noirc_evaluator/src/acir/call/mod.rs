@@ -3,7 +3,7 @@ use acvm::acir::circuit::opcodes::AcirFunctionId;
 use iter_extended::vecmap;
 
 use crate::acir::AcirVar;
-use crate::brillig::brillig_gen::brillig_fn::FunctionContext as BrilligFunctionContext;
+use crate::brillig::brillig_gen::brillig_fn::FunctionContext;
 use crate::brillig::brillig_gen::gen_brillig_for;
 use crate::brillig::brillig_ir::artifact::BrilligParameter;
 use crate::errors::{RuntimeError, SsaReport};
@@ -138,12 +138,13 @@ impl Context<'_> {
             self.shared_context.generated_brillig_pointer(func.id(), arguments.clone())
         {
             let code = self.shared_context.generated_brillig(generated_pointer.as_usize());
+            let safe_return_values = false;
             self.acir_context.brillig_call(
                 self.current_side_effects_enabled_var,
                 code,
                 inputs,
                 outputs,
-                false,
+                safe_return_values,
                 *generated_pointer,
                 None,
             )?
@@ -151,12 +152,13 @@ impl Context<'_> {
             let code =
                 gen_brillig_for(func, arguments.clone(), self.brillig, self.brillig_options)?;
             let generated_pointer = self.shared_context.new_generated_pointer();
+            let safe_return_values = false;
             let output_values = self.acir_context.brillig_call(
                 self.current_side_effects_enabled_var,
                 &code,
                 inputs,
                 outputs,
-                false,
+                safe_return_values,
                 generated_pointer,
                 None,
             )?;
@@ -205,14 +207,11 @@ impl Context<'_> {
                     };
 
                     BrilligParameter::Slice(
-                        item_types
-                            .iter()
-                            .map(BrilligFunctionContext::ssa_type_to_parameter)
-                            .collect(),
+                        item_types.iter().map(FunctionContext::ssa_type_to_parameter).collect(),
                         len,
                     )
                 } else {
-                    BrilligFunctionContext::ssa_type_to_parameter(&typ)
+                    FunctionContext::ssa_type_to_parameter(&typ)
                 }
             })
             .collect()
@@ -297,9 +296,12 @@ impl Context<'_> {
                 }
                 AcirValue::Array(element_values)
             }
-            typ => {
+            Type::Numeric(numeric_type) => {
                 let var = vars.next().unwrap();
-                AcirValue::Var(var, typ.into())
+                AcirValue::Var(var, *numeric_type)
+            }
+            typ => {
+                panic!("Unexpected type {typ} in convert_var_type_to_values");
             }
         }
     }
