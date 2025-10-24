@@ -564,6 +564,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     }
 
     pub(super) fn evaluate_ident(&mut self, ident: HirIdent, id: ExprId) -> IResult<Value> {
+        dbg!(ident.id);
         let definition = self.elaborator.interner.try_definition(ident.id).ok_or_else(|| {
             let location = self.elaborator.interner.expr_location(&id);
             InterpreterError::VariableNotInScope { location }
@@ -582,9 +583,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             }
             DefinitionKind::Local(_) => self.lookup(&ident),
             DefinitionKind::Global(global_id) => {
+                dbg!(global_id);
                 // Avoid resetting the value if it is already known
                 let global_id = *global_id;
                 let global_info = self.elaborator.interner.get_global(global_id);
+                dbg!(global_info);
                 let global_crate_id = global_info.crate_id;
                 match &global_info.value {
                     GlobalValue::Resolved(value) => Ok(value.clone()),
@@ -595,26 +598,16 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                         Err(InterpreterError::GlobalsDependencyCycle { location })
                     }
                     GlobalValue::Unresolved => {
-                        let let_ = self
-                            .elaborator
-                            .interner
-                            .get_global_let_statement(global_id)
-                            .ok_or_else(|| {
-                                let location = self.elaborator.interner.expr_location(&id);
-                                InterpreterError::VariableNotInScope { location }
-                            })?;
+                        self.elaborator.elaborate_global_if_unresolved(&global_id);
 
-                        self.elaborator.interner.get_global_mut(global_id).value =
-                            GlobalValue::Resolving;
-
-                        if let_.runs_comptime() || global_crate_id != self.crate_id {
-                            self.evaluate_let(let_.clone())?;
+                        if let GlobalValue::Resolved(value) =
+                            &self.elaborator.interner.get_global(global_id).value
+                        {
+                            Ok(value.clone())
+                        } else {
+                            let location = self.elaborator.interner.expr_location(&id);
+                            Err(InterpreterError::GlobalCouldNotBeResolved { location })
                         }
-
-                        let value = self.lookup(&ident)?;
-                        self.elaborator.interner.get_global_mut(global_id).value =
-                            GlobalValue::Resolved(value.clone());
-                        Ok(value)
                     }
                 }
             }

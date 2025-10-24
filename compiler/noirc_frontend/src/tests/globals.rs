@@ -157,3 +157,28 @@ fn int_min_global() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn lazy_literal_globals() {
+    // We want to make sure that we successfully elaborate the literal global `foo`
+    // even though it is defined after the global `bar` which uses `foo`.
+    let src = "
+    global bar: Foo = Foo::new();
+    global foo: u32 = 1;
+    
+    struct Foo {
+       foo: u32
+    }
+    
+    impl Foo {
+        fn new() -> Self {
+            Self { foo }
+        }
+    }
+    
+    fn main() {
+        let _ = bar;
+    }
+    ";
+    assert_no_errors(src);
+}

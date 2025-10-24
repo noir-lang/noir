@@ -243,7 +243,7 @@ pub struct Elaborator<'context> {
     /// These are the globals that have yet to be elaborated.
     /// This map is used to lazily evaluate these globals if they're encountered before
     /// they are elaborated (e.g. in a function's type or another global's RHS).
-    unresolved_globals: BTreeMap<GlobalId, UnresolvedGlobal>,
+    pub(crate) unresolved_globals: BTreeMap<GlobalId, UnresolvedGlobal>,
 
     pub(crate) interpreter_call_stack: im::Vector<Location>,
 
@@ -370,7 +370,9 @@ impl<'context> Elaborator<'context> {
     }
 
     pub(crate) fn elaborate_items(&mut self, mut items: CollectedItems) {
+        // dbg!(&items.globals);
         self.set_unresolved_globals_ordering(items.globals);
+        dbg!(&self.unresolved_globals.len());
 
         for (alias_id, alias) in items.type_aliases {
             self.define_type_alias(alias_id, alias);
@@ -399,6 +401,7 @@ impl<'context> Elaborator<'context> {
             self.collect_trait_impl(trait_impl);
         }
 
+        dbg!(&self.unresolved_globals.len());
         // We must wait to resolve non-literal globals until after we resolve structs since struct
         // globals will need to reference the struct type they're initialized to ensure they are valid.
         self.elaborate_remaining_globals();

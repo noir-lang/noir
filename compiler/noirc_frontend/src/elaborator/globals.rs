@@ -130,6 +130,7 @@ impl Elaborator<'_> {
             .expect("Let statement of global should be set by elaborate_global_let");
 
         let global = self.interner.get_global(global_id);
+
         let definition_id = global.definition_id;
         let location = global.location;
         let mut interpreter = self.setup_interpreter();
@@ -157,7 +158,7 @@ impl Elaborator<'_> {
     /// while elaborating another item, we check if that global needs to be elaborated first.
     /// Returns true if the global was unresolved and has now been elaborated, false if it was
     /// already elaborated (or doesn't exist in the unresolved set).
-    pub(super) fn elaborate_global_if_unresolved(&mut self, global_id: &GlobalId) -> bool {
+    pub(crate) fn elaborate_global_if_unresolved(&mut self, global_id: &GlobalId) -> bool {
         if let Some(global) = self.unresolved_globals.remove(global_id) {
             self.elaborate_global(global);
             true
