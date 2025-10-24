@@ -206,17 +206,42 @@
 <a href="#205" id="205">205</a>
 <a href="#206" id="206">206</a>
 <a href="#207" id="207">207</a>
-<a href="#208" id="208">208</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Debug;
+<a href="#208" id="208">208</a>
+<a href="#209" id="209">209</a>
+<a href="#210" id="210">210</a>
+<a href="#211" id="211">211</a>
+<a href="#212" id="212">212</a>
+<a href="#213" id="213">213</a>
+<a href="#214" id="214">214</a>
+<a href="#215" id="215">215</a>
+<a href="#216" id="216">216</a>
+<a href="#217" id="217">217</a>
+<a href="#218" id="218">218</a>
+<a href="#219" id="219">219</a>
+<a href="#220" id="220">220</a>
+<a href="#221" id="221">221</a>
+<a href="#222" id="222">222</a>
+<a href="#223" id="223">223</a>
+<a href="#224" id="224">224</a>
+<a href="#225" id="225">225</a>
+<a href="#226" id="226">226</a>
+<a href="#227" id="227">227</a>
+<a href="#228" id="228">228</a>
+<a href="#229" id="229">229</a>
+<a href="#230" id="230">230</a>
+<a href="#231" id="231">231</a>
+<a href="#232" id="232">232</a>
+<a href="#233" id="233">233</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Debug;
 
-<span class="kw">use </span>acvm::{AcirField, acir::circuit::opcodes::BlockId};
+<span class="kw">use </span>acvm::acir::circuit::opcodes::BlockId;
 
 <span class="kw">use crate</span>::{
     errors::InternalError,
     ssa::ir::{types::NumericType, types::Type <span class="kw">as </span>SsaType},
 };
 <span class="kw">use </span>noirc_errors::call_stack::CallStack;
-<span class="attr">#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-</span><span class="doccomment">/// High level Type descriptor for Variables.
+
+<span class="doccomment">/// High level Type descriptor for Variables.
 ///
 /// One can think of Expression/Witness/Const
 /// as low level types which can represent high level types.
@@ -225,44 +250,10 @@
 /// We could store this information when we do a range constraint
 /// but this information is readily available by the caller so
 /// we allow the user to pass it in.
+</span><span class="attr">#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>AcirType {
     NumericType(NumericType),
     Array(Vec&lt;AcirType&gt;, usize),
-}
-
-<span class="kw">impl </span>AcirType {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(typ: NumericType) -&gt; <span class="self">Self </span>{
-        <span class="self">Self</span>::NumericType(typ)
-    }
-
-    <span class="doccomment">/// Returns the bit size of the underlying type
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>bit_size&lt;F: AcirField&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u32 {
-        <span class="kw">match </span><span class="self">self </span>{
-            AcirType::NumericType(numeric_type) =&gt; <span class="kw">match </span>numeric_type {
-                NumericType::Signed { bit_size } =&gt; <span class="kw-2">*</span>bit_size,
-                NumericType::Unsigned { bit_size } =&gt; <span class="kw-2">*</span>bit_size,
-                NumericType::NativeField =&gt; F::max_num_bits(),
-            },
-            AcirType::Array(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="macro">unreachable!</span>(<span class="string">"cannot fetch bit size of array type"</span>),
-        }
-    }
-
-    <span class="doccomment">/// Returns a field type
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>field() -&gt; <span class="self">Self </span>{
-        AcirType::NumericType(NumericType::NativeField)
-    }
-
-    <span class="doccomment">/// Returns an unsigned type of the specified bit size
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>unsigned(bit_size: u32) -&gt; <span class="self">Self </span>{
-        AcirType::NumericType(NumericType::Unsigned { bit_size })
-    }
-
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>to_numeric_type(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; NumericType {
-        <span class="kw">match </span><span class="self">self </span>{
-            AcirType::NumericType(numeric_type) =&gt; <span class="kw-2">*</span>numeric_type,
-            AcirType::Array(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="macro">unreachable!</span>(<span class="string">"cannot fetch a numeric type for an array type"</span>),
-        }
-    }
 }
 
 <span class="kw">impl </span>From&lt;SsaType&gt; <span class="kw">for </span>AcirType {
@@ -284,13 +275,38 @@
     }
 }
 
-<span class="kw">impl </span>From&lt;NumericType&gt; <span class="kw">for </span>AcirType {
-    <span class="kw">fn </span>from(value: NumericType) -&gt; <span class="self">Self </span>{
-        AcirType::NumericType(value)
-    }
-}
-
-<span class="attr">#[derive(Clone)]
+<span class="doccomment">/// Represents an array whose size is not known during compile time,
+/// and which might be indexed with a dynamic index.
+///
+/// For example, in this Noir program:
+///
+/// ```noir
+/// fn main(array: [Field; 3], index: u32) -&gt; pub Field {
+///     array[index]
+/// }
+/// ```
+///
+/// the array, first represented as an [AcirValue::Array], will be put in
+/// an [AcirValue::DynamicArray]:
+///
+/// ```acir
+/// private parameters: [w0, w1, w2, w3]
+/// public parameters: []
+/// return values: [w4]
+/// INIT b0 = [w0, w1, w2]
+/// READ w5 = b0[w3]
+/// ASSERT w4 = w5
+/// ```
+///
+/// Every dynamic array has an associated [BlockId] where its contents are stored,
+/// in this case `b0`. Then the block can be read or written using dynamic indexes.
+///
+/// Dynamic arrays might result from other operations. For example:
+/// - setting the value of an array element with a dynamic index
+/// - pushing back to a slice where it's length is not known at compile time
+/// - inserting to a slice with a dynamic index
+/// - removing from a slice at a dynamic index
+</span><span class="attr">#[derive(Clone)]
 </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">struct </span>AcirDynamicArray {
     <span class="doccomment">/// Identification for the Acir dynamic array
     /// This is essentially a ACIR pointer to the array
@@ -330,11 +346,45 @@
     }
 }
 
-<span class="attr">#[derive(Debug, Clone)]
+<span class="doccomment">/// All possible variants of values in ACIR.
+</span><span class="attr">#[derive(Debug, Clone)]
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>AcirValue {
-    Var(AcirVar, AcirType),
-    Array(im::Vector&lt;AcirValue&gt;),
-    DynamicArray(AcirDynamicArray),
+    <span class="doccomment">/// Represents a single numeric value in ACIR.
+    </span>Var(AcirVar, NumericType),
+    <span class="doccomment">/// Represents a fixed-size array of ACIR values that are never indexed with
+    /// a dynamic index.
+    ///
+    /// For example, in this Noir program:
+    ///
+    /// ```noir
+    /// fn main(array: [Field; 3]) {
+    ///     // Safety: example
+    ///     unsafe { call(array) };
+    /// }
+    ///
+    /// unconstrained fn call(array: [Field; 3]) {
+    ///     println(array);
+    /// }
+    /// ```
+    ///
+    /// the array will be represented as an [AcirValue::Array]
+    /// but we can see that it's simply a list of variables:
+    ///
+    /// ```acir
+    /// private parameters: [w0, w1, w2]
+    /// public parameters: []
+    /// return values: []
+    /// BRILLIG CALL func: 0, inputs: [[w0, w1, w2]], outputs: []
+    /// ```
+    ///
+    /// Compare this with `DynamicArray` below.
+    </span>Array(im::Vector&lt;AcirValue&gt;),
+    <span class="doccomment">/// Represents an array whose size is not known during compile time,
+    /// and which might be indexed with a dynamic index.
+    ///
+    /// See [AcirDynamicArray] for more details and how this differs from
+    /// [AcirValue::Array].
+    </span>DynamicArray(AcirDynamicArray),
 }
 
 <span class="kw">impl </span>AcirValue {
@@ -365,7 +415,7 @@
     /// This is because an [AcirValue::DynamicArray] is simply a pointer to an array
     /// and fetching its internal [AcirValue::Var] would require laying down opcodes to read its content.
     /// This method should only be used where dynamic arrays are not a possible type.
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>flatten(<span class="self">self</span>) -&gt; Vec&lt;(AcirVar, AcirType)&gt; {
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>flatten(<span class="self">self</span>) -&gt; Vec&lt;(AcirVar, NumericType)&gt; {
         <span class="kw">match </span><span class="self">self </span>{
             AcirValue::Var(var, typ) =&gt; <span class="macro">vec!</span>[(var, typ)],
             AcirValue::Array(array) =&gt; array.into_iter().flat_map(AcirValue::flatten).collect(),

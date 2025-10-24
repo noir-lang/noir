@@ -565,9 +565,11 @@
 <a href="#564" id="564">564</a>
 <a href="#565" id="565">565</a>
 <a href="#566" id="566">566</a>
-<a href="#567" id="567">567</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::acir::types::flat_numeric_types;
-<span class="kw">use </span><span class="kw">crate</span>::acir::{AcirDynamicArray, AcirType, AcirValue};
+<a href="#567" id="567">567</a>
+<a href="#568" id="568">568</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::acir::types::flat_numeric_types;
+<span class="kw">use </span><span class="kw">crate</span>::acir::{AcirDynamicArray, AcirValue};
 <span class="kw">use </span><span class="kw">crate</span>::errors::RuntimeError;
+<span class="kw">use </span><span class="kw">crate</span>::ssa::ir::types::NumericType;
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{dfg::DataFlowGraph, value::ValueId};
 <span class="kw">use </span>acvm::{AcirField, FieldElement};
 
@@ -611,7 +613,7 @@
 
         <span class="kw">let </span>new_slice_val = AcirValue::Array(new_slice);
 
-        <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[AcirValue::Var(new_slice_length, AcirType::unsigned(<span class="number">32</span>)), new_slice_val])
+        <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[AcirValue::Var(new_slice_length, NumericType::length_type()), new_slice_val])
     }
 
     <span class="doccomment">/// Pushes one or more elements to the front of a non-nested slice.
@@ -651,7 +653,7 @@
 
         <span class="kw">let </span>new_slice_val = AcirValue::Array(new_slice);
 
-        <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[AcirValue::Var(new_slice_length, AcirType::unsigned(<span class="number">32</span>)), new_slice_val])
+        <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[AcirValue::Var(new_slice_length, NumericType::length_type()), new_slice_val])
     }
 
     <span class="doccomment">/// Removes and returns one or more elements from the back of a non-nested slice.
@@ -710,7 +712,7 @@
         <span class="kw">let </span>new_slice = <span class="self">self</span>.read_array(slice)<span class="question-mark">?</span>;
 
         <span class="kw">let </span><span class="kw-2">mut </span>results = <span class="macro">vec!</span>[
-            AcirValue::Var(new_slice_length, AcirType::unsigned(<span class="number">32</span>)),
+            AcirValue::Var(new_slice_length, NumericType::length_type()),
             AcirValue::Array(new_slice),
         ];
         results.append(<span class="kw-2">&amp;mut </span>popped_elements);
@@ -793,7 +795,7 @@
 
         new_slice = new_slice.slice(popped_elements_size..);
 
-        popped_elements.push(AcirValue::Var(new_slice_length, AcirType::unsigned(<span class="number">32</span>)));
+        popped_elements.push(AcirValue::Var(new_slice_length, NumericType::length_type()));
         popped_elements.push(AcirValue::Array(new_slice));
 
         <span class="prelude-val">Ok</span>(popped_elements)
@@ -981,7 +983,7 @@
             element_type_sizes,
         });
 
-        <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[AcirValue::Var(new_slice_length, AcirType::unsigned(<span class="number">32</span>)), result])
+        <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[AcirValue::Var(new_slice_length, NumericType::length_type()), result])
     }
 
     <span class="doccomment">/// Removes one or more elements from a slice at a given index.
@@ -1126,7 +1128,7 @@
             element_type_sizes,
         });
 
-        <span class="kw">let </span><span class="kw-2">mut </span>result = <span class="macro">vec!</span>[AcirValue::Var(new_slice_length, AcirType::unsigned(<span class="number">32</span>)), result];
+        <span class="kw">let </span><span class="kw-2">mut </span>result = <span class="macro">vec!</span>[AcirValue::Var(new_slice_length, NumericType::length_type()), result];
         result.append(<span class="kw-2">&amp;mut </span>popped_elements);
 
         <span class="prelude-val">Ok</span>(result)

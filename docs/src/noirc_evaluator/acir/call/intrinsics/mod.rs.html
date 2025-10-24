@@ -147,18 +147,26 @@
 <a href="#146" id="146">146</a>
 <a href="#147" id="147">147</a>
 <a href="#148" id="148">148</a>
-<a href="#149" id="149">149</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#149" id="149">149</a>
+<a href="#150" id="150">150</a>
+<a href="#151" id="151">151</a>
+<a href="#152" id="152">152</a>
+<a href="#153" id="153">153</a>
+<a href="#154" id="154">154</a>
+<a href="#155" id="155">155</a>
+<a href="#156" id="156">156</a>
+<a href="#157" id="157">157</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 
-<span class="kw">use </span><span class="kw">crate</span>::acir::{
-    arrays,
-    types::{AcirType, AcirValue},
-};
 <span class="kw">use </span><span class="kw">crate</span>::errors::RuntimeError;
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
     dfg::DataFlowGraph,
     instruction::{Hint, Intrinsic},
     types::Type,
     value::ValueId,
+};
+<span class="kw">use crate</span>::{
+    acir::{arrays, types::AcirValue},
+    ssa::ir::types::NumericType,
 };
 
 <span class="kw">use </span><span class="kw">super</span>::Context;
@@ -218,15 +226,16 @@
                 <span class="kw">else </span>{
                     <span class="macro">unreachable!</span>(<span class="string">"ICE: ToRadix result must be an array"</span>);
                 };
+                <span class="macro">assert!</span>(
+                    result_type.len() == <span class="number">1</span>,
+                    <span class="string">"ICE: ToRadix result type must have a single element type"
+                </span>);
+                <span class="kw">let </span>Type::Numeric(numeric_type) = result_type[<span class="number">0</span>] <span class="kw">else </span>{
+                    <span class="macro">unreachable!</span>(<span class="string">"ICE: ToRadix result element type must be numeric"</span>);
+                };
 
                 <span class="self">self</span>.acir_context
-                    .radix_decompose(
-                        endian,
-                        field,
-                        radix,
-                        array_length,
-                        result_type[<span class="number">0</span>].clone().into(),
-                    )
+                    .radix_decompose(endian, field, radix, array_length, numeric_type)
                     .map(|array| <span class="macro">vec!</span>[array])
             }
             Intrinsic::ToBits(endian) =&gt; {
@@ -236,9 +245,16 @@
                 <span class="kw">else </span>{
                     <span class="macro">unreachable!</span>(<span class="string">"ICE: ToBits result must be an array"</span>);
                 };
+                <span class="macro">assert!</span>(
+                    result_type.len() == <span class="number">1</span>,
+                    <span class="string">"ICE: ToBits result type must have a single element type"
+                </span>);
+                <span class="kw">let </span>Type::Numeric(numeric_type) = result_type[<span class="number">0</span>] <span class="kw">else </span>{
+                    <span class="macro">unreachable!</span>(<span class="string">"ICE: ToBits result element type must be numeric"</span>);
+                };
 
                 <span class="self">self</span>.acir_context
-                    .bit_decompose(endian, field, array_length, result_type[<span class="number">0</span>].clone().into())
+                    .bit_decompose(endian, field, array_length, numeric_type)
                     .map(|array| <span class="macro">vec!</span>[array])
             }
             Intrinsic::AsSlice =&gt; {
@@ -252,7 +268,7 @@
                 <span class="kw">let </span>acir_value = <span class="self">self</span>.convert_value(array_contents, dfg);
                 <span class="kw">let </span>result = <span class="self">self</span>.read_array(acir_value)<span class="question-mark">?</span>;
                 <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[
-                    AcirValue::Var(slice_length, AcirType::unsigned(<span class="number">32</span>)),
+                    AcirValue::Var(slice_length, NumericType::length_type()),
                     AcirValue::Array(result),
                 ])
             }

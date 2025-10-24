@@ -2526,7 +2526,7 @@
 
     <span class="kw">fn </span>interpret_not(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: ValueId, result: ValueId) -&gt; IResult&lt;()&gt; {
         <span class="kw">let </span>num_value = <span class="self">self</span>.lookup_numeric(id, <span class="string">"not instruction"</span>)<span class="question-mark">?</span>;
-        <span class="kw">let </span>bit_size = num_value.get_type().bit_size();
+        <span class="kw">let </span>bit_size = num_value.get_type().bit_size::&lt;FieldElement&gt;();
 
         <span class="comment">// Based on AcirContext::not_var
         </span><span class="kw">fn </span>fitted_not&lt;T: std::ops::Not&lt;Output = T&gt;&gt;(value: Fitted&lt;T&gt;, bit_size: u32) -&gt; Fitted&lt;T&gt; {

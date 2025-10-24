@@ -1184,11 +1184,7 @@
 <a href="#1183" id="1183">1183</a>
 <a href="#1184" id="1184">1184</a>
 <a href="#1185" id="1185">1185</a>
-<a href="#1186" id="1186">1186</a>
-<a href="#1187" id="1187">1187</a>
-<a href="#1188" id="1188">1188</a>
-<a href="#1189" id="1189">1189</a>
-<a href="#1190" id="1190">1190</a></pre></div><pre class="rust"><code><span class="doccomment">//! Array handling in ACIR.
+<a href="#1186" id="1186">1186</a></pre></div><pre class="rust"><code><span class="doccomment">//! Array handling in ACIR.
 //!
 //! This modules how Noir's SSA array semantics are lowered into ACIR's flat memory model.
 //! Arrays in SSA can appear as constants or dynamically allocated blocks.
@@ -1322,7 +1318,7 @@
 
 <span class="kw">use super</span>::{
     AcirVar, Context,
-    types::{AcirDynamicArray, AcirType, AcirValue},
+    types::{AcirDynamicArray, AcirValue},
 };
 
 <span class="kw">impl </span>Context&lt;<span class="lifetime">'_</span>&gt; {
@@ -1671,7 +1667,7 @@
                 <span class="kw">let </span>false_pred = <span class="self">self</span>.acir_context.mul_var(not_pred, <span class="kw-2">*</span>dummy_var)<span class="question-mark">?</span>;
                 <span class="comment">// predicate*value + (1-predicate)*dummy
                 </span><span class="kw">let </span>new_value = <span class="self">self</span>.acir_context.add_var(true_pred, false_pred)<span class="question-mark">?</span>;
-                <span class="prelude-val">Ok</span>(AcirValue::Var(new_value, typ.clone()))
+                <span class="prelude-val">Ok</span>(AcirValue::Var(new_value, <span class="kw-2">*</span>typ))
             }
             (AcirValue::Array(values), AcirValue::Array(dummy_values)) =&gt; {
                 <span class="kw">let </span><span class="kw-2">mut </span>elements = im::Vector::new();
@@ -1804,10 +1800,8 @@
     ) -&gt; <span class="prelude-ty">Result</span>&lt;AcirValue, RuntimeError&gt; {
         <span class="kw">if let </span>AcirValue::Var(value_var, typ) = <span class="kw-2">&amp;</span>value {
             <span class="kw">let </span>array_typ = dfg.type_of_value(array);
-            <span class="kw">if let </span>(Type::Numeric(numeric_type), AcirType::NumericType(num)) =
-                (array_typ.first(), typ)
-            {
-                <span class="kw">if </span>numeric_type.bit_size() &lt;= num.bit_size() {
+            <span class="kw">if let </span>Type::Numeric(numeric_type) = array_typ.first() {
+                <span class="kw">if </span>numeric_type.bit_size::&lt;FieldElement&gt;() &lt;= typ.bit_size::&lt;FieldElement&gt;() {
                     <span class="comment">// first element is compatible
                     </span>index_side_effect = <span class="bool-val">false</span>;
                 }
@@ -1816,7 +1810,7 @@
             <span class="kw">if </span>index_side_effect {
                 value = AcirValue::Var(
                     <span class="self">self</span>.acir_context.mul_var(<span class="kw-2">*</span>value_var, <span class="self">self</span>.current_side_effects_enabled_var)<span class="question-mark">?</span>,
-                    typ.clone(),
+                    <span class="kw-2">*</span>typ,
                 );
             }
         }
@@ -1838,8 +1832,7 @@
                 <span class="comment">// Increment the var_index in case of a nested array
                 </span><span class="kw-2">*</span>var_index = <span class="self">self</span>.acir_context.add_var(<span class="kw-2">*</span>var_index, one)<span class="question-mark">?</span>;
 
-                <span class="kw">let </span>typ = AcirType::NumericType(numeric_type);
-                <span class="prelude-val">Ok</span>(AcirValue::Var(read, typ))
+                <span class="prelude-val">Ok</span>(AcirValue::Var(read, numeric_type))
             }
             Type::Array(element_types, len) =&gt; {
                 <span class="kw">let </span><span class="kw-2">mut </span>values = im::Vector::new();
@@ -1865,8 +1858,7 @@
         <span class="kw">match </span>ssa_type.clone() {
             Type::Numeric(numeric_type) =&gt; {
                 <span class="kw">let </span>zero = <span class="self">self</span>.acir_context.add_constant(FieldElement::zero());
-                <span class="kw">let </span>typ = AcirType::NumericType(numeric_type);
-                <span class="prelude-val">Ok</span>(AcirValue::Var(zero, typ))
+                <span class="prelude-val">Ok</span>(AcirValue::Var(zero, numeric_type))
             }
             Type::Array(element_types, len) =&gt; {
                 <span class="kw">let </span><span class="kw-2">mut </span>values = im::Vector::new();
@@ -1973,7 +1965,7 @@
 
                     <span class="kw">let </span>read = <span class="self">self</span>.acir_context.read_from_memory(<span class="kw-2">*</span>inner_block_id, <span class="kw-2">&amp;</span>index_var)<span class="question-mark">?</span>;
                     <span class="kw">let </span>typ = value_types[i % value_types.len()];
-                    <span class="prelude-val">Ok</span>::&lt;AcirValue, RuntimeError&gt;(AcirValue::Var(read, AcirType::NumericType(typ)))
+                    <span class="prelude-val">Ok</span>::&lt;AcirValue, RuntimeError&gt;(AcirValue::Var(read, typ))
                 })<span class="question-mark">?</span>;
                 <span class="self">self</span>.array_set_value(<span class="kw-2">&amp;</span>AcirValue::Array(values.into()), block_id, var_index)<span class="question-mark">?</span>;
             }
@@ -2076,7 +2068,7 @@
                 <span class="comment">// The final array should will the flattened index at each outer array index
                 </span><span class="kw">let </span>init_values = vecmap(flat_elem_type_sizes, |type_size| {
                     <span class="kw">let </span>var = <span class="self">self</span>.acir_context.add_constant(type_size);
-                    AcirValue::Var(var, AcirType::field())
+                    AcirValue::Var(var, NumericType::NativeField)
                 });
                 <span class="kw">let </span>element_type_sizes_len = init_values.len();
                 <span class="self">self</span>.initialize_array(
@@ -2167,7 +2159,7 @@
             <span class="kw">let </span>read = <span class="self">self</span>.acir_context.read_from_memory(source, <span class="kw-2">&amp;</span>index_var)<span class="question-mark">?</span>;
             <span class="kw">let </span>typ = value_types[i % value_types.len()];
 
-            <span class="prelude-val">Ok</span>::&lt;AcirValue, RuntimeError&gt;(AcirValue::Var(read, AcirType::NumericType(typ)))
+            <span class="prelude-val">Ok</span>::&lt;AcirValue, RuntimeError&gt;(AcirValue::Var(read, typ))
         })
     }
 

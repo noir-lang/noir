@@ -904,13 +904,7 @@
 <a href="#903" id="903">903</a>
 <a href="#904" id="904">904</a>
 <a href="#905" id="905">905</a>
-<a href="#906" id="906">906</a>
-<a href="#907" id="907">907</a>
-<a href="#908" id="908">908</a>
-<a href="#909" id="909">909</a>
-<a href="#910" id="910">910</a>
-<a href="#911" id="911">911</a>
-<a href="#912" id="912">912</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir` module contains all the logic necessary for noirc's ACIR-gen pass which
+<a href="#906" id="906">906</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir` module contains all the logic necessary for noirc's ACIR-gen pass which
 //! generates the output ACIR program.
 //!
 //! # Usage
@@ -1278,8 +1272,7 @@
     ) -&gt; <span class="prelude-ty">Result</span>&lt;AcirValue, RuntimeError&gt; {
         <span class="kw">match </span>param_type {
             Type::Numeric(numeric_type) =&gt; {
-                <span class="kw">let </span>typ = AcirType::new(<span class="kw-2">*</span>numeric_type);
-                <span class="prelude-val">Ok</span>(AcirValue::Var(make_var(<span class="self">self</span>, <span class="kw-2">*</span>numeric_type)<span class="question-mark">?</span>, typ))
+                <span class="prelude-val">Ok</span>(AcirValue::Var(make_var(<span class="self">self</span>, <span class="kw-2">*</span>numeric_type)<span class="question-mark">?</span>, <span class="kw-2">*</span>numeric_type))
             }
             Type::Array(element_types, length) =&gt; {
                 <span class="kw">let </span><span class="kw-2">mut </span>elements = im::Vector::new();
@@ -1472,7 +1465,7 @@
         result: AcirVar,
     ) {
         <span class="kw">let </span>[result_id] = dfg.instruction_result(instruction);
-        <span class="kw">let </span>typ = dfg.type_of_value(result_id).into();
+        <span class="kw">let </span>typ = dfg.type_of_value(result_id).unwrap_numeric();
         <span class="self">self</span>.define_result(dfg, instruction, AcirValue::Var(result, typ));
     }
 
@@ -1562,8 +1555,7 @@
 
         <span class="kw">let </span>acir_value = <span class="kw">match </span>value {
             Value::NumericConstant { constant, typ } =&gt; {
-                <span class="kw">let </span>typ = AcirType::from(Type::Numeric(<span class="kw-2">*</span>typ));
-                AcirValue::Var(<span class="self">self</span>.acir_context.add_constant(<span class="kw-2">*</span>constant), typ)
+                AcirValue::Var(<span class="self">self</span>.acir_context.add_constant(<span class="kw-2">*</span>constant), <span class="kw-2">*</span>typ)
             }
             Value::Intrinsic(..) =&gt; {
                 <span class="macro">unreachable!</span>(<span class="string">"ICE: Intrinsics should be resolved via separate logic"</span>)
@@ -1573,7 +1565,7 @@
                 // debugging instrumentation code to work. Taking the reference
                 // of a function in ACIR is useless.
                 </span><span class="kw">let </span>id = <span class="self">self</span>.acir_context.add_constant(function_id.to_u32());
-                AcirValue::Var(id, AcirType::field())
+                AcirValue::Var(id, NumericType::NativeField)
             }
             Value::ForeignFunction(<span class="kw">_</span>) =&gt; <span class="macro">unimplemented!</span>(
                 <span class="string">"Oracle calls directly in constrained functions are not yet available."
@@ -1618,9 +1610,9 @@
     ) -&gt; <span class="prelude-ty">Result</span>&lt;AcirVar, RuntimeError&gt; {
         <span class="kw">let </span>lhs = <span class="self">self</span>.convert_numeric_value(binary.lhs, dfg)<span class="question-mark">?</span>;
         <span class="kw">let </span>rhs = <span class="self">self</span>.convert_numeric_value(binary.rhs, dfg)<span class="question-mark">?</span>;
-        <span class="kw">let </span>binary_type = <span class="self">self</span>.type_of_binary_operation(binary, dfg);
+        <span class="kw">let </span>num_type = <span class="self">self</span>.type_of_binary_operation(binary, dfg).unwrap_numeric();
 
-        <span class="kw">if </span>binary_type.is_signed()
+        <span class="kw">if </span>num_type.is_signed()
             &amp;&amp; <span class="macro">matches!</span>(
                 binary.operator,
                 BinaryOp::Add { unchecked: <span class="bool-val">false </span>}
@@ -1631,29 +1623,25 @@
             <span class="macro">panic!</span>(<span class="string">"Checked signed operations should all be removed before ACIRgen"</span>)
         }
 
-        <span class="kw">let </span>binary_type = AcirType::from(binary_type);
-        <span class="kw">let </span>bit_count = binary_type.bit_size::&lt;FieldElement&gt;();
-        <span class="kw">let </span>num_type = binary_type.to_numeric_type();
+        <span class="kw">let </span>bit_count = num_type.bit_size::&lt;FieldElement&gt;();
         <span class="kw">let </span>result = <span class="kw">match </span>binary.operator {
             BinaryOp::Add { .. } =&gt; <span class="self">self</span>.acir_context.add_var(lhs, rhs),
             BinaryOp::Sub { .. } =&gt; <span class="self">self</span>.acir_context.sub_var(lhs, rhs),
             BinaryOp::Mul { .. } =&gt; <span class="self">self</span>.acir_context.mul_var(lhs, rhs),
-            BinaryOp::Div =&gt; <span class="self">self</span>.acir_context.div_var(lhs, rhs, binary_type.clone(), predicate),
+            BinaryOp::Div =&gt; <span class="self">self</span>.acir_context.div_var(lhs, rhs, num_type, predicate),
             <span class="comment">// Note: that this produces unnecessary constraints when
             // this Eq instruction is being used for a constrain statement
             </span>BinaryOp::Eq =&gt; <span class="self">self</span>.acir_context.eq_var(lhs, rhs),
-            BinaryOp::Lt =&gt; <span class="kw">match </span>binary_type {
-                AcirType::NumericType(NumericType::Signed { .. }) =&gt; {
+            BinaryOp::Lt =&gt; <span class="kw">match </span>num_type {
+                NumericType::Signed { .. } =&gt; {
                     <span class="macro">panic!</span>(<span class="string">"ICE - signed less than should have been removed before ACIRgen"</span>)
                 }
                 <span class="kw">_ </span>=&gt; <span class="self">self</span>.acir_context.less_than_var(lhs, rhs, bit_count),
             },
-            BinaryOp::Xor =&gt; <span class="self">self</span>.acir_context.xor_var(lhs, rhs, binary_type),
-            BinaryOp::And =&gt; <span class="self">self</span>.acir_context.and_var(lhs, rhs, binary_type),
-            BinaryOp::Or =&gt; <span class="self">self</span>.acir_context.or_var(lhs, rhs, binary_type),
-            BinaryOp::Mod =&gt; {
-                <span class="self">self</span>.acir_context.modulo_var(lhs, rhs, binary_type.clone(), bit_count, predicate)
-            }
+            BinaryOp::Xor =&gt; <span class="self">self</span>.acir_context.xor_var(lhs, rhs, num_type),
+            BinaryOp::And =&gt; <span class="self">self</span>.acir_context.and_var(lhs, rhs, num_type),
+            BinaryOp::Or =&gt; <span class="self">self</span>.acir_context.or_var(lhs, rhs, num_type),
+            BinaryOp::Mod =&gt; <span class="self">self</span>.acir_context.modulo_var(lhs, rhs, num_type, bit_count, predicate),
             BinaryOp::Shl | BinaryOp::Shr =&gt; <span class="macro">unreachable!</span>(
                 <span class="string">"ICE - bit shift operators do not exist in ACIR and should have been replaced"
             </span>),

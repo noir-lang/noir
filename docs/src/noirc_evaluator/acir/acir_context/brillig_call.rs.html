@@ -224,12 +224,7 @@
 <a href="#223" id="223">223</a>
 <a href="#224" id="224">224</a>
 <a href="#225" id="225">225</a>
-<a href="#226" id="226">226</a>
-<a href="#227" id="227">227</a>
-<a href="#228" id="228">228</a>
-<a href="#229" id="229">229</a>
-<a href="#230" id="230">230</a>
-<a href="#231" id="231">231</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::{
+<a href="#226" id="226">226</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::{
     AcirField,
     circuit::brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
     native_types::{Expression, Witness},
@@ -281,9 +276,9 @@
             // We can then immediately zero out all of its outputs as this is the value which would be written
             // if we waited until runtime to resolve this call.
             </span><span class="kw">let </span>outputs_var = vecmap(outputs, |output| <span class="kw">match </span>output {
-                AcirType::NumericType(<span class="kw">_</span>) =&gt; {
+                AcirType::NumericType(numeric_type) =&gt; {
                     <span class="kw">let </span>var = <span class="self">self</span>.add_constant(F::zero());
-                    AcirValue::Var(var, output.clone())
+                    AcirValue::Var(var, numeric_type)
                 }
                 AcirType::Array(element_types, size) =&gt; {
                     <span class="self">self</span>.zeroed_array_output(<span class="kw-2">&amp;</span>element_types, size)
@@ -316,12 +311,12 @@
 
         <span class="kw">let </span><span class="kw-2">mut </span>brillig_outputs = Vec::new();
         <span class="kw">let </span>outputs_var = vecmap(outputs, |output| <span class="kw">match </span>output {
-            AcirType::NumericType(<span class="kw">_</span>) =&gt; {
+            AcirType::NumericType(numeric_type) =&gt; {
                 <span class="kw">let </span>var = <span class="self">self</span>.add_variable();
                 <span class="kw">let </span>witness_index =
                     <span class="self">self</span>.var_to_witness(var).expect(<span class="string">"variable has just been created as witness"</span>);
                 brillig_outputs.push(BrilligOutputs::Simple(witness_index));
-                AcirValue::Var(var, output.clone())
+                AcirValue::Var(var, numeric_type)
             }
             AcirType::Array(element_types, size) =&gt; {
                 <span class="kw">let </span>(acir_value, witnesses) = <span class="self">self</span>.brillig_array_output(<span class="kw-2">&amp;</span>element_types, size);
@@ -345,11 +340,7 @@
         ) -&gt; <span class="prelude-ty">Result</span>&lt;(), RuntimeError&gt; {
             <span class="kw">let </span>one = context.add_constant(G::one());
             <span class="kw">match </span>value {
-                AcirValue::Var(var, typ) =&gt; {
-                    <span class="kw">let </span>numeric_type = <span class="kw">match </span>typ {
-                        AcirType::NumericType(numeric_type) =&gt; numeric_type,
-                        <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"`AcirValue::Var` may only hold primitive values"</span>),
-                    };
+                AcirValue::Var(var, numeric_type) =&gt; {
                     <span class="comment">// Predicate is one so that the constrain is always applied, because
                     // values returned from Brillig will be 0 under a false predicate.
                     </span>context.range_constrain_var(<span class="kw-2">*</span>var, numeric_type, <span class="prelude-val">None</span>, one)<span class="question-mark">?</span>;
@@ -397,8 +388,7 @@
 
                     <span class="kw">let </span>value_read_var = <span class="self">self</span>.read_from_memory(block_id, <span class="kw-2">&amp;</span>index_var)<span class="question-mark">?</span>;
                     <span class="kw">let </span>value_typ = value_types[i % value_types.len()];
-                    <span class="kw">let </span>value_read =
-                        AcirValue::Var(value_read_var, AcirType::NumericType(value_typ));
+                    <span class="kw">let </span>value_read = AcirValue::Var(value_read_var, value_typ);
 
                     <span class="self">self</span>.brillig_array_input(var_expressions, value_read)<span class="question-mark">?</span>;
                 }
@@ -418,9 +408,9 @@
                             <span class="self">self</span>.zeroed_array_output(nested_element_types, <span class="kw-2">*</span>nested_size);
                         array_values.push_back(nested_acir_value);
                     }
-                    AcirType::NumericType(<span class="kw">_</span>) =&gt; {
+                    AcirType::NumericType(numeric_type) =&gt; {
                         <span class="kw">let </span>var = <span class="self">self</span>.add_constant(F::zero());
-                        array_values.push_back(AcirValue::Var(var, element_type.clone()));
+                        array_values.push_back(AcirValue::Var(var, <span class="kw-2">*</span>numeric_type));
                     }
                 }
             }
@@ -446,9 +436,9 @@
                         witnesses.append(<span class="kw-2">&amp;mut </span>nested_witnesses);
                         array_values.push_back(nested_acir_value);
                     }
-                    AcirType::NumericType(<span class="kw">_</span>) =&gt; {
+                    AcirType::NumericType(numeric_type) =&gt; {
                         <span class="kw">let </span>var = <span class="self">self</span>.add_variable();
-                        array_values.push_back(AcirValue::Var(var, element_type.clone()));
+                        array_values.push_back(AcirValue::Var(var, <span class="kw-2">*</span>numeric_type));
                         witnesses.push(
                             <span class="self">self</span>.var_to_witness(var)
                                 .expect(<span class="string">"variable has just been created as witness"</span>),

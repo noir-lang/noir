@@ -186,12 +186,18 @@
 <a href="#185" id="185">185</a>
 <a href="#186" id="186">186</a>
 <a href="#187" id="187">187</a>
-<a href="#188" id="188">188</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::{AcirField, BlackBoxFunc, circuit::opcodes::FunctionInput};
+<a href="#188" id="188">188</a>
+<a href="#189" id="189">189</a>
+<a href="#190" id="190">190</a>
+<a href="#191" id="191">191</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::{AcirField, BlackBoxFunc, circuit::opcodes::FunctionInput};
 <span class="kw">use </span>iter_extended::vecmap;
 
-<span class="kw">use </span><span class="kw">crate</span>::errors::{InternalError, RuntimeError};
+<span class="kw">use crate</span>::{
+    errors::{InternalError, RuntimeError},
+    ssa::ir::types::NumericType,
+};
 
-<span class="kw">use super</span>::{AcirContext, AcirType, AcirValue, AcirVar};
+<span class="kw">use super</span>::{AcirContext, AcirValue, AcirVar};
 
 <span class="kw">impl</span>&lt;F: AcirField&gt; AcirContext&lt;F&gt; {
     <span class="doccomment">/// Calls a Blackbox function on the given inputs and returns a given set of outputs
@@ -248,7 +254,7 @@
                         }));
                     }
                 };
-                inputs.push(AcirValue::Var(predicate.unwrap(), AcirType::unsigned(<span class="number">1</span>)));
+                inputs.push(AcirValue::Var(predicate.unwrap(), NumericType::bool()));
                 <span class="macro">vec!</span>[proof_type_constant]
             }
             <span class="kw">_ </span>=&gt; Vec::new(),

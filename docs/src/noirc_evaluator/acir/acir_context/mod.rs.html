@@ -1614,7 +1614,8 @@
 <a href="#1613" id="1613">1613</a>
 <a href="#1614" id="1614">1614</a>
 <a href="#1615" id="1615">1615</a>
-<a href="#1616" id="1616">1616</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
+<a href="#1616" id="1616">1616</a>
+<a href="#1617" id="1617">1617</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
 //! of type information from SSA in order to allow efficient ACIR-gen.
 //!
 //! The [`AcirContext`] struct defines how to translate SSA instructions into equivalent ACIR constructs. This
@@ -1896,8 +1897,8 @@
             <span class="kw">let </span>results = <span class="self">self</span>.stdlib_brillig_call(
                 predicate,
                 BrilligStdlibFunc::Inverse,
-                <span class="macro">vec!</span>[AcirValue::Var(var, AcirType::field())],
-                <span class="macro">vec!</span>[AcirType::field()],
+                <span class="macro">vec!</span>[AcirValue::Var(var, NumericType::NativeField)],
+                <span class="macro">vec!</span>[AcirType::NumericType(NumericType::NativeField)],
             )<span class="question-mark">?</span>;
             <span class="self">Self</span>::expect_one_var(results)
         };
@@ -1950,7 +1951,7 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         lhs: AcirVar,
         rhs: AcirVar,
-        typ: AcirType,
+        typ: NumericType,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;AcirVar, RuntimeError&gt; {
         <span class="kw">let </span>lhs_expr = <span class="self">self</span>.var_to_expression(lhs)<span class="question-mark">?</span>;
         <span class="kw">let </span>rhs_expr = <span class="self">self</span>.var_to_expression(rhs)<span class="question-mark">?</span>;
@@ -1967,7 +1968,7 @@
             </span><span class="kw">return </span><span class="prelude-val">Ok</span>(lhs);
         }
 
-        <span class="kw">match </span>typ.to_numeric_type() {
+        <span class="kw">match </span>typ {
             NumericType::Signed { bit_size: <span class="number">1 </span>} | NumericType::Unsigned { bit_size: <span class="number">1 </span>} =&gt; {
                 <span class="comment">// Operands are booleans.
                 //
@@ -1977,7 +1978,7 @@
                 <span class="self">self</span>.add_mul_var(sum, -F::from(<span class="number">2_u128</span>), prod)
             }
             NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } =&gt; {
-                <span class="kw">let </span>inputs = <span class="macro">vec!</span>[AcirValue::Var(lhs, typ.clone()), AcirValue::Var(rhs, typ)];
+                <span class="kw">let </span>inputs = <span class="macro">vec!</span>[AcirValue::Var(lhs, typ), AcirValue::Var(rhs, typ)];
                 <span class="kw">let </span>outputs =
                     <span class="self">self</span>.black_box_function(BlackBoxFunc::XOR, inputs, <span class="prelude-val">Some</span>(bit_size), <span class="number">1</span>, <span class="prelude-val">None</span>)<span class="question-mark">?</span>;
                 <span class="prelude-val">Ok</span>(outputs[<span class="number">0</span>])
@@ -1993,7 +1994,7 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         lhs: AcirVar,
         rhs: AcirVar,
-        typ: AcirType,
+        typ: NumericType,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;AcirVar, RuntimeError&gt; {
         <span class="kw">let </span>lhs_expr = <span class="self">self</span>.var_to_expression(lhs)<span class="question-mark">?</span>;
         <span class="kw">let </span>rhs_expr = <span class="self">self</span>.var_to_expression(rhs)<span class="question-mark">?</span>;
@@ -2007,13 +2008,13 @@
             <span class="kw">return </span><span class="prelude-val">Ok</span>(zero);
         }
 
-        <span class="kw">match </span>typ.to_numeric_type() {
+        <span class="kw">match </span>typ {
             NumericType::Signed { bit_size: <span class="number">1 </span>} | NumericType::Unsigned { bit_size: <span class="number">1 </span>} =&gt; {
                 <span class="comment">// Operands are booleans.
                 </span><span class="self">self</span>.mul_var(lhs, rhs)
             }
             NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } =&gt; {
-                <span class="kw">let </span>inputs = <span class="macro">vec!</span>[AcirValue::Var(lhs, typ.clone()), AcirValue::Var(rhs, typ)];
+                <span class="kw">let </span>inputs = <span class="macro">vec!</span>[AcirValue::Var(lhs, typ), AcirValue::Var(rhs, typ)];
                 <span class="kw">let </span>outputs =
                     <span class="self">self</span>.black_box_function(BlackBoxFunc::AND, inputs, <span class="prelude-val">Some</span>(bit_size), <span class="number">1</span>, <span class="prelude-val">None</span>)<span class="question-mark">?</span>;
                 <span class="prelude-val">Ok</span>(outputs[<span class="number">0</span>])
@@ -2029,7 +2030,7 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         lhs: AcirVar,
         rhs: AcirVar,
-        typ: AcirType,
+        typ: NumericType,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;AcirVar, RuntimeError&gt; {
         <span class="kw">let </span>lhs_expr = <span class="self">self</span>.var_to_expression(lhs)<span class="question-mark">?</span>;
         <span class="kw">let </span>rhs_expr = <span class="self">self</span>.var_to_expression(rhs)<span class="question-mark">?</span>;
@@ -2045,7 +2046,7 @@
             </span><span class="kw">return </span><span class="prelude-val">Ok</span>(lhs);
         }
 
-        <span class="kw">match </span>typ.to_numeric_type() {
+        <span class="kw">match </span>typ {
             NumericType::Signed { bit_size: <span class="number">1 </span>} | NumericType::Unsigned { bit_size: <span class="number">1 </span>} =&gt; {
                 <span class="comment">// Operands are booleans
                 // a + b - a*b
@@ -2056,9 +2057,9 @@
             NumericType::Signed { .. } | NumericType::Unsigned { .. } =&gt; {
                 <span class="comment">// Implement OR in terms of AND
                 // (NOT a) AND (NOT b) =&gt; NOT (a OR b)
-                </span><span class="kw">let </span>a = <span class="self">self</span>.not_var(lhs, typ.clone())<span class="question-mark">?</span>;
-                <span class="kw">let </span>b = <span class="self">self</span>.not_var(rhs, typ.clone())<span class="question-mark">?</span>;
-                <span class="kw">let </span>a_and_b = <span class="self">self</span>.and_var(a, b, typ.clone())<span class="question-mark">?</span>;
+                </span><span class="kw">let </span>a = <span class="self">self</span>.not_var(lhs, typ)<span class="question-mark">?</span>;
+                <span class="kw">let </span>b = <span class="self">self</span>.not_var(rhs, typ)<span class="question-mark">?</span>;
+                <span class="kw">let </span>a_and_b = <span class="self">self</span>.and_var(a, b, typ)<span class="question-mark">?</span>;
                 <span class="self">self</span>.not_var(a_and_b, typ)
             }
             NumericType::NativeField =&gt; {
@@ -2183,24 +2184,21 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         lhs: AcirVar,
         rhs: AcirVar,
-        typ: AcirType,
+        typ: NumericType,
         predicate: AcirVar,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;AcirVar, RuntimeError&gt; {
         <span class="kw">match </span>typ {
-            AcirType::NumericType(NumericType::NativeField) =&gt; {
+            NumericType::NativeField =&gt; {
                 <span class="kw">let </span>inv_rhs = <span class="self">self</span>.inv_var(rhs, predicate)<span class="question-mark">?</span>;
                 <span class="self">self</span>.mul_var(lhs, inv_rhs)
             }
-            AcirType::NumericType(NumericType::Unsigned { bit_size }) =&gt; {
+            NumericType::Unsigned { bit_size } =&gt; {
                 <span class="kw">let </span>(quotient_var, _remainder_var) =
                     <span class="self">self</span>.euclidean_division_var(lhs, rhs, bit_size, predicate)<span class="question-mark">?</span>;
                 <span class="prelude-val">Ok</span>(quotient_var)
             }
-            AcirType::NumericType(NumericType::Signed { .. }) =&gt; {
+            NumericType::Signed { .. } =&gt; {
                 <span class="macro">unreachable!</span>(<span class="string">"Signed division should have been removed before ACIRgen"</span>)
-            }
-            AcirType::Array(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
-                <span class="macro">unreachable!</span>(<span class="string">"cannot divide arrays. This should have been caught by the frontend"</span>)
             }
         }
     }
@@ -2366,7 +2364,11 @@
     }
 
     <span class="doccomment">/// Adds a new variable that is constrained to be the logical NOT of `x`.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>not_var(<span class="kw-2">&amp;mut </span><span class="self">self</span>, x: AcirVar, typ: AcirType) -&gt; <span class="prelude-ty">Result</span>&lt;AcirVar, RuntimeError&gt; {
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>not_var(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        x: AcirVar,
+        typ: NumericType,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;AcirVar, RuntimeError&gt; {
         <span class="kw">let </span>bit_size = typ.bit_size::&lt;F&gt;();
         <span class="comment">// Subtracting from max flips the bits
         </span><span class="kw">let </span>max = power_of_two::&lt;F&gt;(bit_size) - F::one();
@@ -2482,10 +2484,13 @@
                 predicate,
                 BrilligStdlibFunc::Quotient,
                 <span class="macro">vec!</span>[
-                    AcirValue::Var(lhs, AcirType::unsigned(bit_size)),
-                    AcirValue::Var(rhs, AcirType::unsigned(bit_size)),
+                    AcirValue::Var(lhs, NumericType::unsigned(bit_size)),
+                    AcirValue::Var(rhs, NumericType::unsigned(bit_size)),
                 ],
-                <span class="macro">vec!</span>[AcirType::unsigned(max_q_bits), AcirType::unsigned(max_rhs_bits)],
+                <span class="macro">vec!</span>[
+                    AcirType::NumericType(NumericType::unsigned(max_q_bits)),
+                    AcirType::NumericType(NumericType::unsigned(max_rhs_bits)),
+                ],
             )<span class="question-mark">?
             </span>.try_into()
             .expect(<span class="string">"quotient only returns two values"</span>);
@@ -2688,24 +2693,21 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         lhs: AcirVar,
         rhs: AcirVar,
-        typ: AcirType,
+        typ: NumericType,
         bit_size: u32,
         predicate: AcirVar,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;AcirVar, RuntimeError&gt; {
         <span class="kw">match </span>typ {
-            AcirType::NumericType(NumericType::Unsigned { .. }) =&gt; {
+            NumericType::Unsigned { .. } =&gt; {
                 <span class="kw">let </span>(<span class="kw">_</span>, remainder_var) =
                     <span class="self">self</span>.euclidean_division_var(lhs, rhs, bit_size, predicate)<span class="question-mark">?</span>;
                 <span class="prelude-val">Ok</span>(remainder_var)
             }
-            AcirType::NumericType(NumericType::Signed { .. }) =&gt; {
+            NumericType::Signed { .. } =&gt; {
                 <span class="macro">unreachable!</span>(<span class="string">"Signed modulo should have been removed before ACIRgen"</span>)
             }
-            AcirType::NumericType(NumericType::NativeField) =&gt; {
+            NumericType::NativeField =&gt; {
                 <span class="macro">unreachable!</span>(<span class="string">"cannot module fields. This should have been caught by the frontend"</span>)
-            }
-            AcirType::Array(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
-                <span class="macro">unreachable!</span>(<span class="string">"cannot modulo arrays. This should have been caught by the frontend"</span>)
             }
         }
     }
@@ -2863,7 +2865,7 @@
         input_var: AcirVar,
         radix_var: AcirVar,
         limb_count: u32,
-        result_element_type: AcirType,
+        result_element_type: NumericType,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;AcirValue, RuntimeError&gt; {
         <span class="kw">let </span>radix = <span class="kw">match </span><span class="self">self</span>.vars[<span class="kw-2">&amp;</span>radix_var].as_constant() {
             <span class="prelude-val">Some</span>(radix) =&gt; radix.try_into_u128().expect(<span class="string">"expected radix to fit within a u128"</span>),
@@ -2887,7 +2889,7 @@
 
         <span class="kw">let </span><span class="kw-2">mut </span>limb_vars = vecmap(limbs, |witness| {
             <span class="kw">let </span>witness = <span class="self">self</span>.add_data(AcirVarData::Witness(witness));
-            AcirValue::Var(witness, result_element_type.clone())
+            AcirValue::Var(witness, result_element_type)
         });
 
         <span class="kw">if </span>endian == Endian::Big {
@@ -2903,7 +2905,7 @@
         endian: Endian,
         input_var: AcirVar,
         limb_count: u32,
-        result_element_type: AcirType,
+        result_element_type: NumericType,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;AcirValue, RuntimeError&gt; {
         <span class="kw">let </span>two_var = <span class="self">self</span>.add_constant(<span class="number">2_u128</span>);
         <span class="self">self</span>.radix_decompose(endian, input_var, two_var, limb_count, result_element_type)
@@ -2915,7 +2917,7 @@
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>flatten(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         value: AcirValue,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;(AcirVar, AcirType)&gt;, InternalError&gt; {
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;(AcirVar, NumericType)&gt;, InternalError&gt; {
         <span class="kw">match </span>value {
             AcirValue::Var(acir_var, typ) =&gt; <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[(acir_var, typ)]),
             AcirValue::Array(array) =&gt; {
@@ -2929,9 +2931,9 @@
                 try_vecmap(<span class="number">0</span>..len, |i| {
                     <span class="kw">let </span>index_var = <span class="self">self</span>.add_constant(i);
 
-                    <span class="prelude-val">Ok</span>::&lt;(AcirVar, AcirType), InternalError&gt;((
+                    <span class="prelude-val">Ok</span>::&lt;(AcirVar, NumericType), InternalError&gt;((
                         <span class="self">self</span>.read_from_memory(block_id, <span class="kw-2">&amp;</span>index_var)<span class="question-mark">?</span>,
-                        value_types[i % value_types.len()].into(),
+                        value_types[i % value_types.len()],
                     ))
                 })
             }
@@ -3066,7 +3068,7 @@
                     <span class="kw">let </span>index_var = <span class="self">self</span>.add_constant(i);
                     <span class="kw">let </span>read = <span class="self">self</span>.read_from_memory(block_id, <span class="kw-2">&amp;</span>index_var)<span class="question-mark">?</span>;
                     <span class="kw">let </span>typ = value_types[i % value_types.len()];
-                    <span class="kw">let </span>value = AcirValue::Var(read, AcirType::NumericType(typ));
+                    <span class="kw">let </span>value = AcirValue::Var(read, typ);
                     <span class="self">self</span>.initialize_array_inner(witnesses, value)<span class="question-mark">?</span>;
                 }
             }

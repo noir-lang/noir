@@ -3637,7 +3637,8 @@
 <a href="#3636" id="3636">3636</a>
 <a href="#3637" id="3637">3637</a>
 <a href="#3638" id="3638">3638</a>
-<a href="#3639" id="3639">3639</a></pre></div><pre class="rust"><code><span class="doccomment">//! The loop invariant code motion (LICM) pass performs two related optimizations:
+<a href="#3639" id="3639">3639</a>
+<a href="#3640" id="3640">3640</a></pre></div><pre class="rust"><code><span class="doccomment">//! The loop invariant code motion (LICM) pass performs two related optimizations:
 //! 1. Loop-Invariant Code Motion: Moves computations that produce the same result
 //!    on every iteration out of the loop and into its pre-header.
 //! 2. Loop-Bounds Simplification: Simplifies computations inside the loop body
@@ -4491,7 +4492,8 @@
             <span class="comment">// A cast may have dependence on a range-check, which may not be hoisted, so we cannot always hoist a cast.
             // We can safely hoist a cast from a smaller to a larger type as no range check is necessary in this case.
             </span><span class="kw">let </span>source_type = dfg.type_of_value(<span class="kw-2">*</span>source).unwrap_numeric();
-            (source_type.bit_size() &lt;= target_type.bit_size()).into()
+            (source_type.bit_size::&lt;FieldElement&gt;() &lt;= target_type.bit_size::&lt;FieldElement&gt;())
+                .into()
         }
 
         <span class="comment">// These instructions can always be hoisted

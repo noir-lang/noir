@@ -303,7 +303,10 @@
 <a href="#302" id="302">302</a>
 <a href="#303" id="303">303</a>
 <a href="#304" id="304">304</a>
-<a href="#305" id="305">305</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::AcirField;
+<a href="#305" id="305">305</a>
+<a href="#306" id="306">306</a>
+<a href="#307" id="307">307</a>
+<a href="#308" id="308">308</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::AcirField;
 <span class="kw">use </span>acvm::acir::circuit::opcodes::AcirFunctionId;
 <span class="kw">use </span>iter_extended::vecmap;
 
@@ -601,9 +604,12 @@
                 }
                 AcirValue::Array(element_values)
             }
-            typ =&gt; {
+            Type::Numeric(numeric_type) =&gt; {
                 <span class="kw">let </span>var = vars.next().unwrap();
-                AcirValue::Var(var, typ.into())
+                AcirValue::Var(var, <span class="kw-2">*</span>numeric_type)
+            }
+            typ =&gt; {
+                <span class="macro">panic!</span>(<span class="string">"Unexpected type {typ} in convert_var_type_to_values"</span>);
             }
         }
     }

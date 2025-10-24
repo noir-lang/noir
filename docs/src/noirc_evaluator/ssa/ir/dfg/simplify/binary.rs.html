@@ -556,7 +556,7 @@
                         <span class="kw">return </span>SimplifyResult::SimplifiedToInstruction(Instruction::Truncate {
                             value: lhs,
                             bit_size,
-                            max_bit_size: lhs_type.bit_size(),
+                            max_bit_size: lhs_type.bit_size::&lt;FieldElement&gt;(),
                         });
                     }
                 }
@@ -644,7 +644,7 @@
                             <span class="kw">let </span>value = <span class="kw">if </span>lhs_value.is_some() { rhs } <span class="kw">else </span>{ lhs };
                             <span class="kw">let </span>bit_size =
                                 <span class="kw">if </span>bitmask == u128::MAX { <span class="number">128 </span>} <span class="kw">else </span>{ (bitmask + <span class="number">1</span>).ilog2() };
-                            <span class="kw">let </span>max_bit_size = lhs_type.bit_size();
+                            <span class="kw">let </span>max_bit_size = lhs_type.bit_size::&lt;FieldElement&gt;();
 
                             <span class="kw">if </span>bit_size == max_bit_size {
                                 <span class="comment">// If we're truncating a value into the full size of its type then

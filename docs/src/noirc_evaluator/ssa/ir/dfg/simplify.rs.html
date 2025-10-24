@@ -795,7 +795,7 @@
                 // would be incorrect however since the extra bits on the field would not be flipped.
                 </span>Value::NumericConstant { constant, typ } <span class="kw">if </span>typ.is_unsigned() =&gt; {
                     <span class="comment">// As we're casting to a `u128`, we need to clear out any upper bits that the NOT fills.
-                    </span><span class="kw">let </span>bit_size = typ.bit_size();
+                    </span><span class="kw">let </span>bit_size = typ.bit_size::&lt;FieldElement&gt;();
                     <span class="macro">assert!</span>(bit_size &lt;= <span class="number">128</span>);
                     <span class="kw">let </span>not_value: u128 = truncate(!constant.to_u128(), bit_size);
                     SimplifiedTo(dfg.make_constant(not_value.into(), <span class="kw-2">*</span>typ))

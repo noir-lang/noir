@@ -1296,7 +1296,7 @@
             max_lhs_bits.checked_add(max_bit_shift_size).unwrap_or(FieldElement::max_num_bits()),
             FieldElement::max_num_bits(),
         );
-        <span class="kw">if </span>max_bit &lt;= typ.bit_size() {
+        <span class="kw">if </span>max_bit &lt;= typ.bit_size::&lt;FieldElement&gt;() {
             <span class="comment">// If the result is guaranteed to fit in the target type we can simply multiply
             </span><span class="kw">let </span>pow = <span class="self">self</span>.two_pow(rhs);
             <span class="kw">let </span>pow = <span class="self">self</span>.insert_cast(pow, typ);
@@ -1308,13 +1308,13 @@
             <span class="kw">let </span>lhs_field = <span class="self">self</span>.insert_cast(lhs, NumericType::NativeField);
             <span class="comment">// Unchecked mul as this is a wrapping operation that we later truncate
             </span><span class="kw">let </span>result = <span class="self">self</span>.insert_binary(lhs_field, BinaryOp::Mul { unchecked: <span class="bool-val">true </span>}, pow);
-            <span class="kw">let </span>result = <span class="self">self</span>.insert_truncate(result, typ.bit_size(), max_bit);
+            <span class="kw">let </span>result = <span class="self">self</span>.insert_truncate(result, typ.bit_size::&lt;FieldElement&gt;(), max_bit);
             <span class="self">self</span>.insert_cast(result, typ)
         } <span class="kw">else </span>{
             <span class="comment">// Otherwise, the result might not fit in a FieldElement.
             // For this, if we have to do `lhs &lt;&lt; rhs` we can first shift by half of `rhs`, truncate,
             // then shift by `rhs - half_of_rhs` and truncate again.
-            </span><span class="macro">assert!</span>(typ.bit_size() &lt;= <span class="number">128</span>);
+            </span><span class="macro">assert!</span>(typ.bit_size::&lt;FieldElement&gt;() &lt;= <span class="number">128</span>);
 
             <span class="kw">let </span>two = <span class="self">self</span>.numeric_constant(FieldElement::from(<span class="number">2_u32</span>), typ);
 
@@ -1334,9 +1334,9 @@
             //        = lhs * 2^(rhs_divided_by_two + rhs_remainder) = lhs * 2^rhs
             </span><span class="kw">let </span>lhs_field = <span class="self">self</span>.insert_cast(lhs, NumericType::NativeField);
             <span class="kw">let </span>result = <span class="self">self</span>.insert_binary(lhs_field, BinaryOp::Mul { unchecked: <span class="bool-val">true </span>}, pow1);
-            <span class="kw">let </span>result = <span class="self">self</span>.insert_truncate(result, typ.bit_size(), max_bit);
+            <span class="kw">let </span>result = <span class="self">self</span>.insert_truncate(result, typ.bit_size::&lt;FieldElement&gt;(), max_bit);
             <span class="kw">let </span>result = <span class="self">self</span>.insert_binary(result, BinaryOp::Mul { unchecked: <span class="bool-val">true </span>}, pow2);
-            <span class="kw">let </span>result = <span class="self">self</span>.insert_truncate(result, typ.bit_size(), max_bit);
+            <span class="kw">let </span>result = <span class="self">self</span>.insert_truncate(result, typ.bit_size::&lt;FieldElement&gt;(), max_bit);
             <span class="self">self</span>.insert_cast(result, typ)
         }
     }

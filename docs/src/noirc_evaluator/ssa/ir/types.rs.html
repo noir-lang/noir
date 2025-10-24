@@ -399,7 +399,11 @@
 <a href="#398" id="398">398</a>
 <a href="#399" id="399">399</a>
 <a href="#400" id="400">400</a>
-<a href="#401" id="401">401</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
+<a href="#401" id="401">401</a>
+<a href="#402" id="402">402</a>
+<a href="#403" id="403">403</a>
+<a href="#404" id="404">404</a>
+<a href="#405" id="405">405</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_frontend::signed_field::SignedField;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
@@ -424,9 +428,9 @@
 
 <span class="kw">impl </span>NumericType {
     <span class="doccomment">/// Returns the bit size of the provided numeric type.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>bit_size(<span class="self">self</span>: <span class="kw-2">&amp;</span>NumericType) -&gt; u32 {
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>bit_size&lt;F: AcirField&gt;(<span class="self">self</span>: <span class="kw-2">&amp;</span>NumericType) -&gt; u32 {
         <span class="kw">match </span><span class="self">self </span>{
-            NumericType::NativeField =&gt; FieldElement::max_num_bits(),
+            NumericType::NativeField =&gt; F::max_num_bits(),
             NumericType::Unsigned { bit_size } | NumericType::Signed { bit_size } =&gt; <span class="kw-2">*</span>bit_size,
         }
     }
@@ -484,6 +488,10 @@
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_unsigned(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
         <span class="macro">matches!</span>(<span class="self">self</span>, NumericType::Unsigned { .. })
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_signed(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="macro">matches!</span>(<span class="self">self</span>, NumericType::Signed { .. })
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>max_value(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;FieldElement, String&gt; {
@@ -612,7 +620,7 @@
     /// Panics if `self` is not a [`Type::Numeric`]
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>bit_size(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u32 {
         <span class="kw">match </span><span class="self">self </span>{
-            Type::Numeric(numeric_type) =&gt; numeric_type.bit_size(),
+            Type::Numeric(numeric_type) =&gt; numeric_type.bit_size::&lt;FieldElement&gt;(),
             other =&gt; <span class="macro">panic!</span>(<span class="string">"bit_size: Expected numeric type, found {other}"</span>),
         }
     }
