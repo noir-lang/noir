@@ -237,13 +237,11 @@ mod tests {
 
     // Tests for mov_registers_to_registers
 
-    /// Generate `Opcode::Mov` for a sequence of expected `dst <- src` moves.
-    ///
-    /// Note that this is the opposite order of expected by `generate_movements_map`.
+    /// Generate `Opcode::Mov` for a sequence of expected `src -> dst` moves.
     fn generate_opcodes(movements: Vec<(usize, usize)>) -> Vec<Opcode<FieldElement>> {
         movements
             .into_iter()
-            .map(|(dst, src)| Opcode::Mov {
+            .map(|(src, dst)| Opcode::Mov {
                 destination: MemoryAddress::relative(dst),
                 source: MemoryAddress::relative(src),
             })
@@ -274,10 +272,9 @@ mod tests {
         context
     }
 
+    /// Test that a series of `src->dst` movements results in a series of `src->dst` move opcodes.
     fn assert_generated_opcodes(
-        // (src, dst)
         movements: Vec<(usize, usize)>,
-        // (dst, src)
         expected_moves: Vec<(usize, usize)>,
     ) {
         let (sources, destinations) = movements_to_source_and_destinations(movements);
@@ -300,20 +297,20 @@ mod tests {
     #[test]
     fn test_mov_registers_to_registers_no_loop() {
         let movements = vec![(10, 11), (11, 12), (12, 13), (13, 14)];
-        let expected_moves = vec![(14, 13), (13, 12), (12, 11), (11, 10)];
+        let expected_moves = vec![(13, 14), (12, 13), (11, 12), (10, 11)];
         assert_generated_opcodes(movements, expected_moves);
     }
     #[test]
     fn test_mov_registers_to_registers_no_op_filter() {
         let movements = vec![(10, 11), (11, 11), (11, 12)];
-        let expected_moves = vec![(12, 11), (11, 10)];
+        let expected_moves = vec![(11, 12), (10, 11)];
         assert_generated_opcodes(movements, expected_moves);
     }
 
     #[test]
     fn test_mov_registers_to_registers_loop() {
         let movements = vec![(10, 11), (11, 12), (12, 13), (13, 10)];
-        let expected_moves = vec![(1, 10), (10, 13), (13, 12), (12, 11), (11, 1)];
+        let expected_moves = vec![(10, 1), (13, 10), (12, 13), (11, 12), (1, 11)];
         assert_generated_opcodes(movements, expected_moves);
     }
 
@@ -321,12 +318,12 @@ mod tests {
     fn test_mov_registers_to_registers_loop_and_branch() {
         let movements = vec![(10, 11), (11, 12), (12, 10), (10, 13), (13, 14)];
         let expected_moves = vec![
-            (1, 10),  // Temporary
-            (10, 12), // Branch
-            (12, 11), // Loop
-            (14, 13), // Loop
-            (11, 1),  // Finish branch
-            (13, 1),  // Finish loop
+            (10, 1),  // Temporary
+            (12, 10), // Branch
+            (11, 12), // Loop
+            (13, 14), // Loop
+            (1, 11),  // Finish branch
+            (1, 13),  // Finish loop
         ];
         assert_generated_opcodes(movements, expected_moves);
     }
