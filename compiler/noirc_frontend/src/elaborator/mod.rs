@@ -243,7 +243,7 @@ pub struct Elaborator<'context> {
     /// These are the globals that have yet to be elaborated.
     /// This map is used to lazily evaluate these globals if they're encountered before
     /// they are elaborated (e.g. in a function's type or another global's RHS).
-    pub(crate) unresolved_globals: BTreeMap<GlobalId, UnresolvedGlobal>,
+    unresolved_globals: BTreeMap<GlobalId, UnresolvedGlobal>,
 
     pub(crate) interpreter_call_stack: im::Vector<Location>,
 
