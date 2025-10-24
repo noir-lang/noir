@@ -370,9 +370,7 @@ impl<'context> Elaborator<'context> {
     }
 
     pub(crate) fn elaborate_items(&mut self, mut items: CollectedItems) {
-        // dbg!(&items.globals);
         self.set_unresolved_globals_ordering(items.globals);
-        dbg!(&self.unresolved_globals.len());
 
         for (alias_id, alias) in items.type_aliases {
             self.define_type_alias(alias_id, alias);
@@ -401,7 +399,6 @@ impl<'context> Elaborator<'context> {
             self.collect_trait_impl(trait_impl);
         }
 
-        dbg!(&self.unresolved_globals.len());
         // We must wait to resolve non-literal globals until after we resolve structs since struct
         // globals will need to reference the struct type they're initialized to ensure they are valid.
         self.elaborate_remaining_globals();

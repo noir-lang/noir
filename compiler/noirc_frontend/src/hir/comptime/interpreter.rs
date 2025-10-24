@@ -564,7 +564,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     }
 
     pub(super) fn evaluate_ident(&mut self, ident: HirIdent, id: ExprId) -> IResult<Value> {
-        dbg!(ident.id);
         let definition = self.elaborator.interner.try_definition(ident.id).ok_or_else(|| {
             let location = self.elaborator.interner.expr_location(&id);
             InterpreterError::VariableNotInScope { location }
@@ -583,11 +582,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             }
             DefinitionKind::Local(_) => self.lookup(&ident),
             DefinitionKind::Global(global_id) => {
-                dbg!(global_id);
                 // Avoid resetting the value if it is already known
                 let global_id = *global_id;
                 let global_info = self.elaborator.interner.get_global(global_id);
-                dbg!(global_info);
                 let global_crate_id = global_info.crate_id;
                 match &global_info.value {
                     GlobalValue::Resolved(value) => Ok(value.clone()),
