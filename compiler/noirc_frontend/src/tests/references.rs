@@ -1,6 +1,8 @@
 use crate::{
     elaborator::UnstableFeature,
-    tests::{assert_no_errors, check_errors, get_program_using_features},
+    tests::{
+        assert_no_errors, check_errors, check_monomorphization_error, get_program_using_features,
+    },
 };
 
 #[test]
@@ -136,4 +138,16 @@ fn disallows_passing_unconstrained_lambda_to_constrained_fn() {
     unconstrained fn foo(_: fn()) {}
     ";
     check_errors(src);
+}
+
+#[test]
+fn allows_calling_unconstrained_fn_from_unconstrained_lambda() {
+    let src = "
+    fn main() {
+        let _ = unconstrained || foo();
+    }
+
+    unconstrained fn foo() {}
+    ";
+    check_monomorphization_error(src);
 }

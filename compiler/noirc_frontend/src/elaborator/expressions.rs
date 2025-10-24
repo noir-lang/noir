@@ -1314,8 +1314,10 @@ impl Elaborator<'_> {
     ) -> (HirExpression, Type) {
         self.push_scope();
         let scope_index = self.scopes.current_scope_index();
+        let unconstrained = lambda.unconstrained
+            || parameters_type_hints.as_ref().map(|hints| hints.unconstrained).unwrap_or_default();
 
-        self.lambda_stack.push(LambdaContext { captures: Vec::new(), scope_index });
+        self.lambda_stack.push(LambdaContext { captures: Vec::new(), scope_index, unconstrained });
 
         let mut arg_types = Vec::with_capacity(lambda.parameters.len());
         let parameters =
@@ -1360,8 +1362,6 @@ impl Elaborator<'_> {
             if captured_vars.is_empty() { Type::Unit } else { Type::Tuple(captured_vars) };
 
         let captures = lambda_context.captures;
-        let unconstrained = lambda.unconstrained
-            || parameters_type_hints.map(|hints| hints.unconstrained).unwrap_or_default();
         let expr = HirExpression::Lambda(HirLambda {
             parameters,
             return_type,
