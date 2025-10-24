@@ -530,7 +530,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             | TypeCheckError::UnconstrainedSliceReturnToConstrained { location, in_lambda } => {
                 let mut diagnostic = Diagnostic::simple_error(error.to_string(), String::new(), *location);
                 if *in_lambda {
-                    diagnostic.add_note("Try changing the lambda to be unconstrained".into());
+                    diagnostic.add_note("Try changing the lambda this is in to be unconstrained".into());
                 }
                 diagnostic
             }
