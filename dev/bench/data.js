@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1761329414994,
+  "lastUpdate": 1761332868969,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23076,48 +23076,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "3b0181a89c3ed0eacaf6646d569ae9f13dfdba39",
-          "message": "chore: ensure that `useful_instructions` cannot overflow (#10173)",
-          "timestamp": "2025-10-15T11:01:22Z",
-          "tree_id": "c5382d239d3d3376dd54b10fd1f0f67b912483a2",
-          "url": "https://github.com/noir-lang/noir/commit/3b0181a89c3ed0eacaf6646d569ae9f13dfdba39"
-        },
-        "date": 1760527510348,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 265639,
-            "range": "± 1083",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 231161,
-            "range": "± 4797",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2786419,
-            "range": "± 1342",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "0cf97e746aee1a8843053618e0b1f2f3de67a695",
           "message": "chore: add incremental mutation testing (#10196)",
           "timestamp": "2025-10-15T16:16:12+01:00",
@@ -25159,6 +25117,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3010376,
             "range": "± 32452",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "e34f4ee59422830b75f23c1bbe8aa558f4c3fe13",
+          "message": "chore(ACIR): use u32::MAX for PLACEHOLDER_BRILLIG_INDEX (#10287)",
+          "timestamp": "2025-10-24T18:34:00Z",
+          "tree_id": "f42ed029cc1794c8a0f72fde6e104898907e98cd",
+          "url": "https://github.com/noir-lang/noir/commit/e34f4ee59422830b75f23c1bbe8aa558f4c3fe13"
+        },
+        "date": 1761332843356,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 263115,
+            "range": "± 1711",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 232833,
+            "range": "± 1560",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2796347,
+            "range": "± 10387",
             "unit": "ns/iter"
           }
         ]
