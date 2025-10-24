@@ -58,17 +58,21 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 
     /// Codegens a return from the current function.
     ///
-    /// Takes the addresses of the values to be returned.
+    /// Takes the variables with the addresses of the values that need to be returned.
+    /// The values are copied to the beginning of the stack space, into an equal number of slots.
+    ///
+    /// Any potential overlap between the source of the return variables and the final destination
+    /// on the beginning of the stack is handled by [Self::codegen_mov_registers_to_registers].
     pub(crate) fn codegen_return(&mut self, return_variables: &[BrilligVariable]) {
         let mut sources = Vec::with_capacity(return_variables.len());
         let mut destinations = Vec::with_capacity(return_variables.len());
 
         for (destination_index, return_variable) in return_variables.iter().enumerate() {
-            // In case we have fewer return registers than indices to write to, ensure we've allocated this register
+            // In case we have fewer return registers than indices to write to, ensure we've allocated this register.
             let destination_register = MemoryAddress::relative(Stack::start() + destination_index);
             self.registers_mut().ensure_register_is_allocated(destination_register);
-            sources.push(return_variable.extract_register());
             destinations.push(destination_register);
+            sources.push(return_variable.extract_register());
         }
         self.codegen_mov_registers_to_registers(sources, destinations);
         self.return_instruction();
