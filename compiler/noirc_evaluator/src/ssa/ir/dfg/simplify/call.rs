@@ -152,11 +152,9 @@ pub(super) fn simplify_call(
                     index += 1;
                 }
             }
-            let make_array =
-                Instruction::MakeArray { elements, typ: Type::Slice(element_types.clone()) };
-            let slice_length = dfg.make_constant(length.into(), NumericType::length_type());
             let new_slice =
-                dfg.insert_instruction_and_results(make_array, block, None, call_stack).first();
+                make_array(dfg, elements, Type::Slice(element_types.clone()), block, call_stack);
+            let slice_length = dfg.make_constant(length.into(), NumericType::length_type());
             SimplifyResult::SimplifiedToMultiple(vec![slice_length, new_slice])
         }
         Intrinsic::SlicePushBack => {
