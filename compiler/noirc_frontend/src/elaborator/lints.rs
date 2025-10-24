@@ -147,12 +147,16 @@ pub(super) fn missing_pub(func: &FuncMeta, modifiers: &FunctionModifiers) -> Opt
 /// Check that we are not passing a mutable reference from a constrained runtime to an unconstrained runtime.
 pub(super) fn unconstrained_function_args(
     function_args: &[(Type, ExprId, Location)],
+    in_lambda: bool,
 ) -> Vec<TypeCheckError> {
     function_args
         .iter()
         .filter_map(|(typ, _, location)| {
             if typ.contains_reference() {
-                Some(TypeCheckError::ConstrainedReferenceToUnconstrained { location: *location })
+                Some(TypeCheckError::ConstrainedReferenceToUnconstrained {
+                    location: *location,
+                    in_lambda,
+                })
             } else {
                 None
             }
@@ -164,11 +168,12 @@ pub(super) fn unconstrained_function_args(
 pub(super) fn unconstrained_function_return(
     return_type: &Type,
     location: Location,
+    in_lambda: bool,
 ) -> Option<TypeCheckError> {
     if return_type.contains_slice() {
-        Some(TypeCheckError::UnconstrainedSliceReturnToConstrained { location })
+        Some(TypeCheckError::UnconstrainedSliceReturnToConstrained { location, in_lambda })
     } else if return_type.contains_reference() {
-        Some(TypeCheckError::UnconstrainedReferenceToConstrained { location })
+        Some(TypeCheckError::UnconstrainedReferenceToConstrained { location, in_lambda })
     } else {
         None
     }

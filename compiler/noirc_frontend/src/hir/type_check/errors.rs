@@ -193,17 +193,17 @@ pub enum TypeCheckError {
     #[error(
         "Cannot pass a mutable reference from a constrained runtime to an unconstrained runtime"
     )]
-    ConstrainedReferenceToUnconstrained { location: Location },
+    ConstrainedReferenceToUnconstrained { location: Location, in_lambda: bool },
     #[error(
         "Cannot pass a mutable reference from a unconstrained runtime to an constrained runtime"
     )]
-    UnconstrainedReferenceToConstrained { location: Location },
+    UnconstrainedReferenceToConstrained { location: Location, in_lambda: bool },
     #[error("Slices cannot be returned from an unconstrained runtime to a constrained runtime")]
-    UnconstrainedSliceReturnToConstrained { location: Location },
+    UnconstrainedSliceReturnToConstrained { location: Location, in_lambda: bool },
     #[error(
         "Call to unconstrained function is unsafe and must be in an unconstrained function or unsafe block"
     )]
-    Unsafe { location: Location },
+    Unsafe { location: Location, in_lambda: bool },
     #[error("Converting an unconstrained fn to a non-unconstrained fn is unsafe")]
     UnsafeFn { location: Location },
     #[error("Expected a constant, but found `{typ}`")]
@@ -327,10 +327,10 @@ impl TypeCheckError {
             }
             | TypeCheckError::UnneededTraitConstraint { location, .. }
             | TypeCheckError::IncorrectTurbofishGenericCount { location, .. }
-            | TypeCheckError::ConstrainedReferenceToUnconstrained { location }
-            | TypeCheckError::UnconstrainedReferenceToConstrained { location }
-            | TypeCheckError::UnconstrainedSliceReturnToConstrained { location }
-            | TypeCheckError::Unsafe { location }
+            | TypeCheckError::ConstrainedReferenceToUnconstrained { location, .. }
+            | TypeCheckError::UnconstrainedReferenceToConstrained { location, .. }
+            | TypeCheckError::UnconstrainedSliceReturnToConstrained { location, .. }
+            | TypeCheckError::Unsafe { location, .. }
             | TypeCheckError::UnsafeFn { location }
             | TypeCheckError::NonConstantEvaluated { location, .. }
             | TypeCheckError::InvalidTypeForEntryPoint { location, .. }
@@ -519,13 +519,20 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             | TypeCheckError::FailingBinaryOp { location, .. }
             | TypeCheckError::FieldModulo { location }
             | TypeCheckError::FieldNot { location }
-            | TypeCheckError::ConstrainedReferenceToUnconstrained { location }
-            | TypeCheckError::UnconstrainedReferenceToConstrained { location }
-            | TypeCheckError::UnconstrainedSliceReturnToConstrained { location }
             | TypeCheckError::NonConstantEvaluated { location, .. }
             | TypeCheckError::StringIndexAssign { location }
             | TypeCheckError::InvalidShiftSize { location } => {
                 Diagnostic::simple_error(error.to_string(), String::new(), *location)
+            }
+            TypeCheckError::Unsafe { location, in_lambda }  
+            | TypeCheckError::ConstrainedReferenceToUnconstrained { location, in_lambda }
+            | TypeCheckError::UnconstrainedReferenceToConstrained { location, in_lambda }
+            | TypeCheckError::UnconstrainedSliceReturnToConstrained { location, in_lambda } => {
+                let mut diagnostic = Diagnostic::simple_error(error.to_string(), String::new(), *location);
+                if *in_lambda {
+                    diagnostic.add_note("Try changing the function accepting the lambda this is in to receive an `unconstrained fn`.".into());
+                }
+                diagnostic
             }
             TypeCheckError::InvalidBoolInfixOp { op, location } => {
                 let primary = match op {
@@ -682,9 +689,6 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 let msg = format!("`{item}` is missing the associated type `{name}`");
                 Diagnostic::simple_error(msg.to_string(), "".to_string(), *location)
             },
-            TypeCheckError::Unsafe { location } => {
-                Diagnostic::simple_error(error.to_string(), String::new(), *location)
-            }
             TypeCheckError::UnsafeFn { location } => {
                 Diagnostic::simple_error(error.to_string(), String::new(), *location)
             }

@@ -2072,10 +2072,11 @@ impl Elaborator<'_> {
         let is_unconstrained_call =
             func_type_is_unconstrained || self.is_unconstrained_call(call.func);
         let crossing_runtime_boundary = is_current_func_constrained && is_unconstrained_call;
+        let in_lambda = self.in_lambda();
         if crossing_runtime_boundary {
             match self.unsafe_block_status {
                 UnsafeBlockStatus::NotInUnsafeBlock => {
-                    self.push_err(TypeCheckError::Unsafe { location });
+                    self.push_err(TypeCheckError::Unsafe { location, in_lambda });
                 }
                 UnsafeBlockStatus::InUnsafeBlockWithoutUnconstrainedCalls => {
                     self.unsafe_block_status = UnsafeBlockStatus::InUnsafeBlockWithConstrainedCalls;
@@ -2095,7 +2096,7 @@ impl Elaborator<'_> {
                 });
             }
 
-            let errors = lints::unconstrained_function_args(&args);
+            let errors = lints::unconstrained_function_args(&args, in_lambda);
             for error in errors {
                 self.push_err(error);
             }
@@ -2105,7 +2106,8 @@ impl Elaborator<'_> {
 
         if crossing_runtime_boundary {
             self.run_lint(|_| {
-                lints::unconstrained_function_return(&return_type, location).map(Into::into)
+                lints::unconstrained_function_return(&return_type, location, in_lambda)
+                    .map(Into::into)
             });
         }
 
