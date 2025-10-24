@@ -64,7 +64,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 
         // After removing loops we should have an DAG with each node having only one ancestor (but could have multiple successors)
         // Now we should be able to move the registers just by performing a DFS on the movements map.
-        // Start from the heads, which are not destinations; anything else should be reachable from them by following the paths.
+        // Starting from the head of movement sequences, anything else should be reachable from them by following the paths.
         let heads: Vec<_> = movements_map
             .keys()
             .filter(|source| !destinations_set.contains(source))
@@ -80,7 +80,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     /// then generate movement opcodes _backwards_, unraveling the DFS path.
     ///
     /// By doing so, we can have a series of moves such as `[1->2, 2->3]` which become opcodes
-    /// [3<-2, 2<-1], without having 2 overwritten by 1 first, before it could be copied to 3.
+    /// `[3<-2, 2<-1]`, avoiding having 2 overwritten by 1 before it could be copied to 3.
     fn perform_movements(&mut self, movements: &MovementsMap, current_source: MemoryAddress) {
         if let Some(destinations) = movements.get(&current_source) {
             for destination in destinations {
@@ -95,9 +95,6 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 
 /// Addresses visited when a loop was found in the movements.
 ///
-/// It might contain addresses that aren't actually part of the loop,
-/// e.g. A->B->C->D->C would contain [A,B,C,D] even though the loop is just [C,D].
-///
 /// They are ordered by their value, not their appearance in the loop.
 /// The order provides determinism when we try to break the loop.
 ///
@@ -110,6 +107,12 @@ struct LoopDetector {
 }
 
 impl LoopDetector {
+    /// Detect all loops in a series of movements.
+    ///
+    /// The resulting loop might contain addresses that aren't actually part of the loop,
+    /// e.g. `0->1->2->3->2` would return `[0,1,2,3]` even though the loop is just `[2,3]`,
+    /// however such cases should already be rejected by `codegen_mov_registers_to_registers`,
+    /// since for this to happen, one of the destinations need to appear more than once.
     fn detect_loops(
         movements: &BTreeMap<MemoryAddress, BTreeSet<MemoryAddress>>,
     ) -> Vec<AddressLoop> {
@@ -326,5 +329,12 @@ mod tests {
             (1, 13),  // Finish loop
         ];
         assert_generated_opcodes(movements, expected_moves);
+    }
+
+    #[test]
+    #[should_panic(expected = "Multiple moves to the same register found")]
+    fn test_mov_registers_to_registers_loop_with_init() {
+        let movements = vec![(0, 1), (1, 2), (2, 3), (3, 2)];
+        assert_generated_opcodes(movements, vec![]);
     }
 }
