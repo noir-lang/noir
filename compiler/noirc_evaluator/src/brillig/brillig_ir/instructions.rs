@@ -248,19 +248,20 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.obj.add_unresolved_jump(jmp_instruction, destination);
     }
 
-    /// Adds a label to the next opcode
+    /// Adds a context and a section label to the next opcode.
+    ///
+    /// Entering a context resets the current section to 0 and the next section to 1.
     pub(crate) fn enter_context(&mut self, label: Label) {
+        debug_assert!(label.section.is_none(), "new context should have no section");
         self.debug_show.enter_context(label.to_string());
         self.context_label = label.clone();
-        self.current_section = 0;
         // Add a context label to the next opcode
         self.obj.add_label_at_position(label, self.obj.index_of_next_opcode());
-        // Add a section label to the next opcode
-        self.obj
-            .add_label_at_position(self.current_section_label(), self.obj.index_of_next_opcode());
+        self.enter_section(0);
+        self.next_section = 1;
     }
 
-    /// Enter the given section within a basic block
+    /// Enter the given section within a basic block.
     pub(super) fn enter_section(&mut self, section: usize) {
         self.current_section = section;
         self.obj

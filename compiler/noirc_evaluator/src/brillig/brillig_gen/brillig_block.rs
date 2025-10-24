@@ -51,11 +51,11 @@ pub(crate) struct BrilligBlock<'block, Registers: RegisterAllocator> {
 }
 
 impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
-    /// Converts an SSA Basic block into a sequence of Brillig opcodes
+    /// Converts an SSA basic block into a sequence of Brillig opcodes.
     ///
     /// This method contains the necessary initial variable and register setup for compiling
     /// an SSA block by accessing the pre-computed liveness context.
-    pub(crate) fn compile(
+    pub(crate) fn compile_block(
         function_context: &'block mut FunctionContext,
         brillig_context: &'block mut BrilligContext<FieldElement, Registers>,
         block_id: BasicBlockId,
@@ -179,9 +179,9 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         new_hoisted_constants
     }
 
-    /// Internal method for [BrilligBlock::compile] that actually kicks off the Brillig compilation process
+    /// Internal method for [BrilligBlock::compile_block] that actually kicks off the Brillig compilation process.
     ///
-    /// At this point any Brillig context, should be contained in [BrilligBlock] and this function should
+    /// At this point any Brillig context should be contained in [BrilligBlock], and this function should
     /// only need to accept external SSA and debugging structures.
     fn convert_block(&mut self, dfg: &DataFlowGraph, call_stacks: &mut CallStackHelper) {
         // Add a label for this block
@@ -287,12 +287,16 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         }
     }
 
-    /// Allocates the block parameters that the given block is defining
+    /// Allocates the block parameters that the given block is defining.
+    ///
+    /// We don't allocate the block parameters of the block itself here, we allocate the parameters the block is defining
+    /// for the descendant blocks it immediately dominates. Since predecessors to a block have to know where the parameters
+    /// of the block are allocated to pass data to it in [Self::convert_ssa_terminator], the block parameters need to be
+    /// defined/allocated before the given block. [VariableLiveness](crate::brillig::brillig_gen::variable_liveness::VariableLiveness)
+    /// decides when the block parameters are defined.
+    ///
+    /// For the entry block, the defined block params will be the params of the function + any extra params of blocks it's the immediate dominator of.
     fn convert_block_params(&mut self, dfg: &DataFlowGraph) {
-        // We don't allocate the block parameters here, we allocate the parameters the block is defining.
-        // Since predecessors to a block have to know where the parameters of the block are allocated to pass data to it,
-        // the block parameters need to be defined/allocated before the given block. Variable liveness provides when the block parameters are defined.
-        // For the entry block, the defined block params will be the params of the function + any extra params of blocks it's the immediate dominator of.
         for param_id in self.function_context.liveness.defined_block_params(&self.block_id) {
             let value = &dfg[param_id];
             let param_type = match value {
