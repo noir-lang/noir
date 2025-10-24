@@ -717,7 +717,6 @@ impl<'a> Context<'a> {
             panic!("Checked signed operations should all be removed before ACIRgen")
         }
 
-        let bit_count = num_type.bit_size::<FieldElement>();
         let result = match binary.operator {
             BinaryOp::Add { .. } => self.acir_context.add_var(lhs, rhs),
             BinaryOp::Sub { .. } => self.acir_context.sub_var(lhs, rhs),
@@ -727,15 +726,24 @@ impl<'a> Context<'a> {
             // this Eq instruction is being used for a constrain statement
             BinaryOp::Eq => self.acir_context.eq_var(lhs, rhs),
             BinaryOp::Lt => match num_type {
-                NumericType::Signed { .. } => {
-                    panic!("ICE - signed less than should have been removed before ACIRgen")
+                NumericType::Unsigned { bit_size } => {
+                    self.acir_context.less_than_var(lhs, rhs, bit_size)
                 }
-                _ => self.acir_context.less_than_var(lhs, rhs, bit_count),
+                _ => {
+                    panic!("ICE: unexpected binary type for Lt operation: {num_type:?}")
+                }
             },
             BinaryOp::Xor => self.acir_context.xor_var(lhs, rhs, num_type),
             BinaryOp::And => self.acir_context.and_var(lhs, rhs, num_type),
             BinaryOp::Or => self.acir_context.or_var(lhs, rhs, num_type),
-            BinaryOp::Mod => self.acir_context.modulo_var(lhs, rhs, num_type, bit_count, predicate),
+            BinaryOp::Mod => match num_type {
+                NumericType::Unsigned { bit_size } => {
+                    self.acir_context.modulo_var(lhs, rhs, bit_size, predicate)
+                }
+                _ => {
+                    panic!("ICE: unexpected binary type for Mod operation: {num_type:?}")
+                }
+            },
             BinaryOp::Shl | BinaryOp::Shr => unreachable!(
                 "ICE - bit shift operators do not exist in ACIR and should have been replaced"
             ),
