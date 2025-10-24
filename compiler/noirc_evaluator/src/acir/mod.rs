@@ -54,7 +54,7 @@ pub use {acir_context::GeneratedAcir, ssa::Artifacts};
 /// Context struct for the acir generation pass.
 /// May be similar to the Evaluator struct in the current SSA IR.
 struct Context<'a> {
-    /// Maps SSA values to `AcirVar`.
+    /// Maps SSA values to `AcirVar`'s.
     ///
     /// This is needed so that we only create a single
     /// AcirVar per SSA value. Before creating an `AcirVar`
@@ -77,12 +77,12 @@ struct Context<'a> {
     /// if there is already a MemoryInit opcode.
     initialized_arrays: HashSet<BlockId>,
 
-    /// Maps SSA values to BlockId
+    /// Maps SSA values to BlockId's
     /// A BlockId is an ACIR structure which identifies a memory block
     /// Each acir memory block corresponds to a different SSA array.
     memory_blocks: HashMap<Id<Value>, BlockId>,
 
-    /// Maps SSA values to a BlockId used internally for computing the accurate flattened
+    /// Maps SSA values to BlockId's used internally for computing the accurate flattened
     /// index of non-homogenous arrays.
     /// See [arrays] for more information about the purpose of the type sizes array.
     ///
@@ -233,10 +233,12 @@ impl<'a> Context<'a> {
         let (return_vars, return_warnings) =
             self.convert_ssa_return(entry_block.unwrap_terminator(), dfg)?;
 
-        // TODO: This is a naive method of assigning the return values to their witnesses as
+        // This is a naive method of assigning the return values to their witnesses as
         // we're likely to get a number of constraints which are asserting one witness to be equal to another.
         //
-        // We should search through the program and relabel these witnesses so we can remove this constraint.
+        // But an attempt at searching through the program and relabeling these witnesses so we could remove
+        // this constraint was [closed](https://github.com/noir-lang/noir/pull/10112#event-20171150226)
+        // but "the opcode count doesn't even change in real circuits."
         for (witness_var, return_var) in return_witness_vars.iter().zip(return_vars) {
             self.acir_context.assert_eq_var(*witness_var, return_var, None)?;
         }
@@ -269,7 +271,7 @@ impl<'a> Context<'a> {
         })?;
         let arguments = self.gen_brillig_parameters(dfg[main_func.entry_block()].parameters(), dfg);
 
-        let witness_inputs = self.acir_context.extract_witness(&inputs);
+        let witness_inputs = self.acir_context.extract_witnesses(&inputs);
         let returns = main_func.returns().unwrap_or_default();
 
         let outputs: Vec<AcirType> =
@@ -280,12 +282,13 @@ impl<'a> Context<'a> {
 
         // We specifically do not attempt execution of the brillig code being generated as this can result in it being
         // replaced with constraints on witnesses to the program outputs.
+        let unsafe_return_values = true;
         let output_values = self.acir_context.brillig_call(
             self.current_side_effects_enabled_var,
             &code,
             inputs,
             outputs,
-            true,
+            unsafe_return_values,
             // We are guaranteed to have a Brillig function pointer of `0` as main itself is marked as unconstrained
             BrilligFunctionId(0),
             None,
@@ -392,10 +395,9 @@ impl<'a> Context<'a> {
     ) -> Result<AcirVar, RuntimeError> {
         let acir_var = self.acir_context.add_variable();
         let one = self.acir_context.add_constant(FieldElement::one());
-        if matches!(numeric_type, NumericType::Signed { .. } | NumericType::Unsigned { .. }) {
-            // The predicate is one so that this constraint is is always applied.
-            self.acir_context.range_constrain_var(acir_var, numeric_type, None, one)?;
-        }
+        // The predicate is one so that this constraint is is always applied to Signed/Unsigned
+        // NumericType's
+        self.acir_context.range_constrain_var(acir_var, numeric_type, None, one)?;
         Ok(acir_var)
     }
 
@@ -409,16 +411,15 @@ impl<'a> Context<'a> {
         let instruction = &dfg[instruction_id];
         self.acir_context.set_call_stack(dfg.get_instruction_call_stack(instruction_id));
         let mut warnings = Vec::new();
-        // Disable the side effects if the binary instruction does not require them
-        let one = self.acir_context.add_constant(FieldElement::one());
-        let predicate = if instruction.requires_acir_gen_predicate(dfg) {
-            self.current_side_effects_enabled_var
-        } else {
-            one
-        };
 
         match instruction {
             Instruction::Binary(binary) => {
+                // Disable the side effects if the binary instruction does not require them
+                let predicate = if instruction.requires_acir_gen_predicate(dfg) {
+                    self.current_side_effects_enabled_var
+                } else {
+                    self.acir_context.add_constant(FieldElement::one())
+                };
                 let result_acir_var = self.convert_ssa_binary(binary, dfg, predicate)?;
                 self.define_result_var(dfg, instruction_id, result_acir_var);
             }
@@ -480,6 +481,7 @@ impl<'a> Context<'a> {
             }
             Instruction::RangeCheck { value, max_bit_size, assert_message } => {
                 let acir_var = self.convert_numeric_value(*value, dfg)?;
+                let one = self.acir_context.add_constant(FieldElement::one());
                 // Predicate is one because the predicate has already been
                 // handled in the RangeCheck instruction during the flattening pass.
                 self.acir_context.range_constrain_var(
@@ -525,10 +527,11 @@ impl<'a> Context<'a> {
                 {
                     self.acir_context.generate_assertion_message_payload(constant_string)
                 } else {
-                    let acir_vars: Vec<_> = vecmap(values, |value| self.convert_value(*value, dfg));
+                    let acir_values: Vec<_> =
+                        vecmap(values, |value| self.convert_value(*value, dfg));
 
                     let expressions_or_memory =
-                        self.acir_context.vars_to_expressions_or_memory(&acir_vars)?;
+                        self.acir_context.values_to_expressions_or_memory(&acir_values)?;
 
                     let error_selector = error_selector.as_u64();
                     AssertionPayload { error_selector, payload: expressions_or_memory }
@@ -635,6 +638,11 @@ impl<'a> Context<'a> {
     /// involving such values are evaluated via a separate path and stored in
     /// `ssa_value_to_array_address` instead.
     fn convert_value(&mut self, value_id: ValueId, dfg: &DataFlowGraph) -> AcirValue {
+        assert!(
+            !matches!(dfg.type_of_value(value_id), Type::Reference(_)),
+            "convert_value: did not expect a Reference type"
+        );
+
         let value = &dfg[value_id];
         if let Some(acir_value) = self.ssa_values.get(&value_id) {
             return acir_value.clone();
@@ -872,12 +880,12 @@ impl<'a> Context<'a> {
                 result
             }
             AcirValue::DynamicArray(AcirDynamicArray { block_id, len, value_types, .. }) => {
-                let elements = self.read_dynamic_array(*block_id, *len, value_types)?;
+                let elements = self.read_dynamic_array(*block_id, *len, value_types);
                 let mut result = Vec::new();
 
                 for value in elements {
-                    match value {
-                        AcirValue::Var(var, _) => result.push(var),
+                    match value? {
+                        AcirValue::Var(var, _typ) => result.push(var),
                         _ => unreachable!("ICE: Dynamic memory should already be flat"),
                     }
                 }

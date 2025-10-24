@@ -1,4 +1,4 @@
-//! The code generation logic for converting [crate::ssa] objects into their respective [Brillig] artifacts.  
+//! The code generation logic for converting [crate::ssa] objects into their respective [Brillig] artifacts.
 pub(crate) mod brillig_block;
 pub(crate) mod brillig_block_variables;
 mod brillig_call;
@@ -105,7 +105,7 @@ mod entry_point {
 
     #[test]
     fn entry_point_setup_basic() {
-        let src = " 
+        let src = "
         brillig(inline) fn main f0 {
           b0(v0: u32, v1: u32):
             v2 = add v0, v1
