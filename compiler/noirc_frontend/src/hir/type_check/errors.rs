@@ -524,7 +524,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             | TypeCheckError::InvalidShiftSize { location } => {
                 Diagnostic::simple_error(error.to_string(), String::new(), *location)
             }
-            TypeCheckError::Unsafe { location, in_lambda }  
+            TypeCheckError::Unsafe { location, in_lambda }
             | TypeCheckError::ConstrainedReferenceToUnconstrained { location, in_lambda }
             | TypeCheckError::UnconstrainedReferenceToConstrained { location, in_lambda }
             | TypeCheckError::UnconstrainedSliceReturnToConstrained { location, in_lambda } => {
