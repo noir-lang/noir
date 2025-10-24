@@ -11,7 +11,7 @@
 //! [BlockId]. This module provides helpers for translating SSA array
 //! operations into ACIR memory reads and writes.
 //!
-//! ACIR generation use twos different array types for representing arrays:
+//! ACIR generation use two different array types for representing arrays:
 //!
 //! [Constant arrays][AcirValue::Array]
 //!   - Known at compile time.
@@ -71,7 +71,7 @@
 //! We then use the resulting type to increment the index appropriately and fetch ever element of `bar.inner`.
 //!
 //! This element type sizes array is dynamic as we still need to access it based upon the index which itself can be dynamic.
-//! The module will also attempt to not create this array when possible (e.g., we have a simple homogenous array).
+//! The module will also attempt to not create this array when possible (e.g., when we have a simple homogenous array).
 //!
 //! ### Side effects and Predication
 //!
@@ -98,7 +98,7 @@
 //!
 //! #### Writes
 //!
-//! When the predicate is not a constant one, instead of actually overwriting memory, we compute a "dummy value".
+//! When the predicate is not a constant, instead of actually overwriting memory, we compute a "dummy value".
 //! The dummy value is fetched from the same array at the requested `predicate_index`.
 //! The store value of an array write is then converted from a `store_value` to `predicate * store_value + (1 - predicate) * dummy`
 //! This ensures the memory remains unchanged when the write is disabled. In the case of a false predicate, the value stored will be itself.
@@ -107,7 +107,7 @@
 //!
 //! If we perform an array read under a false predicate we will read from `offset`. As arrays are not always homogenous
 //! the result at index `offset` may contain a value that will overflow the resulting type of the array read.
-//! When we read a value from a non-homogenous array we multiply any resulting [AcirValue::Var] by the predicate
+//! When we read a value from a non-homogenous array, we multiply any resulting [AcirValue::Var] by the predicate
 //! to avoid any possible mismatch. In the case of a false predicate, the value will now be zero.
 //! For homogenous arrays, the fallback `offset` will produce a value with a compatible type.
 //!
@@ -322,13 +322,13 @@ impl Context<'_> {
         store_value: Option<AcirValue>,
     ) -> Result<bool, RuntimeError> {
         let array_size: usize = array.len();
-        let index = match index.try_to_u64() {
+        let index = match index.try_to_u32() {
             Some(index_const) => index_const as usize,
             None => {
                 let call_stack = self.acir_context.get_call_stack();
                 return Err(RuntimeError::TypeConversion {
                     from: "array index".to_string(),
-                    into: "u64".to_string(),
+                    into: "u32".to_string(),
                     call_stack,
                 });
             }
@@ -513,7 +513,9 @@ impl Context<'_> {
                     "ICE: The store value and dummy must have the same number of inner values"
                 );
 
-                let values = self.read_dynamic_array(*block_id, *len, value_types)?;
+                let values: Vec<_> = self
+                    .read_dynamic_array(*block_id, *len, value_types)
+                    .collect::<Result<_, _>>()?;
                 let mut elements = im::Vector::new();
                 for (val, dummy_val) in values.iter().zip(dummy_values) {
                     elements.push_back(self.convert_array_set_store_value(val, &dummy_val)?);
@@ -931,7 +933,7 @@ impl Context<'_> {
             AcirValue::Var(_, _) => unreachable!("ICE: attempting to copy a non-array value"),
             AcirValue::Array(vars) => Ok(vars),
             AcirValue::DynamicArray(AcirDynamicArray { block_id, len, value_types, .. }) => {
-                self.read_dynamic_array(block_id, len, &value_types)
+                self.read_dynamic_array(block_id, len, &value_types).collect()
             }
         }
     }
@@ -964,16 +966,15 @@ impl Context<'_> {
         source: BlockId,
         array_len: usize,
         value_types: &[NumericType],
-    ) -> Result<im::Vector<AcirValue>, RuntimeError> {
-        let init_values = try_vecmap(0..array_len, |i| {
+    ) -> impl Iterator<Item = Result<AcirValue, RuntimeError>> {
+        (0..array_len).map(move |i| {
             let index_var = self.acir_context.add_constant(i);
 
             let read = self.acir_context.read_from_memory(source, &index_var)?;
             let typ = value_types[i % value_types.len()];
 
             Ok::<AcirValue, RuntimeError>(AcirValue::Var(read, typ))
-        })?;
-        Ok(init_values.into())
+        })
     }
 
     fn copy_dynamic_array(
@@ -983,7 +984,8 @@ impl Context<'_> {
         array_len: usize,
         value_types: &[NumericType],
     ) -> Result<(), RuntimeError> {
-        let array = self.read_dynamic_array(source, array_len, value_types)?;
+        let array =
+            self.read_dynamic_array(source, array_len, value_types).collect::<Result<_, _>>()?;
         self.initialize_array(destination, array_len, Some(AcirValue::Array(array)))?;
         Ok(())
     }

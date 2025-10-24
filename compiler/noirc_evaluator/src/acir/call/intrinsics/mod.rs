@@ -150,7 +150,7 @@ impl Context<'_> {
             | Intrinsic::AssertConstant
             | Intrinsic::ArrayRefCount
             | Intrinsic::SliceRefCount => {
-                unreachable!("Expected {intrinsic} to be removed by this point")
+                unreachable!("Expected {intrinsic} to have been removing during SSA optimizations")
             }
         }
     }

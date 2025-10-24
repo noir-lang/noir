@@ -36,7 +36,7 @@ impl<F: AcirField> AcirContext<F> {
 
                 assert_eq!(
                     output_count,
-                    input_size + (16 - input_size % 16),
+                    input_size + 16 - input_size % 16,
                     "output count mismatch"
                 );
 
@@ -108,7 +108,7 @@ impl<F: AcirField> AcirContext<F> {
         let mut inputs =
             self.prepare_inputs_for_black_box_func_call(inputs, allow_constant_inputs)?;
         if name == BlackBoxFunc::EmbeddedCurveAdd {
-            inputs = self.all_or_nothing_for_ec_add(inputs)?;
+            inputs = self.all_variables_or_constants_for_ec_add(inputs)?;
         }
         Ok(inputs)
     }
@@ -150,9 +150,11 @@ impl<F: AcirField> AcirContext<F> {
         Ok(witnesses)
     }
 
-    /// EcAdd has 6 inputs representing the two points to add
-    /// Each point must be either all constant, or all witnesses
-    fn all_or_nothing_for_ec_add(
+    /// [`BlackBoxFunc::EmbeddedCurveAdd`] has 6 inputs representing the two points to add
+    /// Each point must be either all constants, or all witnesses,
+    /// where constants are converted to witnesses here if mixed constant and witnesses are
+    /// encountered
+    fn all_variables_or_constants_for_ec_add(
         &mut self,
         inputs: Vec<Vec<FunctionInput<F>>>,
     ) -> Result<Vec<Vec<FunctionInput<F>>>, RuntimeError> {
@@ -160,14 +162,17 @@ impl<F: AcirField> AcirContext<F> {
         let mut has_witness = false;
         let mut result = inputs.clone();
         for (i, input) in inputs.iter().enumerate() {
+            assert_eq!(input.len(), 1);
             if input[0].is_constant() {
                 has_constant = true;
             } else {
                 has_witness = true;
             }
+
             if i % 3 == 2 {
                 if has_constant && has_witness {
-                    // Convert the constants to witness if mixed constant and witness,
+                    // Convert the constants to witnesses if mixed constants and witnesses are
+                    // encountered
                     for j in i - 2..i + 1 {
                         if let FunctionInput::Constant(constant) = inputs[j][0] {
                             let constant = self.add_constant(constant);

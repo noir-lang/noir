@@ -138,6 +138,11 @@ impl<F> Expression<F> {
         self.mul_terms.sort_by(|a, b| a.1.cmp(&b.1).then(a.2.cmp(&b.2)));
         self.linear_combinations.sort_by(|a, b| a.1.cmp(&b.1));
     }
+
+    pub(crate) fn is_sorted(&self) -> bool {
+        self.mul_terms.iter().is_sorted_by(|a, b| a.1.cmp(&b.1).then(a.2.cmp(&b.2)).is_le())
+            && self.linear_combinations.iter().is_sorted_by(|a, b| a.1.cmp(&b.1).is_le())
+    }
 }
 
 impl<F: AcirField> Expression<F> {
