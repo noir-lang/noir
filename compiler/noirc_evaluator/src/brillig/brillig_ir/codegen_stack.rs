@@ -274,66 +274,60 @@ mod tests {
         context
     }
 
+    fn assert_generated_opcodes(
+        // (src, dst)
+        movements: Vec<(usize, usize)>,
+        // (dst, src)
+        expected_moves: Vec<(usize, usize)>,
+    ) {
+        let (sources, destinations) = movements_to_source_and_destinations(movements);
+
+        let mut context = create_context();
+        context.codegen_mov_registers_to_registers(sources, destinations);
+
+        let opcodes = context.artifact().byte_code;
+
+        assert_eq!(opcodes, generate_opcodes(expected_moves));
+    }
+
     #[test]
     #[should_panic(expected = "Multiple moves to the same register found")]
     fn test_mov_registers_to_registers_overwrite() {
         let movements = vec![(10, 11), (12, 11), (10, 13)];
-        let (sources, destinations) = movements_to_source_and_destinations(movements);
-        let mut context = create_context();
-
-        context.codegen_mov_registers_to_registers(sources, destinations);
+        assert_generated_opcodes(movements, vec![]);
     }
 
     #[test]
     fn test_mov_registers_to_registers_no_loop() {
         let movements = vec![(10, 11), (11, 12), (12, 13), (13, 14)];
-        let (sources, destinations) = movements_to_source_and_destinations(movements);
-        let mut context = create_context();
-
-        context.codegen_mov_registers_to_registers(sources, destinations);
-        let opcodes = context.artifact().byte_code;
-        assert_eq!(opcodes, generate_opcodes(vec![(14, 13), (13, 12), (12, 11), (11, 10)]));
+        let expected_moves = vec![(14, 13), (13, 12), (12, 11), (11, 10)];
+        assert_generated_opcodes(movements, expected_moves);
     }
     #[test]
     fn test_mov_registers_to_registers_no_op_filter() {
         let movements = vec![(10, 11), (11, 11), (11, 12)];
-        let (sources, destinations) = movements_to_source_and_destinations(movements);
-        let mut context = create_context();
-
-        context.codegen_mov_registers_to_registers(sources, destinations);
-        let opcodes = context.artifact().byte_code;
-        assert_eq!(opcodes, generate_opcodes(vec![(12, 11), (11, 10)]));
+        let expected_moves = vec![(12, 11), (11, 10)];
+        assert_generated_opcodes(movements, expected_moves);
     }
 
     #[test]
     fn test_mov_registers_to_registers_loop() {
         let movements = vec![(10, 11), (11, 12), (12, 13), (13, 10)];
-        let (sources, destinations) = movements_to_source_and_destinations(movements);
-        let mut context = create_context();
-
-        context.codegen_mov_registers_to_registers(sources, destinations);
-        let opcodes = context.artifact().byte_code;
-        assert_eq!(opcodes, generate_opcodes(vec![(1, 10), (10, 13), (13, 12), (12, 11), (11, 1)]));
+        let expected_moves = vec![(1, 10), (10, 13), (13, 12), (12, 11), (11, 1)];
+        assert_generated_opcodes(movements, expected_moves);
     }
 
     #[test]
     fn test_mov_registers_to_registers_loop_and_branch() {
         let movements = vec![(10, 11), (11, 12), (12, 10), (10, 13), (13, 14)];
-        let (sources, destinations) = movements_to_source_and_destinations(movements);
-        let mut context = create_context();
-
-        context.codegen_mov_registers_to_registers(sources, destinations);
-        let opcodes = context.artifact().byte_code;
-        assert_eq!(
-            opcodes,
-            generate_opcodes(vec![
-                (1, 10),  // Temporary
-                (10, 12), // Branch
-                (12, 11), // Loop
-                (14, 13), // Loop
-                (11, 1),  // Finish branch
-                (13, 1)   // Finish loop
-            ])
-        );
+        let expected_moves = vec![
+            (1, 10),  // Temporary
+            (10, 12), // Branch
+            (12, 11), // Loop
+            (14, 13), // Loop
+            (11, 1),  // Finish branch
+            (13, 1),  // Finish loop
+        ];
+        assert_generated_opcodes(movements, expected_moves);
     }
 }
