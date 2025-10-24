@@ -1337,11 +1337,6 @@ impl<'context> Elaborator<'context> {
         true
     }
 
-    /// Returns true if we are currently inside a lambda function.
-    fn in_lambda(&self) -> bool {
-        !self.lambda_stack.is_empty()
-    }
-
     /// Register a use of the given unstable feature. Errors if the feature has not
     /// been explicitly enabled in this package.
     pub fn use_unstable_feature(&mut self, feature: UnstableFeature, location: Location) {
