@@ -27,7 +27,9 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                 map
             });
 
+        // Unique addresses that get anything moved into them.
         let destinations_set: HashSet<_> = movements_map.values().flatten().copied().collect();
+
         assert_eq!(
             destinations_set.len(),
             movements_map.values().flatten().count(),

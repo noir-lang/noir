@@ -135,7 +135,7 @@ fn initialize_constant_string<F: AcirField + DebugToString, Registers: RegisterA
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     /// emit: `println(f"Total arrays copied: {array_copy_counter}")`
     pub(crate) fn emit_println_of_array_copy_counter(&mut self) {
-        let array_copy_counter = BrilligVariable::SingleAddr(SingleAddrVariable {
+        let array_copy_counter = BrilligVariable::from(SingleAddrVariable {
             address: self.array_copy_counter_address(),
             bit_size: 32,
         });

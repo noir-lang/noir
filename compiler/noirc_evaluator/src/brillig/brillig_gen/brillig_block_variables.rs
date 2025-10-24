@@ -134,12 +134,16 @@ impl BlockVariables {
         brillig_context.deallocate_register(register);
     }
 
-    /// Checks if a variable is allocated.
+    /// Checks if a variable is allocated and live.
     pub(crate) fn is_allocated(&self, value_id: &ValueId) -> bool {
         self.available_variables.contains(value_id)
     }
 
     /// For a given SSA value id, return the corresponding cached allocation.
+    ///
+    /// Panics if
+    /// * the variable is not in [Self::available_variables], which means it is no longer live
+    /// * the variable is not in [FunctionContext::ssa_value_allocations], which means it was never defined
     pub(crate) fn get_allocation(
         &mut self,
         function_context: &FunctionContext,
