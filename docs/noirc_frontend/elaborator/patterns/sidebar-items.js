@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["get_type_alias_generics"]};
+window.SIDEBAR_ITEMS = {};

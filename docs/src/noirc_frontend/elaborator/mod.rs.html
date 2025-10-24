@@ -831,7 +831,8 @@
 <a href="#830" id="830">830</a>
 <a href="#831" id="831">831</a>
 <a href="#832" id="832">832</a>
-<a href="#833" id="833">833</a></pre></div><pre class="rust"><code><span class="doccomment">//! # The Elaborator
+<a href="#833" id="833">833</a>
+<a href="#834" id="834">834</a></pre></div><pre class="rust"><code><span class="doccomment">//! # The Elaborator
 //!
 //! The elaborator is the core semantic analysis phase of the compiler. It transforms collected,
 //! unresolved AST items into fully resolved and type-checked HIR through simultaneous and intertwined
@@ -940,6 +941,7 @@
 <span class="kw">mod </span>traits;
 <span class="kw">pub mod </span>types;
 <span class="kw">mod </span>unquote;
+<span class="kw">mod </span>variable;
 <span class="kw">mod </span>visibility;
 
 <span class="kw">use </span>function_context::FunctionContext;
