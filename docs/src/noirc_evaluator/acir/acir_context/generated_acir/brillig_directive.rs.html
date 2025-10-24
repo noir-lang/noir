@@ -315,8 +315,7 @@
 <a href="#314" id="314">314</a>
 <a href="#315" id="315">315</a>
 <a href="#316" id="316">316</a>
-<a href="#317" id="317">317</a>
-<a href="#318" id="318">318</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::{
+<a href="#317" id="317">317</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::{
     AcirField,
     brillig::{
         BinaryFieldOp, BinaryIntOp, BitSize, HeapVector, IntegerBitSize, MemoryAddress,
@@ -327,12 +326,11 @@
 
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::artifact::GeneratedBrillig;
 
-<span class="comment">// TODO(https://github.com/noir-lang/noir/issues/10256): Use `Option&lt;BrilligFunctionId&gt;` in place of `PLACEHOLDER_BRILLIG_INDEX`
-</span><span class="doccomment">/// Brillig calls such as for the Brillig std lib are resolved only after code generation is finished.
+<span class="doccomment">/// Brillig calls such as for the Brillig std lib are resolved only after code generation is finished.
 /// This index should be used when adding a Brillig call during code generation.
 /// Code generation should then keep track of that unresolved call opcode which will be resolved with the
 /// correct function index after code generation.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const </span>PLACEHOLDER_BRILLIG_INDEX: BrilligFunctionId = BrilligFunctionId(<span class="number">0</span>);
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const </span>PLACEHOLDER_BRILLIG_INDEX: BrilligFunctionId = BrilligFunctionId(u32::MAX);
 
 <span class="attr">#[derive(Debug, Clone)]
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>BrilligStdLib&lt;F&gt; {
