@@ -129,36 +129,35 @@ pub(super) fn simplify_call(
             // ```
             //
             // We don't do this for Brillig because it sometimes leads to more opcodes.
-            if dfg.runtime().is_acir() {
-                let mut elements = im::Vector::default();
-                let mut index: u32 = 0;
-                for _ in 0..length {
-                    for element_type in element_types.iter() {
-                        let index_value =
-                            dfg.make_constant(index.into(), NumericType::length_type());
-                        let array_get =
-                            Instruction::ArrayGet { array: arguments[0], index: index_value };
-                        let element = dfg
-                            .insert_instruction_and_results(
-                                array_get,
-                                block,
-                                Some(vec![element_type.clone()]),
-                                call_stack,
-                            )
-                            .first();
-                        elements.push_back(element);
-                        index += 1;
-                    }
-                }
-                let make_array =
-                    Instruction::MakeArray { elements, typ: Type::Slice(element_types.clone()) };
-                let slice_length = dfg.make_constant(length.into(), NumericType::length_type());
-                let new_slice =
-                    dfg.insert_instruction_and_results(make_array, block, None, call_stack).first();
-                return SimplifyResult::SimplifiedToMultiple(vec![slice_length, new_slice]);
+            if !dfg.runtime().is_acir() {
+                return SimplifyResult::None;
             }
 
-            return SimplifyResult::None;
+            let mut elements = im::Vector::default();
+            let mut index: u32 = 0;
+            for _ in 0..length {
+                for element_type in element_types.iter() {
+                    let index_value = dfg.make_constant(index.into(), NumericType::length_type());
+                    let array_get =
+                        Instruction::ArrayGet { array: arguments[0], index: index_value };
+                    let element = dfg
+                        .insert_instruction_and_results(
+                            array_get,
+                            block,
+                            Some(vec![element_type.clone()]),
+                            call_stack,
+                        )
+                        .first();
+                    elements.push_back(element);
+                    index += 1;
+                }
+            }
+            let make_array =
+                Instruction::MakeArray { elements, typ: Type::Slice(element_types.clone()) };
+            let slice_length = dfg.make_constant(length.into(), NumericType::length_type());
+            let new_slice =
+                dfg.insert_instruction_and_results(make_array, block, None, call_stack).first();
+            SimplifyResult::SimplifiedToMultiple(vec![slice_length, new_slice])
         }
         Intrinsic::SlicePushBack => {
             let slice = dfg.get_array_constant(arguments[1]);
