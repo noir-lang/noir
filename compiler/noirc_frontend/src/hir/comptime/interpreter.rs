@@ -595,6 +595,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                         Err(InterpreterError::GlobalsDependencyCycle { location })
                     }
                     GlobalValue::Unresolved => {
+                        self.elaborator.interner.get_global_mut(global_id).value = GlobalValue::Resolving;
+                        
                         self.elaborator.elaborate_global_if_unresolved(&global_id);
 
                         if let GlobalValue::Resolved(value) =
