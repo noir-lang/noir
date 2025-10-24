@@ -1,7 +1,13 @@
+use std::collections::{BTreeMap, BTreeSet, HashSet};
+
 use acvm::{AcirField, acir::brillig::MemoryAddress};
-use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use super::{BrilligContext, debug_show::DebugToString, registers::RegisterAllocator};
+
+/// Map sources to potentially multiple destination.
+///
+/// Using a BTree so we get deterministic loop detection.
+type MovementsMap = BTreeMap<MemoryAddress, BTreeSet<MemoryAddress>>;
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     /// This function moves values from a set of registers to another set of registers.
@@ -26,14 +32,14 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 
         // Now we need to detect all cycles.
         // First build a map of the movements. Note that a source could have multiple destinations
-        let mut movements_map: HashMap<MemoryAddress, HashSet<_>> =
-            movements.into_iter().fold(HashMap::default(), |mut map, (source, destination)| {
+        let mut movements_map: MovementsMap =
+            movements.into_iter().fold(BTreeMap::default(), |mut map, (source, destination)| {
                 map.entry(source).or_default().insert(destination);
                 map
             });
 
         // Unique addresses that get anything moved into them.
-        let destinations_set: HashSet<_> = movements_map.values().flatten().copied().collect();
+        let destinations_set: BTreeSet<_> = movements_map.values().flatten().copied().collect();
 
         // Ensure that all destinations are unique.
         assert_eq!(
@@ -49,7 +55,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 
         for loop_found in loops {
             let temp_register = self.allocate_register();
-            let first_source = loop_found.iter().next().unwrap();
+            let first_source = loop_found.get_min().unwrap();
             self.mov_instruction(*temp_register, *first_source);
             let destinations_of_temp = movements_map.remove(first_source).unwrap();
             movements_map.insert(*temp_register, destinations_of_temp);
@@ -57,7 +63,8 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         }
 
         // After removing loops we should have an DAG with each node having only one ancestor (but could have multiple successors)
-        // Now we should be able to move the registers just by performing a DFS on the movements map
+        // Now we should be able to move the registers just by performing a DFS on the movements map.
+        // Start from the heads, which are not destinations; anything else should be reachable from them by following the paths.
         let heads: Vec<_> = movements_map
             .keys()
             .filter(|source| !destinations_set.contains(source))
@@ -69,11 +76,12 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         }
     }
 
-    fn perform_movements(
-        &mut self,
-        movements: &HashMap<MemoryAddress, HashSet<MemoryAddress>>,
-        current_source: MemoryAddress,
-    ) {
+    /// Starting from the head do a DFS through the movements to find the last destination,
+    /// then generate movement opcodes _backwards_, unraveling the DFS path.
+    ///
+    /// By doing so, we can have a series of moves such as `[1->2, 2->3]` which become opcodes
+    /// [3<-2, 2<-1], without having 2 overwritten by 1 first, before it could be copied to 3.
+    fn perform_movements(&mut self, movements: &MovementsMap, current_source: MemoryAddress) {
         if let Some(destinations) = movements.get(&current_source) {
             for destination in destinations {
                 self.perform_movements(movements, *destination);
@@ -92,6 +100,8 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 ///
 /// They are ordered by their value, not their appearance in the loop.
 /// The order provides determinism when we try to break the loop.
+///
+/// Using an immutable data structure for structural sharing during DFS.
 type AddressLoop = im::OrdSet<MemoryAddress>;
 
 struct LoopDetector {
@@ -101,14 +111,14 @@ struct LoopDetector {
 
 impl LoopDetector {
     fn detect_loops(
-        movements: &HashMap<MemoryAddress, HashSet<MemoryAddress>>,
+        movements: &BTreeMap<MemoryAddress, BTreeSet<MemoryAddress>>,
     ) -> Vec<AddressLoop> {
         let mut detector = Self { visited_sources: Default::default(), loops: Default::default() };
         detector.collect_loops(movements);
         detector.loops
     }
 
-    fn collect_loops(&mut self, movements: &HashMap<MemoryAddress, HashSet<MemoryAddress>>) {
+    fn collect_loops(&mut self, movements: &MovementsMap) {
         for source in movements.keys() {
             self.find_loop_recursive(*source, movements, im::OrdSet::default());
         }
@@ -117,7 +127,7 @@ impl LoopDetector {
     fn find_loop_recursive(
         &mut self,
         source: MemoryAddress,
-        movements: &HashMap<MemoryAddress, HashSet<MemoryAddress>>,
+        movements: &MovementsMap,
         mut previous_sources: AddressLoop,
     ) {
         // Mark as visited
@@ -143,17 +153,20 @@ impl LoopDetector {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
     use acvm::{
         FieldElement,
         acir::brillig::{MemoryAddress, Opcode},
     };
-    use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
     use crate::{
         brillig::{
             BrilligOptions,
             brillig_ir::{
-                BrilligContext, LayoutConfig, artifact::Label, codegen_stack::LoopDetector,
+                BrilligContext, LayoutConfig,
+                artifact::Label,
+                codegen_stack::{LoopDetector, MovementsMap},
                 registers::Stack,
             },
         },
@@ -163,10 +176,8 @@ mod tests {
     // Tests for the loop finder
 
     /// Generate a movements map from test data, turning numbers into relative addresses.
-    fn generate_movements_map(
-        movements: Vec<(usize, usize)>,
-    ) -> HashMap<MemoryAddress, HashSet<MemoryAddress>> {
-        movements.into_iter().fold(HashMap::default(), |mut map, (source, destination)| {
+    fn generate_movements_map(movements: Vec<(usize, usize)>) -> MovementsMap {
+        movements.into_iter().fold(BTreeMap::default(), |mut map, (source, destination)| {
             map.entry(MemoryAddress::relative(source))
                 .or_default()
                 .insert(MemoryAddress::relative(destination));
@@ -181,6 +192,20 @@ mod tests {
         let loops = LoopDetector::detect_loops(&movements_map);
         assert_eq!(loops.len(), 1);
         assert_eq!(loops[0].len(), 4);
+    }
+
+    #[test]
+    fn test_loop_detector_loop_with_init() {
+        // 0->1->2->3->2
+        let movements = vec![(0, 1), (1, 2), (2, 3), (3, 2)];
+        let movements_map = generate_movements_map(movements);
+        let loops = LoopDetector::detect_loops(&movements_map);
+        assert_eq!(loops.len(), 1);
+        assert_eq!(
+            loops[0],
+            im::OrdSet::from_iter([0, 1, 2, 3].map(MemoryAddress::relative)),
+            "0 and 1 are in the detection set, despite not being part of the loop body"
+        );
     }
 
     #[test]
@@ -213,6 +238,8 @@ mod tests {
     // Tests for mov_registers_to_registers
 
     /// Generate `Opcode::Mov` for a sequence of expected `dst <- src` moves.
+    ///
+    /// Note that this is the opposite order of expected by `generate_movements_map`.
     fn generate_opcodes(movements: Vec<(usize, usize)>) -> Vec<Opcode<FieldElement>> {
         movements
             .into_iter()
