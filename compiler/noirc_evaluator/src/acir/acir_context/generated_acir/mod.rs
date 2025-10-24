@@ -643,7 +643,7 @@ impl<F: AcirField> GeneratedAcir<F> {
         match &mut self.opcodes[acir_index] {
             AcirOpcode::BrilligCall { id, .. } => {
                 assert!(*id == PLACEHOLDER_BRILLIG_INDEX, "expected placeholder brillig index");
-                *id = brillig_function_index
+                *id = brillig_function_index;
             }
             _ => panic!("expected brillig call opcode"),
         }
