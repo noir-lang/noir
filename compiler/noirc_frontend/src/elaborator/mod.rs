@@ -11,9 +11,9 @@
 //! dependencies correctly:
 //!
 //! ### Early Resolution
-//! 2. Globals - Set up their dependency ordering. Deferred for elaboration later after type resolution.
+//! 1. Globals - Set up their dependency ordering. Deferred for elaboration later after type resolution.
 //!    Globals will be lazily elaborated when other types or expressions bring them into scope.
-//! 3. Type aliases - Defined to allow their use in subsequent type definitions
+//! 2. Type aliases - Defined to allow their use in subsequent type definitions
 //!
 //! ### Type Collection
 //! 1. Struct definitions - Collected so their types are available for use
