@@ -1606,16 +1606,7 @@
 <a href="#1605" id="1605">1605</a>
 <a href="#1606" id="1606">1606</a>
 <a href="#1607" id="1607">1607</a>
-<a href="#1608" id="1608">1608</a>
-<a href="#1609" id="1609">1609</a>
-<a href="#1610" id="1610">1610</a>
-<a href="#1611" id="1611">1611</a>
-<a href="#1612" id="1612">1612</a>
-<a href="#1613" id="1613">1613</a>
-<a href="#1614" id="1614">1614</a>
-<a href="#1615" id="1615">1615</a>
-<a href="#1616" id="1616">1616</a>
-<a href="#1617" id="1617">1617</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
+<a href="#1608" id="1608">1608</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
 //! of type information from SSA in order to allow efficient ACIR-gen.
 //!
 //! The [`AcirContext`] struct defines how to translate SSA instructions into equivalent ACIR constructs. This
@@ -2693,23 +2684,11 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         lhs: AcirVar,
         rhs: AcirVar,
-        typ: NumericType,
         bit_size: u32,
         predicate: AcirVar,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;AcirVar, RuntimeError&gt; {
-        <span class="kw">match </span>typ {
-            NumericType::Unsigned { .. } =&gt; {
-                <span class="kw">let </span>(<span class="kw">_</span>, remainder_var) =
-                    <span class="self">self</span>.euclidean_division_var(lhs, rhs, bit_size, predicate)<span class="question-mark">?</span>;
-                <span class="prelude-val">Ok</span>(remainder_var)
-            }
-            NumericType::Signed { .. } =&gt; {
-                <span class="macro">unreachable!</span>(<span class="string">"Signed modulo should have been removed before ACIRgen"</span>)
-            }
-            NumericType::NativeField =&gt; {
-                <span class="macro">unreachable!</span>(<span class="string">"cannot module fields. This should have been caught by the frontend"</span>)
-            }
-        }
+        <span class="kw">let </span>(<span class="kw">_</span>, remainder_var) = <span class="self">self</span>.euclidean_division_var(lhs, rhs, bit_size, predicate)<span class="question-mark">?</span>;
+        <span class="prelude-val">Ok</span>(remainder_var)
     }
 
     <span class="doccomment">/// Constrains the `AcirVar` variable to be of type `NumericType`.
@@ -2799,9 +2778,12 @@
         // - We assert at the beginning that `2^{max_bits+1}` does not overflow the field, so neither does c.
 
         // Ensure that 2^{max_bits + 1} is less than the field size
-        //
-        // TODO(https://github.com/noir-lang/noir/issues/10257): perhaps this should be a user error, instead of an assert
-        </span><span class="macro">assert!</span>(max_bits + <span class="number">1 </span>&lt; F::max_num_bits());
+        // In fact, `more_than_eq_var` is either called directly with the bit_size of an unsigned
+        // type, or via `less_than_var` which is also called with the bit_size of an unsigned type
+        // or with 64, so we can also assume that max_bits is at most 128, in which case the field
+        // size should be 129 or less for this assertion to fail.
+        </span><span class="macro">assert!</span>(max_bits &lt;= <span class="number">128</span>);
+        <span class="macro">assert!</span>(max_bits + <span class="number">1 </span>&lt; F::max_num_bits());
 
         <span class="kw">let </span>two_max_bits = <span class="self">self</span>.add_constant(power_of_two::&lt;F&gt;(max_bits));
         <span class="kw">let </span>diff = <span class="self">self</span>.sub_var(lhs, rhs)<span class="question-mark">?</span>;

@@ -904,7 +904,15 @@
 <a href="#903" id="903">903</a>
 <a href="#904" id="904">904</a>
 <a href="#905" id="905">905</a>
-<a href="#906" id="906">906</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir` module contains all the logic necessary for noirc's ACIR-gen pass which
+<a href="#906" id="906">906</a>
+<a href="#907" id="907">907</a>
+<a href="#908" id="908">908</a>
+<a href="#909" id="909">909</a>
+<a href="#910" id="910">910</a>
+<a href="#911" id="911">911</a>
+<a href="#912" id="912">912</a>
+<a href="#913" id="913">913</a>
+<a href="#914" id="914">914</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir` module contains all the logic necessary for noirc's ACIR-gen pass which
 //! generates the output ACIR program.
 //!
 //! # Usage
@@ -1623,7 +1631,6 @@
             <span class="macro">panic!</span>(<span class="string">"Checked signed operations should all be removed before ACIRgen"</span>)
         }
 
-        <span class="kw">let </span>bit_count = num_type.bit_size::&lt;FieldElement&gt;();
         <span class="kw">let </span>result = <span class="kw">match </span>binary.operator {
             BinaryOp::Add { .. } =&gt; <span class="self">self</span>.acir_context.add_var(lhs, rhs),
             BinaryOp::Sub { .. } =&gt; <span class="self">self</span>.acir_context.sub_var(lhs, rhs),
@@ -1633,15 +1640,24 @@
             // this Eq instruction is being used for a constrain statement
             </span>BinaryOp::Eq =&gt; <span class="self">self</span>.acir_context.eq_var(lhs, rhs),
             BinaryOp::Lt =&gt; <span class="kw">match </span>num_type {
-                NumericType::Signed { .. } =&gt; {
-                    <span class="macro">panic!</span>(<span class="string">"ICE - signed less than should have been removed before ACIRgen"</span>)
+                NumericType::Unsigned { bit_size } =&gt; {
+                    <span class="self">self</span>.acir_context.less_than_var(lhs, rhs, bit_size)
                 }
-                <span class="kw">_ </span>=&gt; <span class="self">self</span>.acir_context.less_than_var(lhs, rhs, bit_count),
+                <span class="kw">_ </span>=&gt; {
+                    <span class="macro">panic!</span>(<span class="string">"ICE: unexpected binary type for Lt operation: {num_type:?}"</span>)
+                }
             },
             BinaryOp::Xor =&gt; <span class="self">self</span>.acir_context.xor_var(lhs, rhs, num_type),
             BinaryOp::And =&gt; <span class="self">self</span>.acir_context.and_var(lhs, rhs, num_type),
             BinaryOp::Or =&gt; <span class="self">self</span>.acir_context.or_var(lhs, rhs, num_type),
-            BinaryOp::Mod =&gt; <span class="self">self</span>.acir_context.modulo_var(lhs, rhs, num_type, bit_count, predicate),
+            BinaryOp::Mod =&gt; <span class="kw">match </span>num_type {
+                NumericType::Unsigned { bit_size } =&gt; {
+                    <span class="self">self</span>.acir_context.modulo_var(lhs, rhs, bit_size, predicate)
+                }
+                <span class="kw">_ </span>=&gt; {
+                    <span class="macro">panic!</span>(<span class="string">"ICE: unexpected binary type for Mod operation: {num_type:?}"</span>)
+                }
+            },
             BinaryOp::Shl | BinaryOp::Shr =&gt; <span class="macro">unreachable!</span>(
                 <span class="string">"ICE - bit shift operators do not exist in ACIR and should have been replaced"
             </span>),
