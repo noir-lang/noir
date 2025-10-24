@@ -3,11 +3,13 @@
 
 use super::Elaborator;
 use crate::TypeAlias;
-use crate::ast::{Expression, ExpressionKind, Path, TypePath, UnresolvedTypeExpression};
+use crate::ast::{
+    Expression, ExpressionKind, GenericTypeArgs, Ident, Path, TypePath, UnresolvedTypeExpression,
+};
 use crate::elaborator::TypedPath;
 use crate::elaborator::function_context::BindableTypeVariableKind;
-use crate::elaborator::types::TraitPathResolutionMethod;
-use crate::elaborator::{GenericTypeArgs, Ident, PathResolutionItem, types::SELF_TYPE_NAME};
+use crate::elaborator::path_resolution::PathResolutionItem;
+use crate::elaborator::types::{SELF_TYPE_NAME, TraitPathResolutionMethod};
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::hir::type_check::TypeCheckError;
 use crate::hir_def::expr::{HirExpression, HirIdent, HirMethodReference, ImplKind, TraitItem};
