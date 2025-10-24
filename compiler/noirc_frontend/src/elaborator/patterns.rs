@@ -602,8 +602,6 @@ impl Elaborator<'_> {
         };
 
         let definition = self.interner.try_definition(definition_id);
-        dbg!(definition.clone());
-        dbg!(self.errors.len());
         let is_comptime_local = !self.in_comptime_context()
             && definition.is_some_and(DefinitionInfo::is_comptime_local);
         let definition_kind = definition.as_ref().map(|definition| definition.kind.clone());
@@ -930,7 +928,6 @@ impl Elaborator<'_> {
                 self.interner.add_function_reference(func_id, hir_ident.location);
             }
             DefinitionKind::Global(global_id) => {
-                dbg!(global_id);
                 self.elaborate_global_if_unresolved(&global_id);
                 if let Some(current_item) = self.current_item {
                     self.interner.add_global_dependency(current_item, global_id);
@@ -1161,13 +1158,12 @@ impl Elaborator<'_> {
             }
             result
         });
-        dbg!(&use_variable_result);
+
         let error = match use_variable_result {
             Some(Ok(found)) => return Ok((found, None)),
             // Try to look it up as a global, but still issue the first error if we fail
             Some(Err(error)) => match self.lookup_global(path) {
                 Ok((id, item)) => {
-                    dbg!(id);
                     return Ok(((HirIdent::non_trait_method(id, location), 0), Some(item)));
                 }
                 Err(_) => error,
