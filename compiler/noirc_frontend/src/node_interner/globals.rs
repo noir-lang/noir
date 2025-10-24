@@ -14,7 +14,7 @@ use super::NodeInterner;
 
 /// An ID for a global value
 #[derive(Debug, Eq, PartialEq, Hash, Clone, Copy, PartialOrd, Ord)]
-pub struct GlobalId(pub usize);
+pub struct GlobalId(usize);
 
 impl GlobalId {
     // Dummy id for error reporting
