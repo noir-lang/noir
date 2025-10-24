@@ -221,6 +221,10 @@ impl ChunkFormatter<'_, '_> {
         let lambda_has_return_type = lambda.return_type.typ != UnresolvedTypeData::Unspecified;
 
         let params_and_return_type_chunk = self.chunk(|formatter| {
+            if lambda.unconstrained {
+                formatter.write_keyword(Keyword::Unconstrained);
+                formatter.write_space();
+            }
             formatter.write_token(Token::Pipe);
             for (index, (pattern, typ)) in lambda.parameters.into_iter().enumerate() {
                 if index > 0 {
@@ -2439,6 +2443,13 @@ global y = 1;
 );
 ";
         assert_format_with_max_width(src, expected, src.len() - 10);
+    }
+
+    #[test]
+    fn format_unconstrained_lambda() {
+        let src = "global x =  unconstrained  | |  1 ;";
+        let expected = "global x = unconstrained || 1;\n";
+        assert_format(src, expected);
     }
 
     #[test]

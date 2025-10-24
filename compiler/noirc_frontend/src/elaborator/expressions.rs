@@ -816,8 +816,14 @@ impl Elaborator<'_> {
         };
 
         let location = arg.location;
-        let type_hint =
-            if let Some(Type::Function(func_args, _, _, _)) = typ { Some(func_args) } else { None };
+        let type_hint = if let Some(Type::Function(func_args, _, _, unconstrained)) = typ {
+            Some(LambdaParameterTypeHints {
+                parameter_types: func_args,
+                unconstrained: *unconstrained,
+            })
+        } else {
+            None
+        };
         let (hir_expr, typ) = self.elaborate_lambda_with_parameter_type_hints(*lambda, type_hint);
         let id = self.interner.push_expr(hir_expr);
         self.interner.push_expr_location(id, location);
@@ -1287,8 +1293,11 @@ impl Elaborator<'_> {
     ) -> (HirExpression, Type) {
         let target_type = target_type.map(|typ| typ.follow_bindings());
 
-        if let Some(Type::Function(args, _, _, _)) = target_type {
-            return self.elaborate_lambda_with_parameter_type_hints(lambda, Some(&args));
+        if let Some(Type::Function(args, _, _, unconstrained)) = target_type {
+            return self.elaborate_lambda_with_parameter_type_hints(
+                lambda,
+                Some(LambdaParameterTypeHints { parameter_types: &args, unconstrained }),
+            );
         }
 
         self.elaborate_lambda_with_parameter_type_hints(lambda, None)
@@ -1296,11 +1305,12 @@ impl Elaborator<'_> {
 
     /// For elaborating a lambda we might get `parameters_type_hints`. These come from a potential
     /// call that has this lambda as the argument.
-    /// The parameter type hints will be the types of the function type corresponding to the lambda argument.
+    /// The parameter type hints will be the types of the function type corresponding to the lambda argument
+    /// and whether the target function is unconstrained.
     fn elaborate_lambda_with_parameter_type_hints(
         &mut self,
         lambda: Lambda,
-        parameters_type_hints: Option<&Vec<Type>>,
+        parameters_type_hints: Option<LambdaParameterTypeHints>,
     ) -> (HirExpression, Type) {
         self.push_scope();
         let scope_index = self.scopes.current_scope_index();
@@ -1312,8 +1322,9 @@ impl Elaborator<'_> {
             vecmap(lambda.parameters.into_iter().enumerate(), |(index, (pattern, typ))| {
                 let parameter = DefinitionKind::Local(None);
                 let typ = if let UnresolvedTypeData::Unspecified = typ.typ {
-                    if let Some(parameter_type_hint) =
-                        parameters_type_hints.and_then(|hints| hints.get(index))
+                    if let Some(parameter_type_hint) = parameters_type_hints
+                        .as_ref()
+                        .and_then(|hints| hints.parameter_types.get(index))
                     {
                         parameter_type_hint.clone()
                     } else {
@@ -1349,8 +1360,16 @@ impl Elaborator<'_> {
             if captured_vars.is_empty() { Type::Unit } else { Type::Tuple(captured_vars) };
 
         let captures = lambda_context.captures;
-        let expr = HirExpression::Lambda(HirLambda { parameters, return_type, body, captures });
-        (expr, Type::Function(arg_types, Box::new(body_type), Box::new(env_type), false))
+        let unconstrained =
+            parameters_type_hints.map(|hints| hints.unconstrained).unwrap_or(lambda.unconstrained);
+        let expr = HirExpression::Lambda(HirLambda {
+            parameters,
+            return_type,
+            body,
+            captures,
+            unconstrained,
+        });
+        (expr, Type::Function(arg_types, Box::new(body_type), Box::new(env_type), unconstrained))
     }
 
     fn elaborate_quote(&mut self, mut tokens: Tokens, location: Location) -> (HirExpression, Type) {
@@ -1561,4 +1580,9 @@ impl Elaborator<'_> {
         self.interner.push_expr_type(id, typ.clone());
         (id, typ)
     }
+}
+
+struct LambdaParameterTypeHints<'a> {
+    parameter_types: &'a [Type],
+    unconstrained: bool,
 }

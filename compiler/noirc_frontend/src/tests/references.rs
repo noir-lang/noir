@@ -1,6 +1,6 @@
 use crate::{
     elaborator::UnstableFeature,
-    tests::{check_errors, get_program_using_features},
+    tests::{check_errors, check_monomorphization_error, get_program_using_features},
 };
 
 #[test]
@@ -106,4 +106,21 @@ fn immutable_references_without_ownership_feature() {
                           ~~~~~~~~~~~ Pass -Zownership to nargo to enable this feature at your own risk.
     "#;
     check_errors(src);
+}
+
+#[test]
+fn infers_lambda_to_be_unconstrained() {
+    let src = "
+    unconstrained fn main() {
+        foo(|x| bar(x))
+    }
+
+    unconstrained fn foo(f: unconstrained fn(&mut Field)) {
+        let x = &mut 0;
+        f(x);
+    }
+
+    unconstrained fn bar(_: &mut Field) {}
+    ";
+    check_monomorphization_error(src);
 }

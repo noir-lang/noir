@@ -1043,17 +1043,21 @@ impl<'interner> Monomorphizer<'interner> {
                 let func_id = *func_id;
 
                 // Functions are represented as a pair of their constrained and unconstrained versions
-                self.monomorphize_constrained_and_unconstrained(use_current_runtime, |this| {
-                    this.function_reference(
-                        mutable,
-                        name,
-                        ident.location,
-                        func_id,
-                        expr_id,
-                        &typ,
-                        generics,
-                    )
-                })
+                self.monomorphize_constrained_and_unconstrained(
+                    use_current_runtime,
+                    self.force_unconstrained,
+                    |this| {
+                        this.function_reference(
+                            mutable,
+                            name,
+                            ident.location,
+                            func_id,
+                            expr_id,
+                            &typ,
+                            generics,
+                        )
+                    },
+                )
             }
             DefinitionKind::Global(global_id) => {
                 self.global_ident(*global_id, definition.name.clone(), &typ, ident.location)
@@ -1628,9 +1632,11 @@ impl<'interner> Monomorphizer<'interner> {
         };
 
         // Functions are represented as (constrained, unconstrained) pairs
-        self.monomorphize_constrained_and_unconstrained(use_current_runtime, |this| {
-            this.resolve_trait_method_expr(func_id, expr_id, function_type, trait_item_id)
-        })
+        self.monomorphize_constrained_and_unconstrained(
+            use_current_runtime,
+            self.force_unconstrained,
+            |this| this.resolve_trait_method_expr(func_id, expr_id, function_type, trait_item_id),
+        )
     }
 
     fn resolve_trait_method_expr(
@@ -1673,6 +1679,7 @@ impl<'interner> Monomorphizer<'interner> {
     fn monomorphize_constrained_and_unconstrained<F>(
         &mut self,
         use_current_runtime: bool,
+        force_unconstrained: bool,
         f: F,
     ) -> Result<ast::Expression, MonomorphizationError>
     where
@@ -1687,7 +1694,7 @@ impl<'interner> Monomorphizer<'interner> {
             // monomorphization consistent regardless of whether the flag is set, since the type
             // of functions would also need to be updated, which affects how closures are detected,
             // etc.
-            let is_unconstrained = self.force_unconstrained;
+            let is_unconstrained = force_unconstrained;
 
             let old_value =
                 std::mem::replace(&mut self.in_unconstrained_function, is_unconstrained);
@@ -2046,14 +2053,18 @@ impl<'interner> Monomorphizer<'interner> {
         expr: ExprId,
     ) -> Result<ast::Expression, MonomorphizationError> {
         // Function values are represented as a tuple of (constrained version, unconstrained version)
-        self.monomorphize_constrained_and_unconstrained(false, |this: &mut Self| {
-            if lambda.captures.is_empty() {
-                this.lambda_no_capture(lambda, expr)
-            } else {
-                let (setup, closure_variable) = this.lambda_with_setup(lambda, expr)?;
-                Ok(ast::Expression::Block(vec![setup, closure_variable]))
-            }
-        })
+        self.monomorphize_constrained_and_unconstrained(
+            false,
+            self.force_unconstrained || lambda.unconstrained,
+            |this: &mut Self| {
+                if lambda.captures.is_empty() {
+                    this.lambda_no_capture(lambda, expr)
+                } else {
+                    let (setup, closure_variable) = this.lambda_with_setup(lambda, expr)?;
+                    Ok(ast::Expression::Block(vec![setup, closure_variable]))
+                }
+            },
+        )
     }
 
     fn lambda_no_capture(
