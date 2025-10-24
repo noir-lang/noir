@@ -546,12 +546,15 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     /// It is expected that this method is called before converting an SSA instruction to Brillig
     /// and the constants to be initialized have been precomputed and stored in [FunctionContext::constant_allocation].
     fn initialize_constants(&mut self, dfg: &DataFlowGraph, location: InstructionLocation) {
-        let constants = &self
+        let Some(constants) = self
             .function_context
             .constant_allocation
-            .allocated_at_location(self.block_id, location);
+            .allocated_at_location(self.block_id, location)
+        else {
+            return;
+        };
 
-        for &constant_id in constants {
+        for constant_id in constants.to_vec() {
             self.convert_ssa_value(constant_id, dfg);
         }
     }
