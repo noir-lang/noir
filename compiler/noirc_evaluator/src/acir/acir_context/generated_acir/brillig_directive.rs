@@ -9,12 +9,11 @@ use acvm::acir::{
 
 use crate::brillig::brillig_ir::artifact::GeneratedBrillig;
 
-// TODO(https://github.com/noir-lang/noir/issues/10256): Use `Option<BrilligFunctionId>` in place of `PLACEHOLDER_BRILLIG_INDEX`
 /// Brillig calls such as for the Brillig std lib are resolved only after code generation is finished.
 /// This index should be used when adding a Brillig call during code generation.
 /// Code generation should then keep track of that unresolved call opcode which will be resolved with the
 /// correct function index after code generation.
-pub(crate) const PLACEHOLDER_BRILLIG_INDEX: BrilligFunctionId = BrilligFunctionId(0);
+pub(crate) const PLACEHOLDER_BRILLIG_INDEX: BrilligFunctionId = BrilligFunctionId(u32::MAX);
 
 #[derive(Debug, Clone)]
 pub(crate) struct BrilligStdLib<F> {
