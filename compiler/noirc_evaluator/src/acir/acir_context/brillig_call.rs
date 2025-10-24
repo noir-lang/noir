@@ -21,12 +21,13 @@ impl<F: AcirField> AcirContext<F> {
         outputs: Vec<AcirType>,
     ) -> Result<Vec<AcirValue>, RuntimeError> {
         let stdlib_func_bytecode = &self.brillig_stdlib.get_code(brillig_stdlib_func).clone();
+        let safe_return_values = false;
         self.brillig_call(
             predicate,
             stdlib_func_bytecode,
             inputs,
             outputs,
-            false,
+            safe_return_values,
             PLACEHOLDER_BRILLIG_INDEX,
             Some(brillig_stdlib_func),
         )

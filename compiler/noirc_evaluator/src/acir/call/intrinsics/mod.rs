@@ -125,7 +125,7 @@ impl Context<'_> {
             | Intrinsic::ArrayRefCount
             | Intrinsic::SliceRefCount
             | Intrinsic::AsSlice => {
-                unreachable!("Expected {intrinsic} to be removed by this point")
+                unreachable!("Expected {intrinsic} to have been removing during SSA optimizations")
             }
         }
     }

@@ -8,7 +8,7 @@ use crate::brillig::brillig_ir::{BrilligBinaryOp, registers::RegisterAllocator};
 use crate::ssa::ir::instruction::{Endian, Hint, InstructionId, Intrinsic};
 use crate::ssa::ir::{
     dfg::DataFlowGraph,
-    types::{NumericType, Type},
+    types::NumericType,
     value::{Value, ValueId},
 };
 
@@ -85,36 +85,6 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                 }
                 ValueOrArray::HeapArray(_) | ValueOrArray::MemoryAddress(_) => {}
             }
-        }
-    }
-
-    /// Converts the ArrayLen intrinsic to Brillig bytecode.
-    ///
-    /// For slices (represented as tuples of (length, contents)), this directly moves
-    /// the length field. For arrays, it calculates the length based on the array size.
-    fn convert_ssa_array_len_intrinsic(
-        &mut self,
-        arguments: &[ValueId],
-        instruction_id: InstructionId,
-        dfg: &DataFlowGraph,
-    ) {
-        let [result_value] = dfg.instruction_result(instruction_id);
-        let result_variable = self.variables.define_single_addr_variable(
-            self.function_context,
-            self.brillig_context,
-            result_value,
-            dfg,
-        );
-        let param_id = arguments[0];
-        // Slices are represented as a tuple in the form: (length, slice contents).
-        // Thus, we can expect the first argument to a field in the case of a slice
-        // or an array in the case of an array.
-        if let Type::Numeric(_) = dfg.type_of_value(param_id) {
-            let len_variable = self.convert_ssa_value(arguments[0], dfg);
-            let length = len_variable.extract_single_addr();
-            self.brillig_context.mov_instruction(result_variable.address, length.address);
-        } else {
-            self.convert_ssa_array_len(arguments[0], result_variable.address, dfg);
         }
     }
 
@@ -268,9 +238,6 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                 // This match could be combined with the above but without it rust analyzer
                 // can't automatically insert any missing cases
                 match intrinsic {
-                    Intrinsic::ArrayLen => {
-                        self.convert_ssa_array_len_intrinsic(arguments, instruction_id, dfg);
-                    }
                     Intrinsic::AsSlice => {
                         self.convert_ssa_as_slice(arguments, instruction_id, dfg);
                     }
@@ -379,14 +346,23 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                         let array = array.extract_register();
                         self.brillig_context.load_instruction(destination, array);
                     }
-                    Intrinsic::IsUnconstrained
-                    | Intrinsic::DerivePedersenGenerators
-                    | Intrinsic::ApplyRangeConstraint
-                    | Intrinsic::StrAsBytes
-                    | Intrinsic::AssertConstant
-                    | Intrinsic::StaticAssert
-                    | Intrinsic::ArrayAsStrUnchecked => {
+                    Intrinsic::ApplyRangeConstraint => {
+                        unreachable!(
+                            "ICE: `Intrinsic::ApplyRangeConstraint` calls should be transformed into an `Instruction::RangeCheck`"
+                        );
+                    }
+                    Intrinsic::DerivePedersenGenerators => {
                         unreachable!("unsupported function call type {:?}", dfg[func])
+                    }
+                    Intrinsic::IsUnconstrained
+                    | Intrinsic::ArrayLen
+                    | Intrinsic::ArrayAsStrUnchecked
+                    | Intrinsic::StrAsBytes
+                    | Intrinsic::StaticAssert
+                    | Intrinsic::AssertConstant => {
+                        unreachable!(
+                            "Expected {intrinsic} to have been removing during SSA optimizations"
+                        )
                     }
                 }
             }
