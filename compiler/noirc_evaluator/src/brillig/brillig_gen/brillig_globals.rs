@@ -85,7 +85,7 @@ impl BrilligGlobalsInit {
     /// * which globals are used by an entry point and its callees,
     /// * how many times each constant is used by an entry point and its callees.
     ///
-    /// The population of allocation related information is deferred to `declare_globals`.
+    /// The population of allocation related information is deferred to [Self::declare_globals].
     pub(crate) fn new(ssa: &Ssa, main_id: FunctionId) -> Self {
         let mut used_globals = ssa.used_globals_in_functions();
         let call_graph = CallGraph::from_ssa(ssa);

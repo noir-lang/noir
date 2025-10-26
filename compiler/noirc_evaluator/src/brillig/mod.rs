@@ -167,7 +167,7 @@ impl Ssa {
         let globals = (*self.functions[&self.main_id].dfg.globals).clone();
         let globals_dfg = DataFlowGraph::from(globals);
 
-        // Produce the brillig bytecode and variable allocation for each entry point.
+        // Produce the globals Brillig bytecode and variable allocation for each entry point.
         let brillig_globals = BrilligGlobals::init(self, self.main_id).declare_globals(
             &globals_dfg,
             &mut brillig,

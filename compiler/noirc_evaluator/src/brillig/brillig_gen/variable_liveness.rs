@@ -37,8 +37,8 @@ struct BackEdge {
     start: BasicBlockId,
 }
 
-/// Check if the [Value] behind the [ValueId] is some kind of an SSA variable like `v1`,
-/// rather than a global function like `f1`, an intrinsic, or foreign function.
+/// Check if the [Value] behind the [ValueId] requires register allocation (like a function parameter),
+/// rather than a global value like a user-defined function, intrinsic, or foreign function.
 pub(super) fn is_variable(value_id: ValueId, dfg: &DataFlowGraph) -> bool {
     let value = &dfg[value_id];
 
@@ -68,7 +68,7 @@ pub(super) fn variables_used_in_instruction(
     used
 }
 
-/// Collect all [ValueId]s used in an [BasicBlock] which refer to variables (not functions).
+/// Collect all [ValueId]s used in an [BasicBlock] which refer to [Variables].
 ///
 /// Includes all the variables in the parameters, instructions and the terminator.
 fn variables_used_in_block(block: &BasicBlock, dfg: &DataFlowGraph) -> Variables {
@@ -106,9 +106,9 @@ pub(crate) struct VariableLiveness {
     /// The list of block params the given block is defining.
     /// The order matters for the entry block, so it's a vec.
     ///
-    /// By definition we mean which parameters need to be allocated in a block,
-    /// to be used by descendant blocks, which have those parameters. Typically
-    /// the immediate dominator of a block will define its parameters for it.
+    /// By _defining_  we mean the allocation of variables that appear in the parameter
+    /// list of some other block which this one immediately dominates, with values to be 
+    /// assigned in the terminators of the predecessors of that block.
     param_definitions: HashMap<BasicBlockId, Vec<ValueId>>,
 }
 
@@ -291,9 +291,9 @@ impl VariableLiveness {
         defined_vars
     }
 
-    /// Once we know which variables are alive before the block header,
-    /// we can visit all blocks contained in the loop and append those
-    /// as-is to all of them: since we know that we have to come back
+    /// Once we know which variables are alive before the loop header,
+    /// we can append those variables to all of the loop's blocks.
+    /// Since we know that we have to come back
     /// to the beginning of the loop, none of those blocks are allowed
     /// anything but to keep these variables alive, so that the header
     /// can use them again.
