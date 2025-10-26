@@ -409,8 +409,18 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
                     // Create a field constant with the max
                     let max = BigUint::from(2_u128).pow(*max_bit_size) - BigUint::from(1_u128);
+                    let max_field_element = FieldElement::from_be_bytes_reduce(&max.to_bytes_be());
+                    
+                    // Assert that the max value fits in the field - this invariant should be explicit
+                    assert!(
+                        max_field_element.num_bits() <= FieldElement::max_num_bits(),
+                        "Max value for range check with bit size {} does not fit in field ({} bits)",
+                        max_bit_size,
+                        FieldElement::max_num_bits()
+                    );
+                    
                     let right = self.brillig_context.make_constant_instruction(
-                        FieldElement::from_be_bytes_reduce(&max.to_bytes_be()),
+                        max_field_element,
                         FieldElement::max_num_bits(),
                     );
 
