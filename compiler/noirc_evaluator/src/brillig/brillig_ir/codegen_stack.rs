@@ -19,22 +19,20 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     /// temporary registers.
     pub(crate) fn codegen_mov_registers_to_registers(
         &mut self,
-        sources: Vec<MemoryAddress>,
-        destinations: Vec<MemoryAddress>,
+        sources: &[MemoryAddress],
+        destinations: &[MemoryAddress],
     ) {
-        assert_eq!(sources.len(), destinations.len());
+        assert_eq!(sources.len(), destinations.len(), "sources and destinations length must match");
+
         // Remove all no-ops
-        let movements: Vec<_> = sources
-            .into_iter()
-            .zip(destinations)
-            .filter(|(source, destination)| source != destination)
-            .collect();
+        let movements =
+            sources.iter().zip(destinations).filter(|(source, destination)| source != destination);
 
         // Now we need to detect all cycles.
         // First build a map of the movements. Note that a source could have multiple destinations
         let mut movements_map: MovementsMap =
             movements.into_iter().fold(BTreeMap::default(), |mut map, (source, destination)| {
-                map.entry(source).or_default().insert(destination);
+                map.entry(*source).or_default().insert(*destination);
                 map
             });
 
@@ -162,6 +160,7 @@ mod tests {
         FieldElement,
         acir::brillig::{MemoryAddress, Opcode},
     };
+    use iter_extended::vecmap;
 
     use crate::{
         brillig::{
@@ -251,6 +250,7 @@ mod tests {
             .collect()
     }
 
+    /// Split numeric `src -> dst` movements into separate vectors and convert to `MemoryAddress`
     fn movements_to_source_and_destinations(
         movements: Vec<(usize, usize)>,
     ) -> (Vec<MemoryAddress>, Vec<MemoryAddress>) {
@@ -264,6 +264,7 @@ mod tests {
     }
 
     pub(crate) fn create_context() -> BrilligContext<FieldElement, Stack> {
+        // Show the opcodes if the test fails.
         let options = BrilligOptions {
             enable_debug_trace: true,
             enable_debug_assertions: true,
@@ -283,7 +284,7 @@ mod tests {
         let (sources, destinations) = movements_to_source_and_destinations(movements);
 
         let mut context = create_context();
-        context.codegen_mov_registers_to_registers(sources, destinations);
+        context.codegen_mov_registers_to_registers(&sources, &destinations);
 
         let opcodes = context.artifact().byte_code;
 
@@ -336,5 +337,74 @@ mod tests {
     fn test_mov_registers_to_registers_loop_with_init() {
         let movements = vec![(0, 1), (1, 2), (2, 3), (3, 2)];
         assert_generated_opcodes(movements, vec![]);
+    }
+
+    /// Test that random movements have the expected effect.
+    #[test]
+    fn prop_mov_registers_to_registers() {
+        const MEM_SIZE: usize = 10;
+        arbtest::arbtest(|u| {
+            // Allocate more memory to allow for temporary variables.
+            let mut memory: Vec<u32> = vec![0; MEM_SIZE * 2];
+            // Fill the memory with some random numbers.
+            for i in 0..memory.len() {
+                memory[i] = u.arbitrary()?;
+            }
+
+            // Pick a random unique subset of the slots as destinations.
+            let num_destinations = u.int_in_range(0..=MEM_SIZE)?;
+
+            // All potential memory slots; we can't address before the stack start.
+            let all_indexes = (0..MEM_SIZE).map(|i| i + Stack::start()).collect::<Vec<_>>();
+            let mut destinations = all_indexes.clone();
+
+            // Shuffle the destinations; using the random numbers in memory as key.
+            destinations.sort_by_key(|i| memory[*i]);
+
+            // Keep the first N destinations.
+            destinations.truncate(num_destinations);
+
+            // Pick random sources for each destination (same source can be repeated).
+            let mut sources = Vec::with_capacity(num_destinations);
+            for _ in 0..num_destinations {
+                sources.push(u.choose(&all_indexes).copied()?);
+            }
+
+            // Take a snapshot of the source data; this is what we expect the destination to become.
+            let source_data = vecmap(&sources, |i| memory[*i]);
+
+            // Generate the opcodes.
+            let opcodes = {
+                // Convert to MemoryAddress
+                let sources = vecmap(&sources, |i| MemoryAddress::relative(*i));
+                let destinations = vecmap(&destinations, |i| MemoryAddress::relative(*i));
+
+                let mut context = create_context();
+
+                // Treat the memory we care about as pre-allocated, so temporary variables are created after them.
+                let all_registers = vecmap(all_indexes, MemoryAddress::relative);
+                context.set_allocated_registers(all_registers);
+
+                context.codegen_mov_registers_to_registers(&sources, &destinations);
+                context.artifact().byte_code
+            };
+
+            // Execute the opcodes.
+            for opcode in opcodes {
+                let Opcode::Mov { destination, source } = opcode else {
+                    unreachable!("only Mov expected");
+                };
+                memory[destination.to_usize()] = memory[source.to_usize()];
+            }
+
+            // Get the final values at the destination slots.
+            let destination_data = vecmap(&destinations, |i| memory[*i]);
+
+            // At the end the destination should have the same value as the source had.
+            assert_eq!(destination_data, source_data);
+
+            Ok(())
+        })
+        .run();
     }
 }
