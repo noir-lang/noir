@@ -34,7 +34,12 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 
         // If we are truncating a value down to a natively supported integer, we can just use the cast instruction
         if IntegerBitSize::try_from(bit_size).is_ok() {
-            // We cast back and forth to ensure that the value is truncated.
+            // We perform a double cast to ensure proper truncation:
+            // 1. First cast: truncate the source value to the target bit size
+            // 2. Second cast: ensure the result is properly formatted for the destination
+            // This double casting is necessary because Brillig's cast instruction performs
+            // both truncation and type conversion, and we need to ensure the intermediate
+            // result is correctly sized before the final assignment.
             let intermediate_register = self.allocate_single_addr(bit_size);
 
             self.cast_instruction(*intermediate_register, value_to_truncate);
@@ -46,8 +51,18 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         // If the bit size we are truncating down to is not a natively supported integer, we need to use a modulo operation.
 
         // The modulus is guaranteed to fit, since we are truncating down to a bit size that is strictly less than the value_to_truncate.bit_size
+        let modulus = F::from(2_usize).pow(&F::from(u128::from(bit_size)));
+        
+        // Assert that the modulus fits in the field - this invariant should be explicit
+        assert!(
+            modulus.num_bits() <= F::max_num_bits(),
+            "Modulus for truncation to bit size {} does not fit in field ({} bits)",
+            bit_size,
+            F::max_num_bits()
+        );
+        
         let modulus_var = self.make_constant_instruction(
-            F::from(2_usize).pow(&F::from(u128::from(bit_size))),
+            modulus,
             value_to_truncate.bit_size,
         );
 
