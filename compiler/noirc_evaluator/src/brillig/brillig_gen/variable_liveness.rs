@@ -107,7 +107,7 @@ pub(crate) struct VariableLiveness {
     /// The order matters for the entry block, so it's a vec.
     ///
     /// By _defining_  we mean the allocation of variables that appear in the parameter
-    /// list of some other block which this one immediately dominates, with values to be 
+    /// list of some other block which this one immediately dominates, with values to be
     /// assigned in the terminators of the predecessors of that block.
     param_definitions: HashMap<BasicBlockId, Vec<ValueId>>,
 }
@@ -251,6 +251,9 @@ impl VariableLiveness {
             );
         }
 
+        // Based on the paper mentioned in the module docs, the definition would be:
+        // live_in[BlockId] = before_def[BlockId] union (live_out[BlockId] - killed[BlockId])
+
         // Variables used in this block, defined in this block or before.
         let used = variables_used_in_block(block, &func.dfg);
 
@@ -262,7 +265,6 @@ impl VariableLiveness {
         // (Variables used by successors and defined in this block are part of `live_out`, but not `live_in`).
         let live_in = used.union(&live_out).filter(|v| !defined.contains(v)).copied().collect();
 
-        // live_in[BlockId] = before_def[BlockId] union (live_out[BlockId] - killed[BlockId])
         self.live_in.insert(block_id, live_in);
     }
 
@@ -709,9 +711,12 @@ mod test {
         let [b0, b1, b2, b3] = block_ids();
         let [_v0, _v1, v2, v3] = value_ids();
 
+        // v2 and v3 are parameters of b3, but only v3 is used.
         for p in [v2, v3] {
+            // Both should be allocated in b0, which is the immediate dominator of b3.
             assert!(liveness.param_definitions[&b0].contains(&p), "{p} should be allocated in b0");
             for b in [b1, b2, b3] {
+                // Since they are defined in b0, they should be considered live all the way.
                 assert!(liveness.live_in[&b].contains(&p), "{p} should be live in {b}");
             }
         }
