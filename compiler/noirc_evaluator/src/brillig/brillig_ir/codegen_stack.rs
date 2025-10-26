@@ -91,7 +91,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     }
 }
 
-/// Addresses visited when a loop was found in the movements.
+/// A set of addresses that were part of a loop in the movements.
 ///
 /// They are ordered by their value, not their appearance in the loop.
 /// The order provides determinism when we try to break the loop.
@@ -107,10 +107,7 @@ struct LoopDetector {
 impl LoopDetector {
     /// Detect all loops in a series of movements.
     ///
-    /// The resulting loop might contain addresses that aren't actually part of the loop,
-    /// e.g. `0->1->2->3->2` would return `[0,1,2,3]` even though the loop is just `[2,3]`,
-    /// however such cases should already be rejected by `codegen_mov_registers_to_registers`,
-    /// since for this to happen, one of the destinations need to appear more than once.
+    /// Returns a list of all loops detected.
     fn detect_loops(
         movements: &BTreeMap<MemoryAddress, BTreeSet<MemoryAddress>>,
     ) -> Vec<AddressLoop> {
@@ -121,7 +118,12 @@ impl LoopDetector {
 
     fn collect_loops(&mut self, movements: &MovementsMap) {
         for source in movements.keys() {
-            self.find_loop_recursive(*source, movements, im::OrdSet::default());
+            self.find_loop_recursive(
+                *source,
+                movements,
+                im::OrdSet::default(),
+                im::Vector::default(),
+            );
         }
     }
 
@@ -129,23 +131,32 @@ impl LoopDetector {
         &mut self,
         source: MemoryAddress,
         movements: &MovementsMap,
-        mut previous_sources: AddressLoop,
+        mut sources_in_path: im::OrdSet<MemoryAddress>,
+        mut source_path: im::Vector<MemoryAddress>,
     ) {
         // Mark as visited
         if !self.visited_sources.insert(source) {
             return;
         }
 
-        previous_sources.insert(source);
+        sources_in_path.insert(source);
+        source_path.push_back(source);
+
         // Get all destinations (this can be empty when we treat destinations as sources during recursion).
         if let Some(destinations) = movements.get(&source) {
             for destination in destinations {
-                if previous_sources.contains(destination) {
-                    // Found a loop
-                    let loop_sources = previous_sources.clone();
+                if sources_in_path.contains(destination) {
+                    // Found a loop; find the suffix that is contained in the loop.
+                    let idx = source_path.index_of(destination).unwrap();
+                    let loop_sources = AddressLoop::from_iter(source_path.skip(idx));
                     self.loops.push(loop_sources);
                 } else {
-                    self.find_loop_recursive(*destination, movements, previous_sources.clone());
+                    self.find_loop_recursive(
+                        *destination,
+                        movements,
+                        sources_in_path.clone(),
+                        source_path.clone(),
+                    );
                 }
             }
         }
@@ -198,15 +209,15 @@ mod tests {
 
     #[test]
     fn test_loop_detector_loop_with_init() {
-        // 0->1->2->3->2
-        let movements = vec![(0, 1), (1, 2), (2, 3), (3, 2)];
+        // 0->1->2->3->1
+        let movements = vec![(0, 1), (1, 2), (2, 3), (3, 1)];
         let movements_map = generate_movements_map(movements);
         let loops = LoopDetector::detect_loops(&movements_map);
         assert_eq!(loops.len(), 1);
         assert_eq!(
             loops[0],
-            im::OrdSet::from_iter([0, 1, 2, 3].map(MemoryAddress::relative)),
-            "0 and 1 are in the detection set, despite not being part of the loop body"
+            im::OrdSet::from_iter([1, 2, 3].map(MemoryAddress::relative)),
+            "Only the blocks actually in the loop should be included"
         );
     }
 
