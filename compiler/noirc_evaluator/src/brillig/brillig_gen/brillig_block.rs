@@ -546,11 +546,12 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             .function_context
             .constant_allocation
             .allocated_at_location(self.block_id, location)
+            .map(|c| c.to_vec())
         else {
             return;
         };
 
-        for constant_id in constants.to_vec() {
+        for constant_id in constants {
             self.convert_ssa_value(constant_id, dfg);
         }
     }

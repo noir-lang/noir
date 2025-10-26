@@ -358,8 +358,8 @@ mod tests {
             // Allocate more memory to allow for temporary variables.
             let mut memory: Vec<u32> = vec![0; MEM_SIZE * 2];
             // Fill the memory with some random numbers.
-            for i in 0..memory.len() {
-                memory[i] = u.arbitrary()?;
+            for slot in memory.iter_mut() {
+                *slot = u.arbitrary()?;
             }
 
             // Pick a random unique subset of the slots as destinations.
