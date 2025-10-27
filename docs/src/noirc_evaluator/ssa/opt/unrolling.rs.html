@@ -1810,7 +1810,27 @@
 <a href="#1809" id="1809">1809</a>
 <a href="#1810" id="1810">1810</a>
 <a href="#1811" id="1811">1811</a>
-<a href="#1812" id="1812">1812</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the loop unrolling pass for the new SSA IR.
+<a href="#1812" id="1812">1812</a>
+<a href="#1813" id="1813">1813</a>
+<a href="#1814" id="1814">1814</a>
+<a href="#1815" id="1815">1815</a>
+<a href="#1816" id="1816">1816</a>
+<a href="#1817" id="1817">1817</a>
+<a href="#1818" id="1818">1818</a>
+<a href="#1819" id="1819">1819</a>
+<a href="#1820" id="1820">1820</a>
+<a href="#1821" id="1821">1821</a>
+<a href="#1822" id="1822">1822</a>
+<a href="#1823" id="1823">1823</a>
+<a href="#1824" id="1824">1824</a>
+<a href="#1825" id="1825">1825</a>
+<a href="#1826" id="1826">1826</a>
+<a href="#1827" id="1827">1827</a>
+<a href="#1828" id="1828">1828</a>
+<a href="#1829" id="1829">1829</a>
+<a href="#1830" id="1830">1830</a>
+<a href="#1831" id="1831">1831</a>
+<a href="#1832" id="1832">1832</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the loop unrolling pass for the new SSA IR.
 //!
 //! This pass is divided into a few steps:
 //! 1. Find all loops in the program (`find_all_loops`)
@@ -2381,8 +2401,10 @@
         <span class="kw">let </span><span class="kw-2">mut </span>unroll_into = <span class="self">self</span>.get_pre_header(function, cfg)<span class="question-mark">?</span>;
         <span class="kw">let </span><span class="kw-2">mut </span>jump_value = get_induction_variable(<span class="kw-2">&amp;</span>function.dfg, unroll_into)<span class="question-mark">?</span>;
 
-        <span class="kw">while let </span><span class="prelude-val">Some</span>(context) = <span class="self">self</span>.unroll_header(function, unroll_into, jump_value)<span class="question-mark">? </span>{
-            (unroll_into, jump_value) = context.unroll_loop_iteration();
+        <span class="kw">while let </span><span class="prelude-val">Some</span>((context, loop_header_id)) =
+            <span class="self">self</span>.unroll_header(function, unroll_into, jump_value)<span class="question-mark">?
+        </span>{
+            (unroll_into, jump_value) = context.unroll_loop_iteration(loop_header_id);
         }
 
         <span class="prelude-val">Ok</span>(())
@@ -2414,20 +2436,21 @@
 
     <span class="doccomment">/// Unrolls the header block of the loop. This is the block that dominates all other blocks in the
     /// loop and contains the jmpif instruction that lets us know if we should continue looping.
-    /// Returns Some(iteration context) if we should perform another iteration.
+    /// Returns Some((iteration context, loop_header_id)) if we should perform another iteration.
     </span><span class="kw">fn </span>unroll_header&lt;<span class="lifetime">'a</span>&gt;(
         <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="self">self</span>,
         function: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>Function,
         unroll_into: BasicBlockId,
         induction_value: ValueId,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;LoopIteration&lt;<span class="lifetime">'a</span>&gt;&gt;, CallStack&gt; {
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;(LoopIteration&lt;<span class="lifetime">'a</span>&gt;, BasicBlockId)&gt;, CallStack&gt; {
         <span class="comment">// We insert into a fresh block first and move instructions into the unroll_into block later
         // only once we verify the jmpif instruction has a constant condition. If it does not, we can
         // just discard this fresh block and leave the loop unmodified.
         </span><span class="kw">let </span>fresh_block = function.dfg.make_block();
 
         <span class="kw">let </span><span class="kw-2">mut </span>context = LoopIteration::new(function, <span class="self">self</span>, fresh_block, <span class="self">self</span>.header);
-        <span class="kw">let </span>source_block = <span class="kw-2">&amp;</span>context.dfg()[context.source_block];
+        <span class="kw">let </span>loop_header_id = context.source_block;
+        <span class="kw">let </span>source_block = <span class="kw-2">&amp;</span>context.dfg()[loop_header_id];
         <span class="macro">assert_eq!</span>(source_block.parameters().len(), <span class="number">1</span>, <span class="string">"Expected only 1 argument in loop header"</span>);
 
         <span class="comment">// Insert the current value of the loop induction variable into our context.
@@ -2435,6 +2458,8 @@
         context.inserter.try_map_value(first_param, induction_value);
         <span class="comment">// Copy over all instructions and a fresh terminator.
         </span>context.inline_instructions_from_block();
+        context.visited_blocks.insert(loop_header_id);
+
         <span class="comment">// Mutate the terminator if possible so that it points at the iteration block.
         </span><span class="kw">match </span>context.dfg()[fresh_block].unwrap_terminator() {
             TerminatorInstruction::JmpIf {
@@ -2465,7 +2490,11 @@
                     // have no more loops to unroll, because that block was not part of the loop itself,
                     // ie. it wasn't between `loop_header` and `loop_body`. Otherwise we have the `loop_body`
                     // in `source_block` and can unroll that into the destination.
-                    </span><span class="prelude-val">Ok</span>(<span class="self">self</span>.blocks.contains(<span class="kw-2">&amp;</span>context.source_block).then_some(context))
+                    </span><span class="prelude-val">Ok</span>(<span class="self">self
+                        </span>.blocks
+                        .contains(<span class="kw-2">&amp;</span>context.source_block)
+                        .then_some(context)
+                        .map(|iteration_context| (iteration_context, loop_header_id)))
                 } <span class="kw">else </span>{
                     <span class="comment">// If this case is reached the loop either uses non-constant indices or we need
                     // another pass, such as mem2reg to resolve them to constants.
@@ -2781,6 +2810,9 @@
     </span>original_blocks: HashMap&lt;BasicBlockId, BasicBlockId&gt;,
     visited_blocks: HashSet&lt;BasicBlockId&gt;,
 
+    <span class="doccomment">/// Has `unroll_loop_iteration` reached the `loop_header_id`?
+    </span>encountered_loop_header: bool,
+
     insert_block: BasicBlockId,
     source_block: BasicBlockId,
 
@@ -2806,6 +2838,8 @@
             blocks: HashMap::default(),
             original_blocks: HashMap::default(),
             visited_blocks: HashSet::default(),
+            encountered_loop_header: <span class="bool-val">false</span>,
+
             induction_value: <span class="prelude-val">None</span>,
         }
     }
@@ -2816,13 +2850,14 @@
     /// It is expected the terminator instructions are set up to branch into an empty block
     /// for further unrolling. When the loop is finished this will need to be mutated to
     /// jump to the end of the loop instead.
-    </span><span class="kw">fn </span>unroll_loop_iteration(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; (BasicBlockId, ValueId) {
+    </span><span class="kw">fn </span>unroll_loop_iteration(<span class="kw-2">mut </span><span class="self">self</span>, loop_header_id: BasicBlockId) -&gt; (BasicBlockId, ValueId) {
         <span class="comment">// Kick off the unrolling from the initial source block.
         </span><span class="kw">let </span><span class="kw-2">mut </span>next_blocks = <span class="self">self</span>.unroll_loop_block();
 
         <span class="kw">while let </span><span class="prelude-val">Some</span>(block) = next_blocks.pop() {
             <span class="self">self</span>.insert_block = block;
             <span class="self">self</span>.source_block = <span class="self">self</span>.get_original_block(block);
+            <span class="self">self</span>.encountered_loop_header |= loop_header_id == <span class="self">self</span>.source_block;
 
             <span class="kw">if </span>!<span class="self">self</span>.visited_blocks.contains(<span class="kw-2">&amp;</span><span class="self">self</span>.source_block) {
                 <span class="kw">let </span><span class="kw-2">mut </span>blocks = <span class="self">self</span>.unroll_loop_block();
@@ -2834,6 +2869,11 @@
         </span><span class="kw">let </span>(end_block, induction_value) = <span class="self">self
             </span>.induction_value
             .expect(<span class="string">"Expected to find the induction variable by end of loop iteration"</span>);
+
+        <span class="macro">assert!</span>(
+            <span class="self">self</span>.encountered_loop_header,
+            <span class="string">"expected to encounter loop header when visiting blocks"
+        </span>);
 
         (end_block, induction_value)
     }
