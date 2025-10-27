@@ -69,13 +69,13 @@ impl Function {
                     unreachable!("AsSlice called with non-array {}", array_typ);
                 };
 
-                let [original_slice_length, _] = context.dfg.instruction_result(instruction_id);
+                let original_slice_length = context.dfg.instruction_results(instruction_id)[0];
                 Some((original_slice_length, length.into()))
             } else if slice_insert.is_some_and(|op| target_func == &op) {
                 if let Some(length) = context.dfg.get_numeric_constant(arguments[0]) {
                     // For `slice_insert(length, ...)` we can replace the resulting length with length + 1
                     let length = length + FieldElement::one();
-                    let [new_slice_length, _] = context.dfg.instruction_result(instruction_id);
+                    let new_slice_length = context.dfg.instruction_results(instruction_id)[0];
                     Some((new_slice_length, length))
                 } else {
                     None
@@ -85,7 +85,7 @@ impl Function {
                     if !length.is_zero() {
                         // For `slice_remove(length, ...)` we can replace the resulting length with length - 1
                         let length = length - FieldElement::one();
-                        let [new_slice_length, _] = context.dfg.instruction_result(instruction_id);
+                        let new_slice_length = context.dfg.instruction_results(instruction_id)[0];
                         Some((new_slice_length, length))
                     } else {
                         None
