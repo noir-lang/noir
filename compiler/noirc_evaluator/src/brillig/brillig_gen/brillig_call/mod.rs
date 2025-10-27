@@ -35,52 +35,69 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
     ///
     /// # Returns
     /// A [BrilligVariable] representing the allocated memory structure to store the foreign call's result.
-    fn allocate_external_call_result(
+    ///
+    /// # Panics
+    /// If there are more than one vector types that it needs to allocate, because they would both be
+    /// assigned the free memory pointer.
+    fn allocate_external_call_results(
         &mut self,
-        result: ValueId,
+        results: &[ValueId],
         dfg: &DataFlowGraph,
-    ) -> BrilligVariable {
-        let typ = dfg[result].get_type();
-        match typ.as_ref() {
-            Type::Numeric(_) => self.variables.define_variable(
-                self.function_context,
-                self.brillig_context,
-                result,
-                dfg,
-            ),
+    ) -> Vec<BrilligVariable> {
+        let mut variables = Vec::new();
+        let mut vector_allocated = false;
 
-            Type::Array(..) => {
-                let variable = self.variables.define_variable(
+        for result in results {
+            let result = *result;
+            let typ = dfg[result].get_type();
+            let variable = match typ.as_ref() {
+                Type::Numeric(_) => self.variables.define_variable(
                     self.function_context,
                     self.brillig_context,
                     result,
                     dfg,
-                );
-                let array = variable.extract_array();
-                self.allocate_foreign_call_result_array(typ.as_ref(), array);
+                ),
 
-                variable
-            }
-            Type::Slice(_) => {
-                let variable = self.variables.define_variable(
-                    self.function_context,
-                    self.brillig_context,
-                    result,
-                    dfg,
-                );
-                let vector = variable.extract_vector();
+                Type::Array(..) => {
+                    let variable = self.variables.define_variable(
+                        self.function_context,
+                        self.brillig_context,
+                        result,
+                        dfg,
+                    );
+                    let array = variable.extract_array();
+                    self.allocate_foreign_call_result_array(typ.as_ref(), array);
 
-                // Set the pointer to the current stack frame
-                // The stack pointer will then be updated by the caller of this method
-                // once the external call is resolved and the array size is known
-                self.brillig_context.load_free_memory_pointer_instruction(vector.pointer);
+                    variable
+                }
+                Type::Slice(_) => {
+                    let variable = self.variables.define_variable(
+                        self.function_context,
+                        self.brillig_context,
+                        result,
+                        dfg,
+                    );
+                    let vector = variable.extract_vector();
 
-                variable
-            }
-            _ => {
-                unreachable!("ICE: unsupported return type for black box call {typ:?}")
-            }
+                    // Set the pointer to the current free memory pointer.
+                    // The free memory pointer will then be updated by the caller of this method,
+                    // once the external call is resolved and the vector size is known.
+                    assert!(
+                        !vector_allocated,
+                        "a vector has already been allocated at the free memory pointer"
+                    );
+                    vector_allocated = true;
+                    self.brillig_context.load_free_memory_pointer_instruction(vector.pointer);
+
+                    variable
+                }
+                _ => {
+                    unreachable!("ICE: unsupported return type for black box call {typ:?}")
+                }
+            };
+            variables.push(variable);
         }
+        variables
     }
 
     /// Recursively allocates memory for a nested array returned from a foreign function call.
@@ -94,9 +111,13 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
             unreachable!("ICE: allocate_foreign_call_array() expects an array, got {typ:?}")
         };
 
+        // Reserve free memory and set the initial ref-count.
         self.brillig_context.codegen_initialize_array(array);
 
-        let mut index = 0_usize;
+        // Go through each slot in the array: if it's a simple type then we don't need to do anything,
+        // but if it's a nested one we have to recursively allocate memory for it, and store the variable in the array.
+        // We add one since array.pointer points to [RC, ...items]
+        let mut index = offsets::ARRAY_ITEMS;
         for _ in 0..*size {
             for element_type in types.iter() {
                 match element_type {
@@ -106,10 +127,8 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
 
                         self.allocate_foreign_call_result_array(element_type, *inner_array);
 
-                        // We add one since array.pointer points to [RC, ...items]
-                        let idx = self
-                            .brillig_context
-                            .make_usize_constant_instruction((index + offsets::ARRAY_ITEMS).into());
+                        let idx =
+                            self.brillig_context.make_usize_constant_instruction(index.into());
 
                         self.brillig_context.codegen_store_with_offset(
                             array.pointer,

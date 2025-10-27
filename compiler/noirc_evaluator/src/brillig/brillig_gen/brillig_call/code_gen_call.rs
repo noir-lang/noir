@@ -27,8 +27,10 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         instruction_id: InstructionId,
         dfg: &DataFlowGraph,
     ) {
+        // Foreign calls can return multiple results.
         let result_ids = dfg.instruction_results(instruction_id);
 
+        // Allocate heap typed values for the input arguments.
         let input_values = vecmap(arguments, |value_id| {
             let variable = self.convert_ssa_value(*value_id, dfg);
             self.brillig_context.variable_to_value_or_array(variable)
@@ -38,8 +40,11 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
             type_to_heap_value_type(&value_type)
         });
 
-        let output_variables =
-            vecmap(result_ids, |value_id| self.allocate_external_call_result(*value_id, dfg));
+        // Define variables for the results; these can be nested structures which will outlive the call.
+        // Nothing else should allocate from the free memory after this, as it needs to be increased after the call.
+        let output_variables = self.allocate_external_call_results(result_ids, dfg);
+
+        // Allocate heap typed values to receive the results.
         let output_values = vecmap(&output_variables, |variable| {
             self.brillig_context.variable_to_value_or_array(*variable)
         });
@@ -48,6 +53,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
             type_to_heap_value_type(&value_type)
         });
 
+        // Process the call.
         self.brillig_context.foreign_call_instruction(
             func_name.to_owned(),
             &vecmap(input_values, |v| *v),
@@ -56,24 +62,27 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
             &output_value_types,
         );
 
-        // Massage the return value.
-        for (i, (output_register, output_variable)) in
+        // Pair up the heap-typed output values of the call with the Brillig variables created for the results.
+        for (i, (output_value, output_variable)) in
             output_values.iter().zip(output_variables).enumerate()
         {
-            match **output_register {
+            match **output_value {
                 // Returned vectors need to emit some bytecode to format the result as a BrilligVector
                 ValueOrArray::HeapVector(heap_vector) => {
-                    self.brillig_context.initialize_externally_returned_vector(
+                    // Adjust the metadata of the result variable.
+                    // The items don't need to be copied, since we passed the pointer to the items of the
+                    // array/vector variable in the heap array/vector.
+                    self.brillig_context.codegen_initialize_externally_returned_vector(
                         output_variable.extract_vector(),
                         heap_vector,
                     );
-                    // Update the dynamic slice length maintained in SSA,
+                    // Update the dynamic slice length maintained in SSA, a.k.a semantic length,
                     // which is the parameter preceding the vector.
-                    if let ValueOrArray::MemoryAddress(len_index) = *output_values[i - 1] {
+                    if let ValueOrArray::MemoryAddress(length_addr) = *output_values[i - 1] {
                         let element_size = dfg[result_ids[i]].get_type().element_size();
-                        self.brillig_context.mov_instruction(len_index, heap_vector.size);
+                        self.brillig_context.mov_instruction(length_addr, heap_vector.size);
                         self.brillig_context.codegen_usize_op_in_place(
-                            len_index,
+                            length_addr,
                             BrilligBinaryOp::UnsignedDiv,
                             element_size,
                         );
@@ -152,8 +161,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
 
         let function_arguments = vecmap(arguments, |arg| self.convert_ssa_value(arg, dfg));
         let function_results = dfg.instruction_results(instruction_id);
-        let function_results =
-            vecmap(function_results, |result| self.allocate_external_call_result(*result, dfg));
+        let function_results = self.allocate_external_call_results(function_results, dfg);
         convert_black_box_call(
             self.brillig_context,
             bb_func,

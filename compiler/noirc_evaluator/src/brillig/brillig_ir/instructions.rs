@@ -190,7 +190,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         }
     }
 
-    /// Processes a foreign call instruction.
+    /// Push an opcode to processes a foreign call instruction.
     ///
     /// Note: the function being called is external and will
     /// not be linked during brillig generation.
