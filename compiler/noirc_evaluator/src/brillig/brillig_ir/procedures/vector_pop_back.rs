@@ -80,7 +80,7 @@ pub(super) fn compile_vector_pop_back_procedure<F: AcirField + DebugToString>(
         if is_rc_one {
             // We can reuse the source vector updating its length
             brillig_context.mov_instruction(target_vector.pointer, source_vector.pointer);
-            brillig_context.codegen_update_vector_length(target_vector, *target_size);
+            brillig_context.codegen_update_vector_size(target_vector, *target_size);
         } else {
             // We need to clone the source vector
             brillig_context.codegen_initialize_vector(target_vector, *target_size, None);

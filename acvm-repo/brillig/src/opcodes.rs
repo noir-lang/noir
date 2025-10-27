@@ -107,14 +107,15 @@ impl From<MemoryAddress> for ArrayAddress {
 
 /// Wrapper for vector addresses, with convenience methods for various offsets.
 ///
-/// The vector consists of a ref-count, followed by the capacity, and then a
-/// number of items indicated by the capacity.
+/// The vector consists of a ref-count, followed by the size, and then a
+/// number of items indicated by the size. This is different from how Brillig
+/// stores them internally, where an extra slot for the capacity is used.
 ///
 /// The semantic length of the vector is maintained at a separate address.
 pub struct VectorAddress(MemoryAddress);
 
 impl VectorAddress {
-    /// Capacity of the vector.
+    /// Size of the vector.
     pub fn size_addr(&self) -> MemoryAddress {
         self.0.offset(1)
     }

@@ -385,11 +385,11 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         let index_register = self.convert_ssa_single_addr_value(index, dfg);
         let value_variable = self.convert_ssa_value(value, dfg);
 
-        let result_ids = dfg.instruction_results(instruction_id);
+        let [result_id] = dfg.instruction_result(instruction_id);
         let destination_variable = self.variables.define_variable(
             self.function_context,
             self.brillig_context,
-            result_ids[0],
+            result_id,
             dfg,
         );
 
@@ -406,6 +406,8 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         );
     }
 
+    /// Define the variable for the array or vector, allocate memory for the ref-counter and items,
+    /// then load all items from `array` into the memory.
     pub(crate) fn make_array(
         &mut self,
         instruction_id: InstructionId,
@@ -413,29 +415,35 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         typ: &Type,
         dfg: &DataFlowGraph,
     ) {
-        let value_id = dfg.instruction_results(instruction_id)[0];
-        if !self.variables.is_allocated(&value_id) {
+        let [result_id] = dfg.instruction_result(instruction_id);
+        if !self.variables.is_allocated(&result_id) {
+            // Allocate memory for the array or vector. It will consist of a single register,
+            // and the initialization below will further set up its memory layout.
             let new_variable = self.variables.define_variable(
                 self.function_context,
                 self.brillig_context,
-                value_id,
+                result_id,
                 dfg,
             );
 
-            // Initialize the variable
+            // Initialize the variable, which allocates free memory to hold the ref-count and the items.
             match new_variable {
                 BrilligVariable::BrilligArray(brillig_array) => {
+                    debug_assert_eq!(array.len(), brillig_array.size);
                     self.brillig_context.codegen_initialize_array(brillig_array);
                 }
                 BrilligVariable::BrilligVector(vector) => {
+                    // The size of a vector is expected to be at an address (could be the result of push/pop increments/decrements).
+                    // (This is different from the semantic length variable).
                     let size =
                         self.brillig_context.make_usize_constant_instruction(array.len().into());
+
                     self.brillig_context.codegen_initialize_vector(vector, *size, None);
                 }
                 _ => unreachable!("ICE: Cannot initialize array value created as {new_variable:?}"),
             };
 
-            // Write the items
+            // Write the items.
             let items_pointer =
                 self.brillig_context.codegen_make_array_or_vector_items_pointer(new_variable);
 

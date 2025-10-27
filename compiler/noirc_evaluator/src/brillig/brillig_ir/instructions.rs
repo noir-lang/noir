@@ -303,6 +303,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.push_opcode(BrilligOpcode::BlackBox(op));
     }
 
+    /// Push an opcode to load the current value of the _free memory pointer_ into the `pointer_register`.
     pub(crate) fn load_free_memory_pointer_instruction(&mut self, pointer_register: MemoryAddress) {
         self.debug_show.mov_instruction(pointer_register, ReservedRegisters::free_memory_pointer());
         self.push_opcode(BrilligOpcode::Mov {
@@ -311,6 +312,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         });
     }
 
+    /// Push an opcode to increase the _free memory pointer_ by the value stored in `size_register`.
     pub(crate) fn increase_free_memory_pointer_instruction(
         &mut self,
         size_register: MemoryAddress,
@@ -369,13 +371,13 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         });
     }
 
-    /// Stores the value of `constant` in the `result` register
+    /// Stores the value of `constant` in the `result` register.
     pub(crate) fn const_instruction(&mut self, result: SingleAddrVariable, constant: F) {
         self.debug_show.const_instruction(result.address, constant);
         self.constant(result.address, result.bit_size, constant, false);
     }
 
-    /// Stores the value of `constant` in the result_pointer
+    /// Stores the value of `constant` in the register pointed at by `result_pointer`.
     pub(crate) fn indirect_const_instruction(
         &mut self,
         result_pointer: MemoryAddress,
@@ -386,6 +388,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.constant(result_pointer, bit_size, constant, true);
     }
 
+    /// Pushes a [IndirectConst][BrilligOpcode::IndirectConst] or [Const][BrilligOpcode::Const] opcode.
     fn constant(&mut self, result: MemoryAddress, bit_size: u32, constant: F, indirect: bool) {
         assert!(
             bit_size >= constant.num_bits(),
@@ -406,11 +409,12 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         }
     }
 
+    /// Stores the value of `constant` at the `result` address.
     pub(crate) fn usize_const_instruction(&mut self, result: MemoryAddress, constant: F) {
         self.const_instruction(SingleAddrVariable::new_usize(result), constant);
     }
 
-    /// Returns a register which holds the value of a constant
+    /// Returns a register which holds the value of a constant.
     pub(crate) fn make_constant_instruction(
         &mut self,
         constant: F,
@@ -421,7 +425,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         var
     }
 
-    /// Returns a register which holds the value of an usize constant
+    /// Returns a register which holds the value of an `usize` constant.
     pub(crate) fn make_usize_constant_instruction(
         &mut self,
         constant: F,
@@ -431,16 +435,18 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         register.map(SingleAddrVariable::new_usize)
     }
 
+    /// Pushes a [CalldataCopy][BrilligOpcode::CalldataCopy] opcode to copy the calldata
+    /// at a specific offset with and size to the `destination` address.
     pub(super) fn calldata_copy_instruction(
         &mut self,
         destination: MemoryAddress,
         calldata_size: usize,
-        offset: usize,
+        calldata_offset: usize,
     ) {
-        self.debug_show.calldata_copy_instruction(destination, calldata_size, offset);
+        self.debug_show.calldata_copy_instruction(destination, calldata_size, calldata_offset);
 
         let size_var = self.make_usize_constant_instruction(calldata_size.into());
-        let offset_var = self.make_usize_constant_instruction(offset.into());
+        let offset_var = self.make_usize_constant_instruction(calldata_offset.into());
         self.push_opcode(BrilligOpcode::CalldataCopy {
             destination_address: destination,
             size_address: size_var.address,
@@ -448,6 +454,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         });
     }
 
+    /// Pushes a [Trap][BrilligOpcode::Trap] opcode.
     pub(super) fn trap_instruction(&mut self, revert_data: HeapVector) {
         self.debug_show.trap_instruction(revert_data);
 
