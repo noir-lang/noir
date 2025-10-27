@@ -443,7 +443,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         }
     }
 
-    /// Initializes an array, allocating memory to store its representation and initializing the reference counter to 1.
+    /// Initializes an array, allocating memory on the heap to store its representation and initializing the reference counter to 1.
     pub(crate) fn codegen_initialize_array(&mut self, array: BrilligArray) {
         // Allocate memory for the 1 ref counter and `size` items.
         self.codegen_allocate_immediate_mem(array.pointer, array.size + offsets::ARRAY_META_COUNT);

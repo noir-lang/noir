@@ -100,7 +100,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         variables
     }
 
-    /// Recursively allocates memory for a nested array returned from a foreign function call.
+    /// Recursively allocates memory on the heap for a nested array returned from a foreign function call.
     ///
     /// # Panics
     /// - If the provided `typ` is not an array.
@@ -111,7 +111,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
             unreachable!("ICE: allocate_foreign_call_array() expects an array, got {typ:?}")
         };
 
-        // Reserve free memory and set the initial ref-count.
+        // Reserve free memory on the heap and set the initial ref-count.
         self.brillig_context.codegen_initialize_array(array);
 
         // Go through each slot in the array: if it's a simple type then we don't need to do anything,
@@ -122,21 +122,22 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
             for element_type in types.iter() {
                 match element_type {
                     Type::Array(_, nested_size) => {
+                        // Allocate a pointer for an array on the stack.
                         let inner_array =
                             self.brillig_context.allocate_brillig_array(*nested_size as usize);
 
-                        // Detach the inner array to prevent it from being reallocated to something else.
-                        // XXX: Currently `BrilligVariables::remove_variable` removes only the top SSA value,
-                        // but it would not do so for the inner array since we never created call `define_variable` with it.
-                        let inner_array = inner_array.detach();
+                        // Recursively allocate memory for the inner array on the heap.
+                        // This sets the pointer on the stack to point at the heap.
+                        self.allocate_foreign_call_result_array(element_type, *inner_array);
 
-                        self.allocate_foreign_call_result_array(element_type, inner_array);
-
-                        // Set the index to be the total offset accounting for complex types.
+                        // Set the index in the outer array to be the total offset accounting for complex types.
                         let idx =
                             self.brillig_context.make_usize_constant_instruction(index.into());
 
-                        // Store the the pointer to the inner array into the outer array cell.
+                        // Copy the inner array pointer, which points at the heap, into the outer array cell.
+                        // After this, it is okay for the `inner_array` to be deallocated from the stack,
+                        // and for its address to be reused, ie. we don't need to `.detach()` it.
+                        // What matters is that we stored the pointer to the heap.
                         self.brillig_context.codegen_store_with_offset(
                             array.pointer,
                             *idx,
