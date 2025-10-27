@@ -495,7 +495,6 @@ fn try_optimize_array_get_from_previous_set(
                     }
 
                     if let Some(slice_pop_front) = dfg.get_intrinsic(Intrinsic::SlicePopFront) {
-                        // Only simplify when a single value is pushed
                         if func == slice_pop_front {
                             let slice = arguments[1];
                             // Only optimize for non-composite slices
@@ -503,6 +502,24 @@ fn try_optimize_array_get_from_previous_set(
                                 array_id = slice;
                                 target_index += FieldElement::one();
                                 continue;
+                            }
+                        }
+                    }
+
+                    if let Some(slice_push_back) = dfg.get_intrinsic(Intrinsic::SlicePushBack) {
+                        // Only simplify when a single value is pushed
+                        if func == slice_push_back {
+                            let length = arguments[0];
+                            let slice = arguments[1];
+                            let pushed_value = arguments[2];
+                            // Only optimize if the length is known
+                            if let Some(length) = dfg.get_numeric_constant(length) {
+                                if target_index == length {
+                                    return SimplifyResult::SimplifiedTo(pushed_value);
+                                } else {
+                                    array_id = slice;
+                                    continue;
+                                }
                             }
                         }
                     }
@@ -1001,6 +1018,40 @@ mod tests {
             v15 = array_get v0, index u32 4 -> Field
             v16 = array_get v8, index u32 4 -> Field
             return v10, v12, v13, v15, v16
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_array_get_on_slice_push_back() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+        b0(v0: [Field; 3]):
+            v2, v3 = call as_slice(v0) -> (u32, [Field])
+            v8, v9 = call slice_push_back(u32 3, v3, Field 10) -> (u32, [Field])
+            v10 = array_get v9, index u32 0 -> Field
+            v11 = array_get v9, index u32 1 -> Field
+            v12 = array_get v9, index u32 2 -> Field
+            v13 = array_get v9, index u32 3 -> Field
+            v14 = array_get v9, index u32 4 -> Field
+            return v10, v11, v12, v13, v14
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        // We can see that the array_gets now read from v0 instead of v9,
+        // When the index is the same as the slice length, we use the pushed value.
+        // Otherwise, the index remains the same.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: [Field; 3]):
+            v2, v3 = call as_slice(v0) -> (u32, [Field])
+            v7, v8 = call slice_push_back(u32 3, v3, Field 10) -> (u32, [Field])
+            v10 = array_get v0, index u32 0 -> Field
+            v12 = array_get v0, index u32 1 -> Field
+            v14 = array_get v0, index u32 2 -> Field
+            v16 = array_get v8, index u32 4 -> Field
+            return v10, v12, v14, Field 10, v16
         }
         ");
     }
