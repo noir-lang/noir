@@ -334,7 +334,7 @@ impl Context {
                 })
         };
         // If the target_block is distinct than the original block
-        // that means that the current instruction is not added in the orignal block
+        // that means that the current instruction is not added in the original block
         // so it is deduplicated by the one in the target block.
         // In case it refers to an array that is mutated, we need to increment
         // its reference count.
