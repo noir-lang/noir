@@ -6,6 +6,7 @@ use im::Vector;
 
 use crate::brillig::brillig_gen::brillig_block::BrilligBlock;
 use crate::brillig::brillig_ir::brillig_variable::{BrilligVariable, SingleAddrVariable};
+use crate::brillig::brillig_ir::registers::Allocated;
 use crate::brillig::brillig_ir::{
     BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, BrilligBinaryOp, BrilligContext, ReservedRegisters,
     registers::RegisterAllocator,
@@ -112,8 +113,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
             let step_variable =
                 self.brillig_context.make_usize_constant_instruction(item_types.len().into());
 
-            let subitem_pointer =
-                SingleAddrVariable::new_usize(self.brillig_context.allocate_register());
+            let subitem_pointer = self.brillig_context.allocate_single_addr_usize();
 
             // Initializes a single subitem
             let initializer_fn =
@@ -141,9 +141,6 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                 Some(step_variable.address),
                 initializer_fn,
             );
-
-            self.brillig_context.deallocate_single_addr(step_variable);
-            self.brillig_context.deallocate_single_addr(subitem_pointer);
         } else {
             let subitem = subitem_to_repeat_variables.into_iter().next().unwrap();
 
@@ -160,7 +157,6 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                 initializer_fn,
             );
         }
-        self.brillig_context.deallocate_single_addr(end_pointer_variable);
     }
 
     /// Codegens Brillig instructions to initialize a constant array at compile time.
@@ -180,26 +176,24 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         // Allocate a register for the iterator
         let write_pointer_register = self.brillig_context.allocate_register();
 
-        self.brillig_context.mov_instruction(write_pointer_register, pointer);
+        self.brillig_context.mov_instruction(*write_pointer_register, pointer);
 
         for (element_idx, element_id) in data.iter().enumerate() {
             let element_variable = self.convert_ssa_value(*element_id, dfg);
             // Store the item in memory
             self.brillig_context
-                .store_instruction(write_pointer_register, element_variable.extract_register());
+                .store_instruction(*write_pointer_register, element_variable.extract_register());
 
             if element_idx != data.len() - 1 {
                 // Increment the write_pointer_register
                 self.brillig_context.memory_op_instruction(
-                    write_pointer_register,
+                    *write_pointer_register,
                     ReservedRegisters::usize_one(),
-                    write_pointer_register,
+                    *write_pointer_register,
                     BrilligBinaryOp::Add,
                 );
             }
         }
-
-        self.brillig_context.deallocate_register(write_pointer_register);
     }
 
     /// Load from an array variable at a specific index into a specified destination
@@ -214,20 +208,16 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         has_offset: bool,
     ) {
         let items_pointer = if has_offset {
-            array_variable.extract_register()
+            Allocated::pure(array_variable.extract_register())
         } else {
             self.brillig_context.codegen_make_array_or_vector_items_pointer(array_variable)
         };
 
         self.brillig_context.codegen_load_with_offset(
-            items_pointer,
+            *items_pointer,
             index_variable,
             destination_variable.extract_register(),
         );
-
-        if !has_offset {
-            self.brillig_context.deallocate_register(items_pointer);
-        }
     }
 
     /// Array set operation in SSA returns a new array or vector that is a copy of the parameter array or vector
@@ -272,13 +262,13 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
 
         // Then set the value in the newly created array
         let items_pointer = if has_offset {
-            destination_for_store.extract_register()
+            Allocated::pure(destination_for_store.extract_register())
         } else {
             self.brillig_context.codegen_make_array_or_vector_items_pointer(destination_for_store)
         };
 
         self.brillig_context.codegen_store_with_offset(
-            items_pointer,
+            *items_pointer,
             index_register,
             value_variable.extract_register(),
         );
@@ -290,10 +280,6 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                 source_variable.extract_register(),
             );
         }
-
-        if !has_offset {
-            self.brillig_context.deallocate_register(items_pointer);
-        }
     }
 
     /// Debug utility method to determine whether an array's reference count (RC) is zero.
@@ -302,11 +288,11 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
     ///
     /// Should only be called if [BrilligContext::enable_debug_assertions] returns true.
     fn assert_rc_neq_zero(&mut self, rc_register: MemoryAddress) {
-        let zero = SingleAddrVariable::new(self.brillig_context.allocate_register(), 32);
+        let zero = self.brillig_context.allocate_single_addr(32);
 
-        self.brillig_context.const_instruction(zero, FieldElement::zero());
+        self.brillig_context.const_instruction(*zero, FieldElement::zero());
 
-        let condition = SingleAddrVariable::new(self.brillig_context.allocate_register(), 1);
+        let condition = self.brillig_context.allocate_single_addr_bool();
 
         self.brillig_context.memory_op_instruction(
             zero.address,
@@ -314,10 +300,9 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
             condition.address,
             BrilligBinaryOp::Equals,
         );
-        self.brillig_context.not_instruction(condition, condition);
+        self.brillig_context.not_instruction(*condition, *condition);
         self.brillig_context
-            .codegen_constrain(condition, Some("array ref-count underflow detected".to_owned()));
-        self.brillig_context.deallocate_single_addr(condition);
+            .codegen_constrain(*condition, Some("array ref-count underflow detected".to_owned()));
     }
 
     pub(crate) fn codegen_allocate(&mut self, instruction_id: InstructionId, dfg: &DataFlowGraph) {
@@ -445,8 +430,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                 BrilligVariable::BrilligVector(vector) => {
                     let size =
                         self.brillig_context.make_usize_constant_instruction(array.len().into());
-                    self.brillig_context.codegen_initialize_vector(vector, size, None);
-                    self.brillig_context.deallocate_single_addr(size);
+                    self.brillig_context.codegen_initialize_vector(vector, *size, None);
                 }
                 _ => unreachable!("ICE: Cannot initialize array value created as {new_variable:?}"),
             };
@@ -455,9 +439,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
             let items_pointer =
                 self.brillig_context.codegen_make_array_or_vector_items_pointer(new_variable);
 
-            self.initialize_constant_array(array, typ, dfg, items_pointer);
-
-            self.brillig_context.deallocate_register(items_pointer);
+            self.initialize_constant_array(array, typ, dfg, *items_pointer);
         }
     }
 
@@ -466,33 +448,31 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         let rc_register = self.brillig_context.allocate_register();
 
         // RC is always directly pointed by the array/vector pointer
-        self.brillig_context.load_instruction(rc_register, array_or_vector.extract_register());
+        self.brillig_context.load_instruction(*rc_register, array_or_vector.extract_register());
 
         // Ensure we're not incrementing from 0 back to 1
         if self.brillig_context.enable_debug_assertions() {
-            self.assert_rc_neq_zero(rc_register);
+            self.assert_rc_neq_zero(*rc_register);
         }
 
-        self.brillig_context.codegen_usize_op_in_place(rc_register, BrilligBinaryOp::Add, 1);
-        self.brillig_context.store_instruction(array_or_vector.extract_register(), rc_register);
-        self.brillig_context.deallocate_register(rc_register);
+        self.brillig_context.codegen_usize_op_in_place(*rc_register, BrilligBinaryOp::Add, 1);
+        self.brillig_context.store_instruction(array_or_vector.extract_register(), *rc_register);
     }
     pub(crate) fn decrement_rc(&mut self, value: ValueId, dfg: &DataFlowGraph) {
         let array_or_vector = self.convert_ssa_value(value, dfg);
         let array_register = array_or_vector.extract_register();
 
         let rc_register = self.brillig_context.allocate_register();
-        self.brillig_context.load_instruction(rc_register, array_register);
+        self.brillig_context.load_instruction(*rc_register, array_register);
 
         // Check that the refcount isn't already 0 before we decrement. If we allow it to underflow
         // and become usize::MAX, and then return to 1, then it will indicate
         // an array as mutable when it probably shouldn't be.
         if self.brillig_context.enable_debug_assertions() {
-            self.assert_rc_neq_zero(rc_register);
+            self.assert_rc_neq_zero(*rc_register);
         }
 
-        self.brillig_context.codegen_usize_op_in_place(rc_register, BrilligBinaryOp::Sub, 1);
-        self.brillig_context.store_instruction(array_register, rc_register);
-        self.brillig_context.deallocate_register(rc_register);
+        self.brillig_context.codegen_usize_op_in_place(*rc_register, BrilligBinaryOp::Sub, 1);
+        self.brillig_context.store_instruction(array_register, *rc_register);
     }
 }

@@ -4,7 +4,7 @@ use crate::brillig::brillig_ir::brillig_variable::{
     BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable,
 };
 
-use crate::brillig::brillig_ir::registers::RegisterAllocator;
+use crate::brillig::brillig_ir::registers::{Allocated, RegisterAllocator};
 use crate::brillig::brillig_ir::{BrilligBinaryOp, BrilligContext};
 use crate::ssa::ir::{
     basic_block::BasicBlockId,
@@ -80,9 +80,12 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
         let variables = BlockVariables::new(live_in_no_globals);
 
+        // Replace the previous registers with a new instance, where the currently live variables are pre-allocated.
+        // These might be deallocated and reused if their last use in this block indicates they are dead,
+        // but then become pre-allocated in a new block again, depending on the order of processing.
         brillig_context.set_allocated_registers(
             variables
-                .get_available_variables(function_context)
+                .get_available_variable_allocations(function_context)
                 .into_iter()
                 .map(|variable| variable.extract_register())
                 .collect(),
@@ -128,17 +131,19 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         used_globals: &HashSet<ValueId>,
         call_stacks: &mut CallStackHelper,
         hoisted_global_constants: &BTreeSet<(FieldElement, NumericType)>,
-    ) -> HashMap<(FieldElement, NumericType), BrilligVariable> {
+    ) -> HashMap<(FieldElement, NumericType), Allocated<BrilligVariable, Registers>> {
         // Using the end of the global memory space adds more complexity as we
         // have to account for possible register de-allocations as part of regular global compilation.
         // Thus, we want to allocate any reserved global slots first.
-        //
-        // If this flag is set, compile the array copy counter as a global
+
+        // If we want to print the array copy count in the end, we reserve teh 0 slot.
         if self.brillig_context.count_array_copies() {
-            let new_variable = allocate_value_with_type(self.brillig_context, Type::unsigned(32));
+            // Detach from the register so it's never deallocated.
+            let new_variable =
+                allocate_value_with_type(self.brillig_context, Type::unsigned(32)).detach();
             self.brillig_context
                 .const_instruction(new_variable.extract_single_addr(), FieldElement::zero());
-        }
+        };
 
         for (id, value) in globals.values_iter() {
             if !used_globals.contains(&id) {
@@ -159,6 +164,9 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             }
         }
 
+        // Allocate and initialize hoisted constants. These don't have a variable ID associated with them,
+        // so we return them explicitly, while the allocated global variables are in the `ssa_value_allocations`
+        // field of the `FunctionContext`.
         let mut new_hoisted_constants = HashMap::default();
         for (constant, typ) in hoisted_global_constants.iter().copied() {
             let new_variable = allocate_value_with_type(self.brillig_context, Type::Numeric(typ));
@@ -310,6 +318,8 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     }
 
     /// Converts an SSA instruction into a sequence of Brillig opcodes.
+    ///
+    /// If this is the last time a variable is used in this block, its memory slot gets deallocated, unless it's a global.
     fn convert_ssa_instruction(
         &mut self,
         instruction_id: InstructionId,
@@ -398,11 +408,9 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 // SSA generates redundant range checks. A range check with a max bit size >= value.bit_size will always pass.
                 if value.bit_size > *max_bit_size {
                     // Cast original value to field
-                    let left = SingleAddrVariable {
-                        address: self.brillig_context.allocate_register(),
-                        bit_size: FieldElement::max_num_bits(),
-                    };
-                    self.convert_cast(left, value);
+                    let left =
+                        self.brillig_context.allocate_single_addr(FieldElement::max_num_bits());
+                    self.convert_cast(*left, value);
 
                     // Create a field constant with the max
                     let max = BigUint::from(2_u128).pow(*max_bit_size) - BigUint::from(1_u128);
@@ -412,19 +420,15 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     );
 
                     // Check if lte max
-                    let condition =
-                        SingleAddrVariable::new(self.brillig_context.allocate_register(), 1);
+                    let condition = self.brillig_context.allocate_single_addr_bool();
                     self.brillig_context.binary_instruction(
-                        left,
-                        right,
-                        condition,
+                        *left,
+                        *right,
+                        *condition,
                         BrilligBinaryOp::LessThanEquals,
                     );
 
-                    self.brillig_context.codegen_constrain(condition, assert_message.clone());
-                    self.brillig_context.deallocate_single_addr(condition);
-                    self.brillig_context.deallocate_single_addr(left);
-                    self.brillig_context.deallocate_single_addr(right);
+                    self.brillig_context.codegen_constrain(*condition, assert_message.clone());
                 }
             }
             Instruction::IncrementRc { value } => {
@@ -469,9 +473,10 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                             then_condition,
                             SingleAddrVariable::new_usize(then_array.pointer),
                             SingleAddrVariable::new_usize(else_array.pointer),
-                            SingleAddrVariable::new_usize(pointer),
+                            SingleAddrVariable::new_usize(*pointer),
                         );
-                        let if_else_array = BrilligArray { pointer, size: then_array.size };
+                        let if_else_array =
+                            BrilligArray { pointer: *pointer, size: then_array.size };
                         // Copy the if-else array to the result
                         self.brillig_context
                             .call_array_copy_procedure(if_else_array, result.extract_array());
@@ -486,9 +491,9 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                             then_condition,
                             SingleAddrVariable::new_usize(then_vector.pointer),
                             SingleAddrVariable::new_usize(else_vector.pointer),
-                            SingleAddrVariable::new_usize(pointer),
+                            SingleAddrVariable::new_usize(*pointer),
                         );
-                        let if_else_vector = BrilligVector { pointer };
+                        let if_else_vector = BrilligVector { pointer: *pointer };
                         // Copy the if-else vector to the result
                         self.brillig_context
                             .call_vector_copy_procedure(if_else_vector, result.extract_vector());
@@ -510,8 +515,9 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
             for dead_variable in dead_variables {
                 // Globals are reserved throughout the entirety of the program
-                let not_hoisted_global = self.get_hoisted_global(dfg, *dead_variable).is_none();
-                if !dfg.is_global(*dead_variable) && not_hoisted_global {
+                let is_global = dfg.is_global(*dead_variable);
+                let is_hoisted_global = self.get_hoisted_global(dfg, *dead_variable).is_some();
+                if !is_global && !is_hoisted_global {
                     self.variables.remove_variable(
                         dead_variable,
                         self.function_context,
@@ -520,6 +526,8 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 }
             }
         }
+
+        // Clear the call stack; it only applied to this instruction.
         self.brillig_context.set_call_stack(CallStackId::root());
     }
 

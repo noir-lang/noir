@@ -8,6 +8,10 @@ use super::Expression;
 
 impl<F: Ord> Ord for Expression<F> {
     fn cmp(&self, other: &Self) -> Ordering {
+        // `get_max_term` has a comment: "This function assumes the gate is sorted"
+        assert!(self.is_sorted());
+        assert!(other.is_sorted());
+
         let mut i1 = self.get_max_idx();
         let mut i2 = other.get_max_idx();
         let mut result = Ordering::Equal;

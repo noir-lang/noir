@@ -37,15 +37,17 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         let mut loop_detector = LoopDetector::default();
         loop_detector.collect_loops(&movements_map);
         let loops = loop_detector.loops;
+
         // In order to break the loops we need to store one register from each in a temporary and then use that temporary as source.
         let mut temporaries = Vec::with_capacity(loops.len());
+
         for loop_found in loops {
             let temp_register = self.allocate_register();
-            temporaries.push(temp_register);
             let first_source = loop_found.iter().next().unwrap();
-            self.mov_instruction(temp_register, *first_source);
+            self.mov_instruction(*temp_register, *first_source);
             let destinations_of_temp = movements_map.remove(first_source).unwrap();
-            movements_map.insert(temp_register, destinations_of_temp);
+            movements_map.insert(*temp_register, destinations_of_temp);
+            temporaries.push(temp_register);
         }
 
         // After removing loops we should have an DAG with each node having only one ancestor (but could have multiple successors)
@@ -58,11 +60,6 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 
         for head in heads {
             self.perform_movements(&movements_map, head);
-        }
-
-        // Deallocate all temporaries
-        for temp in temporaries {
-            self.deallocate_register(temp);
         }
     }
 
