@@ -122,8 +122,8 @@ pub(crate) fn simplify(
                 return result;
             }
 
-            if let Some(index) = constant_index {
-                return try_optimize_array_get_from_previous_set(dfg, array, index);
+            if let Some(constant_index) = constant_index {
+                return try_optimize_array_get_from_previous_set(dfg, array, index, constant_index);
             }
 
             // If the array is of length 1 then we know the only value which can be potentially read out of it.
@@ -367,7 +367,7 @@ fn optimize_length_one_array_read(
     );
     dfg.insert_instruction_and_results(index_constraint, block, None, call_stack);
 
-    let result = try_optimize_array_get_from_previous_set(dfg, array, FieldElement::zero());
+    let result = try_optimize_array_get_from_previous_set(dfg, array, index, FieldElement::zero());
     if let SimplifyResult::None = result {
         SimplifyResult::SimplifiedToInstruction(Instruction::ArrayGet { array, index: zero })
     } else {
@@ -390,6 +390,7 @@ fn optimize_length_one_array_read(
 /// - Otherwise, we check the array value of the array set.
 ///   - If the array value is constant, we use that array.
 ///   - If the array value is from a previous array-set, we recur.
+///   - If the array value is a parameter, we can directly get from that parameter
 ///
 /// That is, we have multiple `array_set` instructions setting various constant indexes
 /// of the same array, returning a modified version. We want to go backwards until we
@@ -397,6 +398,7 @@ fn optimize_length_one_array_read(
 fn try_optimize_array_get_from_previous_set(
     dfg: &DataFlowGraph,
     mut array_id: ValueId,
+    index: ValueId,
     target_index: FieldElement,
 ) -> SimplifyResult {
     let mut elements = None;
@@ -424,6 +426,14 @@ fn try_optimize_array_get_from_previous_set(
                 _ => return SimplifyResult::None,
             }
         } else {
+            // If we reach a parameter, directly get from that parameter
+            if let Value::Param { .. } = dfg[array_id] {
+                return SimplifyResult::SimplifiedToInstruction(Instruction::ArrayGet {
+                    array: array_id,
+                    index,
+                });
+            }
+
             return SimplifyResult::None;
         }
     }
@@ -816,6 +826,53 @@ mod tests {
             v12 = array_get v0, index u32 1 -> Field
             v14 = array_get v0, index u32 2 -> Field
             return v11, Field 10, v12, v14
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_array_get_from_previous_array_set_with_make_array() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = make_array [Field 2, Field 3] : [Field; 2]
+            v1 = array_set mut v0, index u32 0, value Field 4
+            v2 = array_get v1, index u32 0 -> Field
+            v3 = array_get v1, index u32 1 -> Field
+            return v2, v3
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v2 = make_array [Field 2, Field 3] : [Field; 2]
+            v4 = make_array [Field 4, Field 3] : [Field; 2]
+            return Field 4, Field 3
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_array_get_from_previous_array_set_with_array_param() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: [Field; 2]):
+            v1 = array_set mut v0, index u32 0, value Field 4
+            v2 = array_get v1, index u32 0 -> Field
+            v3 = array_get v1, index u32 1 -> Field
+            return v2, v3
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: [Field; 2]):
+            v3 = array_set mut v0, index u32 0, value Field 4
+            v5 = array_get v0, index u32 1 -> Field
+            return Field 4, v5
         }
         ");
     }
