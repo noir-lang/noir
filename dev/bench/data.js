@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1761596696393,
+  "lastUpdate": 1761597209733,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23076,48 +23076,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "8d89dab4f5b5d3552a5f9a6f3f0a70bb65cf1c32",
-          "message": "chore: address clippy warnings (#10207)",
-          "timestamp": "2025-10-16T13:20:22+01:00",
-          "tree_id": "8d246a93d17eaa98e25420957816c06762f6c5a7",
-          "url": "https://github.com/noir-lang/noir/commit/8d89dab4f5b5d3552a5f9a6f3f0a70bb65cf1c32"
-        },
-        "date": 1760617658834,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 268476,
-            "range": "± 952",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 235042,
-            "range": "± 11725",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2786519,
-            "range": "± 1475",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "4eac078091d68fd38408138b817f13f36f2067fe",
           "message": "chore: add minimal reproductions for Cantina issues + typo fixes (#10120)",
           "timestamp": "2025-10-16T13:42:59+01:00",
@@ -25159,6 +25117,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2258017,
             "range": "± 2684",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7fb2f1a26b9c04860e24f018eb528a9a84e0f055",
+          "message": "feat(ACIR): reuse element_type_sizes blocks with the same structure (#10231)",
+          "timestamp": "2025-10-27T20:03:26Z",
+          "tree_id": "3d56bce3614b26e1560a27e7dfad1a6efd0ec650",
+          "url": "https://github.com/noir-lang/noir/commit/7fb2f1a26b9c04860e24f018eb528a9a84e0f055"
+        },
+        "date": 1761597183471,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 266940,
+            "range": "± 1861",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 237726,
+            "range": "± 3902",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2798884,
+            "range": "± 2435",
             "unit": "ns/iter"
           }
         ]
