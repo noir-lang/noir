@@ -583,7 +583,7 @@ fn suggests_importing_trait_via_module_reexport() {
 
 #[test]
 fn inherent_impl_shadows_trait_impl_for_qualified_calls() {
-    // Tests that inherent impls take precedence over trait impls for qualified method calls.
+    // Inherent impls take precedence over trait impls for qualified method calls.
     let src = r#"
     struct Foo {
         value: Field,
