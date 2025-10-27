@@ -21,12 +21,14 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         arguments: &[BrilligVariable],
         returns: &[BrilligVariable],
     ) {
+        // Allocate a register for the stack size. With this allocation, we have our current stack before the call.
+        let stack_size_register = self.allocate_single_addr_usize();
+
         // Find the start of free stack memory: this is our current stack size.
         let previous_stack_pointer = self.registers().empty_registers_start();
         let stack_size = previous_stack_pointer.unwrap_relative();
 
         // Write the current stack size to a register, so we can add it to the stack pointer.
-        let stack_size_register = self.allocate_single_addr_usize();
         self.const_instruction(*stack_size_register, stack_size.into());
 
         // Copy the current stack pointer into the 0th slot of the next stack frame.
