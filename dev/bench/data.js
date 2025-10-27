@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1761598483498,
+  "lastUpdate": 1761599390759,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23066,48 +23066,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "4eac078091d68fd38408138b817f13f36f2067fe",
-          "message": "chore: add minimal reproductions for Cantina issues + typo fixes (#10120)",
-          "timestamp": "2025-10-16T13:42:59+01:00",
-          "tree_id": "5a7dff63df259d8be905e6f3c37d965cee6c64be",
-          "url": "https://github.com/noir-lang/noir/commit/4eac078091d68fd38408138b817f13f36f2067fe"
-        },
-        "date": 1760618733158,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 262652,
-            "range": "± 471",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 229568,
-            "range": "± 4791",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2784047,
-            "range": "± 1115",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25159,6 +25117,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2798884,
             "range": "± 2435",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "dd8b7e81c3249cbaef557b734220aac44e361090",
+          "message": "chore(frontend): Elaborator impls documentation and additional tests  (#10302)",
+          "timestamp": "2025-10-27T20:47:12Z",
+          "tree_id": "93a3efac70941d22d7089c158e0262698bef5ae3",
+          "url": "https://github.com/noir-lang/noir/commit/dd8b7e81c3249cbaef557b734220aac44e361090"
+        },
+        "date": 1761599365444,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 262389,
+            "range": "± 686",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 231761,
+            "range": "± 5867",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2795176,
+            "range": "± 3004",
             "unit": "ns/iter"
           }
         ]
