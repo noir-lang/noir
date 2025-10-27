@@ -72,7 +72,7 @@ impl FunctionContext {
 
     /// Get the ID of the function this context was created for.
     ///
-    /// Panics if we call it when in the context for created to hold
+    /// Panics if we call it when in the context created to hold
     /// data structures for global codegen only.
     pub(crate) fn function_id(&self) -> FunctionId {
         self.function_id.expect("ICE: function_id should already be set")

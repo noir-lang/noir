@@ -263,7 +263,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
                 let destination_block = &dfg[*destination];
                 for (arg, param) in arguments.iter().zip(destination_block.parameters()) {
-                    // Destinations are block parameters so they should have been allocated previously in `create_block_params`.
+                    // Destinations are block parameters, so they should have been allocated previously in `create_block_params`.
                     let param = self.variables.get_allocation(self.function_context, *param);
                     let arg = self.convert_ssa_value(*arg, dfg);
                     self.brillig_context

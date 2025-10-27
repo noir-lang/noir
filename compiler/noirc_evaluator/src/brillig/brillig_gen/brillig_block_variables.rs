@@ -73,7 +73,7 @@ impl BlockVariables {
     /// For a given SSA value id, define the variable and return the corresponding cached memory allocation.
     ///
     /// The allocation will be cached in [FunctionContext::ssa_value_allocations], which is how it will be
-    /// passed on to the next block as a pre-allocated registers, if it's still alive at that point.
+    /// passed on to the next block as a pre-allocated register, if it's still alive at that point.
     ///
     /// The variable is added to [Self::available_variables] to show that it's live, where it stays until
     /// [Self::remove_variable] deletes it.
