@@ -10,29 +10,43 @@ use super::{
 };
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
+    /// Generate Brillig opcodes to:
+    /// * calculate the current stack size
+    /// * copy the current stack pointer and the call arguments into a new stack frame
+    /// * update the stack pointer and execute the call
+    /// * restore the stack pointer and copy the results into the return variables
     pub(crate) fn codegen_call(
         &mut self,
         func_id: FunctionId,
         arguments: &[BrilligVariable],
         returns: &[BrilligVariable],
     ) {
-        let stack_size_register = self.allocate_single_addr_usize();
+        // Find the start of free stack memory: this is our current stack size.
         let previous_stack_pointer = self.registers().empty_registers_start();
         let stack_size = previous_stack_pointer.unwrap_relative();
-        // Write the stack size
+
+        // Write the current stack size to a register, so we can add it to the stack pointer.
+        let stack_size_register = self.allocate_single_addr_usize();
         self.const_instruction(*stack_size_register, stack_size.into());
-        // Pass the previous stack pointer
+
+        // Copy the current stack pointer into the 0th slot of the next stack frame.
+        // This is the previous stack pointer to return to after the call.
         self.mov_instruction(previous_stack_pointer, ReservedRegisters::stack_pointer());
-        // Pass the arguments
+
+        // Pass the arguments in the 1st, 2nd, ... slots of the stack.
         let mut current_argument_location = stack_size + 1;
         for item in arguments {
+            // Here we are still using addresses relative to the current stack pointer.
             self.mov_instruction(
                 MemoryAddress::relative(current_argument_location),
                 item.extract_register(),
             );
             current_argument_location += 1;
         }
-        // Increment the stack pointer
+
+        // Increment the stack pointer for the call: stack_pointer := stack_pointer + stack_size.
+        // By increasing it with the stack size before arguments where copied, it will include the
+        // arguments at the intended relative addresses.
         self.memory_op_instruction(
             ReservedRegisters::stack_pointer(),
             stack_size_register.address,
@@ -42,10 +56,10 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 
         self.add_external_call_instruction(func_id);
 
-        // Restore the stack pointer
+        // Restore the previous stack pointer, which was copied into the 0th slot.
         self.mov_instruction(ReservedRegisters::stack_pointer(), MemoryAddress::relative(0));
 
-        // Move the return values back
+        // Move the return values back. The return values are expected to overwrite the args.
         let mut current_return_location = stack_size + 1;
         for item in returns {
             self.mov_instruction(

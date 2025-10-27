@@ -125,6 +125,8 @@ pub(crate) trait RegisterAllocator {
         layout: LayoutConfig,
     ) -> Self;
     /// Finds the first register which is followed only by free registers.
+    ///
+    /// Always returns a `Relative` address.
     fn empty_registers_start(&self) -> MemoryAddress;
     /// Return the memory layout used by this allocator.
     fn layout(&self) -> LayoutConfig;
