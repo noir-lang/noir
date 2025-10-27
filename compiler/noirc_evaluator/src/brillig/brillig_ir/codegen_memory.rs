@@ -64,7 +64,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.load_instruction(result, *final_index);
     }
 
-    /// Stores value at base_ptr + index
+    /// Stores value at `base_ptr` + `index`.
     pub(crate) fn codegen_store_with_offset(
         &mut self,
         base_ptr: MemoryAddress,
@@ -73,13 +73,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     ) {
         assert!(index.bit_size == BRILLIG_MEMORY_ADDRESSING_BIT_SIZE);
         let final_index = self.allocate_register();
-        self.binary_instruction(
-            SingleAddrVariable::new_usize(base_ptr),
-            index,
-            SingleAddrVariable::new_usize(*final_index),
-            BrilligBinaryOp::Add,
-        );
-
+        self.memory_op_instruction(base_ptr, index.address, *final_index, BrilligBinaryOp::Add);
         self.store_instruction(*final_index, value);
     }
 

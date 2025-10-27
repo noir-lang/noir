@@ -189,7 +189,11 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         }
     }
 
-    /// Load from an array variable at a specific index into a specified destination
+    /// Load from an array variable at a specific index into a specified destination.
+    ///
+    /// If `has_offset` is set, then the `index_variable` is expected to have accounted for the array/vector specific offset
+    /// between the `array_variable` and the start of the items; otherwise opcodes are emitted to calculate an adjusted
+    /// base pointer.
     ///
     /// # Panics
     /// - The array variable is not a [BrilligVariable::BrilligArray] or [BrilligVariable::BrilligVector] when `has_offset` is false
@@ -220,6 +224,10 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
     /// [call into the array copy procedure][BrilligContext::call_array_copy_procedure].
     /// If the reference count of an array pointer is one, we write directly to the array.
     /// Look at the [procedure compilation][crate::brillig::brillig_ir::procedures::compile_procedure] for the exact procedure's codegen.
+    ///
+    /// If `has_offset` is set, then the `index_variable` is expected to have accounted for the array/vector specific offset
+    /// between the `source_variable` and the start of the items; otherwise opcodes are emitted to calculate an adjusted
+    /// base pointer.
     fn convert_ssa_array_set(
         &mut self,
         source_variable: BrilligVariable,
@@ -298,16 +306,19 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
             .codegen_constrain(*condition, Some("array ref-count underflow detected".to_owned()));
     }
 
+    /// Define the result variable then allocate 1 slot from free memory to hold a reference in it.
     pub(crate) fn codegen_allocate(&mut self, instruction_id: InstructionId, dfg: &DataFlowGraph) {
-        let [result_value] = dfg.instruction_result(instruction_id);
+        let [result_id] = dfg.instruction_result(instruction_id);
         let pointer = self.variables.define_single_addr_variable(
             self.function_context,
             self.brillig_context,
-            result_value,
+            result_id,
             dfg,
         );
         self.brillig_context.codegen_allocate_immediate_mem(pointer.address, 1);
     }
+
+    /// Convert the `address` and `value` to Brillig variables, then generate opcodes to store `value` at `address`.
     pub(crate) fn codegen_store(&mut self, address: ValueId, value: ValueId, dfg: &DataFlowGraph) {
         let address_var = self.convert_ssa_single_addr_value(address, dfg);
         let source_variable = self.convert_ssa_value(value, dfg);
@@ -315,18 +326,20 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         self.brillig_context
             .store_instruction(address_var.address, source_variable.extract_register());
     }
+
+    /// Define the result variable, then generate opcodes to load the converted `address` into it.
     pub(crate) fn codegen_load(
         &mut self,
         instruction_id: InstructionId,
         address: ValueId,
         dfg: &DataFlowGraph,
     ) {
-        let [result_value] = dfg.instruction_result(instruction_id);
+        let [result_id] = dfg.instruction_result(instruction_id);
 
         let target_variable = self.variables.define_variable(
             self.function_context,
             self.brillig_context,
-            result_value,
+            result_id,
             dfg,
         );
 
@@ -336,7 +349,8 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
             .load_instruction(target_variable.extract_register(), address_variable.address);
     }
 
-    pub(crate) fn array_get(
+    /// Define a variable for the result, convert the array and indexes, then generate opcodes to load an array item.
+    pub(crate) fn codegen_array_get(
         &mut self,
         instruction_id: InstructionId,
         array: ValueId,
@@ -365,7 +379,8 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         );
     }
 
-    pub(crate) fn array_set(
+    /// Define a variable for the result, convert the array, index and value, then generate opcodes to store an array item.
+    pub(crate) fn codegen_array_set(
         &mut self,
         instruction_id: InstructionId,
         array: ValueId,
@@ -401,7 +416,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
 
     /// Define the variable for the array or vector, allocate memory for the ref-counter and items,
     /// then load all items from `array` into the memory.
-    pub(crate) fn make_array(
+    pub(crate) fn codegen_make_array(
         &mut self,
         instruction_id: InstructionId,
         array: &Vector<ValueId>,
@@ -445,7 +460,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         }
     }
 
-    pub(crate) fn increment_rc(&mut self, value: ValueId, dfg: &DataFlowGraph) {
+    pub(crate) fn codegen_increment_rc(&mut self, value: ValueId, dfg: &DataFlowGraph) {
         let array_or_vector = self.convert_ssa_value(value, dfg);
         let rc_register = self.brillig_context.allocate_register();
 
@@ -460,7 +475,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         self.brillig_context.codegen_usize_op_in_place(*rc_register, BrilligBinaryOp::Add, 1);
         self.brillig_context.store_instruction(array_or_vector.extract_register(), *rc_register);
     }
-    pub(crate) fn decrement_rc(&mut self, value: ValueId, dfg: &DataFlowGraph) {
+    pub(crate) fn codegen_decrement_rc(&mut self, value: ValueId, dfg: &DataFlowGraph) {
         let array_or_vector = self.convert_ssa_value(value, dfg);
         let array_register = array_or_vector.extract_register();
 

@@ -11,7 +11,8 @@ use crate::ssa::ir::{dfg::DataFlowGraph, instruction::ConstrainError, value::Val
 use iter_extended::vecmap;
 
 impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
-    /// Converts the Binary instruction into a sequence of Brillig opcodes.
+    /// Converts the Binary instruction into a sequence of Brillig opcodes,
+    /// writing the results to the `result_variable`.
     fn convert_ssa_binary(
         &mut self,
         binary: &Binary,
@@ -263,7 +264,8 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         }
     }
 
-    pub(crate) fn binary_gen(
+    /// Define a variable for the result and convert a binary operation to Brillig opcodes.
+    pub(crate) fn codegen_binary(
         &mut self,
         instruction_id: InstructionId,
         binary: &Binary,
@@ -279,7 +281,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         self.convert_ssa_binary(binary, dfg, result_var);
     }
 
-    pub(crate) fn constrain_gen(
+    pub(crate) fn codegen_constrain(
         &mut self,
         lhs: ValueId,
         rhs: ValueId,

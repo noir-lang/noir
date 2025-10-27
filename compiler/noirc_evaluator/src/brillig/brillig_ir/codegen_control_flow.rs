@@ -246,19 +246,20 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         });
     }
 
-    /// Emits brillig bytecode to jump to a trap condition if `condition`
-    /// is false.
+    /// Emits brillig bytecode to jump to a trap condition if `condition` is false,
+    /// with any assertion message written to the revert data.
     pub(crate) fn codegen_constrain(
         &mut self,
         condition: SingleAddrVariable,
         assert_message: Option<String>,
     ) {
-        assert!(condition.bit_size == 1);
+        debug_assert!(condition.bit_size == 1);
 
         self.codegen_if_not(condition.address, |ctx| {
             if let Some(assert_message) = assert_message {
                 ctx.revert_with_string(assert_message);
             } else {
+                // Create an empty revert data vector, with 0 size pointing at the start of free memory.
                 let revert_data =
                     ctx.make_usize_constant_instruction(0_usize.into()).map(|size| HeapVector {
                         pointer: ReservedRegisters::free_memory_pointer(),
@@ -269,13 +270,17 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         });
     }
 
+    /// Emits brillig byte code with a trap opcode, reverting with data that contains a specific error message.
     pub(super) fn revert_with_string(&mut self, revert_string: String) {
         if self.can_call_procedures {
             self.call_revert_with_string_procedure(revert_string);
         } else {
             let error_type = ErrorType::String(revert_string);
+            // Get a hash selector for the custom error type with the message and store it in the artifact.
             let error_selector = error_type.selector();
             self.obj.error_types.insert(error_selector, error_type);
+            // Write the selector to the free memory pointer and return it as revert data.
+            // No need to increment the free memory pointer after this, since it's a trap.
             self.indirect_const_instruction(
                 ReservedRegisters::free_memory_pointer(),
                 64,

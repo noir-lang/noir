@@ -219,7 +219,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         );
     }
 
-    pub(crate) fn call_gen(
+    pub(crate) fn codegen_call(
         &mut self,
         instruction_id: InstructionId,
         func: ValueId,
