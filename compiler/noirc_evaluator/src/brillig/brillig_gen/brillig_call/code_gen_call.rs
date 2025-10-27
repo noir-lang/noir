@@ -201,7 +201,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         let source_size_register =
             self.brillig_context.make_usize_constant_instruction(source_array.size.into());
 
-        // we need to explicitly set the destination_len_variable
+        // We need to explicitly set the destination_len_variable to be the semantic length, which is not flattened.
         self.brillig_context.codegen_usize_op(
             source_size_register.address,
             destination_len_variable.address,
@@ -209,13 +209,14 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
             element_size,
         );
 
+        // Initialize the vector with the flattened size.
         self.brillig_context.codegen_initialize_vector(
             destination_vector,
             *source_size_register,
             None,
         );
 
-        // Items
+        // Copy items from the array into the vector.
         let vector_items_pointer =
             self.brillig_context.codegen_make_vector_items_pointer(destination_vector);
         let array_items_pointer =
