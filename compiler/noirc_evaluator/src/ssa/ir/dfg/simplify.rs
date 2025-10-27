@@ -2,7 +2,7 @@ use crate::ssa::ir::{
     basic_block::BasicBlockId,
     dfg::simplify::value_merger::ValueMerger,
     instruction::{
-        Binary, BinaryOp, ConstrainError, Instruction,
+        Binary, BinaryOp, ConstrainError, Instruction, Intrinsic,
         binary::{truncate, truncate_field},
     },
     types::{NumericType, Type},
@@ -111,20 +111,45 @@ pub(crate) fn simplify(
         }
         Instruction::ConstrainNotEqual(..) => None,
         Instruction::ArrayGet { array, index } => {
-            if let Some(index) = dfg.get_numeric_constant(*index) {
-                return try_optimize_array_get_from_previous_set(dfg, *array, index);
+            let mut array = *array;
+            let mut index = *index;
+            let constant_index = dfg.get_numeric_constant(index);
+
+            // If it's an `array_get` on a value that results from a call to `slice_insert` with a
+            // constant index we can do `array_get` on the original slice or use the inserted value
+            let result = try_optimize_array_get_on_slice_insert(dfg, array, index, constant_index);
+            match result {
+                SimplifiedToInstruction(Instruction::ArrayGet {
+                    array: new_array,
+                    index: new_index,
+                }) => {
+                    // If we simplified to another array get, try to optimize that one too
+                    array = new_array;
+                    index = new_index;
+                }
+                SimplifiedTo(value) => {
+                    return SimplifiedTo(value);
+                }
+                None => {}
+                _ => {
+                    return result;
+                }
             }
 
-            let array_or_slice_type = dfg.type_of_value(*array);
+            if let Some(index) = constant_index {
+                return try_optimize_array_get_from_previous_set(dfg, array, index);
+            }
+
+            // If the array is of length 1 then we know the only value which can be potentially read out of it.
+            // We can then simply assert that the index is equal to zero and return the array's contained value.
+            let array_or_slice_type = dfg.type_of_value(array);
             if matches!(array_or_slice_type, Type::Array(_, 1))
                 && array_or_slice_type.element_size() == 1
             {
-                // If the array is of length 1 then we know the only value which can be potentially read out of it.
-                // We can then simply assert that the index is equal to zero and return the array's contained value.
-                optimize_length_one_array_read(dfg, block, call_stack, *array, *index)
-            } else {
-                None
+                return optimize_length_one_array_read(dfg, block, call_stack, array, index);
             }
+
+            None
         }
         Instruction::ArraySet { array: array_id, index: index_id, value, .. } => {
             let array = dfg.get_array_constant(*array_id);
@@ -426,6 +451,76 @@ fn try_optimize_array_get_from_previous_set(
     SimplifyResult::None
 }
 
+fn try_optimize_array_get_on_slice_insert(
+    dfg: &mut DataFlowGraph,
+    array: ValueId,
+    index: ValueId,
+    constant_index: Option<FieldElement>,
+) -> SimplifyResult {
+    let Some(constant_index) = constant_index else {
+        return SimplifyResult::None;
+    };
+
+    let Some(slice_insert) = dfg.get_intrinsic(Intrinsic::SliceInsert) else {
+        return SimplifyResult::None;
+    };
+
+    let Value::Instruction { instruction, .. } = dfg[array] else {
+        return SimplifyResult::None;
+    };
+
+    let Instruction::Call { func, arguments } = &dfg[instruction] else {
+        return SimplifyResult::None;
+    };
+
+    if func != slice_insert {
+        return SimplifyResult::None;
+    }
+
+    // slice_insert(length, slice, index, values...)
+
+    // For simplicity, we only optimize when only a single value is being inserted
+    if arguments.len() != 4 {
+        return SimplifyResult::None;
+    }
+
+    let mut slice = arguments[1];
+    let insert_index = arguments[2];
+
+    let Some(insert_index_constant) = dfg.get_numeric_constant(insert_index) else {
+        return SimplifyResult::None;
+    };
+
+    // If the slice came from an `as_slice` call, we can get from the original array
+    if let Some(as_slice) = dfg.get_intrinsic(Intrinsic::AsSlice) {
+        if let Value::Instruction { instruction, .. } = dfg[slice] {
+            if let Instruction::Call { func, arguments } = &dfg[instruction] {
+                if func == as_slice {
+                    slice = arguments[0];
+                }
+            }
+        }
+    }
+
+    match constant_index.cmp(&insert_index_constant) {
+        std::cmp::Ordering::Equal => {
+            // If we get from the index the value was inserted in, we can simplify it to that value
+            SimplifyResult::SimplifiedTo(arguments[3])
+        }
+        std::cmp::Ordering::Less => {
+            // If the index is before the slice insert index, we can directly read from the original slice
+            SimplifyResult::SimplifiedToInstruction(Instruction::ArrayGet { array: slice, index })
+        }
+        std::cmp::Ordering::Greater => {
+            // If the index is after the slice insert index, the index is one less in the original slice
+            // as in the new slice all values after the insert index have been shifted forward
+            let index =
+                dfg.make_constant(constant_index - FieldElement::one(), NumericType::length_type());
+            SimplifyResult::SimplifiedToInstruction(Instruction::ArrayGet { array: slice, index })
+        }
+    }
+}
+
 /// If we have an array set whose value is from an array get on the same array at the same index,
 /// we can simplify that array set to the array we were looking to perform an array set upon.
 ///
@@ -706,5 +801,36 @@ mod tests {
         let ssa = Ssa::from_str_simplifying(src).unwrap();
 
         assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn simplifies_array_get_on_slice_insert() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+        b0(v0: [Field; 3]):
+            v2, v3 = call as_slice(v0) -> (u32, [Field])
+            v8, v9 = call slice_insert(u32 3, v3, u32 1, Field 10) -> (u32, [Field])
+            v10 = array_get v9, index u32 0 -> Field
+            v11 = array_get v9, index u32 1 -> Field
+            v12 = array_get v9, index u32 2 -> Field
+            v13 = array_get v9, index u32 3 -> Field
+            return v10, v11, v12, v13
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        // We can see that the array_gets now read from v0 instead of v9,
+        // and for the index 1 we use the inserted value.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: [Field; 3]):
+            v2, v3 = call as_slice(v0) -> (u32, [Field])
+            v8, v9 = call slice_insert(u32 3, v3, u32 1, Field 10) -> (u32, [Field])
+            v11 = array_get v0, index u32 0 -> Field
+            v12 = array_get v0, index u32 1 -> Field
+            v14 = array_get v0, index u32 2 -> Field
+            return v11, Field 10, v12, v14
+        }
+        ");
     }
 }

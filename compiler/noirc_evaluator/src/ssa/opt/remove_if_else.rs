@@ -757,7 +757,7 @@ mod tests {
         let mut ssa = Ssa::from_str(src).unwrap();
         ssa = ssa.remove_if_else().unwrap();
 
-        // Here v14 is the result of the merge (keep `[v13]`)
+        // Here v13 is the result of the merge (keep `[v2]`)
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) impure fn main f0 {
           b0(v0: u1, v1: Field, v2: Field):
@@ -769,11 +769,10 @@ mod tests {
             v9, v10 = call slice_insert(v6, v3, u32 0, v2) -> (u32, [Field])
             v11 = not v0
             v12 = cast v0 as u32
-            v13 = array_get v10, index u32 0 -> Field
-            v14 = make_array [v13] : [Field]
+            v13 = make_array [v2] : [Field]
             enable_side_effects u1 1
-            v17 = add v12, u32 1
-            v18 = make_array [v2, v13] : [Field]
+            v16 = add v12, u32 1
+            v17 = make_array [v2, v2] : [Field]
             constrain v2 == Field 1
             return
         }
