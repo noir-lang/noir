@@ -100,6 +100,22 @@ impl Function {
                 } else {
                     None
                 }
+            } else if slice_pop_front.is_some_and(|op| target_func == &op) {
+                if let Some(length) = context.dfg.get_numeric_constant(arguments[0]) {
+                    if !length.is_zero() {
+                        // For `slice_pop_front(length, ...)` we can replace the resulting length with length - 1.
+                        let length = length - FieldElement::one();
+                        // Note that `(popped_element, new_slice)` is returned so the new length is
+                        // the before last result.
+                        let results = context.dfg.instruction_results(instruction_id);
+                        let new_slice_length = results[results.len() - 2];
+                        Some((new_slice_length, length))
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
             } else {
                 None
             };
@@ -279,6 +295,30 @@ mod test {
           b0():
             v2 = make_array [Field 2, Field 3] : [Field]
             v5, v6, v7 = call slice_pop_back(u32 2, v2) -> (u32, [Field], Field)
+            return u32 1
+        }
+        ");
+    }
+
+    #[test]
+    fn slice_pop_front_optimization() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = make_array [Field 2, Field 3] : [Field]
+            v1, v2, v3 = call slice_pop_front(u32 2, v0) -> (Field, u32, [Field])
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        // Here `v2` was replaced with 1 because we know the new length is 2 - 1
+        let ssa = ssa.slice_instrinsics_length_optimization();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v2 = make_array [Field 2, Field 3] : [Field]
+            v5, v6, v7 = call slice_pop_front(u32 2, v2) -> (Field, u32, [Field])
             return u32 1
         }
         ");
