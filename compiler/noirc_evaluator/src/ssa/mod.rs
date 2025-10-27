@@ -163,8 +163,11 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             "Dead Instruction Elimination",
         ),
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
-        SsaPass::new(Ssa::slice_instrinsics_length_optimization, "`as_slice` optimization")
-            .and_then(Ssa::remove_unreachable_functions),
+        SsaPass::new(
+            Ssa::slice_instrinsics_length_optimization,
+            "slice intrinsics length optimization",
+        )
+        .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new_try(
             Ssa::evaluate_static_assert_and_assert_constant,
             "`static_assert` and `assert_constant`",
@@ -229,6 +232,12 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         // We cannot run mem2reg after DIE, because it removes Store instructions.
         // We have to run it before, to give it a chance to turn Store+Load into known values.
         SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
+        // After several Mem2Reg passes, some slice intrinsics will be able to be further optimized
+        SsaPass::new(
+            Ssa::slice_instrinsics_length_optimization,
+            "slice intrinsics length optimization",
+        )
+        .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
         SsaPass::new(Ssa::brillig_entry_point_analysis, "Brillig Entry Point Analysis")
             // Remove any potentially unnecessary duplication from the Brillig entry point analysis.
