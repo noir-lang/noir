@@ -18,7 +18,12 @@ pub const STACK_POINTER_ADDRESS: MemoryAddress = MemoryAddress::Direct(0);
 /// * Arrays are `[ref-count, ...items]`
 /// * Vectors are `[ref-count, size, capacity, ...items]`
 pub mod offsets {
+    /// Number of prefix fields in an array: RC.
+    pub const ARRAY_META_COUNT: usize = 1;
     pub const ARRAY_ITEMS: usize = 1;
+
+    /// Number of prefix fields in a vector: RC, size, capacity.
+    pub const VECTOR_META_COUNT: usize = 3;
     pub const VECTOR_SIZE: usize = 1;
     pub const VECTOR_CAPACITY: usize = 2;
     pub const VECTOR_ITEMS: usize = 3;
@@ -31,7 +36,7 @@ pub mod offsets {
 pub(crate) struct ArrayAddress(MemoryAddress);
 
 impl ArrayAddress {
-    pub fn items_start(&self) -> MemoryAddress {
+    pub(crate) fn items_start(&self) -> MemoryAddress {
         self.0.offset(offsets::ARRAY_ITEMS)
     }
 }
