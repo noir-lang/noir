@@ -185,46 +185,7 @@
 <a href="#184" id="184">184</a>
 <a href="#185" id="185">185</a>
 <a href="#186" id="186">186</a>
-<a href="#187" id="187">187</a>
-<a href="#188" id="188">188</a>
-<a href="#189" id="189">189</a>
-<a href="#190" id="190">190</a>
-<a href="#191" id="191">191</a>
-<a href="#192" id="192">192</a>
-<a href="#193" id="193">193</a>
-<a href="#194" id="194">194</a>
-<a href="#195" id="195">195</a>
-<a href="#196" id="196">196</a>
-<a href="#197" id="197">197</a>
-<a href="#198" id="198">198</a>
-<a href="#199" id="199">199</a>
-<a href="#200" id="200">200</a>
-<a href="#201" id="201">201</a>
-<a href="#202" id="202">202</a>
-<a href="#203" id="203">203</a>
-<a href="#204" id="204">204</a>
-<a href="#205" id="205">205</a>
-<a href="#206" id="206">206</a>
-<a href="#207" id="207">207</a>
-<a href="#208" id="208">208</a>
-<a href="#209" id="209">209</a>
-<a href="#210" id="210">210</a>
-<a href="#211" id="211">211</a>
-<a href="#212" id="212">212</a>
-<a href="#213" id="213">213</a>
-<a href="#214" id="214">214</a>
-<a href="#215" id="215">215</a>
-<a href="#216" id="216">216</a>
-<a href="#217" id="217">217</a>
-<a href="#218" id="218">218</a>
-<a href="#219" id="219">219</a>
-<a href="#220" id="220">220</a>
-<a href="#221" id="221">221</a>
-<a href="#222" id="222">222</a>
-<a href="#223" id="223">223</a>
-<a href="#224" id="224">224</a>
-<a href="#225" id="225">225</a>
-<a href="#226" id="226">226</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module analyzes the usage of constants in a given function and decides an allocation point for them.
+<a href="#187" id="187">187</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module analyzes the usage of constants in a given function and decides an allocation point for them.
 //! The allocation point will be the common dominator of all the places where the constant is used.
 //! By allocating in the common dominator, we can cache the constants for all subsequent uses.
 
@@ -232,41 +193,51 @@
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
     basic_block::BasicBlockId,
-    cfg::ControlFlowGraph,
     dfg::DataFlowGraph,
     dom::DominatorTree,
     function::Function,
     instruction::InstructionId,
-    post_order::PostOrder,
     value::{Value, ValueId},
 };
 
-<span class="kw">use </span><span class="kw">super</span>::variable_liveness::{collect_variables_of_value, variables_used_in_instruction};
+<span class="kw">use </span><span class="kw">super</span>::variable_liveness::{is_variable, variables_used_in_instruction};
+<span class="kw">use </span><span class="kw">crate</span>::ssa::opt::Loops;
 
-<span class="attr">#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+<span class="doccomment">/// Indicate where a variable was used in a block.
+</span><span class="attr">#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>InstructionLocation {
     Instruction(InstructionId),
     Terminator,
 }
 
-<span class="attr">#[derive(Default)]
+<span class="doccomment">/// Decisions about which block a constant should be allocated in.
+///
+/// The allocation points can further be hoisted into the global
+/// space if they are shared across functions. That algorithm is
+/// based on these per-function results.
+</span><span class="attr">#[derive(Default)]
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>ConstantAllocation {
-    constant_usage: BTreeMap&lt;ValueId, BTreeMap&lt;BasicBlockId, Vec&lt;InstructionLocation&gt;&gt;&gt;,
-    allocation_points: BTreeMap&lt;BasicBlockId, BTreeMap&lt;InstructionLocation, Vec&lt;ValueId&gt;&gt;&gt;,
-    dominator_tree: DominatorTree,
-    blocks_within_loops: BTreeSet&lt;BasicBlockId&gt;,
+    <span class="doccomment">/// Map each constant to the blocks and instructions in which it is used.
+    </span>constant_usage: BTreeMap&lt;ValueId, BTreeMap&lt;BasicBlockId, Vec&lt;InstructionLocation&gt;&gt;&gt;,
+    <span class="doccomment">/// Map each block and instruction to the list of constants that should be allocated at that point.
+    </span>allocation_points: BTreeMap&lt;BasicBlockId, BTreeMap&lt;InstructionLocation, Vec&lt;ValueId&gt;&gt;&gt;,
+    <span class="doccomment">/// The dominator tree is used to find the common dominator of all the blocks that share a constant.
+    </span>dominator_tree: DominatorTree,
+    <span class="doccomment">/// Further to finding the common dominator, we try to find a dominator that isn't part of a loop.
+    </span>blocks_within_loops: BTreeSet&lt;BasicBlockId&gt;,
 }
 
 <span class="kw">impl </span>ConstantAllocation {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>from_function(func: <span class="kw-2">&amp;</span>Function) -&gt; <span class="self">Self </span>{
-        <span class="kw">let </span>cfg = ControlFlowGraph::with_function(func);
-        <span class="kw">let </span>post_order = PostOrder::with_function(func);
-        <span class="kw">let </span><span class="kw-2">mut </span>dominator_tree = DominatorTree::with_cfg_and_post_order(<span class="kw-2">&amp;</span>cfg, <span class="kw-2">&amp;</span>post_order);
-        <span class="kw">let </span>blocks_within_loops = find_all_blocks_within_loops(func, <span class="kw-2">&amp;</span>cfg, <span class="kw-2">&amp;mut </span>dominator_tree);
+    <span class="doccomment">/// Run the constant allocation algorithm for a [Function] and return the decisions.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>from_function(func: <span class="kw-2">&amp;</span>Function) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>loops = Loops::find_all(func);
+        <span class="kw">let </span>blocks_within_loops =
+            loops.yet_to_unroll.into_iter().flat_map(|_loop| _loop.blocks).collect();
+
         <span class="kw">let </span><span class="kw-2">mut </span>instance = ConstantAllocation {
             constant_usage: BTreeMap::default(),
             allocation_points: BTreeMap::default(),
-            dominator_tree,
+            dominator_tree: loops.dom,
             blocks_within_loops,
         };
         instance.collect_constant_usage(func);
@@ -275,13 +246,15 @@
         instance
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>allocated_in_block(<span class="kw-2">&amp;</span><span class="self">self</span>, block_id: BasicBlockId) -&gt; Vec&lt;ValueId&gt; {
+    <span class="doccomment">/// Collect all constants allocated in a given block.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>allocated_in_block(<span class="kw-2">&amp;</span><span class="self">self</span>, block_id: BasicBlockId) -&gt; Vec&lt;ValueId&gt; {
         <span class="self">self</span>.allocation_points.get(<span class="kw-2">&amp;</span>block_id).map_or(Vec::default(), |allocations| {
-            allocations.iter().flat_map(|(<span class="kw">_</span>, constants)| constants.iter()).copied().collect()
+            allocations.iter().flat_map(|(<span class="kw">_</span>, constants)| constants).copied().collect()
         })
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>allocated_at_location(
+    <span class="doccomment">/// Collect all constants allocated in a given block at a specific location.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>allocated_at_location(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         block_id: BasicBlockId,
         location: InstructionLocation,
@@ -291,10 +264,11 @@
         })
     }
 
-    <span class="kw">fn </span>collect_constant_usage(<span class="kw-2">&amp;mut </span><span class="self">self</span>, func: <span class="kw-2">&amp;</span>Function) {
+    <span class="doccomment">/// Visit all constant variables in the function and record their locations.
+    </span><span class="kw">fn </span>collect_constant_usage(<span class="kw-2">&amp;mut </span><span class="self">self</span>, func: <span class="kw-2">&amp;</span>Function) {
         <span class="kw">let </span><span class="kw-2">mut </span>record_if_constant =
             |block_id: BasicBlockId, value_id: ValueId, location: InstructionLocation| {
-                <span class="kw">if </span>is_constant_value(value_id, <span class="kw-2">&amp;</span>func.dfg) {
+                <span class="kw">if </span>is_numeric_constant(value_id, <span class="kw-2">&amp;</span>func.dfg) {
                     <span class="self">self</span>.constant_usage
                         .entry(value_id)
                         .or_default()
@@ -317,15 +291,17 @@
             }
             <span class="kw">if let </span><span class="prelude-val">Some</span>(terminator_instruction) = block.terminator() {
                 terminator_instruction.for_each_value(|value_id| {
-                    <span class="kw">if let </span><span class="prelude-val">Some</span>(variable) = collect_variables_of_value(value_id, <span class="kw-2">&amp;</span>func.dfg) {
-                        record_if_constant(block_id, variable, InstructionLocation::Terminator);
+                    <span class="kw">if </span>is_variable(value_id, <span class="kw-2">&amp;</span>func.dfg) {
+                        record_if_constant(block_id, value_id, InstructionLocation::Terminator);
                     }
                 });
             }
         }
     }
 
-    <span class="kw">fn </span>decide_allocation_points(<span class="kw-2">&amp;mut </span><span class="self">self</span>, func: <span class="kw-2">&amp;</span>Function) {
+    <span class="doccomment">/// Based on the [Self::constant_usage] collected, find the common dominator of all the block where a constant is used
+    /// and mark it as the allocation point for the constant.
+    </span><span class="kw">fn </span>decide_allocation_points(<span class="kw-2">&amp;mut </span><span class="self">self</span>, func: <span class="kw-2">&amp;</span>Function) {
         <span class="kw">for </span>(constant_id, usage_in_blocks) <span class="kw">in </span><span class="self">self</span>.constant_usage.iter() {
             <span class="kw">let </span>block_ids: Vec&lt;<span class="kw">_</span>&gt; = usage_in_blocks.keys().copied().collect();
 
@@ -352,26 +328,22 @@
         }
     }
 
-    <span class="kw">fn </span>decide_allocation_point(
+    <span class="doccomment">/// Decide where to allocate a constant, based on the common dominator of the provided block list.
+    </span><span class="kw">fn </span>decide_allocation_point(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         constant_id: ValueId,
-        blocks_where_is_used: <span class="kw-2">&amp;</span>[BasicBlockId],
+        used_in_blocks: <span class="kw-2">&amp;</span>[BasicBlockId],
         func: <span class="kw-2">&amp;</span>Function,
     ) -&gt; BasicBlockId {
         <span class="comment">// Find the common dominator of all the blocks where the constant is used.
-        </span><span class="kw">let </span>common_dominator = <span class="kw">if </span>blocks_where_is_used.len() == <span class="number">1 </span>{
-            blocks_where_is_used[<span class="number">0</span>]
-        } <span class="kw">else </span>{
-            <span class="kw">let </span><span class="kw-2">mut </span>common_dominator = blocks_where_is_used[<span class="number">0</span>];
+        </span><span class="kw">let </span>common_dominator = used_in_blocks
+            .iter()
+            .copied()
+            .reduce(|a, b| <span class="self">self</span>.dominator_tree.common_dominator(a, b))
+            .unwrap_or(used_in_blocks[<span class="number">0</span>]);
 
-            <span class="kw">for </span>block_id <span class="kw">in </span>blocks_where_is_used.iter().skip(<span class="number">1</span>) {
-                common_dominator =
-                    <span class="self">self</span>.dominator_tree.common_dominator(common_dominator, <span class="kw-2">*</span>block_id);
-            }
-
-            common_dominator
-        };
-        <span class="comment">// If the value only contains constants, it's safe to hoist outside of any loop
+        <span class="comment">// If the value only contains constants, it's safe to hoist outside of any loop.
+        // Technically we know this is going to be true, because we only collected values which are `Value::NumericConstant`.
         </span><span class="kw">if </span>func.dfg.is_constant(constant_id) {
             <span class="self">self</span>.exit_loops(common_dominator)
         } <span class="kw">else </span>{
@@ -391,63 +363,13 @@
         current_block
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_constants(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; BTreeSet&lt;ValueId&gt; {
+    <span class="doccomment">/// Return the SSA [ValueId] of all constants (the same numeric constant might appear with multiple IDs).
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_constants(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; BTreeSet&lt;ValueId&gt; {
         <span class="self">self</span>.constant_usage.keys().copied().collect()
     }
 }
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_constant_value(id: ValueId, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) -&gt; bool {
+<span class="kw">fn </span>is_numeric_constant(id: ValueId, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) -&gt; bool {
     <span class="macro">matches!</span>(<span class="kw-2">&amp;</span>dfg[id], Value::NumericConstant { .. })
-}
-
-<span class="doccomment">/// For a given function, finds all the blocks that are within loops
-</span><span class="kw">fn </span>find_all_blocks_within_loops(
-    func: <span class="kw-2">&amp;</span>Function,
-    cfg: <span class="kw-2">&amp;</span>ControlFlowGraph,
-    dominator_tree: <span class="kw-2">&amp;mut </span>DominatorTree,
-) -&gt; BTreeSet&lt;BasicBlockId&gt; {
-    <span class="kw">let </span><span class="kw-2">mut </span>blocks_in_loops = BTreeSet::default();
-    <span class="kw">for </span>block_id <span class="kw">in </span>func.reachable_blocks() {
-        <span class="kw">let </span>block = <span class="kw-2">&amp;</span>func.dfg[block_id];
-        <span class="kw">let </span>successors = block.successors();
-        <span class="kw">for </span>successor_id <span class="kw">in </span>successors {
-            <span class="kw">if </span>dominator_tree.dominates(successor_id, block_id) {
-                blocks_in_loops.extend(find_blocks_in_loop(successor_id, block_id, cfg));
-            }
-        }
-    }
-
-    blocks_in_loops
-}
-
-<span class="doccomment">/// Return each block that is in a loop starting in the given header block.
-/// Expects back_edge_start -&gt; header to be the back edge of the loop.
-</span><span class="kw">fn </span>find_blocks_in_loop(
-    header: BasicBlockId,
-    back_edge_start: BasicBlockId,
-    cfg: <span class="kw-2">&amp;</span>ControlFlowGraph,
-) -&gt; BTreeSet&lt;BasicBlockId&gt; {
-    <span class="kw">let </span><span class="kw-2">mut </span>blocks = BTreeSet::default();
-    blocks.insert(header);
-
-    <span class="kw">let </span><span class="kw-2">mut </span>insert = |block, stack: <span class="kw-2">&amp;mut </span>Vec&lt;BasicBlockId&gt;| {
-        <span class="kw">if </span>!blocks.contains(<span class="kw-2">&amp;</span>block) {
-            blocks.insert(block);
-            stack.push(block);
-        }
-    };
-
-    <span class="comment">// Starting from the back edge of the loop, each predecessor of this block until
-    // the header is within the loop.
-    </span><span class="kw">let </span><span class="kw-2">mut </span>stack = <span class="macro">vec!</span>[];
-    insert(back_edge_start, <span class="kw-2">&amp;mut </span>stack);
-
-    <span class="kw">while let </span><span class="prelude-val">Some</span>(block) = stack.pop() {
-        <span class="kw">for </span>predecessor <span class="kw">in </span>cfg.predecessors(block) {
-            insert(predecessor, <span class="kw-2">&amp;mut </span>stack);
-        }
-    }
-
-    blocks
 }
 </code></pre></div></section></main></body></html>

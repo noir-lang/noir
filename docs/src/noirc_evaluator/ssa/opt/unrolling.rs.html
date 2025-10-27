@@ -1808,7 +1808,9 @@
 <a href="#1807" id="1807">1807</a>
 <a href="#1808" id="1808">1808</a>
 <a href="#1809" id="1809">1809</a>
-<a href="#1810" id="1810">1810</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the loop unrolling pass for the new SSA IR.
+<a href="#1810" id="1810">1810</a>
+<a href="#1811" id="1811">1811</a>
+<a href="#1812" id="1812">1812</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the loop unrolling pass for the new SSA IR.
 //!
 //! This pass is divided into a few steps:
 //! 1. Find all loops in the program (`find_all_loops`)
@@ -2030,25 +2032,27 @@
 
 <span class="doccomment">/// Describe the blocks that constitute up a loop.
 </span><span class="attr">#[derive(Debug)]
-</span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">struct </span>Loop {
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>Loop {
     <span class="doccomment">/// The header block of a loop is the block which dominates all the
     /// other blocks in the loop.
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) header: BasicBlockId,
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) header: BasicBlockId,
 
     <span class="doccomment">/// The start of the back_edge n -&gt; d is the block n at the end of
     /// the loop that jumps back to the header block d which restarts the loop.
-    </span>back_edge_start: BasicBlockId,
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) back_edge_start: BasicBlockId,
 
     <span class="doccomment">/// All the blocks contained within the loop, including `header` and `back_edge_start`.
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) blocks: BTreeSet&lt;BasicBlockId&gt;,
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) blocks: BTreeSet&lt;BasicBlockId&gt;,
 }
 
 <span class="doccomment">/// All the unrolled loops in the SSA.
-</span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">struct </span>Loops {
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>Loops {
     <span class="doccomment">/// Loops that haven't been unrolled yet, which is all the loops currently in the CFG.
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) yet_to_unroll: Vec&lt;Loop&gt;,
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) yet_to_unroll: Vec&lt;Loop&gt;,
     <span class="doccomment">/// The CFG so we can query the predecessors of blocks when needed.
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) cfg: ControlFlowGraph,
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) cfg: ControlFlowGraph,
+    <span class="doccomment">/// The [DominatorTree] used during the discovery of loops.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) dom: DominatorTree,
 }
 
 <span class="kw">impl </span>Loops {
@@ -2083,7 +2087,7 @@
     ///
     /// Returns all groups of blocks that look like a loop, even if we might not be able to unroll them,
     /// which we can use to check whether we were able to unroll all blocks.
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>find_all(function: <span class="kw-2">&amp;</span>Function) -&gt; <span class="self">Self </span>{
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>find_all(function: <span class="kw-2">&amp;</span>Function) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>cfg = ControlFlowGraph::with_function(function);
         <span class="kw">let </span>post_order = PostOrder::with_function(function);
         <span class="kw">let </span><span class="kw-2">mut </span>dom_tree = DominatorTree::with_cfg_and_post_order(<span class="kw-2">&amp;</span>cfg, <span class="kw-2">&amp;</span>post_order);
@@ -2106,7 +2110,7 @@
         // their loop range. We will start popping loops from the back.
         </span>loops.sort_by_key(|loop_| loop_.blocks.len());
 
-        <span class="self">Self </span>{ yet_to_unroll: loops, cfg }
+        <span class="self">Self </span>{ yet_to_unroll: loops, cfg, dom: dom_tree }
     }
 }
 

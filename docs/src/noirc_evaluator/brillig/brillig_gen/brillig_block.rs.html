@@ -677,7 +677,15 @@
 <a href="#676" id="676">676</a>
 <a href="#677" id="677">677</a>
 <a href="#678" id="678">678</a>
-<a href="#679" id="679">679</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module containing Brillig-gen logic specific to an SSA function's basic blocks.
+<a href="#679" id="679">679</a>
+<a href="#680" id="680">680</a>
+<a href="#681" id="681">681</a>
+<a href="#682" id="682">682</a>
+<a href="#683" id="683">683</a>
+<a href="#684" id="684">684</a>
+<a href="#685" id="685">685</a>
+<a href="#686" id="686">686</a>
+<a href="#687" id="687">687</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module containing Brillig-gen logic specific to an SSA function's basic blocks.
 </span><span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::artifact::Label;
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::brillig_variable::{
     BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable,
@@ -843,7 +851,10 @@
             }
         }
 
-        <span class="kw">let </span><span class="kw-2">mut </span>new_hoisted_constants = HashMap::default();
+        <span class="comment">// Allocate and initialize hoisted constants. These don't have a variable ID associated with them,
+        // so we return them explicitly, while the allocated global variables are in the `ssa_value_allocations`
+        // field of the `FunctionContext`.
+        </span><span class="kw">let </span><span class="kw-2">mut </span>new_hoisted_constants = HashMap::default();
         <span class="kw">for </span>(constant, typ) <span class="kw">in </span>hoisted_global_constants.iter().copied() {
             <span class="kw">let </span>new_variable = allocate_value_with_type(<span class="self">self</span>.brillig_context, Type::Numeric(typ));
             <span class="self">self</span>.brillig_context.const_instruction(new_variable.extract_single_addr(), constant);
@@ -994,6 +1005,8 @@
     }
 
     <span class="doccomment">/// Converts an SSA instruction into a sequence of Brillig opcodes.
+    ///
+    /// If this is the last time a variable is used in this block, its memory slot gets deallocated, unless it's a global.
     </span><span class="kw">fn </span>convert_ssa_instruction(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         instruction_id: InstructionId,
@@ -1189,8 +1202,9 @@
 
             <span class="kw">for </span>dead_variable <span class="kw">in </span>dead_variables {
                 <span class="comment">// Globals are reserved throughout the entirety of the program
-                </span><span class="kw">let </span>not_hoisted_global = <span class="self">self</span>.get_hoisted_global(dfg, <span class="kw-2">*</span>dead_variable).is_none();
-                <span class="kw">if </span>!dfg.is_global(<span class="kw-2">*</span>dead_variable) &amp;&amp; not_hoisted_global {
+                </span><span class="kw">let </span>is_global = dfg.is_global(<span class="kw-2">*</span>dead_variable);
+                <span class="kw">let </span>is_hoisted_global = <span class="self">self</span>.get_hoisted_global(dfg, <span class="kw-2">*</span>dead_variable).is_some();
+                <span class="kw">if </span>!is_global &amp;&amp; !is_hoisted_global {
                     <span class="self">self</span>.variables.remove_variable(
                         dead_variable,
                         <span class="self">self</span>.function_context,
@@ -1199,7 +1213,9 @@
                 }
             }
         }
-        <span class="self">self</span>.brillig_context.set_call_stack(CallStackId::root());
+
+        <span class="comment">// Clear the call stack; it only applied to this instruction.
+        </span><span class="self">self</span>.brillig_context.set_call_stack(CallStackId::root());
     }
 
     <span class="doccomment">/// Converts an SSA cast to a sequence of Brillig opcodes.

@@ -2532,7 +2532,7 @@
     <span class="kw">if </span>!function.runtime().is_acir() {
         <span class="kw">return</span>;
     }
-    <span class="kw">let </span>loops = <span class="kw">super</span>::unrolling::Loops::find_all(function);
+    <span class="kw">let </span>loops = <span class="kw">super</span>::Loops::find_all(function);
     <span class="macro">assert_eq!</span>(loops.yet_to_unroll.len(), <span class="number">0</span>);
 
     <span class="kw">for </span>block <span class="kw">in </span>function.reachable_blocks() {

@@ -787,7 +787,7 @@
 
     <span class="doccomment">/// Internal function used to compute the section labels
     </span><span class="kw">fn </span>compute_section_label(<span class="kw-2">&amp;</span><span class="self">self</span>, section: usize) -&gt; Label {
-        <span class="self">self</span>.context_label.add_section(section)
+        <span class="self">self</span>.context_label.with_section(section)
     }
 
     <span class="doccomment">/// Returns the current section label

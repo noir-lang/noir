@@ -499,7 +499,7 @@
 }
 
 <span class="kw">impl </span>Label {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>add_section(<span class="kw-2">&amp;</span><span class="self">self</span>, section: usize) -&gt; <span class="self">Self </span>{
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>with_section(<span class="kw-2">&amp;</span><span class="self">self</span>, section: usize) -&gt; <span class="self">Self </span>{
         Label { label_type: <span class="self">self</span>.label_type.clone(), section: <span class="prelude-val">Some</span>(section) }
     }
 

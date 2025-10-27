@@ -134,7 +134,8 @@
 <a href="#133" id="133">133</a>
 <a href="#134" id="134">134</a>
 <a href="#135" id="135">135</a>
-<a href="#136" id="136">136</a></pre></div><pre class="rust"><code><span class="doccomment">//! This folder contains each optimization pass for the SSA IR.
+<a href="#136" id="136">136</a>
+<a href="#137" id="137">137</a></pre></div><pre class="rust"><code><span class="doccomment">//! This folder contains each optimization pass for the SSA IR.
 //!
 //! Each pass is generally expected to mutate the SSA IR into a gradually
 //! simpler form until the IR only has a single function remaining with 1 block within it.
@@ -177,6 +178,7 @@
 
 <span class="kw">pub use </span>constant_folding::DEFAULT_MAX_ITER <span class="kw">as </span>CONSTANT_FOLDING_MAX_ITER;
 <span class="kw">pub use </span>inlining::MAX_INSTRUCTIONS <span class="kw">as </span>INLINING_MAX_INSTRUCTIONS;
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span>unrolling::Loops;
 
 <span class="doccomment">/// Asserts that the given SSA, after normalizing its IDs and printing it,
 /// is equal to the expected string. Normalization is done so the IDs don't

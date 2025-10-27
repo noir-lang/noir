@@ -1052,7 +1052,7 @@
         ssa: <span class="kw-2">&amp;</span>Ssa,
         function: <span class="kw-2">&amp;</span>Function,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;GeneratedAcir&lt;FieldElement&gt;&gt;, RuntimeError&gt; {
-        <span class="self">self</span>.acir_context.set_call_stack_helper(<span class="self">self</span>.brillig.call_stacks.to_owned());
+        <span class="self">self</span>.acir_context.set_call_stack_helper(<span class="self">self</span>.brillig.call_stacks().clone());
         <span class="kw">match </span>function.runtime() {
             RuntimeType::Acir(inline_type) =&gt; {
                 <span class="kw">match </span>inline_type {

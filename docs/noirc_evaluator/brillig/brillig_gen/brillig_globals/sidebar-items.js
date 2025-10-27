@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["BrilligGlobals"],"type":["BrilligGlobalsArtifact","ConstantCounterMap","HoistedConstantsToBrilligGlobals","SsaToBrilligGlobals"]};
+window.SIDEBAR_ITEMS = {"struct":["BrilligGlobals","BrilligGlobalsArtifact","BrilligGlobalsInit","CallMap","ConstantAllocationCache"],"type":["ConstantCounterMap","HoistedConstantsToBrilligGlobals","SsaToBrilligGlobals"]};

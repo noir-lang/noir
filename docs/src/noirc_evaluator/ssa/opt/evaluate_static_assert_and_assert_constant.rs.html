@@ -428,8 +428,7 @@
 <a href="#427" id="427">427</a>
 <a href="#428" id="428">428</a>
 <a href="#429" id="429">429</a>
-<a href="#430" id="430">430</a>
-<a href="#431" id="431">431</a></pre></div><pre class="rust"><code><span class="doccomment">//! A simple SSA pass to go through each instruction and evaluate:
+<a href="#430" id="430">430</a></pre></div><pre class="rust"><code><span class="doccomment">//! A simple SSA pass to go through each instruction and evaluate:
 //! - each call to `assert_constant`, issuing an error if any arguments to the function
 //!   are not constants
 //! - each call to `static_assert`, issuing an error if the assertion does not hold,
@@ -457,11 +456,10 @@
             instruction::{Instruction, InstructionId, Intrinsic},
             value::ValueId,
         },
+        opt::Loops,
         ssa_gen::Ssa,
     },
 };
-
-<span class="kw">use </span><span class="kw">super</span>::unrolling::Loops;
 
 <span class="kw">impl </span>Ssa {
     <span class="doccomment">/// See [`evaluate_static_assert_and_assert_constant`][self] module for more information.

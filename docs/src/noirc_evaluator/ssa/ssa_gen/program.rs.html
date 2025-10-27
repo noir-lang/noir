@@ -210,7 +210,8 @@
 <a href="#209" id="209">209</a>
 <a href="#210" id="210">210</a>
 <a href="#211" id="211">211</a>
-<a href="#212" id="212">212</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#212" id="212">212</a>
+<a href="#213" id="213">213</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 
 <span class="kw">use </span>acvm::acir::circuit::ErrorSelector;
 <span class="kw">use </span>iter_extended::btree_map;
@@ -311,7 +312,8 @@
         function == <span class="self">self</span>.main_id || <span class="self">self</span>.functions[<span class="kw-2">&amp;</span>function].runtime().is_entry_point()
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>used_globals_in_functions(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; HashMap&lt;FunctionId, HashSet&lt;ValueId&gt;&gt; {
+    <span class="doccomment">/// Collect all the global value IDs used per function.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>used_globals_in_functions(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; HashMap&lt;FunctionId, HashSet&lt;ValueId&gt;&gt; {
         <span class="kw">fn </span>add_value_to_globals_if_global(
             function: <span class="kw-2">&amp;</span>Function,
             value_id: ValueId,

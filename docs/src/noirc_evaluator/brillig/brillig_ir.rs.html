@@ -526,7 +526,11 @@
 <a href="#525" id="525">525</a>
 <a href="#526" id="526">526</a>
 <a href="#527" id="527">527</a>
-<a href="#528" id="528">528</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module is an abstraction layer over `Brillig`.
+<a href="#528" id="528">528</a>
+<a href="#529" id="529">529</a>
+<a href="#530" id="530">530</a>
+<a href="#531" id="531">531</a>
+<a href="#532" id="532">532</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module is an abstraction layer over `Brillig`.
 //! To allow for separation of concerns, it knows nothing
 //! about SSA types, and can therefore be tested independently.
 //! `brillig_gen` is therefore the module which combines both
@@ -654,7 +658,8 @@
         </span>MemoryAddress::Direct(GlobalSpace::start_with_layout(<span class="kw-2">&amp;</span><span class="self">self</span>.layout()))
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>count_array_copies(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+    <span class="doccomment">/// If this flag is set, compile the array copy counter as a global.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>count_array_copies(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
         <span class="self">self</span>.count_arrays_copied
     }
 
@@ -779,7 +784,8 @@
 
 <span class="doccomment">/// Special brillig context to codegen compiler intrinsic shared procedures
 </span><span class="kw">impl</span>&lt;F: AcirField + DebugToString&gt; BrilligContext&lt;F, ScratchSpace&gt; {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new_for_procedure(
+    <span class="doccomment">/// Create a [BrilligContext] with a [ScratchSpace] for passing procedure arguments.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new_for_procedure(
         procedure_id: ProcedureId,
         options: <span class="kw-2">&amp;</span>BrilligOptions,
     ) -&gt; BrilligContext&lt;F, ScratchSpace&gt; {
@@ -802,7 +808,8 @@
 
 <span class="doccomment">/// Special brillig context to codegen global values initialization
 </span><span class="kw">impl</span>&lt;F: AcirField + DebugToString&gt; BrilligContext&lt;F, GlobalSpace&gt; {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new_for_global_init(
+    <span class="doccomment">/// Create a [BrilligContext] with a [GlobalSpace] for memory allocations.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new_for_global_init(
         options: <span class="kw-2">&amp;</span>BrilligOptions,
         entry_point: FunctionId,
     ) -&gt; BrilligContext&lt;F, GlobalSpace&gt; {
@@ -820,7 +827,8 @@
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>global_space_size(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
+    <span class="doccomment">/// Total size of the global memory space.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>global_space_size(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
         <span class="comment">// `GlobalSpace::start` is inclusive so we must add one to get the accurate total global memory size
         </span>(<span class="self">self</span>.registers().max_memory_address() + <span class="number">1</span>) - <span class="self">self</span>.registers().start()
     }

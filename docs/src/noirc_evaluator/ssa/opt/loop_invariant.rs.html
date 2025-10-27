@@ -4533,11 +4533,11 @@
     <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::function::RuntimeType;
     <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::instruction::{Instruction, Intrinsic, TerminatorInstruction};
     <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::types::Type;
+    <span class="kw">use </span><span class="kw">crate</span>::ssa::opt::Loops;
     <span class="kw">use </span><span class="kw">crate</span>::ssa::opt::loop_invariant::{
         CanBeHoistedResult, LoopContext, LoopInvariantContext, can_be_hoisted,
     };
     <span class="kw">use </span><span class="kw">crate</span>::ssa::opt::pure::Purity;
-    <span class="kw">use </span><span class="kw">crate</span>::ssa::opt::unrolling::Loops;
     <span class="kw">use </span><span class="kw">crate</span>::ssa::opt::{assert_normalized_ssa_equals, assert_ssa_does_not_change};
     <span class="kw">use </span>acvm::AcirField;
     <span class="kw">use </span>noirc_frontend::monomorphization::ast::InlineType;

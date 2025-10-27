@@ -329,7 +329,13 @@
 <a href="#328" id="328">328</a>
 <a href="#329" id="329">329</a>
 <a href="#330" id="330">330</a>
-<a href="#331" id="331">331</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `brillig` module contains all logic necessary for noirc's Brillig-gen pass
+<a href="#331" id="331">331</a>
+<a href="#332" id="332">332</a>
+<a href="#333" id="333">333</a>
+<a href="#334" id="334">334</a>
+<a href="#335" id="335">335</a>
+<a href="#336" id="336">336</a>
+<a href="#337" id="337">337</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `brillig` module contains all logic necessary for noirc's Brillig-gen pass
 //! for generating Brillig bytecode from [Ssa].
 //!
 //! # Usage
@@ -376,19 +382,21 @@
     <span class="kw">pub </span>layout: LayoutConfig,
 }
 
-<span class="doccomment">/// Context structure for the brillig pass.
-/// It stores brillig-related data required for brillig generation.
+<span class="doccomment">/// Context structure for the Brillig pass.
+/// It stores Brillig-related data required for Brillig generation.
 </span><span class="attr">#[derive(Default, Clone)]
 </span><span class="kw">pub struct </span>Brillig {
     <span class="doccomment">/// Maps SSA function labels to their brillig artifact
     </span>ssa_function_to_brillig: HashMap&lt;FunctionId, BrilligArtifact&lt;FieldElement&gt;&gt;,
-    <span class="kw">pub </span>call_stacks: CallStackHelper,
-    globals: HashMap&lt;FunctionId, BrilligArtifact&lt;FieldElement&gt;&gt;,
-    globals_memory_size: HashMap&lt;FunctionId, usize&gt;,
+    call_stacks: CallStackHelper,
+    <span class="doccomment">/// Bytecode for globals for each Brillig entry point.
+    </span>globals: HashMap&lt;FunctionId, BrilligArtifact&lt;FieldElement&gt;&gt;,
+    <span class="doccomment">/// The size of the global space for each Brillig entry point.
+    </span>globals_memory_size: HashMap&lt;FunctionId, usize&gt;,
 }
 
 <span class="kw">impl </span>Brillig {
-    <span class="doccomment">/// Compiles a function into brillig and store the compilation artifacts
+    <span class="doccomment">/// Compiles a function into brillig and store the compilation artifacts.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>compile(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         func: <span class="kw-2">&amp;</span>Function,
@@ -407,7 +415,7 @@
         <span class="self">self</span>.ssa_function_to_brillig.insert(func.id(), obj);
     }
 
-    <span class="doccomment">/// Finds a brillig artifact by its label
+    <span class="doccomment">/// Finds a brillig artifact by its label.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>find_by_label(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         function_label: Label,
@@ -458,6 +466,10 @@
 
         brillig_context.artifact()
     }
+
+    <span class="kw">pub fn </span>call_stacks(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>CallStackHelper {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.call_stacks
+    }
 }
 
 <span class="kw">impl </span>std::ops::Index&lt;FunctionId&gt; <span class="kw">for </span>Brillig {
@@ -471,10 +483,9 @@
     <span class="doccomment">/// Compile Brillig functions and ACIR functions reachable from them.
     </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
     </span><span class="kw">pub fn </span>to_brillig(<span class="kw-2">&amp;</span><span class="self">self</span>, options: <span class="kw-2">&amp;</span>BrilligOptions) -&gt; Brillig {
-        <span class="kw">let </span>used_globals_map = <span class="self">self</span>.used_globals_in_functions();
-
-        <span class="comment">// Collect all the function ids that are reachable from brillig
-        // That means all the functions marked as brillig and ACIR functions called by them
+        <span class="comment">// Collect all the function ids that are reachable from Brillig.
+        // That means all the functions marked as Brillig and ACIR functions called by them,
+        // but we should already have monomorphized ACIR functions as a Brillig as well.
         </span><span class="kw">let </span>brillig_reachable_function_ids = <span class="self">self
             </span>.functions
             .iter()
@@ -487,24 +498,25 @@
             <span class="kw">return </span>brillig;
         }
 
-        <span class="kw">let </span><span class="kw-2">mut </span>brillig_globals = BrilligGlobals::new(<span class="self">self</span>, used_globals_map, <span class="self">self</span>.main_id);
-
         <span class="comment">// SSA Globals are computed once at compile time and shared across all functions,
         // thus we can just fetch globals from the main function.
         // This same globals graph will then be used to declare Brillig globals for the respective entry points.
         </span><span class="kw">let </span>globals = (<span class="kw-2">*</span><span class="self">self</span>.functions[<span class="kw-2">&amp;</span><span class="self">self</span>.main_id].dfg.globals).clone();
         <span class="kw">let </span>globals_dfg = DataFlowGraph::from(globals);
-        brillig_globals.declare_globals(<span class="kw-2">&amp;</span>globals_dfg, <span class="kw-2">&amp;mut </span>brillig, options);
+
+        <span class="comment">// Produce the globals Brillig bytecode and variable allocation for each entry point.
+        </span><span class="kw">let </span>brillig_globals = BrilligGlobals::init(<span class="self">self</span>, <span class="self">self</span>.main_id).declare_globals(
+            <span class="kw-2">&amp;</span>globals_dfg,
+            <span class="kw-2">&amp;mut </span>brillig,
+            options,
+        );
 
         <span class="kw">for </span>brillig_function_id <span class="kw">in </span>brillig_reachable_function_ids {
-            <span class="kw">let </span>empty_allocations = HashMap::default();
-            <span class="kw">let </span>empty_const_allocations = HashMap::default();
-            <span class="kw">let </span>(globals_allocations, hoisted_constant_allocations) = brillig_globals
-                .get_brillig_globals(brillig_function_id)
-                .unwrap_or((<span class="kw-2">&amp;</span>empty_allocations, <span class="kw-2">&amp;</span>empty_const_allocations));
+            <span class="kw">let </span>(globals_allocations, hoisted_constant_allocations) =
+                brillig_globals.get_brillig_globals(brillig_function_id);
 
             <span class="kw">let </span>func = <span class="kw-2">&amp;</span><span class="self">self</span>.functions[<span class="kw-2">&amp;</span>brillig_function_id];
-            <span class="kw">let </span>is_entry_point = brillig_globals.entry_points().contains_key(<span class="kw-2">&amp;</span>brillig_function_id);
+            <span class="kw">let </span>is_entry_point = brillig_globals.is_entry_point(<span class="kw-2">&amp;</span>brillig_function_id);
 
             brillig.compile(
                 func,
