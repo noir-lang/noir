@@ -4,12 +4,11 @@ use crate::tests::{assert_no_errors, check_errors};
 fn deny_cyclic_globals() {
     let src = r#"
         global A: u32 = B;
-                        ^ This global recursively depends on itself
+                        ^ Failed to resolve this global
                ^ Dependency cycle found
                ~ 'A' recursively depends on itself: A -> B -> A
         global B: u32 = A;
-                        ^ Variable not in scope
-                        ~ Could not find variable
+                        ^ Failed to resolve this global
     "#;
     check_errors(src);
 }
