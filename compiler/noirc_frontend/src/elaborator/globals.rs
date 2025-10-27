@@ -19,13 +19,9 @@
 //! ### Dependency Ordering
 //! Globals are assumed to be elaborated in dependency order. This means if global `A` references global `B`, then `B`
 //! must be elaborated first. It is assumed that the caller of this module has enforced elaborating globals in their dependency order.
-//!
-//! The [filter_literal_globals] function separates simple literals (which have no dependencies) from complex expressions, allowing
-//! the simple cases to be processed first without dependency analysis. It is also necessary to elaborate these literal globals first
-//! as struct type definitions can reference global literals as numeric generics.
 
 use crate::{
-    ast::{ExpressionKind, Literal, Pattern},
+    ast::Pattern,
     hir::{def_collector::dc_crate::UnresolvedGlobal, resolution::errors::ResolverError},
     hir_def::stmt::HirStatement,
     node_interner::{DependencyId, GlobalId, GlobalValue},
@@ -35,10 +31,26 @@ use crate::{
 use super::Elaborator;
 
 impl Elaborator<'_> {
+    /// Order the set of unresolved globals by their [GlobalId].
+    /// This set will be used to determine the ordering in which globals are elaborated.
+    pub(super) fn set_unresolved_globals_ordering(&mut self, globals: Vec<UnresolvedGlobal>) {
+        for global in globals {
+            self.unresolved_globals.insert(global.global_id, global);
+        }
+    }
+
+    /// Elaborate any globals which were not brought into scope by other items through [Self::elaborate_global_if_unresolved].
+    pub(super) fn elaborate_remaining_globals(&mut self) {
+        // Start at the first global IDs to maintain the dependency order
+        while let Some((_, global)) = self.unresolved_globals.pop_first() {
+            self.elaborate_global(global);
+        }
+    }
+
     /// Elaborates a global constant definition, performing name resolution, type checking, and compile-time evaluation.
     ///
     /// See the [module-level documentation][self] for more details.
-    pub(super) fn elaborate_global(&mut self, global: UnresolvedGlobal) {
+    fn elaborate_global(&mut self, global: UnresolvedGlobal) {
         // Set up the elaboration context for this global. We need to ensure that name resolution
         // happens in the module where the global was defined, not where it's being referenced.
         let old_module = std::mem::replace(&mut self.local_module, global.module_id);
@@ -110,7 +122,7 @@ impl Elaborator<'_> {
     /// The comptime [interpreter][crate::hir::comptime::Interpreter] is used for evaluating the expression.
     ///
     /// See the [module-level documentation][self] for more details.
-    pub(super) fn elaborate_comptime_global(&mut self, global_id: GlobalId) {
+    fn elaborate_comptime_global(&mut self, global_id: GlobalId) {
         // Retrieve the HIR let statement that was generated in elaborate_global.
         let let_statement = self
             .interner
@@ -118,6 +130,7 @@ impl Elaborator<'_> {
             .expect("Let statement of global should be set by elaborate_global_let");
 
         let global = self.interner.get_global(global_id);
+
         let definition_id = global.definition_id;
         let location = global.location;
         let mut interpreter = self.setup_interpreter();
@@ -145,7 +158,7 @@ impl Elaborator<'_> {
     /// while elaborating another item, we check if that global needs to be elaborated first.
     /// Returns true if the global was unresolved and has now been elaborated, false if it was
     /// already elaborated (or doesn't exist in the unresolved set).
-    pub(super) fn elaborate_global_if_unresolved(&mut self, global_id: &GlobalId) -> bool {
+    pub(crate) fn elaborate_global_if_unresolved(&mut self, global_id: &GlobalId) -> bool {
         if let Some(global) = self.unresolved_globals.remove(global_id) {
             self.elaborate_global(global);
             true
@@ -153,16 +166,4 @@ impl Elaborator<'_> {
             false
         }
     }
-}
-
-/// Separate the globals Vec into two. The first element in the tuple will be the
-/// literal globals, except for arrays, and the second will be all other globals.
-/// We exclude array literals as they can contain complex types
-pub(super) fn filter_literal_globals(
-    globals: Vec<UnresolvedGlobal>,
-) -> (Vec<UnresolvedGlobal>, Vec<UnresolvedGlobal>) {
-    globals.into_iter().partition(|global| match &global.stmt_def.expression.kind {
-        ExpressionKind::Literal(literal) => !matches!(literal, Literal::Array(_)),
-        _ => false,
-    })
 }
