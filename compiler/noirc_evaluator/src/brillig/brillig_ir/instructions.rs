@@ -75,6 +75,16 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         );
     }
 
+    /// Increase the value at a pointer in place by 1.
+    pub(crate) fn memory_op_inc_by_usize_one(&mut self, address: MemoryAddress) {
+        self.memory_op_instruction(
+            address,
+            ReservedRegisters::usize_one(),
+            address,
+            BrilligBinaryOp::Add,
+        );
+    }
+
     /// Insert a conditional move instruction
     pub(crate) fn conditional_move_instruction(
         &mut self,
@@ -325,7 +335,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         );
     }
 
-    /// Emits a store instruction
+    /// Push an opcode to store the value at `source` address into the address under `destination_pointer`.
     pub(crate) fn store_instruction(
         &mut self,
         destination_pointer: MemoryAddress,
@@ -335,7 +345,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.push_opcode(BrilligOpcode::Store { destination_pointer, source });
     }
 
-    /// Emits a load instruction
+    /// Push an opcode to load a value from the address under `source_pointer` into the `destination` address.
     pub(crate) fn load_instruction(
         &mut self,
         destination: MemoryAddress,

@@ -8,7 +8,7 @@ use crate::brillig::brillig_gen::brillig_block::BrilligBlock;
 use crate::brillig::brillig_ir::brillig_variable::{BrilligVariable, SingleAddrVariable};
 use crate::brillig::brillig_ir::registers::Allocated;
 use crate::brillig::brillig_ir::{
-    BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, BrilligBinaryOp, BrilligContext, ReservedRegisters,
+    BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, BrilligBinaryOp, BrilligContext,
     registers::RegisterAllocator,
 };
 use crate::ssa::ir::instruction::InstructionId;
@@ -47,14 +47,15 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         let item_types = typ.element_types();
 
         // Find out if we are repeating the same item over and over
-        let first_item = data.iter().take(item_types.len()).copied().collect();
+        let first_item = data.iter().take(item_types.len()).copied().collect::<Vec<_>>();
         let mut is_repeating = true;
 
         for item_index in (item_types.len()..data.len()).step_by(item_types.len()) {
-            let item: Vec<_> = (0..item_types.len()).map(|i| data[item_index + i]).collect();
-            if first_item != item {
-                is_repeating = false;
-                break;
+            for i in 0..item_types.len() {
+                if first_item[i] != data[item_index + i] {
+                    is_repeating = false;
+                    break;
+                }
             }
         }
 
@@ -81,7 +82,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
     /// reducing bytecode size and instruction count compared to unrolling each element.
     ///
     /// For complex types (e.g., tuples), multiple memory writes happen per loop iteration.
-    /// For primitive type (e.g., u32, Field), a single memory write happens per loop iteration.
+    /// For primitive type (e.g., `u32`, `Field`), a single memory write happens per loop iteration.
     fn initialize_constant_array_runtime(
         &mut self,
         item_types: Arc<Vec<Type>>,
@@ -91,7 +92,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         dfg: &DataFlowGraph,
     ) {
         let mut subitem_to_repeat_variables = Vec::with_capacity(item_types.len());
-        for subitem_id in item_to_repeat.into_iter() {
+        for subitem_id in item_to_repeat {
             subitem_to_repeat_variables.push(self.convert_ssa_value(subitem_id, dfg));
         }
 
@@ -115,21 +116,18 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
 
             let subitem_pointer = self.brillig_context.allocate_single_addr_usize();
 
-            // Initializes a single subitem
+            // Generate code to initializes a single subitem
             let initializer_fn =
                 |ctx: &mut BrilligContext<_, _>, subitem_start_pointer: SingleAddrVariable| {
+                    // Copy the destination pointer according to the loop state.
                     ctx.mov_instruction(subitem_pointer.address, subitem_start_pointer.address);
                     for (subitem_index, subitem) in
                         subitem_to_repeat_variables.into_iter().enumerate()
                     {
                         ctx.store_instruction(subitem_pointer.address, subitem.extract_register());
+                        // Increment the destination pointer for all but the last item.
                         if subitem_index != item_types.len() - 1 {
-                            ctx.memory_op_instruction(
-                                subitem_pointer.address,
-                                ReservedRegisters::usize_one(),
-                                subitem_pointer.address,
-                                BrilligBinaryOp::Add,
-                            );
+                            ctx.memory_op_inc_by_usize_one(subitem_pointer.address);
                         }
                     }
                 };
@@ -186,12 +184,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
 
             if element_idx != data.len() - 1 {
                 // Increment the write_pointer_register
-                self.brillig_context.memory_op_instruction(
-                    *write_pointer_register,
-                    ReservedRegisters::usize_one(),
-                    *write_pointer_register,
-                    BrilligBinaryOp::Add,
-                );
+                self.brillig_context.memory_op_inc_by_usize_one(*write_pointer_register);
             }
         }
     }
@@ -443,10 +436,11 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                 _ => unreachable!("ICE: Cannot initialize array value created as {new_variable:?}"),
             };
 
-            // Write the items.
+            // Get a pointer to where the items need to be written.
             let items_pointer =
                 self.brillig_context.codegen_make_array_or_vector_items_pointer(new_variable);
 
+            // Write the items.
             self.initialize_constant_array(array, typ, dfg, *items_pointer);
         }
     }
