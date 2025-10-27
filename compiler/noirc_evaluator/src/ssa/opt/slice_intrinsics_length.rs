@@ -80,6 +80,19 @@ impl Function {
                 } else {
                     None
                 }
+            } else if slice_remove.is_some_and(|op| target_func == &op) {
+                if let Some(length) = context.dfg.get_numeric_constant(arguments[0]) {
+                    if !length.is_zero() {
+                        // For `slice_remove(length, ...)` we can replace the resulting length with length - 1
+                        let length = length - FieldElement::one();
+                        let [new_slice_length, _] = context.dfg.instruction_result(instruction_id);
+                        Some((new_slice_length, length))
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
             } else {
                 None
             };
@@ -164,6 +177,30 @@ mod test {
             v2 = make_array [Field 2, Field 3] : [Field]
             v7, v8 = call slice_insert(u32 2, v2, u32 1, Field 4) -> (u32, [Field])
             return u32 3
+        }
+        ");
+    }
+
+    #[test]
+    fn slice_remove_optimization() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = make_array [Field 2, Field 3] : [Field]
+            v1, v2 = call slice_remove(u32 2, v0, u32 1) -> (u32, [Field])
+            return v1
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        // Here `v1` was replaced with 1 because we know the new length is 2 - 1
+        let ssa = ssa.slice_instrinsics_length_optimization();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v2 = make_array [Field 2, Field 3] : [Field]
+            v6, v7 = call slice_remove(u32 2, v2, u32 1) -> (u32, [Field])
+            return u32 1
         }
         ");
     }
