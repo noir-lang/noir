@@ -111,29 +111,15 @@ pub(crate) fn simplify(
         }
         Instruction::ConstrainNotEqual(..) => None,
         Instruction::ArrayGet { array, index } => {
-            let mut array = *array;
-            let mut index = *index;
+            let array = *array;
+            let index = *index;
             let constant_index = dfg.get_numeric_constant(index);
 
             // If it's an `array_get` on a value that results from a call to `slice_insert` with a
             // constant index we can do `array_get` on the original slice or use the inserted value
             let result = try_optimize_array_get_on_slice_insert(dfg, array, index, constant_index);
-            match result {
-                SimplifiedToInstruction(Instruction::ArrayGet {
-                    array: new_array,
-                    index: new_index,
-                }) => {
-                    // If we simplified to another array get, try to optimize that one too
-                    array = new_array;
-                    index = new_index;
-                }
-                SimplifiedTo(value) => {
-                    return SimplifiedTo(value);
-                }
-                None => {}
-                _ => {
-                    return result;
-                }
+            if !matches!(result, None) {
+                return result;
             }
 
             if let Some(index) = constant_index {
