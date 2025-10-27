@@ -133,7 +133,7 @@ pub(crate) struct Label {
 }
 
 impl Label {
-    pub(crate) fn add_section(&self, section: usize) -> Self {
+    pub(crate) fn with_section(&self, section: usize) -> Self {
         Label { label_type: self.label_type.clone(), section: Some(section) }
     }
 

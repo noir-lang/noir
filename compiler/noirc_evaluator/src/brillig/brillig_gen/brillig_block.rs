@@ -164,6 +164,9 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             }
         }
 
+        // Allocate and initialize hoisted constants. These don't have a variable ID associated with them,
+        // so we return them explicitly, while the allocated global variables are in the `ssa_value_allocations`
+        // field of the `FunctionContext`.
         let mut new_hoisted_constants = HashMap::default();
         for (constant, typ) in hoisted_global_constants.iter().copied() {
             let new_variable = allocate_value_with_type(self.brillig_context, Type::Numeric(typ));
@@ -315,6 +318,8 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     }
 
     /// Converts an SSA instruction into a sequence of Brillig opcodes.
+    ///
+    /// If this is the last time a variable is used in this block, its memory slot gets deallocated, unless it's a global.
     fn convert_ssa_instruction(
         &mut self,
         instruction_id: InstructionId,
@@ -510,8 +515,9 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
             for dead_variable in dead_variables {
                 // Globals are reserved throughout the entirety of the program
-                let not_hoisted_global = self.get_hoisted_global(dfg, *dead_variable).is_none();
-                if !dfg.is_global(*dead_variable) && not_hoisted_global {
+                let is_global = dfg.is_global(*dead_variable);
+                let is_hoisted_global = self.get_hoisted_global(dfg, *dead_variable).is_some();
+                if !is_global && !is_hoisted_global {
                     self.variables.remove_variable(
                         dead_variable,
                         self.function_context,
@@ -520,6 +526,8 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 }
             }
         }
+
+        // Clear the call stack; it only applied to this instruction.
         self.brillig_context.set_call_stack(CallStackId::root());
     }
 

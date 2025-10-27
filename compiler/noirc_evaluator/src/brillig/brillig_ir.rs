@@ -126,6 +126,7 @@ impl<F, R: RegisterAllocator> BrilligContext<F, R> {
         MemoryAddress::Direct(GlobalSpace::start_with_layout(&self.layout()))
     }
 
+    /// If this flag is set, compile the array copy counter as a global.
     pub(crate) fn count_array_copies(&self) -> bool {
         self.count_arrays_copied
     }
@@ -251,6 +252,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 
 /// Special brillig context to codegen compiler intrinsic shared procedures
 impl<F: AcirField + DebugToString> BrilligContext<F, ScratchSpace> {
+    /// Create a [BrilligContext] with a [ScratchSpace] for passing procedure arguments.
     pub(crate) fn new_for_procedure(
         procedure_id: ProcedureId,
         options: &BrilligOptions,
@@ -274,6 +276,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, ScratchSpace> {
 
 /// Special brillig context to codegen global values initialization
 impl<F: AcirField + DebugToString> BrilligContext<F, GlobalSpace> {
+    /// Create a [BrilligContext] with a [GlobalSpace] for memory allocations.
     pub(crate) fn new_for_global_init(
         options: &BrilligOptions,
         entry_point: FunctionId,
@@ -292,6 +295,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, GlobalSpace> {
         }
     }
 
+    /// Total size of the global memory space.
     pub(crate) fn global_space_size(&self) -> usize {
         // `GlobalSpace::start` is inclusive so we must add one to get the accurate total global memory size
         (self.registers().max_memory_address() + 1) - self.registers().start()
