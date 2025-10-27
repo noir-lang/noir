@@ -165,6 +165,11 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
         SsaPass::new(Ssa::as_slice_optimization, "`as_slice` optimization")
             .and_then(Ssa::remove_unreachable_functions),
+        SsaPass::new(
+            Ssa::slice_intrinsics_length_optimization,
+            "slice intrinsics length optimization",
+        )
+        .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new_try(
             Ssa::evaluate_static_assert_and_assert_constant,
             "`static_assert` and `assert_constant`",
@@ -199,6 +204,11 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             },
             "Inlining",
         ),
+        SsaPass::new(
+            Ssa::slice_intrinsics_length_optimization,
+            "slice intrinsics length optimization",
+        )
+        .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new_try(Ssa::remove_if_else, "Remove IfElse"),
         SsaPass::new(Ssa::purity_analysis, "Purity Analysis"),
         SsaPass::new(
