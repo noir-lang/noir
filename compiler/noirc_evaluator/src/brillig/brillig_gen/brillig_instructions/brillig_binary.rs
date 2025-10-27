@@ -281,6 +281,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         self.convert_ssa_binary(binary, dfg, result_var);
     }
 
+    /// Generate Brillig opcodes to constrain two values to be equal to each other.
     pub(crate) fn codegen_constrain(
         &mut self,
         lhs: ValueId,
@@ -288,6 +289,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         assert_message: &Option<ConstrainError>,
         dfg: &DataFlowGraph,
     ) {
+        // Allocate a variable to hold the result of the comparison.
         let condition = match (
             dfg.get_numeric_constant_with_type(lhs),
             dfg.get_numeric_constant_with_type(rhs),

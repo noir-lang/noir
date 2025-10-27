@@ -15,11 +15,11 @@ use super::{
 /// Offset constants for arrays and vectors:
 /// * Arrays are `[ref-count, ...items]`
 /// * Vectors are `[ref-count, size, capacity, ...items]`
-mod offsets {
-    pub(super) const ARRAY_ITEMS: usize = 1;
-    pub(super) const VECTOR_SIZE: usize = 1;
-    pub(super) const VECTOR_CAPACITY: usize = 2;
-    pub(super) const VECTOR_ITEMS: usize = 3;
+pub(crate) mod offsets {
+    pub(crate) const ARRAY_ITEMS: usize = 1;
+    pub(crate) const VECTOR_SIZE: usize = 1;
+    pub(crate) const VECTOR_CAPACITY: usize = 2;
+    pub(crate) const VECTOR_ITEMS: usize = 3;
 }
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
@@ -253,16 +253,22 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         });
     }
 
-    /// Converts a BrilligArray (pointer to `[RC, ...items]`) to a HeapArray (pointer to `[items]`)
+    /// Converts a [BrilligArray] (pointer to `[RC, ...items]`) to a [HeapArray] (pointer to `[...items]`).
     pub(crate) fn codegen_brillig_array_to_heap_array(
         &mut self,
         array: BrilligArray,
     ) -> Allocated<HeapArray, Registers> {
         let heap_array = self.allocate_heap_array(array.size);
-        self.codegen_usize_op(array.pointer, heap_array.pointer, BrilligBinaryOp::Add, 1);
+        self.codegen_usize_op(
+            array.pointer,
+            heap_array.pointer,
+            BrilligBinaryOp::Add,
+            offsets::ARRAY_ITEMS,
+        );
         heap_array
     }
 
+    /// Converts a [BrilligVector] (pointer to `[RC, size, capacity, ...items]`) to a [HeapVector] (two pointers to `[...items]` and `size`).
     pub(crate) fn codegen_brillig_vector_to_heap_vector(
         &mut self,
         vector: BrilligVector,
@@ -271,14 +277,26 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         let current_pointer = self.allocate_register();
 
         // Prepare a pointer to the size
-        self.codegen_usize_op(vector.pointer, *current_pointer, BrilligBinaryOp::Add, 1);
+        self.codegen_usize_op(
+            vector.pointer,
+            *current_pointer,
+            BrilligBinaryOp::Add,
+            offsets::VECTOR_SIZE,
+        );
         self.load_instruction(heap_vector.size, *current_pointer);
+
         // Now prepare the pointer to the items
-        self.codegen_usize_op(*current_pointer, heap_vector.pointer, BrilligBinaryOp::Add, 2);
+        self.codegen_usize_op(
+            *current_pointer,
+            heap_vector.pointer,
+            BrilligBinaryOp::Add,
+            offsets::VECTOR_ITEMS - offsets::VECTOR_SIZE,
+        );
 
         heap_vector
     }
 
+    /// Converts a [BrilligVariable] to [ValueOrArray].
     pub(crate) fn variable_to_value_or_array(
         &mut self,
         variable: BrilligVariable,

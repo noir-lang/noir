@@ -5,6 +5,7 @@ pub(super) mod code_gen_call;
 use iter_extended::vecmap;
 
 use crate::brillig::BrilligBlock;
+use crate::brillig::brillig_ir::offsets;
 use crate::brillig::brillig_ir::{BrilligBinaryOp, registers::RegisterAllocator};
 use crate::ssa::ir::function::FunctionId;
 use crate::ssa::ir::instruction::{InstructionId, Intrinsic};
@@ -26,7 +27,8 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
     /// external host functions return values back into the program.
     ///
     /// Numeric types and fixed-sized array results are directly allocated.
-    /// As vector's are determined at runtime they are allocated differently.
+    ///
+    /// As vectors are determined at runtime they are allocated differently:
     /// - Allocates memory for a [BrilligVariable::BrilligVector], which holds a pointer and dynamic size.
     /// - Initializes the pointer using the free memory pointer.
     /// - The actual size will be updated after the foreign function call returns.
@@ -107,7 +109,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                         // We add one since array.pointer points to [RC, ...items]
                         let idx = self
                             .brillig_context
-                            .make_usize_constant_instruction((index + 1).into());
+                            .make_usize_constant_instruction((index + offsets::ARRAY_ITEMS).into());
 
                         self.brillig_context.codegen_store_with_offset(
                             array.pointer,
