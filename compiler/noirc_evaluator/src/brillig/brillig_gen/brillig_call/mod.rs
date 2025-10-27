@@ -125,11 +125,18 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                         let inner_array =
                             self.brillig_context.allocate_brillig_array(*nested_size as usize);
 
-                        self.allocate_foreign_call_result_array(element_type, *inner_array);
+                        // Detach the inner array to prevent it from being reallocated to something else.
+                        // XXX: Currently `BrilligVariables::remove_variable` removes only the top SSA value,
+                        // but it would not do so for the inner array since we never created call `define_variable` with it.
+                        let inner_array = inner_array.detach();
 
+                        self.allocate_foreign_call_result_array(element_type, inner_array);
+
+                        // Set the index to be the total offset accounting for complex types.
                         let idx =
                             self.brillig_context.make_usize_constant_instruction(index.into());
 
+                        // Store the the pointer to the inner array into the outer array cell.
                         self.brillig_context.codegen_store_with_offset(
                             array.pointer,
                             *idx,
