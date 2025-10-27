@@ -376,8 +376,6 @@ impl<'context> Elaborator<'context> {
 
         self.define_function_metas(&mut items.functions, &mut items.impls, &mut items.trait_impls);
 
-        self.collect_trait_methods(&mut items.traits);
-
         // Before we resolve any function symbols we must go through our impls and
         // re-collect the methods within into their proper module. This cannot be
         // done during def collection since we need to be able to resolve the type of
@@ -385,6 +383,8 @@ impl<'context> Elaborator<'context> {
         for ((self_type, module), impls) in &mut items.impls {
             self.collect_impls(*module, impls, self_type);
         }
+
+        self.collect_trait_methods(&mut items.traits);
 
         // Bind trait impls to their trait. Collect trait functions, that have a
         // default implementation, which hasn't been overridden.

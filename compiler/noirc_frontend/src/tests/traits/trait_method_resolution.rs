@@ -580,3 +580,46 @@ fn suggests_importing_trait_via_module_reexport() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn inherent_impl_shadows_trait_impl_for_qualified_calls() {
+    // Tests that inherent impls take precedence over trait impls for qualified method calls.
+    let src = r#"
+    struct Foo {
+        value: Field,
+    }
+
+    trait Trait {
+        fn method(self) -> Field;
+    }
+
+    impl Trait for Foo {
+        fn method(self) -> Field {
+            100 + self.value
+        }
+    }
+
+    impl Foo {
+        fn method(self) -> Field {
+            200 + self.value
+        }
+    }
+
+    fn main() {
+        let foo = Foo { value: 42 };
+
+        // Qualified call should resolve to inherent impl (200, not 100)
+        assert(Foo::method(foo) == 242);
+
+        // Instance call should also resolve to inherent impl
+        let foo2 = Foo { value: 42 };
+        assert(foo2.method() == 242);
+
+        // Trait impl via trait syntax
+        // Even when an inherent impl shadows a trait impl for qualified calls,
+        // you can still access the trait method using trait syntax.
+        assert(Trait::method(foo2) == 142);
+    }
+    "#;
+    assert_no_errors(src);
+}
