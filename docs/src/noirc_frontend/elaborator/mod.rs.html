@@ -1196,8 +1196,6 @@
 
         <span class="self">self</span>.define_function_metas(<span class="kw-2">&amp;mut </span>items.functions, <span class="kw-2">&amp;mut </span>items.impls, <span class="kw-2">&amp;mut </span>items.trait_impls);
 
-        <span class="self">self</span>.collect_trait_methods(<span class="kw-2">&amp;mut </span>items.traits);
-
         <span class="comment">// Before we resolve any function symbols we must go through our impls and
         // re-collect the methods within into their proper module. This cannot be
         // done during def collection since we need to be able to resolve the type of
@@ -1205,6 +1203,8 @@
         </span><span class="kw">for </span>((self_type, module), impls) <span class="kw">in </span><span class="kw-2">&amp;mut </span>items.impls {
             <span class="self">self</span>.collect_impls(<span class="kw-2">*</span>module, impls, self_type);
         }
+
+        <span class="self">self</span>.collect_trait_methods(<span class="kw-2">&amp;mut </span>items.traits);
 
         <span class="comment">// Bind trait impls to their trait. Collect trait functions, that have a
         // default implementation, which hasn't been overridden.
