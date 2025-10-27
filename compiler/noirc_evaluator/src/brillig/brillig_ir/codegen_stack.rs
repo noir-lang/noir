@@ -4,7 +4,7 @@ use acvm::{AcirField, acir::brillig::MemoryAddress};
 
 use super::{BrilligContext, debug_show::DebugToString, registers::RegisterAllocator};
 
-/// Map sources to potentially multiple destination.
+/// Map sources to potentially multiple destinations.
 ///
 /// Using a BTree so we get deterministic loop detection.
 type MovementsMap = BTreeMap<MemoryAddress, BTreeSet<MemoryAddress>>;
