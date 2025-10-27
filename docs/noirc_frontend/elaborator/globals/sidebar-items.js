@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["filter_literal_globals"]};
+window.SIDEBAR_ITEMS = {};

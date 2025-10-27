@@ -818,21 +818,7 @@
 <a href="#817" id="817">817</a>
 <a href="#818" id="818">818</a>
 <a href="#819" id="819">819</a>
-<a href="#820" id="820">820</a>
-<a href="#821" id="821">821</a>
-<a href="#822" id="822">822</a>
-<a href="#823" id="823">823</a>
-<a href="#824" id="824">824</a>
-<a href="#825" id="825">825</a>
-<a href="#826" id="826">826</a>
-<a href="#827" id="827">827</a>
-<a href="#828" id="828">828</a>
-<a href="#829" id="829">829</a>
-<a href="#830" id="830">830</a>
-<a href="#831" id="831">831</a>
-<a href="#832" id="832">832</a>
-<a href="#833" id="833">833</a>
-<a href="#834" id="834">834</a></pre></div><pre class="rust"><code><span class="doccomment">//! # The Elaborator
+<a href="#820" id="820">820</a></pre></div><pre class="rust"><code><span class="doccomment">//! # The Elaborator
 //!
 //! The elaborator is the core semantic analysis phase of the compiler. It transforms collected,
 //! unresolved AST items into fully resolved and type-checked HIR through simultaneous and intertwined
@@ -845,9 +831,9 @@
 //! dependencies correctly:
 //!
 //! ### Early Resolution
-//! 1. Literal globals - Fully elaborated first since they may be used as numeric generics in struct definitions
-//! 2. Non-literal globals - Deferred for elaboration later after type resolution
-//! 3. Type aliases - Defined to allow their use in subsequent type definitions
+//! 1. Globals - Set up their dependency ordering. Deferred for elaboration later after type resolution.
+//!    Globals will be lazily elaborated when other types or expressions bring them into scope.
+//! 2. Type aliases - Defined to allow their use in subsequent type definitions
 //!
 //! ### Type Collection
 //! 1. Struct definitions - Collected so their types are available for use
@@ -860,8 +846,9 @@
 //! 3. Impl blocks - Methods organized into their proper modules based on the impl's type
 //! 4. Trait impls - Linked to their corresponding traits and validated
 //!
-//! ### Non-literal Global Elaboration
-//! - Non-literal globals - Elaborated after type resolution since they may use struct types which need global type information
+//! ### Global Elaboration
+//! - Elaborate any remaining globals which were not brought into scope.
+//!   Elaborated after type resolution since they may use struct types which need global type information
 //!
 //! ### Attribute Processing
 //! - Comptime attributes - Executed before function body elaboration, as generated items may change what is in scope or modify functions
@@ -917,8 +904,7 @@
     parser::{ParserError, ParserErrorReason},
 };
 <span class="kw">use crate</span>::{
-    elaborator::globals::filter_literal_globals, graph::CrateGraph,
-    hir::def_collector::dc_crate::UnresolvedTrait, usage_tracker::UsageTracker,
+    graph::CrateGraph, hir::def_collector::dc_crate::UnresolvedTrait, usage_tracker::UsageTracker,
 };
 
 <span class="kw">mod </span>comptime;
@@ -1197,19 +1183,7 @@
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>elaborate_items(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw-2">mut </span>items: CollectedItems) {
-        <span class="comment">// We must first resolve and intern the globals before we can resolve any stmts inside each function.
-        // Each function uses its own resolver with a newly created ScopeForest, and must be resolved again to be within a function's scope
-        //
-        // Additionally, we must resolve integer globals before structs since structs may refer to
-        // the values of integer globals as numeric generics.
-        </span><span class="kw">let </span>(literal_globals, non_literal_globals) = filter_literal_globals(items.globals);
-        <span class="kw">for </span>global <span class="kw">in </span>non_literal_globals {
-            <span class="self">self</span>.unresolved_globals.insert(global.global_id, global);
-        }
-
-        <span class="kw">for </span>global <span class="kw">in </span>literal_globals {
-            <span class="self">self</span>.elaborate_global(global);
-        }
+        <span class="self">self</span>.set_unresolved_globals_ordering(items.globals);
 
         <span class="kw">for </span>(alias_id, alias) <span class="kw">in </span>items.type_aliases {
             <span class="self">self</span>.define_type_alias(alias_id, alias);
@@ -1240,9 +1214,7 @@
 
         <span class="comment">// We must wait to resolve non-literal globals until after we resolve structs since struct
         // globals will need to reference the struct type they're initialized to ensure they are valid.
-        </span><span class="kw">while let </span><span class="prelude-val">Some</span>((<span class="kw">_</span>, global)) = <span class="self">self</span>.unresolved_globals.pop_first() {
-            <span class="self">self</span>.elaborate_global(global);
-        }
+        </span><span class="self">self</span>.elaborate_remaining_globals();
 
         <span class="comment">// We have to run any comptime attributes on functions before the function is elaborated
         // since the generated items are checked beforehand as well.
