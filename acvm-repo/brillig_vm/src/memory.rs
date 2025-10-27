@@ -36,6 +36,7 @@ pub mod offsets {
 pub(crate) struct ArrayAddress(MemoryAddress);
 
 impl ArrayAddress {
+    /// The start of the items, after the meta-data.
     pub(crate) fn items_start(&self) -> MemoryAddress {
         self.0.offset(offsets::ARRAY_ITEMS)
     }
@@ -61,8 +62,9 @@ impl VectorAddress {
     pub(crate) fn size_addr(&self) -> MemoryAddress {
         self.0.offset(offsets::VECTOR_SIZE)
     }
+    /// The start of the items, after the meta-data.
     pub(crate) fn items_start(&self) -> MemoryAddress {
-        self.0.offset(offsets::VECTOR_SIZE)
+        self.0.offset(offsets::VECTOR_ITEMS)
     }
 }
 
