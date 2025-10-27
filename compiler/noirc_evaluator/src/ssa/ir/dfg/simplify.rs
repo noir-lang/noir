@@ -393,11 +393,6 @@ fn try_optimize_array_get_from_previous_set(
     mut array_id: ValueId,
     mut target_index: FieldElement,
 ) -> SimplifyResult {
-    // The target index must be less than the maximum array length
-    let Some(target_index_u32) = target_index.try_to_u32() else {
-        return SimplifyResult::None;
-    };
-
     // Arbitrary number of maximum tries just to prevent this optimization from taking too long.
     let max_tries = 5;
     for _ in 0..max_tries {
@@ -414,7 +409,11 @@ fn try_optimize_array_get_from_previous_set(
                     }
                 }
                 Instruction::MakeArray { elements: array, typ: _ } => {
-                    let index = target_index_u32 as usize;
+                    let Some(target_index) = target_index.try_to_u32() else {
+                        return SimplifyResult::None;
+                    };
+
+                    let index = target_index as usize;
                     if index < array.len() {
                         return SimplifyResult::SimplifiedTo(array[index]);
                     }
@@ -523,10 +522,26 @@ fn try_optimize_array_get_from_previous_set(
                             }
                         }
                     }
+
+                    if let Some(slice_pop_back) = dfg.get_intrinsic(Intrinsic::SlicePopBack) {
+                        if func == slice_pop_back {
+                            let slice = arguments[1];
+                            // Only optimize for non-composite slices
+                            if dfg.type_of_value(slice).element_size() == 1 {
+                                array_id = slice;
+                                target_index += FieldElement::one();
+                                continue;
+                            }
+                        }
+                    }
                 }
                 _ => (),
             }
         } else if let Value::Param { typ: Type::Array(_, length), .. } = &dfg[array_id] {
+            let Some(target_index_u32) = target_index.try_to_u32() else {
+                return SimplifyResult::None;
+            };
+
             if target_index_u32 < *length {
                 let index = dfg.make_constant(target_index, NumericType::length_type());
                 return SimplifyResult::SimplifiedToInstruction(Instruction::ArrayGet {
@@ -911,8 +926,8 @@ mod tests {
             v8, v9 = call slice_insert(u32 3, v3, u32 1, Field 10) -> (u32, [Field])
             v11 = array_get v0, index u32 0 -> Field
             v12 = array_get v0, index u32 1 -> Field
-            v13 = array_get v9, index u32 3 -> Field
-            return v11, Field 10, v12, v13
+            v14 = array_get v0, index u32 2 -> Field
+            return v11, Field 10, v12, v14
         }
         ");
     }
@@ -923,7 +938,7 @@ mod tests {
         acir(inline) predicate_pure fn main f0 {
         b0(v0: [Field; 4]):
             v2, v3 = call as_slice(v0) -> (u32, [Field])
-            v8, v9 = call slice_remove(u32 3, v3, u32 1) -> (u32, [Field])
+            v8, v9 = call slice_remove(u32 4, v3, u32 1) -> (u32, [Field])
             v10 = array_get v9, index u32 0 -> Field
             v11 = array_get v9, index u32 1 -> Field
             v12 = array_get v9, index u32 2 -> Field
@@ -942,13 +957,13 @@ mod tests {
         acir(inline) predicate_pure fn main f0 {
           b0(v0: [Field; 4]):
             v2, v3 = call as_slice(v0) -> (u32, [Field])
-            v7, v8 = call slice_remove(u32 3, v3, u32 1) -> (u32, [Field])
+            v7, v8 = call slice_remove(u32 4, v3, u32 1) -> (u32, [Field])
             v10 = array_get v0, index u32 0 -> Field
             v12 = array_get v0, index u32 2 -> Field
-            v13 = array_get v0, index u32 3 -> Field
-            v15 = array_get v0, index u32 4 -> Field
+            v14 = array_get v0, index u32 3 -> Field
+            v15 = array_get v8, index u32 3 -> Field
             v16 = array_get v8, index u32 4 -> Field
-            return v10, v12, v13, v15, v16
+            return v10, v12, v14, v15, v16
         }
         ");
     }
@@ -980,8 +995,8 @@ mod tests {
             v7, v8 = call slice_push_front(u32 3, v3, Field 10) -> (u32, [Field])
             v10 = array_get v0, index u32 0 -> Field
             v12 = array_get v0, index u32 1 -> Field
-            v13 = array_get v8, index u32 3 -> Field
-            return Field 10, v10, v12, v13
+            v14 = array_get v0, index u32 2 -> Field
+            return Field 10, v10, v12, v14
         }
         ");
     }
@@ -992,7 +1007,7 @@ mod tests {
         acir(inline) predicate_pure fn main f0 {
         b0(v0: [Field; 4]):
             v2, v3 = call as_slice(v0) -> (u32, [Field])
-            v7, v8, v9 = call slice_pop_front(u32 3, v3) -> (Field, u32, [Field])
+            v7, v8, v9 = call slice_pop_front(u32 4, v3) -> (Field, u32, [Field])
             v10 = array_get v9, index u32 0 -> Field
             v11 = array_get v9, index u32 1 -> Field
             v12 = array_get v9, index u32 2 -> Field
@@ -1011,13 +1026,13 @@ mod tests {
         acir(inline) predicate_pure fn main f0 {
           b0(v0: [Field; 4]):
             v2, v3 = call as_slice(v0) -> (u32, [Field])
-            v6, v7, v8 = call slice_pop_front(u32 3, v3) -> (Field, u32, [Field])
+            v6, v7, v8 = call slice_pop_front(u32 4, v3) -> (Field, u32, [Field])
             v10 = array_get v0, index u32 1 -> Field
             v12 = array_get v0, index u32 2 -> Field
-            v13 = array_get v0, index u32 3 -> Field
-            v15 = array_get v0, index u32 4 -> Field
+            v14 = array_get v0, index u32 3 -> Field
+            v15 = array_get v8, index u32 3 -> Field
             v16 = array_get v8, index u32 4 -> Field
-            return v10, v12, v13, v15, v16
+            return v10, v12, v14, v15, v16
         }
         ");
     }
@@ -1052,6 +1067,39 @@ mod tests {
             v14 = array_get v0, index u32 2 -> Field
             v16 = array_get v8, index u32 4 -> Field
             return v10, v12, v14, Field 10, v16
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_array_get_on_slice_pop_back() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+        b0(v0: [Field; 4]):
+            v2, v3 = call as_slice(v0) -> (u32, [Field])
+            v7, v8, v9 = call slice_pop_back(u32 4, v3) -> (u32, [Field], Field)
+            v10 = array_get v8, index u32 0 -> Field
+            v11 = array_get v8, index u32 1 -> Field
+            v12 = array_get v8, index u32 2 -> Field
+            v13 = array_get v8, index u32 3 -> Field
+            v14 = array_get v8, index u32 4 -> Field
+            return v10, v11, v12, v13, v14
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        // We can see that the array_gets now read from v0 instead of v9.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: [Field; 4]):
+            v2, v3 = call as_slice(v0) -> (u32, [Field])
+            v6, v7, v8 = call slice_pop_back(u32 4, v3) -> (u32, [Field], Field)
+            v10 = array_get v0, index u32 1 -> Field
+            v12 = array_get v0, index u32 2 -> Field
+            v14 = array_get v0, index u32 3 -> Field
+            v15 = array_get v7, index u32 3 -> Field
+            v16 = array_get v7, index u32 4 -> Field
+            return v10, v12, v14, v15, v16
         }
         ");
     }
