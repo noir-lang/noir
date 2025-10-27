@@ -478,6 +478,21 @@ fn try_optimize_array_get_from_previous_set(
                             }
                         }
                     }
+
+                    if let Some(slice_push_front) = dfg.get_intrinsic(Intrinsic::SlicePushFront) {
+                        // Only simplify when a single value is pushed
+                        if func == slice_push_front && arguments.len() == 3 {
+                            let slice = arguments[1];
+                            let pushed_value = arguments[2];
+                            if target_index.is_zero() {
+                                return SimplifyResult::SimplifiedTo(pushed_value);
+                            } else {
+                                array_id = slice;
+                                target_index -= FieldElement::one();
+                                continue;
+                            }
+                        }
+                    }
                 }
                 _ => (),
             }
@@ -902,6 +917,39 @@ mod tests {
             v13 = array_get v0, index u32 3 -> Field
             v15 = array_get v0, index u32 4 -> Field
             return v10, v12, v13, v15
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_array_get_on_slice_push_front() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+        b0(v0: [Field; 3]):
+            v2, v3 = call as_slice(v0) -> (u32, [Field])
+            v8, v9 = call slice_push_front(u32 3, v3, Field 10) -> (u32, [Field])
+            v10 = array_get v9, index u32 0 -> Field
+            v11 = array_get v9, index u32 1 -> Field
+            v12 = array_get v9, index u32 2 -> Field
+            v13 = array_get v9, index u32 3 -> Field
+            return v10, v11, v12, v13
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        // We can see that the array_gets now read from v0 instead of v9.
+        // If the index is zero, we use the pushed value.
+        // Otherwise, the new index is `index - 1` as in the original
+        // slice elements happen in previous positions.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: [Field; 3]):
+            v2, v3 = call as_slice(v0) -> (u32, [Field])
+            v7, v8 = call slice_push_front(u32 3, v3, Field 10) -> (u32, [Field])
+            v10 = array_get v0, index u32 0 -> Field
+            v12 = array_get v0, index u32 1 -> Field
+            v13 = array_get v8, index u32 3 -> Field
+            return Field 10, v10, v12, v13
         }
         ");
     }
