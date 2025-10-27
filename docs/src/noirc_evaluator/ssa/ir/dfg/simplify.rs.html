@@ -708,7 +708,75 @@
 <a href="#707" id="707">707</a>
 <a href="#708" id="708">708</a>
 <a href="#709" id="709">709</a>
-<a href="#710" id="710">710</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
+<a href="#710" id="710">710</a>
+<a href="#711" id="711">711</a>
+<a href="#712" id="712">712</a>
+<a href="#713" id="713">713</a>
+<a href="#714" id="714">714</a>
+<a href="#715" id="715">715</a>
+<a href="#716" id="716">716</a>
+<a href="#717" id="717">717</a>
+<a href="#718" id="718">718</a>
+<a href="#719" id="719">719</a>
+<a href="#720" id="720">720</a>
+<a href="#721" id="721">721</a>
+<a href="#722" id="722">722</a>
+<a href="#723" id="723">723</a>
+<a href="#724" id="724">724</a>
+<a href="#725" id="725">725</a>
+<a href="#726" id="726">726</a>
+<a href="#727" id="727">727</a>
+<a href="#728" id="728">728</a>
+<a href="#729" id="729">729</a>
+<a href="#730" id="730">730</a>
+<a href="#731" id="731">731</a>
+<a href="#732" id="732">732</a>
+<a href="#733" id="733">733</a>
+<a href="#734" id="734">734</a>
+<a href="#735" id="735">735</a>
+<a href="#736" id="736">736</a>
+<a href="#737" id="737">737</a>
+<a href="#738" id="738">738</a>
+<a href="#739" id="739">739</a>
+<a href="#740" id="740">740</a>
+<a href="#741" id="741">741</a>
+<a href="#742" id="742">742</a>
+<a href="#743" id="743">743</a>
+<a href="#744" id="744">744</a>
+<a href="#745" id="745">745</a>
+<a href="#746" id="746">746</a>
+<a href="#747" id="747">747</a>
+<a href="#748" id="748">748</a>
+<a href="#749" id="749">749</a>
+<a href="#750" id="750">750</a>
+<a href="#751" id="751">751</a>
+<a href="#752" id="752">752</a>
+<a href="#753" id="753">753</a>
+<a href="#754" id="754">754</a>
+<a href="#755" id="755">755</a>
+<a href="#756" id="756">756</a>
+<a href="#757" id="757">757</a>
+<a href="#758" id="758">758</a>
+<a href="#759" id="759">759</a>
+<a href="#760" id="760">760</a>
+<a href="#761" id="761">761</a>
+<a href="#762" id="762">762</a>
+<a href="#763" id="763">763</a>
+<a href="#764" id="764">764</a>
+<a href="#765" id="765">765</a>
+<a href="#766" id="766">766</a>
+<a href="#767" id="767">767</a>
+<a href="#768" id="768">768</a>
+<a href="#769" id="769">769</a>
+<a href="#770" id="770">770</a>
+<a href="#771" id="771">771</a>
+<a href="#772" id="772">772</a>
+<a href="#773" id="773">773</a>
+<a href="#774" id="774">774</a>
+<a href="#775" id="775">775</a>
+<a href="#776" id="776">776</a>
+<a href="#777" id="777">777</a>
+<a href="#778" id="778">778</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
     basic_block::BasicBlockId,
     dfg::simplify::value_merger::ValueMerger,
     instruction::{
@@ -1089,16 +1157,20 @@
 /// - Otherwise, we check the array value of the array set.
 ///   - If the array value is constant, we use that array.
 ///   - If the array value is from a previous array-set, we recur.
+///   - If the array value is from an array parameter, we use that array.
 ///
 /// That is, we have multiple `array_set` instructions setting various constant indexes
 /// of the same array, returning a modified version. We want to go backwards until we
 /// find the last `array_set` for the index we are interested in, and return the value set.
 </span><span class="kw">fn </span>try_optimize_array_get_from_previous_set(
-    dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
+    dfg: <span class="kw-2">&amp;mut </span>DataFlowGraph,
     <span class="kw-2">mut </span>array_id: ValueId,
     target_index: FieldElement,
 ) -&gt; SimplifyResult {
-    <span class="kw">let </span><span class="kw-2">mut </span>elements = <span class="prelude-val">None</span>;
+    <span class="comment">// The target index must be less than the maximum array length
+    </span><span class="kw">let </span><span class="prelude-val">Some</span>(target_index_u32) = target_index.try_to_u32() <span class="kw">else </span>{
+        <span class="kw">return </span>SimplifyResult::None;
+    };
 
     <span class="comment">// Arbitrary number of maximum tries just to prevent this optimization from taking too long.
     </span><span class="kw">let </span>max_tries = <span class="number">5</span>;
@@ -1112,27 +1184,30 @@
                         }
 
                         array_id = <span class="kw-2">*</span>array; <span class="comment">// recur
-                    </span>} <span class="kw">else </span>{
-                        <span class="kw">return </span>SimplifyResult::None;
+                        </span><span class="kw">continue</span>;
                     }
                 }
                 Instruction::MakeArray { elements: array, typ: <span class="kw">_ </span>} =&gt; {
-                    elements = <span class="prelude-val">Some</span>(array.clone());
-                    <span class="kw">break</span>;
+                    <span class="kw">let </span>index = target_index_u32 <span class="kw">as </span>usize;
+                    <span class="kw">if </span>index &lt; array.len() {
+                        <span class="kw">return </span>SimplifyResult::SimplifiedTo(array[index]);
+                    }
                 }
-                <span class="kw">_ </span>=&gt; <span class="kw">return </span>SimplifyResult::None,
+                <span class="kw">_ </span>=&gt; (),
             }
-        } <span class="kw">else </span>{
-            <span class="kw">return </span>SimplifyResult::None;
+        } <span class="kw">else if let </span>Value::Param { typ: Type::Array(<span class="kw">_</span>, length), .. } = <span class="kw-2">&amp;</span>dfg[array_id] {
+            <span class="kw">if </span>target_index_u32 &lt; <span class="kw-2">*</span>length {
+                <span class="kw">let </span>index = dfg.make_constant(target_index, NumericType::length_type());
+                <span class="kw">return </span>SimplifyResult::SimplifiedToInstruction(Instruction::ArrayGet {
+                    array: array_id,
+                    index,
+                });
+            }
         }
+
+        <span class="kw">break</span>;
     }
 
-    <span class="kw">if let </span>(<span class="prelude-val">Some</span>(array), <span class="prelude-val">Some</span>(index)) = (elements, target_index.try_to_u64()) {
-        <span class="kw">let </span>index = index <span class="kw">as </span>usize;
-        <span class="kw">if </span>index &lt; array.len() {
-            <span class="kw">return </span>SimplifyResult::SimplifiedTo(array[index]);
-        }
-    }
     SimplifyResult::None
 }
 
@@ -1415,6 +1490,67 @@
         "</span>;
         <span class="kw">let </span>ssa = Ssa::from_str_simplifying(src).unwrap();
 
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>simplifies_array_get_from_previous_array_set_with_make_array() {
+        <span class="kw">let </span>src = <span class="string">"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = make_array [Field 2, Field 3] : [Field; 2]
+            v1 = array_set mut v0, index u32 0, value Field 4
+            v2 = array_get v1, index u32 0 -&gt; Field
+            v3 = array_get v1, index u32 1 -&gt; Field
+            return v2, v3
+        }
+        "</span>;
+        <span class="kw">let </span>ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v2 = make_array [Field 2, Field 3] : [Field; 2]
+            v4 = make_array [Field 4, Field 3] : [Field; 2]
+            return Field 4, Field 3
+        }
+        "</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>simplifies_array_get_from_previous_array_set_with_array_param_in_bounds() {
+        <span class="kw">let </span>src = <span class="string">"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: [Field; 2]):
+            v1 = array_set mut v0, index u32 0, value Field 4
+            v2 = array_get v1, index u32 0 -&gt; Field
+            v3 = array_get v1, index u32 1 -&gt; Field
+            return v2, v3
+        }
+        "</span>;
+        <span class="kw">let </span>ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: [Field; 2]):
+            v3 = array_set mut v0, index u32 0, value Field 4
+            v5 = array_get v0, index u32 1 -&gt; Field
+            return Field 4, v5
+        }
+        "</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>does_not_simplify_array_get_from_previous_array_set_with_array_param_out_of_bounds() {
+        <span class="kw">let </span>src = <span class="string">"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: [Field; 2]):
+            v3 = array_set mut v0, index u32 0, value Field 4
+            v5 = array_get v3, index u32 2 -&gt; Field
+            return v5
+        }
+        "</span>;
+        <span class="kw">let </span>ssa = Ssa::from_str_simplifying(src).unwrap();
         assert_normalized_ssa_equals(ssa, src);
     }
 }

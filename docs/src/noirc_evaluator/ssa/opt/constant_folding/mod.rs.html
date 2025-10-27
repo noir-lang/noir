@@ -2442,8 +2442,7 @@
 <a href="#2441" id="2441">2441</a>
 <a href="#2442" id="2442">2442</a>
 <a href="#2443" id="2443">2443</a>
-<a href="#2444" id="2444">2444</a>
-<a href="#2445" id="2445">2445</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the constant folding optimization pass is to propagate any constants forwards into
+<a href="#2444" id="2444">2444</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the constant folding optimization pass is to propagate any constants forwards into
 //! later [`Instruction`]s to maximize the impact of [compile-time simplifications][crate::ssa::ir::dfg::simplify::simplify()].
 //!
 //! The pass works as follows:
@@ -2779,7 +2778,7 @@
                 })
         };
         <span class="comment">// If the target_block is distinct than the original block
-        // that means that the current instruction is not added in the orignal block
+        // that means that the current instruction is not added in the original block
         // so it is deduplicated by the one in the target block.
         // In case it refers to an array that is mutated, we need to increment
         // its reference count.
@@ -3373,29 +3372,28 @@
         <span class="kw">let </span>instructions = main.dfg[main.entry_block()].instructions();
         <span class="macro">assert_eq!</span>(instructions.len(), <span class="number">15</span>);
 
+        <span class="kw">let </span>ssa = ssa.fold_constants_using_constraints(MIN_ITER);
+
         <span class="comment">// The `array_get` instruction after `enable_side_effects v1` is deduplicated
         // with the one under `enable_side_effects v0` because it doesn't require a predicate,
         // but the `array_set` is not, because it does require a predicate, and the subsequent
         // `array_get` uses a different input, so it's not a duplicate of anything.
-        </span><span class="kw">let </span>expected = <span class="string">"
-            acir(inline) fn main f0 {
-              b0(v0: u1, v1: u1, v2: [Field; 2]):
-                enable_side_effects v0
-                v4 = array_get v2, index u32 0 -&gt; u32
-                v7 = array_set v2, index u32 1, value u32 2
-                v8 = array_get v7, index u32 0 -&gt; u32
-                constrain v4 == v8
-                enable_side_effects v1
-                v9 = array_set v2, index u32 1, value u32 2
-                v10 = array_get v9, index u32 0 -&gt; u32
-                constrain v4 == v10
-                enable_side_effects v0
-                return
-            }
-            "</span>;
-
-        <span class="kw">let </span>ssa = ssa.fold_constants_using_constraints(MIN_ITER);
-        assert_normalized_ssa_equals(ssa, expected);
+        </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1, v2: [Field; 2]):
+            enable_side_effects v0
+            v4 = array_get v2, index u32 0 -&gt; u32
+            v7 = array_set v2, index u32 1, value u32 2
+            v8 = array_get v2, index u32 0 -&gt; u32
+            constrain v4 == v8
+            enable_side_effects v1
+            v9 = array_set v2, index u32 1, value u32 2
+            v10 = array_get v2, index u32 0 -&gt; u32
+            constrain v4 == v10
+            enable_side_effects v0
+            return
+        }
+        "</span>);
     }
 
     <span class="attr">#[test]
