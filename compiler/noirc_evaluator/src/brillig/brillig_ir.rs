@@ -24,7 +24,6 @@ mod codegen_stack;
 mod entry_point;
 mod instructions;
 
-pub(crate) use codegen_memory::offsets;
 use std::{cell::RefCell, rc::Rc};
 
 use artifact::Label;

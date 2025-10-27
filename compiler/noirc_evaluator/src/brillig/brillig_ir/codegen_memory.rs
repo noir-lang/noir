@@ -1,6 +1,7 @@
 use acvm::{
     AcirField,
     acir::brillig::{HeapArray, HeapVector, MemoryAddress, ValueOrArray},
+    brillig_vm::offsets,
 };
 
 use crate::brillig::brillig_ir::{BrilligBinaryOp, registers::Allocated};
@@ -11,16 +12,6 @@ use super::{
     debug_show::DebugToString,
     registers::RegisterAllocator,
 };
-
-/// Offset constants for arrays and vectors:
-/// * Arrays are `[ref-count, ...items]`
-/// * Vectors are `[ref-count, size, capacity, ...items]`
-pub(crate) mod offsets {
-    pub(crate) const ARRAY_ITEMS: usize = 1;
-    pub(crate) const VECTOR_SIZE: usize = 1;
-    pub(crate) const VECTOR_CAPACITY: usize = 2;
-    pub(crate) const VECTOR_ITEMS: usize = 3;
-}
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     /// Loads the current _free memory pointer_ into `pointer_register` and

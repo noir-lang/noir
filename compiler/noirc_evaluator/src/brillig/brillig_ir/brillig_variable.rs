@@ -141,6 +141,7 @@ where
     }
 }
 
+/// Convert an SSA [Type] to [HeapValueType] for passing values to foreign calls.
 pub(crate) fn type_to_heap_value_type(typ: &Type) -> HeapValueType {
     match typ {
         Type::Numeric(_) | Type::Reference(_) | Type::Function => HeapValueType::Simple(

@@ -2,10 +2,10 @@ pub(super) mod brillig_black_box;
 pub(super) mod brillig_slice_ops;
 pub(super) mod code_gen_call;
 
+use acvm::brillig_vm::offsets;
 use iter_extended::vecmap;
 
 use crate::brillig::BrilligBlock;
-use crate::brillig::brillig_ir::offsets;
 use crate::brillig::brillig_ir::{BrilligBinaryOp, registers::RegisterAllocator};
 use crate::ssa::ir::function::FunctionId;
 use crate::ssa::ir::instruction::{InstructionId, Intrinsic};
