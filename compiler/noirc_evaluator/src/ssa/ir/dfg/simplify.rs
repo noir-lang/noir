@@ -426,12 +426,14 @@ fn try_optimize_array_get_from_previous_set(
                 _ => return SimplifyResult::None,
             }
         } else {
-            // If we reach a parameter, directly get from that parameter
-            if let Value::Param { .. } = dfg[array_id] {
-                return SimplifyResult::SimplifiedToInstruction(Instruction::ArrayGet {
-                    array: array_id,
-                    index,
-                });
+            // If we reach a parameter, directly get from that parameter, but only if the index is a constant
+            if dfg.get_numeric_constant(index).is_some() {
+                if let Value::Param { .. } = dfg[array_id] {
+                    return SimplifyResult::SimplifiedToInstruction(Instruction::ArrayGet {
+                        array: array_id,
+                        index,
+                    });
+                }
             }
 
             return SimplifyResult::None;
