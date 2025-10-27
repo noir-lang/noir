@@ -5,7 +5,7 @@
 //! method bodies are resolved and type-checked (which happens later through regular function
 //! elaboration).
 //!
-//! ## Impl Collection Pipeline
+//! ## Design
 //!
 //! The impl collection process occurs in several phases:
 //!
