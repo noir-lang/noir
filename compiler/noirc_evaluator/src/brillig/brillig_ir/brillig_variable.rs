@@ -34,10 +34,14 @@ impl SingleAddrVariable {
     }
 }
 
-/// The representation of a noir array in the Brillig IR
+/// The representation of a Noir array in the Brillig IR
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy)]
 pub(crate) struct BrilligArray {
     pub(crate) pointer: MemoryAddress,
+    /// The number of memory slots the array occupies.
+    ///
+    /// This is the flattened size of the array, where complex types
+    /// take up more than one slot.
     pub(crate) size: usize,
 }
 

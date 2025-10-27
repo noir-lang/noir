@@ -68,8 +68,8 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.store_instruction(*final_index, value);
     }
 
-    /// Copies the values of memory pointed by source with length stored in `num_elements_register`
-    /// After the address pointed by destination
+    /// Copies the values of memory pointed by `source_pointer` with length stored in `num_elements_variable`
+    /// after the address pointed by `destination_pointer`.
     pub(crate) fn codegen_mem_copy(
         &mut self,
         source_pointer: MemoryAddress,
@@ -105,16 +105,8 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                     (source_iterator, target_iterator)
                 },
                 |brillig_context, (source_iterator, target_iterator)| {
-                    brillig_context.codegen_usize_op_in_place(
-                        **source_iterator,
-                        BrilligBinaryOp::Add,
-                        1,
-                    );
-                    brillig_context.codegen_usize_op_in_place(
-                        **target_iterator,
-                        BrilligBinaryOp::Add,
-                        1,
-                    );
+                    brillig_context.memory_op_inc_by_usize_one(**source_iterator);
+                    brillig_context.memory_op_inc_by_usize_one(**target_iterator);
                 },
                 |brillig_context, (source_iterator, _)| {
                     // We have finished when the source/target pointer is less than the source/target start

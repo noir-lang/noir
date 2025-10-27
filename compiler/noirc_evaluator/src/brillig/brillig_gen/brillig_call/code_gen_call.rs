@@ -179,23 +179,24 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         instruction_id: InstructionId,
         dfg: &DataFlowGraph,
     ) {
-        let source_variable = self.convert_ssa_value(arguments[0], dfg);
-        let result_ids = dfg.instruction_results(instruction_id);
+        let source_id = arguments[0];
+        let source_variable = self.convert_ssa_value(source_id, dfg);
+        let [length_id, destination_id] = dfg.instruction_result(instruction_id);
         let destination_len_variable = self.variables.define_single_addr_variable(
             self.function_context,
             self.brillig_context,
-            result_ids[0],
+            length_id,
             dfg,
         );
         let destination_variable = self.variables.define_variable(
             self.function_context,
             self.brillig_context,
-            result_ids[1],
+            destination_id,
             dfg,
         );
         let destination_vector = destination_variable.extract_vector();
         let source_array = source_variable.extract_array();
-        let element_size = dfg.type_of_value(arguments[0]).element_size();
+        let element_size = dfg.type_of_value(source_id).element_size();
 
         let source_size_register =
             self.brillig_context.make_usize_constant_instruction(source_array.size.into());
