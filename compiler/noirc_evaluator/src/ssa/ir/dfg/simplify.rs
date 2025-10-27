@@ -389,7 +389,10 @@ fn try_optimize_array_get_from_previous_set(
     mut array_id: ValueId,
     target_index: FieldElement,
 ) -> SimplifyResult {
-    let mut elements = None;
+    // The target index must be less than the maximum array length
+    let Some(target_index_u32) = target_index.try_to_u32() else {
+        return SimplifyResult::None;
+    };
 
     // Arbitrary number of maximum tries just to prevent this optimization from taking too long.
     let max_tries = 5;
@@ -403,35 +406,30 @@ fn try_optimize_array_get_from_previous_set(
                         }
 
                         array_id = *array; // recur
-                    } else {
-                        return SimplifyResult::None;
+                        continue;
                     }
                 }
                 Instruction::MakeArray { elements: array, typ: _ } => {
-                    elements = Some(array.clone());
-                    break;
+                    let index = target_index_u32 as usize;
+                    if index < array.len() {
+                        return SimplifyResult::SimplifiedTo(array[index]);
+                    }
                 }
-                _ => return SimplifyResult::None,
+                _ => (),
             }
         } else if let Value::Param { typ: Type::Array(_, length), .. } = &dfg[array_id] {
-            if target_index.try_to_u32().is_some_and(|index| index < *length) {
+            if target_index_u32 < *length {
                 let index = dfg.make_constant(target_index, NumericType::length_type());
                 return SimplifyResult::SimplifiedToInstruction(Instruction::ArrayGet {
                     array: array_id,
                     index,
                 });
             }
-        } else {
-            return SimplifyResult::None;
         }
+
+        break;
     }
 
-    if let (Some(array), Some(index)) = (elements, target_index.try_to_u64()) {
-        let index = index as usize;
-        if index < array.len() {
-            return SimplifyResult::SimplifiedTo(array[index]);
-        }
-    }
     SimplifyResult::None
 }
 
