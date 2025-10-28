@@ -83,6 +83,16 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         else_address: SingleAddrVariable,
         destination: SingleAddrVariable,
     ) {
+        // If then and else addresses are the same, we can optimize by using a simple mov instruction
+        if then_address.address == else_address.address {
+            self.debug_show.mov_instruction(destination.address, then_address.address);
+            self.push_opcode(BrilligOpcode::Mov {
+                destination: destination.address,
+                source: then_address.address,
+            });
+            return;
+        }
+
         self.debug_show.conditional_mov_instruction(
             destination.address,
             then_address.address,
