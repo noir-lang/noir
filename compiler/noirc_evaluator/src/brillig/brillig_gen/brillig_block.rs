@@ -51,11 +51,11 @@ pub(crate) struct BrilligBlock<'block, Registers: RegisterAllocator> {
 }
 
 impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
-    /// Converts an SSA Basic block into a sequence of Brillig opcodes
+    /// Converts an SSA basic block into a sequence of Brillig opcodes.
     ///
     /// This method contains the necessary initial variable and register setup for compiling
     /// an SSA block by accessing the pre-computed liveness context.
-    pub(crate) fn compile(
+    pub(crate) fn compile_block(
         function_context: &'block mut FunctionContext,
         brillig_context: &'block mut BrilligContext<FieldElement, Registers>,
         block_id: BasicBlockId,
@@ -179,28 +179,30 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         new_hoisted_constants
     }
 
-    /// Internal method for [BrilligBlock::compile] that actually kicks off the Brillig compilation process
+    /// Internal method for [BrilligBlock::compile_block] that actually kicks off the Brillig compilation process.
     ///
-    /// At this point any Brillig context, should be contained in [BrilligBlock] and this function should
+    /// At this point any Brillig context should be contained in [BrilligBlock], and this function should
     /// only need to accept external SSA and debugging structures.
     fn convert_block(&mut self, dfg: &DataFlowGraph, call_stacks: &mut CallStackHelper) {
         // Add a label for this block
         let block_label = self.create_block_label_for_current_function(self.block_id);
         self.brillig_context.enter_context(block_label);
 
+        // Allocate variables for parameter passing between blocks.
         self.convert_block_params(dfg);
 
         let block = &dfg[self.block_id];
 
-        // Convert all of the instructions into the block
+        // Convert all of the instructions into the block.
         for instruction_id in block.instructions() {
             self.convert_ssa_instruction(*instruction_id, dfg, call_stacks);
         }
 
-        // Process the block's terminator instruction
+        // Process the block's terminator instruction.
         let terminator_instruction =
             block.terminator().expect("block is expected to be constructed");
 
+        // If we are exiting the entry point, we may want to print the array copy count, for debug purposes.
         if self.brillig_context.count_array_copies()
             && matches!(terminator_instruction, TerminatorInstruction::Return { .. })
             && self.function_context.is_entry_point
@@ -213,9 +215,8 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
     /// Creates a unique global label for a block.
     ///
-    /// This uses the current functions's function ID and the block ID
-    /// Making the assumption that the block ID passed in belongs to this
-    /// function.
+    /// This uses the current function's function ID and the block ID,
+    /// making the assumption that the block ID passed in belongs to this function.
     fn create_block_label_for_current_function(&self, block_id: BasicBlockId) -> Label {
         Self::create_block_label(self.function_context.function_id(), block_id)
     }
@@ -229,19 +230,19 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         Label::block(function_id, block_id)
     }
 
-    /// Converts an SSA terminator instruction into the necessary opcodes.
+    /// Converts an SSA terminator instruction into the necessary opcodes:
+    /// * allocates the hoisted constants which are used by dominated blocks
+    /// * for jumps:
+    ///   * copies the arguments to the registers allocated in [Self::convert_block_params]
+    ///   * adds jump opcodes to the labels of the destination blocks
+    /// * for return it allocates registers for the return values and copies from variables.
     fn convert_ssa_terminator(
         &mut self,
         terminator_instruction: &TerminatorInstruction,
         dfg: &DataFlowGraph,
     ) {
-        self.initialize_constants(
-            &self
-                .function_context
-                .constant_allocation
-                .allocated_at_location(self.block_id, InstructionLocation::Terminator),
-            dfg,
-        );
+        self.initialize_constants(dfg, InstructionLocation::Terminator);
+
         match terminator_instruction {
             TerminatorInstruction::JmpIf {
                 condition,
@@ -258,26 +259,22 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     self.create_block_label_for_current_function(*else_destination),
                 );
             }
-            TerminatorInstruction::Jmp {
-                destination: destination_block,
-                arguments,
-                call_stack: _,
-            } => {
-                let target_block = &dfg[*destination_block];
-                for (src, dest) in arguments.iter().zip(target_block.parameters()) {
-                    // Destinations are block parameters so they should have been allocated previously.
-                    let destination = self.variables.get_allocation(self.function_context, *dest);
-                    let source = self.convert_ssa_value(*src, dfg);
+            TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
+                let destination_block = &dfg[*destination];
+                for (arg, param) in arguments.iter().zip(destination_block.parameters()) {
+                    // Destinations are block parameters, so they should have been allocated previously in `create_block_params`.
+                    let param = self.variables.get_allocation(self.function_context, *param);
+                    let arg = self.convert_ssa_value(*arg, dfg);
                     self.brillig_context
-                        .mov_instruction(destination.extract_register(), source.extract_register());
+                        .mov_instruction(param.extract_register(), arg.extract_register());
                 }
-                self.brillig_context.jump_instruction(
-                    self.create_block_label_for_current_function(*destination_block),
-                );
+                self.brillig_context
+                    .jump_instruction(self.create_block_label_for_current_function(*destination));
             }
             TerminatorInstruction::Return { return_values, .. } => {
                 let return_registers = vecmap(return_values, |value_id| {
-                    self.convert_ssa_value(*value_id, dfg).extract_register()
+                    // Get the allocations of the values to be returned.
+                    self.convert_ssa_value(*value_id, dfg)
                 });
                 self.brillig_context.codegen_return(&return_registers);
             }
@@ -287,24 +284,26 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         }
     }
 
-    /// Allocates the block parameters that the given block is defining
+    /// Allocates the block parameters that the given block is defining.
+    ///
+    /// We don't allocate the block parameters of the block itself here, we allocate the parameters the block is defining
+    /// for the descendant blocks it immediately dominates. Since predecessors to a block have to know where the parameters
+    /// of the block are allocated to pass data to it in [Self::convert_ssa_terminator], the block parameters need to be
+    /// defined/allocated before the given block. [VariableLiveness](crate::brillig::brillig_gen::variable_liveness::VariableLiveness)
+    /// decides when the block parameters are defined.
+    ///
+    /// For the entry block, the defined block params will be the params of the function + any extra params of blocks it's the immediate dominator of.
     fn convert_block_params(&mut self, dfg: &DataFlowGraph) {
-        // We don't allocate the block parameters here, we allocate the parameters the block is defining.
-        // Since predecessors to a block have to know where the parameters of the block are allocated to pass data to it,
-        // the block parameters need to be defined/allocated before the given block. Variable liveness provides when the block parameters are defined.
-        // For the entry block, the defined block params will be the params of the function + any extra params of blocks it's the immediate dominator of.
         for param_id in self.function_context.liveness.defined_block_params(&self.block_id) {
             let value = &dfg[param_id];
-            let param_type = match value {
-                Value::Param { typ, .. } => typ,
-                _ => unreachable!("ICE: Only Param type values should appear in block parameters"),
+            let Value::Param { typ: param_type, .. } = value else {
+                unreachable!("ICE: Only Param type values should appear in block parameters");
             };
             match param_type {
-                // Simple parameters and arrays are passed as already filled registers
-                // In the case of arrays, the values should already be in memory and the register should
-                // Be a valid pointer to the array.
-                // For slices, two registers are passed, the pointer to the data and a register holding the size of the slice.
                 Type::Numeric(_) | Type::Array(..) | Type::Slice(..) | Type::Reference(_) => {
+                    // Simple parameters and arrays are passed as already filled registers.
+                    // In the case of arrays, the values should already be in memory and the register should be a valid pointer to the array.
+                    // For slices, two registers are passed, the pointer to the data and a register holding the size of the slice.
                     self.variables.define_variable(
                         self.function_context,
                         self.brillig_context,
@@ -312,7 +311,9 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                         dfg,
                     );
                 }
-                Type::Function => todo!("ICE: Type::Function Param not supported"),
+                Type::Function => unreachable!(
+                    "ICE: Type::Function Param not supported; should have been removed by defunctionalization."
+                ),
             }
         }
     }
@@ -331,13 +332,8 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         let call_stack_new_id = call_stacks.get_or_insert_locations(&call_stack);
         self.brillig_context.set_call_stack(call_stack_new_id);
 
-        self.initialize_constants(
-            &self.function_context.constant_allocation.allocated_at_location(
-                self.block_id,
-                InstructionLocation::Instruction(instruction_id),
-            ),
-            dfg,
-        );
+        self.initialize_constants(dfg, InstructionLocation::Instruction(instruction_id));
+
         match instruction {
             Instruction::Binary(binary) => {
                 self.binary_gen(instruction_id, binary, dfg);
@@ -540,18 +536,26 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         self.brillig_context.cast_instruction(destination, source);
     }
 
-    /// Accepts a list of constant values to be initialized
+    /// Initializes constants allocated to a [InstructionLocation] by [ConstantAllocation](crate::brillig::brillig_gen::constant_allocation::ConstantAllocation).
     ///
-    /// This method does no checks as to whether the supplied constants are actually constants.
     /// It is expected that this method is called before converting an SSA instruction to Brillig
     /// and the constants to be initialized have been precomputed and stored in [FunctionContext::constant_allocation].
-    fn initialize_constants(&mut self, constants: &[ValueId], dfg: &DataFlowGraph) {
-        for &constant_id in constants {
+    fn initialize_constants(&mut self, dfg: &DataFlowGraph, location: InstructionLocation) {
+        let Some(constants) = self
+            .function_context
+            .constant_allocation
+            .allocated_at_location(self.block_id, location)
+            .map(|c| c.to_vec())
+        else {
+            return;
+        };
+
+        for constant_id in constants {
             self.convert_ssa_value(constant_id, dfg);
         }
     }
 
-    /// Converts an SSA [ValueId] into a [BrilligVariable]. Initializes if necessary.
+    /// Converts an SSA [ValueId] into a [BrilligVariable]. Initializes if necessary, or returns an existing allocation.
     ///
     /// This method also first checks whether the SSA value is a hoisted global constant.
     /// If it has already been initialized in the global space, we return the already existing variable.
@@ -624,12 +628,14 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 new_variable
             }
             Value::Intrinsic(_) | Value::ForeignFunction(_) => {
-                todo!("ICE: Cannot convert value {value:?}")
+                unreachable!("ICE: Cannot convert value to Brillig: {value:?}")
             }
         }
     }
 
-    /// Converts an SSA `ValueId` into a `MemoryAddress`. Initializes if necessary.
+    /// Converts an SSA `ValueId` into a single `MemoryAddress`. Initializes if necessary.
+    ///
+    /// Panics if the value was converted to an array or vector.
     pub(crate) fn convert_ssa_single_addr_value(
         &mut self,
         value_id: ValueId,

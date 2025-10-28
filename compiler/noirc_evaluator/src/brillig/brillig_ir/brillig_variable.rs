@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use acvm::{
     FieldElement,
     acir::{AcirField, brillig::BitSize},
@@ -5,7 +7,10 @@ use acvm::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::ssa::ir::types::Type;
+use crate::{
+    brillig::brillig_ir::registers::{Allocated, RegisterAllocator},
+    ssa::ir::types::Type,
+};
 
 use super::BRILLIG_MEMORY_ADDRESSING_BIT_SIZE;
 
@@ -51,6 +56,9 @@ pub(crate) enum BrilligVariable {
 }
 
 impl BrilligVariable {
+    /// Extract a [SingleAddrVariable].
+    ///
+    /// Panics if the variable is an array or vector.
     pub(crate) fn extract_single_addr(self) -> SingleAddrVariable {
         match self {
             BrilligVariable::SingleAddr(single_addr) => single_addr,
@@ -58,6 +66,9 @@ impl BrilligVariable {
         }
     }
 
+    /// Extract a [BrilligArray].
+    ///
+    /// Panics if it's a single address variable or a vector.
     pub(crate) fn extract_array(self) -> BrilligArray {
         match self {
             BrilligVariable::BrilligArray(array) => array,
@@ -65,6 +76,9 @@ impl BrilligVariable {
         }
     }
 
+    /// Extract a [BrilligVector].
+    ///
+    /// Panics if it's a single address variable or an array.
     pub(crate) fn extract_vector(self) -> BrilligVector {
         match self {
             BrilligVariable::BrilligVector(vector) => vector,
@@ -72,7 +86,9 @@ impl BrilligVariable {
         }
     }
 
-    /// Extract the memory address that can be deallocated to make the memory available for reuse.
+    /// Extract the [MemoryAddress] out of any [BrilligVariable].
+    ///
+    /// This can be deallocated to make the memory available for reuse.
     ///
     /// Note that this is a single address even for vectors, because this is a `BrilligVector`, not a `HeapVector`.
     pub(crate) fn extract_register(self) -> MemoryAddress {
@@ -81,6 +97,47 @@ impl BrilligVariable {
             BrilligVariable::BrilligArray(array) => array.pointer,
             BrilligVariable::BrilligVector(vector) => vector.pointer,
         }
+    }
+}
+
+impl From<SingleAddrVariable> for BrilligVariable {
+    fn from(value: SingleAddrVariable) -> Self {
+        Self::SingleAddr(value)
+    }
+}
+
+impl From<BrilligArray> for BrilligVariable {
+    fn from(value: BrilligArray) -> Self {
+        Self::BrilligArray(value)
+    }
+}
+
+impl From<BrilligVector> for BrilligVariable {
+    fn from(value: BrilligVector) -> Self {
+        Self::BrilligVector(value)
+    }
+}
+
+impl<T, R: RegisterAllocator> From<&Allocated<T, R>> for BrilligVariable
+where
+    BrilligVariable: From<T>,
+    T: Copy,
+{
+    fn from(value: &Allocated<T, R>) -> Self {
+        Self::from(*value.deref())
+    }
+}
+
+/// Convenience method to convert e.g. an `Allocated<BrilligArray, _>` to a `BrilligVariable`.
+#[cfg(test)]
+impl<T, R: RegisterAllocator> Allocated<T, R>
+where
+    BrilligVariable: From<T>,
+    T: Copy,
+{
+    /// Convert the allocated value into a [BrilligVariable].
+    pub(crate) fn to_var(&self) -> BrilligVariable {
+        BrilligVariable::from(**self)
     }
 }
 

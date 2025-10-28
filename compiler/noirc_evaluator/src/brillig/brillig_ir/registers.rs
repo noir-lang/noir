@@ -188,7 +188,7 @@ impl RegisterAllocator for Stack {
     ) -> Self {
         let empty = Stack::new(layout);
         for register in &preallocated_registers {
-            assert!(empty.is_within_bounds(*register), "Register out of stack bounds");
+            assert!(empty.is_within_bounds(*register), "Register out of stack bounds: {register}");
         }
 
         Self {

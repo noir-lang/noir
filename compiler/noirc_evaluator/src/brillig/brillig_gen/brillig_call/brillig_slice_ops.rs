@@ -279,18 +279,18 @@ mod tests {
                     *target_vector,
                     *source_len_var,
                     *source_vector,
-                    &[BrilligVariable::SingleAddr(*item_to_insert)],
+                    &[item_to_insert.to_var()],
                 );
             } else {
                 block.slice_push_front_operation(
                     *target_vector,
                     *source_len_var,
                     *source_vector,
-                    &[BrilligVariable::SingleAddr(*item_to_insert)],
+                    &[item_to_insert.to_var()],
                 );
             }
 
-            context.codegen_return(&[target_vector.pointer]);
+            context.codegen_return(&[target_vector.to_var()]);
 
             // Compile to byte code.
             let bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
@@ -465,18 +465,18 @@ mod tests {
                     *target_vector,
                     *source_len_var,
                     *source_vector,
-                    &[BrilligVariable::SingleAddr(*removed_item)],
+                    &[removed_item.to_var()],
                 );
             } else {
                 block.slice_pop_front_operation(
                     *target_vector,
                     *source_len_var,
                     *source_vector,
-                    &[BrilligVariable::SingleAddr(*removed_item)],
+                    &[removed_item.to_var()],
                 );
             }
 
-            context.codegen_return(&[removed_item.address, target_vector.pointer]);
+            context.codegen_return(&[removed_item.to_var(), target_vector.to_var()]);
 
             let bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
 
@@ -614,10 +614,10 @@ mod tests {
                 *target_vector,
                 *source_vector,
                 *index_to_insert,
-                &[BrilligVariable::SingleAddr(*item_to_insert)],
+                &[item_to_insert.to_var()],
             );
 
-            context.codegen_return(&[target_vector.pointer]);
+            context.codegen_return(&[target_vector.to_var()]);
             let calldata = array.into_iter().chain(vec![item]).chain(vec![index]).collect();
 
             let bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
@@ -755,10 +755,10 @@ mod tests {
                 *target_vector,
                 *source_vector,
                 *index_to_insert,
-                &[BrilligVariable::SingleAddr(*removed_item)],
+                &[removed_item.to_var()],
             );
 
-            context.codegen_return(&[removed_item.address, target_vector.pointer]);
+            context.codegen_return(&[removed_item.to_var(), target_vector.to_var()]);
 
             let calldata: Vec<_> = array.into_iter().chain(vec![index]).collect();
 

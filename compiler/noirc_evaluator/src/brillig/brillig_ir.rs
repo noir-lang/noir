@@ -83,12 +83,11 @@ pub(crate) struct BrilligContext<F, Registers> {
     obj: BrilligArtifact<F>,
     /// Tracks register allocations
     registers: Rc<RefCell<Registers>>,
-    /// Context label, must be unique with respect to the function
-    /// being linked.
+    /// Context label, must be unique with respect to the function being linked.
     context_label: Label,
-    /// Section label, used to separate sections of code
+    /// Section label, used to separate sections of code within a context.
     current_section: usize,
-    /// Stores the next available section
+    /// Stores the next available section.
     next_section: usize,
     /// IR printer
     debug_show: DebugShow,
