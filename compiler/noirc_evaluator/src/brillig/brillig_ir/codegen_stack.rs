@@ -30,7 +30,6 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         assert_eq!(sources.len(), destinations.len());
         let n = sources.len();
         let start = Stack::start();
-        let mut free_register = None;
         let mut processed = 0;
         // Compute the number of children for each node in the movement graph
         let mut children = vec![0; n];
@@ -72,8 +71,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                         // process the parent node
                         node = index;
                     } else {
-                        // End of the path; when all the sinks will be processed, this register will be 'free' for re-use.
-                        free_register = Some(sources[node]);
+                        // End of the path
                         break;
                     }
                 }
@@ -100,18 +98,20 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         if processed == n {
             return;
         }
-        // Now process all the remaining loops with a temporary register if needed.
-        let register = free_register.unwrap_or_else(|| self.registers_mut().allocate_register());
+        // Now process all the remaining loops with a temporary register.
+        // Allocate one temporary per loop to avoid type confusion when reusing registers,
+        // since different loops may contain values of different types.
         for i in 0..n {
             if children[i] == 1 {
                 let src = Self::from_index(i);
-                // Copy the loop entry to the free register
-                self.mov_instruction(register, src);
-                self.process_loop(i, &register, &mut children, &sources, &mut processed);
+                // Copy the loop entry to a temporary register.
+                // Unfortunately, we cannot use one register for all the loops
+                // when the sources do not have the same type
+                let temp_register = self.registers_mut().allocate_register();
+                self.mov_instruction(temp_register, src);
+                self.process_loop(i, &temp_register, &mut children, &sources, &mut processed);
+                self.deallocate_register(temp_register);
             }
-        }
-        if free_register.is_none() {
-            self.deallocate_register(register);
         }
     }
 
