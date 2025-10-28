@@ -18,6 +18,7 @@ members = [
     "tooling/ast_fuzzer/fuzz",
     "tooling/greybox_fuzzer",
     "tooling/nargo",
+    "tooling/nargo_doc",
     "tooling/nargo_expand",
     "tooling/nargo_fmt",
     "tooling/nargo_cli",
@@ -111,6 +112,7 @@ noirc_span = { path = "compiler/noirc_span" }
 noir_greybox_fuzzer = { path = "tooling/greybox_fuzzer" }
 nargo = { path = "tooling/nargo" }
 nargo_cli = { path = "tooling/nargo_cli" }
+nargo_doc = { path = "tooling/nargo_doc" }
 nargo_expand = { path = "tooling/nargo_expand" }
 nargo_fmt = { path = "tooling/nargo_fmt" }
 nargo_toml = { path = "tooling/nargo_toml" }

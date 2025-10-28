@@ -3304,6 +3304,7 @@ dependencies = [
  "lazy_static",
  "light-poseidon",
  "nargo",
+ "nargo_doc",
  "nargo_expand",
  "nargo_fmt",
  "nargo_toml",
@@ -3346,6 +3347,15 @@ dependencies = [
  "tracing",
  "tracing-appender",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "nargo_doc"
+version = "1.0.0-beta.14"
+dependencies = [
+ "noirc_driver",
+ "noirc_frontend",
+ "serde",
 ]
 
 [[package]]

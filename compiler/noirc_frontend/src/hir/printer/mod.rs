@@ -22,7 +22,7 @@ use crate::{
     token::{FunctionAttributeKind, LocatedToken, SecondaryAttribute, SecondaryAttributeKind},
 };
 
-mod items;
+pub mod items;
 
 use items::{Impl, Import, Item, Module, Trait, TraitImpl};
 
@@ -34,11 +34,7 @@ pub fn display_crate(
     def_maps: &DefMaps,
     interner: &NodeInterner,
 ) -> String {
-    let root_module_id = def_maps[&crate_id].root();
-    let module_id = ModuleId { krate: crate_id, local_id: root_module_id };
-
-    let mut builder = ItemBuilder::new(crate_id, interner, def_maps);
-    let item = builder.build_module(module_id);
+    let item = crate_to_item(crate_id, def_maps, interner);
 
     let dependencies = &crate_graph[crate_id].dependencies;
 
@@ -47,6 +43,14 @@ pub fn display_crate(
     printer.show_item(item);
 
     string
+}
+
+pub fn crate_to_item(crate_id: CrateId, def_maps: &DefMaps, interner: &NodeInterner) -> Item {
+    let root_module_id = def_maps[&crate_id].root();
+    let module_id = ModuleId { krate: crate_id, local_id: root_module_id };
+
+    let mut builder = ItemBuilder::new(crate_id, interner, def_maps);
+    builder.build_module(module_id)
 }
 
 struct ItemPrinter<'context, 'string> {

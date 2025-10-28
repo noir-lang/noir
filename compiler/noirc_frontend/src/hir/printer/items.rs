@@ -25,7 +25,7 @@ use crate::{
     node_interner::NodeInterner,
 };
 
-pub(super) enum Item {
+pub enum Item {
     Module(Module),
     DataType(DataType),
     Trait(Trait),
@@ -35,7 +35,7 @@ pub(super) enum Item {
 }
 
 impl Item {
-    pub(super) fn module_def_id(&self) -> ModuleDefId {
+    pub fn module_def_id(&self) -> ModuleDefId {
         match self {
             Item::Module(module) => ModuleDefId::ModuleId(module.id),
             Item::DataType(data_type) => ModuleDefId::TypeId(data_type.id),
@@ -47,43 +47,43 @@ impl Item {
     }
 }
 
-pub(super) struct Module {
-    pub(super) id: ModuleId,
-    pub(super) name: Option<String>,
-    pub(super) is_contract: bool,
-    pub(super) imports: Vec<Import>,
-    pub(super) items: Vec<(ItemVisibility, Item)>,
+pub struct Module {
+    pub id: ModuleId,
+    pub name: Option<String>,
+    pub is_contract: bool,
+    pub imports: Vec<Import>,
+    pub items: Vec<(ItemVisibility, Item)>,
 }
 
-pub(super) struct DataType {
-    pub(super) id: TypeId,
-    pub(super) impls: Vec<Impl>,
-    pub(super) trait_impls: Vec<TraitImpl>,
+pub struct DataType {
+    pub id: TypeId,
+    pub impls: Vec<Impl>,
+    pub trait_impls: Vec<TraitImpl>,
 }
 
-pub(super) struct Trait {
-    pub(super) id: TraitId,
-    pub(super) methods: Vec<FuncId>,
-    pub(super) trait_impls: Vec<TraitImpl>,
+pub struct Trait {
+    pub id: TraitId,
+    pub methods: Vec<FuncId>,
+    pub trait_impls: Vec<TraitImpl>,
 }
 
-pub(super) struct Impl {
-    pub(super) generics: BTreeSet<(String, Kind)>,
-    pub(super) typ: Type,
-    pub(super) methods: Vec<(ItemVisibility, FuncId)>,
+pub struct Impl {
+    pub generics: BTreeSet<(String, Kind)>,
+    pub typ: Type,
+    pub methods: Vec<(ItemVisibility, FuncId)>,
 }
 
-pub(super) struct TraitImpl {
-    pub(super) generics: BTreeSet<(String, Kind)>,
-    pub(super) id: TraitImplId,
-    pub(super) methods: Vec<FuncId>,
+pub struct TraitImpl {
+    pub generics: BTreeSet<(String, Kind)>,
+    pub id: TraitImplId,
+    pub methods: Vec<FuncId>,
 }
 
-pub(super) struct Import {
-    pub(super) name: Ident,
-    pub(super) id: ModuleDefId,
-    pub(super) visibility: ItemVisibility,
-    pub(super) is_prelude: bool,
+pub struct Import {
+    pub name: Ident,
+    pub id: ModuleDefId,
+    pub visibility: ItemVisibility,
+    pub is_prelude: bool,
 }
 
 pub(super) struct ItemBuilder<'context> {
