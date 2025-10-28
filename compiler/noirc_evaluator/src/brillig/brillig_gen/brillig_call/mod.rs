@@ -37,8 +37,10 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
     /// A [BrilligVariable] representing the allocated memory structure to store the foreign call's result.
     ///
     /// # Panics
-    /// If there are more than one vector types that it needs to allocate, because they would both be
-    /// assigned the free memory pointer.
+    /// If there is a vector among the output variables _and_ it's followed by another array or vector:
+    /// when we allocate memory for a vector, we don't know its length, so it just points at the current
+    /// free memory pointer without increasing it; anything else that needs the free memory pointer would
+    /// risk pointing at the same memory region.
     fn allocate_external_call_results(
         &mut self,
         results: &[ValueId],
@@ -66,6 +68,11 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                         dfg,
                     );
                     let array = variable.extract_array();
+
+                    assert!(
+                        !vector_allocated,
+                        "a vector of unknown length has already been allocated at the free memory pointer"
+                    );
                     self.allocate_foreign_call_result_array(typ.as_ref(), array);
 
                     variable
@@ -84,7 +91,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                     // once the external call is resolved and the vector size is known.
                     assert!(
                         !vector_allocated,
-                        "a vector has already been allocated at the free memory pointer"
+                        "a previous vector has already been allocated at the free memory pointer"
                     );
                     vector_allocated = true;
                     self.brillig_context.load_free_memory_pointer_instruction(vector.pointer);
