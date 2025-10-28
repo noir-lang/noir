@@ -218,7 +218,7 @@ impl Elaborator<'_> {
                 );
 
                 // Transform any constraints omitting their associated types (e.g. `I: Iterator`)
-                // into the explicit form (e.g. `I: Iterator<Item = FreshGeneric`), returning
+                // into the explicit form (e.g. `I: Iterator<Item = FreshGeneric>`), returning
                 // any fresh generics created in the process (`[FreshGeneric]` here).
                 let new_generics =
                     this.desugar_trait_constraints(&mut unresolved_trait.trait_def.where_clause);
