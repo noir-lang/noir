@@ -135,8 +135,56 @@ pub struct TraitBound {
     pub named_generics: BTreeMap<String, Type>,
 }
 
-// TODO: use an enum
 #[derive(Serialize, Deserialize)]
-pub struct Type {
-    pub name: String,
+pub enum Type {
+    Unit,
+    Primitive(String),
+    Array {
+        length: Box<Type>,
+        element: Box<Type>,
+    },
+    Slice {
+        element: Box<Type>,
+    },
+    String {
+        length: Box<Type>,
+    },
+    FmtString {
+        length: Box<Type>,
+        element: Box<Type>,
+    },
+    Tuple(Vec<Type>),
+    Reference {
+        r#type: Box<Type>,
+        mutable: bool,
+    },
+    Struct {
+        id: usize,
+        name: String,
+        generics: Vec<Type>,
+    },
+    TypeAlias {
+        id: usize,
+        name: String,
+        generics: Vec<Type>,
+    },
+    Function {
+        params: Vec<Type>,
+        return_type: Box<Type>,
+        env: Box<Type>,
+        unconstrained: bool,
+    },
+    Constant(String),
+    Generic(String),
+    InfixExpr {
+        lhs: Box<Type>,
+        operator: String,
+        rhs: Box<Type>,
+    },
+    TraitAsType {
+        trait_id: usize,
+        trait_name: String,
+        ordered_generics: Vec<Type>,
+        named_generics: BTreeMap<String, Type>,
+    },
 }

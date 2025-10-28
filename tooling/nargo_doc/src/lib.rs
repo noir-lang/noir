@@ -8,7 +8,7 @@ use noirc_frontend::hir::printer::items as expand_items;
 use noirc_frontend::hir_def::stmt::{HirLetStatement, HirPattern};
 use noirc_frontend::hir_def::traits::ResolvedTraitBound;
 use noirc_frontend::node_interner::{FuncId, ReferenceId};
-use noirc_frontend::{Kind, ResolvedGeneric};
+use noirc_frontend::{Kind, NamedGeneric, ResolvedGeneric, TypeBinding};
 use noirc_frontend::{graph::CrateGraph, hir::def_map::DefMaps, node_interner::NodeInterner};
 
 use crate::items::{
@@ -71,7 +71,7 @@ impl<'a> DocItemBuilder<'a> {
                         StructField { name: field.name.to_string(), r#type, comments }
                     })
                     .collect();
-                let generics = vecmap(&data_type.generics, |generic| convert_generic(generic));
+                let generics = vecmap(&data_type.generics, convert_generic);
                 let impls = vecmap(item_data_type.impls, |impl_| self.convert_impl(impl_));
                 let trait_impls =
                     vecmap(item_data_type.trait_impls, |impl_| self.convert_trait_impl(impl_));
@@ -91,7 +91,7 @@ impl<'a> DocItemBuilder<'a> {
                 let trait_ = self.interner.get_trait(trait_id);
                 let name = trait_.name.to_string();
                 let comments = self.doc_comments(ReferenceId::Trait(trait_id));
-                let generics = vecmap(&trait_.generics, |generic| convert_generic(generic));
+                let generics = vecmap(&trait_.generics, convert_generic);
                 let methods = vecmap(item_trait.methods, |func_id| self.convert_function(func_id));
                 let trait_impls = vecmap(item_trait.trait_impls, |trait_impl| {
                     self.convert_trait_impl(trait_impl)
@@ -118,7 +118,7 @@ impl<'a> DocItemBuilder<'a> {
                 let name = type_alias.name.to_string();
                 let r#type = self.convert_type(&type_alias.typ);
                 let comments = self.doc_comments(ReferenceId::Alias(type_alias_id));
-                let generics = vecmap(&type_alias.generics, |generic| convert_generic(generic));
+                let generics = vecmap(&type_alias.generics, convert_generic);
                 let id = self.get_id(ModuleDefId::TypeAliasId(type_alias_id));
                 Item::TypeAlias(TypeAlias { id, name, comments, r#type, generics })
             }
@@ -191,19 +191,112 @@ impl<'a> DocItemBuilder<'a> {
         let trait_ = self.interner.get_trait(trait_bound.trait_id);
         let trait_name = trait_.name.to_string();
         let trait_id = self.get_id(ModuleDefId::TraitId(trait_.id));
-        let ordered_generics =
-            vecmap(&trait_bound.trait_generics.ordered, |typ| self.convert_type(typ));
-        let named_generics = trait_bound
-            .trait_generics
+        let (ordered_generics, named_generics) =
+            self.convert_trait_generics(&trait_bound.trait_generics);
+        TraitBound { trait_id, trait_name, ordered_generics, named_generics }
+    }
+
+    fn convert_type(&mut self, typ: &noirc_frontend::Type) -> Type {
+        match typ {
+            noirc_frontend::Type::Unit => Type::Unit,
+            noirc_frontend::Type::FieldElement => Type::Primitive("Field".to_string()),
+            noirc_frontend::Type::Bool
+            | noirc_frontend::Type::Integer(..)
+            | noirc_frontend::Type::Quoted(..)
+            | noirc_frontend::Type::Error => Type::Primitive(typ.to_string()),
+            noirc_frontend::Type::Array(length, element) => Type::Array {
+                length: Box::new(self.convert_type(length)),
+                element: Box::new(self.convert_type(element)),
+            },
+            noirc_frontend::Type::Slice(element) => {
+                Type::Slice { element: Box::new(self.convert_type(element)) }
+            }
+            noirc_frontend::Type::String(length) => {
+                Type::String { length: Box::new(self.convert_type(length)) }
+            }
+            noirc_frontend::Type::FmtString(length, element) => Type::FmtString {
+                length: Box::new(self.convert_type(length)),
+                element: Box::new(self.convert_type(element)),
+            },
+            noirc_frontend::Type::Tuple(types) => {
+                Type::Tuple(vecmap(types, |typ| self.convert_type(typ)))
+            }
+            noirc_frontend::Type::DataType(data_type, generics) => {
+                let data_type = data_type.borrow();
+                if data_type.is_enum() {
+                    panic!("Enums are not supported yet");
+                }
+                let id = self.get_id(ModuleDefId::TypeId(data_type.id));
+                let name = data_type.name.to_string();
+                let generics = vecmap(generics, |typ| self.convert_type(typ));
+                Type::Struct { id, name, generics }
+            }
+            noirc_frontend::Type::Alias(type_alias, generics) => {
+                let type_alias = type_alias.borrow();
+                let id = self.get_id(ModuleDefId::TypeAliasId(type_alias.id));
+                let name = type_alias.name.to_string();
+                let generics = vecmap(generics, |typ| self.convert_type(typ));
+                Type::TypeAlias { id, name, generics }
+            }
+            noirc_frontend::Type::TypeVariable(type_var) => {
+                if let TypeBinding::Bound(typ) = &*type_var.borrow() {
+                    self.convert_type(typ)
+                } else {
+                    Type::Generic("_".to_string())
+                }
+            }
+            noirc_frontend::Type::TraitAsType(trait_id, _, trait_generics) => {
+                let trait_ = self.interner.get_trait(*trait_id);
+                let trait_id = self.get_id(ModuleDefId::TraitId(trait_.id));
+                let trait_name = trait_.name.to_string();
+                let (ordered_generics, named_generics) =
+                    self.convert_trait_generics(trait_generics);
+                Type::TraitAsType { trait_id, trait_name, ordered_generics, named_generics }
+            }
+            noirc_frontend::Type::NamedGeneric(NamedGeneric { name, type_var, .. }) => {
+                if let TypeBinding::Bound(typ) = &*type_var.borrow() {
+                    self.convert_type(typ)
+                } else {
+                    Type::Generic(name.to_string())
+                }
+            }
+            noirc_frontend::Type::CheckedCast { from: _, to } => self.convert_type(to),
+            noirc_frontend::Type::Function(args, return_type, env, unconstrained) => {
+                Type::Function {
+                    params: vecmap(args, |typ| self.convert_type(typ)),
+                    return_type: Box::new(self.convert_type(return_type)),
+                    env: Box::new(self.convert_type(env)),
+                    unconstrained: *unconstrained,
+                }
+            }
+            noirc_frontend::Type::Reference(typ, mutable) => {
+                Type::Reference { r#type: Box::new(self.convert_type(typ)), mutable: *mutable }
+            }
+            noirc_frontend::Type::Forall(..) => {
+                panic!("Should not need to print Type::Forall")
+            }
+            noirc_frontend::Type::Constant(signed_field, _kind) => {
+                Type::Constant(signed_field.to_string())
+            }
+            noirc_frontend::Type::InfixExpr(lhs, operator, rhs, _) => Type::InfixExpr {
+                lhs: Box::new(self.convert_type(lhs)),
+                operator: operator.to_string(),
+                rhs: Box::new(self.convert_type(rhs)),
+            },
+        }
+    }
+
+    fn convert_trait_generics(
+        &mut self,
+        trait_generics: &noirc_frontend::hir::type_check::generics::TraitGenerics,
+    ) -> (Vec<Type>, std::collections::BTreeMap<String, Type>) {
+        let ordered_generics = vecmap(&trait_generics.ordered, |typ| self.convert_type(typ));
+        let named_generics = trait_generics
             .named
             .iter()
             .map(|named_type| (named_type.name.to_string(), self.convert_type(&named_type.typ)))
             .collect();
-        TraitBound { trait_id, trait_name, ordered_generics, named_generics }
-    }
-
-    fn convert_type(&self, typ: &noirc_frontend::Type) -> Type {
-        Type { name: typ.to_string() }
+        (ordered_generics, named_generics)
     }
 
     fn convert_function(&mut self, func_id: FuncId) -> Function {
@@ -213,7 +306,7 @@ impl<'a> DocItemBuilder<'a> {
         let comptime = modifiers.is_comptime;
         let name = modifiers.name.to_string();
         let comments = self.doc_comments(ReferenceId::Function(func_id));
-        let generics = vecmap(&func_meta.direct_generics, |generic| convert_generic(generic));
+        let generics = vecmap(&func_meta.direct_generics, convert_generic);
         let params = vecmap(func_meta.parameters.iter(), |(pattern, typ, _visibility)| {
             let is_self = self.pattern_is_self(pattern);
 
@@ -253,7 +346,7 @@ impl<'a> DocItemBuilder<'a> {
                 let definition = self.interner.definition(ident.id);
                 definition.name.to_string()
             }
-            HirPattern::Mutable(inner_pattern, _) => self.pattern_to_string(&*inner_pattern),
+            HirPattern::Mutable(inner_pattern, _) => self.pattern_to_string(inner_pattern),
             HirPattern::Tuple(..) | HirPattern::Struct(..) => "_".to_string(),
         }
     }
