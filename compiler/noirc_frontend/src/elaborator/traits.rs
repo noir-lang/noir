@@ -504,7 +504,7 @@ impl Elaborator<'_> {
         }
     }
 
-    /// The removing counterpart for `add_trait_constraints_to_scope`.
+    /// The removing counterpart for [Self::add_trait_constraints_to_scope].
     ///
     /// This will only remove assumed trait impls from scope, but this
     /// is always what is desired since true trait impls are permanent.
