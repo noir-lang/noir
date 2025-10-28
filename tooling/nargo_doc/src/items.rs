@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
@@ -62,6 +64,7 @@ pub struct TraitImpl {
     pub trait_id: usize,
     pub trait_name: String,
     pub trait_generics: Vec<Type>,
+    pub where_clause: Vec<TraitConstraint>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -81,6 +84,7 @@ pub struct Function {
     pub generics: Vec<Generic>,
     pub params: Vec<FunctionParam>,
     pub return_type: Type,
+    pub where_clause: Vec<TraitConstraint>,
     pub comments: Option<String>,
 }
 
@@ -95,6 +99,7 @@ pub struct Trait {
     pub id: usize,
     pub name: String,
     pub generics: Vec<Generic>,
+    pub where_clause: Vec<TraitConstraint>,
     pub methods: Vec<Function>,
     pub trait_impls: Vec<TraitImpl>,
     pub comments: Option<String>,
@@ -113,6 +118,15 @@ pub struct TypeAlias {
 pub struct Generic {
     pub name: String,
     pub numeric: Option<String>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct TraitConstraint {
+    pub r#type: Type,
+    pub trait_id: usize,
+    pub trait_name: String,
+    pub ordered_generics: Vec<Type>,
+    pub named_generics: BTreeMap<String, Type>,
 }
 
 // TODO: use an enum

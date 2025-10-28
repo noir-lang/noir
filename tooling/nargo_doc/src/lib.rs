@@ -12,7 +12,7 @@ use noirc_frontend::{graph::CrateGraph, hir::def_map::DefMaps, node_interner::No
 
 use crate::items::{
     Function, FunctionParam, Generic, Global, Impl, Item, Module, Struct, StructField, Trait,
-    TraitImpl, Type, TypeAlias,
+    TraitConstraint, TraitImpl, Type, TypeAlias,
 };
 
 pub mod items;
@@ -95,11 +95,21 @@ impl<'a> DocItemBuilder<'a> {
                 let trait_impls = vecmap(item_trait.trait_impls, |trait_impl| {
                     self.convert_trait_impl(trait_impl)
                 });
+                let where_clause = vecmap(&trait_.where_clause, |constraint| {
+                    self.convert_trait_constraint(constraint)
+                });
 
                 // TODO: parents
-                // TODO: where clauses
                 let id = self.get_id(ModuleDefId::TraitId(trait_id));
-                Item::Trait(Trait { id, name, generics, comments, methods, trait_impls })
+                Item::Trait(Trait {
+                    id,
+                    name,
+                    generics,
+                    where_clause,
+                    comments,
+                    methods,
+                    trait_impls,
+                })
             }
             expand_items::Item::TypeAlias(type_alias_id) => {
                 let type_alias = self.interner.get_type_alias(type_alias_id);
@@ -130,7 +140,7 @@ impl<'a> DocItemBuilder<'a> {
         }
     }
 
-    fn convert_impl(&self, impl_: expand_items::Impl) -> Impl {
+    fn convert_impl(&mut self, impl_: expand_items::Impl) -> Impl {
         let generics = vecmap(impl_.generics, |(name, kind)| {
             let numeric = kind_to_numeric(kind);
             Generic { name, numeric }
@@ -161,16 +171,37 @@ impl<'a> DocItemBuilder<'a> {
         let trait_id = self.get_id(ModuleDefId::TraitId(trait_.id));
         let trait_generics = vecmap(&trait_impl.trait_generics, |typ| self.convert_type(typ));
         let r#type = self.convert_type(&trait_impl.typ);
+        let where_clause = vecmap(&trait_impl.where_clause, |constraint| {
+            self.convert_trait_constraint(constraint)
+        });
+        TraitImpl { r#type, generics, methods, trait_id, trait_name, trait_generics, where_clause }
+    }
 
-        // TODO: where clause
-        TraitImpl { r#type, generics, methods, trait_id, trait_name, trait_generics }
+    fn convert_trait_constraint(
+        &mut self,
+        constraint: &noirc_frontend::hir_def::traits::TraitConstraint,
+    ) -> TraitConstraint {
+        let r#type = self.convert_type(&constraint.typ);
+        let trait_ = self.interner.get_trait(constraint.trait_bound.trait_id);
+        let trait_name = trait_.name.to_string();
+        let trait_id = self.get_id(ModuleDefId::TraitId(trait_.id));
+        let ordered_generics =
+            vecmap(&constraint.trait_bound.trait_generics.ordered, |typ| self.convert_type(typ));
+        let named_generics = constraint
+            .trait_bound
+            .trait_generics
+            .named
+            .iter()
+            .map(|named_type| (named_type.name.to_string(), self.convert_type(&named_type.typ)))
+            .collect();
+        TraitConstraint { r#type, trait_id, trait_name, ordered_generics, named_generics }
     }
 
     fn convert_type(&self, typ: &noirc_frontend::Type) -> Type {
         Type { name: typ.to_string() }
     }
 
-    fn convert_function(&self, func_id: FuncId) -> Function {
+    fn convert_function(&mut self, func_id: FuncId) -> Function {
         let modifiers = self.interner.function_modifiers(&func_id);
         let func_meta = self.interner.function_meta(&func_id);
         let unconstrained = modifiers.is_unconstrained;
@@ -192,8 +223,19 @@ impl<'a> DocItemBuilder<'a> {
             FunctionParam { name, r#type }
         });
         let return_type = self.convert_type(func_meta.return_type());
-        // TODO: where clauses
-        Function { name, comments, unconstrained, comptime, generics, params, return_type }
+        let trait_constraints = func_meta.trait_constraints.clone();
+        let where_clause =
+            vecmap(trait_constraints, |constraint| self.convert_trait_constraint(&constraint));
+        Function {
+            name,
+            comments,
+            unconstrained,
+            comptime,
+            generics,
+            params,
+            return_type,
+            where_clause,
+        }
     }
 
     fn doc_comments(&self, id: ReferenceId) -> Option<String> {
