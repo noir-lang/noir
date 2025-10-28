@@ -75,6 +75,7 @@ pub struct Trait {
 pub struct TypeAlias {
     pub id: usize,
     pub name: String,
+    pub generics: Vec<String>,
     pub r#type: Type,
     pub comments: Option<String>,
 }

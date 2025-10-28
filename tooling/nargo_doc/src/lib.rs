@@ -99,9 +99,9 @@ impl<'a> DocItemBuilder<'a> {
                 let name = type_alias.name.to_string();
                 let r#type = self.convert_type(&type_alias.typ);
                 let comments = self.doc_comments(ReferenceId::Alias(type_alias_id));
+                let generics = vecmap(&type_alias.generics, |generic| generic.name.to_string());
                 let id = self.get_id(ModuleDefId::TypeAliasId(type_alias_id));
-                // TODO: generics
-                Item::TypeAlias(TypeAlias { id, name, comments, r#type })
+                Item::TypeAlias(TypeAlias { id, name, comments, r#type, generics })
             }
             expand_items::Item::Global(global_id) => {
                 let global_info = self.interner.get_global(global_id);
