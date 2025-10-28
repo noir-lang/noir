@@ -5,12 +5,15 @@ use crate::brillig::brillig_ir::registers::Stack;
 use super::{BrilligContext, debug_show::DebugToString, registers::RegisterAllocator};
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
+    /// Map the address so that the first register of the stack will have index 0
     fn to_index(adr: &MemoryAddress) -> usize {
         match adr {
             MemoryAddress::Relative(size) => size - Stack::start(),
             MemoryAddress::Direct(_) => usize::MAX,
         }
     }
+
+    /// Construct the register corresponding to the given mapped 'index'
     fn from_index(idx: usize) -> MemoryAddress {
         assert!(idx != usize::MAX, "invalid index");
         MemoryAddress::Relative(idx + Stack::start())
