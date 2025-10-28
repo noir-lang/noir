@@ -9,7 +9,7 @@ use crate::brillig::brillig_ir::{
 };
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
-    /// It prepares a vector for a insert operation, leaving a hole at the index position which is returned as the write_pointer.
+    /// It prepares a vector for a insert operation, leaving a hole at the index position which is returned as the `write_pointer`.
     pub(crate) fn call_prepare_vector_insert_procedure(
         &mut self,
         source_vector: BrilligVector,
@@ -18,12 +18,13 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         write_pointer: MemoryAddress,
         item_count: usize,
     ) {
-        let scratch_start = ScratchSpace::start();
-        let source_vector_pointer_arg = MemoryAddress::direct(scratch_start);
-        let index_arg = MemoryAddress::direct(scratch_start + 1);
-        let item_count_arg = MemoryAddress::direct(scratch_start + 2);
-        let new_vector_pointer_return = MemoryAddress::direct(scratch_start + 3);
-        let write_pointer_return = MemoryAddress::direct(scratch_start + 4);
+        let [
+            source_vector_pointer_arg,
+            index_arg,
+            item_count_arg,
+            new_vector_pointer_return,
+            write_pointer_return,
+        ] = self.make_scratch_registers();
 
         self.mov_instruction(source_vector_pointer_arg, source_vector.pointer);
         self.mov_instruction(index_arg, index.address);
@@ -107,7 +108,7 @@ pub(super) fn compile_prepare_vector_insert_procedure<F: AcirField + DebugToStri
     let source_pointer_at_index = brillig_context.allocate_register();
     brillig_context.memory_op_instruction(
         source_items_pointer.address,
-        index_arg,
+        index.address,
         *source_pointer_at_index,
         BrilligBinaryOp::Add,
     );

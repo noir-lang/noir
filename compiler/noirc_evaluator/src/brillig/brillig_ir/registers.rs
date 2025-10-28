@@ -574,14 +574,20 @@ impl<F, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     pub(crate) fn allocate_heap_array(&mut self, size: usize) -> Allocated<HeapArray, Registers> {
         self.allocate_register().map(|pointer| HeapArray { pointer, size })
     }
+
+    /// Create a number of consecutive [MemoryAddress::Direct] addresses at the start of the [ScratchSpace].
+    pub(crate) fn make_scratch_registers<const N: usize>(&self) -> [MemoryAddress; N] {
+        let scratch_start = ScratchSpace::start();
+        let registers = std::array::from_fn(|i| MemoryAddress::direct(scratch_start + i));
+        registers
+    }
 }
 
 impl<F> BrilligContext<F, ScratchSpace> {
     /// Allocate a number of consecutive scratch registers and replace the current allocator with
     /// one that has the new registers pre-allocated.
     pub(crate) fn allocate_scratch_registers<const N: usize>(&mut self) -> [MemoryAddress; N] {
-        let scratch_start = self.registers().start();
-        let registers = std::array::from_fn(|i| MemoryAddress::direct(scratch_start + i));
+        let registers = self.make_scratch_registers();
         self.set_allocated_registers(registers.iter().copied().collect());
         registers
     }

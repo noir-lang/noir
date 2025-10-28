@@ -10,6 +10,8 @@ use crate::brillig::brillig_ir::{
 use super::super::brillig_block::BrilligBlock;
 
 impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
+    /// Take a list of [BrilligVariable] and copy the memory they point at to the `write_pointer`,
+    /// increasing the address by 1 between each variable.
     fn write_variables(&mut self, write_pointer: MemoryAddress, variables: &[BrilligVariable]) {
         for (index, variable) in variables.iter().enumerate() {
             self.brillig_context.store_instruction(write_pointer, variable.extract_register());

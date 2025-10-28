@@ -1,4 +1,4 @@
-use acvm::{AcirField, acir::brillig::MemoryAddress};
+use acvm::AcirField;
 
 use super::ProcedureId;
 use crate::brillig::brillig_ir::{
@@ -17,11 +17,8 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         index: SingleAddrVariable,
         item_count: usize,
     ) {
-        let scratch_start = ScratchSpace::start();
-        let source_vector_pointer_arg = MemoryAddress::direct(scratch_start);
-        let index_arg = MemoryAddress::direct(scratch_start + 1);
-        let item_count_arg = MemoryAddress::direct(scratch_start + 2);
-        let new_vector_pointer_return = MemoryAddress::direct(scratch_start + 3);
+        let [source_vector_pointer_arg, index_arg, item_count_arg, new_vector_pointer_return] =
+            self.make_scratch_registers();
 
         self.mov_instruction(source_vector_pointer_arg, source_vector.pointer);
         self.mov_instruction(index_arg, index.address);

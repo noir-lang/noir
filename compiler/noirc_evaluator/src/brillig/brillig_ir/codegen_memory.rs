@@ -367,7 +367,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         result
     }
 
-    /// Reads the metadata of a vector and stores it in the given variables
+    /// Reads the metadata of a vector and stores it in the given variables.
     ///
     /// If the `semantic_length_and_item_size` is given, then instead of reading the size from the
     /// vector data structure, it is calculated as a multiplication of length and item size.
@@ -387,15 +387,29 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         // Vector layout: [ref_count, size, capacity, items...]
         self.load_instruction(rc.address, vector.pointer);
         let read_pointer = self.allocate_register();
-        self.codegen_usize_op(vector.pointer, *read_pointer, BrilligBinaryOp::Add, 1);
+        self.codegen_usize_op(
+            vector.pointer,
+            *read_pointer,
+            BrilligBinaryOp::Add,
+            offsets::VECTOR_SIZE,
+        );
         if let Some((length, item_size)) = semantic_length_and_item_size {
             self.codegen_vector_flattened_size(size.address, length, item_size);
         } else {
             self.load_instruction(size.address, *read_pointer);
         }
-        self.codegen_usize_op_in_place(*read_pointer, BrilligBinaryOp::Add, 1);
+        self.codegen_usize_op_in_place(
+            *read_pointer,
+            BrilligBinaryOp::Add,
+            offsets::VECTOR_CAPACITY - offsets::VECTOR_SIZE,
+        );
         self.load_instruction(capacity.address, *read_pointer);
-        self.codegen_usize_op(*read_pointer, items_pointer.address, BrilligBinaryOp::Add, 1);
+        self.codegen_usize_op(
+            *read_pointer,
+            items_pointer.address,
+            BrilligBinaryOp::Add,
+            offsets::VECTOR_ITEMS - offsets::VECTOR_CAPACITY,
+        );
     }
 
     /// Generate code to calculate the flattened vector size from its semantic length and the item size.

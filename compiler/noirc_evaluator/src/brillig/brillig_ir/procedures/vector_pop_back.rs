@@ -18,12 +18,13 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         read_pointer: MemoryAddress,
         item_pop_count: usize,
     ) {
-        let scratch_start = ScratchSpace::start();
-        let source_vector_length_arg = MemoryAddress::direct(scratch_start);
-        let source_vector_pointer_arg = MemoryAddress::direct(scratch_start + 1);
-        let item_pop_count_arg = MemoryAddress::direct(scratch_start + 2);
-        let new_vector_pointer_return = MemoryAddress::direct(scratch_start + 3);
-        let read_pointer_return = MemoryAddress::direct(scratch_start + 4);
+        let [
+            source_vector_length_arg,
+            source_vector_pointer_arg,
+            item_pop_count_arg,
+            new_vector_pointer_return,
+            read_pointer_return,
+        ] = self.make_scratch_registers();
 
         self.mov_instruction(source_vector_length_arg, source_len.address);
         self.mov_instruction(source_vector_pointer_arg, source_vector.pointer);
