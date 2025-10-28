@@ -80,6 +80,7 @@ pub struct TypeAlias {
     pub comments: Option<String>,
 }
 
+// TODO: use an enum
 #[derive(Serialize, Deserialize)]
 pub struct Type {
     pub name: String,
