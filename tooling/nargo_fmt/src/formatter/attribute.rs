@@ -103,6 +103,9 @@ impl Formatter<'_> {
             SecondaryAttributeKind::Meta(meta_attribute) => {
                 self.format_meta_attribute(meta_attribute);
             }
+            SecondaryAttributeKind::MustUse(message) => {
+                self.format_must_use_attribute(message);
+            }
         }
 
         self.write_line();
@@ -224,6 +227,22 @@ impl Formatter<'_> {
             }
         }
         self.write_right_bracket();
+    }
+
+    fn format_must_use_attribute(&mut self, message: Option<String>) {
+        self.write_current_token_and_bump(); // #[
+        self.skip_comments_and_whitespace();
+        self.write_current_token_and_bump(); // name
+
+        if message.is_some() {
+            self.skip_comments_and_whitespace();
+            self.write_token(Token::Assign);
+            self.skip_comments_and_whitespace();
+            self.write_current_token_and_bump(); // message
+            self.skip_comments_and_whitespace();
+        }
+
+        self.write_right_bracket(); // ]
     }
 
     fn format_no_args_attribute(&mut self) {

@@ -1,0 +1,6 @@
+[package]
+name = "must_use"
+type = "bin"
+authors = [""]
+
+[dependencies]

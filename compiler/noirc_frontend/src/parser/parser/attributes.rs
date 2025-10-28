@@ -161,6 +161,9 @@ impl Parser<'_> {
                     // The fuzz attribute is a secondary attribute that has `a = b` in its syntax
                     // (`only_fail_with = "..."``) or (`should_fail_with = "..."``) so we parse it differently.
                     self.parse_fuzz_attribute(start_location)
+                } else if ident.as_str() == "must_use" {
+                    // The muse_use attribute is a secondary attribute that has the syntax `must_use = string` in its syntax (to match rust)
+                    self.parse_must_use_attribute(start_location)
                 } else {
                     // Every other attribute has the form `name(arg1, arg2, .., argN)`
                     self.parse_ident_attribute_other_than_test_and_fuzz(ident, start_location)
@@ -186,7 +189,7 @@ impl Parser<'_> {
         start_location: Location,
     ) -> Attribute {
         let arguments = self.parse_arguments().unwrap_or_default();
-        self.skip_until_right_bracket();
+        self.skip_until_right_bracket(true);
         let location = self.location_since(start_location);
         let kind = SecondaryAttributeKind::Meta(MetaAttribute { name, arguments });
         let attr = SecondaryAttribute { kind, location };
@@ -199,7 +202,7 @@ impl Parser<'_> {
         start_location: Location,
     ) -> Attribute {
         let arguments = self.parse_arguments().unwrap_or_default();
-        self.skip_until_right_bracket();
+        self.skip_until_right_bracket(true);
         let location = self.location_since(start_location);
         match ident.as_str() {
             "abi" => self.parse_single_name_attribute(ident, arguments, start_location, |name| {
@@ -363,7 +366,7 @@ impl Parser<'_> {
             Some(TestScope::None)
         };
 
-        self.skip_until_right_bracket();
+        self.skip_until_right_bracket(true);
 
         let scope = if let Some(scope) = scope {
             scope
@@ -411,7 +414,7 @@ impl Parser<'_> {
             Some(FuzzingScope::None)
         };
 
-        self.skip_until_right_bracket();
+        self.skip_until_right_bracket(true);
 
         let scope = if let Some(scope) = scope {
             scope
@@ -429,6 +432,33 @@ impl Parser<'_> {
         let kind = FunctionAttributeKind::FuzzingHarness(scope);
         let attr = FunctionAttribute { kind, location };
         Attribute::Function(attr)
+    }
+
+    fn parse_must_use_attribute(&mut self, start_location: Location) -> Attribute {
+        let location_after_name = self.current_token_location.clone();
+
+        let message = if self.eat_assign() {
+            let message = self.eat_str();
+            if message.is_none() {
+                let location = self.location_since(start_location);
+                let error = LexerErrorKind::MalformedMustUseAttribute { location };
+                self.errors.push(error.into());
+            }
+            self.skip_until_right_bracket(false);
+            message
+        } else {
+            if !self.at(Token::RightBracket) {
+                self.skip_until_right_bracket(false);
+                let location = self.location_since(location_after_name);
+                let error = LexerErrorKind::MalformedMustUseAttribute { location };
+                self.errors.push(error.into());
+            }
+            None
+        };
+
+        let location = self.location_since(start_location);
+        let kind = SecondaryAttributeKind::MustUse(message);
+        Attribute::Secondary(SecondaryAttribute { kind, location })
     }
 
     fn parse_single_name_attribute<F>(
@@ -494,7 +524,7 @@ impl Parser<'_> {
         attribute
     }
 
-    fn skip_until_right_bracket(&mut self) {
+    fn skip_until_right_bracket(&mut self, mut issue_error: bool) {
         let mut brackets_count = 1; // 1 because of the starting `#[`
 
         while !self.at_eof() {
@@ -508,7 +538,10 @@ impl Parser<'_> {
                 }
             }
 
-            self.expected_token(Token::RightBracket);
+            if issue_error {
+                issue_error = false;
+                self.expected_token(Token::RightBracket);
+            }
             self.bump();
         }
     }

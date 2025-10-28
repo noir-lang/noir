@@ -167,7 +167,9 @@ pub enum TypeCheckError {
     #[error("{0}")]
     ResolverError(ResolverError),
     #[error("Unused expression result of type {expr_type}")]
-    UnusedResultError { expr_type: Type, expr_location: Location },
+    UnusedResultWarning { expr_type: Type, expr_location: Location },
+    #[error("Unused expression result of type {expr_type}")]
+    UnusedResultError { expr_type: Type, expr_location: Location, message: Option<String> },
     #[error("Expected type {expected_typ:?} is not the same as {actual_typ:?}")]
     TraitMethodParameterTypeMismatch {
         method_name: String,
@@ -320,6 +322,7 @@ impl TypeCheckError {
             | TypeCheckError::TypeAnnotationsNeededForFieldAccess { location }
             | TypeCheckError::MultipleMatchingImpls { location, .. }
             | TypeCheckError::CallDeprecated { location, .. }
+            | TypeCheckError::UnusedResultWarning { expr_location: location, .. }
             | TypeCheckError::UnusedResultError { expr_location: location, .. }
             | TypeCheckError::TraitMethodParameterTypeMismatch {
                 parameter_location: location,
@@ -619,9 +622,17 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 diagnostic.deprecated = true;
                 diagnostic
             }
-            TypeCheckError::UnusedResultError { expr_type, expr_location } => {
+            TypeCheckError::UnusedResultWarning { expr_type, expr_location } => {
                 let msg = format!("Unused expression result of type {expr_type}");
                 Diagnostic::simple_warning(msg, String::new(), *expr_location)
+            }
+            TypeCheckError::UnusedResultError { expr_type, expr_location, message } => {
+                let unused_message = format!("Unused expression result of type {expr_type} which must be used");
+                let (primary, secondary) = match message {
+                    Some(message) => (message.clone(), unused_message),
+                    None => (unused_message, format!("`{expr_type}` was declared with `#[must_use]`")),
+                };
+                Diagnostic::simple_error(primary, secondary, *expr_location)
             }
             TypeCheckError::NoMatchingImplFound(error) => error.into(),
             TypeCheckError::UnneededTraitConstraint { trait_name, typ, location } => {
