@@ -10,7 +10,7 @@ use crate::ssa::ir::{
     basic_block::BasicBlockId,
     dfg::DataFlowGraph,
     function::FunctionId,
-    instruction::{BinaryOp, Instruction, InstructionId, TerminatorInstruction},
+    instruction::{Instruction, InstructionId, TerminatorInstruction},
     types::{NumericType, Type},
     value::{Value, ValueId},
 };
@@ -336,10 +336,10 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
         match instruction {
             Instruction::Binary(binary) => {
-                self.binary_gen(instruction_id, binary, dfg);
+                self.codegen_binary(instruction_id, binary, dfg);
             }
             Instruction::Constrain(lhs, rhs, assert_message) => {
-                self.constrain_gen(*lhs, *rhs, assert_message, dfg);
+                self.codegen_constrain(*lhs, *rhs, assert_message, dfg);
             }
             Instruction::ConstrainNotEqual(..) => {
                 unreachable!("only implemented in ACIR")
@@ -354,151 +354,47 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 self.codegen_load(instruction_id, *address, dfg);
             }
             Instruction::Not(value) => {
-                let [result_value] = dfg.instruction_result(instruction_id);
-                let condition_register = self.convert_ssa_single_addr_value(*value, dfg);
-                let result_register = self.variables.define_single_addr_variable(
-                    self.function_context,
-                    self.brillig_context,
-                    result_value,
-                    dfg,
-                );
-                self.brillig_context.not_instruction(condition_register, result_register);
+                self.codegen_not(instruction_id, *value, dfg);
             }
             Instruction::Call { func, arguments } => {
-                self.call_gen(instruction_id, *func, arguments, dfg);
+                self.codegen_call(instruction_id, *func, arguments, dfg);
             }
             Instruction::Truncate { value, bit_size, .. } => {
-                let [result_id] = dfg.instruction_result(instruction_id);
-                let destination_register = self.variables.define_single_addr_variable(
-                    self.function_context,
-                    self.brillig_context,
-                    result_id,
-                    dfg,
-                );
-                let source_register = self.convert_ssa_single_addr_value(*value, dfg);
-                self.brillig_context.codegen_truncate(
-                    destination_register,
-                    source_register,
-                    *bit_size,
-                );
+                self.codegen_truncate(instruction_id, *value, *bit_size, dfg);
             }
             Instruction::Cast(value, _) => {
-                let [result_id] = dfg.instruction_result(instruction_id);
-                let destination_variable = self.variables.define_single_addr_variable(
-                    self.function_context,
-                    self.brillig_context,
-                    result_id,
-                    dfg,
-                );
-                let source_variable = self.convert_ssa_single_addr_value(*value, dfg);
-                self.convert_cast(destination_variable, source_variable);
+                self.codegen_cast(instruction_id, *value, dfg);
             }
             Instruction::ArrayGet { array, index } => {
-                self.array_get(instruction_id, *array, *index, dfg);
+                self.codegen_array_get(instruction_id, *array, *index, dfg);
             }
             Instruction::ArraySet { array, index, value, mutable } => {
-                self.array_set(instruction_id, *array, *index, *value, *mutable, dfg);
+                self.codegen_array_set(instruction_id, *array, *index, *value, *mutable, dfg);
             }
             Instruction::RangeCheck { value, max_bit_size, assert_message } => {
-                let value = self.convert_ssa_single_addr_value(*value, dfg);
-                // SSA generates redundant range checks. A range check with a max bit size >= value.bit_size will always pass.
-                if value.bit_size > *max_bit_size {
-                    // Cast original value to field
-                    let left =
-                        self.brillig_context.allocate_single_addr(FieldElement::max_num_bits());
-                    self.convert_cast(*left, value);
-
-                    // Create a field constant with the max
-                    let max = BigUint::from(2_u128).pow(*max_bit_size) - BigUint::from(1_u128);
-                    let right = self.brillig_context.make_constant_instruction(
-                        FieldElement::from_be_bytes_reduce(&max.to_bytes_be()),
-                        FieldElement::max_num_bits(),
-                    );
-
-                    // Check if lte max
-                    let condition = self.brillig_context.allocate_single_addr_bool();
-                    self.brillig_context.binary_instruction(
-                        *left,
-                        *right,
-                        *condition,
-                        BrilligBinaryOp::LessThanEquals,
-                    );
-
-                    self.brillig_context.codegen_constrain(*condition, assert_message.clone());
-                }
+                self.codegen_range_check(*value, *max_bit_size, assert_message.as_ref(), dfg);
             }
             Instruction::IncrementRc { value } => {
-                self.increment_rc(*value, dfg);
+                self.codegen_increment_rc(*value, dfg);
             }
             Instruction::DecrementRc { value } => {
-                self.decrement_rc(*value, dfg);
+                self.codegen_decrement_rc(*value, dfg);
             }
             Instruction::EnableSideEffectsIf { .. } => {
                 unreachable!("enable_side_effects not supported by brillig")
             }
             Instruction::IfElse { then_condition, then_value, else_condition: _, else_value } => {
-                let then_condition = self.convert_ssa_single_addr_value(*then_condition, dfg);
-                let then_value = self.convert_ssa_value(*then_value, dfg);
-                let else_value = self.convert_ssa_value(*else_value, dfg);
-                let [result_value] = dfg.instruction_result(instruction_id);
-                let result = self.variables.define_variable(
-                    self.function_context,
-                    self.brillig_context,
-                    result_value,
+                // The `else_condition` is assumed to be the opposite of the `then_condition`.
+                self.codegen_if_else(
+                    instruction_id,
+                    *then_condition,
+                    *then_value,
+                    *else_value,
                     dfg,
                 );
-                match (then_value, else_value) {
-                    (
-                        BrilligVariable::SingleAddr(then_address),
-                        BrilligVariable::SingleAddr(else_address),
-                    ) => {
-                        self.brillig_context.conditional_move_instruction(
-                            then_condition,
-                            then_address,
-                            else_address,
-                            result.extract_single_addr(),
-                        );
-                    }
-                    (
-                        BrilligVariable::BrilligArray(then_array),
-                        BrilligVariable::BrilligArray(else_array),
-                    ) => {
-                        // Pointer to the array which result from the if-else
-                        let pointer = self.brillig_context.allocate_register();
-                        self.brillig_context.conditional_move_instruction(
-                            then_condition,
-                            SingleAddrVariable::new_usize(then_array.pointer),
-                            SingleAddrVariable::new_usize(else_array.pointer),
-                            SingleAddrVariable::new_usize(*pointer),
-                        );
-                        let if_else_array =
-                            BrilligArray { pointer: *pointer, size: then_array.size };
-                        // Copy the if-else array to the result
-                        self.brillig_context
-                            .call_array_copy_procedure(if_else_array, result.extract_array());
-                    }
-                    (
-                        BrilligVariable::BrilligVector(then_vector),
-                        BrilligVariable::BrilligVector(else_vector),
-                    ) => {
-                        // Pointer to the vector which result from the if-else
-                        let pointer = self.brillig_context.allocate_register();
-                        self.brillig_context.conditional_move_instruction(
-                            then_condition,
-                            SingleAddrVariable::new_usize(then_vector.pointer),
-                            SingleAddrVariable::new_usize(else_vector.pointer),
-                            SingleAddrVariable::new_usize(*pointer),
-                        );
-                        let if_else_vector = BrilligVector { pointer: *pointer };
-                        // Copy the if-else vector to the result
-                        self.brillig_context
-                            .call_vector_copy_procedure(if_else_vector, result.extract_vector());
-                    }
-                    _ => unreachable!("ICE - then and else values must have the same type"),
-                }
             }
             Instruction::MakeArray { elements: array, typ } => {
-                self.make_array(instruction_id, array, typ, dfg);
+                self.codegen_make_array(instruction_id, array, typ, dfg);
             }
             Instruction::Noop => (),
         };
@@ -660,10 +556,166 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         }
         None
     }
+
+    /// Define the result variable, convert the value, then generate Brillig opcodes to negate the variable.
+    fn codegen_not(&mut self, instruction_id: InstructionId, value: ValueId, dfg: &DataFlowGraph) {
+        let [result_id] = dfg.instruction_result(instruction_id);
+        let condition_register = self.convert_ssa_single_addr_value(value, dfg);
+        let result_register = self.variables.define_single_addr_variable(
+            self.function_context,
+            self.brillig_context,
+            result_id,
+            dfg,
+        );
+        self.brillig_context.not_instruction(condition_register, result_register);
+    }
+
+    /// Define the result variable, convert the value, then generate Brillig opcodes to truncate the variable.
+    fn codegen_truncate(
+        &mut self,
+        instruction_id: InstructionId,
+        value: ValueId,
+        bit_size: u32,
+        dfg: &DataFlowGraph,
+    ) {
+        let [result_id] = dfg.instruction_result(instruction_id);
+        let destination_register = self.variables.define_single_addr_variable(
+            self.function_context,
+            self.brillig_context,
+            result_id,
+            dfg,
+        );
+        let source_register = self.convert_ssa_single_addr_value(value, dfg);
+        self.brillig_context.codegen_truncate(destination_register, source_register, bit_size);
+    }
+
+    /// Define the result variable, convert the value, then generate Brillig opcodes to truncate the variable.
+    fn codegen_cast(&mut self, instruction_id: InstructionId, value: ValueId, dfg: &DataFlowGraph) {
+        let [result_id] = dfg.instruction_result(instruction_id);
+        let destination_variable = self.variables.define_single_addr_variable(
+            self.function_context,
+            self.brillig_context,
+            result_id,
+            dfg,
+        );
+        let source_variable = self.convert_ssa_single_addr_value(value, dfg);
+        self.convert_cast(destination_variable, source_variable);
+    }
+
+    /// Convert the value, and if its bit size is larger than the maximum bit size,
+    /// then generate opcodes to constrain the value to be no greater than the maximum
+    /// value as a `Field`.
+    fn codegen_range_check(
+        &mut self,
+        value: ValueId,
+        max_bit_size: u32,
+        assert_message: Option<&String>,
+        dfg: &DataFlowGraph,
+    ) {
+        let value = self.convert_ssa_single_addr_value(value, dfg);
+        // SSA generates redundant range checks. A range check with a max bit size >= value.bit_size will always pass.
+        if value.bit_size > max_bit_size {
+            // Cast original value to field
+            let left = self.brillig_context.allocate_single_addr(FieldElement::max_num_bits());
+            self.convert_cast(*left, value);
+
+            // Create a field constant with the max
+            let max = BigUint::from(2_u128).pow(max_bit_size) - BigUint::from(1_u128);
+            let right = self.brillig_context.make_constant_instruction(
+                FieldElement::from_be_bytes_reduce(&max.to_bytes_be()),
+                FieldElement::max_num_bits(),
+            );
+
+            // Check if lte max
+            let condition = self.brillig_context.allocate_single_addr_bool();
+            self.brillig_context.binary_instruction(
+                *left,
+                *right,
+                *condition,
+                BrilligBinaryOp::LessThanEquals,
+            );
+
+            self.brillig_context.codegen_constrain(*condition, assert_message.cloned());
+        }
+    }
+
+    /// Convert the condition and the values, define a variable for the result,
+    /// then generate opcodes for a conditional move.
+    ///
+    /// Panics if the `then_value` and `else_value` are incompatible.
+    fn codegen_if_else(
+        &mut self,
+        instruction_id: InstructionId,
+        then_condition: ValueId,
+        then_value: ValueId,
+        else_value: ValueId,
+        dfg: &DataFlowGraph,
+    ) {
+        let then_condition = self.convert_ssa_single_addr_value(then_condition, dfg);
+        let then_value = self.convert_ssa_value(then_value, dfg);
+        let else_value = self.convert_ssa_value(else_value, dfg);
+
+        let [result_id] = dfg.instruction_result(instruction_id);
+        let result = self.variables.define_variable(
+            self.function_context,
+            self.brillig_context,
+            result_id,
+            dfg,
+        );
+
+        match (then_value, else_value) {
+            (
+                BrilligVariable::SingleAddr(then_address),
+                BrilligVariable::SingleAddr(else_address),
+            ) => {
+                self.brillig_context.conditional_move_instruction(
+                    then_condition,
+                    then_address,
+                    else_address,
+                    result.extract_single_addr(),
+                );
+            }
+            (
+                BrilligVariable::BrilligArray(then_array),
+                BrilligVariable::BrilligArray(else_array),
+            ) => {
+                // Pointer to the array which result from the if-else
+                let pointer = self.brillig_context.allocate_register();
+                self.brillig_context.conditional_move_instruction(
+                    then_condition,
+                    SingleAddrVariable::new_usize(then_array.pointer),
+                    SingleAddrVariable::new_usize(else_array.pointer),
+                    SingleAddrVariable::new_usize(*pointer),
+                );
+                let if_else_array = BrilligArray { pointer: *pointer, size: then_array.size };
+                // Copy the if-else array to the result
+                self.brillig_context
+                    .call_array_copy_procedure(if_else_array, result.extract_array());
+            }
+            (
+                BrilligVariable::BrilligVector(then_vector),
+                BrilligVariable::BrilligVector(else_vector),
+            ) => {
+                // Pointer to the vector which result from the if-else
+                let pointer = self.brillig_context.allocate_register();
+                self.brillig_context.conditional_move_instruction(
+                    then_condition,
+                    SingleAddrVariable::new_usize(then_vector.pointer),
+                    SingleAddrVariable::new_usize(else_vector.pointer),
+                    SingleAddrVariable::new_usize(*pointer),
+                );
+                let if_else_vector = BrilligVector { pointer: *pointer };
+                // Copy the if-else vector to the result
+                self.brillig_context
+                    .call_vector_copy_procedure(if_else_vector, result.extract_vector());
+            }
+            _ => unreachable!("ICE - then and else values must have the same type"),
+        }
+    }
 }
 
-/// Returns the type of the operation considering the types of the operands
-pub(crate) fn type_of_binary_operation(lhs_type: &Type, rhs_type: &Type, op: BinaryOp) -> Type {
+/// Returns the type of the operation considering the types of the operands.
+pub(crate) fn type_of_binary_operation(lhs_type: &Type, rhs_type: &Type) -> Type {
     match (lhs_type, rhs_type) {
         (_, Type::Function) | (Type::Function, _) => {
             unreachable!("Functions are invalid in binary operations")
@@ -677,17 +729,14 @@ pub(crate) fn type_of_binary_operation(lhs_type: &Type, rhs_type: &Type, op: Bin
         (_, Type::Slice(..)) | (Type::Slice(..), _) => {
             unreachable!("Arrays are invalid in binary operations")
         }
-        // If both sides are numeric type, then we expect their types to be
-        // the same.
-        (Type::Numeric(lhs_type), Type::Numeric(rhs_type))
-            if op != BinaryOp::Shl && op != BinaryOp::Shr =>
-        {
+        (Type::Numeric(lhs_type), Type::Numeric(rhs_type)) => {
+            // If both sides are numeric type, then we expect their types to be the same.
+            // For SHL and SHR they are also expected to be the same, but the SHR value itself cannot exceed the bit size.
             assert_eq!(
                 lhs_type, rhs_type,
                 "lhs and rhs types in a binary operation are always the same but got {lhs_type} and {rhs_type}"
             );
             Type::Numeric(*lhs_type)
         }
-        _ => lhs_type.clone(),
     }
 }

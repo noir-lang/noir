@@ -67,6 +67,9 @@ impl ReservedRegisters {
     }
 
     /// This register stores the free memory pointer. Allocations must be done after this pointer.
+    ///
+    /// This represents the heap, and we make sure during entry point generation that it is initialized
+    /// with a value that lies beyond the maximum stack size, so there can never be an overlap.
     pub(crate) fn free_memory_pointer() -> MemoryAddress {
         MemoryAddress::direct(1)
     }

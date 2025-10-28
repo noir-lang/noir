@@ -34,10 +34,14 @@ impl SingleAddrVariable {
     }
 }
 
-/// The representation of a noir array in the Brillig IR
+/// The representation of a Noir array in the Brillig IR
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy)]
 pub(crate) struct BrilligArray {
     pub(crate) pointer: MemoryAddress,
+    /// The number of memory slots the array occupies.
+    ///
+    /// This is the flattened size of the array, where complex types
+    /// take up more than one slot.
     pub(crate) size: usize,
 }
 
@@ -62,7 +66,7 @@ impl BrilligVariable {
     pub(crate) fn extract_single_addr(self) -> SingleAddrVariable {
         match self {
             BrilligVariable::SingleAddr(single_addr) => single_addr,
-            _ => unreachable!("ICE: Expected register, got {self:?}"),
+            _ => unreachable!("ICE: Expected single address, got {self:?}"),
         }
     }
 
@@ -141,6 +145,7 @@ where
     }
 }
 
+/// Convert an SSA [Type] to [HeapValueType] for passing values to foreign calls.
 pub(crate) fn type_to_heap_value_type(typ: &Type) -> HeapValueType {
     match typ {
         Type::Numeric(_) | Type::Reference(_) | Type::Function => HeapValueType::Simple(

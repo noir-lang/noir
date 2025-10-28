@@ -122,12 +122,7 @@ fn initialize_constant_string<F: AcirField + DebugToString, Registers: RegisterA
 
         if element_idx != data.len() - 1 {
             // Increment the write_pointer_register
-            brillig_context.memory_op_instruction(
-                *write_pointer_register,
-                ReservedRegisters::usize_one(),
-                *write_pointer_register,
-                BrilligBinaryOp::Add,
-            );
+            brillig_context.memory_op_inc_by_usize_one(*write_pointer_register);
         }
     }
 }
