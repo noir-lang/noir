@@ -34,7 +34,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         let n = sources.len();
         let start = Stack::start();
         let mut processed = 0;
-        // Compute the number of children for each node in the movement graph
+        // Compute the number of children for each destination node in the movement graph
         let mut children = vec![0; n];
         for i in 0..n {
             // Check that destinations are relatives to 0,..,n-1
