@@ -215,7 +215,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
     /// Creates a unique global label for a block.
     ///
-    /// This uses the current functions's function ID and the block ID,
+    /// This uses the current function's function ID and the block ID,
     /// making the assumption that the block ID passed in belongs to this
     /// function.
     fn create_block_label_for_current_function(&self, block_id: BasicBlockId) -> Label {

@@ -30,8 +30,8 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 
         // Now we need to detect all cycles.
         // First build a map of the movements. Note that a source could have multiple destinations
-        let mut movements_map: MovementsMap =
-            movements.into_iter().fold(BTreeMap::default(), |mut map, (source, destination)| {
+        let mut movements_map =
+            movements.into_iter().fold(MovementsMap::default(), |mut map, (source, destination)| {
                 map.entry(*source).or_default().insert(*destination);
                 map
             });
