@@ -474,7 +474,7 @@ impl Elaborator<'_> {
     ///
     /// Since there is no global/local scope distinction for trait constraints,
     /// care should be taken to manually remove these from scope (via
-    /// `remove_trait_constraints_from_scope`) after the desired item finishes resolving.
+    /// [Self::remove_trait_constraints_from_scope]) after the desired item finishes resolving.
     pub(super) fn add_trait_constraints_to_scope<'a>(
         &mut self,
         constraints: impl Iterator<Item = &'a TraitConstraint>,
