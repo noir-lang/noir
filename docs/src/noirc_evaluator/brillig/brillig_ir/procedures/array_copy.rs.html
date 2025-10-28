@@ -319,7 +319,7 @@
 <span class="kw">impl</span>&lt;F: AcirField + DebugToString, Registers: RegisterAllocator&gt; BrilligContext&lt;F, Registers&gt; {
     <span class="doccomment">/// emit: `println(f"Total arrays copied: {array_copy_counter}")`
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>emit_println_of_array_copy_counter(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-        <span class="kw">let </span>array_copy_counter = BrilligVariable::SingleAddr(SingleAddrVariable {
+        <span class="kw">let </span>array_copy_counter = BrilligVariable::from(SingleAddrVariable {
             address: <span class="self">self</span>.array_copy_counter_address(),
             bit_size: <span class="number">32</span>,
         });

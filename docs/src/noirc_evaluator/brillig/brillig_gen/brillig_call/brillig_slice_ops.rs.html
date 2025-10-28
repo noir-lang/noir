@@ -1104,18 +1104,18 @@
                     <span class="kw-2">*</span>target_vector,
                     <span class="kw-2">*</span>source_len_var,
                     <span class="kw-2">*</span>source_vector,
-                    <span class="kw-2">&amp;</span>[BrilligVariable::SingleAddr(<span class="kw-2">*</span>item_to_insert)],
+                    <span class="kw-2">&amp;</span>[item_to_insert.to_var()],
                 );
             } <span class="kw">else </span>{
                 block.slice_push_front_operation(
                     <span class="kw-2">*</span>target_vector,
                     <span class="kw-2">*</span>source_len_var,
                     <span class="kw-2">*</span>source_vector,
-                    <span class="kw-2">&amp;</span>[BrilligVariable::SingleAddr(<span class="kw-2">*</span>item_to_insert)],
+                    <span class="kw-2">&amp;</span>[item_to_insert.to_var()],
                 );
             }
 
-            context.codegen_return(<span class="kw-2">&amp;</span>[target_vector.pointer]);
+            context.codegen_return(<span class="kw-2">&amp;</span>[target_vector.to_var()]);
 
             <span class="comment">// Compile to byte code.
             </span><span class="kw">let </span>bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
@@ -1290,18 +1290,18 @@
                     <span class="kw-2">*</span>target_vector,
                     <span class="kw-2">*</span>source_len_var,
                     <span class="kw-2">*</span>source_vector,
-                    <span class="kw-2">&amp;</span>[BrilligVariable::SingleAddr(<span class="kw-2">*</span>removed_item)],
+                    <span class="kw-2">&amp;</span>[removed_item.to_var()],
                 );
             } <span class="kw">else </span>{
                 block.slice_pop_front_operation(
                     <span class="kw-2">*</span>target_vector,
                     <span class="kw-2">*</span>source_len_var,
                     <span class="kw-2">*</span>source_vector,
-                    <span class="kw-2">&amp;</span>[BrilligVariable::SingleAddr(<span class="kw-2">*</span>removed_item)],
+                    <span class="kw-2">&amp;</span>[removed_item.to_var()],
                 );
             }
 
-            context.codegen_return(<span class="kw-2">&amp;</span>[removed_item.address, target_vector.pointer]);
+            context.codegen_return(<span class="kw-2">&amp;</span>[removed_item.to_var(), target_vector.to_var()]);
 
             <span class="kw">let </span>bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
 
@@ -1439,10 +1439,10 @@
                 <span class="kw-2">*</span>target_vector,
                 <span class="kw-2">*</span>source_vector,
                 <span class="kw-2">*</span>index_to_insert,
-                <span class="kw-2">&amp;</span>[BrilligVariable::SingleAddr(<span class="kw-2">*</span>item_to_insert)],
+                <span class="kw-2">&amp;</span>[item_to_insert.to_var()],
             );
 
-            context.codegen_return(<span class="kw-2">&amp;</span>[target_vector.pointer]);
+            context.codegen_return(<span class="kw-2">&amp;</span>[target_vector.to_var()]);
             <span class="kw">let </span>calldata = array.into_iter().chain(<span class="macro">vec!</span>[item]).chain(<span class="macro">vec!</span>[index]).collect();
 
             <span class="kw">let </span>bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
@@ -1580,10 +1580,10 @@
                 <span class="kw-2">*</span>target_vector,
                 <span class="kw-2">*</span>source_vector,
                 <span class="kw-2">*</span>index_to_insert,
-                <span class="kw-2">&amp;</span>[BrilligVariable::SingleAddr(<span class="kw-2">*</span>removed_item)],
+                <span class="kw-2">&amp;</span>[removed_item.to_var()],
             );
 
-            context.codegen_return(<span class="kw-2">&amp;</span>[removed_item.address, target_vector.pointer]);
+            context.codegen_return(<span class="kw-2">&amp;</span>[removed_item.to_var(), target_vector.to_var()]);
 
             <span class="kw">let </span>calldata: Vec&lt;<span class="kw">_</span>&gt; = array.into_iter().chain(<span class="macro">vec!</span>[index]).collect();
 

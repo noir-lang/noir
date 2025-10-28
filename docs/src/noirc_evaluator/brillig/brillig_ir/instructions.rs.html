@@ -509,7 +509,8 @@
 <a href="#508" id="508">508</a>
 <a href="#509" id="509">509</a>
 <a href="#510" id="510">510</a>
-<a href="#511" id="511">511</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
+<a href="#511" id="511">511</a>
+<a href="#512" id="512">512</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
     FieldElement,
     acir::{
         AcirField,
@@ -759,19 +760,20 @@
         <span class="self">self</span>.obj.add_unresolved_jump(jmp_instruction, destination);
     }
 
-    <span class="doccomment">/// Adds a label to the next opcode
+    <span class="doccomment">/// Adds a context and a section label to the next opcode.
+    ///
+    /// Entering a context resets the current section to 0 and the next section to 1.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>enter_context(<span class="kw-2">&amp;mut </span><span class="self">self</span>, label: Label) {
+        <span class="macro">debug_assert!</span>(label.section.is_none(), <span class="string">"new context should have no section"</span>);
         <span class="self">self</span>.debug_show.enter_context(label.to_string());
         <span class="self">self</span>.context_label = label.clone();
-        <span class="self">self</span>.current_section = <span class="number">0</span>;
         <span class="comment">// Add a context label to the next opcode
         </span><span class="self">self</span>.obj.add_label_at_position(label, <span class="self">self</span>.obj.index_of_next_opcode());
-        <span class="comment">// Add a section label to the next opcode
-        </span><span class="self">self</span>.obj
-            .add_label_at_position(<span class="self">self</span>.current_section_label(), <span class="self">self</span>.obj.index_of_next_opcode());
+        <span class="self">self</span>.enter_section(<span class="number">0</span>);
+        <span class="self">self</span>.next_section = <span class="number">1</span>;
     }
 
-    <span class="doccomment">/// Enter the given section within a basic block
+    <span class="doccomment">/// Enter the given section within a basic block.
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>enter_section(<span class="kw-2">&amp;mut </span><span class="self">self</span>, section: usize) {
         <span class="self">self</span>.current_section = section;
         <span class="self">self</span>.obj

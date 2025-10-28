@@ -186,7 +186,17 @@
 <a href="#185" id="185">185</a>
 <a href="#186" id="186">186</a>
 <a href="#187" id="187">187</a>
-<a href="#188" id="188">188</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module handles allocation, tracking, and lifetime management of variables
+<a href="#188" id="188">188</a>
+<a href="#189" id="189">189</a>
+<a href="#190" id="190">190</a>
+<a href="#191" id="191">191</a>
+<a href="#192" id="192">192</a>
+<a href="#193" id="193">193</a>
+<a href="#194" id="194">194</a>
+<a href="#195" id="195">195</a>
+<a href="#196" id="196">196</a>
+<a href="#197" id="197">197</a>
+<a href="#198" id="198">198</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module handles allocation, tracking, and lifetime management of variables
 //! within a Brillig compiled SSA basic block.
 //!
 //! [BlockVariables] maintains a set of SSA [ValueId]s that are live and available
@@ -258,7 +268,13 @@
             .collect()
     }
 
-    <span class="doccomment">/// For a given SSA value id, define the variable and return the corresponding cached allocation.
+    <span class="doccomment">/// For a given SSA value id, define the variable and return the corresponding cached memory allocation.
+    ///
+    /// The allocation will be cached in [FunctionContext::ssa_value_allocations], which is how it will be
+    /// passed on to the next block as a pre-allocated register, if it's still alive at that point.
+    ///
+    /// The variable is added to [Self::available_variables] to show that it's live, where it stays until
+    /// [Self::remove_variable] deletes it.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>define_variable&lt;Registers: RegisterAllocator&gt;(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         function_context: <span class="kw-2">&amp;mut </span>FunctionContext,
@@ -316,12 +332,16 @@
         brillig_context.deallocate_register(register);
     }
 
-    <span class="doccomment">/// Checks if a variable is allocated.
+    <span class="doccomment">/// Checks if a variable is allocated and live.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_allocated(<span class="kw-2">&amp;</span><span class="self">self</span>, value_id: <span class="kw-2">&amp;</span>ValueId) -&gt; bool {
         <span class="self">self</span>.available_variables.contains(value_id)
     }
 
     <span class="doccomment">/// For a given SSA value id, return the corresponding cached allocation.
+    ///
+    /// Panics if
+    /// * the variable is not in [Self::available_variables], which means it is no longer live
+    /// * the variable is not in [FunctionContext::ssa_value_allocations], which means it was never defined
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_allocation(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         function_context: <span class="kw-2">&amp;</span>FunctionContext,
@@ -346,7 +366,7 @@
     item_typ.len() * elem_count
 }
 
-<span class="doccomment">/// For a given value_id, allocates the necessary registers to hold it.
+<span class="doccomment">/// For a given [ValueId], allocates the necessary registers to hold it.
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>allocate_value&lt;F, Registers: RegisterAllocator&gt;(
     value_id: ValueId,
     brillig_context: <span class="kw-2">&amp;mut </span>BrilligContext&lt;F, Registers&gt;,
@@ -357,7 +377,7 @@
     allocate_value_with_type(brillig_context, typ)
 }
 
-<span class="doccomment">/// For a given value_id, allocates the necessary registers to hold it.
+<span class="doccomment">/// For a given [Type], allocates the necessary registers to hold it.
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>allocate_value_with_type&lt;F, Registers: RegisterAllocator&gt;(
     brillig_context: <span class="kw-2">&amp;mut </span>BrilligContext&lt;F, Registers&gt;,
     typ: Type,

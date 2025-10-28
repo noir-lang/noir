@@ -112,7 +112,11 @@
 <a href="#111" id="111">111</a>
 <a href="#112" id="112">112</a>
 <a href="#113" id="113">113</a>
-<a href="#114" id="114">114</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module containing Brillig-gen logic specific to SSA [Function]'s.
+<a href="#114" id="114">114</a>
+<a href="#115" id="115">115</a>
+<a href="#116" id="116">116</a>
+<a href="#117" id="117">117</a>
+<a href="#118" id="118">118</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module containing Brillig-gen logic specific to SSA [Function]'s.
 </span><span class="kw">use </span>iter_extended::vecmap;
 
 <span class="kw">use crate</span>::{
@@ -184,7 +188,11 @@
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>function_id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; FunctionId {
+    <span class="doccomment">/// Get the ID of the function this context was created for.
+    ///
+    /// Panics if we call it when in the context created to hold
+    /// data structures for global codegen only.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>function_id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; FunctionId {
         <span class="self">self</span>.function_id.expect(<span class="string">"ICE: function_id should already be set"</span>)
     }
 

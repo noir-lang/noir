@@ -453,7 +453,7 @@
         brillig_context.call_check_max_stack_depth_procedure();
 
         <span class="kw">for </span>block <span class="kw">in </span>function_context.blocks.clone() {
-            BrilligBlock::compile(
+            BrilligBlock::compile_block(
                 <span class="kw-2">&amp;mut </span>function_context,
                 <span class="kw-2">&amp;mut </span>brillig_context,
                 block,

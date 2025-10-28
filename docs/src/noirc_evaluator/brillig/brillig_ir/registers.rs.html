@@ -965,7 +965,7 @@
     ) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>empty = Stack::new(layout);
         <span class="kw">for </span>register <span class="kw">in </span><span class="kw-2">&amp;</span>preallocated_registers {
-            <span class="macro">assert!</span>(empty.is_within_bounds(<span class="kw-2">*</span>register), <span class="string">"Register out of stack bounds"</span>);
+            <span class="macro">assert!</span>(empty.is_within_bounds(<span class="kw-2">*</span>register), <span class="string">"Register out of stack bounds: {register}"</span>);
         }
 
         <span class="self">Self </span>{

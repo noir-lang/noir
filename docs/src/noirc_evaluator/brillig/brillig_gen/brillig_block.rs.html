@@ -685,7 +685,13 @@
 <a href="#684" id="684">684</a>
 <a href="#685" id="685">685</a>
 <a href="#686" id="686">686</a>
-<a href="#687" id="687">687</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module containing Brillig-gen logic specific to an SSA function's basic blocks.
+<a href="#687" id="687">687</a>
+<a href="#688" id="688">688</a>
+<a href="#689" id="689">689</a>
+<a href="#690" id="690">690</a>
+<a href="#691" id="691">691</a>
+<a href="#692" id="692">692</a>
+<a href="#693" id="693">693</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module containing Brillig-gen logic specific to an SSA function's basic blocks.
 </span><span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::artifact::Label;
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::brillig_variable::{
     BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable,
@@ -738,11 +744,11 @@
 }
 
 <span class="kw">impl</span>&lt;<span class="lifetime">'block</span>, Registers: RegisterAllocator&gt; BrilligBlock&lt;<span class="lifetime">'block</span>, Registers&gt; {
-    <span class="doccomment">/// Converts an SSA Basic block into a sequence of Brillig opcodes
+    <span class="doccomment">/// Converts an SSA basic block into a sequence of Brillig opcodes.
     ///
     /// This method contains the necessary initial variable and register setup for compiling
     /// an SSA block by accessing the pre-computed liveness context.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>compile(
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>compile_block(
         function_context: <span class="kw-2">&amp;</span><span class="lifetime">'block </span><span class="kw-2">mut </span>FunctionContext,
         brillig_context: <span class="kw-2">&amp;</span><span class="lifetime">'block </span><span class="kw-2">mut </span>BrilligContext&lt;FieldElement, Registers&gt;,
         block_id: BasicBlockId,
@@ -866,29 +872,31 @@
         new_hoisted_constants
     }
 
-    <span class="doccomment">/// Internal method for [BrilligBlock::compile] that actually kicks off the Brillig compilation process
+    <span class="doccomment">/// Internal method for [BrilligBlock::compile_block] that actually kicks off the Brillig compilation process.
     ///
-    /// At this point any Brillig context, should be contained in [BrilligBlock] and this function should
+    /// At this point any Brillig context should be contained in [BrilligBlock], and this function should
     /// only need to accept external SSA and debugging structures.
     </span><span class="kw">fn </span>convert_block(<span class="kw-2">&amp;mut </span><span class="self">self</span>, dfg: <span class="kw-2">&amp;</span>DataFlowGraph, call_stacks: <span class="kw-2">&amp;mut </span>CallStackHelper) {
         <span class="comment">// Add a label for this block
         </span><span class="kw">let </span>block_label = <span class="self">self</span>.create_block_label_for_current_function(<span class="self">self</span>.block_id);
         <span class="self">self</span>.brillig_context.enter_context(block_label);
 
-        <span class="self">self</span>.convert_block_params(dfg);
+        <span class="comment">// Allocate variables for parameter passing between blocks.
+        </span><span class="self">self</span>.convert_block_params(dfg);
 
         <span class="kw">let </span>block = <span class="kw-2">&amp;</span>dfg[<span class="self">self</span>.block_id];
 
-        <span class="comment">// Convert all of the instructions into the block
+        <span class="comment">// Convert all of the instructions into the block.
         </span><span class="kw">for </span>instruction_id <span class="kw">in </span>block.instructions() {
             <span class="self">self</span>.convert_ssa_instruction(<span class="kw-2">*</span>instruction_id, dfg, call_stacks);
         }
 
-        <span class="comment">// Process the block's terminator instruction
+        <span class="comment">// Process the block's terminator instruction.
         </span><span class="kw">let </span>terminator_instruction =
             block.terminator().expect(<span class="string">"block is expected to be constructed"</span>);
 
-        <span class="kw">if </span><span class="self">self</span>.brillig_context.count_array_copies()
+        <span class="comment">// If we are exiting the entry point, we may want to print the array copy count, for debug purposes.
+        </span><span class="kw">if </span><span class="self">self</span>.brillig_context.count_array_copies()
             &amp;&amp; <span class="macro">matches!</span>(terminator_instruction, TerminatorInstruction::Return { .. })
             &amp;&amp; <span class="self">self</span>.function_context.is_entry_point
         {
@@ -900,9 +908,8 @@
 
     <span class="doccomment">/// Creates a unique global label for a block.
     ///
-    /// This uses the current functions's function ID and the block ID
-    /// Making the assumption that the block ID passed in belongs to this
-    /// function.
+    /// This uses the current function's function ID and the block ID,
+    /// making the assumption that the block ID passed in belongs to this function.
     </span><span class="kw">fn </span>create_block_label_for_current_function(<span class="kw-2">&amp;</span><span class="self">self</span>, block_id: BasicBlockId) -&gt; Label {
         <span class="self">Self</span>::create_block_label(<span class="self">self</span>.function_context.function_id(), block_id)
     }
@@ -916,19 +923,19 @@
         Label::block(function_id, block_id)
     }
 
-    <span class="doccomment">/// Converts an SSA terminator instruction into the necessary opcodes.
+    <span class="doccomment">/// Converts an SSA terminator instruction into the necessary opcodes:
+    /// * allocates the hoisted constants which are used by dominated blocks
+    /// * for jumps:
+    ///   * copies the arguments to the registers allocated in [Self::convert_block_params]
+    ///   * adds jump opcodes to the labels of the destination blocks
+    /// * for return it allocates registers for the return values and copies from variables.
     </span><span class="kw">fn </span>convert_ssa_terminator(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         terminator_instruction: <span class="kw-2">&amp;</span>TerminatorInstruction,
         dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
     ) {
-        <span class="self">self</span>.initialize_constants(
-            <span class="kw-2">&amp;</span><span class="self">self
-                </span>.function_context
-                .constant_allocation
-                .allocated_at_location(<span class="self">self</span>.block_id, InstructionLocation::Terminator),
-            dfg,
-        );
+        <span class="self">self</span>.initialize_constants(dfg, InstructionLocation::Terminator);
+
         <span class="kw">match </span>terminator_instruction {
             TerminatorInstruction::JmpIf {
                 condition,
@@ -945,26 +952,22 @@
                     <span class="self">self</span>.create_block_label_for_current_function(<span class="kw-2">*</span>else_destination),
                 );
             }
-            TerminatorInstruction::Jmp {
-                destination: destination_block,
-                arguments,
-                call_stack: <span class="kw">_</span>,
-            } =&gt; {
-                <span class="kw">let </span>target_block = <span class="kw-2">&amp;</span>dfg[<span class="kw-2">*</span>destination_block];
-                <span class="kw">for </span>(src, dest) <span class="kw">in </span>arguments.iter().zip(target_block.parameters()) {
-                    <span class="comment">// Destinations are block parameters so they should have been allocated previously.
-                    </span><span class="kw">let </span>destination = <span class="self">self</span>.variables.get_allocation(<span class="self">self</span>.function_context, <span class="kw-2">*</span>dest);
-                    <span class="kw">let </span>source = <span class="self">self</span>.convert_ssa_value(<span class="kw-2">*</span>src, dfg);
+            TerminatorInstruction::Jmp { destination, arguments, call_stack: <span class="kw">_ </span>} =&gt; {
+                <span class="kw">let </span>destination_block = <span class="kw-2">&amp;</span>dfg[<span class="kw-2">*</span>destination];
+                <span class="kw">for </span>(arg, param) <span class="kw">in </span>arguments.iter().zip(destination_block.parameters()) {
+                    <span class="comment">// Destinations are block parameters, so they should have been allocated previously in `create_block_params`.
+                    </span><span class="kw">let </span>param = <span class="self">self</span>.variables.get_allocation(<span class="self">self</span>.function_context, <span class="kw-2">*</span>param);
+                    <span class="kw">let </span>arg = <span class="self">self</span>.convert_ssa_value(<span class="kw-2">*</span>arg, dfg);
                     <span class="self">self</span>.brillig_context
-                        .mov_instruction(destination.extract_register(), source.extract_register());
+                        .mov_instruction(param.extract_register(), arg.extract_register());
                 }
-                <span class="self">self</span>.brillig_context.jump_instruction(
-                    <span class="self">self</span>.create_block_label_for_current_function(<span class="kw-2">*</span>destination_block),
-                );
+                <span class="self">self</span>.brillig_context
+                    .jump_instruction(<span class="self">self</span>.create_block_label_for_current_function(<span class="kw-2">*</span>destination));
             }
             TerminatorInstruction::Return { return_values, .. } =&gt; {
                 <span class="kw">let </span>return_registers = vecmap(return_values, |value_id| {
-                    <span class="self">self</span>.convert_ssa_value(<span class="kw-2">*</span>value_id, dfg).extract_register()
+                    <span class="comment">// Get the allocations of the values to be returned.
+                    </span><span class="self">self</span>.convert_ssa_value(<span class="kw-2">*</span>value_id, dfg)
                 });
                 <span class="self">self</span>.brillig_context.codegen_return(<span class="kw-2">&amp;</span>return_registers);
             }
@@ -974,32 +977,36 @@
         }
     }
 
-    <span class="doccomment">/// Allocates the block parameters that the given block is defining
+    <span class="doccomment">/// Allocates the block parameters that the given block is defining.
+    ///
+    /// We don't allocate the block parameters of the block itself here, we allocate the parameters the block is defining
+    /// for the descendant blocks it immediately dominates. Since predecessors to a block have to know where the parameters
+    /// of the block are allocated to pass data to it in [Self::convert_ssa_terminator], the block parameters need to be
+    /// defined/allocated before the given block. [VariableLiveness](crate::brillig::brillig_gen::variable_liveness::VariableLiveness)
+    /// decides when the block parameters are defined.
+    ///
+    /// For the entry block, the defined block params will be the params of the function + any extra params of blocks it's the immediate dominator of.
     </span><span class="kw">fn </span>convert_block_params(<span class="kw-2">&amp;mut </span><span class="self">self</span>, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) {
-        <span class="comment">// We don't allocate the block parameters here, we allocate the parameters the block is defining.
-        // Since predecessors to a block have to know where the parameters of the block are allocated to pass data to it,
-        // the block parameters need to be defined/allocated before the given block. Variable liveness provides when the block parameters are defined.
-        // For the entry block, the defined block params will be the params of the function + any extra params of blocks it's the immediate dominator of.
-        </span><span class="kw">for </span>param_id <span class="kw">in </span><span class="self">self</span>.function_context.liveness.defined_block_params(<span class="kw-2">&amp;</span><span class="self">self</span>.block_id) {
+        <span class="kw">for </span>param_id <span class="kw">in </span><span class="self">self</span>.function_context.liveness.defined_block_params(<span class="kw-2">&amp;</span><span class="self">self</span>.block_id) {
             <span class="kw">let </span>value = <span class="kw-2">&amp;</span>dfg[param_id];
-            <span class="kw">let </span>param_type = <span class="kw">match </span>value {
-                Value::Param { typ, .. } =&gt; typ,
-                <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: Only Param type values should appear in block parameters"</span>),
+            <span class="kw">let </span>Value::Param { typ: param_type, .. } = value <span class="kw">else </span>{
+                <span class="macro">unreachable!</span>(<span class="string">"ICE: Only Param type values should appear in block parameters"</span>);
             };
             <span class="kw">match </span>param_type {
-                <span class="comment">// Simple parameters and arrays are passed as already filled registers
-                // In the case of arrays, the values should already be in memory and the register should
-                // Be a valid pointer to the array.
-                // For slices, two registers are passed, the pointer to the data and a register holding the size of the slice.
-                </span>Type::Numeric(<span class="kw">_</span>) | Type::Array(..) | Type::Slice(..) | Type::Reference(<span class="kw">_</span>) =&gt; {
-                    <span class="self">self</span>.variables.define_variable(
+                Type::Numeric(<span class="kw">_</span>) | Type::Array(..) | Type::Slice(..) | Type::Reference(<span class="kw">_</span>) =&gt; {
+                    <span class="comment">// Simple parameters and arrays are passed as already filled registers.
+                    // In the case of arrays, the values should already be in memory and the register should be a valid pointer to the array.
+                    // For slices, two registers are passed, the pointer to the data and a register holding the size of the slice.
+                    </span><span class="self">self</span>.variables.define_variable(
                         <span class="self">self</span>.function_context,
                         <span class="self">self</span>.brillig_context,
                         param_id,
                         dfg,
                     );
                 }
-                Type::Function =&gt; <span class="macro">todo!</span>(<span class="string">"ICE: Type::Function Param not supported"</span>),
+                Type::Function =&gt; <span class="macro">unreachable!</span>(
+                    <span class="string">"ICE: Type::Function Param not supported; should have been removed by defunctionalization."
+                </span>),
             }
         }
     }
@@ -1018,13 +1025,8 @@
         <span class="kw">let </span>call_stack_new_id = call_stacks.get_or_insert_locations(<span class="kw-2">&amp;</span>call_stack);
         <span class="self">self</span>.brillig_context.set_call_stack(call_stack_new_id);
 
-        <span class="self">self</span>.initialize_constants(
-            <span class="kw-2">&amp;</span><span class="self">self</span>.function_context.constant_allocation.allocated_at_location(
-                <span class="self">self</span>.block_id,
-                InstructionLocation::Instruction(instruction_id),
-            ),
-            dfg,
-        );
+        <span class="self">self</span>.initialize_constants(dfg, InstructionLocation::Instruction(instruction_id));
+
         <span class="kw">match </span>instruction {
             Instruction::Binary(binary) =&gt; {
                 <span class="self">self</span>.binary_gen(instruction_id, binary, dfg);
@@ -1227,18 +1229,26 @@
         </span><span class="self">self</span>.brillig_context.cast_instruction(destination, source);
     }
 
-    <span class="doccomment">/// Accepts a list of constant values to be initialized
+    <span class="doccomment">/// Initializes constants allocated to a [InstructionLocation] by [ConstantAllocation](crate::brillig::brillig_gen::constant_allocation::ConstantAllocation).
     ///
-    /// This method does no checks as to whether the supplied constants are actually constants.
     /// It is expected that this method is called before converting an SSA instruction to Brillig
     /// and the constants to be initialized have been precomputed and stored in [FunctionContext::constant_allocation].
-    </span><span class="kw">fn </span>initialize_constants(<span class="kw-2">&amp;mut </span><span class="self">self</span>, constants: <span class="kw-2">&amp;</span>[ValueId], dfg: <span class="kw-2">&amp;</span>DataFlowGraph) {
-        <span class="kw">for </span><span class="kw-2">&amp;</span>constant_id <span class="kw">in </span>constants {
+    </span><span class="kw">fn </span>initialize_constants(<span class="kw-2">&amp;mut </span><span class="self">self</span>, dfg: <span class="kw-2">&amp;</span>DataFlowGraph, location: InstructionLocation) {
+        <span class="kw">let </span><span class="prelude-val">Some</span>(constants) = <span class="self">self
+            </span>.function_context
+            .constant_allocation
+            .allocated_at_location(<span class="self">self</span>.block_id, location)
+            .map(|c| c.to_vec())
+        <span class="kw">else </span>{
+            <span class="kw">return</span>;
+        };
+
+        <span class="kw">for </span>constant_id <span class="kw">in </span>constants {
             <span class="self">self</span>.convert_ssa_value(constant_id, dfg);
         }
     }
 
-    <span class="doccomment">/// Converts an SSA [ValueId] into a [BrilligVariable]. Initializes if necessary.
+    <span class="doccomment">/// Converts an SSA [ValueId] into a [BrilligVariable]. Initializes if necessary, or returns an existing allocation.
     ///
     /// This method also first checks whether the SSA value is a hoisted global constant.
     /// If it has already been initialized in the global space, we return the already existing variable.
@@ -1311,12 +1321,14 @@
                 new_variable
             }
             Value::Intrinsic(<span class="kw">_</span>) | Value::ForeignFunction(<span class="kw">_</span>) =&gt; {
-                <span class="macro">todo!</span>(<span class="string">"ICE: Cannot convert value {value:?}"</span>)
+                <span class="macro">unreachable!</span>(<span class="string">"ICE: Cannot convert value to Brillig: {value:?}"</span>)
             }
         }
     }
 
-    <span class="doccomment">/// Converts an SSA `ValueId` into a `MemoryAddress`. Initializes if necessary.
+    <span class="doccomment">/// Converts an SSA `ValueId` into a single `MemoryAddress`. Initializes if necessary.
+    ///
+    /// Panics if the value was converted to an array or vector.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>convert_ssa_single_addr_value(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         value_id: ValueId,

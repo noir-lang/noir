@@ -258,10 +258,10 @@
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         block_id: BasicBlockId,
         location: InstructionLocation,
-    ) -&gt; Vec&lt;ValueId&gt; {
-        <span class="self">self</span>.allocation_points.get(<span class="kw-2">&amp;</span>block_id).map_or(Vec::default(), |allocations| {
-            allocations.get(<span class="kw-2">&amp;</span>location).map_or(Vec::default(), |constants| constants.clone())
-        })
+    ) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>[ValueId]&gt; {
+        <span class="kw">let </span>allocations = <span class="self">self</span>.allocation_points.get(<span class="kw-2">&amp;</span>block_id)<span class="question-mark">?</span>;
+        <span class="kw">let </span>constants = allocations.get(<span class="kw-2">&amp;</span>location)<span class="question-mark">?</span>;
+        <span class="prelude-val">Some</span>(constants.as_ref())
     }
 
     <span class="doccomment">/// Visit all constant variables in the function and record their locations.

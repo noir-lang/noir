@@ -477,7 +477,8 @@
 <a href="#476" id="476">476</a>
 <a href="#477" id="477">477</a>
 <a href="#478" id="478">478</a>
-<a href="#479" id="479">479</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
+<a href="#479" id="479">479</a>
+<a href="#480" id="480">480</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
     brillig::{BrilligOptions, brillig_ir::registers::Allocated},
     ssa::ir::function::FunctionId,
 };
@@ -636,14 +637,14 @@
             .iter()
             .map(|argument| <span class="kw">match </span>argument {
                 BrilligParameter::SingleAddr(bit_size) =&gt; {
-                    <span class="self">self</span>.allocate_single_addr(<span class="kw-2">*</span>bit_size).map(BrilligVariable::SingleAddr)
+                    <span class="self">self</span>.allocate_single_addr(<span class="kw-2">*</span>bit_size).map(BrilligVariable::from)
                 }
                 BrilligParameter::Array(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
                     <span class="kw">let </span>flattened_size = <span class="self">Self</span>::flattened_size(argument);
-                    <span class="self">self</span>.allocate_brillig_array(flattened_size).map(BrilligVariable::BrilligArray)
+                    <span class="self">self</span>.allocate_brillig_array(flattened_size).map(BrilligVariable::from)
                 }
                 BrilligParameter::Slice(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
-                    <span class="self">self</span>.allocate_brillig_vector().map(BrilligVariable::BrilligVector)
+                    <span class="self">self</span>.allocate_brillig_vector().map(BrilligVariable::from)
                 }
             })
             .collect()
@@ -801,11 +802,11 @@
             .iter()
             .map(|return_parameter| <span class="kw">match </span>return_parameter {
                 BrilligParameter::SingleAddr(bit_size) =&gt; {
-                    <span class="self">self</span>.allocate_single_addr(<span class="kw-2">*</span>bit_size).map(BrilligVariable::SingleAddr)
+                    <span class="self">self</span>.allocate_single_addr(<span class="kw-2">*</span>bit_size).map(BrilligVariable::from)
                 }
                 BrilligParameter::Array(item_types, item_count) =&gt; <span class="self">self
                     </span>.allocate_brillig_array(item_types.len() * item_count)
-                    .map(BrilligVariable::BrilligArray),
+                    .map(BrilligVariable::from),
                 BrilligParameter::Slice(..) =&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: Cannot return slices"</span>),
             })
             .collect();
@@ -863,7 +864,7 @@
 
     <span class="kw">use crate</span>::{
         brillig::brillig_ir::{
-            brillig_variable::BrilligArray,
+            brillig_variable::{BrilligArray, BrilligVariable, SingleAddrVariable},
             entry_point::BrilligParameter,
             tests::{create_and_run_vm, create_context, create_entry_point_bytecode},
         },
@@ -905,7 +906,8 @@
         <span class="comment">// Load the first item of the nested array.
         </span>context.load_instruction(<span class="kw-2">*</span>array_value, <span class="kw-2">*</span>items_pointer);
 
-        context.codegen_return(<span class="kw-2">&amp;</span>[<span class="kw-2">*</span>array_value]);
+        <span class="kw">let </span>return_value = BrilligVariable::from(SingleAddrVariable::new_usize(<span class="kw-2">*</span>array_value));
+        context.codegen_return(<span class="kw-2">&amp;</span>[return_value]);
 
         <span class="kw">let </span>bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
         <span class="kw">let </span>(vm, return_data_offset, return_data_size) =
@@ -937,9 +939,9 @@
         <span class="kw">let </span><span class="kw-2">mut </span>context = create_context(FunctionId::test_new(<span class="number">0</span>));
 
         <span class="comment">// Allocate the parameter
-        </span><span class="kw">let </span>return_register = context.allocate_register();
+        </span><span class="kw">let </span>return_register = context.allocate_brillig_array(<span class="number">2</span>);
 
-        context.codegen_return(<span class="kw-2">&amp;</span>[<span class="kw-2">*</span>return_register]);
+        context.codegen_return(<span class="kw-2">&amp;</span>[return_register.to_var()]);
 
         <span class="kw">let </span>bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
         <span class="kw">let </span>(vm, return_data_pointer, return_data_size) =

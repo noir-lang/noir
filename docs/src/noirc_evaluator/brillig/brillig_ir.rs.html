@@ -529,8 +529,7 @@
 <a href="#528" id="528">528</a>
 <a href="#529" id="529">529</a>
 <a href="#530" id="530">530</a>
-<a href="#531" id="531">531</a>
-<a href="#532" id="532">532</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module is an abstraction layer over `Brillig`.
+<a href="#531" id="531">531</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module is an abstraction layer over `Brillig`.
 //! To allow for separation of concerns, it knows nothing
 //! about SSA types, and can therefore be tested independently.
 //! `brillig_gen` is therefore the module which combines both
@@ -615,12 +614,11 @@
     obj: BrilligArtifact&lt;F&gt;,
     <span class="doccomment">/// Tracks register allocations
     </span>registers: Rc&lt;RefCell&lt;Registers&gt;&gt;,
-    <span class="doccomment">/// Context label, must be unique with respect to the function
-    /// being linked.
+    <span class="doccomment">/// Context label, must be unique with respect to the function being linked.
     </span>context_label: Label,
-    <span class="doccomment">/// Section label, used to separate sections of code
+    <span class="doccomment">/// Section label, used to separate sections of code within a context.
     </span>current_section: usize,
-    <span class="doccomment">/// Stores the next available section
+    <span class="doccomment">/// Stores the next available section.
     </span>next_section: usize,
     <span class="doccomment">/// IR printer
     </span>debug_show: DebugShow,
