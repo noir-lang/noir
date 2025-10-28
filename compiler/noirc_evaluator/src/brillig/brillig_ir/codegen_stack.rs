@@ -1,125 +1,154 @@
 use acvm::{AcirField, acir::brillig::MemoryAddress};
-use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
+
+use crate::brillig::brillig_ir::registers::Stack;
 
 use super::{BrilligContext, debug_show::DebugToString, registers::RegisterAllocator};
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
+    fn to_index(adr: &MemoryAddress) -> usize {
+        match adr {
+            MemoryAddress::Relative(size) => size - Stack::start(),
+            MemoryAddress::Direct(_) => usize::MAX,
+        }
+    }
+    fn from_index(idx: usize) -> MemoryAddress {
+        assert!(idx != usize::MAX, "invalid index");
+        MemoryAddress::Relative(idx + Stack::start())
+    }
+
     /// This function moves values from a set of registers to another set of registers.
-    /// The only requirement is that every destination needs to be written at most once.
+    /// It assumes that:
+    /// - every destination needs to be written at most once. Will panic if not.
+    /// - destinations are relative addresses, starting from 0 and with 1 increment. Will panic if not
+    /// - sources are any relative addresses, and can also be direct address to the global space. TODO: panic if not
+    /// - sources and destinations have same length. Will panic if not.
     pub(crate) fn codegen_mov_registers_to_registers(
         &mut self,
         sources: Vec<MemoryAddress>,
         destinations: Vec<MemoryAddress>,
     ) {
         assert_eq!(sources.len(), destinations.len());
-        // Remove all no-ops
-        let movements: Vec<_> = sources
-            .into_iter()
-            .zip(destinations)
-            .filter(|(source, destination)| source != destination)
-            .collect();
-
-        // Now we need to detect all cycles.
-        // First build a map of the movements. Note that a source could have multiple destinations
-        let mut movements_map: HashMap<MemoryAddress, HashSet<_>> =
-            movements.into_iter().fold(HashMap::default(), |mut map, (source, destination)| {
-                map.entry(source).or_default().insert(destination);
-                map
-            });
-
-        let destinations_set: HashSet<_> = movements_map.values().flatten().copied().collect();
-        assert_eq!(
-            destinations_set.len(),
-            movements_map.values().flatten().count(),
-            "Multiple moves to the same register found"
-        );
-
-        let mut loop_detector = LoopDetector::default();
-        loop_detector.collect_loops(&movements_map);
-        let loops = loop_detector.loops;
-        // In order to break the loops we need to store one register from each in a temporary and then use that temporary as source.
-        let mut temporaries = Vec::with_capacity(loops.len());
-        for loop_found in loops {
-            let temp_register = self.allocate_register();
-            temporaries.push(temp_register);
-            let first_source = loop_found.iter().next().unwrap();
-            self.mov_instruction(temp_register, *first_source);
-            let destinations_of_temp = movements_map.remove(first_source).unwrap();
-            movements_map.insert(temp_register, destinations_of_temp);
+        let n = sources.len();
+        let start = Stack::start();
+        let mut free_register = None;
+        let mut processed = 0;
+        // Compute the number of children for each node in the movement graph
+        let mut children = vec![0; n];
+        for i in 0..n {
+            // Check that destinations are relatives to 0,..,n-1
+            assert_eq!(destinations[i].unwrap_relative() - start, i);
+            let index = Self::to_index(&sources[i]);
+            if index < n && index != i {
+                children[index] += 1;
+            }
         }
 
-        // After removing loops we should have an DAG with each node having only one ancestor (but could have multiple successors)
-        // Now we should be able to move the registers just by performing a DFS on the movements map
-        let heads: Vec<_> = movements_map
-            .keys()
-            .filter(|source| !destinations_set.contains(source))
-            .copied()
-            .collect();
-
-        for head in heads {
-            self.perform_movements(&movements_map, head);
+        // Process all sinks in the graph and follow their parents.
+        // Keep track of nodes having more than 2 children, in case they belong to a loop.
+        let mut tail_candidates = Vec::new();
+        for i in 0..n {
+            // Generate a movement for each sink in the graph
+            if children[i] == 0 {
+                // A sink has no child
+                let mut node = i;
+                while children[node] == 0 {
+                    if Self::to_index(&sources[node]) == node {
+                        //no-op: mark the node as processed
+                        children[node] = usize::MAX;
+                        processed += 1;
+                        break;
+                    }
+                    // Generates a move instruction
+                    self.perform_movement(node, sources[node], &mut children, &mut processed);
+                    // Follow the parent
+                    let index = Self::to_index(&sources[node]);
+                    if index < n {
+                        children[index] -= 1;
+                        if children[index] > 0 {
+                            // The parent node has another child, so we cannot process it yet.
+                            tail_candidates.push((sources[node], node));
+                            break;
+                        }
+                        // process the parent node
+                        node = index;
+                    } else {
+                        // End of the path; when all the sinks will be processed, this register will be 'free' for re-use.
+                        free_register = Some(sources[i]);
+                        break;
+                    }
+                }
+                if processed == n {
+                    return;
+                }
+            }
         }
-
-        // Deallocate all temporaries
-        for temp in temporaries {
+        // All sinks and their parents have been processed, remaining nodes are part of a loop
+        // Check if a tail_candidate is a branch to a loop
+        for (entry, free) in tail_candidates {
+            let entry_idx = Self::to_index(&entry);
+            if entry_idx < n && children[entry_idx] == 1 {
+                // Use the branch as the temporary register for the loop
+                self.process_loop(
+                    entry_idx,
+                    &Self::from_index(free),
+                    &mut children,
+                    &sources,
+                    &mut processed,
+                );
+            }
+        }
+        if processed == n {
+            return;
+        }
+        // Now process all the remaining loops with a temporary register if needed.
+        let temp_register =
+            if free_register.is_none() { Some(self.allocate_register()) } else { None };
+        let register = free_register.unwrap_or(temp_register.unwrap());
+        for i in 0..n {
+            if children[i] == 1 {
+                let src = Self::from_index(i);
+                // Copy the loop entry to the free register
+                self.mov_instruction(register, src);
+                self.process_loop(i, &register, &mut children, &sources, &mut processed);
+            }
+        }
+        if let Some(temp) = temp_register {
             self.deallocate_register(temp);
         }
     }
 
-    fn perform_movements(
+    /// Generates mov opcodes corresponding to a loop, given a node from the loop (entry)
+    /// and a register not in the loop that contains its value (free)
+    fn process_loop(
         &mut self,
-        movements: &HashMap<MemoryAddress, HashSet<MemoryAddress>>,
-        current_source: MemoryAddress,
+        entry: usize,
+        free: &MemoryAddress,
+        children: &mut [usize],
+        source: &[MemoryAddress],
+        processed: &mut usize,
     ) {
-        if let Some(destinations) = movements.get(&current_source) {
-            for destination in destinations {
-                self.perform_movements(movements, *destination);
-            }
-            for destination in destinations {
-                self.mov_instruction(*destination, current_source);
-            }
+        let mut current = entry;
+        while Self::to_index(&source[current]) != entry {
+            self.perform_movement(current, source[current], children, processed);
+            current = Self::to_index(&source[current]);
         }
-    }
-}
-
-#[derive(Default)]
-struct LoopDetector {
-    visited_sources: HashSet<MemoryAddress>,
-    loops: Vec<im::OrdSet<MemoryAddress>>,
-}
-
-impl LoopDetector {
-    fn collect_loops(&mut self, movements: &HashMap<MemoryAddress, HashSet<MemoryAddress>>) {
-        for source in movements.keys() {
-            self.find_loop_recursive(*source, movements, im::OrdSet::default());
-        }
+        self.perform_movement(current, *free, children, processed);
+        children[current] = usize::MAX;
     }
 
-    fn find_loop_recursive(
+    /// Generates a move opcode from 'src' to 'dest'.
+    fn perform_movement(
         &mut self,
-        source: MemoryAddress,
-        movements: &HashMap<MemoryAddress, HashSet<MemoryAddress>>,
-        mut previous_sources: im::OrdSet<MemoryAddress>,
+        dest: usize,
+        src: MemoryAddress,
+        children: &mut [usize],
+        processed: &mut usize,
     ) {
-        if self.visited_sources.contains(&source) {
-            return;
-        }
-        // Mark as visited
-        self.visited_sources.insert(source);
-
-        previous_sources.insert(source);
-        // Get all destinations
-        if let Some(destinations) = movements.get(&source) {
-            for destination in destinations {
-                if previous_sources.contains(destination) {
-                    // Found a loop
-                    let loop_sources = previous_sources.clone();
-                    self.loops.push(loop_sources);
-                } else {
-                    self.find_loop_recursive(*destination, movements, previous_sources.clone());
-                }
-            }
-        }
+        let destination = Self::from_index(dest);
+        self.mov_instruction(destination, src);
+        // set the node as 'processed'
+        children[dest] = usize::MAX;
+        *processed += 1;
     }
 }
 
@@ -129,68 +158,18 @@ mod tests {
         FieldElement,
         acir::brillig::{MemoryAddress, Opcode},
     };
-    use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
     use crate::{
         brillig::{
             BrilligOptions,
-            brillig_ir::{BrilligContext, LayoutConfig, artifact::Label, registers::Stack},
+            brillig_ir::{
+                BrilligContext, LayoutConfig,
+                artifact::Label,
+                registers::{RegisterAllocator, Stack},
+            },
         },
         ssa::ir::function::FunctionId,
     };
-
-    // Tests for the loop finder
-
-    fn generate_movements_map(
-        movements: Vec<(usize, usize)>,
-    ) -> HashMap<MemoryAddress, HashSet<MemoryAddress>> {
-        movements.into_iter().fold(HashMap::default(), |mut map, (source, destination)| {
-            map.entry(MemoryAddress::relative(source))
-                .or_default()
-                .insert(MemoryAddress::relative(destination));
-            map
-        })
-    }
-
-    #[test]
-    fn test_loop_detector_basic_loop() {
-        let movements = vec![(0, 1), (1, 2), (2, 3), (3, 0)];
-        let movements_map = generate_movements_map(movements);
-        let mut loop_detector = super::LoopDetector::default();
-        loop_detector.collect_loops(&movements_map);
-        assert_eq!(loop_detector.loops.len(), 1);
-        assert_eq!(loop_detector.loops[0].len(), 4);
-    }
-
-    #[test]
-    fn test_loop_detector_no_loop() {
-        let movements = vec![(0, 1), (1, 2), (2, 3), (3, 4)];
-        let movements_map = generate_movements_map(movements);
-        let mut loop_detector = super::LoopDetector::default();
-        loop_detector.collect_loops(&movements_map);
-        assert_eq!(loop_detector.loops.len(), 0);
-    }
-
-    #[test]
-    fn test_loop_detector_loop_with_branch() {
-        let movements = vec![(0, 1), (1, 2), (2, 0), (0, 3), (3, 4)];
-        let movements_map = generate_movements_map(movements);
-        let mut loop_detector = super::LoopDetector::default();
-        loop_detector.collect_loops(&movements_map);
-        assert_eq!(loop_detector.loops.len(), 1);
-        assert_eq!(loop_detector.loops[0].len(), 3);
-    }
-
-    #[test]
-    fn test_loop_detector_two_loops() {
-        let movements = vec![(0, 1), (1, 2), (2, 0), (3, 4), (4, 5), (5, 3)];
-        let movements_map = generate_movements_map(movements);
-        let mut loop_detector = super::LoopDetector::default();
-        loop_detector.collect_loops(&movements_map);
-        assert_eq!(loop_detector.loops.len(), 2);
-        assert_eq!(loop_detector.loops[0].len(), 3);
-        assert_eq!(loop_detector.loops[1].len(), 3);
-    }
 
     // Tests for mov_registers_to_registers
 
@@ -219,9 +198,20 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Multiple moves to the same register found")]
+    fn test_no_op() {
+        let movements = vec![(1, 1), (2, 2), (1, 3), (2, 4)];
+        let (sources, destinations) = movements_to_source_and_destinations(movements);
+        let mut context = create_context();
+
+        context.codegen_mov_registers_to_registers(sources, destinations);
+        let opcodes = context.artifact().byte_code;
+        assert_eq!(opcodes.len(), 2);
+    }
+
+    #[test]
+    #[should_panic]
     fn test_mov_registers_to_registers_overwrite() {
-        let movements = vec![(10, 11), (12, 11), (10, 13)];
+        let movements = vec![(10, 1), (12, 1), (10, 3)];
         let (sources, destinations) = movements_to_source_and_destinations(movements);
         let mut context = create_context();
 
@@ -229,61 +219,9 @@ mod tests {
     }
 
     #[test]
-    fn test_mov_registers_to_registers_no_loop() {
-        let movements = vec![(10, 11), (11, 12), (12, 13), (13, 14)];
-        let (sources, destinations) = movements_to_source_and_destinations(movements);
-        let mut context = create_context();
-
-        context.codegen_mov_registers_to_registers(sources, destinations);
-        let opcodes = context.artifact().byte_code;
-        assert_eq!(
-            opcodes,
-            vec![
-                Opcode::Mov {
-                    destination: MemoryAddress::relative(14),
-                    source: MemoryAddress::relative(13)
-                },
-                Opcode::Mov {
-                    destination: MemoryAddress::relative(13),
-                    source: MemoryAddress::relative(12)
-                },
-                Opcode::Mov {
-                    destination: MemoryAddress::relative(12),
-                    source: MemoryAddress::relative(11)
-                },
-                Opcode::Mov {
-                    destination: MemoryAddress::relative(11),
-                    source: MemoryAddress::relative(10)
-                },
-            ]
-        );
-    }
-    #[test]
-    fn test_mov_registers_to_registers_no_op_filter() {
-        let movements = vec![(10, 11), (11, 11), (11, 12)];
-        let (sources, destinations) = movements_to_source_and_destinations(movements);
-        let mut context = create_context();
-
-        context.codegen_mov_registers_to_registers(sources, destinations);
-        let opcodes = context.artifact().byte_code;
-        assert_eq!(
-            opcodes,
-            vec![
-                Opcode::Mov {
-                    destination: MemoryAddress::relative(12),
-                    source: MemoryAddress::relative(11)
-                },
-                Opcode::Mov {
-                    destination: MemoryAddress::relative(11),
-                    source: MemoryAddress::relative(10)
-                },
-            ]
-        );
-    }
-
-    #[test]
-    fn test_mov_registers_to_registers_loop() {
-        let movements = vec![(10, 11), (11, 12), (12, 13), (13, 10)];
+    fn test_basic_no_loop() {
+        let movements = vec![(2, 1), (3, 2), (4, 3), (5, 4)];
+        // let movements_map = generate_movements_map(movements);
         let (sources, destinations) = movements_to_source_and_destinations(movements);
         let mut context = create_context();
 
@@ -294,33 +232,83 @@ mod tests {
             vec![
                 Opcode::Mov {
                     destination: MemoryAddress::relative(1),
-                    source: MemoryAddress::relative(10)
+                    source: MemoryAddress::relative(2)
                 },
                 Opcode::Mov {
-                    destination: MemoryAddress::relative(10),
-                    source: MemoryAddress::relative(13)
+                    destination: MemoryAddress::relative(2),
+                    source: MemoryAddress::relative(3)
                 },
                 Opcode::Mov {
-                    destination: MemoryAddress::relative(13),
-                    source: MemoryAddress::relative(12)
+                    destination: MemoryAddress::relative(3),
+                    source: MemoryAddress::relative(4)
                 },
                 Opcode::Mov {
-                    destination: MemoryAddress::relative(12),
-                    source: MemoryAddress::relative(11)
-                },
-                Opcode::Mov {
-                    destination: MemoryAddress::relative(11),
-                    source: MemoryAddress::relative(1)
+                    destination: MemoryAddress::relative(4),
+                    source: MemoryAddress::relative(5)
                 }
             ]
         );
     }
 
     #[test]
-    fn test_mov_registers_to_registers_loop_and_branch() {
-        let movements = vec![(10, 11), (11, 12), (12, 10), (10, 13), (13, 14)];
-        let (sources, destinations) = movements_to_source_and_destinations(movements);
+    fn test_basic_loop() {
+        let movements = vec![(4, 1), (1, 2), (2, 3), (3, 4)];
         let mut context = create_context();
+        for _ in 0..movements.len() {
+            context.registers.allocate_register();
+        }
+        let (sources, destinations) = movements_to_source_and_destinations(movements);
+
+        context.codegen_mov_registers_to_registers(sources, destinations);
+        let opcodes = context.artifact().byte_code;
+        assert_eq!(opcodes.len(), 5);
+    }
+
+    #[test]
+    fn test_no_loop() {
+        let movements = vec![(6, 1), (1, 2), (2, 3), (3, 4), (4, 5)];
+        let mut context = create_context();
+
+        let (sources, destinations) = movements_to_source_and_destinations(movements);
+
+        context.codegen_mov_registers_to_registers(sources, destinations);
+        let opcodes = context.artifact().byte_code;
+        assert_eq!(opcodes.len(), 5);
+    }
+
+    #[test]
+    fn test_loop_with_branch() {
+        let movements = vec![(3, 1), (1, 2), (2, 3), (1, 4), (4, 5)];
+        let mut context = create_context();
+
+        let (sources, destinations) = movements_to_source_and_destinations(movements);
+
+        context.codegen_mov_registers_to_registers(sources, destinations);
+        let opcodes = context.artifact().byte_code;
+        assert_eq!(opcodes.len(), 5);
+    }
+
+    #[test]
+    fn test_two_loops() {
+        let movements = vec![(3, 1), (1, 2), (2, 3), (6, 4), (4, 5), (5, 6)];
+
+        let mut context = create_context();
+        for _ in 0..movements.len() {
+            context.registers.allocate_register();
+        }
+        let (sources, destinations) = movements_to_source_and_destinations(movements);
+
+        context.codegen_mov_registers_to_registers(sources, destinations);
+        let opcodes = context.artifact().byte_code;
+        assert_eq!(opcodes.len(), 8);
+    }
+
+    #[test]
+    fn test_another_loop_with_branch() {
+        let movements = vec![(2, 1), (1, 2), (2, 3), (3, 4), (4, 5)];
+        let mut context = create_context();
+
+        let (sources, destinations) = movements_to_source_and_destinations(movements);
 
         context.codegen_mov_registers_to_registers(sources, destinations);
         let opcodes = context.artifact().byte_code;
@@ -328,29 +316,66 @@ mod tests {
             opcodes,
             vec![
                 Opcode::Mov {
+                    destination: MemoryAddress::relative(5),
+                    source: MemoryAddress::relative(4)
+                },
+                Opcode::Mov {
+                    destination: MemoryAddress::relative(4),
+                    source: MemoryAddress::relative(3)
+                },
+                Opcode::Mov {
+                    destination: MemoryAddress::relative(3),
+                    source: MemoryAddress::relative(2)
+                },
+                Opcode::Mov {
+                    destination: MemoryAddress::relative(2),
+                    source: MemoryAddress::relative(1)
+                },
+                Opcode::Mov {
                     destination: MemoryAddress::relative(1),
-                    source: MemoryAddress::relative(10)
-                }, // Temporary
+                    source: MemoryAddress::relative(3)
+                }
+            ]
+        );
+    }
+    #[test]
+    fn test_one_loop() {
+        let movements = vec![(2, 1), (4, 2), (5, 3), (3, 4), (1, 5)];
+        let mut context = create_context();
+        for _ in 0..movements.len() {
+            context.registers.allocate_register();
+        }
+        let (sources, destinations) = movements_to_source_and_destinations(movements);
+
+        context.codegen_mov_registers_to_registers(sources, destinations);
+        let opcodes = context.artifact().byte_code;
+        assert_eq!(
+            opcodes,
+            vec![
                 Opcode::Mov {
-                    destination: MemoryAddress::relative(10),
-                    source: MemoryAddress::relative(12)
-                }, // Branch
-                Opcode::Mov {
-                    destination: MemoryAddress::relative(12),
-                    source: MemoryAddress::relative(11)
-                }, // Loop
-                Opcode::Mov {
-                    destination: MemoryAddress::relative(14),
-                    source: MemoryAddress::relative(13)
-                }, // Loop
-                Opcode::Mov {
-                    destination: MemoryAddress::relative(11),
+                    destination: MemoryAddress::relative(6),
                     source: MemoryAddress::relative(1)
-                }, // Finish branch
+                },
                 Opcode::Mov {
-                    destination: MemoryAddress::relative(13),
-                    source: MemoryAddress::relative(1)
-                } // Finish loop
+                    destination: MemoryAddress::relative(1),
+                    source: MemoryAddress::relative(2)
+                },
+                Opcode::Mov {
+                    destination: MemoryAddress::relative(2),
+                    source: MemoryAddress::relative(4)
+                },
+                Opcode::Mov {
+                    destination: MemoryAddress::relative(4),
+                    source: MemoryAddress::relative(3)
+                },
+                Opcode::Mov {
+                    destination: MemoryAddress::relative(3),
+                    source: MemoryAddress::relative(5)
+                },
+                Opcode::Mov {
+                    destination: MemoryAddress::relative(5),
+                    source: MemoryAddress::relative(6)
+                }
             ]
         );
     }
