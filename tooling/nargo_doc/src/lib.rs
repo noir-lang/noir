@@ -11,8 +11,8 @@ use noirc_frontend::{Kind, ResolvedGeneric};
 use noirc_frontend::{graph::CrateGraph, hir::def_map::DefMaps, node_interner::NodeInterner};
 
 use crate::items::{
-    Function, FunctionParam, Generic, Global, Impl, Item, Module, Struct, StructField, Trait, Type,
-    TypeAlias,
+    Function, FunctionParam, Generic, Global, Impl, Item, Module, Struct, StructField, Trait,
+    TraitImpl, Type, TypeAlias,
 };
 
 pub mod items;
@@ -72,8 +72,8 @@ impl<'a> DocItemBuilder<'a> {
                     .collect();
                 let generics = vecmap(&data_type.generics, |generic| convert_generic(generic));
                 let impls = vecmap(item_data_type.impls, |impl_| self.convert_impl(impl_));
-
-                // TODO: trait impls
+                let trait_impls =
+                    vecmap(item_data_type.trait_impls, |impl_| self.convert_trait_impl(impl_));
                 let id = self.get_id(ModuleDefId::TypeId(type_id));
                 Item::Struct(Struct {
                     id,
@@ -81,6 +81,7 @@ impl<'a> DocItemBuilder<'a> {
                     generics,
                     fields,
                     impls,
+                    trait_impls,
                     comments,
                 })
             }
@@ -140,6 +141,26 @@ impl<'a> DocItemBuilder<'a> {
             .map(|(_, func_id)| self.convert_function(func_id))
             .collect();
         Impl { generics, r#type, methods }
+    }
+
+    fn convert_trait_impl(&mut self, item_trait_impl: expand_items::TraitImpl) -> TraitImpl {
+        let generics = vecmap(item_trait_impl.generics, |(name, kind)| {
+            let numeric = kind_to_numeric(kind);
+            Generic { name, numeric }
+        });
+        let methods = vecmap(item_trait_impl.methods, |func_id| self.convert_function(func_id));
+
+        let trait_impl_id = item_trait_impl.id;
+
+        let trait_impl = self.interner.get_trait_implementation(trait_impl_id);
+        let trait_impl = trait_impl.borrow();
+        let trait_ = self.interner.get_trait(trait_impl.trait_id);
+        let trait_name = trait_.name.to_string();
+        let trait_id = self.get_id(ModuleDefId::TraitId(trait_.id));
+        let trait_generics = vecmap(&trait_impl.trait_generics, |typ| self.convert_type(typ));
+
+        // TODO: where clause
+        TraitImpl { generics, methods, trait_id, trait_name, trait_generics }
     }
 
     fn convert_type(&self, typ: &noirc_frontend::Type) -> Type {

@@ -36,6 +36,7 @@ pub struct Struct {
     pub generics: Vec<Generic>,
     pub fields: Vec<StructField>,
     pub impls: Vec<Impl>,
+    pub trait_impls: Vec<TraitImpl>,
     pub comments: Option<String>,
 }
 
@@ -51,6 +52,15 @@ pub struct Impl {
     pub generics: Vec<Generic>,
     pub r#type: Type,
     pub methods: Vec<Function>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct TraitImpl {
+    pub generics: Vec<Generic>,
+    pub methods: Vec<Function>,
+    pub trait_id: usize,
+    pub trait_name: String,
+    pub trait_generics: Vec<Type>,
 }
 
 #[derive(Serialize, Deserialize)]
