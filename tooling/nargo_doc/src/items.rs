@@ -95,6 +95,7 @@ pub struct Trait {
     pub name: String,
     pub generics: Vec<Generic>,
     pub methods: Vec<Function>,
+    pub trait_impls: Vec<TraitImpl>,
     pub comments: Option<String>,
 }
 

@@ -92,12 +92,14 @@ impl<'a> DocItemBuilder<'a> {
                 let comments = self.doc_comments(ReferenceId::Trait(trait_id));
                 let generics = vecmap(&trait_.generics, |generic| convert_generic(generic));
                 let methods = vecmap(item_trait.methods, |func_id| self.convert_function(func_id));
+                let trait_impls = vecmap(item_trait.trait_impls, |trait_impl| {
+                    self.convert_trait_impl(trait_impl)
+                });
 
                 // TODO: parents
                 // TODO: where clauses
-                // TODO: trait impls
                 let id = self.get_id(ModuleDefId::TraitId(trait_id));
-                Item::Trait(Trait { id, name, generics, comments, methods })
+                Item::Trait(Trait { id, name, generics, comments, methods, trait_impls })
             }
             expand_items::Item::TypeAlias(type_alias_id) => {
                 let type_alias = self.interner.get_type_alias(type_alias_id);
