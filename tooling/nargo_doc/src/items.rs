@@ -43,7 +43,6 @@ pub struct StructField {
     pub name: String,
     pub r#type: Type,
     pub comments: Option<String>,
-    // TODO: type
 }
 
 #[derive(Serialize, Deserialize)]
