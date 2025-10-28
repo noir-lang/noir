@@ -6,13 +6,14 @@ use noirc_frontend::ast::ItemVisibility;
 use noirc_frontend::hir::def_map::ModuleDefId;
 use noirc_frontend::hir::printer::items as expand_items;
 use noirc_frontend::hir_def::stmt::{HirLetStatement, HirPattern};
+use noirc_frontend::hir_def::traits::ResolvedTraitBound;
 use noirc_frontend::node_interner::{FuncId, ReferenceId};
 use noirc_frontend::{Kind, ResolvedGeneric};
 use noirc_frontend::{graph::CrateGraph, hir::def_map::DefMaps, node_interner::NodeInterner};
 
 use crate::items::{
     Function, FunctionParam, Generic, Global, Impl, Item, Module, Struct, StructField, Trait,
-    TraitConstraint, TraitImpl, Type, TypeAlias,
+    TraitBound, TraitConstraint, TraitImpl, Type, TypeAlias,
 };
 
 pub mod items;
@@ -98,13 +99,13 @@ impl<'a> DocItemBuilder<'a> {
                 let where_clause = vecmap(&trait_.where_clause, |constraint| {
                     self.convert_trait_constraint(constraint)
                 });
-
-                // TODO: parents
+                let parents = vecmap(&trait_.trait_bounds, |bound| self.convert_trait_bound(bound));
                 let id = self.get_id(ModuleDefId::TraitId(trait_id));
                 Item::Trait(Trait {
                     id,
                     name,
                     generics,
+                    parents,
                     where_clause,
                     comments,
                     methods,
@@ -182,19 +183,23 @@ impl<'a> DocItemBuilder<'a> {
         constraint: &noirc_frontend::hir_def::traits::TraitConstraint,
     ) -> TraitConstraint {
         let r#type = self.convert_type(&constraint.typ);
-        let trait_ = self.interner.get_trait(constraint.trait_bound.trait_id);
+        let bound = self.convert_trait_bound(&constraint.trait_bound);
+        TraitConstraint { r#type, bound }
+    }
+
+    fn convert_trait_bound(&mut self, trait_bound: &ResolvedTraitBound) -> TraitBound {
+        let trait_ = self.interner.get_trait(trait_bound.trait_id);
         let trait_name = trait_.name.to_string();
         let trait_id = self.get_id(ModuleDefId::TraitId(trait_.id));
         let ordered_generics =
-            vecmap(&constraint.trait_bound.trait_generics.ordered, |typ| self.convert_type(typ));
-        let named_generics = constraint
-            .trait_bound
+            vecmap(&trait_bound.trait_generics.ordered, |typ| self.convert_type(typ));
+        let named_generics = trait_bound
             .trait_generics
             .named
             .iter()
             .map(|named_type| (named_type.name.to_string(), self.convert_type(&named_type.typ)))
             .collect();
-        TraitConstraint { r#type, trait_id, trait_name, ordered_generics, named_generics }
+        TraitBound { trait_id, trait_name, ordered_generics, named_generics }
     }
 
     fn convert_type(&self, typ: &noirc_frontend::Type) -> Type {

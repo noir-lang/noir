@@ -99,6 +99,7 @@ pub struct Trait {
     pub id: usize,
     pub name: String,
     pub generics: Vec<Generic>,
+    pub parents: Vec<TraitBound>,
     pub where_clause: Vec<TraitConstraint>,
     pub methods: Vec<Function>,
     pub trait_impls: Vec<TraitImpl>,
@@ -123,6 +124,11 @@ pub struct Generic {
 #[derive(Serialize, Deserialize)]
 pub struct TraitConstraint {
     pub r#type: Type,
+    pub bound: TraitBound,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct TraitBound {
     pub trait_id: usize,
     pub trait_name: String,
     pub ordered_generics: Vec<Type>,
