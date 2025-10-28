@@ -101,7 +101,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             return;
         }
         // Now process all the remaining loops with a temporary register if needed.
-        let register = free_register.unwrap_or(*self.allocate_register());
+        let register = free_register.unwrap_or_else(|| self.registers_mut().allocate_register());
         for i in 0..n {
             if children[i] == 1 {
                 let src = Self::from_index(i);
@@ -253,7 +253,7 @@ mod tests {
         let movements = vec![(4, 1), (1, 2), (2, 3), (3, 4)];
         let mut context = create_context();
         for _ in 0..movements.len() {
-            context.registers.allocate_register();
+            context.registers_mut().allocate_register();
         }
         let (sources, destinations) = movements_to_source_and_destinations(movements);
 
@@ -292,7 +292,7 @@ mod tests {
 
         let mut context = create_context();
         for _ in 0..movements.len() {
-            context.registers.allocate_register();
+            context.registers_mut().allocate_register();
         }
         let (sources, destinations) = movements_to_source_and_destinations(movements);
 
@@ -341,7 +341,7 @@ mod tests {
         let movements = vec![(2, 1), (4, 2), (5, 3), (3, 4), (1, 5)];
         let mut context = create_context();
         for _ in 0..movements.len() {
-            context.registers.allocate_register();
+            context.registers_mut().allocate_register();
         }
         let (sources, destinations) = movements_to_source_and_destinations(movements);
 
