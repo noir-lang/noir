@@ -93,7 +93,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                         !vector_allocated,
                         "a previous vector has already been allocated at the free memory pointer"
                     );
-                    //vector_allocated = true;
+                    vector_allocated = true;
                     self.brillig_context.load_free_memory_pointer_instruction(vector.pointer);
 
                     variable
