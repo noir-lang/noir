@@ -84,14 +84,14 @@ impl<'a> DocItemBuilder<'a> {
                 let trait_ = self.interner.get_trait(trait_id);
                 let name = trait_.name.to_string();
                 let comments = self.doc_comments(ReferenceId::Trait(trait_id));
+                let generics = vecmap(&trait_.generics, |generic| generic.name.to_string());
 
-                // TODO: generics
                 // TODO: parents
                 // TODO: where clauses
                 // TODO: methods
                 // TODO: trait impls
                 let id = self.get_id(ModuleDefId::TraitId(trait_id));
-                Item::Trait(Trait { id, name, comments })
+                Item::Trait(Trait { id, name, generics, comments })
             }
             expand_items::Item::TypeAlias(type_alias_id) => {
                 let type_alias = self.interner.get_type_alias(type_alias_id);

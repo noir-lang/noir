@@ -67,6 +67,7 @@ pub struct Function {
 pub struct Trait {
     pub id: usize,
     pub name: String,
+    pub generics: Vec<String>,
     pub comments: Option<String>,
 }
 
