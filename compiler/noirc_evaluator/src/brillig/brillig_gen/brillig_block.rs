@@ -10,7 +10,7 @@ use crate::ssa::ir::{
     basic_block::BasicBlockId,
     dfg::DataFlowGraph,
     function::FunctionId,
-    instruction::{BinaryOp, Instruction, InstructionId, TerminatorInstruction},
+    instruction::{Instruction, InstructionId, TerminatorInstruction},
     types::{NumericType, Type},
     value::{Value, ValueId},
 };
