@@ -73,7 +73,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                         node = index;
                     } else {
                         // End of the path; when all the sinks will be processed, this register will be 'free' for re-use.
-                        free_register = Some(sources[i]);
+                        free_register = Some(sources[node]);
                         break;
                     }
                 }
