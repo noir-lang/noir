@@ -199,6 +199,10 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             },
             "Inlining",
         ),
+        SsaPass::new(
+            Ssa::slice_intrinsics_length_optimization,
+            "slice intrinsics length optimization",
+        ),
         SsaPass::new_try(Ssa::remove_if_else, "Remove IfElse"),
         SsaPass::new(Ssa::purity_analysis, "Purity Analysis"),
         SsaPass::new(

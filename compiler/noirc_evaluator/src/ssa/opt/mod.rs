@@ -37,6 +37,7 @@ mod remove_unreachable_instructions;
 mod remove_unused_instructions;
 mod simple_optimization;
 mod simplify_cfg;
+mod slice_intrinsics_length;
 mod unrolling;
 
 pub use constant_folding::DEFAULT_MAX_ITER as CONSTANT_FOLDING_MAX_ITER;
