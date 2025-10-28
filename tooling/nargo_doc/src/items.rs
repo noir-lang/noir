@@ -61,6 +61,7 @@ pub struct Function {
     pub name: String,
     pub generics: Vec<String>,
     pub params: Vec<FunctionParam>,
+    pub return_type: Type,
     pub comments: Option<String>,
 }
 

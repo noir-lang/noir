@@ -134,7 +134,7 @@ impl<'a> DocItemBuilder<'a> {
                     let r#type = self.convert_type(typ);
                     FunctionParam { name, r#type }
                 });
-                // TODO: return type
+                let return_type = self.convert_type(func_meta.return_type());
                 // TODO: where clauses
                 Item::Function(Function {
                     name,
@@ -143,6 +143,7 @@ impl<'a> DocItemBuilder<'a> {
                     comptime,
                     generics,
                     params,
+                    return_type,
                 })
             }
         }
