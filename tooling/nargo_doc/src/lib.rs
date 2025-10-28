@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use iter_extended::vecmap;
 use noirc_driver::CrateId;
 use noirc_frontend::ast::ItemVisibility;
 use noirc_frontend::hir::def_map::ModuleDefId;
@@ -65,12 +66,18 @@ impl<'a> DocItemBuilder<'a> {
                         StructField { name: field.name.to_string(), r#type, comments }
                     })
                     .collect();
+                let generics = vecmap(&data_type.generics, |generic| generic.name.to_string());
 
-                // TODO: generics
                 // TODO: impls
                 // TODO: trait impls
                 let id = self.get_id(ModuleDefId::TypeId(type_id));
-                Item::Struct(Struct { id, name: data_type.name.to_string(), comments, fields })
+                Item::Struct(Struct {
+                    id,
+                    name: data_type.name.to_string(),
+                    generics,
+                    fields,
+                    comments,
+                })
             }
             expand_items::Item::Trait(trait_) => {
                 let trait_id = trait_.id;

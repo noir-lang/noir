@@ -25,16 +25,17 @@ pub enum Item {
 #[derive(Serialize, Deserialize)]
 pub struct Module {
     pub name: Option<String>,
-    pub comments: Option<String>,
     pub items: Vec<Item>,
+    pub comments: Option<String>,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct Struct {
     pub id: usize,
     pub name: String,
-    pub comments: Option<String>,
+    pub generics: Vec<String>,
     pub fields: Vec<StructField>,
+    pub comments: Option<String>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -57,9 +58,9 @@ pub struct Global {
 #[derive(Serialize, Deserialize)]
 pub struct Function {
     pub name: String,
-    pub comments: Option<String>,
     pub unconstrained: bool,
     pub comptime: bool,
+    pub comments: Option<String>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -73,8 +74,8 @@ pub struct Trait {
 pub struct TypeAlias {
     pub id: usize,
     pub name: String,
-    pub comments: Option<String>,
     pub r#type: Type,
+    pub comments: Option<String>,
 }
 
 #[derive(Serialize, Deserialize)]

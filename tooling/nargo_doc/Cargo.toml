@@ -10,6 +10,7 @@ license.workspace = true
 workspace = true
 
 [dependencies]
+iter-extended.workspace = true
 serde.workspace = true
 noirc_driver.workspace = true
 noirc_frontend.workspace = true
