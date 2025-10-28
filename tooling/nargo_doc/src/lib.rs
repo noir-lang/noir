@@ -160,9 +160,10 @@ impl<'a> DocItemBuilder<'a> {
         let trait_name = trait_.name.to_string();
         let trait_id = self.get_id(ModuleDefId::TraitId(trait_.id));
         let trait_generics = vecmap(&trait_impl.trait_generics, |typ| self.convert_type(typ));
+        let r#type = self.convert_type(&trait_impl.typ);
 
         // TODO: where clause
-        TraitImpl { generics, methods, trait_id, trait_name, trait_generics }
+        TraitImpl { r#type, generics, methods, trait_id, trait_name, trait_generics }
     }
 
     fn convert_type(&self, typ: &noirc_frontend::Type) -> Type {
