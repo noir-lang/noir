@@ -476,7 +476,24 @@
 <a href="#475" id="475">475</a>
 <a href="#476" id="476">476</a>
 <a href="#477" id="477">477</a>
-<a href="#478" id="478">478</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
+<a href="#478" id="478">478</a>
+<a href="#479" id="479">479</a>
+<a href="#480" id="480">480</a>
+<a href="#481" id="481">481</a>
+<a href="#482" id="482">482</a>
+<a href="#483" id="483">483</a>
+<a href="#484" id="484">484</a>
+<a href="#485" id="485">485</a>
+<a href="#486" id="486">486</a>
+<a href="#487" id="487">487</a>
+<a href="#488" id="488">488</a>
+<a href="#489" id="489">489</a>
+<a href="#490" id="490">490</a>
+<a href="#491" id="491">491</a>
+<a href="#492" id="492">492</a>
+<a href="#493" id="493">493</a>
+<a href="#494" id="494">494</a>
+<a href="#495" id="495">495</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>acvm::acir::brillig::MemoryAddress;
 <span class="kw">use </span>acvm::{AcirField, FieldElement};
@@ -486,7 +503,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::brillig_variable::{BrilligVariable, SingleAddrVariable};
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::registers::Allocated;
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::{
-    BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, BrilligBinaryOp, BrilligContext, ReservedRegisters,
+    BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, BrilligBinaryOp, BrilligContext,
     registers::RegisterAllocator,
 };
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::instruction::InstructionId;
@@ -525,14 +542,15 @@
         <span class="kw">let </span>item_types = typ.element_types();
 
         <span class="comment">// Find out if we are repeating the same item over and over
-        </span><span class="kw">let </span>first_item = data.iter().take(item_types.len()).copied().collect();
-        <span class="kw">let </span><span class="kw-2">mut </span>is_repeating = <span class="bool-val">true</span>;
+        </span><span class="kw">let </span>first_item = data.iter().take(item_types.len()).copied().collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
 
-        <span class="kw">for </span>item_index <span class="kw">in </span>(item_types.len()..data.len()).step_by(item_types.len()) {
-            <span class="kw">let </span>item: Vec&lt;<span class="kw">_</span>&gt; = (<span class="number">0</span>..item_types.len()).map(|i| data[item_index + i]).collect();
-            <span class="kw">if </span>first_item != item {
-                is_repeating = <span class="bool-val">false</span>;
-                <span class="kw">break</span>;
+        <span class="kw">let </span><span class="kw-2">mut </span>is_repeating = <span class="bool-val">true</span>;
+        <span class="lifetime">'check_loop</span>: <span class="kw">for </span>item_index <span class="kw">in </span>(item_types.len()..data.len()).step_by(item_types.len()) {
+            <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..item_types.len() {
+                <span class="kw">if </span>first_item[i] != data[item_index + i] {
+                    is_repeating = <span class="bool-val">false</span>;
+                    <span class="kw">break </span><span class="lifetime">'check_loop</span>;
+                }
             }
         }
 
@@ -559,7 +577,7 @@
     /// reducing bytecode size and instruction count compared to unrolling each element.
     ///
     /// For complex types (e.g., tuples), multiple memory writes happen per loop iteration.
-    /// For primitive type (e.g., u32, Field), a single memory write happens per loop iteration.
+    /// For primitive type (e.g., `u32`, `Field`), a single memory write happens per loop iteration.
     </span><span class="kw">fn </span>initialize_constant_array_runtime(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         item_types: Arc&lt;Vec&lt;Type&gt;&gt;,
@@ -569,7 +587,7 @@
         dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
     ) {
         <span class="kw">let </span><span class="kw-2">mut </span>subitem_to_repeat_variables = Vec::with_capacity(item_types.len());
-        <span class="kw">for </span>subitem_id <span class="kw">in </span>item_to_repeat.into_iter() {
+        <span class="kw">for </span>subitem_id <span class="kw">in </span>item_to_repeat {
             subitem_to_repeat_variables.push(<span class="self">self</span>.convert_ssa_value(subitem_id, dfg));
         }
 
@@ -593,21 +611,18 @@
 
             <span class="kw">let </span>subitem_pointer = <span class="self">self</span>.brillig_context.allocate_single_addr_usize();
 
-            <span class="comment">// Initializes a single subitem
+            <span class="comment">// Generate code to initializes a single subitem
             </span><span class="kw">let </span>initializer_fn =
                 |ctx: <span class="kw-2">&amp;mut </span>BrilligContext&lt;<span class="kw">_</span>, <span class="kw">_</span>&gt;, subitem_start_pointer: SingleAddrVariable| {
-                    ctx.mov_instruction(subitem_pointer.address, subitem_start_pointer.address);
+                    <span class="comment">// Copy the destination pointer according to the loop state.
+                    </span>ctx.mov_instruction(subitem_pointer.address, subitem_start_pointer.address);
                     <span class="kw">for </span>(subitem_index, subitem) <span class="kw">in
                         </span>subitem_to_repeat_variables.into_iter().enumerate()
                     {
                         ctx.store_instruction(subitem_pointer.address, subitem.extract_register());
-                        <span class="kw">if </span>subitem_index != item_types.len() - <span class="number">1 </span>{
-                            ctx.memory_op_instruction(
-                                subitem_pointer.address,
-                                ReservedRegisters::usize_one(),
-                                subitem_pointer.address,
-                                BrilligBinaryOp::Add,
-                            );
+                        <span class="comment">// Increment the destination pointer for all but the last item.
+                        </span><span class="kw">if </span>subitem_index != item_types.len() - <span class="number">1 </span>{
+                            ctx.memory_op_inc_by_usize_one(subitem_pointer.address);
                         }
                     }
                 };
@@ -664,17 +679,16 @@
 
             <span class="kw">if </span>element_idx != data.len() - <span class="number">1 </span>{
                 <span class="comment">// Increment the write_pointer_register
-                </span><span class="self">self</span>.brillig_context.memory_op_instruction(
-                    <span class="kw-2">*</span>write_pointer_register,
-                    ReservedRegisters::usize_one(),
-                    <span class="kw-2">*</span>write_pointer_register,
-                    BrilligBinaryOp::Add,
-                );
+                </span><span class="self">self</span>.brillig_context.memory_op_inc_by_usize_one(<span class="kw-2">*</span>write_pointer_register);
             }
         }
     }
 
-    <span class="doccomment">/// Load from an array variable at a specific index into a specified destination
+    <span class="doccomment">/// Load from an array variable at a specific index into a specified destination.
+    ///
+    /// If `has_offset` is set, then the `index_variable` is expected to have accounted for the array/vector specific offset
+    /// between the `array_variable` and the start of the items; otherwise opcodes are emitted to calculate an adjusted
+    /// base pointer.
     ///
     /// # Panics
     /// - The array variable is not a [BrilligVariable::BrilligArray] or [BrilligVariable::BrilligVector] when `has_offset` is false
@@ -705,6 +719,10 @@
     /// [call into the array copy procedure][BrilligContext::call_array_copy_procedure].
     /// If the reference count of an array pointer is one, we write directly to the array.
     /// Look at the [procedure compilation][crate::brillig::brillig_ir::procedures::compile_procedure] for the exact procedure's codegen.
+    ///
+    /// If `has_offset` is set, then the `index_variable` is expected to have accounted for the array/vector specific offset
+    /// between the `source_variable` and the start of the items; otherwise opcodes are emitted to calculate an adjusted
+    /// base pointer.
     </span><span class="kw">fn </span>convert_ssa_array_set(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         source_variable: BrilligVariable,
@@ -783,35 +801,40 @@
             .codegen_constrain(<span class="kw-2">*</span>condition, <span class="prelude-val">Some</span>(<span class="string">"array ref-count underflow detected"</span>.to_owned()));
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_allocate(<span class="kw-2">&amp;mut </span><span class="self">self</span>, instruction_id: InstructionId, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) {
-        <span class="kw">let </span>[result_value] = dfg.instruction_result(instruction_id);
+    <span class="doccomment">/// Define the result variable on the stack, then allocate 1 memory slot on the heap point the reference variable at it.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_allocate(<span class="kw-2">&amp;mut </span><span class="self">self</span>, instruction_id: InstructionId, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) {
+        <span class="kw">let </span>[result_id] = dfg.instruction_result(instruction_id);
         <span class="kw">let </span>pointer = <span class="self">self</span>.variables.define_single_addr_variable(
             <span class="self">self</span>.function_context,
             <span class="self">self</span>.brillig_context,
-            result_value,
+            result_id,
             dfg,
         );
         <span class="self">self</span>.brillig_context.codegen_allocate_immediate_mem(pointer.address, <span class="number">1</span>);
     }
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_store(<span class="kw-2">&amp;mut </span><span class="self">self</span>, address: ValueId, value: ValueId, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) {
+
+    <span class="doccomment">/// Convert the `address` and `value` to Brillig variables, then generate opcodes to store `value` at `address`.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_store(<span class="kw-2">&amp;mut </span><span class="self">self</span>, address: ValueId, value: ValueId, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) {
         <span class="kw">let </span>address_var = <span class="self">self</span>.convert_ssa_single_addr_value(address, dfg);
         <span class="kw">let </span>source_variable = <span class="self">self</span>.convert_ssa_value(value, dfg);
 
         <span class="self">self</span>.brillig_context
             .store_instruction(address_var.address, source_variable.extract_register());
     }
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_load(
+
+    <span class="doccomment">/// Define the result variable, then generate opcodes to load the converted `address` into it.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_load(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         instruction_id: InstructionId,
         address: ValueId,
         dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
     ) {
-        <span class="kw">let </span>[result_value] = dfg.instruction_result(instruction_id);
+        <span class="kw">let </span>[result_id] = dfg.instruction_result(instruction_id);
 
         <span class="kw">let </span>target_variable = <span class="self">self</span>.variables.define_variable(
             <span class="self">self</span>.function_context,
             <span class="self">self</span>.brillig_context,
-            result_value,
+            result_id,
             dfg,
         );
 
@@ -821,7 +844,8 @@
             .load_instruction(target_variable.extract_register(), address_variable.address);
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>array_get(
+    <span class="doccomment">/// Define a variable for the result, convert the array and indexes, then generate opcodes to load an array item.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_array_get(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         instruction_id: InstructionId,
         array: ValueId,
@@ -850,7 +874,8 @@
         );
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>array_set(
+    <span class="doccomment">/// Define a variable for the result, convert the array, index and value, then generate opcodes to store an array item.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_array_set(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         instruction_id: InstructionId,
         array: ValueId,
@@ -863,11 +888,11 @@
         <span class="kw">let </span>index_register = <span class="self">self</span>.convert_ssa_single_addr_value(index, dfg);
         <span class="kw">let </span>value_variable = <span class="self">self</span>.convert_ssa_value(value, dfg);
 
-        <span class="kw">let </span>result_ids = dfg.instruction_results(instruction_id);
+        <span class="kw">let </span>[result_id] = dfg.instruction_result(instruction_id);
         <span class="kw">let </span>destination_variable = <span class="self">self</span>.variables.define_variable(
             <span class="self">self</span>.function_context,
             <span class="self">self</span>.brillig_context,
-            result_ids[<span class="number">0</span>],
+            result_id,
             dfg,
         );
 
@@ -884,44 +909,53 @@
         );
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>make_array(
+    <span class="doccomment">/// Define the variable for the array or vector, allocate memory for the ref-counter and items,
+    /// then load all items from `array` into the memory.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_make_array(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         instruction_id: InstructionId,
         array: <span class="kw-2">&amp;</span>Vector&lt;ValueId&gt;,
         typ: <span class="kw-2">&amp;</span>Type,
         dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
     ) {
-        <span class="kw">let </span>value_id = dfg.instruction_results(instruction_id)[<span class="number">0</span>];
-        <span class="kw">if </span>!<span class="self">self</span>.variables.is_allocated(<span class="kw-2">&amp;</span>value_id) {
-            <span class="kw">let </span>new_variable = <span class="self">self</span>.variables.define_variable(
+        <span class="kw">let </span>[result_id] = dfg.instruction_result(instruction_id);
+        <span class="kw">if </span>!<span class="self">self</span>.variables.is_allocated(<span class="kw-2">&amp;</span>result_id) {
+            <span class="comment">// Allocate memory for the array or vector. It will consist of a single register,
+            // and the initialization below will further set up its memory layout.
+            </span><span class="kw">let </span>new_variable = <span class="self">self</span>.variables.define_variable(
                 <span class="self">self</span>.function_context,
                 <span class="self">self</span>.brillig_context,
-                value_id,
+                result_id,
                 dfg,
             );
 
-            <span class="comment">// Initialize the variable
+            <span class="comment">// Initialize the variable, which allocates memory on the heap to hold the metadata and the items.
             </span><span class="kw">match </span>new_variable {
                 BrilligVariable::BrilligArray(brillig_array) =&gt; {
+                    <span class="macro">debug_assert_eq!</span>(array.len(), brillig_array.size);
                     <span class="self">self</span>.brillig_context.codegen_initialize_array(brillig_array);
                 }
                 BrilligVariable::BrilligVector(vector) =&gt; {
-                    <span class="kw">let </span>size =
+                    <span class="comment">// The size of a vector is expected to be at an address (could be the result of push/pop increments/decrements).
+                    // (This is different from the semantic length variable).
+                    </span><span class="kw">let </span>size =
                         <span class="self">self</span>.brillig_context.make_usize_constant_instruction(array.len().into());
+
                     <span class="self">self</span>.brillig_context.codegen_initialize_vector(vector, <span class="kw-2">*</span>size, <span class="prelude-val">None</span>);
                 }
                 <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: Cannot initialize array value created as {new_variable:?}"</span>),
             };
 
-            <span class="comment">// Write the items
+            <span class="comment">// Get a pointer to where the items need to be written.
             </span><span class="kw">let </span>items_pointer =
                 <span class="self">self</span>.brillig_context.codegen_make_array_or_vector_items_pointer(new_variable);
 
-            <span class="self">self</span>.initialize_constant_array(array, typ, dfg, <span class="kw-2">*</span>items_pointer);
+            <span class="comment">// Write the items.
+            </span><span class="self">self</span>.initialize_constant_array(array, typ, dfg, <span class="kw-2">*</span>items_pointer);
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>increment_rc(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: ValueId, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_increment_rc(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: ValueId, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) {
         <span class="kw">let </span>array_or_vector = <span class="self">self</span>.convert_ssa_value(value, dfg);
         <span class="kw">let </span>rc_register = <span class="self">self</span>.brillig_context.allocate_register();
 
@@ -936,7 +970,7 @@
         <span class="self">self</span>.brillig_context.codegen_usize_op_in_place(<span class="kw-2">*</span>rc_register, BrilligBinaryOp::Add, <span class="number">1</span>);
         <span class="self">self</span>.brillig_context.store_instruction(array_or_vector.extract_register(), <span class="kw-2">*</span>rc_register);
     }
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>decrement_rc(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: ValueId, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_decrement_rc(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: ValueId, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) {
         <span class="kw">let </span>array_or_vector = <span class="self">self</span>.convert_ssa_value(value, dfg);
         <span class="kw">let </span>array_register = array_or_vector.extract_register();
 

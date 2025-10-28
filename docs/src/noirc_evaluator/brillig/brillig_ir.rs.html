@@ -529,7 +529,10 @@
 <a href="#528" id="528">528</a>
 <a href="#529" id="529">529</a>
 <a href="#530" id="530">530</a>
-<a href="#531" id="531">531</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module is an abstraction layer over `Brillig`.
+<a href="#531" id="531">531</a>
+<a href="#532" id="532">532</a>
+<a href="#533" id="533">533</a>
+<a href="#534" id="534">534</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module is an abstraction layer over `Brillig`.
 //! To allow for separation of concerns, it knows nothing
 //! about SSA types, and can therefore be tested independently.
 //! `brillig_gen` is therefore the module which combines both
@@ -598,6 +601,9 @@
     }
 
     <span class="doccomment">/// This register stores the free memory pointer. Allocations must be done after this pointer.
+    ///
+    /// This represents the heap, and we make sure during entry point generation that it is initialized
+    /// with a value that lies beyond the maximum stack size, so there can never be an overlap.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>free_memory_pointer() -&gt; MemoryAddress {
         MemoryAddress::direct(<span class="number">1</span>)
     }

@@ -186,7 +186,7 @@
         <span class="kw">if </span>is_rc_one {
             <span class="comment">// We can reuse the source vector updating its length
             </span>brillig_context.mov_instruction(target_vector.pointer, source_vector.pointer);
-            brillig_context.codegen_update_vector_length(target_vector, <span class="kw-2">*</span>target_size);
+            brillig_context.codegen_update_vector_size(target_vector, <span class="kw-2">*</span>target_size);
         } <span class="kw">else </span>{
             <span class="comment">// We need to clone the source vector
             </span>brillig_context.codegen_initialize_vector(target_vector, <span class="kw-2">*</span>target_size, <span class="prelude-val">None</span>);

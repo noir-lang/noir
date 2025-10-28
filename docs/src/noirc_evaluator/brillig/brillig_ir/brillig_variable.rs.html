@@ -166,7 +166,12 @@
 <a href="#165" id="165">165</a>
 <a href="#166" id="166">166</a>
 <a href="#167" id="167">167</a>
-<a href="#168" id="168">168</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::ops::Deref;
+<a href="#168" id="168">168</a>
+<a href="#169" id="169">169</a>
+<a href="#170" id="170">170</a>
+<a href="#171" id="171">171</a>
+<a href="#172" id="172">172</a>
+<a href="#173" id="173">173</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::ops::Deref;
 
 <span class="kw">use </span>acvm::{
     FieldElement,
@@ -202,11 +207,15 @@
     }
 }
 
-<span class="doccomment">/// The representation of a noir array in the Brillig IR
+<span class="doccomment">/// The representation of a Noir array in the Brillig IR
 </span><span class="attr">#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy)]
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>BrilligArray {
     <span class="kw">pub</span>(<span class="kw">crate</span>) pointer: MemoryAddress,
-    <span class="kw">pub</span>(<span class="kw">crate</span>) size: usize,
+    <span class="doccomment">/// The number of memory slots the array occupies.
+    ///
+    /// This is the flattened size of the array, where complex types
+    /// take up more than one slot.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) size: usize,
 }
 
 <span class="doccomment">/// The representation of a noir slice in the Brillig IR
@@ -230,7 +239,7 @@
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>extract_single_addr(<span class="self">self</span>) -&gt; SingleAddrVariable {
         <span class="kw">match </span><span class="self">self </span>{
             BrilligVariable::SingleAddr(single_addr) =&gt; single_addr,
-            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: Expected register, got {self:?}"</span>),
+            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: Expected single address, got {self:?}"</span>),
         }
     }
 
@@ -309,7 +318,8 @@
     }
 }
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>type_to_heap_value_type(typ: <span class="kw-2">&amp;</span>Type) -&gt; HeapValueType {
+<span class="doccomment">/// Convert an SSA [Type] to [HeapValueType] for passing values to foreign calls.
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>type_to_heap_value_type(typ: <span class="kw-2">&amp;</span>Type) -&gt; HeapValueType {
     <span class="kw">match </span>typ {
         Type::Numeric(<span class="kw">_</span>) | Type::Reference(<span class="kw">_</span>) | Type::Function =&gt; HeapValueType::Simple(
             BitSize::try_from_u32::&lt;FieldElement&gt;(get_bit_size_from_ssa_type(typ)).unwrap(),

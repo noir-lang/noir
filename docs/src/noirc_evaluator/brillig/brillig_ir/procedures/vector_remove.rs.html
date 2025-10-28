@@ -177,7 +177,7 @@
     <span class="kw">let </span>index = SingleAddrVariable::new_usize(index_arg);
 
     <span class="comment">// Reallocate if necessary
-    </span><span class="kw">let </span>source_size = brillig_context.codegen_make_vector_length(source_vector);
+    </span><span class="kw">let </span>source_size = brillig_context.codegen_read_vector_size(source_vector);
 
     <span class="kw">let </span>target_size = brillig_context.allocate_single_addr_usize();
     brillig_context.memory_op_instruction(
@@ -200,7 +200,7 @@
     brillig_context.codegen_branch(<span class="kw-2">*</span>is_rc_one, |brillig_context, is_rc_one| {
         <span class="kw">if </span>is_rc_one {
             brillig_context.mov_instruction(target_vector.pointer, source_vector.pointer);
-            brillig_context.codegen_update_vector_length(target_vector, <span class="kw-2">*</span>target_size);
+            brillig_context.codegen_update_vector_size(target_vector, <span class="kw-2">*</span>target_size);
             brillig_context
                 .codegen_vector_items_pointer(target_vector, <span class="kw-2">*</span>target_vector_items_pointer);
         } <span class="kw">else </span>{

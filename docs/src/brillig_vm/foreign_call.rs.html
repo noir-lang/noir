@@ -536,17 +536,23 @@
 <a href="#535" id="535">535</a>
 <a href="#536" id="536">536</a>
 <a href="#537" id="537">537</a>
-<a href="#538" id="538">538</a></pre></div><pre class="rust"><code><span class="doccomment">//! Implementation for [foreign calls][acir::brillig::Opcode::ForeignCall]
+<a href="#538" id="538">538</a>
+<a href="#539" id="539">539</a>
+<a href="#540" id="540">540</a>
+<a href="#541" id="541">541</a></pre></div><pre class="rust"><code><span class="doccomment">//! Implementation for [foreign calls][acir::brillig::Opcode::ForeignCall]
 </span><span class="kw">use </span>acir::{
     AcirField,
     brillig::{
-        ArrayAddress, BitSize, ForeignCallParam, HeapArray, HeapValueType, HeapVector,
-        IntegerBitSize, MemoryAddress, ValueOrArray, VectorAddress,
+        BitSize, ForeignCallParam, HeapArray, HeapValueType, HeapVector, IntegerBitSize,
+        MemoryAddress, ValueOrArray,
     },
 };
 <span class="kw">use </span>acvm_blackbox_solver::BlackBoxFunctionSolver;
 
-<span class="kw">use crate</span>::{MemoryValue, VM, VMStatus};
+<span class="kw">use crate</span>::{
+    MemoryValue, VM, VMStatus,
+    memory::{ArrayAddress, VectorAddress},
+};
 
 <span class="kw">impl</span>&lt;F: AcirField, B: BlackBoxFunctionSolver&lt;F&gt;&gt; VM&lt;<span class="lifetime">'_</span>, F, B&gt; {
     <span class="doccomment">/// Handles the execution of a single [ForeignCall opcode][acir::brillig::Opcode::ForeignCall].

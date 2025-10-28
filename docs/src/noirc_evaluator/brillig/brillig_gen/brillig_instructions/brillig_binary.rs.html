@@ -339,7 +339,10 @@
 <a href="#338" id="338">338</a>
 <a href="#339" id="339">339</a>
 <a href="#340" id="340">340</a>
-<a href="#341" id="341">341</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
+<a href="#341" id="341">341</a>
+<a href="#342" id="342">342</a>
+<a href="#343" id="343">343</a>
+<a href="#344" id="344">344</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
 
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_gen::brillig_block::{BrilligBlock, type_of_binary_operation};
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_gen::brillig_fn::FunctionContext;
@@ -352,7 +355,8 @@
 <span class="kw">use </span>iter_extended::vecmap;
 
 <span class="kw">impl</span>&lt;Registers: RegisterAllocator&gt; BrilligBlock&lt;<span class="lifetime">'_</span>, Registers&gt; {
-    <span class="doccomment">/// Converts the Binary instruction into a sequence of Brillig opcodes.
+    <span class="doccomment">/// Converts the Binary instruction into a sequence of Brillig opcodes,
+    /// writing the results to the `result_variable`.
     </span><span class="kw">fn </span>convert_ssa_binary(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         binary: <span class="kw-2">&amp;</span>Binary,
@@ -362,7 +366,6 @@
         <span class="kw">let </span>binary_type = type_of_binary_operation(
             dfg[binary.lhs].get_type().as_ref(),
             dfg[binary.rhs].get_type().as_ref(),
-            binary.operator,
         );
 
         <span class="kw">let </span>left = <span class="self">self</span>.convert_ssa_single_addr_value(binary.lhs, dfg);
@@ -604,7 +607,8 @@
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>binary_gen(
+    <span class="doccomment">/// Define a variable for the result and convert a binary operation to Brillig opcodes.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_binary(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         instruction_id: InstructionId,
         binary: <span class="kw-2">&amp;</span>Binary,
@@ -620,14 +624,16 @@
         <span class="self">self</span>.convert_ssa_binary(binary, dfg, result_var);
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>constrain_gen(
+    <span class="doccomment">/// Generate Brillig opcodes to constrain two values to be equal to each other.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_constrain(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         lhs: ValueId,
         rhs: ValueId,
         assert_message: <span class="kw-2">&amp;</span><span class="prelude-ty">Option</span>&lt;ConstrainError&gt;,
         dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
     ) {
-        <span class="kw">let </span>condition = <span class="kw">match </span>(
+        <span class="comment">// Allocate a variable to hold the result of the comparison.
+        </span><span class="kw">let </span>condition = <span class="kw">match </span>(
             dfg.get_numeric_constant_with_type(lhs),
             dfg.get_numeric_constant_with_type(rhs),
         ) {

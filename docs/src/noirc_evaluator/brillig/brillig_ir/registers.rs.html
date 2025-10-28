@@ -775,7 +775,9 @@
 <a href="#774" id="774">774</a>
 <a href="#775" id="775">775</a>
 <a href="#776" id="776">776</a>
-<a href="#777" id="777">777</a></pre></div><pre class="rust"><code><span class="doccomment">//! Memory layout and register allocation for Brillig programs.
+<a href="#777" id="777">777</a>
+<a href="#778" id="778">778</a>
+<a href="#779" id="779">779</a></pre></div><pre class="rust"><code><span class="doccomment">//! Memory layout and register allocation for Brillig programs.
 //!
 //! Brillig execution splits its memory/register space into fixed and dynamic regions. The layout
 //! is strictly enforced by the register allocators defined in this module.
@@ -902,6 +904,8 @@
         layout: LayoutConfig,
     ) -&gt; <span class="self">Self</span>;
     <span class="doccomment">/// Finds the first register which is followed only by free registers.
+    ///
+    /// Always returns a [MemoryAddress::Relative] address.
     </span><span class="kw">fn </span>empty_registers_start(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; MemoryAddress;
     <span class="doccomment">/// Return the memory layout used by this allocator.
     </span><span class="kw">fn </span>layout(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; LayoutConfig;

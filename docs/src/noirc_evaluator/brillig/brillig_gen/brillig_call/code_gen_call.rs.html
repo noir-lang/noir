@@ -375,7 +375,17 @@
 <a href="#374" id="374">374</a>
 <a href="#375" id="375">375</a>
 <a href="#376" id="376">376</a>
-<a href="#377" id="377">377</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::BlackBoxFunc;
+<a href="#377" id="377">377</a>
+<a href="#378" id="378">378</a>
+<a href="#379" id="379">379</a>
+<a href="#380" id="380">380</a>
+<a href="#381" id="381">381</a>
+<a href="#382" id="382">382</a>
+<a href="#383" id="383">383</a>
+<a href="#384" id="384">384</a>
+<a href="#385" id="385">385</a>
+<a href="#386" id="386">386</a>
+<a href="#387" id="387">387</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::BlackBoxFunc;
 <span class="kw">use </span>acvm::acir::brillig::ValueOrArray;
 <span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>iter_extended::vecmap;
@@ -404,9 +414,11 @@
         instruction_id: InstructionId,
         dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
     ) {
-        <span class="kw">let </span>result_ids = dfg.instruction_results(instruction_id);
+        <span class="comment">// Foreign calls can return multiple results.
+        </span><span class="kw">let </span>result_ids = dfg.instruction_results(instruction_id);
 
-        <span class="kw">let </span>input_values = vecmap(arguments, |value_id| {
+        <span class="comment">// Allocate heap typed values for the input arguments.
+        </span><span class="kw">let </span>input_values = vecmap(arguments, |value_id| {
             <span class="kw">let </span>variable = <span class="self">self</span>.convert_ssa_value(<span class="kw-2">*</span>value_id, dfg);
             <span class="self">self</span>.brillig_context.variable_to_value_or_array(variable)
         });
@@ -415,9 +427,12 @@
             type_to_heap_value_type(<span class="kw-2">&amp;</span>value_type)
         });
 
-        <span class="kw">let </span>output_variables =
-            vecmap(result_ids, |value_id| <span class="self">self</span>.allocate_external_call_result(<span class="kw-2">*</span>value_id, dfg));
-        <span class="kw">let </span>output_values = vecmap(<span class="kw-2">&amp;</span>output_variables, |variable| {
+        <span class="comment">// Define variables for the results; these can be nested structures which will outlive the call.
+        // Nothing else should allocate from the free memory after this, as it needs to be increased after the call.
+        </span><span class="kw">let </span>output_variables = <span class="self">self</span>.allocate_external_call_results(result_ids, dfg);
+
+        <span class="comment">// Allocate heap typed values to receive the results.
+        </span><span class="kw">let </span>output_values = vecmap(<span class="kw-2">&amp;</span>output_variables, |variable| {
             <span class="self">self</span>.brillig_context.variable_to_value_or_array(<span class="kw-2">*</span>variable)
         });
         <span class="kw">let </span>output_value_types = vecmap(result_ids, |value_id| {
@@ -425,7 +440,8 @@
             type_to_heap_value_type(<span class="kw-2">&amp;</span>value_type)
         });
 
-        <span class="self">self</span>.brillig_context.foreign_call_instruction(
+        <span class="comment">// Process the call.
+        </span><span class="self">self</span>.brillig_context.foreign_call_instruction(
             func_name.to_owned(),
             <span class="kw-2">&amp;</span>vecmap(input_values, |v| <span class="kw-2">*</span>v),
             <span class="kw-2">&amp;</span>input_value_types,
@@ -433,24 +449,27 @@
             <span class="kw-2">&amp;</span>output_value_types,
         );
 
-        <span class="comment">// Massage the return value.
-        </span><span class="kw">for </span>(i, (output_register, output_variable)) <span class="kw">in
+        <span class="comment">// Pair up the heap-typed output values of the call with the Brillig variables created for the results.
+        </span><span class="kw">for </span>(i, (output_value, output_variable)) <span class="kw">in
             </span>output_values.iter().zip(output_variables).enumerate()
         {
-            <span class="kw">match </span><span class="kw-2">**</span>output_register {
+            <span class="kw">match </span><span class="kw-2">**</span>output_value {
                 <span class="comment">// Returned vectors need to emit some bytecode to format the result as a BrilligVector
                 </span>ValueOrArray::HeapVector(heap_vector) =&gt; {
-                    <span class="self">self</span>.brillig_context.initialize_externally_returned_vector(
+                    <span class="comment">// Adjust the metadata of the result variable.
+                    // The items don't need to be copied, since we passed the pointer to the items of the
+                    // array/vector variable in the heap array/vector.
+                    </span><span class="self">self</span>.brillig_context.codegen_initialize_externally_returned_vector(
                         output_variable.extract_vector(),
                         heap_vector,
                     );
-                    <span class="comment">// Update the dynamic slice length maintained in SSA,
+                    <span class="comment">// Update the dynamic slice length maintained in SSA, a.k.a semantic length,
                     // which is the parameter preceding the vector.
-                    </span><span class="kw">if let </span>ValueOrArray::MemoryAddress(len_index) = <span class="kw-2">*</span>output_values[i - <span class="number">1</span>] {
+                    </span><span class="kw">if let </span>ValueOrArray::MemoryAddress(length_addr) = <span class="kw-2">*</span>output_values[i - <span class="number">1</span>] {
                         <span class="kw">let </span>element_size = dfg[result_ids[i]].get_type().element_size();
-                        <span class="self">self</span>.brillig_context.mov_instruction(len_index, heap_vector.size);
+                        <span class="self">self</span>.brillig_context.mov_instruction(length_addr, heap_vector.size);
                         <span class="self">self</span>.brillig_context.codegen_usize_op_in_place(
-                            len_index,
+                            length_addr,
                             BrilligBinaryOp::UnsignedDiv,
                             element_size,
                         );
@@ -529,8 +548,7 @@
 
         <span class="kw">let </span>function_arguments = vecmap(arguments, |arg| <span class="self">self</span>.convert_ssa_value(arg, dfg));
         <span class="kw">let </span>function_results = dfg.instruction_results(instruction_id);
-        <span class="kw">let </span>function_results =
-            vecmap(function_results, |result| <span class="self">self</span>.allocate_external_call_result(<span class="kw-2">*</span>result, dfg));
+        <span class="kw">let </span>function_results = <span class="self">self</span>.allocate_external_call_results(function_results, dfg);
         convert_black_box_call(
             <span class="self">self</span>.brillig_context,
             bb_func,
@@ -548,28 +566,29 @@
         instruction_id: InstructionId,
         dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
     ) {
-        <span class="kw">let </span>source_variable = <span class="self">self</span>.convert_ssa_value(arguments[<span class="number">0</span>], dfg);
-        <span class="kw">let </span>result_ids = dfg.instruction_results(instruction_id);
+        <span class="kw">let </span>source_id = arguments[<span class="number">0</span>];
+        <span class="kw">let </span>source_variable = <span class="self">self</span>.convert_ssa_value(source_id, dfg);
+        <span class="kw">let </span>[length_id, destination_id] = dfg.instruction_result(instruction_id);
         <span class="kw">let </span>destination_len_variable = <span class="self">self</span>.variables.define_single_addr_variable(
             <span class="self">self</span>.function_context,
             <span class="self">self</span>.brillig_context,
-            result_ids[<span class="number">0</span>],
+            length_id,
             dfg,
         );
         <span class="kw">let </span>destination_variable = <span class="self">self</span>.variables.define_variable(
             <span class="self">self</span>.function_context,
             <span class="self">self</span>.brillig_context,
-            result_ids[<span class="number">1</span>],
+            destination_id,
             dfg,
         );
         <span class="kw">let </span>destination_vector = destination_variable.extract_vector();
         <span class="kw">let </span>source_array = source_variable.extract_array();
-        <span class="kw">let </span>element_size = dfg.type_of_value(arguments[<span class="number">0</span>]).element_size();
+        <span class="kw">let </span>element_size = dfg.type_of_value(source_id).element_size();
 
         <span class="kw">let </span>source_size_register =
             <span class="self">self</span>.brillig_context.make_usize_constant_instruction(source_array.size.into());
 
-        <span class="comment">// we need to explicitly set the destination_len_variable
+        <span class="comment">// We need to explicitly set the destination_len_variable to be the semantic length, which is not flattened.
         </span><span class="self">self</span>.brillig_context.codegen_usize_op(
             source_size_register.address,
             destination_len_variable.address,
@@ -577,13 +596,14 @@
             element_size,
         );
 
-        <span class="self">self</span>.brillig_context.codegen_initialize_vector(
+        <span class="comment">// Initialize the vector with the flattened size.
+        </span><span class="self">self</span>.brillig_context.codegen_initialize_vector(
             destination_vector,
             <span class="kw-2">*</span>source_size_register,
             <span class="prelude-val">None</span>,
         );
 
-        <span class="comment">// Items
+        <span class="comment">// Copy items from the array into the vector.
         </span><span class="kw">let </span>vector_items_pointer =
             <span class="self">self</span>.brillig_context.codegen_make_vector_items_pointer(destination_vector);
         <span class="kw">let </span>array_items_pointer =
@@ -596,7 +616,7 @@
         );
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>call_gen(
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_call(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         instruction_id: InstructionId,
         func: ValueId,

@@ -395,7 +395,12 @@
 <a href="#394" id="394">394</a>
 <a href="#395" id="395">395</a>
 <a href="#396" id="396">396</a>
-<a href="#397" id="397">397</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
+<a href="#397" id="397">397</a>
+<a href="#398" id="398">398</a>
+<a href="#399" id="399">399</a>
+<a href="#400" id="400">400</a>
+<a href="#401" id="401">401</a>
+<a href="#402" id="402">402</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
     AcirField,
     acir::{
         brillig::{HeapVector, MemoryAddress},
@@ -578,8 +583,8 @@
         <span class="self">self</span>.enter_section(end_section);
     }
 
-    <span class="doccomment">/// Emits brillig bytecode to jump to a trap condition if `condition`
-    /// is false. The trap will include the given message as revert data.
+    <span class="doccomment">/// Jump to a trap condition if `condition` is false.
+    /// The trap will include the given message as revert data.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_constrain_with_revert_data(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         condition: SingleAddrVariable,
@@ -643,20 +648,21 @@
         });
     }
 
-    <span class="doccomment">/// Emits brillig bytecode to jump to a trap condition if `condition`
-    /// is false.
+    <span class="doccomment">/// Jump to a trap condition if `condition` is false,
+    /// with any assertion message written to the revert data.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_constrain(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         condition: SingleAddrVariable,
         assert_message: <span class="prelude-ty">Option</span>&lt;String&gt;,
     ) {
-        <span class="macro">assert!</span>(condition.bit_size == <span class="number">1</span>);
+        <span class="macro">debug_assert!</span>(condition.bit_size == <span class="number">1</span>);
 
         <span class="self">self</span>.codegen_if_not(condition.address, |ctx| {
             <span class="kw">if let </span><span class="prelude-val">Some</span>(assert_message) = assert_message {
                 ctx.revert_with_string(assert_message);
             } <span class="kw">else </span>{
-                <span class="kw">let </span>revert_data =
+                <span class="comment">// Create an empty revert data vector, with 0 size pointing at the start of free memory.
+                </span><span class="kw">let </span>revert_data =
                     ctx.make_usize_constant_instruction(<span class="number">0_usize</span>.into()).map(|size| HeapVector {
                         pointer: ReservedRegisters::free_memory_pointer(),
                         size: size.address,
@@ -666,14 +672,18 @@
         });
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>revert_with_string(<span class="kw-2">&amp;mut </span><span class="self">self</span>, revert_string: String) {
+    <span class="doccomment">/// Emits bytecode with a trap opcode, reverting with data that contains a specific error message.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>revert_with_string(<span class="kw-2">&amp;mut </span><span class="self">self</span>, revert_string: String) {
         <span class="kw">if </span><span class="self">self</span>.can_call_procedures {
             <span class="self">self</span>.call_revert_with_string_procedure(revert_string);
         } <span class="kw">else </span>{
             <span class="kw">let </span>error_type = ErrorType::String(revert_string);
-            <span class="kw">let </span>error_selector = error_type.selector();
+            <span class="comment">// Get a hash selector for the custom error type with the message and store it in the artifact.
+            </span><span class="kw">let </span>error_selector = error_type.selector();
             <span class="self">self</span>.obj.error_types.insert(error_selector, error_type);
-            <span class="self">self</span>.indirect_const_instruction(
+            <span class="comment">// Write the selector to the free memory pointer and return it as revert data.
+            // No need to increment the free memory pointer after this, since it's a trap.
+            </span><span class="self">self</span>.indirect_const_instruction(
                 ReservedRegisters::free_memory_pointer(),
                 <span class="number">64</span>,
                 u128::from(error_selector.as_u64()).into(),

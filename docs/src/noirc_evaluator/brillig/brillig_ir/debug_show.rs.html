@@ -568,12 +568,12 @@
         <span class="macro">debug_println!</span>(<span class="self">self</span>.enable_debug_trace, <span class="string">"  {} = {} {} {}"</span>, result, lhs, operation, rhs);
     }
 
-    <span class="doccomment">/// Stores the value of `constant` in the `result` register
+    <span class="doccomment">/// Stores the value of `constant` in the `result` register.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>const_instruction&lt;F: DebugToString&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, result: MemoryAddress, constant: F) {
         <span class="macro">debug_println!</span>(<span class="self">self</span>.enable_debug_trace, <span class="string">"  CONST {} = {}"</span>, result, constant);
     }
 
-    <span class="doccomment">/// Stores the value of `constant` in the `result` register
+    <span class="doccomment">/// Stores the value of `constant` in the register pointed at by `result_pointer`.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>indirect_const_instruction&lt;F: DebugToString&gt;(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         result_pointer: MemoryAddress,

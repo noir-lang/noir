@@ -78,7 +78,23 @@
 <a href="#77" id="77">77</a>
 <a href="#78" id="78">78</a>
 <a href="#79" id="79">79</a>
-<a href="#80" id="80">80</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, acir::brillig::MemoryAddress};
+<a href="#80" id="80">80</a>
+<a href="#81" id="81">81</a>
+<a href="#82" id="82">82</a>
+<a href="#83" id="83">83</a>
+<a href="#84" id="84">84</a>
+<a href="#85" id="85">85</a>
+<a href="#86" id="86">86</a>
+<a href="#87" id="87">87</a>
+<a href="#88" id="88">88</a>
+<a href="#89" id="89">89</a>
+<a href="#90" id="90">90</a>
+<a href="#91" id="91">91</a>
+<a href="#92" id="92">92</a>
+<a href="#93" id="93">93</a>
+<a href="#94" id="94">94</a>
+<a href="#95" id="95">95</a>
+<a href="#96" id="96">96</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, acir::brillig::MemoryAddress};
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::function::FunctionId;
 
@@ -90,29 +106,45 @@
 };
 
 <span class="kw">impl</span>&lt;F: AcirField + DebugToString, Registers: RegisterAllocator&gt; BrilligContext&lt;F, Registers&gt; {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_call(
+    <span class="doccomment">/// Generate Brillig opcodes to:
+    /// * calculate the current stack size
+    /// * copy the current stack pointer and the call arguments into a new stack frame
+    /// * update the stack pointer and execute the call
+    /// * restore the stack pointer and copy the results into the return variables
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_call(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         func_id: FunctionId,
         arguments: <span class="kw-2">&amp;</span>[BrilligVariable],
         returns: <span class="kw-2">&amp;</span>[BrilligVariable],
     ) {
-        <span class="kw">let </span>stack_size_register = <span class="self">self</span>.allocate_single_addr_usize();
-        <span class="kw">let </span>previous_stack_pointer = <span class="self">self</span>.registers().empty_registers_start();
+        <span class="comment">// Allocate a register for the stack size. With this allocation, we have our current stack before the call.
+        </span><span class="kw">let </span>stack_size_register = <span class="self">self</span>.allocate_single_addr_usize();
+
+        <span class="comment">// Find the start of free stack memory: this is our current stack size.
+        </span><span class="kw">let </span>previous_stack_pointer = <span class="self">self</span>.registers().empty_registers_start();
         <span class="kw">let </span>stack_size = previous_stack_pointer.unwrap_relative();
-        <span class="comment">// Write the stack size
+
+        <span class="comment">// Write the current stack size to a register, so we can add it to the stack pointer.
         </span><span class="self">self</span>.const_instruction(<span class="kw-2">*</span>stack_size_register, stack_size.into());
-        <span class="comment">// Pass the previous stack pointer
+
+        <span class="comment">// Copy the current stack pointer into the 0th slot of the next stack frame.
+        // This is the previous stack pointer to return to after the call.
         </span><span class="self">self</span>.mov_instruction(previous_stack_pointer, ReservedRegisters::stack_pointer());
-        <span class="comment">// Pass the arguments
+
+        <span class="comment">// Pass the arguments in the 1st, 2nd, ... slots of the stack.
         </span><span class="kw">let </span><span class="kw-2">mut </span>current_argument_location = stack_size + <span class="number">1</span>;
         <span class="kw">for </span>item <span class="kw">in </span>arguments {
-            <span class="self">self</span>.mov_instruction(
+            <span class="comment">// Here we are still using addresses relative to the current stack pointer.
+            </span><span class="self">self</span>.mov_instruction(
                 MemoryAddress::relative(current_argument_location),
                 item.extract_register(),
             );
             current_argument_location += <span class="number">1</span>;
         }
-        <span class="comment">// Increment the stack pointer
+
+        <span class="comment">// Increment the stack pointer for the call: stack_pointer := stack_pointer + stack_size.
+        // By increasing it with the stack size before arguments where copied, it will include the
+        // arguments at the intended relative addresses.
         </span><span class="self">self</span>.memory_op_instruction(
             ReservedRegisters::stack_pointer(),
             stack_size_register.address,
@@ -122,10 +154,10 @@
 
         <span class="self">self</span>.add_external_call_instruction(func_id);
 
-        <span class="comment">// Restore the stack pointer
+        <span class="comment">// Restore the previous stack pointer, which was copied into the 0th slot.
         </span><span class="self">self</span>.mov_instruction(ReservedRegisters::stack_pointer(), MemoryAddress::relative(<span class="number">0</span>));
 
-        <span class="comment">// Move the return values back
+        <span class="comment">// Move the return values back. The return values are expected to overwrite the args.
         </span><span class="kw">let </span><span class="kw-2">mut </span>current_return_location = stack_size + <span class="number">1</span>;
         <span class="kw">for </span>item <span class="kw">in </span>returns {
             <span class="self">self</span>.mov_instruction(

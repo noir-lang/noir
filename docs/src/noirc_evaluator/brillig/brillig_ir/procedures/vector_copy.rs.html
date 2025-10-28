@@ -114,7 +114,7 @@
             <span class="kw">let </span>result_vector = BrilligVector { pointer: new_vector_pointer_return };
 
             <span class="comment">// Allocate the memory for the new vec
-            </span><span class="kw">let </span>allocation_size = ctx.codegen_make_vector_capacity(source_vector);
+            </span><span class="kw">let </span>allocation_size = ctx.codegen_read_vector_capacity(source_vector);
             ctx.codegen_usize_op_in_place(allocation_size.address, BrilligBinaryOp::Add, <span class="number">3_usize</span>); <span class="comment">// Capacity plus 3 (rc, len, cap)
             </span>ctx.codegen_allocate_mem(result_vector.pointer, allocation_size.address);
 

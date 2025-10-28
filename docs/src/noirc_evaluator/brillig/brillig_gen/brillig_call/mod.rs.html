@@ -409,52 +409,11 @@
 <a href="#408" id="408">408</a>
 <a href="#409" id="409">409</a>
 <a href="#410" id="410">410</a>
-<a href="#411" id="411">411</a>
-<a href="#412" id="412">412</a>
-<a href="#413" id="413">413</a>
-<a href="#414" id="414">414</a>
-<a href="#415" id="415">415</a>
-<a href="#416" id="416">416</a>
-<a href="#417" id="417">417</a>
-<a href="#418" id="418">418</a>
-<a href="#419" id="419">419</a>
-<a href="#420" id="420">420</a>
-<a href="#421" id="421">421</a>
-<a href="#422" id="422">422</a>
-<a href="#423" id="423">423</a>
-<a href="#424" id="424">424</a>
-<a href="#425" id="425">425</a>
-<a href="#426" id="426">426</a>
-<a href="#427" id="427">427</a>
-<a href="#428" id="428">428</a>
-<a href="#429" id="429">429</a>
-<a href="#430" id="430">430</a>
-<a href="#431" id="431">431</a>
-<a href="#432" id="432">432</a>
-<a href="#433" id="433">433</a>
-<a href="#434" id="434">434</a>
-<a href="#435" id="435">435</a>
-<a href="#436" id="436">436</a>
-<a href="#437" id="437">437</a>
-<a href="#438" id="438">438</a>
-<a href="#439" id="439">439</a>
-<a href="#440" id="440">440</a>
-<a href="#441" id="441">441</a>
-<a href="#442" id="442">442</a>
-<a href="#443" id="443">443</a>
-<a href="#444" id="444">444</a>
-<a href="#445" id="445">445</a>
-<a href="#446" id="446">446</a>
-<a href="#447" id="447">447</a>
-<a href="#448" id="448">448</a>
-<a href="#449" id="449">449</a>
-<a href="#450" id="450">450</a>
-<a href="#451" id="451">451</a>
-<a href="#452" id="452">452</a>
-<a href="#453" id="453">453</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">mod </span>brillig_black_box;
+<a href="#411" id="411">411</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">mod </span>brillig_black_box;
 <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">mod </span>brillig_slice_ops;
 <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">mod </span>code_gen_call;
 
+<span class="kw">use </span>acvm::brillig_vm::offsets;
 <span class="kw">use </span>iter_extended::vecmap;
 
 <span class="kw">use </span><span class="kw">crate</span>::brillig::BrilligBlock;
@@ -479,62 +438,87 @@
     /// external host functions return values back into the program.
     ///
     /// Numeric types and fixed-sized array results are directly allocated.
-    /// As vector's are determined at runtime they are allocated differently.
+    ///
+    /// As vectors are determined at runtime they are allocated differently:
     /// - Allocates memory for a [BrilligVariable::BrilligVector], which holds a pointer and dynamic size.
     /// - Initializes the pointer using the free memory pointer.
     /// - The actual size will be updated after the foreign function call returns.
     ///
     /// # Returns
     /// A [BrilligVariable] representing the allocated memory structure to store the foreign call's result.
-    </span><span class="kw">fn </span>allocate_external_call_result(
+    ///
+    /// # Panics
+    /// If there is a vector among the output variables _and_ it's followed by another array or vector:
+    /// when we allocate memory for a vector, we don't know its length, so it just points at the current
+    /// free memory pointer without increasing it; anything else that needs the free memory pointer would
+    /// risk pointing at the same memory region.
+    </span><span class="kw">fn </span>allocate_external_call_results(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        result: ValueId,
+        results: <span class="kw-2">&amp;</span>[ValueId],
         dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
-    ) -&gt; BrilligVariable {
-        <span class="kw">let </span>typ = dfg[result].get_type();
-        <span class="kw">match </span>typ.as_ref() {
-            Type::Numeric(<span class="kw">_</span>) =&gt; <span class="self">self</span>.variables.define_variable(
-                <span class="self">self</span>.function_context,
-                <span class="self">self</span>.brillig_context,
-                result,
-                dfg,
-            ),
+    ) -&gt; Vec&lt;BrilligVariable&gt; {
+        <span class="kw">let </span><span class="kw-2">mut </span>variables = Vec::new();
+        <span class="kw">let </span><span class="kw-2">mut </span>vector_allocated = <span class="bool-val">false</span>;
 
-            Type::Array(..) =&gt; {
-                <span class="kw">let </span>variable = <span class="self">self</span>.variables.define_variable(
+        <span class="kw">for </span>result <span class="kw">in </span>results {
+            <span class="kw">let </span>result = <span class="kw-2">*</span>result;
+            <span class="kw">let </span>typ = dfg[result].get_type();
+            <span class="kw">let </span>variable = <span class="kw">match </span>typ.as_ref() {
+                Type::Numeric(<span class="kw">_</span>) =&gt; <span class="self">self</span>.variables.define_variable(
                     <span class="self">self</span>.function_context,
                     <span class="self">self</span>.brillig_context,
                     result,
                     dfg,
-                );
-                <span class="kw">let </span>array = variable.extract_array();
-                <span class="self">self</span>.allocate_foreign_call_result_array(typ.as_ref(), array);
+                ),
 
-                variable
-            }
-            Type::Slice(<span class="kw">_</span>) =&gt; {
-                <span class="kw">let </span>variable = <span class="self">self</span>.variables.define_variable(
-                    <span class="self">self</span>.function_context,
-                    <span class="self">self</span>.brillig_context,
-                    result,
-                    dfg,
-                );
-                <span class="kw">let </span>vector = variable.extract_vector();
+                Type::Array(..) =&gt; {
+                    <span class="kw">let </span>variable = <span class="self">self</span>.variables.define_variable(
+                        <span class="self">self</span>.function_context,
+                        <span class="self">self</span>.brillig_context,
+                        result,
+                        dfg,
+                    );
+                    <span class="kw">let </span>array = variable.extract_array();
 
-                <span class="comment">// Set the pointer to the current stack frame
-                // The stack pointer will then be updated by the caller of this method
-                // once the external call is resolved and the array size is known
-                </span><span class="self">self</span>.brillig_context.load_free_memory_pointer_instruction(vector.pointer);
+                    <span class="macro">assert!</span>(
+                        !vector_allocated,
+                        <span class="string">"a vector of unknown length has already been allocated at the free memory pointer"
+                    </span>);
+                    <span class="self">self</span>.allocate_foreign_call_result_array(typ.as_ref(), array);
 
-                variable
-            }
-            <span class="kw">_ </span>=&gt; {
-                <span class="macro">unreachable!</span>(<span class="string">"ICE: unsupported return type for black box call {typ:?}"</span>)
-            }
+                    variable
+                }
+                Type::Slice(<span class="kw">_</span>) =&gt; {
+                    <span class="kw">let </span>variable = <span class="self">self</span>.variables.define_variable(
+                        <span class="self">self</span>.function_context,
+                        <span class="self">self</span>.brillig_context,
+                        result,
+                        dfg,
+                    );
+                    <span class="kw">let </span>vector = variable.extract_vector();
+
+                    <span class="comment">// Set the pointer to the current free memory pointer.
+                    // The free memory pointer will then be updated by the caller of this method,
+                    // once the external call is resolved and the vector size is known.
+                    </span><span class="macro">assert!</span>(
+                        !vector_allocated,
+                        <span class="string">"a previous vector has already been allocated at the free memory pointer"
+                    </span>);
+                    vector_allocated = <span class="bool-val">true</span>;
+                    <span class="self">self</span>.brillig_context.load_free_memory_pointer_instruction(vector.pointer);
+
+                    variable
+                }
+                <span class="kw">_ </span>=&gt; {
+                    <span class="macro">unreachable!</span>(<span class="string">"ICE: unsupported return type for black box call {typ:?}"</span>)
+                }
+            };
+            variables.push(variable);
         }
+        variables
     }
 
-    <span class="doccomment">/// Recursively allocates memory for a nested array returned from a foreign function call.
+    <span class="doccomment">/// Recursively allocates memory on the heap for a nested array returned from a foreign function call.
     ///
     /// # Panics
     /// - If the provided `typ` is not an array.
@@ -545,24 +529,34 @@
             <span class="macro">unreachable!</span>(<span class="string">"ICE: allocate_foreign_call_array() expects an array, got {typ:?}"</span>)
         };
 
-        <span class="self">self</span>.brillig_context.codegen_initialize_array(array);
+        <span class="comment">// Reserve free memory on the heap and set the initial ref-count.
+        </span><span class="self">self</span>.brillig_context.codegen_initialize_array(array);
 
-        <span class="kw">let </span><span class="kw-2">mut </span>index = <span class="number">0_usize</span>;
+        <span class="comment">// Go through each slot in the array: if it's a simple type then we don't need to do anything,
+        // but if it's a nested one we have to recursively allocate memory for it, and store the variable in the array.
+        // We add one since array.pointer points to [RC, ...items]
+        </span><span class="kw">let </span><span class="kw-2">mut </span>index = offsets::ARRAY_ITEMS;
         <span class="kw">for _ in </span><span class="number">0</span>..<span class="kw-2">*</span>size {
             <span class="kw">for </span>element_type <span class="kw">in </span>types.iter() {
                 <span class="kw">match </span>element_type {
                     Type::Array(<span class="kw">_</span>, nested_size) =&gt; {
-                        <span class="kw">let </span>inner_array =
+                        <span class="comment">// Allocate a pointer for an array on the stack.
+                        </span><span class="kw">let </span>inner_array =
                             <span class="self">self</span>.brillig_context.allocate_brillig_array(<span class="kw-2">*</span>nested_size <span class="kw">as </span>usize);
 
-                        <span class="self">self</span>.allocate_foreign_call_result_array(element_type, <span class="kw-2">*</span>inner_array);
+                        <span class="comment">// Recursively allocate memory for the inner array on the heap.
+                        // This sets the pointer on the stack to point at the heap.
+                        </span><span class="self">self</span>.allocate_foreign_call_result_array(element_type, <span class="kw-2">*</span>inner_array);
 
-                        <span class="comment">// We add one since array.pointer points to [RC, ...items]
-                        </span><span class="kw">let </span>idx = <span class="self">self
-                            </span>.brillig_context
-                            .make_usize_constant_instruction((index + <span class="number">1</span>).into());
+                        <span class="comment">// Set the index in the outer array to be the total offset accounting for complex types.
+                        </span><span class="kw">let </span>idx =
+                            <span class="self">self</span>.brillig_context.make_usize_constant_instruction(index.into());
 
-                        <span class="self">self</span>.brillig_context.codegen_store_with_offset(
+                        <span class="comment">// Copy the inner array pointer, which points at the heap, into the outer array cell.
+                        // After this, it is okay for the `inner_array` to be deallocated from the stack,
+                        // and for its address to be reused, ie. we don't need to `.detach()` it.
+                        // What matters is that we stored the pointer to the heap.
+                        </span><span class="self">self</span>.brillig_context.codegen_store_with_offset(
                             array.pointer,
                             <span class="kw-2">*</span>idx,
                             inner_array.pointer,
@@ -620,6 +614,7 @@
         source_len: SingleAddrVariable,
         binary_op: BrilligBinaryOp,
     ) {
+        <span class="macro">debug_assert!</span>(<span class="macro">matches!</span>(binary_op, BrilligBinaryOp::Add | BrilligBinaryOp::Sub));
         <span class="self">self</span>.brillig_context.codegen_usize_op(source_len.address, target_len.address, binary_op, <span class="number">1</span>);
     }
 
@@ -664,27 +659,25 @@
         <span class="kw">let </span>source_vector = <span class="self">self</span>.convert_ssa_value(slice_id, dfg).extract_vector();
 
         <span class="kw">let </span>results = dfg.instruction_results(instruction_id);
+
+        <span class="kw">let </span>get_target_len = |this: <span class="kw-2">&amp;mut </span><span class="self">Self</span>, idx: usize| {
+            this.variables
+                .define_variable(this.function_context, this.brillig_context, results[idx], dfg)
+                .extract_single_addr()
+        };
+
+        <span class="kw">let </span>get_target_vector = |this: <span class="kw-2">&amp;mut </span><span class="self">Self</span>, idx: usize| {
+            this.variables
+                .define_variable(this.function_context, this.brillig_context, results[idx], dfg)
+                .extract_vector()
+        };
+
         <span class="kw">match </span>intrinsic {
             Value::Intrinsic(Intrinsic::SlicePushBack) =&gt; {
-                <span class="comment">// target_len, target_slice = slice_push_back source_len, source_slice
-                </span><span class="kw">let </span>target_len = <span class="kw">match </span><span class="self">self</span>.variables.define_variable(
-                    <span class="self">self</span>.function_context,
-                    <span class="self">self</span>.brillig_context,
-                    results[<span class="number">0</span>],
-                    dfg,
-                ) {
-                    BrilligVariable::SingleAddr(register_index) =&gt; register_index,
-                    <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: first value of a slice must be a register index"</span>),
-                };
+                <span class="comment">// target_len, target_slice = slice_push_back source_len, source_slice, ...elements
+                </span><span class="kw">let </span>target_len = get_target_len(<span class="self">self</span>, <span class="number">0</span>);
+                <span class="kw">let </span>target_vector = get_target_vector(<span class="self">self</span>, <span class="number">1</span>);
 
-                <span class="kw">let </span>target_variable = <span class="self">self</span>.variables.define_variable(
-                    <span class="self">self</span>.function_context,
-                    <span class="self">self</span>.brillig_context,
-                    results[<span class="number">1</span>],
-                    dfg,
-                );
-
-                <span class="kw">let </span>target_vector = target_variable.extract_vector();
                 <span class="kw">let </span>item_values = vecmap(<span class="kw-2">&amp;</span>arguments[<span class="number">2</span>..element_size + <span class="number">2</span>], |arg| {
                     <span class="self">self</span>.convert_ssa_value(<span class="kw-2">*</span>arg, dfg)
                 });
@@ -700,23 +693,9 @@
                 );
             }
             Value::Intrinsic(Intrinsic::SlicePushFront) =&gt; {
-                <span class="kw">let </span>target_len = <span class="kw">match </span><span class="self">self</span>.variables.define_variable(
-                    <span class="self">self</span>.function_context,
-                    <span class="self">self</span>.brillig_context,
-                    results[<span class="number">0</span>],
-                    dfg,
-                ) {
-                    BrilligVariable::SingleAddr(register_index) =&gt; register_index,
-                    <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: first value of a slice must be a register index"</span>),
-                };
+                <span class="kw">let </span>target_len = get_target_len(<span class="self">self</span>, <span class="number">0</span>);
+                <span class="kw">let </span>target_vector = get_target_vector(<span class="self">self</span>, <span class="number">1</span>);
 
-                <span class="kw">let </span>target_variable = <span class="self">self</span>.variables.define_variable(
-                    <span class="self">self</span>.function_context,
-                    <span class="self">self</span>.brillig_context,
-                    results[<span class="number">1</span>],
-                    dfg,
-                );
-                <span class="kw">let </span>target_vector = target_variable.extract_vector();
                 <span class="kw">let </span>item_values = vecmap(<span class="kw-2">&amp;</span>arguments[<span class="number">2</span>..element_size + <span class="number">2</span>], |arg| {
                     <span class="self">self</span>.convert_ssa_value(<span class="kw-2">*</span>arg, dfg)
                 });
@@ -731,24 +710,8 @@
                 );
             }
             Value::Intrinsic(Intrinsic::SlicePopBack) =&gt; {
-                <span class="kw">let </span>target_len = <span class="kw">match </span><span class="self">self</span>.variables.define_variable(
-                    <span class="self">self</span>.function_context,
-                    <span class="self">self</span>.brillig_context,
-                    results[<span class="number">0</span>],
-                    dfg,
-                ) {
-                    BrilligVariable::SingleAddr(register_index) =&gt; register_index,
-                    <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: first value of a slice must be a register index"</span>),
-                };
-
-                <span class="kw">let </span>target_variable = <span class="self">self</span>.variables.define_variable(
-                    <span class="self">self</span>.function_context,
-                    <span class="self">self</span>.brillig_context,
-                    results[<span class="number">1</span>],
-                    dfg,
-                );
-
-                <span class="kw">let </span>target_vector = target_variable.extract_vector();
+                <span class="kw">let </span>target_len = get_target_len(<span class="self">self</span>, <span class="number">0</span>);
+                <span class="kw">let </span>target_vector = get_target_vector(<span class="self">self</span>, <span class="number">1</span>);
 
                 <span class="kw">let </span>pop_variables = vecmap(<span class="kw-2">&amp;</span>results[<span class="number">2</span>..element_size + <span class="number">2</span>], |result| {
                     <span class="self">self</span>.variables.define_variable(
@@ -769,15 +732,9 @@
                 );
             }
             Value::Intrinsic(Intrinsic::SlicePopFront) =&gt; {
-                <span class="kw">let </span>target_len = <span class="kw">match </span><span class="self">self</span>.variables.define_variable(
-                    <span class="self">self</span>.function_context,
-                    <span class="self">self</span>.brillig_context,
-                    results[element_size],
-                    dfg,
-                ) {
-                    BrilligVariable::SingleAddr(register_index) =&gt; register_index,
-                    <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: first value of a slice must be a register index"</span>),
-                };
+                <span class="comment">// ...elements, target_len, target_vector = slice_pop_front len, vector
+                </span><span class="kw">let </span>target_len = get_target_len(<span class="self">self</span>, element_size);
+                <span class="kw">let </span>target_vector = get_target_vector(<span class="self">self</span>, element_size + <span class="number">1</span>);
 
                 <span class="kw">let </span>pop_variables = vecmap(<span class="kw-2">&amp;</span>results[<span class="number">0</span>..element_size], |result| {
                     <span class="self">self</span>.variables.define_variable(
@@ -787,14 +744,6 @@
                         dfg,
                     )
                 });
-
-                <span class="kw">let </span>target_variable = <span class="self">self</span>.variables.define_variable(
-                    <span class="self">self</span>.function_context,
-                    <span class="self">self</span>.brillig_context,
-                    results[element_size + <span class="number">1</span>],
-                    dfg,
-                );
-                <span class="kw">let </span>target_vector = target_variable.extract_vector();
 
                 <span class="self">self</span>.update_slice_length(target_len, source_len, BrilligBinaryOp::Sub);
 
@@ -806,25 +755,8 @@
                 );
             }
             Value::Intrinsic(Intrinsic::SliceInsert) =&gt; {
-                <span class="kw">let </span>target_len = <span class="kw">match </span><span class="self">self</span>.variables.define_variable(
-                    <span class="self">self</span>.function_context,
-                    <span class="self">self</span>.brillig_context,
-                    results[<span class="number">0</span>],
-                    dfg,
-                ) {
-                    BrilligVariable::SingleAddr(register_index) =&gt; register_index,
-                    <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: first value of a slice must be a register index"</span>),
-                };
-
-                <span class="kw">let </span>target_id = results[<span class="number">1</span>];
-                <span class="kw">let </span>target_variable = <span class="self">self</span>.variables.define_variable(
-                    <span class="self">self</span>.function_context,
-                    <span class="self">self</span>.brillig_context,
-                    target_id,
-                    dfg,
-                );
-
-                <span class="kw">let </span>target_vector = target_variable.extract_vector();
+                <span class="kw">let </span>target_len = get_target_len(<span class="self">self</span>, <span class="number">0</span>);
+                <span class="kw">let </span>target_vector = get_target_vector(<span class="self">self</span>, <span class="number">1</span>);
 
                 <span class="comment">// Remove if indexing in insert is changed to flattened indexing
                 // https://github.com/noir-lang/noir/issues/1889#issuecomment-1668048587
@@ -849,25 +781,8 @@
                 <span class="self">self</span>.slice_insert_operation(target_vector, source_vector, <span class="kw-2">*</span>converted_index, <span class="kw-2">&amp;</span>items);
             }
             Value::Intrinsic(Intrinsic::SliceRemove) =&gt; {
-                <span class="kw">let </span>target_len = <span class="kw">match </span><span class="self">self</span>.variables.define_variable(
-                    <span class="self">self</span>.function_context,
-                    <span class="self">self</span>.brillig_context,
-                    results[<span class="number">0</span>],
-                    dfg,
-                ) {
-                    BrilligVariable::SingleAddr(register_index) =&gt; register_index,
-                    <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: first value of a slice must be a register index"</span>),
-                };
-
-                <span class="kw">let </span>target_id = results[<span class="number">1</span>];
-
-                <span class="kw">let </span>target_variable = <span class="self">self</span>.variables.define_variable(
-                    <span class="self">self</span>.function_context,
-                    <span class="self">self</span>.brillig_context,
-                    target_id,
-                    dfg,
-                );
-                <span class="kw">let </span>target_vector = target_variable.extract_vector();
+                <span class="kw">let </span>target_len = get_target_len(<span class="self">self</span>, <span class="number">0</span>);
+                <span class="kw">let </span>target_vector = get_target_vector(<span class="self">self</span>, <span class="number">1</span>);
 
                 <span class="comment">// Remove if indexing in remove is changed to flattened indexing
                 // https://github.com/noir-lang/noir/issues/1889#issuecomment-1668048587
@@ -875,6 +790,7 @@
 
                 <span class="kw">let </span>converted_index =
                     <span class="self">self</span>.brillig_context.make_usize_constant_instruction(element_size.into());
+
                 <span class="self">self</span>.brillig_context.memory_op_instruction(
                     converted_index.address,
                     user_index.address,

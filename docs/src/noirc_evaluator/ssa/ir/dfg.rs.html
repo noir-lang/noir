@@ -962,7 +962,8 @@
 <a href="#961" id="961">961</a>
 <a href="#962" id="962">962</a>
 <a href="#963" id="963">963</a>
-<a href="#964" id="964">964</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, sync::Arc};
+<a href="#964" id="964">964</a>
+<a href="#965" id="965">965</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, sync::Arc};
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
     function_builder::data_bus::DataBus,
@@ -1702,7 +1703,8 @@
         }
     }
 
-    <span class="doccomment">/// True if the given ValueId refers to a (recursively) constant value
+    <span class="doccomment">/// True if the given [ValueId] refers to a constant value.
+    /// A [MakeArray][Instruction::MakeArray] instruction is considered constant if all its elements are constants.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_constant(<span class="kw-2">&amp;</span><span class="self">self</span>, argument: ValueId) -&gt; bool {
         <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>[argument] {
             Value::Param { .. } =&gt; <span class="bool-val">false</span>,

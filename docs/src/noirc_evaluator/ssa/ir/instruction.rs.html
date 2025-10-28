@@ -1119,7 +1119,8 @@
 <a href="#1118" id="1118">1118</a>
 <a href="#1119" id="1119">1119</a>
 <a href="#1120" id="1120">1120</a>
-<a href="#1121" id="1121">1121</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
+<a href="#1121" id="1121">1121</a>
+<a href="#1122" id="1122">1122</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 <span class="kw">use </span>rustc_stable_hash::{FromStableHash, SipHasher128Hash};
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="kw">use </span>std::hash::Hash;
@@ -2013,7 +2014,8 @@
 }
 
 <span class="kw">impl </span>ErrorType {
-    <span class="kw">pub fn </span>selector(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ErrorSelector {
+    <span class="doccomment">/// Hash the error type to get a unique selector for it.
+    </span><span class="kw">pub fn </span>selector(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ErrorSelector {
         <span class="kw">struct </span>U64(<span class="kw">pub </span>u64);
 
         <span class="kw">impl </span>FromStableHash <span class="kw">for </span>U64 {

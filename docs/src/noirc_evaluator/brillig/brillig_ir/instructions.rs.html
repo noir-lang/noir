@@ -510,7 +510,24 @@
 <a href="#509" id="509">509</a>
 <a href="#510" id="510">510</a>
 <a href="#511" id="511">511</a>
-<a href="#512" id="512">512</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
+<a href="#512" id="512">512</a>
+<a href="#513" id="513">513</a>
+<a href="#514" id="514">514</a>
+<a href="#515" id="515">515</a>
+<a href="#516" id="516">516</a>
+<a href="#517" id="517">517</a>
+<a href="#518" id="518">518</a>
+<a href="#519" id="519">519</a>
+<a href="#520" id="520">520</a>
+<a href="#521" id="521">521</a>
+<a href="#522" id="522">522</a>
+<a href="#523" id="523">523</a>
+<a href="#524" id="524">524</a>
+<a href="#525" id="525">525</a>
+<a href="#526" id="526">526</a>
+<a href="#527" id="527">527</a>
+<a href="#528" id="528">528</a>
+<a href="#529" id="529">529</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
     FieldElement,
     acir::{
         AcirField,
@@ -584,6 +601,16 @@
                 <span class="self">Self</span>::binary_result_bit_size(op, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
             ),
             op,
+        );
+    }
+
+    <span class="doccomment">/// Increase the value at a pointer in place by 1.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>memory_op_inc_by_usize_one(<span class="kw-2">&amp;mut </span><span class="self">self</span>, address: MemoryAddress) {
+        <span class="self">self</span>.memory_op_instruction(
+            address,
+            ReservedRegisters::usize_one(),
+            address,
+            BrilligBinaryOp::Add,
         );
     }
 
@@ -692,7 +719,7 @@
         }
     }
 
-    <span class="doccomment">/// Processes a foreign call instruction.
+    <span class="doccomment">/// Push an opcode to processes a foreign call instruction.
     ///
     /// Note: the function being called is external and will
     /// not be linked during brillig generation.
@@ -815,7 +842,8 @@
         <span class="self">self</span>.push_opcode(BrilligOpcode::BlackBox(op));
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>load_free_memory_pointer_instruction(<span class="kw-2">&amp;mut </span><span class="self">self</span>, pointer_register: MemoryAddress) {
+    <span class="doccomment">/// Push an opcode to load the current value of the _free memory pointer_ into the `pointer_register`.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>load_free_memory_pointer_instruction(<span class="kw-2">&amp;mut </span><span class="self">self</span>, pointer_register: MemoryAddress) {
         <span class="self">self</span>.debug_show.mov_instruction(pointer_register, ReservedRegisters::free_memory_pointer());
         <span class="self">self</span>.push_opcode(BrilligOpcode::Mov {
             destination: pointer_register,
@@ -823,7 +851,8 @@
         });
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>increase_free_memory_pointer_instruction(
+    <span class="doccomment">/// Push an opcode to increase the _free memory pointer_ by the value stored in `size_register`.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>increase_free_memory_pointer_instruction(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         size_register: MemoryAddress,
     ) {
@@ -835,7 +864,7 @@
         );
     }
 
-    <span class="doccomment">/// Emits a store instruction
+    <span class="doccomment">/// Push an opcode to store the value at `source` address into the address under `destination_pointer`.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>store_instruction(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         destination_pointer: MemoryAddress,
@@ -845,7 +874,7 @@
         <span class="self">self</span>.push_opcode(BrilligOpcode::Store { destination_pointer, source });
     }
 
-    <span class="doccomment">/// Emits a load instruction
+    <span class="doccomment">/// Push an opcode to load a value from the address under `source_pointer` into the `destination` address.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>load_instruction(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         destination: MemoryAddress,
@@ -881,13 +910,13 @@
         });
     }
 
-    <span class="doccomment">/// Stores the value of `constant` in the `result` register
+    <span class="doccomment">/// Stores the value of `constant` in the `result` register.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>const_instruction(<span class="kw-2">&amp;mut </span><span class="self">self</span>, result: SingleAddrVariable, constant: F) {
         <span class="self">self</span>.debug_show.const_instruction(result.address, constant);
         <span class="self">self</span>.constant(result.address, result.bit_size, constant, <span class="bool-val">false</span>);
     }
 
-    <span class="doccomment">/// Stores the value of `constant` in the result_pointer
+    <span class="doccomment">/// Stores the value of `constant` in the register pointed at by `result_pointer`.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>indirect_const_instruction(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         result_pointer: MemoryAddress,
@@ -898,7 +927,8 @@
         <span class="self">self</span>.constant(result_pointer, bit_size, constant, <span class="bool-val">true</span>);
     }
 
-    <span class="kw">fn </span>constant(<span class="kw-2">&amp;mut </span><span class="self">self</span>, result: MemoryAddress, bit_size: u32, constant: F, indirect: bool) {
+    <span class="doccomment">/// Pushes a [IndirectConst][BrilligOpcode::IndirectConst] or [Const][BrilligOpcode::Const] opcode.
+    </span><span class="kw">fn </span>constant(<span class="kw-2">&amp;mut </span><span class="self">self</span>, result: MemoryAddress, bit_size: u32, constant: F, indirect: bool) {
         <span class="macro">assert!</span>(
             bit_size &gt;= constant.num_bits(),
             <span class="string">"Constant {constant} does not fit in bit size {bit_size}"
@@ -918,11 +948,12 @@
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>usize_const_instruction(<span class="kw-2">&amp;mut </span><span class="self">self</span>, result: MemoryAddress, constant: F) {
+    <span class="doccomment">/// Stores the value of `constant` at the `result` address.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>usize_const_instruction(<span class="kw-2">&amp;mut </span><span class="self">self</span>, result: MemoryAddress, constant: F) {
         <span class="self">self</span>.const_instruction(SingleAddrVariable::new_usize(result), constant);
     }
 
-    <span class="doccomment">/// Returns a register which holds the value of a constant
+    <span class="doccomment">/// Returns a register which holds the value of a constant.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>make_constant_instruction(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         constant: F,
@@ -933,7 +964,7 @@
         var
     }
 
-    <span class="doccomment">/// Returns a register which holds the value of an usize constant
+    <span class="doccomment">/// Returns a register which holds the value of an `usize` constant.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>make_usize_constant_instruction(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         constant: F,
@@ -943,16 +974,18 @@
         register.map(SingleAddrVariable::new_usize)
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>calldata_copy_instruction(
+    <span class="doccomment">/// Pushes a [CalldataCopy][BrilligOpcode::CalldataCopy] opcode to copy the calldata
+    /// at a specific offset with and size to the `destination` address.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>calldata_copy_instruction(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         destination: MemoryAddress,
         calldata_size: usize,
-        offset: usize,
+        calldata_offset: usize,
     ) {
-        <span class="self">self</span>.debug_show.calldata_copy_instruction(destination, calldata_size, offset);
+        <span class="self">self</span>.debug_show.calldata_copy_instruction(destination, calldata_size, calldata_offset);
 
         <span class="kw">let </span>size_var = <span class="self">self</span>.make_usize_constant_instruction(calldata_size.into());
-        <span class="kw">let </span>offset_var = <span class="self">self</span>.make_usize_constant_instruction(offset.into());
+        <span class="kw">let </span>offset_var = <span class="self">self</span>.make_usize_constant_instruction(calldata_offset.into());
         <span class="self">self</span>.push_opcode(BrilligOpcode::CalldataCopy {
             destination_address: destination,
             size_address: size_var.address,
@@ -960,7 +993,8 @@
         });
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>trap_instruction(<span class="kw-2">&amp;mut </span><span class="self">self</span>, revert_data: HeapVector) {
+    <span class="doccomment">/// Pushes a [Trap][BrilligOpcode::Trap] opcode.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>trap_instruction(<span class="kw-2">&amp;mut </span><span class="self">self</span>, revert_data: HeapVector) {
         <span class="self">self</span>.debug_show.trap_instruction(revert_data);
 
         <span class="self">self</span>.push_opcode(BrilligOpcode::Trap { revert_data });

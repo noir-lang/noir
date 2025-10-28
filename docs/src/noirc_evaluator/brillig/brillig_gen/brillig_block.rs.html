@@ -691,7 +691,56 @@
 <a href="#690" id="690">690</a>
 <a href="#691" id="691">691</a>
 <a href="#692" id="692">692</a>
-<a href="#693" id="693">693</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module containing Brillig-gen logic specific to an SSA function's basic blocks.
+<a href="#693" id="693">693</a>
+<a href="#694" id="694">694</a>
+<a href="#695" id="695">695</a>
+<a href="#696" id="696">696</a>
+<a href="#697" id="697">697</a>
+<a href="#698" id="698">698</a>
+<a href="#699" id="699">699</a>
+<a href="#700" id="700">700</a>
+<a href="#701" id="701">701</a>
+<a href="#702" id="702">702</a>
+<a href="#703" id="703">703</a>
+<a href="#704" id="704">704</a>
+<a href="#705" id="705">705</a>
+<a href="#706" id="706">706</a>
+<a href="#707" id="707">707</a>
+<a href="#708" id="708">708</a>
+<a href="#709" id="709">709</a>
+<a href="#710" id="710">710</a>
+<a href="#711" id="711">711</a>
+<a href="#712" id="712">712</a>
+<a href="#713" id="713">713</a>
+<a href="#714" id="714">714</a>
+<a href="#715" id="715">715</a>
+<a href="#716" id="716">716</a>
+<a href="#717" id="717">717</a>
+<a href="#718" id="718">718</a>
+<a href="#719" id="719">719</a>
+<a href="#720" id="720">720</a>
+<a href="#721" id="721">721</a>
+<a href="#722" id="722">722</a>
+<a href="#723" id="723">723</a>
+<a href="#724" id="724">724</a>
+<a href="#725" id="725">725</a>
+<a href="#726" id="726">726</a>
+<a href="#727" id="727">727</a>
+<a href="#728" id="728">728</a>
+<a href="#729" id="729">729</a>
+<a href="#730" id="730">730</a>
+<a href="#731" id="731">731</a>
+<a href="#732" id="732">732</a>
+<a href="#733" id="733">733</a>
+<a href="#734" id="734">734</a>
+<a href="#735" id="735">735</a>
+<a href="#736" id="736">736</a>
+<a href="#737" id="737">737</a>
+<a href="#738" id="738">738</a>
+<a href="#739" id="739">739</a>
+<a href="#740" id="740">740</a>
+<a href="#741" id="741">741</a>
+<a href="#742" id="742">742</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module containing Brillig-gen logic specific to an SSA function's basic blocks.
 </span><span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::artifact::Label;
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::brillig_variable::{
     BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable,
@@ -703,7 +752,7 @@
     basic_block::BasicBlockId,
     dfg::DataFlowGraph,
     function::FunctionId,
-    instruction::{BinaryOp, Instruction, InstructionId, TerminatorInstruction},
+    instruction::{Instruction, InstructionId, TerminatorInstruction},
     types::{NumericType, Type},
     value::{Value, ValueId},
 };
@@ -1029,10 +1078,10 @@
 
         <span class="kw">match </span>instruction {
             Instruction::Binary(binary) =&gt; {
-                <span class="self">self</span>.binary_gen(instruction_id, binary, dfg);
+                <span class="self">self</span>.codegen_binary(instruction_id, binary, dfg);
             }
             Instruction::Constrain(lhs, rhs, assert_message) =&gt; {
-                <span class="self">self</span>.constrain_gen(<span class="kw-2">*</span>lhs, <span class="kw-2">*</span>rhs, assert_message, dfg);
+                <span class="self">self</span>.codegen_constrain(<span class="kw-2">*</span>lhs, <span class="kw-2">*</span>rhs, assert_message, dfg);
             }
             Instruction::ConstrainNotEqual(..) =&gt; {
                 <span class="macro">unreachable!</span>(<span class="string">"only implemented in ACIR"</span>)
@@ -1047,151 +1096,47 @@
                 <span class="self">self</span>.codegen_load(instruction_id, <span class="kw-2">*</span>address, dfg);
             }
             Instruction::Not(value) =&gt; {
-                <span class="kw">let </span>[result_value] = dfg.instruction_result(instruction_id);
-                <span class="kw">let </span>condition_register = <span class="self">self</span>.convert_ssa_single_addr_value(<span class="kw-2">*</span>value, dfg);
-                <span class="kw">let </span>result_register = <span class="self">self</span>.variables.define_single_addr_variable(
-                    <span class="self">self</span>.function_context,
-                    <span class="self">self</span>.brillig_context,
-                    result_value,
-                    dfg,
-                );
-                <span class="self">self</span>.brillig_context.not_instruction(condition_register, result_register);
+                <span class="self">self</span>.codegen_not(instruction_id, <span class="kw-2">*</span>value, dfg);
             }
             Instruction::Call { func, arguments } =&gt; {
-                <span class="self">self</span>.call_gen(instruction_id, <span class="kw-2">*</span>func, arguments, dfg);
+                <span class="self">self</span>.codegen_call(instruction_id, <span class="kw-2">*</span>func, arguments, dfg);
             }
             Instruction::Truncate { value, bit_size, .. } =&gt; {
-                <span class="kw">let </span>[result_id] = dfg.instruction_result(instruction_id);
-                <span class="kw">let </span>destination_register = <span class="self">self</span>.variables.define_single_addr_variable(
-                    <span class="self">self</span>.function_context,
-                    <span class="self">self</span>.brillig_context,
-                    result_id,
-                    dfg,
-                );
-                <span class="kw">let </span>source_register = <span class="self">self</span>.convert_ssa_single_addr_value(<span class="kw-2">*</span>value, dfg);
-                <span class="self">self</span>.brillig_context.codegen_truncate(
-                    destination_register,
-                    source_register,
-                    <span class="kw-2">*</span>bit_size,
-                );
+                <span class="self">self</span>.codegen_truncate(instruction_id, <span class="kw-2">*</span>value, <span class="kw-2">*</span>bit_size, dfg);
             }
             Instruction::Cast(value, <span class="kw">_</span>) =&gt; {
-                <span class="kw">let </span>[result_id] = dfg.instruction_result(instruction_id);
-                <span class="kw">let </span>destination_variable = <span class="self">self</span>.variables.define_single_addr_variable(
-                    <span class="self">self</span>.function_context,
-                    <span class="self">self</span>.brillig_context,
-                    result_id,
-                    dfg,
-                );
-                <span class="kw">let </span>source_variable = <span class="self">self</span>.convert_ssa_single_addr_value(<span class="kw-2">*</span>value, dfg);
-                <span class="self">self</span>.convert_cast(destination_variable, source_variable);
+                <span class="self">self</span>.codegen_cast(instruction_id, <span class="kw-2">*</span>value, dfg);
             }
             Instruction::ArrayGet { array, index } =&gt; {
-                <span class="self">self</span>.array_get(instruction_id, <span class="kw-2">*</span>array, <span class="kw-2">*</span>index, dfg);
+                <span class="self">self</span>.codegen_array_get(instruction_id, <span class="kw-2">*</span>array, <span class="kw-2">*</span>index, dfg);
             }
             Instruction::ArraySet { array, index, value, mutable } =&gt; {
-                <span class="self">self</span>.array_set(instruction_id, <span class="kw-2">*</span>array, <span class="kw-2">*</span>index, <span class="kw-2">*</span>value, <span class="kw-2">*</span>mutable, dfg);
+                <span class="self">self</span>.codegen_array_set(instruction_id, <span class="kw-2">*</span>array, <span class="kw-2">*</span>index, <span class="kw-2">*</span>value, <span class="kw-2">*</span>mutable, dfg);
             }
             Instruction::RangeCheck { value, max_bit_size, assert_message } =&gt; {
-                <span class="kw">let </span>value = <span class="self">self</span>.convert_ssa_single_addr_value(<span class="kw-2">*</span>value, dfg);
-                <span class="comment">// SSA generates redundant range checks. A range check with a max bit size &gt;= value.bit_size will always pass.
-                </span><span class="kw">if </span>value.bit_size &gt; <span class="kw-2">*</span>max_bit_size {
-                    <span class="comment">// Cast original value to field
-                    </span><span class="kw">let </span>left =
-                        <span class="self">self</span>.brillig_context.allocate_single_addr(FieldElement::max_num_bits());
-                    <span class="self">self</span>.convert_cast(<span class="kw-2">*</span>left, value);
-
-                    <span class="comment">// Create a field constant with the max
-                    </span><span class="kw">let </span>max = BigUint::from(<span class="number">2_u128</span>).pow(<span class="kw-2">*</span>max_bit_size) - BigUint::from(<span class="number">1_u128</span>);
-                    <span class="kw">let </span>right = <span class="self">self</span>.brillig_context.make_constant_instruction(
-                        FieldElement::from_be_bytes_reduce(<span class="kw-2">&amp;</span>max.to_bytes_be()),
-                        FieldElement::max_num_bits(),
-                    );
-
-                    <span class="comment">// Check if lte max
-                    </span><span class="kw">let </span>condition = <span class="self">self</span>.brillig_context.allocate_single_addr_bool();
-                    <span class="self">self</span>.brillig_context.binary_instruction(
-                        <span class="kw-2">*</span>left,
-                        <span class="kw-2">*</span>right,
-                        <span class="kw-2">*</span>condition,
-                        BrilligBinaryOp::LessThanEquals,
-                    );
-
-                    <span class="self">self</span>.brillig_context.codegen_constrain(<span class="kw-2">*</span>condition, assert_message.clone());
-                }
+                <span class="self">self</span>.codegen_range_check(<span class="kw-2">*</span>value, <span class="kw-2">*</span>max_bit_size, assert_message.as_ref(), dfg);
             }
             Instruction::IncrementRc { value } =&gt; {
-                <span class="self">self</span>.increment_rc(<span class="kw-2">*</span>value, dfg);
+                <span class="self">self</span>.codegen_increment_rc(<span class="kw-2">*</span>value, dfg);
             }
             Instruction::DecrementRc { value } =&gt; {
-                <span class="self">self</span>.decrement_rc(<span class="kw-2">*</span>value, dfg);
+                <span class="self">self</span>.codegen_decrement_rc(<span class="kw-2">*</span>value, dfg);
             }
             Instruction::EnableSideEffectsIf { .. } =&gt; {
                 <span class="macro">unreachable!</span>(<span class="string">"enable_side_effects not supported by brillig"</span>)
             }
             Instruction::IfElse { then_condition, then_value, else_condition: <span class="kw">_</span>, else_value } =&gt; {
-                <span class="kw">let </span>then_condition = <span class="self">self</span>.convert_ssa_single_addr_value(<span class="kw-2">*</span>then_condition, dfg);
-                <span class="kw">let </span>then_value = <span class="self">self</span>.convert_ssa_value(<span class="kw-2">*</span>then_value, dfg);
-                <span class="kw">let </span>else_value = <span class="self">self</span>.convert_ssa_value(<span class="kw-2">*</span>else_value, dfg);
-                <span class="kw">let </span>[result_value] = dfg.instruction_result(instruction_id);
-                <span class="kw">let </span>result = <span class="self">self</span>.variables.define_variable(
-                    <span class="self">self</span>.function_context,
-                    <span class="self">self</span>.brillig_context,
-                    result_value,
+                <span class="comment">// The `else_condition` is assumed to be the opposite of the `then_condition`.
+                </span><span class="self">self</span>.codegen_if_else(
+                    instruction_id,
+                    <span class="kw-2">*</span>then_condition,
+                    <span class="kw-2">*</span>then_value,
+                    <span class="kw-2">*</span>else_value,
                     dfg,
                 );
-                <span class="kw">match </span>(then_value, else_value) {
-                    (
-                        BrilligVariable::SingleAddr(then_address),
-                        BrilligVariable::SingleAddr(else_address),
-                    ) =&gt; {
-                        <span class="self">self</span>.brillig_context.conditional_move_instruction(
-                            then_condition,
-                            then_address,
-                            else_address,
-                            result.extract_single_addr(),
-                        );
-                    }
-                    (
-                        BrilligVariable::BrilligArray(then_array),
-                        BrilligVariable::BrilligArray(else_array),
-                    ) =&gt; {
-                        <span class="comment">// Pointer to the array which result from the if-else
-                        </span><span class="kw">let </span>pointer = <span class="self">self</span>.brillig_context.allocate_register();
-                        <span class="self">self</span>.brillig_context.conditional_move_instruction(
-                            then_condition,
-                            SingleAddrVariable::new_usize(then_array.pointer),
-                            SingleAddrVariable::new_usize(else_array.pointer),
-                            SingleAddrVariable::new_usize(<span class="kw-2">*</span>pointer),
-                        );
-                        <span class="kw">let </span>if_else_array =
-                            BrilligArray { pointer: <span class="kw-2">*</span>pointer, size: then_array.size };
-                        <span class="comment">// Copy the if-else array to the result
-                        </span><span class="self">self</span>.brillig_context
-                            .call_array_copy_procedure(if_else_array, result.extract_array());
-                    }
-                    (
-                        BrilligVariable::BrilligVector(then_vector),
-                        BrilligVariable::BrilligVector(else_vector),
-                    ) =&gt; {
-                        <span class="comment">// Pointer to the vector which result from the if-else
-                        </span><span class="kw">let </span>pointer = <span class="self">self</span>.brillig_context.allocate_register();
-                        <span class="self">self</span>.brillig_context.conditional_move_instruction(
-                            then_condition,
-                            SingleAddrVariable::new_usize(then_vector.pointer),
-                            SingleAddrVariable::new_usize(else_vector.pointer),
-                            SingleAddrVariable::new_usize(<span class="kw-2">*</span>pointer),
-                        );
-                        <span class="kw">let </span>if_else_vector = BrilligVector { pointer: <span class="kw-2">*</span>pointer };
-                        <span class="comment">// Copy the if-else vector to the result
-                        </span><span class="self">self</span>.brillig_context
-                            .call_vector_copy_procedure(if_else_vector, result.extract_vector());
-                    }
-                    <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE - then and else values must have the same type"</span>),
-                }
             }
             Instruction::MakeArray { elements: array, typ } =&gt; {
-                <span class="self">self</span>.make_array(instruction_id, array, typ, dfg);
+                <span class="self">self</span>.codegen_make_array(instruction_id, array, typ, dfg);
             }
             Instruction::Noop =&gt; (),
         };
@@ -1353,10 +1298,166 @@
         }
         <span class="prelude-val">None
     </span>}
+
+    <span class="doccomment">/// Define the result variable, convert the value, then generate Brillig opcodes to negate the variable.
+    </span><span class="kw">fn </span>codegen_not(<span class="kw-2">&amp;mut </span><span class="self">self</span>, instruction_id: InstructionId, value: ValueId, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) {
+        <span class="kw">let </span>[result_id] = dfg.instruction_result(instruction_id);
+        <span class="kw">let </span>condition_register = <span class="self">self</span>.convert_ssa_single_addr_value(value, dfg);
+        <span class="kw">let </span>result_register = <span class="self">self</span>.variables.define_single_addr_variable(
+            <span class="self">self</span>.function_context,
+            <span class="self">self</span>.brillig_context,
+            result_id,
+            dfg,
+        );
+        <span class="self">self</span>.brillig_context.not_instruction(condition_register, result_register);
+    }
+
+    <span class="doccomment">/// Define the result variable, convert the value, then generate Brillig opcodes to truncate the variable.
+    </span><span class="kw">fn </span>codegen_truncate(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        instruction_id: InstructionId,
+        value: ValueId,
+        bit_size: u32,
+        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
+    ) {
+        <span class="kw">let </span>[result_id] = dfg.instruction_result(instruction_id);
+        <span class="kw">let </span>destination_register = <span class="self">self</span>.variables.define_single_addr_variable(
+            <span class="self">self</span>.function_context,
+            <span class="self">self</span>.brillig_context,
+            result_id,
+            dfg,
+        );
+        <span class="kw">let </span>source_register = <span class="self">self</span>.convert_ssa_single_addr_value(value, dfg);
+        <span class="self">self</span>.brillig_context.codegen_truncate(destination_register, source_register, bit_size);
+    }
+
+    <span class="doccomment">/// Define the result variable, convert the value, then generate Brillig opcodes to truncate the variable.
+    </span><span class="kw">fn </span>codegen_cast(<span class="kw-2">&amp;mut </span><span class="self">self</span>, instruction_id: InstructionId, value: ValueId, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) {
+        <span class="kw">let </span>[result_id] = dfg.instruction_result(instruction_id);
+        <span class="kw">let </span>destination_variable = <span class="self">self</span>.variables.define_single_addr_variable(
+            <span class="self">self</span>.function_context,
+            <span class="self">self</span>.brillig_context,
+            result_id,
+            dfg,
+        );
+        <span class="kw">let </span>source_variable = <span class="self">self</span>.convert_ssa_single_addr_value(value, dfg);
+        <span class="self">self</span>.convert_cast(destination_variable, source_variable);
+    }
+
+    <span class="doccomment">/// Convert the value, and if its bit size is larger than the maximum bit size,
+    /// then generate opcodes to constrain the value to be no greater than the maximum
+    /// value as a `Field`.
+    </span><span class="kw">fn </span>codegen_range_check(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        value: ValueId,
+        max_bit_size: u32,
+        assert_message: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>String&gt;,
+        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
+    ) {
+        <span class="kw">let </span>value = <span class="self">self</span>.convert_ssa_single_addr_value(value, dfg);
+        <span class="comment">// SSA generates redundant range checks. A range check with a max bit size &gt;= value.bit_size will always pass.
+        </span><span class="kw">if </span>value.bit_size &gt; max_bit_size {
+            <span class="comment">// Cast original value to field
+            </span><span class="kw">let </span>left = <span class="self">self</span>.brillig_context.allocate_single_addr(FieldElement::max_num_bits());
+            <span class="self">self</span>.convert_cast(<span class="kw-2">*</span>left, value);
+
+            <span class="comment">// Create a field constant with the max
+            </span><span class="kw">let </span>max = BigUint::from(<span class="number">2_u128</span>).pow(max_bit_size) - BigUint::from(<span class="number">1_u128</span>);
+            <span class="kw">let </span>right = <span class="self">self</span>.brillig_context.make_constant_instruction(
+                FieldElement::from_be_bytes_reduce(<span class="kw-2">&amp;</span>max.to_bytes_be()),
+                FieldElement::max_num_bits(),
+            );
+
+            <span class="comment">// Check if lte max
+            </span><span class="kw">let </span>condition = <span class="self">self</span>.brillig_context.allocate_single_addr_bool();
+            <span class="self">self</span>.brillig_context.binary_instruction(
+                <span class="kw-2">*</span>left,
+                <span class="kw-2">*</span>right,
+                <span class="kw-2">*</span>condition,
+                BrilligBinaryOp::LessThanEquals,
+            );
+
+            <span class="self">self</span>.brillig_context.codegen_constrain(<span class="kw-2">*</span>condition, assert_message.cloned());
+        }
+    }
+
+    <span class="doccomment">/// Convert the condition and the values, define a variable for the result,
+    /// then generate opcodes for a conditional move.
+    ///
+    /// Panics if the `then_value` and `else_value` are incompatible.
+    </span><span class="kw">fn </span>codegen_if_else(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        instruction_id: InstructionId,
+        then_condition: ValueId,
+        then_value: ValueId,
+        else_value: ValueId,
+        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
+    ) {
+        <span class="kw">let </span>then_condition = <span class="self">self</span>.convert_ssa_single_addr_value(then_condition, dfg);
+        <span class="kw">let </span>then_value = <span class="self">self</span>.convert_ssa_value(then_value, dfg);
+        <span class="kw">let </span>else_value = <span class="self">self</span>.convert_ssa_value(else_value, dfg);
+
+        <span class="kw">let </span>[result_id] = dfg.instruction_result(instruction_id);
+        <span class="kw">let </span>result = <span class="self">self</span>.variables.define_variable(
+            <span class="self">self</span>.function_context,
+            <span class="self">self</span>.brillig_context,
+            result_id,
+            dfg,
+        );
+
+        <span class="kw">match </span>(then_value, else_value) {
+            (
+                BrilligVariable::SingleAddr(then_address),
+                BrilligVariable::SingleAddr(else_address),
+            ) =&gt; {
+                <span class="self">self</span>.brillig_context.conditional_move_instruction(
+                    then_condition,
+                    then_address,
+                    else_address,
+                    result.extract_single_addr(),
+                );
+            }
+            (
+                BrilligVariable::BrilligArray(then_array),
+                BrilligVariable::BrilligArray(else_array),
+            ) =&gt; {
+                <span class="comment">// Pointer to the array which result from the if-else
+                </span><span class="kw">let </span>pointer = <span class="self">self</span>.brillig_context.allocate_register();
+                <span class="self">self</span>.brillig_context.conditional_move_instruction(
+                    then_condition,
+                    SingleAddrVariable::new_usize(then_array.pointer),
+                    SingleAddrVariable::new_usize(else_array.pointer),
+                    SingleAddrVariable::new_usize(<span class="kw-2">*</span>pointer),
+                );
+                <span class="kw">let </span>if_else_array = BrilligArray { pointer: <span class="kw-2">*</span>pointer, size: then_array.size };
+                <span class="comment">// Copy the if-else array to the result
+                </span><span class="self">self</span>.brillig_context
+                    .call_array_copy_procedure(if_else_array, result.extract_array());
+            }
+            (
+                BrilligVariable::BrilligVector(then_vector),
+                BrilligVariable::BrilligVector(else_vector),
+            ) =&gt; {
+                <span class="comment">// Pointer to the vector which result from the if-else
+                </span><span class="kw">let </span>pointer = <span class="self">self</span>.brillig_context.allocate_register();
+                <span class="self">self</span>.brillig_context.conditional_move_instruction(
+                    then_condition,
+                    SingleAddrVariable::new_usize(then_vector.pointer),
+                    SingleAddrVariable::new_usize(else_vector.pointer),
+                    SingleAddrVariable::new_usize(<span class="kw-2">*</span>pointer),
+                );
+                <span class="kw">let </span>if_else_vector = BrilligVector { pointer: <span class="kw-2">*</span>pointer };
+                <span class="comment">// Copy the if-else vector to the result
+                </span><span class="self">self</span>.brillig_context
+                    .call_vector_copy_procedure(if_else_vector, result.extract_vector());
+            }
+            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE - then and else values must have the same type"</span>),
+        }
+    }
 }
 
-<span class="doccomment">/// Returns the type of the operation considering the types of the operands
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>type_of_binary_operation(lhs_type: <span class="kw-2">&amp;</span>Type, rhs_type: <span class="kw-2">&amp;</span>Type, op: BinaryOp) -&gt; Type {
+<span class="doccomment">/// Returns the type of the operation considering the types of the operands.
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>type_of_binary_operation(lhs_type: <span class="kw-2">&amp;</span>Type, rhs_type: <span class="kw-2">&amp;</span>Type) -&gt; Type {
     <span class="kw">match </span>(lhs_type, rhs_type) {
         (<span class="kw">_</span>, Type::Function) | (Type::Function, <span class="kw">_</span>) =&gt; {
             <span class="macro">unreachable!</span>(<span class="string">"Functions are invalid in binary operations"</span>)
@@ -1370,18 +1471,15 @@
         (<span class="kw">_</span>, Type::Slice(..)) | (Type::Slice(..), <span class="kw">_</span>) =&gt; {
             <span class="macro">unreachable!</span>(<span class="string">"Arrays are invalid in binary operations"</span>)
         }
-        <span class="comment">// If both sides are numeric type, then we expect their types to be
-        // the same.
-        </span>(Type::Numeric(lhs_type), Type::Numeric(rhs_type))
-            <span class="kw">if </span>op != BinaryOp::Shl &amp;&amp; op != BinaryOp::Shr =&gt;
-        {
-            <span class="macro">assert_eq!</span>(
+        (Type::Numeric(lhs_type), Type::Numeric(rhs_type)) =&gt; {
+            <span class="comment">// If both sides are numeric type, then we expect their types to be the same.
+            // For SHL and SHR they are also expected to be the same, but the SHR value itself cannot exceed the bit size.
+            </span><span class="macro">assert_eq!</span>(
                 lhs_type, rhs_type,
                 <span class="string">"lhs and rhs types in a binary operation are always the same but got {lhs_type} and {rhs_type}"
             </span>);
             Type::Numeric(<span class="kw-2">*</span>lhs_type)
         }
-        <span class="kw">_ </span>=&gt; lhs_type.clone(),
     }
 }
 </code></pre></div></section></main></body></html>
