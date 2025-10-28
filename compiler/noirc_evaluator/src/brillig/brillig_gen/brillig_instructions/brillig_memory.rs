@@ -48,13 +48,13 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
 
         // Find out if we are repeating the same item over and over
         let first_item = data.iter().take(item_types.len()).copied().collect::<Vec<_>>();
-        let mut is_repeating = true;
 
-        for item_index in (item_types.len()..data.len()).step_by(item_types.len()) {
+        let mut is_repeating = true;
+        'check_loop: for item_index in (item_types.len()..data.len()).step_by(item_types.len()) {
             for i in 0..item_types.len() {
                 if first_item[i] != data[item_index + i] {
                     is_repeating = false;
-                    break;
+                    break 'check_loop;
                 }
             }
         }
