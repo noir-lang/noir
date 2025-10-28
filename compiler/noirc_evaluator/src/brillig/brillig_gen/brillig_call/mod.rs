@@ -196,6 +196,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         source_len: SingleAddrVariable,
         binary_op: BrilligBinaryOp,
     ) {
+        debug_assert!(matches!(binary_op, BrilligBinaryOp::Add | BrilligBinaryOp::Sub));
         self.brillig_context.codegen_usize_op(source_len.address, target_len.address, binary_op, 1);
     }
 
@@ -240,27 +241,25 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         let source_vector = self.convert_ssa_value(slice_id, dfg).extract_vector();
 
         let results = dfg.instruction_results(instruction_id);
+
+        let get_target_len = |this: &mut Self, idx: usize| {
+            this.variables
+                .define_variable(this.function_context, this.brillig_context, results[idx], dfg)
+                .extract_single_addr()
+        };
+
+        let get_target_vector = |this: &mut Self, idx: usize| {
+            this.variables
+                .define_variable(this.function_context, this.brillig_context, results[idx], dfg)
+                .extract_vector()
+        };
+
         match intrinsic {
             Value::Intrinsic(Intrinsic::SlicePushBack) => {
-                // target_len, target_slice = slice_push_back source_len, source_slice
-                let target_len = match self.variables.define_variable(
-                    self.function_context,
-                    self.brillig_context,
-                    results[0],
-                    dfg,
-                ) {
-                    BrilligVariable::SingleAddr(register_index) => register_index,
-                    _ => unreachable!("ICE: first value of a slice must be a register index"),
-                };
+                // target_len, target_slice = slice_push_back source_len, source_slice, ...elements
+                let target_len = get_target_len(self, 0);
+                let target_vector = get_target_vector(self, 1);
 
-                let target_variable = self.variables.define_variable(
-                    self.function_context,
-                    self.brillig_context,
-                    results[1],
-                    dfg,
-                );
-
-                let target_vector = target_variable.extract_vector();
                 let item_values = vecmap(&arguments[2..element_size + 2], |arg| {
                     self.convert_ssa_value(*arg, dfg)
                 });
@@ -276,23 +275,9 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                 );
             }
             Value::Intrinsic(Intrinsic::SlicePushFront) => {
-                let target_len = match self.variables.define_variable(
-                    self.function_context,
-                    self.brillig_context,
-                    results[0],
-                    dfg,
-                ) {
-                    BrilligVariable::SingleAddr(register_index) => register_index,
-                    _ => unreachable!("ICE: first value of a slice must be a register index"),
-                };
+                let target_len = get_target_len(self, 0);
+                let target_vector = get_target_vector(self, 1);
 
-                let target_variable = self.variables.define_variable(
-                    self.function_context,
-                    self.brillig_context,
-                    results[1],
-                    dfg,
-                );
-                let target_vector = target_variable.extract_vector();
                 let item_values = vecmap(&arguments[2..element_size + 2], |arg| {
                     self.convert_ssa_value(*arg, dfg)
                 });
@@ -307,24 +292,8 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                 );
             }
             Value::Intrinsic(Intrinsic::SlicePopBack) => {
-                let target_len = match self.variables.define_variable(
-                    self.function_context,
-                    self.brillig_context,
-                    results[0],
-                    dfg,
-                ) {
-                    BrilligVariable::SingleAddr(register_index) => register_index,
-                    _ => unreachable!("ICE: first value of a slice must be a register index"),
-                };
-
-                let target_variable = self.variables.define_variable(
-                    self.function_context,
-                    self.brillig_context,
-                    results[1],
-                    dfg,
-                );
-
-                let target_vector = target_variable.extract_vector();
+                let target_len = get_target_len(self, 0);
+                let target_vector = get_target_vector(self, 1);
 
                 let pop_variables = vecmap(&results[2..element_size + 2], |result| {
                     self.variables.define_variable(
@@ -345,15 +314,9 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                 );
             }
             Value::Intrinsic(Intrinsic::SlicePopFront) => {
-                let target_len = match self.variables.define_variable(
-                    self.function_context,
-                    self.brillig_context,
-                    results[element_size],
-                    dfg,
-                ) {
-                    BrilligVariable::SingleAddr(register_index) => register_index,
-                    _ => unreachable!("ICE: first value of a slice must be a register index"),
-                };
+                // ...elements, target_len, target_vector = slice_pop_front len, vector
+                let target_len = get_target_len(self, element_size);
+                let target_vector = get_target_vector(self, element_size + 1);
 
                 let pop_variables = vecmap(&results[0..element_size], |result| {
                     self.variables.define_variable(
@@ -363,14 +326,6 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                         dfg,
                     )
                 });
-
-                let target_variable = self.variables.define_variable(
-                    self.function_context,
-                    self.brillig_context,
-                    results[element_size + 1],
-                    dfg,
-                );
-                let target_vector = target_variable.extract_vector();
 
                 self.update_slice_length(target_len, source_len, BrilligBinaryOp::Sub);
 
@@ -382,25 +337,8 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                 );
             }
             Value::Intrinsic(Intrinsic::SliceInsert) => {
-                let target_len = match self.variables.define_variable(
-                    self.function_context,
-                    self.brillig_context,
-                    results[0],
-                    dfg,
-                ) {
-                    BrilligVariable::SingleAddr(register_index) => register_index,
-                    _ => unreachable!("ICE: first value of a slice must be a register index"),
-                };
-
-                let target_id = results[1];
-                let target_variable = self.variables.define_variable(
-                    self.function_context,
-                    self.brillig_context,
-                    target_id,
-                    dfg,
-                );
-
-                let target_vector = target_variable.extract_vector();
+                let target_len = get_target_len(self, 0);
+                let target_vector = get_target_vector(self, 1);
 
                 // Remove if indexing in insert is changed to flattened indexing
                 // https://github.com/noir-lang/noir/issues/1889#issuecomment-1668048587
@@ -425,25 +363,8 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                 self.slice_insert_operation(target_vector, source_vector, *converted_index, &items);
             }
             Value::Intrinsic(Intrinsic::SliceRemove) => {
-                let target_len = match self.variables.define_variable(
-                    self.function_context,
-                    self.brillig_context,
-                    results[0],
-                    dfg,
-                ) {
-                    BrilligVariable::SingleAddr(register_index) => register_index,
-                    _ => unreachable!("ICE: first value of a slice must be a register index"),
-                };
-
-                let target_id = results[1];
-
-                let target_variable = self.variables.define_variable(
-                    self.function_context,
-                    self.brillig_context,
-                    target_id,
-                    dfg,
-                );
-                let target_vector = target_variable.extract_vector();
+                let target_len = get_target_len(self, 0);
+                let target_vector = get_target_vector(self, 1);
 
                 // Remove if indexing in remove is changed to flattened indexing
                 // https://github.com/noir-lang/noir/issues/1889#issuecomment-1668048587
@@ -451,6 +372,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
 
                 let converted_index =
                     self.brillig_context.make_usize_constant_instruction(element_size.into());
+
                 self.brillig_context.memory_op_instruction(
                     converted_index.address,
                     user_index.address,

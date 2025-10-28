@@ -66,7 +66,7 @@ impl BrilligVariable {
     pub(crate) fn extract_single_addr(self) -> SingleAddrVariable {
         match self {
             BrilligVariable::SingleAddr(single_addr) => single_addr,
-            _ => unreachable!("ICE: Expected register, got {self:?}"),
+            _ => unreachable!("ICE: Expected single address, got {self:?}"),
         }
     }
 
