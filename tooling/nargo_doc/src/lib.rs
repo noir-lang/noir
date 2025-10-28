@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use iter_extended::vecmap;
 use noirc_driver::CrateId;
+use noirc_frontend::ResolvedGeneric;
 use noirc_frontend::ast::ItemVisibility;
 use noirc_frontend::hir::def_map::ModuleDefId;
 use noirc_frontend::hir::printer::items as expand_items;
@@ -10,7 +11,8 @@ use noirc_frontend::node_interner::{FuncId, ReferenceId};
 use noirc_frontend::{graph::CrateGraph, hir::def_map::DefMaps, node_interner::NodeInterner};
 
 use crate::items::{
-    Function, FunctionParam, Global, Item, Module, Struct, StructField, Trait, Type, TypeAlias,
+    Function, FunctionParam, Generic, Global, Item, Module, Struct, StructField, Trait, Type,
+    TypeAlias,
 };
 
 pub mod items;
@@ -68,7 +70,7 @@ impl<'a> DocItemBuilder<'a> {
                         StructField { name: field.name.to_string(), r#type, comments }
                     })
                     .collect();
-                let generics = vecmap(&data_type.generics, |generic| generic.name.to_string());
+                let generics = vecmap(&data_type.generics, |generic| self.convert_generic(generic));
 
                 // TODO: impls
                 // TODO: trait impls
@@ -86,7 +88,7 @@ impl<'a> DocItemBuilder<'a> {
                 let trait_ = self.interner.get_trait(trait_id);
                 let name = trait_.name.to_string();
                 let comments = self.doc_comments(ReferenceId::Trait(trait_id));
-                let generics = vecmap(&trait_.generics, |generic| generic.name.to_string());
+                let generics = vecmap(&trait_.generics, |generic| self.convert_generic(generic));
                 let methods = vecmap(item_trait.methods, |func_id| self.convert_function(func_id));
 
                 // TODO: parents
@@ -101,7 +103,8 @@ impl<'a> DocItemBuilder<'a> {
                 let name = type_alias.name.to_string();
                 let r#type = self.convert_type(&type_alias.typ);
                 let comments = self.doc_comments(ReferenceId::Alias(type_alias_id));
-                let generics = vecmap(&type_alias.generics, |generic| generic.name.to_string());
+                let generics =
+                    vecmap(&type_alias.generics, |generic| self.convert_generic(generic));
                 let id = self.get_id(ModuleDefId::TypeAliasId(type_alias_id));
                 Item::TypeAlias(TypeAlias { id, name, comments, r#type, generics })
             }
@@ -135,7 +138,7 @@ impl<'a> DocItemBuilder<'a> {
         let comptime = modifiers.is_comptime;
         let name = modifiers.name.to_string();
         let comments = self.doc_comments(ReferenceId::Function(func_id));
-        let generics = vecmap(&func_meta.direct_generics, |generic| generic.name.to_string());
+        let generics = vecmap(&func_meta.direct_generics, |generic| self.convert_generic(generic));
         let params = vecmap(func_meta.parameters.iter(), |(pattern, typ, _visibility)| {
             let is_self = self.pattern_is_self(pattern);
 
@@ -152,6 +155,18 @@ impl<'a> DocItemBuilder<'a> {
         let return_type = self.convert_type(func_meta.return_type());
         // TODO: where clauses
         Function { name, comments, unconstrained, comptime, generics, params, return_type }
+    }
+
+    fn convert_generic(&self, generic: &ResolvedGeneric) -> Generic {
+        let numeric = match generic.kind() {
+            noirc_frontend::Kind::Any
+            | noirc_frontend::Kind::Normal
+            | noirc_frontend::Kind::IntegerOrField
+            | noirc_frontend::Kind::Integer => None,
+            noirc_frontend::Kind::Numeric(typ) => Some(typ.to_string()),
+        };
+        let name = generic.name.to_string();
+        Generic { name, numeric }
     }
 
     fn doc_comments(&self, id: ReferenceId) -> Option<String> {

@@ -33,7 +33,7 @@ pub struct Module {
 pub struct Struct {
     pub id: usize,
     pub name: String,
-    pub generics: Vec<String>,
+    pub generics: Vec<Generic>,
     pub fields: Vec<StructField>,
     pub comments: Option<String>,
 }
@@ -59,7 +59,7 @@ pub struct Function {
     pub unconstrained: bool,
     pub comptime: bool,
     pub name: String,
-    pub generics: Vec<String>,
+    pub generics: Vec<Generic>,
     pub params: Vec<FunctionParam>,
     pub return_type: Type,
     pub comments: Option<String>,
@@ -75,7 +75,7 @@ pub struct FunctionParam {
 pub struct Trait {
     pub id: usize,
     pub name: String,
-    pub generics: Vec<String>,
+    pub generics: Vec<Generic>,
     pub methods: Vec<Function>,
     pub comments: Option<String>,
 }
@@ -84,9 +84,15 @@ pub struct Trait {
 pub struct TypeAlias {
     pub id: usize,
     pub name: String,
-    pub generics: Vec<String>,
+    pub generics: Vec<Generic>,
     pub r#type: Type,
     pub comments: Option<String>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct Generic {
+    pub name: String,
+    pub numeric: Option<String>,
 }
 
 // TODO: use an enum
