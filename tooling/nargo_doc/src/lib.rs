@@ -6,7 +6,7 @@ use noirc_frontend::ast::ItemVisibility;
 use noirc_frontend::hir::def_map::ModuleDefId;
 use noirc_frontend::hir::printer::items as expand_items;
 use noirc_frontend::hir_def::stmt::{HirLetStatement, HirPattern};
-use noirc_frontend::node_interner::ReferenceId;
+use noirc_frontend::node_interner::{FuncId, ReferenceId};
 use noirc_frontend::{graph::CrateGraph, hir::def_map::DefMaps, node_interner::NodeInterner};
 
 use crate::items::{
@@ -81,19 +81,19 @@ impl<'a> DocItemBuilder<'a> {
                     comments,
                 })
             }
-            expand_items::Item::Trait(trait_) => {
-                let trait_id = trait_.id;
+            expand_items::Item::Trait(item_trait) => {
+                let trait_id = item_trait.id;
                 let trait_ = self.interner.get_trait(trait_id);
                 let name = trait_.name.to_string();
                 let comments = self.doc_comments(ReferenceId::Trait(trait_id));
                 let generics = vecmap(&trait_.generics, |generic| generic.name.to_string());
+                let methods = vecmap(item_trait.methods, |func_id| self.convert_function(func_id));
 
                 // TODO: parents
                 // TODO: where clauses
-                // TODO: methods
                 // TODO: trait impls
                 let id = self.get_id(ModuleDefId::TraitId(trait_id));
-                Item::Trait(Trait { id, name, generics, comments })
+                Item::Trait(Trait { id, name, generics, comments, methods })
             }
             expand_items::Item::TypeAlias(type_alias_id) => {
                 let type_alias = self.interner.get_type_alias(type_alias_id);
@@ -120,37 +120,38 @@ impl<'a> DocItemBuilder<'a> {
                 let comments = self.doc_comments(ReferenceId::Global(global_id));
                 Item::Global(Global { name, comments, comptime, mutable, r#type })
             }
-            expand_items::Item::Function(func_id) => {
-                let modifiers = self.interner.function_modifiers(&func_id);
-                let func_meta = self.interner.function_meta(&func_id);
-                let unconstrained = modifiers.is_unconstrained;
-                let comptime = modifiers.is_comptime;
-                let name = modifiers.name.to_string();
-                let comments = self.doc_comments(ReferenceId::Function(func_id));
-                let generics =
-                    vecmap(&func_meta.direct_generics, |generic| generic.name.to_string());
-                let params = vecmap(func_meta.parameters.iter(), |(param, typ, _visibility)| {
-                    let name = self.pattern_to_string(param);
-                    let r#type = self.convert_type(typ);
-                    FunctionParam { name, r#type }
-                });
-                let return_type = self.convert_type(func_meta.return_type());
-                // TODO: where clauses
-                Item::Function(Function {
-                    name,
-                    comments,
-                    unconstrained,
-                    comptime,
-                    generics,
-                    params,
-                    return_type,
-                })
-            }
+            expand_items::Item::Function(func_id) => Item::Function(self.convert_function(func_id)),
         }
     }
 
     fn convert_type(&self, typ: &noirc_frontend::Type) -> Type {
         Type { name: typ.to_string() }
+    }
+
+    fn convert_function(&self, func_id: FuncId) -> Function {
+        let modifiers = self.interner.function_modifiers(&func_id);
+        let func_meta = self.interner.function_meta(&func_id);
+        let unconstrained = modifiers.is_unconstrained;
+        let comptime = modifiers.is_comptime;
+        let name = modifiers.name.to_string();
+        let comments = self.doc_comments(ReferenceId::Function(func_id));
+        let generics = vecmap(&func_meta.direct_generics, |generic| generic.name.to_string());
+        let params = vecmap(func_meta.parameters.iter(), |(pattern, typ, _visibility)| {
+            let is_self = self.pattern_is_self(pattern);
+
+            // `&mut self` is represented as a mutable reference type, not as a mutable pattern
+            let name = if is_self && matches!(typ, noirc_frontend::Type::Reference(..)) {
+                "&mut self".to_string()
+            } else {
+                self.pattern_to_string(pattern)
+            };
+
+            let r#type = self.convert_type(typ);
+            FunctionParam { name, r#type }
+        });
+        let return_type = self.convert_type(func_meta.return_type());
+        // TODO: where clauses
+        Function { name, comments, unconstrained, comptime, generics, params, return_type }
     }
 
     fn doc_comments(&self, id: ReferenceId) -> Option<String> {
@@ -165,6 +166,17 @@ impl<'a> DocItemBuilder<'a> {
             }
             HirPattern::Mutable(inner_pattern, _) => self.pattern_to_string(&*inner_pattern),
             HirPattern::Tuple(..) | HirPattern::Struct(..) => "_".to_string(),
+        }
+    }
+
+    fn pattern_is_self(&self, pattern: &HirPattern) -> bool {
+        match pattern {
+            HirPattern::Identifier(ident) => {
+                let definition = self.interner.definition(ident.id);
+                definition.name == "self"
+            }
+            HirPattern::Mutable(pattern, _) => self.pattern_is_self(pattern),
+            HirPattern::Tuple(..) | HirPattern::Struct(..) => false,
         }
     }
 
