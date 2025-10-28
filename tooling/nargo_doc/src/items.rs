@@ -56,9 +56,10 @@ pub struct Global {
 
 #[derive(Serialize, Deserialize)]
 pub struct Function {
-    pub name: String,
     pub unconstrained: bool,
     pub comptime: bool,
+    pub name: String,
+    pub generics: Vec<String>,
     pub comments: Option<String>,
 }
 

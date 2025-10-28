@@ -120,15 +120,17 @@ impl<'a> DocItemBuilder<'a> {
             }
             expand_items::Item::Function(func_id) => {
                 let modifiers = self.interner.function_modifiers(&func_id);
+                let func_meta = self.interner.function_meta(&func_id);
                 let unconstrained = modifiers.is_unconstrained;
                 let comptime = modifiers.is_comptime;
                 let name = modifiers.name.to_string();
                 let comments = self.doc_comments(ReferenceId::Function(func_id));
-                // TODO: generics
+                let generics =
+                    vecmap(&func_meta.direct_generics, |generic| generic.name.to_string());
                 // TODO: args
                 // TODO: return type
                 // TODO: where clauses
-                Item::Function(Function { name, comments, unconstrained, comptime })
+                Item::Function(Function { name, comments, unconstrained, comptime, generics })
             }
         }
     }
