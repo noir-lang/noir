@@ -602,7 +602,7 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Resolves a traits methods, but does not elaborate their bodies.
+    /// Resolves a trait's methods, but does not elaborate their bodies.
     /// Sets the FuncMeta for each trait method.
     fn resolve_trait_methods(
         &mut self,
