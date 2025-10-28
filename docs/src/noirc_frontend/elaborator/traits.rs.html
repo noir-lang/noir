@@ -914,7 +914,47 @@
 <a href="#913" id="913">913</a>
 <a href="#914" id="914">914</a>
 <a href="#915" id="915">915</a>
-<a href="#916" id="916">916</a></pre></div><pre class="rust"><code><span class="doccomment">//! Trait definition collection, bounds resolution, and associated types.
+<a href="#916" id="916">916</a>
+<a href="#917" id="917">917</a>
+<a href="#918" id="918">918</a>
+<a href="#919" id="919">919</a>
+<a href="#920" id="920">920</a>
+<a href="#921" id="921">921</a>
+<a href="#922" id="922">922</a>
+<a href="#923" id="923">923</a>
+<a href="#924" id="924">924</a>
+<a href="#925" id="925">925</a>
+<a href="#926" id="926">926</a>
+<a href="#927" id="927">927</a>
+<a href="#928" id="928">928</a>
+<a href="#929" id="929">929</a>
+<a href="#930" id="930">930</a>
+<a href="#931" id="931">931</a>
+<a href="#932" id="932">932</a>
+<a href="#933" id="933">933</a>
+<a href="#934" id="934">934</a>
+<a href="#935" id="935">935</a>
+<a href="#936" id="936">936</a>
+<a href="#937" id="937">937</a>
+<a href="#938" id="938">938</a>
+<a href="#939" id="939">939</a>
+<a href="#940" id="940">940</a>
+<a href="#941" id="941">941</a>
+<a href="#942" id="942">942</a>
+<a href="#943" id="943">943</a>
+<a href="#944" id="944">944</a>
+<a href="#945" id="945">945</a>
+<a href="#946" id="946">946</a>
+<a href="#947" id="947">947</a>
+<a href="#948" id="948">948</a>
+<a href="#949" id="949">949</a>
+<a href="#950" id="950">950</a>
+<a href="#951" id="951">951</a>
+<a href="#952" id="952">952</a>
+<a href="#953" id="953">953</a>
+<a href="#954" id="954">954</a>
+<a href="#955" id="955">955</a>
+<a href="#956" id="956">956</a></pre></div><pre class="rust"><code><span class="doccomment">//! Trait definition collection, bounds resolution, and associated types.
 //!
 //! # Terminology:
 //!
@@ -1107,7 +1147,13 @@
 <span class="kw">use </span><span class="kw">super</span>::Elaborator;
 
 <span class="kw">impl </span>Elaborator&lt;<span class="lifetime">'_</span>&gt; {
-    <span class="kw">pub fn </span>collect_traits(<span class="kw-2">&amp;mut </span><span class="self">self</span>, traits: <span class="kw-2">&amp;mut </span>BTreeMap&lt;TraitId, UnresolvedTrait&gt;) {
+    <span class="doccomment">/// For each trait:
+    /// 1. Desugar any trait constraints using implicit associated types into the explicit form,
+    ///    mentioning all associated types.
+    /// 2. Resolves the trait's where clause.
+    /// 3. Resolves any bounds on associated types
+    /// 4. Resolves the trait's bounds (its listed super traits).
+    </span><span class="kw">pub fn </span>collect_traits(<span class="kw-2">&amp;mut </span><span class="self">self</span>, traits: <span class="kw-2">&amp;mut </span>BTreeMap&lt;TraitId, UnresolvedTrait&gt;) {
         <span class="kw">for </span>(trait_id, unresolved_trait) <span class="kw">in </span>traits {
             <span class="self">self</span>.local_module = unresolved_trait.module_id;
 
@@ -1115,7 +1161,9 @@
                 this.current_trait = <span class="prelude-val">Some</span>(<span class="kw-2">*</span>trait_id);
 
                 <span class="kw">let </span>the_trait = this.interner.get_trait(<span class="kw-2">*</span>trait_id);
-                <span class="kw">let </span>self_typevar = the_trait.self_type_typevar.clone();
+
+                <span class="comment">// Add each type variable from the trait (including Self) into scope.
+                </span><span class="kw">let </span>self_typevar = the_trait.self_type_typevar.clone();
                 <span class="kw">let </span>self_type = Type::TypeVariable(self_typevar.clone());
                 this.self_type = <span class="prelude-val">Some</span>(self_type.clone());
 
@@ -1125,8 +1173,12 @@
                     <span class="kw-2">&amp;</span>resolved_generics,
                 );
 
-                <span class="kw">let </span>new_generics =
+                <span class="comment">// Transform any constraints omitting their associated types (e.g. `I: Iterator`)
+                // into the explicit form (e.g. `I: Iterator&lt;Item = FreshGeneric&gt;`), returning
+                // any fresh generics created in the process (`[FreshGeneric]` here).
+                </span><span class="kw">let </span>new_generics =
                     this.desugar_trait_constraints(<span class="kw-2">&amp;mut </span>unresolved_trait.trait_def.where_clause);
+
                 <span class="kw">let </span>new_generics = vecmap(new_generics, |(generic, _bounds)| {
                     <span class="comment">// TODO: use `_bounds` variable above
                     // See https://github.com/noir-lang/noir/issues/8601
@@ -1158,7 +1210,10 @@
                         .add_trait_dependency(DependencyId::Trait(bound.trait_id), <span class="kw-2">*</span>trait_id);
                 }
 
-                this.interner.update_trait(<span class="kw-2">*</span>trait_id, |trait_def| {
+                <span class="comment">// TODO: Is it necessary to have both `where_clause` and `resolved_trait_bounds`?
+                // They both seem to be expressing trait constraints on this trait with the bounds
+                // limited to just constraints on `Self`. These may be able to be combined.
+                </span>this.interner.update_trait(<span class="kw-2">*</span>trait_id, |trait_def| {
                     trait_def.set_trait_bounds(resolved_trait_bounds);
                     trait_def.set_where_clause(where_clause);
                     trait_def.set_visibility(unresolved_trait.trait_def.visibility);
@@ -1172,14 +1227,19 @@
         <span class="self">self</span>.current_trait = <span class="prelude-val">None</span>;
     }
 
-    <span class="kw">pub fn </span>collect_trait_methods(<span class="kw-2">&amp;mut </span><span class="self">self</span>, traits: <span class="kw-2">&amp;mut </span>BTreeMap&lt;TraitId, UnresolvedTrait&gt;) {
+    <span class="doccomment">/// Resolve the methods of each trait in an environment where the trait's generics are in scope.
+    ///
+    /// This mostly consists of resolving each parameter and any trait constraints. The trait
+    /// method bodies are not elaborated.
+    </span><span class="kw">pub fn </span>collect_trait_methods(<span class="kw-2">&amp;mut </span><span class="self">self</span>, traits: <span class="kw-2">&amp;mut </span>BTreeMap&lt;TraitId, UnresolvedTrait&gt;) {
         <span class="kw">for </span>(trait_id, unresolved_trait) <span class="kw">in </span>traits {
             <span class="self">self</span>.local_module = unresolved_trait.module_id;
 
             <span class="self">self</span>.recover_generics(|this| {
                 this.current_trait = <span class="prelude-val">Some</span>(<span class="kw-2">*</span>trait_id);
 
-                <span class="kw">let </span>the_trait = this.interner.get_trait(<span class="kw-2">*</span>trait_id);
+                <span class="comment">// Put `Self` and other trait generics in scope
+                </span><span class="kw">let </span>the_trait = this.interner.get_trait(<span class="kw-2">*</span>trait_id);
                 <span class="kw">let </span>self_typevar = the_trait.self_type_typevar.clone();
                 <span class="kw">let </span>self_type = Type::TypeVariable(self_typevar.clone());
                 this.self_type = <span class="prelude-val">Some</span>(self_type.clone());
@@ -1341,7 +1401,9 @@
         <span class="self">self</span>.resolve_trait_bound_inner(bound, PathResolutionMode::MarkAsUsed)
     }
 
-    <span class="kw">fn </span>resolve_trait_bound_inner(
+    <span class="doccomment">/// Resolve the given TraitBound, pushing error(s) if the path or any
+    /// types used failed to resolve.
+    </span><span class="kw">fn </span>resolve_trait_bound_inner(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         bound: <span class="kw-2">&amp;</span>TraitBound,
         mode: PathResolutionMode,
@@ -1364,7 +1426,12 @@
         <span class="prelude-val">Some</span>(ResolvedTraitBound { trait_id, trait_generics, location })
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>add_trait_constraints_to_scope&lt;<span class="lifetime">'a</span>&gt;(
+    <span class="doccomment">/// Adds the given trait constraints to scope as assumed trait impls.
+    ///
+    /// Since there is no global/local scope distinction for trait constraints,
+    /// care should be taken to manually remove these from scope (via
+    /// [Self::remove_trait_constraints_from_scope]) after the desired item finishes resolving.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>add_trait_constraints_to_scope&lt;<span class="lifetime">'a</span>&gt;(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         constraints: <span class="kw">impl </span>Iterator&lt;Item = <span class="kw-2">&amp;</span><span class="lifetime">'a </span>TraitConstraint&gt;,
         location: Location,
@@ -1393,7 +1460,11 @@
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>remove_trait_constraints_from_scope&lt;<span class="lifetime">'a</span>&gt;(
+    <span class="doccomment">/// The removing counterpart for [Self::add_trait_constraints_to_scope].
+    ///
+    /// This will only remove assumed trait impls from scope, but this
+    /// is always what is desired since true trait impls are permanent.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>remove_trait_constraints_from_scope&lt;<span class="lifetime">'a</span>&gt;(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         constraints: <span class="kw">impl </span>Iterator&lt;Item = <span class="kw-2">&amp;</span><span class="lifetime">'a </span>TraitConstraint&gt;,
     ) {
@@ -1487,7 +1558,9 @@
         }
     }
 
-    <span class="kw">fn </span>resolve_trait_methods(
+    <span class="doccomment">/// Resolves a trait's methods, but does not elaborate their bodies.
+    /// Sets the FuncMeta for each trait method.
+    </span><span class="kw">fn </span>resolve_trait_methods(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         trait_id: TraitId,
         unresolved_trait: <span class="kw-2">&amp;</span>UnresolvedTrait,
@@ -1592,7 +1665,10 @@
         functions
     }
 
-    <span class="attr">#[allow(clippy::too_many_arguments)]
+    <span class="doccomment">/// Defines the FuncMeta for this trait function.
+    ///
+    /// The bodies of each function (if they exist) are not elaborated.
+    </span><span class="attr">#[allow(clippy::too_many_arguments)]
     </span><span class="kw">pub fn </span>resolve_trait_function(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         trait_id: TraitId,
@@ -1752,7 +1828,11 @@
     errors
 }
 
-<span class="attr">#[allow(clippy::too_many_arguments)]
+<span class="doccomment">/// Check the given function type matches the expected one.
+///
+/// This is used to check if a trait impl's function type matches the declared function in the
+/// original trait declaration - while handling the appropriate generic substitutions.
+</span><span class="attr">#[allow(clippy::too_many_arguments)]
 </span><span class="kw">fn </span>check_function_type_matches_expected_type(
     expected: <span class="kw-2">&amp;</span>Type,
     actual: <span class="kw-2">&amp;</span>Type,
