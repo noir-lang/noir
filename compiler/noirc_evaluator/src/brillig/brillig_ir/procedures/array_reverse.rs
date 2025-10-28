@@ -1,5 +1,3 @@
-use std::vec;
-
 use acvm::{AcirField, acir::brillig::MemoryAddress};
 
 use super::ProcedureId;
@@ -29,11 +27,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 pub(super) fn compile_array_reverse_procedure<F: AcirField + DebugToString>(
     brillig_context: &mut BrilligContext<F, ScratchSpace>,
 ) {
-    let scratch_start = brillig_context.registers.start();
-    let source_pointer = MemoryAddress::direct(scratch_start);
-    let size_register = MemoryAddress::direct(scratch_start + 1);
-
-    brillig_context.set_allocated_registers(vec![source_pointer, size_register]);
+    let [source_pointer, size_register] = brillig_context.allocate_scratch_registers();
 
     brillig_context.codegen_array_reverse(source_pointer, size_register);
 }

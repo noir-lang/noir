@@ -172,7 +172,7 @@ pub(super) fn simplify_binary(
                         return SimplifyResult::SimplifiedToInstruction(Instruction::Truncate {
                             value: lhs,
                             bit_size,
-                            max_bit_size: lhs_type.bit_size(),
+                            max_bit_size: lhs_type.bit_size::<FieldElement>(),
                         });
                     }
                 }
@@ -260,7 +260,7 @@ pub(super) fn simplify_binary(
                             let value = if lhs_value.is_some() { rhs } else { lhs };
                             let bit_size =
                                 if bitmask == u128::MAX { 128 } else { (bitmask + 1).ilog2() };
-                            let max_bit_size = lhs_type.bit_size();
+                            let max_bit_size = lhs_type.bit_size::<FieldElement>();
 
                             if bit_size == max_bit_size {
                                 // If we're truncating a value into the full size of its type then

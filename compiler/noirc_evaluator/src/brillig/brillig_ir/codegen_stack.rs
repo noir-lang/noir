@@ -101,9 +101,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             return;
         }
         // Now process all the remaining loops with a temporary register if needed.
-        let temp_register =
-            if free_register.is_none() { Some(self.allocate_register()) } else { None };
-        let register = free_register.unwrap_or(temp_register.unwrap());
+        let register = free_register.unwrap_or(*self.allocate_register());
         for i in 0..n {
             if children[i] == 1 {
                 let src = Self::from_index(i);
@@ -112,8 +110,8 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                 self.process_loop(i, &register, &mut children, &sources, &mut processed);
             }
         }
-        if let Some(temp) = temp_register {
-            self.deallocate_register(temp);
+        if free_register.is_none() {
+            self.deallocate_register(register);
         }
     }
 
