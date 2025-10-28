@@ -715,7 +715,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 }
 
 /// Returns the type of the operation considering the types of the operands.
-pub(crate) fn type_of_binary_operation(lhs_type: &Type, rhs_type: &Type, _op: BinaryOp) -> Type {
+pub(crate) fn type_of_binary_operation(lhs_type: &Type, rhs_type: &Type) -> Type {
     match (lhs_type, rhs_type) {
         (_, Type::Function) | (Type::Function, _) => {
             unreachable!("Functions are invalid in binary operations")

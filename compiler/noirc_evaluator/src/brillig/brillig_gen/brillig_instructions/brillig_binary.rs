@@ -22,7 +22,6 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         let binary_type = type_of_binary_operation(
             dfg[binary.lhs].get_type().as_ref(),
             dfg[binary.rhs].get_type().as_ref(),
-            binary.operator,
         );
 
         let left = self.convert_ssa_single_addr_value(binary.lhs, dfg);

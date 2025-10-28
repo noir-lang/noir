@@ -181,8 +181,8 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.enter_section(end_section);
     }
 
-    /// Emits brillig bytecode to jump to a trap condition if `condition`
-    /// is false. The trap will include the given message as revert data.
+    /// Jump to a trap condition if `condition` is false.
+    /// The trap will include the given message as revert data.
     pub(crate) fn codegen_constrain_with_revert_data(
         &mut self,
         condition: SingleAddrVariable,
@@ -246,7 +246,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         });
     }
 
-    /// Emits brillig bytecode to jump to a trap condition if `condition` is false,
+    /// Jump to a trap condition if `condition` is false,
     /// with any assertion message written to the revert data.
     pub(crate) fn codegen_constrain(
         &mut self,
@@ -270,7 +270,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         });
     }
 
-    /// Emits brillig byte code with a trap opcode, reverting with data that contains a specific error message.
+    /// Emits bytecode with a trap opcode, reverting with data that contains a specific error message.
     pub(super) fn revert_with_string(&mut self, revert_string: String) {
         if self.can_call_procedures {
             self.call_revert_with_string_procedure(revert_string);

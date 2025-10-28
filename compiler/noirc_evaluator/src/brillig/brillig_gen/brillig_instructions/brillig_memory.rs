@@ -306,7 +306,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
             .codegen_constrain(*condition, Some("array ref-count underflow detected".to_owned()));
     }
 
-    /// Define the result variable then allocate 1 slot from free memory to hold a reference in it.
+    /// Define the result variable on the stack, then allocate 1 memory slot on the heap point the reference variable at it.
     pub(crate) fn codegen_allocate(&mut self, instruction_id: InstructionId, dfg: &DataFlowGraph) {
         let [result_id] = dfg.instruction_result(instruction_id);
         let pointer = self.variables.define_single_addr_variable(
@@ -434,7 +434,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                 dfg,
             );
 
-            // Initialize the variable, which allocates free memory to hold the ref-count and the items.
+            // Initialize the variable, which allocates memory on the heap to hold the metadata and the items.
             match new_variable {
                 BrilligVariable::BrilligArray(brillig_array) => {
                     debug_assert_eq!(array.len(), brillig_array.size);
