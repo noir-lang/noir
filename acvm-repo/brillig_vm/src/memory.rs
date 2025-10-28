@@ -50,9 +50,9 @@ impl From<MemoryAddress> for ArrayAddress {
 
 /// Wrapper for vector addresses, with convenience methods for various offsets.
 ///
-/// The vector consists of a ref-count, followed by the size, and then a
-/// number of items indicated by the size. This is different from how Brillig
-/// stores them internally, where an extra slot for the capacity is used.
+/// A vector is prefixed by 3 meta-data fields: the ref-count, the size, and the capacity,
+/// which are followed by a number of items indicated by its capacity, with the items
+/// its size being placeholders to accommodate future growth.
 ///
 /// The semantic length of the vector is maintained at a separate address.
 pub(crate) struct VectorAddress(MemoryAddress);
