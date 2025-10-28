@@ -60,7 +60,14 @@ pub struct Function {
     pub comptime: bool,
     pub name: String,
     pub generics: Vec<String>,
+    pub params: Vec<FunctionParam>,
     pub comments: Option<String>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct FunctionParam {
+    pub name: String,
+    pub r#type: Type,
 }
 
 #[derive(Serialize, Deserialize)]

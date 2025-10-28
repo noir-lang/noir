@@ -5,11 +5,13 @@ use noirc_driver::CrateId;
 use noirc_frontend::ast::ItemVisibility;
 use noirc_frontend::hir::def_map::ModuleDefId;
 use noirc_frontend::hir::printer::items as expand_items;
-use noirc_frontend::hir_def::stmt::HirLetStatement;
+use noirc_frontend::hir_def::stmt::{HirLetStatement, HirPattern};
 use noirc_frontend::node_interner::ReferenceId;
 use noirc_frontend::{graph::CrateGraph, hir::def_map::DefMaps, node_interner::NodeInterner};
 
-use crate::items::{Function, Global, Item, Module, Struct, StructField, Trait, Type, TypeAlias};
+use crate::items::{
+    Function, FunctionParam, Global, Item, Module, Struct, StructField, Trait, Type, TypeAlias,
+};
 
 pub mod items;
 
@@ -127,10 +129,21 @@ impl<'a> DocItemBuilder<'a> {
                 let comments = self.doc_comments(ReferenceId::Function(func_id));
                 let generics =
                     vecmap(&func_meta.direct_generics, |generic| generic.name.to_string());
-                // TODO: args
+                let params = vecmap(func_meta.parameters.iter(), |(param, typ, _visibility)| {
+                    let name = self.pattern_to_string(param);
+                    let r#type = self.convert_type(typ);
+                    FunctionParam { name, r#type }
+                });
                 // TODO: return type
                 // TODO: where clauses
-                Item::Function(Function { name, comments, unconstrained, comptime, generics })
+                Item::Function(Function {
+                    name,
+                    comments,
+                    unconstrained,
+                    comptime,
+                    generics,
+                    params,
+                })
             }
         }
     }
@@ -141,6 +154,17 @@ impl<'a> DocItemBuilder<'a> {
 
     fn doc_comments(&self, id: ReferenceId) -> Option<String> {
         self.interner.doc_comments(id).map(|comments| comments.join("\n").trim().to_string())
+    }
+
+    fn pattern_to_string(&self, pattern: &HirPattern) -> String {
+        match pattern {
+            HirPattern::Identifier(ident) => {
+                let definition = self.interner.definition(ident.id);
+                definition.name.to_string()
+            }
+            HirPattern::Mutable(inner_pattern, _) => self.pattern_to_string(&*inner_pattern),
+            HirPattern::Tuple(..) | HirPattern::Struct(..) => "_".to_string(),
+        }
     }
 
     fn get_id(&mut self, id: ModuleDefId) -> usize {
