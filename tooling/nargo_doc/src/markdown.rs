@@ -1,20 +1,79 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use crate::items::{
     Crate, Crates, Function, Generic, Item, Module, Struct, Trait, TraitConstraint, Type,
 };
 
 pub fn to_markdown(crates: &Crates) -> String {
-    let mut renderer = MarkdownRenderer { output: String::new() };
+    let mut renderer = MarkdownRenderer::new(crates);
     renderer.render_crates(crates);
     renderer.output
 }
 
 struct MarkdownRenderer {
     output: String,
+
+    /// Maps item IDs to strings so that HTML anchors have meaningful names.
+    id_to_string: HashMap<usize, String>,
 }
 
 impl MarkdownRenderer {
+    fn new(crates: &Crates) -> Self {
+        let id_to_string = Self::compute_id_to_strings(crates);
+        Self { output: String::new(), id_to_string }
+    }
+
+    /// Computes a mapping from item IDs to strings so that HTML anchors have meaningful names.
+    fn compute_id_to_strings(crates: &Crates) -> HashMap<usize, String> {
+        let mut id_strings = HashSet::new();
+        let mut id_to_string = HashMap::new();
+
+        for krate in &crates.crates {
+            for module in &krate.modules {
+                for item in &module.items {
+                    match item {
+                        Item::Struct(struct_) => Self::compute_id_to_string(
+                            struct_.id,
+                            &struct_.name,
+                            &mut id_strings,
+                            &mut id_to_string,
+                        ),
+                        Item::Trait(trait_) => Self::compute_id_to_string(
+                            trait_.id,
+                            &trait_.name,
+                            &mut id_strings,
+                            &mut id_to_string,
+                        ),
+                        Item::TypeAlias(alias_) => Self::compute_id_to_string(
+                            alias_.id,
+                            &alias_.name,
+                            &mut id_strings,
+                            &mut id_to_string,
+                        ),
+                        _ => {}
+                    }
+                }
+            }
+        }
+
+        id_to_string
+    }
+
+    fn compute_id_to_string(
+        id: usize,
+        name: &str,
+        id_strings: &mut HashSet<String>,
+        id_to_string: &mut HashMap<usize, String>,
+    ) {
+        if id_strings.contains(name) {
+            let name = &format!("{name}_");
+            Self::compute_id_to_string(id, name, id_strings, id_to_string);
+        } else {
+            id_strings.insert(name.to_string());
+            id_to_string.insert(id, name.to_string());
+        }
+    }
+
     fn render_crates(&mut self, crates: &Crates) {
         for krate in &crates.crates {
             self.render_crate(krate);
@@ -52,6 +111,7 @@ impl MarkdownRenderer {
     }
 
     fn render_struct(&mut self, struct_: &Struct) {
+        self.anchor(struct_.id);
         self.h3(&format!("Struct `{}`", struct_.name));
         self.render_comments(&struct_.comments);
         self.render_struct_code(struct_);
@@ -112,6 +172,7 @@ impl MarkdownRenderer {
     }
 
     fn render_trait(&mut self, trait_: &Trait) {
+        self.anchor(trait_.id);
         self.h3(&format!("Trait `{}`", trait_.name));
         self.render_comments(&trait_.comments);
     }
@@ -186,7 +247,7 @@ impl MarkdownRenderer {
             self.output.push_str("&nbsp;&nbsp;&nbsp;&nbsp;");
             self.render_type(&constraint.r#type);
             self.output.push_str(": ");
-            self.render_trait_reference(&constraint.bound.trait_id, &constraint.bound.trait_name);
+            self.render_id(constraint.bound.trait_id, &constraint.bound.trait_name);
             self.render_trait_generics(
                 &constraint.bound.ordered_generics,
                 &constraint.bound.named_generics,
@@ -198,9 +259,12 @@ impl MarkdownRenderer {
         }
     }
 
-    fn render_trait_reference(&mut self, _trait_id: &usize, trait_name: &str) {
-        // TODO: link
-        self.output.push_str(trait_name);
+    fn render_id(&mut self, id: usize, name: &str) {
+        if let Some(anchor_name) = self.id_to_string.get(&id) {
+            self.output.push_str(&format!("[{name}](#{anchor_name})"));
+        } else {
+            self.output.push_str(name);
+        }
     }
 
     fn render_type(&mut self, typ: &Type) {
@@ -253,12 +317,12 @@ impl MarkdownRenderer {
                 }
                 self.render_type(r#type);
             }
-            Type::Struct { id: _, name, generics } => {
-                self.output.push_str(name);
+            Type::Struct { id, name, generics } => {
+                self.render_id(*id, name);
                 self.render_generic_types(generics);
             }
-            Type::TypeAlias { id: _, name, generics } => {
-                self.output.push_str(name);
+            Type::TypeAlias { id, name, generics } => {
+                self.render_id(*id, name);
                 self.render_generic_types(generics);
             }
             Type::Function { params, return_type, env, unconstrained } => {
@@ -297,9 +361,9 @@ impl MarkdownRenderer {
                 self.output.push(' ');
                 self.render_type(rhs);
             }
-            Type::TraitAsType { trait_id: _, trait_name, ordered_generics, named_generics } => {
+            Type::TraitAsType { trait_id, trait_name, ordered_generics, named_generics } => {
                 self.output.push_str("impl ");
-                self.output.push_str(trait_name);
+                self.render_id(*trait_id, &trait_name);
                 self.render_trait_generics(ordered_generics, named_generics);
             }
         }
@@ -366,5 +430,10 @@ impl MarkdownRenderer {
 
     fn h4(&mut self, text: &str) {
         self.output.push_str(&format!("#### {}\n\n", text));
+    }
+
+    fn anchor(&mut self, id: usize) {
+        let name = &self.id_to_string[&id];
+        self.output.push_str(&format!("<a id=\"{}\"></a>\n", name));
     }
 }
