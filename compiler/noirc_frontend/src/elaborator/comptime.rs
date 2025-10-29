@@ -1,8 +1,9 @@
 //! Comptime expression evaluation and macro expansion via the interpreter.
 //!
 //! This module handles the execution of compile-time code and attributes in Noir.
-//! The main flow is:
 //!
+//! # Design 
+//! 
 //! 1. Context Initialization: Set up a fresh elaborator context for evaluating comptime code.
 //! 2. Collection: Gather and validate all attributes from items in source order
 //! 2. Execution: Run each attribute function with the attributed item
