@@ -1,7 +1,8 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 use crate::items::{
-    Crate, Crates, Function, Generic, Item, Module, Struct, Trait, TraitConstraint, Type,
+    Crate, Crates, Function, Generic, Item, Module, Struct, Trait, TraitBound, TraitConstraint,
+    Type,
 };
 
 pub fn to_markdown(crates: &Crates) -> String {
@@ -131,12 +132,14 @@ impl MarkdownRenderer {
         } else {
             self.output.push_str(" {<br/>");
             for field in &struct_.fields {
-                self.output.push_str(&format!("&nbsp;&nbsp;&nbsp;&nbsp;pub {}: ", field.name,));
+                self.html_indent();
+                self.output.push_str(&format!("pub {}: ", field.name,));
                 self.render_type(&field.r#type);
                 self.output.push_str(",<br/>");
             }
             if struct_.has_private_fields {
-                self.output.push_str("&nbsp;&nbsp;&nbsp;&nbsp;/* private fields */<br/>");
+                self.html_indent();
+                self.output.push_str("/* private fields */<br/>");
             }
             self.output.push_str("}<br/>");
         }
@@ -174,7 +177,30 @@ impl MarkdownRenderer {
     fn render_trait(&mut self, trait_: &Trait) {
         self.anchor(trait_.id);
         self.h3(&format!("Trait `{}`", trait_.name));
+        self.render_trait_code(trait_);
         self.render_comments(&trait_.comments);
+    }
+
+    fn render_trait_code(&mut self, trait_: &Trait) {
+        self.output.push_str("<code>");
+        self.output.push_str(&format!("pub trait {}", trait_.name));
+        self.render_generics(&trait_.generics);
+        if !trait_.bounds.is_empty() {
+            self.output.push_str(":<br/>");
+            for (index, bound) in trait_.bounds.iter().enumerate() {
+                if index > 0 {
+                    self.output.push_str("<br/>");
+                }
+                self.html_indent();
+                if index > 0 {
+                    self.output.push_str("+ ");
+                }
+                self.render_trait_bound(bound);
+            }
+        }
+        self.render_where_clause(&trait_.where_clause);
+        self.output.push_str(" {<br/>}");
+        self.output.push_str("</code>\n");
     }
 
     fn render_functions(&mut self, items: &[Item]) {
@@ -206,7 +232,8 @@ impl MarkdownRenderer {
                 self.output.push_str(", ");
             }
             if use_newlines {
-                self.output.push_str("<br/>&nbsp;&nbsp;&nbsp;&nbsp;");
+                self.output.push_str("<br/>");
+                self.html_indent();
             }
             self.output.push_str(&param.name);
             self.output.push_str(": ");
@@ -230,7 +257,7 @@ impl MarkdownRenderer {
             return;
         }
 
-        self.output.push('<');
+        self.output.push_str("&lt;");
         for (index, generic) in generics.iter().enumerate() {
             if index > 0 {
                 self.output.push_str(", ");
@@ -241,7 +268,7 @@ impl MarkdownRenderer {
                 self.output.push_str(&generic.name);
             }
         }
-        self.output.push('>');
+        self.output.push_str("&gt;");
     }
 
     fn render_where_clause(&mut self, where_clause: &[TraitConstraint]) {
@@ -251,19 +278,20 @@ impl MarkdownRenderer {
 
         self.output.push_str("<br/>where<br/>");
         for (index, constraint) in where_clause.iter().enumerate() {
-            self.output.push_str("&nbsp;&nbsp;&nbsp;&nbsp;");
+            self.html_indent();
             self.render_type(&constraint.r#type);
             self.output.push_str(": ");
-            self.render_id(constraint.bound.trait_id, &constraint.bound.trait_name);
-            self.render_trait_generics(
-                &constraint.bound.ordered_generics,
-                &constraint.bound.named_generics,
-            );
+            self.render_trait_bound(&constraint.bound);
             if index != where_clause.len() - 1 {
                 self.output.push(',');
             }
             self.output.push_str("<br/>");
         }
+    }
+
+    fn render_trait_bound(&mut self, bound: &TraitBound) {
+        self.render_id(bound.trait_id, &bound.trait_name);
+        self.render_trait_generics(&bound.ordered_generics, &bound.named_generics);
     }
 
     fn render_id(&mut self, id: usize, name: &str) {
@@ -442,5 +470,9 @@ impl MarkdownRenderer {
     fn anchor(&mut self, id: usize) {
         let name = &self.id_to_string[&id];
         self.output.push_str(&format!("<a id=\"{}\"></a>\n", name));
+    }
+
+    fn html_indent(&mut self) {
+        self.output.push_str("&nbsp;&nbsp;&nbsp;&nbsp;");
     }
 }

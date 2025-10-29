@@ -101,7 +101,7 @@ pub struct Trait {
     pub id: usize,
     pub name: String,
     pub generics: Vec<Generic>,
-    pub parents: Vec<TraitBound>,
+    pub bounds: Vec<TraitBound>,
     pub where_clause: Vec<TraitConstraint>,
     pub methods: Vec<Function>,
     pub trait_impls: Vec<TraitImpl>,

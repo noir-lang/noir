@@ -166,7 +166,7 @@ impl DocItemBuilder<'_> {
                     id,
                     name,
                     generics,
-                    parents,
+                    bounds: parents,
                     where_clause,
                     comments,
                     methods,
