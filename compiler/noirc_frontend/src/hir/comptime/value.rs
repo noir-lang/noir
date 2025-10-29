@@ -367,8 +367,6 @@ impl Value {
         location: Location,
     ) -> IResult<ExprId> {
         let typ = self.get_type().into_owned();
-        eprintln!("into_hir_expression: {}", self.display(interner));
-
         let expression = match self {
             Value::Unit => HirExpression::Literal(HirLiteral::Unit),
             Value::Bool(value) => HirExpression::Literal(HirLiteral::Bool(value)),
