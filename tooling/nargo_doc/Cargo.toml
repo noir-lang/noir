@@ -14,5 +14,6 @@ iter-extended.workspace = true
 serde.workspace = true
 noirc_driver.workspace = true
 noirc_frontend.workspace = true
+noirc_errors.workspace = true
 
 [dev-dependencies]

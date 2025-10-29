@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use clap::Args;
 use fm::FileManager;
 use nargo::{
@@ -6,7 +8,7 @@ use nargo::{
     workspace::Workspace,
 };
 use nargo_doc::{
-    crate_modules,
+    ItemIds, crate_modules,
     items::{Crate, Crates, Module},
 };
 use nargo_toml::PackageSelection;
@@ -43,12 +45,14 @@ pub(crate) fn run(args: DocCommand, workspace: Workspace) -> Result<(), CliError
     let parsed_files = parse_all(&workspace_file_manager);
 
     let mut crates = Vec::new();
+    let mut ids = HashMap::new();
     for package in &workspace {
         let modules = package_modules(
             &workspace_file_manager,
             &parsed_files,
             package,
             &args.compile_options,
+            &mut ids,
         )?;
         crates.push(Crate { name: package.name.to_string(), modules });
     }
@@ -68,10 +72,11 @@ fn package_modules(
     parsed_files: &ParsedFiles,
     package: &Package,
     compile_options: &CompileOptions,
+    ids: &mut ItemIds,
 ) -> Result<Vec<Module>, CompileError> {
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
 
     check_crate_and_report_errors(&mut context, crate_id, compile_options)?;
 
-    Ok(crate_modules(crate_id, &context.crate_graph, &context.def_maps, &context.def_interner))
+    Ok(crate_modules(crate_id, &context.crate_graph, &context.def_maps, &context.def_interner, ids))
 }

@@ -35,7 +35,10 @@ pub struct Struct {
     pub id: usize,
     pub name: String,
     pub generics: Vec<Generic>,
+    /// All `pub` fields of the struct.
     pub fields: Vec<StructField>,
+    /// `true` if the struct has any private fields, besides the public ones listed in `fields`.
+    pub has_private_fields: bool,
     pub impls: Vec<Impl>,
     pub trait_impls: Vec<TraitImpl>,
     pub comments: Option<String>,

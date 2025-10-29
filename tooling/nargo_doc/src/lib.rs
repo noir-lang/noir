@@ -2,12 +2,12 @@ use std::collections::HashMap;
 
 use iter_extended::vecmap;
 use noirc_driver::CrateId;
+use noirc_errors::Location;
 use noirc_frontend::ast::ItemVisibility;
-use noirc_frontend::hir::def_map::ModuleDefId;
 use noirc_frontend::hir::printer::items as expand_items;
 use noirc_frontend::hir_def::stmt::{HirLetStatement, HirPattern};
 use noirc_frontend::hir_def::traits::ResolvedTraitBound;
-use noirc_frontend::node_interner::{FuncId, ReferenceId};
+use noirc_frontend::node_interner::{FuncId, ReferenceId, TraitId, TypeAliasId, TypeId};
 use noirc_frontend::{Kind, NamedGeneric, ResolvedGeneric, TypeBinding};
 use noirc_frontend::{graph::CrateGraph, hir::def_map::DefMaps, node_interner::NodeInterner};
 
@@ -18,27 +18,58 @@ use crate::items::{
 
 pub mod items;
 
+/// Returns the flattened modules in a crate. For example, a crate with this source:
+///
+/// ```noir
+/// pub mod one {
+///   pub mod two {}
+/// }
+/// ```
+///
+/// will return two modules: `one` and `one::two`.
+///
+/// Modules that don't have any items (structs, functions, etc.) will not be included in the output.
 pub fn crate_modules(
     crate_id: CrateId,
     _crate_graph: &CrateGraph,
     def_maps: &DefMaps,
     interner: &NodeInterner,
+    ids: &mut ItemIds,
 ) -> Vec<Module> {
     let item = noirc_frontend::hir::printer::crate_to_item(crate_id, def_maps, interner);
-    let mut builder = DocItemBuilder::new(interner);
+    let mut builder = DocItemBuilder { interner, ids };
     builder.item_modules(item)
 }
 
 struct DocItemBuilder<'a> {
     interner: &'a NodeInterner,
-    ids: HashMap<ModuleDefId, usize>,
+    ids: &'a mut ItemIds,
 }
 
-impl<'a> DocItemBuilder<'a> {
-    fn new(interner: &'a NodeInterner) -> Self {
-        Self { interner, ids: HashMap::new() }
-    }
+/// Maps an ItemId to a unique identifier.
+pub type ItemIds = HashMap<ItemId, usize>;
 
+/// Uniquely identifies an item.
+/// This is done by using a type's name, location in source code and kind.
+/// With macros, two types might end up being defined in the same location but they will likely
+/// have different names.
+/// This is just a temporary solution until we have a better way to uniquely identify items
+/// across crates.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ItemId {
+    pub location: Location,
+    pub kind: IdKeyKind,
+    pub name: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum IdKeyKind {
+    Type,
+    Trait,
+    TypeAlias,
+}
+
+impl DocItemBuilder<'_> {
     fn item_modules(&mut self, item: expand_items::Item) -> Vec<Module> {
         let mut modules = Vec::new();
         self.convert_item(item, "", &mut modules);
@@ -78,12 +109,20 @@ impl<'a> DocItemBuilder<'a> {
                     panic!("Enums are not supported yet");
                 }
                 let comments = self.doc_comments(ReferenceId::Type(type_id));
+                let mut has_private_fields = false;
                 let fields = data_type
                     .get_fields_as_written()
                     .unwrap()
                     .iter()
                     .enumerate()
-                    .filter(|(_, field)| field.visibility == ItemVisibility::Public)
+                    .filter(|(_, field)| {
+                        if field.visibility == ItemVisibility::Public {
+                            true
+                        } else {
+                            has_private_fields = true;
+                            false
+                        }
+                    })
                     .map(|(index, field)| {
                         let comments = self.doc_comments(ReferenceId::StructMember(type_id, index));
                         let r#type = self.convert_type(&field.typ);
@@ -94,12 +133,13 @@ impl<'a> DocItemBuilder<'a> {
                 let impls = vecmap(item_data_type.impls, |impl_| self.convert_impl(impl_));
                 let trait_impls =
                     vecmap(item_data_type.trait_impls, |impl_| self.convert_trait_impl(impl_));
-                let id = self.get_id(ModuleDefId::TypeId(type_id));
+                let id = self.get_type_id(type_id);
                 Some(Item::Struct(Struct {
                     id,
                     name: data_type.name.to_string(),
                     generics,
                     fields,
+                    has_private_fields,
                     impls,
                     trait_impls,
                     comments,
@@ -119,7 +159,7 @@ impl<'a> DocItemBuilder<'a> {
                     self.convert_trait_constraint(constraint)
                 });
                 let parents = vecmap(&trait_.trait_bounds, |bound| self.convert_trait_bound(bound));
-                let id = self.get_id(ModuleDefId::TraitId(trait_id));
+                let id = self.get_trait_id(trait_id);
                 Some(Item::Trait(Trait {
                     id,
                     name,
@@ -138,7 +178,7 @@ impl<'a> DocItemBuilder<'a> {
                 let r#type = self.convert_type(&type_alias.typ);
                 let comments = self.doc_comments(ReferenceId::Alias(type_alias_id));
                 let generics = vecmap(&type_alias.generics, convert_generic);
-                let id = self.get_id(ModuleDefId::TypeAliasId(type_alias_id));
+                let id = self.get_type_alias_id(type_alias_id);
                 Some(Item::TypeAlias(TypeAlias { id, name, comments, r#type, generics }))
             }
             expand_items::Item::Global(global_id) => {
@@ -190,7 +230,7 @@ impl<'a> DocItemBuilder<'a> {
         let trait_impl = trait_impl.borrow();
         let trait_ = self.interner.get_trait(trait_impl.trait_id);
         let trait_name = trait_.name.to_string();
-        let trait_id = self.get_id(ModuleDefId::TraitId(trait_.id));
+        let trait_id = self.get_trait_id(trait_.id);
         let trait_generics = vecmap(&trait_impl.trait_generics, |typ| self.convert_type(typ));
         let r#type = self.convert_type(&trait_impl.typ);
         let where_clause = vecmap(&trait_impl.where_clause, |constraint| {
@@ -211,7 +251,7 @@ impl<'a> DocItemBuilder<'a> {
     fn convert_trait_bound(&mut self, trait_bound: &ResolvedTraitBound) -> TraitBound {
         let trait_ = self.interner.get_trait(trait_bound.trait_id);
         let trait_name = trait_.name.to_string();
-        let trait_id = self.get_id(ModuleDefId::TraitId(trait_.id));
+        let trait_id = self.get_trait_id(trait_.id);
         let (ordered_generics, named_generics) =
             self.convert_trait_generics(&trait_bound.trait_generics);
         TraitBound { trait_id, trait_name, ordered_generics, named_generics }
@@ -247,14 +287,14 @@ impl<'a> DocItemBuilder<'a> {
                 if data_type.is_enum() {
                     panic!("Enums are not supported yet");
                 }
-                let id = self.get_id(ModuleDefId::TypeId(data_type.id));
+                let id = self.get_type_id(data_type.id);
                 let name = data_type.name.to_string();
                 let generics = vecmap(generics, |typ| self.convert_type(typ));
                 Type::Struct { id, name, generics }
             }
             noirc_frontend::Type::Alias(type_alias, generics) => {
                 let type_alias = type_alias.borrow();
-                let id = self.get_id(ModuleDefId::TypeAliasId(type_alias.id));
+                let id = self.get_type_alias_id(type_alias.id);
                 let name = type_alias.name.to_string();
                 let generics = vecmap(generics, |typ| self.convert_type(typ));
                 Type::TypeAlias { id, name, generics }
@@ -268,7 +308,7 @@ impl<'a> DocItemBuilder<'a> {
             }
             noirc_frontend::Type::TraitAsType(trait_id, _, trait_generics) => {
                 let trait_ = self.interner.get_trait(*trait_id);
-                let trait_id = self.get_id(ModuleDefId::TraitId(trait_.id));
+                let trait_id = self.get_trait_id(trait_.id);
                 let trait_name = trait_.name.to_string();
                 let (ordered_generics, named_generics) =
                     self.convert_trait_generics(trait_generics);
@@ -383,12 +423,41 @@ impl<'a> DocItemBuilder<'a> {
         }
     }
 
-    fn get_id(&mut self, id: ModuleDefId) -> usize {
-        if let Some(existing_id) = self.ids.get(&id) {
+    fn get_type_id(&mut self, id: TypeId) -> usize {
+        let data_type = self.interner.get_type(id);
+        let data_type = data_type.borrow();
+        let location = data_type.location;
+        let name = data_type.name.to_string();
+        let kind = IdKeyKind::Type;
+        let id = ItemId { location, kind, name };
+        self.get_id(id)
+    }
+
+    fn get_trait_id(&mut self, id: TraitId) -> usize {
+        let trait_ = self.interner.get_trait(id);
+        let location = trait_.location;
+        let name = trait_.name.to_string();
+        let kind = IdKeyKind::Trait;
+        let id = ItemId { location, kind, name };
+        self.get_id(id)
+    }
+
+    fn get_type_alias_id(&mut self, id: TypeAliasId) -> usize {
+        let alias = self.interner.get_type_alias(id);
+        let alias = alias.borrow();
+        let location = alias.location;
+        let name = alias.name.to_string();
+        let kind = IdKeyKind::TypeAlias;
+        let id = ItemId { location, kind, name };
+        self.get_id(id)
+    }
+
+    fn get_id(&mut self, key: ItemId) -> usize {
+        if let Some(existing_id) = self.ids.get(&key) {
             *existing_id
         } else {
             let new_id = self.ids.len();
-            self.ids.insert(id, new_id);
+            self.ids.insert(key, new_id);
             new_id
         }
     }
