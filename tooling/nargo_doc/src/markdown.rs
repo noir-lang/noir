@@ -178,6 +178,7 @@ impl MarkdownRenderer {
         self.render_trait_code(trait_);
         self.render_comments(&trait_.comments);
         self.render_trait_methods(&trait_.methods);
+        self.render_trait_impls(&trait_.trait_impls);
     }
 
     fn render_trait_code(&mut self, trait_: &Trait) {
