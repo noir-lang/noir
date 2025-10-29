@@ -172,7 +172,7 @@ impl MarkdownRenderer {
         }
         self.render_where_clause(&trait_.where_clause);
         self.output.push_str(" {<br/>}");
-        self.output.push_str("</code>\n");
+        self.output.push_str("</code>\n\n");
     }
 
     fn render_functions(&mut self, items: &[Item]) {
