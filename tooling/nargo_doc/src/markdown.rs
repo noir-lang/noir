@@ -177,6 +177,7 @@ impl MarkdownRenderer {
         self.h3(&format!("Trait `{}`", trait_.name));
         self.render_trait_code(trait_);
         self.render_comments(&trait_.comments);
+        self.render_trait_methods(&trait_.methods);
     }
 
     fn render_trait_code(&mut self, trait_: &Trait) {
@@ -199,6 +200,15 @@ impl MarkdownRenderer {
         self.render_where_clause(&trait_.where_clause);
         self.output.push_str(" {<br/>}");
         self.output.push_str("</code>\n\n");
+    }
+
+    fn render_trait_methods(&mut self, methods: &[Function]) {
+        if methods.is_empty() {
+            return;
+        }
+
+        self.h4("Methods");
+        self.render_methods(methods);
     }
 
     fn render_functions(&mut self, items: &[Item]) {
