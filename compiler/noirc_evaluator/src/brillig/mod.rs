@@ -116,7 +116,7 @@ impl Brillig {
         brillig_context.call_check_max_stack_depth_procedure();
 
         for block in function_context.blocks.clone() {
-            BrilligBlock::compile(
+            BrilligBlock::compile_block(
                 &mut function_context,
                 &mut brillig_context,
                 block,

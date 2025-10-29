@@ -157,14 +157,14 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
             .iter()
             .map(|argument| match argument {
                 BrilligParameter::SingleAddr(bit_size) => {
-                    self.allocate_single_addr(*bit_size).map(BrilligVariable::SingleAddr)
+                    self.allocate_single_addr(*bit_size).map(BrilligVariable::from)
                 }
                 BrilligParameter::Array(_, _) => {
                     let flattened_size = Self::flattened_size(argument);
-                    self.allocate_brillig_array(flattened_size).map(BrilligVariable::BrilligArray)
+                    self.allocate_brillig_array(flattened_size).map(BrilligVariable::from)
                 }
                 BrilligParameter::Slice(_, _) => {
-                    self.allocate_brillig_vector().map(BrilligVariable::BrilligVector)
+                    self.allocate_brillig_vector().map(BrilligVariable::from)
                 }
             })
             .collect()
@@ -322,11 +322,11 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
             .iter()
             .map(|return_parameter| match return_parameter {
                 BrilligParameter::SingleAddr(bit_size) => {
-                    self.allocate_single_addr(*bit_size).map(BrilligVariable::SingleAddr)
+                    self.allocate_single_addr(*bit_size).map(BrilligVariable::from)
                 }
                 BrilligParameter::Array(item_types, item_count) => self
                     .allocate_brillig_array(item_types.len() * item_count)
-                    .map(BrilligVariable::BrilligArray),
+                    .map(BrilligVariable::from),
                 BrilligParameter::Slice(..) => unreachable!("ICE: Cannot return slices"),
             })
             .collect();
@@ -384,7 +384,7 @@ mod tests {
 
     use crate::{
         brillig::brillig_ir::{
-            brillig_variable::BrilligArray,
+            brillig_variable::{BrilligArray, BrilligVariable, SingleAddrVariable},
             entry_point::BrilligParameter,
             tests::{create_and_run_vm, create_context, create_entry_point_bytecode},
         },
@@ -426,7 +426,8 @@ mod tests {
         // Load the first item of the nested array.
         context.load_instruction(*array_value, *items_pointer);
 
-        context.codegen_return(&[*array_value]);
+        let return_value = BrilligVariable::from(SingleAddrVariable::new_usize(*array_value));
+        context.codegen_return(&[return_value]);
 
         let bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
         let (vm, return_data_offset, return_data_size) =
@@ -458,9 +459,9 @@ mod tests {
         let mut context = create_context(FunctionId::test_new(0));
 
         // Allocate the parameter
-        let return_register = context.allocate_register();
+        let return_register = context.allocate_brillig_array(2);
 
-        context.codegen_return(&[*return_register]);
+        context.codegen_return(&[return_register.to_var()]);
 
         let bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
         let (vm, return_data_pointer, return_data_size) =

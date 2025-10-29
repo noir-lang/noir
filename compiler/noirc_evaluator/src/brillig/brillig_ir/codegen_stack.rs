@@ -5,6 +5,7 @@ use crate::brillig::brillig_ir::registers::Stack;
 use super::{BrilligContext, debug_show::DebugToString, registers::RegisterAllocator};
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
+    /// Map sources to potentially multiple destinations.
     /// This function moves values from a set of registers to another set of registers.
     /// It assumes that:
     /// - every destination needs to be written at most once. Will panic if not.
@@ -13,10 +14,10 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     /// - sources and destinations have same length. Will panic if not.
     pub(crate) fn codegen_mov_registers_to_registers(
         &mut self,
-        sources: Vec<MemoryAddress>,
-        destinations: Vec<MemoryAddress>,
+        sources: &[MemoryAddress],
+        destinations: &[MemoryAddress],
     ) {
-        assert_eq!(sources.len(), destinations.len());
+        assert_eq!(sources.len(), destinations.len(), "sources and destinations length must match");
         let n = sources.len();
         let start = Stack::start();
         let mut processed = 0;
@@ -79,7 +80,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                     entry_idx,
                     &from_index(free),
                     &mut children,
-                    &sources,
+                    sources,
                     &mut processed,
                 );
             }
@@ -98,7 +99,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                 // when the sources do not have the same type
                 let temp_register = self.registers_mut().allocate_register();
                 self.mov_instruction(temp_register, src);
-                self.process_loop(i, &temp_register, &mut children, &sources, &mut processed);
+                self.process_loop(i, &temp_register, &mut children, sources, &mut processed);
                 self.deallocate_register(temp_register);
             } else {
                 // Nodes must have been processed, or are part of a loop.
@@ -157,10 +158,12 @@ fn from_index(idx: usize) -> MemoryAddress {
 
 #[cfg(test)]
 mod tests {
+
     use acvm::{
         FieldElement,
         acir::brillig::{MemoryAddress, Opcode},
     };
+    use iter_extended::vecmap;
 
     use crate::{
         brillig::{
@@ -176,6 +179,18 @@ mod tests {
 
     // Tests for mov_registers_to_registers
 
+    /// Generate `Opcode::Mov` for a sequence of expected `src -> dst` moves.
+    fn generate_opcodes(movements: Vec<(usize, usize)>) -> Vec<Opcode<FieldElement>> {
+        movements
+            .into_iter()
+            .map(|(src, dst)| Opcode::Mov {
+                destination: MemoryAddress::relative(dst),
+                source: MemoryAddress::relative(src),
+            })
+            .collect()
+    }
+
+    /// Split numeric `src -> dst` movements into separate vectors and convert to `MemoryAddress`
     fn movements_to_source_and_destinations(
         movements: Vec<(usize, usize)>,
     ) -> (Vec<MemoryAddress>, Vec<MemoryAddress>) {
@@ -189,6 +204,7 @@ mod tests {
     }
 
     pub(crate) fn create_context() -> BrilligContext<FieldElement, Stack> {
+        // Show the opcodes if the test fails.
         let options = BrilligOptions {
             enable_debug_trace: true,
             enable_debug_assertions: true,
@@ -200,187 +216,140 @@ mod tests {
         context
     }
 
+    /// Test that a series of `src->dst` movements results in a series of `src->dst` move opcodes.
+    fn assert_generated_opcodes(
+        movements: Vec<(usize, usize)>,
+        expected_moves: Vec<(usize, usize)>,
+    ) {
+        let mut context = create_context();
+        for _ in 0..movements.len() {
+            context.registers_mut().allocate_register();
+        }
+        let (sources, destinations) = movements_to_source_and_destinations(movements);
+        context.codegen_mov_registers_to_registers(&sources, &destinations);
+
+        let opcodes = context.artifact().byte_code;
+
+        assert_eq!(opcodes, generate_opcodes(expected_moves));
+    }
+
     #[test]
     fn test_no_op() {
         let movements = vec![(1, 1), (2, 2), (1, 3), (2, 4)];
-        let (sources, destinations) = movements_to_source_and_destinations(movements);
-        let mut context = create_context();
-
-        context.codegen_mov_registers_to_registers(sources, destinations);
-        let opcodes = context.artifact().byte_code;
-        assert_eq!(opcodes.len(), 2);
+        assert_generated_opcodes(movements, vec![(1, 3), (2, 4)]);
     }
 
     #[test]
     #[should_panic]
     fn test_mov_registers_to_registers_overwrite() {
         let movements = vec![(10, 1), (12, 1), (10, 3)];
-        let (sources, destinations) = movements_to_source_and_destinations(movements);
-        let mut context = create_context();
-
-        context.codegen_mov_registers_to_registers(sources, destinations);
+        assert_generated_opcodes(movements, vec![]);
     }
 
     #[test]
     fn test_basic_no_loop() {
         let movements = vec![(2, 1), (3, 2), (4, 3), (5, 4)];
-        let (sources, destinations) = movements_to_source_and_destinations(movements);
-        let mut context = create_context();
-
-        context.codegen_mov_registers_to_registers(sources, destinations);
-        let opcodes = context.artifact().byte_code;
-        assert_eq!(
-            opcodes,
-            vec![
-                Opcode::Mov {
-                    destination: MemoryAddress::relative(1),
-                    source: MemoryAddress::relative(2)
-                },
-                Opcode::Mov {
-                    destination: MemoryAddress::relative(2),
-                    source: MemoryAddress::relative(3)
-                },
-                Opcode::Mov {
-                    destination: MemoryAddress::relative(3),
-                    source: MemoryAddress::relative(4)
-                },
-                Opcode::Mov {
-                    destination: MemoryAddress::relative(4),
-                    source: MemoryAddress::relative(5)
-                }
-            ]
-        );
+        assert_generated_opcodes(movements, vec![(2, 1), (3, 2), (4, 3), (5, 4)]);
     }
 
     #[test]
     fn test_basic_loop() {
         let movements = vec![(4, 1), (1, 2), (2, 3), (3, 4)];
-        let mut context = create_context();
-        for _ in 0..movements.len() {
-            context.registers_mut().allocate_register();
-        }
-        let (sources, destinations) = movements_to_source_and_destinations(movements);
-
-        context.codegen_mov_registers_to_registers(sources, destinations);
-        let opcodes = context.artifact().byte_code;
-        assert_eq!(opcodes.len(), 5);
+        assert_generated_opcodes(movements, vec![(1, 5), (4, 1), (3, 4), (2, 3), (5, 2)]);
     }
 
     #[test]
     fn test_no_loop() {
         let movements = vec![(6, 1), (1, 2), (2, 3), (3, 4), (4, 5)];
-        let mut context = create_context();
-
-        let (sources, destinations) = movements_to_source_and_destinations(movements);
-
-        context.codegen_mov_registers_to_registers(sources, destinations);
-        let opcodes = context.artifact().byte_code;
-        assert_eq!(opcodes.len(), 5);
+        assert_generated_opcodes(movements, vec![(4, 5), (3, 4), (2, 3), (1, 2), (6, 1)]);
     }
 
     #[test]
     fn test_loop_with_branch() {
         let movements = vec![(3, 1), (1, 2), (2, 3), (1, 4), (4, 5)];
-        let mut context = create_context();
-
-        let (sources, destinations) = movements_to_source_and_destinations(movements);
-
-        context.codegen_mov_registers_to_registers(sources, destinations);
-        let opcodes = context.artifact().byte_code;
-        assert_eq!(opcodes.len(), 5);
+        assert_generated_opcodes(movements, vec![(4, 5), (1, 4), (3, 1), (2, 3), (4, 2)]);
     }
 
     #[test]
     fn test_two_loops() {
         let movements = vec![(3, 1), (1, 2), (2, 3), (6, 4), (4, 5), (5, 6)];
-
-        let mut context = create_context();
-        for _ in 0..movements.len() {
-            context.registers_mut().allocate_register();
-        }
-        let (sources, destinations) = movements_to_source_and_destinations(movements);
-
-        context.codegen_mov_registers_to_registers(sources, destinations);
-        let opcodes = context.artifact().byte_code;
-        assert_eq!(opcodes.len(), 8);
+        assert_generated_opcodes(
+            movements,
+            vec![(1, 7), (3, 1), (2, 3), (7, 2), (4, 7), (6, 4), (5, 6), (7, 5)],
+        );
     }
 
     #[test]
     fn test_another_loop_with_branch() {
         let movements = vec![(2, 1), (1, 2), (2, 3), (3, 4), (4, 5)];
-        let mut context = create_context();
-
-        let (sources, destinations) = movements_to_source_and_destinations(movements);
-
-        context.codegen_mov_registers_to_registers(sources, destinations);
-        let opcodes = context.artifact().byte_code;
-        assert_eq!(
-            opcodes,
-            vec![
-                Opcode::Mov {
-                    destination: MemoryAddress::relative(5),
-                    source: MemoryAddress::relative(4)
-                },
-                Opcode::Mov {
-                    destination: MemoryAddress::relative(4),
-                    source: MemoryAddress::relative(3)
-                },
-                Opcode::Mov {
-                    destination: MemoryAddress::relative(3),
-                    source: MemoryAddress::relative(2)
-                },
-                Opcode::Mov {
-                    destination: MemoryAddress::relative(2),
-                    source: MemoryAddress::relative(1)
-                },
-                Opcode::Mov {
-                    destination: MemoryAddress::relative(1),
-                    source: MemoryAddress::relative(3)
-                }
-            ]
-        );
+        assert_generated_opcodes(movements, vec![(4, 5), (3, 4), (2, 3), (1, 2), (3, 1)]);
     }
     #[test]
     fn test_one_loop() {
         let movements = vec![(2, 1), (4, 2), (5, 3), (3, 4), (1, 5)];
-        let mut context = create_context();
-        for _ in 0..movements.len() {
-            context.registers_mut().allocate_register();
-        }
-        let (sources, destinations) = movements_to_source_and_destinations(movements);
+        assert_generated_opcodes(movements, vec![(1, 6), (2, 1), (4, 2), (3, 4), (5, 3), (6, 5)]);
+    }
 
-        context.codegen_mov_registers_to_registers(sources, destinations);
-        let opcodes = context.artifact().byte_code;
-        assert_eq!(
-            opcodes,
-            vec![
-                // Save to a temporary register (6) before processing the loop.
-                Opcode::Mov {
-                    destination: MemoryAddress::relative(6),
-                    source: MemoryAddress::relative(1)
-                },
-                Opcode::Mov {
-                    destination: MemoryAddress::relative(1),
-                    source: MemoryAddress::relative(2)
-                },
-                Opcode::Mov {
-                    destination: MemoryAddress::relative(2),
-                    source: MemoryAddress::relative(4)
-                },
-                Opcode::Mov {
-                    destination: MemoryAddress::relative(4),
-                    source: MemoryAddress::relative(3)
-                },
-                Opcode::Mov {
-                    destination: MemoryAddress::relative(3),
-                    source: MemoryAddress::relative(5)
-                },
-                // Copy back from the temporary register at the end of the loop.
-                Opcode::Mov {
-                    destination: MemoryAddress::relative(5),
-                    source: MemoryAddress::relative(6)
-                }
-            ]
-        );
+    #[test]
+    fn prop_mov_registers_to_registers() {
+        const MEM_SIZE: usize = 10;
+        arbtest::arbtest(|u| {
+            // Allocate more memory to allow for temporary variables.
+            let mut memory: Vec<u32> = vec![0; MEM_SIZE * 2];
+            // Fill the memory with some random numbers.
+            for slot in memory.iter_mut() {
+                *slot = u.arbitrary()?;
+            }
+
+            // Pick a random unique subset of the slots as destinations.
+            let num_destinations = u.int_in_range(0..=MEM_SIZE)?;
+
+            // All potential memory slots; we can't address before the stack start.
+            let all_indexes = (0..MEM_SIZE).map(|i| i + Stack::start()).collect::<Vec<_>>();
+
+            let destinations: Vec<usize> = (1..num_destinations + 1).collect();
+
+            // Pick random sources for each destination (same source can be repeated).
+            let mut sources = Vec::with_capacity(num_destinations);
+            for _ in 0..num_destinations {
+                sources.push(u.choose(&all_indexes).copied()?);
+            }
+
+            // Take a snapshot of the source data; this is what we expect the destination to become.
+            let source_data = vecmap(&sources, |i| memory[*i]);
+
+            // Generate the opcodes.
+            let opcodes = {
+                // Convert to MemoryAddress
+                let sources = vecmap(&sources, |i| MemoryAddress::relative(*i));
+                let destinations = vecmap(&destinations, |i| MemoryAddress::relative(*i));
+
+                let mut context = create_context();
+
+                // Treat the memory we care about as pre-allocated, so temporary variables are created after them.
+                let all_registers = vecmap(all_indexes, MemoryAddress::relative);
+                context.set_allocated_registers(all_registers);
+
+                context.codegen_mov_registers_to_registers(&sources, &destinations);
+                context.artifact().byte_code
+            };
+
+            // Execute the opcodes.
+            for opcode in opcodes {
+                let Opcode::Mov { destination, source } = opcode else {
+                    unreachable!("only Mov expected");
+                };
+                memory[destination.to_usize()] = memory[source.to_usize()];
+            }
+
+            // Get the final values at the destination slots.
+            let destination_data = vecmap(&destinations, |i| memory[*i]);
+
+            // At the end the destination should have the same value as the source had.
+            assert_eq!(destination_data, source_data);
+
+            Ok(())
+        })
+        .run();
     }
 }

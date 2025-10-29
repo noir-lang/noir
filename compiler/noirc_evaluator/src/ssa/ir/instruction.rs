@@ -892,6 +892,7 @@ pub enum ErrorType {
 }
 
 impl ErrorType {
+    /// Hash the error type to get a unique selector for it.
     pub fn selector(&self) -> ErrorSelector {
         struct U64(pub u64);
 

@@ -97,7 +97,7 @@ pub(super) fn compile_vector_pop_front_procedure<F: AcirField + DebugToString>(
             brillig_context.codegen_initialize_vector_metadata(
                 target_vector,
                 *target_size,
-                Some(*source_capacity),
+                *source_capacity,
             );
         } else {
             // We can't reuse the source vector, so allocate a new one.

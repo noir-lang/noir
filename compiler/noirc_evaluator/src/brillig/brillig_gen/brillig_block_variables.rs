@@ -70,7 +70,13 @@ impl BlockVariables {
             .collect()
     }
 
-    /// For a given SSA value id, define the variable and return the corresponding cached allocation.
+    /// For a given SSA value id, define the variable and return the corresponding cached memory allocation.
+    ///
+    /// The allocation will be cached in [FunctionContext::ssa_value_allocations], which is how it will be
+    /// passed on to the next block as a pre-allocated register, if it's still alive at that point.
+    ///
+    /// The variable is added to [Self::available_variables] to show that it's live, where it stays until
+    /// [Self::remove_variable] deletes it.
     pub(crate) fn define_variable<Registers: RegisterAllocator>(
         &mut self,
         function_context: &mut FunctionContext,
@@ -128,12 +134,16 @@ impl BlockVariables {
         brillig_context.deallocate_register(register);
     }
 
-    /// Checks if a variable is allocated.
+    /// Checks if a variable is allocated and live.
     pub(crate) fn is_allocated(&self, value_id: &ValueId) -> bool {
         self.available_variables.contains(value_id)
     }
 
     /// For a given SSA value id, return the corresponding cached allocation.
+    ///
+    /// Panics if
+    /// * the variable is not in [Self::available_variables], which means it is no longer live
+    /// * the variable is not in [FunctionContext::ssa_value_allocations], which means it was never defined
     pub(crate) fn get_allocation(
         &mut self,
         function_context: &FunctionContext,
@@ -158,7 +168,7 @@ pub(crate) fn compute_array_length(item_typ: &CompositeType, elem_count: usize) 
     item_typ.len() * elem_count
 }
 
-/// For a given value_id, allocates the necessary registers to hold it.
+/// For a given [ValueId], allocates the necessary registers to hold it.
 pub(crate) fn allocate_value<F, Registers: RegisterAllocator>(
     value_id: ValueId,
     brillig_context: &mut BrilligContext<F, Registers>,
@@ -169,7 +179,7 @@ pub(crate) fn allocate_value<F, Registers: RegisterAllocator>(
     allocate_value_with_type(brillig_context, typ)
 }
 
-/// For a given value_id, allocates the necessary registers to hold it.
+/// For a given [Type], allocates the necessary registers to hold it.
 pub(crate) fn allocate_value_with_type<F, Registers: RegisterAllocator>(
     brillig_context: &mut BrilligContext<F, Registers>,
     typ: Type,

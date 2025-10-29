@@ -87,48 +87,6 @@ impl std::fmt::Display for MemoryAddress {
     }
 }
 
-/// Wrapper for array addresses, with convenience methods for various offsets.
-///
-/// The array consists of a ref-count followed by a number of items according
-/// the size indicated by the type.
-pub struct ArrayAddress(MemoryAddress);
-
-impl ArrayAddress {
-    pub fn items_start(&self) -> MemoryAddress {
-        self.0.offset(1)
-    }
-}
-
-impl From<MemoryAddress> for ArrayAddress {
-    fn from(value: MemoryAddress) -> Self {
-        Self(value)
-    }
-}
-
-/// Wrapper for vector addresses, with convenience methods for various offsets.
-///
-/// The vector consists of a ref-count, followed by the capacity, and then a
-/// number of items indicated by the capacity.
-///
-/// The semantic length of the vector is maintained at a separate address.
-pub struct VectorAddress(MemoryAddress);
-
-impl VectorAddress {
-    /// Capacity of the vector.
-    pub fn size_addr(&self) -> MemoryAddress {
-        self.0.offset(1)
-    }
-    pub fn items_start(&self) -> MemoryAddress {
-        self.0.offset(2)
-    }
-}
-
-impl From<MemoryAddress> for VectorAddress {
-    fn from(value: MemoryAddress) -> Self {
-        Self(value)
-    }
-}
-
 /// Describes the memory layout for an array/vector element
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, Hash)]
 pub enum HeapValueType {
