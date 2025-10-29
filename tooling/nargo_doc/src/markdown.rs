@@ -43,7 +43,7 @@ impl MarkdownRenderer {
             self.h2(&format!("Module {}", module.name));
         }
 
-        self.render_comments(&module.comments);
+        self.render_comments(&module.comments, 2);
         self.render_structs(&module.items);
         self.render_traits(&module.items);
         self.render_type_aliases(&module.items);
@@ -66,7 +66,7 @@ impl MarkdownRenderer {
         self.anchor(struct_.id);
         self.h3(&format!("Struct `{}`", struct_.name));
         self.render_struct_code(struct_);
-        self.render_comments(&struct_.comments);
+        self.render_comments(&struct_.comments, 3);
         self.render_struct_fields(&struct_.fields);
         self.render_impls(&struct_.impls);
         self.render_trait_impls(&struct_.trait_impls, "Trait implementations");
@@ -110,7 +110,7 @@ impl MarkdownRenderer {
             self.output.push_str(": ");
             self.render_type(&field.r#type);
             self.output.push_str("\n\n");
-            self.render_comments(&field.comments);
+            self.render_comments(&field.comments, 5);
         }
     }
 
@@ -133,7 +133,7 @@ impl MarkdownRenderer {
         self.output.push(' ');
         self.render_type(&impl_.r#type);
         self.output.push_str("</code></pre></h5>\n\n");
-        self.render_methods(&impl_.methods);
+        self.render_methods(&impl_.methods, 5);
     }
 
     fn render_trait_impls(&mut self, trait_impls: &[TraitImpl], title: &str) {
@@ -176,7 +176,7 @@ impl MarkdownRenderer {
         self.anchor(trait_.id);
         self.h3(&format!("Trait `{}`", trait_.name));
         self.render_trait_code(trait_);
-        self.render_comments(&trait_.comments);
+        self.render_comments(&trait_.comments, 3);
         self.render_trait_methods(&trait_.methods);
         self.render_trait_impls(&trait_.trait_impls, "Implementors");
     }
@@ -208,7 +208,7 @@ impl MarkdownRenderer {
         }
 
         self.h4("Methods");
-        self.render_methods(methods);
+        self.render_methods(methods, 4);
     }
 
     fn render_type_aliases(&mut self, items: &[Item]) {
@@ -226,7 +226,7 @@ impl MarkdownRenderer {
         self.anchor(alias.id);
         self.h3(&format!("Type alias `{}`", alias.name));
         self.render_type_alias_code(alias);
-        self.render_comments(&alias.comments);
+        self.render_comments(&alias.comments, 3);
     }
 
     fn render_type_alias_code(&mut self, alias: &TypeAlias) {
@@ -253,7 +253,7 @@ impl MarkdownRenderer {
     fn render_global(&mut self, global: &Global) {
         self.h3(&format!("Global `{}`", global.name));
         self.render_global_code(global);
-        self.render_comments(&global.comments);
+        self.render_comments(&global.comments, 3);
     }
 
     fn render_global_code(&mut self, global: &Global) {
@@ -277,25 +277,33 @@ impl MarkdownRenderer {
         for item in items {
             match item {
                 Item::Function(function) => {
-                    self.render_function(function, true /* show header */);
+                    self.render_function(function, true /* show header */, 3);
                 }
                 _ => {}
             }
         }
     }
 
-    fn render_methods(&mut self, methods: &[Function]) {
+    fn render_methods(&mut self, methods: &[Function], current_heading_level: usize) {
         for method in methods {
-            self.render_function(method, false /* show header */);
+            self.render_function(method, false /* show header */, current_heading_level);
         }
     }
 
-    fn render_function(&mut self, function: &Function, show_header: bool) {
+    fn render_function(
+        &mut self,
+        function: &Function,
+        show_header: bool,
+        current_heading_level: usize,
+    ) {
         if show_header {
             self.h3(&format!("Function `{}`", function.name));
         }
         self.render_function_signature(function);
-        self.render_comments(&function.comments);
+        self.render_comments(
+            &function.comments,
+            if show_header { 3 } else { current_heading_level },
+        );
     }
 
     fn render_function_signature(&mut self, function: &Function) {
@@ -528,10 +536,34 @@ impl MarkdownRenderer {
         self.output.push('>');
     }
 
-    fn render_comments(&mut self, comments: &Option<String>) {
+    /// Renders the given comments, if any.
+    /// Markdown headers that are less or equal than `current_heading_level` will be rendered
+    /// as smaller headers (i.e., `###` becomes `####` if `current_heading_level` is 3)
+    /// to ensure proper nesting.
+    fn render_comments(&mut self, comments: &Option<String>, current_heading_level: usize) {
         if let Some(comments) = comments {
-            self.output.push_str(&comments);
-            self.output.push_str("\n\n");
+            'outer_loop: for comment in comments.lines() {
+                let trimmed_comment = comment.trim_start();
+
+                if trimmed_comment.starts_with('#') {
+                    for level in 1..=current_heading_level {
+                        if trimmed_comment.starts_with(&format!("{} ", "#".repeat(level))) {
+                            self.output.push_str(&format!(
+                                "{} {}",
+                                "#".repeat(current_heading_level + 1),
+                                &trimmed_comment[level + 1..]
+                            ));
+                            self.output.push('\n');
+                            continue 'outer_loop;
+                        }
+                    }
+                }
+
+                self.output.push_str(&comment);
+                self.output.push('\n');
+            }
+
+            self.output.push('\n');
         }
     }
 
