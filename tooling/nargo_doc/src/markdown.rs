@@ -67,7 +67,7 @@ impl MarkdownRenderer {
         self.render_comments(&struct_.comments);
         self.render_struct_fields(&struct_.fields);
         self.render_impls(&struct_.impls);
-        self.render_trait_impls(&struct_.trait_impls);
+        self.render_trait_impls(&struct_.trait_impls, "Trait implementations");
     }
 
     fn render_struct_code(&mut self, struct_: &Struct) {
@@ -136,12 +136,12 @@ impl MarkdownRenderer {
         self.render_methods(&impl_.methods);
     }
 
-    fn render_trait_impls(&mut self, trait_impls: &[TraitImpl]) {
+    fn render_trait_impls(&mut self, trait_impls: &[TraitImpl], title: &str) {
         if trait_impls.is_empty() {
             return;
         }
 
-        self.h4("Trait implementations");
+        self.h4(title);
 
         for trait_impl in trait_impls {
             self.render_trait_impl(trait_impl);
@@ -178,7 +178,7 @@ impl MarkdownRenderer {
         self.render_trait_code(trait_);
         self.render_comments(&trait_.comments);
         self.render_trait_methods(&trait_.methods);
-        self.render_trait_impls(&trait_.trait_impls);
+        self.render_trait_impls(&trait_.trait_impls, "Implementors");
     }
 
     fn render_trait_code(&mut self, trait_: &Trait) {
