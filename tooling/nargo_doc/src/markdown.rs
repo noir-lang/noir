@@ -1,8 +1,8 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 use crate::items::{
-    Crate, Crates, Function, Generic, Item, Module, Struct, Trait, TraitBound, TraitConstraint,
-    Type,
+    Crate, Crates, Function, Generic, Item, Module, Struct, StructField, Trait, TraitBound,
+    TraitConstraint, Type,
 };
 
 pub fn to_markdown(crates: &Crates) -> String {
@@ -65,7 +65,7 @@ impl MarkdownRenderer {
         self.h3(&format!("Struct `{}`", struct_.name));
         self.render_struct_code(struct_);
         self.render_comments(&struct_.comments);
-        self.render_struct_fields(struct_);
+        self.render_struct_fields(&struct_.fields);
     }
 
     fn render_struct_code(&mut self, struct_: &Struct) {
@@ -95,14 +95,14 @@ impl MarkdownRenderer {
         self.output.push_str("</code>\n");
     }
 
-    fn render_struct_fields(&mut self, struct_: &Struct) {
-        if struct_.fields.is_empty() {
+    fn render_struct_fields(&mut self, fields: &[StructField]) {
+        if fields.is_empty() {
             return;
         }
 
         self.h4("Fields");
 
-        for field in &struct_.fields {
+        for field in fields {
             self.output.push_str("##### ");
             self.output.push_str(&field.name);
             self.output.push_str(": ");
