@@ -125,6 +125,8 @@ pub(crate) trait RegisterAllocator {
         layout: LayoutConfig,
     ) -> Self;
     /// Finds the first register which is followed only by free registers.
+    ///
+    /// Always returns a [MemoryAddress::Relative] address.
     fn empty_registers_start(&self) -> MemoryAddress;
     /// Return the memory layout used by this allocator.
     fn layout(&self) -> LayoutConfig;
@@ -188,7 +190,7 @@ impl RegisterAllocator for Stack {
     ) -> Self {
         let empty = Stack::new(layout);
         for register in &preallocated_registers {
-            assert!(empty.is_within_bounds(*register), "Register out of stack bounds");
+            assert!(empty.is_within_bounds(*register), "Register out of stack bounds: {register}");
         }
 
         Self {

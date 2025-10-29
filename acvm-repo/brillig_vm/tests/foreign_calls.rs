@@ -463,6 +463,8 @@ fn foreign_call_opcode_multiple_array_inputs_result() {
 
 #[test]
 fn foreign_call_opcode_nested_arrays_and_slices_input() {
+    // This is the data we want to pass:
+    // [(Field, [Field], [Field; 1]); 2]
     // [(1, <2,3>, [4]), (5, <6,7,8>, [9])]
 
     let v2: Vec<MemoryValue<FieldElement>> = vec![
@@ -480,29 +482,38 @@ fn foreign_call_opcode_nested_arrays_and_slices_input() {
         vec![MemoryValue::new_field(FieldElement::from(9u128))];
 
     // construct memory by declaring all inner arrays/vectors first
-    // Declare v2
+    // Declare v2: [RC, size, capacity, ...items]
     let v2_ptr: usize = 0usize;
-    let mut memory = vec![MemoryValue::from(1_u32), v2.len().into()];
+    let mut memory = vec![MemoryValue::from(1_u32), v2.len().into(), v2.len().into()];
     memory.extend(v2.clone());
+
+    // Declare a4: [RC, ...items]
     let a4_ptr = memory.len();
     memory.extend(vec![MemoryValue::from(1_u32)]);
     memory.extend(a4.clone());
+
+    // Declare v6: [RC, size, capacity, ...items]
     let v6_ptr = memory.len();
-    memory.extend(vec![MemoryValue::from(1_u32), v6.len().into()]);
+    memory.extend(vec![MemoryValue::from(1_u32), v6.len().into(), v6.len().into()]);
     memory.extend(v6.clone());
+
+    // Declare a9: [RC, ...items]
     let a9_ptr = memory.len();
     memory.extend(vec![MemoryValue::from(1_u32)]);
     memory.extend(a9.clone());
+
     // finally we add the contents of the outer array
+    // RC of the outer array
     memory.extend(vec![MemoryValue::from(1_u32)]);
+    // Start of outer array items
     let outer_start = memory.len();
     let outer_array = vec![
         MemoryValue::new_field(FieldElement::from(1u128)),
-        MemoryValue::from(v2.len() as u32),
+        MemoryValue::from(v2.len() as u32), // semantic length
         MemoryValue::from(v2_ptr),
         MemoryValue::from(a4_ptr),
         MemoryValue::new_field(FieldElement::from(5u128)),
-        MemoryValue::from(v6.len() as u32),
+        MemoryValue::from(v6.len() as u32), // semantic length
         MemoryValue::from(v6_ptr),
         MemoryValue::from(a9_ptr),
     ];
