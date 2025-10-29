@@ -552,8 +552,14 @@ impl MarkdownRenderer {
     }
 
     fn h(&mut self, level: usize, text: &str) {
-        if !self.output.is_empty() && !self.output.ends_with("\n\n") {
-            self.output.push_str("\n");
+        if !self.output.is_empty() {
+            if self.output.ends_with("\n\n") {
+                // All good
+            } else if self.output.ends_with('\n') {
+                self.output.push_str("\n");
+            } else {
+                self.output.push_str("\n\n");
+            }
         }
 
         self.output.push_str(&format!("{} {}{}\n\n", "#".repeat(level), text, ""));
