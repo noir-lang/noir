@@ -542,6 +542,10 @@ impl MarkdownRenderer {
     /// to ensure proper nesting.
     fn render_comments(&mut self, comments: &Option<String>, current_heading_level: usize) {
         if let Some(comments) = comments {
+            // Track occurrences of "```" to see if the user forgot to close a code block.
+            // If so, we'll close it to prevent ruining the docs.
+            let mut open_code_comment = false;
+
             'outer_loop: for comment in comments.lines() {
                 let trimmed_comment = comment.trim_start();
 
@@ -559,8 +563,16 @@ impl MarkdownRenderer {
                     }
                 }
 
+                if trimmed_comment.starts_with("```") {
+                    open_code_comment = !open_code_comment;
+                }
+
                 self.output.push_str(&comment);
                 self.output.push('\n');
+            }
+
+            if open_code_comment {
+                self.output.push_str("```");
             }
 
             self.output.push('\n');
