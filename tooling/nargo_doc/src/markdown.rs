@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 
 use crate::items::{
     Crate, Crates, Function, Generic, Impl, Item, Module, Struct, StructField, Trait, TraitBound,
-    TraitConstraint, Type,
+    TraitConstraint, TraitImpl, Type,
 };
 
 pub fn to_markdown(crates: &Crates) -> String {
@@ -67,6 +67,7 @@ impl MarkdownRenderer {
         self.render_comments(&struct_.comments);
         self.render_struct_fields(&struct_.fields);
         self.render_impls(&struct_.impls);
+        self.render_trait_impls(&struct_.trait_impls);
     }
 
     fn render_struct_code(&mut self, struct_: &Struct) {
@@ -133,6 +134,31 @@ impl MarkdownRenderer {
         self.render_type(&impl_.r#type);
         self.output.push_str("</code></h5>\n\n");
         self.render_methods(&impl_.methods);
+    }
+
+    fn render_trait_impls(&mut self, trait_impls: &[TraitImpl]) {
+        if trait_impls.is_empty() {
+            return;
+        }
+
+        self.h4("Trait implementations");
+
+        for trait_impl in trait_impls {
+            self.render_trait_impl(trait_impl);
+        }
+    }
+
+    fn render_trait_impl(&mut self, trait_impl: &TraitImpl) {
+        self.output.push_str("<h5><code>");
+        self.output.push_str("impl");
+        self.render_generics(&trait_impl.generics);
+        self.output.push(' ');
+        self.render_id_reference(trait_impl.trait_id, &trait_impl.trait_name);
+        self.render_generic_types(&trait_impl.trait_generics);
+        self.output.push_str(" for ");
+        self.render_type(&trait_impl.r#type);
+        self.render_where_clause(&trait_impl.where_clause);
+        self.output.push_str("</code></h5>\n\n");
     }
 
     fn render_traits(&mut self, items: &[Item]) {
@@ -270,11 +296,11 @@ impl MarkdownRenderer {
     }
 
     fn render_trait_bound(&mut self, bound: &TraitBound) {
-        self.render_id(bound.trait_id, &bound.trait_name);
+        self.render_id_reference(bound.trait_id, &bound.trait_name);
         self.render_trait_generics(&bound.ordered_generics, &bound.named_generics);
     }
 
-    fn render_id(&mut self, id: usize, name: &str) {
+    fn render_id_reference(&mut self, id: usize, name: &str) {
         if let Some(anchor_name) = self.id_to_string.get(&id) {
             self.output.push_str(&format!("<a href=\"#{anchor_name}\">{name}</a>"));
         } else {
@@ -333,11 +359,11 @@ impl MarkdownRenderer {
                 self.render_type(r#type);
             }
             Type::Struct { id, name, generics } => {
-                self.render_id(*id, name);
+                self.render_id_reference(*id, name);
                 self.render_generic_types(generics);
             }
             Type::TypeAlias { id, name, generics } => {
-                self.render_id(*id, name);
+                self.render_id_reference(*id, name);
                 self.render_generic_types(generics);
             }
             Type::Function { params, return_type, env, unconstrained } => {
@@ -378,7 +404,7 @@ impl MarkdownRenderer {
             }
             Type::TraitAsType { trait_id, trait_name, ordered_generics, named_generics } => {
                 self.output.push_str("impl ");
-                self.render_id(*trait_id, &trait_name);
+                self.render_id_reference(*trait_id, &trait_name);
                 self.render_trait_generics(ordered_generics, named_generics);
             }
         }
