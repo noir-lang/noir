@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1761765640658,
+  "lastUpdate": 1761769029108,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23075,48 +23075,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "1152e995ffd23429f51a5a4234a71a196a87bc9f",
-          "message": "chore(ACIR): make it clear that modulo is only for signed integers (#10209)",
-          "timestamp": "2025-10-16T14:04:44Z",
-          "tree_id": "96862f83ff644704a1d0fb4f1ef1514f0d99f4e5",
-          "url": "https://github.com/noir-lang/noir/commit/1152e995ffd23429f51a5a4234a71a196a87bc9f"
-        },
-        "date": 1760625080554,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 262554,
-            "range": "± 1191",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 229903,
-            "range": "± 5870",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2786145,
-            "range": "± 14771",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "4ba5c86fcaee4675c75a2801e3df9c835cadc364",
           "message": "chore(ACIR): no need to return types in `flatten` (#10210)",
@@ -25159,6 +25117,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2793999,
             "range": "± 3017",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0de2ac86d6cd969e2774f1017b4f104c64bfc039",
+          "message": "chore(frontend): Elaborator comptime module docs (#10318)",
+          "timestamp": "2025-10-29T19:50:26Z",
+          "tree_id": "d59821de5a4e91155eb399e07a14b5de57d1d9af",
+          "url": "https://github.com/noir-lang/noir/commit/0de2ac86d6cd969e2774f1017b4f104c64bfc039"
+        },
+        "date": 1761769001796,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 262406,
+            "range": "± 1141",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 232820,
+            "range": "± 2204",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2795128,
+            "range": "± 7751",
             "unit": "ns/iter"
           }
         ]
