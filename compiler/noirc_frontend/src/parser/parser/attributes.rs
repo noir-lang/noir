@@ -435,7 +435,7 @@ impl Parser<'_> {
     }
 
     fn parse_must_use_attribute(&mut self, start_location: Location) -> Attribute {
-        let location_after_name = self.current_token_location.clone();
+        let location_after_name = self.current_token_location;
 
         let message = if self.eat_assign() {
             let message = self.eat_str();
