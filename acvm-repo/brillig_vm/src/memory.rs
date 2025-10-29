@@ -14,6 +14,66 @@ pub const MEMORY_ADDRESSING_BIT_SIZE: IntegerBitSize = IntegerBitSize::U32;
 /// It gets manipulated by opcodes laid down for calls by codegen.
 pub const STACK_POINTER_ADDRESS: MemoryAddress = MemoryAddress::Direct(0);
 
+/// Offset constants for arrays and vectors:
+/// * Arrays are `[ref-count, ...items]`
+/// * Vectors are `[ref-count, size, capacity, ...items]`
+pub mod offsets {
+    /// Number of prefix fields in an array: RC.
+    pub const ARRAY_META_COUNT: usize = 1;
+    pub const ARRAY_ITEMS: usize = 1;
+
+    /// Number of prefix fields in a vector: RC, size, capacity.
+    pub const VECTOR_META_COUNT: usize = 3;
+    pub const VECTOR_SIZE: usize = 1;
+    pub const VECTOR_CAPACITY: usize = 2;
+    pub const VECTOR_ITEMS: usize = 3;
+}
+
+/// Wrapper for array addresses, with convenience methods for various offsets.
+///
+/// The array consists of a ref-count followed by a number of items according
+/// the size indicated by the type.
+pub(crate) struct ArrayAddress(MemoryAddress);
+
+impl ArrayAddress {
+    /// The start of the items, after the meta-data.
+    pub(crate) fn items_start(&self) -> MemoryAddress {
+        self.0.offset(offsets::ARRAY_ITEMS)
+    }
+}
+
+impl From<MemoryAddress> for ArrayAddress {
+    fn from(value: MemoryAddress) -> Self {
+        Self(value)
+    }
+}
+
+/// Wrapper for vector addresses, with convenience methods for various offsets.
+///
+/// A vector is prefixed by 3 meta-data fields: the ref-count, the size, and the capacity,
+/// which are followed by a number of items indicated by its capacity, with the items
+/// its size being placeholders to accommodate future growth.
+///
+/// The semantic length of the vector is maintained at a separate address.
+pub(crate) struct VectorAddress(MemoryAddress);
+
+impl VectorAddress {
+    /// Size of the vector.
+    pub(crate) fn size_addr(&self) -> MemoryAddress {
+        self.0.offset(offsets::VECTOR_SIZE)
+    }
+    /// The start of the items, after the meta-data.
+    pub(crate) fn items_start(&self) -> MemoryAddress {
+        self.0.offset(offsets::VECTOR_ITEMS)
+    }
+}
+
+impl From<MemoryAddress> for VectorAddress {
+    fn from(value: MemoryAddress) -> Self {
+        Self(value)
+    }
+}
+
 /// A single typed value in the Brillig VM's memory.
 ///
 /// Memory in the VM is strongly typed and can represent either a native field element

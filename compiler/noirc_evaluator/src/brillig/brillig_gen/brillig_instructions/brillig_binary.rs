@@ -11,7 +11,8 @@ use crate::ssa::ir::{dfg::DataFlowGraph, instruction::ConstrainError, value::Val
 use iter_extended::vecmap;
 
 impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
-    /// Converts the Binary instruction into a sequence of Brillig opcodes.
+    /// Converts the Binary instruction into a sequence of Brillig opcodes,
+    /// writing the results to the `result_variable`.
     fn convert_ssa_binary(
         &mut self,
         binary: &Binary,
@@ -21,7 +22,6 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         let binary_type = type_of_binary_operation(
             dfg[binary.lhs].get_type().as_ref(),
             dfg[binary.rhs].get_type().as_ref(),
-            binary.operator,
         );
 
         let left = self.convert_ssa_single_addr_value(binary.lhs, dfg);
@@ -263,7 +263,8 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         }
     }
 
-    pub(crate) fn binary_gen(
+    /// Define a variable for the result and convert a binary operation to Brillig opcodes.
+    pub(crate) fn codegen_binary(
         &mut self,
         instruction_id: InstructionId,
         binary: &Binary,
@@ -279,13 +280,15 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         self.convert_ssa_binary(binary, dfg, result_var);
     }
 
-    pub(crate) fn constrain_gen(
+    /// Generate Brillig opcodes to constrain two values to be equal to each other.
+    pub(crate) fn codegen_constrain(
         &mut self,
         lhs: ValueId,
         rhs: ValueId,
         assert_message: &Option<ConstrainError>,
         dfg: &DataFlowGraph,
     ) {
+        // Allocate a variable to hold the result of the comparison.
         let condition = match (
             dfg.get_numeric_constant_with_type(lhs),
             dfg.get_numeric_constant_with_type(rhs),

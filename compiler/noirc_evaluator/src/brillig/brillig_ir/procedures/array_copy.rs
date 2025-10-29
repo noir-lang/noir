@@ -122,12 +122,7 @@ fn initialize_constant_string<F: AcirField + DebugToString, Registers: RegisterA
 
         if element_idx != data.len() - 1 {
             // Increment the write_pointer_register
-            brillig_context.memory_op_instruction(
-                *write_pointer_register,
-                ReservedRegisters::usize_one(),
-                *write_pointer_register,
-                BrilligBinaryOp::Add,
-            );
+            brillig_context.memory_op_inc_by_usize_one(*write_pointer_register);
         }
     }
 }
@@ -135,7 +130,7 @@ fn initialize_constant_string<F: AcirField + DebugToString, Registers: RegisterA
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     /// emit: `println(f"Total arrays copied: {array_copy_counter}")`
     pub(crate) fn emit_println_of_array_copy_counter(&mut self) {
-        let array_copy_counter = BrilligVariable::SingleAddr(SingleAddrVariable {
+        let array_copy_counter = BrilligVariable::from(SingleAddrVariable {
             address: self.array_copy_counter_address(),
             bit_size: 32,
         });
