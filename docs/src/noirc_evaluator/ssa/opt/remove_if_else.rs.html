@@ -942,7 +942,30 @@
 <a href="#941" id="941">941</a>
 <a href="#942" id="942">942</a>
 <a href="#943" id="943">943</a>
-<a href="#944" id="944">944</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the SSA `remove_if_else` pass - a required pass for ACIR to remove any
+<a href="#944" id="944">944</a>
+<a href="#945" id="945">945</a>
+<a href="#946" id="946">946</a>
+<a href="#947" id="947">947</a>
+<a href="#948" id="948">948</a>
+<a href="#949" id="949">949</a>
+<a href="#950" id="950">950</a>
+<a href="#951" id="951">951</a>
+<a href="#952" id="952">952</a>
+<a href="#953" id="953">953</a>
+<a href="#954" id="954">954</a>
+<a href="#955" id="955">955</a>
+<a href="#956" id="956">956</a>
+<a href="#957" id="957">957</a>
+<a href="#958" id="958">958</a>
+<a href="#959" id="959">959</a>
+<a href="#960" id="960">960</a>
+<a href="#961" id="961">961</a>
+<a href="#962" id="962">962</a>
+<a href="#963" id="963">963</a>
+<a href="#964" id="964">964</a>
+<a href="#965" id="965">965</a>
+<a href="#966" id="966">966</a>
+<a href="#967" id="967">967</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the SSA `remove_if_else` pass - a required pass for ACIR to remove any
 //! remaining `Instruction::IfElse` in the singular program-function, and replace them with
 //! arithmetic operations using the `then_condition`.
 //!
@@ -1156,7 +1179,8 @@
                     </span><span class="kw">if let </span>Value::Intrinsic(intrinsic) = context.dfg[<span class="kw-2">*</span>func] {
                         <span class="kw">let </span>results = context.dfg.instruction_results(instruction_id);
 
-                        <span class="kw">match </span>slice_capacity_change(context.dfg, intrinsic, arguments, results) {
+                        <span class="kw">match </span><span class="self">self</span>.slice_capacity_change(context.dfg, intrinsic, arguments, results)
+                        {
                             SizeChange::None =&gt; (),
                             SizeChange::SetTo { old, new } =&gt; {
                                 <span class="self">self</span>.set_capacity(context.dfg, old, new, |c| c);
@@ -1224,6 +1248,101 @@
             }
         }
     }
+
+    <span class="doccomment">/// Find the change to a slice's capacity an instruction would have
+    </span><span class="kw">fn </span>slice_capacity_change(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
+        intrinsic: Intrinsic,
+        arguments: <span class="kw-2">&amp;</span>[ValueId],
+        results: <span class="kw-2">&amp;</span>[ValueId],
+    ) -&gt; SizeChange {
+        <span class="kw">match </span>intrinsic {
+            Intrinsic::SlicePushBack | Intrinsic::SlicePushFront | Intrinsic::SliceInsert =&gt; {
+                <span class="comment">// All of these return `Self` (the slice), we are expecting: len, slice = ...
+                </span><span class="macro">assert_eq!</span>(results.len(), <span class="number">2</span>);
+                <span class="kw">let </span>old = arguments[<span class="number">1</span>];
+                <span class="kw">let </span>new = results[<span class="number">1</span>];
+                <span class="macro">assert!</span>(<span class="macro">matches!</span>(dfg.type_of_value(old), Type::Slice(<span class="kw">_</span>)));
+                <span class="macro">assert!</span>(<span class="macro">matches!</span>(dfg.type_of_value(new), Type::Slice(<span class="kw">_</span>)));
+                SizeChange::Inc { old, new }
+            }
+
+            Intrinsic::SlicePopBack | Intrinsic::SliceRemove =&gt; {
+                <span class="comment">// fn pop_back(self) -&gt; (Self, T)
+                // fn remove(self, index: u32) -&gt; (Self, T)
+                //
+                // These functions return the slice as the result `(len, slice, ...item)`,
+                // so the slice is the second result.
+                </span><span class="kw">let </span>old = arguments[<span class="number">1</span>];
+                <span class="kw">let </span>new = results[<span class="number">1</span>];
+                <span class="macro">assert!</span>(<span class="macro">matches!</span>(dfg.type_of_value(old), Type::Slice(<span class="kw">_</span>)));
+                <span class="macro">assert!</span>(<span class="macro">matches!</span>(dfg.type_of_value(new), Type::Slice(<span class="kw">_</span>)));
+                SizeChange::Dec { old, new }
+            }
+
+            Intrinsic::SlicePopFront =&gt; {
+                <span class="comment">// fn pop_front(self) -&gt; (T, Self)
+                //
+                // These functions return the slice as the result `(...item, len, slice)`,
+                // so the slice is the last result.
+                </span><span class="kw">let </span>old = arguments[<span class="number">1</span>];
+                <span class="kw">let </span>new = results[results.len() - <span class="number">1</span>];
+                <span class="macro">assert!</span>(<span class="macro">matches!</span>(dfg.type_of_value(old), Type::Slice(<span class="kw">_</span>)));
+                <span class="macro">assert!</span>(<span class="macro">matches!</span>(dfg.type_of_value(new), Type::Slice(<span class="kw">_</span>)));
+                SizeChange::Dec { old, new }
+            }
+
+            Intrinsic::AsSlice =&gt; {
+                <span class="macro">assert_eq!</span>(arguments.len(), <span class="number">1</span>);
+                <span class="macro">assert_eq!</span>(results.len(), <span class="number">2</span>);
+                <span class="kw">let </span>old = arguments[<span class="number">0</span>];
+                <span class="kw">let </span>new = results[<span class="number">1</span>];
+                <span class="macro">assert!</span>(<span class="macro">matches!</span>(dfg.type_of_value(old), Type::Array(<span class="kw">_</span>, <span class="kw">_</span>)));
+                <span class="macro">assert!</span>(<span class="macro">matches!</span>(dfg.type_of_value(new), Type::Slice(<span class="kw">_</span>)));
+                SizeChange::SetTo { old, new }
+            }
+
+            Intrinsic::Hint(Hint::BlackBox) =&gt; {
+                <span class="macro">assert_eq!</span>(arguments.len(), results.len());
+                <span class="kw">let </span>arguments_types =
+                    arguments.iter().map(|x| dfg.type_of_value(<span class="kw-2">*</span>x)).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+                <span class="kw">let </span>results_types =
+                    results.iter().map(|x| dfg.type_of_value(<span class="kw-2">*</span>x)).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+                <span class="macro">assert_eq!</span>(arguments_types, results_types);
+                <span class="kw">let </span>old =
+                    <span class="kw-2">*</span>arguments.last().expect(<span class="string">"expected at least one argument to Hint::BlackBox"</span>);
+                <span class="kw">if </span><span class="self">self</span>.slice_sizes.contains_key(<span class="kw-2">&amp;</span>old) {
+                    <span class="kw">if </span>arguments.len() != <span class="number">1 </span>{
+                        <span class="macro">assert!</span>(arguments.len() == <span class="number">2</span>);
+                        <span class="macro">assert!</span>(<span class="macro">matches!</span>(arguments_types[<span class="number">0</span>], Type::Numeric(<span class="kw">_</span>)));
+                    }
+                    <span class="macro">assert!</span>(<span class="macro">matches!</span>(arguments_types.last().unwrap(), Type::Slice(<span class="kw">_</span>)));
+                    <span class="kw">let </span>new = <span class="kw-2">*</span>results.last().unwrap();
+                    SizeChange::SetTo { old, new }
+                } <span class="kw">else </span>{
+                    SizeChange::None
+                }
+            }
+
+            <span class="comment">// These cases don't affect slice capacities
+            </span>Intrinsic::AssertConstant
+            | Intrinsic::StaticAssert
+            | Intrinsic::ApplyRangeConstraint
+            | Intrinsic::ArrayLen
+            | Intrinsic::ArrayAsStrUnchecked
+            | Intrinsic::StrAsBytes
+            | Intrinsic::BlackBox(<span class="kw">_</span>)
+            | Intrinsic::AsWitness
+            | Intrinsic::IsUnconstrained
+            | Intrinsic::DerivePedersenGenerators
+            | Intrinsic::ToBits(<span class="kw">_</span>)
+            | Intrinsic::ToRadix(<span class="kw">_</span>)
+            | Intrinsic::ArrayRefCount
+            | Intrinsic::SliceRefCount
+            | Intrinsic::FieldLessThan =&gt; SizeChange::None,
+        }
+    }
 }
 
 <span class="kw">enum </span>SizeChange {
@@ -1243,79 +1362,6 @@
         old: ValueId,
         new: ValueId,
     },
-}
-
-<span class="doccomment">/// Find the change to a slice's capacity an instruction would have
-</span><span class="kw">fn </span>slice_capacity_change(
-    dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
-    intrinsic: Intrinsic,
-    arguments: <span class="kw-2">&amp;</span>[ValueId],
-    results: <span class="kw-2">&amp;</span>[ValueId],
-) -&gt; SizeChange {
-    <span class="kw">match </span>intrinsic {
-        Intrinsic::SlicePushBack | Intrinsic::SlicePushFront | Intrinsic::SliceInsert =&gt; {
-            <span class="comment">// All of these return `Self` (the slice), we are expecting: len, slice = ...
-            </span><span class="macro">assert_eq!</span>(results.len(), <span class="number">2</span>);
-            <span class="kw">let </span>old = arguments[<span class="number">1</span>];
-            <span class="kw">let </span>new = results[<span class="number">1</span>];
-            <span class="macro">assert!</span>(<span class="macro">matches!</span>(dfg.type_of_value(old), Type::Slice(<span class="kw">_</span>)));
-            <span class="macro">assert!</span>(<span class="macro">matches!</span>(dfg.type_of_value(new), Type::Slice(<span class="kw">_</span>)));
-            SizeChange::Inc { old, new }
-        }
-
-        Intrinsic::SlicePopBack | Intrinsic::SliceRemove =&gt; {
-            <span class="comment">// fn pop_back(self) -&gt; (Self, T)
-            // fn remove(self, index: u32) -&gt; (Self, T)
-            //
-            // These functions return the slice as the result `(len, slice, ...item)`,
-            // so the slice is the second result.
-            </span><span class="kw">let </span>old = arguments[<span class="number">1</span>];
-            <span class="kw">let </span>new = results[<span class="number">1</span>];
-            <span class="macro">assert!</span>(<span class="macro">matches!</span>(dfg.type_of_value(old), Type::Slice(<span class="kw">_</span>)));
-            <span class="macro">assert!</span>(<span class="macro">matches!</span>(dfg.type_of_value(new), Type::Slice(<span class="kw">_</span>)));
-            SizeChange::Dec { old, new }
-        }
-
-        Intrinsic::SlicePopFront =&gt; {
-            <span class="comment">// fn pop_front(self) -&gt; (T, Self)
-            //
-            // These functions return the slice as the result `(...item, len, slice)`,
-            // so the slice is the last result.
-            </span><span class="kw">let </span>old = arguments[<span class="number">1</span>];
-            <span class="kw">let </span>new = results[results.len() - <span class="number">1</span>];
-            <span class="macro">assert!</span>(<span class="macro">matches!</span>(dfg.type_of_value(old), Type::Slice(<span class="kw">_</span>)));
-            <span class="macro">assert!</span>(<span class="macro">matches!</span>(dfg.type_of_value(new), Type::Slice(<span class="kw">_</span>)));
-            SizeChange::Dec { old, new }
-        }
-
-        Intrinsic::AsSlice =&gt; {
-            <span class="macro">assert_eq!</span>(arguments.len(), <span class="number">1</span>);
-            <span class="macro">assert_eq!</span>(results.len(), <span class="number">2</span>);
-            <span class="kw">let </span>old = arguments[<span class="number">0</span>];
-            <span class="kw">let </span>new = results[<span class="number">1</span>];
-            <span class="macro">assert!</span>(<span class="macro">matches!</span>(dfg.type_of_value(old), Type::Array(<span class="kw">_</span>, <span class="kw">_</span>)));
-            <span class="macro">assert!</span>(<span class="macro">matches!</span>(dfg.type_of_value(new), Type::Slice(<span class="kw">_</span>)));
-            SizeChange::SetTo { old, new }
-        }
-
-        <span class="comment">// These cases don't affect slice capacities
-        </span>Intrinsic::AssertConstant
-        | Intrinsic::StaticAssert
-        | Intrinsic::ApplyRangeConstraint
-        | Intrinsic::ArrayLen
-        | Intrinsic::ArrayAsStrUnchecked
-        | Intrinsic::StrAsBytes
-        | Intrinsic::BlackBox(<span class="kw">_</span>)
-        | Intrinsic::Hint(Hint::BlackBox)
-        | Intrinsic::AsWitness
-        | Intrinsic::IsUnconstrained
-        | Intrinsic::DerivePedersenGenerators
-        | Intrinsic::ToBits(<span class="kw">_</span>)
-        | Intrinsic::ToRadix(<span class="kw">_</span>)
-        | Intrinsic::ArrayRefCount
-        | Intrinsic::SliceRefCount
-        | Intrinsic::FieldLessThan =&gt; SizeChange::None,
-    }
 }
 
 <span class="attr">#[cfg(debug_assertions)]
