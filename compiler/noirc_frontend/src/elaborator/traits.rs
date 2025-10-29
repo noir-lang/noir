@@ -191,6 +191,12 @@ use crate::{
 use super::Elaborator;
 
 impl Elaborator<'_> {
+    /// For each trait:
+    /// 1. Desugar any trait constraints using implicit associated types into the explicit form,
+    ///    mentioning all associated types.
+    /// 2. Resolves the trait's where clause.
+    /// 3. Resolves any bounds on associated types
+    /// 4. Resolves the trait's bounds (its listed super traits).
     pub fn collect_traits(&mut self, traits: &mut BTreeMap<TraitId, UnresolvedTrait>) {
         for (trait_id, unresolved_trait) in traits {
             self.local_module = unresolved_trait.module_id;
@@ -199,6 +205,8 @@ impl Elaborator<'_> {
                 this.current_trait = Some(*trait_id);
 
                 let the_trait = this.interner.get_trait(*trait_id);
+
+                // Add each type variable from the trait (including Self) into scope.
                 let self_typevar = the_trait.self_type_typevar.clone();
                 let self_type = Type::TypeVariable(self_typevar.clone());
                 this.self_type = Some(self_type.clone());
@@ -209,8 +217,12 @@ impl Elaborator<'_> {
                     &resolved_generics,
                 );
 
+                // Transform any constraints omitting their associated types (e.g. `I: Iterator`)
+                // into the explicit form (e.g. `I: Iterator<Item = FreshGeneric>`), returning
+                // any fresh generics created in the process (`[FreshGeneric]` here).
                 let new_generics =
                     this.desugar_trait_constraints(&mut unresolved_trait.trait_def.where_clause);
+
                 let new_generics = vecmap(new_generics, |(generic, _bounds)| {
                     // TODO: use `_bounds` variable above
                     // See https://github.com/noir-lang/noir/issues/8601
@@ -242,6 +254,9 @@ impl Elaborator<'_> {
                         .add_trait_dependency(DependencyId::Trait(bound.trait_id), *trait_id);
                 }
 
+                // TODO: Is it necessary to have both `where_clause` and `resolved_trait_bounds`?
+                // They both seem to be expressing trait constraints on this trait with the bounds
+                // limited to just constraints on `Self`. These may be able to be combined.
                 this.interner.update_trait(*trait_id, |trait_def| {
                     trait_def.set_trait_bounds(resolved_trait_bounds);
                     trait_def.set_where_clause(where_clause);
@@ -256,6 +271,10 @@ impl Elaborator<'_> {
         self.current_trait = None;
     }
 
+    /// Resolve the methods of each trait in an environment where the trait's generics are in scope.
+    ///
+    /// This mostly consists of resolving each parameter and any trait constraints. The trait
+    /// method bodies are not elaborated.
     pub fn collect_trait_methods(&mut self, traits: &mut BTreeMap<TraitId, UnresolvedTrait>) {
         for (trait_id, unresolved_trait) in traits {
             self.local_module = unresolved_trait.module_id;
@@ -263,6 +282,7 @@ impl Elaborator<'_> {
             self.recover_generics(|this| {
                 this.current_trait = Some(*trait_id);
 
+                // Put `Self` and other trait generics in scope
                 let the_trait = this.interner.get_trait(*trait_id);
                 let self_typevar = the_trait.self_type_typevar.clone();
                 let self_type = Type::TypeVariable(self_typevar.clone());
@@ -425,6 +445,8 @@ impl Elaborator<'_> {
         self.resolve_trait_bound_inner(bound, PathResolutionMode::MarkAsUsed)
     }
 
+    /// Resolve the given TraitBound, pushing error(s) if the path or any
+    /// types used failed to resolve.
     fn resolve_trait_bound_inner(
         &mut self,
         bound: &TraitBound,
@@ -448,6 +470,11 @@ impl Elaborator<'_> {
         Some(ResolvedTraitBound { trait_id, trait_generics, location })
     }
 
+    /// Adds the given trait constraints to scope as assumed trait impls.
+    ///
+    /// Since there is no global/local scope distinction for trait constraints,
+    /// care should be taken to manually remove these from scope (via
+    /// [Self::remove_trait_constraints_from_scope]) after the desired item finishes resolving.
     pub(super) fn add_trait_constraints_to_scope<'a>(
         &mut self,
         constraints: impl Iterator<Item = &'a TraitConstraint>,
@@ -477,6 +504,10 @@ impl Elaborator<'_> {
         }
     }
 
+    /// The removing counterpart for [Self::add_trait_constraints_to_scope].
+    ///
+    /// This will only remove assumed trait impls from scope, but this
+    /// is always what is desired since true trait impls are permanent.
     pub(super) fn remove_trait_constraints_from_scope<'a>(
         &mut self,
         constraints: impl Iterator<Item = &'a TraitConstraint>,
@@ -571,6 +602,8 @@ impl Elaborator<'_> {
         }
     }
 
+    /// Resolves a trait's methods, but does not elaborate their bodies.
+    /// Sets the FuncMeta for each trait method.
     fn resolve_trait_methods(
         &mut self,
         trait_id: TraitId,
@@ -676,6 +709,9 @@ impl Elaborator<'_> {
         functions
     }
 
+    /// Defines the FuncMeta for this trait function.
+    ///
+    /// The bodies of each function (if they exist) are not elaborated.
     #[allow(clippy::too_many_arguments)]
     pub fn resolve_trait_function(
         &mut self,
@@ -836,6 +872,10 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
     errors
 }
 
+/// Check the given function type matches the expected one.
+///
+/// This is used to check if a trait impl's function type matches the declared function in the
+/// original trait declaration - while handling the appropriate generic substitutions.
 #[allow(clippy::too_many_arguments)]
 fn check_function_type_matches_expected_type(
     expected: &Type,

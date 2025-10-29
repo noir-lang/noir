@@ -207,7 +207,7 @@ fn flatten_cfg_pre_check(function: &Function) {
     if !function.runtime().is_acir() {
         return;
     }
-    let loops = super::unrolling::Loops::find_all(function);
+    let loops = super::Loops::find_all(function);
     assert_eq!(loops.yet_to_unroll.len(), 0);
 
     for block in function.reachable_blocks() {

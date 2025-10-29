@@ -45,19 +45,21 @@ pub struct BrilligOptions {
     pub layout: LayoutConfig,
 }
 
-/// Context structure for the brillig pass.
-/// It stores brillig-related data required for brillig generation.
+/// Context structure for the Brillig pass.
+/// It stores Brillig-related data required for Brillig generation.
 #[derive(Default, Clone)]
 pub struct Brillig {
     /// Maps SSA function labels to their brillig artifact
     ssa_function_to_brillig: HashMap<FunctionId, BrilligArtifact<FieldElement>>,
-    pub call_stacks: CallStackHelper,
+    call_stacks: CallStackHelper,
+    /// Bytecode for globals for each Brillig entry point.
     globals: HashMap<FunctionId, BrilligArtifact<FieldElement>>,
+    /// The size of the global space for each Brillig entry point.
     globals_memory_size: HashMap<FunctionId, usize>,
 }
 
 impl Brillig {
-    /// Compiles a function into brillig and store the compilation artifacts
+    /// Compiles a function into brillig and store the compilation artifacts.
     pub(crate) fn compile(
         &mut self,
         func: &Function,
@@ -76,7 +78,7 @@ impl Brillig {
         self.ssa_function_to_brillig.insert(func.id(), obj);
     }
 
-    /// Finds a brillig artifact by its label
+    /// Finds a brillig artifact by its label.
     pub(crate) fn find_by_label(
         &self,
         function_label: Label,
@@ -114,7 +116,7 @@ impl Brillig {
         brillig_context.call_check_max_stack_depth_procedure();
 
         for block in function_context.blocks.clone() {
-            BrilligBlock::compile(
+            BrilligBlock::compile_block(
                 &mut function_context,
                 &mut brillig_context,
                 block,
@@ -126,6 +128,10 @@ impl Brillig {
         }
 
         brillig_context.artifact()
+    }
+
+    pub fn call_stacks(&self) -> &CallStackHelper {
+        &self.call_stacks
     }
 }
 
@@ -140,10 +146,9 @@ impl Ssa {
     /// Compile Brillig functions and ACIR functions reachable from them.
     #[tracing::instrument(level = "trace", skip_all)]
     pub fn to_brillig(&self, options: &BrilligOptions) -> Brillig {
-        let used_globals_map = self.used_globals_in_functions();
-
-        // Collect all the function ids that are reachable from brillig
-        // That means all the functions marked as brillig and ACIR functions called by them
+        // Collect all the function ids that are reachable from Brillig.
+        // That means all the functions marked as Brillig and ACIR functions called by them,
+        // but we should already have monomorphized ACIR functions as a Brillig as well.
         let brillig_reachable_function_ids = self
             .functions
             .iter()
@@ -156,24 +161,25 @@ impl Ssa {
             return brillig;
         }
 
-        let mut brillig_globals = BrilligGlobals::new(self, used_globals_map, self.main_id);
-
         // SSA Globals are computed once at compile time and shared across all functions,
         // thus we can just fetch globals from the main function.
         // This same globals graph will then be used to declare Brillig globals for the respective entry points.
         let globals = (*self.functions[&self.main_id].dfg.globals).clone();
         let globals_dfg = DataFlowGraph::from(globals);
-        brillig_globals.declare_globals(&globals_dfg, &mut brillig, options);
+
+        // Produce the globals Brillig bytecode and variable allocation for each entry point.
+        let brillig_globals = BrilligGlobals::init(self, self.main_id).declare_globals(
+            &globals_dfg,
+            &mut brillig,
+            options,
+        );
 
         for brillig_function_id in brillig_reachable_function_ids {
-            let empty_allocations = HashMap::default();
-            let empty_const_allocations = HashMap::default();
-            let (globals_allocations, hoisted_constant_allocations) = brillig_globals
-                .get_brillig_globals(brillig_function_id)
-                .unwrap_or((&empty_allocations, &empty_const_allocations));
+            let (globals_allocations, hoisted_constant_allocations) =
+                brillig_globals.get_brillig_globals(brillig_function_id);
 
             let func = &self.functions[&brillig_function_id];
-            let is_entry_point = brillig_globals.entry_points().contains_key(&brillig_function_id);
+            let is_entry_point = brillig_globals.is_entry_point(&brillig_function_id);
 
             brillig.compile(
                 func,

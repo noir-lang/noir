@@ -44,7 +44,7 @@ pub(super) fn compile_vector_remove_procedure<F: AcirField + DebugToString>(
     let index = SingleAddrVariable::new_usize(index_arg);
 
     // Reallocate if necessary
-    let source_size = brillig_context.codegen_make_vector_length(source_vector);
+    let source_size = brillig_context.codegen_read_vector_size(source_vector);
 
     let target_size = brillig_context.allocate_single_addr_usize();
     brillig_context.memory_op_instruction(
@@ -67,7 +67,7 @@ pub(super) fn compile_vector_remove_procedure<F: AcirField + DebugToString>(
     brillig_context.codegen_branch(*is_rc_one, |brillig_context, is_rc_one| {
         if is_rc_one {
             brillig_context.mov_instruction(target_vector.pointer, source_vector.pointer);
-            brillig_context.codegen_update_vector_length(target_vector, *target_size);
+            brillig_context.codegen_update_vector_size(target_vector, *target_size);
             brillig_context
                 .codegen_vector_items_pointer(target_vector, *target_vector_items_pointer);
         } else {

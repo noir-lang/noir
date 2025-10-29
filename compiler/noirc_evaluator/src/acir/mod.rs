@@ -91,6 +91,10 @@ struct Context<'a> {
     /// which utilizes this internal memory for ACIR generation.
     element_type_sizes_blocks: HashMap<Id<Value>, BlockId>,
 
+    /// Maps type sizes to BlockId. This is used to reuse the same BlockId if different
+    /// non-homogenous arrays end up having the same type sizes layout.
+    type_sizes_to_blocks: HashMap<Vec<usize>, BlockId>,
+
     /// Number of the next BlockId, it is used to construct
     /// a new BlockId
     max_block_id: u32,
@@ -125,6 +129,7 @@ impl<'a> Context<'a> {
             initialized_arrays: HashSet::default(),
             memory_blocks: HashMap::default(),
             element_type_sizes_blocks: HashMap::default(),
+            type_sizes_to_blocks: HashMap::default(),
             max_block_id: 0,
             data_bus: DataBus::default(),
             shared_context,
@@ -138,7 +143,7 @@ impl<'a> Context<'a> {
         ssa: &Ssa,
         function: &Function,
     ) -> Result<Option<GeneratedAcir<FieldElement>>, RuntimeError> {
-        self.acir_context.set_call_stack_helper(self.brillig.call_stacks.to_owned());
+        self.acir_context.set_call_stack_helper(self.brillig.call_stacks().clone());
         match function.runtime() {
             RuntimeType::Acir(inline_type) => {
                 match inline_type {
