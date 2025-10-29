@@ -18,15 +18,15 @@ use crate::items::{
 
 pub mod items;
 
-pub fn crate_to_item(
+pub fn crate_modules(
     crate_id: CrateId,
     _crate_graph: &CrateGraph,
     def_maps: &DefMaps,
     interner: &NodeInterner,
-) -> Item {
+) -> Vec<Module> {
     let item = noirc_frontend::hir::printer::crate_to_item(crate_id, def_maps, interner);
     let mut builder = DocItemBuilder::new(interner);
-    builder.build_item(item)
+    builder.item_modules(item)
 }
 
 struct DocItemBuilder<'a> {
@@ -39,17 +39,36 @@ impl<'a> DocItemBuilder<'a> {
         Self { interner, ids: HashMap::new() }
     }
 
-    fn build_item(&mut self, item: expand_items::Item) -> Item {
+    fn item_modules(&mut self, item: expand_items::Item) -> Vec<Module> {
+        let mut modules = Vec::new();
+        self.convert_item(item, "", &mut modules);
+        modules.retain(|module| !module.items.is_empty() || module.comments.is_some());
+        modules.sort_by_key(|module| module.name.clone());
+        modules
+    }
+
+    fn convert_item(
+        &mut self,
+        item: expand_items::Item,
+        base_name: &str,
+        modules: &mut Vec<Module>,
+    ) -> Option<Item> {
         match item {
             expand_items::Item::Module(module) => {
+                let name = if base_name.is_empty() {
+                    module.name.clone().unwrap_or_default()
+                } else {
+                    format!("{}::{}", base_name, module.name.as_ref().unwrap())
+                };
                 let comments = self.doc_comments(ReferenceId::Module(module.id));
                 let items = module
                     .items
                     .into_iter()
                     .filter(|(visibility, _item)| visibility == &ItemVisibility::Public)
-                    .map(|(_, item)| self.build_item(item))
+                    .filter_map(|(_, item)| self.convert_item(item, &name, modules))
                     .collect();
-                Item::Module(Module { name: module.name, comments, items })
+                modules.push(Module { name, comments, items });
+                None
             }
             expand_items::Item::DataType(item_data_type) => {
                 let type_id = item_data_type.id;
@@ -76,7 +95,7 @@ impl<'a> DocItemBuilder<'a> {
                 let trait_impls =
                     vecmap(item_data_type.trait_impls, |impl_| self.convert_trait_impl(impl_));
                 let id = self.get_id(ModuleDefId::TypeId(type_id));
-                Item::Struct(Struct {
+                Some(Item::Struct(Struct {
                     id,
                     name: data_type.name.to_string(),
                     generics,
@@ -84,7 +103,7 @@ impl<'a> DocItemBuilder<'a> {
                     impls,
                     trait_impls,
                     comments,
-                })
+                }))
             }
             expand_items::Item::Trait(item_trait) => {
                 let trait_id = item_trait.id;
@@ -101,7 +120,7 @@ impl<'a> DocItemBuilder<'a> {
                 });
                 let parents = vecmap(&trait_.trait_bounds, |bound| self.convert_trait_bound(bound));
                 let id = self.get_id(ModuleDefId::TraitId(trait_id));
-                Item::Trait(Trait {
+                Some(Item::Trait(Trait {
                     id,
                     name,
                     generics,
@@ -110,7 +129,7 @@ impl<'a> DocItemBuilder<'a> {
                     comments,
                     methods,
                     trait_impls,
-                })
+                }))
             }
             expand_items::Item::TypeAlias(type_alias_id) => {
                 let type_alias = self.interner.get_type_alias(type_alias_id);
@@ -120,7 +139,7 @@ impl<'a> DocItemBuilder<'a> {
                 let comments = self.doc_comments(ReferenceId::Alias(type_alias_id));
                 let generics = vecmap(&type_alias.generics, convert_generic);
                 let id = self.get_id(ModuleDefId::TypeAliasId(type_alias_id));
-                Item::TypeAlias(TypeAlias { id, name, comments, r#type, generics })
+                Some(Item::TypeAlias(TypeAlias { id, name, comments, r#type, generics }))
             }
             expand_items::Item::Global(global_id) => {
                 let global_info = self.interner.get_global(global_id);
@@ -135,9 +154,11 @@ impl<'a> DocItemBuilder<'a> {
                 let typ = self.interner.definition_type(definition_id);
                 let r#type = self.convert_type(&typ);
                 let comments = self.doc_comments(ReferenceId::Global(global_id));
-                Item::Global(Global { name, comments, comptime, mutable, r#type })
+                Some(Item::Global(Global { name, comments, comptime, mutable, r#type }))
             }
-            expand_items::Item::Function(func_id) => Item::Function(self.convert_function(func_id)),
+            expand_items::Item::Function(func_id) => {
+                Some(Item::Function(self.convert_function(func_id)))
+            }
         }
     }
 

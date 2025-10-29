@@ -10,13 +10,12 @@ pub struct Crates {
 #[derive(Serialize, Deserialize)]
 pub struct Crate {
     pub name: String,
-    pub items: Vec<Item>,
+    pub modules: Vec<Module>,
 }
 
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "kind")]
 pub enum Item {
-    Module(Module),
     Struct(Struct),
     Trait(Trait),
     TypeAlias(TypeAlias),
@@ -26,7 +25,7 @@ pub enum Item {
 
 #[derive(Serialize, Deserialize)]
 pub struct Module {
-    pub name: Option<String>,
+    pub name: String,
     pub items: Vec<Item>,
     pub comments: Option<String>,
 }
