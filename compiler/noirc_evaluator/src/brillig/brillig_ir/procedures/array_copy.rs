@@ -2,7 +2,9 @@ use std::vec;
 
 use acvm::{
     AcirField,
-    acir::brillig::{BitSize, HeapValueType, IntegerBitSize, MemoryAddress, ValueOrArray},
+    acir::brillig::{
+        BitSize, HeapArray, HeapValueType, IntegerBitSize, MemoryAddress, ValueOrArray,
+    },
 };
 
 use super::ProcedureId;
@@ -12,7 +14,7 @@ use crate::brillig::{
         BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, BrilligBinaryOp, BrilligContext, ReservedRegisters,
         brillig_variable::{BrilligArray, SingleAddrVariable},
         debug_show::DebugToString,
-        registers::{RegisterAllocator, ScratchSpace},
+        registers::{Allocated, RegisterAllocator, ScratchSpace},
     },
 };
 
@@ -41,21 +43,13 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 pub(super) fn compile_array_copy_procedure<F: AcirField + DebugToString>(
     brillig_context: &mut BrilligContext<F, ScratchSpace>,
 ) {
-    let scratch_start = brillig_context.registers.start();
-    let source_array_pointer_arg = MemoryAddress::direct(scratch_start);
-    let source_array_memory_size_arg = MemoryAddress::direct(scratch_start + 1);
-    let new_array_pointer_return = MemoryAddress::direct(scratch_start + 2);
+    let [source_array_pointer_arg, source_array_memory_size_arg, new_array_pointer_return] =
+        brillig_context.allocate_scratch_registers();
 
-    brillig_context.set_allocated_registers(vec![
-        source_array_pointer_arg,
-        source_array_memory_size_arg,
-        new_array_pointer_return,
-    ]);
-
-    let rc = SingleAddrVariable::new_usize(brillig_context.allocate_register());
+    let rc = brillig_context.allocate_single_addr_usize();
     brillig_context.load_instruction(rc.address, source_array_pointer_arg);
 
-    let is_rc_one = SingleAddrVariable::new(brillig_context.allocate_register(), 1);
+    let is_rc_one = brillig_context.allocate_single_addr_bool();
     brillig_context.codegen_usize_op(rc.address, is_rc_one.address, BrilligBinaryOp::Equals, 1);
 
     brillig_context.codegen_branch(is_rc_one.address, |ctx, cond| {
@@ -97,21 +91,18 @@ const PRINT_U32_TYPE_STRING: &str = "{\"kind\":\"unsignedinteger\",\"width\":32}
 fn literal_string_to_value<F: AcirField + DebugToString, Registers: RegisterAllocator>(
     target: &str,
     brillig_context: &mut BrilligContext<F, Registers>,
-) -> ValueOrArray {
-    let brillig_array =
-        BrilligArray { pointer: brillig_context.allocate_register(), size: target.len() };
+) -> Allocated<ValueOrArray, Registers> {
+    let brillig_array = brillig_context.allocate_brillig_array(target.len());
 
-    brillig_context.codegen_initialize_array(brillig_array);
+    brillig_context.codegen_initialize_array(*brillig_array);
 
-    let items_pointer = brillig_context.codegen_make_array_items_pointer(brillig_array);
+    let items_pointer = brillig_context.codegen_make_array_items_pointer(*brillig_array);
 
-    initialize_constant_string(brillig_context, target, items_pointer);
-    brillig_context.deallocate_register(items_pointer);
+    initialize_constant_string(brillig_context, target, *items_pointer);
 
-    ValueOrArray::HeapArray(acvm::acir::brillig::HeapArray {
-        pointer: brillig_context.codegen_make_array_items_pointer(brillig_array),
-        size: brillig_array.size,
-    })
+    brillig_array
+        .and_then(|array| brillig_context.codegen_make_array_items_pointer(array))
+        .map(|pointer| ValueOrArray::HeapArray(HeapArray { pointer, size: target.len() }))
 }
 
 // This function was adapted from `initialize_constant_array_comptime`
@@ -122,31 +113,24 @@ fn initialize_constant_string<F: AcirField + DebugToString, Registers: RegisterA
 ) {
     // Allocate a register for the iterator
     let write_pointer_register = brillig_context.allocate_register();
-    brillig_context.mov_instruction(write_pointer_register, pointer);
+    brillig_context.mov_instruction(*write_pointer_register, pointer);
 
     for (element_idx, byte) in data.bytes().enumerate() {
         let byte_field = AcirField::from_le_bytes_reduce(&[byte]);
         // Store the item in memory
-        brillig_context.indirect_const_instruction(write_pointer_register, 32, byte_field);
+        brillig_context.indirect_const_instruction(*write_pointer_register, 32, byte_field);
 
         if element_idx != data.len() - 1 {
             // Increment the write_pointer_register
-            brillig_context.memory_op_instruction(
-                write_pointer_register,
-                ReservedRegisters::usize_one(),
-                write_pointer_register,
-                BrilligBinaryOp::Add,
-            );
+            brillig_context.memory_op_inc_by_usize_one(*write_pointer_register);
         }
     }
-
-    brillig_context.deallocate_register(write_pointer_register);
 }
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     /// emit: `println(f"Total arrays copied: {array_copy_counter}")`
     pub(crate) fn emit_println_of_array_copy_counter(&mut self) {
-        let array_copy_counter = BrilligVariable::SingleAddr(SingleAddrVariable {
+        let array_copy_counter = BrilligVariable::from(SingleAddrVariable {
             address: self.array_copy_counter_address(),
             bit_size: 32,
         });
@@ -161,10 +145,10 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 
         let inputs = [
             newline, // true
-            message,
+            *message,
             item_count,     // 1
             value_to_print, // array clone counter
-            type_string_metadata,
+            *type_string_metadata,
             is_fmt_string, // true
         ];
 

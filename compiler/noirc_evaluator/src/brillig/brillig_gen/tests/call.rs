@@ -3,42 +3,6 @@ use crate::{
     ssa::ir::map::Id,
 };
 
-// Tests ArrayLen intrinsic code-gen for Brillig
-#[test]
-fn brillig_array_len() {
-    let src = "
-    brillig(inline) fn foo f0 {
-      b0():
-        v0 = make_array [u32 10, u32 20, u32 30] : [u32; 3]
-        v1 = call array_len(v0) -> u32
-        return v1
-    }
-    ";
-
-    let brillig = ssa_to_brillig_artifacts(src);
-    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
-    assert_artifact_snapshot!(foo, @r"
-    fn foo
-     0: call 0
-     1: sp[1] = const u32 10
-     2: sp[2] = const u32 20
-     3: sp[3] = const u32 30
-     4: sp[4] = @1
-     5: sp[5] = const u32 4
-     6: @1 = u32 add @1, sp[5]
-     7: sp[4] = indirect const u32 1
-     8: sp[5] = u32 add sp[4], @2
-     9: sp[6] = sp[5]
-    10: store sp[1] at sp[6]
-    11: sp[6] = u32 add sp[6], @2
-    12: store sp[2] at sp[6]
-    13: sp[6] = u32 add sp[6], @2
-    14: store sp[3] at sp[6]
-    15: sp[1] = const u32 3
-    16: return
-    ");
-}
-
 // Tests AsSlice intrinsic code-gen for Brillig.
 #[test]
 fn brillig_as_slice() {

@@ -26,11 +26,10 @@ use crate::{
             instruction::{Instruction, InstructionId, Intrinsic},
             value::ValueId,
         },
+        opt::Loops,
         ssa_gen::Ssa,
     },
 };
-
-use super::unrolling::Loops;
 
 impl Ssa {
     /// See [`evaluate_static_assert_and_assert_constant`][self] module for more information.
