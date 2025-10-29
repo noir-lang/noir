@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 use crate::items::{
-    Crate, Crates, Function, Generic, Item, Module, Struct, StructField, Trait, TraitBound,
+    Crate, Crates, Function, Generic, Impl, Item, Module, Struct, StructField, Trait, TraitBound,
     TraitConstraint, Type,
 };
 
@@ -66,6 +66,7 @@ impl MarkdownRenderer {
         self.render_struct_code(struct_);
         self.render_comments(&struct_.comments);
         self.render_struct_fields(&struct_.fields);
+        self.render_impls(&struct_.impls);
     }
 
     fn render_struct_code(&mut self, struct_: &Struct) {
@@ -112,6 +113,28 @@ impl MarkdownRenderer {
         }
     }
 
+    fn render_impls(&mut self, impls: &[Impl]) {
+        if impls.is_empty() {
+            return;
+        }
+
+        self.h4("Implementations");
+
+        for impl_ in impls {
+            self.render_impl(impl_);
+        }
+    }
+
+    fn render_impl(&mut self, impl_: &Impl) {
+        self.output.push_str("<h5><code>");
+        self.output.push_str("impl");
+        self.render_generics(&impl_.generics);
+        self.output.push(' ');
+        self.render_type(&impl_.r#type);
+        self.output.push_str("</code></h5>\n\n");
+        self.render_methods(&impl_.methods);
+    }
+
     fn render_traits(&mut self, items: &[Item]) {
         for item in items {
             match item {
@@ -156,15 +179,23 @@ impl MarkdownRenderer {
         for item in items {
             match item {
                 Item::Function(function) => {
-                    self.render_function(function);
+                    self.render_function(function, true /* show header */);
                 }
                 _ => {}
             }
         }
     }
 
-    fn render_function(&mut self, function: &Function) {
-        self.h3(&format!("Function `{}`", function.name));
+    fn render_methods(&mut self, methods: &[Function]) {
+        for method in methods {
+            self.render_function(method, false /* show header */);
+        }
+    }
+
+    fn render_function(&mut self, function: &Function, show_header: bool) {
+        if show_header {
+            self.h3(&format!("Function `{}`", function.name));
+        }
         self.render_function_signature(function);
         self.render_comments(&function.comments);
     }
@@ -245,7 +276,7 @@ impl MarkdownRenderer {
 
     fn render_id(&mut self, id: usize, name: &str) {
         if let Some(anchor_name) = self.id_to_string.get(&id) {
-            self.output.push_str(&format!("[{name}](#{anchor_name})"));
+            self.output.push_str(&format!("<a href=\"#{anchor_name}\">{name}</a>"));
         } else {
             self.output.push_str(name);
         }
@@ -358,14 +389,14 @@ impl MarkdownRenderer {
             return;
         }
 
-        self.output.push('<');
+        self.output.push_str("&lt;");
         for (index, generic) in generics.iter().enumerate() {
             if index > 0 {
                 self.output.push_str(", ");
             }
             self.render_type(generic);
         }
-        self.output.push('>');
+        self.output.push_str("&gt;");
     }
 
     fn render_trait_generics(&mut self, ordered: &[Type], named: &BTreeMap<String, Type>) {
@@ -401,19 +432,27 @@ impl MarkdownRenderer {
     }
 
     fn h1(&mut self, text: &str) {
-        self.output.push_str(&format!("# {}\n\n", text));
+        self.h(1, text);
     }
 
     fn h2(&mut self, text: &str) {
-        self.output.push_str(&format!("## {}\n\n", text));
+        self.h(2, text);
     }
 
     fn h3(&mut self, text: &str) {
-        self.output.push_str(&format!("### {}\n\n", text));
+        self.h(3, text);
     }
 
     fn h4(&mut self, text: &str) {
-        self.output.push_str(&format!("#### {}\n\n", text));
+        self.h(4, text);
+    }
+
+    fn h(&mut self, level: usize, text: &str) {
+        if !self.output.is_empty() && !self.output.ends_with("\n\n") {
+            self.output.push_str("\n");
+        }
+
+        self.output.push_str(&format!("{} {}{}\n\n", "#".repeat(level), text, ""));
     }
 
     fn anchor(&mut self, id: usize) {
