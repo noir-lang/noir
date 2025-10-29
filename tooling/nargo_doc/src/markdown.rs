@@ -200,13 +200,20 @@ impl MarkdownRenderer {
         self.output.push_str(&function.name);
         self.render_generics(&function.generics);
         self.output.push('(');
+        let use_newlines = function.params.len() > 2;
         for (index, param) in function.params.iter().enumerate() {
-            if index > 0 {
+            if index > 0 && !use_newlines {
                 self.output.push_str(", ");
+            }
+            if use_newlines {
+                self.output.push_str("<br/>&nbsp;&nbsp;&nbsp;&nbsp;");
             }
             self.output.push_str(&param.name);
             self.output.push_str(": ");
             self.render_type(&param.r#type);
+        }
+        if use_newlines {
+            self.output.push_str("<br/>");
         }
         self.output.push(')');
         if !matches!(function.return_type, Type::Unit) {
