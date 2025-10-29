@@ -13,8 +13,8 @@ impl Parser<'_> {
 
     fn parse_inner_doc_comment(&mut self) -> Option<String> {
         self.eat_kind(TokenKind::InnerDocComment).map(|token| match token.into_token() {
-            Token::LineComment(comment, Some(DocStyle::Inner))
-            | Token::BlockComment(comment, Some(DocStyle::Inner)) => comment,
+            Token::LineComment(comment, Some(DocStyle::Inner)) => fix_line_comment(comment),
+            Token::BlockComment(comment, Some(DocStyle::Inner)) => fix_block_comment(comment),
             _ => unreachable!(),
         })
     }
@@ -27,8 +27,8 @@ impl Parser<'_> {
     /// OuterDocComment = outer_doc_comment
     pub(super) fn parse_outer_doc_comment(&mut self) -> Option<String> {
         self.eat_kind(TokenKind::OuterDocComment).map(|token| match token.into_token() {
-            Token::LineComment(comment, Some(DocStyle::Outer))
-            | Token::BlockComment(comment, Some(DocStyle::Outer)) => comment,
+            Token::LineComment(comment, Some(DocStyle::Outer)) => fix_line_comment(comment),
+            Token::BlockComment(comment, Some(DocStyle::Outer)) => fix_block_comment(comment),
             _ => unreachable!(),
         })
     }
@@ -53,6 +53,28 @@ impl Parser<'_> {
     }
 }
 
+fn fix_line_comment(comment: String) -> String {
+    if comment.starts_with(' ') { comment[1..].to_string() } else { comment }
+}
+
+fn fix_block_comment(comment: String) -> String {
+    let mut fixed_comment = String::new();
+    for (index, line) in comment.lines().enumerate() {
+        if index > 0 {
+            fixed_comment.push('\n');
+        }
+
+        if line.starts_with(" * ") {
+            fixed_comment.push_str(&line[3..]);
+        } else if line.starts_with(' ') {
+            fixed_comment.push_str(&line[1..]);
+        } else {
+            fixed_comment.push_str(line);
+        }
+    }
+    fixed_comment
+}
+
 #[cfg(test)]
 mod tests {
     use crate::parser::{Parser, parser::tests::expect_no_errors};
@@ -64,8 +86,18 @@ mod tests {
         let comments = parser.parse_inner_doc_comments();
         expect_no_errors(&parser.errors);
         assert_eq!(comments.len(), 2);
-        assert_eq!(comments[0], " Hello");
-        assert_eq!(comments[1], " World");
+        assert_eq!(comments[0], "Hello");
+        assert_eq!(comments[1], "World");
+    }
+
+    #[test]
+    fn parses_inner_block_doc_comments() {
+        let src = "/*! Hello\n * World\n * !\n*/";
+        let mut parser = Parser::for_str_with_dummy_file(src);
+        let comments = parser.parse_inner_doc_comments();
+        expect_no_errors(&parser.errors);
+        assert_eq!(comments.len(), 1);
+        assert_eq!(comments[0], "Hello\nWorld\n!");
     }
 
     #[test]
@@ -75,7 +107,17 @@ mod tests {
         let comments = parser.parse_outer_doc_comments();
         expect_no_errors(&parser.errors);
         assert_eq!(comments.len(), 2);
-        assert_eq!(comments[0], " Hello");
-        assert_eq!(comments[1], " World");
+        assert_eq!(comments[0], "Hello");
+        assert_eq!(comments[1], "World");
+    }
+
+    #[test]
+    fn parses_outer_block_doc_comments() {
+        let src = "/** Hello\n * World\n * !\n*/";
+        let mut parser = Parser::for_str_with_dummy_file(src);
+        let comments = parser.parse_outer_doc_comments();
+        expect_no_errors(&parser.errors);
+        assert_eq!(comments.len(), 1);
+        assert_eq!(comments[0], "Hello\nWorld\n!");
     }
 }
