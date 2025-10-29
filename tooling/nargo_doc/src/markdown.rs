@@ -1,0 +1,286 @@
+use std::collections::BTreeMap;
+
+use crate::items::{Crate, Crates, Generic, Item, Module, Struct, Type};
+
+pub fn to_markdown(crates: &Crates) -> String {
+    let mut renderer = MarkdownRenderer { output: String::new() };
+    renderer.render_crates(crates);
+    renderer.output
+}
+
+struct MarkdownRenderer {
+    output: String,
+}
+
+impl MarkdownRenderer {
+    fn render_crates(&mut self, crates: &Crates) {
+        for krate in &crates.crates {
+            self.render_crate(krate);
+        }
+    }
+
+    fn render_crate(&mut self, krate: &Crate) {
+        self.h1(&format!("Crate {}", krate.name));
+
+        for module in &krate.modules {
+            self.render_module(module);
+        }
+    }
+
+    fn render_module(&mut self, module: &Module) {
+        if !module.name.is_empty() {
+            self.h2(&format!("Module {}", module.name));
+        }
+
+        self.render_comments(&module.comments);
+        self.render_structs(&module.items);
+    }
+
+    fn render_structs(&mut self, items: &[Item]) {
+        for item in items {
+            match item {
+                Item::Struct(struct_) => {
+                    self.render_struct(struct_);
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn render_struct(&mut self, struct_: &Struct) {
+        self.h3(&format!("Struct `{}`", struct_.name));
+        self.render_struct_code(struct_);
+        self.render_struct_fields(struct_);
+    }
+
+    fn render_struct_code(&mut self, struct_: &Struct) {
+        self.output.push_str("```noir\n");
+        self.output.push_str(&format!("pub struct {}", struct_.name));
+        self.render_generics(&struct_.generics);
+        self.output.push_str(" {\n");
+        if struct_.has_private_fields {
+            for field in &struct_.fields {
+                self.output.push_str(&format!("  pub {}: ", field.name,));
+                self.render_type_without_links(&field.r#type);
+                self.output.push_str(",\n");
+            }
+            self.output.push_str("  /* private fields */\n");
+        }
+        self.output.push_str("}\n");
+        self.output.push_str("```\n");
+    }
+
+    fn render_struct_fields(&mut self, struct_: &Struct) {
+        if struct_.fields.is_empty() {
+            return;
+        }
+
+        self.h4("Fields");
+
+        for field in &struct_.fields {
+            self.output.push_str("##### ");
+            self.output.push_str(&field.name);
+            self.output.push_str(": ");
+            self.render_type_with_links(&field.r#type);
+            self.output.push_str("\n\n");
+            self.render_comments(&field.comments);
+        }
+    }
+
+    fn render_generics(&mut self, generics: &[Generic]) {
+        if generics.is_empty() {
+            return;
+        }
+
+        self.output.push('<');
+        for (index, generic) in generics.iter().enumerate() {
+            if index > 0 {
+                self.output.push_str(", ");
+            }
+            if let Some(numeric) = &generic.numeric {
+                self.output.push_str(&format!("let {}: {}", generic.name, numeric));
+            } else {
+                self.output.push_str(&generic.name);
+            }
+        }
+        self.output.push('>');
+    }
+
+    fn render_type_with_links(&mut self, typ: &Type) {
+        self.render_type(typ, true);
+    }
+
+    fn render_type_without_links(&mut self, typ: &Type) {
+        self.render_type(typ, false);
+    }
+
+    fn render_type(&mut self, typ: &Type, links: bool) {
+        match typ {
+            Type::Unit => self.output.push_str("()"),
+            Type::Primitive(primitive) => {
+                self.output.push_str(primitive);
+            }
+            Type::Array { length, element } => {
+                self.output.push('[');
+                self.render_type(element, links);
+                self.output.push_str("; ");
+                self.render_type(length, links);
+                self.output.push(']');
+            }
+            Type::Slice { element } => {
+                self.output.push('[');
+                self.render_type(element, links);
+                self.output.push_str("]");
+            }
+            Type::String { length } => {
+                self.output.push_str("str<");
+                self.render_type(length, links);
+                self.output.push('>');
+            }
+            Type::FmtString { length, element } => {
+                self.output.push_str("fmtstr<");
+                self.render_type(length, links);
+                self.output.push_str(", ");
+                self.render_type(element, links);
+                self.output.push('>');
+            }
+            Type::Tuple(items) => {
+                self.output.push('(');
+                for (index, item) in items.iter().enumerate() {
+                    if index > 0 {
+                        self.output.push_str(", ");
+                    }
+                    self.render_type(item, links);
+                }
+                if items.len() == 1 {
+                    self.output.push(',');
+                }
+                self.output.push(')');
+            }
+            Type::Reference { r#type, mutable } => {
+                self.output.push('&');
+                if *mutable {
+                    self.output.push_str("mut ");
+                }
+                self.render_type(r#type, links);
+            }
+            Type::Struct { id: _, name, generics } => {
+                self.output.push_str(name);
+                self.render_generic_types(generics, links);
+            }
+            Type::TypeAlias { id: _, name, generics } => {
+                self.output.push_str(name);
+                self.render_generic_types(generics, links);
+            }
+            Type::Function { params, return_type, env, unconstrained } => {
+                if *unconstrained {
+                    self.output.push_str("unconstrained ");
+                }
+                self.output.push_str("fn");
+                if !matches!(env.as_ref(), &Type::Unit) {
+                    self.output.push('[');
+                    self.render_type(env, links);
+                    self.output.push(']');
+                }
+                self.output.push('(');
+                for (index, param) in params.iter().enumerate() {
+                    if index > 0 {
+                        self.output.push_str(", ");
+                    }
+                    self.render_type(param, links);
+                }
+                self.output.push(')');
+                if !matches!(return_type.as_ref(), &Type::Unit) {
+                    self.output.push_str(" -> ");
+                    self.render_type(return_type, links);
+                }
+            }
+            Type::Constant(value) => {
+                self.output.push_str(value);
+            }
+            Type::Generic(name) => {
+                self.output.push_str(name);
+            }
+            Type::InfixExpr { lhs, operator, rhs } => {
+                self.render_type(lhs, links);
+                self.output.push(' ');
+                self.output.push_str(&operator);
+                self.output.push(' ');
+                self.render_type(rhs, links);
+            }
+            Type::TraitAsType { trait_id: _, trait_name, ordered_generics, named_generics } => {
+                self.output.push_str("impl ");
+                self.output.push_str(trait_name);
+                self.render_trait_generics(ordered_generics, named_generics, links);
+            }
+        }
+    }
+
+    fn render_generic_types(&mut self, generics: &[Type], links: bool) {
+        if generics.is_empty() {
+            return;
+        }
+
+        self.output.push('<');
+        for (index, generic) in generics.iter().enumerate() {
+            if index > 0 {
+                self.output.push_str(", ");
+            }
+            self.render_type(generic, links);
+        }
+        self.output.push('>');
+    }
+
+    fn render_trait_generics(
+        &mut self,
+        ordered: &[Type],
+        named: &BTreeMap<String, Type>,
+        links: bool,
+    ) {
+        if ordered.is_empty() && named.is_empty() {
+            return;
+        }
+
+        self.output.push('<');
+        let mut first = true;
+        for generic in ordered {
+            if !first {
+                self.output.push_str(", ");
+            }
+            first = false;
+            self.render_type(generic, links);
+        }
+        for (name, typ) in named {
+            if !first {
+                self.output.push_str(", ");
+            }
+            first = false;
+            self.output.push_str(&format!("{} = ", name));
+            self.render_type(typ, links);
+        }
+        self.output.push('>');
+    }
+
+    fn render_comments(&mut self, comments: &Option<String>) {
+        if let Some(comments) = comments {
+            self.output.push_str(&comments);
+            self.output.push_str("\n\n");
+        }
+    }
+
+    fn h1(&mut self, text: &str) {
+        self.output.push_str(&format!("# {}\n\n", text));
+    }
+
+    fn h2(&mut self, text: &str) {
+        self.output.push_str(&format!("## {}\n\n", text));
+    }
+
+    fn h3(&mut self, text: &str) {
+        self.output.push_str(&format!("### {}\n\n", text));
+    }
+
+    fn h4(&mut self, text: &str) {
+        self.output.push_str(&format!("#### {}\n\n", text));
+    }
+}

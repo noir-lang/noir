@@ -17,6 +17,8 @@ use crate::items::{
 };
 
 pub mod items;
+mod markdown;
+pub use markdown::to_markdown;
 
 /// Returns the flattened modules in a crate. For example, a crate with this source:
 ///

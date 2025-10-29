@@ -21,11 +21,20 @@ use super::{LockType, PackageOptions, WorkspaceCommand};
 
 #[derive(Debug, Clone, Args, Default)]
 pub(crate) struct DocCommand {
+    #[clap(long)]
+    format: Option<Format>,
+
     #[clap(flatten)]
     pub(super) package_options: PackageOptions,
 
     #[clap(flatten)]
     compile_options: CompileOptions,
+}
+
+#[derive(Debug, Clone, clap::ValueEnum)]
+enum Format {
+    Json,
+    Markdown,
 }
 
 impl WorkspaceCommand for DocCommand {
@@ -58,12 +67,20 @@ pub(crate) fn run(args: DocCommand, workspace: Workspace) -> Result<(), CliError
     }
     let crates = Crates { crates };
 
-    match serde_json::to_string_pretty(&crates) {
-        Ok(json) => {
-            println!("{json}");
+    let format = args.format.unwrap_or(Format::Markdown);
+    match format {
+        Format::Json => match serde_json::to_string_pretty(&crates) {
+            Ok(json) => {
+                println!("{json}");
+                Ok(())
+            }
+            Err(err) => Err(CliError::Generic(err.to_string())),
+        },
+        Format::Markdown => {
+            let markdown = nargo_doc::to_markdown(&crates);
+            println!("{markdown}");
             Ok(())
         }
-        Err(_) => todo!("Handle error case"),
     }
 }
 
