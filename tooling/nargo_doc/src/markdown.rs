@@ -1,8 +1,8 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 use crate::items::{
-    Crate, Crates, Function, Generic, Impl, Item, Module, Struct, StructField, Trait, TraitBound,
-    TraitConstraint, TraitImpl, Type, TypeAlias,
+    Crate, Crates, Function, Generic, Global, Impl, Item, Module, Struct, StructField, Trait,
+    TraitBound, TraitConstraint, TraitImpl, Type, TypeAlias,
 };
 
 pub fn to_markdown(crates: &Crates) -> String {
@@ -47,6 +47,7 @@ impl MarkdownRenderer {
         self.render_structs(&module.items);
         self.render_traits(&module.items);
         self.render_type_aliases(&module.items);
+        self.render_globals(&module.items);
         self.render_functions(&module.items);
     }
 
@@ -234,6 +235,40 @@ impl MarkdownRenderer {
         self.render_generics(&alias.generics);
         self.output.push_str(" = ");
         self.render_type(&alias.r#type);
+        self.output.push_str(";");
+        self.output.push_str("</code></pre>\n\n");
+    }
+
+    fn render_globals(&mut self, items: &[Item]) {
+        for item in items {
+            match item {
+                Item::Global(global) => {
+                    self.render_global(global);
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn render_global(&mut self, global: &Global) {
+        self.h3(&format!("Global `{}`", global.name));
+        self.render_global_code(global);
+        self.render_comments(&global.comments);
+    }
+
+    fn render_global_code(&mut self, global: &Global) {
+        self.output.push_str("<pre><code>");
+        self.output.push_str("pub ");
+        if global.mutable {
+            self.output.push_str("mut ");
+        }
+        if global.comptime {
+            self.output.push_str("comptime ");
+        }
+        self.output.push_str("global ");
+        self.output.push_str(&global.name);
+        self.output.push_str(": ");
+        self.render_type(&global.r#type);
         self.output.push_str(";");
         self.output.push_str("</code></pre>\n\n");
     }
