@@ -71,30 +71,28 @@ impl MarkdownRenderer {
     }
 
     fn render_struct_code(&mut self, struct_: &Struct) {
-        self.output.push_str("<code>");
+        self.output.push_str("<pre><code>");
         self.output.push_str(&format!("pub struct {}", struct_.name));
         self.render_generics(&struct_.generics);
         if struct_.fields.is_empty() {
             if struct_.has_private_fields {
-                self.output.push_str("<br/>{ /* private fields */ }<br/>");
+                self.output.push_str("\n{ /* private fields */ }\n");
             } else {
-                self.output.push_str(" {}<br/>");
+                self.output.push_str(" {}\n");
             }
         } else {
-            self.output.push_str(" {<br/>");
+            self.output.push_str(" {\n");
             for field in &struct_.fields {
-                self.html_indent();
-                self.output.push_str(&format!("pub {}: ", field.name,));
+                self.output.push_str(&format!("    pub {}: ", field.name,));
                 self.render_type(&field.r#type);
-                self.output.push_str(",<br/>");
+                self.output.push_str(",\n");
             }
             if struct_.has_private_fields {
-                self.html_indent();
-                self.output.push_str("/* private fields */<br/>");
+                self.output.push_str("    /* private fields */\n");
             }
-            self.output.push_str("}<br/>");
+            self.output.push_str("}\n");
         }
-        self.output.push_str("</code>\n");
+        self.output.push_str("</code></pre>\n");
     }
 
     fn render_struct_fields(&mut self, fields: &[StructField]) {
@@ -127,12 +125,12 @@ impl MarkdownRenderer {
     }
 
     fn render_impl(&mut self, impl_: &Impl) {
-        self.output.push_str("<h5><code>");
+        self.output.push_str("<h5><pre><code>");
         self.output.push_str("impl");
         self.render_generics(&impl_.generics);
         self.output.push(' ');
         self.render_type(&impl_.r#type);
-        self.output.push_str("</code></h5>\n\n");
+        self.output.push_str("</code></pre></h5>\n\n");
         self.render_methods(&impl_.methods);
     }
 
@@ -149,7 +147,7 @@ impl MarkdownRenderer {
     }
 
     fn render_trait_impl(&mut self, trait_impl: &TraitImpl) {
-        self.output.push_str("<h5><code>");
+        self.output.push_str("<h5><pre><code>");
         self.output.push_str("impl");
         self.render_generics(&trait_impl.generics);
         self.output.push(' ');
@@ -158,7 +156,7 @@ impl MarkdownRenderer {
         self.output.push_str(" for ");
         self.render_type(&trait_impl.r#type);
         self.render_where_clause(&trait_impl.where_clause);
-        self.output.push_str("</code></h5>\n\n");
+        self.output.push_str("</code></pre></h5>\n\n");
     }
 
     fn render_traits(&mut self, items: &[Item]) {
@@ -182,25 +180,24 @@ impl MarkdownRenderer {
     }
 
     fn render_trait_code(&mut self, trait_: &Trait) {
-        self.output.push_str("<code>");
+        self.output.push_str("<pre><code>");
         self.output.push_str(&format!("pub trait {}", trait_.name));
         self.render_generics(&trait_.generics);
         if !trait_.bounds.is_empty() {
-            self.output.push_str(":<br/>");
+            self.output.push_str(":\n");
             for (index, bound) in trait_.bounds.iter().enumerate() {
                 if index > 0 {
-                    self.output.push_str("<br/>");
+                    self.output.push_str("\n");
                 }
-                self.html_indent();
                 if index > 0 {
-                    self.output.push_str("+ ");
+                    self.output.push_str("    + ");
                 }
                 self.render_trait_bound(bound);
             }
         }
         self.render_where_clause(&trait_.where_clause);
-        self.output.push_str(" {<br/>}");
-        self.output.push_str("</code>\n\n");
+        self.output.push_str(" {\n}");
+        self.output.push_str("</code></pre>\n\n");
     }
 
     fn render_trait_methods(&mut self, methods: &[Function]) {
@@ -238,7 +235,7 @@ impl MarkdownRenderer {
     }
 
     fn render_function_signature(&mut self, function: &Function) {
-        self.output.push_str("<code>");
+        self.output.push_str("<pre><code>");
         self.output.push_str("pub fn ");
         self.output.push_str(&function.name);
         self.render_generics(&function.generics);
@@ -249,15 +246,14 @@ impl MarkdownRenderer {
                 self.output.push_str(", ");
             }
             if use_newlines {
-                self.output.push_str("<br/>");
-                self.html_indent();
+                self.output.push_str("\n    ");
             }
             self.output.push_str(&param.name);
             self.output.push_str(": ");
             self.render_type(&param.r#type);
         }
         if use_newlines {
-            self.output.push_str("<br/>");
+            self.output.push_str("\n");
         }
         self.output.push(')');
         if !matches!(function.return_type, Type::Unit) {
@@ -265,7 +261,7 @@ impl MarkdownRenderer {
             self.render_type(&function.return_type);
         }
         self.render_where_clause(&function.where_clause);
-        self.output.push_str("</code>");
+        self.output.push_str("</code></pre>");
         self.output.push_str("\n\n");
     }
 
@@ -293,16 +289,16 @@ impl MarkdownRenderer {
             return;
         }
 
-        self.output.push_str("<br/>where<br/>");
+        self.output.push_str("\nwhere\n");
         for (index, constraint) in where_clause.iter().enumerate() {
-            self.html_indent();
+            self.output.push_str("    ");
             self.render_type(&constraint.r#type);
             self.output.push_str(": ");
             self.render_trait_bound(&constraint.bound);
             if index != where_clause.len() - 1 {
                 self.output.push(',');
             }
-            self.output.push_str("<br/>");
+            self.output.push_str("\n");
         }
     }
 
@@ -495,10 +491,6 @@ impl MarkdownRenderer {
     fn anchor(&mut self, id: usize) {
         let name = &self.id_to_string[&id];
         self.output.push_str(&format!("<a id=\"{}\"></a>\n", name));
-    }
-
-    fn html_indent(&mut self) {
-        self.output.push_str("&nbsp;&nbsp;&nbsp;&nbsp;");
     }
 }
 
