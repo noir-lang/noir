@@ -3197,9 +3197,7 @@
 <a href="#3196" id="3196">3196</a>
 <a href="#3197" id="3197">3197</a>
 <a href="#3198" id="3198">3198</a>
-<a href="#3199" id="3199">3199</a>
-<a href="#3200" id="3200">3200</a>
-<a href="#3201" id="3201">3201</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::rc::Rc;
+<a href="#3199" id="3199">3199</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::rc::Rc;
 
 <span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>builtin_helpers::{
@@ -6062,9 +6060,7 @@
     interpreter.elaborate_in_module(module_id, reason, |elaborator| {
         <span class="kw">let </span><span class="kw-2">mut </span>generated_items = CollectedItems::default();
 
-        <span class="kw">for </span>top_level_statement <span class="kw">in </span>top_level_statements {
-            elaborator.add_item(top_level_statement, <span class="kw-2">&amp;mut </span>generated_items, location);
-        }
+        elaborator.add_items(top_level_statements, <span class="kw-2">&amp;mut </span>generated_items, location);
 
         <span class="kw">if </span>!generated_items.is_empty() {
             elaborator.elaborate_items(generated_items);
