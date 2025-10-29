@@ -26,9 +26,10 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         for i in 0..n {
             // Check that destinations are relatives to 0,..,n-1
             assert_eq!(destinations[i].unwrap_relative() - start, i);
-            let index = to_index(&sources[i]);
-            if index < n && index != i {
-                children[index] += 1;
+            if let Some(index) = to_index(&sources[i]) {
+                if index < n && index != i {
+                    children[index] += 1;
+                }
             }
         }
 
@@ -41,7 +42,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                 // A sink has no child
                 let mut node = i;
                 while children[node] == 0 {
-                    if to_index(&sources[node]) == node {
+                    if to_index(&sources[node]) == Some(node) {
                         //no-op: mark the node as processed
                         children[node] = usize::MAX;
                         processed += 1;
@@ -50,20 +51,21 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                     // Generates a move instruction
                     self.perform_movement(node, sources[node], &mut children, &mut processed);
                     // Follow the parent
-                    let index = to_index(&sources[node]);
-                    if index < n {
-                        children[index] -= 1;
-                        if children[index] > 0 {
-                            // The parent node has another child, so we cannot process it yet.
-                            tail_candidates.push((sources[node], node));
-                            break;
+                    if let Some(index) = to_index(&sources[node]) {
+                        if index < n {
+                            children[index] -= 1;
+                            if children[index] > 0 {
+                                // The parent node has another child, so we cannot process it yet.
+                                tail_candidates.push((sources[node], node));
+                                break;
+                            }
+                            // process the parent node
+                            node = index;
+                            continue;
                         }
-                        // process the parent node
-                        node = index;
-                    } else {
-                        // End of the path
-                        break;
                     }
+                    // End of the path
+                    break;
                 }
                 if processed == n {
                     return;
@@ -73,7 +75,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         // All sinks and their parents have been processed, remaining nodes are part of a loop
         // Check if a tail_candidate is a branch to a loop
         for (entry, free) in tail_candidates {
-            let entry_idx = to_index(&entry);
+            let entry_idx = to_index(&entry).unwrap();
             if entry_idx < n && children[entry_idx] == 1 {
                 // Use the branch as the temporary register for the loop
                 self.process_loop(
@@ -119,9 +121,9 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         processed: &mut usize,
     ) {
         let mut current = entry;
-        while to_index(&source[current]) != entry {
+        while to_index(&source[current]).unwrap() != entry {
             self.perform_movement(current, source[current], children, processed);
-            current = to_index(&source[current]);
+            current = to_index(&source[current]).unwrap();
         }
         self.perform_movement(current, *free, children, processed);
     }
@@ -143,10 +145,10 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 }
 
 /// Map the address so that the first register of the stack will have index 0
-fn to_index(adr: &MemoryAddress) -> usize {
+fn to_index(adr: &MemoryAddress) -> Option<usize> {
     match adr {
-        MemoryAddress::Relative(size) => size - Stack::start(),
-        MemoryAddress::Direct(_) => usize::MAX,
+        MemoryAddress::Relative(size) => Some(size - Stack::start()),
+        MemoryAddress::Direct(_) => None,
     }
 }
 
