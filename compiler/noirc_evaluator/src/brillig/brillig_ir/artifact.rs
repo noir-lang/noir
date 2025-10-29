@@ -133,7 +133,7 @@ pub(crate) struct Label {
 }
 
 impl Label {
-    pub(crate) fn add_section(&self, section: usize) -> Self {
+    pub(crate) fn with_section(&self, section: usize) -> Self {
         Label { label_type: self.label_type.clone(), section: Some(section) }
     }
 
@@ -306,7 +306,7 @@ impl<F: Clone + std::fmt::Debug> BrilligArtifact<F> {
     /// Returns the index of the next opcode.
     ///
     /// This is useful for labelling regions of code
-    /// before you have generated the opcodes for the region.
+    /// before we start generating the opcodes for the region.
     pub(crate) fn index_of_next_opcode(&self) -> OpcodeLocation {
         self.byte_code.len()
     }

@@ -1,7 +1,7 @@
 use crate::acir::types::{flat_element_types, flat_numeric_types};
-use crate::acir::{AcirDynamicArray, AcirType, AcirValue};
+use crate::acir::{AcirDynamicArray, AcirValue};
 use crate::errors::RuntimeError;
-use crate::ssa::ir::types::Type;
+use crate::ssa::ir::types::{NumericType, Type};
 use crate::ssa::ir::{dfg::DataFlowGraph, value::ValueId};
 use acvm::{AcirField, FieldElement};
 
@@ -158,7 +158,7 @@ impl Context<'_> {
             (new_slice_length, AcirValue::DynamicArray(flattened_dynamic_array))
         };
 
-        Ok(vec![AcirValue::Var(new_slice_length, AcirType::unsigned(32)), new_slice_val])
+        Ok(vec![AcirValue::Var(new_slice_length, NumericType::length_type()), new_slice_val])
     }
 
     /// Pushes one or more elements to the front of a non-nested slice.
@@ -198,7 +198,7 @@ impl Context<'_> {
 
         let new_slice_val = AcirValue::Array(new_slice);
 
-        Ok(vec![AcirValue::Var(new_slice_length, AcirType::unsigned(32)), new_slice_val])
+        Ok(vec![AcirValue::Var(new_slice_length, NumericType::length_type()), new_slice_val])
     }
 
     /// Removes and returns one or more elements from the back of a non-nested slice.
@@ -265,7 +265,7 @@ impl Context<'_> {
         }
 
         let mut results = vec![
-            AcirValue::Var(new_slice_length, AcirType::unsigned(32)),
+            AcirValue::Var(new_slice_length, NumericType::length_type()),
             AcirValue::Array(new_slice),
         ];
         results.append(&mut popped_elements);
@@ -348,7 +348,7 @@ impl Context<'_> {
 
         new_slice = new_slice.slice(popped_elements_size..);
 
-        popped_elements.push(AcirValue::Var(new_slice_length, AcirType::unsigned(32)));
+        popped_elements.push(AcirValue::Var(new_slice_length, NumericType::length_type()));
         popped_elements.push(AcirValue::Array(new_slice));
 
         Ok(popped_elements)
@@ -539,7 +539,7 @@ impl Context<'_> {
             element_type_sizes,
         });
 
-        Ok(vec![AcirValue::Var(new_slice_length, AcirType::unsigned(32)), result])
+        Ok(vec![AcirValue::Var(new_slice_length, NumericType::length_type()), result])
     }
 
     /// Removes one or more elements from a slice at a given index.
@@ -688,7 +688,7 @@ impl Context<'_> {
             element_type_sizes,
         });
 
-        let mut result = vec![AcirValue::Var(new_slice_length, AcirType::unsigned(32)), result];
+        let mut result = vec![AcirValue::Var(new_slice_length, NumericType::length_type()), result];
         result.append(&mut popped_elements);
 
         Ok(result)

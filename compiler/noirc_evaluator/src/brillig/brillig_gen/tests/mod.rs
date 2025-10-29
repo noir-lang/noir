@@ -18,7 +18,7 @@ mod memory;
 
 fn ssa_to_brillig_artifacts(src: &str) -> Brillig {
     let ssa = Ssa::from_str(src).unwrap();
-    ssa.to_brillig(&BrilligOptions::default())
+    ssa.to_brillig(&BrilligOptions { enable_debug_trace: false, ..Default::default() })
 }
 
 #[macro_export]
