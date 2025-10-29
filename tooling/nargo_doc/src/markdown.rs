@@ -331,9 +331,9 @@ impl MarkdownRenderer {
                 }
                 self.output.push_str("fn");
                 if !matches!(env.as_ref(), &Type::Unit) {
-                    self.output.push('[');
+                    self.output.push_str("\\[");
                     self.render_type(env);
-                    self.output.push(']');
+                    self.output.push_str("\\]");
                 }
                 self.output.push('(');
                 for (index, param) in params.iter().enumerate() {
