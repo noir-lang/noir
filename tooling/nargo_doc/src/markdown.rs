@@ -265,7 +265,11 @@ impl MarkdownRenderer {
 
     fn render_function_signature(&mut self, function: &Function) {
         self.output.push_str("<pre><code>");
-        self.output.push_str("pub fn ");
+        self.output.push_str("pub ");
+        if function.unconstrained {
+            self.output.push_str("unconstrained ");
+        }
+        self.output.push_str("fn ");
         self.output.push_str(&function.name);
         self.render_generics(&function.generics);
         self.output.push('(');
