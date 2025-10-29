@@ -64,17 +64,15 @@ fn fix_block_comment(comment: String) -> String {
             fixed_comment.push('\n');
         }
 
-        if let Some(line) = line.strip_prefix(" * ") {
-            fixed_comment.push_str(line);
-        } else if line == " *" {
-            fixed_comment.push_str("");
+        if let Some(line) = line.trim_start().strip_prefix("*") {
+            fixed_comment.push_str(line.strip_prefix(' ').unwrap_or(line));
         } else if let Some(line) = line.strip_prefix(' ') {
             fixed_comment.push_str(line);
         } else {
             fixed_comment.push_str(line);
         }
     }
-    fixed_comment
+    fixed_comment.trim().to_string()
 }
 
 #[cfg(test)]
@@ -95,6 +93,16 @@ mod tests {
     #[test]
     fn parses_inner_block_doc_comments() {
         let src = "/*! Hello\n * World\n *\n * !\n*/";
+        let mut parser = Parser::for_str_with_dummy_file(src);
+        let comments = parser.parse_inner_doc_comments();
+        expect_no_errors(&parser.errors);
+        assert_eq!(comments.len(), 1);
+        assert_eq!(comments[0], "Hello\nWorld\n\n!");
+    }
+
+    #[test]
+    fn parses_inner_block_doc_comments_with_indentation() {
+        let src = "    /*! Hello\n     * World\n     *\n     * !\n    */";
         let mut parser = Parser::for_str_with_dummy_file(src);
         let comments = parser.parse_inner_doc_comments();
         expect_no_errors(&parser.errors);
