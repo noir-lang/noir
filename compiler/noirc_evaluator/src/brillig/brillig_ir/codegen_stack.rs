@@ -5,20 +5,6 @@ use crate::brillig::brillig_ir::registers::Stack;
 use super::{BrilligContext, debug_show::DebugToString, registers::RegisterAllocator};
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
-    /// Map the address so that the first register of the stack will have index 0
-    fn to_index(adr: &MemoryAddress) -> usize {
-        match adr {
-            MemoryAddress::Relative(size) => size - Stack::start(),
-            MemoryAddress::Direct(_) => usize::MAX,
-        }
-    }
-
-    /// Construct the register corresponding to the given mapped 'index'
-    fn from_index(idx: usize) -> MemoryAddress {
-        assert!(idx != usize::MAX, "invalid index");
-        MemoryAddress::Relative(idx + Stack::start())
-    }
-
     /// This function moves values from a set of registers to another set of registers.
     /// It assumes that:
     /// - every destination needs to be written at most once. Will panic if not.
@@ -34,12 +20,12 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         let n = sources.len();
         let start = Stack::start();
         let mut processed = 0;
-        // Compute the number of children for each destination node in the movement graph
+        // Compute the number of children for each source node that is also a destination node (i.e within 0,..n-1) in the movement graph
         let mut children = vec![0; n];
         for i in 0..n {
             // Check that destinations are relatives to 0,..,n-1
             assert_eq!(destinations[i].unwrap_relative() - start, i);
-            let index = Self::to_index(&sources[i]);
+            let index = to_index(&sources[i]);
             if index < n && index != i {
                 children[index] += 1;
             }
@@ -54,7 +40,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                 // A sink has no child
                 let mut node = i;
                 while children[node] == 0 {
-                    if Self::to_index(&sources[node]) == node {
+                    if to_index(&sources[node]) == node {
                         //no-op: mark the node as processed
                         children[node] = usize::MAX;
                         processed += 1;
@@ -63,7 +49,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                     // Generates a move instruction
                     self.perform_movement(node, sources[node], &mut children, &mut processed);
                     // Follow the parent
-                    let index = Self::to_index(&sources[node]);
+                    let index = to_index(&sources[node]);
                     if index < n {
                         children[index] -= 1;
                         if children[index] > 0 {
@@ -86,12 +72,12 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         // All sinks and their parents have been processed, remaining nodes are part of a loop
         // Check if a tail_candidate is a branch to a loop
         for (entry, free) in tail_candidates {
-            let entry_idx = Self::to_index(&entry);
+            let entry_idx = to_index(&entry);
             if entry_idx < n && children[entry_idx] == 1 {
                 // Use the branch as the temporary register for the loop
                 self.process_loop(
                     entry_idx,
-                    &Self::from_index(free),
+                    &from_index(free),
                     &mut children,
                     &sources,
                     &mut processed,
@@ -106,7 +92,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         // since different loops may contain values of different types.
         for i in 0..n {
             if children[i] == 1 {
-                let src = Self::from_index(i);
+                let src = from_index(i);
                 // Copy the loop entry to a temporary register.
                 // Unfortunately, we cannot use one register for all the loops
                 // when the sources do not have the same type
@@ -114,6 +100,9 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                 self.mov_instruction(temp_register, src);
                 self.process_loop(i, &temp_register, &mut children, &sources, &mut processed);
                 self.deallocate_register(temp_register);
+            } else {
+                // Nodes must have been processed, or are part of a loop.
+                assert_eq!(children[i], usize::MAX);
             }
         }
     }
@@ -129,12 +118,11 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         processed: &mut usize,
     ) {
         let mut current = entry;
-        while Self::to_index(&source[current]) != entry {
+        while to_index(&source[current]) != entry {
             self.perform_movement(current, source[current], children, processed);
-            current = Self::to_index(&source[current]);
+            current = to_index(&source[current]);
         }
         self.perform_movement(current, *free, children, processed);
-        children[current] = usize::MAX;
     }
 
     /// Generates a move opcode from 'src' to 'dest'.
@@ -145,12 +133,26 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         children: &mut [usize],
         processed: &mut usize,
     ) {
-        let destination = Self::from_index(dest);
+        let destination = from_index(dest);
         self.mov_instruction(destination, src);
         // set the node as 'processed'
         children[dest] = usize::MAX;
         *processed += 1;
     }
+}
+
+/// Map the address so that the first register of the stack will have index 0
+fn to_index(adr: &MemoryAddress) -> usize {
+    match adr {
+        MemoryAddress::Relative(size) => size - Stack::start(),
+        MemoryAddress::Direct(_) => usize::MAX,
+    }
+}
+
+/// Construct the register corresponding to the given mapped 'index'
+fn from_index(idx: usize) -> MemoryAddress {
+    assert!(idx != usize::MAX, "invalid index");
+    MemoryAddress::Relative(idx + Stack::start())
 }
 
 #[cfg(test)]
@@ -222,7 +224,6 @@ mod tests {
     #[test]
     fn test_basic_no_loop() {
         let movements = vec![(2, 1), (3, 2), (4, 3), (5, 4)];
-        // let movements_map = generate_movements_map(movements);
         let (sources, destinations) = movements_to_source_and_destinations(movements);
         let mut context = create_context();
 
@@ -353,6 +354,7 @@ mod tests {
         assert_eq!(
             opcodes,
             vec![
+                // Save to a temporary register (6) before processing the loop.
                 Opcode::Mov {
                     destination: MemoryAddress::relative(6),
                     source: MemoryAddress::relative(1)
@@ -373,6 +375,7 @@ mod tests {
                     destination: MemoryAddress::relative(3),
                     source: MemoryAddress::relative(5)
                 },
+                // Copy back from the temporary register at the end of the loop.
                 Opcode::Mov {
                     destination: MemoryAddress::relative(5),
                     source: MemoryAddress::relative(6)
