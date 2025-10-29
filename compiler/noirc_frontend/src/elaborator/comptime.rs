@@ -2,8 +2,8 @@
 //!
 //! This module handles the execution of compile-time code and attributes in Noir.
 //!
-//! # Design 
-//! 
+//! # Design
+//!
 //! 1. Context Initialization: Set up a fresh elaborator context for evaluating comptime code.
 //! 2. Collection: Gather and validate all attributes from items in source order
 //! 2. Execution: Run each attribute function with the attributed item
@@ -46,13 +46,26 @@ use super::{ElaborateReason, Elaborator, ResolverMeta};
 struct AttributeContext {
     /// The module where generated items should be added
     module: LocalModuleId,
-    /// The module where the attribute is located. This is needing for accurate name resolution.
+    /// The module where the attribute is located. This is needed for accurate name resolution.
     attribute_module: LocalModuleId,
 }
 
+/// A collected attribute ready to be executed.
+struct CollectedAttribute {
+    /// The attribute function to call
+    function: FuncId,
+    /// The item being attributed (struct, function, etc.)
+    item: Value,
+    /// Arguments passed to the attribute
+    arguments: Vec<Expression>,
+    /// Module context for the attribute
+    context: AttributeContext,
+    /// Location of the attribute in source code
+    location: Location,
+}
+
 /// A collection of attributes ready to be executed.
-/// Each tuple contains: (attribute function, item, arguments, context, location)
-type CollectedAttributes = Vec<(FuncId, Value, Vec<Expression>, AttributeContext, Location)>;
+type CollectedAttributes = Vec<CollectedAttribute>;
 
 impl AttributeContext {
     fn new(module: LocalModuleId) -> Self {
@@ -62,9 +75,8 @@ impl AttributeContext {
 
 impl<'context> Elaborator<'context> {
     /// Elaborate an expression from the middle of a comptime scope within a function.
-    ///
-    /// When elaborating comptime-generated code, we need to set up the proper context
-    /// including which function we're in, what generics are in scope, etc.
+    /// When this happens we require additional information to know
+    /// what variables should be in scope.
     pub fn elaborate_item_from_comptime_in_function<'a, T>(
         &'a mut self,
         current_function: Option<FuncId>,
@@ -84,7 +96,7 @@ impl<'context> Elaborator<'context> {
 
     /// Elaborate an expression from the middle of a comptime scope within a module.
     ///
-    /// Similar to `elaborate_item_from_comptime_in_function`, but for module-level comptime code.
+    /// Similar to [Self::elaborate_item_from_comptime_in_function], but for module-level comptime code.
     pub fn elaborate_item_from_comptime_in_module<'a, T>(
         &'a mut self,
         module: ModuleId,
@@ -148,9 +160,6 @@ impl<'context> Elaborator<'context> {
     /// variables available in the runtime scope. We iterate from global to local
     /// scope so that more local definitions naturally shadow outer ones.
     fn populate_scope_from_comptime_scopes(&mut self) {
-        // Take the comptime scope to be our runtime scope.
-        // Iterate from global scope to the most local scope so that the
-        // later definitions will naturally shadow the former.
         for scope in &self.interner.comptime_scopes {
             for definition_id in scope.keys() {
                 let definition = self.interner.definition(*definition_id);
@@ -213,8 +222,8 @@ impl<'context> Elaborator<'context> {
 
         // Sort each attribute by (module, location in file) so that we can execute in
         // the order they were defined in, running attributes in child modules first.
-        attributes.sort_by_key(|(_, _, _, ctx, location)| {
-            (module_order[&ctx.attribute_module], location.span.start())
+        attributes.sort_by_key(|attr| {
+            (module_order[&attr.context.attribute_module], attr.location.span.start())
         });
     }
 
@@ -346,13 +355,19 @@ impl<'context> Elaborator<'context> {
             return Err(ResolverError::NonFunctionInAnnotation { location }.into());
         };
 
-        attributes_to_run.push((function, item, arguments, attribute_context, location));
+        attributes_to_run.push(CollectedAttribute {
+            function,
+            item,
+            arguments,
+            context: attribute_context,
+            location,
+        });
         Ok(())
     }
 
     /// Execute an attribute function on an item.
     ///
-    /// This:
+    /// This function:
     /// 1. Sets up the interpreter in the correct module context
     /// 2. Elaborates and type-checks the attribute arguments
     /// 3. Calls the attribute function with the item as the first argument
@@ -396,7 +411,7 @@ impl<'context> Elaborator<'context> {
     }
 
     /// Elaborate and type-check arguments passed to an attribute function.
-    ///s
+    ///
     /// Attribute functions have a special calling convention:
     /// - First parameter must match the type of the attributed item (e.g., FunctionDefinition)
     /// - Remaining parameters are provided explicitly in the attribute syntax
@@ -533,7 +548,8 @@ impl<'context> Elaborator<'context> {
     ///   [Enums][ItemKind::Enum], [Impls][ItemKind::Impl]
     ///
     /// All other item kinds are unsupported for unquoting. These restrictions often exist because certain items
-    /// (e.g., module declarations and submodules) would require additional def-map updates that aren't safe during elaboration.
+    /// (e.g., module declarations and submodules) would require additional def-map updates
+    /// thus potentially affecting the source order of attributes and would not be safe during elaboration.
     fn add_item(&mut self, item: Item, generated_items: &mut CollectedItems, location: Location) {
         match item.kind {
             ItemKind::Function(function) => {
@@ -707,15 +723,15 @@ impl<'context> Elaborator<'context> {
             self.collect_all_attributes_to_run(traits, types, functions, module_attributes);
 
         // Execute each collected attribute
-        for (attribute, item, args, context, location) in attributes_to_run {
+        for attr in attributes_to_run {
             let mut generated_items = CollectedItems::default();
             self.elaborate_in_comptime_context(|this| {
                 if let Err(error) = this.run_attribute(
-                    context,
-                    attribute,
-                    args,
-                    item,
-                    location,
+                    attr.context,
+                    attr.function,
+                    attr.arguments,
+                    attr.item,
+                    attr.location,
                     &mut generated_items,
                 ) {
                     this.push_err(error);
@@ -723,7 +739,7 @@ impl<'context> Elaborator<'context> {
             });
 
             if !generated_items.is_empty() {
-                let reason = ElaborateReason::RunningAttribute(location);
+                let reason = ElaborateReason::RunningAttribute(attr.location);
                 self.with_elaborate_reason(reason, |elaborator| {
                     elaborator.elaborate_items(generated_items);
                 });
