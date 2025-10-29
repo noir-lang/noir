@@ -53,11 +53,8 @@ impl MarkdownRenderer {
 
     fn render_structs(&mut self, items: &[Item]) {
         for item in items {
-            match item {
-                Item::Struct(struct_) => {
-                    self.render_struct(struct_);
-                }
-                _ => {}
+            if let Item::Struct(struct_) = item {
+                self.render_struct(struct_);
             }
         }
     }
@@ -163,11 +160,8 @@ impl MarkdownRenderer {
 
     fn render_traits(&mut self, items: &[Item]) {
         for item in items {
-            match item {
-                Item::Trait(trait_) => {
-                    self.render_trait(trait_);
-                }
-                _ => {}
+            if let Item::Trait(trait_) = item {
+                self.render_trait(trait_);
             }
         }
     }
@@ -189,7 +183,7 @@ impl MarkdownRenderer {
             self.output.push_str(":\n");
             for (index, bound) in trait_.bounds.iter().enumerate() {
                 if index > 0 {
-                    self.output.push_str("\n");
+                    self.output.push('\n');
                 }
                 if index > 0 {
                     self.output.push_str("    + ");
@@ -213,11 +207,8 @@ impl MarkdownRenderer {
 
     fn render_type_aliases(&mut self, items: &[Item]) {
         for item in items {
-            match item {
-                Item::TypeAlias(alias) => {
-                    self.render_type_alias(alias);
-                }
-                _ => {}
+            if let Item::TypeAlias(alias) = item {
+                self.render_type_alias(alias);
             }
         }
     }
@@ -235,17 +226,14 @@ impl MarkdownRenderer {
         self.render_generics(&alias.generics);
         self.output.push_str(" = ");
         self.render_type(&alias.r#type);
-        self.output.push_str(";");
+        self.output.push(';');
         self.output.push_str("</code></pre>\n\n");
     }
 
     fn render_globals(&mut self, items: &[Item]) {
         for item in items {
-            match item {
-                Item::Global(global) => {
-                    self.render_global(global);
-                }
-                _ => {}
+            if let Item::Global(global) = item {
+                self.render_global(global);
             }
         }
     }
@@ -269,17 +257,14 @@ impl MarkdownRenderer {
         self.output.push_str(&global.name);
         self.output.push_str(": ");
         self.render_type(&global.r#type);
-        self.output.push_str(";");
+        self.output.push(';');
         self.output.push_str("</code></pre>\n\n");
     }
 
     fn render_functions(&mut self, items: &[Item]) {
         for item in items {
-            match item {
-                Item::Function(function) => {
-                    self.render_function(function, true /* show header */, 3);
-                }
-                _ => {}
+            if let Item::Function(function) = item {
+                self.render_function(function, true /* show header */, 3);
             }
         }
     }
@@ -332,7 +317,7 @@ impl MarkdownRenderer {
             }
         }
         if use_newlines {
-            self.output.push_str("\n");
+            self.output.push('\n');
         }
         self.output.push(')');
         if !matches!(function.return_type, Type::Unit) {
@@ -377,7 +362,7 @@ impl MarkdownRenderer {
             if index != where_clause.len() - 1 {
                 self.output.push(',');
             }
-            self.output.push_str("\n");
+            self.output.push('\n');
         }
     }
 
@@ -410,7 +395,7 @@ impl MarkdownRenderer {
             Type::Slice { element } => {
                 self.output.push('[');
                 self.render_type(element);
-                self.output.push_str("]");
+                self.output.push(']');
             }
             Type::String { length } => {
                 self.output.push_str("str<");
@@ -458,9 +443,9 @@ impl MarkdownRenderer {
                 }
                 self.output.push_str("fn");
                 if !matches!(env.as_ref(), &Type::Unit) {
-                    self.output.push_str("[");
+                    self.output.push('[');
                     self.render_type(env);
-                    self.output.push_str("]");
+                    self.output.push(']');
                 }
                 self.output.push('(');
                 for (index, param) in params.iter().enumerate() {
@@ -484,13 +469,13 @@ impl MarkdownRenderer {
             Type::InfixExpr { lhs, operator, rhs } => {
                 self.render_type(lhs);
                 self.output.push(' ');
-                self.output.push_str(&operator);
+                self.output.push_str(operator);
                 self.output.push(' ');
                 self.render_type(rhs);
             }
             Type::TraitAsType { trait_id, trait_name, ordered_generics, named_generics } => {
                 self.output.push_str("impl ");
-                self.render_id_reference(*trait_id, &trait_name);
+                self.render_id_reference(*trait_id, trait_name);
                 self.render_trait_generics(ordered_generics, named_generics);
             }
         }
@@ -530,7 +515,8 @@ impl MarkdownRenderer {
                 self.output.push_str(", ");
             }
             first = false;
-            self.output.push_str(&format!("{} = ", name));
+            self.output.push_str(name);
+            self.output.push_str(" = ");
             self.render_type(typ);
         }
         self.output.push('>');
@@ -567,7 +553,7 @@ impl MarkdownRenderer {
                     open_code_comment = !open_code_comment;
                 }
 
-                self.output.push_str(&comment);
+                self.output.push_str(comment);
                 self.output.push('\n');
             }
 
@@ -600,7 +586,7 @@ impl MarkdownRenderer {
             if self.output.ends_with("\n\n") {
                 // All good
             } else if self.output.ends_with('\n') {
-                self.output.push_str("\n");
+                self.output.push('\n');
             } else {
                 self.output.push_str("\n\n");
             }
@@ -611,7 +597,7 @@ impl MarkdownRenderer {
 
     fn anchor(&mut self, id: usize) {
         let name = &self.id_to_string[&id];
-        self.output.push_str(&format!("<a id=\"{}\"></a>\n", name));
+        self.output.push_str(&format!("<a id=\"{name}\"></a>\n"));
     }
 }
 
