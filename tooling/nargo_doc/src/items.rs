@@ -60,13 +60,13 @@ pub struct Impl {
 
 #[derive(Serialize, Deserialize)]
 pub struct TraitImpl {
-    pub r#type: Type,
     pub generics: Vec<Generic>,
-    pub methods: Vec<Function>,
     pub trait_id: usize,
     pub trait_name: String,
     pub trait_generics: Vec<Type>,
+    pub r#type: Type,
     pub where_clause: Vec<TraitConstraint>,
+    pub methods: Vec<Function>,
 }
 
 #[derive(Serialize, Deserialize)]
