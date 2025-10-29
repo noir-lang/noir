@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 
 use crate::items::{
     Crate, Crates, Function, Generic, Impl, Item, Module, Struct, StructField, Trait, TraitBound,
-    TraitConstraint, TraitImpl, Type,
+    TraitConstraint, TraitImpl, Type, TypeAlias,
 };
 
 pub fn to_markdown(crates: &Crates) -> String {
@@ -46,6 +46,7 @@ impl MarkdownRenderer {
         self.render_comments(&module.comments);
         self.render_structs(&module.items);
         self.render_traits(&module.items);
+        self.render_type_aliases(&module.items);
         self.render_functions(&module.items);
     }
 
@@ -207,6 +208,34 @@ impl MarkdownRenderer {
 
         self.h4("Methods");
         self.render_methods(methods);
+    }
+
+    fn render_type_aliases(&mut self, items: &[Item]) {
+        for item in items {
+            match item {
+                Item::TypeAlias(alias) => {
+                    self.render_type_alias(alias);
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn render_type_alias(&mut self, alias: &TypeAlias) {
+        self.anchor(alias.id);
+        self.h3(&format!("Type alias `{}`", alias.name));
+        self.render_type_alias_code(alias);
+        self.render_comments(&alias.comments);
+    }
+
+    fn render_type_alias_code(&mut self, alias: &TypeAlias) {
+        self.output.push_str("<pre><code>");
+        self.output.push_str(&format!("pub type {}", alias.name));
+        self.render_generics(&alias.generics);
+        self.output.push_str(" = ");
+        self.render_type(&alias.r#type);
+        self.output.push_str(";");
+        self.output.push_str("</code></pre>\n\n");
     }
 
     fn render_functions(&mut self, items: &[Item]) {
