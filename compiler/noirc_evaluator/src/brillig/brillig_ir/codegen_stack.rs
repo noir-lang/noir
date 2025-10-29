@@ -18,6 +18,8 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         destinations: &[MemoryAddress],
     ) {
         assert_eq!(sources.len(), destinations.len(), "sources and destinations length must match");
+        let globals_size = self.globals_memory_size.unwrap_or(0);
+        let entry_point_start = self.registers.borrow().layout().entry_point_start(globals_size);
         let n = sources.len();
         let start = Stack::start();
         let mut processed = 0;
@@ -30,6 +32,11 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                 if index < n && index != i {
                     children[index] += 1;
                 }
+            } else {
+                // Only allow Direct addressing for global variables in order
+                // to ensure that they cannot overlap with the destinations
+                let address = sources[i].unwrap_direct();
+                assert!(address < entry_point_start);
             }
         }
 

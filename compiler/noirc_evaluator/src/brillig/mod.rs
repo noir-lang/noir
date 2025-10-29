@@ -67,6 +67,7 @@ impl Brillig {
         globals: &HashMap<ValueId, BrilligVariable>,
         hoisted_global_constants: &HashMap<(FieldElement, NumericType), BrilligVariable>,
         is_entry_point: bool,
+        globals_memory_size: usize,
     ) {
         let obj = self.convert_ssa_function(
             func,
@@ -74,6 +75,7 @@ impl Brillig {
             globals,
             hoisted_global_constants,
             is_entry_point,
+            globals_memory_size,
         );
         self.ssa_function_to_brillig.insert(func.id(), obj);
     }
@@ -106,8 +108,11 @@ impl Brillig {
         globals: &HashMap<ValueId, BrilligVariable>,
         hoisted_global_constants: &HashMap<(FieldElement, NumericType), BrilligVariable>,
         is_entry_point: bool,
+        globals_memory_size: usize,
     ) -> BrilligArtifact<FieldElement> {
         let mut brillig_context = BrilligContext::new(func.name(), options);
+
+        brillig_context.set_globals_memory_size(Some(globals_memory_size));
 
         let mut function_context = FunctionContext::new(func, is_entry_point);
 
@@ -181,12 +186,18 @@ impl Ssa {
             let func = &self.functions[&brillig_function_id];
             let is_entry_point = brillig_globals.is_entry_point(&brillig_function_id);
 
+            // Find the entry point for this function to get its globals_memory_size
+            let entry_point_id = brillig_globals.get_entry_point_for_function(brillig_function_id);
+            let globals_memory_size =
+                brillig.globals_memory_size.get(&entry_point_id).copied().unwrap_or(0);
+
             brillig.compile(
                 func,
                 options,
                 globals_allocations,
                 hoisted_constant_allocations,
                 is_entry_point,
+                globals_memory_size,
             );
         }
 

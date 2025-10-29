@@ -252,6 +252,28 @@ impl BrilligGlobals {
     /// and resolving global variables.
     ///
     /// Panics if the function hasn't been prepared during initialization.
+    /// Get the entry point FunctionId for any Brillig function.
+    /// If the function is itself an entry point, returns that FunctionId.
+    /// Otherwise, returns the entry point that calls this function.
+    pub(crate) fn get_entry_point_for_function(
+        &self,
+        brillig_function_id: FunctionId,
+    ) -> FunctionId {
+        // Check whether `brillig_function_id` is itself an entry point.
+        if self.is_entry_point(&brillig_function_id) {
+            return brillig_function_id;
+        }
+
+        let entry_points = self.call_map.inner_call_to_entry_point.get(&brillig_function_id);
+        let Some(entry_points) = entry_points else {
+            unreachable!("ICE: Expected entry point to be set for function {brillig_function_id}");
+        };
+
+        // Sanity check: We should have guaranteed earlier that an inner call has only a single entry point
+        assert_eq!(entry_points.len(), 1, "{brillig_function_id} has multiple entry points");
+        *entry_points.first().expect("ICE: Inner call should have an entry point")
+    }
+
     pub(crate) fn get_brillig_globals(
         &self,
         brillig_function_id: FunctionId,
