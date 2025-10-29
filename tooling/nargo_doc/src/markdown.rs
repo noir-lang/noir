@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use crate::items::{Crate, Crates, Generic, Item, Module, Struct, Type};
+use crate::items::{Crate, Crates, Function, Generic, Item, Module, Struct, TraitConstraint, Type};
 
 pub fn to_markdown(crates: &Crates) -> String {
     let mut renderer = MarkdownRenderer { output: String::new() };
@@ -34,6 +34,7 @@ impl MarkdownRenderer {
 
         self.render_comments(&module.comments);
         self.render_structs(&module.items);
+        self.render_functions(&module.items);
     }
 
     fn render_structs(&mut self, items: &[Item]) {
@@ -87,6 +88,47 @@ impl MarkdownRenderer {
         }
     }
 
+    fn render_functions(&mut self, items: &[Item]) {
+        for item in items {
+            match item {
+                Item::Function(function) => {
+                    self.render_function(function);
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn render_function(&mut self, function: &Function) {
+        self.h3(&format!("Function `{}`", function.name));
+        self.render_function_signature(function);
+        self.render_comments(&function.comments);
+    }
+
+    fn render_function_signature(&mut self, function: &Function) {
+        self.output.push_str("<code>");
+        self.output.push_str("pub fn ");
+        self.output.push_str(&function.name);
+        self.render_generics(&function.generics);
+        self.output.push('(');
+        for (index, param) in function.params.iter().enumerate() {
+            if index > 0 {
+                self.output.push_str(", ");
+            }
+            self.output.push_str(&param.name);
+            self.output.push_str(": ");
+            self.render_type_with_links(&param.r#type);
+        }
+        self.output.push(')');
+        if !matches!(function.return_type, Type::Unit) {
+            self.output.push_str(" -> ");
+            self.render_type_with_links(&function.return_type);
+        }
+        self.render_where_clause(&function.where_clause);
+        self.output.push_str("</code>");
+        self.output.push_str("\n\n");
+    }
+
     fn render_generics(&mut self, generics: &[Generic]) {
         if generics.is_empty() {
             return;
@@ -104,6 +146,34 @@ impl MarkdownRenderer {
             }
         }
         self.output.push('>');
+    }
+
+    fn render_where_clause(&mut self, where_clause: &[TraitConstraint]) {
+        if where_clause.is_empty() {
+            return;
+        }
+
+        self.output.push_str("<br/>where<br/>");
+        for (index, constraint) in where_clause.iter().enumerate() {
+            self.output.push_str("&nbsp;&nbsp;&nbsp;&nbsp;");
+            self.render_type_with_links(&constraint.r#type);
+            self.output.push_str(": ");
+            self.render_trait_reference(&constraint.bound.trait_id, &constraint.bound.trait_name);
+            self.render_trait_generics(
+                &constraint.bound.ordered_generics,
+                &constraint.bound.named_generics,
+                true,
+            );
+            if index != where_clause.len() - 1 {
+                self.output.push(',');
+            }
+            self.output.push_str("<br/>");
+        }
+    }
+
+    fn render_trait_reference(&mut self, _trait_id: &usize, trait_name: &str) {
+        // TODO: link
+        self.output.push_str(trait_name);
     }
 
     fn render_type_with_links(&mut self, typ: &Type) {
