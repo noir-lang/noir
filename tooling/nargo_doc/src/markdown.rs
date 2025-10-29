@@ -50,6 +50,7 @@ impl MarkdownRenderer {
 
     fn render_struct(&mut self, struct_: &Struct) {
         self.h3(&format!("Struct `{}`", struct_.name));
+        self.render_comments(&struct_.comments);
         self.render_struct_code(struct_);
         self.render_struct_fields(struct_);
     }
