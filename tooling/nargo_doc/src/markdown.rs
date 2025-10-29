@@ -58,16 +58,24 @@ impl MarkdownRenderer {
         self.output.push_str("```noir\n");
         self.output.push_str(&format!("pub struct {}", struct_.name));
         self.render_generics(&struct_.generics);
-        self.output.push_str(" {\n");
-        if struct_.has_private_fields {
-            for field in &struct_.fields {
-                self.output.push_str(&format!("  pub {}: ", field.name,));
-                self.render_type_without_links(&field.r#type);
-                self.output.push_str(",\n");
+        if struct_.fields.is_empty() {
+            if struct_.has_private_fields {
+                self.output.push_str("\n{ /* private fields */ }\n");
+            } else {
+                self.output.push_str(" {}\n");
             }
-            self.output.push_str("  /* private fields */\n");
+        } else {
+            self.output.push_str(" {\n");
+            if struct_.has_private_fields {
+                for field in &struct_.fields {
+                    self.output.push_str(&format!("  pub {}: ", field.name,));
+                    self.render_type_without_links(&field.r#type);
+                    self.output.push_str(",\n");
+                }
+                self.output.push_str("  /* private fields */\n");
+            }
+            self.output.push_str("}\n");
         }
-        self.output.push_str("}\n");
         self.output.push_str("```\n");
     }
 
