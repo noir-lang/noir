@@ -1,7 +1,6 @@
 use iter_extended::vecmap;
 use noirc_errors::Location;
 use rustc_hash::FxHashMap as HashMap;
-use std::collections::HashSet;
 
 use crate::{
     GenericTypeVars, Shared, Type, TypeBindings,
@@ -38,10 +37,13 @@ impl NodeInterner {
         self.trait_implementations[&id].clone()
     }
 
-    pub fn get_trait_implementations_in_crate(&self, crate_id: CrateId) -> HashSet<TraitImplId> {
+    pub fn get_trait_implementations_in_crate(
+        &self,
+        crate_id: CrateId,
+    ) -> HashMap<TraitImplId, bool> {
         let trait_impls = self.trait_implementations.iter();
         let trait_impls = trait_impls.filter_map(|(id, trait_impl)| {
-            if trait_impl.borrow().crate_id == crate_id { Some(*id) } else { None }
+            if trait_impl.borrow().crate_id == crate_id { Some((*id, false)) } else { None }
         });
         trait_impls.collect()
     }

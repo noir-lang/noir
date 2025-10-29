@@ -432,7 +432,9 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
 
         self.trait_constraints.clear();
 
-        self.show_trait_impls(item_trait.trait_impls);
+        // Only show external trait impls here as trait implementations for types in the current
+        // crate will show up next to those types.
+        self.show_trait_impls(item_trait.external_trait_impls);
     }
 
     fn show_trait_impl(&mut self, item_trait_impl: TraitImpl) {
