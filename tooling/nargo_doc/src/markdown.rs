@@ -136,7 +136,7 @@ impl MarkdownRenderer {
                 self.output.push_str(",<br/>");
             }
             if struct_.has_private_fields {
-                self.output.push_str("  /* private fields */<br/>");
+                self.output.push_str("&nbsp;&nbsp;&nbsp;&nbsp;/* private fields */<br/>");
             }
             self.output.push_str("}<br/>");
         }
