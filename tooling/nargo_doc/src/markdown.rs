@@ -319,6 +319,9 @@ impl MarkdownRenderer {
             self.output.push_str(&param.name);
             self.output.push_str(": ");
             self.render_type(&param.r#type);
+            if use_newlines {
+                self.output.push(',');
+            }
         }
         if use_newlines {
             self.output.push_str("\n");
