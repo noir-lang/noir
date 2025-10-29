@@ -1,6 +1,8 @@
 use std::collections::BTreeMap;
 
-use crate::items::{Crate, Crates, Function, Generic, Item, Module, Struct, TraitConstraint, Type};
+use crate::items::{
+    Crate, Crates, Function, Generic, Item, Module, Struct, Trait, TraitConstraint, Type,
+};
 
 pub fn to_markdown(crates: &Crates) -> String {
     let mut renderer = MarkdownRenderer { output: String::new() };
@@ -34,6 +36,7 @@ impl MarkdownRenderer {
 
         self.render_comments(&module.comments);
         self.render_structs(&module.items);
+        self.render_traits(&module.items);
         self.render_functions(&module.items);
     }
 
@@ -56,28 +59,28 @@ impl MarkdownRenderer {
     }
 
     fn render_struct_code(&mut self, struct_: &Struct) {
-        self.output.push_str("```noir\n");
+        self.output.push_str("<code>");
         self.output.push_str(&format!("pub struct {}", struct_.name));
         self.render_generics(&struct_.generics);
         if struct_.fields.is_empty() {
             if struct_.has_private_fields {
-                self.output.push_str("\n{ /* private fields */ }\n");
+                self.output.push_str("<br/>{ /* private fields */ }<br/>");
             } else {
-                self.output.push_str(" {}\n");
+                self.output.push_str(" {}<br/>");
             }
         } else {
-            self.output.push_str(" {\n");
-            if struct_.has_private_fields {
-                for field in &struct_.fields {
-                    self.output.push_str(&format!("  pub {}: ", field.name,));
-                    self.render_type_without_links(&field.r#type);
-                    self.output.push_str(",\n");
-                }
-                self.output.push_str("  /* private fields */\n");
+            self.output.push_str(" {<br/>");
+            for field in &struct_.fields {
+                self.output.push_str(&format!("&nbsp;&nbsp;&nbsp;&nbsp;pub {}: ", field.name,));
+                self.render_type(&field.r#type);
+                self.output.push_str(",<br/>");
             }
-            self.output.push_str("}\n");
+            if struct_.has_private_fields {
+                self.output.push_str("  /* private fields */<br/>");
+            }
+            self.output.push_str("}<br/>");
         }
-        self.output.push_str("```\n");
+        self.output.push_str("</code>\n");
     }
 
     fn render_struct_fields(&mut self, struct_: &Struct) {
@@ -91,10 +94,26 @@ impl MarkdownRenderer {
             self.output.push_str("##### ");
             self.output.push_str(&field.name);
             self.output.push_str(": ");
-            self.render_type_with_links(&field.r#type);
+            self.render_type(&field.r#type);
             self.output.push_str("\n\n");
             self.render_comments(&field.comments);
         }
+    }
+
+    fn render_traits(&mut self, items: &[Item]) {
+        for item in items {
+            match item {
+                Item::Trait(trait_) => {
+                    self.render_trait(trait_);
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn render_trait(&mut self, trait_: &Trait) {
+        self.h3(&format!("Trait `{}`", trait_.name));
+        self.render_comments(&trait_.comments);
     }
 
     fn render_functions(&mut self, items: &[Item]) {
@@ -126,12 +145,12 @@ impl MarkdownRenderer {
             }
             self.output.push_str(&param.name);
             self.output.push_str(": ");
-            self.render_type_with_links(&param.r#type);
+            self.render_type(&param.r#type);
         }
         self.output.push(')');
         if !matches!(function.return_type, Type::Unit) {
             self.output.push_str(" -> ");
-            self.render_type_with_links(&function.return_type);
+            self.render_type(&function.return_type);
         }
         self.render_where_clause(&function.where_clause);
         self.output.push_str("</code>");
@@ -165,13 +184,12 @@ impl MarkdownRenderer {
         self.output.push_str("<br/>where<br/>");
         for (index, constraint) in where_clause.iter().enumerate() {
             self.output.push_str("&nbsp;&nbsp;&nbsp;&nbsp;");
-            self.render_type_with_links(&constraint.r#type);
+            self.render_type(&constraint.r#type);
             self.output.push_str(": ");
             self.render_trait_reference(&constraint.bound.trait_id, &constraint.bound.trait_name);
             self.render_trait_generics(
                 &constraint.bound.ordered_generics,
                 &constraint.bound.named_generics,
-                true,
             );
             if index != where_clause.len() - 1 {
                 self.output.push(',');
@@ -185,15 +203,7 @@ impl MarkdownRenderer {
         self.output.push_str(trait_name);
     }
 
-    fn render_type_with_links(&mut self, typ: &Type) {
-        self.render_type(typ, true);
-    }
-
-    fn render_type_without_links(&mut self, typ: &Type) {
-        self.render_type(typ, false);
-    }
-
-    fn render_type(&mut self, typ: &Type, links: bool) {
+    fn render_type(&mut self, typ: &Type) {
         match typ {
             Type::Unit => self.output.push_str("()"),
             Type::Primitive(primitive) => {
@@ -201,26 +211,26 @@ impl MarkdownRenderer {
             }
             Type::Array { length, element } => {
                 self.output.push('[');
-                self.render_type(element, links);
+                self.render_type(element);
                 self.output.push_str("; ");
-                self.render_type(length, links);
+                self.render_type(length);
                 self.output.push(']');
             }
             Type::Slice { element } => {
                 self.output.push('[');
-                self.render_type(element, links);
+                self.render_type(element);
                 self.output.push_str("]");
             }
             Type::String { length } => {
                 self.output.push_str("str<");
-                self.render_type(length, links);
+                self.render_type(length);
                 self.output.push('>');
             }
             Type::FmtString { length, element } => {
                 self.output.push_str("fmtstr<");
-                self.render_type(length, links);
+                self.render_type(length);
                 self.output.push_str(", ");
-                self.render_type(element, links);
+                self.render_type(element);
                 self.output.push('>');
             }
             Type::Tuple(items) => {
@@ -229,7 +239,7 @@ impl MarkdownRenderer {
                     if index > 0 {
                         self.output.push_str(", ");
                     }
-                    self.render_type(item, links);
+                    self.render_type(item);
                 }
                 if items.len() == 1 {
                     self.output.push(',');
@@ -241,15 +251,15 @@ impl MarkdownRenderer {
                 if *mutable {
                     self.output.push_str("mut ");
                 }
-                self.render_type(r#type, links);
+                self.render_type(r#type);
             }
             Type::Struct { id: _, name, generics } => {
                 self.output.push_str(name);
-                self.render_generic_types(generics, links);
+                self.render_generic_types(generics);
             }
             Type::TypeAlias { id: _, name, generics } => {
                 self.output.push_str(name);
-                self.render_generic_types(generics, links);
+                self.render_generic_types(generics);
             }
             Type::Function { params, return_type, env, unconstrained } => {
                 if *unconstrained {
@@ -258,7 +268,7 @@ impl MarkdownRenderer {
                 self.output.push_str("fn");
                 if !matches!(env.as_ref(), &Type::Unit) {
                     self.output.push('[');
-                    self.render_type(env, links);
+                    self.render_type(env);
                     self.output.push(']');
                 }
                 self.output.push('(');
@@ -266,12 +276,12 @@ impl MarkdownRenderer {
                     if index > 0 {
                         self.output.push_str(", ");
                     }
-                    self.render_type(param, links);
+                    self.render_type(param);
                 }
                 self.output.push(')');
                 if !matches!(return_type.as_ref(), &Type::Unit) {
                     self.output.push_str(" -> ");
-                    self.render_type(return_type, links);
+                    self.render_type(return_type);
                 }
             }
             Type::Constant(value) => {
@@ -281,21 +291,21 @@ impl MarkdownRenderer {
                 self.output.push_str(name);
             }
             Type::InfixExpr { lhs, operator, rhs } => {
-                self.render_type(lhs, links);
+                self.render_type(lhs);
                 self.output.push(' ');
                 self.output.push_str(&operator);
                 self.output.push(' ');
-                self.render_type(rhs, links);
+                self.render_type(rhs);
             }
             Type::TraitAsType { trait_id: _, trait_name, ordered_generics, named_generics } => {
                 self.output.push_str("impl ");
                 self.output.push_str(trait_name);
-                self.render_trait_generics(ordered_generics, named_generics, links);
+                self.render_trait_generics(ordered_generics, named_generics);
             }
         }
     }
 
-    fn render_generic_types(&mut self, generics: &[Type], links: bool) {
+    fn render_generic_types(&mut self, generics: &[Type]) {
         if generics.is_empty() {
             return;
         }
@@ -305,17 +315,12 @@ impl MarkdownRenderer {
             if index > 0 {
                 self.output.push_str(", ");
             }
-            self.render_type(generic, links);
+            self.render_type(generic);
         }
         self.output.push('>');
     }
 
-    fn render_trait_generics(
-        &mut self,
-        ordered: &[Type],
-        named: &BTreeMap<String, Type>,
-        links: bool,
-    ) {
+    fn render_trait_generics(&mut self, ordered: &[Type], named: &BTreeMap<String, Type>) {
         if ordered.is_empty() && named.is_empty() {
             return;
         }
@@ -327,7 +332,7 @@ impl MarkdownRenderer {
                 self.output.push_str(", ");
             }
             first = false;
-            self.render_type(generic, links);
+            self.render_type(generic);
         }
         for (name, typ) in named {
             if !first {
@@ -335,7 +340,7 @@ impl MarkdownRenderer {
             }
             first = false;
             self.output.push_str(&format!("{} = ", name));
-            self.render_type(typ, links);
+            self.render_type(typ);
         }
         self.output.push('>');
     }
