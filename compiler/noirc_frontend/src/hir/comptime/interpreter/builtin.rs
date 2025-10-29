@@ -477,7 +477,7 @@ fn type_def_as_type(
     Ok(Value::Type(Type::DataType(type_def_rc, generics)))
 }
 
-/// fn as_type_with_generics(self, generics: \[Type]) -> Option<Type>
+/// `fn as_type_with_generics(self, generics: [Type]) -> Option<Type>`
 fn type_def_as_type_with_generics(
     interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
