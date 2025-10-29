@@ -66,6 +66,8 @@ fn fix_block_comment(comment: String) -> String {
 
         if line.starts_with(" * ") {
             fixed_comment.push_str(&line[3..]);
+        } else if line == " *" {
+            fixed_comment.push_str("");
         } else if line.starts_with(' ') {
             fixed_comment.push_str(&line[1..]);
         } else {
@@ -92,12 +94,12 @@ mod tests {
 
     #[test]
     fn parses_inner_block_doc_comments() {
-        let src = "/*! Hello\n * World\n * !\n*/";
+        let src = "/*! Hello\n * World\n *\n * !\n*/";
         let mut parser = Parser::for_str_with_dummy_file(src);
         let comments = parser.parse_inner_doc_comments();
         expect_no_errors(&parser.errors);
         assert_eq!(comments.len(), 1);
-        assert_eq!(comments[0], "Hello\nWorld\n!");
+        assert_eq!(comments[0], "Hello\nWorld\n\n!");
     }
 
     #[test]
@@ -113,11 +115,11 @@ mod tests {
 
     #[test]
     fn parses_outer_block_doc_comments() {
-        let src = "/** Hello\n * World\n * !\n*/";
+        let src = "/** Hello\n * World\n *\n * !\n*/";
         let mut parser = Parser::for_str_with_dummy_file(src);
         let comments = parser.parse_outer_doc_comments();
         expect_no_errors(&parser.errors);
         assert_eq!(comments.len(), 1);
-        assert_eq!(comments[0], "Hello\nWorld\n!");
+        assert_eq!(comments[0], "Hello\nWorld\n\n!");
     }
 }
