@@ -20,59 +20,8 @@ struct MarkdownRenderer {
 
 impl MarkdownRenderer {
     fn new(crates: &Crates) -> Self {
-        let id_to_string = Self::compute_id_to_strings(crates);
+        let id_to_string = compute_id_to_strings(crates);
         Self { output: String::new(), id_to_string }
-    }
-
-    /// Computes a mapping from item IDs to strings so that HTML anchors have meaningful names.
-    fn compute_id_to_strings(crates: &Crates) -> HashMap<usize, String> {
-        let mut id_strings = HashSet::new();
-        let mut id_to_string = HashMap::new();
-
-        for krate in &crates.crates {
-            for module in &krate.modules {
-                for item in &module.items {
-                    match item {
-                        Item::Struct(struct_) => Self::compute_id_to_string(
-                            struct_.id,
-                            &struct_.name,
-                            &mut id_strings,
-                            &mut id_to_string,
-                        ),
-                        Item::Trait(trait_) => Self::compute_id_to_string(
-                            trait_.id,
-                            &trait_.name,
-                            &mut id_strings,
-                            &mut id_to_string,
-                        ),
-                        Item::TypeAlias(alias_) => Self::compute_id_to_string(
-                            alias_.id,
-                            &alias_.name,
-                            &mut id_strings,
-                            &mut id_to_string,
-                        ),
-                        _ => {}
-                    }
-                }
-            }
-        }
-
-        id_to_string
-    }
-
-    fn compute_id_to_string(
-        id: usize,
-        name: &str,
-        id_strings: &mut HashSet<String>,
-        id_to_string: &mut HashMap<usize, String>,
-    ) {
-        if id_strings.contains(name) {
-            let name = &format!("{name}_");
-            Self::compute_id_to_string(id, name, id_strings, id_to_string);
-        } else {
-            id_strings.insert(name.to_string());
-            id_to_string.insert(id, name.to_string());
-        }
     }
 
     fn render_crates(&mut self, crates: &Crates) {
@@ -474,5 +423,56 @@ impl MarkdownRenderer {
 
     fn html_indent(&mut self) {
         self.output.push_str("&nbsp;&nbsp;&nbsp;&nbsp;");
+    }
+}
+
+/// Computes a mapping from item IDs to strings so that HTML anchors have meaningful names.
+fn compute_id_to_strings(crates: &Crates) -> HashMap<usize, String> {
+    let mut id_strings = HashSet::new();
+    let mut id_to_string = HashMap::new();
+
+    for krate in &crates.crates {
+        for module in &krate.modules {
+            for item in &module.items {
+                match item {
+                    Item::Struct(struct_) => compute_id_to_string(
+                        struct_.id,
+                        &struct_.name,
+                        &mut id_strings,
+                        &mut id_to_string,
+                    ),
+                    Item::Trait(trait_) => compute_id_to_string(
+                        trait_.id,
+                        &trait_.name,
+                        &mut id_strings,
+                        &mut id_to_string,
+                    ),
+                    Item::TypeAlias(alias_) => compute_id_to_string(
+                        alias_.id,
+                        &alias_.name,
+                        &mut id_strings,
+                        &mut id_to_string,
+                    ),
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    id_to_string
+}
+
+fn compute_id_to_string(
+    id: usize,
+    name: &str,
+    id_strings: &mut HashSet<String>,
+    id_to_string: &mut HashMap<usize, String>,
+) {
+    if id_strings.contains(name) {
+        let name = &format!("{name}_");
+        compute_id_to_string(id, name, id_strings, id_to_string);
+    } else {
+        id_strings.insert(name.to_string());
+        id_to_string.insert(id, name.to_string());
     }
 }
