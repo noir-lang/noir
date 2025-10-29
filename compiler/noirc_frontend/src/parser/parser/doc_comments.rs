@@ -54,7 +54,7 @@ impl Parser<'_> {
 }
 
 fn fix_line_comment(comment: String) -> String {
-    if comment.starts_with(' ') { comment[1..].to_string() } else { comment }
+    if let Some(comment) = comment.strip_prefix(' ') { comment.to_string() } else { comment }
 }
 
 fn fix_block_comment(comment: String) -> String {
@@ -64,12 +64,12 @@ fn fix_block_comment(comment: String) -> String {
             fixed_comment.push('\n');
         }
 
-        if line.starts_with(" * ") {
-            fixed_comment.push_str(&line[3..]);
+        if let Some(line) = line.strip_prefix(" * ") {
+            fixed_comment.push_str(line);
         } else if line == " *" {
             fixed_comment.push_str("");
-        } else if line.starts_with(' ') {
-            fixed_comment.push_str(&line[1..]);
+        } else if let Some(line) = line.strip_prefix(' ') {
+            fixed_comment.push_str(line);
         } else {
             fixed_comment.push_str(line);
         }
