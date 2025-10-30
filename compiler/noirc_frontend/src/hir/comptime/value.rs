@@ -563,7 +563,7 @@ impl Value {
                     vec![
                         Token::Minus,
                         Token::Int(
-                            (value.unsigned_abs() as u128).into(),
+                            u128::from(value.unsigned_abs()).into(),
                             Some(IntegerTypeSuffix::I8),
                         ),
                     ]
@@ -576,7 +576,7 @@ impl Value {
                     vec![
                         Token::Minus,
                         Token::Int(
-                            (value.unsigned_abs() as u128).into(),
+                            u128::from(value.unsigned_abs()).into(),
                             Some(IntegerTypeSuffix::I16),
                         ),
                     ]
@@ -589,7 +589,7 @@ impl Value {
                     vec![
                         Token::Minus,
                         Token::Int(
-                            (value.unsigned_abs() as u128).into(),
+                            u128::from(value.unsigned_abs()).into(),
                             Some(IntegerTypeSuffix::I32),
                         ),
                     ]
@@ -602,7 +602,7 @@ impl Value {
                     vec![
                         Token::Minus,
                         Token::Int(
-                            (value.unsigned_abs() as u128).into(),
+                            u128::from(value.unsigned_abs()).into(),
                             Some(IntegerTypeSuffix::I64),
                         ),
                     ]
