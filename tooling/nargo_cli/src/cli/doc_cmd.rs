@@ -34,7 +34,7 @@ pub(crate) struct DocCommand {
 #[derive(Debug, Clone, clap::ValueEnum)]
 enum Format {
     Json,
-    HTML,
+    Html,
 }
 
 impl WorkspaceCommand for DocCommand {
@@ -68,7 +68,7 @@ pub(crate) fn run(args: DocCommand, workspace: Workspace) -> Result<(), CliError
     let name = workspace.root_dir.file_name().unwrap().to_string_lossy().to_string();
     let crates = Crates { crates, name };
 
-    let format = args.format.unwrap_or(Format::HTML);
+    let format = args.format.unwrap_or(Format::Html);
     match format {
         Format::Json => match serde_json::to_string_pretty(&crates) {
             Ok(json) => {
@@ -77,22 +77,22 @@ pub(crate) fn run(args: DocCommand, workspace: Workspace) -> Result<(), CliError
             }
             Err(err) => Err(CliError::Generic(err.to_string())),
         },
-        Format::HTML => {
+        Format::Html => {
             let files = nargo_doc::to_html(&crates);
             let target_dir = workspace.target_directory_path();
             let docs_dir = target_dir.join("docs");
             if let Ok(true) = fs::exists(&docs_dir) {
                 fs::remove_dir_all(&docs_dir).map_err(|err| {
-                    CliError::Generic(format!("Failed to remove existing docs directory: {}", err))
+                    CliError::Generic(format!("Failed to remove existing docs directory: {err}"))
                 })?;
             }
             for (path, contents) in files {
                 let full_path = docs_dir.join(path);
-                fs::create_dir_all(&full_path.parent().unwrap()).map_err(|err| {
-                    CliError::Generic(format!("Failed to create directory: {}", err))
+                fs::create_dir_all(full_path.parent().unwrap()).map_err(|err| {
+                    CliError::Generic(format!("Failed to create directory: {err}"))
                 })?;
                 fs::write(full_path, contents)
-                    .map_err(|err| CliError::Generic(format!("Failed to write file: {}", err)))?;
+                    .map_err(|err| CliError::Generic(format!("Failed to write file: {err}")))?;
             }
             println!("Generated {}", docs_dir.join("index.html").display());
             Ok(())

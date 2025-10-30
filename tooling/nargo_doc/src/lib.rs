@@ -176,8 +176,7 @@ impl DocItemBuilder<'_> {
             .filter(|(visibility, _item)| visibility == &ItemVisibility::Public)
             .map(|(_, item)| self.convert_item(item))
             .collect();
-        let module = Module { name, comments, items };
-        module
+        Module { name, comments, items }
     }
 
     fn convert_impl(&mut self, impl_: expand_items::Impl) -> Impl {

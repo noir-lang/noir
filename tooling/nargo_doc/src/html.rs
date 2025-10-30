@@ -54,7 +54,7 @@ impl HTMLCreator {
             if let Some(comments) = krate.comments() {
                 let summary = markdown_summary(comments);
                 if !summary.is_empty() {
-                    self.output.push_str(&format!(": {}", summary));
+                    self.output.push_str(&format!(": {summary}"));
                 }
             }
             self.output.push_str("</li>\n");
@@ -160,7 +160,7 @@ impl HTMLCreator {
             if let Some(comments) = item.comments() {
                 let summary = markdown_summary(comments);
                 if !summary.is_empty() {
-                    self.output.push_str(&format!(": {}", summary));
+                    self.output.push_str(&format!(": {summary}"));
                 }
             }
             self.output.push_str("</li>\n");
@@ -695,7 +695,7 @@ impl HTMLCreator {
         self.output.push_str("<html>\n");
         self.output.push_str("<head>\n");
         self.output.push_str("<meta charset=\"UTF-8\">\n");
-        self.output.push_str(&format!("<title>{} documentation</title>\n", title));
+        self.output.push_str(&format!("<title>{title} documentation</title>\n"));
         self.output.push_str("</head>\n");
         self.output.push_str("<body>\n");
     }
@@ -817,7 +817,7 @@ fn markdown_summary(markdown: &str) -> String {
             break;
         }
         string.push_str(line);
-        string.push_str("\n");
+        string.push('\n');
     }
     string.trim().to_string()
 }
