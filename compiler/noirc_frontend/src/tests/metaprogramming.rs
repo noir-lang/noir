@@ -193,6 +193,8 @@ fn generate_function_with_macros_on_trait() {
     #[foo]
     trait MyTrait {}
 
+    impl MyTrait for () {}
+
     comptime fn foo(_f: TraitDefinition) -> Quoted {
         quote {
             pub fn bar(x: i32) -> i32  {  
@@ -202,16 +204,15 @@ fn generate_function_with_macros_on_trait() {
         }
     }
 
-    struct Foo {}
-    impl MyTrait for Foo {}
-    fn main() {
-        let _ = Foo {};
-    }
     ";
 
     let expanded = assert_no_errors_and_to_string(src);
     insta::assert_snapshot!(expanded, @r"
     trait MyTrait {
+    
+    }
+    
+    impl MyTrait for () {
     
     }
     
@@ -227,17 +228,6 @@ fn generate_function_with_macros_on_trait() {
     pub fn bar(x: i32) -> i32 {
         let y: i32 = x + 1_i32;
         y + 2_i32
-    }
-    
-    struct Foo {
-    }
-    
-    impl MyTrait for Foo {
-    
-    }
-    
-    fn main() {
-        let _: Foo = Foo { };
     }
     ");
 }
