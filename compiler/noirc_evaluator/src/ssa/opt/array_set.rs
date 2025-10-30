@@ -196,11 +196,18 @@ impl<'f> Context<'f> {
 
                     // We also want to check that the array is not part of the terminator arguments, as this means it is used again.
                     let mut is_array_in_terminator = false;
+                    let mut is_nested = false;
                     terminator.for_each_value(|value| {
-                        is_array_in_terminator |= value == *array;
+                        let is_value_array_in_terminator = value == *array;
+                        if !is_value_array_in_terminator && self.dfg.type_of_value(value).is_array()
+                        {
+                            is_nested = true;
+                            self.set_last_use(value, *instruction_id);
+                        }
+                        is_array_in_terminator |= is_value_array_in_terminator;
                     });
 
-                    let can_mutate = !is_array_in_terminator;
+                    let can_mutate = !is_array_in_terminator && !is_nested;
 
                     if can_mutate {
                         self.instructions_that_can_be_made_mutable.insert(*instruction_id);
@@ -275,7 +282,6 @@ mod tests {
             ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        // The first array_set should not be mutable, but the second one can be.
         let ssa = ssa.array_set_optimization();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -283,7 +289,7 @@ mod tests {
             v1 = make_array [Field 0] : [Field; 1]
             v4 = array_set v1, index u32 0, value Field 2
             v5 = make_array [v1, v1] : [[Field; 1]; 2]
-            v6 = array_set mut v5, index u32 0, value v1
+            v6 = array_set v5, index u32 0, value v1
             return v6
         }
         ");
@@ -406,5 +412,27 @@ mod tests {
         );
         let ssa = Ssa::from_str(&src).unwrap();
         let _ssa = ssa.array_set_optimization();
+    }
+
+    #[test]
+    fn regression_10245() {
+        let src = "
+            acir(inline) predicate_pure fn main f0 {
+              b0(v0: Field, v1: [[Field; 1]; 2], v2: [Field; 1]):
+                v5 = array_set v2, index u32 0, value Field 4
+                v6 = array_set v1, index u32 0, value v2
+                return v6, v5
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.array_set_optimization();
+        assert_ssa_snapshot!(ssa, @r"
+            acir(inline) predicate_pure fn main f0 {
+              b0(v0: Field, v1: [[Field; 1]; 2], v2: [Field; 1]):
+                v5 = array_set v2, index u32 0, value Field 4
+                v6 = array_set v1, index u32 0, value v2
+                return v6, v5
+            }
+        ");
     }
 }
