@@ -319,20 +319,7 @@ impl HTMLCreator {
             self.output.push_str("</ul>");
         }
 
-        if !struct_.trait_impls.is_empty() {
-            self.h3("Trait implementations");
-            self.output.push_str("<ul class=\"sidebar-list\">");
-            for trait_impl in &struct_.trait_impls {
-                self.output.push_str("<li>");
-                self.output.push_str(&format!(
-                    "<a href=\"#{}\">{}</a>",
-                    trait_impl_anchor(trait_impl),
-                    trait_impl_trait_to_string(trait_impl),
-                ));
-                self.output.push_str("</li>\n");
-            }
-            self.output.push_str("</ul>");
-        }
+        self.render_sidebar_trait_impls(&struct_.trait_impls);
     }
 
     fn create_trait(&mut self, parent_module: &Module, trait_: &Trait) {
@@ -370,20 +357,26 @@ impl HTMLCreator {
             self.output.push_str("</ul>");
         }
 
-        if !trait_.trait_impls.is_empty() {
-            self.h3("Trait implementations");
-            self.output.push_str("<ul class=\"sidebar-list\">");
-            for trait_impl in &trait_.trait_impls {
-                self.output.push_str("<li>");
-                self.output.push_str(&format!(
-                    "<a href=\"#{}\">{}</a>",
-                    trait_impl_anchor(trait_impl),
-                    trait_impl_trait_to_string(trait_impl),
-                ));
-                self.output.push_str("</li>\n");
-            }
-            self.output.push_str("</ul>");
+        self.render_sidebar_trait_impls(&trait_.trait_impls);
+    }
+
+    fn render_sidebar_trait_impls(&mut self, trait_impls: &[TraitImpl]) {
+        if trait_impls.is_empty() {
+            return;
         }
+
+        self.h3("Trait implementations");
+        self.output.push_str("<ul class=\"sidebar-list\">");
+        for trait_impl in trait_impls {
+            self.output.push_str("<li>");
+            self.output.push_str(&format!(
+                "<a href=\"#{}\">{}</a>",
+                trait_impl_anchor(trait_impl),
+                trait_impl_trait_to_string(trait_impl),
+            ));
+            self.output.push_str("</li>\n");
+        }
+        self.output.push_str("</ul>");
     }
 
     fn create_alias(&mut self, parent_module: &Module, alias: &TypeAlias) {
