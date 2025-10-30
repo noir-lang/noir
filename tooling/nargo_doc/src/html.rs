@@ -4,10 +4,12 @@ use std::{
 };
 
 use crate::items::{
-    Crate, Crates, Function, Generic, Global, Impl, Item, Module, Struct, StructField, Trait,
-    TraitBound, TraitConstraint, TraitImpl, Type, TypeAlias,
+    Crate, Crates, Function, Generic, Global, HasNameAndComments, Impl, Item, Module, Struct,
+    StructField, Trait, TraitBound, TraitConstraint, TraitImpl, Type, TypeAlias,
 };
 
+/// Returns a list of (path, contents) representing the HTML files for the given crates.
+/// The paths are relative paths that can be joined to a base directory.
 pub fn to_html(crates: &Crates) -> Vec<(PathBuf, String)> {
     let mut creator = HTMLCreator::new(crates);
     creator.process_crates(crates);
@@ -46,10 +48,16 @@ impl HTMLCreator {
         self.h2("Crates");
         self.output.push_str("<ul>\n");
         for krate in &crates.crates {
-            self.output.push_str(&format!(
-                "<li><a href=\"{}/index.html\">{}</a></li>\n",
-                krate.name, krate.name
-            ));
+            self.output.push_str("<li>");
+            self.output
+                .push_str(&format!("<a href=\"{}/index.html\">{}</a>", krate.name, krate.name));
+            if let Some(comments) = krate.comments() {
+                let summary = markdown_summary(comments);
+                if !summary.is_empty() {
+                    self.output.push_str(&format!(": {}", summary));
+                }
+            }
+            self.output.push_str("</li>\n");
         }
         self.output.push_str("</ul>\n");
         self.html_end();
@@ -86,19 +94,9 @@ impl HTMLCreator {
             .iter()
             .filter_map(|item| if let Item::Module(module) = item { Some(module) } else { None })
             .collect::<Vec<_>>();
-        if modules.is_empty() {
-            return;
+        if !modules.is_empty() {
+            self.render_list("Modules", &modules);
         }
-
-        self.h2("Modules");
-        self.output.push_str("<ul>");
-        for module in modules {
-            self.output.push_str(&format!(
-                "<li><a href=\"{}/index.html\">{}</a></li>\n",
-                module.name, module.name
-            ));
-        }
-        self.output.push_str("</ul>");
     }
 
     fn render_structs(&mut self, items: &[Item]) {
@@ -106,19 +104,9 @@ impl HTMLCreator {
             .iter()
             .filter_map(|item| if let Item::Struct(struct_) = item { Some(struct_) } else { None })
             .collect::<Vec<_>>();
-        if structs.is_empty() {
-            return;
+        if !structs.is_empty() {
+            self.render_list("Structs", &structs);
         }
-
-        self.h2("Structs");
-        self.output.push_str("<ul>");
-        for struct_ in structs {
-            self.output.push_str(&format!(
-                "<li><a href=\"struct.{}.html\">{}</a></li>\n",
-                struct_.name, struct_.name
-            ));
-        }
-        self.output.push_str("</ul>");
     }
 
     fn render_traits(&mut self, items: &[Item]) {
@@ -126,19 +114,9 @@ impl HTMLCreator {
             .iter()
             .filter_map(|item| if let Item::Trait(trait_) = item { Some(trait_) } else { None })
             .collect::<Vec<_>>();
-        if traits.is_empty() {
-            return;
+        if !traits.is_empty() {
+            self.render_list("Traits", &traits);
         }
-
-        self.h2("Traits");
-        self.output.push_str("<ul>");
-        for trait_ in traits {
-            self.output.push_str(&format!(
-                "<li><a href=\"trait.{}.html\">{}</a></li>\n",
-                trait_.name, trait_.name
-            ));
-        }
-        self.output.push_str("</ul>");
     }
 
     fn render_type_aliases(&mut self, items: &[Item]) {
@@ -146,19 +124,9 @@ impl HTMLCreator {
             .iter()
             .filter_map(|item| if let Item::TypeAlias(alias) = item { Some(alias) } else { None })
             .collect::<Vec<_>>();
-        if type_aliases.is_empty() {
-            return;
+        if !type_aliases.is_empty() {
+            self.render_list("Type aliases", &type_aliases);
         }
-
-        self.h2("Type Aliases");
-        self.output.push_str("<ul>");
-        for alias in type_aliases {
-            self.output.push_str(&format!(
-                "<li><a href=\"type.{}.html\">{}</a></li>\n",
-                alias.name, alias.name
-            ));
-        }
-        self.output.push_str("</ul>");
     }
 
     fn render_globals(&mut self, items: &[Item]) {
@@ -166,19 +134,9 @@ impl HTMLCreator {
             .iter()
             .filter_map(|item| if let Item::Global(global) = item { Some(global) } else { None })
             .collect::<Vec<_>>();
-        if globals.is_empty() {
-            return;
+        if !globals.is_empty() {
+            self.render_list("Globals", &globals);
         }
-
-        self.h2("Globals");
-        self.output.push_str("<ul>");
-        for global in globals {
-            self.output.push_str(&format!(
-                "<li><a href=\"global.{}.html\">{}</a></li>\n",
-                global.name, global.name
-            ));
-        }
-        self.output.push_str("</ul>");
     }
 
     fn render_functions(&mut self, items: &[Item]) {
@@ -188,17 +146,24 @@ impl HTMLCreator {
                 |item| if let Item::Function(function) = item { Some(function) } else { None },
             )
             .collect::<Vec<_>>();
-        if functions.is_empty() {
-            return;
+        if !functions.is_empty() {
+            self.render_list("Functions", &functions);
         }
+    }
 
-        self.h2("Functions");
+    fn render_list<T: HasNameAndComments + HasPath>(&mut self, title: &str, items: &[&T]) {
+        self.h2(title);
         self.output.push_str("<ul>");
-        for function in functions {
-            self.output.push_str(&format!(
-                "<li><a href=\"fn.{}.html\">{}</a></li>\n",
-                function.name, function.name
-            ));
+        for item in items {
+            self.output.push_str("<li>");
+            self.output.push_str(&format!("<a href=\"{}\">{}</a>", item.path(), item.name(),));
+            if let Some(comments) = item.comments() {
+                let summary = markdown_summary(comments);
+                if !summary.is_empty() {
+                    self.output.push_str(&format!(": {}", summary));
+                }
+            }
+            self.output.push_str("</li>\n");
         }
         self.output.push_str("</ul>");
     }
@@ -248,7 +213,7 @@ impl HTMLCreator {
         self.render_impls(&struct_.impls);
         self.render_trait_impls(&struct_.trait_impls, "Trait implementations");
         self.html_end();
-        self.push_file(PathBuf::from(&format!("struct.{}.html", struct_.name)));
+        self.push_file(PathBuf::from(struct_.path()));
     }
 
     fn create_trait(&mut self, trait_: &Trait) {
@@ -261,7 +226,7 @@ impl HTMLCreator {
         self.render_trait_methods(&trait_.methods);
         self.render_trait_impls(&trait_.trait_impls, "Implementors");
         self.html_end();
-        self.push_file(PathBuf::from(&format!("trait.{}.html", trait_.name)));
+        self.push_file(PathBuf::from(trait_.path()));
     }
 
     fn create_alias(&mut self, alias: &TypeAlias) {
@@ -272,7 +237,7 @@ impl HTMLCreator {
         self.render_type_alias_code(alias);
         self.render_comments(&alias.comments, 1);
         self.html_end();
-        self.push_file(PathBuf::from(&format!("type.{}.html", alias.name)));
+        self.push_file(PathBuf::from(alias.path()));
     }
 
     fn create_function(&mut self, function: &Function) {
@@ -282,7 +247,7 @@ impl HTMLCreator {
         self.h1(&title);
         self.render_function(function, 1);
         self.html_end();
-        self.push_file(PathBuf::from(&format!("fn.{}.html", function.name)));
+        self.push_file(PathBuf::from(function.path()));
     }
 
     fn create_global(&mut self, global: &Global) {
@@ -293,7 +258,7 @@ impl HTMLCreator {
         self.render_global_code(global);
         self.render_comments(&global.comments, 1);
         self.html_end();
-        self.push_file(PathBuf::from(&format!("global.{}.html", global.name)));
+        self.push_file(PathBuf::from(global.path()));
     }
 
     fn render_struct_code(&mut self, struct_: &Struct) {
@@ -790,15 +755,15 @@ fn compute_id_to_path_in_item(
             path.pop();
         }
         Item::Struct(struct_) => {
-            let path = format!("{}/struct.{}.html", path.join("/"), struct_.name);
+            let path = format!("{}/{}", path.join("/"), struct_.path());
             id_to_path.insert(struct_.id, path);
         }
         Item::Trait(trait_) => {
-            let path = format!("{}/trait.{}.html", path.join("/"), trait_.name);
+            let path = format!("{}/{}", path.join("/"), trait_.path());
             id_to_path.insert(trait_.id, path);
         }
         Item::TypeAlias(type_alias) => {
-            let path = format!("{}/type.{}.html", path.join("/"), type_alias.name);
+            let path = format!("{}/{}", path.join("/"), type_alias.path());
             id_to_path.insert(type_alias.id, path);
         }
         Item::Function(_) | Item::Global(_) => {}
@@ -842,4 +807,57 @@ fn fix_markdown(markdown: &str, current_heading_level: usize) -> String {
 
     fixed_comment.push('\n');
     fixed_comment
+}
+
+/// Returns a summary of the given markdown (up to the first blank line).
+fn markdown_summary(markdown: &str) -> String {
+    let mut string = String::new();
+    for line in markdown.lines() {
+        if line.trim().is_empty() {
+            break;
+        }
+        string.push_str(line);
+        string.push_str("\n");
+    }
+    string.trim().to_string()
+}
+
+trait HasPath {
+    fn path(&self) -> String;
+}
+
+impl HasPath for Module {
+    fn path(&self) -> String {
+        format!("{}/index.html", self.name)
+    }
+}
+
+impl HasPath for Struct {
+    fn path(&self) -> String {
+        format!("struct.{}.html", self.name)
+    }
+}
+
+impl HasPath for Trait {
+    fn path(&self) -> String {
+        format!("trait.{}.html", self.name)
+    }
+}
+
+impl HasPath for TypeAlias {
+    fn path(&self) -> String {
+        format!("type.{}.html", self.name)
+    }
+}
+
+impl HasPath for Global {
+    fn path(&self) -> String {
+        format!("global.{}.html", self.name)
+    }
+}
+
+impl HasPath for Function {
+    fn path(&self) -> String {
+        format!("fn.{}.html", self.name)
+    }
 }

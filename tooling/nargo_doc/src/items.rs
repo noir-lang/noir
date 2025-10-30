@@ -2,6 +2,11 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
+pub trait HasNameAndComments {
+    fn name(&self) -> &str;
+    fn comments(&self) -> Option<&str>;
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct Crates {
     pub name: String,
@@ -12,6 +17,16 @@ pub struct Crates {
 pub struct Crate {
     pub name: String,
     pub root_module: Module,
+}
+
+impl HasNameAndComments for Crate {
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn comments(&self) -> Option<&str> {
+        self.root_module.comments()
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -32,6 +47,16 @@ pub struct Module {
     pub comments: Option<String>,
 }
 
+impl HasNameAndComments for Module {
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn comments(&self) -> Option<&str> {
+        self.comments.as_deref()
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct Struct {
     pub id: usize,
@@ -46,11 +71,31 @@ pub struct Struct {
     pub comments: Option<String>,
 }
 
+impl HasNameAndComments for Struct {
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn comments(&self) -> Option<&str> {
+        self.comments.as_deref()
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct StructField {
     pub name: String,
     pub r#type: Type,
     pub comments: Option<String>,
+}
+
+impl HasNameAndComments for StructField {
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn comments(&self) -> Option<&str> {
+        self.comments.as_deref()
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -80,6 +125,16 @@ pub struct Global {
     pub comments: Option<String>,
 }
 
+impl HasNameAndComments for Global {
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn comments(&self) -> Option<&str> {
+        self.comments.as_deref()
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct Function {
     pub unconstrained: bool,
@@ -90,6 +145,16 @@ pub struct Function {
     pub return_type: Type,
     pub where_clause: Vec<TraitConstraint>,
     pub comments: Option<String>,
+}
+
+impl HasNameAndComments for Function {
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn comments(&self) -> Option<&str> {
+        self.comments.as_deref()
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -110,6 +175,16 @@ pub struct Trait {
     pub comments: Option<String>,
 }
 
+impl HasNameAndComments for Trait {
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn comments(&self) -> Option<&str> {
+        self.comments.as_deref()
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct TypeAlias {
     pub id: usize,
@@ -117,6 +192,16 @@ pub struct TypeAlias {
     pub generics: Vec<Generic>,
     pub r#type: Type,
     pub comments: Option<String>,
+}
+
+impl HasNameAndComments for TypeAlias {
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn comments(&self) -> Option<&str> {
+        self.comments.as_deref()
+    }
 }
 
 #[derive(Serialize, Deserialize)]
