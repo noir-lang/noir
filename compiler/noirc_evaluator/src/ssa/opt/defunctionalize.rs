@@ -547,7 +547,7 @@ fn create_apply_function(
     function_ids: Vec<(FunctionId, RuntimeType)>,
 ) -> FunctionId {
     assert!(
-        !function_ids.len() > 1,
+        function_ids.len() > 1,
         "create_apply_function is expected to be called with two or more FunctionId's"
     );
     // Clone the user-defined globals and the function purities mapping,
