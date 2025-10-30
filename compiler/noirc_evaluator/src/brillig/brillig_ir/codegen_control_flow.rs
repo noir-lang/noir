@@ -178,9 +178,9 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     }
 
     /// Jump to a trap condition if `condition` is false.
-    /// The trap will include the given message as revert data.
+    /// The trap will include the given message as error data.
     ///
-    /// If `error_selector` is None, an empty revert data is generated (no error information).
+    /// If `error_selector` is None, an empty error data is generated (no error information).
     pub(crate) fn codegen_constrain_with_error_data(
         &mut self,
         condition: SingleAddrVariable,
@@ -193,14 +193,14 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.codegen_if_not(condition.address, |ctx| {
             let data_size = Self::flattened_tuple_size(&error_data_types);
 
-            // Special case: No error selector means completely empty revert data
+            // Special case: No error selector means completely empty error data
             let Some(error_selector) = error_selector else {
-                let revert_data =
+                let error_data =
                     ctx.make_usize_constant_instruction(0_usize.into()).map(|size| HeapVector {
                         pointer: ReservedRegisters::free_memory_pointer(),
                         size: size.address,
                     });
-                ctx.trap_instruction(*revert_data);
+                ctx.trap_instruction(*error_data);
                 return;
             };
 
@@ -211,7 +211,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                     if let Some(ErrorType::String(message)) =
                         ctx.obj.error_types.get(&error_selector)
                     {
-                        ctx.call_revert_with_string_procedure(message.clone());
+                        ctx.call_error_with_string_procedure(message.clone());
                         return;
                     }
                 }
@@ -230,7 +230,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             }
 
             // Allocate buffer and serialize data
-            // + 1 due to the revert data id being the first item returned
+            // + 1 due to the error data id being the first item returned
             let error_data_size = data_size + 1;
             let error_data_size_var = ctx.make_usize_constant_instruction(error_data_size.into());
             let error_data = ctx
@@ -270,7 +270,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                         );
                     }
                     BrilligParameter::Slice(_, _) => {
-                        unimplemented!("Slices are not supported as revert data")
+                        unimplemented!("Slices are not supported as error data")
                     }
                 }
                 ctx.codegen_usize_op_in_place(
@@ -284,7 +284,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     }
 
     /// Jump to a trap condition if `condition` is false,
-    /// with any assertion message written to the revert data.
+    /// with any assertion message written to the error data.
     pub(crate) fn codegen_constrain(
         &mut self,
         condition: SingleAddrVariable,
