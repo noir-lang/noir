@@ -12,6 +12,7 @@ mod functions;
 mod globals;
 mod imports;
 mod lambdas;
+mod meta_quote_roundtrip;
 mod metaprogramming;
 mod name_shadowing;
 mod numeric_generics;
