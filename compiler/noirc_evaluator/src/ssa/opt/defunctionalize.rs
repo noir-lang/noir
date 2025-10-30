@@ -21,7 +21,7 @@
 //! fn apply(function_id: Field, arg1: Field, arg2: Field) -> Field {
 //!     match function_id {
 //!         0 -> function0(arg1, arg2),
-//!         1 -> function0(arg1, arg2),
+//!         1 -> function1(arg1, arg2),
 //!         ...
 //!         N -> functionN(arg1, arg2),
 //!     }
