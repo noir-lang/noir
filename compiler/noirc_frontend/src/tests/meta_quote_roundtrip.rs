@@ -11,6 +11,7 @@
 //!
 //! ## Known Limitation
 //!
+//! TODO(https://github.com/noir-lang/noir/issues/10326):
 //! Integer types (u8, u16, u32, u64, u128, i8, i16, i32, i64) do NOT preserve their type
 //! through quote/unquote. The `Value::into_tokens()` implementation in value.rs strips
 //! type suffixes, converting all integers to `Token::Int(value, None)`.
