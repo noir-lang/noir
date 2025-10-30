@@ -1,4 +1,7 @@
-use std::{collections::BTreeMap, path::PathBuf};
+use std::{
+    collections::{BTreeMap, HashMap},
+    path::PathBuf,
+};
 
 use crate::items::{
     Crate, Crates, Function, Generic, Global, Impl, Item, Module, Struct, StructField, Trait,
@@ -16,6 +19,7 @@ struct HTMLCreator {
     files: Vec<(PathBuf, String)>,
     current_path: Vec<String>,
     crates_name: String,
+    id_to_path: HashMap<usize, String>,
 }
 
 impl HTMLCreator {
@@ -24,7 +28,8 @@ impl HTMLCreator {
         let files = Vec::new();
         let current_path = Vec::new();
         let crates_name = crates.name.clone();
-        Self { output, files, current_path, crates_name }
+        let id_to_path = compute_id_to_path(crates);
+        Self { output, files, current_path, crates_name, id_to_path }
     }
 
     fn process_crates(&mut self, crates: &Crates) {
@@ -529,12 +534,13 @@ impl HTMLCreator {
     }
 
     fn render_id_reference(&mut self, id: usize, name: &str) {
-        // TODO:
-        // if let Some(anchor_name) = self.id_to_string.get(&id) {
-        //     self.output.push_str(&format!("<a href=\"#{anchor_name}\">{name}</a>"));
-        // } else {
-        self.output.push_str(name);
-        // }
+        if let Some(path) = self.id_to_path.get(&id) {
+            let nesting = self.current_path.len();
+            self.output
+                .push_str(&format!("<a href=\"{}{path}\">{name}</a>", "../".repeat(nesting)));
+        } else {
+            self.output.push_str(name);
+        }
     }
 
     fn render_type(&mut self, typ: &Type) {
@@ -751,6 +757,51 @@ impl HTMLCreator {
         let contents = std::mem::take(&mut self.output);
         let path = full_path.join(path);
         self.files.push((path, contents));
+    }
+}
+
+fn compute_id_to_path(crates: &Crates) -> HashMap<usize, String> {
+    let mut id_to_path = HashMap::new();
+    let mut path = Vec::new();
+
+    for krate in &crates.crates {
+        path.push(krate.name.to_string());
+        for item in &krate.root_module.items {
+            compute_id_to_path_in_item(item, &mut id_to_path, &mut path);
+        }
+
+        path.pop();
+    }
+
+    id_to_path
+}
+
+fn compute_id_to_path_in_item(
+    item: &Item,
+    id_to_path: &mut HashMap<usize, String>,
+    path: &mut Vec<String>,
+) {
+    match item {
+        Item::Module(module) => {
+            path.push(module.name.clone());
+            for item in &module.items {
+                compute_id_to_path_in_item(item, id_to_path, path);
+            }
+            path.pop();
+        }
+        Item::Struct(struct_) => {
+            let path = format!("{}/struct.{}.html", path.join("/"), struct_.name);
+            id_to_path.insert(struct_.id, path);
+        }
+        Item::Trait(trait_) => {
+            let path = format!("{}/trait.{}.html", path.join("/"), trait_.name);
+            id_to_path.insert(trait_.id, path);
+        }
+        Item::TypeAlias(type_alias) => {
+            let path = format!("{}/type.{}.html", path.join("/"), type_alias.name);
+            id_to_path.insert(type_alias.id, path);
+        }
+        Item::Function(_) | Item::Global(_) => {}
     }
 }
 
