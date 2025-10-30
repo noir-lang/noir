@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1761854856039,
+  "lastUpdate": 1761857511247,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23110,48 +23110,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "8d787871c097c315193fed23204e56fa396003a7",
-          "message": "feat: attempt to inline successors in `simplify_cfg` (#9608)",
-          "timestamp": "2025-10-16T17:45:01Z",
-          "tree_id": "871adceadaec688774cf61cfa435b2b1ab84d997",
-          "url": "https://github.com/noir-lang/noir/commit/8d787871c097c315193fed23204e56fa396003a7"
-        },
-        "date": 1760638065216,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 268193,
-            "range": "± 654",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 231993,
-            "range": "± 2903",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2785310,
-            "range": "± 1354",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "60c6c3c83568928bd792e46b165c4d2cc54b2ebf",
           "message": "chore: redo typo PR by spuradage (#10226)",
@@ -25194,6 +25152,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2794579,
             "range": "± 6877",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8b0f07f6876846407daaada493b94229c122d204",
+          "message": "chore(frontend): Quoting/unquoting roundtrip testing  (#10327)",
+          "timestamp": "2025-10-30T20:23:12Z",
+          "tree_id": "4e46b835300c5bfdbfddf4667810acdbf8b6b83f",
+          "url": "https://github.com/noir-lang/noir/commit/8b0f07f6876846407daaada493b94229c122d204"
+        },
+        "date": 1761857485879,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 266590,
+            "range": "± 524",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 236243,
+            "range": "± 1777",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2796386,
+            "range": "± 926",
             "unit": "ns/iter"
           }
         ]
