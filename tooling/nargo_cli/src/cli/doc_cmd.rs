@@ -19,8 +19,10 @@ use crate::errors::CliError;
 
 use super::{LockType, PackageOptions, WorkspaceCommand};
 
+/// Builds documentation for the specified package or workspace.
 #[derive(Debug, Clone, Args, Default)]
 pub(crate) struct DocCommand {
+    /// Output format for the documentation, HTML by default.
     #[clap(long)]
     format: Option<Format>,
 
