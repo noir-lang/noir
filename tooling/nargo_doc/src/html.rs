@@ -41,7 +41,7 @@ impl HTMLCreator {
         self.create_index(crates);
 
         for krate in &crates.crates {
-            self.create_crate(krate);
+            self.create_crate(crates, krate);
         }
     }
 
@@ -53,9 +53,12 @@ impl HTMLCreator {
 
     fn create_index(&mut self, crates: &Crates) {
         self.html_start(&format!("{} documentation", crates.name));
+
+        // This sidebar is empty because there's not much we can list here.
+        // It's here so that every page has a sidebar.
         self.sidebar_start();
-        // TODO: index sidebar
         self.sidebar_end();
+
         self.main_start();
         self.h1(&format!("{} documentation", crates.name));
         let crates = vecmap(&crates.crates, |krate| krate);
@@ -65,12 +68,12 @@ impl HTMLCreator {
         self.push_file(PathBuf::from("index.html"));
     }
 
-    fn create_crate(&mut self, krate: &Crate) {
+    fn create_crate(&mut self, crates: &Crates, krate: &Crate) {
         self.current_path.push(krate.name.clone());
 
         self.html_start(&format!("Crate {}", krate.name));
         self.sidebar_start();
-        // TODO: crate sidebar
+        self.render_crate_sidebar(crates);
         self.sidebar_end();
         self.main_start();
         self.render_breadcrumbs(false);
@@ -84,6 +87,22 @@ impl HTMLCreator {
         self.create_items(&krate.root_module.items);
 
         self.current_path.pop();
+    }
+
+    fn render_crate_sidebar(&mut self, crates: &Crates) {
+        self.h2("Crates");
+        self.output.push_str("<ul class=\"sidebar-list\">");
+        for item in &crates.crates {
+            self.output.push_str("<li>");
+            self.output.push_str(&format!(
+                "<a href=\"../{}\" class=\"{}\">{}</a>",
+                item.path(),
+                item.class(),
+                item.name(),
+            ));
+            self.output.push_str("</li>\n");
+        }
+        self.output.push_str("</ul>");
     }
 
     fn render_items(&mut self, items: &[Item]) {
