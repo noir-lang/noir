@@ -3,6 +3,8 @@ use std::{
     path::PathBuf,
 };
 
+use iter_extended::vecmap;
+
 use crate::items::{
     Crate, Crates, Function, Generic, Global, HasNameAndComments, Impl, Item, Module, Struct,
     StructField, Trait, TraitBound, TraitConstraint, TraitImpl, Type, TypeAlias,
@@ -35,6 +37,7 @@ impl HTMLCreator {
     }
 
     fn process_crates(&mut self, crates: &Crates) {
+        self.create_styles();
         self.create_index(crates);
 
         for krate in &crates.crates {
@@ -42,24 +45,17 @@ impl HTMLCreator {
         }
     }
 
+    fn create_styles(&mut self) {
+        let contents = include_str!("styles.css");
+        self.output.push_str(contents);
+        self.push_file(PathBuf::from("styles.css"));
+    }
+
     fn create_index(&mut self, crates: &Crates) {
         self.html_start(&format!("{} documentation", crates.name));
         self.h1(&format!("{} documentation", crates.name));
-        self.h2("Crates");
-        self.output.push_str("<ul>\n");
-        for krate in &crates.crates {
-            self.output.push_str("<li>");
-            self.output
-                .push_str(&format!("<a href=\"{}/index.html\">{}</a>", krate.name, krate.name));
-            if let Some(comments) = krate.comments() {
-                let summary = markdown_summary(comments);
-                if !summary.is_empty() {
-                    self.output.push_str(&format!(": {summary}"));
-                }
-            }
-            self.output.push_str("</li>\n");
-        }
-        self.output.push_str("</ul>\n");
+        let crates = vecmap(&crates.crates, |krate| krate);
+        self.render_list("Crates", &crates);
         self.html_end();
         self.push_file(PathBuf::from("index.html"));
     }
@@ -153,16 +149,18 @@ impl HTMLCreator {
 
     fn render_list<T: HasNameAndComments + HasPath>(&mut self, title: &str, items: &[&T]) {
         self.h2(title);
-        self.output.push_str("<ul>");
+        self.output.push_str("<ul class=\"item-list\">");
         for item in items {
             self.output.push_str("<li>");
+            self.output.push_str("<div class=\"item-name\">");
             self.output.push_str(&format!("<a href=\"{}\">{}</a>", item.path(), item.name(),));
+            self.output.push_str("</div>");
+            self.output.push_str("<div class=\"item-description\">");
             if let Some(comments) = item.comments() {
                 let summary = markdown_summary(comments);
-                if !summary.is_empty() {
-                    self.output.push_str(&format!(": {summary}"));
-                }
+                self.output.push_str(&summary);
             }
+            self.output.push_str("</div>");
             self.output.push_str("</li>\n");
         }
         self.output.push_str("</ul>");
@@ -662,7 +660,9 @@ impl HTMLCreator {
 
         let comments = fix_markdown(comments, current_heading_level);
         let html = markdown::to_html(&comments);
+        self.output.push_str("<div class=\"comments\">\n");
         self.output.push_str(&html);
+        self.output.push_str("</div>\n");
     }
 
     fn render_breadcrumbs(&mut self, last_is_link: bool) {
@@ -695,12 +695,19 @@ impl HTMLCreator {
         self.output.push_str("<html>\n");
         self.output.push_str("<head>\n");
         self.output.push_str("<meta charset=\"UTF-8\">\n");
+        let nesting = self.current_path.len();
+        self.output.push_str(&format!(
+            "<link rel=\"stylesheet\" href=\"{}styles.css\">\n",
+            "../".repeat(nesting)
+        ));
         self.output.push_str(&format!("<title>{title} documentation</title>\n"));
         self.output.push_str("</head>\n");
         self.output.push_str("<body>\n");
+        self.output.push_str("<main>\n");
     }
 
     fn html_end(&mut self) {
+        self.output.push_str("</main>\n");
         self.output.push_str("</body>\n");
         self.output.push_str("</html>\n");
     }
@@ -829,6 +836,12 @@ fn markdown_summary(markdown: &str) -> String {
 
 trait HasPath {
     fn path(&self) -> String;
+}
+
+impl HasPath for Crate {
+    fn path(&self) -> String {
+        format!("{}/index.html", self.name)
+    }
 }
 
 impl HasPath for Module {

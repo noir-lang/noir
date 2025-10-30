@@ -1,0 +1,58 @@
+body {
+    font-family: "Fira Sans", Arial, NanumBarunGothic, sans-serif;
+    font-weight: 500;
+}
+
+main {
+    padding: 10px 15px 10px 15px;
+    max-width: 960px;
+}
+
+h1, h2 {
+    line-height: 1.25;
+    padding-top: 3px;
+    padding-bottom: 9px;
+}
+
+h1, h2, h3, h4 {
+    margin: 25px 0 15px 0;
+}
+
+h2 {
+    font-size: 1.375rem;
+    border-bottom: 1px solid #ddd;
+}
+
+ul {
+    list-style-type: none;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+.item-list {
+    display: table;
+}
+
+.item-list>li {
+    display: table-row;
+    width: 100%;
+    line-height: 2em;
+}
+
+.item-list a {
+    color: #3873ad;
+}
+
+.item-list>li>.item-name {
+    width: 33%;
+    display: table-cell;
+}
+
+.item-list>li>.item-description {
+    display: table-cell;
+}
+
+.comments {
+    font-family: "Source Serif 4", NanumBarunGothic, serif;
+}
