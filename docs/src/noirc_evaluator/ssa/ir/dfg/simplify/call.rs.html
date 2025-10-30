@@ -922,7 +922,20 @@
 <a href="#921" id="921">921</a>
 <a href="#922" id="922">922</a>
 <a href="#923" id="923">923</a>
-<a href="#924" id="924">924</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
+<a href="#924" id="924">924</a>
+<a href="#925" id="925">925</a>
+<a href="#926" id="926">926</a>
+<a href="#927" id="927">927</a>
+<a href="#928" id="928">928</a>
+<a href="#929" id="929">929</a>
+<a href="#930" id="930">930</a>
+<a href="#931" id="931">931</a>
+<a href="#932" id="932">932</a>
+<a href="#933" id="933">933</a>
+<a href="#934" id="934">934</a>
+<a href="#935" id="935">935</a>
+<a href="#936" id="936">936</a>
+<a href="#937" id="937">937</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
 <span class="kw">use </span>std::{collections::VecDeque, sync::Arc};
 
@@ -935,6 +948,7 @@
     basic_block::BasicBlockId,
     dfg::{DataFlowGraph, simplify::value_merger::ValueMerger},
     instruction::{Binary, BinaryOp, Endian, Hint, Instruction, Intrinsic},
+    integer::IntegerConstant,
     types::{NumericType, Type},
     value::{Value, ValueId},
 };
@@ -1057,16 +1071,28 @@
                 <span class="comment">// TODO(#2752): We need to handle the element_type size to appropriately handle slices of complex types.
                 // This is reliant on dynamic indices of non-homogenous slices also being implemented.
                 </span><span class="kw">if </span>element_type.element_size() != <span class="number">1 </span>{
-                    <span class="comment">// Old code before implementing multiple slice mergers
-                    </span><span class="kw">for </span>elem <span class="kw">in </span><span class="kw-2">&amp;</span>arguments[<span class="number">2</span>..] {
-                        slice.push_back(<span class="kw-2">*</span>elem);
+                    <span class="kw">if let </span><span class="prelude-val">Some</span>(IntegerConstant::Unsigned { value: slice_len, .. }) =
+                        dfg.get_integer_constant(arguments[<span class="number">0</span>])
+                    {
+                        <span class="comment">// This simplification, which push back directly on the slice, only works if the real slice_len is the
+                        // the length of the slice.
+                        </span><span class="kw">if </span>slice_len <span class="kw">as </span>usize == slice.len() {
+                            <span class="comment">// Old code before implementing multiple slice mergers
+                            </span><span class="kw">for </span>elem <span class="kw">in </span><span class="kw-2">&amp;</span>arguments[<span class="number">2</span>..] {
+                                slice.push_back(<span class="kw-2">*</span>elem);
+                            }
+
+                            <span class="kw">let </span>new_slice_length =
+                                increment_slice_length(arguments[<span class="number">0</span>], dfg, block, call_stack);
+
+                            <span class="kw">let </span>new_slice = make_array(dfg, slice, element_type, block, call_stack);
+                            <span class="kw">return </span>SimplifyResult::SimplifiedToMultiple(<span class="macro">vec!</span>[
+                                new_slice_length,
+                                new_slice,
+                            ]);
+                        }
                     }
-
-                    <span class="kw">let </span>new_slice_length =
-                        increment_slice_length(arguments[<span class="number">0</span>], dfg, block, call_stack);
-
-                    <span class="kw">let </span>new_slice = make_array(dfg, slice, element_type, block, call_stack);
-                    <span class="kw">return </span>SimplifyResult::SimplifiedToMultiple(<span class="macro">vec!</span>[new_slice_length, new_slice]);
+                    <span class="kw">return </span>SimplifyResult::None;
                 }
 
                 simplify_slice_push_back(slice, element_type, arguments, dfg, block, call_stack)

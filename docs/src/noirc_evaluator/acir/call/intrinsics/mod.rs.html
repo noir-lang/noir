@@ -273,7 +273,7 @@
                 ])
             }
 
-            Intrinsic::SlicePushBack =&gt; <span class="self">self</span>.convert_slice_push_back(arguments, dfg),
+            Intrinsic::SlicePushBack =&gt; <span class="self">self</span>.convert_slice_push_back(arguments, dfg, result_ids),
             Intrinsic::SlicePushFront =&gt; <span class="self">self</span>.convert_slice_push_front(arguments, dfg),
             Intrinsic::SlicePopBack =&gt; <span class="self">self</span>.convert_slice_pop_back(arguments, dfg, result_ids),
             Intrinsic::SlicePopFront =&gt; <span class="self">self</span>.convert_slice_pop_front(arguments, dfg, result_ids),

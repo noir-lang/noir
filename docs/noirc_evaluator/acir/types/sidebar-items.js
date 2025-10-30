@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["AcirType","AcirValue"],"fn":["collect_flat_numeric_types","flat_numeric_types"],"struct":["AcirDynamicArray","AcirVar"]};
+window.SIDEBAR_ITEMS = {"enum":["AcirType","AcirValue"],"fn":["collect_flat_numeric_types","collect_fully_flattened_numeric_types","flat_element_types","flat_numeric_types"],"struct":["AcirDynamicArray","AcirVar"]};
