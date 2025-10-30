@@ -323,7 +323,6 @@ impl HTMLCreator {
     fn create_alias(&mut self, parent_module: &Module, alias: &TypeAlias) {
         self.html_start(&format!("Type alias {}", alias.name));
         self.sidebar_start();
-        // TODO: alias sidebar
         self.render_module_contents_sidebar(parent_module, false);
         self.sidebar_end();
         self.main_start();
@@ -339,7 +338,6 @@ impl HTMLCreator {
     fn create_function(&mut self, parent_module: &Module, function: &Function) {
         self.html_start(&format!("Function {}", function.name));
         self.sidebar_start();
-        // TODO: function sidebar
         self.render_module_contents_sidebar(parent_module, false);
         self.sidebar_end();
         self.main_start();
@@ -354,7 +352,6 @@ impl HTMLCreator {
     fn create_global(&mut self, parent_module: &Module, global: &Global) {
         self.html_start(&format!("Global {}", global.name));
         self.sidebar_start();
-        // TODO: global sidebar
         self.render_module_contents_sidebar(parent_module, false);
         self.sidebar_end();
         self.main_start();
