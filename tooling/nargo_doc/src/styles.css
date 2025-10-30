@@ -130,9 +130,21 @@ ul {
     padding: 10px 15px 10px 15px;
 }
 
-.sidebar h1, .sidebar h2 {
+.sidebar h1 {
     border-bottom: 0;
     margin: 0;
+}
+
+.sidebar h2 {
+    border-bottom: 0;
+    margin: 0;
+    margin-top: 30px;
+}
+
+.sidebar h3 {
+    border-bottom: 0;
+    margin: 0;
+    margin-top: 15px;
 }
 
 .sidebar li {

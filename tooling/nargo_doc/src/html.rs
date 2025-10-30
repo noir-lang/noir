@@ -62,7 +62,7 @@ impl HTMLCreator {
         self.main_start();
         self.h1(&format!("{} documentation", crates.name));
         let crates = vecmap(&crates.crates, |krate| krate);
-        self.render_list("Crates", &crates);
+        self.render_list("Crates", "crates", false, &crates);
         self.main_end();
         self.html_end();
         self.push_file(PathBuf::from("index.html"));
@@ -79,18 +79,18 @@ impl HTMLCreator {
         self.render_breadcrumbs(false);
         self.h1(&format!("Crate <span class=\"crate\">{}</span>", krate.name));
         self.render_comments(&krate.root_module.comments, 1);
-        self.render_items(&krate.root_module.items);
+        self.render_items(&krate.root_module.items, false);
         self.main_end();
         self.html_end();
         self.push_file(PathBuf::from("index.html"));
 
-        self.create_items(&krate.root_module.items);
+        self.create_items(&krate.root_module, &krate.root_module.items);
 
         self.current_path.pop();
     }
 
     fn render_crate_sidebar(&mut self, crates: &Crates) {
-        self.h2("Crates");
+        self.h3("Crates");
         self.output.push_str("<ul class=\"sidebar-list\">");
         for item in &crates.crates {
             self.output.push_str("<li>");
@@ -105,78 +105,89 @@ impl HTMLCreator {
         self.output.push_str("</ul>");
     }
 
-    fn render_items(&mut self, items: &[Item]) {
-        self.render_modules(items);
-        self.render_structs(items);
-        self.render_traits(items);
-        self.render_type_aliases(items);
-        self.render_globals(items);
-        self.render_functions(items);
+    fn render_items(&mut self, items: &[Item], sidebar: bool) {
+        self.render_modules(items, sidebar);
+        self.render_structs(items, sidebar);
+        self.render_traits(items, sidebar);
+        self.render_type_aliases(items, sidebar);
+        self.render_globals(items, sidebar);
+        self.render_functions(items, sidebar);
     }
 
-    fn render_modules(&mut self, items: &[Item]) {
+    fn render_modules(&mut self, items: &[Item], sidebar: bool) {
         let modules = get_modules(items);
         if !modules.is_empty() {
-            self.render_list("Modules", &modules);
+            self.render_list("Modules", "modules", sidebar, &modules);
         }
     }
 
-    fn render_structs(&mut self, items: &[Item]) {
+    fn render_structs(&mut self, items: &[Item], sidebar: bool) {
         let structs = get_structs(items);
         if !structs.is_empty() {
-            self.render_list("Structs", &structs);
+            self.render_list("Structs", "structs", sidebar, &structs);
         }
     }
 
-    fn render_traits(&mut self, items: &[Item]) {
+    fn render_traits(&mut self, items: &[Item], sidebar: bool) {
         let traits = get_traits(items);
         if !traits.is_empty() {
-            self.render_list("Traits", &traits);
+            self.render_list("Traits", "traits", sidebar, &traits);
         }
     }
 
-    fn render_type_aliases(&mut self, items: &[Item]) {
+    fn render_type_aliases(&mut self, items: &[Item], sidebar: bool) {
         let type_aliases = get_type_aliases(items);
         if !type_aliases.is_empty() {
-            self.render_list("Type aliases", &type_aliases);
+            self.render_list("Type aliases", "type-aliases", sidebar, &type_aliases);
         }
     }
 
-    fn render_globals(&mut self, items: &[Item]) {
+    fn render_globals(&mut self, items: &[Item], sidebar: bool) {
         let globals = get_globals(items);
         if !globals.is_empty() {
-            self.render_list("Globals", &globals);
+            self.render_list("Globals", "globals", sidebar, &globals);
         }
     }
 
-    fn render_functions(&mut self, items: &[Item]) {
+    fn render_functions(&mut self, items: &[Item], sidebar: bool) {
         let functions = get_functions(items);
         if !functions.is_empty() {
-            self.render_list("Functions", &functions);
+            self.render_list("Functions", "functions", sidebar, &functions);
         }
     }
 
     fn render_list<T: HasNameAndComments + HasPath + HasClass>(
         &mut self,
         title: &str,
+        anchor: &str,
+        sidebar: bool,
         items: &[&T],
     ) {
-        self.h2(title);
+        if sidebar {
+            self.output.push_str(&format!("<h3>{}</h3>", title));
+        } else {
+            self.output.push_str(&format!("<h2 id=\"{}\">{}</h2>", anchor, title));
+        }
         self.output.push_str("<ul class=\"item-list\">");
         for item in items {
             self.output.push_str("<li>");
-            self.output.push_str("<div class=\"item-name\">");
+            if !sidebar {
+                self.output.push_str("<div class=\"item-name\">");
+            }
             self.output.push_str(&format!(
-                "<a href=\"{}\" class=\"{}\">{}</a>",
+                "<a href=\"{}{}\" class=\"{}\">{}</a>",
+                if sidebar { "../" } else { "" },
                 item.path(),
                 item.class(),
                 item.name(),
             ));
-            self.output.push_str("</div>");
-            self.output.push_str("<div class=\"item-description\">");
-            if let Some(comments) = item.comments() {
-                let summary = markdown_summary(comments);
-                self.output.push_str(&summary);
+            if !sidebar {
+                self.output.push_str("</div>");
+                self.output.push_str("<div class=\"item-description\">");
+                if let Some(comments) = item.comments() {
+                    let summary = markdown_summary(comments);
+                    self.output.push_str(&summary);
+                }
             }
             self.output.push_str("</div>");
             self.output.push_str("</li>\n");
@@ -184,15 +195,15 @@ impl HTMLCreator {
         self.output.push_str("</ul>");
     }
 
-    fn create_items(&mut self, items: &[Item]) {
+    fn create_items(&mut self, parent_module: &Module, items: &[Item]) {
         for item in items {
-            self.create_item(item);
+            self.create_item(parent_module, item);
         }
     }
 
-    fn create_item(&mut self, item: &Item) {
+    fn create_item(&mut self, parent_module: &Module, item: &Item) {
         match item {
-            Item::Module(module) => self.create_module(module),
+            Item::Module(module) => self.create_module(parent_module, module),
             Item::Struct(struct_) => self.create_struct(struct_),
             Item::Trait(trait_) => self.create_trait(trait_),
             Item::TypeAlias(alias) => self.create_alias(alias),
@@ -201,25 +212,64 @@ impl HTMLCreator {
         }
     }
 
-    fn create_module(&mut self, module: &Module) {
+    fn create_module(&mut self, parent_module: &Module, module: &Module) {
         self.current_path.push(module.name.clone());
 
         self.html_start(&format!("Module {}", module.name));
         self.sidebar_start();
-        // TODO: module sidebar
+        self.h2(&format!("Module {}", module.name));
+        self.render_module_items_sidebar(module);
+        self.render_module_contents_sidebar(parent_module);
         self.sidebar_end();
         self.main_start();
         self.render_breadcrumbs(false);
         self.h1(&format!("Module <span class=\"module\">{}</span>", module.name));
         self.render_comments(&module.comments, 1);
-        self.render_items(&module.items);
+        self.render_items(&module.items, false);
         self.main_end();
         self.html_end();
         self.push_file(PathBuf::from("index.html"));
 
-        self.create_items(&module.items);
+        self.create_items(&module, &module.items);
 
         self.current_path.pop();
+    }
+
+    fn render_module_items_sidebar(&mut self, module: &Module) {
+        if module.items.is_empty() {
+            return;
+        }
+        self.h3("Module items");
+        self.output.push_str("<ul class=\"sidebar-list\">");
+        if !get_modules(&module.items).is_empty() {
+            self.output.push_str("<li><a href=\"#modules\">Modules</a></li>");
+        }
+        if !get_structs(&module.items).is_empty() {
+            self.output.push_str("<li><a href=\"#structs\">Structs</a></li>");
+        }
+        if !get_traits(&module.items).is_empty() {
+            self.output.push_str("<li><a href=\"#traits\">Traits</a></li>");
+        }
+        if !get_type_aliases(&module.items).is_empty() {
+            self.output.push_str("<li><a href=\"#type-aliases\">Type aliases</a></li>");
+        }
+        if !get_globals(&module.items).is_empty() {
+            self.output.push_str("<li><a href=\"#globals\">Globals</a></li>");
+        }
+        if !get_functions(&module.items).is_empty() {
+            self.output.push_str("<li><a href=\"#functions\">Functions</a></li>");
+        }
+        self.output.push_str("</ul>");
+    }
+
+    fn render_module_contents_sidebar(&mut self, module: &Module) {
+        if module.name.is_empty() {
+            let crate_name = self.current_path.last().unwrap();
+            self.h2(&format!("In crate {crate_name}"));
+        } else {
+            self.h2(&format!("In module {}", module.name));
+        }
+        self.render_items(&module.items, true);
     }
 
     fn create_struct(&mut self, struct_: &Struct) {
@@ -810,6 +860,10 @@ impl HTMLCreator {
 
     fn h2(&mut self, text: &str) {
         self.output.push_str(&format!("<h2>{text}</h2>"));
+    }
+
+    fn h3(&mut self, text: &str) {
+        self.output.push_str(&format!("<h3>{text}</h3>"));
     }
 
     fn push_file(&mut self, path: PathBuf) {
