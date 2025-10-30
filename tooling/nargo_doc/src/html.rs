@@ -5,20 +5,20 @@ use crate::items::{
     TraitBound, TraitConstraint, TraitImpl, Type, TypeAlias,
 };
 
-pub fn to_markdown(crates: &Crates) -> String {
-    let mut renderer = MarkdownRenderer::new(crates);
+pub fn to_html(crates: &Crates) -> String {
+    let mut renderer = HTMLRenderer::new(crates);
     renderer.render_crates(crates);
     renderer.output
 }
 
-struct MarkdownRenderer {
+struct HTMLRenderer {
     output: String,
 
     /// Maps item IDs to strings so that HTML anchors have meaningful names.
     id_to_string: HashMap<usize, String>,
 }
 
-impl MarkdownRenderer {
+impl HTMLRenderer {
     fn new(crates: &Crates) -> Self {
         let id_to_string = compute_id_to_strings(crates);
         Self { output: String::new(), id_to_string }

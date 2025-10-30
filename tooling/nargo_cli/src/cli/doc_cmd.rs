@@ -34,7 +34,7 @@ pub(crate) struct DocCommand {
 #[derive(Debug, Clone, clap::ValueEnum)]
 enum Format {
     Json,
-    Markdown,
+    HTML,
 }
 
 impl WorkspaceCommand for DocCommand {
@@ -67,7 +67,7 @@ pub(crate) fn run(args: DocCommand, workspace: Workspace) -> Result<(), CliError
     }
     let crates = Crates { crates };
 
-    let format = args.format.unwrap_or(Format::Markdown);
+    let format = args.format.unwrap_or(Format::HTML);
     match format {
         Format::Json => match serde_json::to_string_pretty(&crates) {
             Ok(json) => {
@@ -76,8 +76,8 @@ pub(crate) fn run(args: DocCommand, workspace: Workspace) -> Result<(), CliError
             }
             Err(err) => Err(CliError::Generic(err.to_string())),
         },
-        Format::Markdown => {
-            let markdown = nargo_doc::to_markdown(&crates);
+        Format::HTML => {
+            let markdown = nargo_doc::to_html(&crates);
             println!("{markdown}");
             Ok(())
         }

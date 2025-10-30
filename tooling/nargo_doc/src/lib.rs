@@ -16,9 +16,9 @@ use crate::items::{
     TraitBound, TraitConstraint, TraitImpl, Type, TypeAlias,
 };
 
+mod html;
 pub mod items;
-mod markdown;
-pub use markdown::to_markdown;
+pub use html::to_html;
 
 /// Returns the flattened modules in a crate. For example, a crate with this source:
 ///
