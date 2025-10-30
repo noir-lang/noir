@@ -816,6 +816,8 @@ impl HTMLCreator {
 
     fn sidebar_start(&mut self) {
         self.output.push_str("<nav class=\"sidebar\">\n");
+        let crates_name = self.crates_name.clone();
+        self.h1(&crates_name);
     }
 
     fn sidebar_end(&mut self) {
