@@ -1,18 +1,23 @@
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::{
+    collections::{BTreeMap, HashMap, HashSet},
+    path::PathBuf,
+};
 
 use crate::items::{
     Crate, Crates, Function, Generic, Global, Impl, Item, Module, Struct, StructField, Trait,
     TraitBound, TraitConstraint, TraitImpl, Type, TypeAlias,
 };
 
-pub fn to_html(crates: &Crates) -> String {
+pub fn to_html(crates: &Crates) -> Vec<(PathBuf, String)> {
     let mut renderer = HTMLRenderer::new(crates);
     renderer.render_crates(crates);
-    renderer.output
+    renderer.files
 }
 
 struct HTMLRenderer {
     output: String,
+
+    files: Vec<(PathBuf, String)>,
 
     /// Maps item IDs to strings so that HTML anchors have meaningful names.
     id_to_string: HashMap<usize, String>,
@@ -21,42 +26,127 @@ struct HTMLRenderer {
 impl HTMLRenderer {
     fn new(crates: &Crates) -> Self {
         let id_to_string = compute_id_to_strings(crates);
-        Self { output: String::new(), id_to_string }
+        Self { output: String::new(), files: Vec::new(), id_to_string }
     }
 
     fn render_crates(&mut self, crates: &Crates) {
+        self.render_index(crates);
+
         for krate in &crates.crates {
             self.render_crate(krate);
         }
     }
 
+    fn render_index(&mut self, crates: &Crates) {
+        self.html_start(&format!("{} documentation", crates.name));
+        self.h1(&format!("{} documentation", crates.name));
+        self.h2("Crates");
+        self.output.push_str("<ul>\n");
+        for krate in &crates.crates {
+            self.output.push_str(&format!(
+                "<li><a href=\"{}\">{}</a></li>\n",
+                path_to_string(&crate_path(krate)),
+                krate.name
+            ));
+        }
+        self.output.push_str("</ul>\n");
+        self.html_end();
+        self.push_file(index_path());
+    }
+
     fn render_crate(&mut self, krate: &Crate) {
+        self.html_start(&format!("Crate {}", krate.name));
         self.h1(&format!("Crate {}", krate.name));
 
         for module in &krate.modules {
-            self.render_module(module);
-        }
-    }
-
-    fn render_module(&mut self, module: &Module) {
-        if !module.name.is_empty() {
-            self.h2(&format!("Module {}", module.name));
-        }
-
-        self.render_comments(&module.comments, 2);
-        self.render_structs(&module.items);
-        self.render_traits(&module.items);
-        self.render_type_aliases(&module.items);
-        self.render_globals(&module.items);
-        self.render_functions(&module.items);
-    }
-
-    fn render_structs(&mut self, items: &[Item]) {
-        for item in items {
-            if let Item::Struct(struct_) = item {
-                self.render_struct(struct_);
+            if module.name.is_empty() {
+                self.render_comments(&module.comments, 1);
+                self.render_items(krate, module);
+                break;
             }
         }
+
+        if krate.modules.iter().any(|module| !module.name.is_empty()) {
+            self.h2("Modules");
+            self.output.push_str("<ul>\n");
+            for module in &krate.modules {
+                if module.name.is_empty() {
+                    continue;
+                }
+                self.output.push_str(&format!(
+                    "<li><a href=\"{}\">{}</a></li>\n",
+                    path_to_string(&module_in_crate_path(module)),
+                    module.name
+                ));
+            }
+            self.output.push_str("</ul>\n");
+        }
+
+        self.html_end();
+        self.push_file(crate_path(krate));
+
+        for module in &krate.modules {
+            self.render_module(krate, module);
+        }
+    }
+
+    fn render_module(&mut self, krate: &Crate, module: &Module) {
+        self.html_start(&format!("Module {}", module.name));
+        self.h1(&format!("Module {}", module.name));
+        self.render_comments(&module.comments, 2);
+        self.render_items(krate, module);
+        self.html_end();
+        self.push_file(module_path(krate, module));
+    }
+
+    fn render_items(&mut self, krate: &Crate, module: &Module) {
+        self.render_structs(krate, module, &module.items);
+        self.render_traits(krate, module, &module.items);
+        self.render_type_aliases(krate, module, &module.items);
+        self.render_globals(krate, module, &module.items);
+        self.render_functions(krate, module, &module.items);
+    }
+
+    fn render_structs(&mut self, krate: &Crate, module: &Module, items: &[Item]) {
+        let structs = items
+            .iter()
+            .filter_map(|item| if let Item::Struct(struct_) = item { Some(struct_) } else { None })
+            .collect::<Vec<_>>();
+        if structs.is_empty() {
+            return;
+        }
+
+        self.h2("Structs");
+        self.output.push_str("<ul>");
+        for struct_ in structs {
+            self.output.push_str(&format!(
+                "<li><a href=\"{}\">{}</a></li>\n",
+                path_to_string(&struct_path(krate, module, struct_)),
+                struct_.name
+            ));
+        }
+        self.output.push_str("</ul>");
+    }
+
+    fn render_traits(&mut self, krate: &Crate, module: &Module, items: &[Item]) {
+        let traits = items
+            .iter()
+            .filter_map(|item| if let Item::Trait(trait_) = item { Some(trait_) } else { None })
+            .collect::<Vec<_>>();
+        if traits.is_empty() {
+            return;
+        }
+
+        self.h2("Traits");
+        self.output.push_str("<ul>");
+        for trait_ in traits {
+            self.output.push_str(&format!(
+                "<li><a href=\"{}\">{}</a></li>\n",
+                path_to_string(&trait_path(krate, module, trait_)),
+                trait_.name
+            ));
+        }
+        self.output.push_str("</ul>");
     }
 
     fn render_struct(&mut self, struct_: &Struct) {
@@ -158,14 +248,6 @@ impl HTMLRenderer {
         self.output.push_str("</code></pre></h5>\n\n");
     }
 
-    fn render_traits(&mut self, items: &[Item]) {
-        for item in items {
-            if let Item::Trait(trait_) = item {
-                self.render_trait(trait_);
-            }
-        }
-    }
-
     fn render_trait(&mut self, trait_: &Trait) {
         self.anchor(trait_.id);
         self.h3(&format!("Trait `{}`", trait_.name));
@@ -205,7 +287,7 @@ impl HTMLRenderer {
         self.render_methods(methods, 4);
     }
 
-    fn render_type_aliases(&mut self, items: &[Item]) {
+    fn render_type_aliases(&mut self, krate: &Crate, module: &Module, items: &[Item]) {
         for item in items {
             if let Item::TypeAlias(alias) = item {
                 self.render_type_alias(alias);
@@ -230,7 +312,7 @@ impl HTMLRenderer {
         self.output.push_str("</code></pre>\n\n");
     }
 
-    fn render_globals(&mut self, items: &[Item]) {
+    fn render_globals(&mut self, krate: &Crate, module: &Module, items: &[Item]) {
         for item in items {
             if let Item::Global(global) = item {
                 self.render_global(global);
@@ -261,7 +343,7 @@ impl HTMLRenderer {
         self.output.push_str("</code></pre>\n\n");
     }
 
-    fn render_functions(&mut self, items: &[Item]) {
+    fn render_functions(&mut self, krate: &Crate, module: &Module, items: &[Item]) {
         for item in items {
             if let Item::Function(function) = item {
                 self.render_function(function, true /* show header */, 3);
@@ -527,42 +609,28 @@ impl HTMLRenderer {
     /// as smaller headers (i.e., `###` becomes `####` if `current_heading_level` is 3)
     /// to ensure proper nesting.
     fn render_comments(&mut self, comments: &Option<String>, current_heading_level: usize) {
-        if let Some(comments) = comments {
-            // Track occurrences of "```" to see if the user forgot to close a code block.
-            // If so, we'll close it to prevent ruining the docs.
-            let mut open_code_comment = false;
+        let Some(comments) = comments else {
+            return;
+        };
 
-            'outer_loop: for comment in comments.lines() {
-                let trimmed_comment = comment.trim_start();
+        let comments = fix_markdown(comments, current_heading_level);
+        let html = markdown::to_html(&comments);
+        self.output.push_str(&html);
+    }
 
-                if trimmed_comment.starts_with('#') {
-                    for level in 1..=current_heading_level {
-                        if trimmed_comment.starts_with(&format!("{} ", "#".repeat(level))) {
-                            self.output.push_str(&format!(
-                                "{} {}",
-                                "#".repeat(current_heading_level + 1),
-                                &trimmed_comment[level + 1..]
-                            ));
-                            self.output.push('\n');
-                            continue 'outer_loop;
-                        }
-                    }
-                }
+    fn html_start(&mut self, title: &str) {
+        self.output.push_str("<!DOCTYPE html>\n");
+        self.output.push_str("<html>\n");
+        self.output.push_str("<head>\n");
+        self.output.push_str("<meta charset=\"UTF-8\">\n");
+        self.output.push_str(&format!("<title>{} documentation</title>\n", title));
+        self.output.push_str("</head>\n");
+        self.output.push_str("<body>\n");
+    }
 
-                if trimmed_comment.starts_with("```") {
-                    open_code_comment = !open_code_comment;
-                }
-
-                self.output.push_str(comment);
-                self.output.push('\n');
-            }
-
-            if open_code_comment {
-                self.output.push_str("```");
-            }
-
-            self.output.push('\n');
-        }
+    fn html_end(&mut self) {
+        self.output.push_str("</body>\n");
+        self.output.push_str("</html>\n");
     }
 
     fn h1(&mut self, text: &str) {
@@ -582,23 +650,89 @@ impl HTMLRenderer {
     }
 
     fn h(&mut self, level: usize, text: &str) {
-        if !self.output.is_empty() {
-            if self.output.ends_with("\n\n") {
-                // All good
-            } else if self.output.ends_with('\n') {
-                self.output.push('\n');
-            } else {
-                self.output.push_str("\n\n");
-            }
-        }
-
-        self.output.push_str(&format!("{} {}{}\n\n", "#".repeat(level), text, ""));
+        self.output.push_str(&format!("<h{level}>{text}</h{level}>"));
     }
 
     fn anchor(&mut self, id: usize) {
         let name = &self.id_to_string[&id];
         self.output.push_str(&format!("<a id=\"{name}\"></a>\n"));
     }
+
+    fn push_file(&mut self, path: PathBuf) {
+        let contents = std::mem::take(&mut self.output);
+        self.files.push((path, contents));
+    }
+}
+
+fn index_path() -> PathBuf {
+    PathBuf::from("index.html")
+}
+
+fn crate_path(krate: &Crate) -> PathBuf {
+    PathBuf::from(format!("{}/index.html", krate.name))
+}
+
+fn module_path(krate: &Crate, module: &Module) -> PathBuf {
+    let module_path = module.name.replace("::", "/");
+    PathBuf::from(format!("{}/{}/index.html", krate.name, module_path))
+}
+
+fn module_in_crate_path(module: &Module) -> PathBuf {
+    let module_path = module.name.replace("::", "/");
+    PathBuf::from(format!("{}/index.html", module_path))
+}
+
+fn struct_path(krate: &Crate, module: &Module, struct_: &Struct) -> PathBuf {
+    let module_path = module.name.replace("::", "/");
+    PathBuf::from(format!("{}/{}/struct.{}.html", krate.name, module_path, struct_.name))
+}
+
+fn trait_path(krate: &Crate, module: &Module, trait_: &Trait) -> PathBuf {
+    let module_path = module.name.replace("::", "/");
+    PathBuf::from(format!("{}/{}/trait.{}.html", krate.name, module_path, trait_.name))
+}
+
+fn path_to_string(path: &PathBuf) -> String {
+    path.to_string_lossy().to_string()
+}
+
+fn fix_markdown(markdown: &str, current_heading_level: usize) -> String {
+    // Track occurrences of "```" to see if the user forgot to close a code block.
+    // If so, we'll close it to prevent ruining the docs.
+    let mut open_code_comment = false;
+    let mut fixed_comment = String::new();
+
+    'outer_loop: for line in markdown.lines() {
+        let trimmed_line = line.trim_start();
+
+        if trimmed_line.starts_with('#') {
+            for level in 1..=current_heading_level {
+                if trimmed_line.starts_with(&format!("{} ", "#".repeat(level))) {
+                    fixed_comment.push_str(&format!(
+                        "{} {}",
+                        "#".repeat(current_heading_level + 1),
+                        &trimmed_line[level + 1..]
+                    ));
+                    fixed_comment.push('\n');
+                    continue 'outer_loop;
+                }
+            }
+        }
+
+        if trimmed_line.starts_with("```") {
+            open_code_comment = !open_code_comment;
+        }
+
+        fixed_comment.push_str(line);
+        fixed_comment.push('\n');
+    }
+
+    if open_code_comment {
+        fixed_comment.push_str("```");
+    }
+
+    fixed_comment.push('\n');
+    fixed_comment
 }
 
 /// Computes a mapping from item IDs to strings so that HTML anchors have meaningful names.
