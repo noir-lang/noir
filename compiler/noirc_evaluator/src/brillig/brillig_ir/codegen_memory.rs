@@ -135,62 +135,61 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         target_start: MemoryAddress,
         num_elements_variable: SingleAddrVariable,
     ) {
-        self.codegen_generic_iteration(
-            |brillig_context| {
-                // Create the pointer to the last item for both source and target
-                let num_items_minus_one = brillig_context.allocate_register();
-                brillig_context.codegen_usize_op(
-                    num_elements_variable.address,
-                    *num_items_minus_one,
-                    BrilligBinaryOp::Sub,
-                    1,
-                );
-                let target_pointer = brillig_context.allocate_register();
-                brillig_context.memory_op_instruction(
-                    target_start,
-                    *num_items_minus_one,
-                    *target_pointer,
-                    BrilligBinaryOp::Add,
-                );
-                let source_pointer = brillig_context.allocate_register();
-                brillig_context.memory_op_instruction(
-                    source_start,
-                    *num_items_minus_one,
-                    *source_pointer,
-                    BrilligBinaryOp::Add,
-                );
-                (source_pointer, target_pointer)
-            },
-            |brillig_context, (source_pointer, target_pointer)| {
-                brillig_context.codegen_usize_op_in_place(
-                    **source_pointer,
-                    BrilligBinaryOp::Sub,
-                    1,
-                );
-                brillig_context.codegen_usize_op_in_place(
-                    **target_pointer,
-                    BrilligBinaryOp::Sub,
-                    1,
-                );
-            },
-            |brillig_context, (source_pointer, _)| {
-                // We have finished when the source/target pointer is less than the source/target start
-                let finish_condition = brillig_context.allocate_single_addr_bool();
-                brillig_context.memory_op_instruction(
-                    **source_pointer,
-                    source_start,
-                    finish_condition.address,
-                    BrilligBinaryOp::LessThan,
-                );
-                finish_condition
-            },
-            |brillig_context, (source_pointer, target_pointer)| {
-                let value_register = brillig_context.allocate_register();
-                brillig_context.load_instruction(*value_register, **source_pointer);
-                brillig_context.store_instruction(**target_pointer, *value_register);
-            },
-            |_, _| {},
+        // Early exit if count is 0
+        let count_is_zero = self.allocate_single_addr_bool();
+        self.codegen_usize_op(
+            num_elements_variable.address,
+            count_is_zero.address,
+            BrilligBinaryOp::Equals,
+            0,
         );
+
+        self.codegen_if_not(count_is_zero.address, |ctx| {
+            // Setup: Initialize source and target pointers to ONE PAST the last element
+            // This allows us to decrement first, avoiding the need to compute (count - 1)
+            let source_pointer = ctx.allocate_register();
+            ctx.memory_op_instruction(
+                source_start,
+                num_elements_variable.address,
+                *source_pointer,
+                BrilligBinaryOp::Add,
+            );
+
+            let target_pointer = ctx.allocate_register();
+            ctx.memory_op_instruction(
+                target_start,
+                num_elements_variable.address,
+                *target_pointer,
+                BrilligBinaryOp::Add,
+            );
+
+            // Optimized loop: Decrement -> Load -> Store -> Check -> JumpIf(!done, loop)
+            // By decrementing first, we eliminate one setup opcode and maintain 6 opcodes per iteration
+            let (loop_section, loop_label) = ctx.reserve_next_section_label();
+            ctx.enter_section(loop_section);
+
+            // Decrement both pointers to point to the current element
+            ctx.codegen_usize_op_in_place(*source_pointer, BrilligBinaryOp::Sub, 1);
+            ctx.codegen_usize_op_in_place(*target_pointer, BrilligBinaryOp::Sub, 1);
+
+            // Copy the current element
+            let value_register = ctx.allocate_register();
+            ctx.load_instruction(*value_register, *source_pointer);
+            ctx.store_instruction(*target_pointer, *value_register);
+
+            // Check if we should continue: source_start < source_pointer?
+            // If yes, we haven't finished yet, so loop back
+            let should_continue = ctx.allocate_single_addr_bool();
+            ctx.memory_op_instruction(
+                source_start,
+                *source_pointer,
+                should_continue.address,
+                BrilligBinaryOp::LessThan,
+            );
+
+            // If should continue, jump back to loop; otherwise fall through and exit
+            ctx.jump_if_instruction(should_continue.address, loop_label);
+        });
     }
 
     /// This instruction will reverse the order of the `size` elements pointed by `pointer`.
@@ -257,24 +256,13 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         vector: BrilligVector,
     ) -> Allocated<HeapVector, Registers> {
         let heap_vector = self.allocate_heap_vector();
-        let current_pointer = self.allocate_register();
 
-        // Prepare a pointer to the size
-        self.codegen_usize_op(
-            vector.pointer,
-            *current_pointer,
-            BrilligBinaryOp::Add,
-            offsets::VECTOR_SIZE,
-        );
-        self.load_instruction(heap_vector.size, *current_pointer);
+        // Read the size using the dedicated helper function
+        let size_variable = self.codegen_read_vector_size(vector);
+        self.mov_instruction(heap_vector.size, size_variable.address);
 
-        // Now prepare the pointer to the items
-        self.codegen_usize_op(
-            *current_pointer,
-            heap_vector.pointer,
-            BrilligBinaryOp::Add,
-            offsets::VECTOR_ITEMS - offsets::VECTOR_SIZE,
-        );
+        // Get the pointer to the items using the dedicated helper function
+        self.codegen_vector_items_pointer(vector, heap_vector.pointer);
 
         heap_vector
     }
@@ -540,31 +528,9 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         // Increase the free memory pointer to make sure the vector is not going to be allocated to something else.
         self.increase_free_memory_pointer_instruction(*total_size);
 
-        // Write meta fields.
-        let write_pointer = self.allocate_register();
-
-        // Initialize the RC of the vector to 1.
-        self.indirect_const_instruction(
-            vector.pointer,
-            BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
-            1_usize.into(),
-        );
-
-        // Initialize size.
-        self.codegen_usize_op(
-            vector.pointer,
-            *write_pointer,
-            BrilligBinaryOp::Add,
-            offsets::VECTOR_SIZE,
-        );
-        self.store_instruction(*write_pointer, resulting_heap_vector.size);
-
-        // Initialize capacity to same value as the size.
-        self.codegen_usize_op_in_place(
-            *write_pointer,
-            BrilligBinaryOp::Add,
-            offsets::VECTOR_CAPACITY - offsets::VECTOR_SIZE,
-        );
-        self.store_instruction(*write_pointer, resulting_heap_vector.size);
+        // Initialize metadata (RC, size, capacity) using the shared helper
+        // For externally returned vectors, capacity equals size
+        let size_var = SingleAddrVariable::new_usize(resulting_heap_vector.size);
+        self.codegen_initialize_vector_metadata(vector, size_var, size_var);
     }
 }
