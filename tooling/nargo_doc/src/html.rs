@@ -11,15 +11,11 @@ pub fn to_html(crates: &Crates) -> Vec<(PathBuf, String)> {
     creator.files
 }
 
-enum PathItem {
-    Crate(String),
-    Module(String),
-}
-
 struct HTMLCreator {
     output: String,
     files: Vec<(PathBuf, String)>,
-    current_path: Vec<PathItem>,
+    current_path: Vec<String>,
+    crates_name: String,
 }
 
 impl HTMLCreator {
@@ -27,7 +23,8 @@ impl HTMLCreator {
         let output = String::new();
         let files = Vec::new();
         let current_path = Vec::new();
-        Self { output, files, current_path }
+        let crates_name = crates.name.clone();
+        Self { output, files, current_path, crates_name }
     }
 
     fn process_crates(&mut self, crates: &Crates) {
@@ -55,9 +52,10 @@ impl HTMLCreator {
     }
 
     fn create_crate(&mut self, krate: &Crate) {
-        self.current_path.push(PathItem::Crate(krate.name.clone()));
+        self.current_path.push(krate.name.clone());
 
         self.html_start(&format!("Crate {}", krate.name));
+        self.render_breadcrumbs(false);
         self.h1(&format!("Crate {}", krate.name));
         self.render_comments(&krate.root_module.comments, 1);
         self.render_items(&krate.root_module.items);
@@ -218,10 +216,11 @@ impl HTMLCreator {
     }
 
     fn create_module(&mut self, module: &Module) {
-        self.current_path.push(PathItem::Module(module.name.clone()));
+        self.current_path.push(module.name.clone());
 
         let title = format!("Module {}", module.name);
         self.html_start(&title);
+        self.render_breadcrumbs(false);
         self.h1(&title);
         self.render_comments(&module.comments, 2);
         self.render_items(&module.items);
@@ -236,6 +235,7 @@ impl HTMLCreator {
     fn create_struct(&mut self, struct_: &Struct) {
         let title = format!("Struct {}", struct_.name);
         self.html_start(&title);
+        self.render_breadcrumbs(true);
         self.h1(&title);
         self.render_struct_code(struct_);
         self.render_comments(&struct_.comments, 1);
@@ -249,6 +249,7 @@ impl HTMLCreator {
     fn create_trait(&mut self, trait_: &Trait) {
         let title = format!("Trait {}", trait_.name);
         self.html_start(&title);
+        self.render_breadcrumbs(true);
         self.h1(&title);
         self.render_trait_code(trait_);
         self.render_comments(&trait_.comments, 1);
@@ -261,6 +262,7 @@ impl HTMLCreator {
     fn create_alias(&mut self, alias: &TypeAlias) {
         let title = format!("Type alias {}", alias.name);
         self.html_start(&title);
+        self.render_breadcrumbs(true);
         self.h1(&title);
         self.render_type_alias_code(alias);
         self.render_comments(&alias.comments, 1);
@@ -271,6 +273,7 @@ impl HTMLCreator {
     fn create_function(&mut self, function: &Function) {
         let title = format!("Function {}", function.name);
         self.html_start(&title);
+        self.render_breadcrumbs(true);
         self.h1(&title);
         self.render_function(function, 1);
         self.html_end();
@@ -280,6 +283,7 @@ impl HTMLCreator {
     fn create_global(&mut self, global: &Global) {
         let title = format!("Global {}", global.name);
         self.html_start(&title);
+        self.render_breadcrumbs(true);
         self.h1(&title);
         self.render_global_code(global);
         self.render_comments(&global.comments, 1);
@@ -690,6 +694,31 @@ impl HTMLCreator {
         self.output.push_str(&html);
     }
 
+    fn render_breadcrumbs(&mut self, last_is_link: bool) {
+        self.output.push_str("<div>");
+        let mut nesting = self.current_path.len();
+        self.output.push_str(
+            format!("<a href=\"{}index.html\">{}</a>", "../".repeat(nesting), self.crates_name)
+                .as_str(),
+        );
+        self.output.push_str(" - ");
+        for (index, item) in self.current_path.iter().enumerate() {
+            if index > 0 {
+                self.output.push_str("::");
+            }
+            nesting -= 1;
+            if !last_is_link && index == self.current_path.len() - 1 {
+                self.output.push_str(item);
+            } else {
+                self.output.push_str(
+                    format!("<a href=\"{}index.html\">{}</a>", "../".repeat(nesting), item)
+                        .as_str(),
+                );
+            }
+        }
+        self.output.push_str("</div>");
+    }
+
     fn html_start(&mut self, title: &str) {
         self.output.push_str("<!DOCTYPE html>\n");
         self.output.push_str("<html>\n");
@@ -716,9 +745,7 @@ impl HTMLCreator {
     fn push_file(&mut self, path: PathBuf) {
         let mut full_path = PathBuf::new();
         for item in &self.current_path {
-            match item {
-                PathItem::Crate(name) | PathItem::Module(name) => full_path = full_path.join(name),
-            }
+            full_path = full_path.join(item);
         }
 
         let contents = std::mem::take(&mut self.output);
