@@ -360,16 +360,13 @@ impl VariableLiveness {
 
 #[cfg(test)]
 mod test {
-    use acvm::{AcirField, FieldElement};
     use noirc_frontend::monomorphization::ast::InlineType;
     use rustc_hash::FxHashSet;
 
     use crate::assert_artifact_snapshot;
-    use crate::brillig::BrilligOptions;
     use crate::brillig::brillig_gen::constant_allocation::ConstantAllocation;
-    use crate::brillig::brillig_gen::gen_brillig_for;
+    use crate::brillig::brillig_gen::tests::ssa_to_brillig_artifacts;
     use crate::brillig::brillig_gen::variable_liveness::VariableLiveness;
-    use crate::brillig::brillig_ir::artifact::BrilligParameter;
     use crate::ssa::function_builder::FunctionBuilder;
     use crate::ssa::ir::basic_block::BasicBlockId;
     use crate::ssa::ir::function::RuntimeType;
@@ -741,9 +738,9 @@ mod test {
         // but are not in the live-in set (no predecessor to pass them).
         // The entry block defines its own parameters via defined_block_params().
         //
-        // SSA v0 (entry parameter) → Brillig sp[1] (line 6: calldata copy loads into sp[1])
-        // SSA v1 (result of add) → Brillig sp[3] (line 16: result of add stored in sp[3])
-        // Line 17: sp[1] = sp[3] moves v1 to return position
+        // SSA v0 (entry parameter) → Brillig sp[1]
+        // SSA v1 (result of add) → Brillig sp[3] (line 2: result of add stored in sp[3])
+        // Line 3: sp[1] = sp[3] moves v1 to return position
         let src = "
         brillig(inline) fn main f0 {
         b0(v0: Field):
@@ -751,39 +748,16 @@ mod test {
             return v1
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let options = BrilligOptions::default();
-        let brillig = ssa.to_brillig(&options);
-        let args = vec![BrilligParameter::SingleAddr(FieldElement::max_num_bits())];
+        let brillig = ssa_to_brillig_artifacts(src);
+        let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
 
-        let entry = gen_brillig_for(ssa.main(), args, &brillig, &options).unwrap();
-        assert_artifact_snapshot!(entry, @r"
+        assert_artifact_snapshot!(main, @r"
         fn main
-         0: @2 = const u32 1
-         1: @1 = const u32 32838
-         2: @0 = const u32 70
-         3: sp[2] = const u32 1
-         4: sp[3] = const u32 0
-         5: @68 = calldata copy [sp[3]; sp[2]]
-         6: sp[1] = @68
-         7: call 13
-         8: call 14
-         9: @69 = sp[1]
-        10: sp[2] = const u32 69
-        11: sp[3] = const u32 1
-        12: stop &[sp[2]; sp[3]]
-        13: return
-        14: call 19
-        15: sp[2] = const field 10
-        16: sp[3] = field add sp[1], sp[2]
-        17: sp[1] = sp[3]
-        18: return
-        19: @4 = const u32 30790
-        20: @3 = u32 lt @0, @4
-        21: jump if @3 to 24
-        22: @1 = indirect const u64 15764276373176857197
-        23: trap &[@1; @2]
-        24: return
+        0: call 0
+        1: sp[2] = const field 10
+        2: sp[3] = field add sp[1], sp[2]
+        3: sp[1] = sp[3]
+        4: return
         ");
     }
 
@@ -793,11 +767,11 @@ mod test {
         // and can be reused for subsequent variables. This is tracked per-instruction
         // via get_last_uses().
         //
-        // SSA v0 (entry parameter) → Brillig sp[1] (line 6: from calldata)
-        // SSA v1 (v0 + 1) → Brillig sp[3] (line 16: result). v0 dies after this, sp[1] freed
-        // SSA v2 (v1 + 2) → Brillig sp[2] (line 18: result, reuses sp[1]). v1 dies, sp[3] freed
-        // SSA v3 (v2 + 3) → Brillig sp[3] (line 20: result, reuses freed sp[3]). v2 dies
-        // Line 21: sp[1] = sp[3] moves v3 to return position
+        // SSA v0 (entry parameter) → Brillig sp[1]
+        // SSA v1 (v0 + 1) → Brillig sp[3] (line 2: result). v0 dies after this, sp[1] freed
+        // SSA v2 (v1 + 2) → Brillig sp[2] (line 4: result, reuses sp[1]). v1 dies, sp[3] freed
+        // SSA v3 (v2 + 3) → Brillig sp[3] (line 6: result, reuses freed sp[3]). v2 dies
+        // Line 7: sp[1] = sp[3] moves v3 to return position
         // Register reuse: sp[1] freed after v0, reused for v2; sp[3] freed after v1, reused for v3
         let src = "
         brillig(inline) fn main f0 {
@@ -808,43 +782,20 @@ mod test {
             return v3
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let options = BrilligOptions::default();
-        let brillig = ssa.to_brillig(&options);
-        let args = vec![BrilligParameter::SingleAddr(FieldElement::max_num_bits())];
+        let brillig = ssa_to_brillig_artifacts(src);
+        let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
 
-        let entry = gen_brillig_for(ssa.main(), args, &brillig, &options).unwrap();
-        assert_artifact_snapshot!(entry, @r"
+        assert_artifact_snapshot!(main, @r"
         fn main
-         0: @2 = const u32 1
-         1: @1 = const u32 32838
-         2: @0 = const u32 70
-         3: sp[2] = const u32 1
-         4: sp[3] = const u32 0
-         5: @68 = calldata copy [sp[3]; sp[2]]
-         6: sp[1] = @68
-         7: call 13
-         8: call 14
-         9: @69 = sp[1]
-        10: sp[2] = const u32 69
-        11: sp[3] = const u32 1
-        12: stop &[sp[2]; sp[3]]
-        13: return
-        14: call 23
-        15: sp[2] = const field 1
-        16: sp[3] = field add sp[1], sp[2]
-        17: sp[1] = const field 2
-        18: sp[2] = field add sp[3], sp[1]
-        19: sp[1] = const field 3
-        20: sp[3] = field add sp[2], sp[1]
-        21: sp[1] = sp[3]
-        22: return
-        23: @4 = const u32 30790
-        24: @3 = u32 lt @0, @4
-        25: jump if @3 to 28
-        26: @1 = indirect const u64 15764276373176857197
-        27: trap &[@1; @2]
-        28: return
+        0: call 0
+        1: sp[2] = const field 1
+        2: sp[3] = field add sp[1], sp[2]
+        3: sp[1] = const field 2
+        4: sp[2] = field add sp[3], sp[1]
+        5: sp[1] = const field 3
+        6: sp[3] = field add sp[2], sp[1]
+        7: sp[1] = sp[3]
+        8: return
         ");
     }
 
@@ -853,15 +804,15 @@ mod test {
         // Variables live in the loop header must remain alive throughout the loop body
         // because the back edge jumps back to the header.
         //
-        // SSA v0 (loop bound) → Brillig sp[1] (line 7: from calldata)
+        // SSA v0 (loop bound) → Brillig sp[1]
         // SSA v1 (loop variable, b1's parameter) → Brillig sp[2] (allocated in b0)
-        // Line 18: sp[2] = sp[3] initializes v1 to 0
-        // Line 20 (b1 header): sp[3] = lt sp[2], sp[1] tests v1 < v0
-        // Line 25 (b2 body): sp[3] = add sp[2], sp[4] computes v1 + 1
-        // Line 29: sp[2] = sp[3] updates v1 for next iteration
-        // Line 30: jump back to b1
-        // v0 (sp[1]) stays alive throughout loop (used at line 20 each iteration)
-        // Back edge at line 30 ensures b1's live-in includes both v0 and v1
+        // Line 3: sp[2] = sp[3] initializes v1 to 0
+        // Line 5 (b1 header): sp[3] = lt sp[2], sp[1] tests v1 < v0
+        // Line 10 (b2 body): sp[3] = add sp[2], sp[4] computes v1 + 1
+        // Line 14: sp[2] = sp[3] updates v1 for next iteration
+        // Line 15: jump back to b1
+        // v0 (sp[1]) stays alive throughout loop (used at line 5 each iteration)
+        // Back edge at line 15 ensures b1's live-in includes both v0 and v1
         let src = "
         brillig(inline) fn main f0 {
         b0(v0: u32):
@@ -876,54 +827,26 @@ mod test {
             return v1
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let options = BrilligOptions::default();
-        let brillig = ssa.to_brillig(&options);
-        let args = vec![BrilligParameter::SingleAddr(32)];
-
-        let entry = gen_brillig_for(ssa.main(), args, &brillig, &options).unwrap();
-        assert_artifact_snapshot!(entry, @r"
+        let brillig = ssa_to_brillig_artifacts(src);
+        let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
+        assert_artifact_snapshot!(main, @r"
         fn main
-         0: @2 = const u32 1
-         1: @1 = const u32 32838
-         2: @0 = const u32 70
-         3: sp[2] = const u32 1
-         4: sp[3] = const u32 0
-         5: @68 = calldata copy [sp[3]; sp[2]]
-         6: @68 = cast @68 to u32
-         7: sp[1] = @68
-         8: call 14
-         9: call 15
-        10: @69 = sp[1]
-        11: sp[2] = const u32 69
-        12: sp[3] = const u32 1
-        13: stop &[sp[2]; sp[3]]
-        14: return
-        15: call 31
-        16: sp[3] = const u32 0
-        17: sp[4] = const u32 1
-        18: sp[2] = sp[3]
-        19: jump to 20
-        20: sp[3] = u32 lt sp[2], sp[1]
-        21: jump if sp[3] to 25
-        22: jump to 23
-        23: sp[1] = sp[2]
-        24: return
-        25: sp[3] = u32 add sp[2], sp[4]
-        26: sp[5] = u32 lt_eq sp[2], sp[3]
-        27: jump if sp[5] to 29
-        28: call 37
-        29: sp[2] = sp[3]
-        30: jump to 20
-        31: @4 = const u32 30790
-        32: @3 = u32 lt @0, @4
-        33: jump if @3 to 36
-        34: @1 = indirect const u64 15764276373176857197
-        35: trap &[@1; @2]
-        36: return
-        37: @1 = indirect const u64 14990209321349310352
-        38: trap &[@1; @2]
-        39: return
+         0: call 0
+         1: sp[3] = const u32 0
+         2: sp[4] = const u32 1
+         3: sp[2] = sp[3]
+         4: jump to 0
+         5: sp[3] = u32 lt sp[2], sp[1]
+         6: jump if sp[3] to 0
+         7: jump to 0
+         8: sp[1] = sp[2]
+         9: return
+        10: sp[3] = u32 add sp[2], sp[4]
+        11: sp[5] = u32 lt_eq sp[2], sp[3]
+        12: jump if sp[5] to 0
+        13: call 0
+        14: sp[2] = sp[3]
+        15: jump to 0
         ");
     }
 
@@ -933,14 +856,14 @@ mod test {
         // The parameter must be allocated in the immediate dominator(v1: allocated in sp[2]),
         // and each predecessor generates a mov to that register.
         //
-        // SSA v0 (condition) → Brillig sp[1] (line 7: cast to bool)
+        // SSA v0 (condition) → Brillig sp[1]
         // SSA v1 (b3's parameter) → Brillig sp[2] (allocated in b0, dominator of b3)
-        // SSA v2 (27 + 42) → Brillig sp[4] (line 22: result of add)
-        // Field 42 constant → sp[3] (line 16)
-        // Line 17: jmpif sp[1] branches to b1 or b2
-        // Line 19 (b2 path): sp[2] = sp[3] moves constant 42 into v1's register
-        // Line 23 (b1 path): sp[2] = sp[4] moves v2 into v1's register
-        // Line 25 (b3): sp[1] = sp[2] prepares return
+        // SSA v2 (27 + 42) → Brillig sp[4] (line 7: result of add)
+        // Field 42 constant → sp[3] (line 1)
+        // Line 2: jmpif sp[1] branches to b1 or b2
+        // Line 4 (b2 path): sp[2] = sp[3] moves constant 42 into v1's register
+        // Line 8 (b1 path): sp[2] = sp[4] moves v2 into v1's register
+        // Line 10 (b3): sp[1] = sp[2] prepares return
         let src = "
         brillig(inline) fn main f0 {
         b0(v0: u1):
@@ -954,47 +877,22 @@ mod test {
             return v1
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let options = BrilligOptions::default();
-        let brillig = ssa.to_brillig(&options);
-        let args = vec![BrilligParameter::SingleAddr(1)];
-
-        let entry = gen_brillig_for(ssa.main(), args, &brillig, &options).unwrap();
-        assert_artifact_snapshot!(entry, @r"
+        let brillig = ssa_to_brillig_artifacts(src);
+        let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
+        assert_artifact_snapshot!(main, @r"
         fn main
-         0: @2 = const u32 1
-         1: @1 = const u32 32838
-         2: @0 = const u32 70
-         3: sp[2] = const u32 1
-         4: sp[3] = const u32 0
-         5: @68 = calldata copy [sp[3]; sp[2]]
-         6: @68 = cast @68 to bool
-         7: sp[1] = @68
-         8: call 14
-         9: call 15
-        10: @69 = sp[1]
-        11: sp[2] = const u32 69
-        12: sp[3] = const u32 1
-        13: stop &[sp[2]; sp[3]]
-        14: return
-        15: call 27
-        16: sp[3] = const field 42
-        17: jump if sp[1] to 21
-        18: jump to 19
-        19: sp[2] = sp[3]
-        20: jump to 25
-        21: sp[1] = const field 27
-        22: sp[4] = field add sp[1], sp[3]
-        23: sp[2] = sp[4]
-        24: jump to 25
-        25: sp[1] = sp[2]
-        26: return
-        27: @4 = const u32 30790
-        28: @3 = u32 lt @0, @4
-        29: jump if @3 to 32
-        30: @1 = indirect const u64 15764276373176857197
-        31: trap &[@1; @2]
-        32: return
+         0: call 0
+         1: sp[3] = const field 42
+         2: jump if sp[1] to 0
+         3: jump to 0
+         4: sp[2] = sp[3]
+         5: jump to 0
+         6: sp[1] = const field 27
+         7: sp[4] = field add sp[1], sp[3]
+         8: sp[2] = sp[4]
+         9: jump to 0
+        10: sp[1] = sp[2]
+        11: return
         ");
     }
 
@@ -1003,13 +901,13 @@ mod test {
         // Constant SSA values are also included in liveness analysis
         // Only hoisted global constants are filtered out.
         //
-        // SSA v0 (entry parameter) → Brillig sp[1] (line 6: from calldata)
-        // SSA Field 100 constant → Brillig sp[2] (line 15: allocated on-demand via constant_allocation)
-        // SSA v1 (v0 + 100) → Brillig sp[3] (line 16: result)
-        // After line 16: Field 100 reaches its LAST USE, sp[2] is deallocated
-        // SSA Field 200 constant → Brillig sp[2] (line 17: REUSES sp[2])
-        // SSA v2 (v0 * 200) → Brillig sp[4] (line 18: result)
-        // SSA v3 (v1 + v2) → Brillig sp[1] (line 19: result, reuses sp[1] after v0 dies)
+        // SSA v0 (entry parameter) → Brillig sp[1]
+        // SSA Field 100 constant → Brillig sp[2] (line 1: allocated on-demand via constant_allocation)
+        // SSA v1 (v0 + 100) → Brillig sp[3] (line 2: result)
+        // After line 2: Field 100 reaches its LAST USE, sp[2] is deallocated
+        // SSA Field 200 constant → Brillig sp[2] (line 3: REUSES sp[2])
+        // SSA v2 (v0 * 200) → Brillig sp[4] (line 4: result)
+        // SSA v3 (v1 + v2) → Brillig sp[1] (line 5: result, reuses sp[1] after v0 dies)
         //
         let src = "
         brillig(inline) fn main f0 {
@@ -1020,41 +918,17 @@ mod test {
             return v3
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let options = BrilligOptions::default();
-        let brillig = ssa.to_brillig(&options);
-        let args = vec![BrilligParameter::SingleAddr(FieldElement::max_num_bits())];
-
-        let entry = gen_brillig_for(ssa.main(), args, &brillig, &options).unwrap();
-        assert_artifact_snapshot!(entry, @r"
+        let brillig = ssa_to_brillig_artifacts(src);
+        let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
+        assert_artifact_snapshot!(main, @r"
         fn main
-         0: @2 = const u32 1
-         1: @1 = const u32 32838
-         2: @0 = const u32 70
-         3: sp[2] = const u32 1
-         4: sp[3] = const u32 0
-         5: @68 = calldata copy [sp[3]; sp[2]]
-         6: sp[1] = @68
-         7: call 13
-         8: call 14
-         9: @69 = sp[1]
-        10: sp[2] = const u32 69
-        11: sp[3] = const u32 1
-        12: stop &[sp[2]; sp[3]]
-        13: return
-        14: call 21
-        15: sp[2] = const field 100
-        16: sp[3] = field add sp[1], sp[2]
-        17: sp[2] = const field 200
-        18: sp[4] = field mul sp[1], sp[2]
-        19: sp[1] = field add sp[3], sp[4]
-        20: return
-        21: @4 = const u32 30790
-        22: @3 = u32 lt @0, @4
-        23: jump if @3 to 26
-        24: @1 = indirect const u64 15764276373176857197
-        25: trap &[@1; @2]
-        26: return
+        0: call 0
+        1: sp[2] = const field 100
+        2: sp[3] = field add sp[1], sp[2]
+        3: sp[2] = const field 200
+        4: sp[4] = field mul sp[1], sp[2]
+        5: sp[1] = field add sp[3], sp[4]
+        6: return
         ");
     }
 
@@ -1063,14 +937,14 @@ mod test {
         // Arguments to terminator instructions must remain alive until the terminator executes.
         // They cannot be deallocated in the last instruction of the block.
         //
-        // SSA v0 (entry parameter) → Brillig sp[1] (line 6: from calldata)
-        // SSA v1 (v0 + 1) → Brillig sp[4] (line 16: result)
-        // SSA v2 (v1 + 2) → Brillig sp[3] (line 18: result)
-        // SSA v3 (v2 * 3) → Brillig sp[4] (line 20: result, last instruction before terminator)
+        // SSA v0 (entry parameter) → Brillig sp[1]
+        // SSA v1 (v0 + 1) → Brillig sp[4] (line 2: result)
+        // SSA v2 (v1 + 2) → Brillig sp[3] (line 4: result)
+        // SSA v3 (v2 * 3) → Brillig sp[4] (line 6: result, last instruction before terminator)
         // SSA v4 (b1's parameter) → Brillig sp[2] (allocated in b0)
-        // Line 21: sp[2] = sp[4] copies v3 into v4's register (terminator argument)
-        // Line 22: jump to b1
-        // v3 cannot be marked as dead at line 20 because it's used in terminator at line 21
+        // Line 7: sp[2] = sp[4] copies v3 into v4's register (terminator argument)
+        // Line 8: jump to b1
+        // v3 cannot be marked as dead at line 6 because it's used in terminator at line 7
         // This ensures v3's register (sp[4]) stays valid throughout the copy instruction
         let src = "
         brillig(inline) fn main f0 {
@@ -1083,45 +957,21 @@ mod test {
             return v4
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let options = BrilligOptions::default();
-        let brillig = ssa.to_brillig(&options);
-        let args = vec![BrilligParameter::SingleAddr(FieldElement::max_num_bits())];
-
-        let entry = gen_brillig_for(ssa.main(), args, &brillig, &options).unwrap();
-        assert_artifact_snapshot!(entry, @r"
+        let brillig = ssa_to_brillig_artifacts(src);
+        let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
+        assert_artifact_snapshot!(main, @r"
         fn main
-         0: @2 = const u32 1
-         1: @1 = const u32 32838
-         2: @0 = const u32 70
-         3: sp[2] = const u32 1
-         4: sp[3] = const u32 0
-         5: @68 = calldata copy [sp[3]; sp[2]]
-         6: sp[1] = @68
-         7: call 13
-         8: call 14
-         9: @69 = sp[1]
-        10: sp[2] = const u32 69
-        11: sp[3] = const u32 1
-        12: stop &[sp[2]; sp[3]]
-        13: return
-        14: call 25
-        15: sp[3] = const field 1
-        16: sp[4] = field add sp[1], sp[3]
-        17: sp[1] = const field 2
-        18: sp[3] = field add sp[4], sp[1]
-        19: sp[1] = const field 3
-        20: sp[4] = field mul sp[3], sp[1]
-        21: sp[2] = sp[4]
-        22: jump to 23
-        23: sp[1] = sp[2]
-        24: return
-        25: @4 = const u32 30790
-        26: @3 = u32 lt @0, @4
-        27: jump if @3 to 30
-        28: @1 = indirect const u64 15764276373176857197
-        29: trap &[@1; @2]
-        30: return
+         0: call 0
+         1: sp[3] = const field 1
+         2: sp[4] = field add sp[1], sp[3]
+         3: sp[1] = const field 2
+         4: sp[3] = field add sp[4], sp[1]
+         5: sp[1] = const field 3
+         6: sp[4] = field mul sp[3], sp[1]
+         7: sp[2] = sp[4]
+         8: jump to 0
+         9: sp[1] = sp[2]
+        10: return
         ");
     }
 }
