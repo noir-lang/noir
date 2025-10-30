@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1761845295296,
+  "lastUpdate": 1761853365100,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23110,48 +23110,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "d293d1c97b5dad9a7ada3fe194f717379c62bdd3",
-          "message": "chore: remove incremental mutation tests (#10212)",
-          "timestamp": "2025-10-16T17:48:43+01:00",
-          "tree_id": "53d6d482b6e4ff291d357da9d2699e68b03903ab",
-          "url": "https://github.com/noir-lang/noir/commit/d293d1c97b5dad9a7ada3fe194f717379c62bdd3"
-        },
-        "date": 1760633470649,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 261951,
-            "range": "± 1813",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 229459,
-            "range": "± 864",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2786517,
-            "range": "± 5446",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "8d787871c097c315193fed23204e56fa396003a7",
           "message": "feat: attempt to inline successors in `simplify_cfg` (#9608)",
@@ -25194,6 +25152,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2795766,
             "range": "± 1660",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "53da0afe66ed9946c6dc071f7e24b2d937b46092",
+          "message": "fix: remove leading stars from block doc comments (#10316)",
+          "timestamp": "2025-10-30T19:17:15Z",
+          "tree_id": "a4c1c39843cb15f5cd0530ebaef48ff8de12601e",
+          "url": "https://github.com/noir-lang/noir/commit/53da0afe66ed9946c6dc071f7e24b2d937b46092"
+        },
+        "date": 1761853339758,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 262303,
+            "range": "± 1728",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 232013,
+            "range": "± 4294",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2794579,
+            "range": "± 6877",
             "unit": "ns/iter"
           }
         ]
