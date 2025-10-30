@@ -115,62 +115,42 @@ impl HTMLCreator {
     }
 
     fn render_modules(&mut self, items: &[Item]) {
-        let modules = items
-            .iter()
-            .filter_map(|item| if let Item::Module(module) = item { Some(module) } else { None })
-            .collect::<Vec<_>>();
+        let modules = get_modules(items);
         if !modules.is_empty() {
             self.render_list("Modules", &modules);
         }
     }
 
     fn render_structs(&mut self, items: &[Item]) {
-        let structs = items
-            .iter()
-            .filter_map(|item| if let Item::Struct(struct_) = item { Some(struct_) } else { None })
-            .collect::<Vec<_>>();
+        let structs = get_structs(items);
         if !structs.is_empty() {
             self.render_list("Structs", &structs);
         }
     }
 
     fn render_traits(&mut self, items: &[Item]) {
-        let traits = items
-            .iter()
-            .filter_map(|item| if let Item::Trait(trait_) = item { Some(trait_) } else { None })
-            .collect::<Vec<_>>();
+        let traits = get_traits(items);
         if !traits.is_empty() {
             self.render_list("Traits", &traits);
         }
     }
 
     fn render_type_aliases(&mut self, items: &[Item]) {
-        let type_aliases = items
-            .iter()
-            .filter_map(|item| if let Item::TypeAlias(alias) = item { Some(alias) } else { None })
-            .collect::<Vec<_>>();
+        let type_aliases = get_type_aliases(items);
         if !type_aliases.is_empty() {
             self.render_list("Type aliases", &type_aliases);
         }
     }
 
     fn render_globals(&mut self, items: &[Item]) {
-        let globals = items
-            .iter()
-            .filter_map(|item| if let Item::Global(global) = item { Some(global) } else { None })
-            .collect::<Vec<_>>();
+        let globals = get_globals(items);
         if !globals.is_empty() {
             self.render_list("Globals", &globals);
         }
     }
 
     fn render_functions(&mut self, items: &[Item]) {
-        let functions = items
-            .iter()
-            .filter_map(
-                |item| if let Item::Function(function) = item { Some(function) } else { None },
-            )
-            .collect::<Vec<_>>();
+        let functions = get_functions(items);
         if !functions.is_empty() {
             self.render_list("Functions", &functions);
         }
@@ -842,6 +822,48 @@ impl HTMLCreator {
         let path = full_path.join(path);
         self.files.push((path, contents));
     }
+}
+
+fn get_modules(items: &[Item]) -> Vec<&Module> {
+    items
+        .iter()
+        .filter_map(|item| if let Item::Module(module) = item { Some(module) } else { None })
+        .collect()
+}
+
+fn get_structs(items: &[Item]) -> Vec<&Struct> {
+    items
+        .iter()
+        .filter_map(|item| if let Item::Struct(struct_) = item { Some(struct_) } else { None })
+        .collect()
+}
+
+fn get_traits(items: &[Item]) -> Vec<&Trait> {
+    items
+        .iter()
+        .filter_map(|item| if let Item::Trait(trait_) = item { Some(trait_) } else { None })
+        .collect()
+}
+
+fn get_type_aliases(items: &[Item]) -> Vec<&TypeAlias> {
+    items
+        .iter()
+        .filter_map(|item| if let Item::TypeAlias(alias) = item { Some(alias) } else { None })
+        .collect()
+}
+
+fn get_globals(items: &[Item]) -> Vec<&Global> {
+    items
+        .iter()
+        .filter_map(|item| if let Item::Global(global) = item { Some(global) } else { None })
+        .collect()
+}
+
+fn get_functions(items: &[Item]) -> Vec<&Function> {
+    items
+        .iter()
+        .filter_map(|item| if let Item::Function(function) = item { Some(function) } else { None })
+        .collect()
 }
 
 fn compute_id_to_path(crates: &Crates) -> HashMap<usize, String> {
