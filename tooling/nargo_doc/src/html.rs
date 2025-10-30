@@ -1007,7 +1007,7 @@ fn trait_impl_anchor(trait_impl: &TraitImpl) -> String {
 fn trait_impl_trait_to_string(trait_impl: &TraitImpl) -> String {
     let mut string = String::new();
     string.push_str(&trait_impl.trait_name);
-    if !trait_impl.generics.is_empty() {
+    if !trait_impl.trait_generics.is_empty() {
         string.push('<');
         for (index, typ) in trait_impl.trait_generics.iter().enumerate() {
             if index > 0 {
