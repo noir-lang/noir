@@ -446,7 +446,7 @@ mod hover_tests {
 
 ---
 
- Red, blue, etc."
+Red, blue, etc."
         ));
     }
 
@@ -463,7 +463,7 @@ mod hover_tests {
 
 ---
 
- Red, blue, etc."
+Red, blue, etc."
         ));
     }
 
@@ -478,7 +478,7 @@ mod hover_tests {
 
 ---
 
- Like a tomato"
+Like a tomato"
         ));
     }
 
@@ -493,7 +493,7 @@ mod hover_tests {
 
 ---
 
- Like a tomato"
+Like a tomato"
         ));
     }
 
