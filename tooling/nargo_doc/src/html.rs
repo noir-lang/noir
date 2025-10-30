@@ -338,7 +338,7 @@ impl HTMLCreator {
     fn create_trait(&mut self, parent_module: &Module, trait_: &Trait) {
         self.html_start(&format!("Trait {}", trait_.name));
         self.sidebar_start();
-        // TODO: trait sidebar
+        self.render_trait_sidebar(trait_);
         self.render_module_contents_sidebar(parent_module, false);
         self.sidebar_end();
         self.main_start();
@@ -351,6 +351,39 @@ impl HTMLCreator {
         self.main_end();
         self.html_end();
         self.push_file(PathBuf::from(trait_.path()));
+    }
+
+    fn render_trait_sidebar(&mut self, trait_: &Trait) {
+        self.h2(&format!("Trait {}", trait_.name));
+
+        let mut methods = trait_.methods.iter().map(|method| method).collect::<Vec<_>>();
+        methods.sort_by_key(|method| method.name.clone());
+
+        if !methods.is_empty() {
+            self.h3("Methods");
+            self.output.push_str("<ul class=\"sidebar-list\">");
+            for method in methods {
+                self.output.push_str("<li>");
+                self.output.push_str(&format!("<a href=\"#{}\">{}</a>", method.name, method.name));
+                self.output.push_str("</li>\n");
+            }
+            self.output.push_str("</ul>");
+        }
+
+        if !trait_.trait_impls.is_empty() {
+            self.h3("Trait implementations");
+            self.output.push_str("<ul class=\"sidebar-list\">");
+            for trait_impl in &trait_.trait_impls {
+                self.output.push_str("<li>");
+                self.output.push_str(&format!(
+                    "<a href=\"#{}\">{}</a>",
+                    trait_impl_anchor(trait_impl),
+                    trait_impl_trait_to_string(trait_impl),
+                ));
+                self.output.push_str("</li>\n");
+            }
+            self.output.push_str("</ul>");
+        }
     }
 
     fn create_alias(&mut self, parent_module: &Module, alias: &TypeAlias) {
