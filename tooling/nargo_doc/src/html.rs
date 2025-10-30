@@ -322,7 +322,7 @@ impl HTMLCreator {
         self.output.push(' ');
         self.render_type(&impl_.r#type);
         self.output.push_str("</code></pre></h3>\n\n");
-        self.render_methods(&impl_.methods, 5);
+        self.render_methods(&impl_.methods, 3);
     }
 
     fn render_trait_impls(&mut self, trait_impls: &[TraitImpl], title: &str) {
