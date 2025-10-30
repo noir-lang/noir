@@ -62,7 +62,7 @@ impl HTMLCreator {
         self.main_start();
         self.h1(&format!("{} documentation", crates.name));
         let crates = vecmap(&crates.crates, |krate| krate);
-        self.render_list("Crates", "crates", false, &crates);
+        self.render_list("Crates", "crates", false, false, &crates);
         self.main_end();
         self.html_end();
         self.push_file(PathBuf::from("index.html"));
@@ -79,7 +79,7 @@ impl HTMLCreator {
         self.render_breadcrumbs(false);
         self.h1(&format!("Crate <span class=\"crate\">{}</span>", krate.name));
         self.render_comments(&krate.root_module.comments, 1);
-        self.render_items(&krate.root_module.items, false);
+        self.render_items(&krate.root_module.items, false, false);
         self.main_end();
         self.html_end();
         self.push_file(PathBuf::from("index.html"));
@@ -105,54 +105,60 @@ impl HTMLCreator {
         self.output.push_str("</ul>");
     }
 
-    fn render_items(&mut self, items: &[Item], sidebar: bool) {
-        self.render_modules(items, sidebar);
-        self.render_structs(items, sidebar);
-        self.render_traits(items, sidebar);
-        self.render_type_aliases(items, sidebar);
-        self.render_globals(items, sidebar);
-        self.render_functions(items, sidebar);
+    fn render_items(&mut self, items: &[Item], sidebar: bool, reference_parent: bool) {
+        self.render_modules(items, sidebar, reference_parent);
+        self.render_structs(items, sidebar, reference_parent);
+        self.render_traits(items, sidebar, reference_parent);
+        self.render_type_aliases(items, sidebar, reference_parent);
+        self.render_globals(items, sidebar, reference_parent);
+        self.render_functions(items, sidebar, reference_parent);
     }
 
-    fn render_modules(&mut self, items: &[Item], sidebar: bool) {
+    fn render_modules(&mut self, items: &[Item], sidebar: bool, reference_parent: bool) {
         let modules = get_modules(items);
         if !modules.is_empty() {
-            self.render_list("Modules", "modules", sidebar, &modules);
+            self.render_list("Modules", "modules", sidebar, reference_parent, &modules);
         }
     }
 
-    fn render_structs(&mut self, items: &[Item], sidebar: bool) {
+    fn render_structs(&mut self, items: &[Item], sidebar: bool, reference_parent: bool) {
         let structs = get_structs(items);
         if !structs.is_empty() {
-            self.render_list("Structs", "structs", sidebar, &structs);
+            self.render_list("Structs", "structs", sidebar, reference_parent, &structs);
         }
     }
 
-    fn render_traits(&mut self, items: &[Item], sidebar: bool) {
+    fn render_traits(&mut self, items: &[Item], sidebar: bool, reference_parent: bool) {
         let traits = get_traits(items);
         if !traits.is_empty() {
-            self.render_list("Traits", "traits", sidebar, &traits);
+            self.render_list("Traits", "traits", sidebar, reference_parent, &traits);
         }
     }
 
-    fn render_type_aliases(&mut self, items: &[Item], sidebar: bool) {
+    fn render_type_aliases(&mut self, items: &[Item], sidebar: bool, reference_parent: bool) {
         let type_aliases = get_type_aliases(items);
         if !type_aliases.is_empty() {
-            self.render_list("Type aliases", "type-aliases", sidebar, &type_aliases);
+            self.render_list(
+                "Type aliases",
+                "type-aliases",
+                sidebar,
+                reference_parent,
+                &type_aliases,
+            );
         }
     }
 
-    fn render_globals(&mut self, items: &[Item], sidebar: bool) {
+    fn render_globals(&mut self, items: &[Item], sidebar: bool, reference_parent: bool) {
         let globals = get_globals(items);
         if !globals.is_empty() {
-            self.render_list("Globals", "globals", sidebar, &globals);
+            self.render_list("Globals", "globals", sidebar, reference_parent, &globals);
         }
     }
 
-    fn render_functions(&mut self, items: &[Item], sidebar: bool) {
+    fn render_functions(&mut self, items: &[Item], sidebar: bool, reference_parent: bool) {
         let functions = get_functions(items);
         if !functions.is_empty() {
-            self.render_list("Functions", "functions", sidebar, &functions);
+            self.render_list("Functions", "functions", sidebar, reference_parent, &functions);
         }
     }
 
@@ -161,6 +167,7 @@ impl HTMLCreator {
         title: &str,
         anchor: &str,
         sidebar: bool,
+        reference_parent: bool,
         items: &[&T],
     ) {
         if sidebar {
@@ -176,7 +183,7 @@ impl HTMLCreator {
             }
             self.output.push_str(&format!(
                 "<a href=\"{}{}\" class=\"{}\">{}</a>",
-                if sidebar { "../" } else { "" },
+                if reference_parent { "../" } else { "" },
                 item.path(),
                 item.class(),
                 item.name(),
@@ -204,11 +211,11 @@ impl HTMLCreator {
     fn create_item(&mut self, parent_module: &Module, item: &Item) {
         match item {
             Item::Module(module) => self.create_module(parent_module, module),
-            Item::Struct(struct_) => self.create_struct(struct_),
-            Item::Trait(trait_) => self.create_trait(trait_),
-            Item::TypeAlias(alias) => self.create_alias(alias),
-            Item::Function(function) => self.create_function(function),
-            Item::Global(global) => self.create_global(global),
+            Item::Struct(struct_) => self.create_struct(parent_module, struct_),
+            Item::Trait(trait_) => self.create_trait(parent_module, trait_),
+            Item::TypeAlias(alias) => self.create_alias(parent_module, alias),
+            Item::Function(function) => self.create_function(parent_module, function),
+            Item::Global(global) => self.create_global(parent_module, global),
         }
     }
 
@@ -223,7 +230,7 @@ impl HTMLCreator {
         self.render_breadcrumbs(false);
         self.h1(&format!("Module <span class=\"module\">{}</span>", module.name));
         self.render_comments(&module.comments, 1);
-        self.render_items(&module.items, false);
+        self.render_items(&module.items, false, false);
         self.main_end();
         self.html_end();
         self.push_file(PathBuf::from("index.html"));
@@ -236,7 +243,7 @@ impl HTMLCreator {
     fn render_module_sidebar(&mut self, parent_module: &Module, module: &Module) {
         self.h2(&format!("Module {}", module.name));
         self.render_module_items_sidebar(module);
-        self.render_module_contents_sidebar(parent_module);
+        self.render_module_contents_sidebar(parent_module, true);
     }
 
     fn render_module_items_sidebar(&mut self, module: &Module) {
@@ -266,20 +273,21 @@ impl HTMLCreator {
         self.output.push_str("</ul>");
     }
 
-    fn render_module_contents_sidebar(&mut self, module: &Module) {
+    fn render_module_contents_sidebar(&mut self, module: &Module, reference_parent: bool) {
         if module.name.is_empty() {
             let crate_name = self.current_path.last().unwrap();
             self.h2(&format!("In crate {crate_name}"));
         } else {
             self.h2(&format!("In module {}", module.name));
         }
-        self.render_items(&module.items, true);
+        self.render_items(&module.items, true, reference_parent);
     }
 
-    fn create_struct(&mut self, struct_: &Struct) {
+    fn create_struct(&mut self, parent_module: &Module, struct_: &Struct) {
         self.html_start(&format!("Struct {}", struct_.name));
         self.sidebar_start();
         // TODO: struct sidebar
+        self.render_module_contents_sidebar(parent_module, false);
         self.sidebar_end();
         self.main_start();
         self.render_breadcrumbs(true);
@@ -294,10 +302,11 @@ impl HTMLCreator {
         self.push_file(PathBuf::from(struct_.path()));
     }
 
-    fn create_trait(&mut self, trait_: &Trait) {
+    fn create_trait(&mut self, parent_module: &Module, trait_: &Trait) {
         self.html_start(&format!("Trait {}", trait_.name));
         self.sidebar_start();
         // TODO: trait sidebar
+        self.render_module_contents_sidebar(parent_module, false);
         self.sidebar_end();
         self.main_start();
         self.render_breadcrumbs(true);
@@ -311,10 +320,11 @@ impl HTMLCreator {
         self.push_file(PathBuf::from(trait_.path()));
     }
 
-    fn create_alias(&mut self, alias: &TypeAlias) {
+    fn create_alias(&mut self, parent_module: &Module, alias: &TypeAlias) {
         self.html_start(&format!("Type alias {}", alias.name));
         self.sidebar_start();
         // TODO: alias sidebar
+        self.render_module_contents_sidebar(parent_module, false);
         self.sidebar_end();
         self.main_start();
         self.render_breadcrumbs(true);
@@ -326,10 +336,11 @@ impl HTMLCreator {
         self.push_file(PathBuf::from(alias.path()));
     }
 
-    fn create_function(&mut self, function: &Function) {
+    fn create_function(&mut self, parent_module: &Module, function: &Function) {
         self.html_start(&format!("Function {}", function.name));
         self.sidebar_start();
         // TODO: function sidebar
+        self.render_module_contents_sidebar(parent_module, false);
         self.sidebar_end();
         self.main_start();
         self.render_breadcrumbs(true);
@@ -340,10 +351,11 @@ impl HTMLCreator {
         self.push_file(PathBuf::from(function.path()));
     }
 
-    fn create_global(&mut self, global: &Global) {
+    fn create_global(&mut self, parent_module: &Module, global: &Global) {
         self.html_start(&format!("Global {}", global.name));
         self.sidebar_start();
         // TODO: global sidebar
+        self.render_module_contents_sidebar(parent_module, false);
         self.sidebar_end();
         self.main_start();
         self.render_breadcrumbs(true);
