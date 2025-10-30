@@ -192,7 +192,7 @@ impl HTMLCreator {
         self.html_start(&title);
         self.render_breadcrumbs(false);
         self.h1(&title);
-        self.render_comments(&module.comments, 2);
+        self.render_comments(&module.comments, 1);
         self.render_items(&module.items);
         self.html_end();
         self.push_file(PathBuf::from("index.html"));
@@ -299,7 +299,7 @@ impl HTMLCreator {
             self.output.push_str(": ");
             self.render_type(&field.r#type);
             self.output.push_str("</code></pre></h3>\n");
-            self.render_comments(&field.comments, 5);
+            self.render_comments(&field.comments, 3);
         }
     }
 
