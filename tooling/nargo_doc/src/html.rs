@@ -53,9 +53,14 @@ impl HTMLCreator {
 
     fn create_index(&mut self, crates: &Crates) {
         self.html_start(&format!("{} documentation", crates.name));
+        self.sidebar_start();
+        // TODO: index sidebar
+        self.sidebar_end();
+        self.main_start();
         self.h1(&format!("{} documentation", crates.name));
         let crates = vecmap(&crates.crates, |krate| krate);
         self.render_list("Crates", &crates);
+        self.main_end();
         self.html_end();
         self.push_file(PathBuf::from("index.html"));
     }
@@ -64,10 +69,15 @@ impl HTMLCreator {
         self.current_path.push(krate.name.clone());
 
         self.html_start(&format!("Crate {}", krate.name));
+        self.sidebar_start();
+        // TODO: crate sidebar
+        self.sidebar_end();
+        self.main_start();
         self.render_breadcrumbs(false);
         self.h1(&format!("Crate <span class=\"crate\">{}</span>", krate.name));
         self.render_comments(&krate.root_module.comments, 1);
         self.render_items(&krate.root_module.items);
+        self.main_end();
         self.html_end();
         self.push_file(PathBuf::from("index.html"));
 
@@ -196,10 +206,15 @@ impl HTMLCreator {
         self.current_path.push(module.name.clone());
 
         self.html_start(&format!("Module {}", module.name));
+        self.sidebar_start();
+        // TODO: module sidebar
+        self.sidebar_end();
+        self.main_start();
         self.render_breadcrumbs(false);
         self.h1(&format!("Module <span class=\"module\">{}</span>", module.name));
         self.render_comments(&module.comments, 1);
         self.render_items(&module.items);
+        self.main_end();
         self.html_end();
         self.push_file(PathBuf::from("index.html"));
 
@@ -210,6 +225,10 @@ impl HTMLCreator {
 
     fn create_struct(&mut self, struct_: &Struct) {
         self.html_start(&format!("Struct {}", struct_.name));
+        self.sidebar_start();
+        // TODO: struct sidebar
+        self.sidebar_end();
+        self.main_start();
         self.render_breadcrumbs(true);
         self.h1(&format!("Struct <span class=\"struct\">{}</span>", struct_.name));
         self.render_struct_code(struct_);
@@ -217,47 +236,68 @@ impl HTMLCreator {
         self.render_struct_fields(&struct_.fields);
         self.render_impls(&struct_.impls);
         self.render_trait_impls(&struct_.trait_impls, "Trait implementations");
+        self.main_end();
         self.html_end();
         self.push_file(PathBuf::from(struct_.path()));
     }
 
     fn create_trait(&mut self, trait_: &Trait) {
         self.html_start(&format!("Trait {}", trait_.name));
+        self.sidebar_start();
+        // TODO: trait sidebar
+        self.sidebar_end();
+        self.main_start();
         self.render_breadcrumbs(true);
         self.h1(&format!("Trait <span class=\"trait\">{}</span>", trait_.name));
         self.render_trait_code(trait_);
         self.render_comments(&trait_.comments, 1);
         self.render_trait_methods(&trait_.methods);
         self.render_trait_impls(&trait_.trait_impls, "Implementors");
+        self.main_end();
         self.html_end();
         self.push_file(PathBuf::from(trait_.path()));
     }
 
     fn create_alias(&mut self, alias: &TypeAlias) {
         self.html_start(&format!("Type alias {}", alias.name));
+        self.sidebar_start();
+        // TODO: alias sidebar
+        self.sidebar_end();
+        self.main_start();
         self.render_breadcrumbs(true);
         self.h1(&format!("Type alias <span class=\"type\">{}</span>", alias.name));
         self.render_type_alias_code(alias);
         self.render_comments(&alias.comments, 1);
+        self.main_end();
         self.html_end();
         self.push_file(PathBuf::from(alias.path()));
     }
 
     fn create_function(&mut self, function: &Function) {
         self.html_start(&format!("Function {}", function.name));
+        self.sidebar_start();
+        // TODO: function sidebar
+        self.sidebar_end();
+        self.main_start();
         self.render_breadcrumbs(true);
         self.h1(&format!("Function <span class=\"fn\">{}</span>", function.name));
         self.render_function(function, 1, false);
+        self.main_end();
         self.html_end();
         self.push_file(PathBuf::from(function.path()));
     }
 
     fn create_global(&mut self, global: &Global) {
         self.html_start(&format!("Global {}", global.name));
+        self.sidebar_start();
+        // TODO: global sidebar
+        self.sidebar_end();
+        self.main_start();
         self.render_breadcrumbs(true);
         self.h1(&format!("Global <span class=\"global\">{}</span>", global.name));
         self.render_global_code(global);
         self.render_comments(&global.comments, 1);
+        self.main_end();
         self.html_end();
         self.push_file(PathBuf::from(global.path()));
     }
@@ -740,13 +780,27 @@ impl HTMLCreator {
         self.output.push_str(&format!("<title>{title} documentation</title>\n"));
         self.output.push_str("</head>\n");
         self.output.push_str("<body>\n");
-        self.output.push_str("<main>\n");
     }
 
     fn html_end(&mut self) {
-        self.output.push_str("</main>\n");
         self.output.push_str("</body>\n");
         self.output.push_str("</html>\n");
+    }
+
+    fn main_start(&mut self) {
+        self.output.push_str("<main>\n");
+    }
+
+    fn main_end(&mut self) {
+        self.output.push_str("</main>\n");
+    }
+
+    fn sidebar_start(&mut self) {
+        self.output.push_str("<nav class=\"sidebar\">\n");
+    }
+
+    fn sidebar_end(&mut self) {
+        self.output.push_str("</nav>\n");
     }
 
     fn h1(&mut self, text: &str) {
