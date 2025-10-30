@@ -66,6 +66,7 @@ ul {
 .item-list>li>.item-name {
     width: 33%;
     display: table-cell;
+    padding-right: 1.25rem;
 }
 
 .item-list>li>.item-description {
