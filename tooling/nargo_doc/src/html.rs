@@ -171,9 +171,9 @@ impl HTMLCreator {
         items: &[&T],
     ) {
         if sidebar {
-            self.output.push_str(&format!("<h3>{}</h3>", title));
+            self.output.push_str(&format!("<h3>{title}</h3>"));
         } else {
-            self.output.push_str(&format!("<h2 id=\"{}\">{}</h2>", anchor, title));
+            self.output.push_str(&format!("<h2 id=\"{anchor}\">{title}</h2>"));
         }
         self.output.push_str("<ul class=\"item-list\">");
         for item in items {
@@ -235,7 +235,7 @@ impl HTMLCreator {
         self.html_end();
         self.push_file(PathBuf::from("index.html"));
 
-        self.create_items(&module, &module.items);
+        self.create_items(module, &module.items);
 
         self.current_path.pop();
     }
@@ -356,7 +356,7 @@ impl HTMLCreator {
     fn render_trait_sidebar(&mut self, trait_: &Trait) {
         self.h2(&format!("Trait {}", trait_.name));
 
-        let mut methods = trait_.methods.iter().map(|method| method).collect::<Vec<_>>();
+        let mut methods = trait_.methods.iter().collect::<Vec<_>>();
         methods.sort_by_key(|method| method.name.clone());
 
         if !methods.is_empty() {
@@ -510,7 +510,7 @@ impl HTMLCreator {
 
     fn render_trait_impl(&mut self, trait_impl: &TraitImpl) {
         let anchor = trait_impl_anchor(trait_impl);
-        self.output.push_str(&format!("<h3 id=\"{}\"><code class=\"code-header\">", anchor));
+        self.output.push_str(&format!("<h3 id=\"{anchor}\"><code class=\"code-header\">"));
         self.output.push_str("impl");
         self.render_generics(&trait_impl.generics);
         self.output.push(' ');
@@ -1040,7 +1040,7 @@ fn type_to_string(typ: &Type) -> String {
             format!("fmtstr<{}, {}>", type_to_string(length), type_to_string(element))
         }
         Type::Tuple(items) => {
-            let items: Vec<String> = items.iter().map(|item| type_to_string(item)).collect();
+            let items: Vec<String> = items.iter().map(type_to_string).collect();
             format!("({}{})", items.join(", "), if items.len() == 1 { "," } else { "" })
         }
         Type::Reference { r#type, mutable } => {
@@ -1058,7 +1058,7 @@ fn type_to_string(typ: &Type) -> String {
         Type::InfixExpr { lhs, operator, rhs } => {
             format!("{}{}{}", type_to_string(lhs), operator, type_to_string(rhs))
         }
-        Type::TraitAsType { trait_name, .. } => format!("impl-{}", trait_name),
+        Type::TraitAsType { trait_name, .. } => format!("impl-{trait_name}"),
     }
 }
 
