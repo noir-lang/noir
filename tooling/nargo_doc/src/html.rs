@@ -286,12 +286,12 @@ impl HTMLCreator {
     fn create_struct(&mut self, parent_module: &Module, struct_: &Struct) {
         self.html_start(&format!("Struct {}", struct_.name));
         self.sidebar_start();
-        // TODO: struct sidebar
+        self.render_struct_sidebar(struct_);
         self.render_module_contents_sidebar(parent_module, false);
         self.sidebar_end();
         self.main_start();
         self.render_breadcrumbs(true);
-        self.h1(&format!("Struct <span class=\"struct\">{}</span>", struct_.name));
+        self.h1(&format!("Struct <span id=\"struct\" class=\"struct\">{}</span>", struct_.name));
         self.render_struct_code(struct_);
         self.render_comments(&struct_.comments, 1);
         self.render_struct_fields(&struct_.fields);
@@ -300,6 +300,39 @@ impl HTMLCreator {
         self.main_end();
         self.html_end();
         self.push_file(PathBuf::from(struct_.path()));
+    }
+
+    fn render_struct_sidebar(&mut self, struct_: &Struct) {
+        self.h2(&format!("Struct {}", struct_.name));
+
+        let mut methods = struct_.impls.iter().flat_map(|iter| &iter.methods).collect::<Vec<_>>();
+        methods.sort_by_key(|method| method.name.clone());
+
+        if !methods.is_empty() {
+            self.h3("Methods");
+            self.output.push_str("<ul class=\"sidebar-list\">");
+            for method in methods {
+                self.output.push_str("<li>");
+                self.output.push_str(&format!("<a href=\"#{}\">{}</a>", method.name, method.name));
+                self.output.push_str("</li>\n");
+            }
+            self.output.push_str("</ul>");
+        }
+
+        if !struct_.trait_impls.is_empty() {
+            self.h3("Trait implementations");
+            self.output.push_str("<ul class=\"sidebar-list\">");
+            for trait_impl in &struct_.trait_impls {
+                self.output.push_str("<li>");
+                self.output.push_str(&format!(
+                    "<a href=\"#{}\">{}</a>",
+                    trait_impl_anchor(trait_impl),
+                    trait_impl_trait_to_string(trait_impl),
+                ));
+                self.output.push_str("</li>\n");
+            }
+            self.output.push_str("</ul>");
+        }
     }
 
     fn create_trait(&mut self, parent_module: &Module, trait_: &Trait) {
@@ -443,7 +476,8 @@ impl HTMLCreator {
     }
 
     fn render_trait_impl(&mut self, trait_impl: &TraitImpl) {
-        self.output.push_str("<h3><code class=\"code-header\">");
+        let anchor = trait_impl_anchor(trait_impl);
+        self.output.push_str(&format!("<h3 id=\"{}\"><code class=\"code-header\">", anchor));
         self.output.push_str("impl");
         self.render_generics(&trait_impl.generics);
         self.output.push(' ');
@@ -525,18 +559,20 @@ impl HTMLCreator {
         as_header: bool,
     ) {
         self.render_function_signature(function, as_header);
-        if as_header {
-            self.output.push_str("<div class=\"padded-description\">");
-        }
-        self.render_comments(&function.comments, current_heading_level);
-        if as_header {
-            self.output.push_str("</div>");
+        if function.comments.is_some() {
+            if as_header {
+                self.output.push_str("<div class=\"padded-description\">");
+            }
+            self.render_comments(&function.comments, current_heading_level);
+            if as_header {
+                self.output.push_str("</div>");
+            }
         }
     }
 
     fn render_function_signature(&mut self, function: &Function, as_header: bool) {
         if as_header {
-            self.output.push_str("<code class=\"code-header\">");
+            self.output.push_str(&format!("<code id=\"{}\" class=\"code-header\">", function.name));
         } else {
             self.output.push_str("<pre>");
             self.output.push_str("<code>");
@@ -931,6 +967,66 @@ fn get_functions(items: &[Item]) -> Vec<&Function> {
         .iter()
         .filter_map(|item| if let Item::Function(function) = item { Some(function) } else { None })
         .collect()
+}
+
+fn trait_impl_anchor(trait_impl: &TraitImpl) -> String {
+    let mut string = String::new();
+    string.push_str("impl-");
+    string.push_str(&trait_impl_trait_to_string(trait_impl));
+    string.push_str("-for-");
+    string.push_str(&type_to_string(&trait_impl.r#type));
+    string
+}
+
+fn trait_impl_trait_to_string(trait_impl: &TraitImpl) -> String {
+    let mut string = String::new();
+    string.push_str(&trait_impl.trait_name);
+    if !trait_impl.generics.is_empty() {
+        string.push('<');
+        for (index, typ) in trait_impl.trait_generics.iter().enumerate() {
+            if index > 0 {
+                string.push_str(", ");
+            }
+            string.push_str(&type_to_string(typ));
+        }
+        string.push('>');
+    }
+    string
+}
+
+fn type_to_string(typ: &Type) -> String {
+    match typ {
+        Type::Unit => "()".to_string(),
+        Type::Primitive(primitive) => primitive.clone(),
+        Type::Array { length, element } => {
+            format!("[{}; {}]", type_to_string(element), type_to_string(length))
+        }
+        Type::Slice { element } => format!("[{}]", type_to_string(element)),
+        Type::String { length } => format!("str<{}>", type_to_string(length)),
+        Type::FmtString { length, element } => {
+            format!("fmtstr<{}, {}>", type_to_string(length), type_to_string(element))
+        }
+        Type::Tuple(items) => {
+            let items: Vec<String> = items.iter().map(|item| type_to_string(item)).collect();
+            format!("({}{})", items.join(", "), if items.len() == 1 { "," } else { "" })
+        }
+        Type::Reference { r#type, mutable } => {
+            if *mutable {
+                format!("&mut {}", type_to_string(r#type))
+            } else {
+                format!("&{}", type_to_string(r#type))
+            }
+        }
+        Type::Struct { name, .. } => name.clone(),
+        Type::TypeAlias { name, .. } => name.clone(),
+        Type::Function { .. } => "fn".to_string(),
+        Type::Constant(value) => value.clone(),
+        Type::Generic(name) => name.clone(),
+        Type::InfixExpr { lhs, operator, rhs } => {
+            format!("{}{}{}", type_to_string(lhs), operator, type_to_string(rhs))
+        }
+        Type::TraitAsType { trait_name, .. } => format!("impl-{}", trait_name),
+    }
 }
 
 fn compute_id_to_path(crates: &Crates) -> HashMap<usize, String> {
