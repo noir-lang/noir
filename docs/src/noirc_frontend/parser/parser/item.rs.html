@@ -744,7 +744,7 @@
         <span class="kw">let </span>item = <span class="kw-2">&amp;</span>module.items[<span class="number">0</span>];
         <span class="macro">assert_eq!</span>(
             item.doc_comments,
-            <span class="macro">vec!</span>[<span class="string">" One"</span>.to_string(), <span class="string">" Two"</span>.to_string(), <span class="string">" Three"</span>.to_string(),]
+            <span class="macro">vec!</span>[<span class="string">"One"</span>.to_string(), <span class="string">"Two"</span>.to_string(), <span class="string">"Three"</span>.to_string(),]
         );
         <span class="kw">let </span>ItemKind::Function(func) = <span class="kw-2">&amp;</span>item.kind <span class="kw">else </span>{
             <span class="macro">panic!</span>(<span class="string">"Expected function"</span>);

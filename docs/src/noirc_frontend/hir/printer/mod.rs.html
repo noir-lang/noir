@@ -1314,7 +1314,8 @@
 <a href="#1313" id="1313">1313</a>
 <a href="#1314" id="1314">1314</a>
 <a href="#1315" id="1315">1315</a>
-<a href="#1316" id="1316">1316</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeSet, HashMap};
+<a href="#1316" id="1316">1316</a>
+<a href="#1317" id="1317">1317</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeSet, HashMap};
 
 <span class="kw">use </span><span class="kw">crate</span>::graph::{CrateGraph, CrateId};
 <span class="kw">use </span><span class="kw">crate</span>::hir::printer::items::ItemBuilder;
@@ -1486,6 +1487,7 @@
                         <span class="self">self</span>.push(<span class="string">'\n'</span>);
                         <span class="self">self</span>.write_indent();
                     }
+                    <span class="self">self</span>.push_str(<span class="string">" * "</span>);
                     <span class="self">self</span>.push_str(line);
                 }
 
@@ -1496,7 +1498,7 @@
 
                 <span class="self">self</span>.push_str(<span class="string">"*/"</span>);
             } <span class="kw">else </span>{
-                <span class="self">self</span>.push_str(<span class="string">"///"</span>);
+                <span class="self">self</span>.push_str(<span class="string">"/// "</span>);
                 <span class="self">self</span>.push_str(comment);
             }
             <span class="self">self</span>.push(<span class="string">'\n'</span>);
