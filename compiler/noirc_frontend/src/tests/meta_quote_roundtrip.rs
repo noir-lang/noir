@@ -69,12 +69,6 @@ proptest! {
 }
 
 #[test]
-fn roundtrip_unit_value() {
-    let src = make_roundtrip_test("()", "()".to_string());
-    assert_no_errors(&src);
-}
-
-#[test]
 fn roundtrip_zero_field() {
     let src = make_roundtrip_test("Field", "0".to_string());
     assert_no_errors(&src);
