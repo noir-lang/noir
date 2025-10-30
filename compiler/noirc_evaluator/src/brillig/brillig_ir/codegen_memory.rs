@@ -85,46 +85,55 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                 num_elements_variable.address,
             );
         } else {
-            let value_register = self.allocate_register();
-            let end_source_pointer = self.allocate_register();
-            self.memory_op_instruction(
-                source_pointer,
+            // Early exit if count is 0
+            let count_is_zero = self.allocate_single_addr_bool();
+            self.codegen_usize_op(
                 num_elements_variable.address,
-                *end_source_pointer,
-                BrilligBinaryOp::Add,
+                count_is_zero.address,
+                BrilligBinaryOp::Equals,
+                0,
             );
 
-            self.codegen_generic_iteration(
-                |brillig_context| {
-                    let source_iterator = brillig_context.allocate_register();
-                    let target_iterator = brillig_context.allocate_register();
+            self.codegen_if_not(count_is_zero.address, |ctx| {
+                // Setup: Compute end pointer and initialize iterators
+                let end_source_pointer = ctx.allocate_register();
+                ctx.memory_op_instruction(
+                    source_pointer,
+                    num_elements_variable.address,
+                    *end_source_pointer,
+                    BrilligBinaryOp::Add,
+                );
 
-                    brillig_context.mov_instruction(*source_iterator, source_pointer);
-                    brillig_context.mov_instruction(*target_iterator, destination_pointer);
+                let source_iterator = ctx.allocate_register();
+                let target_iterator = ctx.allocate_register();
+                ctx.mov_instruction(*source_iterator, source_pointer);
+                ctx.mov_instruction(*target_iterator, destination_pointer);
 
-                    (source_iterator, target_iterator)
-                },
-                |brillig_context, (source_iterator, target_iterator)| {
-                    brillig_context.memory_op_inc_by_usize_one(**source_iterator);
-                    brillig_context.memory_op_inc_by_usize_one(**target_iterator);
-                },
-                |brillig_context, (source_iterator, _)| {
-                    // We have finished when the source/target pointer is less than the source/target start
-                    let finish_condition = brillig_context.allocate_single_addr_bool();
-                    brillig_context.memory_op_instruction(
-                        **source_iterator,
-                        *end_source_pointer,
-                        finish_condition.address,
-                        BrilligBinaryOp::Equals,
-                    );
-                    finish_condition
-                },
-                |brillig_context, (source_iterator, target_iterator)| {
-                    brillig_context.load_instruction(*value_register, **source_iterator);
-                    brillig_context.store_instruction(**target_iterator, *value_register);
-                },
-                |_, _| {},
-            );
+                let (loop_section, loop_label) = ctx.reserve_next_section_label();
+                ctx.enter_section(loop_section);
+
+                // Copy the current element
+                let value_register = ctx.allocate_register();
+                ctx.load_instruction(*value_register, *source_iterator);
+                ctx.store_instruction(*target_iterator, *value_register);
+
+                // Increment both pointers
+                ctx.memory_op_inc_by_usize_one(*source_iterator);
+                ctx.memory_op_inc_by_usize_one(*target_iterator);
+
+                // Check if we should continue: source_iterator < end_source_pointer?
+                // This is equivalent to checking != with one less opcode than using Equals + NOT
+                let should_continue = ctx.allocate_single_addr_bool();
+                ctx.memory_op_instruction(
+                    *source_iterator,
+                    *end_source_pointer,
+                    should_continue.address,
+                    BrilligBinaryOp::LessThan,
+                );
+
+                // If should continue, jump back to loop; otherwise fall through and exit
+                ctx.jump_if_instruction(should_continue.address, loop_label);
+            });
         }
     }
 
@@ -163,8 +172,6 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                 BrilligBinaryOp::Add,
             );
 
-            // Optimized loop: Decrement -> Load -> Store -> Check -> JumpIf(!done, loop)
-            // By decrementing first, we eliminate one setup opcode and maintain 6 opcodes per iteration
             let (loop_section, loop_label) = ctx.reserve_next_section_label();
             ctx.enter_section(loop_section);
 
