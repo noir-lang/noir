@@ -149,6 +149,14 @@ impl<T> Tree<T> {
             Tree::Leaf(value) => value,
         }
     }
+
+    // TODO: WIP
+    pub(super) fn is_leaf(&self) -> bool {
+        match self {
+            Tree::Leaf(_) => true,
+            _ => false,
+        }
+    }
 }
 
 impl From<IrValueId> for Values {

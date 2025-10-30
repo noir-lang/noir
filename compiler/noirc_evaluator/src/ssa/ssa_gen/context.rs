@@ -207,7 +207,8 @@ impl<'a> FunctionContext<'a> {
             ast::Type::Tuple(fields) => {
                 Tree::Branch(vecmap(fields, |field| Self::map_type_helper(field, f)))
             }
-            ast::Type::Unit => Tree::empty(),
+            // TODO: WIP
+            // ast::Type::Unit => Tree::empty(),
             // A mutable reference wraps each element into a reference.
             // This can be multiple values if the element type is a tuple.
             ast::Type::Reference(element, _) => {
@@ -259,7 +260,8 @@ impl<'a> FunctionContext<'a> {
             ast::Type::FmtString(_, _) => {
                 panic!("convert_non_tuple_type called on a fmt string: {typ}")
             }
-            ast::Type::Unit => panic!("convert_non_tuple_type called on a unit type"),
+            // TODO: WIP
+            // ast::Type::Unit => panic!("convert_non_tuple_type called on a unit type"),
             ast::Type::Tuple(_) => panic!("convert_non_tuple_type called on a tuple: {typ}"),
             ast::Type::Function(_, _, _, _) => Type::Function,
             ast::Type::Slice(_) => panic!("convert_non_tuple_type called on a slice: {typ}"),
