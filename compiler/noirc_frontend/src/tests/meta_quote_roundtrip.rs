@@ -73,27 +73,29 @@ proptest! {
         assert_no_errors(&src);
     }
 
-    // TODO(https://github.com/noir-lang/noir/issues/10328): Although it is a very low chance, all these tests have the possibility to be flakey
-    // #[test]
-    // fn roundtrip_i8_values(n in any::<i8>()) {
-    //     let src = make_roundtrip_test("i8", n.to_string());
-    //     assert_no_errors(&src);
-    // }
-    // #[test]
-    // fn roundtrip_i16_values(n in any::<i16>()) {
-    //     let src = make_roundtrip_test("i16", n.to_string());
-    //     assert_no_errors(&src);
-    // }
-    // #[test]
-    // fn roundtrip_i32_values(n in any::<i32>()) {
-    //     let src = make_roundtrip_test("i32", n.to_string());
-    //     assert_no_errors(&src);
-    // }
-    // #[test]
-    // fn roundtrip_i64_values(n in any::<i64>()) {
-    //     let src = make_roundtrip_test("i64", n.to_string());
-    //     assert_no_errors(&src);
-    // }
+    #[test]
+    fn roundtrip_i8_values(n in any::<i8>()) {
+        let src = make_roundtrip_test("i8", n.to_string());
+        assert_no_errors(&src);
+    }
+
+    #[test]
+    fn roundtrip_i16_values(n in any::<i16>()) {
+        let src = make_roundtrip_test("i16", n.to_string());
+        assert_no_errors(&src);
+    }
+
+    #[test]
+    fn roundtrip_i32_values(n in any::<i32>()) {
+        let src = make_roundtrip_test("i32", n.to_string());
+        assert_no_errors(&src);
+    }
+
+    #[test]
+    fn roundtrip_i64_values(n in any::<i64>()) {
+        let src = make_roundtrip_test("i64", n.to_string());
+        assert_no_errors(&src);
+    }
 }
 
 #[test]
@@ -102,9 +104,7 @@ fn roundtrip_zero_field() {
     assert_no_errors(&src);
 }
 
-// TODO(https://github.com/noir-lang/noir/issues/10328)
 #[test]
-#[ignore]
 fn roundtrip_i64_min() {
     let src = make_roundtrip_test("i64", i64::MIN.to_string());
     assert_no_errors(&src);
