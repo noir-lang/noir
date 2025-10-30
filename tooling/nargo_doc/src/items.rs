@@ -11,12 +11,13 @@ pub struct Crates {
 #[derive(Serialize, Deserialize)]
 pub struct Crate {
     pub name: String,
-    pub modules: Vec<Module>,
+    pub root_module: Module,
 }
 
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "kind")]
 pub enum Item {
+    Module(Module),
     Struct(Struct),
     Trait(Trait),
     TypeAlias(TypeAlias),

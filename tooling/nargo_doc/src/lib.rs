@@ -31,16 +31,16 @@ pub use html::to_html;
 /// will return two modules: `one` and `one::two`.
 ///
 /// Modules that don't have any items (structs, functions, etc.) will not be included in the output.
-pub fn crate_modules(
+pub fn crate_module(
     crate_id: CrateId,
     _crate_graph: &CrateGraph,
     def_maps: &DefMaps,
     interner: &NodeInterner,
     ids: &mut ItemIds,
-) -> Vec<Module> {
-    let item = noirc_frontend::hir::printer::crate_to_item(crate_id, def_maps, interner);
+) -> Module {
+    let module = noirc_frontend::hir::printer::crate_to_module(crate_id, def_maps, interner);
     let mut builder = DocItemBuilder { interner, ids };
-    builder.item_modules(item)
+    builder.convert_module(module)
 }
 
 struct DocItemBuilder<'a> {
@@ -72,36 +72,11 @@ pub enum IdKeyKind {
 }
 
 impl DocItemBuilder<'_> {
-    fn item_modules(&mut self, item: expand_items::Item) -> Vec<Module> {
-        let mut modules = Vec::new();
-        self.convert_item(item, "", &mut modules);
-        modules.retain(|module| !module.items.is_empty() || module.comments.is_some());
-        modules.sort_by_key(|module| module.name.clone());
-        modules
-    }
-
-    fn convert_item(
-        &mut self,
-        item: expand_items::Item,
-        base_name: &str,
-        modules: &mut Vec<Module>,
-    ) -> Option<Item> {
+    fn convert_item(&mut self, item: expand_items::Item) -> Item {
         match item {
             expand_items::Item::Module(module) => {
-                let name = if base_name.is_empty() {
-                    module.name.clone().unwrap_or_default()
-                } else {
-                    format!("{}::{}", base_name, module.name.as_ref().unwrap())
-                };
-                let comments = self.doc_comments(ReferenceId::Module(module.id));
-                let items = module
-                    .items
-                    .into_iter()
-                    .filter(|(visibility, _item)| visibility == &ItemVisibility::Public)
-                    .filter_map(|(_, item)| self.convert_item(item, &name, modules))
-                    .collect();
-                modules.push(Module { name, comments, items });
-                None
+                let module = self.convert_module(module);
+                Item::Module(module)
             }
             expand_items::Item::DataType(item_data_type) => {
                 let type_id = item_data_type.id;
@@ -136,7 +111,7 @@ impl DocItemBuilder<'_> {
                 let trait_impls =
                     vecmap(item_data_type.trait_impls, |impl_| self.convert_trait_impl(impl_));
                 let id = self.get_type_id(type_id);
-                Some(Item::Struct(Struct {
+                Item::Struct(Struct {
                     id,
                     name: data_type.name.to_string(),
                     generics,
@@ -145,7 +120,7 @@ impl DocItemBuilder<'_> {
                     impls,
                     trait_impls,
                     comments,
-                }))
+                })
             }
             expand_items::Item::Trait(item_trait) => {
                 let trait_id = item_trait.id;
@@ -162,7 +137,7 @@ impl DocItemBuilder<'_> {
                 });
                 let parents = vecmap(&trait_.trait_bounds, |bound| self.convert_trait_bound(bound));
                 let id = self.get_trait_id(trait_id);
-                Some(Item::Trait(Trait {
+                Item::Trait(Trait {
                     id,
                     name,
                     generics,
@@ -171,7 +146,7 @@ impl DocItemBuilder<'_> {
                     comments,
                     methods,
                     trait_impls,
-                }))
+                })
             }
             expand_items::Item::TypeAlias(type_alias_id) => {
                 let type_alias = self.interner.get_type_alias(type_alias_id);
@@ -181,7 +156,7 @@ impl DocItemBuilder<'_> {
                 let comments = self.doc_comments(ReferenceId::Alias(type_alias_id));
                 let generics = vecmap(&type_alias.generics, convert_generic);
                 let id = self.get_type_alias_id(type_alias_id);
-                Some(Item::TypeAlias(TypeAlias { id, name, comments, r#type, generics }))
+                Item::TypeAlias(TypeAlias { id, name, comments, r#type, generics })
             }
             expand_items::Item::Global(global_id) => {
                 let global_info = self.interner.get_global(global_id);
@@ -196,12 +171,23 @@ impl DocItemBuilder<'_> {
                 let typ = self.interner.definition_type(definition_id);
                 let r#type = self.convert_type(&typ);
                 let comments = self.doc_comments(ReferenceId::Global(global_id));
-                Some(Item::Global(Global { name, comments, comptime, mutable, r#type }))
+                Item::Global(Global { name, comments, comptime, mutable, r#type })
             }
-            expand_items::Item::Function(func_id) => {
-                Some(Item::Function(self.convert_function(func_id)))
-            }
+            expand_items::Item::Function(func_id) => Item::Function(self.convert_function(func_id)),
         }
+    }
+
+    fn convert_module(&mut self, module: expand_items::Module) -> Module {
+        let name = module.name.unwrap_or_default();
+        let comments = self.doc_comments(ReferenceId::Module(module.id));
+        let items = module
+            .items
+            .into_iter()
+            .filter(|(visibility, _item)| visibility == &ItemVisibility::Public)
+            .map(|(_, item)| self.convert_item(item))
+            .collect();
+        let module = Module { name, comments, items };
+        module
     }
 
     fn convert_impl(&mut self, impl_: expand_items::Impl) -> Impl {

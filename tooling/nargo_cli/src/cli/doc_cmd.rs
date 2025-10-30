@@ -8,7 +8,7 @@ use nargo::{
     workspace::Workspace,
 };
 use nargo_doc::{
-    ItemIds, crate_modules,
+    ItemIds, crate_module,
     items::{Crate, Crates, Module},
 };
 use nargo_toml::PackageSelection;
@@ -56,14 +56,14 @@ pub(crate) fn run(args: DocCommand, workspace: Workspace) -> Result<(), CliError
     let mut crates = Vec::new();
     let mut ids = HashMap::new();
     for package in &workspace {
-        let modules = package_modules(
+        let root_module = package_module(
             &workspace_file_manager,
             &parsed_files,
             package,
             &args.compile_options,
             &mut ids,
         )?;
-        crates.push(Crate { name: package.name.to_string(), modules });
+        crates.push(Crate { name: package.name.to_string(), root_module });
     }
     let name = workspace.root_dir.file_name().unwrap().to_string_lossy().to_string();
     let crates = Crates { crates, name };
@@ -100,16 +100,16 @@ pub(crate) fn run(args: DocCommand, workspace: Workspace) -> Result<(), CliError
     }
 }
 
-fn package_modules(
+fn package_module(
     file_manager: &FileManager,
     parsed_files: &ParsedFiles,
     package: &Package,
     compile_options: &CompileOptions,
     ids: &mut ItemIds,
-) -> Result<Vec<Module>, CompileError> {
+) -> Result<Module, CompileError> {
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
 
     check_crate_and_report_errors(&mut context, crate_id, compile_options)?;
 
-    Ok(crate_modules(crate_id, &context.crate_graph, &context.def_maps, &context.def_interner, ids))
+    Ok(crate_module(crate_id, &context.crate_graph, &context.def_maps, &context.def_interner, ids))
 }

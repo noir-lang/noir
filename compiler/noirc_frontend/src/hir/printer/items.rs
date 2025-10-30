@@ -117,7 +117,7 @@ impl<'context> ItemBuilder<'context> {
         Self { crate_id, interner, def_maps, trait_impls }
     }
 
-    pub(super) fn build_module(&mut self, module_id: ModuleId) -> Item {
+    pub(super) fn build_module(&mut self, module_id: ModuleId) -> Module {
         let attributes = self.interner.try_module_attributes(module_id);
         let name = attributes.map(|attributes| attributes.name.clone());
         let module_data = &self.def_maps[&self.crate_id][module_id.local_id];
@@ -173,7 +173,7 @@ impl<'context> ItemBuilder<'context> {
             })
             .collect();
 
-        Item::Module(Module { id: module_id, name, is_contract, imports, items })
+        Module { id: module_id, name, is_contract, imports, items }
     }
 
     fn module_def_id_location(&self, module_def_id: ModuleDefId) -> Location {
@@ -184,7 +184,7 @@ impl<'context> ItemBuilder<'context> {
 
     fn build_module_def_id(&mut self, module_def_id: ModuleDefId) -> Option<Item> {
         Some(match module_def_id {
-            ModuleDefId::ModuleId(module_id) => self.build_module(module_id),
+            ModuleDefId::ModuleId(module_id) => Item::Module(self.build_module(module_id)),
             ModuleDefId::TypeId(type_id) => self.build_data_type(type_id),
             ModuleDefId::TypeAliasId(type_alias_id) => Item::TypeAlias(type_alias_id),
             ModuleDefId::TraitId(trait_id) => self.build_trait(trait_id),

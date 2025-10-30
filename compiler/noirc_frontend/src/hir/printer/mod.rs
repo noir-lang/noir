@@ -34,18 +34,18 @@ pub fn display_crate(
     def_maps: &DefMaps,
     interner: &NodeInterner,
 ) -> String {
-    let item = crate_to_item(crate_id, def_maps, interner);
+    let module = crate_to_module(crate_id, def_maps, interner);
 
     let dependencies = &crate_graph[crate_id].dependencies;
 
     let mut string = String::new();
     let mut printer = ItemPrinter::new(crate_id, interner, def_maps, dependencies, &mut string);
-    printer.show_item(item);
+    printer.show_module(module);
 
     string
 }
 
-pub fn crate_to_item(crate_id: CrateId, def_maps: &DefMaps, interner: &NodeInterner) -> Item {
+pub fn crate_to_module(crate_id: CrateId, def_maps: &DefMaps, interner: &NodeInterner) -> Module {
     let root_module_id = def_maps[&crate_id].root();
     let module_id = ModuleId { krate: crate_id, local_id: root_module_id };
 
