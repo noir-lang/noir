@@ -556,28 +556,28 @@ impl Value {
             Value::U128(value) => vec![Token::Int(value.into(), None)],
             Value::I8(value) => {
                 if value < 0 {
-                    vec![Token::Minus, Token::Int((-value as u128).into(), None)]
+                    vec![Token::Minus, Token::Int((value.unsigned_abs() as u128).into(), None)]
                 } else {
                     vec![Token::Int((value as u128).into(), None)]
                 }
             }
             Value::I16(value) => {
                 if value < 0 {
-                    vec![Token::Minus, Token::Int((-value as u128).into(), None)]
+                    vec![Token::Minus, Token::Int((value.unsigned_abs() as u128).into(), None)]
                 } else {
                     vec![Token::Int((value as u128).into(), None)]
                 }
             }
             Value::I32(value) => {
                 if value < 0 {
-                    vec![Token::Minus, Token::Int((-value as u128).into(), None)]
+                    vec![Token::Minus, Token::Int((value.unsigned_abs() as u128).into(), None)]
                 } else {
                     vec![Token::Int((value as u128).into(), None)]
                 }
             }
             Value::I64(value) => {
                 if value < 0 {
-                    vec![Token::Minus, Token::Int((-value as u128).into(), None)]
+                    vec![Token::Minus, Token::Int((value.unsigned_abs() as u128).into(), None)]
                 } else {
                     vec![Token::Int((value as u128).into(), None)]
                 }

@@ -86,3 +86,9 @@ fn roundtrip_true() {
     let src = make_roundtrip_test("bool", "true".to_string());
     assert_no_errors(&src);
 }
+
+#[test]
+fn roundtrip_i64_min() {
+    let src = make_roundtrip_test("i64", i64::MIN.to_string());
+    assert_no_errors(&src);
+}
