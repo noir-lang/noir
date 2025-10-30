@@ -67,6 +67,9 @@ impl ReservedRegisters {
     }
 
     /// This register stores the free memory pointer. Allocations must be done after this pointer.
+    ///
+    /// This represents the heap, and we make sure during entry point generation that it is initialized
+    /// with a value that lies beyond the maximum stack size, so there can never be an overlap.
     pub(crate) fn free_memory_pointer() -> MemoryAddress {
         MemoryAddress::direct(1)
     }
@@ -83,12 +86,11 @@ pub(crate) struct BrilligContext<F, Registers> {
     obj: BrilligArtifact<F>,
     /// Tracks register allocations
     registers: Rc<RefCell<Registers>>,
-    /// Context label, must be unique with respect to the function
-    /// being linked.
+    /// Context label, must be unique with respect to the function being linked.
     context_label: Label,
-    /// Section label, used to separate sections of code
+    /// Section label, used to separate sections of code within a context.
     current_section: usize,
-    /// Stores the next available section
+    /// Stores the next available section.
     next_section: usize,
     /// IR printer
     debug_show: DebugShow,

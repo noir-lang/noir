@@ -180,7 +180,7 @@ pub(crate) fn reallocate_vector_for_insertion<
                         // We can insert in place, so we can just move the source pointer to the destination pointer and update the length
                         brillig_context
                             .mov_instruction(target_vector.pointer, source_vector.pointer);
-                        brillig_context.codegen_update_vector_length(target_vector, target_size);
+                        brillig_context.codegen_update_vector_size(target_vector, target_size);
                     } else {
                         // Increase our array copy counter if that flag is set
                         if brillig_context.count_arrays_copied {
