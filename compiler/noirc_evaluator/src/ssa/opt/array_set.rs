@@ -414,6 +414,8 @@ mod tests {
         let _ssa = ssa.array_set_optimization();
     }
 
+    // Previously, the first array_set instruction, which modifies v2 in the below
+    // code snippet, was marked as mut despite v2 being used in the next array_set instruction.
     #[test]
     fn regression_10245() {
         let src = "
@@ -424,15 +426,6 @@ mod tests {
                 return v6, v5
             }
             ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.array_set_optimization();
-        assert_ssa_snapshot!(ssa, @r"
-            acir(inline) predicate_pure fn main f0 {
-              b0(v0: Field, v1: [[Field; 1]; 2], v2: [Field; 1]):
-                v5 = array_set v2, index u32 0, value Field 4
-                v6 = array_set v1, index u32 0, value v2
-                return v6, v5
-            }
-        ");
+        assert_ssa_does_not_change(src, Ssa::array_set_optimization);
     }
 }
