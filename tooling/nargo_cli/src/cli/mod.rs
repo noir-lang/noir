@@ -117,7 +117,6 @@ enum NargoCommand {
     #[command(hide = true)]
     Dap(dap_cmd::DapCommand),
     Expand(expand_cmd::ExpandCommand),
-    #[command(hide = true)]
     Doc(doc_cmd::DocCommand),
     GenerateCompletionScript(generate_completion_script_cmd::GenerateCompletionScriptCommand),
 }
