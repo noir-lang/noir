@@ -853,7 +853,7 @@ mod test {
     #[test]
     fn test_block_parameters() {
         // Multiple predecessors pass different values (42 and v2) to the same parameter.
-        // The parameter must be allocated in the immediate dominator(v1: allocated in sp[2]),
+        // The parameter must be allocated in the immediate dominator (v1: allocated to sp[2] in b0),
         // and each predecessor generates a mov to that register.
         //
         // SSA v0 (condition) → Brillig sp[1]
