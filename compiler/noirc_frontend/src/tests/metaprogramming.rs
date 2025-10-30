@@ -246,10 +246,7 @@ fn do_not_generate_function_with_macros_on_trait_impl() {
                 ^^^ unused function foo
                 ~~~ unused function
         quote {
-            pub fn bar(x: i32) -> i32  {  
-                let y = x + 1;
-                y + 2
-            }
+            pub fn bar() { }
         }
     }
 
