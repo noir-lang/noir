@@ -55,7 +55,7 @@ proptest! {
     }
 }
 
-// TODO(https://github.com/noir-lang/noir/issues/10326): Integer types are not preserved. Extend the property tests for primitive types once that issue is resolved. 
+// TODO(https://github.com/noir-lang/noir/issues/10326): Integer types are not preserved. Extend the property tests for primitive types once that issue is resolved.
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(1))]
 
@@ -67,7 +67,6 @@ proptest! {
         assert_no_errors(&src);
     }
 }
-
 
 #[test]
 fn roundtrip_unit_value() {
