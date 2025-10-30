@@ -586,3 +586,121 @@ fn cannot_generate_inner_attributes() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn attributes_run_in_textual_order_within_module() {
+    let src = r#"
+        comptime mut global counter: Field = 0;
+
+        #[assert_source_order(0)]
+        fn first() {}
+
+        #[assert_source_order(1)]
+        fn second() {}
+
+        #[assert_source_order(2)]
+        fn third() {}
+
+        comptime fn assert_source_order(_: FunctionDefinition, expected: Field) {
+            assert(counter == expected);
+            counter += 1;
+        }
+
+        fn main() {
+            let _ = first();
+            let _ = second();
+            let _ = third();
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn sibling_modules_run_in_textual_order() {
+    let src = r#"
+          comptime mut global counter: Field = 0;
+
+          mod first_child {
+              #[crate::assert_source_order(0)]
+              pub fn first() {}
+          }
+
+          mod second_child {
+              #[crate::assert_source_order(1)]
+              pub fn second() {}
+          }
+
+          #[assert_source_order(2)]
+          fn parent() {}
+
+          comptime fn assert_source_order(_: FunctionDefinition, expected: Field) {
+              assert(counter == expected);
+              counter += 1;
+          }
+
+          fn main() {
+              let _ = first_child::first();
+              let _ = second_child::second();
+              let _ = parent();
+          }
+      "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn child_module_attributes_run_before_parent() {
+    let src = r#"
+        comptime mut global counter: Field = 0;
+
+        mod child {
+            #[crate::assert_source_order(0)]
+            pub fn child_fn() {}
+        }
+
+        #[assert_source_order(1)]
+        fn parent_fn() {}
+
+        comptime fn assert_source_order(_: FunctionDefinition, expected: Field) {
+            assert(counter == expected);
+            counter += 1;
+        }
+
+        fn main() {
+            let _ = child::child_fn();
+            let _ = parent_fn();
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn nested_child_modules_run_innermost_first() {
+    let src = r#"
+        comptime mut global counter: Field = 0;
+
+        mod parent {
+            pub mod child {
+                #[crate::assert_source_order(0)]
+                pub fn innermost() {}
+            }
+
+            #[crate::assert_source_order(1)]
+            pub fn middle() {}
+        }
+
+        #[assert_source_order(2)]
+        fn outermost() {}
+
+        comptime fn assert_source_order(_: FunctionDefinition, expected: Field) {
+            assert(counter == expected);
+            counter += 1;
+        }
+
+        fn main() {
+            let _ = parent::child::innermost();
+            let _ = parent::middle();
+            let _ = outermost();
+        }
+    "#;
+    assert_no_errors(src);
+}
