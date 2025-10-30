@@ -111,6 +111,36 @@ impl Circuit<FieldElement> {
     }
 }
 
+impl FromStr for Expression<FieldElement> {
+    type Err = AcirParserErrorWithSource;
+
+    fn from_str(src: &str) -> Result<Self, Self::Err> {
+        Self::from_str_impl(src)
+    }
+}
+
+impl Expression<FieldElement> {
+    /// Creates a [Expression] object from the given string.
+    #[allow(clippy::should_implement_trait)]
+    pub fn from_str(src: &str) -> Result<Self, AcirParserErrorWithSource> {
+        FromStr::from_str(src)
+    }
+
+    pub fn from_str_impl(src: &str) -> Result<Self, AcirParserErrorWithSource> {
+        let mut parser =
+            Parser::new(src).map_err(|err| AcirParserErrorWithSource::parse_error(err, src))?;
+        parser
+            .parse_arithmetic_expression()
+            .map_err(|err| AcirParserErrorWithSource::parse_error(err, src))
+    }
+}
+
+pub fn parse_opcodes(src: &str) -> Result<Vec<Opcode<FieldElement>>, AcirParserErrorWithSource> {
+    let mut parser =
+        Parser::new(src).map_err(|err| AcirParserErrorWithSource::parse_error(err, src))?;
+    parser.parse_opcodes().map_err(|err| AcirParserErrorWithSource::parse_error(err, src))
+}
+
 struct Parser<'a> {
     lexer: Lexer<'a>,
     token: SpannedToken,

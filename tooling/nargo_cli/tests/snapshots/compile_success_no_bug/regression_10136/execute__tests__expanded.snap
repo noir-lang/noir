@@ -1,0 +1,10 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(array: [Field; 1], cond: bool) -> pub u32 {
+    let slice: [Field] = array.as_slice();
+    let mut slice: [Field] = std::hint::black_box(slice);
+    if cond { slice = slice.push_back(1_Field); };
+    slice.len()
+}

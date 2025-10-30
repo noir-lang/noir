@@ -942,14 +942,11 @@ mod tests {
 
     use acir::{
         FieldElement,
-        circuit::{
-            Opcode,
-            opcodes::{BlackBoxFuncCall, FunctionInput},
-        },
         native_types::{Witness, WitnessMap},
+        parse_opcodes,
     };
 
-    use crate::pwg::{ACVM, ACVMStatus};
+    use crate::pwg::{ACVM, ACVMStatus, OpcodeResolutionError};
 
     #[test]
     fn solve_simple_circuit() {
@@ -959,38 +956,36 @@ mod tests {
             (Witness(3), FieldElement::from(2u128)),
         ]));
         let backend = acvm_blackbox_solver::StubbedBlackBoxSolver(false);
-        let opcodes = vec![
-            Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
-                input: FunctionInput::Witness(Witness(1)),
-                num_bits: 32,
-            }),
-            Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
-                input: FunctionInput::Witness(Witness(2)),
-                num_bits: 32,
-            }),
-            Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
-                input: FunctionInput::Witness(Witness(3)),
-                num_bits: 32,
-            }),
-            Opcode::AssertZero(acir::native_types::Expression {
-                mul_terms: vec![],
-                linear_combinations: vec![
-                    (FieldElement::from(2u128), Witness(1)),
-                    (FieldElement::from(-1_i128), Witness(2)),
-                    (FieldElement::from(-1_i128), Witness(4)),
-                ],
-                q_c: FieldElement::from(0u128),
-            }),
-            Opcode::AssertZero(acir::native_types::Expression {
-                mul_terms: vec![(FieldElement::from(1u128), Witness(2), Witness(4))],
-                linear_combinations: vec![(FieldElement::from(1u128), Witness(5))],
-                q_c: FieldElement::from(-1_i128),
-            }),
-        ];
-        let empty1 = Vec::new();
-        let empty2 = Vec::new();
-        let mut acvm = ACVM::new(&backend, &opcodes, initial_witness, &empty1, &empty2);
+
+        let src = "
+        BLACKBOX::RANGE input: w1, bits: 32
+        BLACKBOX::RANGE input: w2, bits: 32
+        BLACKBOX::RANGE input: w3, bits: 32
+        ASSERT w4 = 2*w1 - w2
+        ASSERT w5 = -w2*w4 + 1
+        ";
+        let opcodes = parse_opcodes(src).unwrap();
+
+        let mut acvm = ACVM::new(&backend, &opcodes, initial_witness, &[], &[]);
         assert_eq!(acvm.solve(), ACVMStatus::Solved);
         assert_eq!(acvm.witness_map()[&Witness(5)], FieldElement::from(0u128));
+    }
+
+    #[test]
+    fn errors_when_calling_function_zero() {
+        let initial_witness =
+            WitnessMap::from(BTreeMap::from_iter([(Witness(1), FieldElement::from(1u128))]));
+        let backend = acvm_blackbox_solver::StubbedBlackBoxSolver(false);
+
+        let src = "
+        CALL func: 0, inputs: [w1], outputs: [w2]
+        ";
+        let opcodes = parse_opcodes(src).unwrap();
+
+        let mut acvm = ACVM::new(&backend, &opcodes, initial_witness, &[], &[]);
+        assert!(matches!(
+            acvm.solve(),
+            ACVMStatus::Failure(OpcodeResolutionError::AcirMainCallAttempted { .. })
+        ));
     }
 }

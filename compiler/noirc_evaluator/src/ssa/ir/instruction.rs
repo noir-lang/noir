@@ -892,6 +892,7 @@ pub enum ErrorType {
 }
 
 impl ErrorType {
+    /// Hash the error type to get a unique selector for it.
     pub fn selector(&self) -> ErrorSelector {
         struct U64(pub u64);
 
@@ -1091,18 +1092,31 @@ impl TerminatorInstruction {
 
 /// Try to avoid mutation until we know something changed, to take advantage of
 /// structural sharing, and avoid needlessly calling `Arc::make_mut` which clones
-/// the content and increases memory use.
+/// the content and increases memory use by allocating more pointers on the heap.
 fn im_vec_map_values_mut<T, F>(xs: &mut im::Vector<T>, mut f: F)
 where
     T: Copy + PartialEq,
     F: FnMut(T) -> T,
 {
-    // Even `xs.iter_mut()` calls `get_mut` on each element.
-    for i in 0..xs.len() {
-        let x = xs[i];
-        let y = f(x);
-        if x != y {
-            xs[i] = y;
+    // Even `xs.iter_mut()` calls `get_mut` on each element, regardless of whether there is actual mutation.
+    // If we go index-by-index, get the item, put it back only if it changed, then we can avoid
+    // allocating memory unless we need to, however we incur O(n * log(n)) complexity.
+    // Collecting changes first and then updating only those positions proved to be the
+    // fastest among some alternatives that didn't sacrifice memory for speed or vice versa.
+    let mut changes = Vec::new();
+    for (i, x) in xs.iter().enumerate() {
+        let y = f(*x);
+        if *x != y {
+            changes.push((i, y));
         }
+    }
+    if changes.is_empty() {
+        return;
+    }
+    // Using `Focus` allows us to only make mutable what is needed,
+    // and should be faster for batches than indexing individual items.
+    let mut focus = xs.focus_mut();
+    for (i, y) in changes {
+        focus.set(i, y);
     }
 }

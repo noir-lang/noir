@@ -1,3 +1,5 @@
+//! Lexical scoping, variable lookup, and closure capture tracking.
+
 use crate::ast::{ERROR_IDENT, Ident};
 use crate::hir::def_map::{LocalModuleId, ModuleId};
 

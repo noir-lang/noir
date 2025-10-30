@@ -39,6 +39,7 @@ petgraph.workspace = true
 fm.workspace = true
 
 [dev-dependencies]
+arbtest.workspace = true
 proptest.workspace = true
 similar-asserts.workspace = true
 tracing-test = "0.2.5"

@@ -3352,11 +3352,8 @@ dependencies = [
 name = "nargo_expand"
 version = "1.0.0-beta.14"
 dependencies = [
- "fm",
- "nargo",
  "nargo_fmt",
  "noirc_driver",
- "noirc_errors",
  "noirc_frontend",
 ]
 
@@ -3854,6 +3851,7 @@ name = "noirc_evaluator"
 version = "1.0.0-beta.14"
 dependencies = [
  "acvm",
+ "arbtest",
  "bn254_blackbox_solver",
  "cfg-if",
  "chrono",

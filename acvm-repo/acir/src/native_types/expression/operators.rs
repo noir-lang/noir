@@ -207,34 +207,14 @@ fn single_mul<F: AcirField>(w: Witness, b: &Expression<F>) -> Expression<F> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use acir_field::{AcirField, FieldElement};
+    use crate::native_types::Expression;
 
     #[test]
     fn add_smoke_test() {
-        let a = Expression {
-            mul_terms: vec![],
-            linear_combinations: vec![(FieldElement::from(2u128), Witness(2))],
-            q_c: FieldElement::from(2u128),
-        };
-
-        let b = Expression {
-            mul_terms: vec![],
-            linear_combinations: vec![(FieldElement::from(4u128), Witness(4))],
-            q_c: FieldElement::one(),
-        };
-
-        assert_eq!(
-            &a + &b,
-            Expression {
-                mul_terms: vec![],
-                linear_combinations: vec![
-                    (FieldElement::from(2u128), Witness(2)),
-                    (FieldElement::from(4u128), Witness(4))
-                ],
-                q_c: FieldElement::from(3u128)
-            }
-        );
+        let a = Expression::from_str("2*w2 + 2").unwrap();
+        let b = Expression::from_str("4*w4 + 1").unwrap();
+        let result = Expression::from_str("2*w2 + 4*w4 + 3").unwrap();
+        assert_eq!(&a + &b, result);
 
         // Enforce commutativity
         assert_eq!(&a + &b, &b + &a);
@@ -242,29 +222,10 @@ mod tests {
 
     #[test]
     fn mul_smoke_test() {
-        let a = Expression {
-            mul_terms: vec![],
-            linear_combinations: vec![(FieldElement::from(2u128), Witness(2))],
-            q_c: FieldElement::from(2u128),
-        };
-
-        let b = Expression {
-            mul_terms: vec![],
-            linear_combinations: vec![(FieldElement::from(4u128), Witness(4))],
-            q_c: FieldElement::one(),
-        };
-
-        assert_eq!(
-            (&a * &b).unwrap(),
-            Expression {
-                mul_terms: vec![(FieldElement::from(8u128), Witness(2), Witness(4)),],
-                linear_combinations: vec![
-                    (FieldElement::from(2u128), Witness(2)),
-                    (FieldElement::from(8u128), Witness(4))
-                ],
-                q_c: FieldElement::from(2u128)
-            }
-        );
+        let a = Expression::from_str("2*w2 + 2").unwrap();
+        let b = Expression::from_str("4*w4 + 1").unwrap();
+        let result = Expression::from_str("8*w2*w4 + 2*w2 + 8*w4 + 2").unwrap();
+        assert_eq!((&a * &b).unwrap(), result);
 
         // Enforce commutativity
         assert_eq!(&a * &b, &b * &a);

@@ -138,6 +138,11 @@ impl<F> Expression<F> {
         self.mul_terms.sort_by(|a, b| a.1.cmp(&b.1).then(a.2.cmp(&b.2)));
         self.linear_combinations.sort_by(|a, b| a.1.cmp(&b.1));
     }
+
+    pub(crate) fn is_sorted(&self) -> bool {
+        self.mul_terms.iter().is_sorted_by(|a, b| a.1.cmp(&b.1).then(a.2.cmp(&b.2)).is_le())
+            && self.linear_combinations.iter().is_sorted_by(|a, b| a.1.cmp(&b.1).is_le())
+    }
 }
 
 impl<F: AcirField> Expression<F> {
@@ -510,40 +515,17 @@ fn display_term<F: AcirField, const N: usize>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use acir_field::{AcirField, FieldElement};
+    use acir_field::FieldElement;
 
     #[test]
     fn add_mul_smoke_test() {
-        let a = Expression {
-            mul_terms: vec![(FieldElement::from(2u128), Witness(1), Witness(2))],
-            ..Default::default()
-        };
+        let a = Expression::from_str("2*w1*w2").unwrap();
 
         let k = FieldElement::from(10u128);
-
-        let b = Expression {
-            mul_terms: vec![
-                (FieldElement::from(3u128), Witness(0), Witness(2)),
-                (FieldElement::from(3u128), Witness(1), Witness(2)),
-                (FieldElement::from(4u128), Witness(4), Witness(5)),
-            ],
-            linear_combinations: vec![(FieldElement::from(4u128), Witness(4))],
-            q_c: FieldElement::one(),
-        };
+        let b = Expression::from_str("3*w0*w2 + 3*w1*w2 + 4*w4*w5 + 4*w4 + 1").unwrap();
 
         let result = a.add_mul(k, &b);
-        assert_eq!(
-            result,
-            Expression {
-                mul_terms: vec![
-                    (FieldElement::from(30u128), Witness(0), Witness(2)),
-                    (FieldElement::from(32u128), Witness(1), Witness(2)),
-                    (FieldElement::from(40u128), Witness(4), Witness(5)),
-                ],
-                linear_combinations: vec![(FieldElement::from(40u128), Witness(4))],
-                q_c: FieldElement::from(10u128)
-            }
-        );
+        assert_eq!(result.to_string(), "30*w0*w2 + 32*w1*w2 + 40*w4*w5 + 40*w4 + 10");
     }
 
     #[test]
