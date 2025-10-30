@@ -53,24 +53,41 @@ impl Parser<'_> {
     }
 }
 
+/// Strips leading ' ' from a line comment.
 fn fix_line_comment(comment: String) -> String {
     if let Some(comment) = comment.strip_prefix(' ') { comment.to_string() } else { comment }
 }
 
+/// Strips leading '*' from a block comment if all non-empty lines have it.
 fn fix_block_comment(comment: String) -> String {
+    let all_stars = comment.lines().enumerate().all(|(index, line)| {
+        if index == 0 || line.trim().is_empty() {
+            // The first line never has a star. Then we ignore empty lines.
+            true
+        } else {
+            line.trim_start().starts_with('*')
+        }
+    });
+
     let mut fixed_comment = String::new();
     for (index, line) in comment.lines().enumerate() {
         if index > 0 {
             fixed_comment.push('\n');
         }
 
-        if let Some(line) = line.trim_start().strip_prefix("*") {
-            fixed_comment.push_str(line.strip_prefix(' ').unwrap_or(line));
-        } else if let Some(line) = line.strip_prefix(' ') {
-            fixed_comment.push_str(line);
-        } else {
-            fixed_comment.push_str(line);
+        if all_stars {
+            if let Some(line) = line.trim_start().strip_prefix("*") {
+                fixed_comment.push_str(line.strip_prefix(' ').unwrap_or(line));
+                continue;
+            }
         }
+
+        if let Some(line) = line.strip_prefix(' ') {
+            fixed_comment.push_str(line);
+            continue;
+        }
+
+        fixed_comment.push_str(line);
     }
     fixed_comment.trim().to_string()
 }
@@ -129,5 +146,15 @@ mod tests {
         expect_no_errors(&parser.errors);
         assert_eq!(comments.len(), 1);
         assert_eq!(comments[0], "Hello\nWorld\n\n!");
+    }
+
+    #[test]
+    fn parses_outer_block_doc_comments_not_every_line_has_stars() {
+        let src = "/** Hello\n * World\n Oops\n * !\n*/";
+        let mut parser = Parser::for_str_with_dummy_file(src);
+        let comments = parser.parse_outer_doc_comments();
+        expect_no_errors(&parser.errors);
+        assert_eq!(comments.len(), 1);
+        assert_eq!(comments[0], "Hello\n* World\nOops\n* !");
     }
 }
