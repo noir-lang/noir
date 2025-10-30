@@ -8,6 +8,29 @@ main {
     max-width: 960px;
 }
 
+a {
+    color: #3873ad;
+    text-decoration: none;
+}
+
+pre {
+    padding: 14px;
+    background-color: #f5f5f5;
+}
+
+code {
+    font-family: "Source Code Pro",monospace;
+    text-wrap: auto;
+    white-space: pre-wrap;
+}
+
+.code-header {
+    display: block;
+    font-weight: 600;
+    margin-top: 1em;
+    margin-bottom: 1em;
+}
+
 h1, h2 {
     line-height: 1.25;
     padding-top: 3px;
@@ -40,10 +63,6 @@ ul {
     line-height: 2em;
 }
 
-.item-list a {
-    color: #3873ad;
-}
-
 .item-list>li>.item-name {
     width: 33%;
     display: table-cell;
@@ -51,8 +70,41 @@ ul {
 
 .item-list>li>.item-description {
     display: table-cell;
+    font-family: "Source Serif 4", NanumBarunGothic, serif;
 }
 
 .comments {
     font-family: "Source Serif 4", NanumBarunGothic, serif;
+}
+
+.crate {
+    color: #3873ad;
+}
+
+.module {
+    color: #3873ad;
+}
+
+.struct {
+    color: #ad378a;
+}
+
+.trait {
+    color: #6e4fc9;
+}
+
+.type {
+    color: #ad378a;
+}
+
+.global {
+    color: #3873ad;
+}
+
+.fn {
+    color: #ad7c37;
+}
+
+.padded-description {
+    padding-left: 2em;
 }

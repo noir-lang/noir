@@ -65,7 +65,7 @@ impl HTMLCreator {
 
         self.html_start(&format!("Crate {}", krate.name));
         self.render_breadcrumbs(false);
-        self.h1(&format!("Crate {}", krate.name));
+        self.h1(&format!("Crate <span class=\"crate\">{}</span>", krate.name));
         self.render_comments(&krate.root_module.comments, 1);
         self.render_items(&krate.root_module.items);
         self.html_end();
@@ -147,13 +147,22 @@ impl HTMLCreator {
         }
     }
 
-    fn render_list<T: HasNameAndComments + HasPath>(&mut self, title: &str, items: &[&T]) {
+    fn render_list<T: HasNameAndComments + HasPath + HasClass>(
+        &mut self,
+        title: &str,
+        items: &[&T],
+    ) {
         self.h2(title);
         self.output.push_str("<ul class=\"item-list\">");
         for item in items {
             self.output.push_str("<li>");
             self.output.push_str("<div class=\"item-name\">");
-            self.output.push_str(&format!("<a href=\"{}\">{}</a>", item.path(), item.name(),));
+            self.output.push_str(&format!(
+                "<a href=\"{}\" class=\"{}\">{}</a>",
+                item.path(),
+                item.class(),
+                item.name(),
+            ));
             self.output.push_str("</div>");
             self.output.push_str("<div class=\"item-description\">");
             if let Some(comments) = item.comments() {
@@ -186,10 +195,9 @@ impl HTMLCreator {
     fn create_module(&mut self, module: &Module) {
         self.current_path.push(module.name.clone());
 
-        let title = format!("Module {}", module.name);
-        self.html_start(&title);
+        self.html_start(&format!("Module {}", module.name));
         self.render_breadcrumbs(false);
-        self.h1(&title);
+        self.h1(&format!("Module <span class=\"module\">{}</span>", module.name));
         self.render_comments(&module.comments, 1);
         self.render_items(&module.items);
         self.html_end();
@@ -201,10 +209,9 @@ impl HTMLCreator {
     }
 
     fn create_struct(&mut self, struct_: &Struct) {
-        let title = format!("Struct {}", struct_.name);
-        self.html_start(&title);
+        self.html_start(&format!("Struct {}", struct_.name));
         self.render_breadcrumbs(true);
-        self.h1(&title);
+        self.h1(&format!("Struct <span class=\"struct\">{}</span>", struct_.name));
         self.render_struct_code(struct_);
         self.render_comments(&struct_.comments, 1);
         self.render_struct_fields(&struct_.fields);
@@ -215,10 +222,9 @@ impl HTMLCreator {
     }
 
     fn create_trait(&mut self, trait_: &Trait) {
-        let title = format!("Trait {}", trait_.name);
-        self.html_start(&title);
+        self.html_start(&format!("Trait {}", trait_.name));
         self.render_breadcrumbs(true);
-        self.h1(&title);
+        self.h1(&format!("Trait <span class=\"trait\">{}</span>", trait_.name));
         self.render_trait_code(trait_);
         self.render_comments(&trait_.comments, 1);
         self.render_trait_methods(&trait_.methods);
@@ -228,10 +234,9 @@ impl HTMLCreator {
     }
 
     fn create_alias(&mut self, alias: &TypeAlias) {
-        let title = format!("Type alias {}", alias.name);
-        self.html_start(&title);
+        self.html_start(&format!("Type alias {}", alias.name));
         self.render_breadcrumbs(true);
-        self.h1(&title);
+        self.h1(&format!("Type alias <span class=\"type\">{}</span>", alias.name));
         self.render_type_alias_code(alias);
         self.render_comments(&alias.comments, 1);
         self.html_end();
@@ -239,20 +244,18 @@ impl HTMLCreator {
     }
 
     fn create_function(&mut self, function: &Function) {
-        let title = format!("Function {}", function.name);
-        self.html_start(&title);
+        self.html_start(&format!("Function {}", function.name));
         self.render_breadcrumbs(true);
-        self.h1(&title);
-        self.render_function(function, 1);
+        self.h1(&format!("Function <span class=\"fn\">{}</span>", function.name));
+        self.render_function(function, 1, false);
         self.html_end();
         self.push_file(PathBuf::from(function.path()));
     }
 
     fn create_global(&mut self, global: &Global) {
-        let title = format!("Global {}", global.name);
-        self.html_start(&title);
+        self.html_start(&format!("Global {}", global.name));
         self.render_breadcrumbs(true);
-        self.h1(&title);
+        self.h1(&format!("Global <span class=\"global\">{}</span>", global.name));
         self.render_global_code(global);
         self.render_comments(&global.comments, 1);
         self.html_end();
@@ -292,12 +295,14 @@ impl HTMLCreator {
         self.h2("Fields");
 
         for field in fields {
-            self.output.push_str("<h3><pre><code>");
+            self.output.push_str("<h3><code class=\"code-header\">");
             self.output.push_str(&field.name);
             self.output.push_str(": ");
             self.render_type(&field.r#type);
-            self.output.push_str("</code></pre></h3>\n");
+            self.output.push_str("</code></h3>\n");
+            self.output.push_str("<div class=\"padded-description\">");
             self.render_comments(&field.comments, 3);
+            self.output.push_str("</div>");
         }
     }
 
@@ -314,12 +319,12 @@ impl HTMLCreator {
     }
 
     fn render_impl(&mut self, impl_: &Impl) {
-        self.output.push_str("<h3><pre><code>");
+        self.output.push_str("<h3><code class=\"code-header\">");
         self.output.push_str("impl");
         self.render_generics(&impl_.generics);
         self.output.push(' ');
         self.render_type(&impl_.r#type);
-        self.output.push_str("</code></pre></h3>\n\n");
+        self.output.push_str("</code></h3>\n\n");
         self.render_methods(&impl_.methods, 3);
     }
 
@@ -336,16 +341,16 @@ impl HTMLCreator {
     }
 
     fn render_trait_impl(&mut self, trait_impl: &TraitImpl) {
-        self.output.push_str("<h3><pre><code>");
+        self.output.push_str("<h3><code class=\"code-header\">");
         self.output.push_str("impl");
         self.render_generics(&trait_impl.generics);
         self.output.push(' ');
-        self.render_id_reference(trait_impl.trait_id, &trait_impl.trait_name);
+        self.render_id_reference(trait_impl.trait_id, &trait_impl.trait_name, ReferenceKind::Trait);
         self.render_generic_types(&trait_impl.trait_generics);
         self.output.push_str(" for ");
         self.render_type(&trait_impl.r#type);
         self.render_where_clause(&trait_impl.where_clause);
-        self.output.push_str("</code></pre></h3>\n\n");
+        self.output.push_str("</code></h3>\n\n");
     }
 
     fn render_trait_code(&mut self, trait_: &Trait) {
@@ -407,23 +412,45 @@ impl HTMLCreator {
 
     fn render_methods(&mut self, methods: &[Function], current_heading_level: usize) {
         for method in methods {
-            self.render_function(method, current_heading_level);
+            self.render_function(method, current_heading_level, true);
         }
     }
 
-    fn render_function(&mut self, function: &Function, current_heading_level: usize) {
-        self.render_function_signature(function);
+    fn render_function(
+        &mut self,
+        function: &Function,
+        current_heading_level: usize,
+        as_header: bool,
+    ) {
+        self.render_function_signature(function, as_header);
+        if as_header {
+            self.output.push_str("<div class=\"padded-description\">");
+        }
         self.render_comments(&function.comments, current_heading_level);
+        if as_header {
+            self.output.push_str("</div>");
+        }
     }
 
-    fn render_function_signature(&mut self, function: &Function) {
-        self.output.push_str("<pre><code>");
+    fn render_function_signature(&mut self, function: &Function, as_header: bool) {
+        if as_header {
+            self.output.push_str("<code class=\"code-header\">");
+        } else {
+            self.output.push_str("<pre>");
+            self.output.push_str("<code>");
+        }
         self.output.push_str("pub ");
         if function.unconstrained {
             self.output.push_str("unconstrained ");
         }
         self.output.push_str("fn ");
-        self.output.push_str(&function.name);
+        if as_header {
+            self.output.push_str("<span class=\"fn\">");
+            self.output.push_str(&function.name);
+            self.output.push_str("</span>");
+        } else {
+            self.output.push_str(&function.name);
+        }
         self.render_generics(&function.generics);
         self.output.push('(');
         let use_newlines = function.params.len() > 2;
@@ -450,7 +477,10 @@ impl HTMLCreator {
             self.render_type(&function.return_type);
         }
         self.render_where_clause(&function.where_clause);
-        self.output.push_str("</code></pre>");
+        self.output.push_str("</code>");
+        if !as_header {
+            self.output.push_str("</pre>");
+        }
         self.output.push_str("\n\n");
     }
 
@@ -492,15 +522,22 @@ impl HTMLCreator {
     }
 
     fn render_trait_bound(&mut self, bound: &TraitBound) {
-        self.render_id_reference(bound.trait_id, &bound.trait_name);
+        self.render_id_reference(bound.trait_id, &bound.trait_name, ReferenceKind::Trait);
         self.render_trait_generics(&bound.ordered_generics, &bound.named_generics);
     }
 
-    fn render_id_reference(&mut self, id: usize, name: &str) {
+    fn render_id_reference(&mut self, id: usize, name: &str, kind: ReferenceKind) {
         if let Some(path) = self.id_to_path.get(&id) {
+            let class = match kind {
+                ReferenceKind::Struct => "struct",
+                ReferenceKind::Trait => "trait",
+                ReferenceKind::TypeAlias => "type",
+            };
             let nesting = self.current_path.len();
-            self.output
-                .push_str(&format!("<a href=\"{}{path}\">{name}</a>", "../".repeat(nesting)));
+            self.output.push_str(&format!(
+                "<a href=\"{}{path}\" class=\"{class}\">{name}</a>",
+                "../".repeat(nesting)
+            ));
         } else {
             self.output.push_str(name);
         }
@@ -557,11 +594,11 @@ impl HTMLCreator {
                 self.render_type(r#type);
             }
             Type::Struct { id, name, generics } => {
-                self.render_id_reference(*id, name);
+                self.render_id_reference(*id, name, ReferenceKind::Struct);
                 self.render_generic_types(generics);
             }
             Type::TypeAlias { id, name, generics } => {
-                self.render_id_reference(*id, name);
+                self.render_id_reference(*id, name, ReferenceKind::TypeAlias);
                 self.render_generic_types(generics);
             }
             Type::Function { params, return_type, env, unconstrained } => {
@@ -602,7 +639,7 @@ impl HTMLCreator {
             }
             Type::TraitAsType { trait_id, trait_name, ordered_generics, named_generics } => {
                 self.output.push_str("impl ");
-                self.render_id_reference(*trait_id, trait_name);
+                self.render_id_reference(*trait_id, trait_name, ReferenceKind::Trait);
                 self.render_trait_generics(ordered_generics, named_generics);
             }
         }
@@ -834,6 +871,12 @@ fn markdown_summary(markdown: &str) -> String {
     markdown.trim_end_matches("</p>").trim().to_string()
 }
 
+enum ReferenceKind {
+    Struct,
+    Trait,
+    TypeAlias,
+}
+
 trait HasPath {
     fn path(&self) -> String;
 }
@@ -877,5 +920,51 @@ impl HasPath for Global {
 impl HasPath for Function {
     fn path(&self) -> String {
         format!("fn.{}.html", self.name)
+    }
+}
+
+trait HasClass {
+    fn class(&self) -> &'static str;
+}
+
+impl HasClass for Crate {
+    fn class(&self) -> &'static str {
+        "crate"
+    }
+}
+
+impl HasClass for Module {
+    fn class(&self) -> &'static str {
+        "module"
+    }
+}
+
+impl HasClass for Struct {
+    fn class(&self) -> &'static str {
+        "struct"
+    }
+}
+
+impl HasClass for Trait {
+    fn class(&self) -> &'static str {
+        "trait"
+    }
+}
+
+impl HasClass for TypeAlias {
+    fn class(&self) -> &'static str {
+        "type"
+    }
+}
+
+impl HasClass for Global {
+    fn class(&self) -> &'static str {
+        "global"
+    }
+}
+
+impl HasClass for Function {
+    fn class(&self) -> &'static str {
+        "fn"
     }
 }
