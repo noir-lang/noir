@@ -20,17 +20,7 @@ mod html;
 pub mod items;
 pub use html::to_html;
 
-/// Returns the flattened modules in a crate. For example, a crate with this source:
-///
-/// ```noir
-/// pub mod one {
-///   pub mod two {}
-/// }
-/// ```
-///
-/// will return two modules: `one` and `one::two`.
-///
-/// Modules that don't have any items (structs, functions, etc.) will not be included in the output.
+/// Returns the root module in a crate.
 pub fn crate_module(
     crate_id: CrateId,
     _crate_graph: &CrateGraph,
