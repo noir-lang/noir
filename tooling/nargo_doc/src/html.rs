@@ -217,9 +217,7 @@ impl HTMLCreator {
 
         self.html_start(&format!("Module {}", module.name));
         self.sidebar_start();
-        self.h2(&format!("Module {}", module.name));
-        self.render_module_items_sidebar(module);
-        self.render_module_contents_sidebar(parent_module);
+        self.render_module_sidebar(parent_module, module);
         self.sidebar_end();
         self.main_start();
         self.render_breadcrumbs(false);
@@ -233,6 +231,12 @@ impl HTMLCreator {
         self.create_items(&module, &module.items);
 
         self.current_path.pop();
+    }
+
+    fn render_module_sidebar(&mut self, parent_module: &Module, module: &Module) {
+        self.h2(&format!("Module {}", module.name));
+        self.render_module_items_sidebar(module);
+        self.render_module_contents_sidebar(parent_module);
     }
 
     fn render_module_items_sidebar(&mut self, module: &Module) {
