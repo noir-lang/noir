@@ -595,26 +595,19 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                         Err(InterpreterError::GlobalsDependencyCycle { location })
                     }
                     GlobalValue::Unresolved => {
-                        let let_ = self
-                            .elaborator
-                            .interner
-                            .get_global_let_statement(global_id)
-                            .ok_or_else(|| {
-                                let location = self.elaborator.interner.expr_location(&id);
-                                InterpreterError::VariableNotInScope { location }
-                            })?;
-
                         self.elaborator.interner.get_global_mut(global_id).value =
                             GlobalValue::Resolving;
 
-                        if let_.runs_comptime() || global_crate_id != self.crate_id {
-                            self.evaluate_let(let_.clone())?;
-                        }
+                        self.elaborator.elaborate_global_if_unresolved(&global_id);
 
-                        let value = self.lookup(&ident)?;
-                        self.elaborator.interner.get_global_mut(global_id).value =
-                            GlobalValue::Resolved(value.clone());
-                        Ok(value)
+                        if let GlobalValue::Resolved(value) =
+                            &self.elaborator.interner.get_global(global_id).value
+                        {
+                            Ok(value.clone())
+                        } else {
+                            let location = self.elaborator.interner.expr_location(&id);
+                            Err(InterpreterError::GlobalCouldNotBeResolved { location })
+                        }
                     }
                 }
             }

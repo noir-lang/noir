@@ -1,3 +1,5 @@
+//! Statement elaboration including let bindings, assignments, and control flow.
+
 use noirc_errors::Location;
 
 use crate::{

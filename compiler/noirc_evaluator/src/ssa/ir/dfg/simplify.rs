@@ -85,7 +85,7 @@ pub(crate) fn simplify(
                 // would be incorrect however since the extra bits on the field would not be flipped.
                 Value::NumericConstant { constant, typ } if typ.is_unsigned() => {
                     // As we're casting to a `u128`, we need to clear out any upper bits that the NOT fills.
-                    let bit_size = typ.bit_size();
+                    let bit_size = typ.bit_size::<FieldElement>();
                     assert!(bit_size <= 128);
                     let not_value: u128 = truncate(!constant.to_u128(), bit_size);
                     SimplifiedTo(dfg.make_constant(not_value.into(), *typ))
@@ -379,16 +379,20 @@ fn optimize_length_one_array_read(
 /// - Otherwise, we check the array value of the array set.
 ///   - If the array value is constant, we use that array.
 ///   - If the array value is from a previous array-set, we recur.
+///   - If the array value is from an array parameter, we use that array.
 ///
 /// That is, we have multiple `array_set` instructions setting various constant indexes
 /// of the same array, returning a modified version. We want to go backwards until we
 /// find the last `array_set` for the index we are interested in, and return the value set.
 fn try_optimize_array_get_from_previous_set(
-    dfg: &DataFlowGraph,
+    dfg: &mut DataFlowGraph,
     mut array_id: ValueId,
     target_index: FieldElement,
 ) -> SimplifyResult {
-    let mut elements = None;
+    // The target index must be less than the maximum array length
+    let Some(target_index_u32) = target_index.try_to_u32() else {
+        return SimplifyResult::None;
+    };
 
     // Arbitrary number of maximum tries just to prevent this optimization from taking too long.
     let max_tries = 5;
@@ -402,27 +406,30 @@ fn try_optimize_array_get_from_previous_set(
                         }
 
                         array_id = *array; // recur
-                    } else {
-                        return SimplifyResult::None;
+                        continue;
                     }
                 }
                 Instruction::MakeArray { elements: array, typ: _ } => {
-                    elements = Some(array.clone());
-                    break;
+                    let index = target_index_u32 as usize;
+                    if index < array.len() {
+                        return SimplifyResult::SimplifiedTo(array[index]);
+                    }
                 }
-                _ => return SimplifyResult::None,
+                _ => (),
             }
-        } else {
-            return SimplifyResult::None;
+        } else if let Value::Param { typ: Type::Array(_, length), .. } = &dfg[array_id] {
+            if target_index_u32 < *length {
+                let index = dfg.make_constant(target_index, NumericType::length_type());
+                return SimplifyResult::SimplifiedToInstruction(Instruction::ArrayGet {
+                    array: array_id,
+                    index,
+                });
+            }
         }
+
+        break;
     }
 
-    if let (Some(array), Some(index)) = (elements, target_index.try_to_u64()) {
-        let index = index as usize;
-        if index < array.len() {
-            return SimplifyResult::SimplifiedTo(array[index]);
-        }
-    }
     SimplifyResult::None
 }
 
@@ -705,6 +712,67 @@ mod tests {
         ";
         let ssa = Ssa::from_str_simplifying(src).unwrap();
 
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn simplifies_array_get_from_previous_array_set_with_make_array() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = make_array [Field 2, Field 3] : [Field; 2]
+            v1 = array_set mut v0, index u32 0, value Field 4
+            v2 = array_get v1, index u32 0 -> Field
+            v3 = array_get v1, index u32 1 -> Field
+            return v2, v3
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v2 = make_array [Field 2, Field 3] : [Field; 2]
+            v4 = make_array [Field 4, Field 3] : [Field; 2]
+            return Field 4, Field 3
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_array_get_from_previous_array_set_with_array_param_in_bounds() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: [Field; 2]):
+            v1 = array_set mut v0, index u32 0, value Field 4
+            v2 = array_get v1, index u32 0 -> Field
+            v3 = array_get v1, index u32 1 -> Field
+            return v2, v3
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: [Field; 2]):
+            v3 = array_set mut v0, index u32 0, value Field 4
+            v5 = array_get v0, index u32 1 -> Field
+            return Field 4, v5
+        }
+        ");
+    }
+
+    #[test]
+    fn does_not_simplify_array_get_from_previous_array_set_with_array_param_out_of_bounds() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: [Field; 2]):
+            v3 = array_set mut v0, index u32 0, value Field 4
+            v5 = array_get v3, index u32 2 -> Field
+            return v5
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
         assert_normalized_ssa_equals(ssa, src);
     }
 }

@@ -73,7 +73,7 @@ impl ExpressionSolver {
                         insert_value(&w1, assignment, initial_witness)
                     }
                 } else {
-                    // TODO: can we be more specific with this error?
+                    // TODO(https://github.com/noir-lang/noir/issues/10191): can we be more specific with this error?
                     Err(OpcodeResolutionError::OpcodeNotSolvable(
                         OpcodeNotSolvable::ExpressionHasTooManyUnknowns(opcode.clone()),
                     ))
@@ -282,6 +282,10 @@ fn quick_invert<F: AcirField>(numerator: F, denominator: F) -> F {
     } else if denominator == -F::one() {
         -numerator
     } else {
+        assert!(
+            denominator != F::zero(),
+            "quick_invert: attempting to divide numerator by F::zero()"
+        );
         numerator / denominator
     }
 }
@@ -297,6 +301,12 @@ mod tests {
         let numerator = FieldElement::from_be_bytes_reduce("hello_world".as_bytes());
         assert_eq!(quick_invert(numerator, FieldElement::one()), numerator / FieldElement::one());
         assert_eq!(quick_invert(numerator, -FieldElement::one()), numerator / -FieldElement::one());
+    }
+
+    #[test]
+    #[should_panic(expected = "quick_invert: attempting to divide numerator by F::zero()")]
+    fn quick_invert_zero_denominator() {
+        quick_invert(FieldElement::one(), FieldElement::zero());
     }
 
     #[test]

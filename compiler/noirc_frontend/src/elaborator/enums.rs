@@ -1,3 +1,5 @@
+//! Enum definition collection and variant resolution.
+
 use std::collections::{BTreeMap, BTreeSet};
 
 use iter_extended::{btree_map, try_vecmap, vecmap};

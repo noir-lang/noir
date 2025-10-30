@@ -1,8 +1,10 @@
-use noirc_errors::Location;
+//! Visibility checking for functions, struct fields, and type privacy.
+
+use noirc_errors::{Located, Location};
 
 use crate::{
-    DataType, Type,
-    ast::{Ident, ItemVisibility},
+    DataType, StructField, Type,
+    ast::{Ident, ItemVisibility, NoirStruct},
     hir::resolution::{
         errors::ResolverError,
         import::PathResolutionError,
@@ -38,6 +40,31 @@ impl Elaborator<'_> {
         }
     }
 
+    /// Checks that a public struct does not have fields with more private types.
+    ///
+    /// For example, a public struct cannot have a public field of a private type,
+    /// as this would allow external code to access the private type through the public struct.
+    pub(super) fn check_struct_field_type_visibility(
+        &mut self,
+        struct_def: &NoirStruct,
+        fields: &[StructField],
+    ) {
+        if !struct_def.visibility.is_private() {
+            for field in fields {
+                let ident = Ident::from(Located::from(
+                    field.name.location(),
+                    format!("{}::{}", struct_def.name, field.name),
+                ));
+                self.check_type_is_not_more_private_then_item(
+                    &ident,
+                    field.visibility,
+                    &field.typ,
+                    field.name.location(),
+                );
+            }
+        }
+    }
+
     /// Checks whether accessing the struct field `field_name` of type `struct_type`, that has
     /// the given `visibility`, is allowed from the current location. If not, a visibility
     /// error is pushed to the error list.
@@ -67,6 +94,34 @@ impl Elaborator<'_> {
         let (_, visibility, _) =
             per_ns.types.expect("Expected to find struct in its parent module");
         visibility
+    }
+
+    pub(super) fn check_function_visibility(
+        &mut self,
+        func_meta: &FuncMeta,
+        modifiers: &FunctionModifiers,
+        name: &Ident,
+        location: Location,
+    ) {
+        // Check arg and return-value visibility of standalone functions.
+        if self.should_check_function_args_and_return_are_not_more_private_than_function(
+            func_meta, modifiers,
+        ) {
+            for (_, typ, _) in func_meta.parameters.iter() {
+                self.check_type_is_not_more_private_then_item(
+                    name,
+                    modifiers.visibility,
+                    typ,
+                    location,
+                );
+            }
+            self.check_type_is_not_more_private_then_item(
+                name,
+                modifiers.visibility,
+                func_meta.return_type(),
+                location,
+            );
+        }
     }
 
     /// Check whether a function's args and return value should be checked for private type visibility.

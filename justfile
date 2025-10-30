@@ -112,7 +112,7 @@ fuzz-nightly: install-rust-tools
   NOIR_AST_FUZZER_FORCE_NON_DETERMINISTIC=1 cargo nextest run -p noir_ast_fuzzer_fuzz --no-fail-fast
 
 
-cargo-mutants-args := if ci == "1" { "--in-place -vV" } else { "" }
+cargo-mutants-args := if ci == "1" { "--in-place -vV" } else { "-j2" }
 
 mutation-test base="master": install-rust-tools
   #!/usr/bin/env bash
@@ -120,8 +120,9 @@ mutation-test base="master": install-rust-tools
   trap "rm -rf $tmpdir" EXIT
 
   git diff origin/{{base}}.. | tee $tmpdir/git.diff
-  cargo mutants --no-shuffle --test-tool=nextest --workspace --in-diff $tmpdir/git.diff {{cargo-mutants-args}}
-
+  cargo mutants --no-shuffle --test-tool=nextest -p acir_field -p acir -p acvm -p brillig -p brillig_vm -p blackbox_solver --in-diff $tmpdir/git.diff {{cargo-mutants-args}}
+  cargo mutants --no-shuffle --test-tool=nextest -p noirc_evaluator  --in-diff $tmpdir/git.diff {{cargo-mutants-args}}
+  
 # Checks if there are any pending insta.rs snapshots and errors if any exist.
 check-pending-snapshots:
   #!/usr/bin/env bash
