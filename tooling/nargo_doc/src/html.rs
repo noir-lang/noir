@@ -6,7 +6,11 @@ use std::{
 use iter_extended::vecmap;
 
 use crate::{
-    html::{has_class::HasClass, has_path::HasPath},
+    html::{
+        has_class::HasClass,
+        has_path::HasPath,
+        markdown_utils::{fix_markdown, markdown_summary},
+    },
     items::{
         Crate, Function, Generic, Global, HasNameAndComments, Impl, Item, Module, Struct,
         StructField, Trait, TraitBound, TraitConstraint, TraitImpl, Type, TypeAlias, TypeId,
@@ -16,6 +20,7 @@ use crate::{
 
 mod has_class;
 mod has_path;
+mod markdown_utils;
 
 /// Returns a list of (path, contents) representing the HTML files for the given crates.
 /// The paths are relative paths that can be joined to a base directory.
@@ -52,6 +57,7 @@ impl HTMLCreator {
 
     fn process_workspace(&mut self, workspace: &Workspace) {
         self.create_styles();
+        self.create_all_items(workspace);
         self.create_index(workspace);
 
         for krate in &workspace.crates {
@@ -63,6 +69,10 @@ impl HTMLCreator {
         let contents = include_str!("styles.css");
         self.output.push_str(contents);
         self.push_file(PathBuf::from("styles.css"));
+    }
+
+    fn create_all_items(&mut self, workspace: &Workspace) {
+        self.push_file(PathBuf::from("all.html"));
     }
 
     fn create_index(&mut self, workspace: &Workspace) {
@@ -989,6 +999,11 @@ impl HTMLCreator {
         let nesting = self.current_path.len();
         let crates_name = self.workspace_name.clone();
         self.h1(&format!("<a href=\"{}index.html\">{}</a>", "../".repeat(nesting), crates_name));
+        self.output.push_str(&format!(
+            "<div><a href=\"{}all.html\">{}</a></div>\n",
+            "../".repeat(nesting),
+            "All items"
+        ));
     }
 
     fn sidebar_end(&mut self) {
@@ -1197,63 +1212,6 @@ fn gather_trait_impls_in_item(item: &Item, trait_impls: &mut HashMap<TypeId, Has
         }
         Item::TypeAlias(_) | Item::Function(_) | Item::Global(_) => {}
     }
-}
-
-fn fix_markdown(markdown: &str, current_heading_level: usize) -> String {
-    // Track occurrences of "```" to see if the user forgot to close a code block.
-    // If so, we'll close it to prevent ruining the docs.
-    let mut open_code_comment = false;
-    let mut fixed_comment = String::new();
-
-    'outer_loop: for line in markdown.lines() {
-        let trimmed_line = line.trim_start();
-
-        if trimmed_line.starts_with('#') {
-            for level in 1..=current_heading_level {
-                if trimmed_line.starts_with(&format!("{} ", "#".repeat(level))) {
-                    fixed_comment.push_str(&format!(
-                        "{} {}",
-                        "#".repeat(current_heading_level + 1),
-                        &trimmed_line[level + 1..]
-                    ));
-                    fixed_comment.push('\n');
-                    continue 'outer_loop;
-                }
-            }
-        }
-
-        if trimmed_line.starts_with("```") {
-            open_code_comment = !open_code_comment;
-        }
-
-        fixed_comment.push_str(line);
-        fixed_comment.push('\n');
-    }
-
-    if open_code_comment {
-        fixed_comment.push_str("```");
-    }
-
-    fixed_comment.push('\n');
-    fixed_comment
-}
-
-/// Returns a summary of the given markdown (up to the first blank line).
-fn markdown_summary(markdown: &str) -> String {
-    let mut string = String::new();
-    for line in markdown.lines() {
-        if line.trim().is_empty() {
-            break;
-        }
-        string.push_str(line);
-        string.push('\n');
-    }
-    let string = string.trim().to_string();
-    // Avoid having a header as a summary
-    let string = string.trim_start_matches('#');
-    let markdown = markdown::to_html(string);
-    let markdown = markdown.trim_start_matches("<p>");
-    markdown.trim_end_matches("</p>").trim().to_string()
 }
 
 enum ReferenceKind {
