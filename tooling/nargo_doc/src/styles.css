@@ -158,3 +158,7 @@ ul {
 .sidebar li {
    line-height: 2em; 
 }
+
+.comment {
+    color: #8e908c;
+}

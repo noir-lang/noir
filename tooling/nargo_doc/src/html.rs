@@ -592,7 +592,7 @@ impl HTMLCreator {
         self.render_generics(&struct_.generics);
         if struct_.fields.is_empty() {
             if struct_.has_private_fields {
-                self.output.push_str("\n{ /* private fields */ }\n");
+                self.output.push_str("\n{ <span class=\"comment\">/* private fields */</span> }\n");
             } else {
                 self.output.push_str(" {}\n");
             }
@@ -604,7 +604,7 @@ impl HTMLCreator {
                 self.output.push_str(",\n");
             }
             if struct_.has_private_fields {
-                self.output.push_str("    /* private fields */\n");
+                self.output.push_str("    <span class=\"comment\">/* private fields */</span>\n");
             }
             self.output.push_str("}\n");
         }
