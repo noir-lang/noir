@@ -405,8 +405,10 @@ impl HTMLCreator {
         self.render_struct_fields(&struct_.fields);
         self.render_impls(&struct_.impls);
 
+        let mut trait_impls = struct_.trait_impls.clone();
+        trait_impls.sort_by_key(trait_impl_trait_to_string);
         let show_methods = true;
-        self.render_trait_impls(&struct_.trait_impls, "Trait implementations", show_methods);
+        self.render_trait_impls(&trait_impls, "Trait implementations", show_methods);
 
         self.main_end();
         self.html_end();
@@ -461,7 +463,8 @@ impl HTMLCreator {
         self.render_trait_methods("Required methods", &trait_.required_methods);
         self.render_trait_methods("Provided methods", &trait_.provided_methods);
 
-        let trait_impls = self.get_all_trait_impls(trait_);
+        let mut trait_impls = self.get_all_trait_impls(trait_);
+        trait_impls.sort_by_key(|trait_impl| type_to_string(&trait_impl.r#type));
         let show_methods = false;
         self.render_trait_impls(&trait_impls, "Implementors", show_methods);
 
