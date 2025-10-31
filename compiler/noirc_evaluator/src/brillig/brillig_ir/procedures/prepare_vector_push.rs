@@ -117,7 +117,7 @@ pub(super) fn compile_prepare_vector_push_procedure<F: AcirField + DebugToString
             BrilligBinaryOp::Add,
         );
     } else {
-        // If push front we need to shift the items independently of it being reused or not
+        // If pushing to the front we need to shift the items independently of it being reused or not.
         let target_start = brillig_context.allocate_register();
         // Shift items by the number of items we want to push to the front.
         brillig_context.memory_op_instruction(

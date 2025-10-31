@@ -12,7 +12,7 @@ use super::ProcedureId;
 use crate::brillig::{
     BrilligVariable,
     brillig_ir::{
-        BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, BrilligBinaryOp, BrilligContext, ReservedRegisters,
+        BrilligBinaryOp, BrilligContext, ReservedRegisters,
         brillig_variable::{BrilligArray, SingleAddrVariable},
         debug_show::DebugToString,
         registers::{Allocated, RegisterAllocator, ScratchSpace},
@@ -24,13 +24,17 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     ///
     /// Conditionally copies a source array to a destination array.
     /// If the reference count of the source array is 1, then we can directly copy the pointer of the source array to the destination array.
+    /// Otherwise a copy is made, and the ref-count of the original is decreased by 1.
     pub(crate) fn call_array_copy_procedure(
         &mut self,
         source_array: BrilligArray,
         destination_array: BrilligArray,
     ) {
-        let [source_array_pointer_arg, source_array_memory_size_arg, new_array_pointer_return] =
-            self.make_scratch_registers();
+        let [
+            source_array_pointer_arg,
+            source_array_memory_size_arg,
+            destination_array_pointer_return,
+        ] = self.make_scratch_registers();
 
         self.mov_instruction(source_array_pointer_arg, source_array.pointer);
         self.usize_const_instruction(
@@ -40,7 +44,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 
         self.add_procedure_call_instruction(ProcedureId::ArrayCopy);
 
-        self.mov_instruction(destination_array.pointer, new_array_pointer_return);
+        self.mov_instruction(destination_array.pointer, destination_array_pointer_return);
     }
 }
 
@@ -48,7 +52,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 pub(super) fn compile_array_copy_procedure<F: AcirField + DebugToString>(
     brillig_context: &mut BrilligContext<F, ScratchSpace>,
 ) {
-    let [source_array_pointer_arg, source_array_memory_size_arg, new_array_pointer_return] =
+    let [source_array_pointer_arg, source_array_memory_size_arg, destination_array_pointer_return] =
         brillig_context.allocate_scratch_registers();
 
     let rc = brillig_context.codegen_read_array_rc(BrilligArray {
@@ -61,22 +65,27 @@ pub(super) fn compile_array_copy_procedure<F: AcirField + DebugToString>(
     brillig_context.codegen_branch(is_rc_one.address, |ctx, cond| {
         if cond {
             // Reference count is 1, we can mutate the array directly
-            ctx.mov_instruction(new_array_pointer_return, source_array_pointer_arg);
+            ctx.mov_instruction(destination_array_pointer_return, source_array_pointer_arg);
         } else {
             // We need to copy the array; allocate the required space on the heap.
-            ctx.codegen_allocate_mem(new_array_pointer_return, source_array_memory_size_arg);
+            ctx.codegen_allocate_mem(
+                destination_array_pointer_return,
+                source_array_memory_size_arg,
+            );
 
             // First issue an array copy to the destination.
             ctx.codegen_mem_copy(
                 source_array_pointer_arg,
-                new_array_pointer_return,
+                destination_array_pointer_return,
                 SingleAddrVariable::new_usize(source_array_memory_size_arg),
             );
             // Then set the new RC to 1.
-            ctx.indirect_const_instruction(
-                new_array_pointer_return,
-                BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
-                1_usize.into(),
+            ctx.codegen_update_array_rc(
+                BrilligArray {
+                    pointer: source_array_pointer_arg,
+                    size: 0, // The size doesn't matter in this call.
+                },
+                1,
             );
 
             // Decrease the original ref count now that this copy is no longer pointing to it

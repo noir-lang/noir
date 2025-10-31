@@ -44,6 +44,8 @@ pub enum ProcedureId {
     /// Reverses an array in-place.
     /// It is the responsibility of the caller to ensure the reference count of the array is 1.
     ArrayReverse,
+    /// Conditionally copies a source vector to a destination vector.
+    /// If the reference count of the source vector is 1, then we can directly copy the pointer of the source vector to the destination vector.
     VectorCopy,
     /// Copy a number of items between two heap addresses.
     MemCopy,
