@@ -922,7 +922,7 @@ impl HTMLCreator {
                 self.output.push_str(value);
             }
             Type::Generic(name) => {
-                self.output.push_str(name);
+                self.output.push_str(&escape_html(name));
             }
             Type::InfixExpr { lhs, operator, rhs } => {
                 self.render_type(lhs);
@@ -1190,12 +1190,16 @@ fn type_to_string(typ: &Type) -> String {
         Type::TypeAlias { name, .. } => name.clone(),
         Type::Function { .. } => "fn".to_string(),
         Type::Constant(value) => value.clone(),
-        Type::Generic(name) => name.clone(),
+        Type::Generic(name) => escape_html(name),
         Type::InfixExpr { lhs, operator, rhs } => {
             format!("{}{}{}", type_to_string(lhs), operator, type_to_string(rhs))
         }
         Type::TraitAsType { trait_name, .. } => format!("impl-{trait_name}"),
     }
+}
+
+fn escape_html(input: &str) -> String {
+    input.replace('<', "&lt;").replace('>', "&gt;")
 }
 
 enum ReferenceKind {
