@@ -504,7 +504,7 @@ impl AstPrinter {
 
     /// Check if we have a tuple of (constrained, unconstrained) functions and if we want to print specials as std calls,
     /// then assume that we would rather see `println(foo)` than `println((foo, foo))`, so we can render the AST as Noir
-    /// without duplicating into `println(((foo, foo), (foo, foo)))` on re-parsing.
+    /// without duplicating into `println(((foo, foo), (foo, foo)))` if we print the AST and re-parse it, for example for comptime tests.
     ///
     /// Returns a flag to indicate if the items were handled.
     fn print_function_tuple(
