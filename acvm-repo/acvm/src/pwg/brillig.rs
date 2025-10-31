@@ -203,11 +203,11 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
                     FailureReason::RuntimeError { message } => {
                         Some(ResolvedAssertionPayload::String(message))
                     }
-                    FailureReason::Trap { revert_data_offset, revert_data_size } => {
+                    FailureReason::Trap { error_data_offset, error_data_size } => {
                         extract_failure_payload_from_memory(
                             self.vm.get_memory(),
-                            revert_data_offset,
-                            revert_data_size,
+                            error_data_offset,
+                            error_data_size,
                         )
                     }
                 };

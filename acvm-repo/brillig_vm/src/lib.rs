@@ -40,12 +40,12 @@ pub enum FailureReason {
     /// A trap was encountered, which indicates an explicit failure from within the VM program.
     ///
     /// A trap is triggered explicitly by the [trap opcode][Opcode::Trap].
-    /// The revert data is referenced by the offset and size in the VM memory.
+    /// The error data is referenced by the offset and size in the VM memory.
     Trap {
-        /// Offset in memory where the revert data begins.
-        revert_data_offset: usize,
-        /// Size of the revert data.
-        revert_data_size: usize,
+        /// Offset in memory where the error data begins.
+        error_data_offset: usize,
+        /// Size of the error data.
+        error_data_size: usize,
     },
     /// A runtime failure during execution.
     /// This error is triggered by all opcodes aside the [trap opcode][Opcode::Trap].
@@ -217,10 +217,10 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
 
     /// Sets the current status of the VM to `Failure`,
     /// indicating that the VM encountered a `Trap` Opcode.
-    fn trap(&mut self, revert_data_offset: usize, revert_data_size: usize) -> &VMStatus<F> {
+    fn trap(&mut self, error_data_offset: usize, error_data_size: usize) -> &VMStatus<F> {
         self.status(VMStatus::Failure {
             call_stack: self.get_call_stack(),
-            reason: FailureReason::Trap { revert_data_offset, revert_data_size },
+            reason: FailureReason::Trap { error_data_offset, error_data_size },
         })
     }
 
@@ -410,12 +410,12 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                 self.fuzzing_trace_conditional_mov(condition_value);
                 self.increment_program_counter()
             }
-            Opcode::Trap { revert_data } => {
-                let revert_data_size = self.memory.read(revert_data.size).to_usize();
-                if revert_data_size > 0 {
+            Opcode::Trap { error_data } => {
+                let error_data_size = self.memory.read(error_data.size).to_usize();
+                if error_data_size > 0 {
                     self.trap(
-                        self.memory.read_ref(revert_data.pointer).unwrap_direct(),
-                        revert_data_size,
+                        self.memory.read_ref(error_data.pointer).unwrap_direct(),
+                        error_data_size,
                     )
                 } else {
                     self.trap(0, 0)
