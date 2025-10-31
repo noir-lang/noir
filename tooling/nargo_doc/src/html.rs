@@ -152,7 +152,14 @@ impl HTMLCreator {
     }
 
     fn create_index(&mut self, workspace: &Workspace) {
-        self.html_start(&format!("{} documentation", workspace.name));
+        let crates = workspace
+            .crates
+            .iter()
+            .filter(|krate| !krate.root_module.items.is_empty())
+            .collect::<Vec<_>>();
+        let redirect =
+            if crates.len() == 1 { Some(format!("{}/index.html", crates[0].name)) } else { None };
+        self.html_start_with_redirect(&format!("{} documentation", workspace.name), redirect);
 
         // This sidebar is empty because there's not much we can list here.
         // It's here so that every page has a sidebar.
@@ -161,11 +168,6 @@ impl HTMLCreator {
 
         self.main_start();
         self.h1(&format!("{} documentation", workspace.name));
-        let crates = workspace
-            .crates
-            .iter()
-            .filter(|krate| !krate.root_module.items.is_empty())
-            .collect::<Vec<_>>();
         self.render_list("Crates", "crates", false, false, &crates);
         self.main_end();
         self.html_end();
@@ -1084,10 +1086,20 @@ impl HTMLCreator {
     }
 
     fn html_start(&mut self, title: &str) {
+        self.html_start_with_redirect(title, None);
+    }
+
+    fn html_start_with_redirect(&mut self, title: &str, redirect: Option<String>) {
         self.output.push_str("<!DOCTYPE html>\n");
         self.output.push_str("<html>\n");
         self.output.push_str("<head>\n");
         self.output.push_str("<meta charset=\"UTF-8\">\n");
+        if let Some(redirect) = redirect {
+            self.output.push_str(&format!(
+                "<meta http-equiv=\"refresh\" content=\"0; url='{redirect}'\">\n",
+            ));
+        }
+
         let nesting = self.current_path.len();
         self.output.push_str(&format!(
             "<link rel=\"stylesheet\" href=\"{}styles.css\">\n",
