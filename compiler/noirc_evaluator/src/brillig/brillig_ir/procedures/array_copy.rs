@@ -12,7 +12,7 @@ use super::ProcedureId;
 use crate::brillig::{
     BrilligVariable,
     brillig_ir::{
-        BrilligBinaryOp, BrilligContext, ReservedRegisters,
+        BrilligContext, ReservedRegisters,
         brillig_variable::{BrilligArray, SingleAddrVariable},
         debug_show::DebugToString,
         registers::{Allocated, RegisterAllocator, ScratchSpace},
@@ -55,7 +55,7 @@ pub(super) fn compile_array_copy_procedure<F: AcirField + DebugToString>(
     let [source_array_pointer_arg, source_array_memory_size_arg, destination_array_pointer_return] =
         brillig_context.allocate_scratch_registers();
 
-    let rc = brillig_context.codegen_read_array_rc(source_array_pointer_arg);
+    let rc = brillig_context.codegen_read_rc(source_array_pointer_arg);
 
     let is_rc_one = brillig_context.codegen_usize_equals_one(*rc);
 
@@ -78,12 +78,12 @@ pub(super) fn compile_array_copy_procedure<F: AcirField + DebugToString>(
                 SingleAddrVariable::new_usize(source_array_memory_size_arg),
             );
             // Then set the new RC to 1.
-            ctx.codegen_update_array_rc(destination_array_pointer_return, 1);
+            ctx.codegen_initialize_rc(destination_array_pointer_return, 1);
 
             // Decrease the original ref count now that this copy is no longer pointing to it.
             // Copying an array is a potential implicit side effect of setting an item by index
             // through a mutable variable; we won't end up two handles to the array, so we can split the RC.
-            ctx.codegen_usize_op(rc.address, rc.address, BrilligBinaryOp::Sub, 1);
+            ctx.codegen_decrease_rc(source_array_pointer_arg, rc.address, 1);
 
             // Increase our array copy counter if that flag is set
             if ctx.count_arrays_copied {

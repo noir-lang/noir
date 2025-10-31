@@ -61,13 +61,13 @@ pub(super) fn compile_vector_copy_procedure<F: AcirField + DebugToString>(
             ctx.codegen_mem_copy(source_vector.pointer, target_vector.pointer, *allocation_size);
 
             // Then reset the new RC to 1.
-            ctx.codegen_update_vector_rc(target_vector, 1);
+            ctx.codegen_initialize_rc(target_vector.pointer, 1);
 
             // Decrease the original ref count now that this copy is no longer pointing to it.
             // Copying a vector this way is an implicit part of setting an item by index through a mutable variable;
             // after doing so we won't end up with a new vector handle, like we do with e.g. pop/push, so it is
             // safe to split the RC.
-            ctx.codegen_usize_op(rc.address, rc.address, BrilligBinaryOp::Sub, 1);
+            ctx.codegen_decrease_rc(source_vector.pointer, rc.address, 1);
         }
     });
 }
