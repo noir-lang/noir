@@ -447,8 +447,9 @@ impl Parser<'_> {
             self.skip_until_right_bracket(false);
             message
         } else {
-            if !self.at(Token::RightBracket) {
+            if self.at(Token::RightBracket) {
                 self.skip_until_right_bracket(false);
+            } else {
                 let location = self.location_since(location_after_name);
                 let error = LexerErrorKind::MalformedMustUseAttribute { location };
                 self.errors.push(error.into());

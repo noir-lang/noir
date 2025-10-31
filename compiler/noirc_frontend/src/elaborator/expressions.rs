@@ -237,9 +237,9 @@ impl Elaborator<'_> {
     }
 
     /// If the given type was declared as:
-    /// - `#[must_use = "message"]`, return `Some(Some(message))`
-    /// - `#[must_use]`, return `Some(None)`
-    /// - otherwise, return `None`
+    /// - `#[must_use = "message"]`, return [MustUse::MustUse(Some("message"))]
+    /// - `#[must_use]`, return [MustUse::MustUse(None)]
+    /// - otherwise, return `MustUse::NoMustUse`
     fn type_is_must_use(typ: &Type) -> MustUse {
         /// Helper function to avoid infinite recursion for infinitely recursive types
         fn helper(typ: &Type, fuel: u32) -> MustUse {
