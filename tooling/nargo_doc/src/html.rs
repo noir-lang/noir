@@ -441,7 +441,7 @@ impl HTMLCreator {
             self.output.push_str("</ul>");
         }
 
-        self.render_sidebar_trait_impls(&struct_.trait_impls);
+        self.render_sidebar_trait_impls("Trait implementations", &struct_.trait_impls);
     }
 
     fn create_trait(&mut self, parent_module: &Module, trait_: &Trait) {
@@ -484,15 +484,15 @@ impl HTMLCreator {
         }
 
         let trait_impls = self.get_all_trait_impls(trait_);
-        self.render_sidebar_trait_impls(&trait_impls);
+        self.render_sidebar_trait_impls("Implementors", &trait_impls);
     }
 
-    fn render_sidebar_trait_impls(&mut self, trait_impls: &[TraitImpl]) {
+    fn render_sidebar_trait_impls(&mut self, title: &str, trait_impls: &[TraitImpl]) {
         if trait_impls.is_empty() {
             return;
         }
 
-        self.h3("Trait implementations");
+        self.h3(title);
         self.output.push_str("<ul class=\"sidebar-list\">");
         for trait_impl in trait_impls {
             self.output.push_str("<li>");
