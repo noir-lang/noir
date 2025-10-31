@@ -112,6 +112,10 @@ ul {
     color: #ad7c37;
 }
 
+.padded-methods {
+    padding-left: 2em;
+}
+
 .padded-description {
     padding-left: 2em;
 }

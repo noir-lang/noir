@@ -602,9 +602,11 @@ impl HTMLCreator {
         current_heading_level: usize,
         output_id: bool,
     ) {
+        self.output.push_str("<div class=\"padded-methods\">");
         for method in methods {
             self.render_function(method, current_heading_level, true, output_id);
         }
+        self.output.push_str("</div>");
     }
 
     fn render_function(
