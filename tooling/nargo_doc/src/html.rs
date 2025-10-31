@@ -658,13 +658,11 @@ impl HTMLCreator {
         self.output.push_str(&format!("pub trait {}", trait_.name));
         self.render_generics(&trait_.generics);
         if !trait_.bounds.is_empty() {
-            self.output.push_str(":\n");
+            self.output.push_str(":");
             for (index, bound) in trait_.bounds.iter().enumerate() {
+                self.output.push_str("\n    ");
                 if index > 0 {
-                    self.output.push('\n');
-                }
-                if index > 0 {
-                    self.output.push_str("    + ");
+                    self.output.push_str("+ ");
                 }
                 self.render_trait_bound(bound);
             }
