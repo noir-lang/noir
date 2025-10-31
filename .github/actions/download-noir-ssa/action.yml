@@ -14,5 +14,7 @@ runs:
       shell: bash
       run: |
         noir_binary="${{ github.workspace }}/noir-ssa/noir-ssa"
-        chmod +x $noir_binary
-        echo "$(dirname $noir_binary)" >> $GITHUB_PATH
+        chmod +x "$noir_binary"
+        echo "$(dirname "$noir_binary")" >> $GITHUB_PATH
+
+  
