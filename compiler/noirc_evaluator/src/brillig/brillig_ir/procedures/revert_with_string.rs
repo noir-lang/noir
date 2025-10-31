@@ -8,8 +8,10 @@ use crate::brillig::brillig_ir::{
 };
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
-    /// Reverts with the error selector of the given string
-    /// This procedure is useful to deduplicate generating code for the same selector.
+    /// Call [ProcedureId::RevertWithString].
+    ///
+    /// Reverts with the error selector of the given string.
+    /// This procedure is useful for deduplicating the code generation for the same selector.
     pub(crate) fn call_revert_with_string_procedure(&mut self, revert_string: String) {
         self.add_procedure_call_instruction(ProcedureId::RevertWithString(revert_string));
     }

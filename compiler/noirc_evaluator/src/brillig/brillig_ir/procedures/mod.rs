@@ -59,6 +59,7 @@ pub enum ProcedureId {
     VectorRemove,
     /// Check that the stack memory has not exceeded the maximum size allowed by the layout.
     CheckMaxStackDepth,
+    /// Revert with the given error message.
     RevertWithString(String),
 }
 
@@ -119,6 +120,8 @@ impl std::fmt::Display for ProcedureId {
     }
 }
 
+/// Compile a procedure as a stand-alone Brillig artifact, generating byte code for a specific operation,
+/// reading and returning arguments through the [ScratchSpace].
 pub(crate) fn compile_procedure<F: AcirField + DebugToString>(
     procedure_id: ProcedureId,
     options: &BrilligOptions,
