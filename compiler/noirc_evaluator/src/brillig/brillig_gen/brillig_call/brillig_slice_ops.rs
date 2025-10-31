@@ -25,6 +25,8 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         }
     }
 
+    /// Prepare a vector for pushing a number of new (flattened) items to the back,
+    /// then write those variables to the returned write pointer.
     pub(crate) fn slice_push_back_operation(
         &mut self,
         target_vector: BrilligVector,
@@ -45,6 +47,8 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         self.write_variables(*write_pointer, variables_to_insert);
     }
 
+    /// Prepare a vector for pushing a number of new (flattened) items to the front,
+    /// then write those variables to the returned write pointer.
     pub(crate) fn slice_push_front_operation(
         &mut self,
         target_vector: BrilligVector,
@@ -99,6 +103,8 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         );
     }
 
+    /// Create new vector with a number of (flattened) items popped from the back,
+    /// then read the popped items into the variables representing the removed items.
     pub(crate) fn slice_pop_back_operation(
         &mut self,
         target_vector: BrilligVector,
@@ -118,6 +124,8 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         self.read_variables(*read_pointer, removed_items);
     }
 
+    /// Prepare a vector for inserting a number of (flattened) items at a specific index
+    /// by making a hole for them, then write the variables to the returned write pointer.
     pub(crate) fn slice_insert_operation(
         &mut self,
         target_vector: BrilligVector,
@@ -138,6 +146,9 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         self.write_variables(*write_pointer, items);
     }
 
+    /// Read a number of (flattened) items at a specific index of a vector into the variables
+    /// representing the removed items, then create a new vector with the same number of
+    /// items removed and subsequent items shifted to the left.
     pub(crate) fn slice_remove_operation(
         &mut self,
         target_vector: BrilligVector,
