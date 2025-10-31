@@ -939,8 +939,9 @@ impl HTMLCreator {
 
     fn sidebar_start(&mut self) {
         self.output.push_str("<nav class=\"sidebar\">\n");
+        let nesting = self.current_path.len();
         let crates_name = self.crates_name.clone();
-        self.h1(&crates_name);
+        self.h1(&format!("<a href=\"{}index.html\">{}</a>", "../".repeat(nesting), crates_name));
     }
 
     fn sidebar_end(&mut self) {
