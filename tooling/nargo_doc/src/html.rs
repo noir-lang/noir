@@ -160,7 +160,7 @@ impl HTMLCreator {
         self.main_start();
         self.h1(&format!("{} documentation", workspace.name));
         let crates = vecmap(&workspace.crates, |krate| krate);
-        self.render_list("Workspace", "crates", false, false, &crates);
+        self.render_list("Crates", "crates", false, false, &crates);
         self.main_end();
         self.html_end();
         self.push_file(PathBuf::from("index.html"));
@@ -188,7 +188,7 @@ impl HTMLCreator {
     }
 
     fn render_crate_sidebar(&mut self, workspace: &Workspace) {
-        self.h3("Workspace");
+        self.h3("Crates");
         self.output.push_str("<ul class=\"sidebar-list\">");
         for item in &workspace.crates {
             self.output.push_str("<li>");
