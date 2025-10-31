@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::{BTreeMap, HashMap, HashSet},
     path::PathBuf,
 };
 
@@ -24,6 +24,8 @@ struct HTMLCreator {
     current_path: Vec<String>,
     crates_name: String,
     id_to_path: HashMap<usize, String>,
+    /// Maps a trait ID to all its implementations across all crates.
+    all_trait_impls: HashMap<usize, HashSet<TraitImpl>>,
 }
 
 impl HTMLCreator {
@@ -33,7 +35,12 @@ impl HTMLCreator {
         let current_path = Vec::new();
         let crates_name = crates.name.clone();
         let id_to_path = compute_id_to_path(crates);
-        Self { output, files, current_path, crates_name, id_to_path }
+
+        // Each trait in each create will have trait impls that are found in that crate.
+        // When showing a trait we want to show all impls across all crates, so we gather
+        // them now.
+        let all_trait_impls = gather_all_trait_impls(crates);
+        Self { output, files, current_path, crates_name, id_to_path, all_trait_impls }
     }
 
     fn process_crates(&mut self, crates: &Crates) {
@@ -334,7 +341,10 @@ impl HTMLCreator {
         self.render_trait_code(trait_);
         self.render_comments(&trait_.comments, 1);
         self.render_trait_methods(&trait_.methods);
-        self.render_trait_impls(&trait_.trait_impls, "Implementors");
+
+        let trait_impls = self.get_all_trait_impls(trait_);
+        self.render_trait_impls(&trait_impls, "Implementors");
+
         self.main_end();
         self.html_end();
         self.push_file(PathBuf::from(trait_.path()));
@@ -357,7 +367,8 @@ impl HTMLCreator {
             self.output.push_str("</ul>");
         }
 
-        self.render_sidebar_trait_impls(&trait_.trait_impls);
+        let trait_impls = self.get_all_trait_impls(trait_);
+        self.render_sidebar_trait_impls(&trait_impls);
     }
 
     fn render_sidebar_trait_impls(&mut self, trait_impls: &[TraitImpl]) {
@@ -891,6 +902,13 @@ impl HTMLCreator {
         self.output.push_str("</div>");
     }
 
+    fn get_all_trait_impls(&self, trait_: &Trait) -> Vec<TraitImpl> {
+        self.all_trait_impls
+            .get(&trait_.id)
+            .map(|impls| impls.iter().cloned().collect())
+            .unwrap_or_else(|| trait_.trait_impls.clone())
+    }
+
     fn html_start(&mut self, title: &str) {
         self.output.push_str("<!DOCTYPE html>\n");
         self.output.push_str("<html>\n");
@@ -1097,6 +1115,39 @@ fn compute_id_to_path_in_item(
             id_to_path.insert(type_alias.id, path);
         }
         Item::Function(_) | Item::Global(_) => {}
+    }
+}
+
+fn gather_all_trait_impls(crates: &Crates) -> HashMap<usize, HashSet<TraitImpl>> {
+    let mut trait_impls = HashMap::new();
+
+    for krate in &crates.crates {
+        for item in &krate.root_module.items {
+            gather_trait_impls_in_item(item, &mut trait_impls);
+        }
+    }
+
+    trait_impls
+}
+
+fn gather_trait_impls_in_item(item: &Item, trait_impls: &mut HashMap<usize, HashSet<TraitImpl>>) {
+    match item {
+        Item::Module(module) => {
+            for item in &module.items {
+                gather_trait_impls_in_item(item, trait_impls);
+            }
+        }
+        Item::Struct(struct_) => {
+            for impl_ in &struct_.trait_impls {
+                trait_impls.entry(impl_.trait_id).or_default().insert(impl_.clone());
+            }
+        }
+        Item::Trait(trait_) => {
+            for impl_ in &trait_.trait_impls {
+                trait_impls.entry(impl_.trait_id).or_default().insert(impl_.clone());
+            }
+        }
+        Item::TypeAlias(_) | Item::Function(_) | Item::Global(_) => {}
     }
 }
 

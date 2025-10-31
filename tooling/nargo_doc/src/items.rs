@@ -7,13 +7,13 @@ pub trait HasNameAndComments {
     fn comments(&self) -> Option<&str>;
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Crates {
     pub name: String,
     pub crates: Vec<Crate>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Crate {
     pub name: String,
     pub root_module: Module,
@@ -29,7 +29,7 @@ impl HasNameAndComments for Crate {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "kind")]
 pub enum Item {
     Module(Module),
@@ -40,7 +40,7 @@ pub enum Item {
     Global(Global),
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Module {
     pub name: String,
     pub items: Vec<Item>,
@@ -57,7 +57,7 @@ impl HasNameAndComments for Module {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Struct {
     pub id: usize,
     pub name: String,
@@ -81,7 +81,7 @@ impl HasNameAndComments for Struct {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct StructField {
     pub name: String,
     pub r#type: Type,
@@ -98,14 +98,14 @@ impl HasNameAndComments for StructField {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Impl {
     pub generics: Vec<Generic>,
     pub r#type: Type,
     pub methods: Vec<Function>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct TraitImpl {
     pub generics: Vec<Generic>,
     pub trait_id: usize,
@@ -116,7 +116,7 @@ pub struct TraitImpl {
     pub methods: Vec<Function>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Global {
     pub name: String,
     pub comptime: bool,
@@ -135,7 +135,7 @@ impl HasNameAndComments for Global {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Function {
     pub unconstrained: bool,
     pub comptime: bool,
@@ -157,13 +157,13 @@ impl HasNameAndComments for Function {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct FunctionParam {
     pub name: String,
     pub r#type: Type,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Trait {
     pub id: usize,
     pub name: String,
@@ -185,7 +185,7 @@ impl HasNameAndComments for Trait {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct TypeAlias {
     pub id: usize,
     pub name: String,
@@ -204,19 +204,19 @@ impl HasNameAndComments for TypeAlias {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Generic {
     pub name: String,
     pub numeric: Option<String>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct TraitConstraint {
     pub r#type: Type,
     pub bound: TraitBound,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct TraitBound {
     pub trait_id: usize,
     pub trait_name: String,
@@ -224,7 +224,7 @@ pub struct TraitBound {
     pub named_generics: BTreeMap<String, Type>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Type {
     Unit,
     Primitive(String),
