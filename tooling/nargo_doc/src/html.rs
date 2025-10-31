@@ -7,6 +7,7 @@ use iter_extended::vecmap;
 
 use crate::{
     html::{
+        all_items::AllItems,
         has_class::HasClass,
         has_path::HasPath,
         id_to_path::compute_id_to_path,
@@ -20,6 +21,7 @@ use crate::{
     },
 };
 
+mod all_items;
 mod has_class;
 mod has_path;
 mod id_to_path;
@@ -76,7 +78,63 @@ impl HTMLCreator {
     }
 
     fn create_all_items(&mut self, workspace: &Workspace) {
+        let all_items = all_items::compute_all_items(workspace);
+        self.html_start(&format!("All items in {}", workspace.name));
+        self.sidebar_start();
+        self.render_all_items_sidebar(&all_items);
+        self.sidebar_end();
+        self.main_start();
+        self.h1(&format!("All items in {}", workspace.name));
+        self.render_all_items_list("Structs", "struct", &all_items.structs);
+        self.render_all_items_list("Traits", "trait", &all_items.traits);
+        self.render_all_items_list("Type aliases", "type", &all_items.type_aliases);
+        self.render_all_items_list("Globals", "global", &all_items.globals);
+        self.render_all_items_list("Functions", "fn", &all_items.functions);
+        self.main_end();
+        self.html_end();
+
         self.push_file(PathBuf::from("all.html"));
+    }
+
+    fn render_all_items_list(&mut self, title: &str, class: &str, items: &[(Vec<String>, String)]) {
+        if items.is_empty() {
+            return;
+        }
+
+        self.output.push_str(&format!("<span id=\"{class}\"></span>"));
+        self.h2(title);
+        self.output.push_str("<ul class=\"item-list\">");
+        for (path, name) in items {
+            let url_path = path.join("/");
+            let module = path.join("::");
+            self.output.push_str("<li>");
+            self.output.push_str(&format!(
+                "<a href=\"{url_path}/{class}.{name}.html\">{module}::{name}</a>",
+            ));
+            self.output.push_str("</li>\n");
+        }
+        self.output.push_str("</ul>");
+    }
+
+    fn render_all_items_sidebar(&mut self, all_items: &AllItems) {
+        self.h2("Workspace items");
+        self.output.push_str("<ul class=\"sidebar-list\">");
+        if !all_items.structs.is_empty() {
+            self.output.push_str("<li><a href=\"#struct\">Structs</a></li>");
+        }
+        if !all_items.traits.is_empty() {
+            self.output.push_str("<li><a href=\"#trait\">Traits</a></li>");
+        }
+        if !all_items.type_aliases.is_empty() {
+            self.output.push_str("<li><a href=\"#type\">Type aliases</a></li>");
+        }
+        if !all_items.functions.is_empty() {
+            self.output.push_str("<li><a href=\"#fn\">Functions</a></li>");
+        }
+        if !all_items.globals.is_empty() {
+            self.output.push_str("<li><a href=\"#global\">Globals</a></li>");
+        }
+        self.output.push_str("</ul>");
     }
 
     fn create_index(&mut self, workspace: &Workspace) {
@@ -138,8 +196,8 @@ impl HTMLCreator {
         self.render_structs(items, sidebar, reference_parent);
         self.render_traits(items, sidebar, reference_parent);
         self.render_type_aliases(items, sidebar, reference_parent);
-        self.render_globals(items, sidebar, reference_parent);
         self.render_functions(items, sidebar, reference_parent);
+        self.render_globals(items, sidebar, reference_parent);
     }
 
     fn render_modules(&mut self, items: &[Item], sidebar: bool, reference_parent: bool) {
@@ -292,11 +350,11 @@ impl HTMLCreator {
         if !get_type_aliases(&module.items).is_empty() {
             self.output.push_str("<li><a href=\"#type-aliases\">Type aliases</a></li>");
         }
-        if !get_globals(&module.items).is_empty() {
-            self.output.push_str("<li><a href=\"#globals\">Globals</a></li>");
-        }
         if !get_functions(&module.items).is_empty() {
             self.output.push_str("<li><a href=\"#functions\">Functions</a></li>");
+        }
+        if !get_globals(&module.items).is_empty() {
+            self.output.push_str("<li><a href=\"#globals\">Globals</a></li>");
         }
         self.output.push_str("</ul>");
     }
