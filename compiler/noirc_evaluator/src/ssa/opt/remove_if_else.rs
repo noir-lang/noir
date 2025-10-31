@@ -212,7 +212,8 @@ impl Context {
                     if let Value::Intrinsic(intrinsic) = context.dfg[*func] {
                         let results = context.dfg.instruction_results(instruction_id);
 
-                        match slice_capacity_change(context.dfg, intrinsic, arguments, results) {
+                        match self.slice_capacity_change(context.dfg, intrinsic, arguments, results)
+                        {
                             SizeChange::None => (),
                             SizeChange::SetTo { old, new } => {
                                 self.set_capacity(context.dfg, old, new, |c| c);
@@ -280,6 +281,101 @@ impl Context {
             }
         }
     }
+
+    /// Find the change to a slice's capacity an instruction would have
+    fn slice_capacity_change(
+        &self,
+        dfg: &DataFlowGraph,
+        intrinsic: Intrinsic,
+        arguments: &[ValueId],
+        results: &[ValueId],
+    ) -> SizeChange {
+        match intrinsic {
+            Intrinsic::SlicePushBack | Intrinsic::SlicePushFront | Intrinsic::SliceInsert => {
+                // All of these return `Self` (the slice), we are expecting: len, slice = ...
+                assert_eq!(results.len(), 2);
+                let old = arguments[1];
+                let new = results[1];
+                assert!(matches!(dfg.type_of_value(old), Type::Slice(_)));
+                assert!(matches!(dfg.type_of_value(new), Type::Slice(_)));
+                SizeChange::Inc { old, new }
+            }
+
+            Intrinsic::SlicePopBack | Intrinsic::SliceRemove => {
+                // fn pop_back(self) -> (Self, T)
+                // fn remove(self, index: u32) -> (Self, T)
+                //
+                // These functions return the slice as the result `(len, slice, ...item)`,
+                // so the slice is the second result.
+                let old = arguments[1];
+                let new = results[1];
+                assert!(matches!(dfg.type_of_value(old), Type::Slice(_)));
+                assert!(matches!(dfg.type_of_value(new), Type::Slice(_)));
+                SizeChange::Dec { old, new }
+            }
+
+            Intrinsic::SlicePopFront => {
+                // fn pop_front(self) -> (T, Self)
+                //
+                // These functions return the slice as the result `(...item, len, slice)`,
+                // so the slice is the last result.
+                let old = arguments[1];
+                let new = results[results.len() - 1];
+                assert!(matches!(dfg.type_of_value(old), Type::Slice(_)));
+                assert!(matches!(dfg.type_of_value(new), Type::Slice(_)));
+                SizeChange::Dec { old, new }
+            }
+
+            Intrinsic::AsSlice => {
+                assert_eq!(arguments.len(), 1);
+                assert_eq!(results.len(), 2);
+                let old = arguments[0];
+                let new = results[1];
+                assert!(matches!(dfg.type_of_value(old), Type::Array(_, _)));
+                assert!(matches!(dfg.type_of_value(new), Type::Slice(_)));
+                SizeChange::SetTo { old, new }
+            }
+
+            Intrinsic::Hint(Hint::BlackBox) => {
+                assert_eq!(arguments.len(), results.len());
+                let arguments_types =
+                    arguments.iter().map(|x| dfg.type_of_value(*x)).collect::<Vec<_>>();
+                let results_types =
+                    results.iter().map(|x| dfg.type_of_value(*x)).collect::<Vec<_>>();
+                assert_eq!(arguments_types, results_types);
+                let old =
+                    *arguments.last().expect("expected at least one argument to Hint::BlackBox");
+                if self.slice_sizes.contains_key(&old) {
+                    if arguments.len() != 1 {
+                        assert!(arguments.len() == 2);
+                        assert!(matches!(arguments_types[0], Type::Numeric(_)));
+                    }
+                    assert!(matches!(arguments_types.last().unwrap(), Type::Slice(_)));
+                    let new = *results.last().unwrap();
+                    SizeChange::SetTo { old, new }
+                } else {
+                    SizeChange::None
+                }
+            }
+
+            // These cases don't affect slice capacities
+            Intrinsic::AssertConstant
+            | Intrinsic::StaticAssert
+            | Intrinsic::ApplyRangeConstraint
+            | Intrinsic::ArrayLen
+            | Intrinsic::ArrayAsStrUnchecked
+            | Intrinsic::StrAsBytes
+            | Intrinsic::BlackBox(_)
+            | Intrinsic::AsWitness
+            | Intrinsic::IsUnconstrained
+            | Intrinsic::DerivePedersenGenerators
+            | Intrinsic::ToBits(_)
+            | Intrinsic::ToRadix(_)
+            | Intrinsic::ArrayRefCount
+            | Intrinsic::SliceRefCount
+            | Intrinsic::FieldLessThan => SizeChange::None,
+        }
+    }
 }
 
 enum SizeChange {
@@ -299,79 +395,6 @@ enum SizeChange {
         old: ValueId,
         new: ValueId,
     },
-}
-
-/// Find the change to a slice's capacity an instruction would have
-fn slice_capacity_change(
-    dfg: &DataFlowGraph,
-    intrinsic: Intrinsic,
-    arguments: &[ValueId],
-    results: &[ValueId],
-) -> SizeChange {
-    match intrinsic {
-        Intrinsic::SlicePushBack | Intrinsic::SlicePushFront | Intrinsic::SliceInsert => {
-            // All of these return `Self` (the slice), we are expecting: len, slice = ...
-            assert_eq!(results.len(), 2);
-            let old = arguments[1];
-            let new = results[1];
-            assert!(matches!(dfg.type_of_value(old), Type::Slice(_)));
-            assert!(matches!(dfg.type_of_value(new), Type::Slice(_)));
-            SizeChange::Inc { old, new }
-        }
-
-        Intrinsic::SlicePopBack | Intrinsic::SliceRemove => {
-            // fn pop_back(self) -> (Self, T)
-            // fn remove(self, index: u32) -> (Self, T)
-            //
-            // These functions return the slice as the result `(len, slice, ...item)`,
-            // so the slice is the second result.
-            let old = arguments[1];
-            let new = results[1];
-            assert!(matches!(dfg.type_of_value(old), Type::Slice(_)));
-            assert!(matches!(dfg.type_of_value(new), Type::Slice(_)));
-            SizeChange::Dec { old, new }
-        }
-
-        Intrinsic::SlicePopFront => {
-            // fn pop_front(self) -> (T, Self)
-            //
-            // These functions return the slice as the result `(...item, len, slice)`,
-            // so the slice is the last result.
-            let old = arguments[1];
-            let new = results[results.len() - 1];
-            assert!(matches!(dfg.type_of_value(old), Type::Slice(_)));
-            assert!(matches!(dfg.type_of_value(new), Type::Slice(_)));
-            SizeChange::Dec { old, new }
-        }
-
-        Intrinsic::AsSlice => {
-            assert_eq!(arguments.len(), 1);
-            assert_eq!(results.len(), 2);
-            let old = arguments[0];
-            let new = results[1];
-            assert!(matches!(dfg.type_of_value(old), Type::Array(_, _)));
-            assert!(matches!(dfg.type_of_value(new), Type::Slice(_)));
-            SizeChange::SetTo { old, new }
-        }
-
-        // These cases don't affect slice capacities
-        Intrinsic::AssertConstant
-        | Intrinsic::StaticAssert
-        | Intrinsic::ApplyRangeConstraint
-        | Intrinsic::ArrayLen
-        | Intrinsic::ArrayAsStrUnchecked
-        | Intrinsic::StrAsBytes
-        | Intrinsic::BlackBox(_)
-        | Intrinsic::Hint(Hint::BlackBox)
-        | Intrinsic::AsWitness
-        | Intrinsic::IsUnconstrained
-        | Intrinsic::DerivePedersenGenerators
-        | Intrinsic::ToBits(_)
-        | Intrinsic::ToRadix(_)
-        | Intrinsic::ArrayRefCount
-        | Intrinsic::SliceRefCount
-        | Intrinsic::FieldLessThan => SizeChange::None,
-    }
 }
 
 #[cfg(debug_assertions)]

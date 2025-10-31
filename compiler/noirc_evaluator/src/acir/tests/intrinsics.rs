@@ -3,7 +3,7 @@ use acvm::assert_circuit_snapshot;
 use crate::acir::tests::ssa_to_acir_program;
 
 #[test]
-fn slice_push_back() {
+fn slice_push_back_known_length() {
     // This SSA would never be generated as we are writing to a slice without a preceding OOB check.
     // We forego the OOB check here for the succinctness of the test.
     let src = "
@@ -41,6 +41,53 @@ fn slice_push_back() {
     INIT b3 = [w6, w8, w9]
     ASSERT w10 = 20
     WRITE b3[w0] = w10
+    ");
+}
+
+#[test]
+fn slice_push_back_unknown_length() {
+    // Here we use v2 as the length of the slice to show the generated ACIR when the
+    // length is now known at compile time.
+    let src = "
+    acir(inline) predicate_pure fn main f0 {
+      b0(v0: u32, v1: u32, v2: u32):
+        v3 = make_array [Field 2, Field 3] : [Field]
+        // Mutate it at index v0 (to make it non-constant in the circuit)
+        v5 = array_set v3, index v0, value Field 4
+        v8, v9 = call slice_push_back(v2, v5, Field 10) -> (u32, [Field])
+        constrain v8 == v1
+        // Mutate the new slice to make the result block observable
+        v11 = array_set v9, index v0, value Field 20
+        return
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0, w1, w2]
+    public parameters: []
+    return values: []
+    BLACKBOX::RANGE input: w1, bits: 32
+    ASSERT w3 = 2
+    ASSERT w4 = 3
+    INIT b1 = [w3, w4]
+    ASSERT w5 = 4
+    WRITE b1[w0] = w5
+    ASSERT w6 = 0
+    READ w7 = b1[w6]
+    ASSERT w8 = 1
+    READ w9 = b1[w8]
+    INIT b2 = [w7, w9, w6]
+    ASSERT w10 = 10
+    WRITE b2[w2] = w10
+    ASSERT w2 = w1 - 1
+    READ w11 = b2[w6]
+    READ w12 = b2[w8]
+    READ w13 = b2[w3]
+    INIT b3 = [w11, w12, w13]
+    ASSERT w14 = 20
+    WRITE b3[w0] = w14
     ");
 }
 
@@ -121,7 +168,7 @@ fn slice_pop_back() {
     READ w9 = b1[w5]
     ASSERT w1 = 1
     ASSERT w6 = 3
-    INIT b3 = [w8, w9]
+    INIT b3 = [w8]
     ASSERT w10 = 20
     WRITE b3[w0] = w10
     ");
