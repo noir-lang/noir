@@ -1083,8 +1083,8 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             let index = index - offset.to_u32();
             let value = self.lookup(value)?;
 
-            let should_mutate =
-                if self.in_unconstrained_context() { *array.rc.borrow() == 1 } else { mutable };
+            let is_rc_one = *array.rc.borrow() == 1;
+            let should_mutate = if self.in_unconstrained_context() { is_rc_one } else { mutable };
 
             if index >= length {
                 return Err(InterpreterError::IndexOutOfBounds { index: index.into(), length });
@@ -1094,6 +1094,9 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 array.elements.borrow_mut()[index as usize] = value;
                 Value::ArrayOrSlice(array.clone())
             } else {
+                if !is_rc_one {
+                    *array.rc.borrow_mut() -= 1;
+                }
                 let mut elements = array.elements.borrow().to_vec();
                 elements[index as usize] = value;
                 let elements = Shared::new(elements);

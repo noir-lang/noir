@@ -86,6 +86,7 @@ fn regression_7297() {
         "the original should not be mutated by copy_mut, only borrow_mut_two",
     );
     assert(array_2[0_u32] == 4_Field, "the copy should have the expected content");
+    let _refcount_3: u32 = array_refcount(array_2);
     if std::runtime::is_unconstrained() {
         assert(
             refcount_1 != 0_u32,
@@ -96,8 +97,8 @@ fn regression_7297() {
             "There is 1 clone after `borrow_mut_two` and before `refcount_1` is defined (cloned before array_refcount call)",
         );
         assert(
-            refcount_2 == (refcount_1 + 3_u32),
-            "after refcount_1 we clone once in passing array to copy_mut, once to array_refcount after, and once within copy_mut",
+            refcount_2 == ((refcount_1 + 3_u32) - 1_u32),
+            "after refcount_1 we clone once in passing array to copy_mut, once to array_refcount after, and once within copy_mut, but we decrease in copy_mut when copying",
         );
     }
 }
