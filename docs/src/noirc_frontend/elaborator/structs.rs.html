@@ -125,7 +125,11 @@
 <a href="#124" id="124">124</a>
 <a href="#125" id="125">125</a>
 <a href="#126" id="126">126</a>
-<a href="#127" id="127">127</a></pre></div><pre class="rust"><code><span class="doccomment">//! Struct definition collection and field resolution.
+<a href="#127" id="127">127</a>
+<a href="#128" id="128">128</a>
+<a href="#129" id="129">129</a>
+<a href="#130" id="130">130</a>
+<a href="#131" id="131">131</a></pre></div><pre class="rust"><code><span class="doccomment">//! Struct definition collection and field resolution.
 
 </span><span class="kw">use </span>std::collections::BTreeMap;
 
@@ -183,6 +187,10 @@
             }
 
             <span class="self">self</span>.interner.update_type(<span class="kw-2">*</span>type_id, |struct_def| {
+                <span class="kw">let </span><span class="kw-2">mut </span>attributes = typ.struct_def.attributes.iter();
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(message) = attributes.find_map(|attr| attr.kind.must_use_message()) {
+                    struct_def.must_use = <span class="kw">crate</span>::MustUse::MustUse(message);
+                };
                 struct_def.set_fields(fields);
             });
         }

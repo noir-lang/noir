@@ -228,7 +228,15 @@
 <a href="#227" id="227">227</a>
 <a href="#228" id="228">228</a>
 <a href="#229" id="229">229</a>
-<a href="#230" id="230">230</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::hir::def_collector::dc_crate::CompilationError;
+<a href="#230" id="230">230</a>
+<a href="#231" id="231">231</a>
+<a href="#232" id="232">232</a>
+<a href="#233" id="233">233</a>
+<a href="#234" id="234">234</a>
+<a href="#235" id="235">235</a>
+<a href="#236" id="236">236</a>
+<a href="#237" id="237">237</a>
+<a href="#238" id="238">238</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::hir::def_collector::dc_crate::CompilationError;
 <span class="kw">use </span><span class="kw">crate</span>::parser::ParserError;
 <span class="kw">use </span><span class="kw">crate</span>::parser::ParserErrorReason;
 
@@ -276,6 +284,10 @@
     </span>UnclosedQuote { start_delim: LocatedToken, end_delim: Token },
     <span class="attr">#[error(<span class="string">"Unicode character '{}' looks like space, but is it not"</span>, char)]
     </span>UnicodeCharacterLooksLikeSpaceButIsItNot { char: char, location: Location },
+    <span class="attr">#[error(
+        <span class="string">"Invalid form of the `must_use` attribute. Valid forms are `#[must_use]` and `#[must_use = \"message\"]`"
+    </span>)]
+    </span>MalformedMustUseAttribute { location: Location },
 }
 
 <span class="kw">impl </span>From&lt;LexerErrorKind&gt; <span class="kw">for </span>ParserError {
@@ -295,23 +307,24 @@
     <span class="kw">pub fn </span>location(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Location {
         <span class="kw">match </span><span class="self">self </span>{
             LexerErrorKind::UnexpectedCharacter { location, .. } =&gt; <span class="kw-2">*</span>location,
-            LexerErrorKind::NotADoubleChar { location, .. } =&gt; <span class="kw-2">*</span>location,
-            LexerErrorKind::InvalidIntegerLiteral { location, .. } =&gt; <span class="kw-2">*</span>location,
-            LexerErrorKind::IntegerLiteralTooLarge { location, .. } =&gt; <span class="kw-2">*</span>location,
-            LexerErrorKind::MalformedFuncAttribute { location, .. } =&gt; <span class="kw-2">*</span>location,
-            LexerErrorKind::MalformedTestAttribute { location, .. } =&gt; <span class="kw-2">*</span>location,
-            LexerErrorKind::MalformedFuzzAttribute { location, .. } =&gt; <span class="kw-2">*</span>location,
-            LexerErrorKind::InvalidInnerAttribute { location, .. } =&gt; <span class="kw-2">*</span>location,
-            LexerErrorKind::UnterminatedBlockComment { location } =&gt; <span class="kw-2">*</span>location,
-            LexerErrorKind::UnterminatedStringLiteral { location } =&gt; <span class="kw-2">*</span>location,
-            LexerErrorKind::InvalidFormatString { location, .. } =&gt; <span class="kw-2">*</span>location,
-            LexerErrorKind::EmptyFormatStringInterpolation { location, .. } =&gt; <span class="kw-2">*</span>location,
-            LexerErrorKind::InvalidEscape { location, .. } =&gt; <span class="kw-2">*</span>location,
-            LexerErrorKind::InvalidQuoteDelimiter { delimiter } =&gt; delimiter.location(),
-            LexerErrorKind::NonAsciiComment { location, .. }
+            LexerErrorKind::NotADoubleChar { location, .. }
+            | LexerErrorKind::InvalidIntegerLiteral { location, .. }
+            | LexerErrorKind::IntegerLiteralTooLarge { location, .. }
+            | LexerErrorKind::MalformedFuncAttribute { location, .. }
+            | LexerErrorKind::MalformedTestAttribute { location, .. }
+            | LexerErrorKind::MalformedFuzzAttribute { location, .. }
+            | LexerErrorKind::InvalidInnerAttribute { location, .. }
+            | LexerErrorKind::UnterminatedBlockComment { location }
+            | LexerErrorKind::UnterminatedStringLiteral { location }
+            | LexerErrorKind::InvalidFormatString { location, .. }
+            | LexerErrorKind::EmptyFormatStringInterpolation { location, .. }
+            | LexerErrorKind::InvalidEscape { location, .. }
+            | LexerErrorKind::NonAsciiComment { location, .. }
+            | LexerErrorKind::MalformedMustUseAttribute { location }
             | LexerErrorKind::UnicodeCharacterLooksLikeSpaceButIsItNot { location, .. } =&gt; {
                 <span class="kw-2">*</span>location
             }
+            LexerErrorKind::InvalidQuoteDelimiter { delimiter } =&gt; delimiter.location(),
             LexerErrorKind::UnclosedQuote { start_delim, .. } =&gt; start_delim.location(),
         }
     }
@@ -448,6 +461,9 @@
                 };
                 (primary, secondary, <span class="kw-2">*</span>location)
             }
+            LexerErrorKind::MalformedMustUseAttribute { location } =&gt; {
+                (<span class="string">"Invalid syntax for `must_use` attribute"</span>.to_string(), <span class="string">"Valid syntaxes are: `#[must_use]` and `#[must_use = \"message\"]`"</span>.to_string(), <span class="kw-2">*</span>location)
+            },
         }
     }
 }

@@ -1562,14 +1562,55 @@
 <a href="#1561" id="1561">1561</a>
 <a href="#1562" id="1562">1562</a>
 <a href="#1563" id="1563">1563</a>
-<a href="#1564" id="1564">1564</a></pre></div><pre class="rust"><code><span class="doccomment">//! Expression elaboration, covering all expression [kinds][ExpressionKind].
+<a href="#1564" id="1564">1564</a>
+<a href="#1565" id="1565">1565</a>
+<a href="#1566" id="1566">1566</a>
+<a href="#1567" id="1567">1567</a>
+<a href="#1568" id="1568">1568</a>
+<a href="#1569" id="1569">1569</a>
+<a href="#1570" id="1570">1570</a>
+<a href="#1571" id="1571">1571</a>
+<a href="#1572" id="1572">1572</a>
+<a href="#1573" id="1573">1573</a>
+<a href="#1574" id="1574">1574</a>
+<a href="#1575" id="1575">1575</a>
+<a href="#1576" id="1576">1576</a>
+<a href="#1577" id="1577">1577</a>
+<a href="#1578" id="1578">1578</a>
+<a href="#1579" id="1579">1579</a>
+<a href="#1580" id="1580">1580</a>
+<a href="#1581" id="1581">1581</a>
+<a href="#1582" id="1582">1582</a>
+<a href="#1583" id="1583">1583</a>
+<a href="#1584" id="1584">1584</a>
+<a href="#1585" id="1585">1585</a>
+<a href="#1586" id="1586">1586</a>
+<a href="#1587" id="1587">1587</a>
+<a href="#1588" id="1588">1588</a>
+<a href="#1589" id="1589">1589</a>
+<a href="#1590" id="1590">1590</a>
+<a href="#1591" id="1591">1591</a>
+<a href="#1592" id="1592">1592</a>
+<a href="#1593" id="1593">1593</a>
+<a href="#1594" id="1594">1594</a>
+<a href="#1595" id="1595">1595</a>
+<a href="#1596" id="1596">1596</a>
+<a href="#1597" id="1597">1597</a>
+<a href="#1598" id="1598">1598</a>
+<a href="#1599" id="1599">1599</a>
+<a href="#1600" id="1600">1600</a>
+<a href="#1601" id="1601">1601</a>
+<a href="#1602" id="1602">1602</a>
+<a href="#1603" id="1603">1603</a>
+<a href="#1604" id="1604">1604</a>
+<a href="#1605" id="1605">1605</a></pre></div><pre class="rust"><code><span class="doccomment">//! Expression elaboration, covering all expression [kinds][ExpressionKind].
 
 </span><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{Located, Location};
 <span class="kw">use </span>rustc_hash::FxHashSet <span class="kw">as </span>HashSet;
 
 <span class="kw">use crate</span>::{
-    DataType, Kind, QuotedType, Shared, Type, TypeBindings, TypeVariable,
+    DataType, Kind, MustUse, QuotedType, Shared, Type, TypeBindings, TypeVariable,
     ast::{
         ArrayLiteral, AsTraitPath, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
         ConstrainExpression, ConstrainKind, ConstructorExpression, Expression, ExpressionKind,
@@ -1765,9 +1806,15 @@
                 <span class="kw">let </span>inner_expr_type = <span class="self">self</span>.interner.id_type(expr);
                 <span class="kw">let </span>location = <span class="self">self</span>.interner.expr_location(<span class="kw-2">&amp;</span>expr);
 
-                <span class="self">self</span>.unify(<span class="kw-2">&amp;</span>inner_expr_type, <span class="kw-2">&amp;</span>Type::Unit, || TypeCheckError::UnusedResultError {
-                    expr_type: inner_expr_type.clone(),
-                    expr_location: location,
+                <span class="self">self</span>.unify(<span class="kw-2">&amp;</span>inner_expr_type, <span class="kw-2">&amp;</span>Type::Unit, || {
+                    <span class="kw">let </span>expr_type = inner_expr_type.clone();
+                    <span class="kw">let </span>expr_location = location;
+
+                    <span class="kw">if let </span>MustUse::MustUse(message) = <span class="self">Self</span>::type_is_must_use(<span class="kw-2">&amp;</span>expr_type) {
+                        TypeCheckError::UnusedResultError { expr_type, expr_location, message }
+                    } <span class="kw">else </span>{
+                        TypeCheckError::UnusedResultWarning { expr_type, expr_location }
+                    }
                 });
             }
 
@@ -1792,6 +1839,41 @@
 
         <span class="self">self</span>.pop_scope();
         (HirBlockExpression { statements }, block_type)
+    }
+
+    <span class="doccomment">/// If the given type was declared as:
+    /// - `#[must_use = "message"]`, return [MustUse::MustUse(Some("message"))]
+    /// - `#[must_use]`, return [MustUse::MustUse(None)]
+    /// - otherwise, return `MustUse::NoMustUse`
+    </span><span class="kw">fn </span>type_is_must_use(typ: <span class="kw-2">&amp;</span>Type) -&gt; MustUse {
+        <span class="doccomment">/// Helper function to avoid infinite recursion for infinitely recursive types
+        </span><span class="kw">fn </span>helper(typ: <span class="kw-2">&amp;</span>Type, fuel: u32) -&gt; MustUse {
+            <span class="kw">if </span>fuel == <span class="number">0 </span>{
+                <span class="kw">return </span>MustUse::NoMustUse;
+            }
+            <span class="kw">let </span>fuel = fuel - <span class="number">1</span>;
+            <span class="kw">match </span>typ.follow_bindings_shallow().as_ref() {
+                Type::DataType(data_type, _generics) =&gt; data_type.borrow().must_use.clone(),
+                <span class="comment">// If any element in the tuple is `#[must_use]`, the whole tuple is
+                </span>Type::Tuple(elements) =&gt; {
+                    <span class="kw">for </span>element <span class="kw">in </span>elements {
+                        <span class="kw">if let </span>MustUse::MustUse(message) = helper(element, fuel) {
+                            <span class="kw">return </span>MustUse::MustUse(message);
+                        }
+                    }
+                    MustUse::NoMustUse
+                }
+                Type::Alias(alias, generics) =&gt; helper(<span class="kw-2">&amp;</span>alias.borrow().get_type(generics), fuel),
+                Type::CheckedCast { to, .. } =&gt; helper(to.as_ref(), fuel),
+                Type::Reference(element, <span class="kw">_</span>) =&gt; helper(element.as_ref(), fuel),
+                <span class="kw">_ </span>=&gt; MustUse::NoMustUse,
+            }
+        }
+
+        <span class="comment">// 10 is an arbitrary maximum bound on recursion through `Type`s here
+        // in case an infinitely recursive type is used. In practice most types should
+        // require just 1 iteration, or up to 3 for a reference to an aliased type.
+        </span>helper(typ, <span class="number">10</span>)
     }
 
     <span class="kw">fn </span>elaborate_unsafe_block(

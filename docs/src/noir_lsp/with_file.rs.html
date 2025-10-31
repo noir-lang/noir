@@ -1031,7 +1031,8 @@
 <a href="#1030" id="1030">1030</a>
 <a href="#1031" id="1031">1031</a>
 <a href="#1032" id="1032">1032</a>
-<a href="#1033" id="1033">1033</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileId;
+<a href="#1033" id="1033">1033</a>
+<a href="#1034" id="1034">1034</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileId;
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
 <span class="kw">use </span>noirc_frontend::{
@@ -1626,6 +1627,7 @@
         | SecondaryAttributeKind::Abi(<span class="kw">_</span>)
         | SecondaryAttributeKind::Varargs
         | SecondaryAttributeKind::UseCallersScope
+        | SecondaryAttributeKind::MustUse(<span class="kw">_</span>)
         | SecondaryAttributeKind::Allow(<span class="kw">_</span>) =&gt; secondary_attribute.kind,
     };
     SecondaryAttribute { kind, location: location_with_file(secondary_attribute.location, file) }

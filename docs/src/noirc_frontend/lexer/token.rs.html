@@ -1360,7 +1360,25 @@
 <a href="#1359" id="1359">1359</a>
 <a href="#1360" id="1360">1360</a>
 <a href="#1361" id="1361">1361</a>
-<a href="#1362" id="1362">1362</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
+<a href="#1362" id="1362">1362</a>
+<a href="#1363" id="1363">1363</a>
+<a href="#1364" id="1364">1364</a>
+<a href="#1365" id="1365">1365</a>
+<a href="#1366" id="1366">1366</a>
+<a href="#1367" id="1367">1367</a>
+<a href="#1368" id="1368">1368</a>
+<a href="#1369" id="1369">1369</a>
+<a href="#1370" id="1370">1370</a>
+<a href="#1371" id="1371">1371</a>
+<a href="#1372" id="1372">1372</a>
+<a href="#1373" id="1373">1373</a>
+<a href="#1374" id="1374">1374</a>
+<a href="#1375" id="1375">1375</a>
+<a href="#1376" id="1376">1376</a>
+<a href="#1377" id="1377">1377</a>
+<a href="#1378" id="1378">1378</a>
+<a href="#1379" id="1379">1379</a>
+<a href="#1380" id="1380">1380</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>noirc_errors::{Located, Location, Position, Span, Spanned};
 <span class="kw">use </span>std::fmt::{<span class="self">self</span>, Display};
 
@@ -2479,6 +2497,12 @@
 
     <span class="doccomment">/// Allow chosen warnings to happen so they are silenced.
     </span>Allow(String),
+
+    <span class="doccomment">/// Unlike Rust, all values in Noir already warn if they are not used.
+    ///
+    /// Instead, `#[must_use]` in Noir promotes this warning to a hard error, with
+    /// an optional message for the error.
+    </span>MustUse(<span class="prelude-ty">Option</span>&lt;String&gt;),
 }
 
 <span class="kw">impl </span>SecondaryAttributeKind {
@@ -2508,6 +2532,18 @@
             SecondaryAttributeKind::Varargs =&gt; <span class="string">"varargs"</span>.to_string(),
             SecondaryAttributeKind::UseCallersScope =&gt; <span class="string">"use_callers_scope"</span>.to_string(),
             SecondaryAttributeKind::Allow(k) =&gt; <span class="macro">format!</span>(<span class="string">"allow({k})"</span>),
+            SecondaryAttributeKind::MustUse(<span class="prelude-val">None</span>) =&gt; <span class="string">"must_use"</span>.to_string(),
+            SecondaryAttributeKind::MustUse(<span class="prelude-val">Some</span>(msg)) =&gt; <span class="macro">format!</span>(<span class="string">"must_use = \"{msg}\""</span>),
+        }
+    }
+
+    <span class="doccomment">/// If this is a `#[must_use]` attribute, return `Some(message)` where message is the
+    /// optional message. Otherwise, return `None`. Since `message` itself is optional,
+    /// `Some(None)` indicates there is a `must_use` but no message was provided.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>must_use_message(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="prelude-ty">Option</span>&lt;String&gt;&gt; {
+        <span class="kw">match </span><span class="self">self </span>{
+            SecondaryAttributeKind::MustUse(message) =&gt; <span class="prelude-val">Some</span>(message.clone()),
+            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
         }
     }
 }
