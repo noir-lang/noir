@@ -16,7 +16,6 @@ use crate::{
     },
 };
 use noirc_errors::Location;
-use rustc_hash::FxHashMap as HashMap;
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 
 use crate::graph::CrateId;
@@ -65,11 +64,7 @@ pub struct DataType {
 pub struct Trait {
     pub id: TraitId,
     pub methods: Vec<FuncId>,
-    /// All implementors of this trait.
-    pub all_trait_impls: Vec<TraitImpl>,
-    /// Implementos of this trait that are exclusively associated to types outside of the crate
-    /// where this trait is defined.
-    pub external_trait_impls: Vec<TraitImpl>,
+    pub trait_impls: Vec<TraitImpl>,
 }
 
 pub struct Impl {
@@ -83,6 +78,9 @@ pub struct TraitImpl {
     pub generics: BTreeSet<(String, Kind)>,
     pub id: TraitImplId,
     pub methods: Vec<FuncId>,
+    /// True if the trait impl only mentions types from external crates.
+    /// (for example `impl Trait for Field` in a non-stdlib crate)
+    pub external_types: bool,
 }
 
 pub struct Import {
@@ -96,15 +94,8 @@ pub(super) struct ItemBuilder<'context> {
     crate_id: CrateId,
     interner: &'context NodeInterner,
     def_maps: &'context DefMaps,
-    /// This set is initially created with all the trait impls in the crate
-    /// associated to `false` (not used).
-    /// As trait impls are linked to types, they are set to `true` (used).
-    /// As we traverse traits, we'll gather trait impls associated to those traits
-    /// that aren't associated to types in the current crate.
-    /// As we find structs and enums, we'll gather trait impls associated to those types.
-    /// Because a trait impl might be associated to multiple types, once we link a trait
-    /// impl to a type we don't want to link it again to another type.
-    trait_impls: HashMap<TraitImplId, bool>,
+    /// All trait implementations in the current crate.
+    trait_impls: HashSet<TraitImplId>,
 }
 
 impl<'context> ItemBuilder<'context> {
@@ -271,11 +262,7 @@ impl<'context> ItemBuilder<'context> {
         let mut trait_impls = self
             .trait_impls
             .iter()
-            .filter_map(|(trait_impl_id, used)| {
-                if *used {
-                    return None;
-                }
-
+            .filter_map(|trait_impl_id| {
                 let trait_impl = self.interner.get_trait_implementation(*trait_impl_id);
                 let trait_impl = trait_impl.borrow();
                 if type_mentions_data_type(&trait_impl.typ, data_type) {
@@ -288,46 +275,25 @@ impl<'context> ItemBuilder<'context> {
 
         self.sort_trait_impls(&mut trait_impls);
 
-        trait_impls
-            .into_iter()
-            .map(|(trait_impl, _)| self.build_trait_impl(trait_impl, true /* mark as used */))
-            .collect()
+        trait_impls.into_iter().map(|(trait_impl, _)| self.build_trait_impl(trait_impl)).collect()
     }
 
-    fn build_trait_impls_for_trait(
-        &mut self,
-        trait_id: TraitId,
-    ) -> (Vec<TraitImpl>, Vec<TraitImpl>) {
-        let mut all_trait_impls = Vec::new();
-        let mut external_trait_impls = Vec::new();
+    fn build_trait_impls_for_trait(&mut self, trait_id: TraitId) -> Vec<TraitImpl> {
+        let mut trait_impls = Vec::new();
 
-        for (trait_impl_id, used) in &self.trait_impls {
+        for trait_impl_id in &self.trait_impls {
             let trait_impl = self.interner.get_trait_implementation(*trait_impl_id);
             let trait_impl = trait_impl.borrow();
             if trait_impl.trait_id != trait_id {
                 continue;
             }
 
-            if !used && self.type_only_mention_types_outside_current_crate(&trait_impl.typ) {
-                external_trait_impls.push((*trait_impl_id, trait_impl.location));
-            }
-            all_trait_impls.push((*trait_impl_id, trait_impl.location));
+            trait_impls.push((*trait_impl_id, trait_impl.location));
         }
 
-        self.sort_trait_impls(&mut all_trait_impls);
-        self.sort_trait_impls(&mut external_trait_impls);
+        self.sort_trait_impls(&mut trait_impls);
 
-        let all_trait_impls = all_trait_impls
-            .into_iter()
-            .map(|(trait_impl, _)| self.build_trait_impl(trait_impl, false /* mark as used */))
-            .collect();
-
-        let external_trait_impls = external_trait_impls
-            .into_iter()
-            .map(|(trait_impl, _)| self.build_trait_impl(trait_impl, true /* mark as used */))
-            .collect();
-
-        (all_trait_impls, external_trait_impls)
+        trait_impls.into_iter().map(|(trait_impl, _)| self.build_trait_impl(trait_impl)).collect()
     }
 
     fn sort_trait_impls(&mut self, trait_impls: &mut [(TraitImplId, Location)]) {
@@ -339,14 +305,10 @@ impl<'context> ItemBuilder<'context> {
         });
     }
 
-    fn build_trait_impl(&mut self, trait_impl_id: TraitImplId, mark_as_used: bool) -> TraitImpl {
-        if mark_as_used {
-            // Mark the trait as used so we don't show it again (in nargo expand)
-            self.trait_impls.insert(trait_impl_id, true);
-        }
-
+    fn build_trait_impl(&mut self, trait_impl_id: TraitImplId) -> TraitImpl {
         let trait_impl = self.interner.get_trait_implementation(trait_impl_id);
         let trait_impl = trait_impl.borrow();
+        let external_types = self.type_only_mention_types_outside_current_crate(&trait_impl.typ);
 
         let mut type_var_names = BTreeSet::new();
         for generic in &trait_impl.trait_generics {
@@ -358,6 +320,7 @@ impl<'context> ItemBuilder<'context> {
             generics: type_var_names,
             id: trait_impl_id,
             methods: trait_impl.methods.clone(),
+            external_types,
         }
     }
 
@@ -377,9 +340,9 @@ impl<'context> ItemBuilder<'context> {
         func_ids.sort_by_key(|(_func_id, location)| *location);
 
         let methods = func_ids.into_iter().map(|(func_id, _)| *func_id).collect();
-        let (all_trait_impls, external_trait_impls) = self.build_trait_impls_for_trait(trait_id);
+        let trait_impls = self.build_trait_impls_for_trait(trait_id);
 
-        Item::Trait(Trait { id: trait_id, methods, all_trait_impls, external_trait_impls })
+        Item::Trait(Trait { id: trait_id, methods, trait_impls })
     }
 
     fn type_only_mention_types_outside_current_crate(&self, typ: &Type) -> bool {

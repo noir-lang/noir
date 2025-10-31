@@ -119,7 +119,7 @@ impl DocItemBuilder<'_> {
                 let comments = self.doc_comments(ReferenceId::Trait(trait_id));
                 let generics = vecmap(&trait_.generics, convert_generic);
                 let methods = vecmap(item_trait.methods, |func_id| self.convert_function(func_id));
-                let trait_impls = vecmap(item_trait.all_trait_impls, |trait_impl| {
+                let trait_impls = vecmap(item_trait.trait_impls, |trait_impl| {
                     self.convert_trait_impl(trait_impl)
                 });
                 let where_clause = vecmap(&trait_.where_clause, |constraint| {

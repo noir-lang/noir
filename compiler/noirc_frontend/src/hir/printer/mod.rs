@@ -1,7 +1,8 @@
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 use crate::graph::{CrateGraph, CrateId};
 use crate::hir::printer::items::ItemBuilder;
+use crate::node_interner::TraitImplId;
 use crate::{
     DataType, Generics, Kind, NamedGeneric, Type,
     ast::{Ident, ItemVisibility},
@@ -67,6 +68,9 @@ struct ItemPrinter<'context, 'string> {
     /// Trait constraints in scope.
     /// These are set when a trait, trait impl or function is visited.
     trait_constraints: Vec<TraitConstraint>,
+    /// Keep track of trait impls that have been printed so we don't show a
+    /// same trait impl multiple times.
+    trait_impls_printed: HashSet<TraitImplId>,
 }
 
 impl<'context, 'string> ItemPrinter<'context, 'string> {
@@ -91,6 +95,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             imports,
             self_type: None,
             trait_constraints: Vec::new(),
+            trait_impls_printed: HashSet::new(),
         }
     }
 
@@ -255,7 +260,9 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         drop(data_type);
 
         self.show_data_type_impls(item_data_type.impls);
-        self.show_trait_impls(item_data_type.trait_impls);
+
+        let trait_impls = item_data_type.trait_impls.iter().collect::<Vec<_>>();
+        self.show_trait_impls(&trait_impls);
     }
 
     fn show_struct(&mut self, data_type: &DataType) {
@@ -343,7 +350,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         self.self_type = None;
     }
 
-    fn show_trait_impls(&mut self, trait_impls: Vec<TraitImpl>) {
+    fn show_trait_impls(&mut self, trait_impls: &[&TraitImpl]) {
         for trait_impl in trait_impls {
             self.push_str("\n\n");
             self.write_indent();
@@ -433,12 +440,21 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
 
         self.trait_constraints.clear();
 
-        // Only show external trait impls here as trait implementations for types in the current
-        // crate will show up next to those types.
-        self.show_trait_impls(item_trait.external_trait_impls);
+        // Only show trait impls for types outside of the current crate:
+        // trait impls for types in this crate are already shown alongside the type definition.
+        let trait_impls = item_trait
+            .trait_impls
+            .iter()
+            .filter(|trait_impl| trait_impl.external_types)
+            .collect::<Vec<_>>();
+        self.show_trait_impls(&trait_impls);
     }
 
-    fn show_trait_impl(&mut self, item_trait_impl: TraitImpl) {
+    fn show_trait_impl(&mut self, item_trait_impl: &TraitImpl) {
+        if !self.trait_impls_printed.insert(item_trait_impl.id) {
+            return;
+        }
+
         let trait_impl_id = item_trait_impl.id;
 
         let trait_impl = self.interner.get_trait_implementation(trait_impl_id);
@@ -496,13 +512,13 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             printed_item = true;
         }
 
-        for method in item_trait_impl.methods {
+        for method in &item_trait_impl.methods {
             if printed_item {
                 self.push_str("\n\n");
             }
             self.write_indent();
 
-            let item = Item::Function(method);
+            let item = Item::Function(*method);
             let visibility = ItemVisibility::Private;
             self.show_item_with_visibility(item, visibility);
 
