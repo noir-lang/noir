@@ -398,7 +398,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         result
     }
 
-    /// Reads the metadata of a vector and returns them as a tuple of [SingleAddrVariable]s: `(rc, size, capacity, items)`.
+    /// Reads the metadata of a vector into individual registers and returns them as [VectorMetaData].
     ///
     /// If the `semantic_length_and_item_size` is given, then instead of reading the size from the
     /// vector data structure, it is calculated as a multiplication of length and item size.

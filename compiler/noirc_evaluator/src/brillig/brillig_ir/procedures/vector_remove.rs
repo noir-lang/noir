@@ -70,7 +70,7 @@ pub(super) fn compile_vector_remove_procedure<F: AcirField + DebugToString>(
     let source_vector_items_pointer =
         brillig_context.codegen_make_vector_items_pointer(source_vector);
 
-    // The items pointer in either the source vector of a new one, depending on resuse.
+    // The items pointer in either the source vector of a new one, depending on reuse.
     let target_vector_items_pointer = brillig_context.allocate_register();
 
     // Set up the target vector up to the index.
