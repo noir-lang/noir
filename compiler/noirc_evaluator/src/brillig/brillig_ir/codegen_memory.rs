@@ -196,7 +196,9 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         );
     }
 
-    /// This instruction will reverse the order of the `size` elements pointed by `pointer`.
+    /// Emit opcodes to reverse the order of the `size` elements pointed by `pointer`.
+    ///
+    /// It is the responsibility of the caller to ensure that the ref-count of the array is 1.
     pub(crate) fn codegen_array_reverse(
         &mut self,
         items_pointer: MemoryAddress,
@@ -207,35 +209,29 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             return;
         }
 
+        // for i in 0..size/2 { swap(items[i], items[size-1-i]); }
         let iteration_count = self.allocate_register();
         self.codegen_usize_op(size, *iteration_count, BrilligBinaryOp::UnsignedDiv, 2);
 
         let start_value_register = self.allocate_register();
         let end_value_register = self.allocate_register();
-        let index_at_end_of_array = self.allocate_register();
+        let index_at_end = self.allocate_register();
 
-        self.mov_instruction(*index_at_end_of_array, size);
+        // The index going from back to front.
+        self.mov_instruction(*index_at_end, size);
 
         self.codegen_loop(*iteration_count, |ctx, iterator_register| {
-            // The index at the end of array is size - 1 - iterator
-            ctx.codegen_usize_op_in_place(*index_at_end_of_array, BrilligBinaryOp::Sub, 1);
-            let index_at_end_of_array_var = SingleAddrVariable::new_usize(*index_at_end_of_array);
+            // The index at the end of the array is size - 1 - iterator
+            ctx.codegen_usize_op_in_place(*index_at_end, BrilligBinaryOp::Sub, 1);
+            let index_at_end_var = SingleAddrVariable::new_usize(*index_at_end);
 
             // Load both values
             ctx.codegen_load_with_offset(items_pointer, iterator_register, *start_value_register);
-            ctx.codegen_load_with_offset(
-                items_pointer,
-                index_at_end_of_array_var,
-                *end_value_register,
-            );
+            ctx.codegen_load_with_offset(items_pointer, index_at_end_var, *end_value_register);
 
             // Write both values
             ctx.codegen_store_with_offset(items_pointer, iterator_register, *end_value_register);
-            ctx.codegen_store_with_offset(
-                items_pointer,
-                index_at_end_of_array_var,
-                *start_value_register,
-            );
+            ctx.codegen_store_with_offset(items_pointer, index_at_end_var, *start_value_register);
         });
     }
 
