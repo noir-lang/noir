@@ -8,7 +8,7 @@ body {
 }
 
 main {
-    padding: 10px 15px 10px 15px;
+    padding: 10px 15px 40px 45px;
     max-width: 960px;
     position: relative;
     flex-grow: 1;
