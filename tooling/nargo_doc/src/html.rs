@@ -473,11 +473,11 @@ impl HTMLCreator {
         self.h2("Fields");
 
         for field in fields {
-            self.output.push_str("<h3><code class=\"code-header\">");
+            self.output.push_str("<div class=\"struct-field\"><code class=\"code-header\">");
             self.output.push_str(&field.name);
             self.output.push_str(": ");
             self.render_type(&field.r#type);
-            self.output.push_str("</code></h3>\n");
+            self.output.push_str("</code></div>\n");
             self.output.push_str("<div class=\"padded-description\">");
             self.render_comments(&field.comments, 3);
             self.output.push_str("</div>");
