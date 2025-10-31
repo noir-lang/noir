@@ -726,16 +726,16 @@ impl HTMLCreator {
                 self.output.push(']');
             }
             Type::String { length } => {
-                self.output.push_str("str<");
+                self.output.push_str("str&lt;");
                 self.render_type(length);
-                self.output.push('>');
+                self.output.push_str("&gt;");
             }
             Type::FmtString { length, element } => {
-                self.output.push_str("fmtstr<");
+                self.output.push_str("fmtstr&lt;");
                 self.render_type(length);
                 self.output.push_str(", ");
                 self.render_type(element);
-                self.output.push('>');
+                self.output.push_str("&gt;");
             }
             Type::Tuple(items) => {
                 self.output.push('(');
@@ -829,7 +829,7 @@ impl HTMLCreator {
             return;
         }
 
-        self.output.push('<');
+        self.output.push_str("&lt;");
         let mut first = true;
         for generic in ordered {
             if !first {
@@ -847,7 +847,7 @@ impl HTMLCreator {
             self.output.push_str(" = ");
             self.render_type(typ);
         }
-        self.output.push('>');
+        self.output.push_str("&gt;");
     }
 
     /// Renders the given comments, if any.
@@ -1008,14 +1008,14 @@ fn trait_impl_trait_to_string(trait_impl: &TraitImpl) -> String {
     let mut string = String::new();
     string.push_str(&trait_impl.trait_name);
     if !trait_impl.trait_generics.is_empty() {
-        string.push('<');
+        string.push_str("&lt;");
         for (index, typ) in trait_impl.trait_generics.iter().enumerate() {
             if index > 0 {
                 string.push_str(", ");
             }
             string.push_str(&type_to_string(typ));
         }
-        string.push('>');
+        string.push_str("&gt;");
     }
     string
 }
@@ -1028,9 +1028,9 @@ fn type_to_string(typ: &Type) -> String {
             format!("[{}; {}]", type_to_string(element), type_to_string(length))
         }
         Type::Slice { element } => format!("[{}]", type_to_string(element)),
-        Type::String { length } => format!("str<{}>", type_to_string(length)),
+        Type::String { length } => format!("str&lt;{}&gt;", type_to_string(length)),
         Type::FmtString { length, element } => {
-            format!("fmtstr<{}, {}>", type_to_string(length), type_to_string(element))
+            format!("fmtstr&lt;{}, {}&gt;", type_to_string(length), type_to_string(element))
         }
         Type::Tuple(items) => {
             let items: Vec<String> = items.iter().map(type_to_string).collect();
