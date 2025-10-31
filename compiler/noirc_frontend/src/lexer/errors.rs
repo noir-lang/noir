@@ -224,7 +224,7 @@ impl LexerErrorKind {
                 (primary, secondary, *location)
             }
             LexerErrorKind::MalformedMustUseAttribute { location } => {
-                ("Invalid syntax for `must_use` attribute".to_string(), format!("Valid syntaxes are: `#[must_use]` and `#[must_use = \"message\"]`"), location.clone())
+                ("Invalid syntax for `must_use` attribute".to_string(), "Valid syntaxes are: `#[must_use]` and `#[must_use = \"message\"]`".to_string(), *location)
             },
         }
     }
