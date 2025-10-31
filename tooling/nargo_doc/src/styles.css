@@ -141,6 +141,10 @@ ul {
     margin-top: 30px;
 }
 
+.sidebar h2 a {
+    color: black;
+}
+
 .sidebar h3 {
     border-bottom: 0;
     margin: 0;

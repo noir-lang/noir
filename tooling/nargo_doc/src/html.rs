@@ -235,7 +235,7 @@ impl HTMLCreator {
         self.sidebar_end();
         self.main_start();
         self.render_breadcrumbs(false);
-        self.h1(&format!("Module <span class=\"module\">{}</span>", module.name));
+        self.h1(&format!("Module <span id=\"mod\" class=\"module\">{}</span>", module.name));
         self.render_comments(&module.comments, 1);
         self.render_items(&module.items, false, false);
         self.main_end();
@@ -248,7 +248,7 @@ impl HTMLCreator {
     }
 
     fn render_module_sidebar(&mut self, parent_module: &Module, module: &Module) {
-        self.h2(&format!("Module {}", module.name));
+        self.h2(&format!("<a href=\"#mod\">Module {}</a>", module.name));
         self.render_module_items_sidebar(module);
         self.render_module_contents_sidebar(parent_module, true);
     }
@@ -310,7 +310,7 @@ impl HTMLCreator {
     }
 
     fn render_struct_sidebar(&mut self, struct_: &Struct) {
-        self.h2(&format!("Struct {}", struct_.name));
+        self.h2(&format!("<a href=\"#struct\">Struct {}</a>", struct_.name));
 
         let mut methods = struct_.impls.iter().flat_map(|iter| &iter.methods).collect::<Vec<_>>();
         methods.sort_by_key(|method| method.name.clone());
@@ -337,7 +337,7 @@ impl HTMLCreator {
         self.sidebar_end();
         self.main_start();
         self.render_breadcrumbs(true);
-        self.h1(&format!("Trait <span class=\"trait\">{}</span>", trait_.name));
+        self.h1(&format!("Trait <span id=\"trait\" class=\"trait\">{}</span>", trait_.name));
         self.render_trait_code(trait_);
         self.render_comments(&trait_.comments, 1);
         self.render_trait_methods(&trait_.methods);
@@ -351,7 +351,7 @@ impl HTMLCreator {
     }
 
     fn render_trait_sidebar(&mut self, trait_: &Trait) {
-        self.h2(&format!("Trait {}", trait_.name));
+        self.h2(&format!("<a href=\"#trait\">Trait {}</a>", trait_.name));
 
         let mut methods = trait_.methods.iter().collect::<Vec<_>>();
         methods.sort_by_key(|method| method.name.clone());
