@@ -153,9 +153,7 @@ fn print_lambda() {
 
     let printed_output = expect_printed_output(src);
 
-    insta::assert_snapshot!(printed_output, @"
-    <<fn([Field]) -> Field>>
-    ");
+    insta::assert_snapshot!(printed_output, @"<<fn(Field) -> Field>>");
 }
 
 #[test]
