@@ -1,5 +1,6 @@
 use crate::items::{Crate, Function, Global, Module, Struct, Trait, TypeAlias};
 
+/// A trait that associated a CSS class name with an item.
 pub(super) trait HasClass {
     fn class(&self) -> &'static str;
 }

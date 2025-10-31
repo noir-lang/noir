@@ -1,3 +1,5 @@
+//! Contains the data structures that represent items to be shown by the documentation generator.
+
 use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};

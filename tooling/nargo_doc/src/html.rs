@@ -9,8 +9,8 @@ use crate::{
     html::{
         all_items::AllItems,
         has_class::HasClass,
-        has_path::HasPath,
-        id_to_path::compute_id_to_path,
+        has_uri::HasUri,
+        id_to_uri::compute_id_to_uri,
         markdown_utils::{fix_markdown, markdown_summary},
         trait_impls::gather_all_trait_impls,
     },
@@ -23,28 +23,40 @@ use crate::{
 
 mod all_items;
 mod has_class;
-mod has_path;
-mod id_to_path;
+mod has_uri;
+mod id_to_uri;
 mod markdown_utils;
 mod trait_impls;
 
 /// Returns a list of (path, contents) representing the HTML files for the given crates.
 /// The paths are relative paths that can be joined to a base directory.
+///
+/// Not all returned files are linked to items. For example, there's an "all.html" file
+/// that lists all items, and a "styles.css" file for styling.
 pub fn to_html(workspace: &Workspace) -> Vec<(PathBuf, String)> {
     let mut creator = HTMLCreator::new(workspace);
     creator.process_workspace(workspace);
     creator.files
 }
 
+/// Builds all the files for the HTML documentation.
 struct HTMLCreator {
     output: String,
     files: Vec<(PathBuf, String)>,
     current_path: Vec<String>,
     workspace_name: String,
-    id_to_path: HashMap<TypeId, String>,
+    id_to_uri: HashMap<TypeId, String>,
     /// Maps a trait ID to all its implementations across all crates.
     all_trait_impls: HashMap<TypeId, HashSet<TraitImpl>>,
 }
+
+// Implementation details:
+// - there's a single `output: String` buffer. Content is written there as HTML is generated
+//   and, once a new page needs to be "written", the buffer is moved to `files` and `output` is
+//   emptied.
+// - `create_*` methods create new files by writing to `output`, pushing to `files`, then
+//   clearing `output`.
+// - `render_*` methods just write to `output`.
 
 impl HTMLCreator {
     fn new(workspace: &Workspace) -> Self {
@@ -52,13 +64,13 @@ impl HTMLCreator {
         let files = Vec::new();
         let current_path = Vec::new();
         let workspace_name = workspace.name.clone();
-        let id_to_path = compute_id_to_path(workspace);
+        let id_to_uri = compute_id_to_uri(workspace);
 
         // Each trait in each create will have trait impls that are found in that crate.
         // When showing a trait we want to show all impls across all crates, so we gather
         // them now.
         let all_trait_impls = gather_all_trait_impls(workspace);
-        Self { output, files, current_path, workspace_name, id_to_path, all_trait_impls }
+        Self { output, files, current_path, workspace_name, id_to_uri, all_trait_impls }
     }
 
     fn process_workspace(&mut self, workspace: &Workspace) {
@@ -182,7 +194,7 @@ impl HTMLCreator {
             self.output.push_str("<li>");
             self.output.push_str(&format!(
                 "<a href=\"../{}\" class=\"{}\">{}</a>",
-                item.path(),
+                item.uri(),
                 item.class(),
                 item.name(),
             ));
@@ -248,7 +260,7 @@ impl HTMLCreator {
         }
     }
 
-    fn render_list<T: HasNameAndComments + HasPath + HasClass>(
+    fn render_list<T: HasNameAndComments + HasUri + HasClass>(
         &mut self,
         title: &str,
         anchor: &str,
@@ -270,7 +282,7 @@ impl HTMLCreator {
             self.output.push_str(&format!(
                 "<a href=\"{}{}\" class=\"{}\">{}</a>",
                 if reference_parent { "../" } else { "" },
-                item.path(),
+                item.uri(),
                 item.class(),
                 item.name(),
             ));
@@ -388,7 +400,7 @@ impl HTMLCreator {
 
         self.main_end();
         self.html_end();
-        self.push_file(PathBuf::from(struct_.path()));
+        self.push_file(PathBuf::from(struct_.uri()));
     }
 
     fn render_struct_sidebar(&mut self, struct_: &Struct) {
@@ -441,7 +453,7 @@ impl HTMLCreator {
 
         self.main_end();
         self.html_end();
-        self.push_file(PathBuf::from(trait_.path()));
+        self.push_file(PathBuf::from(trait_.uri()));
     }
 
     fn render_trait_sidebar(&mut self, trait_: &Trait) {
@@ -496,7 +508,7 @@ impl HTMLCreator {
         self.render_comments(&alias.comments, 1);
         self.main_end();
         self.html_end();
-        self.push_file(PathBuf::from(alias.path()));
+        self.push_file(PathBuf::from(alias.uri()));
     }
 
     fn create_function(&mut self, parent_module: &Module, function: &Function) {
@@ -512,7 +524,7 @@ impl HTMLCreator {
         self.render_function(function, 1, as_header, output_id);
         self.main_end();
         self.html_end();
-        self.push_file(PathBuf::from(function.path()));
+        self.push_file(PathBuf::from(function.uri()));
     }
 
     fn create_global(&mut self, parent_module: &Module, global: &Global) {
@@ -527,7 +539,7 @@ impl HTMLCreator {
         self.render_comments(&global.comments, 1);
         self.main_end();
         self.html_end();
-        self.push_file(PathBuf::from(global.path()));
+        self.push_file(PathBuf::from(global.uri()));
     }
 
     fn render_struct_code(&mut self, struct_: &Struct) {
@@ -821,7 +833,7 @@ impl HTMLCreator {
     }
 
     fn render_id_reference(&mut self, id: TypeId, name: &str, kind: ReferenceKind) {
-        if let Some(path) = self.id_to_path.get(&id) {
+        if let Some(uri) = self.id_to_uri.get(&id) {
             let class = match kind {
                 ReferenceKind::Struct => "struct",
                 ReferenceKind::Trait => "trait",
@@ -829,7 +841,7 @@ impl HTMLCreator {
             };
             let nesting = self.current_path.len();
             self.output.push_str(&format!(
-                "<a href=\"{}{path}\" class=\"{class}\">{name}</a>",
+                "<a href=\"{}{uri}\" class=\"{class}\">{name}</a>",
                 "../".repeat(nesting)
             ));
         } else {

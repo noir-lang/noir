@@ -1,3 +1,7 @@
+/// Fixes a Markdown string by:
+/// - adjusting headers that exceed `current_heading_level` by making them smaller,
+///   so headers in user comments aren't larger than the surrounding document's headers.
+/// - ensures code blocks are properly closed.
 pub(super) fn fix_markdown(markdown: &str, current_heading_level: usize) -> String {
     // Track occurrences of "```" to see if the user forgot to close a code block.
     // If so, we'll close it to prevent ruining the docs.
