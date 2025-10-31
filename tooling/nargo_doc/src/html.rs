@@ -6,15 +6,15 @@ use std::{
 use iter_extended::vecmap;
 
 use crate::items::{
-    Crate, Crates, Function, Generic, Global, HasNameAndComments, Impl, Item, Module, Struct,
-    StructField, Trait, TraitBound, TraitConstraint, TraitImpl, Type, TypeAlias,
+    Crate, Function, Generic, Global, HasNameAndComments, Impl, Item, Module, Struct, StructField,
+    Trait, TraitBound, TraitConstraint, TraitImpl, Type, TypeAlias, Workspace,
 };
 
 /// Returns a list of (path, contents) representing the HTML files for the given crates.
 /// The paths are relative paths that can be joined to a base directory.
-pub fn to_html(crates: &Crates) -> Vec<(PathBuf, String)> {
-    let mut creator = HTMLCreator::new(crates);
-    creator.process_crates(crates);
+pub fn to_html(workspace: &Workspace) -> Vec<(PathBuf, String)> {
+    let mut creator = HTMLCreator::new(workspace);
+    creator.process_workspace(workspace);
     creator.files
 }
 
@@ -22,33 +22,33 @@ struct HTMLCreator {
     output: String,
     files: Vec<(PathBuf, String)>,
     current_path: Vec<String>,
-    crates_name: String,
+    workspace_name: String,
     id_to_path: HashMap<usize, String>,
     /// Maps a trait ID to all its implementations across all crates.
     all_trait_impls: HashMap<usize, HashSet<TraitImpl>>,
 }
 
 impl HTMLCreator {
-    fn new(crates: &Crates) -> Self {
+    fn new(workspace: &Workspace) -> Self {
         let output = String::new();
         let files = Vec::new();
         let current_path = Vec::new();
-        let crates_name = crates.name.clone();
-        let id_to_path = compute_id_to_path(crates);
+        let workspace_name = workspace.name.clone();
+        let id_to_path = compute_id_to_path(workspace);
 
         // Each trait in each create will have trait impls that are found in that crate.
         // When showing a trait we want to show all impls across all crates, so we gather
         // them now.
-        let all_trait_impls = gather_all_trait_impls(crates);
-        Self { output, files, current_path, crates_name, id_to_path, all_trait_impls }
+        let all_trait_impls = gather_all_trait_impls(workspace);
+        Self { output, files, current_path, workspace_name, id_to_path, all_trait_impls }
     }
 
-    fn process_crates(&mut self, crates: &Crates) {
+    fn process_workspace(&mut self, workspace: &Workspace) {
         self.create_styles();
-        self.create_index(crates);
+        self.create_index(workspace);
 
-        for krate in &crates.crates {
-            self.create_crate(crates, krate);
+        for krate in &workspace.crates {
+            self.create_crate(workspace, krate);
         }
     }
 
@@ -58,8 +58,8 @@ impl HTMLCreator {
         self.push_file(PathBuf::from("styles.css"));
     }
 
-    fn create_index(&mut self, crates: &Crates) {
-        self.html_start(&format!("{} documentation", crates.name));
+    fn create_index(&mut self, workspace: &Workspace) {
+        self.html_start(&format!("{} documentation", workspace.name));
 
         // This sidebar is empty because there's not much we can list here.
         // It's here so that every page has a sidebar.
@@ -67,20 +67,20 @@ impl HTMLCreator {
         self.sidebar_end();
 
         self.main_start();
-        self.h1(&format!("{} documentation", crates.name));
-        let crates = vecmap(&crates.crates, |krate| krate);
-        self.render_list("Crates", "crates", false, false, &crates);
+        self.h1(&format!("{} documentation", workspace.name));
+        let crates = vecmap(&workspace.crates, |krate| krate);
+        self.render_list("Workspace", "crates", false, false, &crates);
         self.main_end();
         self.html_end();
         self.push_file(PathBuf::from("index.html"));
     }
 
-    fn create_crate(&mut self, crates: &Crates, krate: &Crate) {
+    fn create_crate(&mut self, workspace: &Workspace, krate: &Crate) {
         self.current_path.push(krate.name.clone());
 
         self.html_start(&format!("Crate {}", krate.name));
         self.sidebar_start();
-        self.render_crate_sidebar(crates);
+        self.render_crate_sidebar(workspace);
         self.sidebar_end();
         self.main_start();
         self.render_breadcrumbs(false);
@@ -96,10 +96,10 @@ impl HTMLCreator {
         self.current_path.pop();
     }
 
-    fn render_crate_sidebar(&mut self, crates: &Crates) {
-        self.h3("Crates");
+    fn render_crate_sidebar(&mut self, workspace: &Workspace) {
+        self.h3("Workspace");
         self.output.push_str("<ul class=\"sidebar-list\">");
-        for item in &crates.crates {
+        for item in &workspace.crates {
             self.output.push_str("<li>");
             self.output.push_str(&format!(
                 "<a href=\"../{}\" class=\"{}\">{}</a>",
@@ -881,7 +881,7 @@ impl HTMLCreator {
         self.output.push_str("<div>");
         let mut nesting = self.current_path.len();
         self.output.push_str(
-            format!("<a href=\"{}index.html\">{}</a>", "../".repeat(nesting), self.crates_name)
+            format!("<a href=\"{}index.html\">{}</a>", "../".repeat(nesting), self.workspace_name)
                 .as_str(),
         );
         self.output.push_str(" - ");
@@ -940,7 +940,7 @@ impl HTMLCreator {
     fn sidebar_start(&mut self) {
         self.output.push_str("<nav class=\"sidebar\">\n");
         let nesting = self.current_path.len();
-        let crates_name = self.crates_name.clone();
+        let crates_name = self.workspace_name.clone();
         self.h1(&format!("<a href=\"{}index.html\">{}</a>", "../".repeat(nesting), crates_name));
     }
 
@@ -1074,11 +1074,11 @@ fn type_to_string(typ: &Type) -> String {
     }
 }
 
-fn compute_id_to_path(crates: &Crates) -> HashMap<usize, String> {
+fn compute_id_to_path(workspace: &Workspace) -> HashMap<usize, String> {
     let mut id_to_path = HashMap::new();
     let mut path = Vec::new();
 
-    for krate in &crates.crates {
+    for krate in &workspace.crates {
         path.push(krate.name.to_string());
         for item in &krate.root_module.items {
             compute_id_to_path_in_item(item, &mut id_to_path, &mut path);
@@ -1119,10 +1119,10 @@ fn compute_id_to_path_in_item(
     }
 }
 
-fn gather_all_trait_impls(crates: &Crates) -> HashMap<usize, HashSet<TraitImpl>> {
+fn gather_all_trait_impls(workspace: &Workspace) -> HashMap<usize, HashSet<TraitImpl>> {
     let mut trait_impls = HashMap::new();
 
-    for krate in &crates.crates {
+    for krate in &workspace.crates {
         for item in &krate.root_module.items {
             gather_trait_impls_in_item(item, &mut trait_impls);
         }

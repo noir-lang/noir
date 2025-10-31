@@ -8,7 +8,7 @@ pub trait HasNameAndComments {
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct Crates {
+pub struct Workspace {
     pub name: String,
     pub crates: Vec<Crate>,
 }

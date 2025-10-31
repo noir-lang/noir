@@ -9,7 +9,7 @@ use nargo::{
 };
 use nargo_doc::{
     ItemIds, crate_module,
-    items::{Crate, Crates, Module},
+    items::{Crate, Module},
 };
 use nargo_toml::PackageSelection;
 use noirc_driver::CompileOptions;
@@ -68,7 +68,7 @@ pub(crate) fn run(args: DocCommand, workspace: Workspace) -> Result<(), CliError
         crates.push(Crate { name: package.name.to_string(), root_module });
     }
     let name = workspace.root_dir.file_name().unwrap().to_string_lossy().to_string();
-    let crates = Crates { crates, name };
+    let crates = nargo_doc::items::Workspace { crates, name };
 
     let format = args.format.unwrap_or(Format::Html);
     match format {
