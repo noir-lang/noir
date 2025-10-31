@@ -48,18 +48,11 @@ pub(super) fn compile_vector_pop_front_procedure<F: AcirField + DebugToString>(
     let source_vector = BrilligVector { pointer: source_vector_pointer_arg };
     let target_vector = BrilligVector { pointer: new_vector_pointer_return };
 
-    let source_rc = brillig_context.allocate_single_addr_usize();
-    let source_size = brillig_context.allocate_single_addr_usize();
-    let source_capacity = brillig_context.allocate_single_addr_usize();
-    let source_items_pointer = brillig_context.allocate_single_addr_usize();
-    brillig_context.codegen_read_vector_metadata(
-        source_vector,
-        *source_rc,
-        *source_size,
-        *source_capacity,
-        *source_items_pointer,
-        Some((source_vector_length_arg, item_pop_count_arg)),
-    );
+    let (source_rc, source_size, source_capacity, source_items_pointer) = brillig_context
+        .codegen_read_vector_metadata(
+            source_vector,
+            Some((source_vector_length_arg, item_pop_count_arg)),
+        );
 
     // target_size = source_size - item_pop_count
     let target_size = brillig_context.allocate_single_addr_usize();

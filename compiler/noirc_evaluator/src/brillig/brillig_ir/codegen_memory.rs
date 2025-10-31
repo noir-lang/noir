@@ -386,23 +386,25 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         result
     }
 
-    /// Reads the metadata of a vector and stores it in the given variables.
+    /// Reads the metadata of a vector and returns them as a tuple of [SingleAddrVariable]s: `(rc, size, capacity, items)`.
     ///
     /// If the `semantic_length_and_item_size` is given, then instead of reading the size from the
     /// vector data structure, it is calculated as a multiplication of length and item size.
     pub(crate) fn codegen_read_vector_metadata(
         &mut self,
         vector: BrilligVector,
-        rc: SingleAddrVariable,
-        size: SingleAddrVariable,
-        capacity: SingleAddrVariable,
-        items_pointer: SingleAddrVariable,
         semantic_length_and_item_size: Option<(MemoryAddress, MemoryAddress)>,
+    ) -> (
+        Allocated<SingleAddrVariable, Registers>,
+        Allocated<SingleAddrVariable, Registers>,
+        Allocated<SingleAddrVariable, Registers>,
+        Allocated<SingleAddrVariable, Registers>,
     ) {
-        assert!(rc.bit_size == BRILLIG_MEMORY_ADDRESSING_BIT_SIZE);
-        assert!(size.bit_size == BRILLIG_MEMORY_ADDRESSING_BIT_SIZE);
-        assert!(capacity.bit_size == BRILLIG_MEMORY_ADDRESSING_BIT_SIZE);
-        assert!(items_pointer.bit_size == BRILLIG_MEMORY_ADDRESSING_BIT_SIZE);
+        let rc = self.allocate_single_addr_usize();
+        let size = self.allocate_single_addr_usize();
+        let capacity = self.allocate_single_addr_usize();
+        let items_pointer = self.allocate_single_addr_usize();
+
         // Vector layout: [ref_count, size, capacity, items...]
         self.load_instruction(rc.address, vector.pointer);
         let read_pointer = self.allocate_register();
@@ -429,6 +431,8 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             BrilligBinaryOp::Add,
             offsets::VECTOR_ITEMS - offsets::VECTOR_CAPACITY,
         );
+
+        (rc, size, capacity, items_pointer)
     }
 
     /// Generate code to calculate the flattened vector size from its semantic length and the item size.

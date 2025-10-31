@@ -9,7 +9,10 @@ use crate::brillig::brillig_ir::{
 };
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
-    /// It prepares a vector for a insert operation, leaving a hole at the index position which is returned as the `write_pointer`.
+    /// Copy the arguments to the scratch space and call [ProcedureId::PrepareVectorInsert].
+    ///
+    /// Prepares a the `source_vector` for a insert operation by making a copy to `destination_vector`,
+    /// leaving an `item_count` hole at the `index` position, which is returned as the `write_pointer`.
     pub(crate) fn call_prepare_vector_insert_procedure(
         &mut self,
         source_vector: BrilligVector,
@@ -22,7 +25,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             source_vector_pointer_arg,
             index_arg,
             item_count_arg,
-            new_vector_pointer_return,
+            destination_vector_pointer_return,
             write_pointer_return,
         ] = self.make_scratch_registers();
 
@@ -32,7 +35,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 
         self.add_procedure_call_instruction(ProcedureId::PrepareVectorInsert);
 
-        self.mov_instruction(destination_vector.pointer, new_vector_pointer_return);
+        self.mov_instruction(destination_vector.pointer, destination_vector_pointer_return);
         self.mov_instruction(write_pointer, write_pointer_return);
     }
 }
@@ -45,26 +48,16 @@ pub(super) fn compile_prepare_vector_insert_procedure<F: AcirField + DebugToStri
         source_vector_pointer_arg,
         index_arg,
         item_count_arg,
-        new_vector_pointer_return,
+        destination_vector_pointer_return,
         write_pointer_return,
     ] = brillig_context.allocate_scratch_registers();
 
     let source_vector = BrilligVector { pointer: source_vector_pointer_arg };
-    let target_vector = BrilligVector { pointer: new_vector_pointer_return };
+    let target_vector = BrilligVector { pointer: destination_vector_pointer_return };
     let index = SingleAddrVariable::new_usize(index_arg);
 
-    let source_rc = brillig_context.allocate_single_addr_usize();
-    let source_size = brillig_context.allocate_single_addr_usize();
-    let source_capacity = brillig_context.allocate_single_addr_usize();
-    let source_items_pointer = brillig_context.allocate_single_addr_usize();
-    brillig_context.codegen_read_vector_metadata(
-        source_vector,
-        *source_rc,
-        *source_size,
-        *source_capacity,
-        *source_items_pointer,
-        None,
-    );
+    let (source_rc, source_size, source_capacity, source_items_pointer) =
+        brillig_context.codegen_read_vector_metadata(source_vector, None);
 
     // Target size is source size + item_count
     let target_size = brillig_context.allocate_single_addr_usize();

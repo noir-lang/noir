@@ -50,6 +50,7 @@ pub enum ProcedureId {
     PrepareVectorPush(bool),
     VectorPopFront,
     VectorPopBack,
+    /// Prepare a vector for a insert operation, leaving a hole at the index position, returning a pointer where the item can be written.
     PrepareVectorInsert,
     VectorRemove,
     /// Check that the stack memory has not exceeded the maximum size allowed by the layout.
