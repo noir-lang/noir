@@ -759,6 +759,9 @@ impl HTMLCreator {
         if function.unconstrained {
             self.output.push_str("unconstrained ");
         }
+        if function.comptime {
+            self.output.push_str("comptime ");
+        }
         self.output.push_str("fn ");
         if as_header {
             self.output.push_str("<span class=\"fn\">");
