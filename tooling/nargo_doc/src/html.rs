@@ -417,9 +417,12 @@ impl HTMLCreator {
         self.h2(&format!("<a href=\"#struct\">Struct {}</a>", struct_.name));
 
         if !struct_.fields.is_empty() {
+            let mut fields = struct_.fields.clone();
+            fields.sort_by_key(|field| field.name.clone());
+
             self.h3("Fields");
             self.output.push_str("<ul class=\"sidebar-list\">");
-            for field in &struct_.fields {
+            for field in fields {
                 self.output.push_str("<li>");
                 self.output.push_str(&format!("<a href=\"#{}\">{}</a>", field.name, field.name));
                 self.output.push_str("</li>\n");
