@@ -49,7 +49,9 @@ mod debug;
 pub mod debug_types;
 pub mod errors;
 pub mod printer;
+pub mod proxies;
 pub mod tests;
+pub mod visitor;
 
 struct LambdaContext {
     env_ident: ast::Ident,
@@ -60,7 +62,7 @@ struct LambdaContext {
 ///
 /// This struct holds the FIFO queue of functions to monomorphize, which is added to
 /// whenever a new (function, type) combination is encountered.
-pub(super) struct Monomorphizer<'interner> {
+pub struct Monomorphizer<'interner> {
     /// Functions are keyed by their unique ID, whether they're unconstrained, their expected type,
     /// and any generics they have so that we can monomorphize a new version of the function for each type.
     ///
@@ -203,8 +205,11 @@ pub fn monomorphize_debug(
         debug_variables,
         debug_functions,
         debug_types,
-    );
-    Ok(program.handle_ownership())
+    )
+    .handle_ownership()
+    .create_foreign_proxies();
+
+    Ok(program)
 }
 
 impl<'interner> Monomorphizer<'interner> {
@@ -1282,7 +1287,10 @@ impl<'interner> Monomorphizer<'interner> {
     }
 
     /// Convert a non-tuple/struct type to a monomorphized type
-    fn convert_type(typ: &HirType, location: Location) -> Result<ast::Type, MonomorphizationError> {
+    pub fn convert_type(
+        typ: &HirType,
+        location: Location,
+    ) -> Result<ast::Type, MonomorphizationError> {
         Self::convert_type_helper(typ, location, &mut HashSet::default())
     }
 
