@@ -55,10 +55,7 @@ pub(super) fn compile_array_copy_procedure<F: AcirField + DebugToString>(
     let [source_array_pointer_arg, source_array_memory_size_arg, destination_array_pointer_return] =
         brillig_context.allocate_scratch_registers();
 
-    let rc = brillig_context.codegen_read_array_rc(BrilligArray {
-        pointer: source_array_pointer_arg,
-        size: 0, // The size doesn't matter in this call.
-    });
+    let rc = brillig_context.codegen_read_array_rc(source_array_pointer_arg);
 
     let is_rc_one = brillig_context.codegen_usize_equals_one(*rc);
 
@@ -74,19 +71,14 @@ pub(super) fn compile_array_copy_procedure<F: AcirField + DebugToString>(
             );
 
             // First issue an array copy to the destination.
+            // This copies the whole data structure, including metadata.
             ctx.codegen_mem_copy(
                 source_array_pointer_arg,
                 destination_array_pointer_return,
                 SingleAddrVariable::new_usize(source_array_memory_size_arg),
             );
             // Then set the new RC to 1.
-            ctx.codegen_update_array_rc(
-                BrilligArray {
-                    pointer: source_array_pointer_arg,
-                    size: 0, // The size doesn't matter in this call.
-                },
-                1,
-            );
+            ctx.codegen_update_array_rc(destination_array_pointer_return, 1);
 
             // Decrease the original ref count now that this copy is no longer pointing to it.
             // Copying an array is a potential implicit side effect of setting an item by index

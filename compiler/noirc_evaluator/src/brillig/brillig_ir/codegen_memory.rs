@@ -316,16 +316,16 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     /// Returns a variable holding the ref-count of a given vector.
     pub(crate) fn codegen_read_array_rc(
         &mut self,
-        array: BrilligArray,
+        array_pointer: MemoryAddress,
     ) -> Allocated<SingleAddrVariable, Registers> {
         let result = self.allocate_single_addr_usize();
-        self.load_instruction(result.address, array.pointer);
+        self.load_instruction(result.address, array_pointer);
         result
     }
 
     /// Writes the value of new RC to the RC pointer of the array.
-    pub(crate) fn codegen_update_array_rc(&mut self, array: BrilligArray, rc: usize) {
-        self.initialize_rc(array.pointer, rc);
+    pub(crate) fn codegen_update_array_rc(&mut self, array_pointer: MemoryAddress, rc: usize) {
+        self.initialize_rc(array_pointer, rc);
     }
 
     /// Returns a variable holding the ref-count of a given vector.
@@ -495,7 +495,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     pub(crate) fn codegen_initialize_array(&mut self, array: BrilligArray) {
         // Allocate memory for the ref counter and `size` items.
         self.codegen_allocate_immediate_mem(array.pointer, array.size + offsets::ARRAY_META_COUNT);
-        self.codegen_update_array_rc(array, 1);
+        self.codegen_update_array_rc(array.pointer, 1);
     }
 
     /// Initialize the reference counter for an array or vector.
