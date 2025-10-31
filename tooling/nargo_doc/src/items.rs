@@ -174,7 +174,8 @@ pub struct Trait {
     pub generics: Vec<Generic>,
     pub bounds: Vec<TraitBound>,
     pub where_clause: Vec<TraitConstraint>,
-    pub methods: Vec<Function>,
+    pub required_methods: Vec<Function>,
+    pub provided_methods: Vec<Function>,
     pub trait_impls: Vec<TraitImpl>,
     pub comments: Option<String>,
 }

@@ -455,7 +455,8 @@ impl HTMLCreator {
         self.h1(&format!("Trait <span id=\"trait\" class=\"trait\">{}</span>", trait_.name));
         self.render_trait_code(trait_);
         self.render_comments(&trait_.comments, 1);
-        self.render_trait_methods(&trait_.methods);
+        self.render_trait_methods("Required methods", &trait_.required_methods);
+        self.render_trait_methods("Provided methods", &trait_.provided_methods);
 
         let trait_impls = self.get_all_trait_impls(trait_);
         let show_methods = false;
@@ -469,11 +470,19 @@ impl HTMLCreator {
     fn render_trait_sidebar(&mut self, trait_: &Trait) {
         self.h2(&format!("<a href=\"#trait\">Trait {}</a>", trait_.name));
 
-        let mut methods = trait_.methods.iter().collect::<Vec<_>>();
+        self.render_trait_sidebar_methods("Required methods", &trait_.required_methods);
+        self.render_trait_sidebar_methods("Provided methods", &trait_.provided_methods);
+
+        let trait_impls = self.get_all_trait_impls(trait_);
+        self.render_sidebar_trait_impls("Implementors", &trait_impls);
+    }
+
+    fn render_trait_sidebar_methods(&mut self, title: &str, methods: &[Function]) {
+        let mut methods = methods.iter().collect::<Vec<_>>();
         methods.sort_by_key(|method| method.name.clone());
 
         if !methods.is_empty() {
-            self.h3("Methods");
+            self.h3(title);
             self.output.push_str("<ul class=\"sidebar-list\">");
             for method in methods {
                 self.output.push_str("<li>");
@@ -482,9 +491,6 @@ impl HTMLCreator {
             }
             self.output.push_str("</ul>");
         }
-
-        let trait_impls = self.get_all_trait_impls(trait_);
-        self.render_sidebar_trait_impls("Implementors", &trait_impls);
     }
 
     fn render_sidebar_trait_impls(&mut self, title: &str, trait_impls: &[TraitImpl]) {
@@ -658,7 +664,7 @@ impl HTMLCreator {
         self.output.push_str(&format!("pub trait {}", trait_.name));
         self.render_generics(&trait_.generics);
         if !trait_.bounds.is_empty() {
-            self.output.push_str(":");
+            self.output.push(':');
             for (index, bound) in trait_.bounds.iter().enumerate() {
                 self.output.push_str("\n    ");
                 if index > 0 {
@@ -672,12 +678,12 @@ impl HTMLCreator {
         self.output.push_str("</code></pre>\n\n");
     }
 
-    fn render_trait_methods(&mut self, methods: &[Function]) {
+    fn render_trait_methods(&mut self, title: &str, methods: &[Function]) {
         if methods.is_empty() {
             return;
         }
 
-        self.h2("Methods");
+        self.h2(title);
         let output_id = true;
         self.render_methods(methods, 2, output_id);
     }

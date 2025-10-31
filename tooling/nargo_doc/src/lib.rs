@@ -118,7 +118,17 @@ impl DocItemBuilder<'_> {
                 let name = trait_.name.to_string();
                 let comments = self.doc_comments(ReferenceId::Trait(trait_id));
                 let generics = vecmap(&trait_.generics, convert_generic);
-                let methods = vecmap(item_trait.methods, |func_id| self.convert_function(func_id));
+                let mut required_methods = Vec::new();
+                let mut provided_methods = Vec::new();
+                for func_id in &item_trait.methods {
+                    let has_body = self.interner.function(func_id).try_as_expr().is_some();
+                    let function = self.convert_function(*func_id);
+                    if has_body {
+                        provided_methods.push(function);
+                    } else {
+                        required_methods.push(function);
+                    }
+                }
                 let trait_impls = vecmap(item_trait.trait_impls, |trait_impl| {
                     self.convert_trait_impl(trait_impl)
                 });
@@ -134,7 +144,8 @@ impl DocItemBuilder<'_> {
                     bounds: parents,
                     where_clause,
                     comments,
-                    methods,
+                    required_methods,
+                    provided_methods,
                     trait_impls,
                 })
             }
