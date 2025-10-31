@@ -746,10 +746,10 @@ impl HTMLCreator {
     fn render_function_signature(&mut self, function: &Function, as_header: bool, output_id: bool) {
         if as_header {
             if output_id {
-                self.output.push_str("<code class=\"code-header\">");
-            } else {
                 self.output
                     .push_str(&format!("<code id=\"{}\" class=\"code-header\">", function.name));
+            } else {
+                self.output.push_str("<code class=\"code-header\">");
             }
         } else {
             self.output.push_str("<pre>");
