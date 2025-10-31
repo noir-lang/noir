@@ -95,6 +95,9 @@ pub(super) fn compile_vector_remove_procedure<F: AcirField + DebugToString>(
                 *target_vector_items_pointer,
                 index,
             );
+
+            // We don't modify the RC of the original, otherwise removing items repeatedly
+            // from the original (immutable) handle could bring its RC down to 1.
         }
     });
 

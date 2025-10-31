@@ -120,7 +120,8 @@ pub(super) fn compile_vector_pop_front_procedure<F: AcirField + DebugToString>(
                 *target_vector_items_pointer,
                 *target_size,
             );
-            // We don't decrease the RC of the source vector, to avoid repeated pops bringing it down to 1.
+            // We don't decrease the RC of the source vector, otherwise repeatedly popping the same item
+            // from the original (immutable) handle would bring its RC down to 1.
         }
     });
 }

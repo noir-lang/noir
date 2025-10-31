@@ -89,7 +89,8 @@ pub(super) fn compile_array_copy_procedure<F: AcirField + DebugToString>(
             );
 
             // Decrease the original ref count now that this copy is no longer pointing to it.
-            // TODO: Add test to show that repeated copies are not bringing this down to 1 and modifying the original.
+            // Copying an array is a potential implicit side effect of setting an item by index
+            // through a mutable variable; we won't end up two handles to the array, so we can split the RC.
             ctx.codegen_usize_op(rc.address, rc.address, BrilligBinaryOp::Sub, 1);
 
             // Increase our array copy counter if that flag is set
