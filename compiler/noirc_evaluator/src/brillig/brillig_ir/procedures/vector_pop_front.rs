@@ -70,15 +70,9 @@ pub(super) fn compile_vector_pop_front_procedure<F: AcirField + DebugToString>(
         BrilligBinaryOp::Sub,
     );
 
-    let is_rc_one = brillig_context.allocate_register();
-    brillig_context.codegen_usize_op(
-        source_rc.address,
-        *is_rc_one,
-        BrilligBinaryOp::Equals,
-        1_usize,
-    );
+    let is_rc_one = brillig_context.codegen_usize_equals_one(*source_rc);
 
-    brillig_context.codegen_branch(*is_rc_one, |brillig_context, is_rc_one| {
+    brillig_context.codegen_branch(is_rc_one.address, |brillig_context, is_rc_one| {
         if is_rc_one {
             // We reuse the source vector, moving the metadata to the right (decreasing capacity)
             // Set the target vector pointer to be the source plus the number of popped items.

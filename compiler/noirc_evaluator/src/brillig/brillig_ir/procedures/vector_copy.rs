@@ -33,11 +33,11 @@ pub(super) fn compile_vector_copy_procedure<F: AcirField + DebugToString>(
     let [source_vector_pointer_arg, new_vector_pointer_return] =
         brillig_context.allocate_scratch_registers();
 
-    let rc = brillig_context.allocate_single_addr_usize();
-    brillig_context.load_instruction(rc.address, source_vector_pointer_arg);
+    let source_vector = BrilligVector { pointer: source_vector_pointer_arg };
 
-    let is_rc_one = brillig_context.allocate_single_addr_bool();
-    brillig_context.codegen_usize_op(rc.address, is_rc_one.address, BrilligBinaryOp::Equals, 1);
+    let rc = brillig_context.codegen_read_vector_rc(source_vector);
+
+    let is_rc_one = brillig_context.codegen_usize_equals_one(*rc);
 
     brillig_context.codegen_branch(is_rc_one.address, |ctx, cond| {
         if cond {

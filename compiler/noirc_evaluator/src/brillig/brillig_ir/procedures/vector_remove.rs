@@ -52,17 +52,16 @@ pub(super) fn compile_vector_remove_procedure<F: AcirField + DebugToString>(
         BrilligBinaryOp::Sub,
     );
 
-    let rc = brillig_context.allocate_register();
-    brillig_context.load_instruction(*rc, source_vector.pointer);
-    let is_rc_one = brillig_context.allocate_register();
-    brillig_context.codegen_usize_op(*rc, *is_rc_one, BrilligBinaryOp::Equals, 1_usize);
+    let rc = brillig_context.codegen_read_vector_rc(source_vector);
+
+    let is_rc_one = brillig_context.codegen_usize_equals_one(*rc);
 
     let source_vector_items_pointer =
         brillig_context.codegen_make_vector_items_pointer(source_vector);
 
     let target_vector_items_pointer = brillig_context.allocate_register();
 
-    brillig_context.codegen_branch(*is_rc_one, |brillig_context, is_rc_one| {
+    brillig_context.codegen_branch(is_rc_one.address, |brillig_context, is_rc_one| {
         if is_rc_one {
             brillig_context.mov_instruction(target_vector.pointer, source_vector.pointer);
             brillig_context.codegen_update_vector_size(target_vector, *target_size);

@@ -69,11 +69,10 @@ pub(super) fn compile_vector_pop_back_procedure<F: AcirField + DebugToString>(
         BrilligBinaryOp::Sub,
     );
 
-    let rc = brillig_context.allocate_register();
-    brillig_context.load_instruction(*rc, source_vector.pointer);
+    let rc = brillig_context.codegen_read_vector_rc(source_vector);
 
     let is_rc_one = brillig_context.allocate_register();
-    brillig_context.codegen_usize_op(*rc, *is_rc_one, BrilligBinaryOp::Equals, 1_usize);
+    brillig_context.codegen_usize_op(rc.address, *is_rc_one, BrilligBinaryOp::Equals, 1_usize);
 
     let source_vector_items_pointer =
         brillig_context.codegen_make_vector_items_pointer(source_vector);

@@ -164,13 +164,7 @@ pub(crate) fn reallocate_vector_for_insertion<
         BrilligBinaryOp::LessThanEquals,
     );
     // We can only reuse the source vector if the ref-count is 1.
-    let is_rc_one = brillig_context.allocate_single_addr_bool();
-    brillig_context.codegen_usize_op(
-        source_rc.address,
-        is_rc_one.address,
-        BrilligBinaryOp::Equals,
-        1,
-    );
+    let is_rc_one = brillig_context.codegen_usize_equals_one(source_rc);
 
     // Reallocate target vector for insertion
     brillig_context.codegen_branch(

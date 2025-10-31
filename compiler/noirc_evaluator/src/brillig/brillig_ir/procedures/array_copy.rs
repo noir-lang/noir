@@ -5,6 +5,7 @@ use acvm::{
     acir::brillig::{
         BitSize, HeapArray, HeapValueType, IntegerBitSize, MemoryAddress, ValueOrArray,
     },
+    brillig_vm::offsets,
 };
 
 use super::ProcedureId;
@@ -30,7 +31,10 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             self.make_scratch_registers();
 
         self.mov_instruction(source_array_pointer_arg, source_array.pointer);
-        self.usize_const_instruction(source_array_memory_size_arg, (source_array.size + 1).into());
+        self.usize_const_instruction(
+            source_array_memory_size_arg,
+            (source_array.size + offsets::ARRAY_META_COUNT).into(),
+        );
 
         self.add_procedure_call_instruction(ProcedureId::ArrayCopy);
 
@@ -45,11 +49,12 @@ pub(super) fn compile_array_copy_procedure<F: AcirField + DebugToString>(
     let [source_array_pointer_arg, source_array_memory_size_arg, new_array_pointer_return] =
         brillig_context.allocate_scratch_registers();
 
-    let rc = brillig_context.allocate_single_addr_usize();
-    brillig_context.load_instruction(rc.address, source_array_pointer_arg);
+    let rc = brillig_context.codegen_read_array_rc(BrilligArray {
+        pointer: source_array_pointer_arg,
+        size: 0, // The size doesn't matter in this call.
+    });
 
-    let is_rc_one = brillig_context.allocate_single_addr_bool();
-    brillig_context.codegen_usize_op(rc.address, is_rc_one.address, BrilligBinaryOp::Equals, 1);
+    let is_rc_one = brillig_context.codegen_usize_equals_one(*rc);
 
     brillig_context.codegen_branch(is_rc_one.address, |ctx, cond| {
         if cond {

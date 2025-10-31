@@ -300,6 +300,26 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         }
     }
 
+    /// Returns a variable holding the ref-count of a given vector.
+    pub(crate) fn codegen_read_array_rc(
+        &mut self,
+        array: BrilligArray,
+    ) -> Allocated<SingleAddrVariable, Registers> {
+        let result = self.allocate_single_addr_usize();
+        self.load_instruction(result.address, array.pointer);
+        result
+    }
+
+    /// Returns a variable holding the ref-count of a given vector.
+    pub(crate) fn codegen_read_vector_rc(
+        &mut self,
+        vector: BrilligVector,
+    ) -> Allocated<SingleAddrVariable, Registers> {
+        let result = self.allocate_single_addr_usize();
+        self.load_instruction(result.address, vector.pointer);
+        result
+    }
+
     /// Returns a variable holding the size of a given vector.
     pub(crate) fn codegen_read_vector_size(
         &mut self,
