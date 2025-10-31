@@ -57,7 +57,9 @@ pub(super) fn compile_vector_pop_front_procedure<F: AcirField + DebugToString>(
             Some((source_vector_length_arg, item_pop_count_arg)),
         );
 
-    // target_size = source_size - item_pop_count; assumes constraints exist against underflow
+    // target_size = source_size - item_pop_count
+    // Assumes constraints exist against underflow.
+    // We don't have to worry about the semantic length of merged vectors here, because we are popping from the front.
     let target_size = brillig_context.allocate_single_addr_usize();
     brillig_context.memory_op_instruction(
         source_size.address,

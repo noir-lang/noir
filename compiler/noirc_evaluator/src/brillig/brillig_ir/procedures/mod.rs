@@ -62,6 +62,8 @@ pub enum ProcedureId {
     VectorPopBack,
     /// Prepare a vector for a insert operation, leaving a hole at the index position, returning a pointer where the item can be written.
     PrepareVectorInsert,
+    /// Remove items at a given index from a vector, returning the new vector.
+    /// Reuses the source vector if the reference count is 1.
     VectorRemove,
     /// Check that the stack memory has not exceeded the maximum size allowed by the layout.
     CheckMaxStackDepth,
