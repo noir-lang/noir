@@ -16,7 +16,6 @@ use super::{
     registers::RegisterAllocator,
 };
 
-#[expect(unused)]
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     pub(crate) fn codegen_generic_iteration<T>(
         &mut self,
