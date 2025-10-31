@@ -315,6 +315,17 @@ impl HTMLCreator {
     fn render_struct_sidebar(&mut self, struct_: &Struct) {
         self.h2(&format!("<a href=\"#struct\">Struct {}</a>", struct_.name));
 
+        if !struct_.fields.is_empty() {
+            self.h3("Fields");
+            self.output.push_str("<ul class=\"sidebar-list\">");
+            for field in &struct_.fields {
+                self.output.push_str("<li>");
+                self.output.push_str(&format!("<a href=\"#{}\">{}</a>", field.name, field.name));
+                self.output.push_str("</li>\n");
+            }
+            self.output.push_str("</ul>");
+        }
+
         let mut methods = struct_.impls.iter().flat_map(|iter| &iter.methods).collect::<Vec<_>>();
         methods.sort_by_key(|method| method.name.clone());
 
@@ -473,7 +484,10 @@ impl HTMLCreator {
         self.h2("Fields");
 
         for field in fields {
-            self.output.push_str("<div class=\"struct-field\"><code class=\"code-header\">");
+            self.output.push_str(&format!(
+                "<div id=\"{}\" class=\"struct-field\"><code class=\"code-header\">",
+                field.name
+            ));
             self.output.push_str(&field.name);
             self.output.push_str(": ");
             self.render_type(&field.r#type);
