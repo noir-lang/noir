@@ -340,7 +340,7 @@ mod tests {
         let item = &module.items[0];
         assert_eq!(
             item.doc_comments,
-            vec![" One".to_string(), " Two".to_string(), " Three".to_string(),]
+            vec!["One".to_string(), "Two".to_string(), "Three".to_string(),]
         );
         let ItemKind::Function(func) = &item.kind else {
             panic!("Expected function");

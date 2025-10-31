@@ -170,6 +170,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
                         self.push('\n');
                         self.write_indent();
                     }
+                    self.push_str(" * ");
                     self.push_str(line);
                 }
 
@@ -180,7 +181,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
 
                 self.push_str("*/");
             } else {
-                self.push_str("///");
+                self.push_str("/// ");
                 self.push_str(comment);
             }
             self.push('\n');
