@@ -303,7 +303,10 @@ impl HTMLCreator {
         self.render_comments(&struct_.comments, 1);
         self.render_struct_fields(&struct_.fields);
         self.render_impls(&struct_.impls);
-        self.render_trait_impls(&struct_.trait_impls, "Trait implementations");
+
+        let show_methods = true;
+        self.render_trait_impls(&struct_.trait_impls, "Trait implementations", show_methods);
+
         self.main_end();
         self.html_end();
         self.push_file(PathBuf::from(struct_.path()));
@@ -343,7 +346,8 @@ impl HTMLCreator {
         self.render_trait_methods(&trait_.methods);
 
         let trait_impls = self.get_all_trait_impls(trait_);
-        self.render_trait_impls(&trait_impls, "Implementors");
+        let show_methods = false;
+        self.render_trait_impls(&trait_impls, "Implementors", show_methods);
 
         self.main_end();
         self.html_end();
@@ -413,7 +417,9 @@ impl HTMLCreator {
         self.main_start();
         self.render_breadcrumbs(true);
         self.h1(&format!("Function <span class=\"fn\">{}</span>", function.name));
-        self.render_function(function, 1, false);
+        let as_header = false;
+        let output_id = false;
+        self.render_function(function, 1, as_header, output_id);
         self.main_end();
         self.html_end();
         self.push_file(PathBuf::from(function.path()));
@@ -497,10 +503,11 @@ impl HTMLCreator {
         self.output.push(' ');
         self.render_type(&impl_.r#type);
         self.output.push_str("</code></h3>\n\n");
-        self.render_methods(&impl_.methods, 3);
+        let output_id = true;
+        self.render_methods(&impl_.methods, 3, output_id);
     }
 
-    fn render_trait_impls(&mut self, trait_impls: &[TraitImpl], title: &str) {
+    fn render_trait_impls(&mut self, trait_impls: &[TraitImpl], title: &str, show_methods: bool) {
         if trait_impls.is_empty() {
             return;
         }
@@ -508,11 +515,11 @@ impl HTMLCreator {
         self.h2(title);
 
         for trait_impl in trait_impls {
-            self.render_trait_impl(trait_impl);
+            self.render_trait_impl(trait_impl, show_methods);
         }
     }
 
-    fn render_trait_impl(&mut self, trait_impl: &TraitImpl) {
+    fn render_trait_impl(&mut self, trait_impl: &TraitImpl, show_methods: bool) {
         let anchor = trait_impl_anchor(trait_impl);
         self.output.push_str(&format!("<h3 id=\"{anchor}\"><code class=\"code-header\">"));
         self.output.push_str("impl");
@@ -524,6 +531,11 @@ impl HTMLCreator {
         self.render_type(&trait_impl.r#type);
         self.render_where_clause(&trait_impl.where_clause);
         self.output.push_str("</code></h3>\n\n");
+
+        if show_methods {
+            let output_id = false;
+            self.render_methods(&trait_impl.methods, 3, output_id);
+        }
     }
 
     fn render_trait_code(&mut self, trait_: &Trait) {
@@ -553,7 +565,8 @@ impl HTMLCreator {
         }
 
         self.h2("Methods");
-        self.render_methods(methods, 2);
+        let output_id = true;
+        self.render_methods(methods, 2, output_id);
     }
 
     fn render_type_alias_code(&mut self, alias: &TypeAlias) {
@@ -583,9 +596,14 @@ impl HTMLCreator {
         self.output.push_str("</code></pre>\n\n");
     }
 
-    fn render_methods(&mut self, methods: &[Function], current_heading_level: usize) {
+    fn render_methods(
+        &mut self,
+        methods: &[Function],
+        current_heading_level: usize,
+        output_id: bool,
+    ) {
         for method in methods {
-            self.render_function(method, current_heading_level, true);
+            self.render_function(method, current_heading_level, true, output_id);
         }
     }
 
@@ -594,8 +612,9 @@ impl HTMLCreator {
         function: &Function,
         current_heading_level: usize,
         as_header: bool,
+        output_id: bool,
     ) {
-        self.render_function_signature(function, as_header);
+        self.render_function_signature(function, as_header, output_id);
         if function.comments.is_some() {
             if as_header {
                 self.output.push_str("<div class=\"padded-description\">");
@@ -607,9 +626,14 @@ impl HTMLCreator {
         }
     }
 
-    fn render_function_signature(&mut self, function: &Function, as_header: bool) {
+    fn render_function_signature(&mut self, function: &Function, as_header: bool, output_id: bool) {
         if as_header {
-            self.output.push_str(&format!("<code id=\"{}\" class=\"code-header\">", function.name));
+            if output_id {
+                self.output.push_str("<code class=\"code-header\">");
+            } else {
+                self.output
+                    .push_str(&format!("<code id=\"{}\" class=\"code-header\">", function.name));
+            }
         } else {
             self.output.push_str("<pre>");
             self.output.push_str("<code>");
