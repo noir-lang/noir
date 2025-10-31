@@ -441,7 +441,7 @@ impl HTMLCreator {
             self.output.push_str("</ul>");
         }
 
-        self.render_sidebar_trait_impls("Trait implementations", &struct_.trait_impls);
+        self.render_sidebar_trait_impls("Trait implementations", true, &struct_.trait_impls);
     }
 
     fn create_trait(&mut self, parent_module: &Module, trait_: &Trait) {
@@ -474,7 +474,7 @@ impl HTMLCreator {
         self.render_trait_sidebar_methods("Provided methods", &trait_.provided_methods);
 
         let trait_impls = self.get_all_trait_impls(trait_);
-        self.render_sidebar_trait_impls("Implementors", &trait_impls);
+        self.render_sidebar_trait_impls("Implementors", false, &trait_impls);
     }
 
     fn render_trait_sidebar_methods(&mut self, title: &str, methods: &[Function]) {
@@ -493,7 +493,12 @@ impl HTMLCreator {
         }
     }
 
-    fn render_sidebar_trait_impls(&mut self, title: &str, trait_impls: &[TraitImpl]) {
+    fn render_sidebar_trait_impls(
+        &mut self,
+        title: &str,
+        display_trait: bool,
+        trait_impls: &[TraitImpl],
+    ) {
         if trait_impls.is_empty() {
             return;
         }
@@ -505,7 +510,11 @@ impl HTMLCreator {
             self.output.push_str(&format!(
                 "<a href=\"#{}\">{}</a>",
                 trait_impl_anchor(trait_impl),
-                trait_impl_trait_to_string(trait_impl),
+                if display_trait {
+                    trait_impl_trait_to_string(trait_impl)
+                } else {
+                    type_to_string(&trait_impl.r#type)
+                },
             ));
             self.output.push_str("</li>\n");
         }
