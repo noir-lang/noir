@@ -211,7 +211,7 @@ unconstrained fn call_void_field_twice(mock: OracleMock, initial_times_called: F
 
 #[test]
 fn test_function_pointer() {
-    // Crate a lambda, which will become its own global function with an ID.
+    // Create a lambda, which will become its own global function with an ID.
     let add = |x: u32, y: u64| (x as Field) + (y as Field);
     let mul = |x: u32, y: u64| (x as Field) * (y as Field);
 
