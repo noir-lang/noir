@@ -502,7 +502,7 @@ impl AstPrinter {
         write!(f, ")")
     }
 
-    /// Check if a tuple is a tuple of (constrained, unconstrained) functions and if we want to print specials as std calls,
+    /// Check if we have a tuple of (constrained, unconstrained) functions and if we want to print specials as std calls,
     /// then assume that we would rather see `println(foo)` than `println((foo, foo))`, so we can render the AST as Noir
     /// without duplicating into `println(((foo, foo), (foo, foo)))` on re-parsing.
     ///
