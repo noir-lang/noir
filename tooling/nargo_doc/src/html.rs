@@ -284,6 +284,10 @@ impl HTMLCreator {
             self.output.push_str(&format!("<h2 id=\"{anchor}\">{title}</h2>"));
         }
         self.output.push_str("<ul class=\"item-list\">");
+
+        let mut items = items.to_vec();
+        items.sort_by_key(|item| item.name());
+
         for item in items {
             self.output.push_str("<li>");
             if !sidebar {
