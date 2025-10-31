@@ -83,122 +83,85 @@ fn is_conditional(
     // jump overhead is the cost for doing the conditional and jumping around the blocks
     // We use 10 as a rough estimate, the real cost is less.
     let jump_overhead = 10;
-    let mut successors = cfg.successors(block);
     let mut result = None;
-    // a conditional must have 2 branches
-    if successors.len() != 2 {
-        return None;
-    }
-    // Arbitrarily say that 'left' is the first successor and 'right' the second
-    let left = successors.next().unwrap();
-    let right = successors.next().unwrap();
-    let mut left_successors = cfg.successors(left);
-    let mut right_successors = cfg.successors(right);
-    let left_successors_len = left_successors.len();
-    let right_successors_len = right_successors.len();
-    let next_left = left_successors.next();
-    let next_right = right_successors.next();
-    if next_left == Some(block) || next_right == Some(block) {
-        // this is a loop, not a conditional
-        return None;
-    }
-    if left_successors_len == 1 && right_successors_len == 1 && next_left == next_right {
-        // The branches join on one block so it is a non-nested conditional with a classical diamond shape:
-        //    block
-        //    /    \
-        // left   right
-        //    \    /
-        //   next_left
-        // We check that the cost of the flattened code is lower than the cost of the branches
-        let cost_left = block_cost(left, &function.dfg);
-        let cost_right = block_cost(right, &function.dfg);
-        // For the flattening to be valuable, we compare the cost of the flattened code with the average cost of the 2 branches,
-        // including an overhead to take into account the jumps between the blocks.
-        // We use the average cost of the 2 branches, assuming that both branches are equally likely to be executed.
-        let cost = cost_right.saturating_add(cost_left);
-        if cost < cost / 2 + jump_overhead {
-            if let Some(TerminatorInstruction::JmpIf {
-                condition: _,
-                then_destination,
-                else_destination,
-                call_stack: _,
-            }) = function.dfg[block].terminator()
-            {
+
+    if let Some(TerminatorInstruction::JmpIf {
+        condition: _,
+        then_destination,
+        else_destination,
+        call_stack: _,
+    }) = function.dfg[block].terminator()
+    {
+        // A conditional must end with a JmpIf
+        let mut then_successors = cfg.successors(*then_destination);
+        let mut else_successors = cfg.successors(*else_destination);
+        let then_successors_len = then_successors.len();
+        let else_successors_len = else_successors.len();
+        let next_then = then_successors.next();
+        let next_else = else_successors.next();
+        if next_then == Some(block) || next_else == Some(block) {
+            // this is a loop, not a conditional
+            return None;
+        }
+
+        if then_successors_len == 1 && else_successors_len == 1 && next_then == next_else {
+            // The branches join on one block so it is a non-nested conditional with a classical diamond shape:
+            //    block
+            //    /    \
+            // then   else
+            //    \    /
+            //   next_then
+            // We check that the cost of the flattened code is lower than the cost of the branches
+            let cost_left = block_cost(*then_destination, &function.dfg);
+            let cost_right = block_cost(*else_destination, &function.dfg);
+            // For the flattening to be valuable, we compare the cost of the flattened code with the average cost of the 2 branches,
+            // including an overhead to take into account the jumps between the blocks.
+            // We use the average cost of the 2 branches, assuming that both branches are equally likely to be executed.
+            let cost = cost_right.saturating_add(cost_left);
+            if cost < cost / 2 + jump_overhead {
                 result = Some(BasicConditional {
                     block_entry: block,
                     block_then: Some(*then_destination),
                     block_else: Some(*else_destination),
-                    block_exit: next_left.unwrap(),
+                    block_exit: next_then.unwrap(),
                 });
             }
-        }
-    } else if left_successors_len == 1 && next_left == Some(right) {
-        // Left branch joins the right branch, e.g if/then statement with no else:
-        //    block
-        //    /    \
-        // left     \
-        //     \    |
-        //      -> right
-        // This case may not happen (i.e not generated), but it is safer to handle it (e.g in case it happens due to some optimizations)
-        let cost = block_cost(left, &function.dfg);
-        if cost < cost / 2 + jump_overhead {
-            // Use the terminator of the entry block to identify the 'then/else' branches
-            // Indeed, the left/right namings are arbitrary, and we now map them
-            // to the then/else naming of JmpIf.
-            if let Some(TerminatorInstruction::JmpIf {
-                condition: _,
-                then_destination,
-                else_destination,
-                call_stack: _,
-            }) = function.dfg[block].terminator()
-            {
-                let (block_then, block_else) = if left == *then_destination {
-                    (Some(left), None)
-                } else if left == *else_destination {
-                    (None, Some(left))
-                } else {
-                    return None;
-                };
-
+        } else if then_successors_len == 1 && next_then == Some(*else_destination) {
+            // Left branch joins the right branch, e.g if/then statement with no else:
+            //    block
+            //    /    \
+            // then     \
+            //     \    |
+            //      -> else
+            // This case may not happen (i.e not generated), but it is safer to handle it (e.g in case it happens due to some optimizations)
+            let cost = block_cost(*then_destination, &function.dfg);
+            if cost < cost / 2 + jump_overhead {
+                // Use the terminator of the entry block to identify the 'then/else' branches
+                // Indeed, the left/right namings are arbitrary, and we now map them
+                // to the then/else naming of JmpIf.
                 result = Some(BasicConditional {
                     block_entry: block,
-                    block_then,
-                    block_else,
-                    block_exit: right,
+                    block_then: Some(*then_destination),
+                    block_else: None,
+                    block_exit: *else_destination,
                 });
             }
-        }
-    } else if right_successors_len == 1 && next_right == Some(left) {
-        // Right branch joins the left branch, e.g if/else statement with no then
-        // This case may not happen (i.e not generated), but it is safer to handle it (e.g in case it happens due to some optimizations)
-        //    block
-        //    /    \
-        //   |     right
-        //   |      |
-        //    \    /
-        //     left
-        let cost = block_cost(right, &function.dfg);
-        if cost < cost / 2 + jump_overhead {
-            if let Some(TerminatorInstruction::JmpIf {
-                condition: _,
-                then_destination,
-                else_destination,
-                call_stack: _,
-            }) = function.dfg[block].terminator()
-            {
-                // same as the previous case; use the then/else naming of JmpIf
-                let (block_then, block_else) = if right == *then_destination {
-                    (Some(right), None)
-                } else if right == *else_destination {
-                    (None, Some(right))
-                } else {
-                    return None;
-                };
+        } else if else_successors_len == 1 && next_else == Some(*then_destination) {
+            // Right branch joins the left branch, e.g if/else statement with no then
+            // This case may not happen (i.e not generated), but it is safer to handle it (e.g in case it happens due to some optimizations)
+            //    block
+            //    /    \
+            //   |     else
+            //   |      |
+            //    \    /
+            //     then
+            let cost = block_cost(*else_destination, &function.dfg);
+            if cost < cost / 2 + jump_overhead {
                 result = Some(BasicConditional {
                     block_entry: block,
-                    block_then,
-                    block_else,
-                    block_exit: right,
+                    block_then: None,
+                    block_else: Some(*else_destination),
+                    block_exit: *else_destination,
                 });
             }
         }
