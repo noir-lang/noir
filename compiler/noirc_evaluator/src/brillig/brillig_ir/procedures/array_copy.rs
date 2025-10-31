@@ -61,15 +61,16 @@ pub(super) fn compile_array_copy_procedure<F: AcirField + DebugToString>(
             // Reference count is 1, we can mutate the array directly
             ctx.mov_instruction(new_array_pointer_return, source_array_pointer_arg);
         } else {
-            // First issue a array copy to the destination
+            // We need to copy the array; allocate the required space on the heap.
             ctx.codegen_allocate_mem(new_array_pointer_return, source_array_memory_size_arg);
 
+            // First issue an array copy to the destination.
             ctx.codegen_mem_copy(
                 source_array_pointer_arg,
                 new_array_pointer_return,
                 SingleAddrVariable::new_usize(source_array_memory_size_arg),
             );
-            // Then set the new rc to 1
+            // Then set the new RC to 1.
             ctx.indirect_const_instruction(
                 new_array_pointer_return,
                 BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
@@ -91,25 +92,29 @@ pub(super) fn compile_array_copy_procedure<F: AcirField + DebugToString>(
 const PRINT_U32_TYPE_STRING: &str = "{\"kind\":\"unsignedinteger\",\"width\":32}";
 // "{\"kind\":\"array\",\"length\":2,\"type\":{\"kind\":\"unsignedinteger\",\"width\":32}}";
 
-// Create and return the string `PRINT_U32_TYPE_STRING`
+/// Create and return the string `PRINT_U32_TYPE_STRING`
 fn literal_string_to_value<F: AcirField + DebugToString, Registers: RegisterAllocator>(
-    target: &str,
+    data: &str,
     brillig_context: &mut BrilligContext<F, Registers>,
 ) -> Allocated<ValueOrArray, Registers> {
-    let brillig_array = brillig_context.allocate_brillig_array(target.len());
+    let brillig_array = brillig_context.allocate_brillig_array(data.len());
 
+    // Allocate space on the heap.
     brillig_context.codegen_initialize_array(*brillig_array);
 
+    // Get a pointer to where the items start on the heap.
     let items_pointer = brillig_context.codegen_make_array_items_pointer(*brillig_array);
 
-    initialize_constant_string(brillig_context, target, *items_pointer);
+    // Copy the data into the array.
+    initialize_constant_string(brillig_context, data, *items_pointer);
 
-    brillig_array
-        .and_then(|array| brillig_context.codegen_make_array_items_pointer(array))
-        .map(|pointer| ValueOrArray::HeapArray(HeapArray { pointer, size: target.len() }))
+    // Wrap the pointer into a `HeapArray`. The `BrilligArray` is no longer needed.
+    items_pointer.map(|pointer| ValueOrArray::HeapArray(HeapArray { pointer, size: data.len() }))
 }
 
-// This function was adapted from `initialize_constant_array_comptime`
+/// Generate opcodes to initialize the memory at `pointer` to the bytes in the `data` string.
+///
+/// This function was adapted from `initialize_constant_array_comptime`.
 fn initialize_constant_string<F: AcirField + DebugToString, Registers: RegisterAllocator>(
     brillig_context: &mut BrilligContext<F, Registers>,
     data: &str,

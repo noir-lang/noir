@@ -85,7 +85,10 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                 num_elements_variable.address,
             );
         } else {
+            // Temporary register for copying source to target, ie. between two heap addresses through the stack.
             let value_register = self.allocate_register();
+
+            // End pointer for finish condition.
             let end_source_pointer = self.allocate_register();
             self.memory_op_instruction(
                 source_pointer,
@@ -109,7 +112,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                     brillig_context.memory_op_inc_by_usize_one(**target_iterator);
                 },
                 |brillig_context, (source_iterator, _)| {
-                    // We have finished when the source/target pointer is less than the source/target start
+                    // We have finished when the source iterator reaches the end pointer.
                     let finish_condition = brillig_context.allocate_single_addr_bool();
                     brillig_context.memory_op_instruction(
                         **source_iterator,
@@ -471,7 +474,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 
     /// Initializes an array, allocating memory on the heap to store its representation and initializing the reference counter to 1.
     pub(crate) fn codegen_initialize_array(&mut self, array: BrilligArray) {
-        // Allocate memory for the 1 ref counter and `size` items.
+        // Allocate memory for the ref counter and `size` items.
         self.codegen_allocate_immediate_mem(array.pointer, array.size + offsets::ARRAY_META_COUNT);
         self.initialize_rc(array.pointer, 1);
     }

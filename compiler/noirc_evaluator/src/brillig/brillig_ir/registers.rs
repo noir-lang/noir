@@ -550,12 +550,18 @@ impl<F, Registers: RegisterAllocator> BrilligContext<F, Registers> {
         self.allocate_single_addr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)
     }
 
-    /// Allocate a [BrilligVector].
+    /// Allocate a pointer for [BrilligVector].
+    ///
+    /// This does not include allocating memory for the data on the heap or shaping the meta-data.
+    /// That is done by [BrilligContext::codegen_initialize_vector].
     pub(crate) fn allocate_brillig_vector(&mut self) -> Allocated<BrilligVector, Registers> {
         self.allocate_register().map(|a| BrilligVector { pointer: a })
     }
 
-    /// Allocate a [BrilligArray].
+    /// Allocate a pointer for [BrilligArray].
+    ///
+    /// This does not include allocating memory for the data on the heap or shaping the meta-data.
+    /// That is done by [BrilligContext::codegen_initialize_array].
     pub(crate) fn allocate_brillig_array(
         &mut self,
         size: usize,
@@ -578,8 +584,7 @@ impl<F, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     /// Create a number of consecutive [MemoryAddress::Direct] addresses at the start of the [ScratchSpace].
     pub(crate) fn make_scratch_registers<const N: usize>(&self) -> [MemoryAddress; N] {
         let scratch_start = ScratchSpace::start();
-        let registers = std::array::from_fn(|i| MemoryAddress::direct(scratch_start + i));
-        registers
+        std::array::from_fn(|i| MemoryAddress::direct(scratch_start + i))
     }
 }
 
