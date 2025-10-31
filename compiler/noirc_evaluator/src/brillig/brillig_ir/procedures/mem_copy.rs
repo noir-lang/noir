@@ -15,10 +15,11 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         destination_pointer: MemoryAddress,
         num_elements_variable: MemoryAddress,
     ) {
-        let scratch_start = ScratchSpace::start();
-        self.mov_instruction(MemoryAddress::direct(scratch_start), source_pointer);
-        self.mov_instruction(MemoryAddress::direct(scratch_start + 1), destination_pointer);
-        self.mov_instruction(MemoryAddress::direct(scratch_start + 2), num_elements_variable);
+        let [source_pointer_arg, destination_pointer_arg, num_elements_variable_arg] =
+            self.make_scratch_registers();
+        self.mov_instruction(source_pointer_arg, source_pointer);
+        self.mov_instruction(destination_pointer_arg, destination_pointer);
+        self.mov_instruction(num_elements_variable_arg, num_elements_variable);
         self.add_procedure_call_instruction(ProcedureId::MemCopy);
     }
 }
@@ -27,12 +28,12 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 pub(super) fn compile_mem_copy_procedure<F: AcirField + DebugToString>(
     brillig_context: &mut BrilligContext<F, ScratchSpace>,
 ) {
-    let [source_pointer, destination_pointer, num_elements_variable] =
+    let [source_pointer_arg, destination_pointer_arg, num_elements_variable_arg] =
         brillig_context.allocate_scratch_registers();
 
     brillig_context.codegen_mem_copy(
-        source_pointer,
-        destination_pointer,
-        SingleAddrVariable::new_usize(num_elements_variable),
+        source_pointer_arg,
+        destination_pointer_arg,
+        SingleAddrVariable::new_usize(num_elements_variable_arg),
     );
 }

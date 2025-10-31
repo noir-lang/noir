@@ -26,10 +26,8 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         source_array: BrilligArray,
         destination_array: BrilligArray,
     ) {
-        let scratch_start = ScratchSpace::start();
-        let source_array_pointer_arg = MemoryAddress::direct(scratch_start);
-        let source_array_memory_size_arg = MemoryAddress::direct(scratch_start + 1);
-        let new_array_pointer_return = MemoryAddress::direct(scratch_start + 2);
+        let [source_array_pointer_arg, source_array_memory_size_arg, new_array_pointer_return] =
+            self.make_scratch_registers();
 
         self.mov_instruction(source_array_pointer_arg, source_array.pointer);
         self.usize_const_instruction(source_array_memory_size_arg, (source_array.size + 1).into());
