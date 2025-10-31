@@ -131,7 +131,10 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         }
     }
 
-    /// Copies num_elements_variable from the source pointer to the target pointer, starting from the end
+    /// Copies `num_elements_variable` number of elements from the `source_start` pointer to the `target_start` pointer,
+    /// starting from the end, moving backwards.
+    ///
+    /// By moving back-to-front, it can shift items backwards, modifying a vector in-place to make room in the front.
     pub(crate) fn codegen_mem_copy_from_the_end(
         &mut self,
         source_start: MemoryAddress,
@@ -148,6 +151,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                     BrilligBinaryOp::Sub,
                     1,
                 );
+                // target = &target_items[num_elements - 1]
                 let target_pointer = brillig_context.allocate_register();
                 brillig_context.memory_op_instruction(
                     target_start,
@@ -155,6 +159,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                     *target_pointer,
                     BrilligBinaryOp::Add,
                 );
+                // source = &source_items[num_elements - 1]
                 let source_pointer = brillig_context.allocate_register();
                 brillig_context.memory_op_instruction(
                     source_start,
@@ -165,11 +170,13 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                 (source_pointer, target_pointer)
             },
             |brillig_context, (source_pointer, target_pointer)| {
+                // source -= 1
                 brillig_context.codegen_usize_op_in_place(
                     **source_pointer,
                     BrilligBinaryOp::Sub,
                     1,
                 );
+                // target -= 1
                 brillig_context.codegen_usize_op_in_place(
                     **target_pointer,
                     BrilligBinaryOp::Sub,

@@ -47,6 +47,10 @@ pub enum ProcedureId {
     VectorCopy,
     /// Copy a number of items between two heap addresses.
     MemCopy,
+    /// Prepares a vector for pushing a new item. It tries to reuse the source vector,
+    /// allocating a new vector with a higher capacity and the copy of the source vector items if necessary.
+    ///
+    /// If the parameter is `true` it pushes to the back, otherwise to the front.
     PrepareVectorPush(bool),
     VectorPopFront,
     VectorPopBack,
