@@ -7,7 +7,7 @@ use iter_extended::vecmap;
 
 use crate::items::{
     Crate, Function, Generic, Global, HasNameAndComments, Impl, Item, Module, Struct, StructField,
-    Trait, TraitBound, TraitConstraint, TraitImpl, Type, TypeAlias, Workspace,
+    Trait, TraitBound, TraitConstraint, TraitImpl, Type, TypeAlias, TypeId, Workspace,
 };
 
 /// Returns a list of (path, contents) representing the HTML files for the given crates.
@@ -23,9 +23,9 @@ struct HTMLCreator {
     files: Vec<(PathBuf, String)>,
     current_path: Vec<String>,
     workspace_name: String,
-    id_to_path: HashMap<usize, String>,
+    id_to_path: HashMap<TypeId, String>,
     /// Maps a trait ID to all its implementations across all crates.
-    all_trait_impls: HashMap<usize, HashSet<TraitImpl>>,
+    all_trait_impls: HashMap<TypeId, HashSet<TraitImpl>>,
 }
 
 impl HTMLCreator {
@@ -701,7 +701,7 @@ impl HTMLCreator {
         self.render_trait_generics(&bound.ordered_generics, &bound.named_generics);
     }
 
-    fn render_id_reference(&mut self, id: usize, name: &str, kind: ReferenceKind) {
+    fn render_id_reference(&mut self, id: TypeId, name: &str, kind: ReferenceKind) {
         if let Some(path) = self.id_to_path.get(&id) {
             let class = match kind {
                 ReferenceKind::Struct => "struct",
@@ -1074,7 +1074,7 @@ fn type_to_string(typ: &Type) -> String {
     }
 }
 
-fn compute_id_to_path(workspace: &Workspace) -> HashMap<usize, String> {
+fn compute_id_to_path(workspace: &Workspace) -> HashMap<TypeId, String> {
     let mut id_to_path = HashMap::new();
     let mut path = Vec::new();
 
@@ -1092,7 +1092,7 @@ fn compute_id_to_path(workspace: &Workspace) -> HashMap<usize, String> {
 
 fn compute_id_to_path_in_item(
     item: &Item,
-    id_to_path: &mut HashMap<usize, String>,
+    id_to_path: &mut HashMap<TypeId, String>,
     path: &mut Vec<String>,
 ) {
     match item {
@@ -1119,7 +1119,7 @@ fn compute_id_to_path_in_item(
     }
 }
 
-fn gather_all_trait_impls(workspace: &Workspace) -> HashMap<usize, HashSet<TraitImpl>> {
+fn gather_all_trait_impls(workspace: &Workspace) -> HashMap<TypeId, HashSet<TraitImpl>> {
     let mut trait_impls = HashMap::new();
 
     for krate in &workspace.crates {
@@ -1131,7 +1131,7 @@ fn gather_all_trait_impls(workspace: &Workspace) -> HashMap<usize, HashSet<Trait
     trait_impls
 }
 
-fn gather_trait_impls_in_item(item: &Item, trait_impls: &mut HashMap<usize, HashSet<TraitImpl>>) {
+fn gather_trait_impls_in_item(item: &Item, trait_impls: &mut HashMap<TypeId, HashSet<TraitImpl>>) {
     match item {
         Item::Module(module) => {
             for item in &module.items {

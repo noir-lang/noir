@@ -7,6 +7,8 @@ pub trait HasNameAndComments {
     fn comments(&self) -> Option<&str>;
 }
 
+pub type TypeId = usize;
+
 #[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Workspace {
     pub name: String,
@@ -59,7 +61,7 @@ impl HasNameAndComments for Module {
 
 #[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Struct {
-    pub id: usize,
+    pub id: TypeId,
     pub name: String,
     pub generics: Vec<Generic>,
     /// All `pub` fields of the struct.
@@ -108,7 +110,7 @@ pub struct Impl {
 #[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct TraitImpl {
     pub generics: Vec<Generic>,
-    pub trait_id: usize,
+    pub trait_id: TypeId,
     pub trait_name: String,
     pub trait_generics: Vec<Type>,
     pub r#type: Type,
@@ -165,7 +167,7 @@ pub struct FunctionParam {
 
 #[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Trait {
-    pub id: usize,
+    pub id: TypeId,
     pub name: String,
     pub generics: Vec<Generic>,
     pub bounds: Vec<TraitBound>,
@@ -187,7 +189,7 @@ impl HasNameAndComments for Trait {
 
 #[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct TypeAlias {
-    pub id: usize,
+    pub id: TypeId,
     pub name: String,
     pub generics: Vec<Generic>,
     pub r#type: Type,
@@ -218,7 +220,7 @@ pub struct TraitConstraint {
 
 #[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct TraitBound {
-    pub trait_id: usize,
+    pub trait_id: TypeId,
     pub trait_name: String,
     pub ordered_generics: Vec<Type>,
     pub named_generics: BTreeMap<String, Type>,
@@ -248,12 +250,12 @@ pub enum Type {
         mutable: bool,
     },
     Struct {
-        id: usize,
+        id: TypeId,
         name: String,
         generics: Vec<Type>,
     },
     TypeAlias {
-        id: usize,
+        id: TypeId,
         name: String,
         generics: Vec<Type>,
     },
@@ -271,7 +273,7 @@ pub enum Type {
         rhs: Box<Type>,
     },
     TraitAsType {
-        trait_id: usize,
+        trait_id: TypeId,
         trait_name: String,
         ordered_generics: Vec<Type>,
         named_generics: BTreeMap<String, Type>,
