@@ -55,7 +55,8 @@ fn write_heap_array<F: AcirField>(
     memory.write_slice(items_start, values);
 }
 
-/// Extracts the last byte of every value
+/// Convert an array of MemoryValue to a vector of bytes
+/// Panic if the MemoryValues are not [MemoryValue::U8].
 fn to_u8_vec<F: AcirField>(inputs: &[MemoryValue<F>]) -> Vec<u8> {
     let mut result = Vec::with_capacity(inputs.len());
     for &input in inputs {
