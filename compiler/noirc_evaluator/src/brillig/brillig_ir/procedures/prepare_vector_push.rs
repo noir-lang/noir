@@ -4,6 +4,7 @@ use super::ProcedureId;
 use crate::brillig::brillig_ir::{
     BrilligBinaryOp, BrilligContext,
     brillig_variable::{BrilligVector, SingleAddrVariable},
+    codegen_memory::VectorMetaData,
     debug_show::DebugToString,
     registers::{RegisterAllocator, ScratchSpace},
 };
@@ -61,11 +62,15 @@ pub(super) fn compile_prepare_vector_push_procedure<F: AcirField + DebugToString
     let source_vector = BrilligVector { pointer: source_vector_pointer_arg };
     let target_vector = BrilligVector { pointer: destination_vector_pointer_return };
 
-    let (source_rc, source_size, source_capacity, source_items_pointer) = brillig_context
-        .codegen_read_vector_metadata(
-            source_vector,
-            Some((source_vector_length_arg, item_push_count_arg)),
-        );
+    let VectorMetaData {
+        rc: source_rc,
+        size: source_size,
+        capacity: source_capacity,
+        items_pointer: source_items_pointer,
+    } = brillig_context.codegen_read_vector_metadata(
+        source_vector,
+        Some((source_vector_length_arg, item_push_count_arg)),
+    );
 
     // The target size is the source size plus the number of items we are pushing.
     let target_size = brillig_context.allocate_single_addr_usize();

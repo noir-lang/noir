@@ -4,6 +4,7 @@ use super::{ProcedureId, prepare_vector_push::reallocate_vector_for_insertion};
 use crate::brillig::brillig_ir::{
     BrilligBinaryOp, BrilligContext,
     brillig_variable::{BrilligVector, SingleAddrVariable},
+    codegen_memory::VectorMetaData,
     debug_show::DebugToString,
     registers::{RegisterAllocator, ScratchSpace},
 };
@@ -56,8 +57,12 @@ pub(super) fn compile_prepare_vector_insert_procedure<F: AcirField + DebugToStri
     let target_vector = BrilligVector { pointer: destination_vector_pointer_return };
     let index = SingleAddrVariable::new_usize(index_arg);
 
-    let (source_rc, source_size, source_capacity, source_items_pointer) =
-        brillig_context.codegen_read_vector_metadata(source_vector, None);
+    let VectorMetaData {
+        rc: source_rc,
+        size: source_size,
+        capacity: source_capacity,
+        items_pointer: source_items_pointer,
+    } = brillig_context.codegen_read_vector_metadata(source_vector, None);
 
     // Target size is source size + item_count
     let target_size = brillig_context.allocate_single_addr_usize();

@@ -13,6 +13,13 @@ use super::{
     registers::RegisterAllocator,
 };
 
+pub(crate) struct VectorMetaData<Registers: RegisterAllocator> {
+    pub(crate) rc: Allocated<SingleAddrVariable, Registers>,
+    pub(crate) size: Allocated<SingleAddrVariable, Registers>,
+    pub(crate) capacity: Allocated<SingleAddrVariable, Registers>,
+    pub(crate) items_pointer: Allocated<SingleAddrVariable, Registers>,
+}
+
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     /// Loads the current _free memory pointer_ into `pointer_register` and
     /// increases the _free memory pointer_ by `size`, thus allocating the
@@ -411,12 +418,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         &mut self,
         vector: BrilligVector,
         semantic_length_and_item_size: Option<(MemoryAddress, MemoryAddress)>,
-    ) -> (
-        Allocated<SingleAddrVariable, Registers>,
-        Allocated<SingleAddrVariable, Registers>,
-        Allocated<SingleAddrVariable, Registers>,
-        Allocated<SingleAddrVariable, Registers>,
-    ) {
+    ) -> VectorMetaData<Registers> {
         let rc = self.allocate_single_addr_usize();
         let size = self.allocate_single_addr_usize();
         let capacity = self.allocate_single_addr_usize();
@@ -449,7 +451,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             offsets::VECTOR_ITEMS - offsets::VECTOR_CAPACITY,
         );
 
-        (rc, size, capacity, items_pointer)
+        VectorMetaData { rc, size, capacity, items_pointer }
     }
 
     /// Generate code to calculate the flattened vector size from its semantic length and the item size.
