@@ -503,15 +503,22 @@ impl HTMLCreator {
             return;
         }
 
+        let mut trait_impls = trait_impls.to_vec();
+        if display_trait {
+            trait_impls.sort_by_key(trait_impl_trait_to_string);
+        } else {
+            trait_impls.sort_by_key(|trait_impl| type_to_string(&trait_impl.r#type));
+        }
+
         self.h3(title);
         self.output.push_str("<ul class=\"sidebar-list\">");
         for trait_impl in trait_impls {
             self.output.push_str("<li>");
             self.output.push_str(&format!(
                 "<a href=\"#{}\">{}</a>",
-                trait_impl_anchor(trait_impl),
+                trait_impl_anchor(&trait_impl),
                 if display_trait {
-                    trait_impl_trait_to_string(trait_impl)
+                    trait_impl_trait_to_string(&trait_impl)
                 } else {
                     type_to_string(&trait_impl.r#type)
                 },
