@@ -436,7 +436,7 @@ pub enum BrilligOpcode<F> {
     /// These are equivalent to the black box functions in ACIR.
     BlackBox(BlackBoxOp),
     /// Used to denote execution failure, halting the VM and returning data specified by a dynamically-sized vector.
-    Trap { error_data: HeapVector },
+    Trap { revert_data: HeapVector },
     /// Halts execution and returns data specified by a dynamically-sized vector.
     Stop { return_data: HeapVector },
 }
@@ -531,7 +531,7 @@ impl<F: std::fmt::Display> std::fmt::Display for BrilligOpcode<F> {
             BrilligOpcode::BlackBox(black_box_op) => {
                 write!(f, "{black_box_op}")
             }
-            BrilligOpcode::Trap { error_data: revert_data } => {
+            BrilligOpcode::Trap { revert_data } => {
                 write!(f, "trap {revert_data}")
             }
             BrilligOpcode::Stop { return_data } => {

@@ -468,7 +468,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     pub(super) fn trap_instruction(&mut self, error_data: HeapVector) {
         self.debug_show.trap_instruction(error_data);
 
-        self.push_opcode(BrilligOpcode::Trap { error_data });
+        self.push_opcode(BrilligOpcode::Trap { revert_data: error_data });
     }
 }
 

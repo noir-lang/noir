@@ -410,7 +410,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                 self.fuzzing_trace_conditional_mov(condition_value);
                 self.increment_program_counter()
             }
-            Opcode::Trap { error_data } => {
+            Opcode::Trap { revert_data: error_data } => {
                 let error_data_size = self.memory.read(error_data.size).to_usize();
                 if error_data_size > 0 {
                     self.trap(

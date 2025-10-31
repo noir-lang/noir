@@ -568,7 +568,7 @@ fn unsatisfied_opcode_resolved_brillig() {
         BrilligOpcode::JumpIf { condition: MemoryAddress::direct(2), location: location_of_stop };
 
     let trap_opcode = BrilligOpcode::Trap {
-        error_data: HeapVector {
+        revert_data: HeapVector {
             pointer: MemoryAddress::direct(0),
             size: MemoryAddress::direct(3),
         },
