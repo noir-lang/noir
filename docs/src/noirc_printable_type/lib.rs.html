@@ -619,7 +619,50 @@
 <a href="#618" id="618">618</a>
 <a href="#619" id="619">619</a>
 <a href="#620" id="620">620</a>
-<a href="#621" id="621">621</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#621" id="621">621</a>
+<a href="#622" id="622">622</a>
+<a href="#623" id="623">623</a>
+<a href="#624" id="624">624</a>
+<a href="#625" id="625">625</a>
+<a href="#626" id="626">626</a>
+<a href="#627" id="627">627</a>
+<a href="#628" id="628">628</a>
+<a href="#629" id="629">629</a>
+<a href="#630" id="630">630</a>
+<a href="#631" id="631">631</a>
+<a href="#632" id="632">632</a>
+<a href="#633" id="633">633</a>
+<a href="#634" id="634">634</a>
+<a href="#635" id="635">635</a>
+<a href="#636" id="636">636</a>
+<a href="#637" id="637">637</a>
+<a href="#638" id="638">638</a>
+<a href="#639" id="639">639</a>
+<a href="#640" id="640">640</a>
+<a href="#641" id="641">641</a>
+<a href="#642" id="642">642</a>
+<a href="#643" id="643">643</a>
+<a href="#644" id="644">644</a>
+<a href="#645" id="645">645</a>
+<a href="#646" id="646">646</a>
+<a href="#647" id="647">647</a>
+<a href="#648" id="648">648</a>
+<a href="#649" id="649">649</a>
+<a href="#650" id="650">650</a>
+<a href="#651" id="651">651</a>
+<a href="#652" id="652">652</a>
+<a href="#653" id="653">653</a>
+<a href="#654" id="654">654</a>
+<a href="#655" id="655">655</a>
+<a href="#656" id="656">656</a>
+<a href="#657" id="657">657</a>
+<a href="#658" id="658">658</a>
+<a href="#659" id="659">659</a>
+<a href="#660" id="660">660</a>
+<a href="#661" id="661">661</a>
+<a href="#662" id="662">662</a>
+<a href="#663" id="663">663</a>
+<a href="#664" id="664">664</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 
 </span><span class="kw">use </span>std::{collections::BTreeMap, str};
@@ -678,6 +721,49 @@
         mutable: bool,
     },
     Unit,
+}
+
+<span class="doccomment">/// Display type for the purpose of showing in function signatures.
+</span><span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>PrintableType {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
+        <span class="kw">match </span><span class="self">self </span>{
+            PrintableType::Field =&gt; <span class="macro">write!</span>(f, <span class="string">"Field"</span>),
+            PrintableType::Array { length, typ } =&gt; <span class="macro">write!</span>(f, <span class="string">"[{typ}; {length}]"</span>),
+            PrintableType::Slice { typ } =&gt; <span class="macro">write!</span>(f, <span class="string">"[{typ}]"</span>),
+            PrintableType::Tuple { types } =&gt; {
+                <span class="kw">let </span>types = vecmap(types, ToString::to_string);
+                <span class="kw">if </span>types.len() == <span class="number">1 </span>{
+                    <span class="macro">write!</span>(f, <span class="string">"({},)"</span>, types[<span class="number">0</span>])
+                } <span class="kw">else </span>{
+                    <span class="macro">write!</span>(f, <span class="string">"({})"</span>, types.join(<span class="string">", "</span>))
+                }
+            }
+            PrintableType::SignedInteger { width } =&gt; <span class="macro">write!</span>(f, <span class="string">"i{width}"</span>),
+            PrintableType::UnsignedInteger { width } =&gt; <span class="macro">write!</span>(f, <span class="string">"u{width}"</span>),
+            PrintableType::Boolean =&gt; <span class="macro">write!</span>(f, <span class="string">"bool"</span>),
+            PrintableType::Struct { name, fields: <span class="kw">_ </span>} =&gt; {
+                <span class="macro">write!</span>(f, <span class="string">"{name}"</span>)
+            }
+            PrintableType::Enum { name, variants: <span class="kw">_ </span>} =&gt; {
+                <span class="macro">write!</span>(f, <span class="string">"{name}"</span>)
+            }
+            PrintableType::String { length } =&gt; <span class="macro">write!</span>(f, <span class="string">"str&lt;{length}&gt;"</span>),
+            PrintableType::FmtString { length, typ } =&gt; <span class="macro">write!</span>(f, <span class="string">"fmtstr&lt;{length}, {typ}&gt;"</span>),
+            PrintableType::Function { arguments, return_type, env: <span class="kw">_</span>, unconstrained } =&gt; {
+                <span class="kw">let </span>cons = <span class="kw">if </span><span class="kw-2">*</span>unconstrained { <span class="string">"unconstrained " </span>} <span class="kw">else </span>{ <span class="string">"" </span>};
+                <span class="kw">let </span>args = vecmap(arguments, ToString::to_string).join(<span class="string">", "</span>);
+                <span class="macro">write!</span>(f, <span class="string">"{cons}fn({args}) -&gt; {return_type}"</span>)
+            }
+            PrintableType::Reference { typ, mutable } =&gt; {
+                <span class="kw">if </span><span class="kw-2">*</span>mutable {
+                    <span class="macro">write!</span>(f, <span class="string">"&amp;mut {typ}"</span>)
+                } <span class="kw">else </span>{
+                    <span class="macro">write!</span>(f, <span class="string">"&amp;{typ}"</span>)
+                }
+            }
+            PrintableType::Unit =&gt; <span class="macro">write!</span>(f, <span class="string">"()"</span>),
+        }
+    }
 }
 
 <span class="doccomment">/// This is what all formats eventually transform into
@@ -753,8 +839,8 @@
                 output.push_str(<span class="string">"false"</span>);
             }
         }
-        (PrintableValue::Field(<span class="kw">_</span>), PrintableType::Function { arguments, return_type, .. }) =&gt; {
-            output.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"&lt;&lt;fn({arguments:?}) -&gt; {return_type:?}&gt;&gt;"</span>,));
+        (PrintableValue::Field(<span class="kw">_</span>), PrintableType::Function { .. }) =&gt; {
+            output.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"&lt;&lt;{typ}&gt;&gt;"</span>));
         }
         (<span class="kw">_</span>, PrintableType::Reference { mutable: <span class="bool-val">false</span>, .. }) =&gt; {
             output.push_str(<span class="string">"&lt;&lt;ref&gt;&gt;"</span>);
