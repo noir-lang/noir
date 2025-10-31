@@ -22,13 +22,13 @@ A ZK DSL does not just prove computation, but proves that some computation was h
 
 An in depth example might help drive the point home. This example comes from the excellent [post](https://discord.com/channels/1113924620781883405/1124022445054111926/1128747641853972590) by Tom in the Noir Discord.
 
-Let's look at how we can optimize a function to turn a `u64` into an array of `u8`s.
+Let's look at how we can optimize a function to turn a `u72` into an array of `u8`s.
 
 ```rust
-fn main(num: u64) -> pub [u8; 8] {
+fn main(num: u72) -> pub [u8; 8] {
     let mut out: [u8; 8] = [0; 8];
     for i in 0..8 {
-        out[i] = (num >> (56 - (i * 8)) as u64 & 0xff) as u8;
+        out[i] = (num >> (56 - (i * 8)) as u72 & 0xff) as u8;
     }
 
     out
