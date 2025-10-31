@@ -31,15 +31,44 @@ helps simplifications.</p>
 <p>It is set with an attribute when defining a function that cannot fail whatsoever to avoid
 the overhead of handling side effects.</p>
 <p>It can also be set to true when no instruction is known to fail.</p>
-</div><h2 id="implementations" class="section-header">Implementations<a href="#implementations" class="anchor">§</a></h2><div id="implementations-list"><details class="toggle implementors-toggle" open><summary><section id="impl-Context%3C'_%3E" class="impl"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/basic_conditional.rs.html#298-386">Source</a><a href="#impl-Context%3C'_%3E" class="anchor">§</a><h3 class="code-header">impl <a class="struct" href="struct.Context.html" title="struct noirc_evaluator::ssa::opt::flatten_cfg::Context">Context</a>&lt;'_&gt;</h3></section></summary><div class="impl-items"><section id="method.flatten_single_conditional" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/basic_conditional.rs.html#299-370">Source</a><h4 class="code-header">fn <a href="#method.flatten_single_conditional" class="fn">flatten_single_conditional</a>(
+</div><h2 id="implementations" class="section-header">Implementations<a href="#implementations" class="anchor">§</a></h2><div id="implementations-list"><details class="toggle implementors-toggle" open><summary><section id="impl-Context%3C'_%3E" class="impl"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/basic_conditional.rs.html#323-439">Source</a><a href="#impl-Context%3C'_%3E" class="anchor">§</a><h3 class="code-header">impl <a class="struct" href="struct.Context.html" title="struct noirc_evaluator::ssa::opt::flatten_cfg::Context">Context</a>&lt;'_&gt;</h3></section></summary><div class="impl-items"><details class="toggle method-toggle" open><summary><section id="method.flatten_single_conditional" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/basic_conditional.rs.html#342-413">Source</a><h4 class="code-header">fn <a href="#method.flatten_single_conditional" class="fn">flatten_single_conditional</a>(
     &amp;mut self,
     conditional: &amp;<a class="struct" href="../basic_conditional/struct.BasicConditional.html" title="struct noirc_evaluator::ssa::opt::basic_conditional::BasicConditional">BasicConditional</a>,
     no_predicates: &amp;mut HashMap&lt;<a class="struct" href="../../ir/map/struct.Id.html" title="struct noirc_evaluator::ssa::ir::map::Id">Id</a>&lt;<a class="struct" href="../../ir/function/struct.Function.html" title="struct noirc_evaluator::ssa::ir::function::Function">Function</a>&gt;, <a class="primitive" href="https://doc.rust-lang.org/1.85.0/std/primitive.bool.html">bool</a>&gt;,
-)</h4></section><section id="method.map_block_with_mapping" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/basic_conditional.rs.html#372-385">Source</a><h4 class="code-header">fn <a href="#method.map_block_with_mapping" class="fn">map_block_with_mapping</a>(
+)</h4></section></summary><div class="docblock"><p>Flattens a single basic conditional by inlining the 2 branches into the entry block.</p>
+<p>This method transforms a conditional control flow pattern (if-then-else) into straight-line code
+by merging the entry, then, else, and exit blocks. The conditional logic is converted into
+predicated operations using cast and multiplication operations to select between branch values.
+The method is adapted from <code>flatten_cfg</code>, tailored to do flatten only the input conditional.</p>
+<h5 id="parameters"><a class="doc-anchor" href="#parameters">§</a>Parameters</h5>
+<ul>
+<li><code>conditional</code> - The basic conditional structure to flatten</li>
+<li><code>no_predicates</code> - Map of function IDs to their no_predicates attribute</li>
+</ul>
+<h5 id="implementation-details"><a class="doc-anchor" href="#implementation-details">§</a>Implementation Details</h5>
+<ul>
+<li>Sets up context state (target_block, no_predicate) to enable proper inlining</li>
+<li>Inlines each block’s instructions into the entry block</li>
+<li>Handles terminators to manage control flow during inlining</li>
+<li>Uses a WorkList to track which blocks need processing</li>
+<li>Copies the exit block’s terminator to the entry block after inlining</li>
+<li>Restores original context state after completion</li>
+</ul>
+</div></details><details class="toggle method-toggle" open><summary><section id="method.map_block_with_mapping" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/basic_conditional.rs.html#425-438">Source</a><h4 class="code-header">fn <a href="#method.map_block_with_mapping" class="fn">map_block_with_mapping</a>(
     mapping: HashMap&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>, <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;,
     func: &amp;mut <a class="struct" href="../../ir/function/struct.Function.html" title="struct noirc_evaluator::ssa::ir::function::Function">Function</a>,
     block: <a class="type" href="../../ir/basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>,
-)</h4></section></div></details><details class="toggle implementors-toggle" open><summary><section id="impl-Context%3C'f%3E" class="impl"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/flatten_cfg.rs.html#338-1337">Source</a><a href="#impl-Context%3C'f%3E" class="anchor">§</a><h3 class="code-header">impl&lt;'f&gt; <a class="struct" href="struct.Context.html" title="struct noirc_evaluator::ssa::opt::flatten_cfg::Context">Context</a>&lt;'f&gt;</h3></section></summary><div class="impl-items"><section id="method.new" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/flatten_cfg.rs.html#339-356">Source</a><h4 class="code-header">pub(crate) fn <a href="#method.new" class="fn">new</a>(
+)</h4></section></summary><div class="docblock"><p>Applies value mappings to all instructions and terminators in a block.</p>
+<p>This method rewrites a block by replacing old value IDs with their mapped equivalents
+according to the provided mapping. This is used to propagate value simplifications
+from conditional flattening throughout the rest of the function.</p>
+<h5 id="parameters-1"><a class="doc-anchor" href="#parameters-1">§</a>Parameters</h5>
+<ul>
+<li><code>mapping</code> - HashMap mapping old ValueIds to their simplified/replaced ValueIds</li>
+<li><code>func</code> - The function containing the block to update</li>
+<li><code>block</code> - The BasicBlockId of the block to remap</li>
+</ul>
+</div></details></div></details><details class="toggle implementors-toggle" open><summary><section id="impl-Context%3C'f%3E" class="impl"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/flatten_cfg.rs.html#338-1337">Source</a><a href="#impl-Context%3C'f%3E" class="anchor">§</a><h3 class="code-header">impl&lt;'f&gt; <a class="struct" href="struct.Context.html" title="struct noirc_evaluator::ssa::opt::flatten_cfg::Context">Context</a>&lt;'f&gt;</h3></section></summary><div class="impl-items"><section id="method.new" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/flatten_cfg.rs.html#339-356">Source</a><h4 class="code-header">pub(crate) fn <a href="#method.new" class="fn">new</a>(
     function: &amp;'f mut <a class="struct" href="../../ir/function/struct.Function.html" title="struct noirc_evaluator::ssa::ir::function::Function">Function</a>,
     cfg: <a class="struct" href="../../ir/cfg/struct.ControlFlowGraph.html" title="struct noirc_evaluator::ssa::ir::cfg::ControlFlowGraph">ControlFlowGraph</a>,
     branch_ends: HashMap&lt;<a class="type" href="../../ir/basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>, <a class="type" href="../../ir/basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>&gt;,

@@ -523,7 +523,71 @@
 <a href="#522" id="522">522</a>
 <a href="#523" id="523">523</a>
 <a href="#524" id="524">524</a>
-<a href="#525" id="525">525</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashSet;
+<a href="#525" id="525">525</a>
+<a href="#526" id="526">526</a>
+<a href="#527" id="527">527</a>
+<a href="#528" id="528">528</a>
+<a href="#529" id="529">529</a>
+<a href="#530" id="530">530</a>
+<a href="#531" id="531">531</a>
+<a href="#532" id="532">532</a>
+<a href="#533" id="533">533</a>
+<a href="#534" id="534">534</a>
+<a href="#535" id="535">535</a>
+<a href="#536" id="536">536</a>
+<a href="#537" id="537">537</a>
+<a href="#538" id="538">538</a>
+<a href="#539" id="539">539</a>
+<a href="#540" id="540">540</a>
+<a href="#541" id="541">541</a>
+<a href="#542" id="542">542</a>
+<a href="#543" id="543">543</a>
+<a href="#544" id="544">544</a>
+<a href="#545" id="545">545</a>
+<a href="#546" id="546">546</a>
+<a href="#547" id="547">547</a>
+<a href="#548" id="548">548</a>
+<a href="#549" id="549">549</a>
+<a href="#550" id="550">550</a>
+<a href="#551" id="551">551</a>
+<a href="#552" id="552">552</a>
+<a href="#553" id="553">553</a>
+<a href="#554" id="554">554</a>
+<a href="#555" id="555">555</a>
+<a href="#556" id="556">556</a>
+<a href="#557" id="557">557</a>
+<a href="#558" id="558">558</a>
+<a href="#559" id="559">559</a>
+<a href="#560" id="560">560</a>
+<a href="#561" id="561">561</a>
+<a href="#562" id="562">562</a>
+<a href="#563" id="563">563</a>
+<a href="#564" id="564">564</a>
+<a href="#565" id="565">565</a>
+<a href="#566" id="566">566</a>
+<a href="#567" id="567">567</a>
+<a href="#568" id="568">568</a>
+<a href="#569" id="569">569</a>
+<a href="#570" id="570">570</a>
+<a href="#571" id="571">571</a>
+<a href="#572" id="572">572</a>
+<a href="#573" id="573">573</a>
+<a href="#574" id="574">574</a>
+<a href="#575" id="575">575</a>
+<a href="#576" id="576">576</a>
+<a href="#577" id="577">577</a>
+<a href="#578" id="578">578</a></pre></div><pre class="rust"><code><span class="doccomment">//! An SSA pass that operates on Brillig functions
+//! This optimization pass identifies simple conditional control flow patterns in unconstrained code
+//! and flattens them to reduce the number of basic blocks and improve performance.
+//!
+//! e.g: `if c {a} else {b}` would be flattened to `c*(a-b)+b`
+//! A simple conditional pattern is defined as a conditional sub-graph of the form `jmpif c: A, else B`, where A and B are basic blocks which join
+//! on the same successor. This exclude the graph from having any nested conditional or loop statements.
+//! Performance improvement is based on a simple execution cost metric
+//!
+//! This pass does not have any pre/post conditions.
+
+</span><span class="kw">use </span>std::collections::HashSet;
 
 <span class="kw">use </span>acvm::AcirField;
 <span class="kw">use </span>iter_extended::vecmap;
@@ -555,13 +619,8 @@
 
 <span class="kw">impl </span>Ssa {
     <span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip(<span class="self">self</span>))]
-    </span><span class="doccomment">/// This pass flatten simple IF-THEN-ELSE statements
-    /// This optimization pass identifies simple conditional control flow patterns in unconstrained code
-    /// and flattens them to reduce the number of basic blocks and improve performance.
-    ///
-    /// e.g: if c {a} else {b} would be flattened to c*(a-b)+b
-    /// A simple conditional pattern is defined as an IF-THEN (with optional ELSE) statement, with no nested conditional nor loop statements
-    /// Performance improvement is based on a simple execution cost metric
+    </span><span class="doccomment">/// Apply the basic_conditional pass to all functions of the program.
+    /// It first retrieve the `no_predicates` attribute of each function which will be used during the flattening.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>flatten_basic_conditionals(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; Ssa {
         <span class="comment">// Retrieve the 'no_predicates' attribute of the functions in a map, to avoid problems with borrowing
         </span><span class="kw">let </span><span class="kw-2">mut </span>no_predicates = HashMap::default();
@@ -575,109 +634,112 @@
     </span>}
 }
 
-<span class="doccomment">/// Returns the blocks of the simple conditional sub-graph whose input block is the entry.
+<span class="doccomment">/// Returns the blocks of the simple conditional sub-graph of the CFG whose input block is the entry.
 /// Returns None if the input block is not the entry block of a simple conditional.
+/// A simple conditional is an if-then(-else) statement where branches are 'small' basic blocks.
+/// 'Small' basic blocks means that we expect their execution cost to be small.
+///
+/// In case the block is the entry of a 'simple conditional', the function returns a BasicConditional which
+/// consist of the list of the conditional blocks:
+///     block_entry
+///      /       \
+/// block_then   block_else
+///     \       /
+///     block_exit
+/// block_then and block_else are optionals, in order to account for the case when there is no 'then' or no 'else' branch
+/// Only structured CFG with this shape are considered:
+/// - block_entry has exactly 2 successors
+/// - block_then and block_else have exactly 1 successor, which is block_exit, or one of them is block_exit
+/// - block_exit has exactly 2 predecessors (block_then and block_else)
+///
+/// Furthermore, cost of block_then + cost of block_else must be less than their average cost + jump overhead cost
 </span><span class="kw">fn </span>is_conditional(
     block: BasicBlockId,
     cfg: <span class="kw-2">&amp;</span>ControlFlowGraph,
     function: <span class="kw-2">&amp;</span>Function,
 ) -&gt; <span class="prelude-ty">Option</span>&lt;BasicConditional&gt; {
-    <span class="comment">// jump overhead is the cost for doing the conditional and jump around the blocks
+    <span class="comment">// jump overhead is the cost for doing the conditional and jumping around the blocks
     // We use 10 as a rough estimate, the real cost is less.
     </span><span class="kw">let </span>jump_overhead = <span class="number">10</span>;
-    <span class="kw">let </span><span class="kw-2">mut </span>successors = cfg.successors(block);
     <span class="kw">let </span><span class="kw-2">mut </span>result = <span class="prelude-val">None</span>;
-    <span class="comment">// a conditional must have 2 branches
-    </span><span class="kw">if </span>successors.len() != <span class="number">2 </span>{
-        <span class="kw">return </span><span class="prelude-val">None</span>;
-    }
-    <span class="kw">let </span>left = successors.next().unwrap();
-    <span class="kw">let </span>right = successors.next().unwrap();
-    <span class="kw">let </span><span class="kw-2">mut </span>left_successors = cfg.successors(left);
-    <span class="kw">let </span><span class="kw-2">mut </span>right_successors = cfg.successors(right);
-    <span class="kw">let </span>left_successors_len = left_successors.len();
-    <span class="kw">let </span>right_successors_len = right_successors.len();
-    <span class="kw">let </span>next_left = left_successors.next();
-    <span class="kw">let </span>next_right = right_successors.next();
-    <span class="kw">if </span>next_left == <span class="prelude-val">Some</span>(block) || next_right == <span class="prelude-val">Some</span>(block) {
-        <span class="comment">// this is a loop, not a conditional
-        </span><span class="kw">return </span><span class="prelude-val">None</span>;
-    }
-    <span class="kw">if </span>left_successors_len == <span class="number">1 </span>&amp;&amp; right_successors_len == <span class="number">1 </span>&amp;&amp; next_left == next_right {
-        <span class="comment">// The branches join on one block so it is a non-nested conditional
-        </span><span class="kw">let </span>cost_left = block_cost(left, <span class="kw-2">&amp;</span>function.dfg);
-        <span class="kw">let </span>cost_right = block_cost(right, <span class="kw-2">&amp;</span>function.dfg);
-        <span class="comment">// For the flattening to be valuable, we compare the cost of the flattened code with the average cost of the 2 branches,
-        // including an overhead to take into account the jumps between the blocks.
-        </span><span class="kw">let </span>cost = cost_right.saturating_add(cost_left);
-        <span class="kw">if </span>cost &lt; cost / <span class="number">2 </span>+ jump_overhead {
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(TerminatorInstruction::JmpIf {
-                condition: <span class="kw">_</span>,
-                then_destination,
-                else_destination,
-                call_stack: <span class="kw">_</span>,
-            }) = function.dfg[block].terminator()
-            {
+
+    <span class="kw">if let </span><span class="prelude-val">Some</span>(TerminatorInstruction::JmpIf {
+        condition: <span class="kw">_</span>,
+        then_destination,
+        else_destination,
+        call_stack: <span class="kw">_</span>,
+    }) = function.dfg[block].terminator()
+    {
+        <span class="comment">// A conditional must end with a JmpIf
+        </span><span class="kw">let </span><span class="kw-2">mut </span>then_successors = cfg.successors(<span class="kw-2">*</span>then_destination);
+        <span class="kw">let </span><span class="kw-2">mut </span>else_successors = cfg.successors(<span class="kw-2">*</span>else_destination);
+        <span class="kw">let </span>then_successors_len = then_successors.len();
+        <span class="kw">let </span>else_successors_len = else_successors.len();
+        <span class="kw">let </span>next_then = then_successors.next();
+        <span class="kw">let </span>next_else = else_successors.next();
+        <span class="kw">if </span>next_then == <span class="prelude-val">Some</span>(block) || next_else == <span class="prelude-val">Some</span>(block) {
+            <span class="comment">// this is a loop, not a conditional
+            </span><span class="kw">return </span><span class="prelude-val">None</span>;
+        }
+
+        <span class="kw">if </span>then_successors_len == <span class="number">1 </span>&amp;&amp; else_successors_len == <span class="number">1 </span>&amp;&amp; next_then == next_else {
+            <span class="comment">// The branches join on one block so it is a non-nested conditional with a classical diamond shape:
+            //    block
+            //    /    \
+            // then   else
+            //    \    /
+            //   next_then
+            // We check that the cost of the flattened code is lower than the cost of the branches
+            </span><span class="kw">let </span>cost_left = block_cost(<span class="kw-2">*</span>then_destination, <span class="kw-2">&amp;</span>function.dfg);
+            <span class="kw">let </span>cost_right = block_cost(<span class="kw-2">*</span>else_destination, <span class="kw-2">&amp;</span>function.dfg);
+            <span class="comment">// For the flattening to be valuable, we compare the cost of the flattened code with the average cost of the 2 branches,
+            // including an overhead to take into account the jumps between the blocks.
+            // We use the average cost of the 2 branches, assuming that both branches are equally likely to be executed.
+            </span><span class="kw">let </span>cost = cost_right.saturating_add(cost_left);
+            <span class="kw">if </span>cost &lt; cost / <span class="number">2 </span>+ jump_overhead {
                 result = <span class="prelude-val">Some</span>(BasicConditional {
                     block_entry: block,
                     block_then: <span class="prelude-val">Some</span>(<span class="kw-2">*</span>then_destination),
                     block_else: <span class="prelude-val">Some</span>(<span class="kw-2">*</span>else_destination),
-                    block_exit: next_left.unwrap(),
+                    block_exit: next_then.unwrap(),
                 });
             }
-        }
-    } <span class="kw">else if </span>left_successors_len == <span class="number">1 </span>&amp;&amp; next_left == <span class="prelude-val">Some</span>(right) {
-        <span class="comment">// Left branch joins the right branch, e.g if/then statement with no else
-        // This case may not happen (i.e not generated), but it is safer to handle it (e.g in case it happens due to some optimizations)
-        </span><span class="kw">let </span>cost = block_cost(left, <span class="kw-2">&amp;</span>function.dfg);
-        <span class="kw">if </span>cost &lt; cost / <span class="number">2 </span>+ jump_overhead {
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(TerminatorInstruction::JmpIf {
-                condition: <span class="kw">_</span>,
-                then_destination,
-                else_destination,
-                call_stack: <span class="kw">_</span>,
-            }) = function.dfg[block].terminator()
-            {
-                <span class="kw">let </span>(block_then, block_else) = <span class="kw">if </span>left == <span class="kw-2">*</span>then_destination {
-                    (<span class="prelude-val">Some</span>(left), <span class="prelude-val">None</span>)
-                } <span class="kw">else if </span>left == <span class="kw-2">*</span>else_destination {
-                    (<span class="prelude-val">None</span>, <span class="prelude-val">Some</span>(left))
-                } <span class="kw">else </span>{
-                    <span class="kw">return </span><span class="prelude-val">None</span>;
-                };
-
-                result = <span class="prelude-val">Some</span>(BasicConditional {
+        } <span class="kw">else if </span>then_successors_len == <span class="number">1 </span>&amp;&amp; next_then == <span class="prelude-val">Some</span>(<span class="kw-2">*</span>else_destination) {
+            <span class="comment">// Left branch joins the right branch, e.g if/then statement with no else:
+            //    block
+            //    /    \
+            // then     \
+            //     \    |
+            //      -&gt; else
+            // This case may not happen (i.e not generated), but it is safer to handle it (e.g in case it happens due to some optimizations)
+            </span><span class="kw">let </span>cost = block_cost(<span class="kw-2">*</span>then_destination, <span class="kw-2">&amp;</span>function.dfg);
+            <span class="kw">if </span>cost &lt; cost / <span class="number">2 </span>+ jump_overhead {
+                <span class="comment">// Use the terminator of the entry block to identify the 'then/else' branches
+                // Indeed, the left/right namings are arbitrary, and we now map them
+                // to the then/else naming of JmpIf.
+                </span>result = <span class="prelude-val">Some</span>(BasicConditional {
                     block_entry: block,
-                    block_then,
-                    block_else,
-                    block_exit: right,
+                    block_then: <span class="prelude-val">Some</span>(<span class="kw-2">*</span>then_destination),
+                    block_else: <span class="prelude-val">None</span>,
+                    block_exit: <span class="kw-2">*</span>else_destination,
                 });
             }
-        }
-    } <span class="kw">else if </span>right_successors_len == <span class="number">1 </span>&amp;&amp; next_right == <span class="prelude-val">Some</span>(left) {
-        <span class="comment">// Right branch joins the left branch, e.g if/else statement with no then
-        // This case may not happen (i.e not generated), but it is safer to handle it (e.g in case it happens due to some optimizations)
-        </span><span class="kw">let </span>cost = block_cost(right, <span class="kw-2">&amp;</span>function.dfg);
-        <span class="kw">if </span>cost &lt; cost / <span class="number">2 </span>+ jump_overhead {
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(TerminatorInstruction::JmpIf {
-                condition: <span class="kw">_</span>,
-                then_destination,
-                else_destination,
-                call_stack: <span class="kw">_</span>,
-            }) = function.dfg[block].terminator()
-            {
-                <span class="kw">let </span>(block_then, block_else) = <span class="kw">if </span>right == <span class="kw-2">*</span>then_destination {
-                    (<span class="prelude-val">Some</span>(right), <span class="prelude-val">None</span>)
-                } <span class="kw">else if </span>right == <span class="kw-2">*</span>else_destination {
-                    (<span class="prelude-val">None</span>, <span class="prelude-val">Some</span>(right))
-                } <span class="kw">else </span>{
-                    <span class="kw">return </span><span class="prelude-val">None</span>;
-                };
+        } <span class="kw">else if </span>else_successors_len == <span class="number">1 </span>&amp;&amp; next_else == <span class="prelude-val">Some</span>(<span class="kw-2">*</span>then_destination) {
+            <span class="comment">// Right branch joins the left branch, e.g if/else statement with no then
+            // This case may not happen (i.e not generated), but it is safer to handle it (e.g in case it happens due to some optimizations)
+            //    block
+            //    /    \
+            //   |     else
+            //   |      |
+            //    \    /
+            //     then
+            </span><span class="kw">let </span>cost = block_cost(<span class="kw-2">*</span>else_destination, <span class="kw-2">&amp;</span>function.dfg);
+            <span class="kw">if </span>cost &lt; cost / <span class="number">2 </span>+ jump_overhead {
                 result = <span class="prelude-val">Some</span>(BasicConditional {
                     block_entry: block,
-                    block_then,
-                    block_else,
-                    block_exit: right,
+                    block_then: <span class="prelude-val">None</span>,
+                    block_else: <span class="prelude-val">Some</span>(<span class="kw-2">*</span>else_destination),
+                    block_exit: <span class="kw-2">*</span>else_destination,
                 });
             }
         }
@@ -686,7 +748,7 @@
     </span>result.filter(|result| cfg.predecessors(result.block_exit).len() == <span class="number">2</span>)
 }
 
-<span class="doccomment">/// Computes a cost estimate of a basic block
+<span class="doccomment">/// Computes a cost estimate for the execution of a basic block
 /// returns u32::MAX if the block has side-effect instructions
 /// WARNING: these are estimates of the runtime cost of each instruction,
 /// 1 being the cost of the simplest instruction. These numbers can be improved.
@@ -766,7 +828,8 @@
     <span class="kw">let </span>cfg = ControlFlowGraph::with_function(function);
     <span class="kw">let </span><span class="kw-2">mut </span>stack = <span class="macro">vec!</span>[function.entry_block()];
     <span class="kw">let </span><span class="kw-2">mut </span>processed = HashSet::new();
-    <span class="kw">let </span><span class="kw-2">mut </span>conditionals = Vec::new();
+    <span class="comment">// List of all the simple conditionals that we will identify in the function
+    </span><span class="kw">let </span><span class="kw-2">mut </span>conditionals = Vec::new();
 
     <span class="comment">// 1. Process all blocks of the cfg, starting from the root and following the successors
     </span><span class="kw">while let </span><span class="prelude-val">Some</span>(block) = stack.pop() {
@@ -793,7 +856,22 @@
     flatten_multiple(<span class="kw-2">&amp;</span>conditionals, function, no_predicates);
 }
 
-<span class="kw">fn </span>flatten_multiple(
+<span class="doccomment">/// Flattens multiple basic conditionals within a function.
+///
+/// This function processes a collection of basic conditionals identified in the CFG and flattens them
+/// to reduce control flow complexity. Each conditional is processed with its own context, and the
+/// flattening results are then propagated throughout the entire function.
+///
+/// # Parameters
+/// * `conditionals` - The list of basic conditionals to flatten, assumed in reverse order
+/// * `function` - The function being optimized
+/// * `no_predicates` - Map of function IDs to their no_predicates attribute for handling function calls
+///
+/// # Process
+/// 1. Each conditional is flattened independently using a fresh context
+/// 2. Value mappings from all conditionals are collected into a unified mapping
+/// 3. The entire function is remapped only once in post-order to apply all value simplifications
+</span><span class="kw">fn </span>flatten_multiple(
     conditionals: <span class="kw-2">&amp;</span>Vec&lt;BasicConditional&gt;,
     function: <span class="kw-2">&amp;mut </span>Function,
     no_predicates: <span class="kw-2">&amp;mut </span>HashMap&lt;FunctionId, bool&gt;,
@@ -821,7 +899,25 @@
 }
 
 <span class="kw">impl </span>Context&lt;<span class="lifetime">'_</span>&gt; {
-    <span class="kw">fn </span>flatten_single_conditional(
+    <span class="doccomment">/// Flattens a single basic conditional by inlining the 2 branches into the entry block.
+    ///
+    /// This method transforms a conditional control flow pattern (if-then-else) into straight-line code
+    /// by merging the entry, then, else, and exit blocks. The conditional logic is converted into
+    /// predicated operations using cast and multiplication operations to select between branch values.
+    /// The method is adapted from `flatten_cfg`, tailored to do flatten only the input conditional.
+    ///
+    /// # Parameters
+    /// * `conditional` - The basic conditional structure to flatten
+    /// * `no_predicates` - Map of function IDs to their no_predicates attribute
+    ///
+    /// # Implementation Details
+    /// - Sets up context state (target_block, no_predicate) to enable proper inlining
+    /// - Inlines each block's instructions into the entry block
+    /// - Handles terminators to manage control flow during inlining
+    /// - Uses a WorkList to track which blocks need processing
+    /// - Copies the exit block's terminator to the entry block after inlining
+    /// - Restores original context state after completion
+    </span><span class="kw">fn </span>flatten_single_conditional(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         conditional: <span class="kw-2">&amp;</span>BasicConditional,
         no_predicates: <span class="kw-2">&amp;mut </span>HashMap&lt;FunctionId, bool&gt;,
@@ -894,7 +990,17 @@
         <span class="self">self</span>.no_predicate = old_no_predicate;
     }
 
-    <span class="kw">fn </span>map_block_with_mapping(
+    <span class="doccomment">/// Applies value mappings to all instructions and terminators in a block.
+    ///
+    /// This method rewrites a block by replacing old value IDs with their mapped equivalents
+    /// according to the provided mapping. This is used to propagate value simplifications
+    /// from conditional flattening throughout the rest of the function.
+    ///
+    /// # Parameters
+    /// * `mapping` - HashMap mapping old ValueIds to their simplified/replaced ValueIds
+    /// * `func` - The function containing the block to update
+    /// * `block` - The BasicBlockId of the block to remap
+    </span><span class="kw">fn </span>map_block_with_mapping(
         mapping: HashMap&lt;ValueId, ValueId&gt;,
         func: <span class="kw-2">&amp;mut </span>Function,
         block: BasicBlockId,
