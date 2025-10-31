@@ -9,7 +9,10 @@ use crate::brillig::brillig_ir::{
 };
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
-    /// Pops items from the front of a vector, returning the new vector
+    /// Copy arguments to [ScratchSpace] and call [ProcedureId::VectorPopFront].
+    ///
+    /// Pops items from the front of a vector, returning the new vector.
+    /// The procedure assumes that there are constraints to prevent 0 size vectors from being popped.
     pub(crate) fn call_vector_pop_front_procedure(
         &mut self,
         source_len: SingleAddrVariable,
@@ -21,7 +24,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             source_vector_length_arg,
             source_vector_pointer_arg,
             item_pop_count_arg,
-            new_vector_pointer_return,
+            destination_vector_pointer_return,
         ] = self.make_scratch_registers();
 
         self.mov_instruction(source_vector_length_arg, source_len.address);
@@ -30,7 +33,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 
         self.add_procedure_call_instruction(ProcedureId::VectorPopFront);
 
-        self.mov_instruction(destination_vector.pointer, new_vector_pointer_return);
+        self.mov_instruction(destination_vector.pointer, destination_vector_pointer_return);
     }
 }
 
@@ -42,11 +45,11 @@ pub(super) fn compile_vector_pop_front_procedure<F: AcirField + DebugToString>(
         source_vector_length_arg,
         source_vector_pointer_arg,
         item_pop_count_arg,
-        new_vector_pointer_return,
+        destination_vector_pointer_return,
     ] = brillig_context.allocate_scratch_registers();
 
     let source_vector = BrilligVector { pointer: source_vector_pointer_arg };
-    let target_vector = BrilligVector { pointer: new_vector_pointer_return };
+    let target_vector = BrilligVector { pointer: destination_vector_pointer_return };
 
     let (source_rc, source_size, source_capacity, source_items_pointer) = brillig_context
         .codegen_read_vector_metadata(
@@ -54,7 +57,7 @@ pub(super) fn compile_vector_pop_front_procedure<F: AcirField + DebugToString>(
             Some((source_vector_length_arg, item_pop_count_arg)),
         );
 
-    // target_size = source_size - item_pop_count
+    // target_size = source_size - item_pop_count; assumes constraints exist against underflow
     let target_size = brillig_context.allocate_single_addr_usize();
     brillig_context.memory_op_instruction(
         source_size.address,
@@ -75,7 +78,8 @@ pub(super) fn compile_vector_pop_front_procedure<F: AcirField + DebugToString>(
                 target_vector.pointer,
                 BrilligBinaryOp::Add,
             );
-            // Decrease the source/target capacity by the number of popped items.
+            // Decrease the source capacity by the number of popped items.
+            // This is done at the original address; it will be copied in the next step.
             brillig_context.memory_op_instruction(
                 source_capacity.address,
                 item_pop_count_arg,
@@ -103,12 +107,13 @@ pub(super) fn compile_vector_pop_front_procedure<F: AcirField + DebugToString>(
                 *source_copy_pointer,
                 BrilligBinaryOp::Add,
             );
-            // Now we copy the source vector starting at index removed_items.len() into the target vector
+            // Now we copy the source vector into the target vector, starting at index after the popped items.
             brillig_context.codegen_mem_copy(
                 *source_copy_pointer,
                 *target_vector_items_pointer,
                 *target_size,
             );
+            // We don't decrease the RC of the source vector, to avoid repeated pops bringing it down to 1.
         }
     });
 }

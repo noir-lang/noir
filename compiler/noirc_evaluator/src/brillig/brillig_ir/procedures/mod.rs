@@ -54,8 +54,11 @@ pub enum ProcedureId {
     ///
     /// If the parameter is `true` it pushes to the back, otherwise to the front.
     PrepareVectorPush(bool),
+    /// Pops items from the front of a vector, returning the new vector.
+    /// Reuses the source vector if the reference count is 1.
     VectorPopFront,
     /// Pops items from the back of a vector, returning the new vector and the pointer to the popped items.
+    /// Reuses the source vector if the reference count is 1.
     VectorPopBack,
     /// Prepare a vector for a insert operation, leaving a hole at the index position, returning a pointer where the item can be written.
     PrepareVectorInsert,

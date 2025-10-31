@@ -539,6 +539,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     }
 
     /// Writes vector metadata (reference count, size, and capacity) into the allocated memory.
+    ///
     /// Sets the reference count to 1.
     pub(super) fn codegen_initialize_vector_metadata(
         &mut self,
