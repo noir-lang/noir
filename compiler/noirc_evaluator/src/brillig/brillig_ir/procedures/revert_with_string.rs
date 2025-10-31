@@ -15,6 +15,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     }
 }
 
+/// Compile [ProcedureId::RevertWithString].
 pub(super) fn compile_revert_with_string_procedure<F: AcirField + DebugToString>(
     brillig_context: &mut BrilligContext<F, ScratchSpace>,
     revert_string: String,

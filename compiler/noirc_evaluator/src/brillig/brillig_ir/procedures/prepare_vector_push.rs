@@ -43,6 +43,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     }
 }
 
+/// Compile [ProcedureId::PrepareVectorPush].
 pub(super) fn compile_prepare_vector_push_procedure<F: AcirField + DebugToString>(
     brillig_context: &mut BrilligContext<F, ScratchSpace>,
     push_back: bool,

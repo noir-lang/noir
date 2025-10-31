@@ -13,6 +13,8 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     }
 }
 
+/// Compile [ProcedureId::CheckMaxStackDepth].
+///
 /// The stack start should be computed earlier after allocating space for globals and the entry point.
 ///
 /// Remember that the memory layout for entry points is as follows:
