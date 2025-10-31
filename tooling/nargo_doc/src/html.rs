@@ -5,10 +5,17 @@ use std::{
 
 use iter_extended::vecmap;
 
-use crate::items::{
-    Crate, Function, Generic, Global, HasNameAndComments, Impl, Item, Module, Struct, StructField,
-    Trait, TraitBound, TraitConstraint, TraitImpl, Type, TypeAlias, TypeId, Workspace,
+use crate::{
+    html::{has_class::HasClass, has_path::HasPath},
+    items::{
+        Crate, Function, Generic, Global, HasNameAndComments, Impl, Item, Module, Struct,
+        StructField, Trait, TraitBound, TraitConstraint, TraitImpl, Type, TypeAlias, TypeId,
+        Workspace,
+    },
 };
+
+mod has_class;
+mod has_path;
 
 /// Returns a list of (path, contents) representing the HTML files for the given crates.
 /// The paths are relative paths that can be joined to a base directory.
@@ -1253,96 +1260,4 @@ enum ReferenceKind {
     Struct,
     Trait,
     TypeAlias,
-}
-
-trait HasPath {
-    fn path(&self) -> String;
-}
-
-impl HasPath for Crate {
-    fn path(&self) -> String {
-        format!("{}/index.html", self.name)
-    }
-}
-
-impl HasPath for Module {
-    fn path(&self) -> String {
-        format!("{}/index.html", self.name)
-    }
-}
-
-impl HasPath for Struct {
-    fn path(&self) -> String {
-        format!("struct.{}.html", self.name)
-    }
-}
-
-impl HasPath for Trait {
-    fn path(&self) -> String {
-        format!("trait.{}.html", self.name)
-    }
-}
-
-impl HasPath for TypeAlias {
-    fn path(&self) -> String {
-        format!("type.{}.html", self.name)
-    }
-}
-
-impl HasPath for Global {
-    fn path(&self) -> String {
-        format!("global.{}.html", self.name)
-    }
-}
-
-impl HasPath for Function {
-    fn path(&self) -> String {
-        format!("fn.{}.html", self.name)
-    }
-}
-
-trait HasClass {
-    fn class(&self) -> &'static str;
-}
-
-impl HasClass for Crate {
-    fn class(&self) -> &'static str {
-        "crate"
-    }
-}
-
-impl HasClass for Module {
-    fn class(&self) -> &'static str {
-        "module"
-    }
-}
-
-impl HasClass for Struct {
-    fn class(&self) -> &'static str {
-        "struct"
-    }
-}
-
-impl HasClass for Trait {
-    fn class(&self) -> &'static str {
-        "trait"
-    }
-}
-
-impl HasClass for TypeAlias {
-    fn class(&self) -> &'static str {
-        "type"
-    }
-}
-
-impl HasClass for Global {
-    fn class(&self) -> &'static str {
-        "global"
-    }
-}
-
-impl HasClass for Function {
-    fn class(&self) -> &'static str {
-        "fn"
-    }
 }
