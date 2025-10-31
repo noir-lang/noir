@@ -3,8 +3,6 @@ use std::{
     path::PathBuf,
 };
 
-use iter_extended::vecmap;
-
 use crate::{
     html::{
         all_items::AllItems,
@@ -79,6 +77,10 @@ impl HTMLCreator {
         self.create_index(workspace);
 
         for krate in &workspace.crates {
+            if krate.root_module.items.is_empty() {
+                continue;
+            }
+
             self.create_crate(workspace, krate);
         }
     }
@@ -159,7 +161,11 @@ impl HTMLCreator {
 
         self.main_start();
         self.h1(&format!("{} documentation", workspace.name));
-        let crates = vecmap(&workspace.crates, |krate| krate);
+        let crates = workspace
+            .crates
+            .iter()
+            .filter(|krate| !krate.root_module.items.is_empty())
+            .collect::<Vec<_>>();
         self.render_list("Crates", "crates", false, false, &crates);
         self.main_end();
         self.html_end();
@@ -190,13 +196,17 @@ impl HTMLCreator {
     fn render_crate_sidebar(&mut self, workspace: &Workspace) {
         self.h3("Crates");
         self.output.push_str("<ul class=\"sidebar-list\">");
-        for item in &workspace.crates {
+        for krate in &workspace.crates {
+            if krate.root_module.items.is_empty() {
+                continue;
+            }
+
             self.output.push_str("<li>");
             self.output.push_str(&format!(
                 "<a href=\"../{}\" class=\"{}\">{}</a>",
-                item.uri(),
-                item.class(),
-                item.name(),
+                krate.uri(),
+                krate.class(),
+                krate.name(),
             ));
             self.output.push_str("</li>\n");
         }
