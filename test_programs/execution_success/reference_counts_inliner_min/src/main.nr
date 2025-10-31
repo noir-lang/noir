@@ -100,6 +100,9 @@ fn regression_7297() {
     assert_eq(array[0], 6, "the original should not be mutated by copy_mut, only borrow_mut_two");
     assert_eq(array_2[0], 4, "the copy should have the expected content");
 
+    // Needed so array_2 is not optimized out, which removes the array_set, which gets rid of the decrease in the refcount.
+    let _refcount_3 = array_refcount(array_2);
+
     if std::runtime::is_unconstrained() {
         // Double decrementing the RC could occur if we don't realize that array mutation made a copy,
         // which decreases the RC of the original and sets the new one to 1.
@@ -118,8 +121,8 @@ fn regression_7297() {
 
         assert_eq(
             refcount_2,
-            refcount_1 + 3,
-            "after refcount_1 we clone once in passing array to copy_mut, once to array_refcount after, and once within copy_mut",
+            refcount_1 + 3 - 1,
+            "after refcount_1 we clone once in passing array to copy_mut, once to array_refcount after, and once within copy_mut, but we decrease in copy_mut when copying",
         );
     }
 }

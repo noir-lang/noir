@@ -9,7 +9,13 @@ use crate::brillig::brillig_ir::{
 };
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
-    /// Pops items from the back of a vector, returning the new vector and the pointer to the popped items in read_pointer.
+    /// Copy arguments to [ScratchSpace] and call [ProcedureId::VectorPopBack].
+    ///
+    /// Pops `item_pop_count` items from the back of a `source_vector`, returning the new `destination_vector`
+    /// and the pointer to the popped items in `read_pointer`.
+    ///
+    /// The `item_pop_count` equals the number of variables to pop into in SSA.
+    /// The `source_len` is the semantic (not flattened) length of the vector.
     pub(crate) fn call_vector_pop_back_procedure(
         &mut self,
         source_len: SingleAddrVariable,
@@ -18,12 +24,13 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         read_pointer: MemoryAddress,
         item_pop_count: usize,
     ) {
-        let scratch_start = ScratchSpace::start();
-        let source_vector_length_arg = MemoryAddress::direct(scratch_start);
-        let source_vector_pointer_arg = MemoryAddress::direct(scratch_start + 1);
-        let item_pop_count_arg = MemoryAddress::direct(scratch_start + 2);
-        let new_vector_pointer_return = MemoryAddress::direct(scratch_start + 3);
-        let read_pointer_return = MemoryAddress::direct(scratch_start + 4);
+        let [
+            source_vector_length_arg,
+            source_vector_pointer_arg,
+            item_pop_count_arg,
+            destination_vector_pointer_return,
+            read_pointer_return,
+        ] = self.make_scratch_registers();
 
         self.mov_instruction(source_vector_length_arg, source_len.address);
         self.mov_instruction(source_vector_pointer_arg, source_vector.pointer);
@@ -31,11 +38,12 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 
         self.add_procedure_call_instruction(ProcedureId::VectorPopBack);
 
-        self.mov_instruction(destination_vector.pointer, new_vector_pointer_return);
+        self.mov_instruction(destination_vector.pointer, destination_vector_pointer_return);
         self.mov_instruction(read_pointer, read_pointer_return);
     }
 }
 
+/// Compile [ProcedureId::VectorPopBack].
 pub(super) fn compile_vector_pop_back_procedure<F: AcirField + DebugToString>(
     brillig_context: &mut BrilligContext<F, ScratchSpace>,
 ) {
@@ -43,15 +51,17 @@ pub(super) fn compile_vector_pop_back_procedure<F: AcirField + DebugToString>(
         source_vector_length_arg,
         source_vector_pointer_arg,
         item_pop_count_arg,
-        new_vector_pointer_return,
+        destination_vector_pointer_return,
         read_pointer_return,
     ] = brillig_context.allocate_scratch_registers();
 
     let source_vector = BrilligVector { pointer: source_vector_pointer_arg };
-    let target_vector = BrilligVector { pointer: new_vector_pointer_return };
+    let target_vector = BrilligVector { pointer: destination_vector_pointer_return };
 
-    // First we need to allocate the target vector decrementing the size by removed_items.len()
-    // We use the semantic length, rather than load the vector size from the meta-data.
+    // First we need to allocate the target vector decrementing the size by `item_pop_count`.
+    // We use the semantic length, rather than load the vector size from the meta-data,
+    // because after merging vectors of different lengths, the semantic length can be different
+    // then the number of items in the vector, which is the longer of the merged values.
     let source_size = brillig_context.allocate_single_addr_usize();
     brillig_context.codegen_vector_flattened_size(
         source_size.address,
@@ -59,6 +69,7 @@ pub(super) fn compile_vector_pop_back_procedure<F: AcirField + DebugToString>(
         item_pop_count_arg,
     );
 
+    // We will pop a number of (flattened) items; targets_size = source_size - item_pop_count
     let target_size = brillig_context.allocate_single_addr_usize();
     brillig_context.memory_op_instruction(
         source_size.address,
@@ -67,36 +78,38 @@ pub(super) fn compile_vector_pop_back_procedure<F: AcirField + DebugToString>(
         BrilligBinaryOp::Sub,
     );
 
-    let rc = brillig_context.allocate_register();
-    brillig_context.load_instruction(*rc, source_vector.pointer);
+    let rc = brillig_context.codegen_read_vector_rc(source_vector);
 
-    let is_rc_one = brillig_context.allocate_register();
-    brillig_context.codegen_usize_op(*rc, *is_rc_one, BrilligBinaryOp::Equals, 1_usize);
+    let is_rc_one = brillig_context.codegen_usize_equals_one(*rc);
 
     let source_vector_items_pointer =
         brillig_context.codegen_make_vector_items_pointer(source_vector);
 
-    brillig_context.codegen_branch(*is_rc_one, |brillig_context, is_rc_one| {
+    brillig_context.codegen_branch(is_rc_one.address, |brillig_context, is_rc_one| {
         if is_rc_one {
-            // We can reuse the source vector updating its length
+            // We can reuse the source vector, updating its length
             brillig_context.mov_instruction(target_vector.pointer, source_vector.pointer);
             brillig_context.codegen_update_vector_size(target_vector, *target_size);
         } else {
-            // We need to clone the source vector
+            // We need to clone the source vector; allocate memory for it.
             brillig_context.codegen_initialize_vector(target_vector, *target_size, None);
 
             let target_vector_items_pointer =
                 brillig_context.codegen_make_vector_items_pointer(target_vector);
 
-            // Now we copy the source vector starting at index 0 into the target vector but with the reduced length
+            // Now we copy the source vector starting at index 0 into the target vector but with the reduced length.
             brillig_context.codegen_mem_copy(
                 *source_vector_items_pointer,
                 *target_vector_items_pointer,
                 *target_size,
             );
+
+            // We don't decrease the RC of the source vector, otherwise repeatedly popping the same item
+            // from the original (immutable) handle would bring its RC down to 1.
         }
     });
 
+    // Finally set the pointer where the popped items can be read from to the source vector.
     brillig_context.memory_op_instruction(
         *source_vector_items_pointer,
         target_size.address,
