@@ -293,6 +293,34 @@ fn derive_pedersen_generators_requires_constant_input() {
         .expect_err("Should fail with assert constant");
 }
 
+#[test]
+fn databus() {
+    let src = "
+    acir(inline) predicate_pure fn main f0 {
+        b0(v0: u32, v1: u32):
+            v2 = cast v0 as Field
+            v3 = make_array [v2] : [Field; 1]
+            constrain v0 == u32 0
+            v4 = add v0, v1
+            return v4
+        }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    // Check that w0 is not replaced
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0, w1]
+    public parameters: []
+    return values: [w2]
+    BLACKBOX::RANGE input: w1, bits: 32
+    ASSERT w0 = 0
+    ASSERT w3 = w0 + w1
+    BLACKBOX::RANGE input: w3, bits: 32
+    ASSERT w2 = w3
+    ");
+}
+
 /// Convert the SSA input into ACIR and use ACVM to execute it
 /// Returns the ACVM execution status and the value of the 'output' witness value,
 /// unless the provided output is None or the ACVM fails during execution.
