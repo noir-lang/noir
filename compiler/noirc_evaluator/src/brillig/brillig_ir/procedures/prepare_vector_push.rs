@@ -9,6 +9,8 @@ use crate::brillig::brillig_ir::{
 };
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
+    /// Copy arguments to the [ScratchSpace] and call [ProcedureId::PrepareVectorPush].
+    ///
     /// Prepares a vector for a push operation, allocating a larger vector and copying the source vector into the destination vector.
     /// It returns the write pointer to where to put the new items.
     ///
@@ -134,9 +136,15 @@ pub(super) fn compile_prepare_vector_push_procedure<F: AcirField + DebugToString
     }
 }
 
-/// Reallocates the target vector for insertion, skipping reallocation if the source vector can be reused.
-/// If it doesn't fit capacity we will reallocate the vector to double the capacity.
+/// Reallocates the target vector for insertion, skipping reallocation if the source vector can be reused:
+/// * if the capacity accommodates the target size:
+///   * if the RC is 1, we can increase the size of the source vector as reuse it as the destination
+///   * if the RC is not 1, we allocate a new destination vector with the target size
+/// * if the capacity is too small for the target size, we allocate the destination vector with a capacity that is double the target size.
+///
 /// Does not copy the items, only reallocates the vector.
+///
+/// Whether a copy is necessary can be gleaned by comparing the target address to the source address.
 pub(crate) fn reallocate_vector_for_insertion<
     F: AcirField + DebugToString,
     Registers: RegisterAllocator,
@@ -156,14 +164,15 @@ pub(crate) fn reallocate_vector_for_insertion<
         does_capacity_fit.address,
         BrilligBinaryOp::LessThanEquals,
     );
-    // We can only reuse the source vector if the ref-count is 1.
-    let is_rc_one = brillig_context.codegen_usize_equals_one(source_rc);
 
     // Reallocate target vector for insertion
     brillig_context.codegen_branch(
         does_capacity_fit.address,
         |brillig_context, does_capacity_fit| {
             if does_capacity_fit {
+                // We can only reuse the source vector if the ref-count is 1.
+                let is_rc_one = brillig_context.codegen_usize_equals_one(source_rc);
+
                 brillig_context.codegen_branch(is_rc_one.address, |brillig_context, is_rc_one| {
                     if is_rc_one {
                         // We can insert in place, so we can just move the source pointer to the destination pointer and update the length
@@ -192,6 +201,8 @@ pub(crate) fn reallocate_vector_for_insertion<
                     BrilligBinaryOp::Mul,
                     2_usize,
                 );
+
+                // We will have to copy the vector to the new expanded memory region.
                 brillig_context.codegen_initialize_vector(
                     target_vector,
                     target_size,

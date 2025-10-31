@@ -9,7 +9,7 @@ use crate::brillig::brillig_ir::{
 };
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
-    /// Copy the arguments to the scratch space and call [ProcedureId::PrepareVectorInsert].
+    /// Copy the arguments to the [ScratchSpace] and call [ProcedureId::PrepareVectorInsert].
     ///
     /// Prepares a the `source_vector` for a insert operation by making a copy to `destination_vector`,
     /// leaving an `item_count` hole at the `index` position, which is returned as the `write_pointer`.
@@ -68,7 +68,7 @@ pub(super) fn compile_prepare_vector_insert_procedure<F: AcirField + DebugToStri
         BrilligBinaryOp::Add,
     );
 
-    // Reallocate the target vector if necessary
+    // Reallocate the target vector if necessary.
     reallocate_vector_for_insertion(
         brillig_context,
         source_vector,
@@ -81,6 +81,7 @@ pub(super) fn compile_prepare_vector_insert_procedure<F: AcirField + DebugToStri
     let target_vector_items_pointer =
         brillig_context.codegen_make_vector_items_pointer(target_vector);
 
+    // Check if we were able to reuse the source vector by comparing with the destination address.
     let was_reused = brillig_context.allocate_single_addr_bool();
     brillig_context.memory_op_instruction(
         source_vector.pointer,
@@ -89,6 +90,8 @@ pub(super) fn compile_prepare_vector_insert_procedure<F: AcirField + DebugToStri
         BrilligBinaryOp::Equals,
     );
 
+    // If we were unable to reuse the source index, we need to copy the items, up to the index where the hole needs to be:
+    // target[0..index] = source[0..index]
     brillig_context.codegen_if_not(was_reused.address, |brillig_context| {
         // Copy the elements to the left of the index
         brillig_context.codegen_mem_copy(
@@ -97,6 +100,8 @@ pub(super) fn compile_prepare_vector_insert_procedure<F: AcirField + DebugToStri
             index,
         );
     });
+
+    was_reused.deallocate();
 
     // Compute the source pointer just at the index
     let source_pointer_at_index = brillig_context.allocate_register();
@@ -107,13 +112,15 @@ pub(super) fn compile_prepare_vector_insert_procedure<F: AcirField + DebugToStri
         BrilligBinaryOp::Add,
     );
 
-    // Compute the target pointer after the inserted elements
+    // Compute the target pointer where the elements need to be inserted.
     brillig_context.memory_op_instruction(
         *target_vector_items_pointer,
         index.address,
         write_pointer_return,
         BrilligBinaryOp::Add,
     );
+
+    // Compute the target pointer pointing beyond the elements that need to be inserted.
     let target_pointer_after_index = brillig_context.allocate_register();
 
     brillig_context.memory_op_instruction(
@@ -123,7 +130,8 @@ pub(super) fn compile_prepare_vector_insert_procedure<F: AcirField + DebugToStri
         BrilligBinaryOp::Add,
     );
 
-    // Compute the number of elements to the right of the insertion index
+    // Compute the number of elements to the right of the insertion index.
+    // source_size = index + element_count_to_the_right
     let element_count_to_the_right = brillig_context.allocate_register();
     brillig_context.memory_op_instruction(
         source_size.address,
@@ -132,7 +140,8 @@ pub(super) fn compile_prepare_vector_insert_procedure<F: AcirField + DebugToStri
         BrilligBinaryOp::Sub,
     );
 
-    // Copy the elements to the right of the index
+    // Copy the elements to the right of the index:
+    // target[index+item_count .. index+item_count+elem_count_to_the_right] = source[index .. index+elem_count_to_the_right]
     brillig_context.codegen_mem_copy_from_the_end(
         *source_pointer_at_index,
         *target_pointer_after_index,
