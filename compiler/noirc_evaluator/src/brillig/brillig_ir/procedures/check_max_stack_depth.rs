@@ -8,6 +8,9 @@ use crate::brillig::brillig_ir::{
 };
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
+    /// Call [ProcedureId::CheckMaxStackDepth].
+    ///
+    /// Ensures that the stack size does not grow beyond its boundaries, where it would encroach on the heap.
     pub(crate) fn call_check_max_stack_depth_procedure(&mut self) {
         self.add_procedure_call_instruction(ProcedureId::CheckMaxStackDepth);
     }

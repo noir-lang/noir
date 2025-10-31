@@ -20,6 +20,8 @@ use crate::brillig::{
 };
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
+    /// Call [ProcedureId::ArrayCopy].
+    ///
     /// Conditionally copies a source array to a destination array.
     /// If the reference count of the source array is 1, then we can directly copy the pointer of the source array to the destination array.
     pub(crate) fn call_array_copy_procedure(

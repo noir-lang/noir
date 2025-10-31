@@ -38,15 +38,21 @@ use super::{
 /// Procedures receive their arguments on scratch space to avoid stack dumping&restoring.
 #[derive(Debug, Clone, Eq, PartialEq, Hash, PartialOrd, Ord, Deserialize, Serialize)]
 pub enum ProcedureId {
+    /// Conditionally copies a source array to a destination array.
+    /// If the reference count of the source array is 1, then we can directly copy the pointer of the source array to the destination array.
     ArrayCopy,
+    /// Reverses an array in-place.
+    /// It is the responsibility of the caller to ensure the reference count of the array is 1.
     ArrayReverse,
     VectorCopy,
+    /// Copy a number of items between two heap addresses.
     MemCopy,
     PrepareVectorPush(bool),
     VectorPopFront,
     VectorPopBack,
     PrepareVectorInsert,
     VectorRemove,
+    /// Check that the stack memory has not exceeded the maximum size allowed by the layout.
     CheckMaxStackDepth,
     RevertWithString(String),
 }
