@@ -5,7 +5,7 @@ inputs:
     description: 'Branch name'
     required: true
   site-id:
-    description: Netlify site id
+      description: Netlify site id'
     required: true
 outputs:
   deploy_status:
