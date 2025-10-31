@@ -63,7 +63,8 @@ pub(super) fn compile_vector_copy_procedure<F: AcirField + DebugToString>(
             // Then reset the new RC to 1.
             ctx.codegen_update_vector_rc(target_vector, 1);
 
-            // Decrease the original ref count now that this copy is no longer pointing to it
+            // Decrease the original ref count now that this copy is no longer pointing to it.
+            // TODO: Add test to show that repeated copies are not bringing this down to 1 and modifying the original.
             ctx.codegen_usize_op(rc.address, rc.address, BrilligBinaryOp::Sub, 1);
         }
     });

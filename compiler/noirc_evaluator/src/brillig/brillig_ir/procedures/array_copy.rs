@@ -88,7 +88,8 @@ pub(super) fn compile_array_copy_procedure<F: AcirField + DebugToString>(
                 1,
             );
 
-            // Decrease the original ref count now that this copy is no longer pointing to it
+            // Decrease the original ref count now that this copy is no longer pointing to it.
+            // TODO: Add test to show that repeated copies are not bringing this down to 1 and modifying the original.
             ctx.codegen_usize_op(rc.address, rc.address, BrilligBinaryOp::Sub, 1);
 
             // Increase our array copy counter if that flag is set
