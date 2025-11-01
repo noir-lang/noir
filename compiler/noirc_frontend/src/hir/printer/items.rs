@@ -25,7 +25,7 @@ use crate::{
     node_interner::NodeInterner,
 };
 
-pub(super) enum Item {
+pub enum Item {
     Module(Module),
     DataType(DataType),
     Trait(Trait),
@@ -35,7 +35,7 @@ pub(super) enum Item {
 }
 
 impl Item {
-    pub(super) fn module_def_id(&self) -> ModuleDefId {
+    pub fn module_def_id(&self) -> ModuleDefId {
         match self {
             Item::Module(module) => ModuleDefId::ModuleId(module.id),
             Item::DataType(data_type) => ModuleDefId::TypeId(data_type.id),
@@ -47,55 +47,54 @@ impl Item {
     }
 }
 
-pub(super) struct Module {
-    pub(super) id: ModuleId,
-    pub(super) name: Option<String>,
-    pub(super) is_contract: bool,
-    pub(super) imports: Vec<Import>,
-    pub(super) items: Vec<(ItemVisibility, Item)>,
+pub struct Module {
+    pub id: ModuleId,
+    pub name: Option<String>,
+    pub is_contract: bool,
+    pub imports: Vec<Import>,
+    pub items: Vec<(ItemVisibility, Item)>,
 }
 
-pub(super) struct DataType {
-    pub(super) id: TypeId,
-    pub(super) impls: Vec<Impl>,
-    pub(super) trait_impls: Vec<TraitImpl>,
+pub struct DataType {
+    pub id: TypeId,
+    pub impls: Vec<Impl>,
+    pub trait_impls: Vec<TraitImpl>,
 }
 
-pub(super) struct Trait {
-    pub(super) id: TraitId,
-    pub(super) methods: Vec<FuncId>,
-    pub(super) trait_impls: Vec<TraitImpl>,
+pub struct Trait {
+    pub id: TraitId,
+    pub methods: Vec<FuncId>,
+    pub trait_impls: Vec<TraitImpl>,
 }
 
-pub(super) struct Impl {
-    pub(super) generics: BTreeSet<(String, Kind)>,
-    pub(super) typ: Type,
-    pub(super) methods: Vec<(ItemVisibility, FuncId)>,
+pub struct Impl {
+    pub generics: BTreeSet<(String, Kind)>,
+    pub typ: Type,
+    pub methods: Vec<(ItemVisibility, FuncId)>,
 }
 
-pub(super) struct TraitImpl {
-    pub(super) generics: BTreeSet<(String, Kind)>,
-    pub(super) id: TraitImplId,
-    pub(super) methods: Vec<FuncId>,
+#[derive(Clone)]
+pub struct TraitImpl {
+    pub generics: BTreeSet<(String, Kind)>,
+    pub id: TraitImplId,
+    pub methods: Vec<FuncId>,
+    /// True if the trait impl only mentions types from external crates.
+    /// (for example `impl Trait for Field` in a non-stdlib crate)
+    pub external_types: bool,
 }
 
-pub(super) struct Import {
-    pub(super) name: Ident,
-    pub(super) id: ModuleDefId,
-    pub(super) visibility: ItemVisibility,
-    pub(super) is_prelude: bool,
+pub struct Import {
+    pub name: Ident,
+    pub id: ModuleDefId,
+    pub visibility: ItemVisibility,
+    pub is_prelude: bool,
 }
 
 pub(super) struct ItemBuilder<'context> {
     crate_id: CrateId,
     interner: &'context NodeInterner,
     def_maps: &'context DefMaps,
-    /// This set is initially created with all the trait impls in the crate.
-    /// As we traverse traits, will gather trait impls associated to those traits
-    /// that aren't associated to types in the current crate.
-    /// As we find structs and enums, we'll gather trait impls associated to those types.
-    /// Because a trait impl might be associated to multiple types, once we link a trait
-    /// impl to a type we'll remove it from this set.
+    /// All trait implementations in the current crate.
     trait_impls: HashSet<TraitImplId>,
 }
 
@@ -109,7 +108,7 @@ impl<'context> ItemBuilder<'context> {
         Self { crate_id, interner, def_maps, trait_impls }
     }
 
-    pub(super) fn build_module(&mut self, module_id: ModuleId) -> Item {
+    pub(super) fn build_module(&mut self, module_id: ModuleId) -> Module {
         let attributes = self.interner.try_module_attributes(module_id);
         let name = attributes.map(|attributes| attributes.name.clone());
         let module_data = &self.def_maps[&self.crate_id][module_id.local_id];
@@ -165,7 +164,7 @@ impl<'context> ItemBuilder<'context> {
             })
             .collect();
 
-        Item::Module(Module { id: module_id, name, is_contract, imports, items })
+        Module { id: module_id, name, is_contract, imports, items }
     }
 
     fn module_def_id_location(&self, module_def_id: ModuleDefId) -> Location {
@@ -176,7 +175,7 @@ impl<'context> ItemBuilder<'context> {
 
     fn build_module_def_id(&mut self, module_def_id: ModuleDefId) -> Option<Item> {
         Some(match module_def_id {
-            ModuleDefId::ModuleId(module_id) => self.build_module(module_id),
+            ModuleDefId::ModuleId(module_id) => Item::Module(self.build_module(module_id)),
             ModuleDefId::TypeId(type_id) => self.build_data_type(type_id),
             ModuleDefId::TypeAliasId(type_alias_id) => Item::TypeAlias(type_alias_id),
             ModuleDefId::TraitId(trait_id) => self.build_trait(trait_id),
@@ -279,25 +278,18 @@ impl<'context> ItemBuilder<'context> {
         trait_impls.into_iter().map(|(trait_impl, _)| self.build_trait_impl(trait_impl)).collect()
     }
 
-    /// Builds trait impls for traits, but only when those impls are
-    /// for types outside of the current crate as they are likely defined next
-    /// to the trait.
     fn build_trait_impls_for_trait(&mut self, trait_id: TraitId) -> Vec<TraitImpl> {
-        let mut trait_impls = self
-            .trait_impls
-            .iter()
-            .filter_map(|trait_impl_id| {
-                let trait_impl = self.interner.get_trait_implementation(*trait_impl_id);
-                let trait_impl = trait_impl.borrow();
-                if trait_impl.trait_id == trait_id
-                    && self.type_only_mention_types_outside_current_crate(&trait_impl.typ)
-                {
-                    Some((*trait_impl_id, trait_impl.location))
-                } else {
-                    None
-                }
-            })
-            .collect::<Vec<_>>();
+        let mut trait_impls = Vec::new();
+
+        for trait_impl_id in &self.trait_impls {
+            let trait_impl = self.interner.get_trait_implementation(*trait_impl_id);
+            let trait_impl = trait_impl.borrow();
+            if trait_impl.trait_id != trait_id {
+                continue;
+            }
+
+            trait_impls.push((*trait_impl_id, trait_impl.location));
+        }
 
         self.sort_trait_impls(&mut trait_impls);
 
@@ -314,11 +306,9 @@ impl<'context> ItemBuilder<'context> {
     }
 
     fn build_trait_impl(&mut self, trait_impl_id: TraitImplId) -> TraitImpl {
-        // Remove the trait impl from the set so we don't show it again
-        self.trait_impls.remove(&trait_impl_id);
-
         let trait_impl = self.interner.get_trait_implementation(trait_impl_id);
         let trait_impl = trait_impl.borrow();
+        let external_types = self.type_only_mention_types_outside_current_crate(&trait_impl.typ);
 
         let mut type_var_names = BTreeSet::new();
         for generic in &trait_impl.trait_generics {
@@ -330,6 +320,7 @@ impl<'context> ItemBuilder<'context> {
             generics: type_var_names,
             id: trait_impl_id,
             methods: trait_impl.methods.clone(),
+            external_types,
         }
     }
 

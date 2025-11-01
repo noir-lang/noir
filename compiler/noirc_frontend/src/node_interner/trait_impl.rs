@@ -1,7 +1,8 @@
+use std::collections::HashSet;
+
 use iter_extended::vecmap;
 use noirc_errors::Location;
 use rustc_hash::FxHashMap as HashMap;
-use std::collections::HashSet;
 
 use crate::{
     GenericTypeVars, Shared, Type, TypeBindings,
