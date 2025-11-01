@@ -702,7 +702,34 @@ impl HTMLCreator {
             }
         }
         self.render_where_clause(&trait_.where_clause);
-        self.output.push_str(" {\n}");
+        self.output.push_str(" {\n");
+
+        let color_name = true;
+        let link = true;
+        let mut printed_member = false;
+
+        if !trait_.required_methods.is_empty() {
+            self.output.push_str("    <span class=\"comment\">// Required methods</span>\n");
+            for method in &trait_.required_methods {
+                self.output.push_str("    ");
+                self.render_function_signature_inner(method, color_name, link);
+                self.output.push_str(";\n");
+            }
+            printed_member = true;
+        }
+
+        if !trait_.provided_methods.is_empty() {
+            if printed_member {
+                self.output.push('\n');
+            }
+            self.output.push_str("    <span class=\"comment\">// Provided methods</span>\n");
+            for method in &trait_.provided_methods {
+                self.output.push_str("    ");
+                self.render_function_signature_inner(method, color_name, link);
+                self.output.push_str(" { ... }\n");
+            }
+        }
+        self.output.push_str("}");
         self.output.push_str("</code></pre>\n\n");
     }
 
@@ -787,6 +814,22 @@ impl HTMLCreator {
             self.output.push_str("<pre>");
             self.output.push_str("<code>");
         }
+        let color_name = as_header;
+        let link = false;
+        self.render_function_signature_inner(function, color_name, link);
+        self.output.push_str("</code>");
+        if !as_header {
+            self.output.push_str("</pre>");
+        }
+        self.output.push_str("\n\n");
+    }
+
+    fn render_function_signature_inner(
+        &mut self,
+        function: &Function,
+        color_name: bool,
+        link: bool,
+    ) {
         self.output.push_str("pub ");
         if function.unconstrained {
             self.output.push_str("unconstrained ");
@@ -795,12 +838,18 @@ impl HTMLCreator {
             self.output.push_str("comptime ");
         }
         self.output.push_str("fn ");
-        if as_header {
+        if link {
+            self.output.push_str(&format!("<a href=\"#{}\">", function.name));
+        }
+        if color_name {
             self.output.push_str("<span class=\"fn\">");
             self.output.push_str(&function.name);
             self.output.push_str("</span>");
         } else {
             self.output.push_str(&function.name);
+        }
+        if link {
+            self.output.push_str("</a>");
         }
         self.render_generics(&function.generics);
         self.output.push('(');
@@ -828,11 +877,6 @@ impl HTMLCreator {
             self.render_type(&function.return_type);
         }
         self.render_where_clause(&function.where_clause);
-        self.output.push_str("</code>");
-        if !as_header {
-            self.output.push_str("</pre>");
-        }
-        self.output.push_str("\n\n");
     }
 
     fn render_generics(&mut self, generics: &[Generic]) {
