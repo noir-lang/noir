@@ -695,7 +695,11 @@ impl HTMLCreator {
         if !trait_.bounds.is_empty() {
             self.output.push(':');
             for (index, bound) in trait_.bounds.iter().enumerate() {
-                self.output.push_str("\n    ");
+                if trait_.bounds.len() == 1 {
+                    self.output.push(' ');
+                } else {
+                    self.output.push_str("\n    ");
+                }
                 if index > 0 {
                     self.output.push_str("+ ");
                 }
@@ -704,7 +708,11 @@ impl HTMLCreator {
         }
         let indent = 0;
         self.render_where_clause(&trait_.where_clause, indent);
-        self.output.push_str(" {\n");
+        if !trait_.where_clause.is_empty() || trait_.bounds.len() > 1 {
+            self.output.push_str("\n{\n");
+        } else {
+            self.output.push_str(" {\n");
+        }
 
         let color_name = true;
         let link = true;
