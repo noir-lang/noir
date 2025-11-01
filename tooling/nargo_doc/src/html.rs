@@ -678,7 +678,8 @@ impl HTMLCreator {
         self.render_generic_types(&trait_impl.trait_generics);
         self.output.push_str(" for ");
         self.render_type(&trait_impl.r#type);
-        self.render_where_clause(&trait_impl.where_clause);
+        let indent = 0;
+        self.render_where_clause(&trait_impl.where_clause, indent);
         self.output.push_str("</code></h3>\n\n");
 
         if show_methods {
@@ -701,7 +702,8 @@ impl HTMLCreator {
                 self.render_trait_bound(bound);
             }
         }
-        self.render_where_clause(&trait_.where_clause);
+        let indent = 0;
+        self.render_where_clause(&trait_.where_clause, indent);
         self.output.push_str(" {\n");
 
         let color_name = true;
@@ -915,7 +917,7 @@ impl HTMLCreator {
             self.output.push_str(" -> ");
             self.render_type(&function.return_type);
         }
-        self.render_where_clause(&function.where_clause);
+        self.render_where_clause(&function.where_clause, indent);
     }
 
     fn render_generics(&mut self, generics: &[Generic]) {
@@ -937,14 +939,16 @@ impl HTMLCreator {
         self.output.push_str("&gt;");
     }
 
-    fn render_where_clause(&mut self, where_clause: &[TraitConstraint]) {
+    fn render_where_clause(&mut self, where_clause: &[TraitConstraint], indent: usize) {
         if where_clause.is_empty() {
             return;
         }
 
-        self.output.push_str("\nwhere\n");
+        self.output.push('\n');
+        self.output.push_str(&" ".repeat(4 * indent));
+        self.output.push_str("where\n");
         for (index, constraint) in where_clause.iter().enumerate() {
-            self.output.push_str("    ");
+            self.output.push_str(&" ".repeat(4 * (indent + 1)));
             self.render_type(&constraint.r#type);
             self.output.push_str(": ");
             self.render_trait_bound(&constraint.bound);
