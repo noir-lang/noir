@@ -953,9 +953,8 @@ impl HTMLCreator {
             self.output.push_str(": ");
             self.render_trait_bound(&constraint.bound);
             if index != where_clause.len() - 1 {
-                self.output.push(',');
+                self.output.push_str(",\n");
             }
-            self.output.push('\n');
         }
     }
 
