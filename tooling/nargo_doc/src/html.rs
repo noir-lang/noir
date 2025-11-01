@@ -706,6 +706,7 @@ impl HTMLCreator {
 
         let color_name = true;
         let link = true;
+        let indent = 1;
         let mut printed_member = false;
 
         if !trait_.associated_types.is_empty() {
@@ -746,7 +747,7 @@ impl HTMLCreator {
             self.output.push_str("    <span class=\"comment\">// Required methods</span>\n");
             for method in &trait_.required_methods {
                 self.output.push_str("    ");
-                self.render_function_signature_inner(method, color_name, link);
+                self.render_function_signature_inner(method, color_name, link, indent);
                 self.output.push_str(";\n");
             }
             printed_member = true;
@@ -759,7 +760,7 @@ impl HTMLCreator {
             self.output.push_str("    <span class=\"comment\">// Provided methods</span>\n");
             for method in &trait_.provided_methods {
                 self.output.push_str("    ");
-                self.render_function_signature_inner(method, color_name, link);
+                self.render_function_signature_inner(method, color_name, link, indent);
                 self.output.push_str(" { ... }\n");
             }
         }
@@ -850,7 +851,8 @@ impl HTMLCreator {
         }
         let color_name = as_header;
         let link = false;
-        self.render_function_signature_inner(function, color_name, link);
+        let indent = 0;
+        self.render_function_signature_inner(function, color_name, link, indent);
         self.output.push_str("</code>");
         if !as_header {
             self.output.push_str("</pre>");
@@ -863,6 +865,7 @@ impl HTMLCreator {
         function: &Function,
         color_name: bool,
         link: bool,
+        indent: usize,
     ) {
         self.output.push_str("pub ");
         if function.unconstrained {
@@ -893,7 +896,8 @@ impl HTMLCreator {
                 self.output.push_str(", ");
             }
             if use_newlines {
-                self.output.push_str("\n    ");
+                self.output.push('\n');
+                self.output.push_str(&" ".repeat(4 * (indent + 1)));
             }
             self.output.push_str(&param.name);
             self.output.push_str(": ");
@@ -904,6 +908,7 @@ impl HTMLCreator {
         }
         if use_newlines {
             self.output.push('\n');
+            self.output.push_str(&" ".repeat(4 * indent));
         }
         self.output.push(')');
         if !matches!(function.return_type, Type::Unit) {
