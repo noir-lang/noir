@@ -29,13 +29,16 @@ pub fn crate_module(
     ids: &mut ItemIds,
 ) -> Module {
     let module = noirc_frontend::hir::printer::crate_to_module(crate_id, def_maps, interner);
-    let mut builder = DocItemBuilder { interner, ids };
+    let mut builder = DocItemBuilder { interner, ids, trait_constraints: Vec::new() };
     builder.convert_module(module)
 }
 
 struct DocItemBuilder<'a> {
     interner: &'a NodeInterner,
     ids: &'a mut ItemIds,
+    /// Trait constraints in scope.
+    /// These are set when a trait or trait impl is visited.
+    trait_constraints: Vec<TraitConstraint>,
 }
 
 /// Maps an ItemId to a unique identifier.
@@ -118,6 +121,10 @@ impl DocItemBuilder<'_> {
                 let name = trait_.name.to_string();
                 let comments = self.doc_comments(ReferenceId::Trait(trait_id));
                 let generics = vecmap(&trait_.generics, convert_generic);
+                let where_clause = vecmap(&trait_.where_clause, |constraint| {
+                    self.convert_trait_constraint(constraint)
+                });
+                self.trait_constraints = where_clause.clone();
                 let mut required_methods = Vec::new();
                 let mut provided_methods = Vec::new();
                 for func_id in &item_trait.methods {
@@ -129,11 +136,9 @@ impl DocItemBuilder<'_> {
                         required_methods.push(function);
                     }
                 }
+                self.trait_constraints.clear();
                 let trait_impls = vecmap(item_trait.trait_impls, |trait_impl| {
                     self.convert_trait_impl(trait_impl)
-                });
-                let where_clause = vecmap(&trait_.where_clause, |constraint| {
-                    self.convert_trait_constraint(constraint)
                 });
                 let parents = vecmap(&trait_.trait_bounds, |bound| self.convert_trait_bound(bound));
 
@@ -232,24 +237,27 @@ impl DocItemBuilder<'_> {
     }
 
     fn convert_trait_impl(&mut self, item_trait_impl: expand_items::TraitImpl) -> TraitImpl {
-        let generics = vecmap(item_trait_impl.generics, |(name, kind)| {
-            let numeric = kind_to_numeric(kind);
-            Generic { name, numeric }
-        });
-        let methods = vecmap(item_trait_impl.methods, |func_id| self.convert_function(func_id));
-
         let trait_impl_id = item_trait_impl.id;
 
         let trait_impl = self.interner.get_trait_implementation(trait_impl_id);
         let trait_impl = trait_impl.borrow();
+
+        let generics = vecmap(item_trait_impl.generics, |(name, kind)| {
+            let numeric = kind_to_numeric(kind);
+            Generic { name, numeric }
+        });
+        let where_clause = vecmap(&trait_impl.where_clause, |constraint| {
+            self.convert_trait_constraint(constraint)
+        });
+        self.trait_constraints = where_clause.clone();
+        let methods = vecmap(item_trait_impl.methods, |func_id| self.convert_function(func_id));
+        self.trait_constraints.clear();
+
         let trait_ = self.interner.get_trait(trait_impl.trait_id);
         let trait_name = trait_.name.to_string();
         let trait_id = self.get_trait_id(trait_.id);
         let trait_generics = vecmap(&trait_impl.trait_generics, |typ| self.convert_type(typ));
         let r#type = self.convert_type(&trait_impl.typ);
-        let where_clause = vecmap(&trait_impl.where_clause, |constraint| {
-            self.convert_trait_constraint(constraint)
-        });
         TraitImpl { r#type, generics, methods, trait_id, trait_name, trait_generics, where_clause }
     }
 
@@ -399,6 +407,15 @@ impl DocItemBuilder<'_> {
         let trait_constraints = func_meta.trait_constraints.clone();
         let where_clause =
             vecmap(trait_constraints, |constraint| self.convert_trait_constraint(&constraint));
+
+        // Only keep trait constraints if they aren't already present because they exist in the
+        // parent trait/impl.
+        let where_clause = where_clause
+            .iter()
+            .filter(|trait_constraint| !self.trait_constraints.contains(trait_constraint))
+            .cloned()
+            .collect::<Vec<_>>();
+
         Function {
             name,
             comments,
