@@ -76,7 +76,7 @@ impl HTMLCreator {
         self.create_all_items(workspace);
         self.create_index(workspace);
 
-        for krate in &workspace.crates {
+        for krate in workspace.all_crates() {
             if krate.root_module.items.is_empty() {
                 continue;
             }

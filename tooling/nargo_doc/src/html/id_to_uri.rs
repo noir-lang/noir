@@ -10,7 +10,7 @@ pub(super) fn compute_id_to_uri(workspace: &Workspace) -> HashMap<TypeId, String
     let mut id_to_path = HashMap::new();
     let mut path = Vec::new();
 
-    for krate in &workspace.crates {
+    for krate in workspace.all_crates() {
         path.push(krate.name.to_string());
         for item in &krate.root_module.items {
             compute_id_to_uri_in_item(item, &mut id_to_path, &mut path);

@@ -7,13 +7,10 @@ use nargo::{
     ops::check_crate_and_report_errors, package::Package, parse_all, prepare_package,
     workspace::Workspace,
 };
-use nargo_doc::{
-    ItemIds, crate_module,
-    items::{Crate, Module},
-};
+use nargo_doc::{ItemIds, crate_module, items::Crate};
 use nargo_toml::PackageSelection;
-use noirc_driver::CompileOptions;
-use noirc_frontend::hir::ParsedFiles;
+use noirc_driver::{CompileOptions, CrateId};
+use noirc_frontend::hir::{Context, ParsedFiles};
 
 use crate::errors::CliError;
 
@@ -56,19 +53,29 @@ pub(crate) fn run(args: DocCommand, workspace: Workspace) -> Result<(), CliError
     let parsed_files = parse_all(&workspace_file_manager);
 
     let mut crates = Vec::new();
+    // Maps a crate's root file to its crate
+    let mut all_dependencies = HashMap::new();
     let mut ids = HashMap::new();
     for package in &workspace {
-        let root_module = package_module(
+        let (krate, dependencies) = package_crate(
             &workspace_file_manager,
             &parsed_files,
             package,
             &args.compile_options,
             &mut ids,
         )?;
-        crates.push(Crate { name: package.name.to_string(), root_module });
+        crates.push(krate);
+        all_dependencies.extend(dependencies);
     }
+    // Crates in the workspace might depend on other crates in the workspace.
+    // Remove them from `all_dependencies`.
+    for krate in &crates {
+        all_dependencies.remove(&krate.root_file);
+    }
+    let dependencies = all_dependencies.into_values().collect::<Vec<_>>();
+
     let name = workspace.root_dir.file_name().unwrap().to_string_lossy().to_string();
-    let crates = nargo_doc::items::Workspace { crates, name };
+    let crates = nargo_doc::items::Workspace { crates, name, dependencies };
 
     let format = args.format.unwrap_or(Format::Html);
     match format {
@@ -102,16 +109,55 @@ pub(crate) fn run(args: DocCommand, workspace: Workspace) -> Result<(), CliError
     }
 }
 
-fn package_module(
+/// Returns the Crate item for the given package, together with all of
+/// its dependencies in a HashMap that maps a dependency's root file to
+/// its crate.
+fn package_crate(
     file_manager: &FileManager,
     parsed_files: &ParsedFiles,
     package: &Package,
     compile_options: &CompileOptions,
     ids: &mut ItemIds,
-) -> Result<Module, CompileError> {
+) -> Result<(Crate, HashMap<String, Crate>), CompileError> {
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
 
     check_crate_and_report_errors(&mut context, crate_id, compile_options)?;
 
-    Ok(crate_module(crate_id, &context.crate_graph, &context.def_maps, &context.def_interner, ids))
+    let module =
+        crate_module(crate_id, &context.crate_graph, &context.def_maps, &context.def_interner, ids);
+
+    let mut dependencies = HashMap::new();
+    collect_dependencies(&context, crate_id, file_manager, &mut dependencies, ids)?;
+
+    let root_file = &context.crate_graph[crate_id].root_file_id;
+    let root_file = file_manager.path(*root_file).unwrap().display().to_string();
+
+    let krate = Crate { name: package.name.to_string(), root_module: module, root_file };
+    Ok((krate, dependencies))
+}
+
+fn collect_dependencies(
+    context: &Context,
+    crate_id: CrateId,
+    file_manager: &FileManager,
+    dependencies: &mut HashMap<String, Crate>,
+    ids: &mut ItemIds,
+) -> Result<(), CompileError> {
+    for dependency in &context.crate_graph[crate_id].dependencies {
+        let crate_id = dependency.crate_id;
+        let root_file = &context.crate_graph[crate_id].root_file_id;
+        let root_file = file_manager.path(*root_file).unwrap().display().to_string();
+        let module = crate_module(
+            crate_id,
+            &context.crate_graph,
+            &context.def_maps,
+            &context.def_interner,
+            ids,
+        );
+        let name = dependency.name.to_string();
+        dependencies.insert(root_file.clone(), Crate { name, root_module: module, root_file });
+
+        collect_dependencies(context, crate_id, file_manager, dependencies, ids)?;
+    }
+    Ok(())
 }

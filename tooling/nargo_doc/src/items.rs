@@ -14,13 +14,23 @@ pub type TypeId = usize;
 #[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Workspace {
     pub name: String,
+    /// Crates directly defined in this workspace.
     pub crates: Vec<Crate>,
+    /// All unique depdendencies of `crates`.
+    pub dependencies: Vec<Crate>,
+}
+
+impl Workspace {
+    pub fn all_crates(&self) -> impl Iterator<Item = &Crate> {
+        self.crates.iter().chain(self.dependencies.iter())
+    }
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Crate {
     pub name: String,
     pub root_module: Module,
+    pub root_file: String,
 }
 
 impl HasNameAndComments for Crate {

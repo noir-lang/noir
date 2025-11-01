@@ -6,7 +6,7 @@ use crate::items::{Item, TraitImpl, TypeId, Workspace};
 pub(super) fn gather_all_trait_impls(workspace: &Workspace) -> HashMap<TypeId, HashSet<TraitImpl>> {
     let mut trait_impls = HashMap::new();
 
-    for krate in &workspace.crates {
+    for krate in workspace.all_crates() {
         for item in &krate.root_module.items {
             gather_trait_impls_in_item(item, &mut trait_impls);
         }
