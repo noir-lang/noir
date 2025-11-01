@@ -184,10 +184,24 @@ pub struct Trait {
     pub generics: Vec<Generic>,
     pub bounds: Vec<TraitBound>,
     pub where_clause: Vec<TraitConstraint>,
+    pub associated_types: Vec<AssociatedType>,
+    pub associated_constants: Vec<AssociatedConstant>,
     pub required_methods: Vec<Function>,
     pub provided_methods: Vec<Function>,
     pub trait_impls: Vec<TraitImpl>,
     pub comments: Option<String>,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct AssociatedType {
+    pub name: String,
+    pub bounds: Vec<TraitBound>,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct AssociatedConstant {
+    pub name: String,
+    pub r#type: Type,
 }
 
 impl HasNameAndComments for Trait {

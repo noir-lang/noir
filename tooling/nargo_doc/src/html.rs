@@ -708,7 +708,41 @@ impl HTMLCreator {
         let link = true;
         let mut printed_member = false;
 
+        if !trait_.associated_types.is_empty() {
+            for associated_type in &trait_.associated_types {
+                self.output.push_str("    type ");
+                self.output.push_str(&associated_type.name);
+                if !associated_type.bounds.is_empty() {
+                    self.output.push_str(": ");
+                    for (index, bound) in associated_type.bounds.iter().enumerate() {
+                        if index > 0 {
+                            self.output.push_str(" + ");
+                        }
+                        self.render_trait_bound(bound);
+                    }
+                }
+                self.output.push_str(";\n");
+            }
+
+            printed_member = true;
+        }
+
+        if !trait_.associated_constants.is_empty() {
+            for associated_constant in &trait_.associated_constants {
+                self.output.push_str("    let ");
+                self.output.push_str(&associated_constant.name);
+                self.output.push_str(": ");
+                self.render_type(&associated_constant.r#type);
+                self.output.push_str(";\n");
+            }
+
+            printed_member = true;
+        }
+
         if !trait_.required_methods.is_empty() {
+            if printed_member {
+                self.output.push('\n');
+            }
             self.output.push_str("    <span class=\"comment\">// Required methods</span>\n");
             for method in &trait_.required_methods {
                 self.output.push_str("    ");
@@ -729,7 +763,7 @@ impl HTMLCreator {
                 self.output.push_str(" { ... }\n");
             }
         }
-        self.output.push_str("}");
+        self.output.push('}');
         self.output.push_str("</code></pre>\n\n");
     }
 

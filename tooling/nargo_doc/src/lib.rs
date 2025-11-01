@@ -12,8 +12,8 @@ use noirc_frontend::{Kind, NamedGeneric, ResolvedGeneric, TypeBinding};
 use noirc_frontend::{graph::CrateGraph, hir::def_map::DefMaps, node_interner::NodeInterner};
 
 use crate::items::{
-    Function, FunctionParam, Generic, Global, Impl, Item, Module, Struct, StructField, Trait,
-    TraitBound, TraitConstraint, TraitImpl, Type, TypeAlias,
+    AssociatedConstant, AssociatedType, Function, FunctionParam, Generic, Global, Impl, Item,
+    Module, Struct, StructField, Trait, TraitBound, TraitConstraint, TraitImpl, Type, TypeAlias,
 };
 
 mod html;
@@ -136,6 +136,30 @@ impl DocItemBuilder<'_> {
                     self.convert_trait_constraint(constraint)
                 });
                 let parents = vecmap(&trait_.trait_bounds, |bound| self.convert_trait_bound(bound));
+
+                let mut associated_types = Vec::new();
+                let mut associated_constants = Vec::new();
+
+                for associated_type in &trait_.associated_types {
+                    let name = associated_type.name.to_string();
+
+                    if let Kind::Numeric(numeric_type) = associated_type.kind() {
+                        let r#type = self.convert_type(&numeric_type);
+                        associated_constants.push(AssociatedConstant { name, r#type });
+                    } else {
+                        let bounds = if let Some(trait_bounds) =
+                            trait_.associated_type_bounds.get(associated_type.name.as_str())
+                        {
+                            vecmap(trait_bounds, |trait_bound| {
+                                self.convert_trait_bound(trait_bound)
+                            })
+                        } else {
+                            Vec::new()
+                        };
+                        associated_types.push(AssociatedType { name, bounds });
+                    }
+                }
+
                 let id = self.get_trait_id(trait_id);
                 Item::Trait(Trait {
                     id,
@@ -143,6 +167,8 @@ impl DocItemBuilder<'_> {
                     generics,
                     bounds: parents,
                     where_clause,
+                    associated_types,
+                    associated_constants,
                     comments,
                     required_methods,
                     provided_methods,
