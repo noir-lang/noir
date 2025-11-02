@@ -1400,8 +1400,15 @@ fn type_to_string(typ: &Type) -> String {
                 format!("&{}", type_to_string(r#type))
             }
         }
-        Type::Struct { name, .. } => name.clone(),
-        Type::TypeAlias { name, .. } => name.clone(),
+        Type::Struct { name, generics, id: _ } | Type::TypeAlias { name, generics, id: _ } => {
+            let mut string = String::new();
+            string.push_str(name);
+            if !generics.is_empty() {
+                let generic_strings: Vec<String> = generics.iter().map(type_to_string).collect();
+                string.push_str(&format!("<{}>", generic_strings.join(", ")));
+            }
+            string
+        }
         Type::Function { params, return_type, env, unconstrained } => {
             let mut string = String::new();
             if *unconstrained {
@@ -1426,7 +1433,33 @@ fn type_to_string(typ: &Type) -> String {
         Type::InfixExpr { lhs, operator, rhs } => {
             format!("{}{}{}", type_to_string(lhs), operator, type_to_string(rhs))
         }
-        Type::TraitAsType { trait_name, .. } => format!("impl-{trait_name}"),
+        Type::TraitAsType { trait_name, ordered_generics, named_generics, trait_id: _ } => {
+            let mut string = String::new();
+            string.push_str("impl ");
+            string.push_str(trait_name);
+            if !ordered_generics.is_empty() || !named_generics.is_empty() {
+                string.push('<');
+                let mut first = true;
+                for generic in ordered_generics {
+                    if !first {
+                        string.push_str(", ");
+                    }
+                    first = false;
+                    string.push_str(&type_to_string(generic));
+                }
+                for (name, typ) in named_generics {
+                    if !first {
+                        string.push_str(", ");
+                    }
+                    first = false;
+                    string.push_str(name);
+                    string.push_str(" = ");
+                    string.push_str(&type_to_string(typ));
+                }
+                string.push('>');
+            }
+            string
+        }
     }
 }
 
