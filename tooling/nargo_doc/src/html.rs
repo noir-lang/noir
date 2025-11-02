@@ -1529,6 +1529,9 @@ fn is_self_param(param: &FunctionParam, self_type: Option<&Type>) -> bool {
     }
 
     let Some(self_type) = self_type else {
+        if let Type::Generic(generic) = &param.r#type {
+            return generic == "Self";
+        }
         return false;
     };
 
