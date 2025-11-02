@@ -1365,7 +1365,13 @@ impl HTMLCreator {
 fn get_modules(items: &[Item]) -> Vec<&Module> {
     items
         .iter()
-        .filter_map(|item| if let Item::Module(module) = item { Some(module) } else { None })
+        .filter_map(|item| {
+            if let Item::Module(module) = item {
+                if module.items.is_empty() { None } else { Some(module) }
+            } else {
+                None
+            }
+        })
         .collect()
 }
 
