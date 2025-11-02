@@ -101,7 +101,7 @@ impl DocItemBuilder<'_> {
                         StructField { name: field.name.to_string(), r#type, comments }
                     })
                     .collect();
-                let generics = vecmap(&data_type.generics, convert_generic);
+                let generics = vecmap(&data_type.generics, |generic| self.convert_generic(generic));
                 let impls = vecmap(item_data_type.impls, |impl_| self.convert_impl(impl_));
                 let trait_impls =
                     vecmap(item_data_type.trait_impls, |impl_| self.convert_trait_impl(impl_));
@@ -122,7 +122,7 @@ impl DocItemBuilder<'_> {
                 let trait_ = self.interner.get_trait(trait_id);
                 let name = trait_.name.to_string();
                 let comments = self.doc_comments(ReferenceId::Trait(trait_id));
-                let generics = vecmap(&trait_.generics, convert_generic);
+                let generics = vecmap(&trait_.generics, |generic| self.convert_generic(generic));
                 let where_clause = vecmap(&trait_.where_clause, |constraint| {
                     self.convert_trait_constraint(constraint)
                 });
@@ -188,7 +188,8 @@ impl DocItemBuilder<'_> {
                 let name = type_alias.name.to_string();
                 let r#type = self.convert_type(&type_alias.typ);
                 let comments = self.doc_comments(ReferenceId::Alias(type_alias_id));
-                let generics = vecmap(&type_alias.generics, convert_generic);
+                let generics =
+                    vecmap(&type_alias.generics, |generic| self.convert_generic(generic));
                 let id = self.get_type_alias_id(type_alias_id);
                 Item::TypeAlias(TypeAlias { id, name, comments, r#type, generics })
             }
@@ -243,7 +244,7 @@ impl DocItemBuilder<'_> {
 
     fn convert_impl(&mut self, impl_: expand_items::Impl) -> Impl {
         let generics = vecmap(impl_.generics, |(name, kind)| {
-            let numeric = kind_to_numeric(kind);
+            let numeric = self.kind_to_numeric(kind);
             Generic { name, numeric }
         });
         let r#type = self.convert_type(&impl_.typ);
@@ -263,7 +264,7 @@ impl DocItemBuilder<'_> {
         let trait_impl = trait_impl.borrow();
 
         let generics = vecmap(item_trait_impl.generics, |(name, kind)| {
-            let numeric = kind_to_numeric(kind);
+            let numeric = self.kind_to_numeric(kind);
             Generic { name, numeric }
         });
         let where_clause = vecmap(&trait_impl.where_clause, |constraint| {
@@ -462,7 +463,7 @@ impl DocItemBuilder<'_> {
         let comptime = modifiers.is_comptime;
         let name = modifiers.name.to_string();
         let comments = self.doc_comments(ReferenceId::Function(func_id));
-        let generics = vecmap(&func_meta.direct_generics, convert_generic);
+        let generics = vecmap(&func_meta.direct_generics, |generic| self.convert_generic(generic));
         let params = vecmap(func_meta.parameters.iter(), |(pattern, typ, _visibility)| {
             let is_self = self.pattern_is_self(pattern);
 
@@ -500,6 +501,19 @@ impl DocItemBuilder<'_> {
             params,
             return_type,
             where_clause,
+        }
+    }
+
+    fn convert_generic(&mut self, generic: &ResolvedGeneric) -> Generic {
+        let numeric = self.kind_to_numeric(generic.kind());
+        let name = generic.name.to_string();
+        Generic { name, numeric }
+    }
+
+    fn kind_to_numeric(&mut self, kind: Kind) -> Option<Type> {
+        match kind {
+            Kind::Any | Kind::Normal | Kind::IntegerOrField | Kind::Integer => None,
+            Kind::Numeric(typ) => Some(self.convert_type(&typ)),
         }
     }
 
@@ -566,18 +580,5 @@ impl DocItemBuilder<'_> {
             self.ids.insert(key, new_id);
             new_id
         }
-    }
-}
-
-fn convert_generic(generic: &ResolvedGeneric) -> Generic {
-    let numeric = kind_to_numeric(generic.kind());
-    let name = generic.name.to_string();
-    Generic { name, numeric }
-}
-
-fn kind_to_numeric(kind: Kind) -> Option<String> {
-    match kind {
-        Kind::Any | Kind::Normal | Kind::IntegerOrField | Kind::Integer => None,
-        Kind::Numeric(typ) => Some(typ.to_string()),
     }
 }

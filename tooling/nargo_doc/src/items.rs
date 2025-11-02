@@ -238,7 +238,7 @@ impl HasNameAndComments for TypeAlias {
 #[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Generic {
     pub name: String,
-    pub numeric: Option<String>,
+    pub numeric: Option<Type>,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -394,6 +394,6 @@ impl std::fmt::Display for PrimitiveTypeKind {
             PrimitiveTypeKind::Module => "Module",
             PrimitiveTypeKind::CtString => "CtString",
         };
-        write!(f, "{}", name)
+        write!(f, "{name}")
     }
 }

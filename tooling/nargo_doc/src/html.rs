@@ -615,7 +615,7 @@ impl HTMLCreator {
     }
 
     fn create_primitive_type(&mut self, parent_module: &Module, primitive: &PrimitiveType) {
-        self.html_start(&format!("Primitive type {}", primitive.kind.to_string()));
+        self.html_start(&format!("Primitive type {}", primitive.kind));
         self.sidebar_start();
         self.render_primitive_sidebar(primitive);
         self.render_module_contents_sidebar(parent_module, false);
@@ -1027,7 +1027,10 @@ impl HTMLCreator {
                 self.output.push_str(", ");
             }
             if let Some(numeric) = &generic.numeric {
-                self.output.push_str(&format!("let {}: {}", generic.name, numeric));
+                self.output.push_str("let ");
+                self.output.push_str(&generic.name);
+                self.output.push_str(": ");
+                self.render_type(numeric);
             } else {
                 self.output.push_str(&generic.name);
             }
@@ -1490,7 +1493,7 @@ fn generics_to_string(generics: &[Generic]) -> String {
             string.push_str(", ");
         }
         if let Some(numeric) = &generic.numeric {
-            string.push_str(&format!("let {}: {}", generic.name, numeric));
+            string.push_str(&format!("let {}: {}", generic.name, &type_to_string(numeric, None)));
         } else {
             string.push_str(&generic.name);
         }
