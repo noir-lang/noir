@@ -912,6 +912,9 @@ impl HTMLCreator {
                 self.output.push('\n');
                 self.output.push_str(&" ".repeat(4 * (indent + 1)));
             }
+            if param.mut_ref {
+                self.output.push_str("&mut ");
+            }
             self.output.push_str(&param.name);
             self.output.push_str(": ");
             self.render_type(&param.r#type);
@@ -1343,6 +1346,9 @@ fn function_signature_to_string(function: &Function) -> String {
     for (index, param) in function.params.iter().enumerate() {
         if index > 0 {
             string.push_str(", ");
+        }
+        if param.mut_ref {
+            string.push_str("&mut ");
         }
         string.push_str(&param.name);
         string.push_str(": ");

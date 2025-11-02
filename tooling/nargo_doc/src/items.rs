@@ -175,6 +175,7 @@ impl HasNameAndComments for Function {
 pub struct FunctionParam {
     pub name: String,
     pub r#type: Type,
+    pub mut_ref: bool,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]

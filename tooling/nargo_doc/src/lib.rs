@@ -394,14 +394,16 @@ impl DocItemBuilder<'_> {
             let is_self = self.pattern_is_self(pattern);
 
             // `&mut self` is represented as a mutable reference type, not as a mutable pattern
+            let mut mut_ref = false;
             let name = if is_self && matches!(typ, noirc_frontend::Type::Reference(..)) {
-                "&mut self".to_string()
+                mut_ref = true;
+                "self".to_string()
             } else {
                 self.pattern_to_string(pattern)
             };
 
             let r#type = self.convert_type(typ);
-            FunctionParam { name, r#type }
+            FunctionParam { name, r#type, mut_ref }
         });
         let return_type = self.convert_type(func_meta.return_type());
         let trait_constraints = func_meta.trait_constraints.clone();
