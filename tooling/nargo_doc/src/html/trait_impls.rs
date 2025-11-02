@@ -32,6 +32,11 @@ fn gather_trait_impls_in_item(item: &Item, trait_impls: &mut HashMap<TypeId, Has
                 trait_impls.entry(impl_.trait_id).or_default().insert(impl_.clone());
             }
         }
-        Item::TypeAlias(_) | Item::Function(_) | Item::Global(_) | Item::PrimitiveType(_) => {}
+        Item::PrimitiveType(primitive_type) => {
+            for impl_ in &primitive_type.trait_impls {
+                trait_impls.entry(impl_.trait_id).or_default().insert(impl_.clone());
+            }
+        }
+        Item::TypeAlias(_) | Item::Function(_) | Item::Global(_) => {}
     }
 }
