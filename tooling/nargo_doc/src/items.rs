@@ -16,7 +16,7 @@ pub struct Workspace {
     pub name: String,
     /// Crates directly defined in this workspace.
     pub crates: Vec<Crate>,
-    /// All unique depdendencies of `crates`.
+    /// All unique dependencies of `crates`.
     pub dependencies: Vec<Crate>,
 }
 
