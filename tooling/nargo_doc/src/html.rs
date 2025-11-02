@@ -900,7 +900,10 @@ impl HTMLCreator {
         }
         self.render_generics(&function.generics);
         self.output.push('(');
-        let use_newlines = function.params.len() > 2;
+
+        // Split params into multiple lines if the signature will likely be too long
+        // to fit in one line.
+        let use_newlines = function_signature_to_string(function).len() >= 90;
         for (index, param) in function.params.iter().enumerate() {
             if index > 0 && !use_newlines {
                 self.output.push_str(", ");
@@ -1324,6 +1327,56 @@ fn trait_impl_trait_to_string(trait_impl: &TraitImpl) -> String {
     string
 }
 
+fn function_signature_to_string(function: &Function) -> String {
+    let mut string = String::new();
+    string.push_str("pub ");
+    if function.unconstrained {
+        string.push_str("unconstrained ");
+    }
+    if function.comptime {
+        string.push_str("comptime ");
+    }
+    string.push_str("fn ");
+    string.push_str(&function.name);
+    string.push_str(&generics_to_string(&function.generics));
+    string.push('(');
+    for (index, param) in function.params.iter().enumerate() {
+        if index > 0 {
+            string.push_str(", ");
+        }
+        string.push_str(&param.name);
+        string.push_str(": ");
+        string.push_str(&type_to_string(&param.r#type));
+    }
+    string.push(')');
+    if !matches!(function.return_type, Type::Unit) {
+        string.push_str(" -> ");
+        string.push_str(&type_to_string(&function.return_type));
+    }
+    string
+}
+
+fn generics_to_string(generics: &[Generic]) -> String {
+    if generics.is_empty() {
+        return String::new();
+    }
+
+    let mut string = String::new();
+    string.push('<');
+    for (index, generic) in generics.iter().enumerate() {
+        if index > 0 {
+            string.push_str(", ");
+        }
+        if let Some(numeric) = &generic.numeric {
+            string.push_str(&format!("let {}: {}", generic.name, numeric));
+        } else {
+            string.push_str(&generic.name);
+        }
+    }
+    string.push('>');
+    string
+}
+
 fn type_to_string(typ: &Type) -> String {
     match typ {
         Type::Unit => "()".to_string(),
@@ -1349,7 +1402,25 @@ fn type_to_string(typ: &Type) -> String {
         }
         Type::Struct { name, .. } => name.clone(),
         Type::TypeAlias { name, .. } => name.clone(),
-        Type::Function { .. } => "fn".to_string(),
+        Type::Function { params, return_type, env, unconstrained } => {
+            let mut string = String::new();
+            if *unconstrained {
+                string.push_str("unconstrained ");
+            }
+            string.push_str("fn");
+            if !matches!(env.as_ref(), &Type::Unit) {
+                string.push_str(&format!("[{}]", type_to_string(env)));
+            }
+            string.push('(');
+            let param_strings: Vec<String> = params.iter().map(type_to_string).collect();
+            string.push_str(&param_strings.join(", "));
+            string.push(')');
+            if !matches!(return_type.as_ref(), &Type::Unit) {
+                string.push_str(" -> ");
+                string.push_str(&type_to_string(return_type));
+            }
+            string
+        }
         Type::Constant(value) => value.clone(),
         Type::Generic(name) => escape_html(name),
         Type::InfixExpr { lhs, operator, rhs } => {
