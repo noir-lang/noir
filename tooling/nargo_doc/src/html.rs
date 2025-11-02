@@ -13,9 +13,9 @@ use crate::{
         trait_impls::gather_all_trait_impls,
     },
     items::{
-        Crate, Function, Generic, Global, HasNameAndComments, Impl, Item, Module, Struct,
-        StructField, Trait, TraitBound, TraitConstraint, TraitImpl, Type, TypeAlias, TypeId,
-        Workspace,
+        Crate, Function, FunctionParam, Generic, Global, HasNameAndComments, Impl, Item, Module,
+        Struct, StructField, Trait, TraitBound, TraitConstraint, TraitImpl, Type, TypeAlias,
+        TypeId, Workspace,
     },
 };
 
@@ -46,6 +46,7 @@ struct HTMLCreator {
     id_to_uri: HashMap<TypeId, String>,
     /// Maps a trait ID to all its implementations across all crates.
     all_trait_impls: HashMap<TypeId, HashSet<TraitImpl>>,
+    self_type: Option<Type>,
 }
 
 // Implementation details:
@@ -68,7 +69,15 @@ impl HTMLCreator {
         // When showing a trait we want to show all impls across all crates, so we gather
         // them now.
         let all_trait_impls = gather_all_trait_impls(workspace);
-        Self { output, files, current_path, workspace_name, id_to_uri, all_trait_impls }
+        Self {
+            output,
+            files,
+            current_path,
+            workspace_name,
+            id_to_uri,
+            all_trait_impls,
+            self_type: None,
+        }
     }
 
     fn process_workspace(&mut self, workspace: &Workspace) {
@@ -470,7 +479,7 @@ impl HTMLCreator {
         self.render_trait_methods("Provided methods", &trait_.provided_methods);
 
         let mut trait_impls = self.get_all_trait_impls(trait_);
-        trait_impls.sort_by_key(|trait_impl| type_to_string(&trait_impl.r#type));
+        trait_impls.sort_by_key(|trait_impl| self.type_to_string(&trait_impl.r#type));
         let show_methods = false;
         self.render_trait_impls(&trait_impls, "Implementors", show_methods);
 
@@ -519,7 +528,7 @@ impl HTMLCreator {
         if display_trait {
             trait_impls.sort_by_key(trait_impl_trait_to_string);
         } else {
-            trait_impls.sort_by_key(|trait_impl| type_to_string(&trait_impl.r#type));
+            trait_impls.sort_by_key(|trait_impl| self.type_to_string(&trait_impl.r#type));
         }
 
         self.h3(title);
@@ -532,7 +541,7 @@ impl HTMLCreator {
                 if display_trait {
                     trait_impl_trait_to_string(&trait_impl)
                 } else {
-                    type_to_string(&trait_impl.r#type)
+                    self.type_to_string(&trait_impl.r#type)
                 },
             ));
             self.output.push_str("</li>\n");
@@ -653,7 +662,10 @@ impl HTMLCreator {
         self.render_type(&impl_.r#type);
         self.output.push_str("</code></h3>\n\n");
         let output_id = true;
+
+        self.self_type = Some(impl_.r#type.clone());
         self.render_methods(&impl_.methods, 3, output_id);
+        self.self_type = None;
     }
 
     fn render_trait_impls(&mut self, trait_impls: &[TraitImpl], title: &str, show_methods: bool) {
@@ -683,8 +695,10 @@ impl HTMLCreator {
         self.output.push_str("</code></h3>\n\n");
 
         if show_methods {
+            self.self_type = Some(trait_impl.r#type.clone());
             let output_id = false;
             self.render_methods(&trait_impl.methods, 3, output_id);
+            self.self_type = None;
         }
     }
 
@@ -903,7 +917,8 @@ impl HTMLCreator {
 
         // Split params into multiple lines if the signature will likely be too long
         // to fit in one line.
-        let use_newlines = function_signature_to_string(function).len() >= 90;
+        let use_newlines =
+            function_signature_to_string(function, self.self_type.as_ref()).len() >= 90;
         for (index, param) in function.params.iter().enumerate() {
             if index > 0 && !use_newlines {
                 self.output.push_str(", ");
@@ -916,8 +931,12 @@ impl HTMLCreator {
                 self.output.push_str("&mut ");
             }
             self.output.push_str(&param.name);
-            self.output.push_str(": ");
-            self.render_type(&param.r#type);
+
+            if !is_self_param(param, self.self_type.as_ref()) {
+                self.output.push_str(": ");
+                self.render_type(&param.r#type);
+            }
+
             if use_newlines {
                 self.output.push(',');
             }
@@ -995,6 +1014,13 @@ impl HTMLCreator {
     }
 
     fn render_type(&mut self, typ: &Type) {
+        if let Some(self_type) = &self.self_type {
+            if self_type == typ {
+                self.output.push_str("Self");
+                return;
+            }
+        }
+
         match typ {
             Type::Unit => self.output.push_str("()"),
             Type::Primitive(primitive) => {
@@ -1094,6 +1120,10 @@ impl HTMLCreator {
                 self.render_trait_generics(ordered_generics, named_generics);
             }
         }
+    }
+
+    fn type_to_string(&self, typ: &Type) -> String {
+        type_to_string(typ, self.self_type.as_ref())
     }
 
     fn render_generic_types(&mut self, generics: &[Type]) {
@@ -1310,7 +1340,7 @@ fn trait_impl_anchor(trait_impl: &TraitImpl) -> String {
     string.push_str("impl-");
     string.push_str(&trait_impl_trait_to_string(trait_impl));
     string.push_str("-for-");
-    string.push_str(&type_to_string(&trait_impl.r#type));
+    string.push_str(&type_to_string(&trait_impl.r#type, None));
     string
 }
 
@@ -1323,14 +1353,14 @@ fn trait_impl_trait_to_string(trait_impl: &TraitImpl) -> String {
             if index > 0 {
                 string.push_str(", ");
             }
-            string.push_str(&type_to_string(typ));
+            string.push_str(&type_to_string(typ, None));
         }
         string.push_str("&gt;");
     }
     string
 }
 
-fn function_signature_to_string(function: &Function) -> String {
+fn function_signature_to_string(function: &Function, self_type: Option<&Type>) -> String {
     let mut string = String::new();
     string.push_str("pub ");
     if function.unconstrained {
@@ -1351,13 +1381,15 @@ fn function_signature_to_string(function: &Function) -> String {
             string.push_str("&mut ");
         }
         string.push_str(&param.name);
-        string.push_str(": ");
-        string.push_str(&type_to_string(&param.r#type));
+        if !is_self_param(param, self_type) {
+            string.push_str(": ");
+            string.push_str(&type_to_string(&param.r#type, self_type));
+        }
     }
     string.push(')');
     if !matches!(function.return_type, Type::Unit) {
         string.push_str(" -> ");
-        string.push_str(&type_to_string(&function.return_type));
+        string.push_str(&type_to_string(&function.return_type, self_type));
     }
     string
 }
@@ -1383,34 +1415,50 @@ fn generics_to_string(generics: &[Generic]) -> String {
     string
 }
 
-fn type_to_string(typ: &Type) -> String {
+fn type_to_string(typ: &Type, self_type: Option<&Type>) -> String {
+    if let Some(self_type) = self_type {
+        if self_type == typ {
+            return "Self".to_string();
+        }
+    }
+
     match typ {
         Type::Unit => "()".to_string(),
         Type::Primitive(primitive) => primitive.clone(),
         Type::Array { length, element } => {
-            format!("[{}; {}]", type_to_string(element), type_to_string(length))
+            format!(
+                "[{}; {}]",
+                type_to_string(element, self_type),
+                type_to_string(length, self_type)
+            )
         }
-        Type::Slice { element } => format!("[{}]", type_to_string(element)),
-        Type::String { length } => format!("str&lt;{}&gt;", type_to_string(length)),
+        Type::Slice { element } => format!("[{}]", type_to_string(element, self_type)),
+        Type::String { length } => format!("str&lt;{}&gt;", type_to_string(length, self_type)),
         Type::FmtString { length, element } => {
-            format!("fmtstr&lt;{}, {}&gt;", type_to_string(length), type_to_string(element))
+            format!(
+                "fmtstr&lt;{}, {}&gt;",
+                type_to_string(length, self_type),
+                type_to_string(element, self_type)
+            )
         }
         Type::Tuple(items) => {
-            let items: Vec<String> = items.iter().map(type_to_string).collect();
+            let items: Vec<String> =
+                items.iter().map(|typ| type_to_string(typ, self_type)).collect();
             format!("({}{})", items.join(", "), if items.len() == 1 { "," } else { "" })
         }
         Type::Reference { r#type, mutable } => {
             if *mutable {
-                format!("&mut {}", type_to_string(r#type))
+                format!("&mut {}", type_to_string(r#type, self_type))
             } else {
-                format!("&{}", type_to_string(r#type))
+                format!("&{}", type_to_string(r#type, self_type))
             }
         }
         Type::Struct { name, generics, id: _ } | Type::TypeAlias { name, generics, id: _ } => {
             let mut string = String::new();
             string.push_str(name);
             if !generics.is_empty() {
-                let generic_strings: Vec<String> = generics.iter().map(type_to_string).collect();
+                let generic_strings: Vec<String> =
+                    generics.iter().map(|typ| type_to_string(typ, self_type)).collect();
                 string.push_str(&format!("<{}>", generic_strings.join(", ")));
             }
             string
@@ -1422,22 +1470,28 @@ fn type_to_string(typ: &Type) -> String {
             }
             string.push_str("fn");
             if !matches!(env.as_ref(), &Type::Unit) {
-                string.push_str(&format!("[{}]", type_to_string(env)));
+                string.push_str(&format!("[{}]", type_to_string(env, self_type)));
             }
             string.push('(');
-            let param_strings: Vec<String> = params.iter().map(type_to_string).collect();
+            let param_strings: Vec<String> =
+                params.iter().map(|typ| type_to_string(typ, self_type)).collect();
             string.push_str(&param_strings.join(", "));
             string.push(')');
             if !matches!(return_type.as_ref(), &Type::Unit) {
                 string.push_str(" -> ");
-                string.push_str(&type_to_string(return_type));
+                string.push_str(&type_to_string(return_type, self_type));
             }
             string
         }
         Type::Constant(value) => value.clone(),
         Type::Generic(name) => escape_html(name),
         Type::InfixExpr { lhs, operator, rhs } => {
-            format!("{}{}{}", type_to_string(lhs), operator, type_to_string(rhs))
+            format!(
+                "{}{}{}",
+                type_to_string(lhs, self_type),
+                operator,
+                type_to_string(rhs, self_type)
+            )
         }
         Type::TraitAsType { trait_name, ordered_generics, named_generics, trait_id: _ } => {
             let mut string = String::new();
@@ -1451,7 +1505,7 @@ fn type_to_string(typ: &Type) -> String {
                         string.push_str(", ");
                     }
                     first = false;
-                    string.push_str(&type_to_string(generic));
+                    string.push_str(&type_to_string(generic, self_type));
                 }
                 for (name, typ) in named_generics {
                     if !first {
@@ -1460,12 +1514,31 @@ fn type_to_string(typ: &Type) -> String {
                     first = false;
                     string.push_str(name);
                     string.push_str(" = ");
-                    string.push_str(&type_to_string(typ));
+                    string.push_str(&type_to_string(typ, self_type));
                 }
                 string.push('>');
             }
             string
         }
+    }
+}
+
+fn is_self_param(param: &FunctionParam, self_type: Option<&Type>) -> bool {
+    if param.name != "self" {
+        return false;
+    }
+
+    let Some(self_type) = self_type else {
+        return false;
+    };
+
+    if param.mut_ref {
+        let Type::Reference { r#type, mutable: true } = &param.r#type else {
+            return false;
+        };
+        r#type.as_ref() == self_type
+    } else {
+        &param.r#type == self_type
     }
 }
 
