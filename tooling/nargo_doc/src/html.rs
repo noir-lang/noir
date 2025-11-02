@@ -14,8 +14,8 @@ use crate::{
     },
     items::{
         Crate, Function, FunctionParam, Generic, Global, HasNameAndComments, Impl, Item, Module,
-        PrimitiveType, Struct, StructField, Trait, TraitBound, TraitConstraint, TraitImpl, Type,
-        TypeAlias, TypeId, Workspace,
+        PrimitiveType, PrimitiveTypeKind, Struct, StructField, Trait, TraitBound, TraitConstraint,
+        TraitImpl, Type, TypeAlias, TypeId, Workspace,
     },
 };
 
@@ -1111,12 +1111,28 @@ impl HTMLCreator {
                 self.output.push(']');
             }
             Type::String { length } => {
-                self.output.push_str("str&lt;");
+                let nesting = self.current_path.len();
+                let primitive = PrimitiveTypeKind::Str;
+                self.output.push_str(&format!(
+                    "<a href=\"{}std/{}\" class=\"primitive\">{}</a>",
+                    "../".repeat(nesting),
+                    primitive.uri(),
+                    primitive
+                ));
+                self.output.push_str("&lt;");
                 self.render_type(length);
                 self.output.push_str("&gt;");
             }
             Type::FmtString { length, element } => {
-                self.output.push_str("fmtstr&lt;");
+                let nesting = self.current_path.len();
+                let primitive = PrimitiveTypeKind::Fmtstr;
+                self.output.push_str(&format!(
+                    "<a href=\"{}std/{}\" class=\"primitive\">{}</a>",
+                    "../".repeat(nesting),
+                    primitive.uri(),
+                    primitive
+                ));
+                self.output.push_str("&lt;");
                 self.render_type(length);
                 self.output.push_str(", ");
                 self.render_type(element);
