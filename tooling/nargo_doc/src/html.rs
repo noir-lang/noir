@@ -14,8 +14,8 @@ use crate::{
     },
     items::{
         Crate, Function, FunctionParam, Generic, Global, HasNameAndComments, Impl, Item, Module,
-        Struct, StructField, Trait, TraitBound, TraitConstraint, TraitImpl, Type, TypeAlias,
-        TypeId, Workspace,
+        PrimitiveType, Struct, StructField, Trait, TraitBound, TraitConstraint, TraitImpl, Type,
+        TypeAlias, TypeId, Workspace,
     },
 };
 
@@ -111,6 +111,7 @@ impl HTMLCreator {
         self.render_all_items_list("Structs", "struct", &all_items.structs);
         self.render_all_items_list("Traits", "trait", &all_items.traits);
         self.render_all_items_list("Type aliases", "type", &all_items.type_aliases);
+        self.render_all_items_list("Primitive types", "primitive", &all_items.primitive_types);
         self.render_all_items_list("Globals", "global", &all_items.globals);
         self.render_all_items_list("Functions", "fn", &all_items.functions);
         self.main_end();
@@ -150,6 +151,9 @@ impl HTMLCreator {
         }
         if !all_items.type_aliases.is_empty() {
             self.output.push_str("<li><a href=\"#type\">Type aliases</a></li>");
+        }
+        if !all_items.primitive_types.is_empty() {
+            self.output.push_str("<li><a href=\"#primitive\">Primitive types</a></li>");
         }
         if !all_items.functions.is_empty() {
             self.output.push_str("<li><a href=\"#fn\">Functions</a></li>");
@@ -229,6 +233,7 @@ impl HTMLCreator {
         self.render_structs(items, sidebar, reference_parent);
         self.render_traits(items, sidebar, reference_parent);
         self.render_type_aliases(items, sidebar, reference_parent);
+        self.render_primitive_types(items, sidebar, reference_parent);
         self.render_functions(items, sidebar, reference_parent);
         self.render_globals(items, sidebar, reference_parent);
     }
@@ -267,6 +272,19 @@ impl HTMLCreator {
         }
     }
 
+    fn render_primitive_types(&mut self, items: &[Item], sidebar: bool, reference_parent: bool) {
+        let primitive_types = get_primitive_types(items);
+        if !primitive_types.is_empty() {
+            self.render_list(
+                "Primitive types",
+                "primitive-types",
+                sidebar,
+                reference_parent,
+                &primitive_types,
+            );
+        }
+    }
+
     fn render_globals(&mut self, items: &[Item], sidebar: bool, reference_parent: bool) {
         let globals = get_globals(items);
         if !globals.is_empty() {
@@ -297,7 +315,7 @@ impl HTMLCreator {
         self.output.push_str("<ul class=\"item-list\">");
 
         let mut items = items.to_vec();
-        items.sort_by_key(|item| item.name());
+        items.sort_by_key(|item| item.name().to_lowercase());
 
         for item in items {
             self.output.push_str("<li>");
@@ -339,6 +357,7 @@ impl HTMLCreator {
             Item::TypeAlias(alias) => self.create_alias(parent_module, alias),
             Item::Function(function) => self.create_function(parent_module, function),
             Item::Global(global) => self.create_global(parent_module, global),
+            Item::PrimitiveType(primitive) => self.create_primitive_type(parent_module, primitive),
         }
     }
 
@@ -593,6 +612,50 @@ impl HTMLCreator {
         self.main_end();
         self.html_end();
         self.push_file(PathBuf::from(global.uri()));
+    }
+
+    fn create_primitive_type(&mut self, parent_module: &Module, primitive: &PrimitiveType) {
+        self.html_start(&format!("Primitive type {}", primitive.kind.to_string()));
+        self.sidebar_start();
+        self.render_primitive_sidebar(primitive);
+        self.render_module_contents_sidebar(parent_module, false);
+        self.sidebar_end();
+        self.main_start();
+        self.render_breadcrumbs(true);
+        self.h1(&format!(
+            "Primitive type <span id=\"primitive\" class=\"primitive\">{}</span>",
+            primitive.kind
+        ));
+        self.render_impls(&primitive.impls);
+
+        let mut trait_impls = primitive.trait_impls.clone();
+        trait_impls.sort_by_key(trait_impl_trait_to_string);
+        let show_methods = true;
+        self.render_trait_impls(&trait_impls, "Trait implementations", show_methods);
+
+        self.main_end();
+        self.html_end();
+        self.push_file(PathBuf::from(primitive.kind.uri()));
+    }
+
+    fn render_primitive_sidebar(&mut self, primitive: &PrimitiveType) {
+        self.h2(&format!("<a href=\"#primitive\">Primitive type {}</a>", primitive.kind));
+
+        let mut methods = primitive.impls.iter().flat_map(|iter| &iter.methods).collect::<Vec<_>>();
+        methods.sort_by_key(|method| method.name.clone());
+
+        if !methods.is_empty() {
+            self.h3("Methods");
+            self.output.push_str("<ul class=\"sidebar-list\">");
+            for method in methods {
+                self.output.push_str("<li>");
+                self.output.push_str(&format!("<a href=\"#{}\">{}</a>", method.name, method.name));
+                self.output.push_str("</li>\n");
+            }
+            self.output.push_str("</ul>");
+        }
+
+        self.render_sidebar_trait_impls("Trait implementations", true, &primitive.trait_impls);
     }
 
     fn render_struct_code(&mut self, struct_: &Struct) {
@@ -1024,7 +1087,13 @@ impl HTMLCreator {
         match typ {
             Type::Unit => self.output.push_str("()"),
             Type::Primitive(primitive) => {
-                self.output.push_str(primitive);
+                let nesting = self.current_path.len();
+                self.output.push_str(&format!(
+                    "<a href=\"{}std/{}\" class=\"primitive\">{}</a>",
+                    "../".repeat(nesting),
+                    primitive.uri(),
+                    primitive
+                ));
             }
             Type::Array { length, element } => {
                 self.output.push('[');
@@ -1321,6 +1390,15 @@ fn get_type_aliases(items: &[Item]) -> Vec<&TypeAlias> {
         .collect()
 }
 
+fn get_primitive_types(items: &[Item]) -> Vec<&PrimitiveType> {
+    items
+        .iter()
+        .filter_map(|item| {
+            if let Item::PrimitiveType(primitive_type) = item { Some(primitive_type) } else { None }
+        })
+        .collect()
+}
+
 fn get_globals(items: &[Item]) -> Vec<&Global> {
     items
         .iter()
@@ -1424,7 +1502,7 @@ fn type_to_string(typ: &Type, self_type: Option<&Type>) -> String {
 
     match typ {
         Type::Unit => "()".to_string(),
-        Type::Primitive(primitive) => primitive.clone(),
+        Type::Primitive(primitive) => primitive.to_string(),
         Type::Array { length, element } => {
             format!(
                 "[{}; {}]",

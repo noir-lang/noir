@@ -47,6 +47,6 @@ fn compute_id_to_uri_in_item(
             let path = format!("{}/{}", path.join("/"), type_alias.uri());
             id_to_path.insert(type_alias.id, path);
         }
-        Item::Function(_) | Item::Global(_) => {}
+        Item::Function(_) | Item::Global(_) | Item::PrimitiveType(_) => {}
     }
 }

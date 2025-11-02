@@ -1,4 +1,4 @@
-use crate::items::{Crate, Function, Global, Module, Struct, Trait, TypeAlias};
+use crate::items::{Crate, Function, Global, Module, PrimitiveType, Struct, Trait, TypeAlias};
 
 /// A trait that associated a CSS class name with an item.
 pub(super) trait HasClass {
@@ -44,5 +44,11 @@ impl HasClass for Global {
 impl HasClass for Function {
     fn class(&self) -> &'static str {
         "fn"
+    }
+}
+
+impl HasClass for PrimitiveType {
+    fn class(&self) -> &'static str {
+        "primitive"
     }
 }

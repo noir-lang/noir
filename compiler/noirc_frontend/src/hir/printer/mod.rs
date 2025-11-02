@@ -51,7 +51,11 @@ pub fn crate_to_module(crate_id: CrateId, def_maps: &DefMaps, interner: &NodeInt
     let module_id = ModuleId { krate: crate_id, local_id: root_module_id };
 
     let mut builder = ItemBuilder::new(crate_id, interner, def_maps);
-    builder.build_module(module_id)
+    let mut module = builder.build_module(module_id);
+    if crate_id.is_stdlib() {
+        builder.add_primitive_types(&mut module.items);
+    }
+    module
 }
 
 struct ItemPrinter<'context, 'string> {
@@ -105,6 +109,9 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             Item::DataType(data_type) => self.show_data_type(data_type),
             Item::Trait(trait_) => self.show_trait(trait_),
             Item::TypeAlias(type_alias_id) => self.show_type_alias(type_alias_id),
+            Item::PrimitiveType(_) => {
+                // TODO: we don't show primitive types yet
+            }
             Item::Global(global_id) => self.show_global(global_id),
             Item::Function(func_id) => self.show_function(func_id),
         }

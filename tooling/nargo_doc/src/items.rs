@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 
 pub trait HasNameAndComments {
-    fn name(&self) -> &str;
+    fn name(&self) -> String;
     fn comments(&self) -> Option<&str>;
 }
 
@@ -34,8 +34,8 @@ pub struct Crate {
 }
 
 impl HasNameAndComments for Crate {
-    fn name(&self) -> &str {
-        &self.name
+    fn name(&self) -> String {
+        self.name.clone()
     }
 
     fn comments(&self) -> Option<&str> {
@@ -52,6 +52,7 @@ pub enum Item {
     TypeAlias(TypeAlias),
     Function(Function),
     Global(Global),
+    PrimitiveType(PrimitiveType),
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -62,8 +63,8 @@ pub struct Module {
 }
 
 impl HasNameAndComments for Module {
-    fn name(&self) -> &str {
-        &self.name
+    fn name(&self) -> String {
+        self.name.clone()
     }
 
     fn comments(&self) -> Option<&str> {
@@ -86,8 +87,8 @@ pub struct Struct {
 }
 
 impl HasNameAndComments for Struct {
-    fn name(&self) -> &str {
-        &self.name
+    fn name(&self) -> String {
+        self.name.clone()
     }
 
     fn comments(&self) -> Option<&str> {
@@ -103,8 +104,8 @@ pub struct StructField {
 }
 
 impl HasNameAndComments for StructField {
-    fn name(&self) -> &str {
-        &self.name
+    fn name(&self) -> String {
+        self.name.clone()
     }
 
     fn comments(&self) -> Option<&str> {
@@ -140,8 +141,8 @@ pub struct Global {
 }
 
 impl HasNameAndComments for Global {
-    fn name(&self) -> &str {
-        &self.name
+    fn name(&self) -> String {
+        self.name.clone()
     }
 
     fn comments(&self) -> Option<&str> {
@@ -162,8 +163,8 @@ pub struct Function {
 }
 
 impl HasNameAndComments for Function {
-    fn name(&self) -> &str {
-        &self.name
+    fn name(&self) -> String {
+        self.name.clone()
     }
 
     fn comments(&self) -> Option<&str> {
@@ -206,8 +207,8 @@ pub struct AssociatedConstant {
 }
 
 impl HasNameAndComments for Trait {
-    fn name(&self) -> &str {
-        &self.name
+    fn name(&self) -> String {
+        self.name.clone()
     }
 
     fn comments(&self) -> Option<&str> {
@@ -225,8 +226,8 @@ pub struct TypeAlias {
 }
 
 impl HasNameAndComments for TypeAlias {
-    fn name(&self) -> &str {
-        &self.name
+    fn name(&self) -> String {
+        self.name.clone()
     }
 
     fn comments(&self) -> Option<&str> {
@@ -257,7 +258,7 @@ pub struct TraitBound {
 #[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Type {
     Unit,
-    Primitive(String),
+    Primitive(PrimitiveTypeKind),
     Array {
         length: Box<Type>,
         element: Box<Type>,
@@ -306,4 +307,93 @@ pub enum Type {
         ordered_generics: Vec<Type>,
         named_generics: BTreeMap<String, Type>,
     },
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct PrimitiveType {
+    pub kind: PrimitiveTypeKind,
+    pub impls: Vec<Impl>,
+    pub trait_impls: Vec<TraitImpl>,
+}
+
+impl HasNameAndComments for PrimitiveType {
+    fn name(&self) -> String {
+        self.kind.to_string()
+    }
+
+    fn comments(&self) -> Option<&str> {
+        None
+    }
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum PrimitiveTypeKind {
+    Bool,
+    U1,
+    U8,
+    U16,
+    U32,
+    U64,
+    U128,
+    I8,
+    I16,
+    I32,
+    I64,
+    I128,
+    Field,
+    Str,
+    Fmtstr,
+    Array,
+    Slice,
+    Expr,
+    Quoted,
+    TopLevelItem,
+    Type,
+    TypeExpr,
+    TypeDefinition,
+    TraitConstraint,
+    TraitDefinition,
+    TraitImpl,
+    UnresolvedType,
+    FunctionDefinition,
+    Module,
+    CtString,
+}
+
+impl std::fmt::Display for PrimitiveTypeKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let name = match self {
+            PrimitiveTypeKind::Bool => "bool",
+            PrimitiveTypeKind::U1 => "u1",
+            PrimitiveTypeKind::U8 => "u8",
+            PrimitiveTypeKind::U16 => "u16",
+            PrimitiveTypeKind::U32 => "u32",
+            PrimitiveTypeKind::U64 => "u64",
+            PrimitiveTypeKind::U128 => "u128",
+            PrimitiveTypeKind::I8 => "i8",
+            PrimitiveTypeKind::I16 => "i16",
+            PrimitiveTypeKind::I32 => "i32",
+            PrimitiveTypeKind::I64 => "i64",
+            PrimitiveTypeKind::I128 => "i128",
+            PrimitiveTypeKind::Field => "Field",
+            PrimitiveTypeKind::Str => "str",
+            PrimitiveTypeKind::Fmtstr => "fmtstr",
+            PrimitiveTypeKind::Array => "array",
+            PrimitiveTypeKind::Slice => "slice",
+            PrimitiveTypeKind::Expr => "Expr",
+            PrimitiveTypeKind::Quoted => "Quoted",
+            PrimitiveTypeKind::TopLevelItem => "TopLevelItem",
+            PrimitiveTypeKind::Type => "Type",
+            PrimitiveTypeKind::TypeExpr => "TypeExpr",
+            PrimitiveTypeKind::TypeDefinition => "TypeDefinition",
+            PrimitiveTypeKind::TraitConstraint => "TraitConstraint",
+            PrimitiveTypeKind::TraitDefinition => "TraitDefinition",
+            PrimitiveTypeKind::TraitImpl => "TraitImpl",
+            PrimitiveTypeKind::UnresolvedType => "UnresolvedType",
+            PrimitiveTypeKind::FunctionDefinition => "FunctionDefinition",
+            PrimitiveTypeKind::Module => "Module",
+            PrimitiveTypeKind::CtString => "CtString",
+        };
+        write!(f, "{}", name)
+    }
 }

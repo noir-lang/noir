@@ -6,6 +6,7 @@ pub(super) struct AllItems {
     pub(super) structs: Vec<(Vec<String>, String)>,
     pub(super) traits: Vec<(Vec<String>, String)>,
     pub(super) type_aliases: Vec<(Vec<String>, String)>,
+    pub(super) primitive_types: Vec<(Vec<String>, String)>,
     pub(super) functions: Vec<(Vec<String>, String)>,
     pub(super) globals: Vec<(Vec<String>, String)>,
 }
@@ -15,6 +16,7 @@ pub(super) fn compute_all_items(workspace: &Workspace) -> AllItems {
         structs: Vec::new(),
         traits: Vec::new(),
         type_aliases: Vec::new(),
+        primitive_types: Vec::new(),
         globals: Vec::new(),
         functions: Vec::new(),
     };
@@ -31,6 +33,7 @@ pub(super) fn compute_all_items(workspace: &Workspace) -> AllItems {
     all_items.structs.sort();
     all_items.traits.sort();
     all_items.type_aliases.sort();
+    all_items.primitive_types.sort();
     all_items.functions.sort();
     all_items.globals.sort();
 
@@ -54,6 +57,9 @@ fn gather_all_items_in_item(item: &Item, current_path: &mut Vec<String>, all_ite
         }
         Item::TypeAlias(type_alias) => {
             all_items.type_aliases.push((current_path.clone(), type_alias.name.clone()));
+        }
+        Item::PrimitiveType(primitive_type) => {
+            all_items.primitive_types.push((current_path.clone(), primitive_type.kind.to_string()));
         }
         Item::Global(global) => {
             all_items.globals.push((current_path.clone(), global.name.clone()));

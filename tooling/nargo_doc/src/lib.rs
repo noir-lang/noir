@@ -3,17 +3,19 @@ use std::collections::HashMap;
 use iter_extended::vecmap;
 use noirc_driver::CrateId;
 use noirc_errors::Location;
-use noirc_frontend::ast::ItemVisibility;
+use noirc_frontend::ast::{IntegerBitSize, ItemVisibility};
 use noirc_frontend::hir::printer::items as expand_items;
 use noirc_frontend::hir_def::stmt::{HirLetStatement, HirPattern};
 use noirc_frontend::hir_def::traits::ResolvedTraitBound;
 use noirc_frontend::node_interner::{FuncId, ReferenceId, TraitId, TypeAliasId, TypeId};
+use noirc_frontend::shared::Signedness;
 use noirc_frontend::{Kind, NamedGeneric, ResolvedGeneric, TypeBinding};
 use noirc_frontend::{graph::CrateGraph, hir::def_map::DefMaps, node_interner::NodeInterner};
 
 use crate::items::{
     AssociatedConstant, AssociatedType, Function, FunctionParam, Generic, Global, Impl, Item,
-    Module, Struct, StructField, Trait, TraitBound, TraitConstraint, TraitImpl, Type, TypeAlias,
+    Module, PrimitiveType, PrimitiveTypeKind, Struct, StructField, Trait, TraitBound,
+    TraitConstraint, TraitImpl, Type, TypeAlias,
 };
 
 mod html;
@@ -190,6 +192,24 @@ impl DocItemBuilder<'_> {
                 let id = self.get_type_alias_id(type_alias_id);
                 Item::TypeAlias(TypeAlias { id, name, comments, r#type, generics })
             }
+            expand_items::Item::PrimitiveType(primitive_type) => {
+                let kind = match &primitive_type.typ {
+                    noirc_frontend::Type::String(..) => PrimitiveTypeKind::Str,
+                    noirc_frontend::Type::FmtString(..) => PrimitiveTypeKind::Fmtstr,
+                    noirc_frontend::Type::Array(..) => PrimitiveTypeKind::Array,
+                    noirc_frontend::Type::Slice(..) => PrimitiveTypeKind::Slice,
+                    _ => {
+                        let Type::Primitive(kind) = self.convert_type(&primitive_type.typ) else {
+                            panic!("Expected primitive type");
+                        };
+                        kind
+                    }
+                };
+                let impls = vecmap(primitive_type.impls, |impl_| self.convert_impl(impl_));
+                let trait_impls =
+                    vecmap(primitive_type.trait_impls, |impl_| self.convert_trait_impl(impl_));
+                Item::PrimitiveType(PrimitiveType { kind, impls, trait_impls })
+            }
             expand_items::Item::Global(global_id) => {
                 let global_info = self.interner.get_global(global_id);
                 let definition_id = global_info.definition_id;
@@ -282,11 +302,61 @@ impl DocItemBuilder<'_> {
     fn convert_type(&mut self, typ: &noirc_frontend::Type) -> Type {
         match typ {
             noirc_frontend::Type::Unit => Type::Unit,
-            noirc_frontend::Type::FieldElement => Type::Primitive("Field".to_string()),
-            noirc_frontend::Type::Bool
-            | noirc_frontend::Type::Integer(..)
-            | noirc_frontend::Type::Quoted(..)
-            | noirc_frontend::Type::Error => Type::Primitive(typ.to_string()),
+            noirc_frontend::Type::FieldElement => Type::Primitive(PrimitiveTypeKind::Field),
+            noirc_frontend::Type::Bool => Type::Primitive(PrimitiveTypeKind::Bool),
+            noirc_frontend::Type::Integer(signedness, bit_size) => match signedness {
+                Signedness::Unsigned => match bit_size {
+                    IntegerBitSize::One => Type::Primitive(PrimitiveTypeKind::U1),
+                    IntegerBitSize::Eight => Type::Primitive(PrimitiveTypeKind::U8),
+                    IntegerBitSize::Sixteen => Type::Primitive(PrimitiveTypeKind::U16),
+                    IntegerBitSize::ThirtyTwo => Type::Primitive(PrimitiveTypeKind::U32),
+                    IntegerBitSize::SixtyFour => Type::Primitive(PrimitiveTypeKind::U64),
+                    IntegerBitSize::HundredTwentyEight => Type::Primitive(PrimitiveTypeKind::U128),
+                },
+                Signedness::Signed => match bit_size {
+                    IntegerBitSize::One => panic!("There is no signed 1-bit integer"),
+                    IntegerBitSize::Eight => Type::Primitive(PrimitiveTypeKind::I8),
+                    IntegerBitSize::Sixteen => Type::Primitive(PrimitiveTypeKind::I16),
+                    IntegerBitSize::ThirtyTwo => Type::Primitive(PrimitiveTypeKind::I32),
+                    IntegerBitSize::SixtyFour => Type::Primitive(PrimitiveTypeKind::I64),
+                    IntegerBitSize::HundredTwentyEight => {
+                        panic!("There is no signed 128-bit integer")
+                    }
+                },
+            },
+            noirc_frontend::Type::Quoted(quoted) => match quoted {
+                noirc_frontend::QuotedType::Expr => Type::Primitive(PrimitiveTypeKind::Expr),
+                noirc_frontend::QuotedType::Quoted => Type::Primitive(PrimitiveTypeKind::Quoted),
+                noirc_frontend::QuotedType::TopLevelItem => {
+                    Type::Primitive(PrimitiveTypeKind::TopLevelItem)
+                }
+                noirc_frontend::QuotedType::Type => Type::Primitive(PrimitiveTypeKind::Type),
+                noirc_frontend::QuotedType::TypedExpr => {
+                    Type::Primitive(PrimitiveTypeKind::TypeExpr)
+                }
+                noirc_frontend::QuotedType::TypeDefinition => {
+                    Type::Primitive(PrimitiveTypeKind::TypeDefinition)
+                }
+                noirc_frontend::QuotedType::TraitConstraint => {
+                    Type::Primitive(PrimitiveTypeKind::TraitConstraint)
+                }
+                noirc_frontend::QuotedType::TraitDefinition => {
+                    Type::Primitive(PrimitiveTypeKind::TraitDefinition)
+                }
+                noirc_frontend::QuotedType::TraitImpl => {
+                    Type::Primitive(PrimitiveTypeKind::TraitImpl)
+                }
+                noirc_frontend::QuotedType::UnresolvedType => {
+                    Type::Primitive(PrimitiveTypeKind::UnresolvedType)
+                }
+                noirc_frontend::QuotedType::FunctionDefinition => {
+                    Type::Primitive(PrimitiveTypeKind::FunctionDefinition)
+                }
+                noirc_frontend::QuotedType::Module => Type::Primitive(PrimitiveTypeKind::Module),
+                noirc_frontend::QuotedType::CtString => {
+                    Type::Primitive(PrimitiveTypeKind::CtString)
+                }
+            },
             noirc_frontend::Type::Array(length, element) => Type::Array {
                 length: Box::new(self.convert_type(length)),
                 element: Box::new(self.convert_type(element)),
@@ -355,9 +425,6 @@ impl DocItemBuilder<'_> {
             noirc_frontend::Type::Reference(typ, mutable) => {
                 Type::Reference { r#type: Box::new(self.convert_type(typ)), mutable: *mutable }
             }
-            noirc_frontend::Type::Forall(..) => {
-                panic!("Should not need to print Type::Forall")
-            }
             noirc_frontend::Type::Constant(signed_field, _kind) => {
                 Type::Constant(signed_field.to_string())
             }
@@ -366,6 +433,12 @@ impl DocItemBuilder<'_> {
                 operator: operator.to_string(),
                 rhs: Box::new(self.convert_type(rhs)),
             },
+            noirc_frontend::Type::Forall(..) => {
+                panic!("Should not need to print Type::Forall")
+            }
+            noirc_frontend::Type::Error => {
+                panic!("Should not need to print Type::Error")
+            }
         }
     }
 
