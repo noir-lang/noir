@@ -25,9 +25,9 @@ impl TypeDefinition {
     /// If an incorrect number of generic arguments are given, this function will return None.
     /// Otherwise, this function returns Some with the resulting type inside.
     #[builtin(type_def_as_type_with_generics)]
-    // docs:start:as_type
+    // docs:start:as_type_with_generics
     pub comptime fn as_type_with_generics(self, generics: [Type]) -> Option<Type> {}
-    // docs:end:as_type
+    // docs:end:as_type_with_generics
 
     #[builtin(type_def_has_named_attribute)]
     // docs:start:has_named_attribute
