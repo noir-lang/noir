@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1762183103781,
+  "lastUpdate": 1762183108144,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -25223,95 +25223,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "b16e3c6da3f000e3ccd6df0abb80f8487a134c41",
-          "message": "fix(mem2reg): Updating referenced value invalidate addresses with unknown aliases (#10175)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-10-20T08:19:38Z",
-          "tree_id": "2b688b9e790541aa40495a3b69409dd5ff86c520",
-          "url": "https://github.com/noir-lang/noir/commit/b16e3c6da3f000e3ccd6df0abb80f8487a134c41"
-        },
-        "date": 1760951310127,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 714.3,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 1864,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 546.2,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 179.6,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 177.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 257.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 370.6,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 411.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 4909.3,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 4555.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 186.1,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 570.9,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 506.3,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -30101,6 +30012,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-tx-base-public",
             "value": 4878.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 178.9,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 570.9,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 506.3,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "michaeljklein@users.noreply.github.com",
+            "name": "Michael J Klein",
+            "username": "michaeljklein"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ce4b6bc8d9cf98c4081382b9076626be9b4a3204",
+          "message": "fix: check value of `ArraySet` during `array_set_optimization` (#10325)",
+          "timestamp": "2025-11-03T14:45:46Z",
+          "tree_id": "69ca99743c2d5000928c3736dfbd745739bfea96",
+          "url": "https://github.com/noir-lang/noir/commit/ce4b6bc8d9cf98c4081382b9076626be9b4a3204"
+        },
+        "date": 1762183081553,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 770.2,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2048.4,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 627.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 199.8,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 200.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 280.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 363.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 51639.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 51678.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 395.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 5620.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 4878.7,
             "unit": "KB"
           },
           {
