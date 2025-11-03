@@ -3197,7 +3197,35 @@
 <a href="#3196" id="3196">3196</a>
 <a href="#3197" id="3197">3197</a>
 <a href="#3198" id="3198">3198</a>
-<a href="#3199" id="3199">3199</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::rc::Rc;
+<a href="#3199" id="3199">3199</a>
+<a href="#3200" id="3200">3200</a>
+<a href="#3201" id="3201">3201</a>
+<a href="#3202" id="3202">3202</a>
+<a href="#3203" id="3203">3203</a>
+<a href="#3204" id="3204">3204</a>
+<a href="#3205" id="3205">3205</a>
+<a href="#3206" id="3206">3206</a>
+<a href="#3207" id="3207">3207</a>
+<a href="#3208" id="3208">3208</a>
+<a href="#3209" id="3209">3209</a>
+<a href="#3210" id="3210">3210</a>
+<a href="#3211" id="3211">3211</a>
+<a href="#3212" id="3212">3212</a>
+<a href="#3213" id="3213">3213</a>
+<a href="#3214" id="3214">3214</a>
+<a href="#3215" id="3215">3215</a>
+<a href="#3216" id="3216">3216</a>
+<a href="#3217" id="3217">3217</a>
+<a href="#3218" id="3218">3218</a>
+<a href="#3219" id="3219">3219</a>
+<a href="#3220" id="3220">3220</a>
+<a href="#3221" id="3221">3221</a>
+<a href="#3222" id="3222">3222</a>
+<a href="#3223" id="3223">3223</a>
+<a href="#3224" id="3224">3224</a>
+<a href="#3225" id="3225">3225</a>
+<a href="#3226" id="3226">3226</a>
+<a href="#3227" id="3227">3227</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::rc::Rc;
 
 <span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>builtin_helpers::{
@@ -3414,6 +3442,9 @@
             <span class="string">"type_def_add_attribute" </span>=&gt; type_def_add_attribute(interner, arguments, location),
             <span class="string">"type_def_add_generic" </span>=&gt; type_def_add_generic(interner, arguments, location),
             <span class="string">"type_def_as_type" </span>=&gt; type_def_as_type(interner, arguments, location),
+            <span class="string">"type_def_as_type_with_generics" </span>=&gt; {
+                type_def_as_type_with_generics(interner, arguments, return_type, location)
+            }
             <span class="string">"type_def_eq" </span>=&gt; type_def_eq(arguments, location),
             <span class="string">"type_def_fields" </span>=&gt; type_def_fields(interner, arguments, location, call_stack),
             <span class="string">"type_def_fields_as_written" </span>=&gt; {
@@ -3671,6 +3702,31 @@
 
     drop(type_def);
     <span class="prelude-val">Ok</span>(Value::Type(Type::DataType(type_def_rc, generics)))
+}
+
+<span class="doccomment">/// `fn as_type_with_generics(self, generics: [Type]) -&gt; Option&lt;Type&gt;`
+</span><span class="kw">fn </span>type_def_as_type_with_generics(
+    interner: <span class="kw-2">&amp;</span>NodeInterner,
+    arguments: Vec&lt;(Value, Location)&gt;,
+    return_type: Type,
+    location: Location,
+) -&gt; IResult&lt;Value&gt; {
+    <span class="kw">let </span>(type_def, generics) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
+    <span class="kw">let </span>type_id = get_type_id(type_def)<span class="question-mark">?</span>;
+    <span class="kw">let </span>type_def_rc = interner.get_type(type_id);
+    <span class="kw">let </span>type_def = type_def_rc.borrow();
+
+    <span class="kw">let </span>generics_location = generics.<span class="number">1</span>;
+    <span class="kw">let </span>(generics, <span class="kw">_</span>) = get_slice(interner, generics)<span class="question-mark">?</span>;
+    <span class="kw">let </span>generics = try_vecmap(generics, |generic| get_type((generic, generics_location)))<span class="question-mark">?</span>;
+
+    <span class="kw">let </span>correct_generic_count = type_def.generics.len() == generics.len();
+    drop(type_def);
+
+    <span class="kw">let </span>type_result =
+        correct_generic_count.then(|| Value::Type(Type::DataType(type_def_rc, generics)));
+
+    <span class="prelude-val">Ok</span>(option(return_type, type_result, location))
 }
 
 <span class="doccomment">/// fn generics(self) -&gt; [(Type, `Option&lt;Type&gt;`)]

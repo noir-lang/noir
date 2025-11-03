@@ -780,8 +780,7 @@
 <a href="#779" id="779">779</a>
 <a href="#780" id="780">780</a>
 <a href="#781" id="781">781</a>
-<a href="#782" id="782">782</a>
-<a href="#783" id="783">783</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc, vec};
+<a href="#782" id="782">782</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc, vec};
 
 <span class="kw">use </span>im::Vector;
 <span class="kw">use </span>iter_extended::{try_vecmap, vecmap};
@@ -1150,7 +1149,6 @@
         location: Location,
     ) -&gt; IResult&lt;ExprId&gt; {
         <span class="kw">let </span>typ = <span class="self">self</span>.get_type().into_owned();
-
         <span class="kw">let </span>expression = <span class="kw">match </span><span class="self">self </span>{
             Value::Unit =&gt; HirExpression::Literal(HirLiteral::Unit),
             Value::Bool(value) =&gt; HirExpression::Literal(HirLiteral::Bool(value)),
