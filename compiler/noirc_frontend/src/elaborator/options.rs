@@ -1,3 +1,5 @@
+//! Compiler frontend options and unstable feature flags.
+
 use std::str::FromStr;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]

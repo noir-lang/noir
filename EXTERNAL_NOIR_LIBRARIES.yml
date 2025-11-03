@@ -1,4 +1,4 @@
-define: &AZ_COMMIT 85c44ed86f7fa13e4737e0f9d39d6a82f05858c2
+define: &AZ_COMMIT c2ffeaabbc5001bdc8aeb0b630cb1bbf39702331
 libraries:
   noir_check_shuffle:
     repo: noir-lang/noir_check_shuffle
@@ -34,7 +34,7 @@ libraries:
     critical: true
   noir_bigcurve:
     repo: noir-lang/noir_bigcurve
-    timeout: 450
+    timeout: 500
     critical: true
   noir_base64:
     repo: noir-lang/noir_base64
@@ -96,12 +96,6 @@ libraries:
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/private-kernel-lib
     timeout: 300
-    critical: false
-  protocol_circuits_reset_kernel_lib:
-    repo: AztecProtocol/aztec-packages
-    ref: *AZ_COMMIT
-    path: noir-projects/noir-protocol-circuits/crates/reset-kernel-lib
-    timeout: 40
     critical: false
   protocol_circuits_types:
     repo: AztecProtocol/aztec-packages

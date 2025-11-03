@@ -593,6 +593,7 @@ fn secondary_attribute_with_file(
         | SecondaryAttributeKind::Abi(_)
         | SecondaryAttributeKind::Varargs
         | SecondaryAttributeKind::UseCallersScope
+        | SecondaryAttributeKind::MustUse(_)
         | SecondaryAttributeKind::Allow(_) => secondary_attribute.kind,
     };
     SecondaryAttribute { kind, location: location_with_file(secondary_attribute.location, file) }

@@ -7,6 +7,7 @@ use super::{
         function::{Function, FunctionId, RuntimeType},
         instruction::{Binary, BinaryOp, ConstrainError, Instruction, TerminatorInstruction},
         types::Type,
+        value::Value as IrValue,
         value::ValueId,
     },
 };
@@ -384,6 +385,27 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         self.lookup_helper(value_id, instruction, "array or slice", Value::as_array_or_slice)
     }
 
+    /// Look up an array index.
+    ///
+    /// If the value exists but it's `Unfit`, returns `IndexOutOfBounds`.
+    fn lookup_array_index(
+        &self,
+        value_id: ValueId,
+        instruction: &'static str,
+        length: u32,
+    ) -> IResult<u32> {
+        self.lookup_helper(value_id, instruction, "u32", Value::as_u32).map_err(|e| {
+            if matches!(e, InterpreterError::Internal(InternalError::TypeError { .. })) {
+                if let Ok(Value::Numeric(NumericValue::U32(Fitted::Unfit(index)))) =
+                    self.lookup(value_id)
+                {
+                    return InterpreterError::IndexOutOfBounds { index, length };
+                }
+            }
+            e
+        })
+    }
+
     fn lookup_bytes(&self, value_id: ValueId, instruction: &'static str) -> IResult<Vec<u8>> {
         let array = self.lookup_array_or_slice(value_id, instruction)?;
         let array = array.elements.borrow();
@@ -613,7 +635,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
     fn interpret_not(&mut self, id: ValueId, result: ValueId) -> IResult<()> {
         let num_value = self.lookup_numeric(id, "not instruction")?;
-        let bit_size = num_value.get_type().bit_size();
+        let bit_size = num_value.get_type().bit_size::<FieldElement>();
 
         // Based on AcirContext::not_var
         fn fitted_not<T: std::ops::Not<Output = T>>(value: Fitted<T>, bit_size: u32) -> Fitted<T> {
@@ -665,12 +687,38 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             return Err(internal(InternalError::TruncateToZeroBits { value_id, max_bit_size }));
         }
 
+        let is_sub = if let IrValue::Instruction { instruction, .. } = self.dfg()[value_id] {
+            matches!(
+                self.dfg()[instruction],
+                Instruction::Binary(Binary { operator: BinaryOp::Sub { .. }, .. })
+            )
+        } else {
+            false
+        };
+
+        // Based on acir::Context::convert_ssa_truncate: subtractions must first have the integer modulus added to avoid underflow.
+        fn truncate_unfit(
+            mut value: FieldElement,
+            bit_size: u32,
+            max_bit_size: u32,
+            is_sub: bool,
+        ) -> FieldElement {
+            if is_sub {
+                let max_bit_size = FieldElement::from(max_bit_size);
+                let integer_modulus = FieldElement::from(2u128).pow(&max_bit_size);
+                value += integer_modulus;
+            }
+            truncate_field(value, bit_size)
+        }
+
         // Truncate an unsigned value.
         fn truncate_fitted<F, T>(
             cons: F,
             typ: NumericType,
             value: Fitted<T>,
             bit_size: u32,
+            max_bit_size: u32,
+            is_sub: bool,
         ) -> IResult<NumericValue>
         where
             T: TryFrom<u128>,
@@ -681,7 +729,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             match value {
                 Fit(value) => Ok(cons(Fit(truncate_unsigned(value, bit_size)?))),
                 Unfit(value) => {
-                    let truncated = truncate_field(value, bit_size);
+                    let truncated = truncate_unfit(value, bit_size, max_bit_size, is_sub);
                     NumericValue::from_constant(truncated, typ)
                         .or_else(|_| Ok(cons(Unfit(truncated))))
                 }
@@ -690,13 +738,13 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
         // Truncate a signed value via unsigned cast and back.
         macro_rules! truncate_via {
-            ($cons:expr, $typ:expr, $value:ident, $bit_size:ident, $signed:ty, $unsigned:ty) => {
+            ($cons:expr, $typ:expr, $value:ident, $bit_size:ident, $max_bit_size:ident, $is_sub:ident, $signed:ty, $unsigned:ty) => {
                 match $value {
                     Fit(value) => {
                         $cons(Fit(truncate_unsigned(value as $unsigned, $bit_size)? as $signed))
                     }
                     Unfit(value) => {
-                        let truncated = truncate_field(value, bit_size);
+                        let truncated = truncate_unfit(value, bit_size, max_bit_size, is_sub);
                         NumericValue::from_constant(truncated, typ)
                             .unwrap_or_else(|_| $cons(Unfit(truncated)))
                     }
@@ -707,15 +755,15 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         let truncated = match value {
             Field(value) => Field(truncate_field(value, bit_size)),
             U1(value) => U1(value),
-            U8(value) => truncate_fitted(U8, typ, value, bit_size)?,
-            U16(value) => truncate_fitted(U16, typ, value, bit_size)?,
-            U32(value) => truncate_fitted(U32, typ, value, bit_size)?,
-            U64(value) => truncate_fitted(U64, typ, value, bit_size)?,
-            U128(value) => truncate_fitted(U128, typ, value, bit_size)?,
-            I8(value) => truncate_via!(I8, typ, value, bit_size, i8, u8),
-            I16(value) => truncate_via!(I16, typ, value, bit_size, i16, u16),
-            I32(value) => truncate_via!(I32, typ, value, bit_size, i32, u32),
-            I64(value) => truncate_via!(I64, typ, value, bit_size, i64, u64),
+            U8(value) => truncate_fitted(U8, typ, value, bit_size, max_bit_size, is_sub)?,
+            U16(value) => truncate_fitted(U16, typ, value, bit_size, max_bit_size, is_sub)?,
+            U32(value) => truncate_fitted(U32, typ, value, bit_size, max_bit_size, is_sub)?,
+            U64(value) => truncate_fitted(U64, typ, value, bit_size, max_bit_size, is_sub)?,
+            U128(value) => truncate_fitted(U128, typ, value, bit_size, max_bit_size, is_sub)?,
+            I8(value) => truncate_via!(I8, typ, value, bit_size, max_bit_size, is_sub, i8, u8),
+            I16(value) => truncate_via!(I16, typ, value, bit_size, max_bit_size, is_sub, i16, u16),
+            I32(value) => truncate_via!(I32, typ, value, bit_size, max_bit_size, is_sub, i32, u32),
+            I64(value) => truncate_via!(I64, typ, value, bit_size, max_bit_size, is_sub, i64, u64),
         };
 
         self.define(result, Value::Numeric(truncated))
@@ -943,23 +991,39 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         result: ValueId,
         side_effects_enabled: bool,
     ) -> IResult<()> {
+        // When there is a problem indexing the array, but side effects are disabled,
+        // define the value as uninitialized.
+        let uninitialized = |this: &mut Self| {
+            let typ = this.dfg().type_of_value(result);
+            let value = Value::uninitialized(&typ, result);
+            this.define(result, value)
+        };
+
         let offset = self.dfg().array_offset(array, index);
         let array = self.lookup_array_or_slice(array, "array get")?;
-        let index = self.lookup_u32(index, "array get index")?;
+        let length = array.elements.borrow().len() as u32;
+
+        let index = match self.lookup_array_index(index, "array get index", length) {
+            Err(InterpreterError::IndexOutOfBounds { .. }) if !side_effects_enabled => {
+                return uninitialized(self);
+            }
+            other => other?,
+        };
         let mut index = index - offset.to_u32();
 
-        let element = if array.elements.borrow().is_empty() {
+        if length == 0 {
             // Accessing an array of 0-len is replaced by asserting
             // the branch is not-taken during acir-gen and
             // a zeroed type is used in case of array get
             // So we can simply replace it with uninitialized value
             if side_effects_enabled {
-                return Err(InterpreterError::IndexOutOfBounds { index, length: 0 });
+                return Err(InterpreterError::IndexOutOfBounds { index: index.into(), length });
             } else {
-                let typ = self.dfg().type_of_value(result);
-                Value::uninitialized(&typ, result)
+                return uninitialized(self);
             }
-        } else {
+        }
+
+        let element = {
             // An array_get with false side_effects_enabled is replaced
             // by a load at a valid index during acir-gen.
             if !side_effects_enabled {
@@ -973,9 +1037,9 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 }
             }
             let elements = array.elements.borrow();
-            let element = elements.get(index as usize).ok_or_else(|| {
-                InterpreterError::IndexOutOfBounds { index, length: elements.len() as u32 }
-            })?;
+            let element = elements
+                .get(index as usize)
+                .ok_or(InterpreterError::IndexOutOfBounds { index: index.into(), length })?;
 
             // Either return a fresh nested array (in constrained context) or just clone the element.
             if !self.in_unconstrained_context() {
@@ -1014,16 +1078,16 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         let array = self.lookup_array_or_slice(array, "array set")?;
 
         let result_array = if side_effects_enabled {
-            let index = self.lookup_u32(index, "array set index")?;
+            let length = array.elements.borrow().len() as u32;
+            let index = self.lookup_array_index(index, "array set index", length)?;
             let index = index - offset.to_u32();
             let value = self.lookup(value)?;
 
             let should_mutate =
                 if self.in_unconstrained_context() { *array.rc.borrow() == 1 } else { mutable };
 
-            let len = array.elements.borrow().len();
-            if index as usize >= len {
-                return Err(InterpreterError::IndexOutOfBounds { index, length: len as u32 });
+            if index >= length {
+                return Err(InterpreterError::IndexOutOfBounds { index: index.into(), length });
             }
 
             if should_mutate {
