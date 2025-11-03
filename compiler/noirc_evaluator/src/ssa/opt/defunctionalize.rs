@@ -548,7 +548,7 @@ fn create_apply_function(
 ) -> FunctionId {
     assert!(
         function_ids.len() > 1,
-        "create_apply_function is expected to be called with two or more FunctionId's"
+        "create_apply_function is expected to be called with two or more FunctionIds"
     );
     // Clone the user-defined globals and the function purities mapping,
     // which are shared across all functions.
