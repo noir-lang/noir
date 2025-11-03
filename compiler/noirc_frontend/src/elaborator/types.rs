@@ -111,8 +111,7 @@ impl Elaborator<'_> {
         self.resolve_type_inner(typ, kind, PathResolutionMode::MarkAsReferenced, wildcard_allowed)
     }
 
-    /// Translates an UnresolvedType into a Type and appends any
-    /// freshly created TypeVariables created to new_variables.
+    /// Translates an UnresolvedType into a Type.
     fn resolve_type_with_kind_inner(
         &mut self,
         typ: UnresolvedType,
