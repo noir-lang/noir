@@ -88,7 +88,7 @@ impl HTMLCreator {
         self.create_index(workspace);
 
         for krate in workspace.all_crates() {
-            if krate.root_module.items.is_empty() {
+            if !krate.root_module.has_public_items() {
                 continue;
             }
 
@@ -170,7 +170,7 @@ impl HTMLCreator {
         let crates = workspace
             .crates
             .iter()
-            .filter(|krate| !krate.root_module.items.is_empty())
+            .filter(|krate| krate.root_module.has_public_items())
             .collect::<Vec<_>>();
         let redirect =
             if crates.len() == 1 { Some(format!("{}/index.html", crates[0].name)) } else { None };
@@ -214,7 +214,7 @@ impl HTMLCreator {
         self.h3("Crates");
         self.output.push_str("<ul class=\"sidebar-list\">");
         for krate in &workspace.crates {
-            if krate.root_module.items.is_empty() {
+            if !krate.root_module.has_public_items() {
                 continue;
             }
 
@@ -433,7 +433,7 @@ impl HTMLCreator {
     }
 
     fn render_module_items_sidebar(&mut self, module: &Module) {
-        if module.items.is_empty() {
+        if !module.has_public_items() {
             return;
         }
         self.h3("Module items");
@@ -1447,7 +1447,7 @@ fn get_modules(items: &[(ItemVisibility, Item)]) -> Vec<&Module> {
         .filter_map(|(visibility, item)| {
             if visibility == &ItemVisibility::Public {
                 if let Item::Module(module) = item {
-                    if !module.items.is_empty() {
+                    if module.has_public_items() {
                         return Some(module);
                     }
                 }

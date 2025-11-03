@@ -62,6 +62,12 @@ pub struct Module {
     pub comments: Option<String>,
 }
 
+impl Module {
+    pub fn has_public_items(&self) -> bool {
+        self.items.iter().any(|(visibility, _)| *visibility == ItemVisibility::Public)
+    }
+}
+
 impl HasNameAndComments for Module {
     fn name(&self) -> String {
         self.name.clone()
