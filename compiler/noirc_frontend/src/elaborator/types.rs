@@ -1042,22 +1042,6 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Do not apply type bindings even after a successful unification.
-    /// This function is used by the interpreter for some comptime code
-    /// which can change types e.g. on each iteration of a for loop.
-    pub fn unify_without_applying_bindings(
-        &mut self,
-        actual: &Type,
-        expected: &Type,
-        make_error: impl FnOnce() -> TypeCheckError,
-    ) {
-        let mut bindings = TypeBindings::default();
-        if actual.try_unify(expected, &mut bindings).is_err() {
-            let error: CompilationError = make_error().into();
-            self.push_err(error);
-        }
-    }
-
     /// Wrapper of Type::unify_with_coercions using self.errors
     pub(super) fn unify_with_coercions(
         &mut self,
