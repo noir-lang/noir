@@ -64,9 +64,8 @@ pub(super) fn compile_vector_copy_procedure<F: AcirField + DebugToString>(
             ctx.codegen_initialize_rc(target_vector.pointer, 1);
 
             // Decrease the original ref count now that this copy is no longer pointing to it.
-            // Copying a vector this way is an implicit part of setting an item by index through a mutable variable;
-            // after doing so we won't end up with a new vector handle, like we do with e.g. pop/push, so it is
-            // safe to split the RC.
+            // Copying a vector this way is an implicit side effect of setting an item by index through a mutable variable;
+            // unlike with pop and push, we won't end up with a new vector handle, so we can split the RC between the old and the new.
             ctx.codegen_decrement_rc(source_vector.pointer, rc.address);
         }
     });
