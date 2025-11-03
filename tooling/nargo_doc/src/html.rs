@@ -440,7 +440,9 @@ impl HTMLCreator {
         self.render_impls(&struct_.impls);
 
         let mut trait_impls = struct_.trait_impls.clone();
-        trait_impls.sort_by_key(trait_impl_trait_to_string);
+        trait_impls.sort_by_key(|trait_impl| {
+            (trait_impl_trait_to_string(trait_impl), trait_impl_anchor(trait_impl))
+        });
         let show_methods = true;
         self.render_trait_impls(&trait_impls, "Trait implementations", show_methods);
 
@@ -498,7 +500,9 @@ impl HTMLCreator {
         self.render_trait_methods("Provided methods", &trait_.provided_methods);
 
         let mut trait_impls = self.get_all_trait_impls(trait_);
-        trait_impls.sort_by_key(|trait_impl| self.type_to_string(&trait_impl.r#type));
+        trait_impls.sort_by_key(|trait_impl| {
+            (self.type_to_string(&trait_impl.r#type), trait_impl_anchor(trait_impl))
+        });
         let show_methods = false;
         self.render_trait_impls(&trait_impls, "Implementors", show_methods);
 
@@ -545,9 +549,13 @@ impl HTMLCreator {
 
         let mut trait_impls = trait_impls.to_vec();
         if display_trait {
-            trait_impls.sort_by_key(trait_impl_trait_to_string);
+            trait_impls.sort_by_key(|trait_impl| {
+                (trait_impl_trait_to_string(trait_impl), trait_impl_anchor(trait_impl))
+            });
         } else {
-            trait_impls.sort_by_key(|trait_impl| self.type_to_string(&trait_impl.r#type));
+            trait_impls.sort_by_key(|trait_impl| {
+                (self.type_to_string(&trait_impl.r#type), trait_impl_anchor(trait_impl))
+            });
         }
 
         self.h3(title);
@@ -629,7 +637,9 @@ impl HTMLCreator {
         self.render_impls(&primitive.impls);
 
         let mut trait_impls = primitive.trait_impls.clone();
-        trait_impls.sort_by_key(trait_impl_trait_to_string);
+        trait_impls.sort_by_key(|trait_impl| {
+            (trait_impl_trait_to_string(trait_impl), trait_impl_anchor(trait_impl))
+        });
         let show_methods = true;
         self.render_trait_impls(&trait_impls, "Trait implementations", show_methods);
 
