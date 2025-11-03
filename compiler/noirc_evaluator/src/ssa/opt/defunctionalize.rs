@@ -550,14 +550,17 @@ fn function_id_to_field(function_id: FunctionId) -> FieldElement {
 /// The [FunctionId] of the new apply function
 ///
 /// # Panics
-/// If the `function_ids` argument is empty.
+/// If the `function_ids` argument has fewer than two elements, implying that no apply function is necessary.
 fn create_apply_function(
     ssa: &mut Ssa,
     signature: Signature,
     caller_runtime: RuntimeType,
     function_ids: Vec<(FunctionId, RuntimeType)>,
 ) -> FunctionId {
-    debug_assert!(function_ids.len() > 1, "only created dispatch for multiple functions");
+    debug_assert!(
+        function_ids.len() > 1,
+        "create_apply_function is expected to be called with two or more FunctionIds"
+    );
     // Clone the user-defined globals and the function purities mapping,
     // which are shared across all functions.
     // We will be borrowing `ssa` mutably so we need to fetch this shared information
