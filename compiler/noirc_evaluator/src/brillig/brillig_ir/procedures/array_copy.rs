@@ -83,7 +83,7 @@ pub(super) fn compile_array_copy_procedure<F: AcirField + DebugToString>(
             // Decrease the original ref count now that this copy is no longer pointing to it.
             // Copying an array is a potential implicit side effect of setting an item by index
             // through a mutable variable; we won't end up two handles to the array, so we can split the RC.
-            ctx.codegen_decrease_rc(source_array_pointer_arg, rc.address, 1);
+            ctx.codegen_decrement_rc(source_array_pointer_arg, rc.address);
 
             // Increase our array copy counter if that flag is set
             if ctx.count_arrays_copied {

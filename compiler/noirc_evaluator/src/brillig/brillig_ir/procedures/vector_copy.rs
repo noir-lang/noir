@@ -67,7 +67,7 @@ pub(super) fn compile_vector_copy_procedure<F: AcirField + DebugToString>(
             // Copying a vector this way is an implicit part of setting an item by index through a mutable variable;
             // after doing so we won't end up with a new vector handle, like we do with e.g. pop/push, so it is
             // safe to split the RC.
-            ctx.codegen_decrease_rc(source_vector.pointer, rc.address, 1);
+            ctx.codegen_decrement_rc(source_vector.pointer, rc.address);
         }
     });
 }

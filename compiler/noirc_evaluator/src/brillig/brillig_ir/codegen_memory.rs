@@ -494,20 +494,27 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.indirect_const_instruction(pointer, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, rc.into());
     }
 
-    /// Decrease the ref-count by some amount.
+    /// Decrement the ref-count by 1.
     ///
     /// The inputs are:
     /// * the `pointer` to the array/vector
     /// * the `rc` address of the vector where we have the current RC loaded already
-    /// * the `by` is a constant by which to decrease the RC, typically 1
-    pub(crate) fn codegen_decrease_rc(
-        &mut self,
-        pointer: MemoryAddress,
-        rc: MemoryAddress,
-        by: usize,
-    ) {
+    pub(crate) fn codegen_decrement_rc(&mut self, pointer: MemoryAddress, rc: MemoryAddress) {
         // Modify the RC (it's on the stack, or scratch space).
-        self.codegen_usize_op(rc, rc, BrilligBinaryOp::Sub, by);
+        self.codegen_usize_op_in_place(rc, BrilligBinaryOp::Sub, 1);
+        // Write it back onto the heap.
+        self.store_instruction(pointer, rc);
+    }
+
+    /// Increment the ref-count by 1.
+    ///
+    /// The inputs are:
+    /// * the `pointer` to the array/vector
+    /// * the `rc` address of the vector where we have the current RC loaded already
+    /// * the `by` is a constant by which to increment the RC, typically 1
+    pub(crate) fn codegen_increment_rc(&mut self, pointer: MemoryAddress, rc: MemoryAddress) {
+        // Modify the RC (it's on the stack, or scratch space).
+        self.codegen_usize_op_in_place(rc, BrilligBinaryOp::Add, 1);
         // Write it back onto the heap.
         self.store_instruction(pointer, rc);
     }
