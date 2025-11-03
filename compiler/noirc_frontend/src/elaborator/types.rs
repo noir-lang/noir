@@ -62,6 +62,7 @@ pub(super) enum TraitPathResolutionMethod {
 }
 
 impl Elaborator<'_> {
+    /// Resolves a type and marks it, and any generic types it contains, as referenced.
     pub(crate) fn resolve_type(&mut self, typ: UnresolvedType, wildcard_allowed: bool) -> Type {
         self.resolve_type_inner(
             typ,
@@ -71,6 +72,7 @@ impl Elaborator<'_> {
         )
     }
 
+    /// Resolves a type and marks it, and any generic types it contains, as used.
     pub(crate) fn use_type(&mut self, typ: UnresolvedType, wildcard_allowed: bool) -> Type {
         self.use_type_with_kind(typ, &Kind::Normal, wildcard_allowed)
     }
