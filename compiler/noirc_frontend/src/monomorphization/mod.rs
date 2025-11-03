@@ -206,8 +206,7 @@ pub fn monomorphize_debug(
         debug_functions,
         debug_types,
     )
-    .handle_ownership()
-    .create_foreign_proxies();
+    .handle_ownership();
 
     Ok(program)
 }
