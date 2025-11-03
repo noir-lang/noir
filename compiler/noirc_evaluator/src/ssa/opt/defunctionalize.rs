@@ -539,7 +539,7 @@ fn function_id_to_field(function_id: FunctionId) -> FieldElement {
 /// The [FunctionId] of the new apply function
 ///
 /// # Panics
-/// If the `function_ids` argument has fewer than two elements.
+/// If the `function_ids` argument has fewer than two elements, implying that no apply function is necessary.
 fn create_apply_function(
     ssa: &mut Ssa,
     signature: Signature,
