@@ -146,7 +146,7 @@ fn borrows_on_nested_index() {
 }
 
 #[test]
-fn moves_call_array_result() {
+fn clone_call_array_result() {
     let src = "
     unconstrained fn main(i: u32) -> pub u32 {
         let _a = foo()[1][0][1];
@@ -162,8 +162,8 @@ fn moves_call_array_result() {
     // We expect no clones
     insta::assert_snapshot!(program, @r"
     unconstrained fn main$f0(i$l0: u32) -> pub u32 {
-        let _a$l1 = foo$f1()[1][0][1];
-        let _s$l2 = foo$f1()[1][0][1];
+        let _a$l1 = foo$f1()[1][0][1].clone();
+        let _s$l2 = foo$f1()[1][0][1].clone();
         i$l0
     }
     unconstrained fn foo$f1() -> [[[[u128; 0]; 2]; 1]; 2] {
@@ -292,6 +292,47 @@ fn clone_global_nested_array_used_as_call_arg() {
     unconstrained fn mutate_array$f1(mut a$l2: [bool; 3]) -> [bool; 3] {
         a$l2[1] = true;
         a$l2
+    }
+    ");
+}
+
+// Regression for issue https://github.com/noir-lang/noir/issues/9907
+#[test]
+fn regression_9907() {
+    let src = "
+   unconstrained fn main() -> pub [[Field; 1]; 1] {
+        foo([[0xcafebabe]])
+    }
+    unconstrained fn foo(mut a: [[Field; 1]; 1]) -> [[Field; 1]; 1] {
+        let mut b = bar(a)[0];
+
+        let mut x = 0;
+        while (x != 0) {}
+
+        b[0] = 0xdeadbeef;
+        a
+    }
+    unconstrained fn bar(mut a: [[Field; 1]; 1]) -> [[Field; 1]; 1] {
+        a
+    }
+    ";
+
+    let program = get_monomorphized_no_emit_test(src).unwrap();
+    // There are clones on both bar input and output
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> pub [[Field; 1]; 1] {
+        foo$f1([[3405691582]])
+    }
+    unconstrained fn foo$f1(mut a$l0: [[Field; 1]; 1]) -> [[Field; 1]; 1] {
+        let mut b$l1 = bar$f2(a$l0.clone())[0].clone();
+        let mut x$l2 = 0;
+        while (x$l2 != 0) {
+        };
+        b$l1[0] = 3735928559;
+        a$l0
+    }
+    unconstrained fn bar$f2(mut a$l3: [[Field; 1]; 1]) -> [[Field; 1]; 1] {
+        a$l3
     }
     ");
 }

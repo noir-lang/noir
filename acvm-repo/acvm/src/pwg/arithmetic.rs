@@ -73,7 +73,7 @@ impl ExpressionSolver {
                         insert_value(&w1, assignment, initial_witness)
                     }
                 } else {
-                    // TODO: can we be more specific with this error?
+                    // TODO(https://github.com/noir-lang/noir/issues/10191): can we be more specific with this error?
                     Err(OpcodeResolutionError::OpcodeNotSolvable(
                         OpcodeNotSolvable::ExpressionHasTooManyUnknowns(opcode.clone()),
                     ))
@@ -282,6 +282,10 @@ fn quick_invert<F: AcirField>(numerator: F, denominator: F) -> F {
     } else if denominator == -F::one() {
         -numerator
     } else {
+        assert!(
+            denominator != F::zero(),
+            "quick_invert: attempting to divide numerator by F::zero()"
+        );
         numerator / denominator
     }
 }
@@ -300,15 +304,17 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "quick_invert: attempting to divide numerator by F::zero()")]
+    fn quick_invert_zero_denominator() {
+        quick_invert(FieldElement::one(), FieldElement::zero());
+    }
+
+    #[test]
     fn solves_simple_assignment() {
         let a = Witness(0);
 
         // a - 1 == 0;
-        let opcode_a = Expression {
-            mul_terms: vec![],
-            linear_combinations: vec![(FieldElement::one(), a)],
-            q_c: -FieldElement::one(),
-        };
+        let opcode_a = Expression::from_str(&format!("{a} - 1")).unwrap();
 
         let mut values = WitnessMap::new();
         assert_eq!(ExpressionSolver::solve(&mut values, &opcode_a), Ok(()));
@@ -324,15 +330,7 @@ mod tests {
         let d = Witness(3);
 
         // a * b - b - c - d == 0;
-        let opcode_a = Expression {
-            mul_terms: vec![(FieldElement::one(), a, b)],
-            linear_combinations: vec![
-                (-FieldElement::one(), b),
-                (-FieldElement::one(), c),
-                (-FieldElement::one(), d),
-            ],
-            q_c: FieldElement::zero(),
-        };
+        let opcode_a = Expression::from_str(&format!("{a}*{b} - {b} - {c} - {d}")).unwrap();
 
         let mut values = WitnessMap::new();
         values.insert(b, FieldElement::from(2_i128));
@@ -352,27 +350,10 @@ mod tests {
         let d = Witness(3);
 
         // a = b + c + d;
-        let opcode_a = Expression {
-            mul_terms: vec![],
-            linear_combinations: vec![
-                (FieldElement::one(), a),
-                (-FieldElement::one(), b),
-                (-FieldElement::one(), c),
-                (-FieldElement::one(), d),
-            ],
-            q_c: FieldElement::zero(),
-        };
+        let opcode_a = Expression::from_str(&format!("{a} - {b} - {c} - {d}")).unwrap();
 
         let e = Witness(4);
-        let opcode_b = Expression {
-            mul_terms: vec![],
-            linear_combinations: vec![
-                (FieldElement::one(), e),
-                (-FieldElement::one(), a),
-                (-FieldElement::one(), b),
-            ],
-            q_c: FieldElement::zero(),
-        };
+        let opcode_b = Expression::from_str(&format!("{e} - {a} - {b}")).unwrap();
 
         let mut values = WitnessMap::new();
         values.insert(b, FieldElement::from(2_i128));

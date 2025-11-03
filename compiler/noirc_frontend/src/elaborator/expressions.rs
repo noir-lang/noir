@@ -1,9 +1,11 @@
+//! Expression elaboration, covering all expression [kinds][ExpressionKind].
+
 use iter_extended::vecmap;
 use noirc_errors::{Located, Location};
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
-    DataType, Kind, QuotedType, Shared, Type, TypeBindings, TypeVariable,
+    DataType, Kind, MustUse, QuotedType, Shared, Type, TypeBindings, TypeVariable,
     ast::{
         ArrayLiteral, AsTraitPath, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
         ConstrainExpression, ConstrainKind, ConstructorExpression, Expression, ExpressionKind,
@@ -15,9 +17,7 @@ use crate::{
     hir::{
         comptime::{self, InterpreterError},
         def_collector::dc_crate::CompilationError,
-        resolution::{
-            errors::ResolverError, import::PathResolutionError, visibility::method_call_is_visible,
-        },
+        resolution::errors::ResolverError,
         type_check::{Source, TypeCheckError, generics::TraitGenerics},
     },
     hir_def::{
@@ -201,9 +201,15 @@ impl Elaborator<'_> {
                 let inner_expr_type = self.interner.id_type(expr);
                 let location = self.interner.expr_location(&expr);
 
-                self.unify(&inner_expr_type, &Type::Unit, || TypeCheckError::UnusedResultError {
-                    expr_type: inner_expr_type.clone(),
-                    expr_location: location,
+                self.unify(&inner_expr_type, &Type::Unit, || {
+                    let expr_type = inner_expr_type.clone();
+                    let expr_location = location;
+
+                    if let MustUse::MustUse(message) = Self::type_is_must_use(&expr_type) {
+                        TypeCheckError::UnusedResultError { expr_type, expr_location, message }
+                    } else {
+                        TypeCheckError::UnusedResultWarning { expr_type, expr_location }
+                    }
                 });
             }
 
@@ -228,6 +234,41 @@ impl Elaborator<'_> {
 
         self.pop_scope();
         (HirBlockExpression { statements }, block_type)
+    }
+
+    /// If the given type was declared as:
+    /// - `#[must_use = "message"]`, return [MustUse::MustUse(Some("message"))]
+    /// - `#[must_use]`, return [MustUse::MustUse(None)]
+    /// - otherwise, return `MustUse::NoMustUse`
+    fn type_is_must_use(typ: &Type) -> MustUse {
+        /// Helper function to avoid infinite recursion for infinitely recursive types
+        fn helper(typ: &Type, fuel: u32) -> MustUse {
+            if fuel == 0 {
+                return MustUse::NoMustUse;
+            }
+            let fuel = fuel - 1;
+            match typ.follow_bindings_shallow().as_ref() {
+                Type::DataType(data_type, _generics) => data_type.borrow().must_use.clone(),
+                // If any element in the tuple is `#[must_use]`, the whole tuple is
+                Type::Tuple(elements) => {
+                    for element in elements {
+                        if let MustUse::MustUse(message) = helper(element, fuel) {
+                            return MustUse::MustUse(message);
+                        }
+                    }
+                    MustUse::NoMustUse
+                }
+                Type::Alias(alias, generics) => helper(&alias.borrow().get_type(generics), fuel),
+                Type::CheckedCast { to, .. } => helper(to.as_ref(), fuel),
+                Type::Reference(element, _) => helper(element.as_ref(), fuel),
+                _ => MustUse::NoMustUse,
+            }
+        }
+
+        // 10 is an arbitrary maximum bound on recursion through `Type`s here
+        // in case an infinitely recursive type is used. In practice most types should
+        // require just 1 iteration, or up to 3 for a reference to an aliased type.
+        helper(typ, 10)
     }
 
     fn elaborate_unsafe_block(
@@ -823,21 +864,6 @@ impl Elaborator<'_> {
         self.interner.push_expr_location(id, location);
         self.interner.push_expr_type(id, typ.clone());
         (id, typ)
-    }
-
-    fn check_method_call_visibility(&mut self, func_id: FuncId, object_type: &Type, name: &Ident) {
-        if !method_call_is_visible(
-            self.self_type.as_ref(),
-            object_type,
-            func_id,
-            self.module_id(),
-            self.interner,
-            self.def_maps,
-        ) {
-            self.push_err(ResolverError::PathResolutionError(PathResolutionError::Private(
-                name.clone(),
-            )));
-        }
     }
 
     fn elaborate_constructor(

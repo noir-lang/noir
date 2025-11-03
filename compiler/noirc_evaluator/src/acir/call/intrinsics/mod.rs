@@ -1,15 +1,15 @@
 use iter_extended::vecmap;
 
-use crate::acir::{
-    arrays,
-    types::{AcirType, AcirValue},
-};
 use crate::errors::RuntimeError;
 use crate::ssa::ir::{
     dfg::DataFlowGraph,
     instruction::{Hint, Intrinsic},
     types::Type,
     value::ValueId,
+};
+use crate::{
+    acir::{arrays, types::AcirValue},
+    ssa::ir::types::NumericType,
 };
 
 use super::Context;
@@ -69,15 +69,16 @@ impl Context<'_> {
                 else {
                     unreachable!("ICE: ToRadix result must be an array");
                 };
+                assert!(
+                    result_type.len() == 1,
+                    "ICE: ToRadix result type must have a single element type"
+                );
+                let Type::Numeric(numeric_type) = result_type[0] else {
+                    unreachable!("ICE: ToRadix result element type must be numeric");
+                };
 
                 self.acir_context
-                    .radix_decompose(
-                        endian,
-                        field,
-                        radix,
-                        array_length,
-                        result_type[0].clone().into(),
-                    )
+                    .radix_decompose(endian, field, radix, array_length, numeric_type)
                     .map(|array| vec![array])
             }
             Intrinsic::ToBits(endian) => {
@@ -87,50 +88,35 @@ impl Context<'_> {
                 else {
                     unreachable!("ICE: ToBits result must be an array");
                 };
+                assert!(
+                    result_type.len() == 1,
+                    "ICE: ToBits result type must have a single element type"
+                );
+                let Type::Numeric(numeric_type) = result_type[0] else {
+                    unreachable!("ICE: ToBits result element type must be numeric");
+                };
 
                 self.acir_context
-                    .bit_decompose(endian, field, array_length, result_type[0].clone().into())
+                    .bit_decompose(endian, field, array_length, numeric_type)
                     .map(|array| vec![array])
             }
-            Intrinsic::ArrayLen => {
-                let len = match self.convert_value(arguments[0], dfg) {
-                    AcirValue::Var(_, _) => {
-                        unreachable!("Non-array passed to array.len() method")
-                    }
-                    AcirValue::Array(values) => values.len(),
-                    AcirValue::DynamicArray(array) => array.len,
-                };
-                Ok(vec![AcirValue::Var(
-                    self.acir_context.add_constant(len),
-                    AcirType::unsigned(32),
-                )])
-            }
             Intrinsic::AsSlice => {
-                let slice_contents = arguments[0];
-                let slice_typ = dfg.type_of_value(slice_contents);
-                assert!(!slice_typ.is_nested_slice(), "ICE: Nested slice used in ACIR generation");
-
-                let flattened_length =
-                    slice_typ.element_types().iter().map(|typ| typ.flattened_size()).sum::<u32>();
-                let slice_length = self.flattened_size(slice_contents, dfg);
-                let slice_length = if flattened_length == 0 {
-                    0
-                } else {
-                    slice_length / flattened_length as usize
+                let array_contents = arguments[0];
+                let array_type = dfg.type_of_value(array_contents);
+                assert!(!array_type.is_nested_slice(), "ICE: Nested slice used in ACIR generation");
+                let Type::Array(_, slice_length) = array_type else {
+                    unreachable!("Expected Array input for `as_slice` intrinsic");
                 };
-
                 let slice_length = self.acir_context.add_constant(slice_length);
-
-                let acir_value = self.convert_value(slice_contents, dfg);
+                let acir_value = self.convert_value(array_contents, dfg);
                 let result = self.read_array(acir_value)?;
-
                 Ok(vec![
-                    AcirValue::Var(slice_length, AcirType::unsigned(32)),
+                    AcirValue::Var(slice_length, NumericType::length_type()),
                     AcirValue::Array(result),
                 ])
             }
 
-            Intrinsic::SlicePushBack => self.convert_slice_push_back(arguments, dfg),
+            Intrinsic::SlicePushBack => self.convert_slice_push_back(arguments, dfg, result_ids),
             Intrinsic::SlicePushFront => self.convert_slice_push_front(arguments, dfg),
             Intrinsic::SlicePopBack => self.convert_slice_pop_back(arguments, dfg, result_ids),
             Intrinsic::SlicePopFront => self.convert_slice_pop_front(arguments, dfg, result_ids),
@@ -157,13 +143,14 @@ impl Context<'_> {
                 unreachable!("FieldLessThan can only be called in unconstrained")
             }
             Intrinsic::IsUnconstrained
+            | Intrinsic::ArrayLen
             | Intrinsic::ArrayAsStrUnchecked
             | Intrinsic::StrAsBytes
             | Intrinsic::StaticAssert
             | Intrinsic::AssertConstant
             | Intrinsic::ArrayRefCount
             | Intrinsic::SliceRefCount => {
-                unreachable!("Expected {intrinsic} to be removed by this point")
+                unreachable!("Expected {intrinsic} to have been removing during SSA optimizations")
             }
         }
     }

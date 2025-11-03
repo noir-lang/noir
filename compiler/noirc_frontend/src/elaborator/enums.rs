@@ -1,3 +1,5 @@
+//! Enum definition collection and variant resolution.
+
 use std::collections::{BTreeMap, BTreeSet};
 
 use iter_extended::{btree_map, try_vecmap, vecmap};
@@ -6,14 +8,16 @@ use rangemap::StepLite;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
-    DataType, Kind, Shared, Type,
+    DataType, EnumVariant as HirEnumVariant, Kind, Shared, Type,
     ast::{
         ConstructorExpression, EnumVariant, Expression, ExpressionKind, FunctionKind, Ident,
         ItemVisibility, Literal, NoirEnumeration, StatementKind, UnresolvedType,
+        UnresolvedTypeData,
     },
-    elaborator::path_resolution::PathResolutionItem,
+    elaborator::{UnstableFeature, path_resolution::PathResolutionItem},
     hir::{
         comptime::Value,
+        def_collector::dc_crate::UnresolvedEnum,
         resolution::{errors::ResolverError, import::PathResolutionError},
         type_check::TypeCheckError,
     },
@@ -25,7 +29,9 @@ use crate::{
         function::{FuncMeta, FunctionBody, HirFunction, Parameters},
         stmt::{HirLetStatement, HirPattern, HirStatement},
     },
-    node_interner::{DefinitionId, DefinitionKind, ExprId, FunctionModifiers, GlobalValue, TypeId},
+    node_interner::{
+        DefinitionId, DefinitionKind, ExprId, FunctionModifiers, GlobalValue, ReferenceId, TypeId,
+    },
     shared::Visibility,
     signed_field::SignedField,
     token::Attributes,
@@ -108,6 +114,61 @@ impl Row {
 }
 
 impl Elaborator<'_> {
+    pub(super) fn collect_enum_definitions(&mut self, enums: &BTreeMap<TypeId, UnresolvedEnum>) {
+        for (type_id, typ) in enums {
+            self.local_module = typ.module_id;
+            self.generics.clear();
+
+            let datatype = self.interner.get_type(*type_id);
+            let datatype_ref = datatype.borrow();
+            let generics = datatype_ref.generic_types();
+            self.add_existing_generics(&typ.enum_def.generics, &datatype_ref.generics);
+
+            self.use_unstable_feature(UnstableFeature::Enums, datatype_ref.name.location());
+            drop(datatype_ref);
+
+            let self_type = Type::DataType(datatype.clone(), generics);
+            let self_type_id = self.interner.push_quoted_type(self_type.clone());
+            let location = typ.enum_def.location;
+            let unresolved =
+                UnresolvedType { typ: UnresolvedTypeData::Resolved(self_type_id), location };
+
+            datatype.borrow_mut().init_variants();
+            self.resolving_ids.insert(*type_id);
+
+            let wildcard_allowed = false;
+            for (i, variant) in typ.enum_def.variants.iter().enumerate() {
+                let parameters = variant.item.parameters.as_ref();
+                let types = parameters.map(|params| {
+                    vecmap(params, |typ| self.resolve_type(typ.clone(), wildcard_allowed))
+                });
+                let name = variant.item.name.clone();
+
+                let is_function = types.is_some();
+                let params = types.clone().unwrap_or_default();
+                datatype.borrow_mut().push_variant(HirEnumVariant::new(name, params, is_function));
+
+                self.define_enum_variant_constructor(
+                    &typ.enum_def,
+                    *type_id,
+                    &variant.item,
+                    types,
+                    i,
+                    &datatype,
+                    &self_type,
+                    unresolved.clone(),
+                );
+
+                let reference_id = ReferenceId::EnumVariant(*type_id, i);
+                let location = variant.item.name.location();
+                self.interner.add_definition_location(reference_id, location);
+            }
+
+            self.resolving_ids.remove(type_id);
+        }
+        self.generics.clear();
+    }
+
     /// Defines the value of an enum variant that we resolve an enum
     /// variant expression to. E.g. `Foo::Bar` in `Foo::Bar(baz)`.
     ///
