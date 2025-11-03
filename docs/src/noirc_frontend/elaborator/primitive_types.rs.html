@@ -347,9 +347,14 @@
 <a href="#346" id="346">346</a>
 <a href="#347" id="347">347</a>
 <a href="#348" id="348">348</a>
-<a href="#349" id="349">349</a></pre></div><pre class="rust"><code><span class="doccomment">//! Primitive type definitions
+<a href="#349" id="349">349</a>
+<a href="#350" id="350">350</a>
+<a href="#351" id="351">351</a>
+<a href="#352" id="352">352</a>
+<a href="#353" id="353">353</a></pre></div><pre class="rust"><code><span class="doccomment">//! Primitive type definitions
 
-</span><span class="kw">use </span>noirc_errors::Location;
+</span><span class="kw">use </span>iter_extended::vecmap;
+<span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
     QuotedType, Type,
@@ -585,7 +590,7 @@
                     PathResolutionMode::MarkAsReferenced,
                     wildcard_allowed,
                 );
-                <span class="macro">assert_eq!</span>(args.len(), <span class="number">1</span>);
+                <span class="macro">assert_eq!</span>(args.len(), <span class="number">1</span>, <span class="string">"str generics should be: [length]"</span>);
                 <span class="kw">let </span>length = args.pop().unwrap();
                 <span class="kw">return </span>Type::String(Box::new(length));
             }
@@ -598,7 +603,7 @@
                     PathResolutionMode::MarkAsReferenced,
                     wildcard_allowed,
                 );
-                <span class="macro">assert_eq!</span>(args.len(), <span class="number">2</span>);
+                <span class="macro">assert_eq!</span>(args.len(), <span class="number">2</span>, <span class="string">"fmtstr generics should be: [length, element]"</span>);
                 <span class="kw">let </span>element = args.pop().unwrap();
                 <span class="kw">let </span>length = args.pop().unwrap();
                 <span class="kw">return </span>Type::FmtString(Box::new(length), Box::new(element));
@@ -654,8 +659,9 @@
             PrimitiveType::Str =&gt; {
                 <span class="kw">let </span>item = StrPrimitiveType;
                 <span class="kw">let </span>item_generic_kinds = item.generic_kinds(<span class="self">self</span>.interner);
-                <span class="kw">let </span>kind = item_generic_kinds[<span class="number">0</span>].clone();
-                <span class="kw">let </span>generics = <span class="macro">vec!</span>[<span class="self">self</span>.interner.next_type_variable_with_kind(kind)];
+                <span class="kw">let </span>generics = vecmap(<span class="kw-2">&amp;</span>item_generic_kinds, |kind| {
+                    <span class="self">self</span>.interner.next_type_variable_with_kind(kind.clone())
+                });
                 <span class="kw">let </span><span class="kw-2">mut </span>args = <span class="kw">if let </span><span class="prelude-val">Some</span>(turbofish) = turbofish {
                     <span class="self">self</span>.resolve_item_turbofish_generics(
                         item.item_kind(),
@@ -668,18 +674,20 @@
                 } <span class="kw">else </span>{
                     generics
                 };
-                <span class="macro">assert_eq!</span>(args.len(), <span class="number">1</span>);
+                <span class="macro">assert_eq!</span>(args.len(), <span class="number">1</span>, <span class="string">"str generics should be: [length]"</span>);
                 <span class="kw">let </span>length = args.pop().unwrap();
                 Type::String(Box::new(length))
             }
             PrimitiveType::Fmtstr =&gt; {
-                <span class="kw">let </span>item_generic_kinds = FmtstrPrimitiveType {}.generic_kinds(<span class="self">self</span>.interner);
-                <span class="kw">let </span>kind = item_generic_kinds[<span class="number">0</span>].clone();
-                <span class="kw">let </span>generics = <span class="macro">vec!</span>[<span class="self">self</span>.interner.next_type_variable_with_kind(kind)];
+                <span class="kw">let </span>item = FmtstrPrimitiveType;
+                <span class="kw">let </span>item_generic_kinds = item.generic_kinds(<span class="self">self</span>.interner);
+                <span class="kw">let </span>generics = vecmap(<span class="kw-2">&amp;</span>item_generic_kinds, |kind| {
+                    <span class="self">self</span>.interner.next_type_variable_with_kind(kind.clone())
+                });
                 <span class="kw">let </span><span class="kw-2">mut </span>args = <span class="kw">if let </span><span class="prelude-val">Some</span>(turbofish) = turbofish {
                     <span class="self">self</span>.resolve_item_turbofish_generics(
-                        <span class="string">"primitive type"</span>,
-                        <span class="string">"fmtstr"</span>,
+                        FmtstrPrimitiveType.item_kind(),
+                        <span class="kw-2">&amp;</span>item.item_name(<span class="self">self</span>.interner),
                         item_generic_kinds,
                         generics,
                         <span class="prelude-val">Some</span>(turbofish.generics),
@@ -688,7 +696,7 @@
                 } <span class="kw">else </span>{
                     generics
                 };
-                <span class="macro">assert_eq!</span>(args.len(), <span class="number">2</span>);
+                <span class="macro">assert_eq!</span>(args.len(), <span class="number">2</span>, <span class="string">"fmtstr generics should be: [length, element]"</span>);
                 <span class="kw">let </span>element = args.pop().unwrap();
                 <span class="kw">let </span>length = args.pop().unwrap();
                 Type::FmtString(Box::new(length), Box::new(element))
