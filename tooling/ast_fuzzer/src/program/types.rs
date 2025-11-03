@@ -3,10 +3,7 @@ use std::collections::HashSet;
 use iter_extended::vecmap;
 use noirc_frontend::{
     ast::{BinaryOpKind, IntegerBitSize},
-    monomorphization::{
-        self,
-        ast::{BinaryOp, Type},
-    },
+    monomorphization::ast::{BinaryOp, Type},
     shared::Signedness,
     signed_field::SignedField,
 };
