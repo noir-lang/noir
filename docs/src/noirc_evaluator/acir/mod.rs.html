@@ -917,7 +917,8 @@
 <a href="#916" id="916">916</a>
 <a href="#917" id="917">917</a>
 <a href="#918" id="918">918</a>
-<a href="#919" id="919">919</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir` module contains all the logic necessary for noirc's ACIR-gen pass which
+<a href="#919" id="919">919</a>
+<a href="#920" id="920">920</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir` module contains all the logic necessary for noirc's ACIR-gen pass which
 //! generates the output ACIR program.
 //!
 //! # Usage
@@ -1100,7 +1101,9 @@
     ) -&gt; <span class="prelude-ty">Result</span>&lt;GeneratedAcir&lt;FieldElement&gt;, RuntimeError&gt; {
         <span class="kw">let </span>dfg = <span class="kw-2">&amp;</span>main_func.dfg;
         <span class="kw">let </span>entry_block = <span class="kw-2">&amp;</span>dfg[main_func.entry_block()];
-        <span class="kw">let </span>input_witness = <span class="self">self</span>.convert_ssa_block_params(entry_block.parameters(), dfg)<span class="question-mark">?</span>;
+        <span class="self">self</span>.acir_context.acir_ir.input_witnesses =
+            <span class="self">self</span>.convert_ssa_block_params(entry_block.parameters(), dfg)<span class="question-mark">?</span>;
+
         <span class="kw">let </span>num_return_witnesses =
             <span class="self">self</span>.get_num_return_witnesses(entry_block.unwrap_terminator(), dfg);
 
@@ -1176,7 +1179,6 @@
 
         <span class="comment">// Add the warnings from the alter Ssa passes
         </span><span class="prelude-val">Ok</span>(<span class="self">self</span>.acir_context.finish(
-            input_witness,
             <span class="comment">// Don't embed databus return witnesses into the circuit.
             </span><span class="kw">if </span><span class="self">self</span>.data_bus.return_data.is_some() { Vec::new() } <span class="kw">else </span>{ return_witnesses },
             warnings,
@@ -1195,7 +1197,7 @@
         })<span class="question-mark">?</span>;
         <span class="kw">let </span>arguments = <span class="self">self</span>.gen_brillig_parameters(dfg[main_func.entry_block()].parameters(), dfg);
 
-        <span class="kw">let </span>witness_inputs = <span class="self">self</span>.acir_context.extract_witnesses(<span class="kw-2">&amp;</span>inputs);
+        <span class="self">self</span>.acir_context.acir_ir.input_witnesses = <span class="self">self</span>.acir_context.extract_witnesses(<span class="kw-2">&amp;</span>inputs);
         <span class="kw">let </span>returns = main_func.returns().unwrap_or_default();
 
         <span class="kw">let </span>outputs: Vec&lt;AcirType&gt; =
@@ -1230,7 +1232,7 @@
             .map(|(value, <span class="kw">_</span>)| <span class="self">self</span>.acir_context.var_to_witness(value))
             .collect::&lt;<span class="prelude-ty">Result</span>&lt;<span class="kw">_</span>, <span class="kw">_</span>&gt;&gt;()<span class="question-mark">?</span>;
 
-        <span class="kw">let </span>generated_acir = <span class="self">self</span>.acir_context.finish(witness_inputs, return_witnesses, Vec::new());
+        <span class="kw">let </span>generated_acir = <span class="self">self</span>.acir_context.finish(return_witnesses, Vec::new());
 
         <span class="macro">assert_eq!</span>(
             generated_acir.opcodes().len(),

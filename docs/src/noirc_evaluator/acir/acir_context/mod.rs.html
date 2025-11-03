@@ -1606,7 +1606,12 @@
 <a href="#1605" id="1605">1605</a>
 <a href="#1606" id="1606">1606</a>
 <a href="#1607" id="1607">1607</a>
-<a href="#1608" id="1608">1608</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
+<a href="#1608" id="1608">1608</a>
+<a href="#1609" id="1609">1609</a>
+<a href="#1610" id="1610">1610</a>
+<a href="#1611" id="1611">1611</a>
+<a href="#1612" id="1612">1612</a>
+<a href="#1613" id="1613">1613</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
 //! of type information from SSA in order to allow efficient ACIR-gen.
 //!
 //! The [`AcirContext`] struct defines how to translate SSA instructions into equivalent ACIR constructs. This
@@ -1739,6 +1744,13 @@
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), InternalError&gt; {
         <span class="kw">if </span>lhs == rhs {
             <span class="kw">return </span><span class="prelude-val">Ok</span>(());
+        }
+
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(w) = <span class="self">self</span>.var_to_expression(lhs)<span class="question-mark">?</span>.to_witness() {
+            <span class="kw">if </span><span class="self">self</span>.acir_ir.input_witnesses.contains(<span class="kw-2">&amp;</span>w) {
+                <span class="comment">//Input witnesses are not replaced
+                </span><span class="kw">return </span><span class="prelude-val">Ok</span>(());
+            }
         }
 
         <span class="kw">let </span>lhs_data = <span class="self">self</span>.vars.remove(<span class="kw-2">&amp;</span>lhs).ok_or_else(|| InternalError::UndeclaredAcirVar {
@@ -2925,11 +2937,9 @@
     <span class="doccomment">/// Terminates the context and takes the resulting `GeneratedAcir`
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>finish(
         <span class="kw-2">mut </span><span class="self">self</span>,
-        inputs: Vec&lt;Witness&gt;,
         return_values: Vec&lt;Witness&gt;,
         warnings: Vec&lt;SsaReport&gt;,
     ) -&gt; GeneratedAcir&lt;F&gt; {
-        <span class="self">self</span>.acir_ir.input_witnesses = inputs;
         <span class="self">self</span>.acir_ir.return_witnesses = return_values;
         <span class="self">self</span>.acir_ir.warnings = warnings;
         <span class="self">self</span>.acir_ir
