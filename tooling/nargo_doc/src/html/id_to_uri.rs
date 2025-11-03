@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use noirc_frontend::ast::ItemVisibility;
+
 use crate::{
     html::has_uri::HasUri,
     items::{Item, TypeId, Workspace},
@@ -12,8 +14,10 @@ pub(super) fn compute_id_to_uri(workspace: &Workspace) -> HashMap<TypeId, String
 
     for krate in workspace.all_crates() {
         path.push(krate.name.to_string());
-        for item in &krate.root_module.items {
-            compute_id_to_uri_in_item(item, &mut id_to_path, &mut path);
+        for (visibility, item) in &krate.root_module.items {
+            if visibility == &ItemVisibility::Public {
+                compute_id_to_uri_in_item(item, &mut id_to_path, &mut path);
+            }
         }
 
         path.pop();
@@ -30,8 +34,10 @@ fn compute_id_to_uri_in_item(
     match item {
         Item::Module(module) => {
             path.push(module.name.clone());
-            for item in &module.items {
-                compute_id_to_uri_in_item(item, id_to_path, path);
+            for (visibility, item) in &module.items {
+                if visibility == &ItemVisibility::Public {
+                    compute_id_to_uri_in_item(item, id_to_path, path);
+                }
             }
             path.pop();
         }

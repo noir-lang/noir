@@ -2,6 +2,8 @@
 
 use std::collections::BTreeMap;
 
+use noirc_frontend::{ast::ItemVisibility, hir::def_map::ModuleId};
+
 pub trait HasNameAndComments {
     fn name(&self) -> String;
     fn comments(&self) -> Option<&str>;
@@ -54,8 +56,9 @@ pub enum Item {
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Module {
+    pub id: ModuleId,
     pub name: String,
-    pub items: Vec<Item>,
+    pub items: Vec<(ItemVisibility, Item)>,
     pub comments: Option<String>,
 }
 

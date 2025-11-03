@@ -3,6 +3,8 @@ use std::{
     path::PathBuf,
 };
 
+use noirc_frontend::ast::ItemVisibility;
+
 use crate::{
     html::{
         all_items::AllItems,
@@ -228,7 +230,12 @@ impl HTMLCreator {
         self.output.push_str("</ul>");
     }
 
-    fn render_items(&mut self, items: &[Item], sidebar: bool, reference_parent: bool) {
+    fn render_items(
+        &mut self,
+        items: &[(ItemVisibility, Item)],
+        sidebar: bool,
+        reference_parent: bool,
+    ) {
         self.render_modules(items, sidebar, reference_parent);
         self.render_structs(items, sidebar, reference_parent);
         self.render_traits(items, sidebar, reference_parent);
@@ -238,28 +245,48 @@ impl HTMLCreator {
         self.render_globals(items, sidebar, reference_parent);
     }
 
-    fn render_modules(&mut self, items: &[Item], sidebar: bool, reference_parent: bool) {
+    fn render_modules(
+        &mut self,
+        items: &[(ItemVisibility, Item)],
+        sidebar: bool,
+        reference_parent: bool,
+    ) {
         let modules = get_modules(items);
         if !modules.is_empty() {
             self.render_list("Modules", "modules", sidebar, reference_parent, &modules);
         }
     }
 
-    fn render_structs(&mut self, items: &[Item], sidebar: bool, reference_parent: bool) {
+    fn render_structs(
+        &mut self,
+        items: &[(ItemVisibility, Item)],
+        sidebar: bool,
+        reference_parent: bool,
+    ) {
         let structs = get_structs(items);
         if !structs.is_empty() {
             self.render_list("Structs", "structs", sidebar, reference_parent, &structs);
         }
     }
 
-    fn render_traits(&mut self, items: &[Item], sidebar: bool, reference_parent: bool) {
+    fn render_traits(
+        &mut self,
+        items: &[(ItemVisibility, Item)],
+        sidebar: bool,
+        reference_parent: bool,
+    ) {
         let traits = get_traits(items);
         if !traits.is_empty() {
             self.render_list("Traits", "traits", sidebar, reference_parent, &traits);
         }
     }
 
-    fn render_type_aliases(&mut self, items: &[Item], sidebar: bool, reference_parent: bool) {
+    fn render_type_aliases(
+        &mut self,
+        items: &[(ItemVisibility, Item)],
+        sidebar: bool,
+        reference_parent: bool,
+    ) {
         let type_aliases = get_type_aliases(items);
         if !type_aliases.is_empty() {
             self.render_list(
@@ -272,7 +299,12 @@ impl HTMLCreator {
         }
     }
 
-    fn render_primitive_types(&mut self, items: &[Item], sidebar: bool, reference_parent: bool) {
+    fn render_primitive_types(
+        &mut self,
+        items: &[(ItemVisibility, Item)],
+        sidebar: bool,
+        reference_parent: bool,
+    ) {
         let primitive_types = get_primitive_types(items);
         if !primitive_types.is_empty() {
             self.render_list(
@@ -285,14 +317,24 @@ impl HTMLCreator {
         }
     }
 
-    fn render_globals(&mut self, items: &[Item], sidebar: bool, reference_parent: bool) {
+    fn render_globals(
+        &mut self,
+        items: &[(ItemVisibility, Item)],
+        sidebar: bool,
+        reference_parent: bool,
+    ) {
         let globals = get_globals(items);
         if !globals.is_empty() {
             self.render_list("Globals", "globals", sidebar, reference_parent, &globals);
         }
     }
 
-    fn render_functions(&mut self, items: &[Item], sidebar: bool, reference_parent: bool) {
+    fn render_functions(
+        &mut self,
+        items: &[(ItemVisibility, Item)],
+        sidebar: bool,
+        reference_parent: bool,
+    ) {
         let functions = get_functions(items);
         if !functions.is_empty() {
             self.render_list("Functions", "functions", sidebar, reference_parent, &functions);
@@ -343,9 +385,11 @@ impl HTMLCreator {
         self.output.push_str("</ul>");
     }
 
-    fn create_items(&mut self, parent_module: &Module, items: &[Item]) {
-        for item in items {
-            self.create_item(parent_module, item);
+    fn create_items(&mut self, parent_module: &Module, items: &[(ItemVisibility, Item)]) {
+        for (visibility, item) in items {
+            if visibility == &ItemVisibility::Public {
+                self.create_item(parent_module, item);
+            }
         }
     }
 
@@ -1397,60 +1441,103 @@ impl HTMLCreator {
     }
 }
 
-fn get_modules(items: &[Item]) -> Vec<&Module> {
+fn get_modules(items: &[(ItemVisibility, Item)]) -> Vec<&Module> {
     items
         .iter()
-        .filter_map(|item| {
-            if let Item::Module(module) = item {
-                if module.items.is_empty() { None } else { Some(module) }
-            } else {
-                None
+        .filter_map(|(visibility, item)| {
+            if visibility == &ItemVisibility::Public {
+                if let Item::Module(module) = item {
+                    if !module.items.is_empty() {
+                        return Some(module);
+                    }
+                }
             }
+            None
         })
         .collect()
 }
 
-fn get_structs(items: &[Item]) -> Vec<&Struct> {
+fn get_structs(items: &[(ItemVisibility, Item)]) -> Vec<&Struct> {
     items
         .iter()
-        .filter_map(|item| if let Item::Struct(struct_) = item { Some(struct_) } else { None })
-        .collect()
-}
-
-fn get_traits(items: &[Item]) -> Vec<&Trait> {
-    items
-        .iter()
-        .filter_map(|item| if let Item::Trait(trait_) = item { Some(trait_) } else { None })
-        .collect()
-}
-
-fn get_type_aliases(items: &[Item]) -> Vec<&TypeAlias> {
-    items
-        .iter()
-        .filter_map(|item| if let Item::TypeAlias(alias) = item { Some(alias) } else { None })
-        .collect()
-}
-
-fn get_primitive_types(items: &[Item]) -> Vec<&PrimitiveType> {
-    items
-        .iter()
-        .filter_map(|item| {
-            if let Item::PrimitiveType(primitive_type) = item { Some(primitive_type) } else { None }
+        .filter_map(|(visibility, item)| {
+            if visibility == &ItemVisibility::Public {
+                if let Item::Struct(struct_) = item {
+                    return Some(struct_);
+                }
+            }
+            None
         })
         .collect()
 }
 
-fn get_globals(items: &[Item]) -> Vec<&Global> {
+fn get_traits(items: &[(ItemVisibility, Item)]) -> Vec<&Trait> {
     items
         .iter()
-        .filter_map(|item| if let Item::Global(global) = item { Some(global) } else { None })
+        .filter_map(|(visibility, item)| {
+            if visibility == &ItemVisibility::Public {
+                if let Item::Trait(trait_) = item {
+                    return Some(trait_);
+                }
+            }
+            None
+        })
         .collect()
 }
 
-fn get_functions(items: &[Item]) -> Vec<&Function> {
+fn get_type_aliases(items: &[(ItemVisibility, Item)]) -> Vec<&TypeAlias> {
     items
         .iter()
-        .filter_map(|item| if let Item::Function(function) = item { Some(function) } else { None })
+        .filter_map(|(visibility, item)| {
+            if visibility == &ItemVisibility::Public {
+                if let Item::TypeAlias(alias) = item {
+                    return Some(alias);
+                }
+            }
+            None
+        })
+        .collect()
+}
+
+fn get_primitive_types(items: &[(ItemVisibility, Item)]) -> Vec<&PrimitiveType> {
+    items
+        .iter()
+        .filter_map(|(visibility, item)| {
+            if visibility == &ItemVisibility::Public {
+                if let Item::PrimitiveType(primitive_type) = item {
+                    return Some(primitive_type);
+                }
+            }
+            None
+        })
+        .collect()
+}
+
+fn get_globals(items: &[(ItemVisibility, Item)]) -> Vec<&Global> {
+    items
+        .iter()
+        .filter_map(|(visibility, item)| {
+            if visibility == &ItemVisibility::Public {
+                if let Item::Global(global) = item {
+                    return Some(global);
+                }
+            }
+            None
+        })
+        .collect()
+}
+
+fn get_functions(items: &[(ItemVisibility, Item)]) -> Vec<&Function> {
+    items
+        .iter()
+        .filter_map(|(visibility, item)| {
+            if visibility == &ItemVisibility::Public {
+                if let Item::Function(function) = item {
+                    return Some(function);
+                }
+            }
+            None
+        })
         .collect()
 }
 

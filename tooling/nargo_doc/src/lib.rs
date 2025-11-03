@@ -4,6 +4,7 @@ use iter_extended::vecmap;
 use noirc_driver::CrateId;
 use noirc_errors::Location;
 use noirc_frontend::ast::{IntegerBitSize, ItemVisibility};
+use noirc_frontend::hir::def_map::{ModuleDefId, ModuleId};
 use noirc_frontend::hir::printer::items as expand_items;
 use noirc_frontend::hir_def::stmt::{HirLetStatement, HirPattern};
 use noirc_frontend::hir_def::traits::ResolvedTraitBound;
@@ -31,16 +32,37 @@ pub fn crate_module(
     ids: &mut ItemIds,
 ) -> Module {
     let module = noirc_frontend::hir::printer::crate_to_module(crate_id, def_maps, interner);
-    let mut builder = DocItemBuilder { interner, ids, trait_constraints: Vec::new() };
-    builder.convert_module(module)
+    let mut builder = DocItemBuilder {
+        interner,
+        ids,
+        visibility: ItemVisibility::Public,
+        module_def_id_to_item: HashMap::new(),
+        module_imports: HashMap::new(),
+        trait_constraints: Vec::new(),
+    };
+    let mut module = builder.convert_module(module);
+    builder.process_module_reexports(&mut module);
+    module
 }
 
 struct DocItemBuilder<'a> {
     interner: &'a NodeInterner,
     ids: &'a mut ItemIds,
+    visibility: ItemVisibility,
+    module_def_id_to_item: HashMap<ModuleDefId, ConvertedItem>,
+    module_imports: HashMap<ModuleId, Vec<expand_items::Import>>,
     /// Trait constraints in scope.
     /// These are set when a trait or trait impl is visited.
     trait_constraints: Vec<TraitConstraint>,
+}
+
+struct ConvertedItem {
+    item: Item,
+    // This is the maximum visibility the item has considering it's nested
+    // in modules. For example, in `pub(crate) mod a { pub struct B {} }`,
+    // struct B will have `pub(crate)` visibility here as it can't be publicly
+    // reached.
+    visibility: ItemVisibility,
 }
 
 /// Maps an ItemId to a unique identifier.
@@ -67,10 +89,21 @@ pub enum IdKeyKind {
 }
 
 impl DocItemBuilder<'_> {
-    fn convert_item(&mut self, item: expand_items::Item) -> Item {
-        match item {
+    fn convert_item(&mut self, item: expand_items::Item, visibility: ItemVisibility) -> Item {
+        let module_def_id = if let expand_items::Item::PrimitiveType(..) = item {
+            None
+        } else {
+            Some(item.module_def_id())
+        };
+        let converted_item = match item {
             expand_items::Item::Module(module) => {
+                let old_visibility = self.visibility;
+                self.visibility = old_visibility.min(visibility);
+
                 let module = self.convert_module(module);
+
+                self.visibility = old_visibility;
+
                 Item::Module(module)
             }
             expand_items::Item::DataType(item_data_type) => {
@@ -227,7 +260,14 @@ impl DocItemBuilder<'_> {
                 Item::Global(Global { name, comments, comptime, mutable, r#type })
             }
             expand_items::Item::Function(func_id) => Item::Function(self.convert_function(func_id)),
+        };
+        if let Some(module_def_id) = module_def_id {
+            self.module_def_id_to_item.insert(
+                module_def_id,
+                ConvertedItem { item: converted_item.clone(), visibility: self.visibility },
+            );
         }
+        converted_item
     }
 
     fn convert_module(&mut self, module: expand_items::Module) -> Module {
@@ -236,10 +276,10 @@ impl DocItemBuilder<'_> {
         let items = module
             .items
             .into_iter()
-            .filter(|(visibility, _item)| visibility == &ItemVisibility::Public)
-            .map(|(_, item)| self.convert_item(item))
+            .map(|(visibility, item)| (visibility, self.convert_item(item, visibility)))
             .collect();
-        Module { name, comments, items }
+        self.module_imports.insert(module.id, module.imports);
+        Module { id: module.id, name, comments, items }
     }
 
     fn convert_impl(&mut self, impl_: expand_items::Impl) -> Impl {
@@ -514,6 +554,31 @@ impl DocItemBuilder<'_> {
         match kind {
             Kind::Any | Kind::Normal | Kind::IntegerOrField | Kind::Integer => None,
             Kind::Numeric(typ) => Some(self.convert_type(&typ)),
+        }
+    }
+
+    /// Goes over a module's imports. If an import is a re-export of a private item,
+    /// the item is added to the module's items.
+    fn process_module_reexports(&mut self, module: &mut Module) {
+        let imports = self.module_imports.remove(&module.id).unwrap();
+        for import in imports {
+            if import.visibility == ItemVisibility::Private {
+                continue;
+            }
+
+            if let Some(converted_item) = self.module_def_id_to_item.get(&import.id) {
+                if converted_item.visibility < import.visibility {
+                    module.items.push((import.visibility, converted_item.item.clone()));
+                } else {
+                    // This is a re-export. We could eventually include these in docs, like in Rust.
+                }
+            }
+        }
+
+        for (_visibility, item) in &mut module.items {
+            if let Item::Module(sub_module) = item {
+                self.process_module_reexports(sub_module);
+            }
         }
     }
 

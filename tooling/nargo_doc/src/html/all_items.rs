@@ -1,3 +1,5 @@
+use noirc_frontend::ast::ItemVisibility;
+
 use crate::items::{Item, Workspace};
 
 /// All items in a workspace.
@@ -24,8 +26,10 @@ pub(super) fn compute_all_items(workspace: &Workspace) -> AllItems {
     let mut current_path = Vec::new();
     for krate in &workspace.crates {
         current_path.push(krate.name.clone());
-        for item in &krate.root_module.items {
-            gather_all_items_in_item(item, &mut current_path, &mut all_items);
+        for (visibility, item) in &krate.root_module.items {
+            if visibility == &ItemVisibility::Public {
+                gather_all_items_in_item(item, &mut current_path, &mut all_items);
+            }
         }
         current_path.pop();
     }
@@ -44,8 +48,10 @@ fn gather_all_items_in_item(item: &Item, current_path: &mut Vec<String>, all_ite
     match item {
         Item::Module(module) => {
             current_path.push(module.name.clone());
-            for item in &module.items {
-                gather_all_items_in_item(item, current_path, all_items);
+            for (visibility, item) in &module.items {
+                if visibility == &ItemVisibility::Public {
+                    gather_all_items_in_item(item, current_path, all_items);
+                }
             }
             current_path.pop();
         }
