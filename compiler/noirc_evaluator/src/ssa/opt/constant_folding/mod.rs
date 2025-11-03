@@ -2381,10 +2381,10 @@ mod test {
             constrain v5 == u32 1
             v8 = call f1(v3) -> [Field; 2]
             v9 = call array_refcount(v3) -> u32
-            constrain v9 == u32 2
+            constrain v9 == u32 1
             v11 = call f1(v3) -> [Field; 2]
             v12 = call array_refcount(v3) -> u32
-            constrain v12 == u32 3
+            constrain v12 == u32 1
             inc_rc v3
             v15 = array_set v3, index v0, value Field 9
             return v3, v15
