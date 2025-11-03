@@ -785,10 +785,14 @@ impl HTMLCreator {
         }
         let indent = 0;
         self.render_where_clause(&trait_.where_clause, indent);
-        if !trait_.where_clause.is_empty() || trait_.bounds.len() > 1 {
-            self.output.push_str("\n{\n");
+        if trait_.where_clause.is_empty() {
+            if trait_.bounds.len() <= 1 {
+                self.output.push_str(" {\n");
+            } else {
+                self.output.push_str("\n{\n");
+            }
         } else {
-            self.output.push_str(" {\n");
+            self.output.push_str("{\n");
         }
 
         let color_name = true;
@@ -1044,6 +1048,7 @@ impl HTMLCreator {
         }
 
         self.output.push('\n');
+        self.output.push_str("<div class=\"where-clause\">");
         self.output.push_str(&" ".repeat(4 * indent));
         self.output.push_str("where\n");
         for (index, constraint) in where_clause.iter().enumerate() {
@@ -1055,6 +1060,7 @@ impl HTMLCreator {
                 self.output.push_str(",\n");
             }
         }
+        self.output.push_str("</div>");
     }
 
     fn render_trait_bound(&mut self, bound: &TraitBound) {
