@@ -326,14 +326,15 @@ impl Elaborator<'_> {
                 Type::String(Box::new(length))
             }
             PrimitiveType::Fmtstr => {
-                let item_generic_kinds = FmtstrPrimitiveType.generic_kinds(self.interner);
+                let item = FmtstrPrimitiveType;
+                let item_generic_kinds = item.generic_kinds(self.interner);
                 let generics = vecmap(&item_generic_kinds, |kind| {
                     self.interner.next_type_variable_with_kind(kind.clone())
                 });
                 let mut args = if let Some(turbofish) = turbofish {
                     self.resolve_item_turbofish_generics(
-                        "primitive type",
-                        "fmtstr",
+                        FmtstrPrimitiveType.item_kind(),
+                        &item.item_name(self.interner),
                         item_generic_kinds,
                         generics,
                         Some(turbofish.generics),
