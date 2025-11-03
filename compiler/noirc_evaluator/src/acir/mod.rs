@@ -181,7 +181,9 @@ impl<'a> Context<'a> {
     ) -> Result<GeneratedAcir<FieldElement>, RuntimeError> {
         let dfg = &main_func.dfg;
         let entry_block = &dfg[main_func.entry_block()];
-        let input_witness = self.convert_ssa_block_params(entry_block.parameters(), dfg)?;
+        self.acir_context.acir_ir.input_witnesses =
+            self.convert_ssa_block_params(entry_block.parameters(), dfg)?;
+
         let num_return_witnesses =
             self.get_num_return_witnesses(entry_block.unwrap_terminator(), dfg);
 
@@ -257,7 +259,6 @@ impl<'a> Context<'a> {
 
         // Add the warnings from the alter Ssa passes
         Ok(self.acir_context.finish(
-            input_witness,
             // Don't embed databus return witnesses into the circuit.
             if self.data_bus.return_data.is_some() { Vec::new() } else { return_witnesses },
             warnings,
@@ -276,7 +277,7 @@ impl<'a> Context<'a> {
         })?;
         let arguments = self.gen_brillig_parameters(dfg[main_func.entry_block()].parameters(), dfg);
 
-        let witness_inputs = self.acir_context.extract_witnesses(&inputs);
+        self.acir_context.acir_ir.input_witnesses = self.acir_context.extract_witnesses(&inputs);
         let returns = main_func.returns().unwrap_or_default();
 
         let outputs: Vec<AcirType> =
@@ -311,7 +312,7 @@ impl<'a> Context<'a> {
             .map(|(value, _)| self.acir_context.var_to_witness(value))
             .collect::<Result<_, _>>()?;
 
-        let generated_acir = self.acir_context.finish(witness_inputs, return_witnesses, Vec::new());
+        let generated_acir = self.acir_context.finish(return_witnesses, Vec::new());
 
         assert_eq!(
             generated_acir.opcodes().len(),
