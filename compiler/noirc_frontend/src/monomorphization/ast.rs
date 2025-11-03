@@ -8,7 +8,7 @@ use noirc_errors::{
 
 use crate::{
     ast::{BinaryOpKind, IntegerBitSize},
-    hir_def::{self, expr::Constructor},
+    hir_def::expr::Constructor,
     shared::Signedness,
     signed_field::SignedField,
     token::Attributes,
@@ -551,76 +551,6 @@ impl Type {
         match self {
             Type::Array(_, elem) | Type::Slice(elem) => Some(elem),
             _ => None,
-        }
-    }
-
-    /// Convert the type back into a HIR equivalent (not necessarily the original HIR type).
-    ///
-    /// Aims to maintain parity with [Monomorphizer::convert_type](crate::monomorphization::Monomorphizer::convert_type).
-    pub fn to_hir_type(&self) -> hir_def::types::Type {
-        use hir_def::types::{Kind as HirKind, Type as HirType};
-
-        // Meet the expectations of `Type::evaluate_to_u32`.
-        fn size_const(size: u32) -> Box<HirType> {
-            Box::new(HirType::Constant(
-                SignedField::from(size),
-                HirKind::Numeric(Box::new(HirType::Integer(
-                    Signedness::Unsigned,
-                    IntegerBitSize::ThirtyTwo,
-                ))),
-            ))
-        }
-
-        // Inverse of HirType::Function -> Type::Tuple([Type::Function, Type::Function])
-        fn maybe_func(items: &[Type]) -> Option<HirType> {
-            if items.len() != 2 {
-                return None;
-            }
-            let Type::Function(args0, ret0, env0, false) = &items[0] else {
-                return None;
-            };
-            let Type::Function(args1, ret1, env1, true) = &items[1] else {
-                return None;
-            };
-            if args0 != args1 || ret0 != ret1 || env0 != env1 {
-                return None;
-            }
-            let func = HirType::Function(
-                vecmap(args0, Type::to_hir_type),
-                Box::new(ret0.to_hir_type()),
-                Box::new(env0.to_hir_type()),
-                // Assume unconstrained.
-                false,
-            );
-            Some(func)
-        }
-
-        match self {
-            Type::Unit => HirType::Unit,
-            Type::Bool => HirType::Bool,
-            Type::Field => HirType::FieldElement,
-            Type::Integer(signedness, integer_bit_size) => {
-                HirType::Integer(*signedness, *integer_bit_size)
-            }
-            Type::String(size) => HirType::String(size_const(*size)),
-            Type::Array(size, typ) => {
-                HirType::Array(size_const(*size), Box::new(typ.to_hir_type()))
-            }
-            Type::Reference(typ, mutable) => {
-                HirType::Reference(Box::new(typ.to_hir_type()), *mutable)
-            }
-            Type::Slice(typ) => HirType::Slice(Box::new(typ.to_hir_type())),
-            Type::FmtString(size, typ) => {
-                HirType::FmtString(size_const(*size), Box::new(typ.to_hir_type()))
-            }
-            Type::Tuple(items) => maybe_func(items)
-                .unwrap_or_else(|| HirType::Tuple(items.iter().map(Self::to_hir_type).collect())),
-            Type::Function(args, ret, env, unconstrained) => HirType::Function(
-                vecmap(args, Type::to_hir_type),
-                Box::new(ret.to_hir_type()),
-                Box::new(env.to_hir_type()),
-                *unconstrained,
-            ),
         }
     }
 }

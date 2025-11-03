@@ -18,7 +18,7 @@ use iter_extended::vecmap;
 use noirc_errors::Location;
 
 use crate::{
-    hir_def::{self, expr::HirIdent, stmt::HirPattern},
+    hir_def::function::FunctionSignature,
     monomorphization::{
         ast::{
             Call, Definition, Expression, FuncId, Function, Ident, IdentId, InlineType, LocalId,
@@ -26,7 +26,6 @@ use crate::{
         },
         visitor::visit_expr_mut,
     },
-    node_interner::DefinitionId,
     shared::Visibility,
 };
 
@@ -201,15 +200,8 @@ fn make_proxy(id: FuncId, ident: Ident, unconstrained: bool) -> Function {
         (id, mutable, name, typ, vis)
     });
 
-    let func_sig = {
-        let parameter_sigs = parameters
-            .iter()
-            .map(|(_, mutable, _, typ, vis)| hir_param(*mutable, typ, *vis))
-            .collect();
-
-        let return_sig = (*ret.as_ref() != Type::Unit).then_some(ret.to_hir_type());
-        (parameter_sigs, return_sig)
-    };
+    // The function signature only matters for entry points.
+    let func_sig = FunctionSignature::default();
 
     let call = {
         let func = Ident {
@@ -253,27 +245,6 @@ fn make_proxy(id: FuncId, ident: Ident, unconstrained: bool) -> Function {
         inline_type: InlineType::InlineAlways,
         func_sig,
     }
-}
-
-fn hir_param(
-    mutable: bool,
-    typ: &Type,
-    vis: Visibility,
-) -> (HirPattern, hir_def::types::Type, Visibility) {
-    // The proxy was not part of the original AST, so we have nothing but dummy values to use.
-    let mut pat = HirPattern::Identifier(HirIdent {
-        location: Location::dummy(),
-        id: DefinitionId::dummy_id(),
-        impl_kind: hir_def::expr::ImplKind::NotATraitMethod,
-    });
-
-    if mutable {
-        pat = HirPattern::Mutable(Box::new(pat), Location::dummy());
-    }
-
-    let typ = typ.to_hir_type();
-
-    (pat, typ, vis)
 }
 
 #[cfg(test)]

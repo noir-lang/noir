@@ -13,7 +13,7 @@ use noirc_frontend::{
     shared::Visibility,
 };
 
-use crate::{Config, arb_program, program::FunctionDeclaration};
+use crate::{Config, arb_program, program::FunctionDeclaration, types};
 
 use super::{Context, DisplayAstAsNoir};
 
@@ -270,11 +270,11 @@ fn test_to_hir_type_roundtrip() {
             for hir_type0 in hir_types {
                 let mono_type0 =
                     Monomorphizer::convert_type(&hir_type0, Location::dummy()).unwrap();
-                let hir_type1 = mono_type0.to_hir_type();
+                let hir_type1 = types::to_hir_type(&mono_type0);
                 // Need a second pass to get rid of any inconsistency in the constrainedness of functions.
                 let mono_type1 =
                     Monomorphizer::convert_type(&hir_type1, Location::dummy()).unwrap();
-                let hir_type2 = mono_type1.to_hir_type();
+                let hir_type2 = types::to_hir_type(&mono_type1);
                 assert_eq!(hir_type1, hir_type2);
             }
         }
