@@ -3,7 +3,10 @@ use std::collections::HashSet;
 use iter_extended::vecmap;
 use noirc_frontend::{
     ast::{BinaryOpKind, IntegerBitSize},
-    monomorphization::ast::{BinaryOp, Type},
+    monomorphization::{
+        self,
+        ast::{BinaryOp, Type},
+    },
     shared::Signedness,
     signed_field::SignedField,
 };
@@ -316,7 +319,7 @@ pub fn ref_mut(typ: Type) -> Type {
 
 /// Convert the type back into a HIR equivalent (not necessarily the original HIR type).
 ///
-/// Aims to maintain parity with [Monomorphizer::convert_type](crate::monomorphization::Monomorphizer::convert_type).
+/// Aims to maintain parity with [Monomorphizer::convert_type](noirc_frontend::monomorphization::Monomorphizer::convert_type).
 pub fn to_hir_type(typ: &Type) -> noirc_frontend::Type {
     use noirc_frontend::{Kind as HirKind, Type as HirType};
 
