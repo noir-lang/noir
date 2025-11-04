@@ -1,6 +1,7 @@
 //! Tests for assignment statements, focusing on:
 //! 1. Side-effect ordering in complex lvalues
-//! 2. Nested pattern matching
+//! 2. Nested pattern matching, including nested tuples and dereferences
+//! 3. Miscellaneous error cases such as comptime assignment and string indexing
 
 use crate::tests::{assert_no_errors, assert_no_errors_and_to_string, check_errors};
 
@@ -408,6 +409,65 @@ fn tuple_pattern_arity_mismatch() {
             let (_a, _b) = tuple;
                 ^^^^^^^^ Expected a tuple with 3 elements, found one with 2 elements
                 ~~~~~~~~ The expression the tuple is assigned to has type `(Field,Field,Field)`
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn dereference_in_lvalue() {
+    let src = r#"
+        fn main() {
+            dereference_basic();
+            dereference_nested();
+        }
+
+        fn dereference_basic() {
+            let x = &mut 5;
+            *x = 10;
+            assert(*x == 10);
+        }
+
+        fn dereference_nested() {
+            let y = &mut &mut 20;
+            **y = 30;
+            assert(**y == 30);
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn mut_comptime_variable_in_runtime() {
+    let src = r#"
+    fn main() {
+        comptime let mut x = 5;
+        x = 10;
+        ^ Comptime variable `x` cannot be mutated in a non-comptime context
+        ~ `x` mutated here
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn mut_comptime_variable_in_comptime() {
+    let src = r#"
+    fn main() {
+        comptime let mut x = 5;
+        let _ = comptime { x = 10; x };
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn assigning_to_string_index() {
+    let src = r#"
+        fn main() {
+            let mut s = "hello";
+            s[0] = "x";
+            ^ Strings do not support indexed assignment
         }
     "#;
     check_errors(src);
