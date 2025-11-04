@@ -116,7 +116,11 @@ impl<F: AcirField> GeneratedAcir<F> {
         init: Vec<Witness>,
         block_type: BlockType,
     ) {
-        debug_assert!(!init.is_empty(), "Cannot initialize memory with empty init");
+        // TODO: enable this check for all block_types, or remove empty blocks during ACIR optimisation
+        debug_assert!(
+            !init.is_empty() && block_type == BlockType::ReturnData,
+            "Cannot initialize memory with empty init"
+        );
         self.push_opcode(AcirOpcode::MemoryInit { block_id, init, block_type });
     }
 
