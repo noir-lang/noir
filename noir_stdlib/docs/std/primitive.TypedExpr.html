@@ -3,13 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <link rel="stylesheet" href="../styles.css">
-<title>Primitive type TopLevelItem documentation</title>
+<title>Primitive type TypedExpr documentation</title>
 </head>
 <body>
 <nav class="sidebar">
 <h1><a href="../index.html">noir_stdlib</a></h1>
 <div><a href="../all.html">All items</a></div>
-<h2><a href="#primitive">Primitive type TopLevelItem</a></h2>
+<h2><a href="#primitive">Primitive type TypedExpr</a></h2>
+<h3>Methods</h3>
+<ul class="sidebar-list">
+<li><a href="#as_function_definition">as_function_definition</a></li>
+<li><a href="#get_type">get_type</a></li>
+</ul>
 <h2>In crate std</h2>
 <h3>Modules</h3><ul class="item-list">
 <li><a href="aes128/index.html" class="module">aes128</a></div></li>
@@ -50,13 +55,12 @@
 <li><a href="primitive.Quoted.html" class="primitive">Quoted</a></div></li>
 <li><a href="primitive.slice.html" class="primitive">slice</a></div></li>
 <li><a href="primitive.str.html" class="primitive">str</a></div></li>
-<li><a href="primitive.TopLevelItem.html" class="primitive">TopLevelItem</a></div></li>
 <li><a href="primitive.TraitConstraint.html" class="primitive">TraitConstraint</a></div></li>
 <li><a href="primitive.TraitDefinition.html" class="primitive">TraitDefinition</a></div></li>
 <li><a href="primitive.TraitImpl.html" class="primitive">TraitImpl</a></div></li>
 <li><a href="primitive.Type.html" class="primitive">Type</a></div></li>
 <li><a href="primitive.TypeDefinition.html" class="primitive">TypeDefinition</a></div></li>
-<li><a href="primitive.TypeExpr.html" class="primitive">TypeExpr</a></div></li>
+<li><a href="primitive.TypedExpr.html" class="primitive">TypedExpr</a></div></li>
 <li><a href="primitive.u1.html" class="primitive">u1</a></div></li>
 <li><a href="primitive.u128.html" class="primitive">u128</a></div></li>
 <li><a href="primitive.u16.html" class="primitive">u16</a></div></li>
@@ -79,7 +83,20 @@
 </nav>
 <main>
 <div><a href="../index.html">noir_stdlib</a> - <a href="index.html">std</a></div>
-<h1>Primitive type <span id="primitive" class="primitive">TopLevelItem</span></h1>
-</main>
+<h1>Primitive type <span id="primitive" class="primitive">TypedExpr</span></h1>
+<h2>Implementations</h2>
+<h3><code class="code-header">impl <a href="../std/primitive.TypedExpr.html" class="primitive">TypedExpr</a></code></h3>
+
+<div class="padded-methods"><code id="as_function_definition" class="code-header">pub comptime fn <span class="fn">as_function_definition</span>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.FunctionDefinition.html" class="primitive">FunctionDefinition</a>&gt;</code>
+
+<div class="padded-description"><div class="comments">
+<p>If this expression refers to a function definitions, returns it. Otherwise returns <code>Option::none()</code>.</p>
+</div>
+</div><code id="get_type" class="code-header">pub comptime fn <span class="fn">get_type</span>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.Type.html" class="primitive">Type</a>&gt;</code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns the type of the expression, if the expression could be resolved without errors.</p>
+</div>
+</div></div></main>
 </body>
 </html>
