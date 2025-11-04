@@ -15,6 +15,7 @@
 <li><a href="#add_attribute">add_attribute</a></li>
 <li><a href="#add_generic">add_generic</a></li>
 <li><a href="#as_type">as_type</a></li>
+<li><a href="#as_type_with_generics">as_type_with_generics</a></li>
 <li><a href="#fields">fields</a></li>
 <li><a href="#fields_as_written">fields_as_written</a></li>
 <li><a href="#generics">generics</a></li>
@@ -108,7 +109,16 @@
 
 <div class="padded-description"><div class="comments">
 <p>Return a syntactic version of this type definition as a type.
-For example, <code>as_type(quote { type Foo&lt;A, B&gt; { ... } })</code> would return <code>Foo&lt;A, B&gt;</code></p>
+For example, <code>type Foo&lt;A, B&gt; { ... })</code> would return <code>Foo&lt;A, B&gt;</code> when called with this method.</p>
+</div>
+</div><code id="as_type_with_generics" class="code-header">pub comptime fn <span class="fn">as_type_with_generics</span>(self, generics: [<a href="../std/primitive.Type.html" class="primitive">Type</a>]) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.Type.html" class="primitive">Type</a>&gt;</code>
+
+<div class="padded-description"><div class="comments">
+<p>Return this type applied to the given generic arguments.
+For example, given <code>type Foo&lt;A, B&gt; { ... })</code> could be applied to <code>&amp;[quote[i32].as_type(), quote[Field].as_type()]</code>
+to return <code>Foo&lt;i32, Field&gt;</code>.</p>
+<p>If an incorrect number of generic arguments are given, this function will return None.
+Otherwise, this function returns Some with the resulting type inside.</p>
 </div>
 </div><code id="has_named_attribute" class="code-header">pub comptime fn <span class="fn">has_named_attribute</span>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self, name: <a href="../std/primitive.str.html" class="primitive">str</a>&lt;N&gt;) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
 
