@@ -129,7 +129,7 @@ impl HTMLCreator {
 
         self.output.push_str(&format!("<span id=\"{class}\"></span>"));
         self.h2(title);
-        self.output.push_str("<ul class=\"item-list\">");
+        self.output.push_str("<ul class=\"item-list\">\n");
         for (path, name) in items {
             let url_path = path.join("/");
             let module = path.join("::");
@@ -139,31 +139,31 @@ impl HTMLCreator {
             ));
             self.output.push_str("</li>\n");
         }
-        self.output.push_str("</ul>");
+        self.output.push_str("</ul>\n");
     }
 
     fn render_all_items_sidebar(&mut self, all_items: &AllItems) {
         self.h2("Workspace items");
-        self.output.push_str("<ul class=\"sidebar-list\">");
+        self.output.push_str("<ul class=\"sidebar-list\">\n");
         if !all_items.structs.is_empty() {
-            self.output.push_str("<li><a href=\"#struct\">Structs</a></li>");
+            self.output.push_str("<li><a href=\"#struct\">Structs</a></li>\n");
         }
         if !all_items.traits.is_empty() {
-            self.output.push_str("<li><a href=\"#trait\">Traits</a></li>");
+            self.output.push_str("<li><a href=\"#trait\">Traits</a></li>\n");
         }
         if !all_items.type_aliases.is_empty() {
-            self.output.push_str("<li><a href=\"#type\">Type aliases</a></li>");
+            self.output.push_str("<li><a href=\"#type\">Type aliases</a></li>\n");
         }
         if !all_items.primitive_types.is_empty() {
-            self.output.push_str("<li><a href=\"#primitive\">Primitive types</a></li>");
+            self.output.push_str("<li><a href=\"#primitive\">Primitive types</a></li>\n");
         }
         if !all_items.functions.is_empty() {
-            self.output.push_str("<li><a href=\"#fn\">Functions</a></li>");
+            self.output.push_str("<li><a href=\"#fn\">Functions</a></li>\n");
         }
         if !all_items.globals.is_empty() {
-            self.output.push_str("<li><a href=\"#global\">Globals</a></li>");
+            self.output.push_str("<li><a href=\"#global\">Globals</a></li>\n");
         }
-        self.output.push_str("</ul>");
+        self.output.push_str("</ul>\n");
     }
 
     fn create_index(&mut self, workspace: &Workspace) {
@@ -214,7 +214,7 @@ impl HTMLCreator {
         self.render_module_items_sidebar("Crate items", &krate.root_module);
 
         self.h3("Crates");
-        self.output.push_str("<ul class=\"sidebar-list\">");
+        self.output.push_str("<ul class=\"sidebar-list\">\n");
         for krate in &workspace.crates {
             if !krate.root_module.has_public_items() {
                 continue;
@@ -229,7 +229,7 @@ impl HTMLCreator {
             ));
             self.output.push_str("</li>\n");
         }
-        self.output.push_str("</ul>");
+        self.output.push_str("</ul>\n");
     }
 
     fn render_items(&mut self, items: &[(ItemVisibility, Item)], sidebar: bool, nesting: usize) {
@@ -335,7 +335,7 @@ impl HTMLCreator {
         } else {
             self.output.push_str(&format!("<h2 id=\"{anchor}\">{title}</h2>"));
         }
-        self.output.push_str("<ul class=\"item-list\">");
+        self.output.push_str("<ul class=\"item-list\">\n");
 
         let mut items = items.to_vec();
         items.sort_by_key(|item| item.name().to_lowercase());
@@ -363,14 +363,14 @@ impl HTMLCreator {
             self.output.push_str("</div>");
             self.output.push_str("</li>\n");
         }
-        self.output.push_str("</ul>");
+        self.output.push_str("</ul>\n");
     }
 
     fn render_reexports_list(&mut self, title: &str, anchor: &str, reexports: &[&Reexport]) {
         let nesting = self.current_path.len();
 
         self.output.push_str(&format!("<h2 id=\"{anchor}\">{title}</h2>"));
-        self.output.push_str("<ul class=\"item-list\">");
+        self.output.push_str("<ul class=\"item-list\">\n");
 
         for reexport in reexports {
             if !self.id_to_info.contains_key(&reexport.id) {
@@ -402,7 +402,7 @@ impl HTMLCreator {
             self.output.push_str("</div>");
             self.output.push_str("</li>\n");
         }
-        self.output.push_str("</ul>");
+        self.output.push_str("</ul>\n");
     }
 
     fn create_items(&mut self, parent_module: &Module, items: &[(ItemVisibility, Item)]) {
@@ -458,29 +458,29 @@ impl HTMLCreator {
             return;
         }
         self.h3(title);
-        self.output.push_str("<ul class=\"sidebar-list\">");
+        self.output.push_str("<ul class=\"sidebar-list\">\n");
         if !get_reexports(&module.items).is_empty() {
-            self.output.push_str("<li><a href=\"#re-exports\">Re-exports</a></li>");
+            self.output.push_str("<li><a href=\"#re-exports\">Re-exports</a></li>\n");
         }
         if !get_modules(&module.items).is_empty() {
-            self.output.push_str("<li><a href=\"#modules\">Modules</a></li>");
+            self.output.push_str("<li><a href=\"#modules\">Modules</a></li>\n");
         }
         if !get_structs(&module.items).is_empty() {
-            self.output.push_str("<li><a href=\"#structs\">Structs</a></li>");
+            self.output.push_str("<li><a href=\"#structs\">Structs</a></li>\n");
         }
         if !get_traits(&module.items).is_empty() {
-            self.output.push_str("<li><a href=\"#traits\">Traits</a></li>");
+            self.output.push_str("<li><a href=\"#traits\">Traits</a></li>\n");
         }
         if !get_type_aliases(&module.items).is_empty() {
-            self.output.push_str("<li><a href=\"#type-aliases\">Type aliases</a></li>");
+            self.output.push_str("<li><a href=\"#type-aliases\">Type aliases</a></li>\n");
         }
         if !get_functions(&module.items).is_empty() {
-            self.output.push_str("<li><a href=\"#functions\">Functions</a></li>");
+            self.output.push_str("<li><a href=\"#functions\">Functions</a></li>\n");
         }
         if !get_globals(&module.items).is_empty() {
-            self.output.push_str("<li><a href=\"#globals\">Globals</a></li>");
+            self.output.push_str("<li><a href=\"#globals\">Globals</a></li>\n");
         }
-        self.output.push_str("</ul>");
+        self.output.push_str("</ul>\n");
     }
 
     fn render_module_contents_sidebar(&mut self, module: &Module, nesting: usize) {
@@ -527,13 +527,13 @@ impl HTMLCreator {
             fields.sort_by_key(|field| field.name.clone());
 
             self.h3("Fields");
-            self.output.push_str("<ul class=\"sidebar-list\">");
+            self.output.push_str("<ul class=\"sidebar-list\">\n");
             for field in fields {
                 self.output.push_str("<li>");
                 self.output.push_str(&format!("<a href=\"#{}\">{}</a>", field.name, field.name));
                 self.output.push_str("</li>\n");
             }
-            self.output.push_str("</ul>");
+            self.output.push_str("</ul>\n");
         }
 
         let mut methods = struct_.impls.iter().flat_map(|iter| &iter.methods).collect::<Vec<_>>();
@@ -541,13 +541,13 @@ impl HTMLCreator {
 
         if !methods.is_empty() {
             self.h3("Methods");
-            self.output.push_str("<ul class=\"sidebar-list\">");
+            self.output.push_str("<ul class=\"sidebar-list\">\n");
             for method in methods {
                 self.output.push_str("<li>");
                 self.output.push_str(&format!("<a href=\"#{}\">{}</a>", method.name, method.name));
                 self.output.push_str("</li>\n");
             }
-            self.output.push_str("</ul>");
+            self.output.push_str("</ul>\n");
         }
 
         self.render_sidebar_trait_impls("Trait implementations", true, &struct_.trait_impls);
@@ -595,13 +595,13 @@ impl HTMLCreator {
 
         if !methods.is_empty() {
             self.h3(title);
-            self.output.push_str("<ul class=\"sidebar-list\">");
+            self.output.push_str("<ul class=\"sidebar-list\">\n");
             for method in methods {
                 self.output.push_str("<li>");
                 self.output.push_str(&format!("<a href=\"#{}\">{}</a>", method.name, method.name));
                 self.output.push_str("</li>\n");
             }
-            self.output.push_str("</ul>");
+            self.output.push_str("</ul>\n");
         }
     }
 
@@ -627,7 +627,7 @@ impl HTMLCreator {
         }
 
         self.h3(title);
-        self.output.push_str("<ul class=\"sidebar-list\">");
+        self.output.push_str("<ul class=\"sidebar-list\">\n");
         for trait_impl in trait_impls {
             self.output.push_str("<li>");
             self.output.push_str(&format!(
@@ -641,7 +641,7 @@ impl HTMLCreator {
             ));
             self.output.push_str("</li>\n");
         }
-        self.output.push_str("</ul>");
+        self.output.push_str("</ul>\n");
     }
 
     fn create_alias(&mut self, parent_module: &Module, alias: &TypeAlias) {
@@ -724,13 +724,13 @@ impl HTMLCreator {
 
         if !methods.is_empty() {
             self.h3("Methods");
-            self.output.push_str("<ul class=\"sidebar-list\">");
+            self.output.push_str("<ul class=\"sidebar-list\">\n");
             for method in methods {
                 self.output.push_str("<li>");
                 self.output.push_str(&format!("<a href=\"#{}\">{}</a>", method.name, method.name));
                 self.output.push_str("</li>\n");
             }
-            self.output.push_str("</ul>");
+            self.output.push_str("</ul>\n");
         }
 
         self.render_sidebar_trait_impls("Trait implementations", true, &primitive.trait_impls);
@@ -1440,15 +1440,15 @@ impl HTMLCreator {
     }
 
     fn h1(&mut self, text: &str) {
-        self.output.push_str(&format!("<h1>{text}</h1>"));
+        self.output.push_str(&format!("<h1>{text}</h1>\n"));
     }
 
     fn h2(&mut self, text: &str) {
-        self.output.push_str(&format!("<h2>{text}</h2>"));
+        self.output.push_str(&format!("<h2>{text}</h2>\n"));
     }
 
     fn h3(&mut self, text: &str) {
-        self.output.push_str(&format!("<h3>{text}</h3>"));
+        self.output.push_str(&format!("<h3>{text}</h3>\n"));
     }
 
     fn push_file(&mut self, path: PathBuf) {
