@@ -227,6 +227,32 @@ fn warns_on_nested_unsafe() {
 }
 
 #[test]
+fn no_warns_on_needed_unsafe_with_unneeded_nested() {
+    let src = r#"
+    fn main() {
+        // Safety: test
+        unsafe {
+        ^^^^^^ Unnecessary `unsafe` block
+        ~~~~~~ Because it doesn't contain an unconstrained call
+            foo();
+            // Safety: test
+            unsafe {
+            ^^^^^^ Unnecessary `unsafe` block
+            ~~~~~~ Because it's nested inside another `unsafe` block
+            ~~~~~~ Because it doesn't contain an unconstrained call
+                bar();
+            }
+        }
+    }
+
+    unconstrained fn foo() {}
+
+    fn bar() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn deny_inline_attribute_on_unconstrained() {
     let src = r#"
         #[no_predicates]
@@ -292,7 +318,7 @@ fn disallows_test_attribute_on_impl_method() {
         pub struct Foo { }
 
         impl Foo {
-        
+
 #[test]
             fn foo() { }
                ^^^ The `#[test]` attribute is disallowed on `impl` methods

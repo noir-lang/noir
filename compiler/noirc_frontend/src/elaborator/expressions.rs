@@ -1309,8 +1309,8 @@ impl Elaborator<'_> {
         let mut element_ids = Vec::with_capacity(tuple.len());
         let mut element_types = Vec::with_capacity(tuple.len());
 
+        let target_type = target_type.map(|typ| typ.follow_bindings());
         for (index, element) in tuple.into_iter().enumerate() {
-            let target_type = target_type.map(|typ| typ.follow_bindings());
             let expr_target_type =
                 if let Some(Type::Tuple(types)) = &target_type { types.get(index) } else { None };
             let (id, typ) = self.elaborate_expression_with_target_type(element, expr_target_type);
@@ -1329,10 +1329,10 @@ impl Elaborator<'_> {
         let target_type = target_type.map(|typ| typ.follow_bindings());
 
         if let Some(Type::Function(args, _, _, _)) = target_type {
-            return self.elaborate_lambda_with_parameter_type_hints(lambda, Some(&args));
+            self.elaborate_lambda_with_parameter_type_hints(lambda, Some(&args))
+        } else {
+            self.elaborate_lambda_with_parameter_type_hints(lambda, None)
         }
-
-        self.elaborate_lambda_with_parameter_type_hints(lambda, None)
     }
 
     /// For elaborating a lambda we might get `parameters_type_hints`. These come from a potential
