@@ -2414,7 +2414,7 @@ impl Elaborator<'_> {
     }
 }
 
-pub(crate) fn bind_ordered_generics(
+pub(super) fn bind_ordered_generics(
     params: &[ResolvedGeneric],
     args: &[Type],
     bindings: &mut TypeBindings,
@@ -2426,7 +2426,7 @@ pub(crate) fn bind_ordered_generics(
     }
 }
 
-pub(crate) fn bind_named_generics(
+fn bind_named_generics(
     mut params: Vec<ResolvedGeneric>,
     args: &[NamedType],
     bindings: &mut TypeBindings,
