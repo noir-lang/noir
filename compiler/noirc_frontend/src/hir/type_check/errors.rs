@@ -722,7 +722,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             TypeCheckError::UnnecessaryUnsafeBlock { location } => {
                 Diagnostic::simple_warning(
                     "Unnecessary `unsafe` block".into(),
-                    "Because it doesn't contain an unconstrained call".into(),
+                    "".into(),
                     *location,
                 )
             },
