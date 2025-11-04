@@ -315,7 +315,6 @@ impl std::fmt::Display for Kind {
 pub enum QuotedType {
     Expr,
     Quoted,
-    TopLevelItem,
     Type,
     TypedExpr,
     TypeDefinition,
@@ -1207,7 +1206,6 @@ impl std::fmt::Display for QuotedType {
         match self {
             QuotedType::Expr => write!(f, "Expr"),
             QuotedType::Quoted => write!(f, "Quoted"),
-            QuotedType::TopLevelItem => write!(f, "TopLevelItem"),
             QuotedType::Type => write!(f, "Type"),
             QuotedType::TypedExpr => write!(f, "TypedExpr"),
             QuotedType::TypeDefinition => write!(f, "TypeDefinition"),

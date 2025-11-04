@@ -377,9 +377,6 @@ impl DocItemBuilder<'_> {
             noirc_frontend::Type::Quoted(quoted) => match quoted {
                 noirc_frontend::QuotedType::Expr => Type::Primitive(PrimitiveTypeKind::Expr),
                 noirc_frontend::QuotedType::Quoted => Type::Primitive(PrimitiveTypeKind::Quoted),
-                noirc_frontend::QuotedType::TopLevelItem => {
-                    Type::Primitive(PrimitiveTypeKind::TopLevelItem)
-                }
                 noirc_frontend::QuotedType::Type => Type::Primitive(PrimitiveTypeKind::Type),
                 noirc_frontend::QuotedType::TypedExpr => {
                     Type::Primitive(PrimitiveTypeKind::TypeExpr)
