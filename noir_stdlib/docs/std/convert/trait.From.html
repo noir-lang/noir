@@ -7,9 +7,16 @@
 </head>
 <body>
 <nav class="sidebar">
-<h1><a href="../../index.html">noir_stdlib</a></h1><div><a href="../../all.html">All items</a></div>
-<h2><a href="#trait">Trait From</a></h2><h3>Required methods</h3><ul class="sidebar-list"><li><a href="#from">from</a></li>
-</ul><h3>Implementors</h3><ul class="sidebar-list"><li><a href="#impl-From&lt;[T; Len]&gt;-for-BoundedVec<T, MaxLen>">BoundedVec<T, MaxLen></a></li>
+<h1><a href="../../index.html">noir_stdlib</a></h1>
+<div><a href="../../all.html">All items</a></div>
+<h2><a href="#trait">Trait From</a></h2>
+<h3>Required methods</h3>
+<ul class="sidebar-list">
+<li><a href="#from">from</a></li>
+</ul>
+<h3>Implementors</h3>
+<ul class="sidebar-list">
+<li><a href="#impl-From&lt;[T; Len]&gt;-for-BoundedVec<T, MaxLen>">BoundedVec<T, MaxLen></a></li>
 <li><a href="#impl-From&lt;bool&gt;-for-Field">Field</a></li>
 <li><a href="#impl-From&lt;u128&gt;-for-Field">Field</a></li>
 <li><a href="#impl-From&lt;u16&gt;-for-Field">Field</a></li>
@@ -44,19 +51,26 @@
 <li><a href="#impl-From&lt;u32&gt;-for-u64">u64</a></li>
 <li><a href="#impl-From&lt;u8&gt;-for-u64">u64</a></li>
 <li><a href="#impl-From&lt;bool&gt;-for-u8">u8</a></li>
-</ul><h2>In module convert</h2><h3>Traits</h3><ul class="item-list"><li><a href="trait.AsPrimitive.html" class="trait">AsPrimitive</a></div></li>
+</ul>
+<h2>In module convert</h2>
+<h3>Traits</h3><ul class="item-list">
+<li><a href="trait.AsPrimitive.html" class="trait">AsPrimitive</a></div></li>
 <li><a href="trait.From.html" class="trait">From</a></div></li>
 <li><a href="trait.Into.html" class="trait">Into</a></div></li>
-</ul></nav>
+</ul>
+</nav>
 <main>
-<div><a href="../../index.html">noir_stdlib</a> - <a href="../index.html">std</a>::<a href="index.html">convert</a></div><h1>Trait <span id="trait" class="trait">From</span></h1><pre><code>pub trait From&lt;T&gt; {
+<div><a href="../../index.html">noir_stdlib</a> - <a href="../index.html">std</a>::<a href="index.html">convert</a></div><h1>Trait <span id="trait" class="trait">From</span></h1>
+<pre><code>pub trait From&lt;T&gt; {
     <span class="comment">// Required methods</span>
     pub fn <a href="#from"><span class="fn">from</span></a>(input: T) -> Self;
 }</code></pre>
 
-<h2>Required methods</h2><div class="padded-methods"><code id="from" class="code-header">pub fn <span class="fn">from</span>(input: T) -> Self</code>
+<h2>Required methods</h2>
+<div class="padded-methods"><code id="from" class="code-header">pub fn <span class="fn">from</span>(input: T) -> Self</code>
 
-</div><h2>Implementors</h2><h3 id="impl-From&lt;[T; Len]&gt;-for-BoundedVec<T, MaxLen>"><code class="code-header">impl&lt;let Len: <a href="../../std/primitive.u32.html" class="primitive">u32</a>, let MaxLen: <a href="../../std/primitive.u32.html" class="primitive">u32</a>, T&gt; <a href="../../std/convert/trait.From.html" class="trait">From</a>&lt;[T; Len]&gt; for <a href="../../std/collections/bounded_vec/struct.BoundedVec.html" class="struct">BoundedVec</a>&lt;T, MaxLen&gt;</code></h3>
+</div><h2>Implementors</h2>
+<h3 id="impl-From&lt;[T; Len]&gt;-for-BoundedVec<T, MaxLen>"><code class="code-header">impl&lt;let Len: <a href="../../std/primitive.u32.html" class="primitive">u32</a>, let MaxLen: <a href="../../std/primitive.u32.html" class="primitive">u32</a>, T&gt; <a href="../../std/convert/trait.From.html" class="trait">From</a>&lt;[T; Len]&gt; for <a href="../../std/collections/bounded_vec/struct.BoundedVec.html" class="struct">BoundedVec</a>&lt;T, MaxLen&gt;</code></h3>
 
 <h3 id="impl-From&lt;bool&gt;-for-Field"><code class="code-header">impl <a href="../../std/convert/trait.From.html" class="trait">From</a>&lt;<a href="../../std/primitive.bool.html" class="primitive">bool</a>&gt; for <a href="../../std/primitive.Field.html" class="primitive">Field</a></code></h3>
 

@@ -7,28 +7,45 @@
 </head>
 <body>
 <nav class="sidebar">
-<h1><a href="../../index.html">noir_stdlib</a></h1><div><a href="../../all.html">All items</a></div>
-<h2><a href="#struct">Struct EmbeddedCurvePoint</a></h2><h3>Fields</h3><ul class="sidebar-list"><li><a href="#is_infinite">is_infinite</a></li>
+<h1><a href="../../index.html">noir_stdlib</a></h1>
+<div><a href="../../all.html">All items</a></div>
+<h2><a href="#struct">Struct EmbeddedCurvePoint</a></h2>
+<h3>Fields</h3>
+<ul class="sidebar-list">
+<li><a href="#is_infinite">is_infinite</a></li>
 <li><a href="#x">x</a></li>
 <li><a href="#y">y</a></li>
-</ul><h3>Methods</h3><ul class="sidebar-list"><li><a href="#double">double</a></li>
+</ul>
+<h3>Methods</h3>
+<ul class="sidebar-list">
+<li><a href="#double">double</a></li>
 <li><a href="#generator">generator</a></li>
 <li><a href="#point_at_infinity">point_at_infinity</a></li>
-</ul><h3>Trait implementations</h3><ul class="sidebar-list"><li><a href="#impl-Add-for-EmbeddedCurvePoint">Add</a></li>
+</ul>
+<h3>Trait implementations</h3>
+<ul class="sidebar-list">
+<li><a href="#impl-Add-for-EmbeddedCurvePoint">Add</a></li>
 <li><a href="#impl-Eq-for-EmbeddedCurvePoint">Eq</a></li>
 <li><a href="#impl-Hash-for-EmbeddedCurvePoint">Hash</a></li>
 <li><a href="#impl-Neg-for-EmbeddedCurvePoint">Neg</a></li>
 <li><a href="#impl-Sub-for-EmbeddedCurvePoint">Sub</a></li>
-</ul><h2>In module embedded_curve_ops</h2><h3>Structs</h3><ul class="item-list"><li><a href="struct.EmbeddedCurvePoint.html" class="struct">EmbeddedCurvePoint</a></div></li>
+</ul>
+<h2>In module embedded_curve_ops</h2>
+<h3>Structs</h3><ul class="item-list">
+<li><a href="struct.EmbeddedCurvePoint.html" class="struct">EmbeddedCurvePoint</a></div></li>
 <li><a href="struct.EmbeddedCurveScalar.html" class="struct">EmbeddedCurveScalar</a></div></li>
-</ul><h3>Functions</h3><ul class="item-list"><li><a href="fn.embedded_curve_add.html" class="fn">embedded_curve_add</a></div></li>
+</ul>
+<h3>Functions</h3><ul class="item-list">
+<li><a href="fn.embedded_curve_add.html" class="fn">embedded_curve_add</a></div></li>
 <li><a href="fn.embedded_curve_add_not_nul.html" class="fn">embedded_curve_add_not_nul</a></div></li>
 <li><a href="fn.embedded_curve_add_unsafe.html" class="fn">embedded_curve_add_unsafe</a></div></li>
 <li><a href="fn.fixed_base_scalar_mul.html" class="fn">fixed_base_scalar_mul</a></div></li>
 <li><a href="fn.multi_scalar_mul.html" class="fn">multi_scalar_mul</a></div></li>
-</ul></nav>
+</ul>
+</nav>
 <main>
-<div><a href="../../index.html">noir_stdlib</a> - <a href="../index.html">std</a>::<a href="index.html">embedded_curve_ops</a></div><h1>Struct <span id="struct" class="struct">EmbeddedCurvePoint</span></h1><pre><code>pub struct EmbeddedCurvePoint {
+<div><a href="../../index.html">noir_stdlib</a> - <a href="../index.html">std</a>::<a href="index.html">embedded_curve_ops</a></div><h1>Struct <span id="struct" class="struct">EmbeddedCurvePoint</span></h1>
+<pre><code>pub struct EmbeddedCurvePoint {
     pub x: <a href="../../std/primitive.Field.html" class="primitive">Field</a>,
     pub y: <a href="../../std/primitive.Field.html" class="primitive">Field</a>,
     pub is_infinite: <a href="../../std/primitive.bool.html" class="primitive">bool</a>,
@@ -39,10 +56,12 @@
 By definition, the base field of the embedded curve is the scalar field of the proof system curve, i.e the Noir Field.
 x and y denotes the Weierstrass coordinates of the point, if is_infinite is false.</p>
 </div>
-<h2>Fields</h2><div id="x" class="struct-field"><code class="code-header">x: <a href="../../std/primitive.Field.html" class="primitive">Field</a></code></div>
+<h2>Fields</h2>
+<div id="x" class="struct-field"><code class="code-header">x: <a href="../../std/primitive.Field.html" class="primitive">Field</a></code></div>
 <div class="padded-description"></div><div id="y" class="struct-field"><code class="code-header">y: <a href="../../std/primitive.Field.html" class="primitive">Field</a></code></div>
 <div class="padded-description"></div><div id="is_infinite" class="struct-field"><code class="code-header">is_infinite: <a href="../../std/primitive.bool.html" class="primitive">bool</a></code></div>
-<div class="padded-description"></div><h2>Implementations</h2><h3><code class="code-header">impl <a href="../../std/embedded_curve_ops/struct.EmbeddedCurvePoint.html" class="struct">EmbeddedCurvePoint</a></code></h3>
+<div class="padded-description"></div><h2>Implementations</h2>
+<h3><code class="code-header">impl <a href="../../std/embedded_curve_ops/struct.EmbeddedCurvePoint.html" class="struct">EmbeddedCurvePoint</a></code></h3>
 
 <div class="padded-methods"><code id="double" class="code-header">pub fn <span class="fn">double</span>(self) -> Self</code>
 
@@ -60,7 +79,8 @@ returns the doubled point of a point P, i.e P+P</p>
 <div class="padded-description"><div class="comments">
 <p>Returns the curve's generator point.</p>
 </div>
-</div></div><h2>Trait implementations</h2><h3 id="impl-Add-for-EmbeddedCurvePoint"><code class="code-header">impl <a href="../../std/ops/trait.Add.html" class="trait">Add</a> for <a href="../../std/embedded_curve_ops/struct.EmbeddedCurvePoint.html" class="struct">EmbeddedCurvePoint</a></code></h3>
+</div></div><h2>Trait implementations</h2>
+<h3 id="impl-Add-for-EmbeddedCurvePoint"><code class="code-header">impl <a href="../../std/ops/trait.Add.html" class="trait">Add</a> for <a href="../../std/embedded_curve_ops/struct.EmbeddedCurvePoint.html" class="struct">EmbeddedCurvePoint</a></code></h3>
 
 <div class="padded-methods"><code class="code-header">pub fn <span class="fn">add</span>(self, other: Self) -> Self</code>
 

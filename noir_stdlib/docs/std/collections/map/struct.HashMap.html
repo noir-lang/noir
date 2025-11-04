@@ -7,8 +7,12 @@
 </head>
 <body>
 <nav class="sidebar">
-<h1><a href="../../../index.html">noir_stdlib</a></h1><div><a href="../../../all.html">All items</a></div>
-<h2><a href="#struct">Struct HashMap</a></h2><h3>Methods</h3><ul class="sidebar-list"><li><a href="#capacity">capacity</a></li>
+<h1><a href="../../../index.html">noir_stdlib</a></h1>
+<div><a href="../../../all.html">All items</a></div>
+<h2><a href="#struct">Struct HashMap</a></h2>
+<h3>Methods</h3>
+<ul class="sidebar-list">
+<li><a href="#capacity">capacity</a></li>
 <li><a href="#clear">clear</a></li>
 <li><a href="#contains_key">contains_key</a></li>
 <li><a href="#entries">entries</a></li>
@@ -24,12 +28,20 @@
 <li><a href="#retain">retain</a></li>
 <li><a href="#values">values</a></li>
 <li><a href="#with_hasher">with_hasher</a></li>
-</ul><h3>Trait implementations</h3><ul class="sidebar-list"><li><a href="#impl-Default-for-HashMap<K, V, N, B>">Default</a></li>
+</ul>
+<h3>Trait implementations</h3>
+<ul class="sidebar-list">
+<li><a href="#impl-Default-for-HashMap<K, V, N, B>">Default</a></li>
 <li><a href="#impl-Eq-for-HashMap<K, V, N, B>">Eq</a></li>
-</ul><h2>In module map</h2><h3>Structs</h3><ul class="item-list"><li><a href="struct.HashMap.html" class="struct">HashMap</a></div></li>
-</ul></nav>
+</ul>
+<h2>In module map</h2>
+<h3>Structs</h3><ul class="item-list">
+<li><a href="struct.HashMap.html" class="struct">HashMap</a></div></li>
+</ul>
+</nav>
 <main>
-<div><a href="../../../index.html">noir_stdlib</a> - <a href="../../index.html">std</a>::<a href="../index.html">collections</a>::<a href="index.html">map</a></div><h1>Struct <span id="struct" class="struct">HashMap</span></h1><pre><code>pub struct HashMap&lt;K, V, let N: <a href="../../../std/primitive.u32.html" class="primitive">u32</a>, B&gt;
+<div><a href="../../../index.html">noir_stdlib</a> - <a href="../../index.html">std</a>::<a href="../index.html">collections</a>::<a href="index.html">map</a></div><h1>Struct <span id="struct" class="struct">HashMap</span></h1>
+<pre><code>pub struct HashMap&lt;K, V, let N: <a href="../../../std/primitive.u32.html" class="primitive">u32</a>, B&gt;
 { <span class="comment">/* private fields */</span> }
 </code></pre>
 <div class="comments">
@@ -50,7 +62,8 @@ map.insert(3, 4);
 let two = map.get(1).unwrap();
 </code></pre>
 </div>
-<h2>Implementations</h2><h3><code class="code-header">impl&lt;B, K, let N: <a href="../../../std/primitive.u32.html" class="primitive">u32</a>, V&gt; <a href="../../../std/collections/map/struct.HashMap.html" class="struct">HashMap</a>&lt;K, V, N, B&gt;</code></h3>
+<h2>Implementations</h2>
+<h3><code class="code-header">impl&lt;B, K, let N: <a href="../../../std/primitive.u32.html" class="primitive">u32</a>, V&gt; <a href="../../../std/collections/map/struct.HashMap.html" class="struct">HashMap</a>&lt;K, V, N, B&gt;</code></h3>
 
 <div class="padded-methods"><code id="with_hasher" class="code-header">pub fn <span class="fn">with_hasher</span>(_build_hasher: B) -> Self
 <div class="where-clause">where
@@ -308,7 +321,8 @@ map.remove(12);
 assert(map.is_empty());
 </code></pre>
 </div>
-</div></div><h2>Trait implementations</h2><h3 id="impl-Default-for-HashMap<K, V, N, B>"><code class="code-header">impl&lt;B, K, let N: <a href="../../../std/primitive.u32.html" class="primitive">u32</a>, V&gt; <a href="../../../std/default/trait.Default.html" class="trait">Default</a> for <a href="../../../std/collections/map/struct.HashMap.html" class="struct">HashMap</a>&lt;K, V, N, B&gt;
+</div></div><h2>Trait implementations</h2>
+<h3 id="impl-Default-for-HashMap<K, V, N, B>"><code class="code-header">impl&lt;B, K, let N: <a href="../../../std/primitive.u32.html" class="primitive">u32</a>, V&gt; <a href="../../../std/default/trait.Default.html" class="trait">Default</a> for <a href="../../../std/collections/map/struct.HashMap.html" class="struct">HashMap</a>&lt;K, V, N, B&gt;
 <div class="where-clause">where
     B: <a href="../../../std/hash/trait.BuildHasher.html" class="trait">BuildHasher</a>&lt;H = &lt;B as BuildHasher&gt;::H&gt;,
     B: <a href="../../../std/default/trait.Default.html" class="trait">Default</a></div></code></h3>
