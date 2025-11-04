@@ -18,6 +18,9 @@ const config: HardhatUserConfig = {
       allowUnlimitedContractSize: true,
     },
   },
+  paths: {
+    tests: 'test/node',
+  },
 };
 
 export default config;
