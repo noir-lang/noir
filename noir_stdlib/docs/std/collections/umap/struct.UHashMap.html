@@ -50,11 +50,11 @@
 
 <div class="padded-methods"><code id="with_hasher" class="code-header">pub fn <span class="fn">with_hasher</span>(_build_hasher: B) -> Self
 <div class="where-clause">where
-    B: <a href="../../../std/hash/trait.BuildHasher.html" class="trait">BuildHasher</a>&lt;H = &lt;B as BuildHasher&gt;::H&gt;</div></code>
+    B: <a href="../../../std/hash/trait.BuildHasher.html" class="trait">BuildHasher</a></div></code>
 
 <code id="with_hasher_and_capacity" class="code-header">pub fn <span class="fn">with_hasher_and_capacity</span>(_build_hasher: B, capacity: <a href="../../../std/primitive.u32.html" class="primitive">u32</a>) -> Self
 <div class="where-clause">where
-    B: <a href="../../../std/hash/trait.BuildHasher.html" class="trait">BuildHasher</a>&lt;H = &lt;B as BuildHasher&gt;::H&gt;</div></code>
+    B: <a href="../../../std/hash/trait.BuildHasher.html" class="trait">BuildHasher</a></div></code>
 
 <code id="clear" class="code-header">pub fn <span class="fn">clear</span>(&mut self)</code>
 
@@ -62,7 +62,7 @@
 <div class="where-clause">where
     K: <a href="../../../std/hash/trait.Hash.html" class="trait">Hash</a>,
     K: <a href="../../../std/cmp/trait.Eq.html" class="trait">Eq</a>,
-    B: <a href="../../../std/hash/trait.BuildHasher.html" class="trait">BuildHasher</a>&lt;H = &lt;B as BuildHasher&gt;::H&gt;</div></code>
+    B: <a href="../../../std/hash/trait.BuildHasher.html" class="trait">BuildHasher</a></div></code>
 
 <code id="is_empty" class="code-header">pub fn <span class="fn">is_empty</span>(self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
 
@@ -76,13 +76,13 @@
 <div class="where-clause">where
     K: <a href="../../../std/cmp/trait.Eq.html" class="trait">Eq</a>,
     K: <a href="../../../std/hash/trait.Hash.html" class="trait">Hash</a>,
-    B: <a href="../../../std/hash/trait.BuildHasher.html" class="trait">BuildHasher</a>&lt;H = &lt;B as BuildHasher&gt;::H&gt;</div></code>
+    B: <a href="../../../std/hash/trait.BuildHasher.html" class="trait">BuildHasher</a></div></code>
 
 <code id="iter_keys_mut" class="code-header">pub unconstrained fn <span class="fn">iter_keys_mut</span>(&mut self, f: fn(K) -> K)
 <div class="where-clause">where
     K: <a href="../../../std/cmp/trait.Eq.html" class="trait">Eq</a>,
     K: <a href="../../../std/hash/trait.Hash.html" class="trait">Hash</a>,
-    B: <a href="../../../std/hash/trait.BuildHasher.html" class="trait">BuildHasher</a>&lt;H = &lt;B as BuildHasher&gt;::H&gt;</div></code>
+    B: <a href="../../../std/hash/trait.BuildHasher.html" class="trait">BuildHasher</a></div></code>
 
 <code id="iter_values_mut" class="code-header">pub fn <span class="fn">iter_values_mut</span>(&mut self, f: fn(V) -> V)</code>
 
@@ -96,24 +96,24 @@
 <div class="where-clause">where
     K: <a href="../../../std/cmp/trait.Eq.html" class="trait">Eq</a>,
     K: <a href="../../../std/hash/trait.Hash.html" class="trait">Hash</a>,
-    B: <a href="../../../std/hash/trait.BuildHasher.html" class="trait">BuildHasher</a>&lt;H = &lt;B as BuildHasher&gt;::H&gt;</div></code>
+    B: <a href="../../../std/hash/trait.BuildHasher.html" class="trait">BuildHasher</a></div></code>
 
 <code id="insert" class="code-header">pub unconstrained fn <span class="fn">insert</span>(&mut self, key: K, value: V)
 <div class="where-clause">where
     K: <a href="../../../std/cmp/trait.Eq.html" class="trait">Eq</a>,
     K: <a href="../../../std/hash/trait.Hash.html" class="trait">Hash</a>,
-    B: <a href="../../../std/hash/trait.BuildHasher.html" class="trait">BuildHasher</a>&lt;H = &lt;B as BuildHasher&gt;::H&gt;</div></code>
+    B: <a href="../../../std/hash/trait.BuildHasher.html" class="trait">BuildHasher</a></div></code>
 
 <code id="remove" class="code-header">pub unconstrained fn <span class="fn">remove</span>(&mut self, key: K)
 <div class="where-clause">where
     K: <a href="../../../std/cmp/trait.Eq.html" class="trait">Eq</a>,
     K: <a href="../../../std/hash/trait.Hash.html" class="trait">Hash</a>,
-    B: <a href="../../../std/hash/trait.BuildHasher.html" class="trait">BuildHasher</a>&lt;H = &lt;B as BuildHasher&gt;::H&gt;</div></code>
+    B: <a href="../../../std/hash/trait.BuildHasher.html" class="trait">BuildHasher</a></div></code>
 
 </div><h2>Trait implementations</h2>
 <h3 id="impl-Default-for-UHashMap<K, V, B>"><code class="code-header">impl&lt;B, K, V&gt; <a href="../../../std/default/trait.Default.html" class="trait">Default</a> for <a href="../../../std/collections/umap/struct.UHashMap.html" class="struct">UHashMap</a>&lt;K, V, B&gt;
 <div class="where-clause">where
-    B: <a href="../../../std/hash/trait.BuildHasher.html" class="trait">BuildHasher</a>&lt;H = &lt;B as BuildHasher&gt;::H&gt;,
+    B: <a href="../../../std/hash/trait.BuildHasher.html" class="trait">BuildHasher</a>,
     B: <a href="../../../std/default/trait.Default.html" class="trait">Default</a></div></code></h3>
 
 <div class="padded-methods"><code class="code-header">pub fn <span class="fn">default</span>() -> Self</code>
@@ -123,7 +123,7 @@
     K: <a href="../../../std/cmp/trait.Eq.html" class="trait">Eq</a>,
     K: <a href="../../../std/hash/trait.Hash.html" class="trait">Hash</a>,
     V: <a href="../../../std/cmp/trait.Eq.html" class="trait">Eq</a>,
-    B: <a href="../../../std/hash/trait.BuildHasher.html" class="trait">BuildHasher</a>&lt;H = &lt;B as BuildHasher&gt;::H&gt;</div></code></h3>
+    B: <a href="../../../std/hash/trait.BuildHasher.html" class="trait">BuildHasher</a></div></code></h3>
 
 <div class="padded-methods"><code class="code-header">pub fn <span class="fn">eq</span>(self, other: Self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
 
