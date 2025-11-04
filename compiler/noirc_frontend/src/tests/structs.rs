@@ -1,8 +1,6 @@
 //! Tests for struct definitions and their method implementations.
 
-use crate::tests::{
-    assert_no_errors, assert_no_errors_and_to_string, check_errors, check_monomorphization_error,
-};
+use crate::tests::{assert_no_errors, check_errors, check_monomorphization_error};
 
 #[test]
 fn duplicate_struct_field() {
