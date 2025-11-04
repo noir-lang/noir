@@ -1603,7 +1603,10 @@
 <a href="#1602" id="1602">1602</a>
 <a href="#1603" id="1603">1603</a>
 <a href="#1604" id="1604">1604</a>
-<a href="#1605" id="1605">1605</a></pre></div><pre class="rust"><code><span class="doccomment">//! Expression elaboration, covering all expression [kinds][ExpressionKind].
+<a href="#1605" id="1605">1605</a>
+<a href="#1606" id="1606">1606</a>
+<a href="#1607" id="1607">1607</a>
+<a href="#1608" id="1608">1608</a></pre></div><pre class="rust"><code><span class="doccomment">//! Expression elaboration, covering all expression [kinds][ExpressionKind].
 
 </span><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{Located, Location};
@@ -1881,32 +1884,35 @@
         unsafe_expression: UnsafeExpression,
         target_type: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Type&gt;,
     ) -&gt; (HirExpression, Type) {
-        <span class="comment">// Before entering the block we cache the old value of `in_unsafe_block` so it can be restored.
+        <span class="kw">use </span>UnsafeBlockStatus::<span class="kw-2">*</span>;
+        <span class="comment">// Before entering the block we cache the old value of the unsafe block status, so it can be restored.
         </span><span class="kw">let </span>old_in_unsafe_block = <span class="self">self</span>.unsafe_block_status;
-        <span class="kw">let </span>is_nested_unsafe_block =
-            !<span class="macro">matches!</span>(old_in_unsafe_block, UnsafeBlockStatus::NotInUnsafeBlock);
+        <span class="kw">let </span>is_nested_unsafe_block = !<span class="macro">matches!</span>(old_in_unsafe_block, NotInUnsafeBlock);
+
         <span class="kw">if </span>is_nested_unsafe_block {
             <span class="self">self</span>.push_err(TypeCheckError::NestedUnsafeBlock {
                 location: unsafe_expression.unsafe_keyword_location,
             });
         }
 
-        <span class="self">self</span>.unsafe_block_status = UnsafeBlockStatus::InUnsafeBlockWithoutUnconstrainedCalls;
+        <span class="self">self</span>.unsafe_block_status = InUnsafeBlockWithoutUnconstrainedCalls;
 
         <span class="kw">let </span>(hir_block_expression, typ) =
             <span class="self">self</span>.elaborate_block_expression(unsafe_expression.block, target_type);
 
-        <span class="kw">if let </span>UnsafeBlockStatus::InUnsafeBlockWithoutUnconstrainedCalls = <span class="self">self</span>.unsafe_block_status
-        {
+        <span class="kw">let </span>has_unconstrained_call =
+            <span class="macro">matches!</span>(<span class="self">self</span>.unsafe_block_status, InUnsafeBlockWithUnconstrainedCalls);
+
+        <span class="kw">if </span>!has_unconstrained_call {
             <span class="self">self</span>.push_err(TypeCheckError::UnnecessaryUnsafeBlock {
                 location: unsafe_expression.unsafe_keyword_location,
             });
         }
 
-        <span class="comment">// Finally, we restore the original value of `self.in_unsafe_block`,
-        // but only if this isn't a nested unsafe block (that way if we found an unconstrained call
-        // for this unsafe block we'll also consider the outer one as finding one, and we don't double error)
-        </span><span class="kw">if </span>!is_nested_unsafe_block {
+        <span class="comment">// Finally, we restore the original value of the unsafe block status,
+        // unless we are in a nested block and we have found an unconstrained call,
+        // in which case we should consider the outer block as having that call as well.
+        </span><span class="kw">if </span>!is_nested_unsafe_block || !has_unconstrained_call {
             <span class="self">self</span>.unsafe_block_status = old_in_unsafe_block;
         }
 
@@ -2914,8 +2920,8 @@
         <span class="kw">let </span><span class="kw-2">mut </span>element_ids = Vec::with_capacity(tuple.len());
         <span class="kw">let </span><span class="kw-2">mut </span>element_types = Vec::with_capacity(tuple.len());
 
+        <span class="kw">let </span>target_type = target_type.map(|typ| typ.follow_bindings());
         <span class="kw">for </span>(index, element) <span class="kw">in </span>tuple.into_iter().enumerate() {
-            <span class="kw">let </span>target_type = target_type.map(|typ| typ.follow_bindings());
             <span class="kw">let </span>expr_target_type =
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(Type::Tuple(types)) = <span class="kw-2">&amp;</span>target_type { types.get(index) } <span class="kw">else </span>{ <span class="prelude-val">None </span>};
             <span class="kw">let </span>(id, typ) = <span class="self">self</span>.elaborate_expression_with_target_type(element, expr_target_type);
@@ -2934,10 +2940,10 @@
         <span class="kw">let </span>target_type = target_type.map(|typ| typ.follow_bindings());
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(Type::Function(args, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>)) = target_type {
-            <span class="kw">return </span><span class="self">self</span>.elaborate_lambda_with_parameter_type_hints(lambda, <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>args));
+            <span class="self">self</span>.elaborate_lambda_with_parameter_type_hints(lambda, <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>args))
+        } <span class="kw">else </span>{
+            <span class="self">self</span>.elaborate_lambda_with_parameter_type_hints(lambda, <span class="prelude-val">None</span>)
         }
-
-        <span class="self">self</span>.elaborate_lambda_with_parameter_type_hints(lambda, <span class="prelude-val">None</span>)
     }
 
     <span class="doccomment">/// For elaborating a lambda we might get `parameters_type_hints`. These come from a potential

@@ -2508,7 +2508,8 @@
 <a href="#2507" id="2507">2507</a>
 <a href="#2508" id="2508">2508</a>
 <a href="#2509" id="2509">2509</a>
-<a href="#2510" id="2510">2510</a></pre></div><pre class="rust"><code><span class="doccomment">//! Type resolution, unification, and method resolution (for both types and traits).
+<a href="#2510" id="2510">2510</a>
+<a href="#2511" id="2511">2511</a></pre></div><pre class="rust"><code><span class="doccomment">//! Type resolution, unification, and method resolution (for both types and traits).
 
 </span><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
 
@@ -4038,10 +4039,10 @@
         }
     }
 
-    <span class="comment">// Given a unary operator and a type, this method will produce the output type
-    // and a boolean indicating whether to use the trait impl corresponding to the operator
-    // or not. A value of false indicates the caller to use a primitive operation for this
-    // operator, while a true value indicates a user-provided trait impl is required.
+    <span class="doccomment">/// Given a unary operator and a type, this method will produce the output type
+    /// and a boolean indicating whether to use the trait impl corresponding to the operator
+    /// or not. A value of false indicates to the caller to use a primitive operation for this
+    /// operator, while a true value indicates a user-provided trait impl is required.
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>prefix_operand_type_rules(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         op: <span class="kw-2">&amp;</span>UnaryOp,
@@ -4588,9 +4589,10 @@
                     <span class="self">self</span>.push_err(TypeCheckError::Unsafe { location });
                 }
                 UnsafeBlockStatus::InUnsafeBlockWithoutUnconstrainedCalls =&gt; {
-                    <span class="self">self</span>.unsafe_block_status = UnsafeBlockStatus::InUnsafeBlockWithConstrainedCalls;
+                    <span class="self">self</span>.unsafe_block_status =
+                        UnsafeBlockStatus::InUnsafeBlockWithUnconstrainedCalls;
                 }
-                UnsafeBlockStatus::InUnsafeBlockWithConstrainedCalls =&gt; (),
+                UnsafeBlockStatus::InUnsafeBlockWithUnconstrainedCalls =&gt; (),
             }
 
             <span class="kw">if let </span><span class="prelude-val">Some</span>(called_func_id) = <span class="self">self</span>.interner.lookup_function_from_expr(<span class="kw-2">&amp;</span>call.func) {

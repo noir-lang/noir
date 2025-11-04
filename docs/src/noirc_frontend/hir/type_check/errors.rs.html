@@ -1614,35 +1614,35 @@
             }
             TypeCheckError::CannotInvokeStructFieldFunctionType { method_name, object_type, location } =&gt; {
                 Diagnostic::simple_error(
-                    <span class="macro">format!</span>(<span class="string">"Cannot invoke function field '{method_name}' on type '{object_type}' as a method"</span>), 
+                    <span class="macro">format!</span>(<span class="string">"Cannot invoke function field '{method_name}' on type '{object_type}' as a method"</span>),
                     <span class="macro">format!</span>(<span class="string">"to call the function stored in '{method_name}', surround the field access with parentheses: '(', ')'"</span>),
                     <span class="kw-2">*</span>location,
                 )
             },
             TypeCheckError::TypeAnnotationsNeededForIndex { location } =&gt; {
                 Diagnostic::simple_error(
-                    <span class="string">"Type annotations required before indexing this array or slice"</span>.into(), 
+                    <span class="string">"Type annotations required before indexing this array or slice"</span>.into(),
                     <span class="string">"Type annotations needed before this point, can't decide if this is an array or slice"</span>.into(),
                     <span class="kw-2">*</span>location,
                 )
             },
             TypeCheckError::UnnecessaryUnsafeBlock { location } =&gt; {
                 Diagnostic::simple_warning(
-                    <span class="string">"Unnecessary `unsafe` block"</span>.into(), 
+                    <span class="string">"Unnecessary `unsafe` block"</span>.into(),
                     <span class="string">""</span>.into(),
                     <span class="kw-2">*</span>location,
                 )
             },
             TypeCheckError::NestedUnsafeBlock { location } =&gt; {
                 Diagnostic::simple_warning(
-                    <span class="string">"Unnecessary `unsafe` block"</span>.into(), 
+                    <span class="string">"Unnecessary `unsafe` block"</span>.into(),
                     <span class="string">"Because it's nested inside another `unsafe` block"</span>.into(),
                     <span class="kw-2">*</span>location,
                 )
             },
             TypeCheckError::UnreachableCase { location } =&gt; {
                 Diagnostic::simple_warning(
-                    <span class="string">"Unreachable match case"</span>.into(), 
+                    <span class="string">"Unreachable match case"</span>.into(),
                     <span class="string">"This pattern is redundant with one or more prior patterns"</span>.into(),
                     <span class="kw-2">*</span>location,
                 )
