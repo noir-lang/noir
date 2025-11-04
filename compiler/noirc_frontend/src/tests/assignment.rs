@@ -28,7 +28,7 @@ fn mutate_in_lvalue_block_expr() {
     "#;
     let expanded = assert_no_errors_and_to_string(src);
     // We want to make sure that the nested mutation of `a` occurs in the expected order.
-    // The `a` mutation inside of the `lvalue` should occur first.
+    // The `a` mutation inside of the lvalue index should occur first.
     insta::assert_snapshot!(expanded, @r"
     fn main() {
         mutate_in_lvalue();
@@ -53,7 +53,6 @@ fn mutate_in_lvalue_block_expr() {
 
 #[test]
 fn multiple_block_expressions_in_lvalue() {
-    // Tests that multiple block expressions in a single lvalue are evaluated left-to-right
     let src = r#"
         fn main() {
             let mut arr = [[1, 2], [3, 4]];
@@ -253,7 +252,6 @@ fn member_access_then_array_index_ordering() {
 
 #[test]
 fn error_immutable_reference_assignment() {
-    // Tests that assigning through an immutable reference fails
     let src = r#"
         fn main() {
             let mut arr = [1, 2, 3];
@@ -286,7 +284,6 @@ fn nested_tuple_pattern_destructuring() {
 
 #[test]
 fn nested_tuple_pattern_partial_destructuring() {
-    // The destructured tuple stores
     let src = r#"
         fn main() {
             let tuple = ((1, 2), 3);
