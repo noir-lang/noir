@@ -1,8 +1,8 @@
-import { HardhatUserConfig } from 'hardhat/config';
-import '@nomicfoundation/hardhat-chai-matchers';
-import '@nomicfoundation/hardhat-ethers';
+import type { HardhatUserConfig } from 'hardhat/config';
+import hardhatToolboxMochaEthers from '@nomicfoundation/hardhat-toolbox-mocha-ethers';
 
 const config: HardhatUserConfig = {
+  plugins: [hardhatToolboxMochaEthers],
   solidity: {
     version: '0.8.28',
     settings: {
@@ -12,11 +12,9 @@ const config: HardhatUserConfig = {
       },
     },
   },
-  mocha: {
-    timeout: 5 * 60 * 1000,
-  },
   networks: {
-    hardhat: {
+    default: {
+      type: 'edr-simulated',
       allowUnlimitedContractSize: true,
     },
   },
