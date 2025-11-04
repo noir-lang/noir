@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use noirc_frontend::ast::ItemVisibility;
 
-use crate::items::{Item, TraitImpl, Id, Workspace};
+use crate::items::{Id, Item, TraitImpl, Workspace};
 
 /// Gather all trait impls in the workspace, grouped by the trait they implement.
 pub(super) fn gather_all_trait_impls(workspace: &Workspace) -> HashMap<Id, HashSet<TraitImpl>> {
