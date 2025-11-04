@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1762281051410,
+  "lastUpdate": 1762281054774,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23275,48 +23275,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "c4290fa708c149975d0bd64d06eaf435f0dfd5ba",
-          "message": "chore: greenlight Elaborator visibility (#10248)",
-          "timestamp": "2025-10-21T13:40:46Z",
-          "tree_id": "610a1b02ec6641b0f9e2036fbe79e6ace3fc56da",
-          "url": "https://github.com/noir-lang/noir/commit/c4290fa708c149975d0bd64d06eaf435f0dfd5ba"
-        },
-        "date": 1761055731843,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 267702,
-            "range": "± 845",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 236361,
-            "range": "± 1670",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2798299,
-            "range": "± 4454",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "65083f9d5ece1b1db152af00ba02cf3709e31750",
           "message": "chore(ACIR): more Circuit, Expression and Opcode parsing (#10250)",
@@ -25359,6 +25317,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2796638,
             "range": "± 16870",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "65a8fb09c70c41d2971ad83292e94d213a125ea4",
+          "message": "fix(elaborator): Keep the status of the outer `unsafe` block if the inner is unnecessary (#10361)",
+          "timestamp": "2025-11-04T17:59:33Z",
+          "tree_id": "db08c00c49698684c16eb164e5890ae40a70f409",
+          "url": "https://github.com/noir-lang/noir/commit/65a8fb09c70c41d2971ad83292e94d213a125ea4"
+        },
+        "date": 1762281028420,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 261976,
+            "range": "± 825",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 232670,
+            "range": "± 991",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2795475,
+            "range": "± 1360",
             "unit": "ns/iter"
           }
         ]
