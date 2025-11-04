@@ -379,7 +379,7 @@ impl DocItemBuilder<'_> {
                 noirc_frontend::QuotedType::Quoted => Type::Primitive(PrimitiveTypeKind::Quoted),
                 noirc_frontend::QuotedType::Type => Type::Primitive(PrimitiveTypeKind::Type),
                 noirc_frontend::QuotedType::TypedExpr => {
-                    Type::Primitive(PrimitiveTypeKind::TypeExpr)
+                    Type::Primitive(PrimitiveTypeKind::TypedExpr)
                 }
                 noirc_frontend::QuotedType::TypeDefinition => {
                     Type::Primitive(PrimitiveTypeKind::TypeDefinition)
