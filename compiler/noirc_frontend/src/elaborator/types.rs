@@ -452,27 +452,6 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Identical to `resolve_type_args` but does not allow
-    /// associated types to be elided since trait impls must specify them.
-    pub(super) fn resolve_trait_args_from_trait_impl(
-        &mut self,
-        args: GenericTypeArgs,
-        item: TraitId,
-        location: Location,
-    ) -> (Vec<Type>, Vec<NamedType>) {
-        let mode = PathResolutionMode::MarkAsReferenced;
-        let allow_implicit_named_args = false;
-        let wildcard_allowed = true;
-        self.resolve_type_or_trait_args_inner(
-            args,
-            item,
-            location,
-            allow_implicit_named_args,
-            mode,
-            wildcard_allowed,
-        )
-    }
-
     pub(super) fn use_type_args(
         &mut self,
         args: GenericTypeArgs,
