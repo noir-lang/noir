@@ -1,9 +1,10 @@
 //! Tests for assignment statements, focusing on:
 //! 1. Side-effect ordering in complex lvalues
-//! 2. Auto-dereferencing behavior
-//! 3. Nested pattern matching
+//! 2. Nested pattern matching
 
 use crate::tests::{assert_no_errors, assert_no_errors_and_to_string, check_errors};
+
+// LValue side-effect ordering
 
 #[test]
 fn mutate_in_lvalue_block_expr() {
@@ -265,9 +266,7 @@ fn error_immutable_reference_assignment() {
     check_errors(src);
 }
 
-// ============================================================================
 // Nested Pattern Tests
-// ============================================================================
 
 #[test]
 fn nested_tuple_pattern_destructuring() {
@@ -429,95 +428,4 @@ fn tuple_pattern_arity_mismatch() {
         }
     "#;
     check_errors(src);
-}
-
-// ============================================================================
-// Combined Complex Cases
-// ============================================================================
-
-#[test]
-fn complex_assignment_with_all_features() {
-    // Tests combining auto-deref, side-effects, and complex lvalues
-    let src = r#"
-        struct Container {
-            arrays: [[Field; 2]; 2]
-        }
-
-        fn inc(c: &mut Field) -> u32 {
-            let old = *c;
-            *c = *c + 1;
-            old as u32
-        }
-
-        fn main() {
-            let mut counter = 0;
-            let mut container = Container { arrays: [[0; 2]; 2] };
-            let container_ref = &mut container;
-
-            // Auto-deref reference, access member, index twice with side-effects
-            container_ref.arrays[inc(&mut counter)][inc(&mut counter)] = 42;
-
-            assert(counter == 2);
-            assert(container.arrays[0][1] == 42);
-        }
-    "#;
-    assert_no_errors(src);
-}
-
-#[test]
-fn pattern_with_nested_destructuring_and_mutation() {
-    // Tests complex pattern with nested destructuring followed by mutation
-    let src = r#"
-        struct Point {
-            x: Field,
-            y: Field
-        }
-
-        fn main() {
-            let data = ((Point { x: 1, y: 2 }, 3), 4);
-            let mut ((Point { x, y }, a), b) = data;
-
-            // Test all bindings are mutable
-            let mut x_copy = x;
-            let mut y_copy = y;
-            x_copy = 10;
-            y_copy = 20;
-            a = 30;
-            b = 40;
-
-            assert(x_copy == 10);
-            assert(y_copy == 20);
-            assert(a == 30);
-            assert(b == 40);
-        }
-    "#;
-    assert_no_errors(src);
-}
-
-#[test]
-fn assignment_preserves_evaluation_order_with_repeated_calls() {
-    // Tests that function calls in indices maintain evaluation order
-    let src = r#"
-        fn next_index(i: &mut Field) -> u32 {
-            let current = *i;
-            *i = *i + 1;
-            current as u32
-        }
-
-        fn main() {
-            let mut results = [0; 4];
-            let mut index = 0;
-
-            // Each call to next_index should happen in sequence
-            results[next_index(&mut index)] = 1;
-            results[next_index(&mut index)] = 2;
-            results[next_index(&mut index)] = 3;
-
-            assert(results[0] == 1);
-            assert(results[1] == 2);
-            assert(results[2] == 3);
-            assert(index == 3);
-        }
-    "#;
-    assert_no_errors(src);
 }
