@@ -232,8 +232,6 @@ fn no_warns_on_needed_unsafe_with_unneeded_nested() {
     fn main() {
         // Safety: test
         unsafe {
-        ^^^^^^ Unnecessary `unsafe` block
-        ~~~~~~ Because it doesn't contain an unconstrained call
             foo();
             // Safety: test
             unsafe {
