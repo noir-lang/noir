@@ -2,12 +2,7 @@
 //! 1. Side-effect ordering in complex lvalues
 //! 2. Nested pattern matching
 
-use crate::{
-    elaborator::UnstableFeature,
-    tests::{
-        assert_no_errors, assert_no_errors_and_to_string, check_errors, check_errors_using_features,
-    },
-};
+use crate::tests::{assert_no_errors, assert_no_errors_and_to_string, check_errors};
 
 // LValue side-effect ordering
 
