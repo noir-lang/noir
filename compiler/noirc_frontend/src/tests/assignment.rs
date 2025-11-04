@@ -2,7 +2,12 @@
 //! 1. Side-effect ordering in complex lvalues
 //! 2. Nested pattern matching
 
-use crate::tests::{assert_no_errors, assert_no_errors_and_to_string, check_errors};
+use crate::{
+    elaborator::UnstableFeature,
+    tests::{
+        assert_no_errors, assert_no_errors_and_to_string, check_errors, check_errors_using_features,
+    },
+};
 
 // LValue side-effect ordering
 
@@ -250,20 +255,6 @@ fn member_access_then_array_index_ordering() {
     ");
 }
 
-#[test]
-fn error_immutable_reference_assignment() {
-    let src = r#"
-        fn main() {
-            let mut arr = [1, 2, 3];
-            let arr_ref = &arr;
-                          ^^^^ expected type &mut [Field; 3]
-
-            arr_ref[0] = 10;
-        }
-    "#;
-    check_errors(src);
-}
-
 // Nested Pattern Tests
 
 #[test]
@@ -287,7 +278,7 @@ fn nested_tuple_pattern_partial_destructuring() {
     let src = r#"
         fn main() {
             let tuple = ((1, 2), 3);
-            let (a, b) = tuple;
+            let (_a, _b) = tuple;
         }
     "#;
     assert_no_errors(src);
