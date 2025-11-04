@@ -1,3 +1,6 @@
+//! Large file containing implementations of all the various built-in functions
+//! which can be called in the interpreter. This notably includes the entire comptime-API
+//! defined in `noir_stdlib/src/meta/*`
 use std::rc::Rc;
 
 use acvm::{AcirField, FieldElement};

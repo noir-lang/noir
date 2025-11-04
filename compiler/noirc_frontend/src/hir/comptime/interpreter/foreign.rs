@@ -1,3 +1,5 @@
+//! The foregin function counterpart to `interpreter/builtin.rs`, defines how to call
+//! all foreign functions available to the interpreter.
 use acvm::{
     AcirField, BlackBoxResolutionError, FieldElement, acir::BlackBoxFunc,
     blackbox_solver::BlackBoxFunctionSolver,
@@ -45,7 +47,9 @@ impl Interpreter<'_, '_> {
     }
 }
 
-// Similar to `evaluate_black_box` in `brillig_vm`.
+/// Calls the given foreign function.
+///
+/// Similar to `evaluate_black_box` in `brillig_vm`.
 fn call_foreign(
     interner: &mut NodeInterner,
     name: &str,
