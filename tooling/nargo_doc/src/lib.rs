@@ -500,6 +500,14 @@ impl DocItemBuilder<'_> {
         let named_generics = trait_generics
             .named
             .iter()
+            .filter(|named_type| {
+                if let noirc_frontend::Type::NamedGeneric(NamedGeneric { implicit: true, .. }) =
+                    &named_type.typ
+                {
+                    return false;
+                }
+                true
+            })
             .map(|named_type| (named_type.name.to_string(), self.convert_type(&named_type.typ)))
             .collect();
         (ordered_generics, named_generics)
