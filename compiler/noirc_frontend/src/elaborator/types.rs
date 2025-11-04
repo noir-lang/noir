@@ -8,12 +8,10 @@ use noirc_errors::Location;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
-    Generics, Kind, NamedGeneric, ResolvedGeneric, Type, TypeBinding, TypeBindings,
-    UnificationError,
+    Kind, NamedGeneric, ResolvedGeneric, Type, TypeBinding, TypeBindings, UnificationError,
     ast::{
-        AsTraitPath, BinaryOpKind, GenericTypeArgs, Ident, PathKind, UnaryOp, UnresolvedGeneric,
-        UnresolvedGenerics, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
-        WILDCARD_TYPE,
+        AsTraitPath, BinaryOpKind, GenericTypeArgs, Ident, PathKind, UnaryOp, UnresolvedType,
+        UnresolvedTypeData, UnresolvedTypeExpression, WILDCARD_TYPE,
     },
     elaborator::UnstableFeature,
     hir::{
@@ -250,10 +248,6 @@ impl Elaborator<'_> {
         }
 
         self.check_kind(resolved_type, kind, location)
-    }
-
-    pub fn find_generic(&self, target_name: &str) -> Option<&ResolvedGeneric> {
-        self.generics.iter().find(|generic| generic.name.as_ref() == target_name)
     }
 
     // Resolve Self::Foo to an associated type on the current trait or trait impl
@@ -2311,39 +2305,6 @@ impl Elaborator<'_> {
                 let err =
                     TypeCheckError::MultipleMatchingImpls { object_type, location, candidates };
                 self.push_err(err);
-            }
-        }
-    }
-
-    pub fn add_existing_generics(
-        &mut self,
-        unresolved_generics: &UnresolvedGenerics,
-        generics: &Generics,
-    ) {
-        assert_eq!(unresolved_generics.len(), generics.len());
-
-        for (unresolved_generic, generic) in unresolved_generics.iter().zip(generics) {
-            self.add_existing_generic(unresolved_generic, unresolved_generic.location(), generic);
-        }
-    }
-
-    pub fn add_existing_generic(
-        &mut self,
-        unresolved_generic: &UnresolvedGeneric,
-        location: Location,
-        resolved_generic: &ResolvedGeneric,
-    ) {
-        if let Some(name) = unresolved_generic.ident().ident() {
-            let name = name.as_str();
-
-            if let Some(generic) = self.find_generic(name) {
-                self.push_err(ResolverError::DuplicateDefinition {
-                    name: name.to_string(),
-                    first_location: generic.location,
-                    second_location: location,
-                });
-            } else {
-                self.generics.push(resolved_generic.clone());
             }
         }
     }
