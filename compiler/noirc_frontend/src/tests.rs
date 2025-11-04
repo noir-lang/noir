@@ -3,6 +3,7 @@
 mod aliases;
 mod arithmetic_generics;
 mod arrays;
+mod assignment;
 mod bound_checks;
 mod cast;
 mod control_flow;
