@@ -109,6 +109,7 @@ impl HTMLCreator {
         self.render_all_items_sidebar(&all_items);
         self.sidebar_end();
         self.main_start();
+        self.render_breadcrumbs(false);
         self.h1(&format!("All items in {}", workspace.name));
         self.render_all_items_list("Structs", "struct", &all_items.structs);
         self.render_all_items_list("Traits", "trait", &all_items.traits);
@@ -1360,22 +1361,24 @@ impl HTMLCreator {
             format!("<a href=\"{}index.html\">{}</a>", "../".repeat(nesting), self.workspace_name)
                 .as_str(),
         );
-        self.output.push_str(" - ");
-        for (index, item) in self.current_path.iter().enumerate() {
-            if index > 0 {
-                self.output.push_str("::");
-            }
-            nesting -= 1;
-            if !last_is_link && index == self.current_path.len() - 1 {
-                self.output.push_str(item);
-            } else {
-                self.output.push_str(
-                    format!("<a href=\"{}index.html\">{}</a>", "../".repeat(nesting), item)
-                        .as_str(),
-                );
+        if !self.current_path.is_empty() {
+            self.output.push_str(" - ");
+            for (index, item) in self.current_path.iter().enumerate() {
+                if index > 0 {
+                    self.output.push_str("::");
+                }
+                nesting -= 1;
+                if !last_is_link && index == self.current_path.len() - 1 {
+                    self.output.push_str(item);
+                } else {
+                    self.output.push_str(
+                        format!("<a href=\"{}index.html\">{}</a>", "../".repeat(nesting), item)
+                            .as_str(),
+                    );
+                }
             }
         }
-        self.output.push_str("</div>");
+        self.output.push_str("</div>\n");
     }
 
     fn get_all_trait_impls(&self, trait_: &Trait) -> Vec<TraitImpl> {
