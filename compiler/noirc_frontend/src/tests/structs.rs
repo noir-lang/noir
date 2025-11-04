@@ -1,6 +1,8 @@
 //! Tests for struct definitions and their method implementations.
 
-use crate::tests::{assert_no_errors, check_errors, check_monomorphization_error};
+use crate::tests::{
+    assert_no_errors, assert_no_errors_and_to_string, check_errors, check_monomorphization_error,
+};
 
 #[test]
 fn duplicate_struct_field() {
@@ -266,4 +268,37 @@ fn cross_module_impl_resolves_in_impl_module() {
     }
     "#;
     assert_no_errors(src);
+}
+
+#[test]
+fn constructor_missing_field() {
+    let src = r#"
+        struct Foo {
+            x: Field,
+            y: Field,
+            z: Field,
+        }
+
+        fn main() {
+            let _ = Foo { x: 1, y: 2 };
+                    ^^^ missing field z in struct Foo
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn constructor_extra_field() {
+    let src = r#"
+        struct Foo {
+            x: Field,
+            y: Field,
+        }
+
+        fn main() {
+            let _ = Foo { x: 1, y: 2, z: 3 };
+                                      ^ no such field z defined in struct Foo
+        }
+    "#;
+    check_errors(src);
 }
