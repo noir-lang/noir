@@ -35,9 +35,9 @@ pub(super) fn fix_markdown(markdown: &str, current_heading_level: usize) -> Stri
 
     if open_code_comment {
         fixed_comment.push_str("```");
+        fixed_comment.push('\n');
     }
 
-    fixed_comment.push('\n');
     fixed_comment
 }
 
@@ -57,4 +57,38 @@ pub(super) fn markdown_summary(markdown: &str) -> String {
     let markdown = markdown::to_html(string);
     let markdown = markdown.trim_start_matches("<p>");
     markdown.trim_end_matches("</p>").trim().to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_fix_markdown_adjusts_headers() {
+        let input = "# Header 1\n## Header 2\n### Header 3\n#### Header 4\nNormal text";
+        let expected = "### Header 1\n### Header 2\n### Header 3\n#### Header 4\nNormal text\n";
+        assert_eq!(fix_markdown(input, 2), expected);
+    }
+
+    #[test]
+    fn test_fix_markdown_closes_code_block_one_block() {
+        let input = "Here is some code:\n```\nlet x = 10;\n";
+        let expected = "Here is some code:\n```\nlet x = 10;\n```\n";
+        assert_eq!(fix_markdown(input, 1), expected);
+    }
+
+    #[test]
+    fn test_fix_markdown_closes_code_block_two_blocks() {
+        let input = "Here is some code:\n```\nlet x = 10;\n```\nMore text.\n```\nlet y = 20;\n";
+        let expected =
+            "Here is some code:\n```\nlet x = 10;\n```\nMore text.\n```\nlet y = 20;\n```\n";
+        assert_eq!(fix_markdown(input, 1), expected);
+    }
+
+    #[test]
+    fn test_markdown_summary() {
+        let input = "# Title\nThis is a summary.\n\nThis part should be ignored.";
+        let expected = "Title\nThis is a summary.";
+        assert_eq!(markdown_summary(input), expected);
+    }
 }
