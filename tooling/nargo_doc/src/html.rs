@@ -194,7 +194,7 @@ impl HTMLCreator {
 
         self.html_start(&format!("Crate {}", krate.name));
         self.sidebar_start();
-        self.render_crate_sidebar(workspace);
+        self.render_crate_sidebar(workspace, krate);
         self.sidebar_end();
         self.main_start();
         self.render_breadcrumbs(false);
@@ -210,7 +210,9 @@ impl HTMLCreator {
         self.current_path.pop();
     }
 
-    fn render_crate_sidebar(&mut self, workspace: &Workspace) {
+    fn render_crate_sidebar(&mut self, workspace: &Workspace, krate: &Crate) {
+        self.render_module_items_sidebar("Crate items", &krate.root_module);
+
         self.h3("Crates");
         self.output.push_str("<ul class=\"sidebar-list\">");
         for krate in &workspace.crates {
@@ -246,7 +248,7 @@ impl HTMLCreator {
     fn render_reexports(&mut self, items: &[(ItemVisibility, Item)]) {
         let reexports = get_reexports(items);
         if !reexports.is_empty() {
-            self.render_reexports_list("Re-exports", "re-export", &reexports);
+            self.render_reexports_list("Re-exports", "re-exports", &reexports);
         }
     }
 
@@ -447,15 +449,15 @@ impl HTMLCreator {
 
     fn render_module_sidebar(&mut self, parent_module: &Module, module: &Module) {
         self.h2(&format!("<a href=\"#mod\">Module {}</a>", module.name));
-        self.render_module_items_sidebar(module);
+        self.render_module_items_sidebar("Module items", module);
         self.render_module_contents_sidebar(parent_module, 1);
     }
 
-    fn render_module_items_sidebar(&mut self, module: &Module) {
+    fn render_module_items_sidebar(&mut self, title: &str, module: &Module) {
         if !module.has_public_items() {
             return;
         }
-        self.h3("Module items");
+        self.h3(title);
         self.output.push_str("<ul class=\"sidebar-list\">");
         if !get_reexports(&module.items).is_empty() {
             self.output.push_str("<li><a href=\"#re-exports\">Re-exports</a></li>");
