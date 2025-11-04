@@ -2078,9 +2078,10 @@ impl Elaborator<'_> {
                     self.push_err(TypeCheckError::Unsafe { location });
                 }
                 UnsafeBlockStatus::InUnsafeBlockWithoutUnconstrainedCalls => {
-                    self.unsafe_block_status = UnsafeBlockStatus::InUnsafeBlockWithConstrainedCalls;
+                    self.unsafe_block_status =
+                        UnsafeBlockStatus::InUnsafeBlockWithUnconstrainedCalls;
                 }
-                UnsafeBlockStatus::InUnsafeBlockWithConstrainedCalls => (),
+                UnsafeBlockStatus::InUnsafeBlockWithUnconstrainedCalls => (),
             }
 
             if let Some(called_func_id) = self.interner.lookup_function_from_expr(&call.func) {

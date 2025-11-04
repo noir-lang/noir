@@ -293,7 +293,7 @@ impl Elaborator<'_> {
             self.elaborate_block_expression(unsafe_expression.block, target_type);
 
         let has_unconstrained_call =
-            matches!(self.unsafe_block_status, InUnsafeBlockWithConstrainedCalls);
+            matches!(self.unsafe_block_status, InUnsafeBlockWithUnconstrainedCalls);
 
         if !has_unconstrained_call {
             self.push_err(TypeCheckError::UnnecessaryUnsafeBlock {
