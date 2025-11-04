@@ -8,15 +8,15 @@ use noirc_frontend::hir::def_map::{ModuleDefId, ModuleId};
 use noirc_frontend::hir::printer::items as expand_items;
 use noirc_frontend::hir_def::stmt::{HirLetStatement, HirPattern};
 use noirc_frontend::hir_def::traits::ResolvedTraitBound;
-use noirc_frontend::node_interner::{FuncId, ReferenceId, TraitId, TypeAliasId, TypeId};
+use noirc_frontend::node_interner::{FuncId, GlobalId, ReferenceId, TraitId, TypeAliasId, TypeId};
 use noirc_frontend::shared::Signedness;
 use noirc_frontend::{Kind, NamedGeneric, ResolvedGeneric, TypeBinding};
 use noirc_frontend::{graph::CrateGraph, hir::def_map::DefMaps, node_interner::NodeInterner};
 
 use crate::items::{
-    AssociatedConstant, AssociatedType, Function, FunctionParam, Generic, Global, Impl, Item,
-    Module, PrimitiveType, PrimitiveTypeKind, Struct, StructField, Trait, TraitBound,
-    TraitConstraint, TraitImpl, Type, TypeAlias,
+    AssociatedConstant, AssociatedType, Function, FunctionParam, Generic, Global, Id, Impl, Item,
+    ItemKind, Module, PrimitiveType, PrimitiveTypeKind, Reexport, Struct, StructField, Trait,
+    TraitBound, TraitConstraint, TraitImpl, Type, TypeAlias,
 };
 
 mod html;
@@ -32,14 +32,7 @@ pub fn crate_module(
     ids: &mut ItemIds,
 ) -> Module {
     let module = noirc_frontend::hir::printer::crate_to_module(crate_id, def_maps, interner);
-    let mut builder = DocItemBuilder {
-        interner,
-        ids,
-        visibility: ItemVisibility::Public,
-        module_def_id_to_item: HashMap::new(),
-        module_imports: HashMap::new(),
-        trait_constraints: Vec::new(),
-    };
+    let mut builder = DocItemBuilder::new(interner, ids);
     let mut module = builder.convert_module(module);
     builder.process_module_reexports(&mut module);
     module
@@ -48,12 +41,28 @@ pub fn crate_module(
 struct DocItemBuilder<'a> {
     interner: &'a NodeInterner,
     ids: &'a mut ItemIds,
+    /// The minimum visibility of the current module. For example,
+    /// if the visibilities of parents modules are [pub, pub(crate), pub] then
+    /// this will be `pub(crate)`.
     visibility: ItemVisibility,
     module_def_id_to_item: HashMap<ModuleDefId, ConvertedItem>,
     module_imports: HashMap<ModuleId, Vec<expand_items::Import>>,
     /// Trait constraints in scope.
     /// These are set when a trait or trait impl is visited.
     trait_constraints: Vec<TraitConstraint>,
+}
+
+impl<'a> DocItemBuilder<'a> {
+    fn new(interner: &'a NodeInterner, ids: &'a mut ItemIds) -> Self {
+        Self {
+            interner,
+            ids,
+            visibility: ItemVisibility::Public,
+            module_def_id_to_item: HashMap::new(),
+            module_imports: HashMap::new(),
+            trait_constraints: Vec::new(),
+        }
+    }
 }
 
 struct ConvertedItem {
@@ -77,15 +86,8 @@ pub type ItemIds = HashMap<ItemId, usize>;
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ItemId {
     pub location: Location,
-    pub kind: IdKeyKind,
+    pub kind: ItemKind,
     pub name: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum IdKeyKind {
-    Type,
-    Trait,
-    TypeAlias,
 }
 
 impl DocItemBuilder<'_> {
@@ -257,7 +259,8 @@ impl DocItemBuilder<'_> {
                 let typ = self.interner.definition_type(definition_id);
                 let r#type = self.convert_type(&typ);
                 let comments = self.doc_comments(ReferenceId::Global(global_id));
-                Item::Global(Global { name, comments, comptime, mutable, r#type })
+                let id = self.get_global_id(global_id);
+                Item::Global(Global { id, name, comments, comptime, mutable, r#type })
             }
             expand_items::Item::Function(func_id) => Item::Function(self.convert_function(func_id)),
         };
@@ -279,7 +282,8 @@ impl DocItemBuilder<'_> {
             .map(|(visibility, item)| (visibility, self.convert_item(item, visibility)))
             .collect();
         self.module_imports.insert(module.id, module.imports);
-        Module { id: module.id, name, comments, items }
+        let id = self.get_module_id(module.id);
+        Module { id, module_id: module.id, name, comments, items }
     }
 
     fn convert_impl(&mut self, impl_: expand_items::Impl) -> Impl {
@@ -532,7 +536,10 @@ impl DocItemBuilder<'_> {
             .cloned()
             .collect::<Vec<_>>();
 
+        let id = self.get_function_id(func_id);
+
         Function {
+            id,
             name,
             comments,
             unconstrained,
@@ -560,7 +567,7 @@ impl DocItemBuilder<'_> {
     /// Goes over a module's imports. If an import is a re-export of a private item,
     /// the item is added to the module's items.
     fn process_module_reexports(&mut self, module: &mut Module) {
-        let imports = self.module_imports.remove(&module.id).unwrap();
+        let imports = self.module_imports.remove(&module.module_id).unwrap();
         for import in imports {
             if import.visibility == ItemVisibility::Private {
                 continue;
@@ -568,11 +575,27 @@ impl DocItemBuilder<'_> {
 
             if let Some(converted_item) = self.module_def_id_to_item.get(&import.id) {
                 if converted_item.visibility < import.visibility {
-                    module.items.push((import.visibility, converted_item.item.clone()));
-                } else {
-                    // This is a re-export. We could eventually include these in docs, like in Rust.
+                    // This is a re-export of a private item. The private item won't show up in
+                    // its module docs (because it's private) so it's included directly under
+                    // the module that re-exports it (this is how rustdoc works too).
+                    let mut item = converted_item.item.clone();
+                    item.set_name(import.name.to_string());
+
+                    module.items.push((import.visibility, item));
+                    continue;
                 }
             }
+
+            // This is an internal or external re-export
+            let id = self.get_module_def_id(import.id);
+            module.items.push((
+                import.visibility,
+                Item::Reexport(Reexport {
+                    id,
+                    item_name: self.get_module_def_id_name(import.id),
+                    name: import.name.to_string(),
+                }),
+            ));
         }
 
         for (_visibility, item) in &mut module.items {
@@ -608,36 +631,109 @@ impl DocItemBuilder<'_> {
         }
     }
 
-    fn get_type_id(&mut self, id: TypeId) -> usize {
+    fn get_module_def_id_name(&mut self, id: ModuleDefId) -> String {
+        match id {
+            ModuleDefId::ModuleId(module_id) => {
+                let attributes = self.interner.try_module_attributes(module_id);
+                attributes.map(|attributes| &attributes.name).cloned().unwrap_or_else(String::new)
+            }
+            ModuleDefId::FunctionId(func_id) => self.interner.function_name(&func_id).to_string(),
+            ModuleDefId::TypeId(type_id) => {
+                let data_type = self.interner.get_type(type_id);
+                let data_type = data_type.borrow();
+                data_type.name.to_string()
+            }
+            ModuleDefId::TypeAliasId(type_alias_id) => {
+                let type_alias = self.interner.get_type_alias(type_alias_id);
+                let type_alias = type_alias.borrow();
+                type_alias.name.to_string()
+            }
+            ModuleDefId::TraitId(trait_id) => {
+                let trait_ = self.interner.get_trait(trait_id);
+                trait_.name.to_string()
+            }
+            ModuleDefId::TraitAssociatedTypeId(id) => {
+                let associated_type = self.interner.get_trait_associated_type(id);
+                associated_type.name.to_string()
+            }
+            ModuleDefId::GlobalId(global_id) => {
+                let global_info = self.interner.get_global(global_id);
+                global_info.ident.to_string()
+            }
+        }
+    }
+
+    fn get_module_def_id(&mut self, id: ModuleDefId) -> Id {
+        match id {
+            ModuleDefId::ModuleId(id) => self.get_module_id(id),
+            ModuleDefId::FunctionId(id) => self.get_function_id(id),
+            ModuleDefId::TypeId(id) => self.get_type_id(id),
+            ModuleDefId::TypeAliasId(id) => self.get_type_alias_id(id),
+            ModuleDefId::TraitId(id) => self.get_trait_id(id),
+            ModuleDefId::GlobalId(id) => self.get_global_id(id),
+            ModuleDefId::TraitAssociatedTypeId(_) => {
+                panic!("Trait associated types cannot be re-exported")
+            }
+        }
+    }
+
+    fn get_module_id(&mut self, id: ModuleId) -> Id {
+        let module = self.interner.module_attributes(id);
+        let location = module.location;
+        let name = module.name.clone();
+        let kind = ItemKind::Module;
+        let id = ItemId { location, kind, name };
+        self.get_id(id)
+    }
+
+    fn get_type_id(&mut self, id: TypeId) -> Id {
         let data_type = self.interner.get_type(id);
         let data_type = data_type.borrow();
         let location = data_type.location;
         let name = data_type.name.to_string();
-        let kind = IdKeyKind::Type;
+        let kind = ItemKind::Struct;
         let id = ItemId { location, kind, name };
         self.get_id(id)
     }
 
-    fn get_trait_id(&mut self, id: TraitId) -> usize {
+    fn get_trait_id(&mut self, id: TraitId) -> Id {
         let trait_ = self.interner.get_trait(id);
         let location = trait_.location;
         let name = trait_.name.to_string();
-        let kind = IdKeyKind::Trait;
+        let kind = ItemKind::Trait;
         let id = ItemId { location, kind, name };
         self.get_id(id)
     }
 
-    fn get_type_alias_id(&mut self, id: TypeAliasId) -> usize {
+    fn get_type_alias_id(&mut self, id: TypeAliasId) -> Id {
         let alias = self.interner.get_type_alias(id);
         let alias = alias.borrow();
         let location = alias.location;
         let name = alias.name.to_string();
-        let kind = IdKeyKind::TypeAlias;
+        let kind = ItemKind::TypeAlias;
         let id = ItemId { location, kind, name };
         self.get_id(id)
     }
 
-    fn get_id(&mut self, key: ItemId) -> usize {
+    fn get_function_id(&mut self, id: FuncId) -> Id {
+        let func_meta = self.interner.function_meta(&id);
+        let name = self.interner.function_name(&id).to_owned();
+        let location = func_meta.location;
+        let kind = ItemKind::Function;
+        let id = ItemId { location, kind, name };
+        self.get_id(id)
+    }
+
+    fn get_global_id(&mut self, id: GlobalId) -> Id {
+        let global_info = self.interner.get_global(id);
+        let location = global_info.location;
+        let name = global_info.ident.to_string();
+        let kind = ItemKind::Global;
+        let id = ItemId { location, kind, name };
+        self.get_id(id)
+    }
+
+    fn get_id(&mut self, key: ItemId) -> Id {
         if let Some(existing_id) = self.ids.get(&key) {
             *existing_id
         } else {

@@ -9,7 +9,7 @@ pub trait HasNameAndComments {
     fn comments(&self) -> Option<&str>;
 }
 
-pub type TypeId = usize;
+pub type Id = usize;
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Workspace {
@@ -52,11 +52,28 @@ pub enum Item {
     Function(Function),
     Global(Global),
     PrimitiveType(PrimitiveType),
+    Reexport(Reexport),
+}
+
+impl Item {
+    pub fn set_name(&mut self, new_name: String) {
+        match self {
+            Item::Module(module) => module.name = new_name,
+            Item::Struct(struct_) => struct_.name = new_name,
+            Item::Trait(trait_) => trait_.name = new_name,
+            Item::TypeAlias(type_alias) => type_alias.name = new_name,
+            Item::Function(function) => function.name = new_name,
+            Item::Global(global) => global.name = new_name,
+            Item::PrimitiveType(_) => {}
+            Item::Reexport(reexport) => reexport.name = new_name,
+        }
+    }
 }
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Module {
-    pub id: ModuleId,
+    pub id: Id,
+    pub module_id: ModuleId,
     pub name: String,
     pub items: Vec<(ItemVisibility, Item)>,
     pub comments: Option<String>,
@@ -80,7 +97,7 @@ impl HasNameAndComments for Module {
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Struct {
-    pub id: TypeId,
+    pub id: Id,
     pub name: String,
     pub generics: Vec<Generic>,
     /// All `pub` fields of the struct.
@@ -129,7 +146,7 @@ pub struct Impl {
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct TraitImpl {
     pub generics: Vec<Generic>,
-    pub trait_id: TypeId,
+    pub trait_id: Id,
     pub trait_name: String,
     pub trait_generics: Vec<Type>,
     pub r#type: Type,
@@ -139,6 +156,7 @@ pub struct TraitImpl {
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Global {
+    pub id: Id,
     pub name: String,
     pub comptime: bool,
     pub mutable: bool,
@@ -158,6 +176,7 @@ impl HasNameAndComments for Global {
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Function {
+    pub id: Id,
     pub unconstrained: bool,
     pub comptime: bool,
     pub name: String,
@@ -187,7 +206,7 @@ pub struct FunctionParam {
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Trait {
-    pub id: TypeId,
+    pub id: Id,
     pub name: String,
     pub generics: Vec<Generic>,
     pub bounds: Vec<TraitBound>,
@@ -224,7 +243,7 @@ impl HasNameAndComments for Trait {
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct TypeAlias {
-    pub id: TypeId,
+    pub id: Id,
     pub name: String,
     pub generics: Vec<Generic>,
     pub r#type: Type,
@@ -255,7 +274,7 @@ pub struct TraitConstraint {
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct TraitBound {
-    pub trait_id: TypeId,
+    pub trait_id: Id,
     pub trait_name: String,
     pub ordered_generics: Vec<Type>,
     pub named_generics: BTreeMap<String, Type>,
@@ -285,12 +304,12 @@ pub enum Type {
         mutable: bool,
     },
     Struct {
-        id: TypeId,
+        id: Id,
         name: String,
         generics: Vec<Type>,
     },
     TypeAlias {
-        id: TypeId,
+        id: Id,
         name: String,
         generics: Vec<Type>,
     },
@@ -308,7 +327,7 @@ pub enum Type {
         rhs: Box<Type>,
     },
     TraitAsType {
-        trait_id: TypeId,
+        trait_id: Id,
         trait_name: String,
         ordered_generics: Vec<Type>,
         named_generics: BTreeMap<String, Type>,
@@ -330,6 +349,25 @@ impl HasNameAndComments for PrimitiveType {
     fn comments(&self) -> Option<&str> {
         None
     }
+}
+
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub struct Reexport {
+    pub id: Id,
+    pub item_name: String,
+    pub name: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum ItemKind {
+    Module,
+    Struct,
+    Trait,
+    TypeAlias,
+    Function,
+    Global,
+    PrimitiveType,
+    Reexport,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash)]

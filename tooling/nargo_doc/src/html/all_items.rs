@@ -73,5 +73,6 @@ fn gather_all_items_in_item(item: &Item, current_path: &mut Vec<String>, all_ite
         Item::Function(function) => {
             all_items.functions.push((current_path.clone(), function.name.clone()));
         }
+        Item::Reexport(_) => {}
     }
 }

@@ -10,21 +10,21 @@ use crate::{
         all_items::AllItems,
         has_class::HasClass,
         has_uri::HasUri,
-        id_to_uri::compute_id_to_uri,
+        id_to_info::{ItemInfo, compute_id_to_info},
         markdown_utils::{fix_markdown, markdown_summary},
         trait_impls::gather_all_trait_impls,
     },
     items::{
-        Crate, Function, FunctionParam, Generic, Global, HasNameAndComments, Impl, Item, Module,
-        PrimitiveType, PrimitiveTypeKind, Struct, StructField, Trait, TraitBound, TraitConstraint,
-        TraitImpl, Type, TypeAlias, TypeId, Workspace,
+        Crate, Function, FunctionParam, Generic, Global, HasNameAndComments, Id, Impl, Item,
+        Module, PrimitiveType, PrimitiveTypeKind, Reexport, Struct, StructField, Trait, TraitBound,
+        TraitConstraint, TraitImpl, Type, TypeAlias, Workspace,
     },
 };
 
 mod all_items;
 mod has_class;
 mod has_uri;
-mod id_to_uri;
+mod id_to_info;
 mod markdown_utils;
 mod trait_impls;
 
@@ -45,9 +45,9 @@ struct HTMLCreator {
     files: Vec<(PathBuf, String)>,
     current_path: Vec<String>,
     workspace_name: String,
-    id_to_uri: HashMap<TypeId, String>,
+    id_to_info: HashMap<Id, ItemInfo>,
     /// Maps a trait ID to all its implementations across all crates.
-    all_trait_impls: HashMap<TypeId, HashSet<TraitImpl>>,
+    all_trait_impls: HashMap<Id, HashSet<TraitImpl>>,
     self_type: Option<Type>,
 }
 
@@ -65,7 +65,7 @@ impl HTMLCreator {
         let files = Vec::new();
         let current_path = Vec::new();
         let workspace_name = workspace.name.clone();
-        let id_to_uri = compute_id_to_uri(workspace);
+        let id_to_info = compute_id_to_info(workspace);
 
         // Each trait in each create will have trait impls that are found in that crate.
         // When showing a trait we want to show all impls across all crates, so we gather
@@ -76,7 +76,7 @@ impl HTMLCreator {
             files,
             current_path,
             workspace_name,
-            id_to_uri,
+            id_to_info,
             all_trait_impls,
             self_type: None,
         }
@@ -183,7 +183,7 @@ impl HTMLCreator {
 
         self.main_start();
         self.h1(&format!("{} documentation", workspace.name));
-        self.render_list("Crates", "crates", false, false, &crates);
+        self.render_list("Crates", "crates", false, 0, &crates);
         self.main_end();
         self.html_end();
         self.push_file(PathBuf::from("index.html"));
@@ -200,7 +200,7 @@ impl HTMLCreator {
         self.render_breadcrumbs(false);
         self.h1(&format!("Crate <span class=\"crate\">{}</span>", krate.name));
         self.render_comments(&krate.root_module.comments, 1);
-        self.render_items(&krate.root_module.items, false, false);
+        self.render_items(&krate.root_module.items, false, 0);
         self.main_end();
         self.html_end();
         self.push_file(PathBuf::from("index.html"));
@@ -230,54 +230,44 @@ impl HTMLCreator {
         self.output.push_str("</ul>");
     }
 
-    fn render_items(
-        &mut self,
-        items: &[(ItemVisibility, Item)],
-        sidebar: bool,
-        reference_parent: bool,
-    ) {
-        self.render_modules(items, sidebar, reference_parent);
-        self.render_structs(items, sidebar, reference_parent);
-        self.render_traits(items, sidebar, reference_parent);
-        self.render_type_aliases(items, sidebar, reference_parent);
-        self.render_primitive_types(items, sidebar, reference_parent);
-        self.render_functions(items, sidebar, reference_parent);
-        self.render_globals(items, sidebar, reference_parent);
+    fn render_items(&mut self, items: &[(ItemVisibility, Item)], sidebar: bool, nesting: usize) {
+        if !sidebar {
+            self.render_reexports(items);
+        }
+        self.render_modules(items, sidebar, nesting);
+        self.render_structs(items, sidebar, nesting);
+        self.render_traits(items, sidebar, nesting);
+        self.render_type_aliases(items, sidebar, nesting);
+        self.render_primitive_types(items, sidebar, nesting);
+        self.render_functions(items, sidebar, nesting);
+        self.render_globals(items, sidebar, nesting);
     }
 
-    fn render_modules(
-        &mut self,
-        items: &[(ItemVisibility, Item)],
-        sidebar: bool,
-        reference_parent: bool,
-    ) {
+    fn render_reexports(&mut self, items: &[(ItemVisibility, Item)]) {
+        let reexports = get_reexports(items);
+        if !reexports.is_empty() {
+            self.render_reexports_list("Re-exports", "re-export", &reexports);
+        }
+    }
+
+    fn render_modules(&mut self, items: &[(ItemVisibility, Item)], sidebar: bool, nesting: usize) {
         let modules = get_modules(items);
         if !modules.is_empty() {
-            self.render_list("Modules", "modules", sidebar, reference_parent, &modules);
+            self.render_list("Modules", "modules", sidebar, nesting, &modules);
         }
     }
 
-    fn render_structs(
-        &mut self,
-        items: &[(ItemVisibility, Item)],
-        sidebar: bool,
-        reference_parent: bool,
-    ) {
+    fn render_structs(&mut self, items: &[(ItemVisibility, Item)], sidebar: bool, nesting: usize) {
         let structs = get_structs(items);
         if !structs.is_empty() {
-            self.render_list("Structs", "structs", sidebar, reference_parent, &structs);
+            self.render_list("Structs", "structs", sidebar, nesting, &structs);
         }
     }
 
-    fn render_traits(
-        &mut self,
-        items: &[(ItemVisibility, Item)],
-        sidebar: bool,
-        reference_parent: bool,
-    ) {
+    fn render_traits(&mut self, items: &[(ItemVisibility, Item)], sidebar: bool, nesting: usize) {
         let traits = get_traits(items);
         if !traits.is_empty() {
-            self.render_list("Traits", "traits", sidebar, reference_parent, &traits);
+            self.render_list("Traits", "traits", sidebar, nesting, &traits);
         }
     }
 
@@ -285,17 +275,11 @@ impl HTMLCreator {
         &mut self,
         items: &[(ItemVisibility, Item)],
         sidebar: bool,
-        reference_parent: bool,
+        nesting: usize,
     ) {
         let type_aliases = get_type_aliases(items);
         if !type_aliases.is_empty() {
-            self.render_list(
-                "Type aliases",
-                "type-aliases",
-                sidebar,
-                reference_parent,
-                &type_aliases,
-            );
+            self.render_list("Type aliases", "type-aliases", sidebar, nesting, &type_aliases);
         }
     }
 
@@ -303,7 +287,7 @@ impl HTMLCreator {
         &mut self,
         items: &[(ItemVisibility, Item)],
         sidebar: bool,
-        reference_parent: bool,
+        nesting: usize,
     ) {
         let primitive_types = get_primitive_types(items);
         if !primitive_types.is_empty() {
@@ -311,21 +295,16 @@ impl HTMLCreator {
                 "Primitive types",
                 "primitive-types",
                 sidebar,
-                reference_parent,
+                nesting,
                 &primitive_types,
             );
         }
     }
 
-    fn render_globals(
-        &mut self,
-        items: &[(ItemVisibility, Item)],
-        sidebar: bool,
-        reference_parent: bool,
-    ) {
+    fn render_globals(&mut self, items: &[(ItemVisibility, Item)], sidebar: bool, nesting: usize) {
         let globals = get_globals(items);
         if !globals.is_empty() {
-            self.render_list("Globals", "globals", sidebar, reference_parent, &globals);
+            self.render_list("Globals", "globals", sidebar, nesting, &globals);
         }
     }
 
@@ -333,11 +312,11 @@ impl HTMLCreator {
         &mut self,
         items: &[(ItemVisibility, Item)],
         sidebar: bool,
-        reference_parent: bool,
+        nesting: usize,
     ) {
         let functions = get_functions(items);
         if !functions.is_empty() {
-            self.render_list("Functions", "functions", sidebar, reference_parent, &functions);
+            self.render_list("Functions", "functions", sidebar, nesting, &functions);
         }
     }
 
@@ -346,7 +325,7 @@ impl HTMLCreator {
         title: &str,
         anchor: &str,
         sidebar: bool,
-        reference_parent: bool,
+        nesting: usize,
         items: &[&T],
     ) {
         if sidebar {
@@ -366,7 +345,7 @@ impl HTMLCreator {
             }
             self.output.push_str(&format!(
                 "<a href=\"{}{}\" class=\"{}\">{}</a>",
-                if reference_parent { "../" } else { "" },
+                "../".repeat(nesting),
                 item.uri(),
                 item.class(),
                 item.name(),
@@ -379,6 +358,45 @@ impl HTMLCreator {
                     self.output.push_str(&summary);
                 }
             }
+            self.output.push_str("</div>");
+            self.output.push_str("</li>\n");
+        }
+        self.output.push_str("</ul>");
+    }
+
+    fn render_reexports_list(&mut self, title: &str, anchor: &str, reexports: &[&Reexport]) {
+        let nesting = self.current_path.len();
+
+        self.output.push_str(&format!("<h2 id=\"{anchor}\">{title}</h2>"));
+        self.output.push_str("<ul class=\"item-list\">");
+
+        for reexport in reexports {
+            if !self.id_to_info.contains_key(&reexport.id) {
+                println!("{} {} {}", reexport.id, reexport.name, reexport.item_name);
+            }
+
+            let info = &self.id_to_info[&reexport.id];
+            let path = info.path.join("::");
+            let path = if path.is_empty() { String::new() } else { format!("{path}::") };
+            let uri = &info.uri;
+            let class = info.class;
+            self.output.push_str("<li>");
+            self.output.push_str("<div class=\"item-name\">");
+            self.output.push_str("<code>");
+            self.output.push_str(&format!(
+                "pub use {}<a href=\"{}{}\" class=\"{}\">{}</a>{};",
+                path,
+                "../".repeat(nesting),
+                uri,
+                class,
+                reexport.item_name,
+                if reexport.name != reexport.item_name {
+                    format!(" as {}", reexport.name)
+                } else {
+                    String::new()
+                },
+            ));
+            self.output.push_str("</code>");
             self.output.push_str("</div>");
             self.output.push_str("</li>\n");
         }
@@ -402,6 +420,7 @@ impl HTMLCreator {
             Item::Function(function) => self.create_function(parent_module, function),
             Item::Global(global) => self.create_global(parent_module, global),
             Item::PrimitiveType(primitive) => self.create_primitive_type(parent_module, primitive),
+            Item::Reexport(_) => { /* Re-exports don't have their own pages */ }
         }
     }
 
@@ -416,7 +435,7 @@ impl HTMLCreator {
         self.render_breadcrumbs(false);
         self.h1(&format!("Module <span id=\"mod\" class=\"module\">{}</span>", module.name));
         self.render_comments(&module.comments, 1);
-        self.render_items(&module.items, false, false);
+        self.render_items(&module.items, false, 0);
         self.main_end();
         self.html_end();
         self.push_file(PathBuf::from("index.html"));
@@ -429,7 +448,7 @@ impl HTMLCreator {
     fn render_module_sidebar(&mut self, parent_module: &Module, module: &Module) {
         self.h2(&format!("<a href=\"#mod\">Module {}</a>", module.name));
         self.render_module_items_sidebar(module);
-        self.render_module_contents_sidebar(parent_module, true);
+        self.render_module_contents_sidebar(parent_module, 1);
     }
 
     fn render_module_items_sidebar(&mut self, module: &Module) {
@@ -438,6 +457,9 @@ impl HTMLCreator {
         }
         self.h3("Module items");
         self.output.push_str("<ul class=\"sidebar-list\">");
+        if !get_reexports(&module.items).is_empty() {
+            self.output.push_str("<li><a href=\"#re-exports\">Re-exports</a></li>");
+        }
         if !get_modules(&module.items).is_empty() {
             self.output.push_str("<li><a href=\"#modules\">Modules</a></li>");
         }
@@ -459,21 +481,21 @@ impl HTMLCreator {
         self.output.push_str("</ul>");
     }
 
-    fn render_module_contents_sidebar(&mut self, module: &Module, reference_parent: bool) {
+    fn render_module_contents_sidebar(&mut self, module: &Module, nesting: usize) {
         if module.name.is_empty() {
             let crate_name = self.current_path.last().unwrap();
             self.h2(&format!("In crate {crate_name}"));
         } else {
             self.h2(&format!("In module {}", module.name));
         }
-        self.render_items(&module.items, true, reference_parent);
+        self.render_items(&module.items, true, nesting);
     }
 
     fn create_struct(&mut self, parent_module: &Module, struct_: &Struct) {
         self.html_start(&format!("Struct {}", struct_.name));
         self.sidebar_start();
         self.render_struct_sidebar(struct_);
-        self.render_module_contents_sidebar(parent_module, false);
+        self.render_module_contents_sidebar(parent_module, 0);
         self.sidebar_end();
         self.main_start();
         self.render_breadcrumbs(true);
@@ -533,7 +555,7 @@ impl HTMLCreator {
         self.html_start(&format!("Trait {}", trait_.name));
         self.sidebar_start();
         self.render_trait_sidebar(trait_);
-        self.render_module_contents_sidebar(parent_module, false);
+        self.render_module_contents_sidebar(parent_module, 0);
         self.sidebar_end();
         self.main_start();
         self.render_breadcrumbs(true);
@@ -623,7 +645,7 @@ impl HTMLCreator {
     fn create_alias(&mut self, parent_module: &Module, alias: &TypeAlias) {
         self.html_start(&format!("Type alias {}", alias.name));
         self.sidebar_start();
-        self.render_module_contents_sidebar(parent_module, false);
+        self.render_module_contents_sidebar(parent_module, 0);
         self.sidebar_end();
         self.main_start();
         self.render_breadcrumbs(true);
@@ -638,7 +660,7 @@ impl HTMLCreator {
     fn create_function(&mut self, parent_module: &Module, function: &Function) {
         self.html_start(&format!("Function {}", function.name));
         self.sidebar_start();
-        self.render_module_contents_sidebar(parent_module, false);
+        self.render_module_contents_sidebar(parent_module, 0);
         self.sidebar_end();
         self.main_start();
         self.render_breadcrumbs(true);
@@ -654,7 +676,7 @@ impl HTMLCreator {
     fn create_global(&mut self, parent_module: &Module, global: &Global) {
         self.html_start(&format!("Global {}", global.name));
         self.sidebar_start();
-        self.render_module_contents_sidebar(parent_module, false);
+        self.render_module_contents_sidebar(parent_module, 0);
         self.sidebar_end();
         self.main_start();
         self.render_breadcrumbs(true);
@@ -670,7 +692,7 @@ impl HTMLCreator {
         self.html_start(&format!("Primitive type {}", primitive.kind));
         self.sidebar_start();
         self.render_primitive_sidebar(primitive);
-        self.render_module_contents_sidebar(parent_module, false);
+        self.render_module_contents_sidebar(parent_module, 0);
         self.sidebar_end();
         self.main_start();
         self.render_breadcrumbs(true);
@@ -803,7 +825,7 @@ impl HTMLCreator {
         self.output.push_str("impl");
         self.render_generics(&trait_impl.generics);
         self.output.push(' ');
-        self.render_id_reference(trait_impl.trait_id, &trait_impl.trait_name, ReferenceKind::Trait);
+        self.render_id_reference(trait_impl.trait_id, &trait_impl.trait_name);
         self.render_generic_types(&trait_impl.trait_generics);
         self.output.push_str(" for ");
         self.render_type(&trait_impl.r#type);
@@ -1118,21 +1140,19 @@ impl HTMLCreator {
     }
 
     fn render_trait_bound(&mut self, bound: &TraitBound) {
-        self.render_id_reference(bound.trait_id, &bound.trait_name, ReferenceKind::Trait);
+        self.render_id_reference(bound.trait_id, &bound.trait_name);
         self.render_trait_generics(&bound.ordered_generics, &bound.named_generics);
     }
 
-    fn render_id_reference(&mut self, id: TypeId, name: &str, kind: ReferenceKind) {
-        if let Some(uri) = self.id_to_uri.get(&id) {
-            let class = match kind {
-                ReferenceKind::Struct => "struct",
-                ReferenceKind::Trait => "trait",
-                ReferenceKind::TypeAlias => "type",
-            };
+    fn render_id_reference(&mut self, id: Id, name: &str) {
+        if let Some(ItemInfo { path: _, uri, class, visibility: ItemVisibility::Public }) =
+            self.id_to_info.get(&id)
+        {
             let nesting = self.current_path.len();
             self.output.push_str(&format!(
-                "<a href=\"{}{uri}\" class=\"{class}\">{name}</a>",
-                "../".repeat(nesting)
+                "<a href=\"{}{}\" class=\"{class}\">{name}</a>",
+                "../".repeat(nesting),
+                uri,
             ));
         } else {
             self.output.push_str(name);
@@ -1219,11 +1239,11 @@ impl HTMLCreator {
                 self.render_type(r#type);
             }
             Type::Struct { id, name, generics } => {
-                self.render_id_reference(*id, name, ReferenceKind::Struct);
+                self.render_id_reference(*id, name);
                 self.render_generic_types(generics);
             }
             Type::TypeAlias { id, name, generics } => {
-                self.render_id_reference(*id, name, ReferenceKind::TypeAlias);
+                self.render_id_reference(*id, name);
                 self.render_generic_types(generics);
             }
             Type::Function { params, return_type, env, unconstrained } => {
@@ -1264,7 +1284,7 @@ impl HTMLCreator {
             }
             Type::TraitAsType { trait_id, trait_name, ordered_generics, named_generics } => {
                 self.output.push_str("impl ");
-                self.render_id_reference(*trait_id, trait_name, ReferenceKind::Trait);
+                self.render_id_reference(*trait_id, trait_name);
                 self.render_trait_generics(ordered_generics, named_generics);
             }
         }
@@ -1439,6 +1459,20 @@ impl HTMLCreator {
         let path = full_path.join(path);
         self.files.push((path, contents));
     }
+}
+
+fn get_reexports(items: &[(ItemVisibility, Item)]) -> Vec<&Reexport> {
+    items
+        .iter()
+        .filter_map(|(visibility, item)| {
+            if visibility == &ItemVisibility::Public {
+                if let Item::Reexport(reexport) = item {
+                    return Some(reexport);
+                }
+            }
+            None
+        })
+        .collect()
 }
 
 fn get_modules(items: &[(ItemVisibility, Item)]) -> Vec<&Module> {
@@ -1753,10 +1787,4 @@ fn is_self_param(param: &FunctionParam, self_type: Option<&Type>) -> bool {
 
 fn escape_html(input: &str) -> String {
     input.replace('<', "&lt;").replace('>', "&gt;")
-}
-
-enum ReferenceKind {
-    Struct,
-    Trait,
-    TypeAlias,
 }

@@ -2,10 +2,10 @@ use std::collections::{HashMap, HashSet};
 
 use noirc_frontend::ast::ItemVisibility;
 
-use crate::items::{Item, TraitImpl, TypeId, Workspace};
+use crate::items::{Item, TraitImpl, Id, Workspace};
 
 /// Gather all trait impls in the workspace, grouped by the trait they implement.
-pub(super) fn gather_all_trait_impls(workspace: &Workspace) -> HashMap<TypeId, HashSet<TraitImpl>> {
+pub(super) fn gather_all_trait_impls(workspace: &Workspace) -> HashMap<Id, HashSet<TraitImpl>> {
     let mut trait_impls = HashMap::new();
 
     for krate in workspace.all_crates() {
@@ -19,7 +19,7 @@ pub(super) fn gather_all_trait_impls(workspace: &Workspace) -> HashMap<TypeId, H
     trait_impls
 }
 
-fn gather_trait_impls_in_item(item: &Item, trait_impls: &mut HashMap<TypeId, HashSet<TraitImpl>>) {
+fn gather_trait_impls_in_item(item: &Item, trait_impls: &mut HashMap<Id, HashSet<TraitImpl>>) {
     match item {
         Item::Module(module) => {
             for (visibility, item) in &module.items {
@@ -43,6 +43,6 @@ fn gather_trait_impls_in_item(item: &Item, trait_impls: &mut HashMap<TypeId, Has
                 trait_impls.entry(impl_.trait_id).or_default().insert(impl_.clone());
             }
         }
-        Item::TypeAlias(_) | Item::Function(_) | Item::Global(_) => {}
+        Item::TypeAlias(_) | Item::Function(_) | Item::Global(_) | Item::Reexport(_) => {}
     }
 }
