@@ -1410,11 +1410,6 @@ impl<F: AcirField> AcirContext<F> {
             Some(value) => {
                 let mut values = Vec::new();
                 self.initialize_array_inner(&mut values, value)?;
-                debug_assert_eq!(
-                    values.len(),
-                    len,
-                    "Initialized array length does not match the expected length"
-                );
                 values
             }
         };
