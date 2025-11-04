@@ -1736,7 +1736,66 @@
 <a href="#1735" id="1735">1735</a>
 <a href="#1736" id="1736">1736</a>
 <a href="#1737" id="1737">1737</a>
-<a href="#1738" id="1738">1738</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::VecDeque;
+<a href="#1738" id="1738">1738</a>
+<a href="#1739" id="1739">1739</a>
+<a href="#1740" id="1740">1740</a>
+<a href="#1741" id="1741">1741</a>
+<a href="#1742" id="1742">1742</a>
+<a href="#1743" id="1743">1743</a>
+<a href="#1744" id="1744">1744</a>
+<a href="#1745" id="1745">1745</a>
+<a href="#1746" id="1746">1746</a>
+<a href="#1747" id="1747">1747</a>
+<a href="#1748" id="1748">1748</a>
+<a href="#1749" id="1749">1749</a>
+<a href="#1750" id="1750">1750</a>
+<a href="#1751" id="1751">1751</a>
+<a href="#1752" id="1752">1752</a>
+<a href="#1753" id="1753">1753</a>
+<a href="#1754" id="1754">1754</a>
+<a href="#1755" id="1755">1755</a>
+<a href="#1756" id="1756">1756</a>
+<a href="#1757" id="1757">1757</a>
+<a href="#1758" id="1758">1758</a>
+<a href="#1759" id="1759">1759</a>
+<a href="#1760" id="1760">1760</a>
+<a href="#1761" id="1761">1761</a>
+<a href="#1762" id="1762">1762</a>
+<a href="#1763" id="1763">1763</a>
+<a href="#1764" id="1764">1764</a>
+<a href="#1765" id="1765">1765</a>
+<a href="#1766" id="1766">1766</a>
+<a href="#1767" id="1767">1767</a>
+<a href="#1768" id="1768">1768</a>
+<a href="#1769" id="1769">1769</a>
+<a href="#1770" id="1770">1770</a>
+<a href="#1771" id="1771">1771</a></pre></div><pre class="rust"><code><span class="doccomment">//! The comptime interpreter is a tree-walking interpreter used for evaluating Noir code
+//! at compile-time. It is typically triggered (by the elaborator) in one of four scenarios:
+//! 1. A `comptime {}` block
+//!   - Everything in the block is interpreted
+//! 2. A macro call `foo!()`
+//!   - The interpreter calls the function `foo` and inlines the resulting `Quoted` code at the callsite.
+//! 3. An attribute call `#[my_attr] struct Foo {}`
+//!   - The interpreter calls the function `my_attr` and, if `foo`returns a `Quoted` value,
+//!     inlines the resulting `Quoted` code.
+//! 4. A global `global FOO = expr;`
+//!   - The interpreter evaluates `expr` to simplify the global to a constant.
+//!   - This means any side-effects in `expr` will be performed at compile-time (!).
+//!     - This may change in the future.
+//!
+//! The interpreter operates on the HIR which only requires interpreted code to be elaborated
+//! before-hand, it does not need to be translated into another IR. Operating on high-level
+//! code like this makes the interpreter more predictable, hopefully limiting bugs, but does
+//! make it rather slow in practice.
+//!
+//! Since unquoting macros may result in new variables in scope, the elaborator must run on that
+//! code after the interpreter is run. Yet the requirement that the interpreter runs on HIR means
+//! the interpreter must run in the middle of the elaborator. The usual flow is for the elaborator
+//! to elaborate as it goes, creating new HIR. Then when it sees a `comptime {}` block or other
+//! item that must be interpreted, it elaborates the entire item, creates and runs an [Interpreter]
+//! on it, inlines the result, and continues elaborating the rest of the code.
+
+</span><span class="kw">use </span>std::collections::VecDeque;
 <span class="kw">use </span>std::{collections::hash_map::Entry, rc::Rc};
 
 <span class="kw">use </span>acvm::AcirField;
@@ -1748,7 +1807,6 @@
 <span class="kw">use </span><span class="kw">crate</span>::TypeVariable;
 <span class="kw">use </span><span class="kw">crate</span>::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, UnaryOp};
 <span class="kw">use </span><span class="kw">crate</span>::elaborator::{ElaborateReason, Elaborator};
-<span class="kw">use </span><span class="kw">crate</span>::graph::CrateId;
 <span class="kw">use </span><span class="kw">crate</span>::hir::def_map::ModuleId;
 <span class="kw">use </span><span class="kw">crate</span>::hir::type_check::TypeCheckError;
 <span class="kw">use </span><span class="kw">crate</span>::hir_def::expr::TraitItem;
@@ -1793,31 +1851,35 @@
     <span class="doccomment">/// To expand macros the Interpreter needs access to the Elaborator
     </span><span class="kw">pub </span>elaborator: <span class="kw-2">&amp;</span><span class="lifetime">'local </span><span class="kw-2">mut </span>Elaborator&lt;<span class="lifetime">'interner</span>&gt;,
 
-    crate_id: CrateId,
+    <span class="doccomment">/// True if the interpreter is currently in a loop (in the current function).
+    /// Used only to error if break/continue are used outside a loop.
+    </span>in_loop: bool,
 
-    in_loop: bool,
+    <span class="doccomment">/// The current function being interpreted. This may be `None` if we're interpreting
+    /// the rhs of a global.
+    </span>current_function: <span class="prelude-ty">Option</span>&lt;FuncId&gt;,
 
-    current_function: <span class="prelude-ty">Option</span>&lt;FuncId&gt;,
-
-    <span class="doccomment">/// Maps each bound generic to each binding it has in the current callstack.
+    <span class="doccomment">/// Maps each generic to the binding it has in the current callstack.
     /// Since the interpreter monomorphizes as it interprets, we can bind over the same generic
-    /// multiple times. Without this map, when one of these inner functions exits we would
+    /// multiple times. Without the outer Vec, when one of these inner functions exits we would
     /// unbind the generic completely instead of resetting it to its previous binding.
     </span>bound_generics: Vec&lt;HashMap&lt;TypeVariable, (Type, Kind)&gt;&gt;,
 }
 
-<span class="attr">#[allow(unused)]
-</span><span class="kw">impl</span>&lt;<span class="lifetime">'local</span>, <span class="lifetime">'interner</span>&gt; Interpreter&lt;<span class="lifetime">'local</span>, <span class="lifetime">'interner</span>&gt; {
+<span class="kw">impl</span>&lt;<span class="lifetime">'local</span>, <span class="lifetime">'interner</span>&gt; Interpreter&lt;<span class="lifetime">'local</span>, <span class="lifetime">'interner</span>&gt; {
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(
         elaborator: <span class="kw-2">&amp;</span><span class="lifetime">'local </span><span class="kw-2">mut </span>Elaborator&lt;<span class="lifetime">'interner</span>&gt;,
-        crate_id: CrateId,
         current_function: <span class="prelude-ty">Option</span>&lt;FuncId&gt;,
     ) -&gt; <span class="self">Self </span>{
-        <span class="kw">let </span>pedantic_solving = elaborator.pedantic_solving();
-        <span class="self">Self </span>{ elaborator, crate_id, current_function, bound_generics: Vec::new(), in_loop: <span class="bool-val">false </span>}
+        <span class="self">Self </span>{ elaborator, current_function, bound_generics: Vec::new(), in_loop: <span class="bool-val">false </span>}
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>call_function(
+    <span class="doccomment">/// Call the given function with the given arguments and return the result.
+    ///
+    /// This will handle internal details like binding generics and error handling.
+    /// Note that running code which resulted in previous errors during elaboration
+    /// may result in similar errors being issued again by the interpreter.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>call_function(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         function: FuncId,
         arguments: Vec&lt;(Value, Location)&gt;,
@@ -1852,7 +1914,8 @@
         result
     }
 
-    <span class="kw">fn </span>call_function_inner(
+    <span class="doccomment">/// Helper to check parameter count and dispatch on the function kind to run the function.
+    </span><span class="kw">fn </span>call_function_inner(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         function: FuncId,
         arguments: Vec&lt;(Value, Location)&gt;,
@@ -1874,7 +1937,7 @@
 
         <span class="comment">// Don't change the current function scope if we're in a #[use_callers_scope] function.
         // This will affect where `Expression::resolve`, `Quoted::as_type`, and similar functions resolve.
-        </span><span class="kw">let </span><span class="kw-2">mut </span>old_function = <span class="self">self</span>.current_function;
+        </span><span class="kw">let </span>old_function = <span class="self">self</span>.current_function;
         <span class="kw">let </span>modifiers = <span class="self">self</span>.elaborator.interner.function_modifiers(<span class="kw-2">&amp;</span>function);
         <span class="kw">if </span>!modifiers.attributes.has_use_callers_scope() {
             <span class="self">self</span>.current_function = <span class="prelude-val">Some</span>(function);
@@ -1939,19 +2002,25 @@
         }
     }
 
-    <span class="kw">fn </span>elaborate_in_function&lt;T&gt;(
+    <span class="doccomment">/// Helper to elaborate the given item in the given function's context. If None is passed,
+    /// the global context is used. This function will temporarily unbind any generics from the
+    /// previous function call if they exist.
+    </span><span class="kw">fn </span>elaborate_in_function&lt;T&gt;(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         function: <span class="prelude-ty">Option</span>&lt;FuncId&gt;,
         reason: <span class="prelude-ty">Option</span>&lt;ElaborateReason&gt;,
         f: <span class="kw">impl </span>FnOnce(<span class="kw-2">&amp;mut </span>Elaborator) -&gt; T,
     ) -&gt; T {
-        <span class="self">self</span>.unbind_generics_from_previous_function();
+        <span class="comment">// Why do we only unbind generics from the previous function here?
+        </span><span class="self">self</span>.unbind_generics_from_previous_function();
         <span class="kw">let </span>result = <span class="self">self</span>.elaborator.elaborate_item_from_comptime_in_function(function, reason, f);
         <span class="self">self</span>.rebind_generics_from_previous_function();
         result
     }
 
-    <span class="kw">fn </span>elaborate_in_module&lt;T&gt;(
+    <span class="doccomment">/// Run the given function with an elaborator in the context of the given module.
+    /// Temporarily undoes any generics from the previous function.
+    </span><span class="kw">fn </span>elaborate_in_module&lt;T&gt;(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         module: ModuleId,
         reason: <span class="prelude-ty">Option</span>&lt;ElaborateReason&gt;,
@@ -1963,7 +2032,10 @@
         result
     }
 
-    <span class="kw">fn </span>call_special(
+    <span class="doccomment">/// Calls a builtin, foreign, or oracle function (not all oracles are supported).
+    ///
+    /// This will ignore any oracles starting with "__debug"
+    </span><span class="kw">fn </span>call_special(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         function: FuncId,
         arguments: Vec&lt;(Value, Location)&gt;,
@@ -2163,7 +2235,7 @@
                     }
                 }
             }
-            HirPattern::Struct(struct_type, pattern_fields, <span class="kw">_</span>) =&gt; {
+            HirPattern::Struct(_struct_type, pattern_fields, <span class="kw">_</span>) =&gt; {
                 <span class="self">self</span>.push_scope();
 
                 <span class="kw">let </span>res = <span class="kw">match </span>argument {
@@ -2279,8 +2351,8 @@
             HirExpression::Call(call) =&gt; <span class="self">self</span>.evaluate_call(call, id),
             HirExpression::Constrain(constrain) =&gt; <span class="self">self</span>.evaluate_constrain(constrain),
             HirExpression::Cast(cast) =&gt; <span class="self">self</span>.evaluate_cast(<span class="kw-2">&amp;</span>cast, id),
-            HirExpression::If(if_) =&gt; <span class="self">self</span>.evaluate_if(if_, id),
-            HirExpression::Match(match_) =&gt; <span class="macro">todo!</span>(<span class="string">"Evaluate match in comptime code"</span>),
+            HirExpression::If(if_) =&gt; <span class="self">self</span>.evaluate_if(if_),
+            HirExpression::Match(<span class="kw">_</span>) =&gt; <span class="macro">todo!</span>(<span class="string">"Evaluate match in comptime code"</span>),
             HirExpression::Tuple(tuple) =&gt; <span class="self">self</span>.evaluate_tuple(tuple),
             HirExpression::Lambda(lambda) =&gt; <span class="self">self</span>.evaluate_lambda(lambda, id),
             HirExpression::Quote(tokens) =&gt; <span class="self">self</span>.evaluate_quote(tokens),
@@ -2288,7 +2360,7 @@
             HirExpression::EnumConstructor(constructor) =&gt; {
                 <span class="self">self</span>.evaluate_enum_constructor(constructor, id)
             }
-            HirExpression::Unquote(tokens) =&gt; {
+            HirExpression::Unquote(<span class="kw">_</span>) =&gt; {
                 <span class="comment">// An Unquote expression being found is indicative of a macro being
                 // expanded within another comptime fn which we don't currently support.
                 </span><span class="kw">let </span>location = <span class="self">self</span>.elaborator.interner.expr_location(<span class="kw-2">&amp;</span>id);
@@ -2323,7 +2395,6 @@
                 <span class="comment">// Avoid resetting the value if it is already known
                 </span><span class="kw">let </span>global_id = <span class="kw-2">*</span>global_id;
                 <span class="kw">let </span>global_info = <span class="self">self</span>.elaborator.interner.get_global(global_id);
-                <span class="kw">let </span>global_crate_id = global_info.crate_id;
                 <span class="kw">match </span><span class="kw-2">&amp;</span>global_info.value {
                     GlobalValue::Resolved(value) =&gt; <span class="prelude-val">Ok</span>(value.clone()),
                     GlobalValue::Resolving =&gt; {
@@ -2360,9 +2431,7 @@
                     .iter()
                     .find(|typ| typ.name.as_str() == name)
                     .expect(<span class="string">"Expected to find associated type"</span>);
-                <span class="kw">let </span>Kind::Numeric(numeric_type) = associated_type.typ.kind() <span class="kw">else </span>{
-                    <span class="macro">unreachable!</span>(<span class="string">"Expected associated type to be numeric"</span>);
-                };
+
                 <span class="kw">let </span>location = <span class="self">self</span>.elaborator.interner.expr_location(<span class="kw-2">&amp;</span>id);
                 <span class="kw">match </span>associated_type
                     .typ
@@ -2429,8 +2498,6 @@
         id: ExprId,
     ) -&gt; IResult&lt;Value&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>result = String::new();
-        <span class="kw">let </span><span class="kw-2">mut </span>escaped = <span class="bool-val">false</span>;
-        <span class="kw">let </span><span class="kw-2">mut </span>consuming = <span class="bool-val">false</span>;
 
         <span class="kw">let </span><span class="kw-2">mut </span>values: VecDeque&lt;<span class="kw">_</span>&gt; =
             captures.into_iter().map(|capture| <span class="self">self</span>.evaluate(capture)).collect::&lt;<span class="prelude-ty">Result</span>&lt;<span class="kw">_</span>, <span class="kw">_</span>&gt;&gt;()<span class="question-mark">?</span>;
@@ -2608,7 +2675,6 @@
     ) -&gt; IResult&lt;Value&gt; {
         <span class="kw">let </span>method =
             prefix.trait_method_id.expect(<span class="string">"ice: expected prefix operator trait at this point"</span>);
-        <span class="kw">let </span>operator = prefix.operator;
 
         <span class="kw">let </span>method_id = resolve_trait_item(<span class="self">self</span>.elaborator.interner, method, id)<span class="question-mark">?</span>.unwrap_method();
         <span class="kw">let </span>type_bindings = <span class="self">self</span>.elaborator.interner.get_instantiation_bindings(id).clone();
@@ -2793,7 +2859,7 @@
         cast::evaluate_cast_one_step(<span class="kw-2">&amp;</span>cast.r#type, location, evaluated_lhs)
     }
 
-    <span class="kw">fn </span>evaluate_if(<span class="kw-2">&amp;mut </span><span class="self">self</span>, if_: HirIfExpression, id: ExprId) -&gt; IResult&lt;Value&gt; {
+    <span class="kw">fn </span>evaluate_if(<span class="kw-2">&amp;mut </span><span class="self">self</span>, if_: HirIfExpression) -&gt; IResult&lt;Value&gt; {
         <span class="kw">let </span>condition = <span class="kw">match </span><span class="self">self</span>.evaluate(if_.condition)<span class="question-mark">? </span>{
             Value::Bool(value) =&gt; value,
             value =&gt; {
@@ -2844,7 +2910,7 @@
         <span class="prelude-val">Ok</span>(Value::Closure(Box::new(closure)))
     }
 
-    <span class="kw">fn </span>evaluate_quote(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw-2">mut </span>tokens: Tokens) -&gt; IResult&lt;Value&gt; {
+    <span class="kw">fn </span>evaluate_quote(<span class="kw-2">&amp;mut </span><span class="self">self</span>, tokens: Tokens) -&gt; IResult&lt;Value&gt; {
         <span class="kw">let </span>tokens = <span class="self">self</span>.substitute_unquoted_values_into_tokens(tokens)<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(Value::Quoted(Rc::new(tokens)))
     }
@@ -2905,7 +2971,7 @@
 
     <span class="kw">fn </span>store_lvalue(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lvalue: HirLValue, rhs: Value) -&gt; IResult&lt;()&gt; {
         <span class="kw">match </span>lvalue {
-            HirLValue::Ident(ident, typ) =&gt; <span class="self">self</span>.mutate(ident.id, rhs, ident.location),
+            HirLValue::Ident(ident, _typ) =&gt; <span class="self">self</span>.mutate(ident.id, rhs, ident.location),
             HirLValue::Dereference { lvalue, element_type: <span class="kw">_</span>, location, implicitly_added: <span class="kw">_ </span>} =&gt; {
                 <span class="kw">match </span><span class="self">self</span>.evaluate_lvalue(<span class="kw-2">&amp;</span>lvalue)<span class="question-mark">? </span>{
                     Value::Pointer(value, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
@@ -2996,7 +3062,7 @@
                 Value::Pointer(elem, <span class="bool-val">true</span>, <span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(elem.borrow().clone()),
                 other =&gt; <span class="prelude-val">Ok</span>(other),
             },
-            HirLValue::Dereference { lvalue, element_type, location, implicitly_added: <span class="kw">_ </span>} =&gt; {
+            HirLValue::Dereference { lvalue, element_type: <span class="kw">_</span>, location, implicitly_added: <span class="kw">_ </span>} =&gt; {
                 <span class="kw">match </span><span class="self">self</span>.evaluate_lvalue(lvalue)<span class="question-mark">? </span>{
                     Value::Pointer(value, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(value.borrow().clone()),
                     value =&gt; {
@@ -3047,7 +3113,7 @@
                 Value::I16(<span class="kw">_</span>) =&gt; |i| Value::I16(i <span class="kw">as </span>i16),
                 Value::I32(<span class="kw">_</span>) =&gt; |i| Value::I32(i <span class="kw">as </span>i32),
                 Value::I64(<span class="kw">_</span>) =&gt; |i| Value::I64(i <span class="kw">as </span>i64),
-                value =&gt; <span class="macro">unreachable!</span>(<span class="string">"Checked above that value is signed type"</span>),
+                <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"Checked above that value is signed type"</span>),
             };
 
             <span class="comment">// i128 can store all values from i8 - u64
