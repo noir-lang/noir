@@ -11,9 +11,9 @@
 //! dependencies correctly:
 //!
 //! ### Early Resolution
-//! 1. Literal globals - Fully elaborated first since they may be used as numeric generics in struct definitions
-//! 2. Non-literal globals - Deferred for elaboration later after type resolution
-//! 3. Type aliases - Defined to allow their use in subsequent type definitions
+//! 1. Globals - Set up their dependency ordering. Deferred for elaboration later after type resolution.
+//!    Globals will be lazily elaborated when other types or expressions bring them into scope.
+//! 2. Type aliases - Defined to allow their use in subsequent type definitions
 //!
 //! ### Type Collection
 //! 1. Struct definitions - Collected so their types are available for use
@@ -26,8 +26,9 @@
 //! 3. Impl blocks - Methods organized into their proper modules based on the impl's type
 //! 4. Trait impls - Linked to their corresponding traits and validated
 //!
-//! ### Non-literal Global Elaboration
-//! - Non-literal globals - Elaborated after type resolution since they may use struct types which need global type information
+//! ### Global Elaboration
+//! - Elaborate any remaining globals which were not brought into scope.
+//!   Elaborated after type resolution since they may use struct types which need global type information
 //!
 //! ### Attribute Processing
 //! - Comptime attributes - Executed before function body elaboration, as generated items may change what is in scope or modify functions
@@ -83,8 +84,7 @@ use crate::{
     parser::{ParserError, ParserErrorReason},
 };
 use crate::{
-    elaborator::globals::filter_literal_globals, graph::CrateGraph,
-    hir::def_collector::dc_crate::UnresolvedTrait, usage_tracker::UsageTracker,
+    graph::CrateGraph, hir::def_collector::dc_crate::UnresolvedTrait, usage_tracker::UsageTracker,
 };
 
 mod comptime;
@@ -107,6 +107,7 @@ mod trait_impls;
 mod traits;
 pub mod types;
 mod unquote;
+mod variable;
 mod visibility;
 
 use function_context::FunctionContext;
@@ -146,7 +147,7 @@ pub struct LambdaContext {
 enum UnsafeBlockStatus {
     NotInUnsafeBlock,
     InUnsafeBlockWithoutUnconstrainedCalls,
-    InUnsafeBlockWithConstrainedCalls,
+    InUnsafeBlockWithUnconstrainedCalls,
 }
 
 pub struct Loop {
@@ -362,19 +363,7 @@ impl<'context> Elaborator<'context> {
     }
 
     pub(crate) fn elaborate_items(&mut self, mut items: CollectedItems) {
-        // We must first resolve and intern the globals before we can resolve any stmts inside each function.
-        // Each function uses its own resolver with a newly created ScopeForest, and must be resolved again to be within a function's scope
-        //
-        // Additionally, we must resolve integer globals before structs since structs may refer to
-        // the values of integer globals as numeric generics.
-        let (literal_globals, non_literal_globals) = filter_literal_globals(items.globals);
-        for global in non_literal_globals {
-            self.unresolved_globals.insert(global.global_id, global);
-        }
-
-        for global in literal_globals {
-            self.elaborate_global(global);
-        }
+        self.set_unresolved_globals_ordering(items.globals);
 
         for (alias_id, alias) in items.type_aliases {
             self.define_type_alias(alias_id, alias);
@@ -387,8 +376,6 @@ impl<'context> Elaborator<'context> {
 
         self.define_function_metas(&mut items.functions, &mut items.impls, &mut items.trait_impls);
 
-        self.collect_trait_methods(&mut items.traits);
-
         // Before we resolve any function symbols we must go through our impls and
         // re-collect the methods within into their proper module. This cannot be
         // done during def collection since we need to be able to resolve the type of
@@ -396,6 +383,8 @@ impl<'context> Elaborator<'context> {
         for ((self_type, module), impls) in &mut items.impls {
             self.collect_impls(*module, impls, self_type);
         }
+
+        self.collect_trait_methods(&mut items.traits);
 
         // Bind trait impls to their trait. Collect trait functions, that have a
         // default implementation, which hasn't been overridden.
@@ -405,9 +394,7 @@ impl<'context> Elaborator<'context> {
 
         // We must wait to resolve non-literal globals until after we resolve structs since struct
         // globals will need to reference the struct type they're initialized to ensure they are valid.
-        while let Some((_, global)) = self.unresolved_globals.pop_first() {
-            self.elaborate_global(global);
-        }
+        self.elaborate_remaining_globals();
 
         // We have to run any comptime attributes on functions before the function is elaborated
         // since the generated items are checked beforehand as well.

@@ -28,7 +28,18 @@ pub(crate) struct FunctionContext {
     /// A `FunctionContext` is necessary for using a Brillig block's code gen, but sometimes
     /// such as with globals, we are not within a function and do not have a [FunctionId].
     function_id: Option<FunctionId>,
-    /// Map from SSA values its allocation. Since values can be only defined once in SSA form, we insert them here on when we allocate them at their definition.
+    /// Map from SSA values its allocation. Since values can be only defined once in SSA form,
+    /// we insert them here on when we allocate them at their definition.
+    ///
+    /// Multiple variables could be assigned the same slot, because this structure accumulates
+    /// historical allocations, not just the currently active ones. This is needed so that
+    /// when we start processing a block, we can always look up the allocation of the variables
+    /// which are live at the beginning of it, even if they were deemed dead by another block
+    /// we already visited.
+    ///
+    /// Note that we don't use `Allocated<BrilligVariable>` here, because we create a fresh
+    /// allocator for each block we process, and something that is allocated in e.g. block 1
+    /// might be deallocated in block 2, so it has to be done manually.
     pub(crate) ssa_value_allocations: HashMap<ValueId, BrilligVariable>,
     /// The block ids of the function in reverse post order.
     pub(crate) blocks: Vec<BasicBlockId>,
@@ -59,8 +70,24 @@ impl FunctionContext {
         }
     }
 
+    /// Get the ID of the function this context was created for.
+    ///
+    /// Panics if we call it when in the context created to hold
+    /// data structures for global codegen only.
     pub(crate) fn function_id(&self) -> FunctionId {
         self.function_id.expect("ICE: function_id should already be set")
+    }
+
+    /// Collects the return values of a given function
+    pub(crate) fn return_values(func: &Function) -> Vec<BrilligParameter> {
+        func.returns()
+            .unwrap_or_default()
+            .iter()
+            .map(|&value_id| {
+                let typ = func.dfg.type_of_value(value_id);
+                Self::ssa_type_to_parameter(&typ)
+            })
+            .collect()
     }
 
     /// Converts an SSA [Type] into a corresponding [BrilligParameter].
@@ -76,9 +103,7 @@ impl FunctionContext {
                 BrilligParameter::SingleAddr(get_bit_size_from_ssa_type(typ))
             }
             Type::Array(item_type, size) => BrilligParameter::Array(
-                vecmap(item_type.iter(), |item_typ| {
-                    FunctionContext::ssa_type_to_parameter(item_typ)
-                }),
+                vecmap(item_type.iter(), Self::ssa_type_to_parameter),
                 *size as usize,
             ),
             Type::Slice(_) => {
@@ -89,17 +114,5 @@ impl FunctionContext {
                 BrilligParameter::SingleAddr(get_bit_size_from_ssa_type(&Type::field()))
             }
         }
-    }
-
-    /// Collects the return values of a given function
-    pub(crate) fn return_values(func: &Function) -> Vec<BrilligParameter> {
-        func.returns()
-            .unwrap_or_default()
-            .iter()
-            .map(|&value_id| {
-                let typ = func.dfg.type_of_value(value_id);
-                FunctionContext::ssa_type_to_parameter(&typ)
-            })
-            .collect()
     }
 }

@@ -2,13 +2,16 @@
 use acir::{
     AcirField,
     brillig::{
-        ArrayAddress, BitSize, ForeignCallParam, HeapArray, HeapValueType, HeapVector,
-        IntegerBitSize, MemoryAddress, ValueOrArray, VectorAddress,
+        BitSize, ForeignCallParam, HeapArray, HeapValueType, HeapVector, IntegerBitSize,
+        MemoryAddress, ValueOrArray,
     },
 };
 use acvm_blackbox_solver::BlackBoxFunctionSolver;
 
-use crate::{MemoryValue, VM, VMStatus};
+use crate::{
+    MemoryValue, VM, VMStatus,
+    memory::{ArrayAddress, VectorAddress},
+};
 
 impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
     /// Handles the execution of a single [ForeignCall opcode][acir::brillig::Opcode::ForeignCall].

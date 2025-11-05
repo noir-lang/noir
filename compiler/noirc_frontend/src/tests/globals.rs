@@ -4,12 +4,11 @@ use crate::tests::{assert_no_errors, check_errors};
 fn deny_cyclic_globals() {
     let src = r#"
         global A: u32 = B;
-                        ^ This global recursively depends on itself
+                        ^ Failed to resolve this global
                ^ Dependency cycle found
                ~ 'A' recursively depends on itself: A -> B -> A
         global B: u32 = A;
-                        ^ Variable not in scope
-                        ~ Could not find variable
+                        ^ Failed to resolve this global
     "#;
     check_errors(src);
 }
@@ -137,12 +136,11 @@ fn disallows_references_in_globals() {
 fn errors_on_cyclic_globals() {
     let src = r#"
     pub comptime global A: u32 = B;
-                                 ^ This global recursively depends on itself
+                                 ^ Failed to resolve this global
                         ^ Dependency cycle found
                         ~ 'A' recursively depends on itself: A -> B -> A
     pub comptime global B: u32 = A;
-                                 ^ Variable not in scope
-                                 ~ Could not find variable
+                                 ^ Failed to resolve this global
     "#;
     check_errors(src);
 }
@@ -155,5 +153,30 @@ fn int_min_global() {
             let _x = MIN;
         }
     "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn lazy_literal_globals() {
+    // We want to make sure that we successfully elaborate the literal global `foo`
+    // even though it is defined after the global `bar` which uses `foo`.
+    let src = "
+    global bar: Foo = Foo::new();
+    global foo: u32 = 1;
+    
+    struct Foo {
+       foo: u32
+    }
+    
+    impl Foo {
+        fn new() -> Self {
+            Self { foo }
+        }
+    }
+    
+    fn main() {
+        let _ = bar;
+    }
+    ";
     assert_no_errors(src);
 }
