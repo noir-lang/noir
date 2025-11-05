@@ -147,7 +147,7 @@ pub struct LambdaContext {
 enum UnsafeBlockStatus {
     NotInUnsafeBlock,
     InUnsafeBlockWithoutUnconstrainedCalls,
-    InUnsafeBlockWithConstrainedCalls,
+    InUnsafeBlockWithUnconstrainedCalls,
 }
 
 pub struct Loop {

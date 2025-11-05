@@ -5,7 +5,7 @@ use noirc_errors::{Located, Location};
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
-    DataType, Kind, QuotedType, Shared, Type, TypeBindings, TypeVariable,
+    DataType, Kind, MustUse, QuotedType, Shared, Type, TypeBindings, TypeVariable,
     ast::{
         ArrayLiteral, AsTraitPath, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
         ConstrainExpression, ConstrainKind, ConstructorExpression, Expression, ExpressionKind,
@@ -201,9 +201,15 @@ impl Elaborator<'_> {
                 let inner_expr_type = self.interner.id_type(expr);
                 let location = self.interner.expr_location(&expr);
 
-                self.unify(&inner_expr_type, &Type::Unit, || TypeCheckError::UnusedResultError {
-                    expr_type: inner_expr_type.clone(),
-                    expr_location: location,
+                self.unify(&inner_expr_type, &Type::Unit, || {
+                    let expr_type = inner_expr_type.clone();
+                    let expr_location = location;
+
+                    if let MustUse::MustUse(message) = Self::type_is_must_use(&expr_type) {
+                        TypeCheckError::UnusedResultError { expr_type, expr_location, message }
+                    } else {
+                        TypeCheckError::UnusedResultWarning { expr_type, expr_location }
+                    }
                 });
             }
 
@@ -230,37 +236,75 @@ impl Elaborator<'_> {
         (HirBlockExpression { statements }, block_type)
     }
 
+    /// If the given type was declared as:
+    /// - `#[must_use = "message"]`, return [MustUse::MustUse(Some("message"))]
+    /// - `#[must_use]`, return [MustUse::MustUse(None)]
+    /// - otherwise, return `MustUse::NoMustUse`
+    fn type_is_must_use(typ: &Type) -> MustUse {
+        /// Helper function to avoid infinite recursion for infinitely recursive types
+        fn helper(typ: &Type, fuel: u32) -> MustUse {
+            if fuel == 0 {
+                return MustUse::NoMustUse;
+            }
+            let fuel = fuel - 1;
+            match typ.follow_bindings_shallow().as_ref() {
+                Type::DataType(data_type, _generics) => data_type.borrow().must_use.clone(),
+                // If any element in the tuple is `#[must_use]`, the whole tuple is
+                Type::Tuple(elements) => {
+                    for element in elements {
+                        if let MustUse::MustUse(message) = helper(element, fuel) {
+                            return MustUse::MustUse(message);
+                        }
+                    }
+                    MustUse::NoMustUse
+                }
+                Type::Alias(alias, generics) => helper(&alias.borrow().get_type(generics), fuel),
+                Type::CheckedCast { to, .. } => helper(to.as_ref(), fuel),
+                Type::Reference(element, _) => helper(element.as_ref(), fuel),
+                _ => MustUse::NoMustUse,
+            }
+        }
+
+        // 10 is an arbitrary maximum bound on recursion through `Type`s here
+        // in case an infinitely recursive type is used. In practice most types should
+        // require just 1 iteration, or up to 3 for a reference to an aliased type.
+        helper(typ, 10)
+    }
+
     fn elaborate_unsafe_block(
         &mut self,
         unsafe_expression: UnsafeExpression,
         target_type: Option<&Type>,
     ) -> (HirExpression, Type) {
-        // Before entering the block we cache the old value of `in_unsafe_block` so it can be restored.
+        use UnsafeBlockStatus::*;
+        // Before entering the block we cache the old value of the unsafe block status, so it can be restored.
         let old_in_unsafe_block = self.unsafe_block_status;
-        let is_nested_unsafe_block =
-            !matches!(old_in_unsafe_block, UnsafeBlockStatus::NotInUnsafeBlock);
+        let is_nested_unsafe_block = !matches!(old_in_unsafe_block, NotInUnsafeBlock);
+
         if is_nested_unsafe_block {
             self.push_err(TypeCheckError::NestedUnsafeBlock {
                 location: unsafe_expression.unsafe_keyword_location,
             });
         }
 
-        self.unsafe_block_status = UnsafeBlockStatus::InUnsafeBlockWithoutUnconstrainedCalls;
+        self.unsafe_block_status = InUnsafeBlockWithoutUnconstrainedCalls;
 
         let (hir_block_expression, typ) =
             self.elaborate_block_expression(unsafe_expression.block, target_type);
 
-        if let UnsafeBlockStatus::InUnsafeBlockWithoutUnconstrainedCalls = self.unsafe_block_status
-        {
+        let has_unconstrained_call =
+            matches!(self.unsafe_block_status, InUnsafeBlockWithUnconstrainedCalls);
+
+        if !has_unconstrained_call {
             self.push_err(TypeCheckError::UnnecessaryUnsafeBlock {
                 location: unsafe_expression.unsafe_keyword_location,
             });
         }
 
-        // Finally, we restore the original value of `self.in_unsafe_block`,
-        // but only if this isn't a nested unsafe block (that way if we found an unconstrained call
-        // for this unsafe block we'll also consider the outer one as finding one, and we don't double error)
-        if !is_nested_unsafe_block {
+        // Finally, we restore the original value of the unsafe block status,
+        // unless we are in a nested block and we have found an unconstrained call,
+        // in which case we should consider the outer block as having that call as well.
+        if !is_nested_unsafe_block || !has_unconstrained_call {
             self.unsafe_block_status = old_in_unsafe_block;
         }
 
@@ -1268,8 +1312,8 @@ impl Elaborator<'_> {
         let mut element_ids = Vec::with_capacity(tuple.len());
         let mut element_types = Vec::with_capacity(tuple.len());
 
+        let target_type = target_type.map(|typ| typ.follow_bindings());
         for (index, element) in tuple.into_iter().enumerate() {
-            let target_type = target_type.map(|typ| typ.follow_bindings());
             let expr_target_type =
                 if let Some(Type::Tuple(types)) = &target_type { types.get(index) } else { None };
             let (id, typ) = self.elaborate_expression_with_target_type(element, expr_target_type);
@@ -1288,10 +1332,10 @@ impl Elaborator<'_> {
         let target_type = target_type.map(|typ| typ.follow_bindings());
 
         if let Some(Type::Function(args, _, _, _)) = target_type {
-            return self.elaborate_lambda_with_parameter_type_hints(lambda, Some(&args));
+            self.elaborate_lambda_with_parameter_type_hints(lambda, Some(&args))
+        } else {
+            self.elaborate_lambda_with_parameter_type_hints(lambda, None)
         }
-
-        self.elaborate_lambda_with_parameter_type_hints(lambda, None)
     }
 
     /// For elaborating a lambda we might get `parameters_type_hints`. These come from a potential

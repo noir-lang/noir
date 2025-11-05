@@ -73,7 +73,7 @@ fn main() -> Result<(), String> {
 
 /// Some tests are explicitly ignored in brillig due to them failing.
 /// These should be fixed and removed from this list.
-const IGNORED_BRILLIG_TESTS: [&str; 10] = [
+const IGNORED_BRILLIG_TESTS: [&str; 11] = [
     // bit sizes for bigint operation doesn't match up.
     "bigint",
     // ICE due to looking for function which doesn't exist.
@@ -87,6 +87,8 @@ const IGNORED_BRILLIG_TESTS: [&str; 10] = [
     "fold_numeric_generic_poseidon",
     // Expected to fail as test asserts on which runtime it is in.
     "is_unconstrained",
+    // The output depends on function IDs of lambdas, and with --force-brillig we only get one kind.
+    "regression_10158",
 ];
 
 /// Tests which aren't expected to work with the default minimum inliner cases.

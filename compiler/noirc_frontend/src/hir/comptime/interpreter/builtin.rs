@@ -215,6 +215,9 @@ impl Interpreter<'_, '_> {
             "type_def_add_attribute" => type_def_add_attribute(interner, arguments, location),
             "type_def_add_generic" => type_def_add_generic(interner, arguments, location),
             "type_def_as_type" => type_def_as_type(interner, arguments, location),
+            "type_def_as_type_with_generics" => {
+                type_def_as_type_with_generics(interner, arguments, return_type, location)
+            }
             "type_def_eq" => type_def_eq(arguments, location),
             "type_def_fields" => type_def_fields(interner, arguments, location, call_stack),
             "type_def_fields_as_written" => {
@@ -472,6 +475,31 @@ fn type_def_as_type(
 
     drop(type_def);
     Ok(Value::Type(Type::DataType(type_def_rc, generics)))
+}
+
+/// `fn as_type_with_generics(self, generics: [Type]) -> Option<Type>`
+fn type_def_as_type_with_generics(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    let (type_def, generics) = check_two_arguments(arguments, location)?;
+    let type_id = get_type_id(type_def)?;
+    let type_def_rc = interner.get_type(type_id);
+    let type_def = type_def_rc.borrow();
+
+    let generics_location = generics.1;
+    let (generics, _) = get_slice(interner, generics)?;
+    let generics = try_vecmap(generics, |generic| get_type((generic, generics_location)))?;
+
+    let correct_generic_count = type_def.generics.len() == generics.len();
+    drop(type_def);
+
+    let type_result =
+        correct_generic_count.then(|| Value::Type(Type::DataType(type_def_rc, generics)));
+
+    Ok(option(return_type, type_result, location))
 }
 
 /// fn generics(self) -> [(Type, `Option<Type>`)]
@@ -2861,9 +2889,7 @@ fn module_add_item(
     interpreter.elaborate_in_module(module_id, reason, |elaborator| {
         let mut generated_items = CollectedItems::default();
 
-        for top_level_statement in top_level_statements {
-            elaborator.add_item(top_level_statement, &mut generated_items, location);
-        }
+        elaborator.add_items(top_level_statements, &mut generated_items, location);
 
         if !generated_items.is_empty() {
             elaborator.elaborate_items(generated_items);

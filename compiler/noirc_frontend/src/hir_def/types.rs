@@ -371,6 +371,16 @@ pub struct DataType {
 
     pub generics: Generics,
     pub location: Location,
+
+    pub must_use: MustUse,
+}
+
+/// Convenience enum to avoid using `Option<Option<String>>` to indicate
+/// whether `#[must_use]` is present (outer option) and the optional message (inner option).
+#[derive(Clone)]
+pub enum MustUse {
+    NoMustUse,
+    MustUse(Option<String>),
 }
 
 enum TypeBody {
@@ -471,7 +481,15 @@ impl DataType {
         generics: Generics,
         visibility: ItemVisibility,
     ) -> DataType {
-        DataType { id, name, location, generics, body: TypeBody::None, visibility }
+        DataType {
+            id,
+            name,
+            location,
+            generics,
+            body: TypeBody::None,
+            visibility,
+            must_use: MustUse::NoMustUse,
+        }
     }
 
     /// To account for cyclic references between structs, a struct's
@@ -2722,12 +2740,16 @@ impl From<&Type> for PrintableType {
             Type::CheckedCast { to, .. } => to.as_ref().into(),
             Type::NamedGeneric(..) => unreachable!(),
             Type::Forall(..) => unreachable!(),
-            Type::Function(arguments, return_type, env, unconstrained) => PrintableType::Function {
-                arguments: arguments.iter().map(|arg| arg.into()).collect(),
-                return_type: Box::new(return_type.as_ref().into()),
-                env: Box::new(env.as_ref().into()),
-                unconstrained: *unconstrained,
-            },
+            Type::Function(arguments, return_type, env, _unconstrained) => {
+                // Mimicking `Monomorphizer::convert_type_helper`: functions are represented as a tuple of constrained and unconstrained version.
+                let make_function = |unconstrained| PrintableType::Function {
+                    arguments: arguments.iter().map(|arg| arg.into()).collect(),
+                    return_type: Box::new(return_type.as_ref().into()),
+                    env: Box::new(env.as_ref().into()),
+                    unconstrained,
+                };
+                PrintableType::Tuple { types: vecmap([false, true], make_function) }
+            }
             Type::Reference(typ, mutable) => {
                 PrintableType::Reference { typ: Box::new(typ.as_ref().into()), mutable: *mutable }
             }
