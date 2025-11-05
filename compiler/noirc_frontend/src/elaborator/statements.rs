@@ -5,8 +5,8 @@ use noirc_errors::Location;
 use crate::{
     Type,
     ast::{
-        AssignStatement, Expression, ForLoopStatement, ForRange, IntegerBitSize, LValue,
-        LetStatement, Statement, StatementKind, WhileStatement,
+        AssignStatement, ForLoopStatement, ForRange, IntegerBitSize, LValue, LetStatement,
+        LoopStatement, Statement, StatementKind, WhileStatement,
     },
     elaborator::PathResolutionTarget,
     hir::{
@@ -41,7 +41,7 @@ impl Elaborator<'_> {
             StatementKind::Let(let_stmt) => self.elaborate_local_let(let_stmt),
             StatementKind::Assign(assign) => self.elaborate_assign(assign),
             StatementKind::For(for_stmt) => self.elaborate_for(for_stmt),
-            StatementKind::Loop(block, location) => self.elaborate_loop(block, location),
+            StatementKind::Loop(loop_) => self.elaborate_loop(loop_),
             StatementKind::While(while_) => self.elaborate_while(while_),
             StatementKind::Break => self.elaborate_jump(true, statement.location),
             StatementKind::Continue => self.elaborate_jump(false, statement.location),
@@ -255,11 +255,8 @@ impl Elaborator<'_> {
         (statement, Type::Unit)
     }
 
-    pub(super) fn elaborate_loop(
-        &mut self,
-        block: Expression,
-        location: Location,
-    ) -> (HirStatement, Type) {
+    pub(super) fn elaborate_loop(&mut self, loop_: LoopStatement) -> (HirStatement, Type) {
+        let LoopStatement { body: block, loop_keyword_location: location } = loop_;
         let in_constrained_function = self.in_constrained_function();
         if in_constrained_function {
             self.push_err(ResolverError::LoopInConstrainedFn { location });
