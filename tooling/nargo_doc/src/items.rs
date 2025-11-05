@@ -29,6 +29,7 @@ impl Workspace {
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Crate {
     pub name: String,
+    pub version: Option<String>,
     pub root_module: Module,
     pub root_file: String,
 }

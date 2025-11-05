@@ -44,6 +44,7 @@ struct HTMLCreator {
     output: String,
     files: Vec<(PathBuf, String)>,
     current_path: Vec<String>,
+    current_crate_version: Option<String>,
     workspace_name: String,
     id_to_info: HashMap<Id, ItemInfo>,
     /// Maps a trait ID to all its implementations across all crates.
@@ -75,6 +76,7 @@ impl HTMLCreator {
             output,
             files,
             current_path,
+            current_crate_version: None,
             workspace_name,
             id_to_info,
             all_trait_impls,
@@ -108,8 +110,7 @@ impl HTMLCreator {
         self.sidebar_start();
         self.render_all_items_sidebar(&all_items);
         self.sidebar_end();
-        self.main_start();
-        self.render_breadcrumbs(false);
+        self.main_start(false);
         self.h1(&format!("All items in {}", workspace.name));
         self.render_all_items_list("Structs", "struct", &all_items.structs);
         self.render_all_items_list("Traits", "trait", &all_items.traits);
@@ -182,7 +183,7 @@ impl HTMLCreator {
         self.sidebar_start();
         self.sidebar_end();
 
-        self.main_start();
+        self.main_start(false);
         self.h1(&format!("{} documentation", workspace.name));
         self.render_list("Crates", "crates", false, 0, &crates);
         self.main_end();
@@ -192,13 +193,13 @@ impl HTMLCreator {
 
     fn create_crate(&mut self, workspace: &Workspace, krate: &Crate) {
         self.current_path.push(krate.name.clone());
+        self.current_crate_version = krate.version.clone();
 
         self.html_start(&format!("Crate {}", krate.name));
         self.sidebar_start();
         self.render_crate_sidebar(workspace, krate);
         self.sidebar_end();
-        self.main_start();
-        self.render_breadcrumbs(false);
+        self.main_start(false);
         self.h1(&format!("Crate <span class=\"crate\">{}</span>", krate.name));
         self.render_comments(&krate.root_module.comments, 1);
         self.render_items(&krate.root_module.items, false, 0);
@@ -209,6 +210,7 @@ impl HTMLCreator {
         self.create_items(&krate.root_module, &krate.root_module.items);
 
         self.current_path.pop();
+        self.current_crate_version = None;
     }
 
     fn render_crate_sidebar(&mut self, workspace: &Workspace, krate: &Crate) {
@@ -222,12 +224,7 @@ impl HTMLCreator {
             }
 
             self.output.push_str("<li>");
-            self.output.push_str(&format!(
-                "<a href=\"../{}\" class=\"{}\">{}</a>",
-                krate.uri(),
-                krate.class(),
-                krate.name(),
-            ));
+            self.output.push_str(&format!("<a href=\"../{}\">{}</a>", krate.uri(), krate.name(),));
             self.output.push_str("</li>\n");
         }
         self.output.push_str("</ul>\n");
@@ -346,11 +343,13 @@ impl HTMLCreator {
             if !sidebar {
                 self.output.push_str("<div class=\"item-name\">");
             }
+            let class =
+                if sidebar { String::new() } else { format!(" class=\"{}\"", item.class()) };
             self.output.push_str(&format!(
-                "<a href=\"{}{}\" class=\"{}\">{}</a>",
+                "<a href=\"{}{}\"{}>{}</a>",
                 "../".repeat(nesting),
                 item.uri(),
-                item.class(),
+                class,
                 item.name(),
             ));
             if !sidebar {
@@ -434,8 +433,7 @@ impl HTMLCreator {
         self.sidebar_start();
         self.render_module_sidebar(parent_module, module);
         self.sidebar_end();
-        self.main_start();
-        self.render_breadcrumbs(false);
+        self.main_start(false);
         self.h1(&format!("Module <span id=\"mod\" class=\"module\">{}</span>", module.name));
         self.render_comments(&module.comments, 1);
         self.render_items(&module.items, false, 0);
@@ -500,8 +498,7 @@ impl HTMLCreator {
         self.render_struct_sidebar(struct_);
         self.render_module_contents_sidebar(parent_module, 0);
         self.sidebar_end();
-        self.main_start();
-        self.render_breadcrumbs(true);
+        self.main_start(true);
         self.h1(&format!("Struct <span id=\"struct\" class=\"struct\">{}</span>", struct_.name));
         self.render_struct_code(struct_);
         self.render_comments(&struct_.comments, 1);
@@ -560,8 +557,7 @@ impl HTMLCreator {
         self.render_trait_sidebar(trait_);
         self.render_module_contents_sidebar(parent_module, 0);
         self.sidebar_end();
-        self.main_start();
-        self.render_breadcrumbs(true);
+        self.main_start(true);
         self.h1(&format!("Trait <span id=\"trait\" class=\"trait\">{}</span>", trait_.name));
         self.render_trait_code(trait_);
         self.render_comments(&trait_.comments, 1);
@@ -650,8 +646,7 @@ impl HTMLCreator {
         self.sidebar_start();
         self.render_module_contents_sidebar(parent_module, 0);
         self.sidebar_end();
-        self.main_start();
-        self.render_breadcrumbs(true);
+        self.main_start(true);
         self.h1(&format!("Type alias <span class=\"type\">{}</span>", alias.name));
         self.render_type_alias_code(alias);
         self.render_comments(&alias.comments, 1);
@@ -665,8 +660,7 @@ impl HTMLCreator {
         self.sidebar_start();
         self.render_module_contents_sidebar(parent_module, 0);
         self.sidebar_end();
-        self.main_start();
-        self.render_breadcrumbs(true);
+        self.main_start(true);
         self.h1(&format!("Function <span class=\"fn\">{}</span>", function.name));
         let as_header = false;
         let output_id = false;
@@ -681,8 +675,7 @@ impl HTMLCreator {
         self.sidebar_start();
         self.render_module_contents_sidebar(parent_module, 0);
         self.sidebar_end();
-        self.main_start();
-        self.render_breadcrumbs(true);
+        self.main_start(true);
         self.h1(&format!("Global <span class=\"global\">{}</span>", global.name));
         self.render_global_code(global);
         self.render_comments(&global.comments, 1);
@@ -697,8 +690,7 @@ impl HTMLCreator {
         self.render_primitive_sidebar(primitive);
         self.render_module_contents_sidebar(parent_module, 0);
         self.sidebar_end();
-        self.main_start();
-        self.render_breadcrumbs(true);
+        self.main_start(true);
         self.h1(&format!(
             "Primitive type <span id=\"primitive\" class=\"primitive\">{}</span>",
             primitive.kind
@@ -1418,8 +1410,9 @@ impl HTMLCreator {
         self.output.push_str("</html>\n");
     }
 
-    fn main_start(&mut self) {
+    fn main_start(&mut self, last_breadcrumb_is_link: bool) {
         self.output.push_str("<main>\n");
+        self.render_breadcrumbs(last_breadcrumb_is_link);
     }
 
     fn main_end(&mut self) {
@@ -1436,6 +1429,17 @@ impl HTMLCreator {
             "../".repeat(nesting),
             "All items"
         ));
+        if let Some(crate_name) = self.current_path.first().cloned() {
+            self.output.push_str(&format!(
+                "<h2 id=\"crate-name\"><a href=\"{}index.html\">{crate_name}</a></h2>\n",
+                "../".repeat(nesting - 1)
+            ));
+            // If there's no version, use 0.0.0 by default to make it really obvious it's missing
+            // (this is what rustdoc does too)
+            let version = self.current_crate_version.clone().unwrap_or_else(|| "0.0.0".to_string());
+            self.output
+                .push_str(&format!("<div id=\"crate-version\">{}</div>\n", escape_html(&version)));
+        }
     }
 
     fn sidebar_end(&mut self) {
