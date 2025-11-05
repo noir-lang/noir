@@ -2434,82 +2434,7 @@
 <a href="#2433" id="2433">2433</a>
 <a href="#2434" id="2434">2434</a>
 <a href="#2435" id="2435">2435</a>
-<a href="#2436" id="2436">2436</a>
-<a href="#2437" id="2437">2437</a>
-<a href="#2438" id="2438">2438</a>
-<a href="#2439" id="2439">2439</a>
-<a href="#2440" id="2440">2440</a>
-<a href="#2441" id="2441">2441</a>
-<a href="#2442" id="2442">2442</a>
-<a href="#2443" id="2443">2443</a>
-<a href="#2444" id="2444">2444</a>
-<a href="#2445" id="2445">2445</a>
-<a href="#2446" id="2446">2446</a>
-<a href="#2447" id="2447">2447</a>
-<a href="#2448" id="2448">2448</a>
-<a href="#2449" id="2449">2449</a>
-<a href="#2450" id="2450">2450</a>
-<a href="#2451" id="2451">2451</a>
-<a href="#2452" id="2452">2452</a>
-<a href="#2453" id="2453">2453</a>
-<a href="#2454" id="2454">2454</a>
-<a href="#2455" id="2455">2455</a>
-<a href="#2456" id="2456">2456</a>
-<a href="#2457" id="2457">2457</a>
-<a href="#2458" id="2458">2458</a>
-<a href="#2459" id="2459">2459</a>
-<a href="#2460" id="2460">2460</a>
-<a href="#2461" id="2461">2461</a>
-<a href="#2462" id="2462">2462</a>
-<a href="#2463" id="2463">2463</a>
-<a href="#2464" id="2464">2464</a>
-<a href="#2465" id="2465">2465</a>
-<a href="#2466" id="2466">2466</a>
-<a href="#2467" id="2467">2467</a>
-<a href="#2468" id="2468">2468</a>
-<a href="#2469" id="2469">2469</a>
-<a href="#2470" id="2470">2470</a>
-<a href="#2471" id="2471">2471</a>
-<a href="#2472" id="2472">2472</a>
-<a href="#2473" id="2473">2473</a>
-<a href="#2474" id="2474">2474</a>
-<a href="#2475" id="2475">2475</a>
-<a href="#2476" id="2476">2476</a>
-<a href="#2477" id="2477">2477</a>
-<a href="#2478" id="2478">2478</a>
-<a href="#2479" id="2479">2479</a>
-<a href="#2480" id="2480">2480</a>
-<a href="#2481" id="2481">2481</a>
-<a href="#2482" id="2482">2482</a>
-<a href="#2483" id="2483">2483</a>
-<a href="#2484" id="2484">2484</a>
-<a href="#2485" id="2485">2485</a>
-<a href="#2486" id="2486">2486</a>
-<a href="#2487" id="2487">2487</a>
-<a href="#2488" id="2488">2488</a>
-<a href="#2489" id="2489">2489</a>
-<a href="#2490" id="2490">2490</a>
-<a href="#2491" id="2491">2491</a>
-<a href="#2492" id="2492">2492</a>
-<a href="#2493" id="2493">2493</a>
-<a href="#2494" id="2494">2494</a>
-<a href="#2495" id="2495">2495</a>
-<a href="#2496" id="2496">2496</a>
-<a href="#2497" id="2497">2497</a>
-<a href="#2498" id="2498">2498</a>
-<a href="#2499" id="2499">2499</a>
-<a href="#2500" id="2500">2500</a>
-<a href="#2501" id="2501">2501</a>
-<a href="#2502" id="2502">2502</a>
-<a href="#2503" id="2503">2503</a>
-<a href="#2504" id="2504">2504</a>
-<a href="#2505" id="2505">2505</a>
-<a href="#2506" id="2506">2506</a>
-<a href="#2507" id="2507">2507</a>
-<a href="#2508" id="2508">2508</a>
-<a href="#2509" id="2509">2509</a>
-<a href="#2510" id="2510">2510</a>
-<a href="#2511" id="2511">2511</a></pre></div><pre class="rust"><code><span class="doccomment">//! Type resolution, unification, and method resolution (for both types and traits).
+<a href="#2436" id="2436">2436</a></pre></div><pre class="rust"><code><span class="doccomment">//! Type resolution, unification, and method resolution (for both types and traits).
 
 </span><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
 
@@ -2519,12 +2444,10 @@
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
 
 <span class="kw">use crate</span>::{
-    Generics, Kind, NamedGeneric, ResolvedGeneric, Type, TypeBinding, TypeBindings,
-    UnificationError,
+    Kind, NamedGeneric, ResolvedGeneric, Type, TypeBinding, TypeBindings, UnificationError,
     ast::{
-        AsTraitPath, BinaryOpKind, GenericTypeArgs, Ident, PathKind, UnaryOp, UnresolvedGeneric,
-        UnresolvedGenerics, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
-        WILDCARD_TYPE,
+        AsTraitPath, BinaryOpKind, GenericTypeArgs, Ident, PathKind, UnaryOp, UnresolvedType,
+        UnresolvedTypeData, UnresolvedTypeExpression, WILDCARD_TYPE,
     },
     elaborator::UnstableFeature,
     hir::{
@@ -2573,7 +2496,8 @@
 }
 
 <span class="kw">impl </span>Elaborator&lt;<span class="lifetime">'_</span>&gt; {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>resolve_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, typ: UnresolvedType, wildcard_allowed: bool) -&gt; Type {
+    <span class="doccomment">/// Resolves a type and marks it, and any generic types it contains, as referenced.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>resolve_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, typ: UnresolvedType, wildcard_allowed: bool) -&gt; Type {
         <span class="self">self</span>.resolve_type_inner(
             typ,
             <span class="kw-2">&amp;</span>Kind::Normal,
@@ -2582,7 +2506,8 @@
         )
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>use_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, typ: UnresolvedType, wildcard_allowed: bool) -&gt; Type {
+    <span class="doccomment">/// Resolves a type and marks it, and any generic types it contains, as used.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>use_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, typ: UnresolvedType, wildcard_allowed: bool) -&gt; Type {
         <span class="self">self</span>.use_type_with_kind(typ, <span class="kw-2">&amp;</span>Kind::Normal, wildcard_allowed)
     }
 
@@ -2620,8 +2545,7 @@
         <span class="self">self</span>.resolve_type_inner(typ, kind, PathResolutionMode::MarkAsReferenced, wildcard_allowed)
     }
 
-    <span class="doccomment">/// Translates an UnresolvedType into a Type and appends any
-    /// freshly created TypeVariables created to new_variables.
+    <span class="doccomment">/// Translates an UnresolvedType into a Type.
     </span><span class="kw">fn </span>resolve_type_with_kind_inner(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         typ: UnresolvedType,
@@ -2760,10 +2684,6 @@
         }
 
         <span class="self">self</span>.check_kind(resolved_type, kind, location)
-    }
-
-    <span class="kw">pub fn </span>find_generic(<span class="kw-2">&amp;</span><span class="self">self</span>, target_name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>ResolvedGeneric&gt; {
-        <span class="self">self</span>.generics.iter().find(|generic| generic.name.as_ref() == target_name)
     }
 
     <span class="comment">// Resolve Self::Foo to an associated type on the current trait or trait impl
@@ -2966,27 +2886,6 @@
         } <span class="kw">else </span>{
             Type::Error
         }
-    }
-
-    <span class="doccomment">/// Identical to `resolve_type_args` but does not allow
-    /// associated types to be elided since trait impls must specify them.
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_trait_args_from_trait_impl(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        args: GenericTypeArgs,
-        item: TraitId,
-        location: Location,
-    ) -&gt; (Vec&lt;Type&gt;, Vec&lt;NamedType&gt;) {
-        <span class="kw">let </span>mode = PathResolutionMode::MarkAsReferenced;
-        <span class="kw">let </span>allow_implicit_named_args = <span class="bool-val">false</span>;
-        <span class="kw">let </span>wildcard_allowed = <span class="bool-val">true</span>;
-        <span class="self">self</span>.resolve_type_or_trait_args_inner(
-            args,
-            item,
-            location,
-            allow_implicit_named_args,
-            mode,
-            wildcard_allowed,
-        )
     }
 
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>use_type_args(
@@ -3549,22 +3448,6 @@
     ) {
         <span class="kw">if let </span><span class="prelude-val">Err</span>(UnificationError) = actual.unify(expected) {
             <span class="self">self</span>.push_err(make_error());
-        }
-    }
-
-    <span class="doccomment">/// Do not apply type bindings even after a successful unification.
-    /// This function is used by the interpreter for some comptime code
-    /// which can change types e.g. on each iteration of a for loop.
-    </span><span class="kw">pub fn </span>unify_without_applying_bindings(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        actual: <span class="kw-2">&amp;</span>Type,
-        expected: <span class="kw-2">&amp;</span>Type,
-        make_error: <span class="kw">impl </span>FnOnce() -&gt; TypeCheckError,
-    ) {
-        <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
-        <span class="kw">if </span>actual.try_unify(expected, <span class="kw-2">&amp;mut </span>bindings).is_err() {
-            <span class="kw">let </span>error: CompilationError = make_error().into();
-            <span class="self">self</span>.push_err(error);
         }
     }
 
@@ -4842,39 +4725,6 @@
         }
     }
 
-    <span class="kw">pub fn </span>add_existing_generics(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        unresolved_generics: <span class="kw-2">&amp;</span>UnresolvedGenerics,
-        generics: <span class="kw-2">&amp;</span>Generics,
-    ) {
-        <span class="macro">assert_eq!</span>(unresolved_generics.len(), generics.len());
-
-        <span class="kw">for </span>(unresolved_generic, generic) <span class="kw">in </span>unresolved_generics.iter().zip(generics) {
-            <span class="self">self</span>.add_existing_generic(unresolved_generic, unresolved_generic.location(), generic);
-        }
-    }
-
-    <span class="kw">pub fn </span>add_existing_generic(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        unresolved_generic: <span class="kw-2">&amp;</span>UnresolvedGeneric,
-        location: Location,
-        resolved_generic: <span class="kw-2">&amp;</span>ResolvedGeneric,
-    ) {
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(name) = unresolved_generic.ident().ident() {
-            <span class="kw">let </span>name = name.as_str();
-
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(generic) = <span class="self">self</span>.find_generic(name) {
-                <span class="self">self</span>.push_err(ResolverError::DuplicateDefinition {
-                    name: name.to_string(),
-                    first_location: generic.location,
-                    second_location: location,
-                });
-            } <span class="kw">else </span>{
-                <span class="self">self</span>.generics.push(resolved_generic.clone());
-            }
-        }
-    }
-
     <span class="kw">pub fn </span>bind_generics_from_trait_constraint(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         constraint: <span class="kw-2">&amp;</span>TraitConstraint,
@@ -4980,7 +4830,7 @@
     }
 }
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>bind_ordered_generics(
+<span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>bind_ordered_generics(
     params: <span class="kw-2">&amp;</span>[ResolvedGeneric],
     args: <span class="kw-2">&amp;</span>[Type],
     bindings: <span class="kw-2">&amp;mut </span>TypeBindings,
@@ -4992,7 +4842,7 @@
     }
 }
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>bind_named_generics(
+<span class="kw">fn </span>bind_named_generics(
     <span class="kw-2">mut </span>params: Vec&lt;ResolvedGeneric&gt;,
     args: <span class="kw-2">&amp;</span>[NamedType],
     bindings: <span class="kw-2">&amp;mut </span>TypeBindings,

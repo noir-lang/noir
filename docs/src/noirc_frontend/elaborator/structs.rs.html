@@ -125,11 +125,7 @@
 <a href="#124" id="124">124</a>
 <a href="#125" id="125">125</a>
 <a href="#126" id="126">126</a>
-<a href="#127" id="127">127</a>
-<a href="#128" id="128">128</a>
-<a href="#129" id="129">129</a>
-<a href="#130" id="130">130</a>
-<a href="#131" id="131">131</a></pre></div><pre class="rust"><code><span class="doccomment">//! Struct definition collection and field resolution.
+<a href="#127" id="127">127</a></pre></div><pre class="rust"><code><span class="doccomment">//! Struct definition collection and field resolution.
 
 </span><span class="kw">use </span>std::collections::BTreeMap;
 
@@ -221,14 +217,10 @@
 
             <span class="kw">let </span>wildcard_allowed = <span class="bool-val">false</span>;
             <span class="kw">let </span>fields = vecmap(<span class="kw-2">&amp;</span>unresolved.fields, |field| {
-                <span class="kw">let </span>ident = <span class="kw-2">&amp;</span>field.item.name;
-                <span class="kw">let </span>typ = <span class="kw-2">&amp;</span>field.item.typ;
+                <span class="kw">let </span>name = field.item.name.clone();
+                <span class="kw">let </span>typ = this.resolve_type(field.item.typ.clone(), wildcard_allowed);
                 <span class="kw">let </span>visibility = field.item.visibility;
-                StructField {
-                    visibility,
-                    name: ident.clone(),
-                    typ: this.resolve_type(typ.clone(), wildcard_allowed),
-                }
+                StructField { visibility, name, typ }
             });
 
             this.resolving_ids.remove(<span class="kw-2">&amp;</span>struct_id);

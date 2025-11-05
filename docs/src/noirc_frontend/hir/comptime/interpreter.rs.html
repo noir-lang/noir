@@ -1769,7 +1769,11 @@
 <a href="#1768" id="1768">1768</a>
 <a href="#1769" id="1769">1769</a>
 <a href="#1770" id="1770">1770</a>
-<a href="#1771" id="1771">1771</a></pre></div><pre class="rust"><code><span class="doccomment">//! The comptime interpreter is a tree-walking interpreter used for evaluating Noir code
+<a href="#1771" id="1771">1771</a>
+<a href="#1772" id="1772">1772</a>
+<a href="#1773" id="1773">1773</a>
+<a href="#1774" id="1774">1774</a>
+<a href="#1775" id="1775">1775</a></pre></div><pre class="rust"><code><span class="doccomment">//! The comptime interpreter is a tree-walking interpreter used for evaluating Noir code
 //! at compile-time. It is typically triggered (by the elaborator) in one of four scenarios:
 //! 1. A `comptime {}` block
 //!   - Everything in the block is interpreted
@@ -2843,14 +2847,18 @@
         }
     }
 
-    <span class="kw">fn </span>unify_without_binding(<span class="kw-2">&amp;mut </span><span class="self">self</span>, actual: <span class="kw-2">&amp;</span>Type, expected: <span class="kw-2">&amp;</span>Type, location: Location) {
-        <span class="self">self</span>.elaborator.unify_without_applying_bindings(actual, expected, || {
-            TypeCheckError::TypeMismatch {
+    <span class="doccomment">/// This function is used by the interpreter for some comptime code
+    /// which can change types e.g. on each iteration of a for loop.
+    </span><span class="kw">fn </span>unify_without_binding(<span class="kw-2">&amp;mut </span><span class="self">self</span>, actual: <span class="kw-2">&amp;</span>Type, expected: <span class="kw-2">&amp;</span>Type, location: Location) {
+        <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
+        <span class="kw">if </span>actual.try_unify(expected, <span class="kw-2">&amp;mut </span>bindings).is_err() {
+            <span class="kw">let </span>error = TypeCheckError::TypeMismatch {
                 expected_typ: expected.to_string(),
                 expr_typ: actual.to_string(),
                 expr_location: location,
-            }
-        });
+            };
+            <span class="self">self</span>.elaborator.push_err(error);
+        }
     }
 
     <span class="kw">fn </span>evaluate_cast(<span class="kw-2">&amp;mut </span><span class="self">self</span>, cast: <span class="kw-2">&amp;</span>HirCastExpression, id: ExprId) -&gt; IResult&lt;Value&gt; {
