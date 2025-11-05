@@ -1414,7 +1414,11 @@
 <a href="#1413" id="1413">1413</a>
 <a href="#1414" id="1414">1414</a>
 <a href="#1415" id="1415">1415</a>
-<a href="#1416" id="1416">1416</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines an SSA pass to remove instructions that are unreachable.
+<a href="#1416" id="1416">1416</a>
+<a href="#1417" id="1417">1417</a>
+<a href="#1418" id="1418">1418</a>
+<a href="#1419" id="1419">1419</a>
+<a href="#1420" id="1420">1420</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines an SSA pass to remove instructions that are unreachable.
 //! For example, if an instruction in a block is `constrain u1 0 == u1 1`,
 //! any subsequent instructions in that block will never be executed. This pass
 //! then removes those subsequent instructions and replaces the block's terminator
@@ -1565,7 +1569,7 @@
 <span class="kw">impl </span>Ssa {
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>remove_unreachable_instructions(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; Ssa {
         <span class="kw">for </span>function <span class="kw">in </span><span class="self">self</span>.functions.values_mut() {
-            function.remove_unreachable_instructions();
+            function.remove_unreachable_instructions(function.id() == <span class="self">self</span>.main_id);
         }
         <span class="self">self
     </span>}
@@ -1583,8 +1587,12 @@
 }
 
 <span class="kw">impl </span>Function {
-    <span class="kw">fn </span>remove_unreachable_instructions(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+    <span class="kw">fn </span>remove_unreachable_instructions(<span class="kw-2">&amp;mut </span><span class="self">self</span>, is_main: bool) {
         <span class="kw">let </span>func_id = <span class="self">self</span>.id();
+
+        <span class="comment">// Keep the return instruction in main if the databus is used
+        </span><span class="kw">let </span>replace_return = !(is_main &amp;&amp; <span class="self">self</span>.dfg.data_bus.return_data.is_some());
+
         <span class="comment">// The current block we are currently processing
         </span><span class="kw">let </span><span class="kw-2">mut </span>current_block_id = <span class="prelude-val">None</span>;
 
@@ -1794,7 +1802,7 @@
 
             <span class="comment">// Once we find an instruction that will always fail, replace the terminator with `unreachable`.
             // Subsequent instructions in this block will be removed.
-            </span><span class="kw">if </span>current_block_reachability == Reachability::Unreachable {
+            </span><span class="kw">if </span>current_block_reachability == Reachability::Unreachable &amp;&amp; replace_return {
                 <span class="kw">let </span>terminator = context.dfg[block_id].take_terminator();
                 <span class="kw">let </span>call_stack = terminator.call_stack();
                 context.dfg[block_id]
@@ -2825,7 +2833,7 @@
           b0(v0: u32):
             constrain u1 0 == u1 1
             v4 = make_array [Field 0] : [Field; 1]
-            unreachable
+            return v4
         }
         "</span>);
     }

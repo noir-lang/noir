@@ -1233,7 +1233,9 @@
 <a href="#1232" id="1232">1232</a>
 <a href="#1233" id="1233">1233</a>
 <a href="#1234" id="1234">1234</a>
-<a href="#1235" id="1235">1235</a></pre></div><pre class="rust"><code><span class="doccomment">//! Array handling in ACIR.
+<a href="#1235" id="1235">1235</a>
+<a href="#1236" id="1236">1236</a>
+<a href="#1237" id="1237">1237</a></pre></div><pre class="rust"><code><span class="doccomment">//! Array handling in ACIR.
 //!
 //! This modules how Noir's SSA array semantics are lowered into ACIR's flat memory model.
 //! Arrays in SSA can appear as constants or dynamically allocated blocks.
@@ -1400,6 +1402,8 @@
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), RuntimeError&gt; {
         <span class="comment">// Initialize return_data using provided witnesses
         </span><span class="kw">if let </span><span class="prelude-val">Some</span>(return_data) = <span class="self">self</span>.data_bus.return_data {
+            <span class="macro">debug_assert!</span>(!witnesses.is_empty(), <span class="string">"return data cannot be empty"</span>);
+
             <span class="kw">let </span>block_id = <span class="self">self</span>.block_id(return_data);
             <span class="kw">let </span>already_initialized = <span class="self">self</span>.initialized_arrays.contains(<span class="kw-2">&amp;</span>block_id);
             <span class="kw">if </span>!already_initialized {

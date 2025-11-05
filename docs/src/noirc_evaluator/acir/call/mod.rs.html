@@ -509,7 +509,7 @@
                             <span class="comment">// len holds the non-flattened length of all elements in the slice,
                             // so here we need to divide by the non-flattened length of a single
                             // slice entry
-                            </span><span class="kw">if </span>item_types.len() == <span class="number">0 </span>{ <span class="number">0 </span>} <span class="kw">else </span>{ array.len() / item_types.len() }
+                            </span><span class="kw">if </span>item_types.is_empty() { <span class="number">0 </span>} <span class="kw">else </span>{ array.len() / item_types.len() }
                         }
                         <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: Slice value is not an array"</span>),
                     };
