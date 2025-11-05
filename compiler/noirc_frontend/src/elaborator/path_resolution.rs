@@ -324,9 +324,7 @@ impl Elaborator<'_> {
     ) -> Result<PathResolutionItem, ResolverError> {
         let path_resolution = self.resolve_path_inner(path, target, mode)?;
 
-        for error in path_resolution.errors {
-            self.push_err(error);
-        }
+        self.push_errors(path_resolution.errors);
 
         Ok(path_resolution.item)
     }

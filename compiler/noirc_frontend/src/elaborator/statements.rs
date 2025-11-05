@@ -408,9 +408,7 @@ impl Elaborator<'_> {
                             super::PathResolutionMode::MarkAsUsed,
                         );
                         if let Ok(result) = result {
-                            for error in result.errors {
-                                self.push_err(error);
-                            }
+                            self.push_errors(result.errors);
                             self.push_err(ResolverError::Expected {
                                 location,
                                 expected: "value",

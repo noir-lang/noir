@@ -2060,9 +2060,7 @@ impl Elaborator<'_> {
             }
 
             let errors = lints::unconstrained_function_args(&args);
-            for error in errors {
-                self.push_err(error);
-            }
+            self.push_errors(errors);
         }
 
         let return_type = self.bind_function_type(func_type, args, location);

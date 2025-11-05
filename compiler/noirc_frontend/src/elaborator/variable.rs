@@ -168,9 +168,7 @@ impl Elaborator<'_> {
 
     fn resolve_variable(&mut self, path: TypedPath) -> (HirIdent, Option<PathResolutionItem>) {
         if let Some(trait_path_resolution) = self.resolve_trait_generic_path(&path) {
-            for error in trait_path_resolution.errors {
-                self.push_err(error);
-            }
+            self.push_errors(trait_path_resolution.errors);
 
             return match trait_path_resolution.method {
                 TraitPathResolutionMethod::NotATraitMethod(func_id) => (
