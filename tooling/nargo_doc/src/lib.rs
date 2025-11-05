@@ -577,7 +577,16 @@ impl DocItemBuilder<'_> {
     /// Goes over a module's imports. If an import is a re-export of a private item,
     /// the item is added to the module's items.
     fn process_module_reexports(&mut self, module: &mut Module) {
-        let imports = self.module_imports.get(&module.module_id).unwrap().clone();
+        // Process this module's sub-modules first because when we actually process the
+        // imports we might add a publicly exported module into this module's items,
+        // visiting it twice.
+        for (_visibility, item) in &mut module.items {
+            if let Item::Module(sub_module) = item {
+                self.process_module_reexports(sub_module);
+            }
+        }
+
+        let imports = self.module_imports.remove(&module.module_id).unwrap();
         for import in imports {
             if import.visibility == ItemVisibility::Private {
                 continue;
@@ -606,12 +615,6 @@ impl DocItemBuilder<'_> {
                     name: import.name.to_string(),
                 }),
             ));
-        }
-
-        for (_visibility, item) in &mut module.items {
-            if let Item::Module(sub_module) = item {
-                self.process_module_reexports(sub_module);
-            }
         }
     }
 
