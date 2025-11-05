@@ -2373,6 +2373,8 @@ mod test {
     fn do_not_deduplicate_call_with_inc_rc() {
         // This test ensures that a function which mutates an array pointer is marked impure.
         // This protects against future deduplication passes incorrectly assuming purity.
+        // The increasing RC numbers reflect the current expectation that the RC of the
+        // original array does not get decremented when a copy is made.
         let src = r#"
         brillig(inline) fn main f0 {
           b0(v0: u32):
@@ -2381,10 +2383,10 @@ mod test {
             constrain v5 == u32 1
             v8 = call f1(v3) -> [Field; 2]
             v9 = call array_refcount(v3) -> u32
-            constrain v9 == u32 1
+            constrain v9 == u32 2
             v11 = call f1(v3) -> [Field; 2]
             v12 = call array_refcount(v3) -> u32
-            constrain v12 == u32 1
+            constrain v12 == u32 3
             inc_rc v3
             v15 = array_set v3, index v0, value Field 9
             return v3, v15

@@ -1095,7 +1095,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 Value::ArrayOrSlice(array.clone())
             } else {
                 if !is_rc_one {
-                    *array.rc.borrow_mut() -= 1;
+                    Self::decrement_rc(&array);
                 }
                 let mut elements = array.elements.borrow().to_vec();
                 elements[index as usize] = value;
@@ -1111,6 +1111,13 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         };
         self.define(result, result_array)?;
         Ok(())
+    }
+
+    /// Decrement the ref-count of an array by 1.
+    fn decrement_rc(_array: &ArrayValue) {
+        // The decrement of the ref-count is currently disabled in SSA as well as the Brillig codegen,
+        // but we might re-enable it in the future if the ownership optimizations change.
+        // *array.rc.borrow_mut() -= 1;
     }
 
     fn interpret_inc_rc(&self, value_id: ValueId) -> IResult<()> {
