@@ -566,7 +566,14 @@ jobs:
   test-examples:
     name: Example scripts
     runs-on: ubuntu-24.04
-    needs: [build-nargo, build-noir-execute, build-noir-ssa, build-acvm-js, build-noirc-abi]
+    needs:
+      [
+        build-nargo,
+        build-noir-execute,
+        build-noir-ssa,
+        build-acvm-js,
+        build-noirc-abi,
+      ]
     timeout-minutes: 30
     permissions:
       contents: read
@@ -786,6 +793,31 @@ jobs:
           alert-comment-cc-users: "@TomAFrench"
           max-items-in-chart: 50
 
+  test-nargo-doc:
+    needs: [build-nargo]
+    name: Nargo doc
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Download nargo binary
+        uses: ./.github/actions/download-nargo
+
+      - name: nargo doc on stdlib
+        working-directory: ./noir_stdlib
+        run: |
+          nargo doc
+          rm -rf ./docs
+          mv ./target/docs .
+          if ! git diff --exit-code; then
+            echo "nargo doc produced changes on noir_stdlib"
+            exit 1
+          fi
 
   # This is a job which depends on all test jobs and reports the overall status.
   # This allows us to add/remove test jobs without having to update the required workflows.
@@ -804,19 +836,20 @@ jobs:
       - test-noir-codegen
       - test-integration-node
       #- test-integration-browser
+      - test-nargo-doc
       - test-examples
       - compile-noir-contracts
     permissions:
       contents: read
 
     steps:
-        - name: Report overall success
-          run: |
-            if [[ $FAIL == true ]]; then
-                exit 1
-            else
-                exit 0
-            fi
-          env:
-            # We treat any skipped or failing jobs as a failure for the workflow as a whole.
-            FAIL: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}
+      - name: Report overall success
+        run: |
+          if [[ $FAIL == true ]]; then
+              exit 1
+          else
+              exit 0
+          fi
+        env:
+          # We treat any skipped or failing jobs as a failure for the workflow as a whole.
+          FAIL: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}
