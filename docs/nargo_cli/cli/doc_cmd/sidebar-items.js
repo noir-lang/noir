@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["collect_dependencies","package_crate","run"],"struct":["DocCommand"]};

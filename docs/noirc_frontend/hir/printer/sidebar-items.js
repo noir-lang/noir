@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["display_crate"],"mod":["items"],"struct":["ItemPrinter"]};
+window.SIDEBAR_ITEMS = {"fn":["crate_to_module","display_crate"],"mod":["items"],"struct":["ItemPrinter"]};

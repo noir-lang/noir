@@ -1315,10 +1315,40 @@
 <a href="#1314" id="1314">1314</a>
 <a href="#1315" id="1315">1315</a>
 <a href="#1316" id="1316">1316</a>
-<a href="#1317" id="1317">1317</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeSet, HashMap};
+<a href="#1317" id="1317">1317</a>
+<a href="#1318" id="1318">1318</a>
+<a href="#1319" id="1319">1319</a>
+<a href="#1320" id="1320">1320</a>
+<a href="#1321" id="1321">1321</a>
+<a href="#1322" id="1322">1322</a>
+<a href="#1323" id="1323">1323</a>
+<a href="#1324" id="1324">1324</a>
+<a href="#1325" id="1325">1325</a>
+<a href="#1326" id="1326">1326</a>
+<a href="#1327" id="1327">1327</a>
+<a href="#1328" id="1328">1328</a>
+<a href="#1329" id="1329">1329</a>
+<a href="#1330" id="1330">1330</a>
+<a href="#1331" id="1331">1331</a>
+<a href="#1332" id="1332">1332</a>
+<a href="#1333" id="1333">1333</a>
+<a href="#1334" id="1334">1334</a>
+<a href="#1335" id="1335">1335</a>
+<a href="#1336" id="1336">1336</a>
+<a href="#1337" id="1337">1337</a>
+<a href="#1338" id="1338">1338</a>
+<a href="#1339" id="1339">1339</a>
+<a href="#1340" id="1340">1340</a>
+<a href="#1341" id="1341">1341</a>
+<a href="#1342" id="1342">1342</a>
+<a href="#1343" id="1343">1343</a>
+<a href="#1344" id="1344">1344</a>
+<a href="#1345" id="1345">1345</a>
+<a href="#1346" id="1346">1346</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeSet, HashMap, HashSet};
 
 <span class="kw">use </span><span class="kw">crate</span>::graph::{CrateGraph, CrateId};
 <span class="kw">use </span><span class="kw">crate</span>::hir::printer::items::ItemBuilder;
+<span class="kw">use </span><span class="kw">crate</span>::node_interner::TraitImplId;
 <span class="kw">use crate</span>::{
     DataType, Generics, Kind, NamedGeneric, Type,
     ast::{Ident, ItemVisibility},
@@ -1339,7 +1369,7 @@
     token::{FunctionAttributeKind, LocatedToken, SecondaryAttribute, SecondaryAttributeKind},
 };
 
-<span class="kw">mod </span>items;
+<span class="kw">pub mod </span>items;
 
 <span class="kw">use </span>items::{Impl, Import, Item, Module, Trait, TraitImpl};
 
@@ -1351,19 +1381,27 @@
     def_maps: <span class="kw-2">&amp;</span>DefMaps,
     interner: <span class="kw-2">&amp;</span>NodeInterner,
 ) -&gt; String {
-    <span class="kw">let </span>root_module_id = def_maps[<span class="kw-2">&amp;</span>crate_id].root();
-    <span class="kw">let </span>module_id = ModuleId { krate: crate_id, local_id: root_module_id };
-
-    <span class="kw">let </span><span class="kw-2">mut </span>builder = ItemBuilder::new(crate_id, interner, def_maps);
-    <span class="kw">let </span>item = builder.build_module(module_id);
+    <span class="kw">let </span>module = crate_to_module(crate_id, def_maps, interner);
 
     <span class="kw">let </span>dependencies = <span class="kw-2">&amp;</span>crate_graph[crate_id].dependencies;
 
     <span class="kw">let </span><span class="kw-2">mut </span>string = String::new();
     <span class="kw">let </span><span class="kw-2">mut </span>printer = ItemPrinter::new(crate_id, interner, def_maps, dependencies, <span class="kw-2">&amp;mut </span>string);
-    printer.show_item(item);
+    printer.show_module(module);
 
     string
+}
+
+<span class="kw">pub fn </span>crate_to_module(crate_id: CrateId, def_maps: <span class="kw-2">&amp;</span>DefMaps, interner: <span class="kw-2">&amp;</span>NodeInterner) -&gt; Module {
+    <span class="kw">let </span>root_module_id = def_maps[<span class="kw-2">&amp;</span>crate_id].root();
+    <span class="kw">let </span>module_id = ModuleId { krate: crate_id, local_id: root_module_id };
+
+    <span class="kw">let </span><span class="kw-2">mut </span>builder = ItemBuilder::new(crate_id, interner, def_maps);
+    <span class="kw">let </span><span class="kw-2">mut </span>module = builder.build_module(module_id);
+    <span class="kw">if </span>crate_id.is_stdlib() {
+        builder.add_primitive_types(<span class="kw-2">&amp;mut </span>module.items);
+    }
+    module
 }
 
 <span class="kw">struct </span>ItemPrinter&lt;<span class="lifetime">'context</span>, <span class="lifetime">'string</span>&gt; {
@@ -1380,6 +1418,9 @@
     <span class="doccomment">/// Trait constraints in scope.
     /// These are set when a trait, trait impl or function is visited.
     </span>trait_constraints: Vec&lt;TraitConstraint&gt;,
+    <span class="doccomment">/// Keep track of trait impls that have been printed so we don't show a
+    /// same trait impl multiple times.
+    </span>trait_impls_printed: HashSet&lt;TraitImplId&gt;,
 }
 
 <span class="kw">impl</span>&lt;<span class="lifetime">'context</span>, <span class="lifetime">'string</span>&gt; ItemPrinter&lt;<span class="lifetime">'context</span>, <span class="lifetime">'string</span>&gt; {
@@ -1404,6 +1445,7 @@
             imports,
             self_type: <span class="prelude-val">None</span>,
             trait_constraints: Vec::new(),
+            trait_impls_printed: HashSet::new(),
         }
     }
 
@@ -1413,6 +1455,9 @@
             Item::DataType(data_type) =&gt; <span class="self">self</span>.show_data_type(data_type),
             Item::Trait(trait_) =&gt; <span class="self">self</span>.show_trait(trait_),
             Item::TypeAlias(type_alias_id) =&gt; <span class="self">self</span>.show_type_alias(type_alias_id),
+            Item::PrimitiveType(<span class="kw">_</span>) =&gt; {
+                <span class="comment">// TODO: we don't show primitive types yet
+            </span>}
             Item::Global(global_id) =&gt; <span class="self">self</span>.show_global(global_id),
             Item::Function(func_id) =&gt; <span class="self">self</span>.show_function(func_id),
         }
@@ -1568,7 +1613,9 @@
         drop(data_type);
 
         <span class="self">self</span>.show_data_type_impls(item_data_type.impls);
-        <span class="self">self</span>.show_trait_impls(item_data_type.trait_impls);
+
+        <span class="kw">let </span>trait_impls = item_data_type.trait_impls.iter().collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+        <span class="self">self</span>.show_trait_impls(<span class="kw-2">&amp;</span>trait_impls);
     }
 
     <span class="kw">fn </span>show_struct(<span class="kw-2">&amp;mut </span><span class="self">self</span>, data_type: <span class="kw-2">&amp;</span>DataType) {
@@ -1656,7 +1703,7 @@
         <span class="self">self</span>.self_type = <span class="prelude-val">None</span>;
     }
 
-    <span class="kw">fn </span>show_trait_impls(<span class="kw-2">&amp;mut </span><span class="self">self</span>, trait_impls: Vec&lt;TraitImpl&gt;) {
+    <span class="kw">fn </span>show_trait_impls(<span class="kw-2">&amp;mut </span><span class="self">self</span>, trait_impls: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>TraitImpl]) {
         <span class="kw">for </span>trait_impl <span class="kw">in </span>trait_impls {
             <span class="self">self</span>.push_str(<span class="string">"\n\n"</span>);
             <span class="self">self</span>.write_indent();
@@ -1746,10 +1793,21 @@
 
         <span class="self">self</span>.trait_constraints.clear();
 
-        <span class="self">self</span>.show_trait_impls(item_trait.trait_impls);
+        <span class="comment">// Only show trait impls for types outside of the current crate:
+        // trait impls for types in this crate are already shown alongside the type definition.
+        </span><span class="kw">let </span>trait_impls = item_trait
+            .trait_impls
+            .iter()
+            .filter(|trait_impl| trait_impl.external_types)
+            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+        <span class="self">self</span>.show_trait_impls(<span class="kw-2">&amp;</span>trait_impls);
     }
 
-    <span class="kw">fn </span>show_trait_impl(<span class="kw-2">&amp;mut </span><span class="self">self</span>, item_trait_impl: TraitImpl) {
+    <span class="kw">fn </span>show_trait_impl(<span class="kw-2">&amp;mut </span><span class="self">self</span>, item_trait_impl: <span class="kw-2">&amp;</span>TraitImpl) {
+        <span class="kw">if </span>!<span class="self">self</span>.trait_impls_printed.insert(item_trait_impl.id) {
+            <span class="kw">return</span>;
+        }
+
         <span class="kw">let </span>trait_impl_id = item_trait_impl.id;
 
         <span class="kw">let </span>trait_impl = <span class="self">self</span>.interner.get_trait_implementation(trait_impl_id);
@@ -1807,13 +1865,13 @@
             printed_item = <span class="bool-val">true</span>;
         }
 
-        <span class="kw">for </span>method <span class="kw">in </span>item_trait_impl.methods {
+        <span class="kw">for </span>method <span class="kw">in </span><span class="kw-2">&amp;</span>item_trait_impl.methods {
             <span class="kw">if </span>printed_item {
                 <span class="self">self</span>.push_str(<span class="string">"\n\n"</span>);
             }
             <span class="self">self</span>.write_indent();
 
-            <span class="kw">let </span>item = Item::Function(method);
+            <span class="kw">let </span>item = Item::Function(<span class="kw-2">*</span>method);
             <span class="kw">let </span>visibility = ItemVisibility::Private;
             <span class="self">self</span>.show_item_with_visibility(item, visibility);
 

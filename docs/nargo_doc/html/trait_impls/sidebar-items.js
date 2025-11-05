@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["gather_all_trait_impls","gather_trait_impls_in_item"]};

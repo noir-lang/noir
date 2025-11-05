@@ -3045,10 +3045,7 @@
 <a href="#3044" id="3044">3044</a>
 <a href="#3045" id="3045">3045</a>
 <a href="#3046" id="3046">3046</a>
-<a href="#3047" id="3047">3047</a>
-<a href="#3048" id="3048">3048</a>
-<a href="#3049" id="3049">3049</a>
-<a href="#3050" id="3050">3050</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
+<a href="#3047" id="3047">3047</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
 
 <span class="kw">use </span>im::HashSet;
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
@@ -3361,12 +3358,10 @@
     }
 }
 
-<span class="attr">#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash, PartialOrd, Ord)]
-#[cfg_attr(test, derive(strum_macros::EnumIter))]
+<span class="attr">#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash, PartialOrd, Ord, strum_macros::EnumIter)]
 </span><span class="kw">pub enum </span>QuotedType {
     Expr,
     Quoted,
-    TopLevelItem,
     Type,
     TypedExpr,
     TypeDefinition,
@@ -4258,7 +4253,6 @@
         <span class="kw">match </span><span class="self">self </span>{
             QuotedType::Expr =&gt; <span class="macro">write!</span>(f, <span class="string">"Expr"</span>),
             QuotedType::Quoted =&gt; <span class="macro">write!</span>(f, <span class="string">"Quoted"</span>),
-            QuotedType::TopLevelItem =&gt; <span class="macro">write!</span>(f, <span class="string">"TopLevelItem"</span>),
             QuotedType::Type =&gt; <span class="macro">write!</span>(f, <span class="string">"Type"</span>),
             QuotedType::TypedExpr =&gt; <span class="macro">write!</span>(f, <span class="string">"TypedExpr"</span>),
             QuotedType::TypeDefinition =&gt; <span class="macro">write!</span>(f, <span class="string">"TypeDefinition"</span>),

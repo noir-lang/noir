@@ -329,7 +329,10 @@
 <a href="#328" id="328">328</a>
 <a href="#329" id="329">329</a>
 <a href="#330" id="330">330</a>
-<a href="#331" id="331">331</a></pre></div><pre class="rust"><code><span class="kw">use </span>clap::{Args, Parser, Subcommand};
+<a href="#331" id="331">331</a>
+<a href="#332" id="332">332</a>
+<a href="#333" id="333">333</a>
+<a href="#334" id="334">334</a></pre></div><pre class="rust"><code><span class="kw">use </span>clap::{Args, Parser, Subcommand};
 <span class="kw">use </span>const_format::formatcp;
 <span class="kw">use </span>nargo::workspace::Workspace;
 <span class="kw">use </span>nargo_toml::{
@@ -353,6 +356,7 @@
 <span class="kw">pub mod </span>compile_cmd;
 <span class="kw">mod </span>dap_cmd;
 <span class="kw">mod </span>debug_cmd;
+<span class="kw">mod </span>doc_cmd;
 <span class="kw">mod </span>execute_cmd;
 <span class="kw">mod </span>expand_cmd;
 <span class="kw">mod </span>export_cmd;
@@ -447,6 +451,7 @@
     <span class="attr">#[command(hide = <span class="bool-val">true</span>)]
     </span>Dap(dap_cmd::DapCommand),
     Expand(expand_cmd::ExpandCommand),
+    Doc(doc_cmd::DocCommand),
     GenerateCompletionScript(generate_completion_script_cmd::GenerateCompletionScriptCommand),
 }
 
@@ -491,6 +496,7 @@
         NargoCommand::Dap(args) =&gt; dap_cmd::run(args),
         NargoCommand::Fmt(args) =&gt; with_workspace(args, config, fmt_cmd::run),
         NargoCommand::Expand(args) =&gt; with_workspace(args, config, expand_cmd::run),
+        NargoCommand::Doc(args) =&gt; with_workspace(args, config, doc_cmd::run),
         NargoCommand::GenerateCompletionScript(args) =&gt; generate_completion_script_cmd::run(args),
     }<span class="question-mark">?</span>;
 

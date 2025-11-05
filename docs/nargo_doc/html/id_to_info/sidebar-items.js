@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["compute_id_to_info","compute_id_to_info_in_item"],"struct":["ItemInfo"]};
