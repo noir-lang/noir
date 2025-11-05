@@ -1,3 +1,7 @@
+//! Various helpers for implementing built-in functions in the comptime interpreter.
+//!
+//! These functions may implement error checking for argument count, type-check an
+//! argument for a specific type, returning its value, etc.
 use std::hash::Hash;
 use std::{hash::Hasher, rc::Rc};
 
