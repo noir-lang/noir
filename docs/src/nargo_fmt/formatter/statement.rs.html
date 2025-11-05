@@ -900,10 +900,14 @@
 <a href="#899" id="899">899</a>
 <a href="#900" id="900">900</a>
 <a href="#901" id="901">901</a>
-<a href="#902" id="902">902</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
+<a href="#902" id="902">902</a>
+<a href="#903" id="903">903</a>
+<a href="#904" id="904">904</a>
+<a href="#905" id="905">905</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
     ast::{
         AssignStatement, Expression, ExpressionKind, ForLoopStatement, ForRange, LetStatement,
-        Pattern, Statement, StatementKind, UnresolvedType, UnresolvedTypeData, WhileStatement,
+        LoopStatement, Pattern, Statement, StatementKind, UnresolvedType, UnresolvedTypeData,
+        WhileStatement,
     },
     token::{Keyword, SecondaryAttribute, Token, TokenKind},
 };
@@ -974,8 +978,8 @@
             StatementKind::For(for_loop_statement) =&gt; {
                 group.group(<span class="self">self</span>.format_for_loop(for_loop_statement));
             }
-            StatementKind::Loop(block, <span class="kw">_</span>) =&gt; {
-                group.group(<span class="self">self</span>.format_loop(block));
+            StatementKind::Loop(loop_) =&gt; {
+                group.group(<span class="self">self</span>.format_loop(loop_));
             }
             StatementKind::While(while_) =&gt; {
                 group.group(<span class="self">self</span>.format_while(while_));
@@ -1183,7 +1187,7 @@
         group
     }
 
-    <span class="kw">fn </span>format_loop(<span class="kw-2">&amp;mut </span><span class="self">self</span>, block: Expression) -&gt; ChunkGroup {
+    <span class="kw">fn </span>format_loop(<span class="kw-2">&amp;mut </span><span class="self">self</span>, loop_: LoopStatement) -&gt; ChunkGroup {
         <span class="kw">let </span><span class="kw-2">mut </span>group = ChunkGroup::new();
 
         group.text(<span class="self">self</span>.chunk(|formatter| {
@@ -1191,6 +1195,8 @@
         }));
 
         group.space(<span class="self">self</span>);
+
+        <span class="kw">let </span>block = loop_.body;
 
         <span class="kw">let </span>ExpressionKind::Block(block) = block.kind <span class="kw">else </span>{
             <span class="macro">panic!</span>(<span class="string">"Expected a block expression for loop body"</span>);
@@ -1350,7 +1356,7 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>format_let_statement_with_unsafe_comment() {
-        <span class="kw">let </span>src = <span class="string">" fn foo() { 
+        <span class="kw">let </span>src = <span class="string">" fn foo() {
         // Safety: some comment
         let  x  =  unsafe { 1 } ; } "</span>;
         <span class="kw">let </span>expected = <span class="string">"fn foo() {
@@ -1363,7 +1369,7 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>format_let_statement_with_unsafe_doc_comment() {
-        <span class="kw">let </span>src = <span class="string">" fn foo() { 
+        <span class="kw">let </span>src = <span class="string">" fn foo() {
         /// Safety: some comment
         let  x  =  unsafe { 1 } ; } "</span>;
         <span class="kw">let </span>expected = <span class="string">"fn foo() {
@@ -1376,8 +1382,8 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>format_let_statement_with_unsafe_comment_right_before_unsafe() {
-        <span class="kw">let </span>src = <span class="string">" fn foo() { 
-        
+        <span class="kw">let </span>src = <span class="string">" fn foo() {
+
         let  x  =  // Safety: some comment
         unsafe { 1 } ; } "</span>;
         <span class="kw">let </span>expected = <span class="string">"fn foo() {
@@ -1391,7 +1397,7 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>format_let_statement_with_long_type() {
-        <span class="kw">let </span>src = <span class="string">" fn foo() { 
+        <span class="kw">let </span>src = <span class="string">" fn foo() {
         let  some_variable: ThisIsAReallyLongType  = 123;
         foo();
 }

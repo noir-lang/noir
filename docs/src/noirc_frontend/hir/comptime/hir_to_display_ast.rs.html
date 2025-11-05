@@ -561,7 +561,8 @@
 <a href="#560" id="560">560</a>
 <a href="#561" id="561">561</a>
 <a href="#562" id="562">562</a>
-<a href="#563" id="563">563</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileId;
+<a href="#563" id="563">563</a>
+<a href="#564" id="564">564</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileId;
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{Located, Location, Span};
 
@@ -569,9 +570,9 @@
 <span class="kw">use </span><span class="kw">crate</span>::ast::{
     ArrayLiteral, AssignStatement, BlockExpression, CallExpression, CastExpression, ConstrainKind,
     ConstructorExpression, ExpressionKind, ForLoopStatement, ForRange, GenericTypeArgs, Ident,
-    IfExpression, IndexExpression, InfixExpression, LValue, Lambda, Literal, MatchExpression,
-    MemberAccessExpression, Path, PathSegment, Pattern, PrefixExpression, UnresolvedType,
-    UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression, WhileStatement,
+    IfExpression, IndexExpression, InfixExpression, LValue, Lambda, Literal, LoopStatement,
+    MatchExpression, MemberAccessExpression, Path, PathSegment, Pattern, PrefixExpression,
+    UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression, WhileStatement,
 };
 <span class="kw">use </span><span class="kw">crate</span>::ast::{ConstrainExpression, Expression, Statement, StatementKind};
 <span class="kw">use </span><span class="kw">crate</span>::hir_def::expr::{
@@ -610,9 +611,10 @@
                 block: for_stmt.block.to_display_ast(interner),
                 location,
             }),
-            HirStatement::Loop(block) =&gt; {
-                StatementKind::Loop(block.to_display_ast(interner), location)
-            }
+            HirStatement::Loop(block) =&gt; StatementKind::Loop(LoopStatement {
+                body: block.to_display_ast(interner),
+                loop_keyword_location: location,
+            }),
             HirStatement::While(condition, block) =&gt; StatementKind::While(WhileStatement {
                 condition: condition.to_display_ast(interner),
                 body: block.to_display_ast(interner),

@@ -2910,9 +2910,9 @@
             StatementKind::For(for_loop_statement) =&gt; {
                 for_loop_statement.accept(visitor);
             }
-            StatementKind::Loop(block, <span class="kw">_</span>) =&gt; {
-                <span class="kw">if </span>visitor.visit_loop_statement(block) {
-                    block.accept(visitor);
+            StatementKind::Loop(loop_) =&gt; {
+                <span class="kw">if </span>visitor.visit_loop_statement(<span class="kw-2">&amp;</span>loop_.body) {
+                    loop_.body.accept(visitor);
                 }
             }
             StatementKind::While(while_) =&gt; {

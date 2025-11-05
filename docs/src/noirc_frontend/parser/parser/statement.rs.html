@@ -882,13 +882,18 @@
 <a href="#881" id="881">881</a>
 <a href="#882" id="882">882</a>
 <a href="#883" id="883">883</a>
-<a href="#884" id="884">884</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::{Located, Location};
+<a href="#884" id="884">884</a>
+<a href="#885" id="885">885</a>
+<a href="#886" id="886">886</a>
+<a href="#887" id="887">887</a>
+<a href="#888" id="888">888</a>
+<a href="#889" id="889">889</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::{Located, Location};
 
 <span class="kw">use crate</span>::{
     ast::{
         AssignStatement, BinaryOp, BinaryOpKind, Expression, ExpressionKind, ForBounds,
-        ForLoopStatement, ForRange, Ident, InfixExpression, LValue, LetStatement, Statement,
-        StatementKind, WhileStatement,
+        ForLoopStatement, ForRange, Ident, InfixExpression, LValue, LetStatement, LoopStatement,
+        Statement, StatementKind, WhileStatement,
     },
     parser::{ParserErrorReason, labels::ParsingRuleLabel},
     token::{Attribute, Keyword, Token, TokenKind},
@@ -1022,8 +1027,8 @@
             <span class="kw">return </span><span class="prelude-val">Some</span>(StatementKind::For(for_loop));
         }
 
-        <span class="kw">if let </span><span class="prelude-val">Some</span>((block, span)) = <span class="self">self</span>.parse_loop() {
-            <span class="kw">return </span><span class="prelude-val">Some</span>(StatementKind::Loop(block, span));
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(loop_) = <span class="self">self</span>.parse_loop() {
+            <span class="kw">return </span><span class="prelude-val">Some</span>(StatementKind::Loop(loop_));
         }
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(while_) = <span class="self">self</span>.parse_while() {
@@ -1182,7 +1187,7 @@
     }
 
     <span class="doccomment">/// LoopStatement = 'loop' Block
-    </span><span class="kw">fn </span>parse_loop(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;(Expression, Location)&gt; {
+    </span><span class="kw">fn </span>parse_loop(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;LoopStatement&gt; {
         <span class="kw">let </span>start_location = <span class="self">self</span>.current_token_location;
         <span class="kw">if </span>!<span class="self">self</span>.eat_keyword(Keyword::Loop) {
             <span class="kw">return </span><span class="prelude-val">None</span>;
@@ -1202,7 +1207,7 @@
             }
         };
 
-        <span class="prelude-val">Some</span>((block, start_location))
+        <span class="prelude-val">Some</span>(LoopStatement { body: block, loop_keyword_location: start_location })
     }
 
     <span class="doccomment">/// WhileStatement = 'while' ExpressionExceptConstructor Block
@@ -1353,7 +1358,10 @@
     <span class="kw">use </span>insta::assert_snapshot;
 
     <span class="kw">use crate</span>::{
-        ast::{ExpressionKind, ForRange, LValue, Statement, StatementKind, UnresolvedTypeData},
+        ast::{
+            ExpressionKind, ForRange, LValue, LoopStatement, Statement, StatementKind,
+            UnresolvedTypeData,
+        },
         parser::{
             Parser, ParserErrorReason,
             parser::tests::{
@@ -1562,7 +1570,7 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>parses_assignment_with_unsafe() {
-        <span class="kw">let </span>src = <span class="string">"// Safety: test 
+        <span class="kw">let </span>src = <span class="string">"// Safety: test
         x = unsafe { 1 }"</span>;
         <span class="kw">let </span>statement = parse_statement_no_errors(src);
         <span class="kw">let </span>StatementKind::Assign(assign) = statement.kind <span class="kw">else </span>{
@@ -1698,7 +1706,9 @@
         <span class="kw">let </span>src = <span class="string">"loop { }"</span>;
         <span class="kw">let </span><span class="kw-2">mut </span>parser = Parser::for_str_with_dummy_file(src);
         <span class="kw">let </span>statement = parser.parse_statement_or_error();
-        <span class="kw">let </span>StatementKind::Loop(block, location) = statement.kind <span class="kw">else </span>{
+        <span class="kw">let </span>StatementKind::Loop(LoopStatement { body: block, loop_keyword_location: location }) =
+            statement.kind
+        <span class="kw">else </span>{
             <span class="macro">panic!</span>(<span class="string">"Expected loop"</span>);
         };
         <span class="kw">let </span>ExpressionKind::Block(block) = block.kind <span class="kw">else </span>{
@@ -1714,7 +1724,7 @@
         <span class="kw">let </span>src = <span class="string">"loop { 1; 2 }"</span>;
         <span class="kw">let </span><span class="kw-2">mut </span>parser = Parser::for_str_with_dummy_file(src);
         <span class="kw">let </span>statement = parser.parse_statement_or_error();
-        <span class="kw">let </span>StatementKind::Loop(block, <span class="kw">_</span>) = statement.kind <span class="kw">else </span>{
+        <span class="kw">let </span>StatementKind::Loop(LoopStatement { body: block, .. }) = statement.kind <span class="kw">else </span>{
             <span class="macro">panic!</span>(<span class="string">"Expected loop"</span>);
         };
         <span class="kw">let </span>ExpressionKind::Block(block) = block.kind <span class="kw">else </span>{
