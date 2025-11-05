@@ -659,17 +659,13 @@ fn invoke_function_on_expression(
     let method_id = interner.function_definition_id(method);
     let location = interner.expr_location(&expression);
     let as_slice = HirExpression::Ident(HirIdent::non_trait_method(method_id, location), None);
-
-    let func = interner.push_expr_full(
-        as_slice,
-        location,
-        Type::Function(
-            vec![expression_type.clone()],
-            Box::new(target_type.clone()),
-            Box::new(Type::Unit),
-            false,
-        ),
+    let func_type = Type::Function(
+        vec![expression_type.clone()],
+        Box::new(target_type.clone()),
+        Box::new(Type::Unit),
+        false,
     );
+    let func = interner.push_expr_full(as_slice, location, func_type);
 
     // Copy the expression and give it a new ExprId. The old one
     // will be mutated in place into a Call expression.
