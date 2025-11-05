@@ -44,6 +44,7 @@ struct HTMLCreator {
     output: String,
     files: Vec<(PathBuf, String)>,
     current_path: Vec<String>,
+    current_crate_version: Option<String>,
     workspace_name: String,
     id_to_info: HashMap<Id, ItemInfo>,
     /// Maps a trait ID to all its implementations across all crates.
@@ -75,6 +76,7 @@ impl HTMLCreator {
             output,
             files,
             current_path,
+            current_crate_version: None,
             workspace_name,
             id_to_info,
             all_trait_impls,
@@ -191,6 +193,7 @@ impl HTMLCreator {
 
     fn create_crate(&mut self, workspace: &Workspace, krate: &Crate) {
         self.current_path.push(krate.name.clone());
+        self.current_crate_version = krate.version.clone();
 
         self.html_start(&format!("Crate {}", krate.name));
         self.sidebar_start();
@@ -207,6 +210,7 @@ impl HTMLCreator {
         self.create_items(&krate.root_module, &krate.root_module.items);
 
         self.current_path.pop();
+        self.current_crate_version = None;
     }
 
     fn render_crate_sidebar(&mut self, workspace: &Workspace, krate: &Crate) {
@@ -1433,6 +1437,12 @@ impl HTMLCreator {
                 "<h2 id=\"crate-name\"><a href=\"{}index.html\">{crate_name}</a></h2>\n",
                 "../".repeat(nesting - 1)
             ));
+            if let Some(version) = &self.current_crate_version {
+                self.output.push_str(&format!(
+                    "<div id=\"crate-version\">{}</div>\n",
+                    escape_html(version)
+                ));
+            }
         }
     }
 

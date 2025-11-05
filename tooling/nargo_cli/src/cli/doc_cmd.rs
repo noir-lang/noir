@@ -8,8 +8,8 @@ use nargo::{
     workspace::Workspace,
 };
 use nargo_doc::{ItemIds, crate_module, items::Crate};
-use nargo_toml::PackageSelection;
-use noirc_driver::{CompileOptions, CrateId};
+use nargo_toml::{PackageConfig, PackageSelection};
+use noirc_driver::{CompileOptions, CrateId, stdlib_nargo_toml_source};
 use noirc_frontend::hir::{Context, ParsedFiles};
 
 use crate::errors::CliError;
@@ -106,17 +106,20 @@ fn package_crate(
         crate_module(crate_id, &context.crate_graph, &context.def_maps, &context.def_interner, ids);
 
     let mut dependencies = HashMap::new();
-    collect_dependencies(&context, crate_id, file_manager, &mut dependencies, ids)?;
+    collect_dependencies(&context, Some(package), crate_id, file_manager, &mut dependencies, ids)?;
 
     let root_file = &context.crate_graph[crate_id].root_file_id;
     let root_file = file_manager.path(*root_file).unwrap().display().to_string();
 
-    let krate = Crate { name: package.name.to_string(), root_module: module, root_file };
+    let name = package.name.to_string();
+    let version = package.version.clone();
+    let krate = Crate { name, version, root_module: module, root_file };
     Ok((krate, dependencies))
 }
 
 fn collect_dependencies(
     context: &Context,
+    package: Option<&Package>,
     crate_id: CrateId,
     file_manager: &FileManager,
     dependencies: &mut HashMap<String, Crate>,
@@ -124,8 +127,9 @@ fn collect_dependencies(
 ) -> Result<(), CompileError> {
     for dependency in &context.crate_graph[crate_id].dependencies {
         let crate_id = dependency.crate_id;
-        let root_file = &context.crate_graph[crate_id].root_file_id;
-        let root_file = file_manager.path(*root_file).unwrap().display().to_string();
+        let crate_data = &context.crate_graph[crate_id];
+        let root_file = crate_data.root_file_id;
+        let root_file = file_manager.path(root_file).unwrap().display().to_string();
         let module = crate_module(
             crate_id,
             &context.crate_graph,
@@ -134,9 +138,29 @@ fn collect_dependencies(
             ids,
         );
         let name = dependency.name.to_string();
-        dependencies.insert(root_file.clone(), Crate { name, root_module: module, root_file });
+        // The `graph::Dependency` type doesn't carry a version. Instead, we can get it from the
+        // `Package's` depdendencies by finding the dependency with the same name.
+        // This doesn't work for the standard library, because it's never loaded as a `Package`.
+        // In that case we get the version in a different way.
+        let package_dependency = package
+            .and_then(|package| {
+                package.dependencies.iter().find(|(_crate_name, package_dependency)| {
+                    package_dependency.package_name() == &dependency.name
+                })
+            })
+            .map(|(_, dependency)| dependency);
+        let package = package_dependency.map(|dependency| dependency.package());
+        let mut version = package.and_then(|package| package.version.clone());
 
-        collect_dependencies(context, crate_id, file_manager, dependencies, ids)?;
+        if crate_id.is_stdlib() {
+            let stdlib_toml: PackageConfig = toml::from_str(&stdlib_nargo_toml_source()).unwrap();
+            version = stdlib_toml.package.version.clone();
+        }
+
+        let krate = Crate { name, version, root_module: module, root_file: root_file.clone() };
+        dependencies.insert(root_file, krate);
+
+        collect_dependencies(context, package, crate_id, file_manager, dependencies, ids)?;
     }
     Ok(())
 }
