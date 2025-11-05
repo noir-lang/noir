@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["stdlib_paths_with_source"],"struct":["StdLibAssets"]};
+window.SIDEBAR_ITEMS = {"fn":["stdlib_nargo_toml_source","stdlib_paths_with_source"],"struct":["StdLibAssets"]};

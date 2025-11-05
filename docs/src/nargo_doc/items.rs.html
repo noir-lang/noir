@@ -437,7 +437,8 @@
 <a href="#436" id="436">436</a>
 <a href="#437" id="437">437</a>
 <a href="#438" id="438">438</a>
-<a href="#439" id="439">439</a></pre></div><pre class="rust"><code><span class="doccomment">//! Contains the data structures that represent items to be shown by the documentation generator.
+<a href="#439" id="439">439</a>
+<a href="#440" id="440">440</a></pre></div><pre class="rust"><code><span class="doccomment">//! Contains the data structures that represent items to be shown by the documentation generator.
 
 </span><span class="kw">use </span>std::collections::BTreeMap;
 
@@ -468,6 +469,7 @@
 <span class="attr">#[derive(Clone, PartialEq, Eq, Hash)]
 </span><span class="kw">pub struct </span>Crate {
     <span class="kw">pub </span>name: String,
+    <span class="kw">pub </span>version: <span class="prelude-ty">Option</span>&lt;String&gt;,
     <span class="kw">pub </span>root_module: Module,
     <span class="kw">pub </span>root_file: String,
 }

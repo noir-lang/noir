@@ -1793,7 +1793,11 @@
 <a href="#1792" id="1792">1792</a>
 <a href="#1793" id="1793">1793</a>
 <a href="#1794" id="1794">1794</a>
-<a href="#1795" id="1795">1795</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#1795" id="1795">1795</a>
+<a href="#1796" id="1796">1796</a>
+<a href="#1797" id="1797">1797</a>
+<a href="#1798" id="1798">1798</a>
+<a href="#1799" id="1799">1799</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     collections::{BTreeMap, HashMap, HashSet},
     path::PathBuf,
 };
@@ -1839,6 +1843,7 @@
     output: String,
     files: Vec&lt;(PathBuf, String)&gt;,
     current_path: Vec&lt;String&gt;,
+    current_crate_version: <span class="prelude-ty">Option</span>&lt;String&gt;,
     workspace_name: String,
     id_to_info: HashMap&lt;Id, ItemInfo&gt;,
     <span class="doccomment">/// Maps a trait ID to all its implementations across all crates.
@@ -1870,6 +1875,7 @@
             output,
             files,
             current_path,
+            current_crate_version: <span class="prelude-val">None</span>,
             workspace_name,
             id_to_info,
             all_trait_impls,
@@ -1903,8 +1909,7 @@
         <span class="self">self</span>.sidebar_start();
         <span class="self">self</span>.render_all_items_sidebar(<span class="kw-2">&amp;</span>all_items);
         <span class="self">self</span>.sidebar_end();
-        <span class="self">self</span>.main_start();
-        <span class="self">self</span>.render_breadcrumbs(<span class="bool-val">false</span>);
+        <span class="self">self</span>.main_start(<span class="bool-val">false</span>);
         <span class="self">self</span>.h1(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"All items in {}"</span>, workspace.name));
         <span class="self">self</span>.render_all_items_list(<span class="string">"Structs"</span>, <span class="string">"struct"</span>, <span class="kw-2">&amp;</span>all_items.structs);
         <span class="self">self</span>.render_all_items_list(<span class="string">"Traits"</span>, <span class="string">"trait"</span>, <span class="kw-2">&amp;</span>all_items.traits);
@@ -1977,7 +1982,7 @@
         </span><span class="self">self</span>.sidebar_start();
         <span class="self">self</span>.sidebar_end();
 
-        <span class="self">self</span>.main_start();
+        <span class="self">self</span>.main_start(<span class="bool-val">false</span>);
         <span class="self">self</span>.h1(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{} documentation"</span>, workspace.name));
         <span class="self">self</span>.render_list(<span class="string">"Crates"</span>, <span class="string">"crates"</span>, <span class="bool-val">false</span>, <span class="number">0</span>, <span class="kw-2">&amp;</span>crates);
         <span class="self">self</span>.main_end();
@@ -1987,13 +1992,13 @@
 
     <span class="kw">fn </span>create_crate(<span class="kw-2">&amp;mut </span><span class="self">self</span>, workspace: <span class="kw-2">&amp;</span>Workspace, krate: <span class="kw-2">&amp;</span>Crate) {
         <span class="self">self</span>.current_path.push(krate.name.clone());
+        <span class="self">self</span>.current_crate_version = krate.version.clone();
 
         <span class="self">self</span>.html_start(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"Crate {}"</span>, krate.name));
         <span class="self">self</span>.sidebar_start();
         <span class="self">self</span>.render_crate_sidebar(workspace, krate);
         <span class="self">self</span>.sidebar_end();
-        <span class="self">self</span>.main_start();
-        <span class="self">self</span>.render_breadcrumbs(<span class="bool-val">false</span>);
+        <span class="self">self</span>.main_start(<span class="bool-val">false</span>);
         <span class="self">self</span>.h1(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"Crate &lt;span class=\"crate\"&gt;{}&lt;/span&gt;"</span>, krate.name));
         <span class="self">self</span>.render_comments(<span class="kw-2">&amp;</span>krate.root_module.comments, <span class="number">1</span>);
         <span class="self">self</span>.render_items(<span class="kw-2">&amp;</span>krate.root_module.items, <span class="bool-val">false</span>, <span class="number">0</span>);
@@ -2004,6 +2009,7 @@
         <span class="self">self</span>.create_items(<span class="kw-2">&amp;</span>krate.root_module, <span class="kw-2">&amp;</span>krate.root_module.items);
 
         <span class="self">self</span>.current_path.pop();
+        <span class="self">self</span>.current_crate_version = <span class="prelude-val">None</span>;
     }
 
     <span class="kw">fn </span>render_crate_sidebar(<span class="kw-2">&amp;mut </span><span class="self">self</span>, workspace: <span class="kw-2">&amp;</span>Workspace, krate: <span class="kw-2">&amp;</span>Crate) {
@@ -2017,12 +2023,7 @@
             }
 
             <span class="self">self</span>.output.push_str(<span class="string">"&lt;li&gt;"</span>);
-            <span class="self">self</span>.output.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(
-                <span class="string">"&lt;a href=\"../{}\" class=\"{}\"&gt;{}&lt;/a&gt;"</span>,
-                krate.uri(),
-                krate.class(),
-                krate.name(),
-            ));
+            <span class="self">self</span>.output.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"&lt;a href=\"../{}\"&gt;{}&lt;/a&gt;"</span>, krate.uri(), krate.name(),));
             <span class="self">self</span>.output.push_str(<span class="string">"&lt;/li&gt;\n"</span>);
         }
         <span class="self">self</span>.output.push_str(<span class="string">"&lt;/ul&gt;\n"</span>);
@@ -2141,11 +2142,13 @@
             <span class="kw">if </span>!sidebar {
                 <span class="self">self</span>.output.push_str(<span class="string">"&lt;div class=\"item-name\"&gt;"</span>);
             }
+            <span class="kw">let </span>class =
+                <span class="kw">if </span>sidebar { String::new() } <span class="kw">else </span>{ <span class="macro">format!</span>(<span class="string">" class=\"{}\""</span>, item.class()) };
             <span class="self">self</span>.output.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(
-                <span class="string">"&lt;a href=\"{}{}\" class=\"{}\"&gt;{}&lt;/a&gt;"</span>,
+                <span class="string">"&lt;a href=\"{}{}\"{}&gt;{}&lt;/a&gt;"</span>,
                 <span class="string">"../"</span>.repeat(nesting),
                 item.uri(),
-                item.class(),
+                class,
                 item.name(),
             ));
             <span class="kw">if </span>!sidebar {
@@ -2229,8 +2232,7 @@
         <span class="self">self</span>.sidebar_start();
         <span class="self">self</span>.render_module_sidebar(parent_module, module);
         <span class="self">self</span>.sidebar_end();
-        <span class="self">self</span>.main_start();
-        <span class="self">self</span>.render_breadcrumbs(<span class="bool-val">false</span>);
+        <span class="self">self</span>.main_start(<span class="bool-val">false</span>);
         <span class="self">self</span>.h1(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"Module &lt;span id=\"mod\" class=\"module\"&gt;{}&lt;/span&gt;"</span>, module.name));
         <span class="self">self</span>.render_comments(<span class="kw-2">&amp;</span>module.comments, <span class="number">1</span>);
         <span class="self">self</span>.render_items(<span class="kw-2">&amp;</span>module.items, <span class="bool-val">false</span>, <span class="number">0</span>);
@@ -2295,8 +2297,7 @@
         <span class="self">self</span>.render_struct_sidebar(struct_);
         <span class="self">self</span>.render_module_contents_sidebar(parent_module, <span class="number">0</span>);
         <span class="self">self</span>.sidebar_end();
-        <span class="self">self</span>.main_start();
-        <span class="self">self</span>.render_breadcrumbs(<span class="bool-val">true</span>);
+        <span class="self">self</span>.main_start(<span class="bool-val">true</span>);
         <span class="self">self</span>.h1(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"Struct &lt;span id=\"struct\" class=\"struct\"&gt;{}&lt;/span&gt;"</span>, struct_.name));
         <span class="self">self</span>.render_struct_code(struct_);
         <span class="self">self</span>.render_comments(<span class="kw-2">&amp;</span>struct_.comments, <span class="number">1</span>);
@@ -2355,8 +2356,7 @@
         <span class="self">self</span>.render_trait_sidebar(trait_);
         <span class="self">self</span>.render_module_contents_sidebar(parent_module, <span class="number">0</span>);
         <span class="self">self</span>.sidebar_end();
-        <span class="self">self</span>.main_start();
-        <span class="self">self</span>.render_breadcrumbs(<span class="bool-val">true</span>);
+        <span class="self">self</span>.main_start(<span class="bool-val">true</span>);
         <span class="self">self</span>.h1(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"Trait &lt;span id=\"trait\" class=\"trait\"&gt;{}&lt;/span&gt;"</span>, trait_.name));
         <span class="self">self</span>.render_trait_code(trait_);
         <span class="self">self</span>.render_comments(<span class="kw-2">&amp;</span>trait_.comments, <span class="number">1</span>);
@@ -2445,8 +2445,7 @@
         <span class="self">self</span>.sidebar_start();
         <span class="self">self</span>.render_module_contents_sidebar(parent_module, <span class="number">0</span>);
         <span class="self">self</span>.sidebar_end();
-        <span class="self">self</span>.main_start();
-        <span class="self">self</span>.render_breadcrumbs(<span class="bool-val">true</span>);
+        <span class="self">self</span>.main_start(<span class="bool-val">true</span>);
         <span class="self">self</span>.h1(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"Type alias &lt;span class=\"type\"&gt;{}&lt;/span&gt;"</span>, alias.name));
         <span class="self">self</span>.render_type_alias_code(alias);
         <span class="self">self</span>.render_comments(<span class="kw-2">&amp;</span>alias.comments, <span class="number">1</span>);
@@ -2460,8 +2459,7 @@
         <span class="self">self</span>.sidebar_start();
         <span class="self">self</span>.render_module_contents_sidebar(parent_module, <span class="number">0</span>);
         <span class="self">self</span>.sidebar_end();
-        <span class="self">self</span>.main_start();
-        <span class="self">self</span>.render_breadcrumbs(<span class="bool-val">true</span>);
+        <span class="self">self</span>.main_start(<span class="bool-val">true</span>);
         <span class="self">self</span>.h1(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"Function &lt;span class=\"fn\"&gt;{}&lt;/span&gt;"</span>, function.name));
         <span class="kw">let </span>as_header = <span class="bool-val">false</span>;
         <span class="kw">let </span>output_id = <span class="bool-val">false</span>;
@@ -2476,8 +2474,7 @@
         <span class="self">self</span>.sidebar_start();
         <span class="self">self</span>.render_module_contents_sidebar(parent_module, <span class="number">0</span>);
         <span class="self">self</span>.sidebar_end();
-        <span class="self">self</span>.main_start();
-        <span class="self">self</span>.render_breadcrumbs(<span class="bool-val">true</span>);
+        <span class="self">self</span>.main_start(<span class="bool-val">true</span>);
         <span class="self">self</span>.h1(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"Global &lt;span class=\"global\"&gt;{}&lt;/span&gt;"</span>, global.name));
         <span class="self">self</span>.render_global_code(global);
         <span class="self">self</span>.render_comments(<span class="kw-2">&amp;</span>global.comments, <span class="number">1</span>);
@@ -2492,8 +2489,7 @@
         <span class="self">self</span>.render_primitive_sidebar(primitive);
         <span class="self">self</span>.render_module_contents_sidebar(parent_module, <span class="number">0</span>);
         <span class="self">self</span>.sidebar_end();
-        <span class="self">self</span>.main_start();
-        <span class="self">self</span>.render_breadcrumbs(<span class="bool-val">true</span>);
+        <span class="self">self</span>.main_start(<span class="bool-val">true</span>);
         <span class="self">self</span>.h1(<span class="kw-2">&amp;</span><span class="macro">format!</span>(
             <span class="string">"Primitive type &lt;span id=\"primitive\" class=\"primitive\"&gt;{}&lt;/span&gt;"</span>,
             primitive.kind
@@ -3213,8 +3209,9 @@
         <span class="self">self</span>.output.push_str(<span class="string">"&lt;/html&gt;\n"</span>);
     }
 
-    <span class="kw">fn </span>main_start(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+    <span class="kw">fn </span>main_start(<span class="kw-2">&amp;mut </span><span class="self">self</span>, last_breadcrumb_is_link: bool) {
         <span class="self">self</span>.output.push_str(<span class="string">"&lt;main&gt;\n"</span>);
+        <span class="self">self</span>.render_breadcrumbs(last_breadcrumb_is_link);
     }
 
     <span class="kw">fn </span>main_end(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
@@ -3231,6 +3228,17 @@
             <span class="string">"../"</span>.repeat(nesting),
             <span class="string">"All items"
         </span>));
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(crate_name) = <span class="self">self</span>.current_path.first().cloned() {
+            <span class="self">self</span>.output.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(
+                <span class="string">"&lt;h2 id=\"crate-name\"&gt;&lt;a href=\"{}index.html\"&gt;{crate_name}&lt;/a&gt;&lt;/h2&gt;\n"</span>,
+                <span class="string">"../"</span>.repeat(nesting - <span class="number">1</span>)
+            ));
+            <span class="comment">// If there's no version, use 0.0.0 by default to make it really obvious it's missing
+            // (this is what rustdoc does too)
+            </span><span class="kw">let </span>version = <span class="self">self</span>.current_crate_version.clone().unwrap_or_else(|| <span class="string">"0.0.0"</span>.to_string());
+            <span class="self">self</span>.output
+                .push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"&lt;div id=\"crate-version\"&gt;{}&lt;/div&gt;\n"</span>, escape_html(<span class="kw-2">&amp;</span>version)));
+        }
     }
 
     <span class="kw">fn </span>sidebar_end(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {

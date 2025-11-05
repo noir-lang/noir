@@ -140,7 +140,31 @@
 <a href="#139" id="139">139</a>
 <a href="#140" id="140">140</a>
 <a href="#141" id="141">141</a>
-<a href="#142" id="142">142</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::HashMap, fs};
+<a href="#142" id="142">142</a>
+<a href="#143" id="143">143</a>
+<a href="#144" id="144">144</a>
+<a href="#145" id="145">145</a>
+<a href="#146" id="146">146</a>
+<a href="#147" id="147">147</a>
+<a href="#148" id="148">148</a>
+<a href="#149" id="149">149</a>
+<a href="#150" id="150">150</a>
+<a href="#151" id="151">151</a>
+<a href="#152" id="152">152</a>
+<a href="#153" id="153">153</a>
+<a href="#154" id="154">154</a>
+<a href="#155" id="155">155</a>
+<a href="#156" id="156">156</a>
+<a href="#157" id="157">157</a>
+<a href="#158" id="158">158</a>
+<a href="#159" id="159">159</a>
+<a href="#160" id="160">160</a>
+<a href="#161" id="161">161</a>
+<a href="#162" id="162">162</a>
+<a href="#163" id="163">163</a>
+<a href="#164" id="164">164</a>
+<a href="#165" id="165">165</a>
+<a href="#166" id="166">166</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::HashMap, fs};
 
 <span class="kw">use </span>clap::Args;
 <span class="kw">use </span>fm::FileManager;
@@ -150,8 +174,8 @@
     workspace::Workspace,
 };
 <span class="kw">use </span>nargo_doc::{ItemIds, crate_module, items::Crate};
-<span class="kw">use </span>nargo_toml::PackageSelection;
-<span class="kw">use </span>noirc_driver::{CompileOptions, CrateId};
+<span class="kw">use </span>nargo_toml::{PackageConfig, PackageSelection};
+<span class="kw">use </span>noirc_driver::{CompileOptions, CrateId, stdlib_nargo_toml_source};
 <span class="kw">use </span>noirc_frontend::hir::{Context, ParsedFiles};
 
 <span class="kw">use </span><span class="kw">crate</span>::errors::CliError;
@@ -248,17 +272,20 @@
         crate_module(crate_id, <span class="kw-2">&amp;</span>context.crate_graph, <span class="kw-2">&amp;</span>context.def_maps, <span class="kw-2">&amp;</span>context.def_interner, ids);
 
     <span class="kw">let </span><span class="kw-2">mut </span>dependencies = HashMap::new();
-    collect_dependencies(<span class="kw-2">&amp;</span>context, crate_id, file_manager, <span class="kw-2">&amp;mut </span>dependencies, ids)<span class="question-mark">?</span>;
+    collect_dependencies(<span class="kw-2">&amp;</span>context, <span class="prelude-val">Some</span>(package), crate_id, file_manager, <span class="kw-2">&amp;mut </span>dependencies, ids)<span class="question-mark">?</span>;
 
     <span class="kw">let </span>root_file = <span class="kw-2">&amp;</span>context.crate_graph[crate_id].root_file_id;
     <span class="kw">let </span>root_file = file_manager.path(<span class="kw-2">*</span>root_file).unwrap().display().to_string();
 
-    <span class="kw">let </span>krate = Crate { name: package.name.to_string(), root_module: module, root_file };
+    <span class="kw">let </span>name = package.name.to_string();
+    <span class="kw">let </span>version = package.version.clone();
+    <span class="kw">let </span>krate = Crate { name, version, root_module: module, root_file };
     <span class="prelude-val">Ok</span>((krate, dependencies))
 }
 
 <span class="kw">fn </span>collect_dependencies(
     context: <span class="kw-2">&amp;</span>Context,
+    package: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Package&gt;,
     crate_id: CrateId,
     file_manager: <span class="kw-2">&amp;</span>FileManager,
     dependencies: <span class="kw-2">&amp;mut </span>HashMap&lt;String, Crate&gt;,
@@ -266,8 +293,9 @@
 ) -&gt; <span class="prelude-ty">Result</span>&lt;(), CompileError&gt; {
     <span class="kw">for </span>dependency <span class="kw">in </span><span class="kw-2">&amp;</span>context.crate_graph[crate_id].dependencies {
         <span class="kw">let </span>crate_id = dependency.crate_id;
-        <span class="kw">let </span>root_file = <span class="kw-2">&amp;</span>context.crate_graph[crate_id].root_file_id;
-        <span class="kw">let </span>root_file = file_manager.path(<span class="kw-2">*</span>root_file).unwrap().display().to_string();
+        <span class="kw">let </span>crate_data = <span class="kw-2">&amp;</span>context.crate_graph[crate_id];
+        <span class="kw">let </span>root_file = crate_data.root_file_id;
+        <span class="kw">let </span>root_file = file_manager.path(root_file).unwrap().display().to_string();
         <span class="kw">let </span>module = crate_module(
             crate_id,
             <span class="kw-2">&amp;</span>context.crate_graph,
@@ -276,9 +304,29 @@
             ids,
         );
         <span class="kw">let </span>name = dependency.name.to_string();
-        dependencies.insert(root_file.clone(), Crate { name, root_module: module, root_file });
+        <span class="comment">// The `graph::Dependency` type doesn't carry a version. Instead, we can get it from the
+        // `Package's` dependencies by finding the dependency with the same name.
+        // This doesn't work for the standard library, because it's never loaded as a `Package`.
+        // In that case we get the version in a different way.
+        </span><span class="kw">let </span>package_dependency = package
+            .and_then(|package| {
+                package.dependencies.iter().find(|(_crate_name, package_dependency)| {
+                    package_dependency.package_name() == <span class="kw-2">&amp;</span>dependency.name
+                })
+            })
+            .map(|(<span class="kw">_</span>, dependency)| dependency);
+        <span class="kw">let </span>package = package_dependency.map(|dependency| dependency.package());
+        <span class="kw">let </span><span class="kw-2">mut </span>version = package.and_then(|package| package.version.clone());
 
-        collect_dependencies(context, crate_id, file_manager, dependencies, ids)<span class="question-mark">?</span>;
+        <span class="kw">if </span>crate_id.is_stdlib() {
+            <span class="kw">let </span>stdlib_toml: PackageConfig = toml::from_str(<span class="kw-2">&amp;</span>stdlib_nargo_toml_source()).unwrap();
+            version = stdlib_toml.package.version.clone();
+        }
+
+        <span class="kw">let </span>krate = Crate { name, version, root_module: module, root_file: root_file.clone() };
+        dependencies.insert(root_file, krate);
+
+        collect_dependencies(context, package, crate_id, file_manager, dependencies, ids)<span class="question-mark">?</span>;
     }
     <span class="prelude-val">Ok</span>(())
 }
