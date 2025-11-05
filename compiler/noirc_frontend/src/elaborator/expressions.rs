@@ -720,7 +720,7 @@ impl Elaborator<'_> {
                 let func_type =
                     self.type_check_variable(function_name.clone(), &function_id, generics.clone());
 
-                let function_id = function_id.push_type(self.interner, func_type.clone());
+                let function_id = self.intern_expr_type(function_id, func_type.clone());
 
                 let func_arg_types =
                     if let Type::Function(args, _, _, _) = &func_type { Some(args) } else { None };
@@ -1107,7 +1107,7 @@ impl Elaborator<'_> {
         let access = HirMemberAccess { lhs, rhs, is_offset };
         let expr_id = self.intern_expr(HirExpression::MemberAccess(access.clone()), location);
         let typ = self.type_check_member_access(access, *expr_id, lhs_type, rhs_location);
-        let expr_id = expr_id.push_type(self.interner, typ.clone());
+        let expr_id = self.intern_expr_type(expr_id, typ.clone());
         (expr_id, typ, is_offset && is_reference)
     }
 
