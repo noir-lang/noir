@@ -1,18 +1,21 @@
 :root {
-    --main-color: black;
-    --code-color: #f5f5f5;
-    --link-color: #3873ad;
-    --header-border-color: #ddd;
-    --crate-color: var(--link-color);
-    --module-color: var(--link-color);
-    --struct-color: #ad378a;
-    --trait-color: #6e4fc9;
+    color-scheme: light dark;
+
+    --main-color: light-dark(black, #ddd);
+    --main-background-color: light-dark(white, #353535);
+    --code-color: light-dark(#f5f5f5, #2a2a2a);
+    --link-color: light-dark(#3873ad, #fdbf35);
+    --header-border-color: light-dark(#ddd, #d2d2d2);
+    --crate-color: light-dark(var(--link-color), #d2991d);
+    --module-color: var(--crate-color);
+    --struct-color: light-dark(#ad378a, #2dbfb8);
+    --trait-color: light-dark(#6e4fc9, #b78cf2);
     --type-color: var(--struct-color);
-    --global-color: var(--link-color);
-    --fn-color: #ad7c37;
+    --global-color: var(--crate-color);
+    --fn-color: light-dark(#ad7c37, #2bab63);
     --primitive-color: var(--struct-color);
-    --sidebar-color: #f5f5f5;
-    --comment-color: #8e908c;
+    --sidebar-color: light-dark(#f5f5f5, #505050);
+    --comment-color: light-dark(#8e908c, #8d8d8b);
 }
 
 body {
@@ -22,6 +25,8 @@ body {
     display: flex;
     flex-direction: row;
     flex-wrap: nowrap;
+    color: var(--main-color);
+    background-color: var(--main-background-color);
 }
 
 main {
