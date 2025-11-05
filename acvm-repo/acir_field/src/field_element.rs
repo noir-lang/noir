@@ -624,8 +624,8 @@ mod tests {
 
         for value in test_values {
             let field = F::from(value);
-            assert!(field.fits_in_i128(), "Value {} should fit in i128", value);
-            assert_eq!(field.to_i128(), value, "Roundtrip failed for {}", value);
+            assert!(field.fits_in_i128(), "Value {value} should fit in i128");
+            assert_eq!(field.to_i128(), value, "Roundtrip failed for {value}");
         }
     }
 
