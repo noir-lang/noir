@@ -780,7 +780,39 @@
 <a href="#779" id="779">779</a>
 <a href="#780" id="780">780</a>
 <a href="#781" id="781">781</a>
-<a href="#782" id="782">782</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc, vec};
+<a href="#782" id="782">782</a>
+<a href="#783" id="783">783</a>
+<a href="#784" id="784">784</a>
+<a href="#785" id="785">785</a>
+<a href="#786" id="786">786</a>
+<a href="#787" id="787">787</a>
+<a href="#788" id="788">788</a>
+<a href="#789" id="789">789</a>
+<a href="#790" id="790">790</a>
+<a href="#791" id="791">791</a>
+<a href="#792" id="792">792</a>
+<a href="#793" id="793">793</a>
+<a href="#794" id="794">794</a>
+<a href="#795" id="795">795</a>
+<a href="#796" id="796">796</a>
+<a href="#797" id="797">797</a>
+<a href="#798" id="798">798</a>
+<a href="#799" id="799">799</a>
+<a href="#800" id="800">800</a>
+<a href="#801" id="801">801</a>
+<a href="#802" id="802">802</a>
+<a href="#803" id="803">803</a>
+<a href="#804" id="804">804</a>
+<a href="#805" id="805">805</a>
+<a href="#806" id="806">806</a>
+<a href="#807" id="807">807</a>
+<a href="#808" id="808">808</a>
+<a href="#809" id="809">809</a>
+<a href="#810" id="810">810</a>
+<a href="#811" id="811">811</a>
+<a href="#812" id="812">812</a></pre></div><pre class="rust"><code><span class="doccomment">//! Defines the [Value] type, representing a compile-time value, used by the
+//! comptime interpreter when evaluating code.
+</span><span class="kw">use </span>std::{borrow::Cow, rc::Rc, vec};
 
 <span class="kw">use </span>im::Vector;
 <span class="kw">use </span>iter_extended::{try_vecmap, vecmap};
@@ -816,7 +848,8 @@
     errors::{IResult, InterpreterError},
 };
 
-<span class="attr">#[derive(Debug, Clone, PartialEq, Eq)]
+<span class="doccomment">/// A value representing the result of evaluating a Noir expression.
+</span><span class="attr">#[derive(Debug, Clone, PartialEq, Eq)]
 </span><span class="kw">pub enum </span>Value {
     Unit,
     Bool(bool),
@@ -909,7 +942,9 @@
         Value::Expr(Box::new(ExprValue::Pattern(pattern)))
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_type(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Cow&lt;Type&gt; {
+    <span class="doccomment">/// Retrieves the type of this value. Types can always be determined from the value,
+    /// in cases where it would be ambiguous, Values store the type directly.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_type(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Cow&lt;Type&gt; {
         Cow::Owned(<span class="kw">match </span><span class="self">self </span>{
             Value::Unit =&gt; Type::Unit,
             Value::Bool(<span class="kw">_</span>) =&gt; Type::Bool,
@@ -964,7 +999,13 @@
         })
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>into_expression(
+    <span class="doccomment">/// Lowers this value into a runtime expression.
+    ///
+    /// For literals this is often simple, e.g. `Value::I8(3)` translates to `3`, but not
+    /// all values are valid to lower. Certain values change form - e.g. format strings lowering
+    /// into normal string literals. Lowering quoted code will simply return the quoted code (after
+    /// parsing), this is how macros are implemented.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>into_expression(
         <span class="self">self</span>,
         elaborator: <span class="kw-2">&amp;mut </span>Elaborator,
         location: Location,
@@ -1143,7 +1184,10 @@
         <span class="prelude-val">Ok</span>(Expression::new(kind, location))
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>into_hir_expression(
+    <span class="doccomment">/// Lowers this compile-time value into a HIR expression. This is similar to
+    /// [Self::into_expression] but is used in some cases in the monomorphizer where
+    /// code must already be in HIR.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>into_hir_expression(
         <span class="self">self</span>,
         interner: <span class="kw-2">&amp;mut </span>NodeInterner,
         location: Location,
@@ -1283,7 +1327,11 @@
         <span class="prelude-val">Ok</span>(id)
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>into_tokens(
+    <span class="doccomment">/// Attempt to convert this value into a Vec of tokens representing this value if it appeared
+    /// in source code. For example, `Value::Unit` is `vec!['(', ')']`. This is used for splicing
+    /// values into quoted values when `$` is used within a `quote {  }` expression. Since `Quoted`
+    /// code is represented as tokens, we need to convert the value into tokens.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>into_tokens(
         <span class="self">self</span>,
         interner: <span class="kw-2">&amp;mut </span>NodeInterner,
         location: Location,
@@ -1484,7 +1532,12 @@
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>into_top_level_items(
+    <span class="doccomment">/// Similar to [Self::into_expression] or [Self::into_hir_expression] but for converting
+    /// into top-level item(s). Unlike those other methods, most expressions are invalid
+    /// as top-level items (e.g. a lone `3` is not a valid top-level statement). As a result,
+    /// this method is significantly simpler because we only have to parse `Quoted` values
+    /// into top level items.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>into_top_level_items(
         <span class="self">self</span>,
         location: Location,
         elaborator: <span class="kw-2">&amp;mut </span>Elaborator,
@@ -1514,6 +1567,10 @@
 
     <span class="doccomment">/// Structs and tuples store references to their fields internally which need to be manually
     /// changed when moving them.
+    ///
+    /// All references are shared by default but when we have `let mut foo = Struct { .. }` in
+    /// code, we don't want moving it: `let mut bar = foo;` to refer to the same references.
+    /// This function will copy them so that mutating the fields of `foo` will not mutate `bar`.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>move_struct(<span class="self">self</span>) -&gt; Value {
         <span class="kw">match </span><span class="self">self </span>{
             Value::Tuple(fields) =&gt; Value::Tuple(vecmap(fields, |field| {
@@ -1535,7 +1592,10 @@
     Rc::try_unwrap(rc).unwrap_or_else(|rc| (<span class="kw-2">*</span>rc).clone())
 }
 
-<span class="kw">fn </span>parse_tokens&lt;<span class="lifetime">'a</span>, T, F&gt;(
+<span class="doccomment">/// Helper to parse the given tokens using the given parse function.
+///
+/// If they fail to parse, [InterpreterError::FailedToParseMacro] is returned.
+</span><span class="kw">fn </span>parse_tokens&lt;<span class="lifetime">'a</span>, T, F&gt;(
     tokens: Rc&lt;Vec&lt;LocatedToken&gt;&gt;,
     elaborator: <span class="kw-2">&amp;mut </span>Elaborator,
     parsing_function: F,

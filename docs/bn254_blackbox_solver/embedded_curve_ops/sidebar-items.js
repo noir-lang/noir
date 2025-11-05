@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["create_point","embedded_curve_add","multi_scalar_mul"]};
+window.SIDEBAR_ITEMS = {"fn":["create_point","embedded_curve_add","field_to_u128_limb","multi_scalar_mul"]};

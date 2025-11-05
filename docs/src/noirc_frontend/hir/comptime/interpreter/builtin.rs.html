@@ -3225,7 +3225,13 @@
 <a href="#3224" id="3224">3224</a>
 <a href="#3225" id="3225">3225</a>
 <a href="#3226" id="3226">3226</a>
-<a href="#3227" id="3227">3227</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::rc::Rc;
+<a href="#3227" id="3227">3227</a>
+<a href="#3228" id="3228">3228</a>
+<a href="#3229" id="3229">3229</a>
+<a href="#3230" id="3230">3230</a></pre></div><pre class="rust"><code><span class="doccomment">//! Large file containing implementations of all the various built-in functions
+//! which can be called in the interpreter. This notably includes the entire comptime-API
+//! defined in `noir_stdlib/src/meta/*`
+</span><span class="kw">use </span>std::rc::Rc;
 
 <span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>builtin_helpers::{

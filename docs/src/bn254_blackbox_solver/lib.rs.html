@@ -57,21 +57,19 @@
 <a href="#56" id="56">56</a>
 <a href="#57" id="57">57</a>
 <a href="#58" id="58">58</a>
-<a href="#59" id="59">59</a>
-<a href="#60" id="60">60</a></pre></div><pre class="rust"><code><span class="attr">#![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
+<a href="#59" id="59">59</a></pre></div><pre class="rust"><code><span class="attr">#![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 </span><span class="kw">use </span>acvm_blackbox_solver::{BlackBoxFunctionSolver, BlackBoxResolutionError};
 
 <span class="kw">mod </span>embedded_curve_ops;
 <span class="kw">mod </span>generator;
 <span class="kw">mod </span>poseidon2;
+<span class="kw">mod </span>poseidon2_constants;
 
 <span class="kw">pub use </span>embedded_curve_ops::{embedded_curve_add, multi_scalar_mul};
 <span class="kw">pub use </span>generator::generators::derive_generators;
-<span class="kw">pub use </span>poseidon2::{
-    POSEIDON2_CONFIG, Poseidon2Config, Poseidon2Sponge, field_from_hex, poseidon_hash,
-    poseidon2_permutation,
-};
+<span class="kw">pub use </span>poseidon2::{Poseidon2Sponge, poseidon_hash, poseidon2_permutation};
+<span class="kw">pub use </span>poseidon2_constants::{POSEIDON2_CONFIG, Poseidon2Config, field_from_hex};
 
 <span class="comment">// Temporary hack, this ensure that we always use a bn254 field here
 // without polluting the feature flags of the `acir_field` crate.

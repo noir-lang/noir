@@ -1773,7 +1773,54 @@
 <a href="#1772" id="1772">1772</a>
 <a href="#1773" id="1773">1773</a>
 <a href="#1774" id="1774">1774</a>
-<a href="#1775" id="1775">1775</a></pre></div><pre class="rust"><code><span class="doccomment">//! The comptime interpreter is a tree-walking interpreter used for evaluating Noir code
+<a href="#1775" id="1775">1775</a>
+<a href="#1776" id="1776">1776</a>
+<a href="#1777" id="1777">1777</a>
+<a href="#1778" id="1778">1778</a>
+<a href="#1779" id="1779">1779</a>
+<a href="#1780" id="1780">1780</a>
+<a href="#1781" id="1781">1781</a>
+<a href="#1782" id="1782">1782</a>
+<a href="#1783" id="1783">1783</a>
+<a href="#1784" id="1784">1784</a>
+<a href="#1785" id="1785">1785</a>
+<a href="#1786" id="1786">1786</a>
+<a href="#1787" id="1787">1787</a>
+<a href="#1788" id="1788">1788</a>
+<a href="#1789" id="1789">1789</a>
+<a href="#1790" id="1790">1790</a>
+<a href="#1791" id="1791">1791</a>
+<a href="#1792" id="1792">1792</a>
+<a href="#1793" id="1793">1793</a>
+<a href="#1794" id="1794">1794</a>
+<a href="#1795" id="1795">1795</a>
+<a href="#1796" id="1796">1796</a>
+<a href="#1797" id="1797">1797</a>
+<a href="#1798" id="1798">1798</a>
+<a href="#1799" id="1799">1799</a>
+<a href="#1800" id="1800">1800</a>
+<a href="#1801" id="1801">1801</a>
+<a href="#1802" id="1802">1802</a>
+<a href="#1803" id="1803">1803</a>
+<a href="#1804" id="1804">1804</a>
+<a href="#1805" id="1805">1805</a>
+<a href="#1806" id="1806">1806</a>
+<a href="#1807" id="1807">1807</a>
+<a href="#1808" id="1808">1808</a>
+<a href="#1809" id="1809">1809</a>
+<a href="#1810" id="1810">1810</a>
+<a href="#1811" id="1811">1811</a>
+<a href="#1812" id="1812">1812</a>
+<a href="#1813" id="1813">1813</a>
+<a href="#1814" id="1814">1814</a>
+<a href="#1815" id="1815">1815</a>
+<a href="#1816" id="1816">1816</a>
+<a href="#1817" id="1817">1817</a>
+<a href="#1818" id="1818">1818</a>
+<a href="#1819" id="1819">1819</a>
+<a href="#1820" id="1820">1820</a>
+<a href="#1821" id="1821">1821</a>
+<a href="#1822" id="1822">1822</a></pre></div><pre class="rust"><code><span class="doccomment">//! The comptime interpreter is a tree-walking interpreter used for evaluating Noir code
 //! at compile-time. It is typically triggered (by the elaborator) in one of four scenarios:
 //! 1. A `comptime {}` block
 //!   - Everything in the block is interpreted
@@ -1798,6 +1845,14 @@
 //! to elaborate as it goes, creating new HIR. Then when it sees a `comptime {}` block or other
 //! item that must be interpreted, it elaborates the entire item, creates and runs an [Interpreter]
 //! on it, inlines the result, and continues elaborating the rest of the code.
+//!
+//! Also note that although it runs on code that has already been elaborated, in general it is
+//! still possible to invoke the interpreter on code which contains errors, such as type errors.
+//! For this reason, the interpreter must still perform error-checking at least in cases where
+//! we cannot continue otherwise. This can result in similar errors being issued for the same
+//! code. For example, a function's body may fail to type check, but that same function may
+//! be called in the interpreter later on where we'd presumably halt with a similar error.
+//! [InterpreterError::ArgumentCountMismatch] is an example of such an error.
 
 </span><span class="kw">use </span>std::collections::VecDeque;
 <span class="kw">use </span>std::{collections::hash_map::Entry, rc::Rc};
@@ -2070,7 +2125,8 @@
         }
     }
 
-    <span class="kw">fn </span>call_closure(
+    <span class="doccomment">/// Call a closure value with the given arguments and environment, returning the result.
+    </span><span class="kw">fn </span>call_closure(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         lambda: HirLambda,
         environment: Vec&lt;Value&gt;,
@@ -2090,7 +2146,10 @@
         result
     }
 
-    <span class="kw">fn </span>call_closure_inner(
+    <span class="doccomment">/// Performs the bulk of the work for calling a closure function.
+    /// This function is very similar to [Self::call_user_defined_function]
+    /// with the main difference being handling of `closure.captures`.
+    </span><span class="kw">fn </span>call_closure_inner(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         closure: HirLambda,
         environment: Vec&lt;Value&gt;,
@@ -2128,7 +2187,7 @@
 
     <span class="doccomment">/// Enters a function, pushing a new scope and resetting any required state.
     /// Returns the previous values of the internal state, to be reset when
-    /// `exit_function` is called.
+    /// [Self::exit_function] is called.
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>enter_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; (bool, Vec&lt;HashMap&lt;DefinitionId, Value&gt;&gt;) {
         <span class="comment">// Drain every scope except the global scope
         </span><span class="kw">let </span><span class="kw-2">mut </span>scope = Vec::new();
@@ -2139,7 +2198,8 @@
         (std::mem::take(<span class="kw-2">&amp;mut </span><span class="self">self</span>.in_loop), scope)
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>exit_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw-2">mut </span>state: (bool, Vec&lt;HashMap&lt;DefinitionId, Value&gt;&gt;)) {
+    <span class="doccomment">/// Resets the per-function state to the value previously returned by [Self::enter_function]
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>exit_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw-2">mut </span>state: (bool, Vec&lt;HashMap&lt;DefinitionId, Value&gt;&gt;)) {
         <span class="self">self</span>.in_loop = state.<span class="number">0</span>;
 
         <span class="comment">// Keep only the global scope
@@ -2147,21 +2207,33 @@
         <span class="self">self</span>.elaborator.interner.comptime_scopes.append(<span class="kw-2">&amp;mut </span>state.<span class="number">1</span>);
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>push_scope(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+    <span class="doccomment">/// Pushes a new scope to define any variables in.
+    ///
+    /// Note that the first scope is always expected to be the global scope shared by all
+    /// crates, which should never be popped.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>push_scope(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="self">self</span>.elaborator.interner.comptime_scopes.push(HashMap::default());
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>pop_scope(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+    <span class="doccomment">/// Pops the topmost scope.
+    ///
+    /// Note that the first scope is expected to be the global scope of comptime values
+    /// shared between all crates, which should never be popped.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>pop_scope(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="self">self</span>.elaborator.interner.comptime_scopes.pop().expect(<span class="string">"Expected a scope to exist"</span>);
         <span class="macro">assert!</span>(!<span class="self">self</span>.elaborator.interner.comptime_scopes.is_empty());
     }
 
-    <span class="kw">fn </span>current_scope_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut </span>HashMap&lt;DefinitionId, Value&gt; {
+    <span class="doccomment">/// Returns the current scope to define comptime variables in.
+    /// The stack of scopes is always non-empty so this should never panic.
+    </span><span class="kw">fn </span>current_scope_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut </span>HashMap&lt;DefinitionId, Value&gt; {
         <span class="comment">// the global scope is always at index zero, so this is always Some
         </span><span class="self">self</span>.elaborator.interner.comptime_scopes.last_mut().unwrap()
     }
 
-    <span class="kw">fn </span>unbind_generics_from_previous_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+    <span class="doccomment">/// Unbinds all of the generics at the top of `self.bound_generics`, then push
+    /// an empty set of bindings to become the new top of the stack.
+    </span><span class="kw">fn </span>unbind_generics_from_previous_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="kw">if let </span><span class="prelude-val">Some</span>(bindings) = <span class="self">self</span>.bound_generics.last() {
             <span class="kw">for </span>(var, (<span class="kw">_</span>, kind)) <span class="kw">in </span>bindings {
                 var.unbind(var.id(), kind.clone());
@@ -2171,7 +2243,9 @@
         </span><span class="self">self</span>.bound_generics.push(HashMap::default());
     }
 
-    <span class="kw">fn </span>rebind_generics_from_previous_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+    <span class="doccomment">/// Pops the top of `self.bound_generics` then takes the new bindings at the
+    /// top of that stack and force-binds each.
+    </span><span class="kw">fn </span>rebind_generics_from_previous_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="comment">// Remove the currently bound generics first.
         </span><span class="self">self</span>.bound_generics.pop();
 
@@ -2182,7 +2256,9 @@
         }
     }
 
-    <span class="kw">fn </span>remember_bindings(<span class="kw-2">&amp;mut </span><span class="self">self</span>, main_bindings: <span class="kw-2">&amp;</span>TypeBindings, impl_bindings: <span class="kw-2">&amp;</span>TypeBindings) {
+    <span class="doccomment">/// Adds all of the given `main_bindings` and `impl_bindings` to the top of
+    /// `self.bound_generics`. Note that this will not actually perform any of the type bindings.
+    </span><span class="kw">fn </span>remember_bindings(<span class="kw-2">&amp;mut </span><span class="self">self</span>, main_bindings: <span class="kw-2">&amp;</span>TypeBindings, impl_bindings: <span class="kw-2">&amp;</span>TypeBindings) {
         <span class="kw">let </span>bound_generics = <span class="self">self
             </span>.bound_generics
             .last_mut()
@@ -2197,7 +2273,8 @@
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>define_pattern(
+    <span class="doccomment">/// Defines a pattern, putting all variables contained within the pattern in the current scope.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>define_pattern(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         pattern: <span class="kw-2">&amp;</span>HirPattern,
         typ: <span class="kw-2">&amp;</span>Type,
@@ -2311,11 +2388,13 @@
         <span class="prelude-val">Err</span>(InterpreterError::VariableNotInScope { location })
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>lookup(<span class="kw-2">&amp;</span><span class="self">self</span>, ident: <span class="kw-2">&amp;</span>HirIdent) -&gt; IResult&lt;Value&gt; {
+    <span class="doccomment">/// Lookup the comptime value of the given variable
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>lookup(<span class="kw-2">&amp;</span><span class="self">self</span>, ident: <span class="kw-2">&amp;</span>HirIdent) -&gt; IResult&lt;Value&gt; {
         <span class="self">self</span>.lookup_id(ident.id, ident.location)
     }
 
-    <span class="kw">pub fn </span>lookup_id(<span class="kw-2">&amp;</span><span class="self">self</span>, id: DefinitionId, location: Location) -&gt; IResult&lt;Value&gt; {
+    <span class="doccomment">/// Lookup the comptime value of the given definition
+    </span><span class="kw">pub fn </span>lookup_id(<span class="kw-2">&amp;</span><span class="self">self</span>, id: DefinitionId, location: Location) -&gt; IResult&lt;Value&gt; {
         <span class="kw">for </span>scope <span class="kw">in </span><span class="self">self</span>.elaborator.interner.comptime_scopes.iter().rev() {
             <span class="kw">if let </span><span class="prelude-val">Some</span>(value) = scope.get(<span class="kw-2">&amp;</span>id) {
                 <span class="kw">return </span><span class="prelude-val">Ok</span>(value.clone());
@@ -2377,7 +2456,8 @@
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>evaluate_ident(<span class="kw-2">&amp;mut </span><span class="self">self</span>, ident: HirIdent, id: ExprId) -&gt; IResult&lt;Value&gt; {
+    <span class="doccomment">/// Evaluates a variable
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>evaluate_ident(<span class="kw-2">&amp;mut </span><span class="self">self</span>, ident: HirIdent, id: ExprId) -&gt; IResult&lt;Value&gt; {
         <span class="kw">let </span>definition = <span class="self">self</span>.elaborator.interner.try_definition(ident.id).ok_or_else(|| {
             <span class="kw">let </span>location = <span class="self">self</span>.elaborator.interner.expr_location(<span class="kw-2">&amp;</span>id);
             InterpreterError::VariableNotInScope { location }
@@ -2495,7 +2575,11 @@
         }
     }
 
-    <span class="kw">fn </span>evaluate_format_string(
+    <span class="doccomment">/// Evaluates a format string. Note that in doing so, the string is formatted now, there is no
+    /// delayed formatting when it is later used. Effectively the result is identical to a normal
+    /// string, just with a different type. This is also why when format strings are lowered into
+    /// runtime code they become regular strings - because they're already formatted.
+    </span><span class="kw">fn </span>evaluate_format_string(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         fragments: Vec&lt;FmtStrFragment&gt;,
         captures: Vec&lt;ExprId&gt;,
@@ -2543,7 +2627,9 @@
         <span class="prelude-val">Ok</span>(Value::FormatString(Rc::new(result), typ))
     }
 
-    <span class="kw">fn </span>evaluate_integer(<span class="kw-2">&amp;</span><span class="self">self</span>, value: SignedField, id: ExprId) -&gt; IResult&lt;Value&gt; {
+    <span class="doccomment">/// Since integers are polymorphic, evaluating one requires the result type.
+    /// We pass down the result type the elaborator previously inferred.
+    </span><span class="kw">fn </span>evaluate_integer(<span class="kw-2">&amp;</span><span class="self">self</span>, value: SignedField, id: ExprId) -&gt; IResult&lt;Value&gt; {
         <span class="kw">let </span>typ = <span class="self">self</span>.elaborator.interner.id_type(id).follow_bindings();
         <span class="kw">let </span>location = <span class="self">self</span>.elaborator.interner.expr_location(<span class="kw-2">&amp;</span>id);
 
@@ -2745,7 +2831,8 @@
         <span class="prelude-val">Ok</span>(Value::Struct(fields, typ))
     }
 
-    <span class="kw">fn </span>evaluate_enum_constructor(
+    <span class="doccomment">/// Unlike a struct constructor, an enum constructor inserts a tag value along with the fields
+    </span><span class="kw">fn </span>evaluate_enum_constructor(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         constructor: HirEnumConstructorExpression,
         id: ExprId,
@@ -2778,7 +2865,9 @@
         <span class="prelude-val">Ok</span>(Value::Pointer(field, auto_deref, <span class="bool-val">false</span>))
     }
 
-    <span class="kw">fn </span>get_fields(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: Value, id: ExprId) -&gt; IResult&lt;(StructFields, Type)&gt; {
+    <span class="doccomment">/// Given a value, return the struct/tuple fields of the value, automatically dereferencing any
+    /// pointers found.
+    </span><span class="kw">fn </span>get_fields(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: Value, id: ExprId) -&gt; IResult&lt;(StructFields, Type)&gt; {
         <span class="kw">match </span>value {
             Value::Struct(fields, typ) =&gt; <span class="prelude-val">Ok</span>((fields, typ)),
             Value::Tuple(fields) =&gt; {
@@ -2802,7 +2891,9 @@
         }
     }
 
-    <span class="kw">fn </span>evaluate_call(<span class="kw-2">&amp;mut </span><span class="self">self</span>, call: HirCallExpression, id: ExprId) -&gt; IResult&lt;Value&gt; {
+    <span class="doccomment">/// Evaluates a call expression, deferring to [Self::call_function] or [Self::call_closure]
+    /// once the function is determined.
+    </span><span class="kw">fn </span>evaluate_call(<span class="kw-2">&amp;mut </span><span class="self">self</span>, call: HirCallExpression, id: ExprId) -&gt; IResult&lt;Value&gt; {
         <span class="kw">let </span>function = <span class="self">self</span>.evaluate(call.func)<span class="question-mark">?</span>;
         <span class="kw">let </span>arguments = try_vecmap(call.arguments, |arg| {
             <span class="prelude-val">Ok</span>((<span class="self">self</span>.evaluate(arg)<span class="question-mark">?</span>, <span class="self">self</span>.elaborator.interner.expr_location(<span class="kw-2">&amp;</span>arg)))
@@ -2977,7 +3068,8 @@
         <span class="prelude-val">Ok</span>(Value::Unit)
     }
 
-    <span class="kw">fn </span>store_lvalue(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lvalue: HirLValue, rhs: Value) -&gt; IResult&lt;()&gt; {
+    <span class="doccomment">/// Stores `rhs` at the location determined by `lvalue`
+    </span><span class="kw">fn </span>store_lvalue(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lvalue: HirLValue, rhs: Value) -&gt; IResult&lt;()&gt; {
         <span class="kw">match </span>lvalue {
             HirLValue::Ident(ident, _typ) =&gt; <span class="self">self</span>.mutate(ident.id, rhs, ident.location),
             HirLValue::Dereference { lvalue, element_type: <span class="kw">_</span>, location, implicitly_added: <span class="kw">_ </span>} =&gt; {
@@ -3064,7 +3156,8 @@
         }
     }
 
-    <span class="kw">fn </span>evaluate_lvalue(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lvalue: <span class="kw-2">&amp;</span>HirLValue) -&gt; IResult&lt;Value&gt; {
+    <span class="doccomment">/// Returns the current value held by `lvalue`
+    </span><span class="kw">fn </span>evaluate_lvalue(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lvalue: <span class="kw-2">&amp;</span>HirLValue) -&gt; IResult&lt;Value&gt; {
         <span class="kw">match </span>lvalue {
             HirLValue::Ident(ident, <span class="kw">_</span>) =&gt; <span class="kw">match </span><span class="self">self</span>.lookup(ident)<span class="question-mark">? </span>{
                 Value::Pointer(elem, <span class="bool-val">true</span>, <span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(elem.borrow().clone()),
@@ -3399,7 +3492,8 @@
             <span class="kw">let </span>value = value
                 .try_to_unsigned()
                 .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })<span class="question-mark">?</span>;
-            <span class="prelude-val">Ok</span>(Value::U64(value))
+            <span class="comment">// TODO: This should probably be a U32
+            </span><span class="prelude-val">Ok</span>(Value::U64(value))
         } <span class="kw">else </span>{
             <span class="prelude-val">Err</span>(InterpreterError::NonIntegerIntegerLiteral { typ, location })
         }

@@ -326,8 +326,11 @@
 <a href="#325" id="325">325</a>
 <a href="#326" id="326">326</a>
 <a href="#327" id="327">327</a>
-<a href="#328" id="328">328</a></pre></div><pre class="rust"><code><span class="comment">// TODO(https://github.com/noir-lang/noir/issues/4932): rename this file to something more generic
-</span><span class="kw">use </span>ark_ec::AffineRepr;
+<a href="#328" id="328">328</a>
+<a href="#329" id="329">329</a>
+<a href="#330" id="330">330</a>
+<a href="#331" id="331">331</a>
+<a href="#332" id="332">332</a></pre></div><pre class="rust"><code><span class="kw">use </span>ark_ec::AffineRepr;
 <span class="kw">use </span>ark_ff::MontConfig;
 <span class="kw">use </span>num_bigint::BigUint;
 
@@ -336,6 +339,19 @@
 <span class="kw">use </span>acir::BlackBoxFunc;
 
 <span class="kw">use </span><span class="kw">crate</span>::BlackBoxResolutionError;
+
+<span class="doccomment">/// Converts a field element to u128, returning an error if it doesn't fit.
+</span><span class="kw">fn </span>field_to_u128_limb(
+    limb: <span class="kw-2">&amp;</span>FieldElement,
+    func: BlackBoxFunc,
+) -&gt; <span class="prelude-ty">Result</span>&lt;u128, BlackBoxResolutionError&gt; {
+    limb.try_into_u128().ok_or_else(|| {
+        BlackBoxResolutionError::Failed(
+            func,
+            <span class="macro">format!</span>(<span class="string">"Limb {} is not less than 2^128"</span>, limb.to_hex()),
+        )
+    })
+}
 
 <span class="doccomment">/// Performs multi scalar multiplication of points with scalars.
 </span><span class="kw">pub fn </span>multi_scalar_mul(
@@ -361,19 +377,11 @@
             create_point(points[i], points[i + <span class="number">1</span>], points[i + <span class="number">2</span>] == FieldElement::from(<span class="number">1_u128</span>))
                 .map_err(|e| BlackBoxResolutionError::Failed(BlackBoxFunc::MultiScalarMul, e))<span class="question-mark">?</span>;
 
-        <span class="kw">let </span>scalar_low: u128 = scalars_lo[i / <span class="number">3</span>].try_into_u128().ok_or_else(|| {
-            BlackBoxResolutionError::Failed(
-                BlackBoxFunc::MultiScalarMul,
-                <span class="macro">format!</span>(<span class="string">"Limb {} is not less than 2^128"</span>, scalars_lo[i].to_hex()),
-            )
-        })<span class="question-mark">?</span>;
+        <span class="kw">let </span>scalar_low: u128 =
+            field_to_u128_limb(<span class="kw-2">&amp;</span>scalars_lo[i / <span class="number">3</span>], BlackBoxFunc::MultiScalarMul)<span class="question-mark">?</span>;
 
-        <span class="kw">let </span>scalar_high: u128 = scalars_hi[i / <span class="number">3</span>].try_into_u128().ok_or_else(|| {
-            BlackBoxResolutionError::Failed(
-                BlackBoxFunc::MultiScalarMul,
-                <span class="macro">format!</span>(<span class="string">"Limb {} is not less than 2^128"</span>, scalars_hi[i].to_hex()),
-            )
-        })<span class="question-mark">?</span>;
+        <span class="kw">let </span>scalar_high: u128 =
+            field_to_u128_limb(<span class="kw-2">&amp;</span>scalars_hi[i / <span class="number">3</span>], BlackBoxFunc::MultiScalarMul)<span class="question-mark">?</span>;
 
         <span class="kw">let </span><span class="kw-2">mut </span>bytes = scalar_high.to_be_bytes().to_vec();
         bytes.extend_from_slice(<span class="kw-2">&amp;</span>scalar_low.to_be_bytes());

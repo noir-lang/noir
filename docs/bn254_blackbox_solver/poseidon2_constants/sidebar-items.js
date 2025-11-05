@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["field_from_hex"],"struct":["INTERNAL_MATRIX_DIAGONAL","POSEIDON2_CONFIG","Poseidon2Config","ROUND_CONSTANT"]};
