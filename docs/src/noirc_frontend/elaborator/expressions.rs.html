@@ -1833,7 +1833,7 @@
             }
 
             <span class="kw">if </span>i + <span class="number">1 </span>== statements.len() {
-                block_type = <span class="kw">if </span>is_break_or_continue { Type::Unit } <span class="kw">else </span>{ stmt_type };
+                block_type = stmt_type;
             }
         }
 
