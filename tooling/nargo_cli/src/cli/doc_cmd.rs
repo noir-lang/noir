@@ -139,7 +139,7 @@ fn collect_dependencies(
         );
         let name = dependency.name.to_string();
         // The `graph::Dependency` type doesn't carry a version. Instead, we can get it from the
-        // `Package's` depdendencies by finding the dependency with the same name.
+        // `Package's` dependencies by finding the dependency with the same name.
         // This doesn't work for the standard library, because it's never loaded as a `Package`.
         // In that case we get the version in a different way.
         let package_dependency = package
