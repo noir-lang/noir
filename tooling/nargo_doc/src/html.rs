@@ -1437,12 +1437,11 @@ impl HTMLCreator {
                 "<h2 id=\"crate-name\"><a href=\"{}index.html\">{crate_name}</a></h2>\n",
                 "../".repeat(nesting - 1)
             ));
-            if let Some(version) = &self.current_crate_version {
-                self.output.push_str(&format!(
-                    "<div id=\"crate-version\">{}</div>\n",
-                    escape_html(version)
-                ));
-            }
+            // If there's no version, use 0.0.0 by default to make it really obvious it's missing
+            // (this is what rustdoc does too)
+            let version = self.current_crate_version.clone().unwrap_or_else(|| "0.0.0".to_string());
+            self.output
+                .push_str(&format!("<div id=\"crate-version\">{}</div>\n", escape_html(&version)));
         }
     }
 
