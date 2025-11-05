@@ -276,32 +276,35 @@ impl Elaborator<'_> {
         unsafe_expression: UnsafeExpression,
         target_type: Option<&Type>,
     ) -> (HirExpression, Type) {
-        // Before entering the block we cache the old value of `in_unsafe_block` so it can be restored.
+        use UnsafeBlockStatus::*;
+        // Before entering the block we cache the old value of the unsafe block status, so it can be restored.
         let old_in_unsafe_block = self.unsafe_block_status;
-        let is_nested_unsafe_block =
-            !matches!(old_in_unsafe_block, UnsafeBlockStatus::NotInUnsafeBlock);
+        let is_nested_unsafe_block = !matches!(old_in_unsafe_block, NotInUnsafeBlock);
+
         if is_nested_unsafe_block {
             self.push_err(TypeCheckError::NestedUnsafeBlock {
                 location: unsafe_expression.unsafe_keyword_location,
             });
         }
 
-        self.unsafe_block_status = UnsafeBlockStatus::InUnsafeBlockWithoutUnconstrainedCalls;
+        self.unsafe_block_status = InUnsafeBlockWithoutUnconstrainedCalls;
 
         let (hir_block_expression, typ) =
             self.elaborate_block_expression(unsafe_expression.block, target_type);
 
-        if let UnsafeBlockStatus::InUnsafeBlockWithoutUnconstrainedCalls = self.unsafe_block_status
-        {
+        let has_unconstrained_call =
+            matches!(self.unsafe_block_status, InUnsafeBlockWithUnconstrainedCalls);
+
+        if !has_unconstrained_call {
             self.push_err(TypeCheckError::UnnecessaryUnsafeBlock {
                 location: unsafe_expression.unsafe_keyword_location,
             });
         }
 
-        // Finally, we restore the original value of `self.in_unsafe_block`,
-        // but only if this isn't a nested unsafe block (that way if we found an unconstrained call
-        // for this unsafe block we'll also consider the outer one as finding one, and we don't double error)
-        if !is_nested_unsafe_block {
+        // Finally, we restore the original value of the unsafe block status,
+        // unless we are in a nested block and we have found an unconstrained call,
+        // in which case we should consider the outer block as having that call as well.
+        if !is_nested_unsafe_block || !has_unconstrained_call {
             self.unsafe_block_status = old_in_unsafe_block;
         }
 
@@ -1309,8 +1312,8 @@ impl Elaborator<'_> {
         let mut element_ids = Vec::with_capacity(tuple.len());
         let mut element_types = Vec::with_capacity(tuple.len());
 
+        let target_type = target_type.map(|typ| typ.follow_bindings());
         for (index, element) in tuple.into_iter().enumerate() {
-            let target_type = target_type.map(|typ| typ.follow_bindings());
             let expr_target_type =
                 if let Some(Type::Tuple(types)) = &target_type { types.get(index) } else { None };
             let (id, typ) = self.elaborate_expression_with_target_type(element, expr_target_type);
@@ -1329,10 +1332,10 @@ impl Elaborator<'_> {
         let target_type = target_type.map(|typ| typ.follow_bindings());
 
         if let Some(Type::Function(args, _, _, _)) = target_type {
-            return self.elaborate_lambda_with_parameter_type_hints(lambda, Some(&args));
+            self.elaborate_lambda_with_parameter_type_hints(lambda, Some(&args))
+        } else {
+            self.elaborate_lambda_with_parameter_type_hints(lambda, None)
         }
-
-        self.elaborate_lambda_with_parameter_type_hints(lambda, None)
     }
 
     /// For elaborating a lambda we might get `parameters_type_hints`. These come from a potential

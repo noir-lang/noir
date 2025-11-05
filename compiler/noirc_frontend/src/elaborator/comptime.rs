@@ -682,7 +682,7 @@ impl<'context> Elaborator<'context> {
             Some(DependencyId::Function(function)) => Some(function),
             _ => None,
         };
-        Interpreter::new(self, self.crate_id, current_function)
+        Interpreter::new(self, current_function)
     }
 
     /// Debug helper to print comptime evaluation results.
