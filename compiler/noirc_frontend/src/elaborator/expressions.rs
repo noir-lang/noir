@@ -225,7 +225,9 @@ impl Elaborator<'_> {
                 }
             } else if is_break_or_continue {
                 break_or_continue_location = Some(location);
-            } else if i + 1 == statements.len() {
+            } 
+            
+            if i + 1 == statements.len() {
                 block_type = stmt_type;
             }
         }

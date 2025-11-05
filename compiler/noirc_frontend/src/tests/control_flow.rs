@@ -25,6 +25,49 @@ fn resolve_for_expr_incl() {
 }
 
 #[test]
+fn for_loop_empty_range() {
+    let src = r#"
+    fn main() {
+        let mut x = 0;
+        for _i in 0..0 {
+            x = 1;
+        }
+        assert(x == 0);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn for_loop_backwards_range() {
+    let src = r#"
+    fn main() {
+        let mut x = 0;
+        for _i in 10..5 {
+            x = 1;
+        }
+        assert(x == 0);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn for_loop_single_elem_inclusive_max_value() {
+    let src = r#"
+    fn main() {
+        let mut count = 0;
+        for i in 4294967295..=4294967295 {
+            count += 1;
+            let _x: u32 = i;
+        }
+        assert(count == 1);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn for_loop_mutate_induction_var() {
     let src = r#"
     fn main() {
@@ -288,47 +331,4 @@ fn continue_type_mismatch() {
     check_errors(src);
 }
 
-// Empty and Edge Case Range Tests
 
-#[test]
-fn for_loop_empty_range() {
-    let src = r#"
-    fn main() {
-        let mut x = 0;
-        for _i in 0..0 {
-            x = 1;
-        }
-        assert(x == 0);
-    }
-    "#;
-    assert_no_errors(src);
-}
-
-#[test]
-fn for_loop_backwards_range() {
-    let src = r#"
-    fn main() {
-        let mut x = 0;
-        for _i in 10..5 {
-            x = 1;
-        }
-        assert(x == 0);
-    }
-    "#;
-    assert_no_errors(src);
-}
-
-#[test]
-fn for_loop_single_elem_inclusive_max_value() {
-    let src = r#"
-    fn main() {
-        let mut count = 0;
-        for i in 4294967295..=4294967295 {
-            count += 1;
-            let _x: u32 = i;
-        }
-        assert(count == 1);
-    }
-    "#;
-    assert_no_errors(src);
-}
