@@ -330,5 +330,3 @@ fn continue_type_mismatch() {
     "#;
     check_errors(src);
 }
-
-

@@ -225,8 +225,8 @@ impl Elaborator<'_> {
                 }
             } else if is_break_or_continue {
                 break_or_continue_location = Some(location);
-            } 
-            
+            }
+
             if i + 1 == statements.len() {
                 block_type = stmt_type;
             }
@@ -1222,7 +1222,6 @@ impl Elaborator<'_> {
 
         let (alternative, else_type, error_location) =
             if let Some(alternative) = if_expr.alternative {
-                dbg!(&alternative);
                 let alternative_location = alternative.type_location();
                 let (else_, else_type) =
                     self.elaborate_expression_with_target_type(alternative, target_type);
