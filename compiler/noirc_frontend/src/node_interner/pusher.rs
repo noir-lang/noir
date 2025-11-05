@@ -5,7 +5,7 @@ use noirc_errors::Location;
 
 use crate::{
     Type,
-    node_interner::{ExprId, NodeInterner, StmtId},
+    node_interner::{ExprId, NodeInterner},
 };
 
 pub struct HasNothing;
@@ -63,43 +63,6 @@ impl<S> Drop for PushedExpr<S> {
         }
         if !self.has_type {
             panic!("type hasn't been pushed for {:?}", self.id);
-        }
-    }
-}
-
-pub struct PushedStmt<S = HasNothing> {
-    id: StmtId,
-    has_location: bool,
-    status: PhantomData<S>,
-}
-
-impl PushedStmt<HasNothing> {
-    /// Create a new pusher that will need the location pushed.
-    pub fn new(id: StmtId) -> Self {
-        Self { id, has_location: false, status: PhantomData }
-    }
-
-    /// Push the location first, returning the ID as there are no other missing pieces.
-    pub fn push_location(mut self, interner: &mut NodeInterner, location: Location) -> StmtId {
-        interner.push_stmt_location(self.id, location);
-        self.has_location = true;
-        self.id
-    }
-}
-
-impl<S> Deref for PushedStmt<S> {
-    type Target = StmtId;
-
-    fn deref(&self) -> &Self::Target {
-        &self.id
-    }
-}
-
-/// Panic if we dropped the pusher without having pushed the location.
-impl<S> Drop for PushedStmt<S> {
-    fn drop(&mut self) {
-        if !self.has_location {
-            panic!("location hasn't been pushed for {:?}", self.id);
         }
     }
 }

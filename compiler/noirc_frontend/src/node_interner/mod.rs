@@ -21,7 +21,6 @@ use crate::hir::type_check::generics::TraitGenerics;
 use crate::hir_def::traits::NamedType;
 use crate::locations::AutoImportEntry;
 use crate::node_interner::pusher::PushedExpr;
-use crate::node_interner::pusher::PushedStmt;
 use crate::token::MetaAttribute;
 use crate::token::MetaAttributeName;
 
@@ -487,19 +486,16 @@ impl Default for NodeInterner {
 // XXX: Add check that insertions are not overwrites for maps
 // XXX: Maybe change push to intern, and remove comments
 impl NodeInterner {
-    /// Interns a HIR statement.
-    pub fn push_stmt(&mut self, stmt: HirStatement) -> PushedStmt {
-        PushedStmt::new(StmtId(self.nodes.insert(Node::Statement(stmt))))
-    }
-    /// Interns a HIR expression.
-    pub fn push_expr(&mut self, expr: HirExpression) -> PushedExpr {
-        PushedExpr::new(ExprId(self.nodes.insert(Node::Expression(expr))))
+    /// Intern a HIR statement with everything needed for it (location).
+    pub fn push_stmt_full(&mut self, stmt: HirStatement, location: Location) -> StmtId {
+        let id = StmtId(self.nodes.insert(Node::Statement(stmt)));
+        self.push_stmt_location(id, location);
+        id
     }
 
-    /// Intern a statement with everything needed for it (location)
-    /// instead of requiring it to be pushed later.
-    pub fn push_stmt_full(&mut self, stmt: HirStatement, location: Location) -> StmtId {
-        self.push_stmt(stmt).push_location(self, location)
+    /// Interns a HIR expression, with the location and type information pushed as follow ups.
+    pub fn push_expr(&mut self, expr: HirExpression) -> PushedExpr {
+        PushedExpr::new(ExprId(self.nodes.insert(Node::Expression(expr))))
     }
 
     /// Intern an expression with everything needed for it (location & type)
