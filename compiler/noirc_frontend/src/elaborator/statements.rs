@@ -113,8 +113,14 @@ impl Elaborator<'_> {
         }
 
         let definition = match global_id {
-            None => DefinitionKind::Local(Some(expression)),
-            Some(id) => DefinitionKind::Global(id),
+            None => {
+                debug_assert!(!let_stmt.is_global_let);
+                DefinitionKind::Local(Some(expression))
+            }
+            Some(id) => {
+                debug_assert!(let_stmt.is_global_let);
+                DefinitionKind::Global(id)
+            }
         };
 
         // Now check if LHS is the same type as the RHS
@@ -131,13 +137,8 @@ impl Elaborator<'_> {
             !let_stmt.attributes.iter().any(|attr| attr.kind.is_allow("unused_variables"));
 
         let r#type = annotated_type;
-        let pattern = self.elaborate_pattern_and_store_ids(
-            let_stmt.pattern,
-            r#type.clone(),
-            definition,
-            &mut Vec::new(),
-            warn_if_unused,
-        );
+        let pattern =
+            self.elaborate_pattern(let_stmt.pattern, r#type.clone(), definition, warn_if_unused);
 
         let attributes = let_stmt.attributes;
         let comptime = let_stmt.comptime;
