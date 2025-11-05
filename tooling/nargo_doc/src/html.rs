@@ -224,12 +224,7 @@ impl HTMLCreator {
             }
 
             self.output.push_str("<li>");
-            self.output.push_str(&format!(
-                "<a href=\"../{}\" class=\"{}\">{}</a>",
-                krate.uri(),
-                krate.class(),
-                krate.name(),
-            ));
+            self.output.push_str(&format!("<a href=\"../{}\">{}</a>", krate.uri(), krate.name(),));
             self.output.push_str("</li>\n");
         }
         self.output.push_str("</ul>\n");
@@ -348,11 +343,13 @@ impl HTMLCreator {
             if !sidebar {
                 self.output.push_str("<div class=\"item-name\">");
             }
+            let class =
+                if sidebar { String::new() } else { format!(" class=\"{}\"", item.class()) };
             self.output.push_str(&format!(
-                "<a href=\"{}{}\" class=\"{}\">{}</a>",
+                "<a href=\"{}{}\"{}>{}</a>",
                 "../".repeat(nesting),
                 item.uri(),
-                item.class(),
+                class,
                 item.name(),
             ));
             if !sidebar {
