@@ -3227,8 +3227,7 @@
 <a href="#3226" id="3226">3226</a>
 <a href="#3227" id="3227">3227</a>
 <a href="#3228" id="3228">3228</a>
-<a href="#3229" id="3229">3229</a>
-<a href="#3230" id="3230">3230</a></pre></div><pre class="rust"><code><span class="doccomment">//! Large file containing implementations of all the various built-in functions
+<a href="#3229" id="3229">3229</a></pre></div><pre class="rust"><code><span class="doccomment">//! Large file containing implementations of all the various built-in functions
 //! which can be called in the interpreter. This notably includes the entire comptime-API
 //! defined in `noir_stdlib/src/meta/*`
 </span><span class="kw">use </span>std::rc::Rc;
@@ -5764,8 +5763,7 @@
     };
     <span class="kw">let </span>generics = <span class="prelude-val">None</span>;
     <span class="kw">let </span>hir_expr = HirExpression::Ident(hir_ident.clone(), generics.clone());
-    <span class="kw">let </span>expr_id = interpreter.elaborator.interner.push_expr(hir_expr);
-    interpreter.elaborator.interner.push_expr_location(expr_id, location);
+    <span class="kw">let </span>expr_id = interpreter.elaborator.intern_expr(hir_expr, location);
     <span class="kw">let </span>reason = <span class="prelude-val">Some</span>(ElaborateReason::EvaluatingComptimeCall(
         <span class="string">"FunctionDefinition::as_typed_expr"</span>,
         location,
@@ -5776,13 +5774,13 @@
             <span class="kw">let </span>push_required_type_variables = <span class="bool-val">false</span>;
             elaborator.type_check_variable_with_bindings(
                 hir_ident,
-                expr_id,
+                <span class="kw-2">&amp;</span>expr_id,
                 generics,
                 bindings,
                 push_required_type_variables,
             )
         });
-    interpreter.elaborator.interner.push_expr_type(expr_id, typ);
+    <span class="kw">let </span>expr_id = interpreter.elaborator.intern_expr_type(expr_id, typ);
     <span class="prelude-val">Ok</span>(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
 }
 

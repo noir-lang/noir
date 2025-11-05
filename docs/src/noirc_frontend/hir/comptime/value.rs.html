@@ -809,8 +809,7 @@
 <a href="#808" id="808">808</a>
 <a href="#809" id="809">809</a>
 <a href="#810" id="810">810</a>
-<a href="#811" id="811">811</a>
-<a href="#812" id="812">812</a></pre></div><pre class="rust"><code><span class="doccomment">//! Defines the [Value] type, representing a compile-time value, used by the
+<a href="#811" id="811">811</a></pre></div><pre class="rust"><code><span class="doccomment">//! Defines the [Value] type, representing a compile-time value, used by the
 //! comptime interpreter when evaluating code.
 </span><span class="kw">use </span>std::{borrow::Cow, rc::Rc, vec};
 
@@ -1067,9 +1066,11 @@
                 <span class="kw">let </span>id = elaborator.interner.function_definition_id(id);
                 <span class="kw">let </span>impl_kind = ImplKind::NotATraitMethod;
                 <span class="kw">let </span>ident = HirIdent { location, id, impl_kind };
-                <span class="kw">let </span>expr_id = elaborator.interner.push_expr(HirExpression::Ident(ident, <span class="prelude-val">None</span>));
-                elaborator.interner.push_expr_location(expr_id, location);
-                elaborator.interner.push_expr_type(expr_id, typ);
+                <span class="kw">let </span>expr_id = elaborator.interner.push_expr_full(
+                    HirExpression::Ident(ident, <span class="prelude-val">None</span>),
+                    location,
+                    typ,
+                );
                 elaborator.interner.store_instantiation_bindings(expr_id, unwrap_rc(bindings));
                 ExpressionKind::Resolved(expr_id)
             }
@@ -1238,9 +1239,8 @@
                 <span class="kw">let </span>id = interner.function_definition_id(id);
                 <span class="kw">let </span>impl_kind = ImplKind::NotATraitMethod;
                 <span class="kw">let </span>ident = HirIdent { location, id, impl_kind };
-                <span class="kw">let </span>expr_id = interner.push_expr(HirExpression::Ident(ident, <span class="prelude-val">None</span>));
-                interner.push_expr_location(expr_id, location);
-                interner.push_expr_type(expr_id, typ);
+                <span class="kw">let </span>expr_id =
+                    interner.push_expr_full(HirExpression::Ident(ident, <span class="prelude-val">None</span>), location, typ);
                 interner.store_instantiation_bindings(expr_id, unwrap_rc(bindings));
                 <span class="kw">return </span><span class="prelude-val">Ok</span>(expr_id);
             }
@@ -1321,9 +1321,7 @@
             }
         };
 
-        <span class="kw">let </span>id = interner.push_expr(expression);
-        interner.push_expr_location(id, location);
-        interner.push_expr_type(id, typ);
+        <span class="kw">let </span>id = interner.push_expr_full(expression, location, typ);
         <span class="prelude-val">Ok</span>(id)
     }
 

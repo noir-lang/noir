@@ -1488,7 +1488,10 @@
 <a href="#1487" id="1487">1487</a>
 <a href="#1488" id="1488">1488</a>
 <a href="#1489" id="1489">1489</a>
-<a href="#1490" id="1490">1490</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::hash::Hash;
+<a href="#1490" id="1490">1490</a>
+<a href="#1491" id="1491">1491</a>
+<a href="#1492" id="1492">1492</a>
+<a href="#1493" id="1493">1493</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::hash::Hash;
 <span class="kw">use </span>std::marker::Copy;
 
 <span class="kw">use </span>fm::FileId;
@@ -1510,6 +1513,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::hir::type_check::generics::TraitGenerics;
 <span class="kw">use </span><span class="kw">crate</span>::hir_def::traits::NamedType;
 <span class="kw">use </span><span class="kw">crate</span>::locations::AutoImportEntry;
+<span class="kw">use </span><span class="kw">crate</span>::node_interner::pusher::PushedExpr;
 <span class="kw">use </span><span class="kw">crate</span>::token::MetaAttribute;
 <span class="kw">use </span><span class="kw">crate</span>::token::MetaAttributeName;
 
@@ -1534,6 +1538,8 @@
 <span class="kw">mod </span>methods;
 <span class="kw">mod </span>reexports;
 <span class="kw">mod </span>trait_impl;
+
+<span class="kw">pub mod </span>pusher;
 
 <span class="kw">pub use </span>dependency::DependencyId;
 <span class="kw">use </span>globals::GlobalInfo;
@@ -1973,22 +1979,22 @@
 <span class="comment">// XXX: Add check that insertions are not overwrites for maps
 // XXX: Maybe change push to intern, and remove comments
 </span><span class="kw">impl </span>NodeInterner {
-    <span class="doccomment">/// Interns a HIR statement.
-    </span><span class="kw">pub fn </span>push_stmt(<span class="kw-2">&amp;mut </span><span class="self">self</span>, stmt: HirStatement) -&gt; StmtId {
-        StmtId(<span class="self">self</span>.nodes.insert(Node::Statement(stmt)))
-    }
-    <span class="doccomment">/// Interns a HIR expression.
-    </span><span class="kw">pub fn </span>push_expr(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr: HirExpression) -&gt; ExprId {
-        ExprId(<span class="self">self</span>.nodes.insert(Node::Expression(expr)))
+    <span class="doccomment">/// Intern a HIR statement with everything needed for it (location).
+    </span><span class="kw">pub fn </span>push_stmt_full(<span class="kw-2">&amp;mut </span><span class="self">self</span>, stmt: HirStatement, location: Location) -&gt; StmtId {
+        <span class="kw">let </span>id = StmtId(<span class="self">self</span>.nodes.insert(Node::Statement(stmt)));
+        <span class="self">self</span>.push_stmt_location(id, location);
+        id
     }
 
-    <span class="doccomment">/// Intern an expression with everything needed for it (location &amp; Type)
+    <span class="doccomment">/// Interns a HIR expression, with the location and type information pushed as follow ups.
+    </span><span class="kw">pub fn </span>push_expr(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr: HirExpression) -&gt; PushedExpr {
+        PushedExpr::new(ExprId(<span class="self">self</span>.nodes.insert(Node::Expression(expr))))
+    }
+
+    <span class="doccomment">/// Intern an expression with everything needed for it (location &amp; type)
     /// instead of requiring they be pushed later.
     </span><span class="kw">pub fn </span>push_expr_full(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr: HirExpression, location: Location, typ: Type) -&gt; ExprId {
-        <span class="kw">let </span>id = <span class="self">self</span>.push_expr(expr);
-        <span class="self">self</span>.push_expr_location(id, location);
-        <span class="self">self</span>.push_expr_type(id, typ);
-        id
+        <span class="self">self</span>.push_expr(expr).push_location(<span class="self">self</span>, location).push_type(<span class="self">self</span>, typ)
     }
 
     <span class="doccomment">/// Stores the span for an interned expression.

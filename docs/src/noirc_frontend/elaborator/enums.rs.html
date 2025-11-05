@@ -1455,18 +1455,7 @@
 <a href="#1454" id="1454">1454</a>
 <a href="#1455" id="1455">1455</a>
 <a href="#1456" id="1456">1456</a>
-<a href="#1457" id="1457">1457</a>
-<a href="#1458" id="1458">1458</a>
-<a href="#1459" id="1459">1459</a>
-<a href="#1460" id="1460">1460</a>
-<a href="#1461" id="1461">1461</a>
-<a href="#1462" id="1462">1462</a>
-<a href="#1463" id="1463">1463</a>
-<a href="#1464" id="1464">1464</a>
-<a href="#1465" id="1465">1465</a>
-<a href="#1466" id="1466">1466</a>
-<a href="#1467" id="1467">1467</a>
-<a href="#1468" id="1468">1468</a></pre></div><pre class="rust"><code><span class="doccomment">//! Enum definition collection and variant resolution.
+<a href="#1457" id="1457">1457</a></pre></div><pre class="rust"><code><span class="doccomment">//! Enum definition collection and variant resolution.
 
 </span><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet};
 
@@ -1829,12 +1818,11 @@
         <span class="comment">// Each parameter of the enum variant function is used as a parameter of the enum
         // constructor expression
         </span><span class="kw">let </span>arguments = vecmap(<span class="kw-2">&amp;</span>parameters.<span class="number">0</span>, |(pattern, typ, <span class="kw">_</span>)| <span class="kw">match </span>pattern {
-            HirPattern::Identifier(ident) =&gt; {
-                <span class="kw">let </span>id = <span class="self">self</span>.interner.push_expr(HirExpression::Ident(ident.clone(), <span class="prelude-val">None</span>));
-                <span class="self">self</span>.interner.push_expr_type(id, typ.clone());
-                <span class="self">self</span>.interner.push_expr_location(id, location);
-                id
-            }
+            HirPattern::Identifier(ident) =&gt; <span class="self">self</span>.interner.push_expr_full(
+                HirExpression::Ident(ident.clone(), <span class="prelude-val">None</span>),
+                location,
+                typ.clone(),
+            ),
             <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
         });
 
@@ -1844,12 +1832,9 @@
             variant_index,
         });
 
-        <span class="kw">let </span>body = <span class="self">self</span>.interner.push_expr(constructor);
         <span class="kw">let </span>enum_generics = self_type.borrow().generic_types();
         <span class="kw">let </span>typ = Type::DataType(self_type.clone(), enum_generics);
-        <span class="self">self</span>.interner.push_expr_type(body, typ);
-        <span class="self">self</span>.interner.push_expr_location(body, location);
-        body
+        <span class="self">self</span>.interner.push_expr_full(constructor, location, typ)
     }
 
     <span class="kw">fn </span>make_enum_variant_parameters(
@@ -2739,9 +2724,7 @@
         <span class="kw">let </span>variable = HirIdent::non_trait_method(variable, location);
 
         <span class="kw">let </span>rhs = HirExpression::Ident(HirIdent::non_trait_method(rhs, location), <span class="prelude-val">None</span>);
-        <span class="kw">let </span>rhs = <span class="self">self</span>.elaborator.interner.push_expr(rhs);
-        <span class="self">self</span>.elaborator.interner.push_expr_type(rhs, rhs_type);
-        <span class="self">self</span>.elaborator.interner.push_expr_location(rhs, location);
+        <span class="kw">let </span>rhs = <span class="self">self</span>.elaborator.interner.push_expr_full(rhs, location, rhs_type);
 
         <span class="kw">let </span>let_ = HirStatement::Let(HirLetStatement {
             pattern: HirPattern::Identifier(variable),
@@ -2753,17 +2736,12 @@
         });
 
         <span class="kw">let </span>body_type = <span class="self">self</span>.elaborator.interner.id_type(body);
-        <span class="kw">let </span>let_ = <span class="self">self</span>.elaborator.interner.push_stmt(let_);
-        <span class="kw">let </span>body = <span class="self">self</span>.elaborator.interner.push_stmt(HirStatement::Expression(body));
-
-        <span class="self">self</span>.elaborator.interner.push_stmt_location(let_, location);
-        <span class="self">self</span>.elaborator.interner.push_stmt_location(body, location);
+        <span class="kw">let </span>let_ = <span class="self">self</span>.elaborator.interner.push_stmt_full(let_, location);
+        <span class="kw">let </span>body =
+            <span class="self">self</span>.elaborator.interner.push_stmt_full(HirStatement::Expression(body), location);
 
         <span class="kw">let </span>block = HirExpression::Block(HirBlockExpression { statements: <span class="macro">vec!</span>[let_, body] });
-        <span class="kw">let </span>block = <span class="self">self</span>.elaborator.interner.push_expr(block);
-        <span class="self">self</span>.elaborator.interner.push_expr_type(block, body_type);
-        <span class="self">self</span>.elaborator.interner.push_expr_location(block, location);
-        block
+        <span class="self">self</span>.elaborator.interner.push_expr_full(block, location, body_type)
     }
 
     <span class="doccomment">/// Any case that isn't branched to when the match is finished must be covered by another

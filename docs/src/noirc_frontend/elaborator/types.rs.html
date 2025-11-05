@@ -2434,7 +2434,14 @@
 <a href="#2433" id="2433">2433</a>
 <a href="#2434" id="2434">2434</a>
 <a href="#2435" id="2435">2435</a>
-<a href="#2436" id="2436">2436</a></pre></div><pre class="rust"><code><span class="doccomment">//! Type resolution, unification, and method resolution (for both types and traits).
+<a href="#2436" id="2436">2436</a>
+<a href="#2437" id="2437">2437</a>
+<a href="#2438" id="2438">2438</a>
+<a href="#2439" id="2439">2439</a>
+<a href="#2440" id="2440">2440</a>
+<a href="#2441" id="2441">2441</a>
+<a href="#2442" id="2442">2442</a>
+<a href="#2443" id="2443">2443</a></pre></div><pre class="rust"><code><span class="doccomment">//! Type resolution, unification, and method resolution (for both types and traits).
 
 </span><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
 
@@ -3516,12 +3523,14 @@
         <span class="kw">if let </span>Type::Reference(element, _mut) = typ.follow_bindings() {
             <span class="kw">let </span>location = <span class="self">self</span>.interner.id_location(object);
 
-            <span class="kw">let </span>object = <span class="self">self</span>.interner.push_expr(HirExpression::Prefix(HirPrefixExpression::new(
-                UnaryOp::Dereference { implicitly_added: <span class="bool-val">true </span>},
-                object,
-            )));
-            <span class="self">self</span>.interner.push_expr_type(object, element.as_ref().clone());
-            <span class="self">self</span>.interner.push_expr_location(object, location);
+            <span class="kw">let </span>object = <span class="self">self</span>.interner.push_expr_full(
+                HirExpression::Prefix(HirPrefixExpression::new(
+                    UnaryOp::Dereference { implicitly_added: <span class="bool-val">true </span>},
+                    object,
+                )),
+                location,
+                element.as_ref().clone(),
+            );
 
             <span class="comment">// Recursively dereference to allow for converting &amp;mut &amp;mut T to T
             </span><span class="self">self</span>.insert_auto_dereferences(object, <span class="kw-2">*</span>element)
@@ -4080,16 +4089,19 @@
 
         <span class="kw">let </span>dereference_lhs = |this: <span class="kw-2">&amp;mut </span><span class="self">Self</span>, lhs_type, element| {
             <span class="kw">let </span>old_lhs = <span class="kw-2">*</span>access_lhs;
-            <span class="kw-2">*</span>access_lhs = this.interner.push_expr(HirExpression::Prefix(HirPrefixExpression::new(
-                UnaryOp::Dereference { implicitly_added: <span class="bool-val">true </span>},
-                old_lhs,
-            )));
-            this.interner.push_expr_type(old_lhs, lhs_type);
-            this.interner.push_expr_type(<span class="kw-2">*</span>access_lhs, element);
-
             <span class="kw">let </span>old_location = this.interner.id_location(old_lhs);
             <span class="kw">let </span>location = Location::new(location.span, old_location.file);
-            this.interner.push_expr_location(<span class="kw-2">*</span>access_lhs, location);
+
+            <span class="kw-2">*</span>access_lhs = this.interner.push_expr_full(
+                HirExpression::Prefix(HirPrefixExpression::new(
+                    UnaryOp::Dereference { implicitly_added: <span class="bool-val">true </span>},
+                    old_lhs,
+                )),
+                location,
+                element,
+            );
+
+            this.interner.push_expr_type(old_lhs, lhs_type);
         };
 
         <span class="comment">// If this access is just a field offset, we want to avoid dereferencing
@@ -4558,12 +4570,14 @@
 
                     <span class="comment">// If that didn't work, then wrap the whole expression in an `&amp;mut`
                     </span><span class="kw-2">*</span>object = new_object.unwrap_or_else(|| {
-                        <span class="kw">let </span>new_object = <span class="self">self</span>.interner.push_expr(HirExpression::Prefix(
-                            HirPrefixExpression::new(UnaryOp::Reference { mutable }, <span class="kw-2">*</span>object),
-                        ));
-                        <span class="self">self</span>.interner.push_expr_type(new_object, new_type);
-                        <span class="self">self</span>.interner.push_expr_location(new_object, location);
-                        new_object
+                        <span class="self">self</span>.interner.push_expr_full(
+                            HirExpression::Prefix(HirPrefixExpression::new(
+                                UnaryOp::Reference { mutable },
+                                <span class="kw-2">*</span>object,
+                            )),
+                            location,
+                            new_type,
+                        )
                     });
                 }
             <span class="comment">// Otherwise if the object type is a mutable reference and the method is not, insert as

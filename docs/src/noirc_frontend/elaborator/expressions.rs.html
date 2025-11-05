@@ -1604,9 +1604,7 @@
 <a href="#1603" id="1603">1603</a>
 <a href="#1604" id="1604">1604</a>
 <a href="#1605" id="1605">1605</a>
-<a href="#1606" id="1606">1606</a>
-<a href="#1607" id="1607">1607</a>
-<a href="#1608" id="1608">1608</a></pre></div><pre class="rust"><code><span class="doccomment">//! Expression elaboration, covering all expression [kinds][ExpressionKind].
+<a href="#1606" id="1606">1606</a></pre></div><pre class="rust"><code><span class="doccomment">//! Expression elaboration, covering all expression [kinds][ExpressionKind].
 
 </span><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{Located, Location};
@@ -1641,6 +1639,7 @@
     },
     node_interner::{
         DefinitionId, DefinitionKind, ExprId, FuncId, InternedStatementKind, StmtId, TraitItemId,
+        pusher::{HasLocation, PushedExpr},
     },
     shared::Signedness,
     signed_field::SignedField,
@@ -1716,9 +1715,7 @@
             }
             ExpressionKind::TypePath(path) =&gt; <span class="kw">return </span><span class="self">self</span>.elaborate_type_path(<span class="kw-2">*</span>path),
         };
-        <span class="kw">let </span>id = <span class="self">self</span>.interner.push_expr(hir_expr);
-        <span class="self">self</span>.interner.push_expr_location(id, expr.location);
-        <span class="self">self</span>.interner.push_expr_type(id, typ.clone());
+        <span class="kw">let </span>id = <span class="self">self</span>.interner.push_expr_full(hir_expr, expr.location, typ.clone());
 
         <span class="kw">if </span>is_integer_literal {
             <span class="self">self</span>.push_integer_literal_expr_id(id);
@@ -2058,10 +2055,9 @@
                 <span class="self">self</span>.handle_hir_ident(<span class="kw-2">&amp;</span>hir_ident, var_scope_index, <span class="kw-2">*</span>location);
 
                 <span class="kw">let </span>hir_expr = HirExpression::Ident(hir_ident.clone(), <span class="prelude-val">None</span>);
-                <span class="kw">let </span>expr_id = <span class="self">self</span>.interner.push_expr(hir_expr);
-                <span class="self">self</span>.interner.push_expr_location(expr_id, <span class="kw-2">*</span>location);
-                <span class="kw">let </span>typ = <span class="self">self</span>.type_check_variable(hir_ident, expr_id, <span class="prelude-val">None</span>);
-                <span class="self">self</span>.interner.push_expr_type(expr_id, typ.clone());
+                <span class="kw">let </span>expr_id = <span class="self">self</span>.intern_expr(hir_expr, <span class="kw-2">*</span>location);
+                <span class="kw">let </span>typ = <span class="self">self</span>.type_check_variable(hir_ident, <span class="kw-2">&amp;</span>expr_id, <span class="prelude-val">None</span>);
+                <span class="kw">let </span>expr_id = <span class="self">self</span>.intern_expr_type(expr_id, typ.clone());
 
                 capture_types.push(typ);
                 fmt_str_idents.push(expr_id);
@@ -2107,8 +2103,7 @@
             trait_method_id,
             skip: skip_op,
         });
-        <span class="kw">let </span>expr_id = <span class="self">self</span>.interner.push_expr(expr);
-        <span class="self">self</span>.interner.push_expr_location(expr_id, location);
+        <span class="kw">let </span>expr_id = <span class="self">self</span>.intern_expr(expr, location);
 
         <span class="kw">let </span>typ = <span class="kw">if </span>skip_op {
             rhs_type
@@ -2118,12 +2113,12 @@
                 result,
                 <span class="kw-2">&amp;</span>rhs_type,
                 trait_method_id,
-                expr_id,
+                <span class="kw-2">*</span>expr_id,
                 location,
             )
         };
 
-        <span class="self">self</span>.interner.push_expr_type(expr_id, typ.clone());
+        <span class="kw">let </span>expr_id = <span class="self">self</span>.intern_expr_type(expr_id, typ.clone());
         (expr_id, typ)
     }
 
@@ -2329,8 +2324,9 @@
                 );
 
                 <span class="kw">let </span>func_type =
-                    <span class="self">self</span>.type_check_variable(function_name.clone(), function_id, generics.clone());
-                <span class="self">self</span>.interner.push_expr_type(function_id, func_type.clone());
+                    <span class="self">self</span>.type_check_variable(function_name.clone(), <span class="kw-2">&amp;</span>function_id, generics.clone());
+
+                <span class="kw">let </span>function_id = <span class="self">self</span>.intern_expr_type(function_id, func_type.clone());
 
                 <span class="kw">let </span>func_arg_types =
                     <span class="kw">if let </span>Type::Function(args, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>) = <span class="kw-2">&amp;</span>func_type { <span class="prelude-val">Some</span>(args) } <span class="kw">else </span>{ <span class="prelude-val">None </span>};
@@ -2471,9 +2467,7 @@
         <span class="kw">let </span>type_hint =
             <span class="kw">if let </span><span class="prelude-val">Some</span>(Type::Function(func_args, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>)) = typ { <span class="prelude-val">Some</span>(func_args) } <span class="kw">else </span>{ <span class="prelude-val">None </span>};
         <span class="kw">let </span>(hir_expr, typ) = <span class="self">self</span>.elaborate_lambda_with_parameter_type_hints(<span class="kw-2">*</span>lambda, type_hint);
-        <span class="kw">let </span>id = <span class="self">self</span>.interner.push_expr(hir_expr);
-        <span class="self">self</span>.interner.push_expr_location(id, location);
-        <span class="self">self</span>.interner.push_expr_type(id, typ.clone());
+        <span class="kw">let </span>id = <span class="self">self</span>.interner.push_expr_full(hir_expr, location, typ.clone());
         (id, typ)
     }
 
@@ -2718,15 +2712,23 @@
         <span class="comment">// `is_offset` is only used when lhs is a reference and we want to return a reference to rhs
         </span><span class="kw">let </span>access = HirMemberAccess { lhs, rhs, is_offset };
         <span class="kw">let </span>expr_id = <span class="self">self</span>.intern_expr(HirExpression::MemberAccess(access.clone()), location);
-        <span class="kw">let </span>typ = <span class="self">self</span>.type_check_member_access(access, expr_id, lhs_type, rhs_location);
-        <span class="self">self</span>.interner.push_expr_type(expr_id, typ.clone());
+        <span class="kw">let </span>typ = <span class="self">self</span>.type_check_member_access(access, <span class="kw-2">*</span>expr_id, lhs_type, rhs_location);
+        <span class="kw">let </span>expr_id = <span class="self">self</span>.intern_expr_type(expr_id, typ.clone());
         (expr_id, typ, is_offset &amp;&amp; is_reference)
     }
 
-    <span class="kw">pub fn </span>intern_expr(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr: HirExpression, location: Location) -&gt; ExprId {
-        <span class="kw">let </span>id = <span class="self">self</span>.interner.push_expr(expr);
-        <span class="self">self</span>.interner.push_expr_location(id, location);
-        id
+    <span class="doccomment">/// Push a [HirExpression] with its [Location], with the [Type] to be followed up later.
+    </span><span class="kw">pub fn </span>intern_expr(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        expr: HirExpression,
+        location: Location,
+    ) -&gt; PushedExpr&lt;HasLocation&gt; {
+        <span class="self">self</span>.interner.push_expr(expr).push_location(<span class="self">self</span>.interner, location)
+    }
+
+    <span class="doccomment">/// Follow up [Self::intern_expr] with the [Type].
+    </span><span class="kw">pub fn </span>intern_expr_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr_id: PushedExpr&lt;HasLocation&gt;, typ: Type) -&gt; ExprId {
+        expr_id.push_type(<span class="self">self</span>.interner, typ)
     }
 
     <span class="kw">fn </span>elaborate_cast(
@@ -2756,19 +2758,18 @@
             rhs,
         });
 
-        <span class="kw">let </span>expr_id = <span class="self">self</span>.interner.push_expr(expr);
-        <span class="self">self</span>.interner.push_expr_location(expr_id, location);
+        <span class="kw">let </span>expr_id = <span class="self">self</span>.intern_expr(expr, location);
 
         <span class="kw">let </span>result = <span class="self">self</span>.infix_operand_type_rules(<span class="kw-2">&amp;</span>lhs_type, <span class="kw-2">&amp;</span>operator, <span class="kw-2">&amp;</span>rhs_type, location);
         <span class="kw">let </span>typ = <span class="self">self</span>.handle_operand_type_rules_result(
             result,
             <span class="kw-2">&amp;</span>lhs_type,
             <span class="prelude-val">Some</span>(trait_id),
-            expr_id,
+            <span class="kw-2">*</span>expr_id,
             location,
         );
 
-        <span class="self">self</span>.interner.push_expr_type(expr_id, typ.clone());
+        <span class="kw">let </span>expr_id = <span class="self">self</span>.intern_expr_type(expr_id, typ.clone());
         (expr_id, typ)
     }
 
@@ -2887,12 +2888,9 @@
             HirMatch::Failure { missing_case: <span class="bool-val">false </span>}
         });
 
-        <span class="kw">let </span>tree = <span class="self">self</span>.interner.push_expr(tree);
-        <span class="self">self</span>.interner.push_expr_type(tree, result_type.clone());
-        <span class="self">self</span>.interner.push_expr_location(tree, location);
+        <span class="kw">let </span>tree = <span class="self">self</span>.interner.push_expr_full(tree, location, result_type.clone());
 
-        <span class="kw">let </span>tree = <span class="self">self</span>.interner.push_stmt(HirStatement::Expression(tree));
-        <span class="self">self</span>.interner.push_stmt_location(tree, location);
+        <span class="kw">let </span>tree = <span class="self">self</span>.interner.push_stmt_full(HirStatement::Expression(tree), location);
 
         <span class="kw">let </span>block = HirExpression::Block(HirBlockExpression { statements: <span class="macro">vec!</span>[let_, tree] });
         (block, result_type)
@@ -2907,8 +2905,7 @@
 
         <span class="kw">let </span>pattern = HirPattern::Identifier(HirIdent::non_trait_method(variable, location));
         <span class="kw">let </span>let_ = HirStatement::Let(HirLetStatement::basic(pattern, typ, expr_id));
-        <span class="kw">let </span>let_ = <span class="self">self</span>.interner.push_stmt(let_);
-        <span class="self">self</span>.interner.push_stmt_location(let_, location);
+        <span class="kw">let </span>let_ = <span class="self">self</span>.interner.push_stmt_full(let_, location);
         (let_, variable)
     }
 
@@ -3046,9 +3043,9 @@
         <span class="kw">let </span>make_error = |this: <span class="kw-2">&amp;mut </span><span class="self">Self</span>, error: InterpreterError| {
             <span class="kw">let </span>error: CompilationError = error.into();
             this.push_err(error);
-            <span class="kw">let </span>error = this.interner.push_expr(HirExpression::Error);
-            this.interner.push_expr_location(error, location);
-            (error, Type::Error)
+            <span class="kw">let </span>typ = Type::Error;
+            <span class="kw">let </span>error = this.interner.push_expr_full(HirExpression::Error, location, typ.clone());
+            (error, typ)
         };
 
         <span class="kw">let </span>value = <span class="kw">match </span>value {
@@ -3192,8 +3189,7 @@
             impl_kind: ImplKind::TraitItem(trait_item),
         };
 
-        <span class="kw">let </span>id = <span class="self">self</span>.interner.push_expr(HirExpression::Ident(ident.clone(), <span class="prelude-val">None</span>));
-        <span class="self">self</span>.interner.push_expr_location(id, location);
+        <span class="kw">let </span>id = <span class="self">self</span>.intern_expr(HirExpression::Ident(ident.clone(), <span class="prelude-val">None</span>), location);
 
         <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
 
@@ -3205,12 +3201,12 @@
 
         <span class="kw">let </span>typ = <span class="self">self</span>.type_check_variable_with_bindings(
             ident,
-            id,
+            <span class="kw-2">&amp;</span>id,
             <span class="prelude-val">None</span>,
             bindings,
             push_required_type_variables,
         );
-        <span class="self">self</span>.interner.push_expr_type(id, typ.clone());
+        <span class="kw">let </span>id = <span class="self">self</span>.intern_expr_type(id, typ.clone());
         (id, typ)
     }
 }

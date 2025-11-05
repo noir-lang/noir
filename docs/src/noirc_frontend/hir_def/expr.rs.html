@@ -519,13 +519,16 @@
 <a href="#518" id="518">518</a>
 <a href="#519" id="519">519</a>
 <a href="#520" id="520">520</a>
-<a href="#521" id="521">521</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileId;
+<a href="#521" id="521">521</a>
+<a href="#522" id="522">522</a>
+<a href="#523" id="523">523</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileId;
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use </span><span class="kw">crate</span>::Shared;
 <span class="kw">use </span><span class="kw">crate</span>::ast::{BinaryOp, BinaryOpKind, Ident, UnaryOp};
 <span class="kw">use </span><span class="kw">crate</span>::hir::type_check::generics::TraitGenerics;
+<span class="kw">use </span><span class="kw">crate</span>::node_interner::pusher::{HasLocation, PushedExpr};
 <span class="kw">use </span><span class="kw">crate</span>::node_interner::{
     DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId, TraitId, TraitItemId,
 };
@@ -785,7 +788,7 @@
         generics: <span class="prelude-ty">Option</span>&lt;Vec&lt;Type&gt;&gt;,
         location: Location,
         interner: <span class="kw-2">&amp;mut </span>NodeInterner,
-    ) -&gt; (ExprId, HirIdent) {
+    ) -&gt; (PushedExpr&lt;HasLocation&gt;, HirIdent) {
         <span class="kw">let </span>(id, impl_kind) = <span class="kw">match </span><span class="self">self </span>{
             HirMethodReference::FuncId(func_id) =&gt; {
                 (interner.function_definition_id(func_id), ImplKind::NotATraitMethod)
@@ -800,8 +803,9 @@
             }
         };
         <span class="kw">let </span>func_var = HirIdent { location, id, impl_kind };
-        <span class="kw">let </span>func = interner.push_expr(HirExpression::Ident(func_var.clone(), generics));
-        interner.push_expr_location(func, location);
+        <span class="kw">let </span>func = interner
+            .push_expr(HirExpression::Ident(func_var.clone(), generics))
+            .push_location(interner, location);
         (func, func_var)
     }
 }

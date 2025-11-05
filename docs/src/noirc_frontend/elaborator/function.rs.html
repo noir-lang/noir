@@ -562,8 +562,7 @@
 <a href="#561" id="561">561</a>
 <a href="#562" id="562">562</a>
 <a href="#563" id="563">563</a>
-<a href="#564" id="564">564</a>
-<a href="#565" id="565">565</a></pre></div><pre class="rust"><code><span class="doccomment">//! Function metadata and function body elaboration.
+<a href="#564" id="564">564</a></pre></div><pre class="rust"><code><span class="doccomment">//! Function metadata and function body elaboration.
 //!
 //! This module handles the definition and elaboration of functions:
 //! - Collect and resolve function metadata (i.e., signatures with type information). Type information includes:
@@ -1075,8 +1074,7 @@
             FunctionKind::Normal =&gt; {
                 <span class="kw">let </span>return_type = func_meta.return_type();
                 <span class="kw">let </span>(block, body_type) = <span class="self">self</span>.elaborate_block(body, <span class="prelude-val">Some</span>(return_type));
-                <span class="kw">let </span>expr_id = <span class="self">self</span>.intern_expr(block, body_location);
-                <span class="self">self</span>.interner.push_expr_type(expr_id, body_type.clone());
+                <span class="kw">let </span>expr_id = <span class="self">self</span>.interner.push_expr_full(block, body_location, body_type.clone());
                 (HirFunction::unchecked_from_expr(expr_id), body_type)
             }
         };

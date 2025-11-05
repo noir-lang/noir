@@ -692,10 +692,7 @@
 <a href="#691" id="691">691</a>
 <a href="#692" id="692">692</a>
 <a href="#693" id="693">693</a>
-<a href="#694" id="694">694</a>
-<a href="#695" id="695">695</a>
-<a href="#696" id="696">696</a>
-<a href="#697" id="697">697</a></pre></div><pre class="rust"><code><span class="doccomment">//! Statement elaboration including let bindings, assignments, and control flow.
+<a href="#694" id="694">694</a></pre></div><pre class="rust"><code><span class="doccomment">//! Statement elaboration including let bindings, assignments, and control flow.
 
 </span><span class="kw">use </span>noirc_errors::Location;
 
@@ -772,8 +769,7 @@
         <span class="kw">let </span>location = statement.location;
         <span class="kw">let </span>(hir_statement, typ) =
             <span class="self">self</span>.elaborate_statement_value_with_target_type(statement, target_type);
-        <span class="kw">let </span>id = <span class="self">self</span>.interner.push_stmt(hir_statement);
-        <span class="self">self</span>.interner.push_stmt_location(id, location);
+        <span class="kw">let </span>id = <span class="self">self</span>.interner.push_stmt_full(hir_statement, location);
         (id, typ)
     }
 
@@ -875,8 +871,7 @@
         <span class="kw">if </span>new_statements.is_empty() {
             (assign, Type::Unit)
         } <span class="kw">else </span>{
-            <span class="kw">let </span>assign = <span class="self">self</span>.interner.push_stmt(assign);
-            <span class="self">self</span>.interner.push_stmt_location(assign, expr_location);
+            <span class="kw">let </span>assign = <span class="self">self</span>.interner.push_stmt_full(assign, expr_location);
             new_statements.push(assign);
             <span class="kw">let </span>block = HirExpression::Block(HirBlockExpression { statements: new_statements });
             <span class="kw">let </span>block = <span class="self">self</span>.interner.push_expr_full(block, expr_location, Type::Unit);
@@ -1302,8 +1297,7 @@
 
         <span class="kw">let </span>pattern = HirPattern::Identifier(ident);
         <span class="kw">let </span>let_ = HirStatement::Let(HirLetStatement::basic(pattern, typ, expr));
-        <span class="kw">let </span>let_ = <span class="self">self</span>.interner.push_stmt(let_);
-        <span class="self">self</span>.interner.push_stmt_location(let_, location);
+        <span class="kw">let </span>let_ = <span class="self">self</span>.interner.push_stmt_full(let_, location);
         <span class="prelude-val">Some</span>((let_, ident_id))
     }
 
