@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1762351258357,
+  "lastUpdate": 1762352378492,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23266,48 +23266,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "334ac7d7a2b1ad637c96400b04b23d41e10a172f",
-          "message": "chore(ACIR): turn \"todo\" into \"unreachable\" (#10251)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
-          "timestamp": "2025-10-21T15:24:48Z",
-          "tree_id": "7d75e4e74c2fdbee818eb4891f1d6b1aba85eb72",
-          "url": "https://github.com/noir-lang/noir/commit/334ac7d7a2b1ad637c96400b04b23d41e10a172f"
-        },
-        "date": 1761061847012,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 265416,
-            "range": "± 398",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 237019,
-            "range": "± 5587",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2799030,
-            "range": "± 2987",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "michaeljklein@users.noreply.github.com",
             "name": "Michael J Klein",
             "username": "michaeljklein"
@@ -25359,6 +25317,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2794404,
             "range": "± 69857",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "dec5ef27b0f74fe679e1c2c2e4fa38f34908a94b",
+          "message": "chore: elaborator types.rs nits (#10375)",
+          "timestamp": "2025-11-05T13:52:58Z",
+          "tree_id": "45c2215c3c973c9b39f215416b207c050693e364",
+          "url": "https://github.com/noir-lang/noir/commit/dec5ef27b0f74fe679e1c2c2e4fa38f34908a94b"
+        },
+        "date": 1762352352669,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 263491,
+            "range": "± 1313",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 232369,
+            "range": "± 1035",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2794616,
+            "range": "± 3497",
             "unit": "ns/iter"
           }
         ]
