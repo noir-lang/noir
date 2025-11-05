@@ -227,7 +227,7 @@ impl Elaborator<'_> {
             }
 
             if i + 1 == statements.len() {
-                block_type = if is_break_or_continue { Type::Unit } else { stmt_type };
+                block_type = stmt_type;
             }
         }
 

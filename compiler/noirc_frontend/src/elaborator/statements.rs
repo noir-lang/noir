@@ -208,8 +208,6 @@ impl Elaborator<'_> {
         self.current_loop = Some(Loop { is_for: true, has_break: false });
         self.push_scope();
 
-        // TODO: For loop variables are currently mutable by default since we haven't
-        //       yet implemented syntax for them to be optionally mutable.
         let kind = DefinitionKind::Local(None);
         let identifier = self.add_variable_decl(
             identifier, false, // mutable
@@ -341,7 +339,7 @@ impl Elaborator<'_> {
         }
 
         let expr = if is_break { HirStatement::Break } else { HirStatement::Continue };
-        (expr, self.interner.next_type_variable())
+        (expr, Type::Unit)
     }
 
     fn get_lvalue_error_info(&self, lvalue: &HirLValue) -> (DefinitionId, String, Location) {
