@@ -1428,6 +1428,12 @@ impl HTMLCreator {
             "../".repeat(nesting),
             "All items"
         ));
+        if let Some(crate_name) = self.current_path.first().cloned() {
+            self.output.push_str(&format!(
+                "<h2 id=\"crate-name\"><a href=\"{}index.html\">{crate_name}</a></h2>\n",
+                "../".repeat(nesting - 1)
+            ));
+        }
     }
 
     fn sidebar_end(&mut self) {
