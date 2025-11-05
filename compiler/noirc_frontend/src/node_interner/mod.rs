@@ -20,6 +20,7 @@ use crate::hir::def_map::{LocalModuleId, ModuleDefId, ModuleId};
 use crate::hir::type_check::generics::TraitGenerics;
 use crate::hir_def::traits::NamedType;
 use crate::locations::AutoImportEntry;
+use crate::node_interner::pusher::PushedExpr;
 use crate::token::MetaAttribute;
 use crate::token::MetaAttributeName;
 
@@ -488,17 +489,14 @@ impl NodeInterner {
         StmtId(self.nodes.insert(Node::Statement(stmt)))
     }
     /// Interns a HIR expression.
-    pub fn push_expr(&mut self, expr: HirExpression) -> ExprId {
-        ExprId(self.nodes.insert(Node::Expression(expr)))
+    pub fn push_expr(&mut self, expr: HirExpression) -> PushedExpr {
+        PushedExpr::new(ExprId(self.nodes.insert(Node::Expression(expr))))
     }
 
     /// Intern an expression with everything needed for it (location & Type)
     /// instead of requiring they be pushed later.
     pub fn push_expr_full(&mut self, expr: HirExpression, location: Location, typ: Type) -> ExprId {
-        let id = self.push_expr(expr);
-        self.push_expr_location(id, location);
-        self.push_expr_type(id, typ);
-        id
+        self.push_expr(expr).push_location(self, location).push_type(self, typ)
     }
 
     /// Stores the span for an interned expression.
@@ -1486,5 +1484,93 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         | Type::InfixExpr(..)
         | Type::CheckedCast { .. }
         | Type::TraitAsType(..) => None,
+    }
+}
+
+pub mod pusher {
+    use std::{marker::PhantomData, ops::Deref};
+
+    use noirc_errors::Location;
+
+    use crate::{
+        Type,
+        node_interner::{ExprId, NodeInterner},
+    };
+
+    pub struct PushedExpr<S = HasNothing> {
+        id: ExprId,
+        has_location: bool,
+        has_type: bool,
+        status: PhantomData<S>,
+    }
+
+    pub struct HasNothing;
+    pub struct HasLocation;
+    pub struct HasType;
+
+    impl PushedExpr<HasNothing> {
+        /// Create a new pusher that will need the location and the type pushed.
+        pub fn new(id: ExprId) -> Self {
+            Self { id, has_location: false, has_type: false, status: PhantomData }
+        }
+
+        /// Push the location first, then the type.
+        pub fn push_location(
+            self,
+            interner: &mut NodeInterner,
+            location: Location,
+        ) -> PushedExpr<HasLocation> {
+            let id = self.id;
+            interner.push_expr_location(id, location);
+            std::mem::forget(self);
+            PushedExpr { id, has_location: true, has_type: false, status: PhantomData }
+        }
+
+        /// Push the type first, then the location.
+        pub fn push_type(self, interner: &mut NodeInterner, typ: Type) -> PushedExpr<HasType> {
+            let id = self.id;
+            interner.push_expr_type(id, typ);
+            std::mem::forget(self);
+            PushedExpr { id, has_location: false, has_type: true, status: PhantomData }
+        }
+    }
+
+    impl PushedExpr<HasType> {
+        /// Push the location after the type, returning the ID as there are no more missing pieces.
+        pub fn push_location(mut self, interner: &mut NodeInterner, location: Location) -> ExprId {
+            interner.push_expr_location(self.id, location);
+            self.has_location = true;
+            self.id
+        }
+    }
+
+    impl PushedExpr<HasLocation> {
+        /// Push the type after the location, returning the ID as there are no more missing pieces.
+        pub fn push_type(mut self, interner: &mut NodeInterner, typ: Type) -> ExprId {
+            interner.push_expr_type(self.id, typ);
+            self.has_type = true;
+            self.id
+        }
+    }
+
+    /// Give convenient access to the ID in case it is needed to make the next piece available.
+    impl<S> Deref for PushedExpr<S> {
+        type Target = ExprId;
+
+        fn deref(&self) -> &Self::Target {
+            &self.id
+        }
+    }
+
+    /// Panic if we dropped the pusher without having pushed both location and type.
+    impl<S> Drop for PushedExpr<S> {
+        fn drop(&mut self) {
+            if !self.has_location {
+                panic!("location hasn't been pushed for {:?}", self.id);
+            }
+            if !self.has_type {
+                panic!("type hasn't been pushed for {:?}", self.id);
+            }
+        }
     }
 }

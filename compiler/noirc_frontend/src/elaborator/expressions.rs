@@ -33,6 +33,7 @@ use crate::{
     },
     node_interner::{
         DefinitionId, DefinitionKind, ExprId, FuncId, InternedStatementKind, StmtId, TraitItemId,
+        pusher::{HasLocation, PushedExpr},
     },
     shared::Signedness,
     signed_field::SignedField,
@@ -108,9 +109,7 @@ impl Elaborator<'_> {
             }
             ExpressionKind::TypePath(path) => return self.elaborate_type_path(*path),
         };
-        let id = self.interner.push_expr(hir_expr);
-        self.interner.push_expr_location(id, expr.location);
-        self.interner.push_expr_type(id, typ.clone());
+        let id = self.interner.push_expr_full(hir_expr, expr.location, typ.clone());
 
         if is_integer_literal {
             self.push_integer_literal_expr_id(id);
@@ -450,10 +449,9 @@ impl Elaborator<'_> {
                 self.handle_hir_ident(&hir_ident, var_scope_index, *location);
 
                 let hir_expr = HirExpression::Ident(hir_ident.clone(), None);
-                let expr_id = self.interner.push_expr(hir_expr);
-                self.interner.push_expr_location(expr_id, *location);
-                let typ = self.type_check_variable(hir_ident, expr_id, None);
-                self.interner.push_expr_type(expr_id, typ.clone());
+                let expr_id = self.intern_expr(hir_expr, *location);
+                let typ = self.type_check_variable(hir_ident, &expr_id, None);
+                let expr_id = self.intern_expr_type(expr_id, typ.clone());
 
                 capture_types.push(typ);
                 fmt_str_idents.push(expr_id);
@@ -499,8 +497,7 @@ impl Elaborator<'_> {
             trait_method_id,
             skip: skip_op,
         });
-        let expr_id = self.interner.push_expr(expr);
-        self.interner.push_expr_location(expr_id, location);
+        let expr_id = self.intern_expr(expr, location);
 
         let typ = if skip_op {
             rhs_type
@@ -510,12 +507,12 @@ impl Elaborator<'_> {
                 result,
                 &rhs_type,
                 trait_method_id,
-                expr_id,
+                *expr_id,
                 location,
             )
         };
 
-        self.interner.push_expr_type(expr_id, typ.clone());
+        let expr_id = self.intern_expr_type(expr_id, typ.clone());
         (expr_id, typ)
     }
 
@@ -721,8 +718,9 @@ impl Elaborator<'_> {
                 );
 
                 let func_type =
-                    self.type_check_variable(function_name.clone(), function_id, generics.clone());
-                self.interner.push_expr_type(function_id, func_type.clone());
+                    self.type_check_variable(function_name.clone(), &function_id, generics.clone());
+
+                let function_id = function_id.push_type(self.interner, func_type.clone());
 
                 let func_arg_types =
                     if let Type::Function(args, _, _, _) = &func_type { Some(args) } else { None };
@@ -863,9 +861,7 @@ impl Elaborator<'_> {
         let type_hint =
             if let Some(Type::Function(func_args, _, _, _)) = typ { Some(func_args) } else { None };
         let (hir_expr, typ) = self.elaborate_lambda_with_parameter_type_hints(*lambda, type_hint);
-        let id = self.interner.push_expr(hir_expr);
-        self.interner.push_expr_location(id, location);
-        self.interner.push_expr_type(id, typ.clone());
+        let id = self.interner.push_expr_full(hir_expr, location, typ.clone());
         (id, typ)
     }
 
@@ -1110,15 +1106,23 @@ impl Elaborator<'_> {
         // `is_offset` is only used when lhs is a reference and we want to return a reference to rhs
         let access = HirMemberAccess { lhs, rhs, is_offset };
         let expr_id = self.intern_expr(HirExpression::MemberAccess(access.clone()), location);
-        let typ = self.type_check_member_access(access, expr_id, lhs_type, rhs_location);
-        self.interner.push_expr_type(expr_id, typ.clone());
+        let typ = self.type_check_member_access(access, *expr_id, lhs_type, rhs_location);
+        let expr_id = expr_id.push_type(self.interner, typ.clone());
         (expr_id, typ, is_offset && is_reference)
     }
 
-    pub fn intern_expr(&mut self, expr: HirExpression, location: Location) -> ExprId {
-        let id = self.interner.push_expr(expr);
-        self.interner.push_expr_location(id, location);
-        id
+    /// Push a [HirExpression] with its [Location], with the [Type] to be followed up later.
+    pub fn intern_expr(
+        &mut self,
+        expr: HirExpression,
+        location: Location,
+    ) -> PushedExpr<HasLocation> {
+        self.interner.push_expr(expr).push_location(self.interner, location)
+    }
+
+    /// Follow up [Self::intern_expr] with the [Type].
+    pub fn intern_expr_type(&mut self, expr_id: PushedExpr<HasLocation>, typ: Type) -> ExprId {
+        expr_id.push_type(self.interner, typ)
     }
 
     fn elaborate_cast(
@@ -1148,19 +1152,18 @@ impl Elaborator<'_> {
             rhs,
         });
 
-        let expr_id = self.interner.push_expr(expr);
-        self.interner.push_expr_location(expr_id, location);
+        let expr_id = self.intern_expr(expr, location);
 
         let result = self.infix_operand_type_rules(&lhs_type, &operator, &rhs_type, location);
         let typ = self.handle_operand_type_rules_result(
             result,
             &lhs_type,
             Some(trait_id),
-            expr_id,
+            *expr_id,
             location,
         );
 
-        self.interner.push_expr_type(expr_id, typ.clone());
+        let expr_id = self.intern_expr_type(expr_id, typ.clone());
         (expr_id, typ)
     }
 
@@ -1279,9 +1282,7 @@ impl Elaborator<'_> {
             HirMatch::Failure { missing_case: false }
         });
 
-        let tree = self.interner.push_expr(tree);
-        self.interner.push_expr_type(tree, result_type.clone());
-        self.interner.push_expr_location(tree, location);
+        let tree = self.interner.push_expr_full(tree, location, result_type.clone());
 
         let tree = self.interner.push_stmt(HirStatement::Expression(tree));
         self.interner.push_stmt_location(tree, location);
@@ -1438,9 +1439,9 @@ impl Elaborator<'_> {
         let make_error = |this: &mut Self, error: InterpreterError| {
             let error: CompilationError = error.into();
             this.push_err(error);
-            let error = this.interner.push_expr(HirExpression::Error);
-            this.interner.push_expr_location(error, location);
-            (error, Type::Error)
+            let typ = Type::Error;
+            let error = this.interner.push_expr_full(HirExpression::Error, location, typ.clone());
+            (error, typ)
         };
 
         let value = match value {
@@ -1584,8 +1585,7 @@ impl Elaborator<'_> {
             impl_kind: ImplKind::TraitItem(trait_item),
         };
 
-        let id = self.interner.push_expr(HirExpression::Ident(ident.clone(), None));
-        self.interner.push_expr_location(id, location);
+        let id = self.intern_expr(HirExpression::Ident(ident.clone(), None), location);
 
         let mut bindings = TypeBindings::default();
 
@@ -1597,12 +1597,12 @@ impl Elaborator<'_> {
 
         let typ = self.type_check_variable_with_bindings(
             ident,
-            id,
+            &id,
             None,
             bindings,
             push_required_type_variables,
         );
-        self.interner.push_expr_type(id, typ.clone());
+        let id = self.intern_expr_type(id, typ.clone());
         (id, typ)
     }
 }

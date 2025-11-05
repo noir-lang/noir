@@ -2531,8 +2531,7 @@ fn function_def_as_typed_expr(
     };
     let generics = None;
     let hir_expr = HirExpression::Ident(hir_ident.clone(), generics.clone());
-    let expr_id = interpreter.elaborator.interner.push_expr(hir_expr);
-    interpreter.elaborator.interner.push_expr_location(expr_id, location);
+    let expr_id = interpreter.elaborator.intern_expr(hir_expr, location);
     let reason = Some(ElaborateReason::EvaluatingComptimeCall(
         "FunctionDefinition::as_typed_expr",
         location,
@@ -2543,13 +2542,13 @@ fn function_def_as_typed_expr(
             let push_required_type_variables = false;
             elaborator.type_check_variable_with_bindings(
                 hir_ident,
-                expr_id,
+                &expr_id,
                 generics,
                 bindings,
                 push_required_type_variables,
             )
         });
-    interpreter.elaborator.interner.push_expr_type(expr_id, typ);
+    let expr_id = interpreter.elaborator.intern_expr_type(expr_id, typ);
     Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
 }
 

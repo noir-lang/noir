@@ -1122,12 +1122,14 @@ impl Elaborator<'_> {
         if let Type::Reference(element, _mut) = typ.follow_bindings() {
             let location = self.interner.id_location(object);
 
-            let object = self.interner.push_expr(HirExpression::Prefix(HirPrefixExpression::new(
-                UnaryOp::Dereference { implicitly_added: true },
-                object,
-            )));
-            self.interner.push_expr_type(object, element.as_ref().clone());
-            self.interner.push_expr_location(object, location);
+            let object = self.interner.push_expr_full(
+                HirExpression::Prefix(HirPrefixExpression::new(
+                    UnaryOp::Dereference { implicitly_added: true },
+                    object,
+                )),
+                location,
+                element.as_ref().clone(),
+            );
 
             // Recursively dereference to allow for converting &mut &mut T to T
             self.insert_auto_dereferences(object, *element)
@@ -1686,16 +1688,19 @@ impl Elaborator<'_> {
 
         let dereference_lhs = |this: &mut Self, lhs_type, element| {
             let old_lhs = *access_lhs;
-            *access_lhs = this.interner.push_expr(HirExpression::Prefix(HirPrefixExpression::new(
-                UnaryOp::Dereference { implicitly_added: true },
-                old_lhs,
-            )));
-            this.interner.push_expr_type(old_lhs, lhs_type);
-            this.interner.push_expr_type(*access_lhs, element);
-
             let old_location = this.interner.id_location(old_lhs);
             let location = Location::new(location.span, old_location.file);
-            this.interner.push_expr_location(*access_lhs, location);
+
+            *access_lhs = this.interner.push_expr_full(
+                HirExpression::Prefix(HirPrefixExpression::new(
+                    UnaryOp::Dereference { implicitly_added: true },
+                    old_lhs,
+                )),
+                location,
+                element,
+            );
+
+            this.interner.push_expr_type(old_lhs, lhs_type);
         };
 
         // If this access is just a field offset, we want to avoid dereferencing
@@ -2164,12 +2169,14 @@ impl Elaborator<'_> {
 
                     // If that didn't work, then wrap the whole expression in an `&mut`
                     *object = new_object.unwrap_or_else(|| {
-                        let new_object = self.interner.push_expr(HirExpression::Prefix(
-                            HirPrefixExpression::new(UnaryOp::Reference { mutable }, *object),
-                        ));
-                        self.interner.push_expr_type(new_object, new_type);
-                        self.interner.push_expr_location(new_object, location);
-                        new_object
+                        self.interner.push_expr_full(
+                            HirExpression::Prefix(HirPrefixExpression::new(
+                                UnaryOp::Reference { mutable },
+                                *object,
+                            )),
+                            location,
+                            new_type,
+                        )
                     });
                 }
             // Otherwise if the object type is a mutable reference and the method is not, insert as
