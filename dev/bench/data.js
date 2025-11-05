@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1762358905593,
+  "lastUpdate": 1762365182968,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23236,48 +23236,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "0e4ae3017857462a5e626900ed66c9ca82ef166f",
-          "message": "chore(frontend): Elaborator struct collection docs (#10266)",
-          "timestamp": "2025-10-22T15:33:30Z",
-          "tree_id": "e129080781ddeedb411539416a7fe57feb1069df",
-          "url": "https://github.com/noir-lang/noir/commit/0e4ae3017857462a5e626900ed66c9ca82ef166f"
-        },
-        "date": 1761148733123,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 263382,
-            "range": "± 1075",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 233195,
-            "range": "± 7559",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2797707,
-            "range": "± 1912",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -25329,6 +25287,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2793731,
             "range": "± 5188",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "05c8f7a89a56758975ff4375679dc2a17ac9ac1a",
+          "message": "feat(doc): crate name, version, and dark mode (#10378)",
+          "timestamp": "2025-11-05T17:30:59Z",
+          "tree_id": "28cfdbb83502e38db0f516621cab12f670e31e34",
+          "url": "https://github.com/noir-lang/noir/commit/05c8f7a89a56758975ff4375679dc2a17ac9ac1a"
+        },
+        "date": 1762365156699,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 263798,
+            "range": "± 642",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 232638,
+            "range": "± 6620",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2797104,
+            "range": "± 3094",
             "unit": "ns/iter"
           }
         ]
