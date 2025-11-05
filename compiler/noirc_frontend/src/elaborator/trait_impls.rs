@@ -3,7 +3,7 @@
 use crate::{
     Kind, NamedGeneric, ResolvedGeneric, Shared, TypeBindings, TypeVariable,
     ast::{GenericTypeArgs, Ident, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
-    elaborator::types::bind_ordered_generics,
+    elaborator::{PathResolutionMode, types::bind_ordered_generics},
     graph::CrateId,
     hir::{
         def_collector::{
@@ -879,5 +879,26 @@ impl Elaborator<'_> {
         self.interner.set_associated_types_for_impl(impl_id, named_generics);
 
         trait_impl.unresolved_associated_types = associated_types;
+    }
+
+    /// Identical to [Self::resolve_type_or_trait_args_inner] but does not allow
+    /// associated types to be elided since trait impls must specify them.
+    fn resolve_trait_args_from_trait_impl(
+        &mut self,
+        args: GenericTypeArgs,
+        item: TraitId,
+        location: Location,
+    ) -> (Vec<Type>, Vec<NamedType>) {
+        let mode = PathResolutionMode::MarkAsReferenced;
+        let allow_implicit_named_args = false;
+        let wildcard_allowed = true;
+        self.resolve_type_or_trait_args_inner(
+            args,
+            item,
+            location,
+            allow_implicit_named_args,
+            mode,
+            wildcard_allowed,
+        )
     }
 }

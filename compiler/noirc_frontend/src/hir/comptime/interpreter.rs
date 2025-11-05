@@ -1072,14 +1072,18 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
     }
 
+    /// This function is used by the interpreter for some comptime code
+    /// which can change types e.g. on each iteration of a for loop.
     fn unify_without_binding(&mut self, actual: &Type, expected: &Type, location: Location) {
-        self.elaborator.unify_without_applying_bindings(actual, expected, || {
-            TypeCheckError::TypeMismatch {
+        let mut bindings = TypeBindings::default();
+        if actual.try_unify(expected, &mut bindings).is_err() {
+            let error = TypeCheckError::TypeMismatch {
                 expected_typ: expected.to_string(),
                 expr_typ: actual.to_string(),
                 expr_location: location,
-            }
-        });
+            };
+            self.elaborator.push_err(error);
+        }
     }
 
     fn evaluate_cast(&mut self, cast: &HirCastExpression, id: ExprId) -> IResult<Value> {
