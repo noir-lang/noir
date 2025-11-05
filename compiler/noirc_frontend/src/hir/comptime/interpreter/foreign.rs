@@ -1,4 +1,4 @@
-//! The foregin function counterpart to `interpreter/builtin.rs`, defines how to call
+//! The foreign function counterpart to `interpreter/builtin.rs`, defines how to call
 //! all foreign functions available to the interpreter.
 use acvm::{
     AcirField, BlackBoxResolutionError, FieldElement, acir::BlackBoxFunc,
