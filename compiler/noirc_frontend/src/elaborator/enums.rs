@@ -1279,11 +1279,9 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
         });
 
         let body_type = self.elaborator.interner.id_type(body);
-        let let_ = self.elaborator.interner.push_stmt(let_);
-        let body = self.elaborator.interner.push_stmt(HirStatement::Expression(body));
-
-        self.elaborator.interner.push_stmt_location(let_, location);
-        self.elaborator.interner.push_stmt_location(body, location);
+        let let_ = self.elaborator.interner.push_stmt_full(let_, location);
+        let body =
+            self.elaborator.interner.push_stmt_full(HirStatement::Expression(body), location);
 
         let block = HirExpression::Block(HirBlockExpression { statements: vec![let_, body] });
         self.elaborator.interner.push_expr_full(block, location, body_type)

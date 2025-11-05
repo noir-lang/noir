@@ -75,8 +75,7 @@ impl Elaborator<'_> {
         let location = statement.location;
         let (hir_statement, typ) =
             self.elaborate_statement_value_with_target_type(statement, target_type);
-        let id = self.interner.push_stmt(hir_statement);
-        self.interner.push_stmt_location(id, location);
+        let id = self.interner.push_stmt_full(hir_statement, location);
         (id, typ)
     }
 
@@ -178,8 +177,7 @@ impl Elaborator<'_> {
         if new_statements.is_empty() {
             (assign, Type::Unit)
         } else {
-            let assign = self.interner.push_stmt(assign);
-            self.interner.push_stmt_location(assign, expr_location);
+            let assign = self.interner.push_stmt_full(assign, expr_location);
             new_statements.push(assign);
             let block = HirExpression::Block(HirBlockExpression { statements: new_statements });
             let block = self.interner.push_expr_full(block, expr_location, Type::Unit);
@@ -605,8 +603,7 @@ impl Elaborator<'_> {
 
         let pattern = HirPattern::Identifier(ident);
         let let_ = HirStatement::Let(HirLetStatement::basic(pattern, typ, expr));
-        let let_ = self.interner.push_stmt(let_);
-        self.interner.push_stmt_location(let_, location);
+        let let_ = self.interner.push_stmt_full(let_, location);
         Some((let_, ident_id))
     }
 

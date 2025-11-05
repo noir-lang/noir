@@ -21,6 +21,7 @@ use crate::hir::type_check::generics::TraitGenerics;
 use crate::hir_def::traits::NamedType;
 use crate::locations::AutoImportEntry;
 use crate::node_interner::pusher::PushedExpr;
+use crate::node_interner::pusher::PushedStmt;
 use crate::token::MetaAttribute;
 use crate::token::MetaAttributeName;
 
@@ -485,15 +486,21 @@ impl Default for NodeInterner {
 // XXX: Maybe change push to intern, and remove comments
 impl NodeInterner {
     /// Interns a HIR statement.
-    pub fn push_stmt(&mut self, stmt: HirStatement) -> StmtId {
-        StmtId(self.nodes.insert(Node::Statement(stmt)))
+    pub fn push_stmt(&mut self, stmt: HirStatement) -> PushedStmt {
+        PushedStmt::new(StmtId(self.nodes.insert(Node::Statement(stmt))))
     }
     /// Interns a HIR expression.
     pub fn push_expr(&mut self, expr: HirExpression) -> PushedExpr {
         PushedExpr::new(ExprId(self.nodes.insert(Node::Expression(expr))))
     }
 
-    /// Intern an expression with everything needed for it (location & Type)
+    /// Intern a statement with everything needed for it (location)
+    /// instead of requiring it to be pushed later.
+    pub fn push_stmt_full(&mut self, stmt: HirStatement, location: Location) -> StmtId {
+        self.push_stmt(stmt).push_location(self, location)
+    }
+
+    /// Intern an expression with everything needed for it (location & type)
     /// instead of requiring they be pushed later.
     pub fn push_expr_full(&mut self, expr: HirExpression, location: Location, typ: Type) -> ExprId {
         self.push_expr(expr).push_location(self, location).push_type(self, typ)
@@ -1494,8 +1501,12 @@ pub mod pusher {
 
     use crate::{
         Type,
-        node_interner::{ExprId, NodeInterner},
+        node_interner::{ExprId, NodeInterner, StmtId},
     };
+
+    pub struct HasNothing;
+    pub struct HasLocation;
+    pub struct HasType;
 
     pub struct PushedExpr<S = HasNothing> {
         id: ExprId,
@@ -1503,10 +1514,6 @@ pub mod pusher {
         has_type: bool,
         status: PhantomData<S>,
     }
-
-    pub struct HasNothing;
-    pub struct HasLocation;
-    pub struct HasType;
 
     impl PushedExpr<HasNothing> {
         /// Create a new pusher that will need the location and the type pushed.
@@ -1570,6 +1577,43 @@ pub mod pusher {
             }
             if !self.has_type {
                 panic!("type hasn't been pushed for {:?}", self.id);
+            }
+        }
+    }
+
+    pub struct PushedStmt<S = HasNothing> {
+        id: StmtId,
+        has_location: bool,
+        status: PhantomData<S>,
+    }
+
+    impl PushedStmt<HasNothing> {
+        /// Create a new pusher that will need the location pushed.
+        pub fn new(id: StmtId) -> Self {
+            Self { id, has_location: false, status: PhantomData }
+        }
+
+        /// Push the location first, returning the ID as there are no other missing pieces.
+        pub fn push_location(mut self, interner: &mut NodeInterner, location: Location) -> StmtId {
+            interner.push_stmt_location(self.id, location);
+            self.has_location = true;
+            self.id
+        }
+    }
+
+    impl<S> Deref for PushedStmt<S> {
+        type Target = StmtId;
+
+        fn deref(&self) -> &Self::Target {
+            &self.id
+        }
+    }
+
+    /// Panic if we dropped the pusher without having pushed the location.
+    impl<S> Drop for PushedStmt<S> {
+        fn drop(&mut self) {
+            if !self.has_location {
+                panic!("location hasn't been pushed for {:?}", self.id);
             }
         }
     }

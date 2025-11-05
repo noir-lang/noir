@@ -1284,8 +1284,7 @@ impl Elaborator<'_> {
 
         let tree = self.interner.push_expr_full(tree, location, result_type.clone());
 
-        let tree = self.interner.push_stmt(HirStatement::Expression(tree));
-        self.interner.push_stmt_location(tree, location);
+        let tree = self.interner.push_stmt_full(HirStatement::Expression(tree), location);
 
         let block = HirExpression::Block(HirBlockExpression { statements: vec![let_, tree] });
         (block, result_type)
@@ -1300,8 +1299,7 @@ impl Elaborator<'_> {
 
         let pattern = HirPattern::Identifier(HirIdent::non_trait_method(variable, location));
         let let_ = HirStatement::Let(HirLetStatement::basic(pattern, typ, expr_id));
-        let let_ = self.interner.push_stmt(let_);
-        self.interner.push_stmt_location(let_, location);
+        let let_ = self.interner.push_stmt_full(let_, location);
         (let_, variable)
     }
 
