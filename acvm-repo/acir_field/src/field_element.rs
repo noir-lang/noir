@@ -172,7 +172,7 @@ impl<F: PrimeField> FieldElement<F> {
         }
 
         // Compute the maximum value that is considered a positive value
-        let max = if bit_size == 128 { i128::MAX } else { (1 << (bit_size - 1)) - 1 };
+        let max = if bit_size == 128 { i128::MAX as u128 } else { (1 << (bit_size - 1)) - 1 };
         if self.to_u128() > max {
             let f = FieldElement::from(2u32).pow(&bit_size.into()) - self;
             format!("-{f}")
