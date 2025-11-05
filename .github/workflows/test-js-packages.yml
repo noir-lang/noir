@@ -815,7 +815,7 @@ jobs:
           rm -rf ./docs
           mv ./target/docs .
           if ! git diff --exit-code; then
-            echo "nargo doc produced changes on noir_stdlib"
+            echo "`nargo doc`` produced changes on noir_stdlib. Please run `just stdlib_docs`, then commit and push any changes."
             exit 1
           fi
 
