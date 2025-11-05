@@ -1506,7 +1506,6 @@ pub mod pusher {
 
     pub struct HasNothing;
     pub struct HasLocation;
-    pub struct HasType;
 
     pub struct PushedExpr<S = HasNothing> {
         id: ExprId,
@@ -1531,23 +1530,6 @@ pub mod pusher {
             interner.push_expr_location(id, location);
             std::mem::forget(self);
             PushedExpr { id, has_location: true, has_type: false, status: PhantomData }
-        }
-
-        /// Push the type first, then the location.
-        pub fn push_type(self, interner: &mut NodeInterner, typ: Type) -> PushedExpr<HasType> {
-            let id = self.id;
-            interner.push_expr_type(id, typ);
-            std::mem::forget(self);
-            PushedExpr { id, has_location: false, has_type: true, status: PhantomData }
-        }
-    }
-
-    impl PushedExpr<HasType> {
-        /// Push the location after the type, returning the ID as there are no more missing pieces.
-        pub fn push_location(mut self, interner: &mut NodeInterner, location: Location) -> ExprId {
-            interner.push_expr_location(self.id, location);
-            self.has_location = true;
-            self.id
         }
     }
 
