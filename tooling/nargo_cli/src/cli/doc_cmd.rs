@@ -17,6 +17,8 @@ use crate::errors::CliError;
 use super::{LockType, PackageOptions, WorkspaceCommand};
 
 /// Builds documentation for the specified package or workspace.
+///
+/// Note: this command is in development and functionality may change greatly with no warning.
 #[derive(Debug, Clone, Args, Default)]
 pub(crate) struct DocCommand {
     #[clap(flatten)]
