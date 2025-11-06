@@ -116,13 +116,14 @@ pub(crate) fn solve<F: AcirField>(
             signature,
             hashed_message: message,
             output,
-            ..
+            predicate,
         } => secp256k1_prehashed(
             initial_witness,
             public_key_x,
             public_key_y,
             signature,
             message.as_ref(),
+            predicate,
             *output,
         ),
         BlackBoxFuncCall::EcdsaSecp256r1 {
@@ -131,13 +132,14 @@ pub(crate) fn solve<F: AcirField>(
             signature,
             hashed_message: message,
             output,
-            ..
+            predicate,
         } => secp256r1_prehashed(
             initial_witness,
             public_key_x,
             public_key_y,
             signature,
             message.as_ref(),
+            predicate,
             *output,
         ),
         BlackBoxFuncCall::MultiScalarMul { points, scalars, outputs, predicate } => {
