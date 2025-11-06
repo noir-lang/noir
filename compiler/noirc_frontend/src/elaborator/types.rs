@@ -489,7 +489,7 @@ impl Elaborator<'_> {
         )
     }
 
-    /// Matches [GenericTypeArgs::ordered_args] to the [Generic::expected_kinds] of a [Generic] type,
+    /// Matches [GenericTypeArgs::ordered_args] to the [Generic::generic_kinds] of a [Generic] type,
     /// resolving them to [Type]s with the given [PathResolutionMode]. If the type accepts named
     /// generic arguments, those are resolved as well and returned as associated [NamedType]s.
     pub(super) fn resolve_type_or_trait_args_inner(

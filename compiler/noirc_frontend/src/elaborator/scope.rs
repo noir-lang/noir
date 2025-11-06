@@ -45,7 +45,7 @@ impl Elaborator<'_> {
         self.interner.get_trait_mut(trait_id)
     }
 
-    /// For each [LambdaContext] on the lambda stack with a scope index higher than that
+    /// For each [crate::elaborator::LambdaContext] on the lambda stack with a scope index higher than that
     /// of the variable, add the [HirIdent] to the list of captures.
     pub(super) fn resolve_local_variable(&mut self, hir_ident: HirIdent, var_scope_index: usize) {
         let mut transitive_capture_index: Option<usize> = None;
