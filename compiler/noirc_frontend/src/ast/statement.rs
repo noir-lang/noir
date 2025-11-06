@@ -44,7 +44,7 @@ pub enum StatementKind {
     Expression(Expression),
     Assign(AssignStatement),
     For(ForLoopStatement),
-    Loop(Expression, Location /* loop keyword location */),
+    Loop(LoopStatement),
     While(WhileStatement),
     Break,
     Continue,
@@ -904,6 +904,12 @@ pub struct WhileStatement {
     pub while_keyword_location: Location,
 }
 
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct LoopStatement {
+    pub body: Expression,
+    pub loop_keyword_location: Location,
+}
+
 impl Display for StatementKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -911,7 +917,7 @@ impl Display for StatementKind {
             StatementKind::Expression(expression) => expression.fmt(f),
             StatementKind::Assign(assign) => assign.fmt(f),
             StatementKind::For(for_loop) => for_loop.fmt(f),
-            StatementKind::Loop(block, _) => write!(f, "loop {block}"),
+            StatementKind::Loop(loop_) => write!(f, "loop {}", loop_.body),
             StatementKind::While(while_) => {
                 write!(f, "while {} {}", while_.condition, while_.body)
             }

@@ -20,6 +20,7 @@ use crate::hir::def_map::{LocalModuleId, ModuleDefId, ModuleId};
 use crate::hir::type_check::generics::TraitGenerics;
 use crate::hir_def::traits::NamedType;
 use crate::locations::AutoImportEntry;
+use crate::node_interner::pusher::PushedExpr;
 use crate::token::MetaAttribute;
 use crate::token::MetaAttributeName;
 
@@ -44,6 +45,8 @@ mod ids;
 mod methods;
 mod reexports;
 mod trait_impl;
+
+pub mod pusher;
 
 pub use dependency::DependencyId;
 use globals::GlobalInfo;
@@ -483,22 +486,22 @@ impl Default for NodeInterner {
 // XXX: Add check that insertions are not overwrites for maps
 // XXX: Maybe change push to intern, and remove comments
 impl NodeInterner {
-    /// Interns a HIR statement.
-    pub fn push_stmt(&mut self, stmt: HirStatement) -> StmtId {
-        StmtId(self.nodes.insert(Node::Statement(stmt)))
-    }
-    /// Interns a HIR expression.
-    pub fn push_expr(&mut self, expr: HirExpression) -> ExprId {
-        ExprId(self.nodes.insert(Node::Expression(expr)))
+    /// Intern a HIR statement with everything needed for it (location).
+    pub fn push_stmt_full(&mut self, stmt: HirStatement, location: Location) -> StmtId {
+        let id = StmtId(self.nodes.insert(Node::Statement(stmt)));
+        self.push_stmt_location(id, location);
+        id
     }
 
-    /// Intern an expression with everything needed for it (location & Type)
+    /// Interns a HIR expression, with the location and type information pushed as follow ups.
+    pub fn push_expr(&mut self, expr: HirExpression) -> PushedExpr {
+        PushedExpr::new(ExprId(self.nodes.insert(Node::Expression(expr))))
+    }
+
+    /// Intern an expression with everything needed for it (location & type)
     /// instead of requiring they be pushed later.
     pub fn push_expr_full(&mut self, expr: HirExpression, location: Location, typ: Type) -> ExprId {
-        let id = self.push_expr(expr);
-        self.push_expr_location(id, location);
-        self.push_expr_type(id, typ);
-        id
+        self.push_expr(expr).push_location(self, location).push_type(self, typ)
     }
 
     /// Stores the span for an interned expression.

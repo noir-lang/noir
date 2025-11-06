@@ -13,6 +13,7 @@ use crate::elaborator::types::{SELF_TYPE_NAME, TraitPathResolutionMethod};
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::hir::type_check::TypeCheckError;
 use crate::hir_def::expr::{HirExpression, HirIdent, HirMethodReference, ImplKind, TraitItem};
+use crate::node_interner::pusher::{HasLocation, PushedExpr};
 use crate::node_interner::{DefinitionId, DefinitionInfo, DefinitionKind, ExprId, TraitImplKind};
 use crate::{Kind, Type, TypeBindings};
 use iter_extended::vecmap;
@@ -91,19 +92,18 @@ impl Elaborator<'_> {
             }
         }
 
-        let id = self.interner.push_expr(HirExpression::Ident(expr.clone(), generics.clone()));
+        let id = self.intern_expr(HirExpression::Ident(expr.clone(), generics.clone()), location);
 
-        self.interner.push_expr_location(id, location);
         // TODO: set this to `true`. See https://github.com/noir-lang/noir/issues/8687
         let push_required_type_variables = self.current_trait.is_none();
         let typ = self.type_check_variable_with_bindings(
             expr,
-            id,
+            &id,
             generics,
             bindings,
             push_required_type_variables,
         );
-        self.interner.push_expr_type(id, typ.clone());
+        let id = self.intern_expr_type(id, typ.clone());
 
         // If this variable it a comptime local variable, use its current value as the final expression
         if is_comptime_local {
@@ -152,9 +152,7 @@ impl Elaborator<'_> {
         {
             let hir_ident = HirIdent::non_trait_method(definition_id, location);
             let hir_expr = HirExpression::Ident(hir_ident, None);
-            let id = self.interner.push_expr(hir_expr);
-            self.interner.push_expr_location(id, location);
-            self.interner.push_expr_type(id, numeric_type.clone());
+            let id = self.interner.push_expr_full(hir_expr, location, numeric_type.clone());
             return Some((id, numeric_type));
         }
 
@@ -210,7 +208,7 @@ impl Elaborator<'_> {
     /// Solve any generics that are part of the path before the function, for example:
     ///
     /// ```noir
-    /// foo::Bar::<i32>::baz   
+    /// foo::Bar::<i32>::baz
     /// ```
     /// Solve `<i32>` above
     fn resolve_item_turbofish_and_self_type(
@@ -339,11 +337,11 @@ impl Elaborator<'_> {
         };
 
         let ident = HirIdent { location: ident_location, id, impl_kind };
-        let id = self.interner.push_expr(HirExpression::Ident(ident.clone(), generics.clone()));
-        self.interner.push_expr_location(id, ident_location);
+        let id =
+            self.intern_expr(HirExpression::Ident(ident.clone(), generics.clone()), ident_location);
 
-        let typ = self.type_check_variable(ident, id, generics);
-        self.interner.push_expr_type(id, typ.clone());
+        let typ = self.type_check_variable(ident, &id, generics);
+        let id = self.intern_expr_type(id, typ.clone());
 
         (id, typ)
     }
@@ -400,7 +398,7 @@ impl Elaborator<'_> {
     pub(crate) fn type_check_variable(
         &mut self,
         ident: HirIdent,
-        expr_id: ExprId,
+        expr_id: &PushedExpr<HasLocation>,
         generics: Option<Vec<Type>>,
     ) -> Type {
         let bindings = TypeBindings::default();
@@ -418,7 +416,7 @@ impl Elaborator<'_> {
     pub(crate) fn type_check_variable_with_bindings(
         &mut self,
         ident: HirIdent,
-        expr_id: ExprId,
+        expr_id: &PushedExpr<HasLocation>,
         generics: Option<Vec<Type>>,
         mut bindings: TypeBindings,
         push_required_type_variables: bool,
@@ -449,7 +447,7 @@ impl Elaborator<'_> {
             _ => 0,
         });
 
-        let location = self.interner.expr_location(&expr_id);
+        let location = self.interner.expr_location(expr_id);
 
         // This instantiates a trait's generics as well which need to be set
         // when the constraint below is later solved for when the function is
@@ -463,11 +461,11 @@ impl Elaborator<'_> {
                 let trait_generics = method.constraint.trait_bound.trait_generics.clone();
                 let object_type = method.constraint.typ;
                 let trait_impl = TraitImplKind::Assumed { object_type, trait_generics };
-                self.interner.select_impl_for_expression(expr_id, trait_impl);
+                self.interner.select_impl_for_expression(**expr_id, trait_impl);
             } else {
                 self.push_trait_constraint(
                     method.constraint,
-                    expr_id,
+                    **expr_id,
                     true, // this constraint should lead to choosing a trait impl method
                 );
             }
@@ -511,7 +509,7 @@ impl Elaborator<'_> {
                     constraint.apply_bindings(&bindings);
 
                     self.push_trait_constraint(
-                        constraint, expr_id,
+                        constraint, **expr_id,
                         false, // This constraint shouldn't lead to choosing a trait impl method
                     );
                 }
@@ -529,7 +527,7 @@ impl Elaborator<'_> {
             }
         }
 
-        self.interner.store_instantiation_bindings(expr_id, bindings);
+        self.interner.store_instantiation_bindings(**expr_id, bindings);
         typ
     }
 
