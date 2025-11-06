@@ -634,7 +634,6 @@ fn incorrect_turbofish_count_on_primitive_str() {
 
 #[test]
 fn incorrect_turbofish_count_on_primitive_fmtstr() {
-    // Test fmtstr with wrong number of generics (should take 2, given 1)
     let src = r#"
         trait MyTrait {
             fn foo();
@@ -647,6 +646,24 @@ fn incorrect_turbofish_count_on_primitive_fmtstr() {
         fn main() {
             let _ = fmtstr::<5>::foo();
                           ^^^^^ primitive type fmtstr expects 2 generics but 1 was given
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn turbofish_on_primitive_fmtstr() {
+    let src = r#"
+        trait MyTrait {
+            fn foo();
+        }
+
+        impl<let N: u32, T> MyTrait for fmtstr<N, T> {
+            fn foo() { }
+        }
+
+        fn main() {
+            let _ = fmtstr::<5, Field>::foo();
         }
     "#;
     check_errors(src);
