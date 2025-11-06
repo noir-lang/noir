@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1762376758548,
+  "lastUpdate": 1762422358853,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23236,48 +23236,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "412407c094a82ffab4870ca9198a39aa88e9f7b5",
-          "message": "chore(ACIR): handle TODO in radix_decompose (#10272)",
-          "timestamp": "2025-10-23T15:39:46Z",
-          "tree_id": "3e58fda5698e6e30ae85bf0bc3faca054160e052",
-          "url": "https://github.com/noir-lang/noir/commit/412407c094a82ffab4870ca9198a39aa88e9f7b5"
-        },
-        "date": 1761235446105,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 263341,
-            "range": "± 645",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 232921,
-            "range": "± 4071",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2794668,
-            "range": "± 5721",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "michaeljklein@users.noreply.github.com",
             "name": "Michael J Klein",
             "username": "michaeljklein"
@@ -25329,6 +25287,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2802787,
             "range": "± 13669",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rodiondenmark@gmail.com",
+            "name": "Ragnar",
+            "username": "DeVikingMark"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1739efd8a6e2ee94d4d0e896370f048e957c3f9c",
+          "message": "fix: clarify predicate comment in BrilligCall and Call opcodes (#10356)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>",
+          "timestamp": "2025-11-06T09:23:31Z",
+          "tree_id": "48c4ebde18abdc8e516e7e775eddfbaf0c9832af",
+          "url": "https://github.com/noir-lang/noir/commit/1739efd8a6e2ee94d4d0e896370f048e957c3f9c"
+        },
+        "date": 1762422331768,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 265475,
+            "range": "± 436",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 236425,
+            "range": "± 4982",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2801787,
+            "range": "± 1748",
             "unit": "ns/iter"
           }
         ]
