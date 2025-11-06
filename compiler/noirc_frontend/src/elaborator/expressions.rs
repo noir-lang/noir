@@ -856,19 +856,8 @@ impl Elaborator<'_> {
     }
 
     /// Elaborates an call argument knowing that it has to match a given type.
-    ///
-    /// If the argument is a lambda, it uses the argument types of the lambda itself as further hint.
     fn elaborate_arg_with_type(&mut self, arg: Expression, typ: Option<&Type>) -> (ExprId, Type) {
-        let ExpressionKind::Lambda(lambda) = arg.kind else {
-            return self.elaborate_expression_with_target_type(arg, typ);
-        };
-
-        let location = arg.location;
-        let type_hint =
-            if let Some(Type::Function(func_args, _, _, _)) = typ { Some(func_args) } else { None };
-        let (hir_expr, typ) = self.elaborate_lambda_with_parameter_type_hints(*lambda, type_hint);
-        let id = self.interner.push_expr_full(hir_expr, location, typ.clone());
-        (id, typ)
+        self.elaborate_expression_with_target_type(arg, typ)
     }
 
     fn elaborate_constructor(
