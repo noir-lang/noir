@@ -36,10 +36,14 @@ impl Dependency {
         }
     }
 
-    pub fn package_name(&self) -> &CrateName {
+    pub fn package(&self) -> &Package {
         match self {
-            Self::Local { package } | Self::Remote { package } => &package.name,
+            Self::Local { package } | Self::Remote { package } => package,
         }
+    }
+
+    pub fn package_name(&self) -> &CrateName {
+        &self.package().name
     }
 }
 

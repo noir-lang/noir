@@ -3,8 +3,8 @@ use noirc_errors::{Located, Location};
 use crate::{
     ast::{
         AssignStatement, BinaryOp, BinaryOpKind, Expression, ExpressionKind, ForBounds,
-        ForLoopStatement, ForRange, Ident, InfixExpression, LValue, LetStatement, Statement,
-        StatementKind, WhileStatement,
+        ForLoopStatement, ForRange, Ident, InfixExpression, LValue, LetStatement, LoopStatement,
+        Statement, StatementKind, WhileStatement,
     },
     parser::{ParserErrorReason, labels::ParsingRuleLabel},
     token::{Attribute, Keyword, Token, TokenKind},
@@ -138,8 +138,8 @@ impl Parser<'_> {
             return Some(StatementKind::For(for_loop));
         }
 
-        if let Some((block, span)) = self.parse_loop() {
-            return Some(StatementKind::Loop(block, span));
+        if let Some(loop_) = self.parse_loop() {
+            return Some(StatementKind::Loop(loop_));
         }
 
         if let Some(while_) = self.parse_while() {
@@ -298,7 +298,7 @@ impl Parser<'_> {
     }
 
     /// LoopStatement = 'loop' Block
-    fn parse_loop(&mut self) -> Option<(Expression, Location)> {
+    fn parse_loop(&mut self) -> Option<LoopStatement> {
         let start_location = self.current_token_location;
         if !self.eat_keyword(Keyword::Loop) {
             return None;
@@ -318,7 +318,7 @@ impl Parser<'_> {
             }
         };
 
-        Some((block, start_location))
+        Some(LoopStatement { body: block, loop_keyword_location: start_location })
     }
 
     /// WhileStatement = 'while' ExpressionExceptConstructor Block
@@ -469,7 +469,10 @@ mod tests {
     use insta::assert_snapshot;
 
     use crate::{
-        ast::{ExpressionKind, ForRange, LValue, Statement, StatementKind, UnresolvedTypeData},
+        ast::{
+            ExpressionKind, ForRange, LValue, LoopStatement, Statement, StatementKind,
+            UnresolvedTypeData,
+        },
         parser::{
             Parser, ParserErrorReason,
             parser::tests::{
@@ -678,7 +681,7 @@ mod tests {
 
     #[test]
     fn parses_assignment_with_unsafe() {
-        let src = "// Safety: test 
+        let src = "// Safety: test
         x = unsafe { 1 }";
         let statement = parse_statement_no_errors(src);
         let StatementKind::Assign(assign) = statement.kind else {
@@ -814,7 +817,9 @@ mod tests {
         let src = "loop { }";
         let mut parser = Parser::for_str_with_dummy_file(src);
         let statement = parser.parse_statement_or_error();
-        let StatementKind::Loop(block, location) = statement.kind else {
+        let StatementKind::Loop(LoopStatement { body: block, loop_keyword_location: location }) =
+            statement.kind
+        else {
             panic!("Expected loop");
         };
         let ExpressionKind::Block(block) = block.kind else {
@@ -830,7 +835,7 @@ mod tests {
         let src = "loop { 1; 2 }";
         let mut parser = Parser::for_str_with_dummy_file(src);
         let statement = parser.parse_statement_or_error();
-        let StatementKind::Loop(block, _) = statement.kind else {
+        let StatementKind::Loop(LoopStatement { body: block, .. }) = statement.kind else {
             panic!("Expected loop");
         };
         let ExpressionKind::Block(block) = block.kind else {
