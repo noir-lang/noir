@@ -335,13 +335,13 @@ impl Elaborator<'_> {
     }
 
     /// Given:
-    /// ```
+    /// ```ignore
     /// enum FooEnum { Foo(u32, u8), ... }
     ///
     /// fn Foo(a: u32, b: u8) -> FooEnum {}
     /// ```
     /// Create (pseudocode):
-    /// ```
+    /// ```ignore
     /// fn Foo(a: u32, b: u8) -> FooEnum {
     ///     // This can't actually be written directly in Noir
     ///     FooEnum {
