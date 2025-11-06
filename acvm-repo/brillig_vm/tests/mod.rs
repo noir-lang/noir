@@ -37,7 +37,7 @@ fn add_single_step_smoke() {
     let mut vm = VM::new(calldata, &opcodes, &solver, false, None);
 
     let status = vm.process_opcode();
-    assert_eq!(status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });
+    assert_eq!(*status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });
 
     // The address at index `2` should have the value of 3 since we had an
     // add opcode
@@ -88,19 +88,19 @@ fn jmpif_opcode() {
     let mut vm = VM::new(calldata, &opcodes, &solver, false, None);
 
     let status = vm.process_opcode();
-    assert_eq!(status, VMStatus::InProgress);
+    assert_eq!(*status, VMStatus::InProgress);
     let status = vm.process_opcode();
-    assert_eq!(status, VMStatus::InProgress);
+    assert_eq!(*status, VMStatus::InProgress);
     let status = vm.process_opcode();
-    assert_eq!(status, VMStatus::InProgress);
+    assert_eq!(*status, VMStatus::InProgress);
     let status = vm.process_opcode();
-    assert_eq!(status, VMStatus::InProgress);
+    assert_eq!(*status, VMStatus::InProgress);
 
     let status = vm.process_opcode();
-    assert_eq!(status, VMStatus::InProgress);
+    assert_eq!(*status, VMStatus::InProgress);
 
     let status = vm.process_opcode();
-    assert_eq!(status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });
+    assert_eq!(*status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });
 
     let memory = vm.take_memory();
     let output_cmp_value = memory.read(destination);
@@ -267,15 +267,15 @@ fn cast_opcode() {
     let mut vm = VM::new(calldata, opcodes, &solver, false, None);
 
     let status = vm.process_opcode();
-    assert_eq!(status, VMStatus::InProgress);
+    assert_eq!(*status, VMStatus::InProgress);
     let status = vm.process_opcode();
-    assert_eq!(status, VMStatus::InProgress);
+    assert_eq!(*status, VMStatus::InProgress);
     let status = vm.process_opcode();
-    assert_eq!(status, VMStatus::InProgress);
+    assert_eq!(*status, VMStatus::InProgress);
     let status = vm.process_opcode();
-    assert_eq!(status, VMStatus::InProgress);
+    assert_eq!(*status, VMStatus::InProgress);
     let status = vm.process_opcode();
-    assert_eq!(status, VMStatus::Finished { return_data_offset: 1, return_data_size: 1 });
+    assert_eq!(*status, VMStatus::Finished { return_data_offset: 1, return_data_size: 1 });
 
     let memory = vm.take_memory();
 
@@ -328,17 +328,17 @@ fn not_opcode() {
     let mut vm = VM::new(calldata, opcodes, &solver, false, None);
 
     let status = vm.process_opcode();
-    assert_eq!(status, VMStatus::InProgress);
+    assert_eq!(*status, VMStatus::InProgress);
     let status = vm.process_opcode();
-    assert_eq!(status, VMStatus::InProgress);
+    assert_eq!(*status, VMStatus::InProgress);
     let status = vm.process_opcode();
-    assert_eq!(status, VMStatus::InProgress);
+    assert_eq!(*status, VMStatus::InProgress);
     let status = vm.process_opcode();
-    assert_eq!(status, VMStatus::InProgress);
+    assert_eq!(*status, VMStatus::InProgress);
     let status = vm.process_opcode();
-    assert_eq!(status, VMStatus::InProgress);
+    assert_eq!(*status, VMStatus::InProgress);
     let status = vm.process_opcode();
-    assert_eq!(status, VMStatus::Finished { return_data_offset: 1, return_data_size: 1 });
+    assert_eq!(*status, VMStatus::Finished { return_data_offset: 1, return_data_size: 1 });
 
     let memory = vm.take_memory();
     let MemoryValue::U128(negated_value) = memory.read(MemoryAddress::direct(1)) else {
@@ -373,14 +373,14 @@ fn mov_opcode() {
     let mut vm = VM::new(calldata, opcodes, &solver, false, None);
 
     let status = vm.process_opcode();
-    assert_eq!(status, VMStatus::InProgress);
+    assert_eq!(*status, VMStatus::InProgress);
     let status = vm.process_opcode();
-    assert_eq!(status, VMStatus::InProgress);
+    assert_eq!(*status, VMStatus::InProgress);
     let status = vm.process_opcode();
-    assert_eq!(status, VMStatus::InProgress);
+    assert_eq!(*status, VMStatus::InProgress);
     let status = vm.process_opcode();
 
-    assert_eq!(status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });
+    assert_eq!(*status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });
 
     let memory = vm.take_memory();
 
@@ -439,19 +439,19 @@ fn cmov_opcode() {
     let mut vm = VM::new(calldata, opcodes, &solver, false, None);
 
     let status = vm.process_opcode();
-    assert_eq!(status, VMStatus::InProgress);
+    assert_eq!(*status, VMStatus::InProgress);
     let status = vm.process_opcode();
-    assert_eq!(status, VMStatus::InProgress);
+    assert_eq!(*status, VMStatus::InProgress);
     let status = vm.process_opcode();
-    assert_eq!(status, VMStatus::InProgress);
+    assert_eq!(*status, VMStatus::InProgress);
     let status = vm.process_opcode();
-    assert_eq!(status, VMStatus::InProgress);
+    assert_eq!(*status, VMStatus::InProgress);
     let status = vm.process_opcode();
-    assert_eq!(status, VMStatus::InProgress);
+    assert_eq!(*status, VMStatus::InProgress);
     let status = vm.process_opcode();
-    assert_eq!(status, VMStatus::InProgress);
+    assert_eq!(*status, VMStatus::InProgress);
     let status = vm.process_opcode();
-    assert_eq!(status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });
+    assert_eq!(*status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });
 
     let memory = vm.take_memory();
 
@@ -538,38 +538,38 @@ fn cmp_binary_ops() {
 
     // Calldata copy
     let status = vm.process_opcode();
-    assert_eq!(status, VMStatus::InProgress);
+    assert_eq!(*status, VMStatus::InProgress);
     let status = vm.process_opcode();
-    assert_eq!(status, VMStatus::InProgress);
+    assert_eq!(*status, VMStatus::InProgress);
     let status = vm.process_opcode();
-    assert_eq!(status, VMStatus::InProgress);
+    assert_eq!(*status, VMStatus::InProgress);
 
     for _ in 0..calldata_size {
         let status = vm.process_opcode();
-        assert_eq!(status, VMStatus::InProgress);
+        assert_eq!(*status, VMStatus::InProgress);
     }
 
     // Equals
     let status = vm.process_opcode();
-    assert_eq!(status, VMStatus::InProgress);
+    assert_eq!(*status, VMStatus::InProgress);
 
     let output_eq_value = vm.get_memory()[destination.unwrap_direct()];
     assert_eq!(output_eq_value, true.into());
 
     let status = vm.process_opcode();
-    assert_eq!(status, VMStatus::InProgress);
+    assert_eq!(*status, VMStatus::InProgress);
 
     let output_neq_value = vm.get_memory()[destination.unwrap_direct()];
     assert_eq!(output_neq_value, false.into());
 
     let status = vm.process_opcode();
-    assert_eq!(status, VMStatus::InProgress);
+    assert_eq!(*status, VMStatus::InProgress);
 
     let lt_value = vm.get_memory()[destination.unwrap_direct()];
     assert_eq!(lt_value, true.into());
 
     let status = vm.process_opcode();
-    assert_eq!(status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });
+    assert_eq!(*status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });
 
     let lte_value = vm.get_memory()[destination.unwrap_direct()];
     assert_eq!(lte_value, true.into());
@@ -666,10 +666,10 @@ fn iconst_opcode() {
     let mut vm = VM::new(vec![], opcodes, &solver, false, None);
 
     let status = vm.process_opcode();
-    assert_eq!(status, VMStatus::InProgress);
+    assert_eq!(*status, VMStatus::InProgress);
 
     let status = vm.process_opcode();
-    assert_eq!(status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });
+    assert_eq!(*status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });
 
     let memory = vm.take_memory();
 
@@ -921,7 +921,7 @@ fn relative_addressing() {
     vm.process_opcode();
     vm.process_opcode();
     let status = vm.process_opcode();
-    assert_eq!(status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });
+    assert_eq!(*status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });
 
     let memory = vm.take_memory();
     let output_value = memory.read(MemoryAddress::direct(1));
@@ -955,12 +955,12 @@ fn field_zero_division_regression() {
     let mut vm = VM::new(calldata, opcodes, &solver, false, None);
 
     let status = vm.process_opcode();
-    assert_eq!(status, VMStatus::InProgress);
+    assert_eq!(*status, VMStatus::InProgress);
     let status = vm.process_opcode();
-    assert_eq!(status, VMStatus::InProgress);
+    assert_eq!(*status, VMStatus::InProgress);
     let status = vm.process_opcode();
     assert_eq!(
-        status,
+        *status,
         VMStatus::Failure {
             reason: FailureReason::RuntimeError { message: "Attempted to divide by zero".into() },
             call_stack: vec![2]

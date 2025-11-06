@@ -1,4 +1,4 @@
-use crate::{assert_no_errors, check_errors};
+use crate::tests::{assert_no_errors, check_errors};
 
 #[test]
 fn errors_on_unused_private_import() {
@@ -24,7 +24,7 @@ fn errors_on_unused_private_import() {
         baz();
     }
     "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
 #[test]
@@ -51,7 +51,7 @@ fn errors_on_unused_pub_crate_import() {
         baz();
     }
     "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
 #[test]
@@ -74,7 +74,7 @@ fn errors_on_unused_function() {
 
     fn bar() {}
     "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
 #[test]
@@ -89,7 +89,7 @@ fn errors_on_unused_struct() {
         let _ = Bar {};
     }
     "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
 #[test]
@@ -108,7 +108,7 @@ fn errors_on_unused_trait() {
     fn main() {
     }
     "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
 #[test]
@@ -119,7 +119,7 @@ fn silences_unused_variable_warning() {
         let x = 1;
     }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -131,7 +131,7 @@ fn errors_on_unused_type_alias() {
     type Bar = Field;
     pub fn bar(_: Bar) {}
     "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
 #[test]
@@ -146,7 +146,7 @@ fn warns_on_unused_global() {
         let _ = bar;
     }
     "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
 #[test]
@@ -157,7 +157,7 @@ fn does_not_warn_on_unused_global_if_it_has_an_abi_attribute() {
         global bar: u64 = 1;
     }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -166,7 +166,7 @@ fn does_not_warn_on_unused_struct_if_it_has_an_abi_attribute() {
     #[abi(dummy)]
     struct Foo { bar: u8 }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -175,7 +175,7 @@ fn does_not_warn_on_unused_function_if_it_has_an_export_attribute() {
     #[export]
     fn foo() {}
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -194,7 +194,7 @@ fn no_warning_on_inner_struct_when_parent_is_used() {
         assert_eq(foos[0].a, 10);
     }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -205,7 +205,7 @@ fn no_warning_on_struct_if_it_has_an_abi_attribute() {
         a: Field,
     }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -220,7 +220,7 @@ fn no_warning_on_indirect_struct_if_it_has_an_abi_attribute() {
         bar: Bar,
     }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -240,7 +240,7 @@ fn no_warning_on_self_in_trait_impl() {
         let _ = Bar {};
     }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -258,7 +258,7 @@ fn resolves_trait_where_clause_in_the_correct_module() {
         T: Foo,
     {}
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -274,7 +274,7 @@ fn considers_struct_as_constructed_if_impl_method_is_called() {
         Bar::foo()
     }
     ";
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -294,7 +294,7 @@ fn considers_struct_as_constructed_if_trait_method_is_called() {
         Bar::foo()
     }
     ";
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -310,7 +310,7 @@ fn considers_struct_as_constructed_if_mentioned_in_let_type() {
         let _ = foo;
     }
     ";
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -326,7 +326,7 @@ fn considers_struct_as_constructed_if_mentioned_in_return_type() {
         let _ = foo;
     }
     ";
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -340,7 +340,7 @@ fn considers_struct_as_constructed_if_passed_in_generic_args_in_constructor() {
         let _ = Generic::<Bar> {};
     }
     ";
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -354,7 +354,7 @@ fn considers_struct_as_constructed_if_passed_in_generic_args_in_function_call() 
         let _ = foo::<Bar>();
     }
     ";
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -371,7 +371,7 @@ fn does_not_consider_struct_as_constructed_if_mentioned_in_function_argument() {
         ^^^^^ Function expects 1 parameter but 0 were given
     }
     ";
-    check_errors!(src);
+    check_errors(src);
 }
 
 #[test]
@@ -383,7 +383,7 @@ fn allow_dead_code_on_unused_function() {
     fn main() {
     }
     ";
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -395,7 +395,7 @@ fn allow_dead_code_on_unused_struct() {
     fn main() {
     }
     ";
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -407,7 +407,7 @@ fn allow_dead_code_on_unused_trait() {
     fn main() {
     }
     ";
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -419,5 +419,5 @@ fn allow_dead_code_on_unused_enum() {
     fn main() {
     }
     ";
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }

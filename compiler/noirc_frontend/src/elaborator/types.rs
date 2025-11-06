@@ -1,3 +1,5 @@
+//! Type resolution, unification, and method resolution (for both types and traits).
+
 use std::{borrow::Cow, rc::Rc};
 
 use im::HashSet;
@@ -1526,10 +1528,10 @@ impl Elaborator<'_> {
         }
     }
 
-    // Given a unary operator and a type, this method will produce the output type
-    // and a boolean indicating whether to use the trait impl corresponding to the operator
-    // or not. A value of false indicates the caller to use a primitive operation for this
-    // operator, while a true value indicates a user-provided trait impl is required.
+    /// Given a unary operator and a type, this method will produce the output type
+    /// and a boolean indicating whether to use the trait impl corresponding to the operator
+    /// or not. A value of false indicates to the caller to use a primitive operation for this
+    /// operator, while a true value indicates a user-provided trait impl is required.
     pub(super) fn prefix_operand_type_rules(
         &mut self,
         op: &UnaryOp,
@@ -2076,9 +2078,10 @@ impl Elaborator<'_> {
                     self.push_err(TypeCheckError::Unsafe { location });
                 }
                 UnsafeBlockStatus::InUnsafeBlockWithoutUnconstrainedCalls => {
-                    self.unsafe_block_status = UnsafeBlockStatus::InUnsafeBlockWithConstrainedCalls;
+                    self.unsafe_block_status =
+                        UnsafeBlockStatus::InUnsafeBlockWithUnconstrainedCalls;
                 }
-                UnsafeBlockStatus::InUnsafeBlockWithConstrainedCalls => (),
+                UnsafeBlockStatus::InUnsafeBlockWithUnconstrainedCalls => (),
             }
 
             if let Some(called_func_id) = self.interner.lookup_function_from_expr(&call.func) {

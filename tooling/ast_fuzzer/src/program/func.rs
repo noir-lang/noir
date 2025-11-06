@@ -1460,17 +1460,30 @@ impl<'a> FunctionContext<'a> {
 
         // Print one of the variables as-is.
         let (id, typ) = u.choose_iter(opts)?;
+        let id = *id;
 
         // The print oracle takes 2 parameters: the newline marker and the value,
         // but it takes 2 more arguments: the type descriptor and the format string marker,
         // which are inserted automatically by the monomorphizer.
         let param_types = vec![Type::Bool, typ.clone()];
         let hir_type = types::to_hir_type(typ);
-        let ident = self.local_ident(*id);
+        let ident = self.local_ident(id);
+
+        // Functions need to be passed as a tuple.
+        let arg = if types::is_function(&ident.typ) {
+            Expression::Tuple(vec![
+                Expression::Ident(ident),
+                Expression::Ident(self.local_ident(id)),
+            ])
+        } else {
+            Expression::Ident(ident)
+        };
+
         let mut args = vec![
             expr::lit_bool(true), // include newline,
-            Expression::Ident(ident),
+            arg,
         ];
+
         append_printable_type_info_for_type(hir_type, &mut args);
 
         let print_oracle_ident = Ident {

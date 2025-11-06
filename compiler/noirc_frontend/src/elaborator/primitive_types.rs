@@ -1,3 +1,6 @@
+//! Primitive type definitions
+
+use iter_extended::vecmap;
 use noirc_errors::Location;
 
 use crate::{
@@ -234,7 +237,7 @@ impl Elaborator<'_> {
                     PathResolutionMode::MarkAsReferenced,
                     wildcard_allowed,
                 );
-                assert_eq!(args.len(), 1);
+                assert_eq!(args.len(), 1, "str generics should be: [length]");
                 let length = args.pop().unwrap();
                 return Type::String(Box::new(length));
             }
@@ -247,7 +250,7 @@ impl Elaborator<'_> {
                     PathResolutionMode::MarkAsReferenced,
                     wildcard_allowed,
                 );
-                assert_eq!(args.len(), 2);
+                assert_eq!(args.len(), 2, "fmtstr generics should be: [length, element]");
                 let element = args.pop().unwrap();
                 let length = args.pop().unwrap();
                 return Type::FmtString(Box::new(length), Box::new(element));
@@ -303,8 +306,9 @@ impl Elaborator<'_> {
             PrimitiveType::Str => {
                 let item = StrPrimitiveType;
                 let item_generic_kinds = item.generic_kinds(self.interner);
-                let kind = item_generic_kinds[0].clone();
-                let generics = vec![self.interner.next_type_variable_with_kind(kind)];
+                let generics = vecmap(&item_generic_kinds, |kind| {
+                    self.interner.next_type_variable_with_kind(kind.clone())
+                });
                 let mut args = if let Some(turbofish) = turbofish {
                     self.resolve_item_turbofish_generics(
                         item.item_kind(),
@@ -317,18 +321,20 @@ impl Elaborator<'_> {
                 } else {
                     generics
                 };
-                assert_eq!(args.len(), 1);
+                assert_eq!(args.len(), 1, "str generics should be: [length]");
                 let length = args.pop().unwrap();
                 Type::String(Box::new(length))
             }
             PrimitiveType::Fmtstr => {
-                let item_generic_kinds = FmtstrPrimitiveType {}.generic_kinds(self.interner);
-                let kind = item_generic_kinds[0].clone();
-                let generics = vec![self.interner.next_type_variable_with_kind(kind)];
+                let item = FmtstrPrimitiveType;
+                let item_generic_kinds = item.generic_kinds(self.interner);
+                let generics = vecmap(&item_generic_kinds, |kind| {
+                    self.interner.next_type_variable_with_kind(kind.clone())
+                });
                 let mut args = if let Some(turbofish) = turbofish {
                     self.resolve_item_turbofish_generics(
-                        "primitive type",
-                        "fmtstr",
+                        FmtstrPrimitiveType.item_kind(),
+                        &item.item_name(self.interner),
                         item_generic_kinds,
                         generics,
                         Some(turbofish.generics),
@@ -337,7 +343,7 @@ impl Elaborator<'_> {
                 } else {
                     generics
                 };
-                assert_eq!(args.len(), 2);
+                assert_eq!(args.len(), 2, "fmtstr generics should be: [length, element]");
                 let element = args.pop().unwrap();
                 let length = args.pop().unwrap();
                 Type::FmtString(Box::new(length), Box::new(element))

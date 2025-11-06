@@ -1,9 +1,12 @@
 use acvm::acir::{AcirField, BlackBoxFunc, circuit::opcodes::FunctionInput};
 use iter_extended::vecmap;
 
-use crate::errors::{InternalError, RuntimeError};
+use crate::{
+    errors::{InternalError, RuntimeError},
+    ssa::ir::types::NumericType,
+};
 
-use super::{AcirContext, AcirType, AcirValue, AcirVar};
+use super::{AcirContext, AcirValue, AcirVar};
 
 impl<F: AcirField> AcirContext<F> {
     /// Calls a Blackbox function on the given inputs and returns a given set of outputs
@@ -33,7 +36,7 @@ impl<F: AcirField> AcirContext<F> {
 
                 assert_eq!(
                     output_count,
-                    input_size + (16 - input_size % 16),
+                    input_size + 16 - input_size % 16,
                     "output count mismatch"
                 );
 
@@ -60,7 +63,7 @@ impl<F: AcirField> AcirContext<F> {
                         }));
                     }
                 };
-                inputs.push(AcirValue::Var(predicate.unwrap(), AcirType::unsigned(1)));
+                inputs.push(AcirValue::Var(predicate.unwrap(), NumericType::bool()));
                 vec![proof_type_constant]
             }
             _ => Vec::new(),
@@ -72,7 +75,7 @@ impl<F: AcirField> AcirContext<F> {
             self.var_to_witness(*var).expect("variable was just created as witness")
         });
 
-        self.acir_ir.call_black_box(name, &inputs, constant_inputs, num_bits, output_witnesses)?;
+        self.acir_ir.call_black_box(name, inputs, constant_inputs, num_bits, output_witnesses)?;
 
         // Convert `Witness` values which are now constrained to be the output of the
         // black box function call into `AcirVar`s.
@@ -105,7 +108,7 @@ impl<F: AcirField> AcirContext<F> {
         let mut inputs =
             self.prepare_inputs_for_black_box_func_call(inputs, allow_constant_inputs)?;
         if name == BlackBoxFunc::EmbeddedCurveAdd {
-            inputs = self.all_or_nothing_for_ec_add(inputs)?;
+            inputs = self.all_variables_or_constants_for_ec_add(inputs)?;
         }
         Ok(inputs)
     }
@@ -147,9 +150,11 @@ impl<F: AcirField> AcirContext<F> {
         Ok(witnesses)
     }
 
-    /// EcAdd has 6 inputs representing the two points to add
-    /// Each point must be either all constant, or all witnesses
-    fn all_or_nothing_for_ec_add(
+    /// [`BlackBoxFunc::EmbeddedCurveAdd`] has 6 inputs representing the two points to add
+    /// Each point must be either all constants, or all witnesses,
+    /// where constants are converted to witnesses here if mixed constant and witnesses are
+    /// encountered
+    fn all_variables_or_constants_for_ec_add(
         &mut self,
         inputs: Vec<Vec<FunctionInput<F>>>,
     ) -> Result<Vec<Vec<FunctionInput<F>>>, RuntimeError> {
@@ -157,14 +162,17 @@ impl<F: AcirField> AcirContext<F> {
         let mut has_witness = false;
         let mut result = inputs.clone();
         for (i, input) in inputs.iter().enumerate() {
+            assert_eq!(input.len(), 1);
             if input[0].is_constant() {
                 has_constant = true;
             } else {
                 has_witness = true;
             }
+
             if i % 3 == 2 {
                 if has_constant && has_witness {
-                    // Convert the constants to witness if mixed constant and witness,
+                    // Convert the constants to witnesses if mixed constants and witnesses are
+                    // encountered
                     for j in i - 2..i + 1 {
                         if let FunctionInput::Constant(constant) = inputs[j][0] {
                             let constant = self.add_constant(constant);
