@@ -1,1 +1,2 @@
 tooling/nargo_cli/tests/snapshots/**/* linguist-generated=true
+noir_stdlib/docs/**/* linguist-generated=true

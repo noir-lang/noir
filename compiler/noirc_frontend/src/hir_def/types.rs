@@ -311,12 +311,10 @@ impl std::fmt::Display for Kind {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash, PartialOrd, Ord)]
-#[cfg_attr(test, derive(strum_macros::EnumIter))]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash, PartialOrd, Ord, strum_macros::EnumIter)]
 pub enum QuotedType {
     Expr,
     Quoted,
-    TopLevelItem,
     Type,
     TypedExpr,
     TypeDefinition,
@@ -1208,7 +1206,6 @@ impl std::fmt::Display for QuotedType {
         match self {
             QuotedType::Expr => write!(f, "Expr"),
             QuotedType::Quoted => write!(f, "Quoted"),
-            QuotedType::TopLevelItem => write!(f, "TopLevelItem"),
             QuotedType::Type => write!(f, "Type"),
             QuotedType::TypedExpr => write!(f, "TypedExpr"),
             QuotedType::TypeDefinition => write!(f, "TypeDefinition"),
