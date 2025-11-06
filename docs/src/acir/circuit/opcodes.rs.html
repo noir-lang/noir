@@ -281,7 +281,9 @@
 <a href="#280" id="280">280</a>
 <a href="#281" id="281">281</a>
 <a href="#282" id="282">282</a>
-<a href="#283" id="283">283</a></pre></div><pre class="rust"><code><span class="doccomment">//! ACIR opcodes
+<a href="#283" id="283">283</a>
+<a href="#284" id="284">284</a>
+<a href="#285" id="285">285</a></pre></div><pre class="rust"><code><span class="doccomment">//! ACIR opcodes
 //!
 //! This module defines the core set opcodes used in ACIR.
 </span><span class="kw">use </span><span class="kw">super</span>::brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs};
@@ -410,7 +412,8 @@
         </span>inputs: Vec&lt;BrilligInputs&lt;F&gt;&gt;,
         <span class="doccomment">/// Outputs to the function call
         </span>outputs: Vec&lt;BrilligOutputs&gt;,
-        <span class="doccomment">/// Predicate of the Brillig execution - indicates if it should be skipped
+        <span class="doccomment">/// Predicate of the Brillig execution - when the predicate evaluates to 0, execution is skipped.
+        /// When the predicate evaluates to 1 or is None, execution proceeds.
         </span>predicate: <span class="prelude-ty">Option</span>&lt;Expression&lt;F&gt;&gt;,
     },
 
@@ -424,7 +427,8 @@
         </span>inputs: Vec&lt;Witness&gt;,
         <span class="doccomment">/// Outputs of the function call
         </span>outputs: Vec&lt;Witness&gt;,
-        <span class="doccomment">/// Predicate of the circuit execution - indicates if it should be skipped
+        <span class="doccomment">/// Predicate of the circuit execution - when the predicate evaluates to 0, execution is skipped.
+        /// When the predicate evaluates to 1 or is None, execution proceeds.
         </span>predicate: <span class="prelude-ty">Option</span>&lt;Expression&lt;F&gt;&gt;,
     },
 }
