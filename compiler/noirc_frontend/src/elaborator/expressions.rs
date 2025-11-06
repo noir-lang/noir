@@ -629,10 +629,10 @@ impl Elaborator<'_> {
 
             let (arg, typ) = if is_macro_call {
                 self.elaborate_in_comptime_context(|this| {
-                    this.elaborate_expression_with_type(arg, expected_type)
+                    this.elaborate_arg_with_type(arg, expected_type)
                 })
             } else {
-                self.elaborate_expression_with_type(arg, expected_type)
+                self.elaborate_arg_with_type(arg, expected_type)
             };
 
             // Try to unify this argument type against the function's argument type
@@ -667,6 +667,7 @@ impl Elaborator<'_> {
         (HirExpression::Call(hir_call), typ)
     }
 
+    /// Elaborate the target of the method call and try to look up the method in its type.
     fn elaborate_method_call(
         &mut self,
         method_call: MethodCallExpression,
@@ -751,7 +752,7 @@ impl Elaborator<'_> {
                 for (arg_index, arg) in method_call.arguments.into_iter().enumerate() {
                     let location = arg.location;
                     let expected_type = func_arg_types.and_then(|args| args.get(arg_index + 1));
-                    let (arg, typ) = self.elaborate_expression_with_type(arg, expected_type);
+                    let (arg, typ) = self.elaborate_arg_with_type(arg, expected_type);
 
                     // Try to unify this argument type against the function's argument type
                     // so that a potential lambda following this argument can have more concrete types.
@@ -854,14 +855,12 @@ impl Elaborator<'_> {
         (HirExpression::Constrain(HirConstrainExpression(expr_id, location.file, msg)), Type::Unit)
     }
 
-    /// Elaborates an expression knowing that it has to match a given type.
-    fn elaborate_expression_with_type(
-        &mut self,
-        arg: Expression,
-        typ: Option<&Type>,
-    ) -> (ExprId, Type) {
+    /// Elaborates an call argument knowing that it has to match a given type.
+    ///
+    /// If the argument is a lambda, it uses the argument types of the lambda itself as further hint.
+    fn elaborate_arg_with_type(&mut self, arg: Expression, typ: Option<&Type>) -> (ExprId, Type) {
         let ExpressionKind::Lambda(lambda) = arg.kind else {
-            return self.elaborate_expression(arg);
+            return self.elaborate_expression_with_target_type(arg, typ);
         };
 
         let location = arg.location;
