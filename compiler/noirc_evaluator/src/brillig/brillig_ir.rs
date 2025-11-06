@@ -24,16 +24,20 @@ mod codegen_stack;
 mod entry_point;
 mod instructions;
 
+use std::{cell::RefCell, rc::Rc};
+
 use artifact::Label;
 use brillig_variable::SingleAddrVariable;
 pub(crate) use instructions::BrilligBinaryOp;
 use noirc_errors::call_stack::CallStackId;
 use registers::{RegisterAllocator, ScratchSpace};
 
+pub(crate) use self::registers::LayoutConfig;
 use self::{artifact::BrilligArtifact, debug_show::DebugToString, registers::Stack};
 use acvm::{
     AcirField,
     acir::brillig::{MemoryAddress, Opcode as BrilligOpcode},
+    brillig_vm::STACK_POINTER_ADDRESS,
 };
 use debug_show::DebugShow;
 
@@ -44,15 +48,8 @@ use super::{BrilligOptions, FunctionId, GlobalSpace, ProcedureId};
 /// memory has 2^32 memory slots.
 pub(crate) const BRILLIG_MEMORY_ADDRESSING_BIT_SIZE: u32 = 32;
 
-// Registers reserved in runtime for special purposes.
-pub(crate) enum ReservedRegisters {
-    /// This register stores the stack pointer. All relative memory addresses are relative to this pointer.
-    StackPointer = 0,
-    /// This register stores the free memory pointer. Allocations must be done after this pointer.
-    FreeMemoryPointer = 1,
-    /// This register stores a 1_usize constant.
-    UsizeOne = 2,
-}
+/// Registers reserved in runtime for special purposes.
+pub(crate) struct ReservedRegisters;
 
 impl ReservedRegisters {
     /// The number of reserved registers. These are allocated in the first memory positions.
@@ -64,16 +61,22 @@ impl ReservedRegisters {
         Self::NUM_RESERVED_REGISTERS
     }
 
+    /// This register stores the stack pointer. All relative memory addresses are relative to this pointer.
     pub(crate) fn stack_pointer() -> MemoryAddress {
-        MemoryAddress::direct(ReservedRegisters::StackPointer as usize)
+        STACK_POINTER_ADDRESS
     }
 
+    /// This register stores the free memory pointer. Allocations must be done after this pointer.
+    ///
+    /// This represents the heap, and we make sure during entry point generation that it is initialized
+    /// with a value that lies beyond the maximum stack size, so there can never be an overlap.
     pub(crate) fn free_memory_pointer() -> MemoryAddress {
-        MemoryAddress::direct(ReservedRegisters::FreeMemoryPointer as usize)
+        MemoryAddress::direct(1)
     }
 
+    /// This register stores a 1_usize constant.
     pub(crate) fn usize_one() -> MemoryAddress {
-        MemoryAddress::direct(ReservedRegisters::UsizeOne as usize)
+        MemoryAddress::direct(2)
     }
 }
 
@@ -82,13 +85,12 @@ impl ReservedRegisters {
 pub(crate) struct BrilligContext<F, Registers> {
     obj: BrilligArtifact<F>,
     /// Tracks register allocations
-    registers: Registers,
-    /// Context label, must be unique with respect to the function
-    /// being linked.
+    registers: Rc<RefCell<Registers>>,
+    /// Context label, must be unique with respect to the function being linked.
     context_label: Label,
-    /// Section label, used to separate sections of code
+    /// Section label, used to separate sections of code within a context.
     current_section: usize,
-    /// Stores the next available section
+    /// Stores the next available section.
     next_section: usize,
     /// IR printer
     debug_show: DebugShow,
@@ -103,7 +105,12 @@ pub(crate) struct BrilligContext<F, Registers> {
     globals_memory_size: Option<usize>,
 }
 
-impl<F, R> BrilligContext<F, R> {
+impl<F, R: RegisterAllocator> BrilligContext<F, R> {
+    /// Memory layout information. See [self::registers] for more information about the memory layout.
+    pub(crate) fn layout(&self) -> LayoutConfig {
+        self.registers().layout()
+    }
+
     /// Enable the insertion of bytecode with extra assertions during testing.
     pub(crate) fn enable_debug_assertions(&self) -> bool {
         self.enable_debug_assertions
@@ -118,9 +125,10 @@ impl<F, R> BrilligContext<F, R> {
         );
 
         // The copy counter is always put in the first global slot
-        MemoryAddress::Direct(GlobalSpace::start())
+        MemoryAddress::Direct(GlobalSpace::start_with_layout(&self.layout()))
     }
 
+    /// If this flag is set, compile the array copy counter as a global.
     pub(crate) fn count_array_copies(&self) -> bool {
         self.count_arrays_copied
     }
@@ -145,7 +153,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         obj.name = function_name.to_owned();
         BrilligContext {
             obj,
-            registers: Stack::new(),
+            registers: Rc::new(RefCell::new(Stack::new(options.layout))),
             context_label: Label::entrypoint(),
             current_section: 0,
             next_section: 1,
@@ -171,12 +179,12 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             .make_constant_instruction(((1_u128 << (num.bit_size - 1)) - 1).into(), num.bit_size);
 
         // Compute if num is negative
-        self.binary_instruction(max_positive, num, result_is_negative, BrilligBinaryOp::LessThan);
+        self.binary_instruction(*max_positive, num, result_is_negative, BrilligBinaryOp::LessThan);
 
         // Two's complement of num
         let zero = self.make_constant_instruction(0_usize.into(), num.bit_size);
-        let twos_complement = SingleAddrVariable::new(self.allocate_register(), num.bit_size);
-        self.binary_instruction(zero, num, twos_complement, BrilligBinaryOp::Sub);
+        let twos_complement = self.allocate_single_addr(num.bit_size);
+        self.binary_instruction(*zero, num, *twos_complement, BrilligBinaryOp::Sub);
 
         // absolute_value = result_is_negative ? twos_complement : num
         self.codegen_branch(result_is_negative.address, |ctx, is_negative| {
@@ -186,10 +194,6 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                 ctx.mov_instruction(absolute_value.address, num.address);
             }
         });
-
-        self.deallocate_single_addr(zero);
-        self.deallocate_single_addr(max_positive);
-        self.deallocate_single_addr(twos_complement);
     }
 
     pub(crate) fn convert_signed_division(
@@ -198,31 +202,31 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         right: SingleAddrVariable,
         result: SingleAddrVariable,
     ) {
-        let left_is_negative = SingleAddrVariable::new(self.allocate_register(), 1);
-        let left_abs_value = SingleAddrVariable::new(self.allocate_register(), left.bit_size);
+        let left_is_negative = self.allocate_single_addr_bool();
+        let left_abs_value = self.allocate_single_addr(left.bit_size);
 
-        let right_is_negative = SingleAddrVariable::new(self.allocate_register(), 1);
-        let right_abs_value = SingleAddrVariable::new(self.allocate_register(), right.bit_size);
+        let right_is_negative = self.allocate_single_addr_bool();
+        let right_abs_value = self.allocate_single_addr(right.bit_size);
 
-        let result_is_negative = SingleAddrVariable::new(self.allocate_register(), 1);
+        let result_is_negative = self.allocate_single_addr_bool();
 
         // Compute both absolute values
-        self.absolute_value(left, left_abs_value, left_is_negative);
-        self.absolute_value(right, right_abs_value, right_is_negative);
+        self.absolute_value(left, *left_abs_value, *left_is_negative);
+        self.absolute_value(right, *right_abs_value, *right_is_negative);
 
         // Perform the division on the absolute values
         self.binary_instruction(
-            left_abs_value,
-            right_abs_value,
+            *left_abs_value,
+            *right_abs_value,
             result,
             BrilligBinaryOp::UnsignedDiv,
         );
 
         // Compute result sign
         self.binary_instruction(
-            left_is_negative,
-            right_is_negative,
-            result_is_negative,
+            *left_is_negative,
+            *right_is_negative,
+            *result_is_negative,
             BrilligBinaryOp::Xor,
         );
 
@@ -230,35 +234,27 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             if is_negative {
                 // If result has to be negative, perform two's complement
                 let zero = ctx.make_constant_instruction(0_usize.into(), result.bit_size);
-                ctx.binary_instruction(zero, result, result, BrilligBinaryOp::Sub);
-                ctx.deallocate_single_addr(zero);
+                ctx.binary_instruction(*zero, result, result, BrilligBinaryOp::Sub);
             } else {
                 // else the result is positive and so it must be less than '2**(bit_size-1)'
                 let max = 1_u128 << (left.bit_size - 1);
                 let max = ctx.make_constant_instruction(max.into(), left.bit_size);
-                let no_overflow = SingleAddrVariable::new(ctx.allocate_register(), 1);
-                ctx.binary_instruction(result, max, no_overflow, BrilligBinaryOp::LessThan);
+                let no_overflow = ctx.allocate_single_addr_bool();
+                ctx.binary_instruction(result, *max, *no_overflow, BrilligBinaryOp::LessThan);
                 ctx.codegen_if_not(no_overflow.address, |ctx2| {
                     ctx2.codegen_constrain(
-                        no_overflow,
+                        *no_overflow,
                         Some("Attempt to divide with overflow".to_string()),
                     );
                 });
-                ctx.deallocate_single_addr(max);
-                ctx.deallocate_single_addr(no_overflow);
             }
         });
-
-        self.deallocate_single_addr(left_is_negative);
-        self.deallocate_single_addr(left_abs_value);
-        self.deallocate_single_addr(right_is_negative);
-        self.deallocate_single_addr(right_abs_value);
-        self.deallocate_single_addr(result_is_negative);
     }
 }
 
 /// Special brillig context to codegen compiler intrinsic shared procedures
 impl<F: AcirField + DebugToString> BrilligContext<F, ScratchSpace> {
+    /// Create a [BrilligContext] with a [ScratchSpace] for passing procedure arguments.
     pub(crate) fn new_for_procedure(
         procedure_id: ProcedureId,
         options: &BrilligOptions,
@@ -267,7 +263,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, ScratchSpace> {
         obj.procedure = Some(procedure_id);
         BrilligContext {
             obj,
-            registers: ScratchSpace::new(),
+            registers: Rc::new(RefCell::new(ScratchSpace::new(options.layout))),
             context_label: Label::entrypoint(),
             current_section: 0,
             next_section: 1,
@@ -282,13 +278,14 @@ impl<F: AcirField + DebugToString> BrilligContext<F, ScratchSpace> {
 
 /// Special brillig context to codegen global values initialization
 impl<F: AcirField + DebugToString> BrilligContext<F, GlobalSpace> {
+    /// Create a [BrilligContext] with a [GlobalSpace] for memory allocations.
     pub(crate) fn new_for_global_init(
         options: &BrilligOptions,
         entry_point: FunctionId,
     ) -> BrilligContext<F, GlobalSpace> {
         BrilligContext {
             obj: BrilligArtifact::default(),
-            registers: GlobalSpace::new(),
+            registers: Rc::new(RefCell::new(GlobalSpace::new(options.layout))),
             context_label: Label::globals_init(entry_point),
             current_section: 0,
             next_section: 1,
@@ -300,9 +297,10 @@ impl<F: AcirField + DebugToString> BrilligContext<F, GlobalSpace> {
         }
     }
 
+    /// Total size of the global memory space.
     pub(crate) fn global_space_size(&self) -> usize {
-        // `GlobalSpace::start()` is inclusive so we must add one to get the accurate total global memory size
-        (self.registers.max_memory_address() + 1) - GlobalSpace::start()
+        // `GlobalSpace::start` is inclusive so we must add one to get the accurate total global memory size
+        (self.registers().max_memory_address() + 1) - self.registers().start()
     }
 }
 
@@ -389,6 +387,7 @@ pub(crate) mod tests {
             enable_debug_trace: true,
             enable_debug_assertions: true,
             enable_array_copy_counter: false,
+            ..Default::default()
         };
         let mut context = BrilligContext::new("test", &options);
         context.enter_context(Label::function(id));
@@ -404,9 +403,10 @@ pub(crate) mod tests {
             enable_debug_trace: false,
             enable_debug_assertions: context.enable_debug_assertions,
             enable_array_copy_counter: context.count_arrays_copied,
+            ..Default::default()
         };
         let artifact = context.artifact();
-        let mut entry_point_artifact = BrilligContext::new_entry_point_artifact(
+        let (mut entry_point_artifact, stack_start) = BrilligContext::new_entry_point_artifact(
             arguments,
             returns,
             FunctionId::test_new(0),
@@ -421,7 +421,7 @@ pub(crate) mod tests {
             let LabelType::Procedure(procedure_id) = unresolved_fn_label.label_type else {
                 panic!("Test functions cannot be linked with other functions");
             };
-            let procedure_artifact = compile_procedure(procedure_id, &options);
+            let procedure_artifact = compile_procedure(procedure_id, &options, stack_start);
             entry_point_artifact.link_with(&procedure_artifact);
         }
         entry_point_artifact.finish()
@@ -459,6 +459,7 @@ pub(crate) mod tests {
             enable_debug_trace: true,
             enable_debug_assertions: true,
             enable_array_copy_counter: false,
+            ..Default::default()
         };
         let mut context = BrilligContext::new("test", &options);
         let r_stack = ReservedRegisters::free_memory_pointer();

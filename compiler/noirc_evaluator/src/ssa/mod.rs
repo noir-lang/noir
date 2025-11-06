@@ -183,8 +183,9 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         SsaPass::new(Ssa::expand_signed_math, "Expand signed math"),
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
         SsaPass::new(Ssa::flatten_cfg, "Flattening"),
-        // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores
-        SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
+        // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores,
+        // then try to free memory before inlining, which involves copying a instructions.
+        SsaPass::new(Ssa::mem2reg, "Mem2Reg").and_then(Ssa::remove_unused_instructions),
         // Run the inlining pass again to handle functions with `InlineType::NoPredicates`.
         // Before flattening is run, we treat functions marked with the `InlineType::NoPredicates` as an entry point.
         // This pass must come immediately following `mem2reg` as the succeeding passes
@@ -234,6 +235,10 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new(Ssa::remove_truncate_after_range_check, "Removing Truncate after RangeCheck"),
         SsaPass::new(Ssa::checked_to_unchecked, "Checked to unchecked"),
+        SsaPass::new(
+            |ssa| ssa.fold_constants_using_constraints(options.constant_folding_max_iter),
+            "Constant Folding using constraints",
+        ),
         SsaPass::new(
             |ssa| ssa.fold_constants_with_brillig(options.constant_folding_max_iter),
             "Inlining Brillig Calls",

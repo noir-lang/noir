@@ -6,12 +6,12 @@ use acvm::{
     },
 };
 
-use crate::ssa::ir::instruction::ErrorType;
+use crate::{brillig::brillig_ir::registers::Allocated, ssa::ir::instruction::ErrorType};
 
 use super::{
     BrilligBinaryOp, BrilligContext, ReservedRegisters,
     artifact::BrilligParameter,
-    brillig_variable::{BrilligArray, BrilligVariable, SingleAddrVariable},
+    brillig_variable::{BrilligVariable, SingleAddrVariable},
     debug_show::DebugToString,
     registers::RegisterAllocator,
 };
@@ -21,7 +21,10 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         &mut self,
         make_iterator: impl FnOnce(&mut BrilligContext<F, Registers>) -> T,
         update_iterator: impl FnOnce(&mut BrilligContext<F, Registers>, &T),
-        make_finish_condition: impl FnOnce(&mut BrilligContext<F, Registers>, &T) -> SingleAddrVariable,
+        make_finish_condition: impl FnOnce(
+            &mut BrilligContext<F, Registers>,
+            &T,
+        ) -> Allocated<SingleAddrVariable, Registers>,
         on_iteration: impl FnOnce(&mut BrilligContext<F, Registers>, &T),
         clean_iterator: impl FnOnce(&mut BrilligContext<F, Registers>, T),
     ) {
@@ -47,8 +50,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         // Exit the loop
         self.enter_section(exit_loop_section);
 
-        // Deallocate our temporary registers
-        self.deallocate_single_addr(should_end);
+        // Free any resources held by the iterator.
         clean_iterator(self, iterator);
     }
 
@@ -62,7 +64,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         on_iteration: impl FnOnce(&mut BrilligContext<F, Registers>, SingleAddrVariable),
     ) {
         let iterator_register = if let Some(loop_start) = loop_start {
-            let iterator_register = SingleAddrVariable::new_usize(self.allocate_register());
+            let iterator_register = self.allocate_single_addr_usize();
             self.mov_instruction(iterator_register.address, loop_start);
             iterator_register
         } else {
@@ -77,8 +79,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         // Loop body
 
         // Check if iterator < loop_bound
-        let iterator_reached_bound =
-            SingleAddrVariable { address: self.allocate_register(), bit_size: 1 };
+        let iterator_reached_bound = self.allocate_single_addr_bool();
 
         self.memory_op_instruction(
             loop_bound,
@@ -92,7 +93,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.jump_if_instruction(iterator_reached_bound.address, exit_loop_label);
 
         // Call the on iteration function
-        on_iteration(self, iterator_register);
+        on_iteration(self, *iterator_register);
 
         // Add step to the iterator register
         self.memory_op_instruction(
@@ -106,10 +107,6 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 
         // Exit the loop
         self.enter_section(exit_loop_section);
-
-        // Deallocate our temporary registers
-        self.deallocate_single_addr(iterator_reached_bound);
-        self.deallocate_single_addr(iterator_register);
     }
 
     /// This codegen will issue a loop that will iterate from 0 to iteration_count
@@ -184,8 +181,8 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.enter_section(end_section);
     }
 
-    /// Emits brillig bytecode to jump to a trap condition if `condition`
-    /// is false. The trap will include the given message as revert data.
+    /// Jump to a trap condition if `condition` is false.
+    /// The trap will include the given message as revert data.
     pub(crate) fn codegen_constrain_with_revert_data(
         &mut self,
         condition: SingleAddrVariable,
@@ -199,19 +196,20 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             // + 1 due to the revert data id being the first item returned
             let revert_data_size = Self::flattened_tuple_size(&revert_data_types) + 1;
             let revert_data_size_var = ctx.make_usize_constant_instruction(revert_data_size.into());
-            let revert_data =
-                HeapVector { pointer: ctx.allocate_register(), size: revert_data_size_var.address };
+            let revert_data = ctx
+                .allocate_register()
+                .map(|pointer| HeapVector { pointer, size: revert_data_size_var.address });
             ctx.codegen_allocate_immediate_mem(revert_data.pointer, revert_data_size);
 
             let current_revert_data_pointer = ctx.allocate_register();
-            ctx.mov_instruction(current_revert_data_pointer, revert_data.pointer);
+            ctx.mov_instruction(*current_revert_data_pointer, revert_data.pointer);
             ctx.indirect_const_instruction(
-                current_revert_data_pointer,
+                *current_revert_data_pointer,
                 64,
                 u128::from(error_selector.as_u64()).into(),
             );
 
-            ctx.codegen_usize_op_in_place(current_revert_data_pointer, BrilligBinaryOp::Add, 1);
+            ctx.codegen_usize_op_in_place(*current_revert_data_pointer, BrilligBinaryOp::Add, 1);
             for (revert_variable, revert_param) in
                 revert_data_items.into_iter().zip(revert_data_types.into_iter())
             {
@@ -219,7 +217,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                 match revert_param {
                     BrilligParameter::SingleAddr(_) => {
                         ctx.store_instruction(
-                            current_revert_data_pointer,
+                            *current_revert_data_pointer,
                             revert_variable.extract_single_addr().address,
                         );
                     }
@@ -230,59 +228,59 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                         ctx.flatten_array(
                             &item_type,
                             item_count,
-                            current_revert_data_pointer,
-                            deflattened_items_pointer,
+                            *current_revert_data_pointer,
+                            *deflattened_items_pointer,
                         );
-
-                        ctx.deallocate_register(deflattened_items_pointer);
                     }
                     BrilligParameter::Slice(_, _) => {
                         unimplemented!("Slices are not supported as revert data")
                     }
                 }
                 ctx.codegen_usize_op_in_place(
-                    current_revert_data_pointer,
+                    *current_revert_data_pointer,
                     BrilligBinaryOp::Add,
                     flattened_size,
                 );
             }
-            ctx.trap_instruction(revert_data);
-            ctx.deallocate_single_addr(revert_data_size_var);
-            ctx.deallocate_register(revert_data.pointer);
-            ctx.deallocate_register(current_revert_data_pointer);
+            ctx.trap_instruction(*revert_data);
         });
     }
 
-    /// Emits brillig bytecode to jump to a trap condition if `condition`
-    /// is false.
+    /// Jump to a trap condition if `condition` is false,
+    /// with any assertion message written to the revert data.
     pub(crate) fn codegen_constrain(
         &mut self,
         condition: SingleAddrVariable,
         assert_message: Option<String>,
     ) {
-        assert!(condition.bit_size == 1);
+        debug_assert!(condition.bit_size == 1);
 
         self.codegen_if_not(condition.address, |ctx| {
             if let Some(assert_message) = assert_message {
                 ctx.revert_with_string(assert_message);
             } else {
-                let revert_data = HeapVector {
-                    pointer: ReservedRegisters::free_memory_pointer(),
-                    size: ctx.make_usize_constant_instruction(0_usize.into()).address,
-                };
-                ctx.trap_instruction(revert_data);
-                ctx.deallocate_register(revert_data.size);
+                // Create an empty revert data vector, with 0 size pointing at the start of free memory.
+                let revert_data =
+                    ctx.make_usize_constant_instruction(0_usize.into()).map(|size| HeapVector {
+                        pointer: ReservedRegisters::free_memory_pointer(),
+                        size: size.address,
+                    });
+                ctx.trap_instruction(*revert_data);
             };
         });
     }
 
+    /// Emits bytecode with a trap opcode, reverting with data that contains a specific error message.
     pub(super) fn revert_with_string(&mut self, revert_string: String) {
         if self.can_call_procedures {
             self.call_revert_with_string_procedure(revert_string);
         } else {
             let error_type = ErrorType::String(revert_string);
+            // Get a hash selector for the custom error type with the message and store it in the artifact.
             let error_selector = error_type.selector();
             self.obj.error_types.insert(error_selector, error_type);
+            // Write the selector to the free memory pointer and return it as revert data.
+            // No need to increment the free memory pointer after this, since it's a trap.
             self.indirect_const_instruction(
                 ReservedRegisters::free_memory_pointer(),
                 64,
@@ -349,13 +347,13 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                         BrilligParameter::SingleAddr(_) => {
                             self.codegen_load_with_offset(
                                 deflattened_items_pointer,
-                                source_index,
-                                movement_register,
+                                *source_index,
+                                *movement_register,
                             );
                             self.codegen_store_with_offset(
                                 flattened_array_pointer,
-                                target_index,
-                                movement_register,
+                                *target_index,
+                                *movement_register,
                             );
                             target_offset += 1;
                         }
@@ -363,54 +361,42 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                             nested_array_item_type,
                             nested_array_item_count,
                         ) => {
-                            let deflattened_nested_array = BrilligArray {
-                                pointer: self.allocate_register(),
-                                size: *nested_array_item_count,
-                            };
+                            let deflattened_nested_array =
+                                self.allocate_brillig_array(*nested_array_item_count);
 
                             self.codegen_load_with_offset(
                                 deflattened_items_pointer,
-                                source_index,
+                                *source_index,
                                 deflattened_nested_array.pointer,
                             );
                             let deflattened_nested_array_items =
-                                self.codegen_make_array_items_pointer(deflattened_nested_array);
+                                self.codegen_make_array_items_pointer(*deflattened_nested_array);
 
                             let flattened_nested_array_pointer = self.allocate_register();
                             self.memory_op_instruction(
                                 flattened_array_pointer,
                                 target_index.address,
-                                flattened_nested_array_pointer,
+                                *flattened_nested_array_pointer,
                                 BrilligBinaryOp::Add,
                             );
 
                             self.flatten_array(
                                 nested_array_item_type,
                                 *nested_array_item_count,
-                                flattened_nested_array_pointer,
-                                deflattened_nested_array_items,
+                                *flattened_nested_array_pointer,
+                                *deflattened_nested_array_items,
                             );
-
-                            self.deallocate_register(deflattened_nested_array.pointer);
-                            self.deallocate_register(deflattened_nested_array_items);
-                            self.deallocate_register(flattened_nested_array_pointer);
 
                             target_offset += Self::flattened_size(subitem);
                         }
                         BrilligParameter::Slice(..) => unreachable!("ICE: Cannot flatten slices"),
                     }
-
-                    self.deallocate_single_addr(source_index);
-                    self.deallocate_single_addr(target_index);
                 }
             }
-
-            self.deallocate_register(movement_register);
         } else {
             let item_count =
                 self.make_usize_constant_instruction((item_count * item_type.len()).into());
-            self.codegen_mem_copy(deflattened_items_pointer, flattened_array_pointer, item_count);
-            self.deallocate_single_addr(item_count);
+            self.codegen_mem_copy(deflattened_items_pointer, flattened_array_pointer, *item_count);
         }
     }
 }

@@ -1,5 +1,3 @@
-use std::vec;
-
 use acvm::{AcirField, acir::brillig::MemoryAddress};
 
 use super::ProcedureId;
@@ -17,12 +15,10 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         destination_pointer: MemoryAddress,
         num_elements_variable: MemoryAddress,
     ) {
-        self.mov_instruction(MemoryAddress::direct(ScratchSpace::start()), source_pointer);
-        self.mov_instruction(MemoryAddress::direct(ScratchSpace::start() + 1), destination_pointer);
-        self.mov_instruction(
-            MemoryAddress::direct(ScratchSpace::start() + 2),
-            num_elements_variable,
-        );
+        let scratch_start = ScratchSpace::start();
+        self.mov_instruction(MemoryAddress::direct(scratch_start), source_pointer);
+        self.mov_instruction(MemoryAddress::direct(scratch_start + 1), destination_pointer);
+        self.mov_instruction(MemoryAddress::direct(scratch_start + 2), num_elements_variable);
         self.add_procedure_call_instruction(ProcedureId::MemCopy);
     }
 }
@@ -30,15 +26,8 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 pub(super) fn compile_mem_copy_procedure<F: AcirField + DebugToString>(
     brillig_context: &mut BrilligContext<F, ScratchSpace>,
 ) {
-    let source_pointer = MemoryAddress::direct(ScratchSpace::start());
-    let destination_pointer = MemoryAddress::direct(ScratchSpace::start() + 1);
-    let num_elements_variable = MemoryAddress::direct(ScratchSpace::start() + 2);
-
-    brillig_context.set_allocated_registers(vec![
-        source_pointer,
-        destination_pointer,
-        num_elements_variable,
-    ]);
+    let [source_pointer, destination_pointer, num_elements_variable] =
+        brillig_context.allocate_scratch_registers();
 
     brillig_context.codegen_mem_copy(
         source_pointer,

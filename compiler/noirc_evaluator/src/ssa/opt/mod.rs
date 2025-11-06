@@ -34,12 +34,14 @@ mod remove_if_else;
 mod remove_truncate_after_range_check;
 mod remove_unreachable_functions;
 mod remove_unreachable_instructions;
+mod remove_unused_instructions;
 mod simple_optimization;
 mod simplify_cfg;
 mod unrolling;
 
 pub use constant_folding::DEFAULT_MAX_ITER as CONSTANT_FOLDING_MAX_ITER;
 pub use inlining::MAX_INSTRUCTIONS as INLINING_MAX_INSTRUCTIONS;
+pub(crate) use unrolling::Loops;
 
 /// Asserts that the given SSA, after normalizing its IDs and printing it,
 /// is equal to the expected string. Normalization is done so the IDs don't

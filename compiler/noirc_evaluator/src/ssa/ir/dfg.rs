@@ -335,10 +335,8 @@ impl DataFlowGraph {
                         if self[id] == instruction {
                             // Just (re)insert into the block, no need to redefine.
                             self.blocks[block].insert_instruction(id);
-                            return InsertInstructionResult::Results(
-                                id,
-                                self.instruction_results(id),
-                            );
+                            let results = self.instruction_results(id);
+                            return InsertInstructionResult::Results(id, results);
                         }
                     }
                 }
@@ -588,10 +586,19 @@ impl DataFlowGraph {
 
     /// Remove an instruction by replacing it with a `Noop` instruction.
     /// Doing this avoids shifting over each instruction after this one in its block's instructions vector.
-    #[allow(unused)]
     pub(crate) fn remove_instruction(&mut self, instruction: InstructionId) {
         self.instructions[instruction] = Instruction::Noop;
         self.results.insert(instruction, smallvec::SmallVec::new());
+    }
+
+    /// Remove instructions for which the `keep` functions returns `false`.
+    pub(crate) fn retain_instructions(&mut self, keep: impl Fn(InstructionId) -> bool) {
+        for i in 0..self.instructions.len() {
+            let id = InstructionId::new(i as u32);
+            if !keep(id) {
+                self.remove_instruction(id);
+            }
+        }
     }
 
     /// Add a parameter to the given block
@@ -731,7 +738,8 @@ impl DataFlowGraph {
         }
     }
 
-    /// True if the given ValueId refers to a (recursively) constant value
+    /// True if the given [ValueId] refers to a constant value.
+    /// A [MakeArray][Instruction::MakeArray] instruction is considered constant if all its elements are constants.
     pub(crate) fn is_constant(&self, argument: ValueId) -> bool {
         match &self[argument] {
             Value::Param { .. } => false,
@@ -806,6 +814,17 @@ impl DataFlowGraph {
             Type::Slice(_) => ArrayOffset::Slice,
             _ => ArrayOffset::None,
         }
+    }
+
+    /// Check if the results of an instruction are used in the databus to return a value..
+    ///
+    /// This only applies to ACIR, as in Brillig the databus will always be empty.
+    pub(crate) fn is_returned_in_databus(&self, instruction_id: InstructionId) -> bool {
+        let Some(return_data) = self.data_bus.return_data else {
+            return false;
+        };
+        let results = self.instruction_results(instruction_id);
+        results.contains(&return_data)
     }
 }
 

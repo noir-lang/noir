@@ -1117,6 +1117,12 @@ pub enum SecondaryAttributeKind {
 
     /// Allow chosen warnings to happen so they are silenced.
     Allow(String),
+
+    /// Unlike Rust, all values in Noir already warn if they are not used.
+    ///
+    /// Instead, `#[must_use]` in Noir promotes this warning to a hard error, with
+    /// an optional message for the error.
+    MustUse(Option<String>),
 }
 
 impl SecondaryAttributeKind {
@@ -1146,6 +1152,18 @@ impl SecondaryAttributeKind {
             SecondaryAttributeKind::Varargs => "varargs".to_string(),
             SecondaryAttributeKind::UseCallersScope => "use_callers_scope".to_string(),
             SecondaryAttributeKind::Allow(k) => format!("allow({k})"),
+            SecondaryAttributeKind::MustUse(None) => "must_use".to_string(),
+            SecondaryAttributeKind::MustUse(Some(msg)) => format!("must_use = \"{msg}\""),
+        }
+    }
+
+    /// If this is a `#[must_use]` attribute, return `Some(message)` where message is the
+    /// optional message. Otherwise, return `None`. Since `message` itself is optional,
+    /// `Some(None)` indicates there is a `must_use` but no message was provided.
+    pub(crate) fn must_use_message(&self) -> Option<Option<String>> {
+        match self {
+            SecondaryAttributeKind::MustUse(message) => Some(message.clone()),
+            _ => None,
         }
     }
 }

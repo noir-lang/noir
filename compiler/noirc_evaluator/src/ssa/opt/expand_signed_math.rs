@@ -326,11 +326,7 @@ fn expand_signed_math_post_check(func: &Function) {
 mod tests {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{
-            interpreter::value::{NumericValue, Value},
-            opt::assert_ssa_does_not_change,
-            ssa_gen::Ssa,
-        },
+        ssa::{interpreter::value::Value, opt::assert_ssa_does_not_change, ssa_gen::Ssa},
     };
 
     #[test]
@@ -357,14 +353,11 @@ mod tests {
             (20, -10, false),
         ];
         for (lhs, rhs, expected) in test_cases {
-            let result = ssa.interpret(vec![
-                Value::Numeric(NumericValue::I8(lhs)),
-                Value::Numeric(NumericValue::I8(rhs)),
-            ]);
+            let result = ssa.interpret(vec![Value::i8(lhs), Value::i8(rhs)]);
             assert!(result.is_ok());
             let result = result.unwrap();
             assert_eq!(result.len(), 1);
-            assert_eq!(result[0], Value::Numeric(NumericValue::U1(expected)));
+            assert_eq!(result[0], Value::bool(expected));
         }
 
         assert_ssa_snapshot!(ssa, @r"
@@ -409,17 +402,11 @@ mod tests {
         let ssa = ssa.expand_signed_math();
 
         // Check that -128 i8 / -1 i8 overflows
-        let result = ssa.interpret(vec![
-            Value::Numeric(NumericValue::I8(-128)),
-            Value::Numeric(NumericValue::I8(-1)),
-        ]);
+        let result = ssa.interpret(vec![Value::i8(-128), Value::i8(-1)]);
         assert!(result.is_err());
 
         // Check that 10 i8 / 0 i8 overflows
-        let result = ssa.interpret(vec![
-            Value::Numeric(NumericValue::I8(10)),
-            Value::Numeric(NumericValue::I8(0)),
-        ]);
+        let result = ssa.interpret(vec![Value::i8(10), Value::i8(0)]);
         assert!(result.is_err());
 
         assert_ssa_snapshot!(ssa, @r#"
@@ -485,17 +472,11 @@ mod tests {
         let ssa = ssa.expand_signed_math();
 
         // Check that -128 i8 / -1 i8 overflows
-        let result = ssa.interpret(vec![
-            Value::Numeric(NumericValue::I8(-128)),
-            Value::Numeric(NumericValue::I8(-1)),
-        ]);
+        let result = ssa.interpret(vec![Value::i8(-128), Value::i8(-1)]);
         assert!(result.is_err());
 
         // Check that 10 i8 / 0 i8 overflows
-        let result = ssa.interpret(vec![
-            Value::Numeric(NumericValue::I8(10)),
-            Value::Numeric(NumericValue::I8(0)),
-        ]);
+        let result = ssa.interpret(vec![Value::i8(10), Value::i8(0)]);
         assert!(result.is_err());
 
         assert_ssa_snapshot!(ssa, @r#"
@@ -519,17 +500,16 @@ mod tests {
             v20 = unchecked_add v3, v19
             v21 = mod v16, v20
             v22 = cast v10 as u1
-            v23 = cast v10 as u8
-            v24 = unchecked_sub u8 128, v21
-            v25 = unchecked_mul v24, v23
-            v26 = unchecked_mul v25, u8 2
-            v27 = unchecked_add v21, v26
-            v29 = eq v21, u8 0
-            v30 = not v29
-            v31 = cast v30 as u8
-            v32 = unchecked_mul v27, v31
-            v33 = cast v32 as i8
-            return v33
+            v23 = unchecked_sub u8 128, v21
+            v24 = unchecked_mul v23, v10
+            v25 = unchecked_mul v24, u8 2
+            v26 = unchecked_add v21, v25
+            v28 = eq v21, u8 0
+            v29 = not v28
+            v30 = cast v29 as u8
+            v31 = unchecked_mul v26, v30
+            v32 = cast v31 as i8
+            return v32
         }
         "#);
     }

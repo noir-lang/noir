@@ -19,35 +19,12 @@
 //!  - `unconstrained_functions`: the Brillig bytecode of the unconstrained functions used by the program.
 //!  - `assertion_payloads`: additional information used to provide feedback to the user when an assertion fails.
 //!
-//! Returns: ACVM Status
-//! - `Solved`: all witness have been successfully computed, execution is complete.
-//! - `InProgress`: The ACVM is processing the circuit, i.e solving the opcodes. This status is used to resume execution after it has been paused.
-//! - `Failure(OpcodeResolutionError<F>)`: Error, execution is stopped.
-//! - `RequiresForeignCall(ForeignCallWaitInfo<F>)`: Execution is paused until the result of a foreign call is provided
-//! - `RequiresAcirCall(AcirCallWaitInfo<F>)`: Execution is paused until the result of an ACIR call is provided
+//! Returns: [`ACVMStatus`]
 //!
 //! Each opcode is solved independently. In general we require its inputs to be already known, i.e previously solved,
 //! and the output is simply computed from the inputs, and then the output becomes 'known' for the subsequent opcodes.
 //!
-//! - AssertZero opcode: The arithmetic expression of the opcode is solved for one unknown witness.
-//!   It will fail if there is more than one unknown witness in the expression.
-//!
-//! - BlackBoxFuncCall opcode: The blackbox module knows how to compute the result of the function when all its input are known.
-//!
-//! - MemoryInit opcode: Instantiate a MemoryOpSolver for the opcode's array, using the given initial values.
-//!   Initial witness values must be known. The memory values will be updated later by MemoryOp opcodes.
-//!
-//! - MemoryOp opcode: Update the memory values of the opcode's array from the opcode witness values:
-//!   A read operation will solve the corresponding witness value, reading the memory value tracked by the MemoryOpSolver at the (known value) of the opcode index.
-//!   A write operation will update the memory value tracked by the MemoryOpSolver using the known values of the opcode index/value witnesses.
-//!
-//! - BrilligCall opcode: Calls an unconstrained Brillig function by instantiating a BrilligSolver (i.e a Brillig VM).
-//!   If the function is a foreign call, the `solve()` will halt and wait for the caller to resolve the foreign call.
-//!
-//! - Call opcode: Execute the ACIR call in a separate ACVM instance. The result of the ACIR call will be passed back to the ACVM using a
-//!   mechanism similar to the one for foreign calls.
-//!
-//!
+//! See [`acir::circuit::Opcode`] for more details.
 //!
 //! Example:
 // Compiled ACIR for main (non-transformed):
@@ -71,9 +48,6 @@
 //! Indeed, some ACIR pass can transform the ACIR program in order to apply optimizations,
 //! or to make it compatible with a specific proving system.
 //! However, ACIR execution is expected to work on any ACIR program (transformed or not).
-//! Then the program indicates the 'current witness', which is the lasted witness used in the program.
-//! Any transformation that needs to add more witness will use it in order to not overlap with
-//! existing witnesses. This is not relevant for execution.
 //! Then we see the parameters of the program as public and private inputs.
 //! The `initial_witness` needs to contain values for these parameters before execution, else
 //! the execution will fail.
@@ -87,10 +61,10 @@
 //! corresponding Brillig bytecode and instantiate a Brillig VM with the value of the input. This value was just computed before.
 //! Executing the Brillig VM on this input will give us the output which is the value for `w7`, that we add to `initial_witness`.
 //! The next opcode is again an AssertZero: `w6 * w7 + w8 - 1 = 0`, which computes the value of `w8`.
-//! The two next opcode are AssertZero without any unknown witness: `w6 * w8 = 0` and `w1 * w8 = 0`
-//! Solving such opcodes means that we compute `w6 * w8 ` and `w1 * w8` using the known values, and check that it is 0.
+//! The two next opcodes are AssertZero without any unknown witnesses: `w6 * w8 = 0` and `w1 * w8 = 0`
+//! Solving such opcodes means that we compute `w6 * w8 ` and `w1 * w8` using the known values, and check that they evaluate to 0.
 //! If not, we would return an error.
-//! Finally, the last AssertZero computes `w9` which is the last witness. All the witness have now been computed; execution is complete.
+//! Finally, the last AssertZero computes `w9` which is the last witness. All of the witnesses have now been computed; execution is complete.
 
 use std::collections::HashMap;
 
@@ -99,13 +73,13 @@ use acir::{
     brillig::ForeignCallResult,
     circuit::{
         AssertionPayload, ErrorSelector, ExpressionOrMemory, Opcode, OpcodeLocation,
-        brillig::{BrilligBytecode, BrilligFunctionId},
+        brillig::{BrilligBytecode, BrilligFunctionId, BrilligInputs, BrilligOutputs},
         opcodes::{AcirFunctionId, BlockId, FunctionInput, InvalidInputBitSize},
     },
     native_types::{Expression, Witness, WitnessMap},
 };
 use acvm_blackbox_solver::BlackBoxResolutionError;
-use brillig_vm::BranchToFeatureMap;
+use brillig_vm::fuzzing::BranchToFeatureMap;
 
 use self::{arithmetic::ExpressionSolver, memory_op::MemoryOpSolver};
 use crate::BlackBoxFunctionSolver;
@@ -126,10 +100,10 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ACVMStatus<F> {
-    /// All opcodes have been solved.
+    /// All witnesses have been computed and all opcodes have been successfully resolved. Execution is complete.
     Solved,
 
-    /// The ACVM is in the process of executing the circuit.
+    /// The ACVM is processing the circuit, i.e solving the opcodes. This status is used to resume execution after it has been paused.
     InProgress,
 
     /// The ACVM has encountered an irrecoverable error while executing the circuit and can not progress.
@@ -173,9 +147,9 @@ pub enum StepResult<'a, F, B: BlackBoxFunctionSolver<F>> {
 // The most common being that one of its input has not been
 // assigned a value.
 //
-// TODO: ExpressionHasTooManyUnknowns is specific for expression solver
-// TODO: we could have a error enum for expression solver failure cases in that module
-// TODO that can be converted into an OpcodeNotSolvable or OpcodeResolutionError enum
+// TODO(https://github.com/noir-lang/noir/issues/10052): ExpressionHasTooManyUnknowns is specific for expression solver
+// TODO(https://github.com/noir-lang/noir/issues/10052): we could have a error enum for expression solver failure cases in that module
+// TODO(https://github.com/noir-lang/noir/issues/10052): that can be converted into an OpcodeNotSolvable or OpcodeResolutionError enum
 #[derive(Clone, PartialEq, Eq, Debug, Error)]
 pub enum OpcodeNotSolvable<F> {
     #[error("missing assignment for witness index {0}")]
@@ -186,7 +160,8 @@ pub enum OpcodeNotSolvable<F> {
     ExpressionHasTooManyUnknowns(Expression<F>),
 }
 
-/// Allows to point to a specific opcode as cause in errors.
+/// Used by errors to point to a specific opcode as that error's cause
+///
 /// Some errors don't have a specific opcode associated with them, or are created without one and added later.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
 pub enum ErrorLocation {
@@ -258,6 +233,8 @@ pub enum OpcodeResolutionError<F> {
     AcirCallOutputsMismatch { opcode_location: ErrorLocation, results_size: u32, outputs_size: u32 },
     #[error("(--pedantic): Predicates are expected to be 0 or 1, but found: {pred_value}")]
     PredicateLargerThanOne { opcode_location: ErrorLocation, pred_value: F },
+    #[error("(--pedantic): Memory operations are expected to be 0 or 1, but found: {operation}")]
+    MemoryOperationLargerThanOne { opcode_location: ErrorLocation, operation: F },
 }
 
 impl<F> From<BlackBoxResolutionError> for OpcodeResolutionError<F> {
@@ -500,6 +477,10 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
         self.status.clone()
     }
 
+    fn current_opcode(&self) -> &'a Opcode<F> {
+        &self.opcodes[self.instruction_pointer]
+    }
+
     /// Executes a single opcode using the dedicated solver.
     ///
     /// Foreign or ACIR Calls are deferred to the caller, which will
@@ -507,8 +488,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
     /// or a custom implementation to execute the foreign call.
     /// Then it will resume execution of the current ACVM with the results of the call.
     pub fn solve_opcode(&mut self) -> ACVMStatus<F> {
-        let opcode = &self.opcodes[self.instruction_pointer];
-        let resolution = match opcode {
+        let resolution = match self.current_opcode() {
             Opcode::AssertZero(expr) => ExpressionSolver::solve(&mut self.witness_map, expr),
             Opcode::BlackBoxFuncCall(bb_func) => {
                 blackbox::solve(self.backend, &mut self.witness_map, bb_func)
@@ -524,21 +504,20 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
                     .block_solvers
                     .get_mut(block_id)
                     .expect("Memory block should have been initialized before use");
-                solver.solve_memory_op(
-                    op,
-                    &mut self.witness_map,
-                    &None,
-                    self.backend.pedantic_solving(),
-                )
+                solver.solve_memory_op(op, &mut self.witness_map, self.backend.pedantic_solving())
             }
-            Opcode::BrilligCall { .. } => match self.solve_brillig_call_opcode() {
-                Ok(Some(foreign_call)) => return self.wait_for_foreign_call(foreign_call),
-                res => res.map(|_| ()),
-            },
-            Opcode::Call { .. } => match self.solve_call_opcode() {
-                Ok(Some(input_values)) => return self.wait_for_acir_call(input_values),
-                res => res.map(|_| ()),
-            },
+            Opcode::BrilligCall { id, inputs, outputs, predicate } => {
+                match self.solve_brillig_call_opcode(id, inputs, outputs, predicate) {
+                    Ok(Some(foreign_call)) => return self.wait_for_foreign_call(foreign_call),
+                    res => res.map(|_| ()),
+                }
+            }
+            Opcode::Call { id, inputs, outputs, predicate } => {
+                match self.solve_call_opcode(id, inputs, outputs, predicate) {
+                    Ok(Some(input_values)) => return self.wait_for_acir_call(input_values),
+                    res => res.map(|_| ()),
+                }
+            }
         };
         self.handle_opcode_resolution(resolution)
     }
@@ -560,8 +539,8 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
             }
             Err(mut error) => {
                 match &mut error {
-                    // If we have an index out of bounds or an unsatisfied constraint, the opcode label will be unresolved
-                    // because the solvers do not have knowledge of this information.
+                    // If we have an index out of bounds, unsatisfied constraint, or an invalid input bit size,
+                    // the opcode label will be unresolved because the solvers do not have knowledge of this information.
                     // We resolve, by setting this to the corresponding opcode that we just attempted to solve.
                     OpcodeResolutionError::IndexOutOfBounds {
                         opcode_location: opcode_index,
@@ -626,13 +605,11 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
     /// Then it executes (or resumes execution) the Brillig function using a Brillig VM.
     fn solve_brillig_call_opcode(
         &mut self,
+        id: &BrilligFunctionId,
+        inputs: &'a [BrilligInputs<F>],
+        outputs: &[BrilligOutputs],
+        predicate: &Option<Expression<F>>,
     ) -> Result<Option<ForeignCallWaitInfo<F>>, OpcodeResolutionError<F>> {
-        let Opcode::BrilligCall { id, inputs, outputs, predicate } =
-            &self.opcodes[self.instruction_pointer]
-        else {
-            unreachable!("Not executing a BrilligCall opcode");
-        };
-
         let opcode_location =
             ErrorLocation::Resolved(OpcodeLocation::Acir(self.instruction_pointer()));
         if is_predicate_false(
@@ -712,9 +689,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
 
     // This function is used by the debugger
     pub fn step_into_brillig(&mut self) -> StepResult<'a, F, B> {
-        let Opcode::BrilligCall { id, inputs, outputs, predicate } =
-            &self.opcodes[self.instruction_pointer]
-        else {
+        let Opcode::BrilligCall { id, inputs, outputs, predicate } = self.current_opcode() else {
             return StepResult::Status(self.solve_opcode());
         };
 
@@ -754,7 +729,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
 
     // This function is used by the debugger
     pub fn finish_brillig_with_solver(&mut self, solver: BrilligSolver<'a, F, B>) -> ACVMStatus<F> {
-        if !matches!(self.opcodes[self.instruction_pointer], Opcode::BrilligCall { .. }) {
+        if !matches!(self.current_opcode(), Opcode::BrilligCall { .. }) {
             unreachable!("Not executing a Brillig/BrilligCall opcode");
         }
         self.brillig_solver = Some(solver);
@@ -768,13 +743,11 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
     /// 3. If the results are available, it updates the witness map and indicates that the opcode is solved.
     pub fn solve_call_opcode(
         &mut self,
+        id: &AcirFunctionId,
+        inputs: &[Witness],
+        outputs: &[Witness],
+        predicate: &Option<Expression<F>>,
     ) -> Result<Option<AcirCallWaitInfo<F>>, OpcodeResolutionError<F>> {
-        let Opcode::Call { id, inputs, outputs, predicate } =
-            &self.opcodes[self.instruction_pointer]
-        else {
-            unreachable!("Not executing a Call opcode");
-        };
-
         let opcode_location =
             ErrorLocation::Resolved(OpcodeLocation::Acir(self.instruction_pointer()));
         if *id == AcirFunctionId(0) {
@@ -834,8 +807,6 @@ pub fn witness_to_value<F>(
     }
 }
 
-// TODO(https://github.com/noir-lang/noir/issues/5985):
-// remove skip_bitsize_checks
 pub fn input_to_value<F: AcirField>(
     initial_witness: &WitnessMap<F>,
     input: FunctionInput<F>,
@@ -921,9 +892,11 @@ fn any_witness_from_expression<F>(expr: &Expression<F>) -> Option<Witness> {
     }
 }
 
-/// Returns `true` if the predicate is zero
+/// Returns `Ok(true)` if the predicate is zero
 /// A predicate is used to indicate whether we should skip a certain operation.
 /// If we have a zero predicate it means the operation should be skipped.
+///
+/// Returns `Ok(false)` when the `predicate` is `None`.
 pub(crate) fn is_predicate_false<F: AcirField>(
     witness: &WitnessMap<F>,
     predicate: &Option<Expression<F>>,
@@ -951,6 +924,10 @@ pub(crate) fn is_predicate_false<F: AcirField>(
     }
 }
 
+/// Encapsulates a request from the ACVM that encounters an [ACIR call opcode][brillig_vm::brillig::Opcode::Call]
+/// where the result of the circuit execution has not yet been provided.
+///
+/// The caller must resolve this opcode externally based upon the information in the request.
 #[derive(Debug, Clone, PartialEq)]
 pub struct AcirCallWaitInfo<F> {
     /// Index in the list of ACIR function's that should be called
@@ -965,14 +942,11 @@ mod tests {
 
     use acir::{
         FieldElement,
-        circuit::{
-            Opcode,
-            opcodes::{BlackBoxFuncCall, FunctionInput},
-        },
         native_types::{Witness, WitnessMap},
+        parse_opcodes,
     };
 
-    use crate::pwg::{ACVM, ACVMStatus};
+    use crate::pwg::{ACVM, ACVMStatus, OpcodeResolutionError};
 
     #[test]
     fn solve_simple_circuit() {
@@ -982,38 +956,36 @@ mod tests {
             (Witness(3), FieldElement::from(2u128)),
         ]));
         let backend = acvm_blackbox_solver::StubbedBlackBoxSolver(false);
-        let opcodes = vec![
-            Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
-                input: FunctionInput::Witness(Witness(1)),
-                num_bits: 32,
-            }),
-            Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
-                input: FunctionInput::Witness(Witness(2)),
-                num_bits: 32,
-            }),
-            Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
-                input: FunctionInput::Witness(Witness(3)),
-                num_bits: 32,
-            }),
-            Opcode::AssertZero(acir::native_types::Expression {
-                mul_terms: vec![],
-                linear_combinations: vec![
-                    (FieldElement::from(2u128), Witness(1)),
-                    (FieldElement::from(-1_i128), Witness(2)),
-                    (FieldElement::from(-1_i128), Witness(4)),
-                ],
-                q_c: FieldElement::from(0u128),
-            }),
-            Opcode::AssertZero(acir::native_types::Expression {
-                mul_terms: vec![(FieldElement::from(1u128), Witness(2), Witness(4))],
-                linear_combinations: vec![(FieldElement::from(1u128), Witness(5))],
-                q_c: FieldElement::from(-1_i128),
-            }),
-        ];
-        let empty1 = Vec::new();
-        let empty2 = Vec::new();
-        let mut acvm = ACVM::new(&backend, &opcodes, initial_witness, &empty1, &empty2);
+
+        let src = "
+        BLACKBOX::RANGE input: w1, bits: 32
+        BLACKBOX::RANGE input: w2, bits: 32
+        BLACKBOX::RANGE input: w3, bits: 32
+        ASSERT w4 = 2*w1 - w2
+        ASSERT w5 = -w2*w4 + 1
+        ";
+        let opcodes = parse_opcodes(src).unwrap();
+
+        let mut acvm = ACVM::new(&backend, &opcodes, initial_witness, &[], &[]);
         assert_eq!(acvm.solve(), ACVMStatus::Solved);
         assert_eq!(acvm.witness_map()[&Witness(5)], FieldElement::from(0u128));
+    }
+
+    #[test]
+    fn errors_when_calling_function_zero() {
+        let initial_witness =
+            WitnessMap::from(BTreeMap::from_iter([(Witness(1), FieldElement::from(1u128))]));
+        let backend = acvm_blackbox_solver::StubbedBlackBoxSolver(false);
+
+        let src = "
+        CALL func: 0, inputs: [w1], outputs: [w2]
+        ";
+        let opcodes = parse_opcodes(src).unwrap();
+
+        let mut acvm = ACVM::new(&backend, &opcodes, initial_witness, &[], &[]);
+        assert!(matches!(
+            acvm.solve(),
+            ACVMStatus::Failure(OpcodeResolutionError::AcirMainCallAttempted { .. })
+        ));
     }
 }

@@ -928,8 +928,13 @@ impl<'a> Parser<'a> {
 
     fn parse_types(&mut self) -> ParseResult<Vec<Type>> {
         if self.eat(Token::LeftParen)? {
-            let types = self.parse_comma_separated_types()?;
-            self.eat_or_error(Token::RightParen)?;
+            let types = if self.eat(Token::RightParen)? {
+                Vec::new()
+            } else {
+                let types = self.parse_comma_separated_types()?;
+                self.eat_or_error(Token::RightParen)?;
+                types
+            };
             Ok(types)
         } else {
             Ok(vec![self.parse_type()?])

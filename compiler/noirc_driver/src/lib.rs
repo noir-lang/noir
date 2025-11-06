@@ -44,7 +44,7 @@ pub use contract::{CompiledContract, CompiledContractOutputs, ContractFunction};
 pub use debug::DebugFile;
 pub use noirc_frontend::graph::{CrateId, CrateName};
 pub use program::CompiledProgram;
-pub use stdlib::stdlib_paths_with_source;
+pub use stdlib::{stdlib_nargo_toml_source, stdlib_paths_with_source};
 
 const STD_CRATE_NAME: &str = "std";
 const DEBUG_CRATE_NAME: &str = "__debug";
@@ -58,7 +58,7 @@ pub const NOIRC_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const NOIR_ARTIFACT_VERSION_STRING: &str =
     concat!(env!("CARGO_PKG_VERSION"), "+", env!("GIT_COMMIT"));
 
-#[derive(Args, Clone, Debug, Default)]
+#[derive(Args, Clone, Debug)]
 pub struct CompileOptions {
     /// Specify the backend expression width that should be targeted
     #[arg(long, value_parser = parse_expression_width)]
@@ -178,7 +178,7 @@ pub struct CompileOptions {
     /// Setting to decide on an inlining strategy for Brillig functions.
     /// A more aggressive inliner should generate larger programs but more optimized
     /// A less aggressive inliner should generate smaller programs
-    #[arg(long, hide = true, allow_hyphen_values = true, default_value_t = i64::MAX)]
+    #[arg(long, allow_hyphen_values = true, default_value_t = i64::MAX)]
     pub inliner_aggressiveness: i64,
 
     /// Maximum number of iterations to do in constant folding, as long as new values are being hoisted.
@@ -232,6 +232,47 @@ pub struct CompileOptions {
     pub disable_comptime_printing: bool,
 }
 
+impl Default for CompileOptions {
+    fn default() -> Self {
+        Self {
+            expression_width: None,
+            bounded_codegen: false,
+            force_compile: false,
+            show_ssa: false,
+            show_ssa_pass: Vec::new(),
+            with_ssa_locations: false,
+            show_contract_fn: None,
+            skip_ssa_pass: Vec::new(),
+            emit_ssa: false,
+            minimal_ssa: false,
+            show_brillig: false,
+            print_acir: false,
+            benchmark_codegen: false,
+            deny_warnings: false,
+            silence_warnings: false,
+            show_monomorphized: false,
+            instrument_debug: false,
+            force_brillig: false,
+            debug_comptime_in_file: None,
+            show_artifact_paths: false,
+            skip_underconstrained_check: false,
+            skip_brillig_constraints_check: false,
+            enable_brillig_debug_assertions: false,
+            count_array_copies: false,
+            enable_brillig_constraints_check_lookback: false,
+            inliner_aggressiveness: i64::MAX,
+            constant_folding_max_iter: CONSTANT_FOLDING_MAX_ITER,
+            small_function_max_instructions: INLINING_MAX_INSTRUCTIONS,
+            max_bytecode_increase_percent: None,
+            pedantic_solving: false,
+            debug_compile_stdin: false,
+            unstable_features: Vec::new(),
+            no_unstable_features: false,
+            disable_comptime_printing: false,
+        }
+    }
+}
+
 impl CompileOptions {
     pub fn as_ssa_options(&self, package_build_path: PathBuf) -> SsaEvaluatorOptions {
         SsaEvaluatorOptions {
@@ -246,6 +287,7 @@ impl CompileOptions {
                 enable_debug_trace: self.show_brillig,
                 enable_debug_assertions: self.enable_brillig_debug_assertions,
                 enable_array_copy_counter: self.count_array_copies,
+                ..Default::default()
             },
             print_codegen_timings: self.benchmark_codegen,
             expression_width: if self.bounded_codegen {
@@ -651,6 +693,9 @@ fn compile_contract_inner(
         }
 
         let mut options = options.clone();
+        if name == "public_dispatch" {
+            options.inliner_aggressiveness = 0;
+        }
 
         if let Some(ref name_filter) = options.show_contract_fn {
             let show = name == *name_filter;

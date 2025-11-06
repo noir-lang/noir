@@ -1,3 +1,4 @@
+use noirc_errors::Span;
 use noirc_frontend::token::{
     Attribute, Attributes, FunctionAttribute, FunctionAttributeKind, FuzzingScope, MetaAttribute,
     MetaAttributeName, SecondaryAttribute, SecondaryAttributeKind, TestScope, Token,
@@ -97,10 +98,13 @@ impl Formatter<'_> {
                 self.format_one_arg_attribute();
             }
             SecondaryAttributeKind::Tag(_) => {
-                self.write_and_skip_span_without_formatting(attribute.location.span);
+                self.format_tag_attribute(attribute.location.span);
             }
             SecondaryAttributeKind::Meta(meta_attribute) => {
                 self.format_meta_attribute(meta_attribute);
+            }
+            SecondaryAttributeKind::MustUse(message) => {
+                self.format_must_use_attribute(message);
             }
         }
 
@@ -225,6 +229,22 @@ impl Formatter<'_> {
         self.write_right_bracket();
     }
 
+    fn format_must_use_attribute(&mut self, message: Option<String>) {
+        self.write_current_token_and_bump(); // #[
+        self.skip_comments_and_whitespace();
+        self.write_current_token_and_bump(); // name
+
+        if message.is_some() {
+            self.write_space();
+            self.write_token(Token::Assign);
+            self.write_space();
+            self.write_current_token_and_bump(); // message
+            self.skip_comments_and_whitespace();
+        }
+
+        self.write_right_bracket(); // ]
+    }
+
     fn format_no_args_attribute(&mut self) {
         self.write_current_token_and_bump(); // #[
         self.skip_comments_and_whitespace();
@@ -248,6 +268,15 @@ impl Formatter<'_> {
         }
         self.write_right_bracket(); // ]
     }
+
+    /// Removes the trailing whitespaces from the tag attribute.
+    fn format_tag_attribute(&mut self, span: Span) {
+        self.write_source_span_trimmed(span);
+
+        while self.token_span.start() < span.end() && self.token != Token::EOF {
+            self.bump();
+        }
+    }
 }
 
 #[cfg(test)]
@@ -264,6 +293,13 @@ mod tests {
     fn format_inner_tag_attribute() {
         let src = "  #!['foo] ";
         let expected = "#!['foo]\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_inner_tag_attribute_new_line() {
+        let src = "#!['bar]     \n";
+        let expected = "#!['bar]\n";
         assert_format(src, expected);
     }
 
@@ -433,5 +469,23 @@ mod tests {
         let src = " #[foo] #[test] #[bar]  ";
         let expected = "#[foo]\n#[test]\n#[bar]";
         assert_format_attribute(src, expected);
+    }
+
+    #[test]
+    fn format_must_use_attribute() {
+        dbg!();
+        let src = " #[  must_use  ] ";
+        dbg!();
+        let expected = "#[must_use]";
+        dbg!();
+        assert_format_attribute(src, expected);
+        dbg!();
+
+        let src = " #[   must_use   =   \"hey you should really use this thing\"  ]  ";
+        dbg!();
+        let expected = "#[must_use = \"hey you should really use this thing\"]";
+        dbg!();
+        assert_format_attribute(src, expected);
+        dbg!();
     }
 }

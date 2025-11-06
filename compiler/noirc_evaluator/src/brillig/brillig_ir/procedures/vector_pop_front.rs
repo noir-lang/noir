@@ -1,5 +1,3 @@
-use std::vec;
-
 use acvm::{AcirField, acir::brillig::MemoryAddress};
 
 use super::ProcedureId;
@@ -19,10 +17,11 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         destination_vector: BrilligVector,
         item_pop_count: usize,
     ) {
-        let source_vector_length_arg = MemoryAddress::direct(ScratchSpace::start());
-        let source_vector_pointer_arg = MemoryAddress::direct(ScratchSpace::start() + 1);
-        let item_pop_count_arg = MemoryAddress::direct(ScratchSpace::start() + 2);
-        let new_vector_pointer_return = MemoryAddress::direct(ScratchSpace::start() + 3);
+        let scratch_start = ScratchSpace::start();
+        let source_vector_length_arg = MemoryAddress::direct(scratch_start);
+        let source_vector_pointer_arg = MemoryAddress::direct(scratch_start + 1);
+        let item_pop_count_arg = MemoryAddress::direct(scratch_start + 2);
+        let new_vector_pointer_return = MemoryAddress::direct(scratch_start + 3);
 
         self.mov_instruction(source_vector_length_arg, source_len.address);
         self.mov_instruction(source_vector_pointer_arg, source_vector.pointer);
@@ -37,36 +36,31 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 pub(super) fn compile_vector_pop_front_procedure<F: AcirField + DebugToString>(
     brillig_context: &mut BrilligContext<F, ScratchSpace>,
 ) {
-    let source_vector_length_arg = MemoryAddress::direct(ScratchSpace::start());
-    let source_vector_pointer_arg = MemoryAddress::direct(ScratchSpace::start() + 1);
-    let item_pop_count_arg = MemoryAddress::direct(ScratchSpace::start() + 2);
-    let new_vector_pointer_return = MemoryAddress::direct(ScratchSpace::start() + 3);
-
-    brillig_context.set_allocated_registers(vec![
+    let [
         source_vector_length_arg,
         source_vector_pointer_arg,
         item_pop_count_arg,
         new_vector_pointer_return,
-    ]);
+    ] = brillig_context.allocate_scratch_registers();
 
     let source_vector = BrilligVector { pointer: source_vector_pointer_arg };
     let target_vector = BrilligVector { pointer: new_vector_pointer_return };
 
-    let source_rc = SingleAddrVariable::new_usize(brillig_context.allocate_register());
-    let source_size = SingleAddrVariable::new_usize(brillig_context.allocate_register());
-    let source_capacity = SingleAddrVariable::new_usize(brillig_context.allocate_register());
-    let source_items_pointer = SingleAddrVariable::new_usize(brillig_context.allocate_register());
+    let source_rc = brillig_context.allocate_single_addr_usize();
+    let source_size = brillig_context.allocate_single_addr_usize();
+    let source_capacity = brillig_context.allocate_single_addr_usize();
+    let source_items_pointer = brillig_context.allocate_single_addr_usize();
     brillig_context.codegen_read_vector_metadata(
         source_vector,
-        source_rc,
-        source_size,
-        source_capacity,
-        source_items_pointer,
+        *source_rc,
+        *source_size,
+        *source_capacity,
+        *source_items_pointer,
         Some((source_vector_length_arg, item_pop_count_arg)),
     );
 
     // target_size = source_size - item_pop_count
-    let target_size = SingleAddrVariable::new_usize(brillig_context.allocate_register());
+    let target_size = brillig_context.allocate_single_addr_usize();
     brillig_context.memory_op_instruction(
         source_size.address,
         item_pop_count_arg,
@@ -77,12 +71,12 @@ pub(super) fn compile_vector_pop_front_procedure<F: AcirField + DebugToString>(
     let is_rc_one = brillig_context.allocate_register();
     brillig_context.codegen_usize_op(
         source_rc.address,
-        is_rc_one,
+        *is_rc_one,
         BrilligBinaryOp::Equals,
         1_usize,
     );
 
-    brillig_context.codegen_branch(is_rc_one, |brillig_context, is_rc_one| {
+    brillig_context.codegen_branch(*is_rc_one, |brillig_context, is_rc_one| {
         if is_rc_one {
             // We reuse the source vector, moving the metadata to the right (decreasing capacity)
             // Set the target vector pointer to be the source plus the number of popped items.
@@ -102,12 +96,12 @@ pub(super) fn compile_vector_pop_front_procedure<F: AcirField + DebugToString>(
             // Re-initialize the metadata at the shifted position.
             brillig_context.codegen_initialize_vector_metadata(
                 target_vector,
-                target_size,
-                Some(source_capacity),
+                *target_size,
+                *source_capacity,
             );
         } else {
             // We can't reuse the source vector, so allocate a new one.
-            brillig_context.codegen_initialize_vector(target_vector, target_size, None);
+            brillig_context.codegen_initialize_vector(target_vector, *target_size, None);
 
             let target_vector_items_pointer =
                 brillig_context.codegen_make_vector_items_pointer(target_vector);
@@ -117,26 +111,15 @@ pub(super) fn compile_vector_pop_front_procedure<F: AcirField + DebugToString>(
             brillig_context.memory_op_instruction(
                 source_items_pointer.address,
                 item_pop_count_arg,
-                source_copy_pointer,
+                *source_copy_pointer,
                 BrilligBinaryOp::Add,
             );
             // Now we copy the source vector starting at index removed_items.len() into the target vector
             brillig_context.codegen_mem_copy(
-                source_copy_pointer,
-                target_vector_items_pointer,
-                target_size,
+                *source_copy_pointer,
+                *target_vector_items_pointer,
+                *target_size,
             );
-
-            brillig_context.deallocate_register(source_copy_pointer);
-            brillig_context.deallocate_register(target_vector_items_pointer);
         }
     });
-
-    brillig_context.deallocate_register(is_rc_one);
-
-    brillig_context.deallocate_single_addr(target_size);
-    brillig_context.deallocate_single_addr(source_rc);
-    brillig_context.deallocate_single_addr(source_size);
-    brillig_context.deallocate_single_addr(source_capacity);
-    brillig_context.deallocate_single_addr(source_items_pointer);
 }

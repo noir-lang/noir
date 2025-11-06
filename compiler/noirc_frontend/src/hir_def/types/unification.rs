@@ -659,26 +659,24 @@ fn invoke_function_on_expression(
     let method_id = interner.function_definition_id(method);
     let location = interner.expr_location(&expression);
     let as_slice = HirExpression::Ident(HirIdent::non_trait_method(method_id, location), None);
-    let func = interner.push_expr(as_slice);
+    let func_type = Type::Function(
+        vec![expression_type.clone()],
+        Box::new(target_type.clone()),
+        Box::new(Type::Unit),
+        false,
+    );
+    let func = interner.push_expr_full(as_slice, location, func_type);
 
     // Copy the expression and give it a new ExprId. The old one
     // will be mutated in place into a Call expression.
     let argument = interner.expression(&expression);
-    let argument = interner.push_expr(argument);
-    interner.push_expr_type(argument, expression_type.clone());
-    interner.push_expr_location(argument, location);
+    let argument = interner.push_expr_full(argument, location, expression_type);
 
     let arguments = vec![argument];
     let is_macro_call = false;
     let call = HirExpression::Call(HirCallExpression { func, arguments, location, is_macro_call });
     interner.replace_expr(&expression, call);
-
-    interner.push_expr_location(func, location);
-    interner.push_expr_type(expression, target_type.clone());
-
-    let func_type =
-        Type::Function(vec![expression_type], Box::new(target_type), Box::new(Type::Unit), false);
-    interner.push_expr_type(func, func_type);
+    interner.push_expr_type(expression, target_type);
 }
 
 #[cfg(test)]

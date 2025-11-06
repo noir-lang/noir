@@ -207,7 +207,7 @@ fn flatten_cfg_pre_check(function: &Function) {
     if !function.runtime().is_acir() {
         return;
     }
-    let loops = super::unrolling::Loops::find_all(function);
+    let loops = super::Loops::find_all(function);
     assert_eq!(loops.yet_to_unroll.len(), 0);
 
     for block in function.reachable_blocks() {
@@ -840,8 +840,13 @@ impl<'f> Context<'f> {
         let instruction = self.handle_instruction_side_effects(instruction, call_stack);
 
         let instruction_is_allocate = matches!(&instruction, Instruction::Allocate);
-        let results =
-            self.inserter.push_instruction_value(instruction, id, self.target_block, call_stack);
+        let results = self.inserter.push_instruction_value(
+            instruction,
+            id,
+            self.target_block,
+            call_stack,
+            true,
+        );
 
         // Remember an allocate was created local to this branch so that we do not try to merge store
         // values across branches for it later.

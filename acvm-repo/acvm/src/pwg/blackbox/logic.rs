@@ -59,14 +59,13 @@ fn solve_logic_opcode<F: AcirField>(
     pedantic_solving: bool,
     logic_op: impl Fn(F, F) -> F,
 ) -> Result<(), OpcodeResolutionError<F>> {
-    // TODO(https://github.com/noir-lang/noir/issues/5985): re-enable these by
-    // default once we figure out how to combine these with existing
-    // noirc_frontend/noirc_evaluator overflow error messages
-    let skip_bitsize_checks = !pedantic_solving;
     let w_l_value = input_to_value(initial_witness, *a)?;
     let w_r_value = input_to_value(initial_witness, *b)?;
     let assignment = logic_op(w_l_value, w_r_value);
-    if !skip_bitsize_checks {
+    // TODO(https://github.com/noir-lang/noir/issues/5985): re-enable these by
+    // default once we figure out how to combine these with existing
+    // noirc_frontend/noirc_evaluator overflow error messages
+    if pedantic_solving {
         check_bit_size(w_l_value, num_bits)?;
         check_bit_size(w_r_value, num_bits)?;
     }

@@ -199,7 +199,7 @@ impl Display for TraitItem {
                 let visibility = if *visibility == ItemVisibility::Private {
                     "".to_string()
                 } else {
-                    visibility.to_string()
+                    format!("{visibility} ")
                 };
                 let is_comptime = if *is_comptime { "comptime " } else { "" };
 

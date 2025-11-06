@@ -1,18 +1,17 @@
+//! Statement elaboration including let bindings, assignments, and control flow.
+
 use noirc_errors::Location;
 
 use crate::{
-    DataType, Type,
+    Type,
     ast::{
-        AssignStatement, Expression, ForLoopStatement, ForRange, Ident, IntegerBitSize,
-        ItemVisibility, LValue, LetStatement, Statement, StatementKind, WhileStatement,
+        AssignStatement, ForLoopStatement, ForRange, IntegerBitSize, LValue, LetStatement,
+        LoopStatement, Statement, StatementKind, WhileStatement,
     },
     elaborator::PathResolutionTarget,
     hir::{
         def_collector::dc_crate::CompilationError,
-        resolution::{
-            errors::ResolverError, import::PathResolutionError,
-            visibility::struct_member_is_visible,
-        },
+        resolution::errors::ResolverError,
         type_check::{Source, TypeCheckError},
     },
     hir_def::{
@@ -42,7 +41,7 @@ impl Elaborator<'_> {
             StatementKind::Let(let_stmt) => self.elaborate_local_let(let_stmt),
             StatementKind::Assign(assign) => self.elaborate_assign(assign),
             StatementKind::For(for_stmt) => self.elaborate_for(for_stmt),
-            StatementKind::Loop(block, location) => self.elaborate_loop(block, location),
+            StatementKind::Loop(loop_) => self.elaborate_loop(loop_),
             StatementKind::While(while_) => self.elaborate_while(while_),
             StatementKind::Break => self.elaborate_jump(true, statement.location),
             StatementKind::Continue => self.elaborate_jump(false, statement.location),
@@ -76,8 +75,7 @@ impl Elaborator<'_> {
         let location = statement.location;
         let (hir_statement, typ) =
             self.elaborate_statement_value_with_target_type(statement, target_type);
-        let id = self.interner.push_stmt(hir_statement);
-        self.interner.push_stmt_location(id, location);
+        let id = self.interner.push_stmt_full(hir_statement, location);
         (id, typ)
     }
 
@@ -179,8 +177,7 @@ impl Elaborator<'_> {
         if new_statements.is_empty() {
             (assign, Type::Unit)
         } else {
-            let assign = self.interner.push_stmt(assign);
-            self.interner.push_stmt_location(assign, expr_location);
+            let assign = self.interner.push_stmt_full(assign, expr_location);
             new_statements.push(assign);
             let block = HirExpression::Block(HirBlockExpression { statements: new_statements });
             let block = self.interner.push_expr_full(block, expr_location, Type::Unit);
@@ -211,8 +208,6 @@ impl Elaborator<'_> {
         self.current_loop = Some(Loop { is_for: true, has_break: false });
         self.push_scope();
 
-        // TODO: For loop variables are currently mutable by default since we haven't
-        //       yet implemented syntax for them to be optionally mutable.
         let kind = DefinitionKind::Local(None);
         let identifier = self.add_variable_decl(
             identifier, false, // mutable
@@ -256,11 +251,8 @@ impl Elaborator<'_> {
         (statement, Type::Unit)
     }
 
-    pub(super) fn elaborate_loop(
-        &mut self,
-        block: Expression,
-        location: Location,
-    ) -> (HirStatement, Type) {
+    pub(super) fn elaborate_loop(&mut self, loop_: LoopStatement) -> (HirStatement, Type) {
+        let LoopStatement { body: block, loop_keyword_location: location } = loop_;
         let in_constrained_function = self.in_constrained_function();
         if in_constrained_function {
             self.push_err(ResolverError::LoopInConstrainedFn { location });
@@ -347,7 +339,7 @@ impl Elaborator<'_> {
         }
 
         let expr = if is_break { HirStatement::Break } else { HirStatement::Continue };
-        (expr, self.interner.next_type_variable())
+        (expr, Type::Unit)
     }
 
     fn get_lvalue_error_info(&self, lvalue: &HirLValue) -> (DefinitionId, String, Location) {
@@ -606,8 +598,7 @@ impl Elaborator<'_> {
 
         let pattern = HirPattern::Identifier(ident);
         let let_ = HirStatement::Let(HirLetStatement::basic(pattern, typ, expr));
-        let let_ = self.interner.push_stmt(let_);
-        self.interner.push_stmt_location(let_, location);
+        let let_ = self.interner.push_stmt_full(let_, location);
         Some((let_, ident_id))
     }
 
@@ -680,24 +671,6 @@ impl Elaborator<'_> {
         }
 
         None
-    }
-
-    pub(super) fn check_struct_field_visibility(
-        &mut self,
-        struct_type: &DataType,
-        field_name: &str,
-        visibility: ItemVisibility,
-        location: Location,
-    ) {
-        if self.silence_field_visibility_errors > 0 {
-            return;
-        }
-
-        if !struct_member_is_visible(struct_type.id, visibility, self.module_id(), self.def_maps) {
-            self.push_err(ResolverError::PathResolutionError(PathResolutionError::Private(
-                Ident::new(field_name.to_string(), location),
-            )));
-        }
     }
 
     fn elaborate_comptime_statement(&mut self, statement: Statement) -> (HirStatement, Type) {

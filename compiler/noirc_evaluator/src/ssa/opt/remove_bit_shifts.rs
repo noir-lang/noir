@@ -171,7 +171,7 @@ impl Context<'_, '_, '_> {
             max_lhs_bits.checked_add(max_bit_shift_size).unwrap_or(FieldElement::max_num_bits()),
             FieldElement::max_num_bits(),
         );
-        if max_bit <= typ.bit_size() {
+        if max_bit <= typ.bit_size::<FieldElement>() {
             // If the result is guaranteed to fit in the target type we can simply multiply
             let pow = self.two_pow(rhs);
             let pow = self.insert_cast(pow, typ);
@@ -183,13 +183,13 @@ impl Context<'_, '_, '_> {
             let lhs_field = self.insert_cast(lhs, NumericType::NativeField);
             // Unchecked mul as this is a wrapping operation that we later truncate
             let result = self.insert_binary(lhs_field, BinaryOp::Mul { unchecked: true }, pow);
-            let result = self.insert_truncate(result, typ.bit_size(), max_bit);
+            let result = self.insert_truncate(result, typ.bit_size::<FieldElement>(), max_bit);
             self.insert_cast(result, typ)
         } else {
             // Otherwise, the result might not fit in a FieldElement.
             // For this, if we have to do `lhs << rhs` we can first shift by half of `rhs`, truncate,
             // then shift by `rhs - half_of_rhs` and truncate again.
-            assert!(typ.bit_size() <= 128);
+            assert!(typ.bit_size::<FieldElement>() <= 128);
 
             let two = self.numeric_constant(FieldElement::from(2_u32), typ);
 
@@ -209,9 +209,9 @@ impl Context<'_, '_, '_> {
             //        = lhs * 2^(rhs_divided_by_two + rhs_remainder) = lhs * 2^rhs
             let lhs_field = self.insert_cast(lhs, NumericType::NativeField);
             let result = self.insert_binary(lhs_field, BinaryOp::Mul { unchecked: true }, pow1);
-            let result = self.insert_truncate(result, typ.bit_size(), max_bit);
+            let result = self.insert_truncate(result, typ.bit_size::<FieldElement>(), max_bit);
             let result = self.insert_binary(result, BinaryOp::Mul { unchecked: true }, pow2);
-            let result = self.insert_truncate(result, typ.bit_size(), max_bit);
+            let result = self.insert_truncate(result, typ.bit_size::<FieldElement>(), max_bit);
             self.insert_cast(result, typ)
         }
     }
@@ -681,7 +681,7 @@ mod tests {
                 v4 = cast v3 as u64
                 v6 = lt v4, u64 64
                 constrain v6 == u1 1, "attempt to bit-shift with overflow"
-                v8 = cast v3 as Field
+                v8 = cast v1 as Field
                 v10 = call to_le_bits(v8) -> [u1; 1]
                 v12 = array_get v10, index u32 0 -> u1
                 v13 = not v12

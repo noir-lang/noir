@@ -17,6 +17,11 @@ pub(super) fn simplify_cast(
     dfg: &mut DataFlowGraph,
 ) -> SimplifyResult {
     use SimplifyResult::*;
+    debug_assert!(
+        dfg.type_of_value(value).is_numeric(),
+        "Can only cast numeric types, got {:?}",
+        dfg.type_of_value(value)
+    );
 
     if Type::Numeric(dst_typ) == dfg.type_of_value(value) {
         return SimplifiedTo(value);
@@ -24,7 +29,11 @@ pub(super) fn simplify_cast(
 
     if let Value::Instruction { instruction, .. } = &dfg[value] {
         if let Instruction::Cast(original_value, _) = &dfg[*instruction] {
-            return SimplifiedToInstruction(Instruction::Cast(*original_value, dst_typ));
+            let original_value = *original_value;
+            return match simplify_cast(original_value, dst_typ, dfg) {
+                None => SimplifiedToInstruction(Instruction::Cast(original_value, dst_typ)),
+                simpler => simpler,
+            };
         }
     }
 
@@ -148,6 +157,33 @@ mod tests {
         acir(inline) fn main f0 {
           b0(v0: i8):
             return
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_out_casting_there_and_back() {
+        // Casting from e.g. i8 to u64 used to go through sign extending to i64,
+        // which itself first cast to u8, then u64 to do some arithmetic, then
+        // the result was cast to i64 and back to u64.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u64, v1: u64):
+            v2 = unchecked_add v0, v1
+            v3 = cast v2 as i64
+            v4 = cast v3 as u64
+            return v4
+        }
+        ";
+
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u64, v1: u64):
+            v2 = unchecked_add v0, v1
+            v3 = cast v2 as i64
+            return v2
         }
         ");
     }

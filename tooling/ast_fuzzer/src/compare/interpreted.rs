@@ -299,10 +299,8 @@ fn append_input_value_to_ssa(typ: &AbiType, input: &InputValue, values: &mut Vec
             let num_val = NumericValue::from_constant(*f, num_typ).expect("cannot create constant");
             values.push(Value::Numeric(num_val));
         }
-        InputValue::String(s) => values.push(array_value(
-            vecmap(s.as_bytes(), |b| Value::Numeric(NumericValue::U8(*b))),
-            vec![Type::unsigned(8)],
-        )),
+        InputValue::String(s) => values
+            .push(array_value(vecmap(s.as_bytes(), |b| Value::u8(*b)), vec![Type::unsigned(8)])),
         InputValue::Vec(input_values) => match typ {
             AbiType::Array { length, typ } => {
                 assert_eq!(*length as usize, input_values.len(), "array length != input length");
