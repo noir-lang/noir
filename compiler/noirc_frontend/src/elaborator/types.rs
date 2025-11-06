@@ -8,12 +8,10 @@ use noirc_errors::Location;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
-    Generics, Kind, NamedGeneric, ResolvedGeneric, Type, TypeBinding, TypeBindings,
-    UnificationError,
+    Kind, NamedGeneric, ResolvedGeneric, Type, TypeBinding, TypeBindings, UnificationError,
     ast::{
-        AsTraitPath, BinaryOpKind, GenericTypeArgs, Ident, PathKind, UnaryOp, UnresolvedGeneric,
-        UnresolvedGenerics, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
-        WILDCARD_TYPE,
+        AsTraitPath, BinaryOpKind, GenericTypeArgs, Ident, PathKind, UnaryOp, UnresolvedType,
+        UnresolvedTypeData, UnresolvedTypeExpression, WILDCARD_TYPE,
     },
     elaborator::UnstableFeature,
     hir::{
@@ -62,6 +60,7 @@ pub(super) enum TraitPathResolutionMethod {
 }
 
 impl Elaborator<'_> {
+    /// Resolves a type and marks it, and any generic types it contains, as referenced.
     pub(crate) fn resolve_type(&mut self, typ: UnresolvedType, wildcard_allowed: bool) -> Type {
         self.resolve_type_inner(
             typ,
@@ -71,6 +70,7 @@ impl Elaborator<'_> {
         )
     }
 
+    /// Resolves a type and marks it, and any generic types it contains, as used.
     pub(crate) fn use_type(&mut self, typ: UnresolvedType, wildcard_allowed: bool) -> Type {
         self.use_type_with_kind(typ, &Kind::Normal, wildcard_allowed)
     }
@@ -109,8 +109,7 @@ impl Elaborator<'_> {
         self.resolve_type_inner(typ, kind, PathResolutionMode::MarkAsReferenced, wildcard_allowed)
     }
 
-    /// Translates an UnresolvedType into a Type and appends any
-    /// freshly created TypeVariables created to new_variables.
+    /// Translates an UnresolvedType into a Type.
     fn resolve_type_with_kind_inner(
         &mut self,
         typ: UnresolvedType,
@@ -249,10 +248,6 @@ impl Elaborator<'_> {
         }
 
         self.check_kind(resolved_type, kind, location)
-    }
-
-    pub fn find_generic(&self, target_name: &str) -> Option<&ResolvedGeneric> {
-        self.generics.iter().find(|generic| generic.name.as_ref() == target_name)
     }
 
     // Resolve Self::Foo to an associated type on the current trait or trait impl
@@ -455,27 +450,6 @@ impl Elaborator<'_> {
         } else {
             Type::Error
         }
-    }
-
-    /// Identical to `resolve_type_args` but does not allow
-    /// associated types to be elided since trait impls must specify them.
-    pub(super) fn resolve_trait_args_from_trait_impl(
-        &mut self,
-        args: GenericTypeArgs,
-        item: TraitId,
-        location: Location,
-    ) -> (Vec<Type>, Vec<NamedType>) {
-        let mode = PathResolutionMode::MarkAsReferenced;
-        let allow_implicit_named_args = false;
-        let wildcard_allowed = true;
-        self.resolve_type_or_trait_args_inner(
-            args,
-            item,
-            location,
-            allow_implicit_named_args,
-            mode,
-            wildcard_allowed,
-        )
     }
 
     pub(super) fn use_type_args(
@@ -1041,22 +1015,6 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Do not apply type bindings even after a successful unification.
-    /// This function is used by the interpreter for some comptime code
-    /// which can change types e.g. on each iteration of a for loop.
-    pub fn unify_without_applying_bindings(
-        &mut self,
-        actual: &Type,
-        expected: &Type,
-        make_error: impl FnOnce() -> TypeCheckError,
-    ) {
-        let mut bindings = TypeBindings::default();
-        if actual.try_unify(expected, &mut bindings).is_err() {
-            let error: CompilationError = make_error().into();
-            self.push_err(error);
-        }
-    }
-
     /// Wrapper of Type::unify_with_coercions using self.errors
     pub(super) fn unify_with_coercions(
         &mut self,
@@ -1122,12 +1080,14 @@ impl Elaborator<'_> {
         if let Type::Reference(element, _mut) = typ.follow_bindings() {
             let location = self.interner.id_location(object);
 
-            let object = self.interner.push_expr(HirExpression::Prefix(HirPrefixExpression::new(
-                UnaryOp::Dereference { implicitly_added: true },
-                object,
-            )));
-            self.interner.push_expr_type(object, element.as_ref().clone());
-            self.interner.push_expr_location(object, location);
+            let object = self.interner.push_expr_full(
+                HirExpression::Prefix(HirPrefixExpression::new(
+                    UnaryOp::Dereference { implicitly_added: true },
+                    object,
+                )),
+                location,
+                element.as_ref().clone(),
+            );
 
             // Recursively dereference to allow for converting &mut &mut T to T
             self.insert_auto_dereferences(object, *element)
@@ -1686,16 +1646,19 @@ impl Elaborator<'_> {
 
         let dereference_lhs = |this: &mut Self, lhs_type, element| {
             let old_lhs = *access_lhs;
-            *access_lhs = this.interner.push_expr(HirExpression::Prefix(HirPrefixExpression::new(
-                UnaryOp::Dereference { implicitly_added: true },
-                old_lhs,
-            )));
-            this.interner.push_expr_type(old_lhs, lhs_type);
-            this.interner.push_expr_type(*access_lhs, element);
-
             let old_location = this.interner.id_location(old_lhs);
             let location = Location::new(location.span, old_location.file);
-            this.interner.push_expr_location(*access_lhs, location);
+
+            *access_lhs = this.interner.push_expr_full(
+                HirExpression::Prefix(HirPrefixExpression::new(
+                    UnaryOp::Dereference { implicitly_added: true },
+                    old_lhs,
+                )),
+                location,
+                element,
+            );
+
+            this.interner.push_expr_type(old_lhs, lhs_type);
         };
 
         // If this access is just a field offset, we want to avoid dereferencing
@@ -2164,12 +2127,14 @@ impl Elaborator<'_> {
 
                     // If that didn't work, then wrap the whole expression in an `&mut`
                     *object = new_object.unwrap_or_else(|| {
-                        let new_object = self.interner.push_expr(HirExpression::Prefix(
-                            HirPrefixExpression::new(UnaryOp::Reference { mutable }, *object),
-                        ));
-                        self.interner.push_expr_type(new_object, new_type);
-                        self.interner.push_expr_location(new_object, location);
-                        new_object
+                        self.interner.push_expr_full(
+                            HirExpression::Prefix(HirPrefixExpression::new(
+                                UnaryOp::Reference { mutable },
+                                *object,
+                            )),
+                            location,
+                            new_type,
+                        )
                     });
                 }
             // Otherwise if the object type is a mutable reference and the method is not, insert as
@@ -2331,39 +2296,6 @@ impl Elaborator<'_> {
         }
     }
 
-    pub fn add_existing_generics(
-        &mut self,
-        unresolved_generics: &UnresolvedGenerics,
-        generics: &Generics,
-    ) {
-        assert_eq!(unresolved_generics.len(), generics.len());
-
-        for (unresolved_generic, generic) in unresolved_generics.iter().zip(generics) {
-            self.add_existing_generic(unresolved_generic, unresolved_generic.location(), generic);
-        }
-    }
-
-    pub fn add_existing_generic(
-        &mut self,
-        unresolved_generic: &UnresolvedGeneric,
-        location: Location,
-        resolved_generic: &ResolvedGeneric,
-    ) {
-        if let Some(name) = unresolved_generic.ident().ident() {
-            let name = name.as_str();
-
-            if let Some(generic) = self.find_generic(name) {
-                self.push_err(ResolverError::DuplicateDefinition {
-                    name: name.to_string(),
-                    first_location: generic.location,
-                    second_location: location,
-                });
-            } else {
-                self.generics.push(resolved_generic.clone());
-            }
-        }
-    }
-
     pub fn bind_generics_from_trait_constraint(
         &self,
         constraint: &TraitConstraint,
@@ -2469,7 +2401,7 @@ impl Elaborator<'_> {
     }
 }
 
-pub(crate) fn bind_ordered_generics(
+pub(super) fn bind_ordered_generics(
     params: &[ResolvedGeneric],
     args: &[Type],
     bindings: &mut TypeBindings,
@@ -2481,7 +2413,7 @@ pub(crate) fn bind_ordered_generics(
     }
 }
 
-pub(crate) fn bind_named_generics(
+fn bind_named_generics(
     mut params: Vec<ResolvedGeneric>,
     args: &[NamedType],
     bindings: &mut TypeBindings,

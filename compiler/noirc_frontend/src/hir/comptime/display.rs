@@ -10,7 +10,7 @@ use crate::{
         ArrayLiteral, AsTraitPath, AssignStatement, BlockExpression, CallExpression,
         CastExpression, ConstrainExpression, ConstructorExpression, Expression, ExpressionKind,
         ForBounds, ForLoopStatement, ForRange, GenericTypeArgs, IfExpression, IndexExpression,
-        InfixExpression, LValue, Lambda, LetStatement, Literal, MatchExpression,
+        InfixExpression, LValue, Lambda, LetStatement, Literal, LoopStatement, MatchExpression,
         MemberAccessExpression, MethodCallExpression, Pattern, PrefixExpression, Statement,
         StatementKind, UnresolvedType, UnresolvedTypeData, UnsafeExpression, WhileStatement,
     },
@@ -831,9 +831,10 @@ fn remove_interned_in_statement_kind(
             block: remove_interned_in_expression(interner, for_loop.block),
             ..for_loop
         }),
-        StatementKind::Loop(block, span) => {
-            StatementKind::Loop(remove_interned_in_expression(interner, block), span)
-        }
+        StatementKind::Loop(loop_) => StatementKind::Loop(LoopStatement {
+            body: remove_interned_in_expression(interner, loop_.body),
+            loop_keyword_location: loop_.loop_keyword_location,
+        }),
         StatementKind::While(while_) => StatementKind::While(WhileStatement {
             condition: remove_interned_in_expression(interner, while_.condition),
             body: remove_interned_in_expression(interner, while_.body),
