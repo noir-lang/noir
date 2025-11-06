@@ -752,8 +752,9 @@ fn multiple_comptime_blocks_share_scope() {
     assert_no_errors(src);
 }
 
+// Reactivate once https://github.com/noir-lang/noir/issues/10397 is resolved
 #[test]
-#[should_panic = "Reactivate once https://github.com/noir-lang/noir/issues/10397 is resolved"]
+#[should_panic]
 fn nested_comptime_accesses_outer_comptime_variable() {
     let src = r#"
         fn main() {
@@ -769,8 +770,9 @@ fn nested_comptime_accesses_outer_comptime_variable() {
     assert_no_errors(src);
 }
 
+// Reactivate once https://github.com/noir-lang/noir/issues/10397 is resolved
 #[test]
-#[should_panic = "Reactivate once https://github.com/noir-lang/noir/issues/10397 is resolved"]
+#[should_panic]
 fn nested_comptime_accesses_outer_comptime_func_variable() {
     let src = r#"
     comptime fn main() {
@@ -784,8 +786,9 @@ fn nested_comptime_accesses_outer_comptime_func_variable() {
     assert_no_errors(src);
 }
 
+// Reactivate once https://github.com/noir-lang/noir/issues/10397 is resolved
 #[test]
-#[should_panic = "Reactivate once https://github.com/noir-lang/noir/issues/10397 is resolved"]
+#[should_panic]
 fn nested_comptime_with_mut_variable() {
     let src = r#"
         fn main() {
@@ -801,8 +804,9 @@ fn nested_comptime_with_mut_variable() {
     assert_no_errors(src);
 }
 
+// Reactivate once https://github.com/noir-lang/noir/issues/10397 is resolved
 #[test]
-#[should_panic = "Reactivate once https://github.com/noir-lang/noir/issues/10397 is resolved"]
+#[should_panic]
 fn nested_comptime_mut_outer_comptime_func_variable() {
     let src = r#"
     comptime fn main() {
@@ -816,8 +820,9 @@ fn nested_comptime_mut_outer_comptime_func_variable() {
     assert_no_errors(src);
 }
 
+// Reactivate once https://github.com/noir-lang/noir/issues/10397 is resolved
 #[test]
-#[should_panic = "Reactivate once https://github.com/noir-lang/noir/issues/10397 is resolved"]
+#[should_panic]
 fn comptime_function_with_comptime_block_called_from_comptime() {
     let src = r#"
         comptime fn helper(x: Field) -> Field {
@@ -837,8 +842,9 @@ fn comptime_function_with_comptime_block_called_from_comptime() {
     assert_no_errors(src);
 }
 
+// Reactivate once https://github.com/noir-lang/noir/issues/10397 is resolved
 #[test]
-#[should_panic = "Reactivate once https://github.com/noir-lang/noir/issues/10397 is resolved"]
+#[should_panic]
 fn runtime_function_with_comptime_block_called_from_comptime() {
     let src = r#"
         fn helper(x: Field) -> Field {
