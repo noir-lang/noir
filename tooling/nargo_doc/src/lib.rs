@@ -48,7 +48,7 @@ struct DocItemBuilder<'a> {
     /// Maps a ModuleDefId to the item it converted to.
     /// This is needed because if an item is publicly exported, but the item
     /// isn't publicly visible (because its parent module is private) then we'll
-    /// include the item directly undert the module that publicly exports it.
+    /// include the item directly under the module that publicly exports it.
     /// We do this by looking up the item in this map.
     module_def_id_to_item: HashMap<ModuleDefId, ConvertedItem>,
     module_imports: HashMap<ModuleId, Vec<expand_items::Import>>,
