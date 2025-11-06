@@ -926,7 +926,9 @@ impl Elaborator<'_> {
                 type_alias.get_type(&generics)
             }
             PathResolutionItem::PrimitiveType(primitive_type) => {
-                self.instantiate_primitive_type_with_turbofish(primitive_type, turbofish)
+                let (typ, _) =
+                    self.instantiate_primitive_type_with_turbofish(primitive_type, turbofish);
+                typ
             }
             PathResolutionItem::Module(..)
             | PathResolutionItem::Trait(..)
