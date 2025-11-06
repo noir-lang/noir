@@ -77,13 +77,16 @@ jobs:
         run: |
           npm i wasm-opt -g
 
+      - name: Install docs dependencies
+        run: cd docs && yarn install
+
       - name: Query active docs versions
-        run: yarn workspace docs version::stables
+        run: cd docs && yarn version::stables
 
       - name: Build docs
         env:
           ENV: staging # not really a secret, it will show in the footer anyway
-        run: yarn workspaces foreach -Rpt --from docs run build
+        run: cd docs && yarn build
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

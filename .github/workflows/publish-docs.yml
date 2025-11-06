@@ -26,11 +26,14 @@ jobs:
       - name: Install deps
         run: just install-js-tools
 
+      - name: Install docs dependencies
+        run: cd docs && yarn install
+
       - name: Query active docs versions
-        run: yarn workspace docs version::stables
+        run: cd docs && yarn version::stables
 
       - name: Build docs for deploying
-        run: yarn workspaces foreach -Rpt --from docs run build
+        run: cd docs && yarn build
 
       - name: Deploy to Netlify
         uses: nwtgck/actions-netlify@v2.1
