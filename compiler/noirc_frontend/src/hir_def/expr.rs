@@ -5,6 +5,7 @@ use noirc_errors::Location;
 use crate::Shared;
 use crate::ast::{BinaryOp, BinaryOpKind, Ident, UnaryOp};
 use crate::hir::type_check::generics::TraitGenerics;
+use crate::node_interner::pusher::{HasLocation, PushedExpr};
 use crate::node_interner::{
     DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId, TraitId, TraitItemId,
 };
@@ -264,7 +265,7 @@ impl HirMethodReference {
         generics: Option<Vec<Type>>,
         location: Location,
         interner: &mut NodeInterner,
-    ) -> (ExprId, HirIdent) {
+    ) -> (PushedExpr<HasLocation>, HirIdent) {
         let (id, impl_kind) = match self {
             HirMethodReference::FuncId(func_id) => {
                 (interner.function_definition_id(func_id), ImplKind::NotATraitMethod)
@@ -279,8 +280,9 @@ impl HirMethodReference {
             }
         };
         let func_var = HirIdent { location, id, impl_kind };
-        let func = interner.push_expr(HirExpression::Ident(func_var.clone(), generics));
-        interner.push_expr_location(func, location);
+        let func = interner
+            .push_expr(HirExpression::Ident(func_var.clone(), generics))
+            .push_location(interner, location);
         (func, func_var)
     }
 }

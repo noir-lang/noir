@@ -6,13 +6,12 @@ use acvm_blackbox_solver::{BlackBoxFunctionSolver, BlackBoxResolutionError};
 mod embedded_curve_ops;
 mod generator;
 mod poseidon2;
+mod poseidon2_constants;
 
 pub use embedded_curve_ops::{embedded_curve_add, multi_scalar_mul};
 pub use generator::generators::derive_generators;
-pub use poseidon2::{
-    POSEIDON2_CONFIG, Poseidon2Config, Poseidon2Sponge, field_from_hex, poseidon_hash,
-    poseidon2_permutation,
-};
+pub use poseidon2::{Poseidon2Sponge, poseidon_hash, poseidon2_permutation};
+pub use poseidon2_constants::{POSEIDON2_CONFIG, Poseidon2Config, field_from_hex};
 
 // Temporary hack, this ensure that we always use a bn254 field here
 // without polluting the feature flags of the `acir_field` crate.

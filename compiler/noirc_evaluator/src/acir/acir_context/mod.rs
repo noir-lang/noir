@@ -1389,11 +1389,7 @@ impl<F: AcirField> AcirContext<F> {
 
     /// Insert the MemoryInit for the Return Data array, using the provided witnesses
     pub(crate) fn initialize_return_data(&mut self, block_id: BlockId, init: Vec<Witness>) {
-        self.acir_ir.push_opcode(Opcode::MemoryInit {
-            block_id,
-            init,
-            block_type: BlockType::ReturnData,
-        });
+        self.acir_ir.initialize_memory(block_id, init, BlockType::ReturnData);
     }
 
     /// Initializes an array in memory with the given values `optional_values`.
@@ -1418,11 +1414,7 @@ impl<F: AcirField> AcirContext<F> {
             }
         };
 
-        self.acir_ir.push_opcode(Opcode::MemoryInit {
-            block_id,
-            init: initialized_values,
-            block_type: databus,
-        });
+        self.acir_ir.initialize_memory(block_id, initialized_values, databus);
 
         Ok(())
     }
