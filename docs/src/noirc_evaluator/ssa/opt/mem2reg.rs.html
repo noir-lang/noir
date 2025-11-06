@@ -2612,9 +2612,7 @@
 <a href="#2611" id="2611">2611</a>
 <a href="#2612" id="2612">2612</a>
 <a href="#2613" id="2613">2613</a>
-<a href="#2614" id="2614">2614</a>
-<a href="#2615" id="2615">2615</a>
-<a href="#2616" id="2616">2616</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
+<a href="#2614" id="2614">2614</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
 //! addresses with the value stored at that address, if it is also known. This pass will also remove
 //! any `Store` instructions within a block that are no longer needed because no more loads occur in
 //! between the Store in question and the next Store.
@@ -3378,9 +3376,7 @@
     }
 
     <span class="kw">fn </span>update_data_bus(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-        <span class="kw">let </span><span class="kw-2">mut </span>databus = <span class="self">self</span>.inserter.function.dfg.data_bus.clone();
-        databus.map_values_mut(|t| <span class="self">self</span>.inserter.resolve(t));
-        <span class="self">self</span>.inserter.function.dfg.data_bus = databus;
+        <span class="self">self</span>.inserter.map_data_bus_in_place();
     }
 
     <span class="kw">fn </span>handle_terminator(<span class="kw-2">&amp;mut </span><span class="self">self</span>, block: BasicBlockId, references: <span class="kw-2">&amp;mut </span>Block) {
