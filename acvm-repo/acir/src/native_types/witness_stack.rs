@@ -198,8 +198,8 @@ mod tests {
 
         for i in 0..10 {
             let mut witness = WitnessMap::new();
-            witness.insert(Witness(i), FieldElement::from(i as u128 * 100));
-            witness.insert(Witness(i + 100), FieldElement::from(i as u128 * 1000));
+            witness.insert(Witness(i), FieldElement::from(u128::from(i) * 100));
+            witness.insert(Witness(i + 100), FieldElement::from(u128::from(i) * 1000));
             stack.push(i, witness);
         }
 
