@@ -16,14 +16,14 @@ You can find the complete app code for this guide [here](https://github.com/noir
 
 Before we start, we want to make sure we have Node installed. If you don't have it already you can install it [here](https://nodejs.org/en/download), we recommend using [Yarn](https://yarnpkg.com/getting-started/install) as our package manager for this tutorial.
 
-We'll also need version 1.0.0-beta.2 nargo installed, see the Noir [installation guide](../getting_started/noir_installation.md) for details.
+We'll also need version 1.0.0-beta.14 nargo installed, see the Noir [installation guide](../getting_started/noir_installation.md) for details.
 
 Let's go barebones. Doing the bare minimum is not only simple, but also allows you to easily adapt it to almost any frontend framework.
 
 Barebones means we can immediately start with the dependencies even on an empty folder 😈:
 
 ```bash
-yarn add @noir-lang/noir_js@1.0.0-beta.9 @aztec/bb.js@0.87.0
+yarn add @noir-lang/noir_js@1.0.0-beta.14 @aztec/bb.js@3.0.0-nightly.20251104
 ```
 
 Wait, what are these dependencies?
@@ -33,7 +33,7 @@ Wait, what are these dependencies?
 
 :::info
 
-In this guide, we will install versions pinned to 1.0.0-beta.9. These work with Barretenberg version 0.87.0, so we are using that one version too. Feel free to try with older or later versions, though!
+In this guide, we will install versions pinned to 1.0.0-beta.14. These work with Barretenberg version 3.0.0-nightly.20251104, so we are using that one version too. Feel free to try with older or later versions, though!
 
 :::
 
@@ -47,7 +47,7 @@ It's not just you. We also enjoy syntax highlighting. [Check out the Language Se
 
 :::
 
-All you need is a `main.nr` and a `Nargo.toml` file. You can follow the [noirup](../getting_started/noir_installation.md) installation and just run `noirup -v 1.0.0-beta.6`, or just create them by hand:
+All you need is a `main.nr` and a `Nargo.toml` file. You can follow the [noirup](../getting_started/noir_installation.md) installation and just run `nargo new circuit`, or just create them by hand:
 
 ```bash
 mkdir -p circuit/src
@@ -153,8 +153,8 @@ Our program is technically **done** . You're probably eager to see stuff happeni
 touch vite.config.js
 ```
 
-Noir needs to load two WASM modules, but Vite doesn't include them by default in the bundle. We need to add the configuration below to `vite.config.js` to make it work.
-We also need to target ESNext since `bb.js` uses top-level await, which isn't supported in some browsers.
+Noir needs to load two WASM modules, but Vite doesn't include them by default in the bundle. We need to add the configuration below to `vite.config.js` to make it work. Additionally, `@aztec/bb.js` depends on CommonJS modules like `pino` and `buffer` that need to be pre-bundled for browser usage.
+We also need to target ESNext since `bb.js` uses top-level await.
 
 #include_code config examples/browser/vite.config.js js
 
