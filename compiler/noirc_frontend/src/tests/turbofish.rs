@@ -591,3 +591,80 @@ fn errors_on_incorrect_turbofish_on_struct() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn incorrect_turbofish_count_on_primitive_u8() {
+    let src = r#"
+        trait From<T> {
+            fn from(x: T) -> Self;
+        }
+
+        impl From<Field> for u8 {
+            fn from(x: Field) -> Self {
+                x as u8
+            }
+        }
+
+        fn main() {
+            let _ = u8::<u32, i64>::from(5);
+                      ^^^^^^^^^^^^ u8 expects 0 generics but 2 were given
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn incorrect_turbofish_count_on_primitive_str() {
+    let src = r#"
+        trait MyTrait {
+            fn foo();
+        }
+
+        impl<let N: u32> MyTrait for str<N> {
+            fn foo() { }
+        }
+
+        fn main() {
+            let _ = str::<5, u32>::foo();
+                       ^^^^^^^^^^ primitive type str expects 1 generic but 2 were given
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn incorrect_turbofish_count_on_primitive_fmtstr() {
+    let src = r#"
+        trait MyTrait {
+            fn foo();
+        }
+
+        impl<let N: u32, T> MyTrait for fmtstr<N, T> {
+            fn foo() { }
+        }
+
+        fn main() {
+            let _ = fmtstr::<5>::foo();
+                          ^^^^^ primitive type fmtstr expects 2 generics but 1 was given
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn turbofish_on_primitive_fmtstr() {
+    let src = r#"
+        trait MyTrait {
+            fn foo();
+        }
+
+        impl<let N: u32, T> MyTrait for fmtstr<N, T> {
+            fn foo() { }
+        }
+
+        fn main() {
+            let _ = fmtstr::<5, Field>::foo();
+        }
+    "#;
+    check_errors(src);
+}
