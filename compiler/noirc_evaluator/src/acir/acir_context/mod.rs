@@ -133,6 +133,13 @@ impl<F: AcirField> AcirContext<F> {
             return Ok(());
         }
 
+        if let Some(w) = self.var_to_expression(lhs)?.to_witness() {
+            if self.acir_ir.input_witnesses.contains(&w) {
+                //Input witnesses are not replaced
+                return Ok(());
+            }
+        }
+
         let lhs_data = self.vars.remove(&lhs).ok_or_else(|| InternalError::UndeclaredAcirVar {
             call_stack: self.get_call_stack(),
         })?;
@@ -1317,11 +1324,9 @@ impl<F: AcirField> AcirContext<F> {
     /// Terminates the context and takes the resulting `GeneratedAcir`
     pub(crate) fn finish(
         mut self,
-        inputs: Vec<Witness>,
         return_values: Vec<Witness>,
         warnings: Vec<SsaReport>,
     ) -> GeneratedAcir<F> {
-        self.acir_ir.input_witnesses = inputs;
         self.acir_ir.return_witnesses = return_values;
         self.acir_ir.warnings = warnings;
         self.acir_ir
@@ -1384,11 +1389,7 @@ impl<F: AcirField> AcirContext<F> {
 
     /// Insert the MemoryInit for the Return Data array, using the provided witnesses
     pub(crate) fn initialize_return_data(&mut self, block_id: BlockId, init: Vec<Witness>) {
-        self.acir_ir.push_opcode(Opcode::MemoryInit {
-            block_id,
-            init,
-            block_type: BlockType::ReturnData,
-        });
+        self.acir_ir.initialize_memory(block_id, init, BlockType::ReturnData);
     }
 
     /// Initializes an array in memory with the given values `optional_values`.
@@ -1413,11 +1414,7 @@ impl<F: AcirField> AcirContext<F> {
             }
         };
 
-        self.acir_ir.push_opcode(Opcode::MemoryInit {
-            block_id,
-            init: initialized_values,
-            block_type: databus,
-        });
+        self.acir_ir.initialize_memory(block_id, initialized_values, databus);
 
         Ok(())
     }
