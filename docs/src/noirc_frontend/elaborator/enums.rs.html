@@ -1442,20 +1442,7 @@
 <a href="#1441" id="1441">1441</a>
 <a href="#1442" id="1442">1442</a>
 <a href="#1443" id="1443">1443</a>
-<a href="#1444" id="1444">1444</a>
-<a href="#1445" id="1445">1445</a>
-<a href="#1446" id="1446">1446</a>
-<a href="#1447" id="1447">1447</a>
-<a href="#1448" id="1448">1448</a>
-<a href="#1449" id="1449">1449</a>
-<a href="#1450" id="1450">1450</a>
-<a href="#1451" id="1451">1451</a>
-<a href="#1452" id="1452">1452</a>
-<a href="#1453" id="1453">1453</a>
-<a href="#1454" id="1454">1454</a>
-<a href="#1455" id="1455">1455</a>
-<a href="#1456" id="1456">1456</a>
-<a href="#1457" id="1457">1457</a></pre></div><pre class="rust"><code><span class="doccomment">//! Enum definition collection and variant resolution.
+<a href="#1444" id="1444">1444</a></pre></div><pre class="rust"><code><span class="doccomment">//! Enum definition collection and variant resolution.
 
 </span><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet};
 
@@ -2293,26 +2280,13 @@
             expr_location: location,
         });
 
-        <span class="comment">// Convert a signed integer type like i32 to SignedField
-        </span><span class="macro">macro_rules!</span> signed_to_signed_field {
-            (<span class="macro-nonterminal">$value</span>:expr) =&gt; {{
-                <span class="kw">let </span>negative = <span class="macro-nonterminal">$value </span>&lt; <span class="number">0</span>;
-                <span class="comment">// Widen the value so that SignedType::MIN does not wrap to 0 when negated below
-                </span><span class="kw">let </span><span class="kw-2">mut </span>widened = i128::from(<span class="macro-nonterminal">$value</span>);
-                <span class="kw">if </span>negative {
-                    widened = -widened;
-                }
-                SignedField::new(widened.into(), negative)
-            }};
-        }
-
         <span class="kw">let </span>value = <span class="kw">match </span>constant {
             Value::Bool(value) =&gt; SignedField::positive(value),
             Value::Field(value) =&gt; value,
-            Value::I8(value) =&gt; <span class="macro">signed_to_signed_field!</span>(value),
-            Value::I16(value) =&gt; <span class="macro">signed_to_signed_field!</span>(value),
-            Value::I32(value) =&gt; <span class="macro">signed_to_signed_field!</span>(value),
-            Value::I64(value) =&gt; <span class="macro">signed_to_signed_field!</span>(value),
+            Value::I8(value) =&gt; SignedField::from_signed(value),
+            Value::I16(value) =&gt; SignedField::from_signed(value),
+            Value::I32(value) =&gt; SignedField::from_signed(value),
+            Value::I64(value) =&gt; SignedField::from_signed(value),
             Value::U1(value) =&gt; SignedField::positive(value),
             Value::U8(value) =&gt; SignedField::positive(u128::from(value)),
             Value::U16(value) =&gt; SignedField::positive(u128::from(value)),
