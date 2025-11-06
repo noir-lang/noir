@@ -8,7 +8,7 @@ other blocks in the loop.</p>
 </div><span id="structfield.back_edge_start" class="structfield section-header"><a href="#structfield.back_edge_start" class="anchor field">§</a><code>back_edge_start: <a class="type" href="../../ir/basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a></code></span><div class="docblock"><p>The start of the back_edge n -&gt; d is the block n at the end of
 the loop that jumps back to the header block d which restarts the loop.</p>
 </div><span id="structfield.blocks" class="structfield section-header"><a href="#structfield.blocks" class="anchor field">§</a><code>blocks: <a class="struct" href="https://doc.rust-lang.org/1.85.0/alloc/collections/btree/set/struct.BTreeSet.html" title="struct alloc::collections::btree::set::BTreeSet">BTreeSet</a>&lt;<a class="type" href="../../ir/basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>&gt;</code></span><div class="docblock"><p>All the blocks contained within the loop, including <code>header</code> and <code>back_edge_start</code>.</p>
-</div><h2 id="implementations" class="section-header">Implementations<a href="#implementations" class="anchor">§</a></h2><div id="implementations-list"><details class="toggle implementors-toggle" open><summary><section id="impl-Loop" class="impl"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/loop_invariant.rs.html#150-196">Source</a><a href="#impl-Loop" class="anchor">§</a><h3 class="code-header">impl <a class="struct" href="struct.Loop.html" title="struct noirc_evaluator::ssa::opt::unrolling::Loop">Loop</a></h3></section></summary><div class="impl-items"><details class="toggle method-toggle" open><summary><section id="method.get_induction_variable" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/loop_invariant.rs.html#168-170">Source</a><h4 class="code-header">fn <a href="#method.get_induction_variable" class="fn">get_induction_variable</a>(&amp;self, function: &amp;<a class="struct" href="../../ir/function/struct.Function.html" title="struct noirc_evaluator::ssa::ir::function::Function">Function</a>) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.85.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;</h4></section></summary><div class="docblock"><p>Find the value that controls whether to perform a loop iteration.
+</div><h2 id="implementations" class="section-header">Implementations<a href="#implementations" class="anchor">§</a></h2><div id="implementations-list"><details class="toggle implementors-toggle" open><summary><section id="impl-Loop" class="impl"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/loop_invariant.rs.html#149-195">Source</a><a href="#impl-Loop" class="anchor">§</a><h3 class="code-header">impl <a class="struct" href="struct.Loop.html" title="struct noirc_evaluator::ssa::opt::unrolling::Loop">Loop</a></h3></section></summary><div class="impl-items"><details class="toggle method-toggle" open><summary><section id="method.get_induction_variable" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/loop_invariant.rs.html#167-169">Source</a><h4 class="code-header">fn <a href="#method.get_induction_variable" class="fn">get_induction_variable</a>(&amp;self, function: &amp;<a class="struct" href="../../ir/function/struct.Function.html" title="struct noirc_evaluator::ssa::ir::function::Function">Function</a>) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.85.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;</h4></section></summary><div class="docblock"><p>Find the value that controls whether to perform a loop iteration.
 This is going to be the block parameter of the loop header.</p>
 <p>Consider the following example of a <code>for i in 0..4</code> loop:</p>
 <div class="example-wrap"><pre class="language-text"><code>brillig(inline) fn main f0 {
@@ -21,7 +21,7 @@ This is going to be the block parameter of the loop header.</p>
 <p>In the example above, <code>v1</code> is the induction variable.</p>
 <p>There is an example in the tests where a loop does not have an induction variable,
 but rather loads a reference in the header, in which case this will return <code>None</code>.</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.is_fully_executed" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/loop_invariant.rs.html#182-195">Source</a><h4 class="code-header">pub(super) fn <a href="#method.is_fully_executed" class="fn">is_fully_executed</a>(&amp;self, cfg: &amp;<a class="struct" href="../../ir/cfg/struct.ControlFlowGraph.html" title="struct noirc_evaluator::ssa::ir::cfg::ControlFlowGraph">ControlFlowGraph</a>) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.85.0/std/primitive.bool.html">bool</a></h4></section></summary><div class="docblock"><p>Check if the loop will be fully executed, that is, there is no early <code>break</code> in it.</p>
+</div></details><details class="toggle method-toggle" open><summary><section id="method.is_fully_executed" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/loop_invariant.rs.html#181-194">Source</a><h4 class="code-header">pub(super) fn <a href="#method.is_fully_executed" class="fn">is_fully_executed</a>(&amp;self, cfg: &amp;<a class="struct" href="../../ir/cfg/struct.ControlFlowGraph.html" title="struct noirc_evaluator::ssa::ir::cfg::ControlFlowGraph">ControlFlowGraph</a>) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.85.0/std/primitive.bool.html">bool</a></h4></section></summary><div class="docblock"><p>Check if the loop will be fully executed, that is, there is no early <code>break</code> in it.</p>
 <p>Our SSA code generation restricts loops to having one exit block.
 If the exit block has only one predecessor, that means there is no <code>break</code> in the loop.</p>
 <p>If a loop can have several exit blocks, we would need to update this function.</p>
@@ -41,7 +41,7 @@ constrained to equal (which doesn’t even have to fall into the loop bounds).</
 <p>For example:</p>
 <div class="example-wrap"><pre class="language-text"><code>brillig(inline) predicate_pure fn main f0 {
   b0():
-    jmp b1(u32 10)               // Pre-header
+    jmp b1(u32 1)                // Pre-header
   b1(v0: u32):                   // Header
     v3 = lt v0, u32 20
     jmpif v3 then: b2, else: b3
@@ -112,14 +112,14 @@ not available.</p>
   v1 = 2
   jmp loop_entry(v0)
 loop_entry(i: Field):
-  v2 = lt i v1
+  v2 = lt i, v1
   jmpif v2, then: loop_body, else: loop_end</code></pre></div>
 <p>The first step is to unroll the header by recognizing that jump condition
 is a constant, which means it will go to <code>loop_body</code>:</p>
 <div class="example-wrap"><pre class="language-text"><code>main():
   v0 = 0
   v1 = 2
-  v2 = lt v0 v1
+  v2 = lt v0, v1
   // jmpif v2, then: loop_body, else: loop_end
   jmp dest: loop_body</code></pre></div>
 <p>Following that we unroll the loop body, which is the next source, replace
@@ -128,23 +128,23 @@ another go at the header.</p>
 <div class="example-wrap"><pre class="language-text"><code>main():
   v0 = 0
   v1 = 2
-  v2 = lt v0 v1
+  v2 = lt v0, v1
   v3 = ... body ...
-  v4 = add 1, 0
+  v4 = add v0, u32 1
   jmp loop_entry(v4)</code></pre></div>
 <p>At the end we reach a point where the condition evaluates to 0 and we jump to the end.</p>
 <div class="example-wrap"><pre class="language-text"><code>main():
   v0 = 0
   v1 = 2
-  v2 = lt 0
+  v2 = lt v0, v1
   v3 = ... body ...
-  v4 = add 1, v0
-  v5 = lt v4 v1
+  v4 = add u32 1, v0
+  v5 = lt v4, v1
   v6 = ... body ...
-  v7 = add v4, 1
-  v8 = lt v5 v1
+  v7 = add v4, u32 1
+  v8 = lt v7, v1
   jmp loop_end</code></pre></div>
-<p>When e.g. <code>v8 = lt v5 v1</code> cannot be evaluated to a constant, the loop signals by returning <code>Err</code>
+<p>When e.g. <code>v8 = lt v7, v1</code> cannot be evaluated to a constant, the loop signals by returning <code>Err</code>
 that a few SSA passes are required to evaluate and simplify these values.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.get_pre_header" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/unrolling.rs.html#584-603">Source</a><h4 class="code-header">pub(super) fn <a href="#method.get_pre_header" class="fn">get_pre_header</a>(
     &amp;self,
