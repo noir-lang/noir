@@ -287,8 +287,9 @@ impl DocItemBuilder<'_> {
             .map(|(visibility, item)| (visibility, self.convert_item(item, visibility)))
             .collect();
         self.module_imports.insert(module.id, module.imports);
+        let is_contract = module.is_contract;
         let id = self.get_module_id(module.id);
-        Module { id, module_id: module.id, name, comments, items }
+        Module { id, module_id: module.id, name, comments, items, is_contract }
     }
 
     fn convert_impl(&mut self, impl_: expand_items::Impl) -> Impl {
