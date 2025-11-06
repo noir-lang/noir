@@ -135,6 +135,7 @@ impl Elaborator<'_> {
         }
     }
 
+    /// Given its ID, retrieve and elaborate an interned [StatementKind].
     fn elaborate_interned_statement_as_expr(
         &mut self,
         id: InternedStatementKind,
@@ -516,6 +517,9 @@ impl Elaborator<'_> {
         (expr_id, typ)
     }
 
+    /// Check whether we can create a mutable reference over an expression.
+    ///
+    /// Pushes an error if it cannot be done.
     pub(super) fn check_can_mutate(&mut self, expr_id: ExprId, location: Location) {
         match self.interner.expression(&expr_id) {
             HirExpression::Ident(hir_ident, _) => {
@@ -541,9 +545,12 @@ impl Elaborator<'_> {
         }
     }
 
-    // We must check whether the mutable variable we are attempting to mutate
-    // comes from a lambda capture. All captures are immutable so we want to error
-    // if the user attempts to mutate a captured variable inside of a lambda without mutable references.
+    /// We must check whether the mutable variable we are attempting to mutate
+    /// comes from a lambda capture. All captures are immutable so we want to error
+    /// if the user attempts to mutate a captured variable inside of a lambda without
+    /// having captured a mutable reference.
+    ///
+    /// Pushes an error if the mutation is illegal.
     pub(super) fn check_can_mutate_lambda_capture(
         &mut self,
         id: DefinitionId,
@@ -609,6 +616,7 @@ impl Elaborator<'_> {
         call: CallExpression,
         location: Location,
     ) -> (HirExpression, Type) {
+        let is_macro_call = call.is_macro_call;
         let (func, func_type) = self.elaborate_expression(*call.func);
         let func_type = func_type.follow_bindings();
         let func_arg_types =
@@ -619,7 +627,7 @@ impl Elaborator<'_> {
             let location = arg.location;
             let expected_type = func_arg_types.and_then(|args| args.get(arg_index));
 
-            let (arg, typ) = if call.is_macro_call {
+            let (arg, typ) = if is_macro_call {
                 self.elaborate_in_comptime_context(|this| {
                     this.elaborate_expression_with_type(arg, expected_type)
                 })
@@ -630,7 +638,7 @@ impl Elaborator<'_> {
             // Try to unify this argument type against the function's argument type
             // so that a potential lambda following this argument can have more concrete types.
             if let Some(expected_type) = expected_type {
-                let _ = expected_type.unify(&typ);
+                let _ = typ.unify(expected_type);
             }
 
             arguments.push(arg);
@@ -639,11 +647,10 @@ impl Elaborator<'_> {
 
         // Avoid cloning arguments unless this is a macro call
         let mut comptime_args = Vec::new();
-        if call.is_macro_call {
+        if is_macro_call {
             comptime_args = arguments.clone();
         }
 
-        let is_macro_call = call.is_macro_call;
         let hir_call = HirCallExpression { func, arguments, location, is_macro_call };
         let mut typ = self.type_check_call(&hir_call, func_type, args, location);
 
@@ -1167,6 +1174,10 @@ impl Elaborator<'_> {
         (expr_id, typ)
     }
 
+    /// Handles the results of [Self::prefix_operand_type_rules] and [Self::infix_operand_type_rules].
+    /// * if the rules returned an `Err`, it returns [Type::Error]
+    /// * if the results indicate that a trait method should be used,
+    ///   it pushes a trait constraint and checks that the expression type is compatible with the trait method
     fn handle_operand_type_rules_result(
         &mut self,
         result: Result<(Type, bool), TypeCheckError>,

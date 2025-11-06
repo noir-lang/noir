@@ -166,6 +166,7 @@ impl Elaborator<'_> {
         Some(self.elaborate_type_path_impl(self_type.clone(), ident, None, typ_location))
     }
 
+    /// Resolve a [TypedPath] to a [HirIdent] of either some trait method, or a local or global variable.
     fn resolve_variable(&mut self, path: TypedPath) -> (HirIdent, Option<PathResolutionItem>) {
         if let Some(trait_path_resolution) = self.resolve_trait_generic_path(&path) {
             self.push_errors(trait_path_resolution.errors);
@@ -344,6 +345,11 @@ impl Elaborator<'_> {
         (id, typ)
     }
 
+    /// Given an [HirIdent], look up its definition, and:
+    /// * mark it as referenced at the ident [Location] (LSP mode only)
+    /// * mark the item currently being elaborated as a dependency of it
+    /// * elaborate a global definition, if needed
+    /// * add local identifiers to lambda captures
     pub(crate) fn handle_hir_ident(
         &mut self,
         hir_ident: &HirIdent,
@@ -393,6 +399,8 @@ impl Elaborator<'_> {
         }
     }
 
+    /// Starting with empty bindings, perform the type checking of an interned expression
+    /// and a corresponding identifier, returning the instantiated [Type].
     pub(crate) fn type_check_variable(
         &mut self,
         ident: HirIdent,
@@ -411,6 +419,11 @@ impl Elaborator<'_> {
         )
     }
 
+    /// Perform the type checking of an interned expression and a corresponding identifier,
+    /// returning the instantiated [Type].
+    ///
+    /// If `push_required_type_variables`, the bindings are added to the function context,
+    /// to be checked before it's finished.
     pub(crate) fn type_check_variable_with_bindings(
         &mut self,
         ident: HirIdent,
@@ -529,6 +542,11 @@ impl Elaborator<'_> {
         typ
     }
 
+    /// Instantiate a [Type] with the given [TypeBindings], returning the bindings potentially
+    /// extended from any turbofish generics.
+    ///
+    /// If there are turbofish generics and their number matches the expectations of the function,
+    /// those are used as well, otherwise they are ignored and an error is pushed.
     fn instantiate(
         &mut self,
         typ: Type,

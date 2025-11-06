@@ -60,7 +60,7 @@ pub(super) enum TraitPathResolutionMethod {
 }
 
 impl Elaborator<'_> {
-    /// Resolves a type and marks it, and any generic types it contains, as referenced.
+    /// Resolves an [UnresolvedType] to a [Type] with [Kind::Normal] and marks it, and any generic types it contains, as _referenced_.
     pub(crate) fn resolve_type(&mut self, typ: UnresolvedType, wildcard_allowed: bool) -> Type {
         self.resolve_type_inner(
             typ,
@@ -70,11 +70,12 @@ impl Elaborator<'_> {
         )
     }
 
-    /// Resolves a type and marks it, and any generic types it contains, as used.
+    /// Resolves an [UnresolvedType] to a [Type] with [Kind::Normal] and marks it, and any generic types it contains, as _used_.
     pub(crate) fn use_type(&mut self, typ: UnresolvedType, wildcard_allowed: bool) -> Type {
         self.use_type_with_kind(typ, &Kind::Normal, wildcard_allowed)
     }
 
+    /// Resolves an [UnresolvedType] to a [Type] and marks it, and any generic types it contains, as _used_.
     pub(crate) fn use_type_with_kind(
         &mut self,
         typ: UnresolvedType,
@@ -84,7 +85,9 @@ impl Elaborator<'_> {
         self.resolve_type_inner(typ, kind, PathResolutionMode::MarkAsUsed, wildcard_allowed)
     }
 
-    /// Translates an UnresolvedType to a Type with a `TypeKind::Normal`
+    /// Translates an [UnresolvedType] to a [Type] with a given [Kind] and [PathResolutionMode].
+    ///
+    /// Pushes an error if the resolved type is invalid.
     fn resolve_type_inner(
         &mut self,
         typ: UnresolvedType,
@@ -100,6 +103,7 @@ impl Elaborator<'_> {
         resolved_type
     }
 
+    /// Resolves an [UnresolvedType] to a [Type] with a given [Kind] and marks it, and any generic types it contains, as _referenced_.
     pub(crate) fn resolve_type_with_kind(
         &mut self,
         typ: UnresolvedType,
@@ -109,7 +113,7 @@ impl Elaborator<'_> {
         self.resolve_type_inner(typ, kind, PathResolutionMode::MarkAsReferenced, wildcard_allowed)
     }
 
-    /// Translates an UnresolvedType into a Type.
+    /// Translates an [UnresolvedType] into a [Type] with a given [Kind] and [PathResolutionMode].
     fn resolve_type_with_kind_inner(
         &mut self,
         typ: UnresolvedType,
@@ -452,6 +456,8 @@ impl Elaborator<'_> {
         }
     }
 
+    /// Resolves the ordered and named [GenericTypeArgs] into [Type]s and associated [NamedType]s,
+    /// marking all of them as _used_.
     pub(super) fn use_type_args(
         &mut self,
         args: GenericTypeArgs,
@@ -463,6 +469,7 @@ impl Elaborator<'_> {
         self.resolve_type_args_inner(args, item, location, mode, wildcard_allowed)
     }
 
+    /// Resolves the ordered and named [GenericTypeArgs] into [Type]s and associated [NamedType]s.
     pub(super) fn resolve_type_args_inner(
         &mut self,
         args: GenericTypeArgs,
@@ -482,6 +489,9 @@ impl Elaborator<'_> {
         )
     }
 
+    /// Matches [GenericTypeArgs::ordered_args] to the [Generic::expected_kinds] of a [Generic] type,
+    /// resolving them to [Type]s with the given [PathResolutionMode]. If the type accepts named
+    /// generic arguments, those are resolved as well and returned as associated [NamedType]s.
     pub(super) fn resolve_type_or_trait_args_inner(
         &mut self,
         mut args: GenericTypeArgs,
@@ -528,6 +538,9 @@ impl Elaborator<'_> {
         (ordered, associated)
     }
 
+    /// Assuming that a [Generic] type accepts named type arguments, ie. has associated types,
+    /// go through a list of named [UnresolvedType]s and match them up to the named generics of the type,
+    /// returning the resolved [NamedType]s and pushing errors for any unexpected, duplicate or missing entries.
     fn resolve_associated_type_args(
         &mut self,
         args: Vec<(Ident, UnresolvedType)>,
@@ -990,7 +1003,7 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Try to resolve the given trait method path.
+    /// Try to resolve a [TypedPath] to a trait method path.
     ///
     /// Returns the trait method, trait constraint, and whether the impl is assumed to exist by a where clause or not
     /// E.g. `t.method()` with `where T: Foo<Bar>` in scope will return `(Foo::method, T, vec![Bar])`
@@ -1004,6 +1017,9 @@ impl Elaborator<'_> {
             .or_else(|| self.resolve_type_trait_method(path))
     }
 
+    /// Unify two types, modifying both in the process.
+    ///
+    /// Pushes an error on failure.
     pub(super) fn unify(
         &mut self,
         actual: &Type,
@@ -1393,10 +1409,13 @@ impl Elaborator<'_> {
         use_impl
     }
 
-    // Given a binary operator and another type. This method will produce the output type
-    // and a boolean indicating whether to use the trait impl corresponding to the operator
-    // or not. A value of false indicates the caller to use a primitive operation for this
-    // operator, while a true value indicates a user-provided trait impl is required.
+    /// Given a binary operator and another type, this method will produce the output type
+    /// and a boolean indicating whether to use the trait impl corresponding to the operator
+    /// or not. A value of false indicates the caller to use a primitive operation for this
+    /// operator, while a true value indicates a user-provided trait impl is required.
+    ///
+    /// Returns an `Err` if the operator cannot be applied on the argument types,
+    /// or if the arguments are incompatible with each other.
     pub(super) fn infix_operand_type_rules(
         &mut self,
         lhs_type: &Type,
@@ -1492,6 +1511,8 @@ impl Elaborator<'_> {
     /// and a boolean indicating whether to use the trait impl corresponding to the operator
     /// or not. A value of false indicates to the caller to use a primitive operation for this
     /// operator, while a true value indicates a user-provided trait impl is required.
+    ///
+    /// Returns `Err` if the type cannot be used with the given unary operator.
     pub(super) fn prefix_operand_type_rules(
         &mut self,
         op: &UnaryOp,
@@ -1675,6 +1696,9 @@ impl Elaborator<'_> {
         }
     }
 
+    /// Try to look up a method on a [Type] by name:
+    /// * if the object type is generic, look it up in the trait constraints
+    /// * otherwise look it up directly on the type, or in traits the type implements
     pub(crate) fn lookup_method(
         &mut self,
         object_type: &Type,
@@ -1906,6 +1930,13 @@ impl Elaborator<'_> {
         HirMethodReference::TraitItemId(trait_method_id, trait_id, generics, false)
     }
 
+    /// Assuming that we are currently elaborating a function, try to look up a method in:
+    /// * the trait the function belongs to, if the object is the self-type of the method, or
+    /// * in any of the traits which appear in the constraints of the function
+    ///
+    /// Pushes an error if the method cannot be found.
+    ///
+    /// Panics if we are not elaborating a function currently.
     fn lookup_method_in_trait_constraints(
         &mut self,
         object_type: &Type,

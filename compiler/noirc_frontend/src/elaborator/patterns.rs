@@ -412,7 +412,7 @@ impl Elaborator<'_> {
         ident
     }
 
-    /// Lookup and use the specified variable.
+    /// Lookup and use the specified local variable.
     /// This will increment its use counter by one and return the variable if found.
     /// If the variable is not found, an error is returned.
     pub(super) fn use_variable(
@@ -627,6 +627,9 @@ impl Elaborator<'_> {
         }
     }
 
+    /// Resolve a [TypedPath] into a local or global [HirIdent].
+    ///
+    /// If it cannot be found, then it pushes the error and returns an ident with a [DefinitionId::dummy_id].
     pub(crate) fn get_ident_from_path(
         &mut self,
         path: TypedPath,
@@ -640,6 +643,7 @@ impl Elaborator<'_> {
         })
     }
 
+    /// Resolve a [TypedPath] into a local or global [HirIdent], or return `Err` if it could not be found.
     pub(crate) fn get_ident_from_path_or_error(
         &mut self,
         path: TypedPath,

@@ -135,12 +135,15 @@ pub struct TraitItemId {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct QuotedTypeId(pub(super) Index);
 
+/// The ID of an [ExpressionKind] that's been pushed into the [NodeInterner].
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct InternedExpressionKind(pub(super) Index);
 
+/// The ID of a [StatementKind] that's been pushed into the [NodeInterner].
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct InternedStatementKind(pub(super) Index);
 
+/// The ID of a [UnresolvedTypeData] that's been pushed into the [NodeInterner].
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct InternedUnresolvedTypeData(pub(super) Index);
 

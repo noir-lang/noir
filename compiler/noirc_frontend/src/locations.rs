@@ -71,7 +71,7 @@ pub struct AutoImportEntry {
     ///     mod bar {
     ///         pub struct Baz {} // This is the item
     ///     }
-    ///     
+    ///
     ///     pub use bar::Baz; // Here's the visibility
     /// }
     /// ```
@@ -172,6 +172,7 @@ impl NodeInterner {
         self.add_reference(ReferenceId::StructMember(id, member_index), location, false);
     }
 
+    /// Mark a [TraitId] as referenced at a [Location].
     pub(crate) fn add_trait_reference(
         &mut self,
         id: TraitId,
@@ -181,6 +182,7 @@ impl NodeInterner {
         self.add_reference(ReferenceId::Trait(id), location, is_self_type);
     }
 
+    /// Mark a [TraitAssociatedTypeId] as referenced at a [Location].
     pub(crate) fn add_trait_associated_type_reference(
         &mut self,
         id: TraitAssociatedTypeId,
@@ -189,22 +191,29 @@ impl NodeInterner {
         self.add_reference(ReferenceId::TraitAssociatedType(id), location, false);
     }
 
+    /// Mark a [TypeAliasId] as referenced at a [Location].
     pub(crate) fn add_alias_reference(&mut self, id: TypeAliasId, location: Location) {
         self.add_reference(ReferenceId::Alias(id), location, false);
     }
 
+    /// Mark a [FuncId] as referenced at a [Location].
     pub(crate) fn add_function_reference(&mut self, id: FuncId, location: Location) {
         self.add_reference(ReferenceId::Function(id), location, false);
     }
 
+    /// Mark a [GlobalId] as referenced at a [Location].
     pub(crate) fn add_global_reference(&mut self, id: GlobalId, location: Location) {
         self.add_reference(ReferenceId::Global(id), location, false);
     }
 
+    /// Mark a [DefinitionId] as referenced at a [Location].
     pub(crate) fn add_local_reference(&mut self, id: DefinitionId, location: Location) {
         self.add_reference(ReferenceId::Local(id), location, false);
     }
 
+    /// Mark a [ReferenceId] as referenced at a [Location].
+    ///
+    /// LSP mode only.
     pub(crate) fn add_reference(
         &mut self,
         referenced: ReferenceId,

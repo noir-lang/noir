@@ -58,6 +58,7 @@ pub(crate) enum PathResolutionItem {
 }
 
 impl PathResolutionItem {
+    /// Return a [FuncId] if the item refers to some kind of function, otherwise `None`.
     pub(crate) fn function_id(&self) -> Option<FuncId> {
         match self {
             PathResolutionItem::ModuleFunction(func_id)
@@ -229,6 +230,7 @@ impl TypedPath {
         self.segments.last().unwrap().ident.as_str()
     }
 
+    /// Returns `Some` if the [TypedPath] consists of a single [PathKind::Plain] segment, otherwise `None`.
     pub fn as_single_segment(&self) -> Option<&TypedPathSegment> {
         if self.kind == PathKind::Plain && self.segments.len() == 1 {
             self.segments.first()
@@ -300,6 +302,7 @@ impl std::fmt::Display for TypedPathSegment {
 }
 
 impl Elaborator<'_> {
+    /// Try to resolve a [TypedPath] into a [PathResolutionItem], marking it as _referenced_.
     pub(super) fn resolve_path_or_error(
         &mut self,
         path: TypedPath,
@@ -308,6 +311,7 @@ impl Elaborator<'_> {
         self.resolve_path_or_error_inner(path, target, PathResolutionMode::MarkAsReferenced)
     }
 
+    /// Try to resolve a [TypedPath] into a [PathResolutionItem], marking it as _used_.
     pub(super) fn use_path_or_error(
         &mut self,
         path: TypedPath,
@@ -316,6 +320,9 @@ impl Elaborator<'_> {
         self.resolve_path_or_error_inner(path, target, PathResolutionMode::MarkAsUsed)
     }
 
+    /// Try to resolve a [TypedPath] into a [PathResolutionItem].
+    ///
+    /// Pushes the `errors` from the [PathResolution], returning only the `item`.
     pub(super) fn resolve_path_or_error_inner(
         &mut self,
         path: TypedPath,
@@ -329,6 +336,7 @@ impl Elaborator<'_> {
         Ok(path_resolution.item)
     }
 
+    /// Try to resolve a [TypedPath] into a [PathResolution] with [PathResolutionTarget::Type], marking it as _referenced_.
     pub(super) fn resolve_path_as_type(&mut self, path: TypedPath) -> PathResolutionResult {
         self.resolve_path_inner(
             path,
@@ -337,6 +345,7 @@ impl Elaborator<'_> {
         )
     }
 
+    /// Try to resolve a [TypedPath] into a [PathResolution] with [PathResolutionTarget::Type], marking it as _used_.
     pub(super) fn use_path_as_type(&mut self, path: TypedPath) -> PathResolutionResult {
         self.resolve_path_inner(path, PathResolutionTarget::Type, PathResolutionMode::MarkAsUsed)
     }

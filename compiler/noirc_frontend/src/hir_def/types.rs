@@ -1578,6 +1578,7 @@ impl Type {
         }
     }
 
+    /// Check whether this type is an array or slice and contains a nested slice in it.
     pub(crate) fn is_nested_slice(&self) -> bool {
         match self {
             Type::Slice(elem) => elem.as_ref().contains_slice(),
@@ -1587,6 +1588,9 @@ impl Type {
         }
     }
 
+    /// Check whether this type is itself a slice, or a struct/enum/tuple which contains a slice in a field or variant.
+    ///
+    /// Note that arrays cannot contain slices, so for them it always returns `false`.
     pub(crate) fn contains_slice(&self) -> bool {
         match self {
             Type::Slice(_) => true,
