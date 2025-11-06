@@ -1020,7 +1020,7 @@ impl<'f> Context<'f> {
     ) -> Vec<ValueId> {
         match blackbox {
             BlackBoxFunc::EmbeddedCurveAdd => {
-                arguments[5] = self.mul_by_condition(arguments[5], condition, call_stack);
+                arguments[6] = self.mul_by_condition(arguments[6], condition, call_stack);
                 arguments
             }
 
