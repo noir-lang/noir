@@ -50,14 +50,14 @@ pub enum StatementKind {
     Continue,
     /// This statement should be executed at compile-time
     Comptime(Box<Statement>),
-    // This is an expression with a trailing semi-colon
+    /// This is an expression with a trailing semi-colon
     Semi(Expression),
-    // This is an interned StatementKind during comptime code.
-    // The actual StatementKind can be retrieved with a NodeInterner.
+    /// This is an interned StatementKind during comptime code.
+    /// The actual StatementKind can be retrieved with a NodeInterner.
     Interned(InternedStatementKind),
-    // This statement is the result of a recovered parse error.
-    // To avoid issuing multiple errors in later steps, it should
-    // be skipped in any future analysis if possible.
+    /// This statement is the result of a recovered parse error.
+    /// To avoid issuing multiple errors in later steps, it should
+    /// be skipped in any future analysis if possible.
     Error,
 }
 

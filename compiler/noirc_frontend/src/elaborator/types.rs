@@ -250,7 +250,7 @@ impl Elaborator<'_> {
         self.check_kind(resolved_type, kind, location)
     }
 
-    // Resolve Self::Foo to an associated type on the current trait or trait impl
+    /// Resolve Self::Foo to an associated type on the current trait or trait impl
     fn lookup_associated_type_on_self(&self, path: &TypedPath) -> Option<Type> {
         if path.segments.len() == 2 && path.first_name() == Some(SELF_TYPE_NAME) {
             if let Some(trait_id) = self.current_trait {
@@ -814,11 +814,11 @@ impl Elaborator<'_> {
         }
     }
 
-    // this resolves Self::some_static_method, inside an impl block (where we don't have a concrete self_type)
-    // or inside a trait default method.
-    //
-    // Returns the trait method, trait constraint, and whether the impl is assumed to exist by a where clause or not
-    // E.g. `t.method()` with `where T: Foo<Bar>` in scope will return `(Foo::method, T, vec![Bar])`
+    /// This resolves `Self::some_static_method`, inside an impl block (where we don't have a concrete self_type)
+    /// or inside a trait default method.
+    ///
+    /// Returns the trait method, trait constraint, and whether the impl is assumed to exist by a where clause or not
+    /// E.g. `t.method()` with `where T: Foo<Bar>` in scope will return `(Foo::method, T, vec![Bar])`
     fn resolve_trait_static_method_by_self(
         &mut self,
         path: &TypedPath,
@@ -849,10 +849,10 @@ impl Elaborator<'_> {
         None
     }
 
-    // this resolves TraitName::some_static_method
-    //
-    // Returns the trait method, trait constraint, and whether the impl is assumed to exist by a where clause or not
-    // E.g. `t.method()` with `where T: Foo<Bar>` in scope will return `(Foo::method, T, vec![Bar])`
+    /// This resolves `TraitName::some_static_method`
+    ///
+    /// Returns the trait method, trait constraint, and whether the impl is assumed to exist by a where clause or not
+    /// E.g. `t.method()` with `where T: Foo<Bar>` in scope will return `(Foo::method, T, vec![Bar])`
     fn resolve_trait_static_method(&mut self, path: &TypedPath) -> Option<TraitPathResolution> {
         let path_resolution = self.use_path_as_type(path.clone()).ok()?;
         let func_id = path_resolution.item.function_id()?;
@@ -866,11 +866,11 @@ impl Elaborator<'_> {
         Some(TraitPathResolution { method, item, errors: path_resolution.errors })
     }
 
-    // This resolves a static trait method T::trait_method by iterating over the where clause
-    //
-    // Returns the trait method, trait constraint, and whether the impl is assumed from a where
-    // clause. This is always true since this helper searches where clauses for a generic constraint.
-    // E.g. `t.method()` with `where T: Foo<Bar>` in scope will return `(Foo::method, T, vec![Bar])`
+    /// This resolves a static trait method T::trait_method by iterating over the where clause
+    ///
+    /// Returns the trait method, trait constraint, and whether the impl is assumed from a where
+    /// clause. This is always true since this helper searches where clauses for a generic constraint.
+    /// E.g. `t.method()` with `where T: Foo<Bar>` in scope will return `(Foo::method, T, vec![Bar])`
     fn resolve_trait_method_by_named_generic(
         &mut self,
         path: &TypedPath,
@@ -990,10 +990,10 @@ impl Elaborator<'_> {
         }
     }
 
-    // Try to resolve the given trait method path.
-    //
-    // Returns the trait method, trait constraint, and whether the impl is assumed to exist by a where clause or not
-    // E.g. `t.method()` with `where T: Foo<Bar>` in scope will return `(Foo::method, T, vec![Bar])`
+    /// Try to resolve the given trait method path.
+    ///
+    /// Returns the trait method, trait constraint, and whether the impl is assumed to exist by a where clause or not
+    /// E.g. `t.method()` with `where T: Foo<Bar>` in scope will return `(Foo::method, T, vec![Bar])`
     pub(super) fn resolve_trait_generic_path(
         &mut self,
         path: &TypedPath,
@@ -1283,10 +1283,10 @@ impl Elaborator<'_> {
         }
     }
 
-    // Given a binary comparison operator and another type. This method will produce the output type
-    // and a boolean indicating whether to use the trait impl corresponding to the operator
-    // or not. A value of false indicates the caller to use a primitive operation for this
-    // operator, while a true value indicates a user-provided trait impl is required.
+    /// Given a binary comparison operator and another type. This method will produce the output type
+    /// and a boolean indicating whether to use the trait impl corresponding to the operator
+    /// or not. A value of false indicates the caller to use a primitive operation for this
+    /// operator, while a true value indicates a user-provided trait impl is required.
     fn comparator_operand_type_rules(
         &mut self,
         lhs_type: &Type,
