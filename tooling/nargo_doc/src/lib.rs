@@ -249,7 +249,13 @@ impl DocItemBuilder<'_> {
                 let impls = vecmap(primitive_type.impls, |impl_| self.convert_impl(impl_));
                 let trait_impls =
                     vecmap(primitive_type.trait_impls, |impl_| self.convert_trait_impl(impl_));
-                Item::PrimitiveType(PrimitiveType { kind, impls, trait_impls })
+                let comments = self
+                    .interner
+                    .primitive_docs
+                    .get(&kind.to_string())
+                    .cloned()
+                    .map(|comments| comments.join("\n").trim().to_string());
+                Item::PrimitiveType(PrimitiveType { kind, impls, trait_impls, comments })
             }
             expand_items::Item::Global(global_id) => {
                 let global_info = self.interner.get_global(global_id);

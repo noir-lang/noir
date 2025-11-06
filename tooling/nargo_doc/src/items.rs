@@ -340,6 +340,7 @@ pub struct PrimitiveType {
     pub kind: PrimitiveTypeKind,
     pub impls: Vec<Impl>,
     pub trait_impls: Vec<TraitImpl>,
+    pub comments: Option<String>,
 }
 
 impl HasNameAndComments for PrimitiveType {
@@ -348,7 +349,7 @@ impl HasNameAndComments for PrimitiveType {
     }
 
     fn comments(&self) -> Option<&str> {
-        None
+        self.comments.as_deref()
     }
 }
 

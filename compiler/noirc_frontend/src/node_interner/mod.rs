@@ -288,6 +288,11 @@ pub struct NodeInterner {
     /// This is used to offer importing the item via one of these exports if
     /// the item is not visible where it's defined.
     pub reexports: HashMap<ModuleDefId, Vec<Reexport>>,
+
+    /// Contains the docs comments of primitive types.
+    /// These are defined in `noir_stdlib/src/primitive_docs.nr` using a tag
+    /// attribute `#['nargo_primitive_doc]` on private modules.
+    pub primitive_docs: HashMap<String, Vec<String>>,
 }
 
 /// A trait implementation is either a normal implementation that is present in the source
@@ -479,6 +484,7 @@ impl Default for NodeInterner {
             trait_impl_associated_constants: HashMap::default(),
             doc_comments: HashMap::default(),
             reexports: HashMap::default(),
+            primitive_docs: HashMap::default(),
         }
     }
 }
