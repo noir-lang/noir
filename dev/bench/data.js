@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1762510212379,
+  "lastUpdate": 1762516402593,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23236,48 +23236,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "72797635+Savio-Sou@users.noreply.github.com",
-            "name": "Savio",
-            "username": "Savio-Sou"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "42bab876cd4e1edec45fd3a09217709e35eaa56c",
-          "message": "feat(github): Add Security Policy (#10262)",
-          "timestamp": "2025-10-24T17:27:47Z",
-          "tree_id": "4177c4f6c11e8c47638872eaa322246a5c416ed4",
-          "url": "https://github.com/noir-lang/noir/commit/42bab876cd4e1edec45fd3a09217709e35eaa56c"
-        },
-        "date": 1761328643380,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 266740,
-            "range": "± 671",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 237080,
-            "range": "± 1496",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3010376,
-            "range": "± 32452",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25329,6 +25287,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2803145,
             "range": "± 9645",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "72797635+Savio-Sou@users.noreply.github.com",
+            "name": "Savio",
+            "username": "Savio-Sou"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "31f0e59401c0b626fd3c4db49c48875d088f8f4f",
+          "message": "chore(github): Refine pull request template wording (#10418)",
+          "timestamp": "2025-11-07T11:30:54Z",
+          "tree_id": "3d2d4437569ba6381510e10933fb2af55fd5e68a",
+          "url": "https://github.com/noir-lang/noir/commit/31f0e59401c0b626fd3c4db49c48875d088f8f4f"
+        },
+        "date": 1762516376670,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 263721,
+            "range": "± 579",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 235718,
+            "range": "± 3089",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2802342,
+            "range": "± 2016",
             "unit": "ns/iter"
           }
         ]
