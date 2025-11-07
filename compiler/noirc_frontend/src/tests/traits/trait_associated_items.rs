@@ -437,8 +437,7 @@ fn trait_impl_with_where_clause_with_trait_with_associated_type() {
 
 #[test]
 fn self_associated_constant_from_different_trait() {
-    // Self::N resolves based on which trait impl we're in,
-    // even when multiple traits define a constant with the same name
+    // Self::N resolves based on which trait impl we're in, even when multiple traits define a constant with the same name
     let src = r#"
     trait Trait1 {
         let N: u32;
@@ -470,7 +469,7 @@ fn self_associated_constant_from_different_trait() {
 
 #[test]
 fn self_associated_constant_does_not_cross_trait_boundaries() {
-    // Test that Self::CONSTANT cannot access constants from other trait impls
+    // Self::AssociatedConstant cannot access constants from other trait impls
     let src = r#"
     trait Base {
         let N: u32;

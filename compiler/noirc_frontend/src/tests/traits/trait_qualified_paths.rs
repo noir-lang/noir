@@ -352,30 +352,6 @@ fn self_with_associated_type_method_call_on_primitive() {
     assert_no_errors(src);
 }
 
-    // trait Default2 {
-    //     fn default2() -> Self;
-    // }
-
-    // impl Default2 for u32 {
-    //     fn default2() -> u32 { 0 }
-    // }
-
-    // trait MyTrait {
-    //     type AssocType;
-    //     fn method() -> u32;
-    // }
-
-    // struct MyStruct { }
-
-    // impl MyTrait for MyStruct {
-    //     type AssocType = u32;
-
-    //     fn method() -> u32 {
-    //         // This would work in Rust but not in Noir
-    //         Self::AssocType::default2()
-    //     }
-    // }
-
 #[test]
 fn self_with_nested_item_access() {
     let src = r#"
