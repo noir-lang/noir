@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1762540632206,
+  "lastUpdate": 1762540654877,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14862,95 +14862,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "52b341d71984273eb5cabe9edbd290b1f34a6a6e",
-          "message": "chore(audit): Refactors in `BrilligGlobals`, `ConstantAllocation` and `VariableLiveness` (#10265)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
-          "timestamp": "2025-10-27T08:24:57Z",
-          "tree_id": "6b481b97f3498b5b80516c3995fe3027496fb039",
-          "url": "https://github.com/noir-lang/noir/commit/52b341d71984273eb5cabe9edbd290b1f34a6a6e"
-        },
-        "date": 1761556127052,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 253.63,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 287.24,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 243.5,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 337.87,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 336.67,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 1020,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 1020,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 337.87,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 451.42,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 466.49,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 336.13,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 73.7,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 71.96,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "michaeljklein@users.noreply.github.com",
             "name": "Michael J Klein",
             "username": "michaeljklein"
@@ -19240,6 +19151,95 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/481230936c9b29bb1c200a1bffc66ffe35ec6d50"
         },
         "date": 1762538389027,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 260.41,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 292.14,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 250.83,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 339.1,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 337.86,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1760,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1760,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 339.09,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 526.54,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 472.94,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 337.32,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 73.69,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 71.95,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8d4b1c7ea5f7341c5a2c7187be2f96fcafb504f7",
+          "message": "chore(frontend): Avoid silent fallback when returning turbofish generics for primitive types (#10416)",
+          "timestamp": "2025-11-07T17:46:29Z",
+          "tree_id": "ed2414c8f01ca527baded1d31e9c3c1b1c4796fc",
+          "url": "https://github.com/noir-lang/noir/commit/8d4b1c7ea5f7341c5a2c7187be2f96fcafb504f7"
+        },
+        "date": 1762540626866,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
