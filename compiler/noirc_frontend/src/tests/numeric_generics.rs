@@ -591,3 +591,22 @@ fn integer_with_suffix_used_as_type_in_quote() {
     ";
     assert_no_errors(src);
 }
+
+/// Regression for https://github.com/noir-lang/noir/pull/10330#issuecomment-3499399843
+#[test]
+fn integer_with_suffix_used_as_tuple_index() {
+    let src = "
+        fn main() {
+            macro!();
+        }
+
+        comptime fn macro() -> Quoted {
+            let n = 0u32;
+            quote {
+                let tuple = (0u8, 1u16, 2i8);
+                assert_eq(tuple.$n, 0);
+            }
+        }
+    ";
+    assert_no_errors(src);
+}
