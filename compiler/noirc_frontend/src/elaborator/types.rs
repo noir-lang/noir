@@ -1032,7 +1032,7 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Wrapper of Type::unify_with_coercions using self.errors
+    /// Wrapper of [Type::unify_with_coercions], pushing any unification errors.
     pub(super) fn unify_with_coercions(
         &mut self,
         actual: &Type,

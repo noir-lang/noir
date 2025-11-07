@@ -1,5 +1,7 @@
 //! Expression elaboration, covering all expression [kinds][ExpressionKind].
 
+use std::collections::HashMap;
+
 use iter_extended::vecmap;
 use noirc_errors::{Located, Location};
 use rustc_hash::FxHashSet as HashSet;
@@ -860,6 +862,10 @@ impl Elaborator<'_> {
         self.elaborate_expression_with_target_type(arg, typ)
     }
 
+    /// Elaborate a struct constructor.
+    ///
+    /// This method resolves the [UnresolvedType] into the [Type] being constructed,
+    /// then delegates to [Elaborator::elaborate_constructor_with_type] to handle the fields.
     fn elaborate_constructor(
         &mut self,
         constructor: ConstructorExpression,
@@ -892,8 +898,10 @@ impl Elaborator<'_> {
             return (HirExpression::Error, Type::Error);
         };
 
-        let last_segment = path.segments.last_mut().unwrap();
+        // When instantiating a generic struct, treat any generics in the type
+        // as if they were part of the turbofish, so they can be validated with the path.
         if !generics.ordered_args.is_empty() {
+            let last_segment = path.segments.last_mut().unwrap();
             last_segment.generics = Some(generics.ordered_args);
         }
 
@@ -907,6 +915,7 @@ impl Elaborator<'_> {
         self.elaborate_constructor_with_type(typ, constructor.fields, location, Some(last_segment))
     }
 
+    /// Knowing the [Type] being constructed, elaborate all field expressions.
     fn elaborate_constructor_with_type(
         &mut self,
         typ: Type,
@@ -915,9 +924,9 @@ impl Elaborator<'_> {
         last_segment: Option<TypedPathSegment>,
     ) -> (HirExpression, Type) {
         let typ = typ.follow_bindings_shallow();
-        let (r#type, generics) = match typ.as_ref() {
-            Type::DataType(r#type, struct_generics) if r#type.borrow().is_struct() => {
-                (r#type, struct_generics)
+        let (struct_type, generics) = match typ.as_ref() {
+            Type::DataType(struct_type, struct_generics) if struct_type.borrow().is_struct() => {
+                (struct_type, struct_generics)
             }
             typ => {
                 self.push_err(ResolverError::NonStructUsedInConstructor {
@@ -927,7 +936,9 @@ impl Elaborator<'_> {
                 return (HirExpression::Error, Type::Error);
             }
         };
-        self.mark_struct_as_constructed(r#type.clone());
+        let struct_id = struct_type.borrow().id;
+
+        self.mark_struct_as_constructed(struct_type.clone());
 
         // `last_segment` is optional if this constructor was resolved from a quoted type
         let mut generics = generics.clone();
@@ -940,7 +951,7 @@ impl Elaborator<'_> {
             constructor_type_location = last_segment.ident.location();
 
             generics = self.resolve_struct_turbofish_generics(
-                &r#type.borrow(),
+                &struct_type.borrow(),
                 generics,
                 last_segment.generics,
                 turbofish_location,
@@ -948,7 +959,6 @@ impl Elaborator<'_> {
         }
 
         // Each of the struct generics must be bound at the end of the function
-        let struct_id = r#type.borrow().id;
         for (index, generic) in generics.iter().enumerate() {
             if let Type::TypeVariable(type_variable) = generic {
                 self.push_required_type_variable(
@@ -960,9 +970,7 @@ impl Elaborator<'_> {
             }
         }
 
-        let struct_type = r#type.clone();
-
-        let field_types = r#type
+        let field_types = struct_type
             .borrow()
             .get_fields_with_visibility(&generics)
             .expect("This type should already be validated to be a struct");
@@ -979,12 +987,12 @@ impl Elaborator<'_> {
             struct_generics: generics.clone(),
         });
 
-        let struct_id = struct_type.borrow().id;
         self.interner.add_type_reference(struct_id, constructor_type_location, is_self_type);
 
-        (expr, Type::DataType(struct_type, generics))
+        (expr, Type::DataType(struct_type.clone(), generics))
     }
 
+    /// Mark a struct as used in the [UsageTracker][crate::usage_tracker::UsageTracker].
     pub(super) fn mark_struct_as_constructed(&mut self, struct_type: Shared<DataType>) {
         let struct_type = struct_type.borrow();
         let parent_module_id = struct_type.id.parent_module_id(self.def_maps);
@@ -1008,15 +1016,18 @@ impl Elaborator<'_> {
             .field_names()
             .expect("This type should already be validated to be a struct");
 
+        let expected_fields_by_name = field_types
+            .iter()
+            .enumerate()
+            .map(|(i, (name, vis, typ))| (name.as_str(), (i, vis, typ)))
+            .collect::<HashMap<_, _>>();
+
         for (field_name, field) in fields {
-            let expected_field_with_index = field_types
-                .iter()
-                .enumerate()
-                .find(|(_, (name, _, _))| name == field_name.as_str());
+            let expected_field = expected_fields_by_name.get(field_name.as_str());
+
             let expected_index_and_visibility =
-                expected_field_with_index.map(|(index, (_, visibility, _))| (index, visibility));
-            let expected_type =
-                expected_field_with_index.map(|(_, (_, _, typ))| typ).unwrap_or(&Type::Error);
+                expected_field.map(|(index, visibility, _)| (index, visibility));
+            let expected_type = expected_field.map(|(_, _, typ)| typ).unwrap_or(&&Type::Error);
 
             let field_location = field.location;
             let (resolved, field_type) = self.elaborate_expression(field);
@@ -1056,11 +1067,11 @@ impl Elaborator<'_> {
                 self.check_struct_field_visibility(
                     &struct_type,
                     field_name,
-                    *visibility,
+                    **visibility,
                     field_location,
                 );
 
-                self.interner.add_struct_member_reference(struct_type.id, index, field_location);
+                self.interner.add_struct_member_reference(struct_type.id, *index, field_location);
             }
 
             ret.push((field_name, resolved));

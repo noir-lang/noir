@@ -564,7 +564,7 @@ impl Elaborator<'_> {
         })
     }
 
-    /// Create a validated [TypedPath] from a [Path] by validating each [PathSegment] in it.
+    /// Create a validated [TypedPath] from a [Path] by resolving all generics in every [PathSegment] in it.
     ///
     /// Pushes an error if the first segment is `Self` and it has turbofish generics.
     pub(crate) fn validate_path(&mut self, path: Path) -> TypedPath {

@@ -181,7 +181,8 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Looks up a given type by name.
+    /// Looks up a given [Type] by name.
+    ///
     /// This will also instantiate any struct types found.
     pub(super) fn lookup_type_or_error(&mut self, path: TypedPath) -> Option<Type> {
         let segment = path.as_single_segment();
