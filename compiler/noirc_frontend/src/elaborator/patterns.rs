@@ -372,45 +372,38 @@ impl Elaborator<'_> {
         let id =
             self.interner.push_definition(name.clone(), mutable, comptime, definition, location);
         let ident = HirIdent::non_trait_method(id, location);
-        let resolver_meta =
-            ResolverMeta { num_times_used: 0, ident: ident.clone(), warn_if_unused };
 
-        if name != "_" {
-            let scope = self.scopes.get_mut_scope();
-            let old_value = scope.add_key_value(name.clone(), resolver_meta);
-
-            if !allow_shadowing {
-                if let Some(old_value) = old_value {
-                    self.push_err(ResolverError::DuplicateDefinition {
-                        name,
-                        first_location: old_value.ident.location,
-                        second_location: location,
-                    });
-                }
-            }
-        }
+        self.add_existing_variable_to_scope(name, ident.clone(), warn_if_unused, allow_shadowing);
 
         ident
     }
 
+    /// Add a [ResolverMeta] to the last scope for a given [HirIdent], which already has its definition interned,
+    /// unless its name is `"_"`.
     pub fn add_existing_variable_to_scope(
         &mut self,
         name: String,
         ident: HirIdent,
         warn_if_unused: bool,
+        allow_shadowing: bool,
     ) {
+        if name == "_" {
+            return;
+        }
+
         let second_location = ident.location;
         let resolver_meta = ResolverMeta { num_times_used: 0, ident, warn_if_unused };
 
         let old_value = self.scopes.get_mut_scope().add_key_value(name.clone(), resolver_meta);
 
-        if let Some(old_value) = old_value {
-            let first_location = old_value.ident.location;
-            self.push_err(ResolverError::DuplicateDefinition {
-                name,
-                first_location,
-                second_location,
-            });
+        if !allow_shadowing {
+            if let Some(old_value) = old_value {
+                self.push_err(ResolverError::DuplicateDefinition {
+                    name,
+                    first_location: old_value.ident.location,
+                    second_location,
+                });
+            }
         }
     }
 
