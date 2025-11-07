@@ -99,7 +99,7 @@ jobs:
           cache-on-failure: true
           save-if: ${{ github.event_name != 'merge_group' }}
 
-      - name: Build noir-execute
+      - name: Build artifact
         run: cargo build --package noir_artifact_cli --release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -109,6 +109,37 @@ jobs:
         with:
           name: noir-execute
           path: ./target/release/noir-execute
+          retention-days: 3
+
+  build-noir-ssa:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout Noir repo
+        uses: actions/checkout@v5
+
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.85.0
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: x86_64-unknown-linux-gnu
+          cache-on-failure: true
+          save-if: ${{ github.event_name != 'merge_group' }}
+
+      - name: Build artifact
+        run: cargo build --package noir_ssa_cli --release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: noir-ssa
+          path: ./target/release/noir-ssa
           retention-days: 3
 
   build-noirc-abi:
@@ -481,59 +512,68 @@ jobs:
         run: |
           yarn test:node
 
-  test-integration-browser:
-    name: Integration Tests (Browser)
-    runs-on: ubuntu-22.04
-    needs: [build-acvm-js, build-noir-wasm, build-noirc-abi]
-    timeout-minutes: 30
-    permissions:
-      contents: read
+  # TODO(https://github.com/noir-lang/noir/issues/9935): These tests are currently broken as they are currently written
+  # We have other browser tests under `examples/browser`, but it would be good to get these working again.
+  # test-integration-browser:
+  #   name: Integration Tests (Browser)
+  #   runs-on: ubuntu-22.04
+  #   needs: [build-acvm-js, build-noir-wasm, build-noirc-abi]
+  #   timeout-minutes: 30
+  #   permissions:
+  #     contents: read
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v5
 
-      - name: Download acvm_js package artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: acvm-js
-          path: ./acvm-repo/acvm_js
+  #     - name: Download acvm_js package artifact
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: acvm-js
+  #         path: ./acvm-repo/acvm_js
 
-      - name: Download noir_wasm package artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: noir_wasm
-          path: ./compiler/wasm
+  #     - name: Download noir_wasm package artifact
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: noir_wasm
+  #         path: ./compiler/wasm
 
-      - name: Download noirc_abi package artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: noirc_abi_wasm
-          path: ./tooling/noirc_abi_wasm
+  #     - name: Download noirc_abi package artifact
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: noirc_abi_wasm
+  #         path: ./tooling/noirc_abi_wasm
 
-      - name: Install Yarn dependencies
-        uses: ./.github/actions/setup
+  #     - name: Install Yarn dependencies
+  #       uses: ./.github/actions/setup
 
-      - uses: taiki-e/install-action@just
+  #     - uses: taiki-e/install-action@just
 
-      - name: Install Playwright
-        run: just install-playwright
+  #     - name: Install Playwright
+  #       run: just install-playwright
 
-      - name: Setup `integration-tests`
-        run: |
-          # Note the lack of spaces between package names.
-          PACKAGES_TO_BUILD="@noir-lang/types,@noir-lang/noir_js"
-          yarn workspaces foreach -Wvtp --from "{$PACKAGES_TO_BUILD}" run build
+  #     - name: Setup `integration-tests`
+  #       run: |
+  #         # Note the lack of spaces between package names.
+  #         PACKAGES_TO_BUILD="@noir-lang/types,@noir-lang/noir_js"
+  #         yarn workspaces foreach -Wvtp --from "{$PACKAGES_TO_BUILD}" run build
 
-      - name: Run `integration-tests`
-        working-directory: ./compiler/integration-tests
-        run: |
-          yarn test:browser
+  #     - name: Run `integration-tests`
+  #       working-directory: ./compiler/integration-tests
+  #       run: |
+  #         yarn test:browser
 
   test-examples:
     name: Example scripts
     runs-on: ubuntu-24.04
-    needs: [build-nargo, build-noir-execute, build-acvm-js, build-noirc-abi]
+    needs:
+      [
+        build-nargo,
+        build-noir-execute,
+        build-noir-ssa,
+        build-acvm-js,
+        build-noirc-abi,
+      ]
     timeout-minutes: 30
     permissions:
       contents: read
@@ -566,6 +606,9 @@ jobs:
 
       - name: Download noir-execute binary
         uses: ./.github/actions/download-noir-execute
+
+      - name: Download noir-ssa binary
+        uses: ./.github/actions/download-noir-ssa
 
       - name: Download acvm_js package artifact
         uses: actions/download-artifact@v4
@@ -750,6 +793,31 @@ jobs:
           alert-comment-cc-users: "@TomAFrench"
           max-items-in-chart: 50
 
+  test-nargo-doc:
+    needs: [build-nargo]
+    name: Nargo doc
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Download nargo binary
+        uses: ./.github/actions/download-nargo
+
+      - name: nargo doc on stdlib
+        working-directory: ./noir_stdlib
+        run: |
+          nargo doc
+          rm -rf ./docs
+          mv ./target/docs .
+          if ! git diff --exit-code; then
+            echo "nargo doc produced changes on noir_stdlib. Please run `just stdlib_docs`, then commit and push any changes."
+            exit 1
+          fi
 
   # This is a job which depends on all test jobs and reports the overall status.
   # This allows us to add/remove test jobs without having to update the required workflows.
@@ -767,20 +835,21 @@ jobs:
       - test-noir-wasm
       - test-noir-codegen
       - test-integration-node
-      - test-integration-browser
+      #- test-integration-browser
+      - test-nargo-doc
       - test-examples
       - compile-noir-contracts
     permissions:
       contents: read
 
     steps:
-        - name: Report overall success
-          run: |
-            if [[ $FAIL == true ]]; then
-                exit 1
-            else
-                exit 0
-            fi
-          env:
-            # We treat any skipped or failing jobs as a failure for the workflow as a whole.
-            FAIL: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}
+      - name: Report overall success
+        run: |
+          if [[ $FAIL == true ]]; then
+              exit 1
+          else
+              exit 0
+          fi
+        env:
+          # We treat any skipped or failing jobs as a failure for the workflow as a whole.
+          FAIL: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}

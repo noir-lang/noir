@@ -1,3 +1,5 @@
+//! Lexical scoping, variable lookup, and closure capture tracking.
+
 use crate::ast::{ERROR_IDENT, Ident};
 use crate::hir::def_map::{LocalModuleId, ModuleId};
 
@@ -43,6 +45,8 @@ impl Elaborator<'_> {
         self.interner.get_trait_mut(trait_id)
     }
 
+    /// For each [crate::elaborator::LambdaContext] on the lambda stack with a scope index higher than that
+    /// of the variable, add the [HirIdent] to the list of captures.
     pub(super) fn resolve_local_variable(&mut self, hir_ident: HirIdent, var_scope_index: usize) {
         let mut transitive_capture_index: Option<usize> = None;
 
@@ -77,6 +81,9 @@ impl Elaborator<'_> {
         }
     }
 
+    /// Try to look up a [TypedPath] in the globals.
+    ///
+    /// If the item is a type alias to some as-of-yet unknown numeric generic, it returns a [DefinitionId::dummy_id].
     pub(super) fn lookup_global(
         &mut self,
         path: TypedPath,
@@ -174,7 +181,8 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Looks up a given type by name.
+    /// Looks up a given [Type] by name.
+    ///
     /// This will also instantiate any struct types found.
     pub(super) fn lookup_type_or_error(&mut self, path: TypedPath) -> Option<Type> {
         let segment = path.as_single_segment();

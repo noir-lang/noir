@@ -67,8 +67,18 @@ yarn workspace docs build
 This command generates static content into the _build_ directory and can be served using any static
 contents hosting service.
 
-3. Verify build by serve a preview of the docs locally:
+3. Verify build by serving a preview locally:
 
 ```sh
 yarn workspace docs serve
 ```
+
+## Production Testing
+
+The site will be deployed at `noir-lang.org/docs/`. Test production configuration locally:
+
+### Simple Test
+```sh
+yarn workspace docs production:serve
+```
+Access at: `http://localhost:3000/docs/`

@@ -1,11 +1,12 @@
 use std::sync::Arc;
 
+use acvm::{AcirField, FieldElement};
 use iter_extended::vecmap;
 use noirc_frontend::Shared;
 
 use crate::ssa::{
     interpreter::{
-        InterpreterError, NumericValue, Value,
+        InterpreterError, Value,
         tests::{
             expect_value, expect_value_with_args, expect_values, expect_values_with_args,
             from_constant,
@@ -21,6 +22,10 @@ use crate::ssa::{
 
 use super::{executes_with_no_errors, expect_error};
 
+fn make_unfit(value: impl Into<FieldElement>, typ: NumericType) -> Value {
+    Value::unfit(value.into(), typ).unwrap()
+}
+
 #[test]
 fn add_unsigned() {
     let value = expect_value(
@@ -32,7 +37,7 @@ fn add_unsigned() {
         }
     ",
     );
-    assert_eq!(value, Value::Numeric(NumericValue::U32(102)));
+    assert_eq!(value, Value::u32(102));
 }
 
 #[test]
@@ -47,7 +52,7 @@ fn add_signed() {
         }
     ",
     );
-    assert_eq!(value, Value::Numeric(NumericValue::I32(102)));
+    assert_eq!(value, Value::i32(102));
 }
 
 #[test]
@@ -103,7 +108,8 @@ fn add_unchecked_signed() {
         }
     ",
     );
-    assert_eq!(value, Value::Numeric(NumericValue::I8(-127)));
+    assert_ne!(value, Value::i8(-128), "no wrapping");
+    assert_eq!(value, make_unfit(129u32, NumericType::signed(8)));
 }
 
 #[test]
@@ -117,7 +123,7 @@ fn sub_unsigned() {
         }
     ",
     );
-    assert_eq!(value, Value::Numeric(NumericValue::U32(10000)));
+    assert_eq!(value, Value::u32(10000));
 }
 
 #[test]
@@ -132,7 +138,7 @@ fn sub_signed() {
         }
     ",
     );
-    assert_eq!(value, Value::Numeric(NumericValue::I32(-1)));
+    assert_eq!(value, Value::i32(-1));
 }
 
 #[test]
@@ -176,7 +182,12 @@ fn sub_unchecked_unsigned() {
         }
     ",
     );
-    assert!(matches!(value, Value::Numeric(NumericValue::U8(246))));
+    assert_ne!(value, Value::u8(246), "no wrapping");
+    assert_eq!(
+        value,
+        // Note that this is not the same as `Value::i8(-10).convert_to_field()`, because that casts to u8 first.
+        make_unfit(FieldElement::zero() - FieldElement::from(10u32), NumericType::unsigned(8))
+    );
 }
 
 #[test]
@@ -190,7 +201,7 @@ fn sub_unchecked_signed() {
         }
     ",
     );
-    assert_eq!(value, Value::Numeric(NumericValue::I8(-7)));
+    assert_eq!(value, Value::i8(-7));
 }
 
 #[test]
@@ -204,7 +215,7 @@ fn mul_unsigned() {
         }
     ",
     );
-    assert_eq!(value, Value::Numeric(NumericValue::U64(200)));
+    assert_eq!(value, Value::u64(200));
 }
 
 #[test]
@@ -221,7 +232,7 @@ fn mul_signed() {
         }
     ",
     );
-    assert_eq!(value, Value::Numeric(NumericValue::I64(200)));
+    assert_eq!(value, Value::i64(200));
 }
 
 #[test]
@@ -263,7 +274,8 @@ fn mul_unchecked_unsigned() {
         }
     ",
     );
-    assert_eq!(value, Value::Numeric(NumericValue::U8(0)));
+    assert_ne!(value, Value::u8(0), "no wrapping");
+    assert_eq!(value, make_unfit(256u32, NumericType::unsigned(8)));
 }
 
 #[test]
@@ -277,7 +289,8 @@ fn mul_unchecked_signed() {
         }
     ",
     );
-    assert_eq!(value, Value::Numeric(NumericValue::I8(-2)));
+    assert_ne!(value, Value::i8(-2), "no wrapping");
+    assert_eq!(value, make_unfit(254u32, NumericType::signed(8)));
 }
 
 #[test]
@@ -291,7 +304,7 @@ fn div() {
         }
     ",
     );
-    assert_eq!(value, Value::Numeric(NumericValue::I16(64)));
+    assert_eq!(value, Value::i16(64));
 }
 
 #[test]
@@ -319,7 +332,7 @@ fn r#mod() {
         }
     ",
     );
-    assert_eq!(value, Value::Numeric(NumericValue::I64(2)));
+    assert_eq!(value, Value::i64(2));
 }
 
 #[test]
@@ -334,21 +347,6 @@ fn mod_zero() {
     ",
     );
     assert!(matches!(error, InterpreterError::DivisionByZero { .. }));
-}
-
-#[test]
-fn regression_9336() {
-    let result = expect_value_with_args(
-        "
-        acir(inline) fn main f0 {
-          b0(v0: i8):
-            v1 = mod i8 -128, v0
-            return v1
-        }
-    ",
-        vec![Value::Numeric(NumericValue::I8(-1))],
-    );
-    assert_eq!(result, Value::Numeric(NumericValue::I8(0)));
 }
 
 #[test]
@@ -490,9 +488,9 @@ fn shr_signed() {
         "
         acir(inline) fn main f0 {
           b0():
-            v0 = shr i16 65520, i16 2      
-            v1 = shr i16 65533, i16 1      
-            v2 = shr i16 65528, i16 3 
+            v0 = shr i16 65520, i16 2
+            v1 = shr i16 65533, i16 1
+            v2 = shr i16 65528, i16 3
             return v0, v1, v2
         }
     ",
@@ -588,7 +586,7 @@ fn not() {
     assert_eq!(values[0], Value::bool(true));
     assert_eq!(values[1], Value::bool(false));
 
-    let not_constant = !136_u8 as u128;
+    let not_constant = u128::from(!136_u8);
     assert_eq!(values[2], from_constant(not_constant.into(), NumericType::unsigned(8)));
 }
 
@@ -603,7 +601,7 @@ fn truncate() {
         }
     ",
     );
-    let constant = 257_u16 as u8 as u128;
+    let constant = u128::from(257_u16 as u8);
     assert_eq!(value, from_constant(constant.into(), NumericType::unsigned(32)));
 }
 
@@ -651,8 +649,8 @@ fn constrain_not_equal() {
 }
 
 #[test]
-fn constrain_not_equal_not_disabled_by_enable_side_effects() {
-    expect_error(
+fn constrain_not_equal_is_disabled_by_enable_side_effects() {
+    executes_with_no_errors(
         "
         acir(inline) fn main f0 {
           b0():
@@ -829,10 +827,10 @@ fn array_get() {
 fn array_get_with_offset() {
     let value = expect_value(
         r#"
-        acir(inline) fn main f0 {
+        brillig(inline) fn main f0 {
           b0():
             v0 = make_array [Field 1, Field 2] : [Field; 2]
-            v1 = array_get v0, index u32 4 minus 3 -> Field
+            v1 = array_get v0, index u32 2 minus 1 -> Field
             return v1
         }
     "#,
@@ -868,7 +866,7 @@ fn array_get_disabled_by_enable_side_effects_if_index_is_not_known_to_be_safe() 
             return v1
         }
     "#,
-        vec![Value::Numeric(NumericValue::U32(1))],
+        vec![Value::u32(1)],
     );
     // If enable_side_effects is false, array get will retrieve the value at the first compatible index
     assert_eq!(value, from_constant(1_u32.into(), NumericType::NativeField));
@@ -949,10 +947,11 @@ fn array_set_disabled_by_enable_side_effects() {
 fn array_set_with_offset() {
     let values = expect_values(
         "
-        acir(inline) fn main f0 {
+        brillig(inline) fn main f0 {
           b0():
             v0 = make_array [Field 1, Field 2] : [Field; 2]
-            v1 = array_set v0, index u32 4 minus 3, value Field 5
+            inc_rc v0
+            v1 = array_set v0, index u32 2 minus 1, value Field 5
             return v0, v1
         }
     ",
@@ -961,18 +960,15 @@ fn array_set_with_offset() {
     let v0 = values[0].as_array_or_slice().unwrap();
     let v1 = values[1].as_array_or_slice().unwrap();
 
-    // acir function, so all rcs are 1
-    assert_eq!(*v0.rc.borrow(), 1);
+    assert_eq!(*v0.rc.borrow(), 2);
     assert_eq!(*v1.rc.borrow(), 1);
 
     let one = from_constant(1u32.into(), NumericType::NativeField);
     let two = from_constant(2u32.into(), NumericType::NativeField);
     let five = from_constant(5u32.into(), NumericType::NativeField);
 
-    // v0 was not mutated
-    assert_eq!(*v0.elements.borrow(), vec![one.clone(), two.clone()]);
-    // v1 was mutated
-    assert_eq!(*v1.elements.borrow(), vec![one, five]);
+    assert_eq!(*v0.elements.borrow(), vec![one.clone(), two.clone()], "v0 should not be mutated");
+    assert_eq!(*v1.elements.borrow(), vec![one, five], "v1 should be mutated");
 }
 
 #[test]
@@ -1082,7 +1078,8 @@ fn make_array() {
     assert_eq!(values[0], Value::array(one_two.clone(), vec![Type::field()]));
     assert_eq!(values[1], Value::slice(one_two, Arc::new(vec![Type::field()])));
 
-    let hello = vecmap(b"Hello", |char| from_constant((*char as u32).into(), NumericType::char()));
+    let hello =
+        vecmap(b"Hello", |char| from_constant(u32::from(*char).into(), NumericType::char()));
     assert_eq!(values[2], Value::array(hello.clone(), vec![Type::char()]));
     assert_eq!(values[3], Value::slice(hello, Arc::new(vec![Type::char()])));
 }

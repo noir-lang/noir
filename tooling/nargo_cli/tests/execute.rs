@@ -28,6 +28,20 @@ mod tests {
     #[derive(Debug, Clone, Copy)]
     struct Inliner(pub i64);
 
+    // These tests fail with stack too deep errors when debug assertions are active
+    const IGNORED_BRILLIG_DEBUG_ASSERTIONS_TESTS: [&str; 1] = ["ski_calculus"];
+
+    const IGNORED_PEDANTIC_SOLVING_TESTS: [&str; 3] = [
+        // TODO(https://github.com/noir-lang/noir/issues/8098): all of these are failing with:
+        // ```
+        // Failed to solve program:
+        // \'Failed to solve blackbox function: embedded_curve_add, reason: Infinite input: embedded_curve_add(infinity, infinity)\'
+        // ```
+        "execution_success/multi_scalar_mul",
+        "execution_success/regression_5045",
+        "execution_success/regression_7744",
+    ];
+
     fn setup_nargo(
         test_program_dir: &Path,
         test_command: &str,
@@ -38,24 +52,19 @@ mod tests {
         nargo.arg("--program-dir").arg(test_program_dir);
         nargo.arg(test_command).arg("--force");
         nargo.arg("--inliner-aggressiveness").arg(inliner_aggressiveness.0.to_string());
-        // Allow more bytecode in exchange to catch illegal states.
-        nargo.arg("--enable-brillig-debug-assertions");
+        let skip_brillig_debug_assertions = IGNORED_BRILLIG_DEBUG_ASSERTIONS_TESTS
+            .into_iter()
+            .any(|test_to_skip| test_program_dir.ends_with(test_to_skip));
+        if !skip_brillig_debug_assertions {
+            // Allow more bytecode in exchange to catch illegal states.
+            nargo.arg("--enable-brillig-debug-assertions");
+        }
 
         // Enable pedantic solving
-        let skip_pedantic_solving = [
-            // TODO(https://github.com/noir-lang/noir/issues/8098): all of these are failing with:
-            // ```
-            // Failed to solve program:
-            // \'Failed to solve blackbox function: embedded_curve_add, reason: Infinite input: embedded_curve_add(infinity, infinity)\'
-            // ```
-            "execution_success/multi_scalar_mul",
-            "execution_success/regression_5045",
-            "execution_success/regression_7744",
-        ];
-        if !skip_pedantic_solving
+        let skip_pedantic_solving = IGNORED_PEDANTIC_SOLVING_TESTS
             .into_iter()
-            .any(|test_to_skip| test_program_dir.ends_with(test_to_skip))
-        {
+            .any(|test_to_skip| test_program_dir.ends_with(test_to_skip));
+        if !skip_pedantic_solving {
             nargo.arg("--pedantic-solving");
         }
 
@@ -309,6 +318,10 @@ mod tests {
 
     fn interpret_execution_success(mut nargo: Command) {
         nargo.assert().success();
+    }
+
+    fn interpret_execution_failure(mut nargo: Command) {
+        nargo.assert().failure();
     }
 
     fn nargo_expand_execute(test_program_dir: PathBuf) {

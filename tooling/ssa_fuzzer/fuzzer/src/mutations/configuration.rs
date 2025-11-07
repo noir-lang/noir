@@ -464,7 +464,7 @@ pub(crate) enum GenerateInitialWitness {
 pub(crate) type GenerateInitialWitnessConfig = WeightedSelectionConfig<GenerateInitialWitness, 2>;
 pub(crate) const BASIC_GENERATE_INITIAL_WITNESS_CONFIGURATION: GenerateInitialWitnessConfig =
     GenerateInitialWitnessConfig::new([
-        (GenerateInitialWitness::Numeric, 10),
+        (GenerateInitialWitness::Numeric, 30),
         (GenerateInitialWitness::Array, 1),
     ]);
 
@@ -478,7 +478,7 @@ pub(crate) enum GenerateType {
 
 pub(crate) type GenerateTypeConfig = WeightedSelectionConfig<GenerateType, 4>;
 pub(crate) const BASIC_GENERATE_TYPE_CONFIGURATION: GenerateTypeConfig = GenerateTypeConfig::new([
-    (GenerateType::Numeric, 10),
+    (GenerateType::Numeric, 40),
     (GenerateType::Reference, 6),
     (GenerateType::Array, 5),
     (GenerateType::Slice, 6),

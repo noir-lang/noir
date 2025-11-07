@@ -1,27 +1,17 @@
 import { expect } from '@esm-bundle/chai';
 import * as TOML from 'smol-toml';
+import { Logger } from 'tslog';
+import { TEST_LOG_LEVEL } from '../environment.js';
 
 import { compile, createFileManager } from '@noir-lang/noir_wasm';
 import { Noir } from '@noir-lang/noir_js';
 import { InputMap } from '@noir-lang/noirc_abi';
-import { UltraHonkBackend } from '@aztec/bb.js';
+import { UltraHonkBackend, UltraHonkVerifierBackend } from '@aztec/bb.js';
 
 import { getFile } from './utils.js';
 
-const test_cases = [
-  {
-    case: 'test_programs/execution_success/a_1_mul',
-    numPublicInputs: 0,
-  },
-  {
-    case: 'test_programs/execution_success/assert_statement',
-    numPublicInputs: 1,
-  },
-];
-
-const suite = Mocha.Suite.create(mocha.suite, 'Noir end to end test');
-
-suite.timeout(60 * 20e3); //20mins
+const logger = new Logger({ name: 'test', minLevel: TEST_LOG_LEVEL });
+const debugLogger = logger.debug.bind(logger);
 
 async function getCircuit(projectPath: string) {
   const fm = createFileManager('/');
@@ -35,38 +25,55 @@ async function getCircuit(projectPath: string) {
   return result.program;
 }
 
-test_cases.forEach((testInfo) => {
-  const test_name = testInfo.case.split('/').pop();
-  const mochaTest = new Mocha.Test(`${test_name} (Compile, Execute, Prove, Verify)`, async () => {
+describe('Noir end to end test', function () {
+  this.timeout(60 * 20e3); // 20 minutes
+
+  it('a_1_mul (Compile, Execute, Prove, Verify)', async () => {
     const base_relative_path = '../../../../..';
-    const test_case = testInfo.case;
+    const test_case = 'test_programs/execution_success/a_1_mul';
 
-    let noir_program;
-    try {
-      noir_program = await getCircuit(`${base_relative_path}/${test_case}`);
-
-      expect(noir_program, 'Compile output ').to.be.an('object');
-    } catch (e) {
-      expect(e, 'Compilation Step').to.not.be.an('error');
-      throw e;
-    }
+    const noir_program = await getCircuit(`${base_relative_path}/${test_case}`);
+    expect(noir_program).to.be.an('object');
 
     const prover_toml = await new Response(await getFile(`${base_relative_path}/${test_case}/Prover.toml`)).text();
     const inputs: InputMap = TOML.parse(prover_toml) as InputMap;
 
-    // JS Proving
+    const program = new Noir(noir_program);
+    const { witness } = await program.execute(inputs);
+
+    const backend = new UltraHonkBackend(noir_program.bytecode, { logger: debugLogger });
+    const proof = await backend.generateProof(witness);
+    await backend.destroy();
+
+    const vkBackend = new UltraHonkBackend(noir_program.bytecode, { logger: debugLogger });
+    const verificationKey = await vkBackend.getVerificationKey();
+    await vkBackend.destroy();
+
+    const verifier_backend = new UltraHonkVerifierBackend();
+    const verified = await verifier_backend.verifyProof({ ...proof, verificationKey });
+    expect(verified).to.be.true;
+  });
+
+  it('assert_statement (Compile, Execute, Prove, Verify)', async () => {
+    const base_relative_path = '../../../../..';
+    const test_case = 'test_programs/execution_success/assert_statement';
+
+    const noir_program = await getCircuit(`${base_relative_path}/${test_case}`);
+    expect(noir_program).to.be.an('object');
+
+    const prover_toml = await new Response(await getFile(`${base_relative_path}/${test_case}/Prover.toml`)).text();
+    const inputs: InputMap = TOML.parse(prover_toml) as InputMap;
 
     const program = new Noir(noir_program);
     const { witness } = await program.execute(inputs);
 
-    const backend = new UltraHonkBackend(noir_program.bytecode);
+    const backend = new UltraHonkBackend(noir_program.bytecode, { logger: debugLogger });
     const proof = await backend.generateProof(witness);
+    const verificationKey = await backend.getVerificationKey();
+    await backend.destroy();
 
-    // JS verification
-
-    const verified = await backend.verifyProof(proof);
-    expect(verified, 'Proof fails verification in JS').to.be.true;
+    const verifier_backend = new UltraHonkVerifierBackend();
+    const verified = await verifier_backend.verifyProof({ ...proof, verificationKey });
+    expect(verified).to.be.true;
   });
-
-  suite.addTest(mochaTest);
 });

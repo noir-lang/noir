@@ -1,4 +1,3 @@
-use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
@@ -38,8 +37,7 @@ impl Ssa {
 
         // Then transitively 'infect' any functions which call impure functions as also
         // impure.
-        let purities =
-            analyze_call_graph(call_graph, purities, &self.functions, &sccs, &recursive_functions);
+        let purities = analyze_call_graph(call_graph, purities, &sccs, &recursive_functions);
         let purities = Arc::new(purities);
 
         // We're done, now store purities somewhere every dfg can find it.
@@ -229,7 +227,6 @@ impl Function {
 fn analyze_call_graph(
     call_graph: CallGraph,
     starting_purities: FunctionPurities,
-    functions: &BTreeMap<FunctionId, Function>,
     sccs: &[Vec<FunctionId>],
     recursive_functions: &HashSet<FunctionId>,
 ) -> FunctionPurities {
@@ -272,10 +269,10 @@ fn analyze_call_graph(
                     }
                 }
 
-                // Recursive Brillig functions cannot be fully pure (may loop indefinitely),
+                // Recursive functions cannot be fully pure (may recurse indefinitely),
                 // but we still treat them as PureWithPredicate for deduplication purposes.
-                // If this function is recursive and a Brillig function, mark it as PureWithPredicate.
-                if recursive_functions.contains(&func) && functions[&func].runtime().is_brillig() {
+                // If we were to mark recursive functions pure we may entirely eliminate an infinite loop.
+                if recursive_functions.contains(&func) {
                     combined_purity = combined_purity.unify(Purity::PureWithPredicate);
                 }
             }
@@ -303,6 +300,8 @@ mod test {
         assert_ssa_snapshot,
         ssa::{ir::function::FunctionId, opt::pure::Purity, ssa_gen::Ssa},
     };
+
+    use test_case::test_case;
 
     #[test]
     fn classify_functions() {
@@ -385,7 +384,7 @@ mod test {
         assert_eq!(purities[&FunctionId::test_new(4)], Purity::PureWithPredicate);
         assert_eq!(purities[&FunctionId::test_new(5)], Purity::PureWithPredicate);
         assert_eq!(purities[&FunctionId::test_new(6)], Purity::Pure);
-        assert_eq!(purities[&FunctionId::test_new(7)], Purity::Pure);
+        assert_eq!(purities[&FunctionId::test_new(7)], Purity::PureWithPredicate);
 
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) impure fn main f0 {
@@ -433,7 +432,7 @@ mod test {
             store Field 0 at v5
             return
         }
-        acir(inline) pure fn pure_recursive f7 {
+        acir(inline) predicate_pure fn pure_recursive f7 {
           b0(v0: u32):
             v3 = lt v0, u32 1
             jmpif v3 then: b1, else: b2
@@ -614,7 +613,8 @@ mod test {
 
     #[test]
     fn mutual_recursion_marks_functions_pure() {
-        // We want to test that two pure mutually recursive functions do in fact mark each other as pure
+        // We want to test that two pure mutually recursive functions do in fact mark each other as PureWithPredicate.
+        // If we have indefinite recursion and we may accidentally eliminate an infinite loop before inlining can catch it.
         let src = r#"
         acir(inline) fn main f0 {
           b0():
@@ -653,9 +653,9 @@ mod test {
         let ssa = ssa.purity_analysis();
 
         let purities = &ssa.main().dfg.function_purities;
-        assert_eq!(purities[&FunctionId::test_new(0)], Purity::Pure);
-        assert_eq!(purities[&FunctionId::test_new(1)], Purity::Pure);
-        assert_eq!(purities[&FunctionId::test_new(2)], Purity::Pure);
+        assert_eq!(purities[&FunctionId::test_new(0)], Purity::PureWithPredicate);
+        assert_eq!(purities[&FunctionId::test_new(1)], Purity::PureWithPredicate);
+        assert_eq!(purities[&FunctionId::test_new(2)], Purity::PureWithPredicate);
     }
 
     /// This test matches [mutual_recursion_marks_functions_pure] except all functions have a Brillig runtime
@@ -876,5 +876,24 @@ mod test {
         assert_eq!(purities[&FunctionId::test_new(0)], Purity::Impure);
         assert_eq!(purities[&FunctionId::test_new(1)], Purity::Pure);
         assert_eq!(purities[&FunctionId::test_new(1)], Purity::Pure);
+    }
+
+    #[test_case("ecdsa_secp256k1")]
+    #[test_case("ecdsa_secp256r1")]
+    fn marks_ecdsa_verification_as_pure_with_predicate(ecdsa_func: &str) {
+        let src = format!(
+            r#"
+        acir(inline) fn main f0 {{
+            b0(v0: [u8; 32], v1: [u8; 32], v2: [u8; 64], v3: [u8; 32]):
+            v4 = call {ecdsa_func}(v0, v1, v2, v3, u1 1) -> u1
+            return
+        }}
+        "#
+        );
+        let ssa = Ssa::from_str(&src).unwrap();
+        let ssa = ssa.purity_analysis();
+
+        let purities = &ssa.main().dfg.function_purities;
+        assert_eq!(purities[&FunctionId::test_new(0)], Purity::PureWithPredicate);
     }
 }

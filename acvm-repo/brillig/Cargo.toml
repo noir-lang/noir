@@ -2,7 +2,7 @@
 name = "brillig"
 description = "Brillig is the bytecode ACIR uses for non-determinism."
 # x-release-please-start-version
-version = "1.0.0-beta.12"
+version = "1.0.0-beta.15"
 # x-release-please-end
 authors.workspace = true
 edition.workspace = true
@@ -21,11 +21,7 @@ serde.workspace = true
 proptest = { workspace = true, optional = true }
 proptest-derive = { workspace = true, optional = true }
 
-[dev-dependencies]
-serde_json.workspace = true
-proptest.workspace = true
-proptest-derive.workspace = true
-num-bigint.workspace = true
+
 
 [features]
 default = []

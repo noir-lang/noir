@@ -181,6 +181,10 @@ pub(crate) struct ServerCapabilities {
     /// The server provides workspace symbol support.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) workspace_symbol_provider: Option<OneOf<bool, WorkspaceSymbolOptions>>,
+
+    /// The server provides folding range support.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) folding_range_provider: Option<bool>,
 }
 
 #[derive(Debug, PartialEq, Clone, Default, Deserialize, Serialize)]

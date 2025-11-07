@@ -16,8 +16,9 @@ pub const MIN_EXPRESSION_WIDTH: usize = 3;
 ///
 /// This is done by creating intermediate variables to hold partial calculations and then combining them
 /// to calculate the original expression.
-// Should we give it all of the opcodes?
-// Have a single transformer that you instantiate with a width, then pass many opcodes through
+///
+/// Pre-Condition:
+/// - General Optimizer must run before this pass
 pub(crate) struct CSatTransformer {
     width: usize,
     /// Track the witness that can be solved
@@ -126,15 +127,15 @@ impl CSatTransformer {
         // First check that this is not a simple opcode which does not need optimization
         //
         // If the opcode only has one mul term, then this algorithm cannot optimize it any further
-        // Either it can be represented in a single arithmetic equation or it's fan-in is too large and we need intermediate variables for those
-        // large-fan-in optimization is not this algorithms purpose.
+        // Either it can be represented in a single arithmetic equation or its fan-in is too large and we need intermediate variables for those
+        // Large-fan-in optimization is not this algorithm's purpose.
         // If the opcode has 0 mul terms, then it is an add opcode and similarly it can either fit into a single assert-zero opcode or it has a large fan-in
         if opcode.mul_terms.len() <= 1 {
             return opcode;
         }
 
         // We now know that this opcode has multiple mul terms and can possibly be simplified into multiple full opcodes
-        // We need to create a (wl, wr) IndexMap and then check the simplified fan-in to verify if we have terms both with wl and wr
+        // We need to create a (w_l, w_r) IndexMap and then check the simplified fan-in to verify if we have terms both with w_l and w_r
         // In general, we can then push more terms into the opcode until we are at width-1 then the last variable will be the intermediate variable
         //
 
@@ -142,33 +143,27 @@ impl CSatTransformer {
         // subset of the terms that can be represented as full opcodes
         let mut new_opcode = Expression::default();
         let mut remaining_mul_terms = Vec::with_capacity(opcode.mul_terms.len());
-        for pair in opcode.mul_terms {
-            // We want to layout solvable intermediate variable, if we cannot solve one of the witness
+        for (scale, w_l, w_r) in opcode.mul_terms {
+            // We want to layout solvable intermediate variables, if we cannot solve one of the witnesses
             // that means the intermediate opcode will not be immediately solvable
-            if !self.solvable_witness.contains(&pair.1) || !self.solvable_witness.contains(&pair.2)
-            {
-                remaining_mul_terms.push(pair);
+            if !self.solvable_witness.contains(&w_l) || !self.solvable_witness.contains(&w_r) {
+                remaining_mul_terms.push((scale, w_l, w_r));
                 continue;
             }
 
-            // Check if this pair is present in the simplified fan-in
+            // Check if this (scale, w_l, w_r) triple is present in the simplified fan-in
             // We are assuming that the fan-in/fan-out has been simplified.
             // Note this function is not public, and can only be called within the optimize method, so this guarantee will always hold
             let index_wl =
-                opcode.linear_combinations.iter().position(|(_scale, witness)| *witness == pair.1);
+                opcode.linear_combinations.iter().position(|(_scale, witness)| *witness == w_l);
             let index_wr =
-                opcode.linear_combinations.iter().position(|(_scale, witness)| *witness == pair.2);
+                opcode.linear_combinations.iter().position(|(_scale, witness)| *witness == w_r);
 
             match (index_wl, index_wr) {
-                (None, _) => {
+                (None, _) | (_, None) => {
                     // This means that the polynomial does not contain both terms
                     // Just push the Qm term as it cannot form a full opcode
-                    new_opcode.mul_terms.push(pair);
-                }
-                (_, None) => {
-                    // This means that the polynomial does not contain both terms
-                    // Just push the Qm term as it cannot form a full opcode
-                    new_opcode.mul_terms.push(pair);
+                    new_opcode.mul_terms.push((scale, w_l, w_r));
                 }
                 (Some(x), Some(y)) => {
                     // This means that we can form a full opcode with this Qm term
@@ -180,7 +175,7 @@ impl CSatTransformer {
                     // Lets create an intermediate opcode to store this full opcode
                     //
                     let mut intermediate_opcode = Expression::default();
-                    intermediate_opcode.mul_terms.push(pair);
+                    intermediate_opcode.mul_terms.push((scale, w_l, w_r));
 
                     // Add the left and right wires
                     intermediate_opcode.linear_combinations.push(left_wire_term);
@@ -201,7 +196,7 @@ impl CSatTransformer {
                         }
                     }
 
-                    // Now we have used up 2 spaces in our assert-zero opcode. The width now dictates, how many more we can add
+                    // Now we have used up 2 spaces in our assert-zero opcode. The width now dictates how many more we can add
                     let mut remaining_space = self.width - 2 - 1; // We minus 1 because we need an extra space to contain the intermediate variable
                     // Keep adding terms until we have no more left, or we reach the width
                     let mut remaining_linear_terms =
@@ -222,27 +217,26 @@ impl CSatTransformer {
                     }
                     opcode.linear_combinations.extend(remaining_linear_terms);
 
-                    // Constraint this intermediate_opcode to be equal to the temp variable by adding it into the IndexMap
+                    // Constrain this intermediate_opcode to be equal to the temp variable by adding it into the IndexMap
                     // We need a unique name for our intermediate variable
-                    // XXX: Another optimization, which could be applied in another algorithm
+                    // TODO(https://github.com/noir-lang/noir/issues/10192): Another optimization, which could be applied in another algorithm
                     // If two opcodes have a large fan-in/out and they share a few common terms, then we should create intermediate variables for them
                     // Do some sort of subset matching algorithm for this on the terms of the polynomial
-                    let inter_var = Self::get_or_create_intermediate_vars(
+                    let intermediate_var = Self::get_or_create_intermediate_var(
                         intermediate_variables,
                         intermediate_opcode,
                         num_witness,
                     );
 
                     // Add intermediate variable to the new opcode instead of the full opcode
-                    self.mark_solvable(inter_var.1);
-                    new_opcode.linear_combinations.push(inter_var);
+                    self.mark_solvable(intermediate_var.1);
+                    new_opcode.linear_combinations.push(intermediate_var);
                 }
             };
         }
-        opcode.mul_terms = remaining_mul_terms;
 
         // Add the rest of the elements back into the new_opcode
-        new_opcode.mul_terms.extend(opcode.mul_terms);
+        new_opcode.mul_terms.extend(remaining_mul_terms);
         new_opcode.linear_combinations.extend(opcode.linear_combinations);
         new_opcode.q_c = opcode.q_c;
         new_opcode.sort();
@@ -251,7 +245,7 @@ impl CSatTransformer {
 
     /// Normalize an expression by dividing it by its first coefficient
     /// The first coefficient here means coefficient of the first linear term, or of the first quadratic term if no linear terms exist.
-    /// The function panic if the input expression is constant
+    /// This function panics if the input expression is constant or if the first coefficient's inverse is F::zero()
     fn normalize<F: AcirField>(mut expr: Expression<F>) -> (F, Expression<F>) {
         expr.sort();
         let a = if !expr.linear_combinations.is_empty() {
@@ -259,14 +253,16 @@ impl CSatTransformer {
         } else {
             expr.mul_terms[0].0
         };
-        (a, &expr * a.inverse())
+        let a_inverse = a.inverse();
+        assert!(a_inverse != F::zero(), "normalize: the first coefficient is non-invertible");
+        (a, &expr * a_inverse)
     }
 
     /// Get or generate a scaled intermediate witness which is equal to the provided expression
     /// The sets of previously generated witness and their (normalized) expression is cached in the intermediate_variables map
     /// If there is no cache hit, we generate a new witness (and add the expression to the cache)
     /// else, we return the cached witness along with the scaling factor so it is equal to the provided expression
-    fn get_or_create_intermediate_vars<F: AcirField>(
+    fn get_or_create_intermediate_var<F: AcirField>(
         intermediate_variables: &mut IndexMap<Expression<F>, (F, Witness)>,
         expr: Expression<F>,
         num_witness: &mut u32,
@@ -275,6 +271,10 @@ impl CSatTransformer {
 
         if intermediate_variables.contains_key(&normalized_expr) {
             let (l, iv) = intermediate_variables[&normalized_expr];
+            assert!(
+                l != F::zero(),
+                "get_or_create_intermediate_var: attempting to divide l by F::zero()"
+            );
             (k / l, iv)
         } else {
             let inter_var = Witness(*num_witness);
@@ -294,7 +294,7 @@ impl CSatTransformer {
     // One thing to note is that the multiplication wires do not match any of the fan-in/out wires. This is guaranteed as we have
     // just completed the full opcode optimization algorithm.
     //
-    //Actually we can optimize in two ways here: We can create an intermediate variable which is equal to the fan-in terms
+    // Actually we can optimize in two ways here: We can create an intermediate variable which is equal to the fan-in terms
     // t = qL1 * wL3 + qR1 * wR4 -> width = 3
     // This `t` value can only use width - 1 terms
     // The opcode now looks like: qM1 * wL1 * wR2 + t + qR2 * wR5+ qO1 * wO5 + qC
@@ -311,7 +311,7 @@ impl CSatTransformer {
     // Same Example: qM1 * wL1 * wR2 + qL1 * wL3 + qR1 * wR4+ qR2 * wR5 + qO1 * wO5 + qC
     // t = qM1 * wL1 * wR2
     // The opcode now looks like: t + qL1 * wL3 + qR1 * wR4+ qR2 * wR5 + qO1 * wO5 + qC
-    // Still assuming width3, we still need to use width-1 terms for the intermediate variables, however we can stop at an earlier stage because
+    // Still assuming width-3, we still need to use width-1 terms for the intermediate variables, however we can stop at an earlier stage because
     // the opcode does not need the multiplier term to match with any of the fan-in terms
     // t2 = t + qL1 * wL3
     // The opcode now looks like: t2 + qR1 * wR4+ qR2 * wR5 + qO1 * wO5 + qC
@@ -337,28 +337,26 @@ impl CSatTransformer {
             return opcode;
         }
 
-        // 2. Create Intermediate variables for the multiplication opcodes
+        // Create Intermediate variables for the multiplication opcodes
         let mut remaining_mul_terms = Vec::with_capacity(opcode.mul_terms.len());
-        for mul_term in opcode.mul_terms {
-            if self.solvable_witness.contains(&mul_term.1)
-                && self.solvable_witness.contains(&mul_term.2)
-            {
+        for (scale, w_l, w_r) in opcode.mul_terms {
+            if self.solvable_witness.contains(&w_l) && self.solvable_witness.contains(&w_r) {
                 let mut intermediate_opcode = Expression::default();
 
                 // Push mul term into the opcode
-                intermediate_opcode.mul_terms.push(mul_term);
+                intermediate_opcode.mul_terms.push((scale, w_l, w_r));
                 // Get an intermediate variable which squashes the multiplication term
-                let inter_var = Self::get_or_create_intermediate_vars(
+                let intermediate_var = Self::get_or_create_intermediate_var(
                     intermediate_variables,
                     intermediate_opcode,
                     num_witness,
                 );
 
                 // Add intermediate variable as a part of the fan-in for the original opcode
-                opcode.linear_combinations.push(inter_var);
-                self.mark_solvable(inter_var.1);
+                opcode.linear_combinations.push(intermediate_var);
+                self.mark_solvable(intermediate_var.1);
             } else {
-                remaining_mul_terms.push(mul_term);
+                remaining_mul_terms.push((scale, w_l, w_r));
             }
         }
 
@@ -375,7 +373,7 @@ impl CSatTransformer {
 
         // Stores the intermediate variables that are used to
         // reduce the fan in.
-        let mut added = Vec::new();
+        let mut added_vars = Vec::new();
 
         while opcode.linear_combinations.len() > self.width {
             // Collect as many terms up to the given width-1 and constrain them to an intermediate variable
@@ -395,13 +393,13 @@ impl CSatTransformer {
             opcode.linear_combinations = remaining_linear_terms;
             let not_full = intermediate_opcode.linear_combinations.len() < self.width - 1;
             if intermediate_opcode.linear_combinations.len() > 1 {
-                let inter_var = Self::get_or_create_intermediate_vars(
+                let intermediate_var = Self::get_or_create_intermediate_var(
                     intermediate_variables,
                     intermediate_opcode,
                     num_witness,
                 );
-                self.mark_solvable(inter_var.1);
-                added.push(inter_var);
+                self.mark_solvable(intermediate_var.1);
+                added_vars.push(intermediate_var);
             }
             // The intermediate opcode is not full, but the opcode still has too many terms
             if not_full && opcode.linear_combinations.len() > self.width {
@@ -411,7 +409,7 @@ impl CSatTransformer {
 
         // Add back the intermediate variables to
         // keep consistency with the original equation.
-        opcode.linear_combinations.extend(added);
+        opcode.linear_combinations.extend(added_vars);
         self.partial_opcode_scan_optimization(opcode, intermediate_variables, num_witness)
     }
 }
@@ -429,7 +427,7 @@ fn fits_in_one_identity<F: AcirField>(expr: &Expression<F>, width: usize) -> boo
 #[cfg(test)]
 mod tests {
     use super::*;
-    use acir::{AcirField, FieldElement};
+    use acir::FieldElement;
 
     #[test]
     fn simple_reduction_smoke_test() {
@@ -439,16 +437,7 @@ mod tests {
         let d = Witness(3);
 
         // a = b + c + d;
-        let opcode_a = Expression {
-            mul_terms: vec![],
-            linear_combinations: vec![
-                (FieldElement::one(), a),
-                (-FieldElement::one(), b),
-                (-FieldElement::one(), c),
-                (-FieldElement::one(), d),
-            ],
-            q_c: FieldElement::zero(),
-        };
+        let opcode_a = Expression::from_str(&format!("{a} - {b} - {c} - {d}")).unwrap();
 
         let mut intermediate_variables: IndexMap<
             Expression<FieldElement>,
@@ -471,25 +460,15 @@ mod tests {
         //
         // a - b + e = 0
         let e = Witness(4);
-        let expected_optimized_opcode_a = Expression {
-            mul_terms: vec![],
-            linear_combinations: vec![
-                (FieldElement::one(), a),
-                (-FieldElement::one(), d),
-                (FieldElement::one(), e),
-            ],
-            q_c: FieldElement::zero(),
-        };
+        let expected_optimized_opcode_a =
+            Expression::from_str(&format!("{a} - {d} + {e}")).unwrap();
+
         assert_eq!(expected_optimized_opcode_a, got_optimized_opcode_a);
 
         assert_eq!(intermediate_variables.len(), 1);
 
         // e = - c - b
-        let expected_intermediate_opcode = Expression {
-            mul_terms: vec![],
-            linear_combinations: vec![(-FieldElement::one(), c), (-FieldElement::one(), b)],
-            q_c: FieldElement::zero(),
-        };
+        let expected_intermediate_opcode = Expression::from_str(&format!("-{c} - {b}")).unwrap();
         let (_, normalized_opcode) = CSatTransformer::normalize(expected_intermediate_opcode);
         assert!(intermediate_variables.contains_key(&normalized_opcode));
         assert_eq!(intermediate_variables[&normalized_opcode].1, e);
@@ -504,17 +483,7 @@ mod tests {
         let e = Witness(4);
 
         // a = b + c + d + e;
-        let opcode_a = Expression {
-            mul_terms: vec![],
-            linear_combinations: vec![
-                (-FieldElement::one(), a),
-                (FieldElement::one(), b),
-                (FieldElement::one(), c),
-                (FieldElement::one(), d),
-                (FieldElement::one(), e),
-            ],
-            q_c: FieldElement::zero(),
-        };
+        let opcode_a = Expression::from_str(&format!("-{a} + {b} + {c} + {d} + {e}")).unwrap();
 
         let mut intermediate_variables: IndexMap<
             Expression<FieldElement>,
@@ -540,15 +509,52 @@ mod tests {
     fn recognize_expr_with_single_shared_witness_which_fits_in_single_identity() {
         // Regression test for an expression which Zac found which should have been preserved but
         // was being split into two expressions.
+        let expr = Expression::from_str("-555*w8*w10 + w10 + w11 - w13").unwrap();
+        assert!(fits_in_one_identity(&expr, 4));
+    }
+
+    #[test]
+    #[should_panic(expected = "normalize: the first coefficient is non-invertible")]
+    fn normalize_on_zero_linear_combination_panics() {
         let expr = Expression {
-            mul_terms: vec![(-FieldElement::from(555u128), Witness(8), Witness(10))],
-            linear_combinations: vec![
-                (FieldElement::one(), Witness(10)),
-                (FieldElement::one(), Witness(11)),
-                (-FieldElement::one(), Witness(13)),
-            ],
+            mul_terms: vec![],
+            linear_combinations: vec![(FieldElement::zero(), Witness(0))],
             q_c: FieldElement::zero(),
         };
-        assert!(fits_in_one_identity(&expr, 4));
+        CSatTransformer::normalize(expr);
+    }
+
+    #[test]
+    #[should_panic(expected = "normalize: the first coefficient is non-invertible")]
+    fn normalize_on_zero_mul_term_scale_panics() {
+        let expr = Expression {
+            mul_terms: vec![(FieldElement::zero(), Witness(0), Witness(1))],
+            linear_combinations: vec![],
+            q_c: FieldElement::zero(),
+        };
+        CSatTransformer::normalize(expr);
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "get_or_create_intermediate_var: attempting to divide l by F::zero()"
+    )]
+    fn get_or_create_intermediate_var_with_zero_panics() {
+        let expr = Expression {
+            mul_terms: vec![(FieldElement::one(), Witness(0), Witness(1))],
+            linear_combinations: vec![],
+            q_c: FieldElement::zero(),
+        };
+
+        let mut intermediate_variables = IndexMap::new();
+        intermediate_variables.insert(expr.clone(), (FieldElement::zero(), Witness(0)));
+
+        let mut num_witness = 2;
+
+        CSatTransformer::get_or_create_intermediate_var(
+            &mut intermediate_variables,
+            expr,
+            &mut num_witness,
+        );
     }
 }

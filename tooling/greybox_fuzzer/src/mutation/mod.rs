@@ -213,7 +213,7 @@ impl InputMutator {
                 };
                 // This is an array and can be structurally mutated if the number of elements is more than one
                 // This is an array and can be structurally mutated if the number of elements is more than one
-                let arrays_hit = arrays_hit + ((length > 1) as usize);
+                let arrays_hit = arrays_hit + usize::from(length > 1);
                 let mut structural_mutation_directive = None;
                 let mut element_vector_with_value_mutation: Vec<InputValue> = (0..length)
                     .zip(weight_tree_node.subnodes.as_ref().unwrap())

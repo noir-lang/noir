@@ -1,11 +1,9 @@
-use std::vec;
-
 use acvm::{AcirField, acir::brillig::MemoryAddress};
 
 use super::ProcedureId;
 use crate::brillig::brillig_ir::{
     BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, BrilligBinaryOp, BrilligContext,
-    brillig_variable::{BrilligVector, SingleAddrVariable},
+    brillig_variable::BrilligVector,
     debug_show::DebugToString,
     registers::{RegisterAllocator, ScratchSpace},
 };
@@ -18,8 +16,9 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         source_vector: BrilligVector,
         destination_vector: BrilligVector,
     ) {
-        let source_vector_pointer_arg = MemoryAddress::direct(ScratchSpace::start());
-        let new_vector_pointer_return = MemoryAddress::direct(ScratchSpace::start() + 1);
+        let scratch_start = ScratchSpace::start();
+        let source_vector_pointer_arg = MemoryAddress::direct(scratch_start);
+        let new_vector_pointer_return = MemoryAddress::direct(scratch_start + 1);
 
         self.mov_instruction(source_vector_pointer_arg, source_vector.pointer);
 
@@ -32,16 +31,13 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 pub(super) fn compile_vector_copy_procedure<F: AcirField + DebugToString>(
     brillig_context: &mut BrilligContext<F, ScratchSpace>,
 ) {
-    let source_vector_pointer_arg = MemoryAddress::direct(ScratchSpace::start());
-    let new_vector_pointer_return = MemoryAddress::direct(ScratchSpace::start() + 1);
+    let [source_vector_pointer_arg, new_vector_pointer_return] =
+        brillig_context.allocate_scratch_registers();
 
-    brillig_context
-        .set_allocated_registers(vec![source_vector_pointer_arg, new_vector_pointer_return]);
-
-    let rc = SingleAddrVariable::new_usize(brillig_context.allocate_register());
+    let rc = brillig_context.allocate_single_addr_usize();
     brillig_context.load_instruction(rc.address, source_vector_pointer_arg);
 
-    let is_rc_one = SingleAddrVariable::new(brillig_context.allocate_register(), 1);
+    let is_rc_one = brillig_context.allocate_single_addr_bool();
     brillig_context.codegen_usize_op(rc.address, is_rc_one.address, BrilligBinaryOp::Equals, 1);
 
     brillig_context.codegen_branch(is_rc_one.address, |ctx, cond| {
@@ -53,18 +49,17 @@ pub(super) fn compile_vector_copy_procedure<F: AcirField + DebugToString>(
             let result_vector = BrilligVector { pointer: new_vector_pointer_return };
 
             // Allocate the memory for the new vec
-            let allocation_size = ctx.codegen_make_vector_capacity(source_vector);
+            let allocation_size = ctx.codegen_read_vector_capacity(source_vector);
             ctx.codegen_usize_op_in_place(allocation_size.address, BrilligBinaryOp::Add, 3_usize); // Capacity plus 3 (rc, len, cap)
             ctx.codegen_allocate_mem(result_vector.pointer, allocation_size.address);
 
-            ctx.codegen_mem_copy(source_vector.pointer, result_vector.pointer, allocation_size);
+            ctx.codegen_mem_copy(source_vector.pointer, result_vector.pointer, *allocation_size);
             // Then set the new rc to 1
             ctx.indirect_const_instruction(
                 result_vector.pointer,
                 BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
                 1_usize.into(),
             );
-            ctx.deallocate_single_addr(allocation_size);
         }
     });
 }

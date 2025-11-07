@@ -12,7 +12,7 @@ use k256::{
 use k256::{Scalar, ecdsa::Signature};
 
 pub(super) fn verify_signature(
-    hashed_msg: &[u8],
+    hashed_msg: &[u8; 32],
     public_key_x_bytes: &[u8; 32],
     public_key_y_bytes: &[u8; 32],
     signature: &[u8; 64],
@@ -136,16 +136,5 @@ mod secp256k1_tests {
             verify_signature(&HASHED_MESSAGE, &invalid_pub_key_x, &invalid_pub_key_y, &SIGNATURE);
 
         assert!(!valid);
-    }
-
-    #[test]
-    #[ignore = "ECDSA verification does not currently handle long hashes correctly"]
-    fn trims_overly_long_hashes_to_correct_length() {
-        let mut long_hashed_message = HASHED_MESSAGE.to_vec();
-        long_hashed_message.push(0xff);
-
-        let valid = verify_signature(&long_hashed_message, &PUB_KEY_X, &PUB_KEY_Y, &SIGNATURE);
-
-        assert!(valid);
     }
 }

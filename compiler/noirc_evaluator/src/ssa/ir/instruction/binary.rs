@@ -146,7 +146,7 @@ pub(crate) fn eval_constant_binary_op(
             if operator == BinaryOp::Shl || operator == BinaryOp::Shr {
                 let op = "bit-shift";
 
-                if rhs >= bit_size as u128 {
+                if rhs >= u128::from(bit_size) {
                     return Failure(format!("attempt to {op} with overflow"));
                 }
             }
@@ -192,6 +192,24 @@ pub(crate) fn eval_constant_binary_op(
             let Some(rhs) = try_convert_field_element_to_signed_integer(rhs, bit_size) else {
                 return CouldNotEvaluate;
             };
+
+            let two_pow_bit_size_minus_one = 1i128 << (bit_size - 1);
+
+            // Because we always perform signed operations using i128, an operation like `-128_i8 / -1`
+            // will not overflow as it'll actually be done via `-128_i128 / -1`. Thus we need to
+            // manually check this specific case.
+            if matches!(operator, BinaryOp::Div | BinaryOp::Mod) && rhs == -1 {
+                assert!(bit_size < 128);
+                let min_value = -two_pow_bit_size_minus_one;
+                if lhs == min_value {
+                    return Failure(if operator == BinaryOp::Div {
+                        "attempt to divide with overflow".to_string()
+                    } else {
+                        "attempt to calculate the remainder with overflow".to_string()
+                    });
+                }
+            }
+
             let result = function(lhs, rhs);
 
             let result = {
@@ -204,7 +222,7 @@ pub(crate) fn eval_constant_binary_op(
                         // and the operation should be handled by ACIR generation.
                         return Failure("attempt to divide by zero".to_string());
                     }
-                    BinaryOp::Shr | BinaryOp::Shl if rhs >= bit_size as i128 => {
+                    BinaryOp::Shr | BinaryOp::Shl if rhs >= i128::from(bit_size) => {
                         let op = binary_op_function_name(operator);
                         return Failure(format!("attempt to {op} with overflow"));
                     }
@@ -212,7 +230,6 @@ pub(crate) fn eval_constant_binary_op(
                 }
 
                 // Check for overflow
-                let two_pow_bit_size_minus_one = 1i128 << (bit_size - 1);
                 let Some(result) = result else {
                     if let BinaryOp::Shl = operator {
                         return CouldNotEvaluate;
@@ -290,10 +307,10 @@ pub(crate) fn convert_signed_integer_to_field_element(int: i128, bit_size: u32) 
         FieldElement::from(int as u128)
     } else {
         let two_complement = match bit_size {
-            8 => ((int as i8) as u8) as u128,
-            16 => ((int as i16) as u16) as u128,
-            32 => ((int as i32) as u32) as u128,
-            64 => ((int as i64) as u64) as u128,
+            8 => u128::from((int as i8) as u8),
+            16 => u128::from((int as i16) as u16),
+            32 => u128::from((int as i32) as u32),
+            64 => u128::from((int as i64) as u64),
             _ => unreachable!("ICE - invalid bit size {bit_size} for signed integer"),
         };
         FieldElement::from(two_complement)
@@ -365,8 +382,8 @@ impl BinaryOp {
             BinaryOp::And => |x, y| Some(x & y),
             BinaryOp::Or => |x, y| Some(x | y),
             BinaryOp::Xor => |x, y| Some(x ^ y),
-            BinaryOp::Eq => |x, y| Some((x == y) as u128),
-            BinaryOp::Lt => |x, y| Some((x < y) as u128),
+            BinaryOp::Eq => |x, y| Some(u128::from(x == y)),
+            BinaryOp::Lt => |x, y| Some(u128::from(x < y)),
             BinaryOp::Shl => |x, y| y.to_u32().and_then(|y| x.checked_shl(y)),
             BinaryOp::Shr => |x, y| y.to_u32().and_then(|y| x.checked_shr(y)),
         }
@@ -382,8 +399,8 @@ impl BinaryOp {
             BinaryOp::And => |x, y| Some(x & y),
             BinaryOp::Or => |x, y| Some(x | y),
             BinaryOp::Xor => |x, y| Some(x ^ y),
-            BinaryOp::Eq => |x, y| Some((x == y) as i128),
-            BinaryOp::Lt => |x, y| Some((x < y) as i128),
+            BinaryOp::Eq => |x, y| Some(i128::from(x == y)),
+            BinaryOp::Lt => |x, y| Some(i128::from(x < y)),
             BinaryOp::Shl => |x, y| y.to_u32().and_then(|y| x.checked_shl(y)),
             BinaryOp::Shr => |x, y| y.to_u32().and_then(|y| x.checked_shr(y)),
         }
@@ -454,7 +471,7 @@ mod test {
         for (i, u) in [(-1i64, u64::MAX), (-2i64, u64::MAX - 1), (1i64, 1u64)] {
             let i: i128 = i.into();
             let f = convert_signed_integer_to_field_element(i, 64);
-            assert_eq!(f.to_u128(), u as u128);
+            assert_eq!(f.to_u128(), u128::from(u));
             assert_eq!(i, try_convert_field_element_to_signed_integer(f, 64).unwrap());
         }
     }

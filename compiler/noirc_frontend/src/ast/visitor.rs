@@ -1219,9 +1219,9 @@ impl Statement {
             StatementKind::For(for_loop_statement) => {
                 for_loop_statement.accept(visitor);
             }
-            StatementKind::Loop(block, _) => {
-                if visitor.visit_loop_statement(block) {
-                    block.accept(visitor);
+            StatementKind::Loop(loop_) => {
+                if visitor.visit_loop_statement(&loop_.body) {
+                    loop_.body.accept(visitor);
                 }
             }
             StatementKind::While(while_) => {

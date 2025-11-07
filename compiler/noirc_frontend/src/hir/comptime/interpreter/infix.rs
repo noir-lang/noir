@@ -24,6 +24,15 @@ pub(super) fn evaluate_infix(
     let rhs_overflow = InterpreterError::BinaryOperationOverflow { operator: ">>", location };
     let math_error = |operator| InterpreterError::BinaryOperationOverflow { location, operator };
 
+    if matches!(operator.kind, BinaryOpKind::Divide | BinaryOpKind::Modulo) && rhs_value.is_zero() {
+        return Err(InterpreterError::InvalidValuesForBinary {
+            lhs: lhs_type,
+            rhs: rhs_type,
+            location,
+            operator: if operator.kind == BinaryOpKind::Divide { "/" } else { "%" },
+        });
+    }
+
     /// Generate matches that can promote the type of one side to the other if they are compatible.
     macro_rules! match_values {
         (($lhs_value:ident as $lhs:ident $op:literal $rhs_value:ident as $rhs:ident) {
@@ -149,7 +158,7 @@ pub(super) fn evaluate_infix(
         BinaryOpKind::Divide => match_arithmetic! {
             (lhs_value as lhs "/" rhs_value as rhs) {
                 field: if rhs.absolute_value().is_zero() {
-                    return Err(math_error("/"));
+                   return Err( InterpreterError::InvalidValuesForBinary { lhs: lhs_type, rhs: rhs_type, location, operator: "/" });
                 } else {
                     lhs / rhs
                 },
@@ -188,6 +197,7 @@ pub(super) fn evaluate_infix(
             (lhs_value as lhs ">>" rhs_value as rhs) => {
                 #[allow(unused_comparisons, clippy::absurd_extreme_comparisons)]
                 if rhs > 127 {return Err(rhs_overflow);}
+                #[allow(clippy::cast_lossless)]
                 lhs.checked_shr(rhs as u32)
             }
         },
@@ -196,18 +206,12 @@ pub(super) fn evaluate_infix(
             (lhs_value as lhs "<<" rhs_value as rhs) => {
                 #[allow(unused_comparisons, clippy::absurd_extreme_comparisons)]
                 if rhs > 127 {return Err(lhs_overflow);}
-                lhs.checked_shl(
-                rhs as u32
-            )}
+                #[allow(clippy::cast_lossless)]
+                lhs.checked_shl(rhs as u32)
+            }
         },
-        BinaryOpKind::Modulo => match (&lhs_value, &rhs_value) {
-            (Value::I8(i8::MIN), Value::I8(-1)) => Ok(Value::I8(0)),
-            (Value::I16(i16::MIN), Value::I16(-1)) => Ok(Value::I16(0)),
-            (Value::I32(i32::MIN), Value::I32(-1)) => Ok(Value::I32(0)),
-            (Value::I64(i64::MIN), Value::I64(-1)) => Ok(Value::I64(0)),
-            _ => match_integer! {
-                (lhs_value as lhs "%" rhs_value as rhs) => lhs.checked_rem(rhs)
-            },
+        BinaryOpKind::Modulo => match_integer! {
+            (lhs_value as lhs "%" rhs_value as rhs) => lhs.checked_rem(rhs)
         },
     }
 }
@@ -239,9 +243,8 @@ mod test {
         let rhs = Value::I8(-1);
         let operator = HirBinaryOp { kind: BinaryOpKind::Modulo, location: Location::dummy() };
         let location = Location::dummy();
-        let result = evaluate_infix(lhs, rhs, operator, location).unwrap();
-
-        assert_eq!(result, Value::I8(0));
+        let err = evaluate_infix(lhs, rhs, operator, location).unwrap_err();
+        assert!(matches!(err, InterpreterError::BinaryOperationOverflow { .. }));
     }
 
     #[test]
@@ -407,10 +410,7 @@ mod test {
             }
         "#;
         let result = interpret_expect_error(src);
-        assert!(matches!(
-            result,
-            InterpreterError::BinaryOperationOverflow { operator: "/", location: _ }
-        ));
+        assert!(matches!(result, InterpreterError::InvalidValuesForBinary { operator: "/", .. }));
     }
 
     #[test]
@@ -421,10 +421,7 @@ mod test {
             }
         "#;
         let result = interpret_expect_error(src);
-        assert!(matches!(
-            result,
-            InterpreterError::BinaryOperationOverflow { operator: "/", location: _ }
-        ));
+        assert!(matches!(result, InterpreterError::InvalidValuesForBinary { operator: "/", .. }));
     }
 
     #[test]

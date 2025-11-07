@@ -1,5 +1,5 @@
-//! This file contains the SSA `remove_if_else` pass - a required pass for ACIR to remove any remaining
-//! `Instruction::IfElse` in the singular program-function, and replace them with
+//! This file contains the SSA `remove_if_else` pass - a required pass for ACIR to remove any
+//! remaining `Instruction::IfElse` in the singular program-function, and replace them with
 //! arithmetic operations using the `then_condition`.
 //!
 //! ACIR/Brillig differences within this pass:
@@ -9,15 +9,18 @@
 //! Conditions:
 //!   - Precondition: Flatten CFG has been performed which should result in the function having only
 //!     one basic block.
-//!   - Precondition: `then_value` and `else_value` of `Instruction::IfElse` return arrays or slices. Numeric values should be handled previously by the flattening pass.
+//!   - Precondition: `then_value` and `else_value` of `Instruction::IfElse` return arrays or slices.
+//!     Numeric values should be handled previously by the flattening pass.
 //!     Reference or function values are not handled by remove if-else and will cause an error.
 //!   - Postcondition: A program without any `IfElse` instructions.
 //!
 //! Relevance to other passes:
-//!   - Flattening inserts `Instruction::IfElse` to merge array or slice values from an if-expression's "then"
-//!     and "else" branches. `Instruction::IfElse` with numeric values are directly handled during the flattening
+//!   - Flattening inserts `Instruction::IfElse` to merge array or slice values from an
+//!     if-expression's "then" and "else" branches. `Instruction::IfElse` with numeric values are
+//!     directly handled during flattening, [via instruction simplification][crate::ssa::ir::dfg::simplify::simplify],
 //!     and will cause a panic in the `remove_if_else` pass.
-//!   - Defunctionalize removes first-class function values from the program which eliminates the need for remove-if-else to handle `Instruction::IfElse` returning function values.
+//!   - Defunctionalize removes first-class function values from the program which eliminates the need
+//!     for remove-if-else to handle `Instruction::IfElse` returning function values.
 //!
 //! Implementation details & examples:
 //! `IfElse` instructions choose between its two operand values,
@@ -47,7 +50,7 @@
 //!          y[0] = 2;
 //!     }
 //!
-//!     assert(y[0] == 1);
+//!     assert(y[0] == 3);
 //!  }
 //!  ```
 //!
@@ -74,14 +77,14 @@
 //! ```ssa
 //! v13 = cast v0 as u32
 //! v14 = cast v6 as u32
-//! v15 = unchecked_mul v14, u32 2  
+//! v15 = unchecked_mul v14, u32 2
 //! v16 = unchecked_add v13, v15
 //! v17 = array_get v5, index u32 1 -> u32
 //! v18 = array_get v8, index u32 1 -> u32
 //! v19 = cast v0 as u32
 //! v20 = cast v6 as u32
 //! v21 = unchecked_mul v19, v17
-//! v22 = unchecked_mul v20, v18   
+//! v22 = unchecked_mul v20, v18
 //! v23 = unchecked_add v21, v22
 //! v24 = make_array [v16, v23] : [u32; 2]
 //! ```
@@ -89,6 +92,11 @@
 //! The result of the removed `IfElse` instruction, array `v24`, is a merge of each of the elements of `v5` and `v8`.
 //! The elements at index 0 are replaced by their known value, instead of doing an additional array get.
 //! Operations with the conditions are unchecked operations, because the conditions are 0 or 1, so it cannot overflow.
+//!
+//! For slices the logic is similar except that slice lengths need to be tracked in order to know
+//! the length of the merged slice resulting in a `make_array` instruction. This length will be the
+//! maximum length of the two input slices. Note that the actual length of the merged slice should
+//! have been merged during flattening.
 
 use std::collections::hash_map::Entry;
 
@@ -96,6 +104,7 @@ use rustc_hash::FxHashMap as HashMap;
 
 use crate::errors::RtResult;
 
+use crate::ssa::ir::dfg::simplify::value_merger::ValueMerger;
 use crate::ssa::{
     Ssa,
     ir::{
@@ -105,7 +114,6 @@ use crate::ssa::{
         types::Type,
         value::{Value, ValueId},
     },
-    opt::flatten_cfg::value_merger::ValueMerger,
 };
 
 impl Ssa {
@@ -149,6 +157,14 @@ impl Function {
 
 #[derive(Default)]
 struct Context {
+    /// Keeps track of each size a slice is known to be.
+    ///
+    /// This is passed to the `ValueMerger` because when merging two slices
+    /// we need to know their sizes to create the merged slice.
+    ///
+    /// Note: as this pass operates on a single block, which is an entry block,
+    /// and because slices are disallowed in entry blocks, all slice lengths
+    /// should be known at this point.
     slice_sizes: HashMap<ValueId, u32>,
 }
 
@@ -158,9 +174,6 @@ impl Context {
     /// through intrinsic calls and array set instructions.
     fn remove_if_else(&mut self, function: &mut Function) -> RtResult<()> {
         let block = function.entry_block();
-
-        // Make sure this optimization runs when there's only one block
-        assert_eq!(function.dfg[block].successors().count(), 0);
 
         function.simple_optimization_result(|context| {
             let instruction_id = context.instruction_id;
@@ -173,13 +186,13 @@ impl Context {
                     let then_value = *then_value;
                     let else_value = *else_value;
 
-                    let typ = context.dfg.type_of_value(then_value);
-                    // Numeric values should have been handled during flattening
-                    assert!(!matches!(typ, Type::Numeric(_)));
+                    // Register values for the merger to use.
+                    self.ensure_capacity(context.dfg, then_value);
+                    self.ensure_capacity(context.dfg, else_value);
 
                     let call_stack = context.dfg.get_instruction_call_stack_id(instruction_id);
                     let mut value_merger =
-                        ValueMerger::new(context.dfg, block, &mut self.slice_sizes, call_stack);
+                        ValueMerger::new(context.dfg, block, &self.slice_sizes, call_stack);
 
                     let value = value_merger.merge_values(
                         then_condition,
@@ -188,9 +201,7 @@ impl Context {
                         else_value,
                     )?;
 
-                    let _typ = context.dfg.type_of_value(value);
-                    let results = context.dfg.instruction_results(instruction_id);
-                    let result = results[0];
+                    let [result] = context.dfg.instruction_result(instruction_id);
 
                     context.remove_current_instruction();
                     // The `IfElse` instruction is replaced by the merge done with the `ValueMerger`
@@ -201,31 +212,27 @@ impl Context {
                     if let Value::Intrinsic(intrinsic) = context.dfg[*func] {
                         let results = context.dfg.instruction_results(instruction_id);
 
-                        match slice_capacity_change(context.dfg, intrinsic, arguments, results) {
+                        match self.slice_capacity_change(context.dfg, intrinsic, arguments, results)
+                        {
                             SizeChange::None => (),
-                            SizeChange::SetTo(value, new_capacity) => {
-                                self.slice_sizes.insert(value, new_capacity);
+                            SizeChange::SetTo { old, new } => {
+                                self.set_capacity(context.dfg, old, new, |c| c);
                             }
                             SizeChange::Inc { old, new } => {
-                                let old_capacity = self.get_or_find_capacity(context.dfg, old);
-                                self.slice_sizes.insert(new, old_capacity + 1);
+                                self.set_capacity(context.dfg, old, new, |c| c + 1);
                             }
                             SizeChange::Dec { old, new } => {
-                                let old_capacity = self.get_or_find_capacity(context.dfg, old);
                                 // We use a saturating sub here as calling `pop_front` or `pop_back` on a zero-length slice
                                 // would otherwise underflow.
-                                self.slice_sizes.insert(new, old_capacity.saturating_sub(1));
+                                self.set_capacity(context.dfg, old, new, |c| c.saturating_sub(1));
                             }
                         }
                     }
                 }
                 // Track slice sizes through array set instructions
                 Instruction::ArraySet { array, .. } => {
-                    let results = context.dfg.instruction_results(instruction_id);
-                    let result = if results.len() == 2 { results[1] } else { results[0] };
-
-                    let old_capacity = self.get_or_find_capacity(context.dfg, *array);
-                    self.slice_sizes.insert(result, old_capacity);
+                    let [result] = context.dfg.instruction_result(instruction_id);
+                    self.set_capacity(context.dfg, *array, result, |c| c);
                 }
                 _ => (),
             }
@@ -233,100 +240,161 @@ impl Context {
         })
     }
 
-    //Get the tracked size of array/slices, or retrieve (and track) it for arrays.
+    /// Set the capacity of the new slice based on the capacity of the old array/slice.
+    fn set_capacity(
+        &mut self,
+        dfg: &DataFlowGraph,
+        old: ValueId,
+        new: ValueId,
+        f: impl Fn(u32) -> u32,
+    ) {
+        // No need to store the capacity of arrays, only slices.
+        if !matches!(dfg.type_of_value(new), Type::Slice(_)) {
+            return;
+        }
+        let capacity = self.get_or_find_capacity(dfg, old);
+        self.slice_sizes.insert(new, f(capacity));
+    }
+
+    /// Make sure the slice capacity is recorded.
+    fn ensure_capacity(&mut self, dfg: &DataFlowGraph, slice: ValueId) {
+        self.set_capacity(dfg, slice, slice, |c| c);
+    }
+
+    /// Get the tracked size of array/slices, or retrieve (and track) it for arrays.
     fn get_or_find_capacity(&mut self, dfg: &DataFlowGraph, value: ValueId) -> u32 {
         match self.slice_sizes.entry(value) {
-            Entry::Occupied(entry) => return *entry.get(),
+            Entry::Occupied(entry) => *entry.get(),
             Entry::Vacant(entry) => {
+                // For arrays we know the size statically, and we don't need to store it.
+                if let Type::Array(_, length) = dfg.type_of_value(value) {
+                    return length;
+                }
+                // Check if the item was made by a MakeArray instruction, which can create slices as well.
                 if let Some((array, typ)) = dfg.get_array_constant(value) {
-                    let length = array.len() / typ.element_types().len();
+                    let length = array.len() / typ.element_size();
                     return *entry.insert(length as u32);
                 }
-
-                if let Type::Array(_, length) = dfg.type_of_value(value) {
-                    return *entry.insert(length);
-                }
+                // For non-constant slices we can't tell the size, which would mean we can't merge it.
+                let dbg_value = &dfg[value];
+                unreachable!("ICE: No size for slice {value} = {dbg_value:?}")
             }
         }
+    }
 
-        let dbg_value = &dfg[value];
-        unreachable!("No size for slice {value} = {dbg_value:?}")
+    /// Find the change to a slice's capacity an instruction would have
+    fn slice_capacity_change(
+        &self,
+        dfg: &DataFlowGraph,
+        intrinsic: Intrinsic,
+        arguments: &[ValueId],
+        results: &[ValueId],
+    ) -> SizeChange {
+        match intrinsic {
+            Intrinsic::SlicePushBack | Intrinsic::SlicePushFront | Intrinsic::SliceInsert => {
+                // All of these return `Self` (the slice), we are expecting: len, slice = ...
+                assert_eq!(results.len(), 2);
+                let old = arguments[1];
+                let new = results[1];
+                assert!(matches!(dfg.type_of_value(old), Type::Slice(_)));
+                assert!(matches!(dfg.type_of_value(new), Type::Slice(_)));
+                SizeChange::Inc { old, new }
+            }
+
+            Intrinsic::SlicePopBack | Intrinsic::SliceRemove => {
+                // fn pop_back(self) -> (Self, T)
+                // fn remove(self, index: u32) -> (Self, T)
+                //
+                // These functions return the slice as the result `(len, slice, ...item)`,
+                // so the slice is the second result.
+                let old = arguments[1];
+                let new = results[1];
+                assert!(matches!(dfg.type_of_value(old), Type::Slice(_)));
+                assert!(matches!(dfg.type_of_value(new), Type::Slice(_)));
+                SizeChange::Dec { old, new }
+            }
+
+            Intrinsic::SlicePopFront => {
+                // fn pop_front(self) -> (T, Self)
+                //
+                // These functions return the slice as the result `(...item, len, slice)`,
+                // so the slice is the last result.
+                let old = arguments[1];
+                let new = results[results.len() - 1];
+                assert!(matches!(dfg.type_of_value(old), Type::Slice(_)));
+                assert!(matches!(dfg.type_of_value(new), Type::Slice(_)));
+                SizeChange::Dec { old, new }
+            }
+
+            Intrinsic::AsSlice => {
+                assert_eq!(arguments.len(), 1);
+                assert_eq!(results.len(), 2);
+                let old = arguments[0];
+                let new = results[1];
+                assert!(matches!(dfg.type_of_value(old), Type::Array(_, _)));
+                assert!(matches!(dfg.type_of_value(new), Type::Slice(_)));
+                SizeChange::SetTo { old, new }
+            }
+
+            Intrinsic::Hint(Hint::BlackBox) => {
+                assert_eq!(arguments.len(), results.len());
+                let arguments_types =
+                    arguments.iter().map(|x| dfg.type_of_value(*x)).collect::<Vec<_>>();
+                let results_types =
+                    results.iter().map(|x| dfg.type_of_value(*x)).collect::<Vec<_>>();
+                assert_eq!(arguments_types, results_types);
+                let old =
+                    *arguments.last().expect("expected at least one argument to Hint::BlackBox");
+                if self.slice_sizes.contains_key(&old) {
+                    if arguments.len() != 1 {
+                        assert!(arguments.len() == 2);
+                        assert!(matches!(arguments_types[0], Type::Numeric(_)));
+                    }
+                    assert!(matches!(arguments_types.last().unwrap(), Type::Slice(_)));
+                    let new = *results.last().unwrap();
+                    SizeChange::SetTo { old, new }
+                } else {
+                    SizeChange::None
+                }
+            }
+
+            // These cases don't affect slice capacities
+            Intrinsic::AssertConstant
+            | Intrinsic::StaticAssert
+            | Intrinsic::ApplyRangeConstraint
+            | Intrinsic::ArrayLen
+            | Intrinsic::ArrayAsStrUnchecked
+            | Intrinsic::StrAsBytes
+            | Intrinsic::BlackBox(_)
+            | Intrinsic::AsWitness
+            | Intrinsic::IsUnconstrained
+            | Intrinsic::DerivePedersenGenerators
+            | Intrinsic::ToBits(_)
+            | Intrinsic::ToRadix(_)
+            | Intrinsic::ArrayRefCount
+            | Intrinsic::SliceRefCount
+            | Intrinsic::FieldLessThan => SizeChange::None,
+        }
     }
 }
 
 enum SizeChange {
     None,
-    SetTo(ValueId, u32),
-
-    // These two variants store the old and new slice ids
-    // not their lengths which should be old_len = new_len +/- 1
-    Inc { old: ValueId, new: ValueId },
-    Dec { old: ValueId, new: ValueId },
-}
-
-/// Find the change to a slice's capacity an instruction would have
-fn slice_capacity_change(
-    dfg: &DataFlowGraph,
-    intrinsic: Intrinsic,
-    arguments: &[ValueId],
-    results: &[ValueId],
-) -> SizeChange {
-    match intrinsic {
-        Intrinsic::SlicePushBack | Intrinsic::SlicePushFront | Intrinsic::SliceInsert => {
-            // Expecting:  len, slice = ...
-            assert_eq!(results.len(), 2);
-            let old = arguments[1];
-            let new = results[1];
-            assert!(matches!(dfg.type_of_value(old), Type::Slice(_)));
-            assert!(matches!(dfg.type_of_value(new), Type::Slice(_)));
-            SizeChange::Inc { old, new }
-        }
-
-        Intrinsic::SlicePopBack | Intrinsic::SliceRemove => {
-            let old = arguments[1];
-            let new = results[1];
-            assert!(matches!(dfg.type_of_value(old), Type::Slice(_)));
-            assert!(matches!(dfg.type_of_value(new), Type::Slice(_)));
-            SizeChange::Dec { old, new }
-        }
-
-        Intrinsic::SlicePopFront => {
-            let old = arguments[1];
-            let new = results[results.len() - 1];
-            assert!(matches!(dfg.type_of_value(old), Type::Slice(_)));
-            assert!(matches!(dfg.type_of_value(new), Type::Slice(_)));
-            SizeChange::Dec { old, new }
-        }
-
-        Intrinsic::AsSlice => {
-            assert_eq!(arguments.len(), 1);
-            assert_eq!(results.len(), 2);
-            let length = match dfg.type_of_value(arguments[0]) {
-                Type::Array(_, length) => length,
-                other => unreachable!("slice_capacity_change expected array, found {other:?}"),
-            };
-            assert!(matches!(dfg.type_of_value(results[1]), Type::Slice(_)));
-            SizeChange::SetTo(results[1], length)
-        }
-
-        // These cases don't affect slice capacities
-        Intrinsic::AssertConstant
-        | Intrinsic::StaticAssert
-        | Intrinsic::ApplyRangeConstraint
-        | Intrinsic::ArrayLen
-        | Intrinsic::ArrayAsStrUnchecked
-        | Intrinsic::StrAsBytes
-        | Intrinsic::BlackBox(_)
-        | Intrinsic::Hint(Hint::BlackBox)
-        | Intrinsic::AsWitness
-        | Intrinsic::IsUnconstrained
-        | Intrinsic::DerivePedersenGenerators
-        | Intrinsic::ToBits(_)
-        | Intrinsic::ToRadix(_)
-        | Intrinsic::ArrayRefCount
-        | Intrinsic::SliceRefCount
-        | Intrinsic::FieldLessThan => SizeChange::None,
-    }
+    /// Make the size of the new slice equal to the old array.
+    SetTo {
+        old: ValueId,
+        new: ValueId,
+    },
+    /// Make the size of the new slice equal to old+1.
+    Inc {
+        old: ValueId,
+        new: ValueId,
+    },
+    /// Make the size of the new slice equal to old-1.
+    Dec {
+        old: ValueId,
+        new: ValueId,
+    },
 }
 
 #[cfg(debug_assertions)]
@@ -339,12 +407,17 @@ fn remove_if_else_pre_check(func: &Function) {
         let instruction_ids = func.dfg[block_id].instructions();
 
         for instruction_id in instruction_ids {
-            if matches!(func.dfg[*instruction_id], Instruction::IfElse { .. }) {
+            if let Instruction::IfElse { then_value, .. } = &func.dfg[*instruction_id] {
                 assert!(
                     func.dfg.instruction_results(*instruction_id).iter().all(|value| {
                         matches!(func.dfg.type_of_value(*value), Type::Array(_, _) | Type::Slice(_))
                     }),
                     "IfElse instruction returns unexpected type"
+                );
+                let typ = func.dfg.type_of_value(*then_value);
+                assert!(
+                    !matches!(typ, Type::Numeric(_)),
+                    "Numeric values should have been handled during flattening"
                 );
             }
         }
@@ -386,12 +459,12 @@ mod tests {
         // ```
         // fn main(x: bool, mut y: [u32; 2]) {
         //     if x {
-        //         y[0] = 1;
-        //         y[1] = 2;
+        //         y[0] = 2;
+        //         y[1] = 3;
         //     }
         //
         //     let z = y[0] + y[1];
-        //     assert(z == 3);
+        //     assert(z == 5);
         // }
         // ```
         let src = "
@@ -399,16 +472,16 @@ mod tests {
           b0(v0: u1, v1: [u32; 2]):
             v2 = allocate -> &mut [u32; 2]
             enable_side_effects v0
-            v5 = array_set v1, index u32 0, value u32 1
-            v7 = array_set v5, index u32 1, value u32 2
+            v5 = array_set v1, index u32 0, value u32 2
+            v7 = array_set v5, index u32 1, value u32 3
             v8 = not v0
             v9 = if v0 then v7 else (if v8) v1
             enable_side_effects u1 1
             v11 = array_get v9, index u32 0 -> u32
             v12 = array_get v9, index u32 1 -> u32
             v13 = add v11, v12
-            v15 = eq v13, u32 3
-            constrain v13 == u32 3
+            v15 = eq v13, u32 5
+            constrain v13 == u32 5
             return
         }
         ";
@@ -425,41 +498,42 @@ mod tests {
           b0(v0: u1, v1: [u32; 2]):
             v2 = allocate -> &mut [u32; 2]
             enable_side_effects v0
-            v5 = array_set v1, index u32 0, value u32 1
-            v7 = array_set v5, index u32 1, value u32 2
-            v8 = not v0
-            v9 = array_get v1, index u32 0 -> u32
-            v10 = cast v0 as u32
-            v11 = cast v8 as u32
-            v12 = unchecked_mul v11, v9
-            v13 = unchecked_add v10, v12
-            v14 = array_get v1, index u32 1 -> u32
-            v15 = cast v0 as u32
-            v16 = cast v8 as u32
-            v17 = unchecked_mul v15, u32 2
-            v18 = unchecked_mul v16, v14
-            v19 = unchecked_add v17, v18
-            v20 = make_array [v13, v19] : [u32; 2]
+            v5 = array_set v1, index u32 0, value u32 2
+            v8 = array_set v5, index u32 1, value u32 3
+            v9 = not v0
+            v10 = array_get v1, index u32 0 -> u32
+            v11 = cast v0 as u32
+            v12 = cast v9 as u32
+            v13 = unchecked_mul v11, u32 2
+            v14 = unchecked_mul v12, v10
+            v15 = unchecked_add v13, v14
+            v16 = array_get v1, index u32 1 -> u32
+            v17 = cast v0 as u32
+            v18 = cast v9 as u32
+            v19 = unchecked_mul v17, u32 3
+            v20 = unchecked_mul v18, v16
+            v21 = unchecked_add v19, v20
+            v22 = make_array [v15, v21] : [u32; 2]
             enable_side_effects u1 1
-            v22 = add v13, v19
-            v24 = eq v22, u32 3
-            constrain v22 == u32 3
+            v24 = add v15, v21
+            v26 = eq v24, u32 5
+            constrain v24 == u32 5
             return
         }
         ");
     }
 
     #[test]
-    fn try_merge_only_changed_indices() {
+    fn merges_all_indices_even_if_they_did_not_change() {
         // This is the flattened SSA for the following Noir logic:
         // ```
         // fn main(x: bool, mut y: [u32; 2]) {
         //     if x {
-        //         y[0] = 1;
+        //         y[0] = 2;
         //     }
         //
         //     let z = y[0] + y[1];
-        //     assert(z == 1);
+        //     assert(z == 3);
         // }
         // ```
         let src = "
@@ -467,15 +541,15 @@ mod tests {
           b0(v0: u1, v1: [u32; 2]):
             v2 = allocate -> &mut [u32; 2]
             enable_side_effects v0
-            v5 = array_set v1, index u32 0, value u32 1
+            v5 = array_set v1, index u32 0, value u32 2
             v6 = not v0
             v7 = if v0 then v5 else (if v6) v1
             enable_side_effects u1 1
             v9 = array_get v7, index u32 0 -> u32
             v10 = array_get v7, index u32 1 -> u32
             v11 = add v9, v10
-            v12 = eq v11, u32 1
-            constrain v11 == u32 1
+            v12 = eq v11, u32 3
+            constrain v11 == u32 3
             return
         }
         ";
@@ -483,65 +557,66 @@ mod tests {
         let mut ssa = Ssa::from_str(src).unwrap();
         ssa = ssa.remove_if_else().unwrap();
 
-        // We attempt to optimize array mergers to only handle where an array was modified,
-        // rather than merging the entire array. As we only modify the `y` array at a single index,
-        // we instead only map the if predicate onto the the numeric value we are looking to write,
-        // and then write into the array directly.
+        // In the past we used to optimize array mergers to only handle where an array was modified,
+        // rather than merging the entire array.
+        // However, that was removed in https://github.com/noir-lang/noir/pull/8142
+        // Pending: investigate if this can be brought back: https://github.com/noir-lang/noir/issues/8145
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) predicate_pure fn main f0 {
           b0(v0: u1, v1: [u32; 2]):
             v2 = allocate -> &mut [u32; 2]
             enable_side_effects v0
-            v5 = array_set v1, index u32 0, value u32 1
+            v5 = array_set v1, index u32 0, value u32 2
             v6 = not v0
             v7 = array_get v1, index u32 0 -> u32
             v8 = cast v0 as u32
             v9 = cast v6 as u32
-            v10 = unchecked_mul v9, v7
-            v11 = unchecked_add v8, v10
-            v12 = array_get v5, index u32 1 -> u32
-            v13 = array_get v1, index u32 1 -> u32
-            v14 = cast v0 as u32
-            v15 = cast v6 as u32
-            v16 = unchecked_mul v14, v12
-            v17 = unchecked_mul v15, v13
-            v18 = unchecked_add v16, v17
-            v19 = make_array [v11, v18] : [u32; 2]
+            v10 = unchecked_mul v8, u32 2
+            v11 = unchecked_mul v9, v7
+            v12 = unchecked_add v10, v11
+            v14 = array_get v1, index u32 1 -> u32
+            v15 = array_get v1, index u32 1 -> u32
+            v16 = cast v0 as u32
+            v17 = cast v6 as u32
+            v18 = unchecked_mul v16, v14
+            v19 = unchecked_mul v17, v15
+            v20 = unchecked_add v18, v19
+            v21 = make_array [v12, v20] : [u32; 2]
             enable_side_effects u1 1
-            v21 = add v11, v18
-            v22 = eq v21, u32 1
-            constrain v21 == u32 1
+            v23 = add v12, v20
+            v25 = eq v23, u32 3
+            constrain v23 == u32 3
             return
         }
         ");
     }
 
     #[test]
-    fn merge_slice() {
+    fn merge_slice_with_slice_push_back() {
         let src = "
-acir(inline) impure fn main f0 {
-  b0(v0: u1, v1: Field, v2: Field):
-    v3 = make_array [] : [Field]   
-    v4 = allocate -> &mut u32       
-    v5 = allocate -> &mut [Field]    
-    enable_side_effects v0
-    v6 = cast v0 as u32
-    v7, v8 = call slice_push_back(v6, v3, v2) -> (u32, [Field])
-    v9 = not v0                                   
-    v10 = cast v0 as u32   
-    v12 = if v0 then v8 else (if v9) v3   
-    enable_side_effects u1 1        
-    v15, v16 = call slice_push_back(v10, v12, v2) -> (u32, [Field])
-    v17 = array_get v16, index u32 0 -> Field    
-    constrain v17 == Field 1
-    return
-}
+        acir(inline) impure fn main f0 {
+          b0(v0: u1, v1: Field, v2: Field):
+            v3 = make_array [] : [Field]
+            v4 = allocate -> &mut u32
+            v5 = allocate -> &mut [Field]
+            enable_side_effects v0
+            v6 = cast v0 as u32
+            v7, v8 = call slice_push_back(v6, v3, v2) -> (u32, [Field])
+            v9 = not v0
+            v10 = cast v0 as u32
+            v12 = if v0 then v8 else (if v9) v3
+            enable_side_effects u1 1
+            v15, v16 = call slice_push_back(v10, v12, v2) -> (u32, [Field])
+            v17 = array_get v16, index u32 0 -> Field
+            constrain v17 == Field 1
+            return
+        }
         ";
 
         let mut ssa = Ssa::from_str(src).unwrap();
         ssa = ssa.remove_if_else().unwrap();
 
-        // Merge slices v3 (empty) and v8 ([v2]) into v12, using a dummy value for the element at index 0 of v3, which does not exist.
+        // Merge slices v3 (empty) and v8 ([v2]) into v12, directly using v13 as the first element
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) impure fn main f0 {
           b0(v0: u1, v1: Field, v2: Field):
@@ -554,30 +629,337 @@ acir(inline) impure fn main f0 {
             v10 = not v0
             v11 = cast v0 as u32
             v13 = array_get v9, index u32 0 -> Field
-            v14 = cast v0 as Field
-            v15 = cast v10 as Field
-            v16 = mul v14, v13
+            v14 = make_array [v13] : [Field]
+            enable_side_effects u1 1
+            v17 = eq v11, u32 1
+            v18 = not v17
+            v19 = add v11, u32 1
+            v20 = make_array [v13, v2] : [Field]
+            v21 = array_set v20, index v11, value v2
+            v22 = array_get v21, index u32 0 -> Field
+            v23 = cast v18 as Field
+            v24 = cast v17 as Field
+            v25 = mul v23, v22
+            v26 = mul v24, v13
+            v27 = add v25, v26
+            v28 = array_get v21, index u32 1 -> Field
+            v29 = cast v18 as Field
+            v30 = cast v17 as Field
+            v31 = mul v29, v28
+            v32 = mul v30, v2
+            v33 = add v31, v32
+            v34 = make_array [v27, v33] : [Field]
+            constrain v27 == Field 1
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn merge_slice_with_slice_push_front() {
+        let src = "
+        acir(inline) impure fn main f0 {
+          b0(v0: u1, v1: Field, v2: Field):
+            v3 = make_array [] : [Field]
+            v4 = allocate -> &mut u32
+            v5 = allocate -> &mut [Field]
+            enable_side_effects v0
+            v6 = cast v0 as u32
+            v7, v8 = call slice_push_front(v6, v3, v2) -> (u32, [Field])
+            v9 = not v0
+            v10 = cast v0 as u32
+            v12 = if v0 then v8 else (if v9) v3
+            enable_side_effects u1 1
+            v15, v16 = call slice_push_front(v10, v12, v2) -> (u32, [Field])
+            v17 = array_get v16, index u32 0 -> Field
+            constrain v17 == Field 1
+            return
+        }
+        ";
+
+        let mut ssa = Ssa::from_str(src).unwrap();
+        ssa = ssa.remove_if_else().unwrap();
+
+        // Here v14 is the result of the merge (keep `[v13]`)
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) impure fn main f0 {
+          b0(v0: u1, v1: Field, v2: Field):
+            v3 = make_array [] : [Field]
+            v4 = allocate -> &mut u32
+            v5 = allocate -> &mut [Field]
+            enable_side_effects v0
+            v6 = cast v0 as u32
+            v8, v9 = call slice_push_front(v6, v3, v2) -> (u32, [Field])
+            v10 = not v0
+            v11 = cast v0 as u32
+            v13 = array_get v9, index u32 0 -> Field
+            v14 = make_array [v13] : [Field]
+            enable_side_effects u1 1
+            v17 = add v11, u32 1
+            v18 = make_array [v2, v13] : [Field]
+            constrain v2 == Field 1
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn merge_slice_with_as_slice_and_slice_push_front() {
+        // Same as the previous test, but using `as_slice` to prove that slice length tracking
+        // is working correctly.
+        let src = "
+        acir(inline) impure fn main f0 {
+          b0(v0: u1, v1: Field, v2: Field):
+            v102 = make_array [] : [Field; 0]
+            v103, v3 = call as_slice(v102) -> (u32, [Field])
+            v4 = allocate -> &mut u32
+            v5 = allocate -> &mut [Field]
+            enable_side_effects v0
+            v6 = cast v0 as u32
+            v7, v8 = call slice_push_front(v6, v3, v2) -> (u32, [Field])
+            v9 = not v0
+            v10 = cast v0 as u32
+            v12 = if v0 then v8 else (if v9) v3
+            enable_side_effects u1 1
+            v15, v16 = call slice_push_front(v10, v12, v2) -> (u32, [Field])
+            v17 = array_get v16, index u32 0 -> Field
+            constrain v17 == Field 1
+            return
+        }
+        ";
+
+        let mut ssa = Ssa::from_str(src).unwrap();
+        ssa = ssa.remove_if_else().unwrap();
+
+        // Here v17 is the result of the merge (keep `[v16]`)
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) impure fn main f0 {
+          b0(v0: u1, v1: Field, v2: Field):
+            v3 = make_array [] : [Field; 0]
+            v5, v6 = call as_slice(v3) -> (u32, [Field])
+            v7 = allocate -> &mut u32
+            v8 = allocate -> &mut [Field]
+            enable_side_effects v0
+            v9 = cast v0 as u32
+            v11, v12 = call slice_push_front(v9, v6, v2) -> (u32, [Field])
+            v13 = not v0
+            v14 = cast v0 as u32
+            v16 = array_get v12, index u32 0 -> Field
             v17 = make_array [v16] : [Field]
             enable_side_effects u1 1
-            v20 = eq v11, u32 1
-            v21 = not v20
-            v22 = add v11, u32 1
-            v23 = make_array [v16, v2] : [Field]
-            v24 = array_set v23, index v11, value v2
-            v25 = array_get v24, index u32 0 -> Field
-            v26 = cast v21 as Field
-            v27 = cast v20 as Field
-            v28 = mul v26, v25
-            v29 = mul v27, v16
-            v30 = add v28, v29
-            v31 = array_get v24, index u32 1 -> Field
-            v32 = cast v21 as Field
-            v33 = cast v20 as Field
-            v34 = mul v32, v31
-            v35 = mul v33, v2
-            v36 = add v34, v35
-            v37 = make_array [v30, v36] : [Field]
-            constrain v30 == Field 1
+            v20 = add v14, u32 1
+            v21 = make_array [v2, v16] : [Field]
+            constrain v2 == Field 1
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn merge_slice_with_slice_insert() {
+        let src = "
+        acir(inline) impure fn main f0 {
+          b0(v0: u1, v1: Field, v2: Field):
+            v3 = make_array [] : [Field]
+            v4 = allocate -> &mut u32
+            v5 = allocate -> &mut [Field]
+            enable_side_effects v0
+            v6 = cast v0 as u32
+            v7, v8 = call slice_insert(v6, v3, u32 0, v2) -> (u32, [Field])
+            v9 = not v0
+            v10 = cast v0 as u32
+            v12 = if v0 then v8 else (if v9) v3
+            enable_side_effects u1 1
+            v15, v16 = call slice_insert(v10, v12, u32 0, v2) -> (u32, [Field])
+            v17 = array_get v16, index u32 0 -> Field
+            constrain v17 == Field 1
+            return
+        }
+        ";
+
+        let mut ssa = Ssa::from_str(src).unwrap();
+        ssa = ssa.remove_if_else().unwrap();
+
+        // Here v14 is the result of the merge (keep `[v13]`)
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) impure fn main f0 {
+          b0(v0: u1, v1: Field, v2: Field):
+            v3 = make_array [] : [Field]
+            v4 = allocate -> &mut u32
+            v5 = allocate -> &mut [Field]
+            enable_side_effects v0
+            v6 = cast v0 as u32
+            v9, v10 = call slice_insert(v6, v3, u32 0, v2) -> (u32, [Field])
+            v11 = not v0
+            v12 = cast v0 as u32
+            v13 = array_get v10, index u32 0 -> Field
+            v14 = make_array [v13] : [Field]
+            enable_side_effects u1 1
+            v17 = add v12, u32 1
+            v18 = make_array [v2, v13] : [Field]
+            constrain v2 == Field 1
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn merge_slice_with_slice_pop_back() {
+        let src = "
+        acir(inline) impure fn main f0 {
+          b0(v0: u1, v1: Field, v2: Field):
+            v3 = make_array [Field 2, Field 3] : [Field]
+            v4 = allocate -> &mut u32
+            v5 = allocate -> &mut [Field]
+            enable_side_effects v0
+            v6 = cast v0 as u32
+            v7, v8, v100 = call slice_pop_back(v6, v3) -> (u32, [Field], Field)
+            v9 = not v0
+            v10 = cast v0 as u32
+            v12 = if v0 then v8 else (if v9) v3
+            enable_side_effects u1 1
+            v15, v16, v101 = call slice_pop_back(v10, v12) -> (u32, [Field], Field)
+            v17 = array_get v16, index u32 0 -> Field
+            constrain v17 == Field 1
+            return
+        }
+        ";
+
+        let mut ssa = Ssa::from_str(src).unwrap();
+        ssa = ssa.remove_if_else().unwrap();
+
+        // Here [v21, Field 3] is the result of merging the original slice (`[Field 2, Field 3]`)
+        // with the other slice, where `v21` merges the two values.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) impure fn main f0 {
+          b0(v0: u1, v1: Field, v2: Field):
+            v5 = make_array [Field 2, Field 3] : [Field]
+            v6 = allocate -> &mut u32
+            v7 = allocate -> &mut [Field]
+            enable_side_effects v0
+            v8 = cast v0 as u32
+            v10, v11, v12 = call slice_pop_back(v8, v5) -> (u32, [Field], Field)
+            v13 = not v0
+            v14 = cast v0 as u32
+            v16 = array_get v11, index u32 0 -> Field
+            v17 = cast v0 as Field
+            v18 = cast v13 as Field
+            v19 = mul v17, v16
+            v20 = mul v18, Field 2
+            v21 = add v19, v20
+            v22 = make_array [v21, Field 3] : [Field]
+            enable_side_effects u1 1
+            v24, v25, v26 = call slice_pop_back(v14, v22) -> (u32, [Field], Field)
+            v27 = array_get v25, index u32 0 -> Field
+            constrain v27 == Field 1
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn merge_slice_with_slice_pop_front() {
+        let src = "
+        acir(inline) impure fn main f0 {
+          b0(v0: u1, v1: Field, v2: Field):
+            v3 = make_array [Field 2, Field 3] : [Field]
+            v4 = allocate -> &mut u32
+            v5 = allocate -> &mut [Field]
+            enable_side_effects v0
+            v6 = cast v0 as u32
+            v100, v7, v8 = call slice_pop_front(v6, v3) -> (Field, u32, [Field])
+            v9 = not v0
+            v10 = cast v0 as u32
+            v12 = if v0 then v8 else (if v9) v3
+            enable_side_effects u1 1
+            v101, v15, v16 = call slice_pop_front(v10, v12) -> (Field, u32, [Field])
+            v17 = array_get v16, index u32 0 -> Field
+            constrain v17 == Field 1
+            return
+        }
+        ";
+
+        let mut ssa = Ssa::from_str(src).unwrap();
+        ssa = ssa.remove_if_else().unwrap();
+
+        // Here [v21, Field 3] is the result of merging the original slice (`[Field 2, Field 3]`)
+        // where for v21 it's the merged value.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) impure fn main f0 {
+          b0(v0: u1, v1: Field, v2: Field):
+            v5 = make_array [Field 2, Field 3] : [Field]
+            v6 = allocate -> &mut u32
+            v7 = allocate -> &mut [Field]
+            enable_side_effects v0
+            v8 = cast v0 as u32
+            v10, v11, v12 = call slice_pop_front(v8, v5) -> (Field, u32, [Field])
+            v13 = not v0
+            v14 = cast v0 as u32
+            v16 = array_get v12, index u32 0 -> Field
+            v17 = cast v0 as Field
+            v18 = cast v13 as Field
+            v19 = mul v17, v16
+            v20 = mul v18, Field 2
+            v21 = add v19, v20
+            v22 = make_array [v21, Field 3] : [Field]
+            enable_side_effects u1 1
+            v24, v25, v26 = call slice_pop_front(v14, v22) -> (Field, u32, [Field])
+            v27 = array_get v26, index u32 0 -> Field
+            constrain v27 == Field 1
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn merge_slice_with_slice_remove() {
+        let src = "
+        acir(inline) impure fn main f0 {
+          b0(v0: u1, v1: Field, v2: Field):
+            v3 = make_array [Field 2, Field 3] : [Field]
+            v4 = allocate -> &mut u32
+            v5 = allocate -> &mut [Field]
+            enable_side_effects v0
+            v6 = cast v0 as u32
+            v7, v8, v100 = call slice_remove(v6, v3, u32 0) -> (u32, [Field], Field)
+            v9 = not v0
+            v10 = cast v0 as u32
+            v12 = if v0 then v8 else (if v9) v3
+            enable_side_effects u1 1
+            v15, v16, v101 = call slice_remove(v10, v12, u32 0) -> (u32, [Field], Field)
+            v17 = array_get v16, index u32 0 -> Field
+            constrain v17 == Field 1
+            return
+        }
+        ";
+
+        let mut ssa = Ssa::from_str(src).unwrap();
+        ssa = ssa.remove_if_else().unwrap();
+
+        // Here [v21, Field 3] is the result of merging the original slice (`[Field 2, Field 3]`)
+        // where for v21 it's the merged value.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) impure fn main f0 {
+          b0(v0: u1, v1: Field, v2: Field):
+            v5 = make_array [Field 2, Field 3] : [Field]
+            v6 = allocate -> &mut u32
+            v7 = allocate -> &mut [Field]
+            enable_side_effects v0
+            v8 = cast v0 as u32
+            v11, v12, v13 = call slice_remove(v8, v5, u32 0) -> (u32, [Field], Field)
+            v14 = not v0
+            v15 = cast v0 as u32
+            v16 = array_get v12, index u32 0 -> Field
+            v17 = cast v0 as Field
+            v18 = cast v14 as Field
+            v19 = mul v17, v16
+            v20 = mul v18, Field 2
+            v21 = add v19, v20
+            v22 = make_array [v21, Field 3] : [Field]
+            enable_side_effects u1 1
+            v24, v25, v26 = call slice_remove(v15, v22, u32 0) -> (u32, [Field], Field)
+            v27 = array_get v25, index u32 0 -> Field
+            constrain v27 == Field 1
             return
         }
         ");
