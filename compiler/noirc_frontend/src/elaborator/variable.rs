@@ -260,15 +260,18 @@ impl Elaborator<'_> {
                 (Vec::new(), Some(self_type))
             }
             PathResolutionItem::PrimitiveFunction(primitive_type, turbofish, _func_id) => {
-                let typ = self.instantiate_primitive_type_with_turbofish(primitive_type, turbofish);
-                let generics = match typ {
-                    Type::String(length) => {
-                        vec![*length]
+                let (typ, has_generics) =
+                    self.instantiate_primitive_type_with_turbofish(primitive_type, turbofish);
+                let generics = if has_generics {
+                    match typ {
+                        Type::String(length) => vec![*length],
+                        Type::FmtString(length, element) => vec![*length, *element],
+                        _ => {
+                            unreachable!("ICE: Primitive type has been specified to have generics")
+                        }
                     }
-                    Type::FmtString(length, element) => {
-                        vec![*length, *element]
-                    }
-                    _ => Vec::new(),
+                } else {
+                    Vec::new()
                 };
                 (generics, None)
             }
