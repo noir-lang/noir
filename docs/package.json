@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "preprocess": "(cd ../acvm-repo/acvm_js && yarn build) && ./scripts/codegen_nargo_reference.sh && yarn node ./scripts/preprocess/index.js",
+    "preprocess": "./scripts/codegen_nargo_reference.sh && yarn node ./scripts/preprocess/index.js",
     "dev": "HOST=0.0.0.0 ENV=dev yarn preprocess && ENV=dev docusaurus start --host ${HOST:-localhost}",
     "dev:netlify": "yarn netlify dev",
     "build": "yarn preprocess && docusaurus build",

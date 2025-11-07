@@ -56,37 +56,25 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
 
-      - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.85.0
-
-      - uses: Swatinem/rust-cache@v2
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          key: x86_64-unknown-linux-gnu
-          cache-on-failure: false
-          save-if: false
-
-      - name: Install Yarn dependencies
-        uses: ./.github/actions/setup
-
-      - name: Install wasm-bindgen-cli
-        uses: taiki-e/install-action@v2
-        with:
-          tool: wasm-bindgen-cli@0.2.100
-
-      - name: Install wasm-opt
-        run: |
-          npm i wasm-opt -g
-
+          node-version: '22.15.0'
+          cache: 'yarn'
+          cache-dependency-path: 'docs/yarn.lock'
       - name: Install docs dependencies
-        run: cd docs && yarn install
+        working-directory: docs
+        run: yarn install --immutable
 
       - name: Query active docs versions
-        run: cd docs && yarn version::stables
+        working-directory: docs
+        run: yarn version::stables
 
       - name: Build docs
+        working-directory: docs
         env:
           ENV: staging # not really a secret, it will show in the footer anyway
-        run: cd docs && yarn build
+        run: yarn build
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
