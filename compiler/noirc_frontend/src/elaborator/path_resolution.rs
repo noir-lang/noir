@@ -277,6 +277,9 @@ impl TypedPathSegment {
         }
     }
 
+    /// [Location] of any turbofish in the segment.
+    ///
+    /// The [Span] will be empty if there was no turbofish.
     pub fn turbofish_location(&self) -> Location {
         Location::new(self.turbofish_span(), self.location.file)
     }

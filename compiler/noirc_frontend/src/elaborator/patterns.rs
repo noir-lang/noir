@@ -564,6 +564,9 @@ impl Elaborator<'_> {
         })
     }
 
+    /// Create a validated [TypedPath] from a [Path] by validating each [PathSegment] in it.
+    ///
+    /// Pushes an error if the first segment is `Self` and it has turbofish generics.
     pub(crate) fn validate_path(&mut self, path: Path) -> TypedPath {
         let mut segments = vecmap(path.segments, |segment| self.validate_path_segment(segment));
 
@@ -577,10 +580,16 @@ impl Elaborator<'_> {
             }
         }
 
-        let kind_location = path.kind_location;
-        TypedPath { segments, kind: path.kind, location: path.location, kind_location }
+        TypedPath {
+            segments,
+            kind: path.kind,
+            location: path.location,
+            kind_location: path.kind_location,
+        }
     }
 
+    /// Create a validated [TypedPathSegment] from a [PathSegment] by resolving all turbofish generics
+    /// in it with [Kind::Any], allowing wildcards, and marking them as _used_.
     fn validate_path_segment(&mut self, segment: PathSegment) -> TypedPathSegment {
         let generics = segment.generics.map(|generics| {
             vecmap(generics, |generic| {
@@ -593,6 +602,7 @@ impl Elaborator<'_> {
         TypedPathSegment { ident: segment.ident, generics, location: segment.location }
     }
 
+    /// Get the [DataType] of a [TypeId] and call [Elaborator::resolve_struct_turbofish_generics].
     pub(super) fn resolve_struct_id_turbofish_generics(
         &mut self,
         struct_id: TypeId,
@@ -613,6 +623,7 @@ impl Elaborator<'_> {
         }
     }
 
+    /// Get the [TypeAlias] of a [TypeAliasId] and call [Elaborator::resolve_alias_turbofish_generics].
     pub(super) fn resolve_type_alias_id_turbofish_generics(
         &mut self,
         type_alias_id: TypeAliasId,
