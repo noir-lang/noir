@@ -1581,7 +1581,7 @@ impl Type {
         }
     }
 
-    /// Check whether this type is an array or slice and contains a nested slice in it.
+    /// Check whether this type is an array or slice, and contains a nested slice in its element type.
     pub(crate) fn is_nested_slice(&self) -> bool {
         match self {
             Type::Slice(elem) => elem.as_ref().contains_slice(),
@@ -1591,12 +1591,11 @@ impl Type {
         }
     }
 
-    /// Check whether this type is itself a slice, or a struct/enum/tuple which contains a slice in a field or variant.
-    ///
-    /// Note that arrays cannot contain slices, so for them it always returns `false`.
+    /// Check whether this type is itself a slice, or a struct/enum/tuple/array which contains a slice.
     pub(crate) fn contains_slice(&self) -> bool {
         match self {
             Type::Slice(_) => true,
+            Type::Array(_, elem) => elem.as_ref().contains_slice(),
             Type::DataType(typ, generics) => {
                 let typ = typ.borrow();
                 if let Some(fields) = typ.get_fields(generics) {
