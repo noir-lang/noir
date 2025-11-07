@@ -1227,15 +1227,7 @@
 <a href="#1226" id="1226">1226</a>
 <a href="#1227" id="1227">1227</a>
 <a href="#1228" id="1228">1228</a>
-<a href="#1229" id="1229">1229</a>
-<a href="#1230" id="1230">1230</a>
-<a href="#1231" id="1231">1231</a>
-<a href="#1232" id="1232">1232</a>
-<a href="#1233" id="1233">1233</a>
-<a href="#1234" id="1234">1234</a>
-<a href="#1235" id="1235">1235</a>
-<a href="#1236" id="1236">1236</a>
-<a href="#1237" id="1237">1237</a></pre></div><pre class="rust"><code><span class="doccomment">//! Array handling in ACIR.
+<a href="#1229" id="1229">1229</a></pre></div><pre class="rust"><code><span class="doccomment">//! Array handling in ACIR.
 //!
 //! This modules how Noir's SSA array semantics are lowered into ACIR's flat memory model.
 //! Arrays in SSA can appear as constants or dynamically allocated blocks.
@@ -2118,14 +2110,8 @@
             AcirValue::Array(values) =&gt; {
                 <span class="kw">let </span>flat_elem_type_sizes = calculate_element_type_sizes_array(values);
 
-                <span class="comment">// If there's already a block with these same sizes, reuse it. It's fine do to so
-                // because the element type sizes array is never mutated.
-                </span><span class="kw">if let </span><span class="prelude-val">Some</span>(block_id) = <span class="self">self</span>.type_sizes_to_blocks.get(<span class="kw-2">&amp;</span>flat_elem_type_sizes) {
-                    <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="kw-2">*</span>block_id);
-                }
-
                 <span class="comment">// The final array should will the flattened index at each outer array index
-                </span><span class="kw">let </span>init_values = vecmap(flat_elem_type_sizes.clone(), |type_size| {
+                </span><span class="kw">let </span>init_values = vecmap(flat_elem_type_sizes, |type_size| {
                     <span class="kw">let </span>var = <span class="self">self</span>.acir_context.add_constant(type_size);
                     AcirValue::Var(var, NumericType::NativeField)
                 });
@@ -2135,8 +2121,6 @@
                     element_type_sizes_len,
                     <span class="prelude-val">Some</span>(AcirValue::Array(init_values.into())),
                 )<span class="question-mark">?</span>;
-
-                <span class="self">self</span>.type_sizes_to_blocks.insert(flat_elem_type_sizes, element_type_sizes);
 
                 <span class="prelude-val">Ok</span>(element_type_sizes)
             }
