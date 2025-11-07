@@ -32,7 +32,7 @@ You can use the `bbup` installation script to quickly install and update BB, Bar
 You can find the full list of proving backends compatible with Noir in Awesome Noir.
 
 ```bash
-curl -L https://raw.githubusercontent.com/AztecProtocol/aztec-packages/refs/heads/next/barretenberg/bbup/install | bash
+curl -L https://raw.githubusercontent.com/AztecProtocol/aztec-packages/refs/heads/master/barretenberg/bbup/install | bash
 bbup
 ```
 
