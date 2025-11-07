@@ -110,7 +110,24 @@
 <a href="#109" id="109">109</a>
 <a href="#110" id="110">110</a>
 <a href="#111" id="111">111</a>
-<a href="#112" id="112">112</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
+<a href="#112" id="112">112</a>
+<a href="#113" id="113">113</a>
+<a href="#114" id="114">114</a>
+<a href="#115" id="115">115</a>
+<a href="#116" id="116">116</a>
+<a href="#117" id="117">117</a>
+<a href="#118" id="118">118</a>
+<a href="#119" id="119">119</a>
+<a href="#120" id="120">120</a>
+<a href="#121" id="121">121</a>
+<a href="#122" id="122">122</a>
+<a href="#123" id="123">123</a>
+<a href="#124" id="124">124</a>
+<a href="#125" id="125">125</a>
+<a href="#126" id="126">126</a>
+<a href="#127" id="127">127</a>
+<a href="#128" id="128">128</a>
+<a href="#129" id="129">129</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
     ast::{ItemVisibility, TypeAlias, UnresolvedType, UnresolvedTypeData},
@@ -159,7 +176,10 @@
             }
         } <span class="kw">else </span>{
             expr_location = <span class="self">self</span>.current_token_location;
-            <span class="kw">let </span>typ = <span class="self">self</span>.parse_type_or_type_expression().unwrap();
+            <span class="kw">let </span>typ = <span class="self">self</span>.parse_type_or_type_expression().unwrap_or(UnresolvedType {
+                typ: UnresolvedTypeData::Error,
+                location: expr_location,
+            });
             location = <span class="self">self</span>.location_since(start_location);
             <span class="self">self</span>.eat_semicolon_or_error();
             typ
@@ -181,7 +201,7 @@
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
     <span class="kw">use crate</span>::{
-        ast::TypeAlias,
+        ast::{TypeAlias, UnresolvedType, UnresolvedTypeData},
         parse_program_with_dummy_file,
         parser::{ItemKind, parser::tests::expect_no_errors},
     };
@@ -220,6 +240,20 @@
         <span class="kw">let </span>alias = parse_type_alias_no_errors(src);
         <span class="macro">assert_eq!</span>(<span class="string">"Double"</span>, alias.name.to_string());
         <span class="macro">assert_eq!</span>(alias.generics.len(), <span class="number">1</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>parse_incomplete_type_alias() {
+        <span class="kw">let </span>src = <span class="string">"type Foo = "</span>;
+        <span class="kw">let </span>(<span class="kw-2">mut </span>module, errors) = parse_program_with_dummy_file(src);
+        <span class="macro">assert!</span>(!errors.is_empty());
+        <span class="macro">assert_eq!</span>(module.items.len(), <span class="number">1</span>);
+        <span class="kw">let </span>item = module.items.remove(<span class="number">0</span>);
+        <span class="kw">let </span>ItemKind::TypeAlias(alias) = item.kind <span class="kw">else </span>{
+            <span class="macro">panic!</span>(<span class="string">"Expected global"</span>);
+        };
+        <span class="macro">assert_eq!</span>(alias.name.to_string(), <span class="string">"Foo"</span>);
+        <span class="macro">assert!</span>(<span class="macro">matches!</span>(alias.typ, UnresolvedType { typ: UnresolvedTypeData::Error, .. }));
     }
 }
 </code></pre></div></section></main></body></html>
