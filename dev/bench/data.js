@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1762540654877,
+  "lastUpdate": 1762540966948,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23236,48 +23236,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "michaeljklein@users.noreply.github.com",
-            "name": "Michael J Klein",
-            "username": "michaeljklein"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "3f27b25875ecd349691dcce90f6007774a9ac067",
-          "message": "chore: avoid unrolling loop headers twice in unrolling passes (#10284)",
-          "timestamp": "2025-10-27T15:01:06Z",
-          "tree_id": "2740a06b91f6722a1f212f97ba679fdd998d5713",
-          "url": "https://github.com/noir-lang/noir/commit/3f27b25875ecd349691dcce90f6007774a9ac067"
-        },
-        "date": 1761578822863,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 265829,
-            "range": "± 995",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 235049,
-            "range": "± 1526",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2797092,
-            "range": "± 1961",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -25329,6 +25287,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2799980,
             "range": "± 4798",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "8411248eecfeb5af2bfb5ca4bdd3670303e8d509",
+          "message": "fix: revert \"feat(ACIR): reuse element_type_sizes blocks with the same str… (#10428)",
+          "timestamp": "2025-11-07T18:12:55Z",
+          "tree_id": "81f1c0d8a849ccc308711ac75ae3137dfc8510e3",
+          "url": "https://github.com/noir-lang/noir/commit/8411248eecfeb5af2bfb5ca4bdd3670303e8d509"
+        },
+        "date": 1762540940952,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 276969,
+            "range": "± 2797",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 247877,
+            "range": "± 5647",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2828879,
+            "range": "± 5726",
             "unit": "ns/iter"
           }
         ]
