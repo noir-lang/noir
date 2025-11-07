@@ -291,7 +291,10 @@
 <a href="#290" id="290">290</a>
 <a href="#291" id="291">291</a>
 <a href="#292" id="292">292</a>
-<a href="#293" id="293">293</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#293" id="293">293</a>
+<a href="#294" id="294">294</a>
+<a href="#295" id="295">295</a>
+<a href="#296" id="296">296</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
 
 <span class="kw">use </span><span class="kw">crate</span>::ResolvedGeneric;
@@ -413,7 +416,9 @@
 }
 
 <span class="kw">impl </span>TraitConstraint {
-    <span class="kw">pub fn </span>apply_bindings(<span class="kw-2">&amp;mut </span><span class="self">self</span>, type_bindings: <span class="kw-2">&amp;</span>TypeBindings) {
+    <span class="doccomment">/// Update the type in the constraint by substituting the bindings onto it,
+    /// then apply the bindings onto the trait bounds as well.
+    </span><span class="kw">pub fn </span>apply_bindings(<span class="kw-2">&amp;mut </span><span class="self">self</span>, type_bindings: <span class="kw-2">&amp;</span>TypeBindings) {
         <span class="self">self</span>.typ = <span class="self">self</span>.typ.substitute(type_bindings);
         <span class="self">self</span>.trait_bound.apply_bindings(type_bindings);
     }
@@ -436,7 +441,8 @@
 }
 
 <span class="kw">impl </span>ResolvedTraitBound {
-    <span class="kw">pub fn </span>apply_bindings(<span class="kw-2">&amp;mut </span><span class="self">self</span>, type_bindings: <span class="kw-2">&amp;</span>TypeBindings) {
+    <span class="doccomment">/// Update all [Type]s in the bound generics by substituting some [TypeBindings] onto them.
+    </span><span class="kw">pub fn </span>apply_bindings(<span class="kw-2">&amp;mut </span><span class="self">self</span>, type_bindings: <span class="kw-2">&amp;</span>TypeBindings) {
         <span class="kw">for </span>typ <span class="kw">in </span><span class="kw-2">&amp;mut </span><span class="self">self</span>.trait_generics.ordered {
             <span class="kw-2">*</span>typ = typ.substitute(type_bindings);
         }

@@ -164,7 +164,11 @@
 <a href="#163" id="163">163</a>
 <a href="#164" id="164">164</a>
 <a href="#165" id="165">165</a>
-<a href="#166" id="166">166</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
+<a href="#166" id="166">166</a>
+<a href="#167" id="167">167</a>
+<a href="#168" id="168">168</a>
+<a href="#169" id="169">169</a>
+<a href="#170" id="170">170</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
 
 <span class="kw">use </span>noirc_errors::Location;
 <span class="kw">use </span>petgraph::{
@@ -212,19 +216,23 @@
         <span class="self">self</span>.add_dependency(dependent, DependencyId::Struct(dependency));
     }
 
-    <span class="kw">pub fn </span>add_global_dependency(<span class="kw-2">&amp;mut </span><span class="self">self</span>, dependent: DependencyId, dependency: GlobalId) {
+    <span class="doccomment">/// Mark a [DependencyId] as being dependant on a [GlobalId].
+    </span><span class="kw">pub fn </span>add_global_dependency(<span class="kw-2">&amp;mut </span><span class="self">self</span>, dependent: DependencyId, dependency: GlobalId) {
         <span class="self">self</span>.add_dependency(dependent, DependencyId::Global(dependency));
     }
 
-    <span class="kw">pub fn </span>add_function_dependency(<span class="kw-2">&amp;mut </span><span class="self">self</span>, dependent: DependencyId, dependency: FuncId) {
+    <span class="doccomment">/// Mark a [DependencyId] as being dependant on a [FuncId].
+    </span><span class="kw">pub fn </span>add_function_dependency(<span class="kw-2">&amp;mut </span><span class="self">self</span>, dependent: DependencyId, dependency: FuncId) {
         <span class="self">self</span>.add_dependency(dependent, DependencyId::Function(dependency));
     }
 
-    <span class="kw">pub fn </span>add_type_alias_dependency(<span class="kw-2">&amp;mut </span><span class="self">self</span>, dependent: DependencyId, dependency: TypeAliasId) {
+    <span class="doccomment">/// Mark a [DependencyId] as being dependant on a [TypeAliasId].
+    </span><span class="kw">pub fn </span>add_type_alias_dependency(<span class="kw-2">&amp;mut </span><span class="self">self</span>, dependent: DependencyId, dependency: TypeAliasId) {
         <span class="self">self</span>.add_dependency(dependent, DependencyId::Alias(dependency));
     }
 
-    <span class="kw">pub fn </span>add_trait_dependency(<span class="kw-2">&amp;mut </span><span class="self">self</span>, dependent: DependencyId, dependency: TraitId) {
+    <span class="doccomment">/// Mark a [DependencyId] as being dependant on a [TraitId].
+    </span><span class="kw">pub fn </span>add_trait_dependency(<span class="kw-2">&amp;mut </span><span class="self">self</span>, dependent: DependencyId, dependency: TraitId) {
         <span class="self">self</span>.add_dependency(dependent, DependencyId::Trait(dependency));
     }
 

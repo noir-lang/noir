@@ -228,7 +228,13 @@
 <a href="#227" id="227">227</a>
 <a href="#228" id="228">228</a>
 <a href="#229" id="229">229</a>
-<a href="#230" id="230">230</a></pre></div><pre class="rust"><code><span class="doccomment">//! Lexical scoping, variable lookup, and closure capture tracking.
+<a href="#230" id="230">230</a>
+<a href="#231" id="231">231</a>
+<a href="#232" id="232">232</a>
+<a href="#233" id="233">233</a>
+<a href="#234" id="234">234</a>
+<a href="#235" id="235">235</a>
+<a href="#236" id="236">236</a></pre></div><pre class="rust"><code><span class="doccomment">//! Lexical scoping, variable lookup, and closure capture tracking.
 
 </span><span class="kw">use </span><span class="kw">crate</span>::ast::{ERROR_IDENT, Ident};
 <span class="kw">use </span><span class="kw">crate</span>::hir::def_map::{LocalModuleId, ModuleId};
@@ -275,7 +281,9 @@
         <span class="self">self</span>.interner.get_trait_mut(trait_id)
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_local_variable(<span class="kw-2">&amp;mut </span><span class="self">self</span>, hir_ident: HirIdent, var_scope_index: usize) {
+    <span class="doccomment">/// For each [crate::elaborator::LambdaContext] on the lambda stack with a scope index higher than that
+    /// of the variable, add the [HirIdent] to the list of captures.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_local_variable(<span class="kw-2">&amp;mut </span><span class="self">self</span>, hir_ident: HirIdent, var_scope_index: usize) {
         <span class="kw">let </span><span class="kw-2">mut </span>transitive_capture_index: <span class="prelude-ty">Option</span>&lt;usize&gt; = <span class="prelude-val">None</span>;
 
         <span class="kw">for </span>lambda_index <span class="kw">in </span><span class="number">0</span>..<span class="self">self</span>.lambda_stack.len() {
@@ -309,7 +317,10 @@
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>lookup_global(
+    <span class="doccomment">/// Try to look up a [TypedPath] in the globals.
+    ///
+    /// If the item is a type alias to some as-of-yet unknown numeric generic, it returns a [DefinitionId::dummy_id].
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>lookup_global(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         path: TypedPath,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(DefinitionId, PathResolutionItem), ResolverError&gt; {
@@ -406,7 +417,8 @@
         }
     }
 
-    <span class="doccomment">/// Looks up a given type by name.
+    <span class="doccomment">/// Looks up a given [Type] by name.
+    ///
     /// This will also instantiate any struct types found.
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>lookup_type_or_error(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: TypedPath) -&gt; <span class="prelude-ty">Option</span>&lt;Type&gt; {
         <span class="kw">let </span>segment = path.as_single_segment();

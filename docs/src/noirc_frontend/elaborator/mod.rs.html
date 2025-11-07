@@ -818,7 +818,8 @@
 <a href="#817" id="817">817</a>
 <a href="#818" id="818">818</a>
 <a href="#819" id="819">819</a>
-<a href="#820" id="820">820</a></pre></div><pre class="rust"><code><span class="doccomment">//! # The Elaborator
+<a href="#820" id="820">820</a>
+<a href="#821" id="821">821</a></pre></div><pre class="rust"><code><span class="doccomment">//! # The Elaborator
 //!
 //! The elaborator is the core semantic analysis phase of the compiler. It transforms collected,
 //! unresolved AST items into fully resolved and type-checked HIR through simultaneous and intertwined
@@ -1261,8 +1262,11 @@
         <span class="self">self</span>.errors.push(error);
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>push_errors(<span class="kw-2">&amp;mut </span><span class="self">self</span>, errors: <span class="kw">impl </span>IntoIterator&lt;Item = CompilationError&gt;) {
-        <span class="self">self</span>.errors.extend(errors);
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>push_errors&lt;E: Into&lt;CompilationError&gt;&gt;(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        errors: <span class="kw">impl </span>IntoIterator&lt;Item = E&gt;,
+    ) {
+        <span class="self">self</span>.errors.extend(errors.into_iter().map(|e| e.into()));
     }
 
     <span class="kw">fn </span>run_lint(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lint: <span class="kw">impl </span>Fn(<span class="kw-2">&amp;</span>Elaborator) -&gt; <span class="prelude-ty">Option</span>&lt;CompilationError&gt;) {
@@ -1285,9 +1289,7 @@
     <span class="kw">fn </span>resolve_trait_by_path(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: TypedPath) -&gt; <span class="prelude-ty">Option</span>&lt;TraitId&gt; {
         <span class="kw">let </span>error = <span class="kw">match </span><span class="self">self</span>.resolve_path_as_type(path.clone()) {
             <span class="prelude-val">Ok</span>(PathResolution { item: PathResolutionItem::Trait(trait_id), errors }) =&gt; {
-                <span class="kw">for </span>error <span class="kw">in </span>errors {
-                    <span class="self">self</span>.push_err(error);
-                }
+                <span class="self">self</span>.push_errors(errors);
                 <span class="kw">return </span><span class="prelude-val">Some</span>(trait_id);
             }
             <span class="prelude-val">Ok</span>(<span class="kw">_</span>) =&gt; DefCollectorErrorKind::NotATrait { not_a_trait_name: path },
@@ -1401,7 +1403,7 @@
                 <span class="kw-2">*</span>function,
                 noir_function,
             );
-            <span class="self">self</span>.push_errors(errors.into_iter().map(|error| error.into()));
+            <span class="self">self</span>.push_errors(errors);
         }
 
         <span class="self">self</span>.elaborate_functions(trait_impl.methods);

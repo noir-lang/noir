@@ -1491,7 +1491,25 @@
 <a href="#1490" id="1490">1490</a>
 <a href="#1491" id="1491">1491</a>
 <a href="#1492" id="1492">1492</a>
-<a href="#1493" id="1493">1493</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::hash::Hash;
+<a href="#1493" id="1493">1493</a>
+<a href="#1494" id="1494">1494</a>
+<a href="#1495" id="1495">1495</a>
+<a href="#1496" id="1496">1496</a>
+<a href="#1497" id="1497">1497</a>
+<a href="#1498" id="1498">1498</a>
+<a href="#1499" id="1499">1499</a>
+<a href="#1500" id="1500">1500</a>
+<a href="#1501" id="1501">1501</a>
+<a href="#1502" id="1502">1502</a>
+<a href="#1503" id="1503">1503</a>
+<a href="#1504" id="1504">1504</a>
+<a href="#1505" id="1505">1505</a>
+<a href="#1506" id="1506">1506</a>
+<a href="#1507" id="1507">1507</a>
+<a href="#1508" id="1508">1508</a>
+<a href="#1509" id="1509">1509</a>
+<a href="#1510" id="1510">1510</a>
+<a href="#1511" id="1511">1511</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::hash::Hash;
 <span class="kw">use </span>std::marker::Copy;
 
 <span class="kw">use </span>fm::FileId;
@@ -1893,7 +1911,9 @@
     Global(GlobalId),
 
     <span class="doccomment">/// Locals may be defined in let statements or parameters,
-    /// in which case they will not have an associated ExprId
+    /// in which case they will not have an associated ExprId.
+    /// For example a mutable variable can change, so it does
+    /// not have a stable defining expression.
     </span>Local(<span class="prelude-ty">Option</span>&lt;ExprId&gt;),
 
     <span class="doccomment">/// Generic types in functions (T, U in `fn foo&lt;T, U&gt;(...)` are declared as variables
@@ -2154,7 +2174,7 @@
         }
     }
 
-    <span class="doccomment">/// Store [Location] of [Type] reference
+    <span class="doccomment">/// In LSP mode, take note that the [Type] was referenced at a [Location].
     </span><span class="kw">pub fn </span>push_type_ref_location(<span class="kw-2">&amp;mut </span><span class="self">self</span>, typ: <span class="kw-2">&amp;</span>Type, location: Location) {
         <span class="kw">if </span>!<span class="self">self</span>.is_in_lsp_mode() {
             <span class="kw">return</span>;
@@ -2316,7 +2336,7 @@
         <span class="self">self</span>.type_aliases[id.<span class="number">0</span>].clone()
     }
 
-    <span class="doccomment">/// Returns the type of an item stored in the Interner or Error if it was not found.
+    <span class="doccomment">/// Returns the type of an item stored in the [NodeInterner], or [Type::Error] if it was not found.
     </span><span class="kw">pub fn </span>id_type(<span class="kw-2">&amp;</span><span class="self">self</span>, index: <span class="kw">impl </span>Into&lt;Index&gt;) -&gt; Type {
         <span class="self">self</span>.try_id_type(index).cloned().unwrap_or(Type::Error)
     }
@@ -2325,12 +2345,15 @@
         <span class="self">self</span>.id_to_type.get(<span class="kw-2">&amp;</span>index.into())
     }
 
-    <span class="doccomment">/// Returns the type of the definition or `Type::Error` if it was not found.
+    <span class="doccomment">/// Returns the type of the definition, or [Type::Error] if it was not found.
     </span><span class="kw">pub fn </span>definition_type(<span class="kw-2">&amp;</span><span class="self">self</span>, id: DefinitionId) -&gt; Type {
         <span class="self">self</span>.definition_to_type.get(<span class="kw-2">&amp;</span>id).cloned().unwrap_or(Type::Error)
     }
 
-    <span class="kw">pub fn </span>id_type_substitute_trait_as_type(<span class="kw-2">&amp;</span><span class="self">self</span>, def_id: DefinitionId) -&gt; Type {
+    <span class="doccomment">/// Returns the type of the definition, unless it's a function returning an `impl Trait`,
+    /// in which case it looks up the type of its body and returns a new function type with
+    /// the type fo the body substituted to its return type.
+    </span><span class="kw">pub fn </span>id_type_substitute_trait_as_type(<span class="kw-2">&amp;</span><span class="self">self</span>, def_id: DefinitionId) -&gt; Type {
         <span class="kw">let </span>typ = <span class="self">self</span>.definition_type(def_id);
         <span class="kw">if let </span>Type::Function(args, ret, env, unconstrained) = <span class="kw-2">&amp;</span>typ {
             <span class="kw">let </span>def = <span class="self">self</span>.definition(def_id);
@@ -2389,7 +2412,8 @@
         Type::type_variable_with_kind(<span class="self">self</span>, kind)
     }
 
-    <span class="kw">pub fn </span>store_instantiation_bindings(
+    <span class="doccomment">/// Remember the [TypeBindings] used during the instantiation of an expression.
+    </span><span class="kw">pub fn </span>store_instantiation_bindings(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         expr_id: ExprId,
         instantiation_bindings: TypeBindings,
@@ -2413,7 +2437,10 @@
         <span class="self">self</span>.field_indices.insert(expr_id, index);
     }
 
-    <span class="kw">pub fn </span>function_definition_id(<span class="kw-2">&amp;</span><span class="self">self</span>, function: FuncId) -&gt; DefinitionId {
+    <span class="doccomment">/// Look up the [DefinitionId] of a [FuncId].
+    ///
+    /// Panics if it's not found.
+    </span><span class="kw">pub fn </span>function_definition_id(<span class="kw-2">&amp;</span><span class="self">self</span>, function: FuncId) -&gt; DefinitionId {
         <span class="self">self</span>.function_definition_ids[<span class="kw-2">&amp;</span>function]
     }
 
@@ -2711,40 +2738,49 @@
         <span class="kw-2">&amp;</span><span class="self">self</span>.quoted_types[id.<span class="number">0</span>]
     }
 
-    <span class="kw">pub fn </span>push_expression_kind(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr: ExpressionKind) -&gt; InternedExpressionKind {
+    <span class="doccomment">/// Intern a [ExpressionKind].
+    </span><span class="kw">pub fn </span>push_expression_kind(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr: ExpressionKind) -&gt; InternedExpressionKind {
         InternedExpressionKind(<span class="self">self</span>.interned_expression_kinds.insert(expr))
     }
 
-    <span class="kw">pub fn </span>get_expression_kind(<span class="kw-2">&amp;</span><span class="self">self</span>, id: InternedExpressionKind) -&gt; <span class="kw-2">&amp;</span>ExpressionKind {
+    <span class="doccomment">/// Get an interned [ExpressionKind] by its [InternedExpressionKind] ID.
+    </span><span class="kw">pub fn </span>get_expression_kind(<span class="kw-2">&amp;</span><span class="self">self</span>, id: InternedExpressionKind) -&gt; <span class="kw-2">&amp;</span>ExpressionKind {
         <span class="kw-2">&amp;</span><span class="self">self</span>.interned_expression_kinds[id.<span class="number">0</span>]
     }
 
-    <span class="kw">pub fn </span>push_statement_kind(<span class="kw-2">&amp;mut </span><span class="self">self</span>, statement: StatementKind) -&gt; InternedStatementKind {
+    <span class="doccomment">/// Intern a [StatementKind].
+    </span><span class="kw">pub fn </span>push_statement_kind(<span class="kw-2">&amp;mut </span><span class="self">self</span>, statement: StatementKind) -&gt; InternedStatementKind {
         InternedStatementKind(<span class="self">self</span>.interned_statement_kinds.insert(statement))
     }
 
-    <span class="kw">pub fn </span>get_statement_kind(<span class="kw-2">&amp;</span><span class="self">self</span>, id: InternedStatementKind) -&gt; <span class="kw-2">&amp;</span>StatementKind {
+    <span class="doccomment">/// Get an interned [StatementKind] by its [InternedStatementKind] ID.
+    </span><span class="kw">pub fn </span>get_statement_kind(<span class="kw-2">&amp;</span><span class="self">self</span>, id: InternedStatementKind) -&gt; <span class="kw-2">&amp;</span>StatementKind {
         <span class="kw-2">&amp;</span><span class="self">self</span>.interned_statement_kinds[id.<span class="number">0</span>]
     }
 
-    <span class="kw">pub fn </span>push_lvalue(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lvalue: LValue) -&gt; InternedExpressionKind {
+    <span class="doccomment">/// Intern an [LValue] by turning it into an [Expression][crate::ast::Expression] and interning its [ExpressionKind].
+    </span><span class="kw">pub fn </span>push_lvalue(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lvalue: LValue) -&gt; InternedExpressionKind {
         <span class="self">self</span>.push_expression_kind(lvalue.as_expression().kind)
     }
 
-    <span class="kw">pub fn </span>get_lvalue(<span class="kw-2">&amp;</span><span class="self">self</span>, id: InternedExpressionKind, location: Location) -&gt; LValue {
+    <span class="doccomment">/// Get an interned [LValue] by its [InternedExpressionKind] ID.
+    </span><span class="kw">pub fn </span>get_lvalue(<span class="kw-2">&amp;</span><span class="self">self</span>, id: InternedExpressionKind, location: Location) -&gt; LValue {
         LValue::from_expression_kind(<span class="self">self</span>.get_expression_kind(id).clone(), location)
             .expect(<span class="string">"Called LValue::from_expression with an invalid expression"</span>)
     }
 
-    <span class="kw">pub fn </span>push_pattern(<span class="kw-2">&amp;mut </span><span class="self">self</span>, pattern: Pattern) -&gt; InternedPattern {
+    <span class="doccomment">/// Intern a [Pattern].
+    </span><span class="kw">pub fn </span>push_pattern(<span class="kw-2">&amp;mut </span><span class="self">self</span>, pattern: Pattern) -&gt; InternedPattern {
         InternedPattern(<span class="self">self</span>.interned_patterns.insert(pattern))
     }
 
-    <span class="kw">pub fn </span>get_pattern(<span class="kw-2">&amp;</span><span class="self">self</span>, id: InternedPattern) -&gt; <span class="kw-2">&amp;</span>Pattern {
+    <span class="doccomment">/// Get an interned [Pattern] by its [InternedPattern] ID.
+    </span><span class="kw">pub fn </span>get_pattern(<span class="kw-2">&amp;</span><span class="self">self</span>, id: InternedPattern) -&gt; <span class="kw-2">&amp;</span>Pattern {
         <span class="kw-2">&amp;</span><span class="self">self</span>.interned_patterns[id.<span class="number">0</span>]
     }
 
-    <span class="kw">pub fn </span>push_unresolved_type_data(
+    <span class="doccomment">/// Intern a [UnresolvedTypeData].
+    </span><span class="kw">pub fn </span>push_unresolved_type_data(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         typ: UnresolvedTypeData,
     ) -&gt; InternedUnresolvedTypeData {

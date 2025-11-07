@@ -1778,23 +1778,23 @@
             .ok();
     }
 
-    <span class="comment">// Given:
-    // ```
-    // enum FooEnum { Foo(u32, u8), ... }
-    //
-    // fn Foo(a: u32, b: u8) -&gt; FooEnum {}
-    // ```
-    // Create (pseudocode):
-    // ```
-    // fn Foo(a: u32, b: u8) -&gt; FooEnum {
-    //     // This can't actually be written directly in Noir
-    //     FooEnum {
-    //         tag: Foo_tag,
-    //         Foo: (a, b),
-    //         // fields from other variants are zeroed in monomorphization
-    //     }
-    // }
-    // ```
+    <span class="doccomment">/// Given:
+    /// ```ignore
+    /// enum FooEnum { Foo(u32, u8), ... }
+    ///
+    /// fn Foo(a: u32, b: u8) -&gt; FooEnum {}
+    /// ```
+    /// Create (pseudocode):
+    /// ```ignore
+    /// fn Foo(a: u32, b: u8) -&gt; FooEnum {
+    ///     // This can't actually be written directly in Noir
+    ///     FooEnum {
+    ///         tag: Foo_tag,
+    ///         Foo: (a, b),
+    ///         // fields from other variants are zeroed in monomorphization
+    ///     }
+    /// }
+    /// ```
     </span><span class="kw">fn </span>make_enum_variant_constructor(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         self_type: <span class="kw-2">&amp;</span>Shared&lt;DataType&gt;,

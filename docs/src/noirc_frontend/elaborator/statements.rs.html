@@ -686,8 +686,7 @@
 <a href="#685" id="685">685</a>
 <a href="#686" id="686">686</a>
 <a href="#687" id="687">687</a>
-<a href="#688" id="688">688</a>
-<a href="#689" id="689">689</a></pre></div><pre class="rust"><code><span class="doccomment">//! Statement elaboration including let bindings, assignments, and control flow.
+<a href="#688" id="688">688</a></pre></div><pre class="rust"><code><span class="doccomment">//! Statement elaboration including let bindings, assignments, and control flow.
 
 </span><span class="kw">use </span>noirc_errors::Location;
 
@@ -802,8 +801,14 @@
         }
 
         <span class="kw">let </span>definition = <span class="kw">match </span>global_id {
-            <span class="prelude-val">None </span>=&gt; DefinitionKind::Local(<span class="prelude-val">Some</span>(expression)),
-            <span class="prelude-val">Some</span>(id) =&gt; DefinitionKind::Global(id),
+            <span class="prelude-val">None </span>=&gt; {
+                <span class="macro">debug_assert!</span>(!let_stmt.is_global_let);
+                DefinitionKind::Local(<span class="prelude-val">Some</span>(expression))
+            }
+            <span class="prelude-val">Some</span>(id) =&gt; {
+                <span class="macro">debug_assert!</span>(let_stmt.is_global_let);
+                DefinitionKind::Global(id)
+            }
         };
 
         <span class="comment">// Now check if LHS is the same type as the RHS
@@ -820,13 +825,8 @@
             !let_stmt.attributes.iter().any(|attr| attr.kind.is_allow(<span class="string">"unused_variables"</span>));
 
         <span class="kw">let </span>r#type = annotated_type;
-        <span class="kw">let </span>pattern = <span class="self">self</span>.elaborate_pattern_and_store_ids(
-            let_stmt.pattern,
-            r#type.clone(),
-            definition,
-            <span class="kw-2">&amp;mut </span>Vec::new(),
-            warn_if_unused,
-        );
+        <span class="kw">let </span>pattern =
+            <span class="self">self</span>.elaborate_pattern(let_stmt.pattern, r#type.clone(), definition, warn_if_unused);
 
         <span class="kw">let </span>attributes = let_stmt.attributes;
         <span class="kw">let </span>comptime = let_stmt.comptime;
@@ -1094,9 +1094,7 @@
                             <span class="kw">super</span>::PathResolutionMode::MarkAsUsed,
                         );
                         <span class="kw">if let </span><span class="prelude-val">Ok</span>(result) = result {
-                            <span class="kw">for </span>error <span class="kw">in </span>result.errors {
-                                <span class="self">self</span>.push_err(error);
-                            }
+                            <span class="self">self</span>.push_errors(result.errors);
                             <span class="self">self</span>.push_err(ResolverError::Expected {
                                 location,
                                 expected: <span class="string">"value"</span>,

@@ -684,7 +684,45 @@
 <a href="#683" id="683">683</a>
 <a href="#684" id="684">684</a>
 <a href="#685" id="685">685</a>
-<a href="#686" id="686">686</a></pre></div><pre class="rust"><code><span class="doccomment">//! Pattern elaboration, variable binding, and turbofish generic resolution.
+<a href="#686" id="686">686</a>
+<a href="#687" id="687">687</a>
+<a href="#688" id="688">688</a>
+<a href="#689" id="689">689</a>
+<a href="#690" id="690">690</a>
+<a href="#691" id="691">691</a>
+<a href="#692" id="692">692</a>
+<a href="#693" id="693">693</a>
+<a href="#694" id="694">694</a>
+<a href="#695" id="695">695</a>
+<a href="#696" id="696">696</a>
+<a href="#697" id="697">697</a>
+<a href="#698" id="698">698</a>
+<a href="#699" id="699">699</a>
+<a href="#700" id="700">700</a>
+<a href="#701" id="701">701</a>
+<a href="#702" id="702">702</a>
+<a href="#703" id="703">703</a>
+<a href="#704" id="704">704</a>
+<a href="#705" id="705">705</a>
+<a href="#706" id="706">706</a>
+<a href="#707" id="707">707</a>
+<a href="#708" id="708">708</a>
+<a href="#709" id="709">709</a>
+<a href="#710" id="710">710</a>
+<a href="#711" id="711">711</a>
+<a href="#712" id="712">712</a>
+<a href="#713" id="713">713</a>
+<a href="#714" id="714">714</a>
+<a href="#715" id="715">715</a>
+<a href="#716" id="716">716</a>
+<a href="#717" id="717">717</a>
+<a href="#718" id="718">718</a>
+<a href="#719" id="719">719</a>
+<a href="#720" id="720">720</a>
+<a href="#721" id="721">721</a>
+<a href="#722" id="722">722</a>
+<a href="#723" id="723">723</a>
+<a href="#724" id="724">724</a></pre></div><pre class="rust"><code><span class="doccomment">//! Pattern elaboration, variable binding, and turbofish generic resolution.
 
 </span><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{Located, Location};
@@ -699,7 +737,7 @@
         type_check::{Source, TypeCheckError},
     },
     hir_def::{expr::HirIdent, stmt::HirPattern},
-    node_interner::{DefinitionId, DefinitionKind, FuncId, GlobalId, TypeAliasId, TypeId},
+    node_interner::{DefinitionId, DefinitionKind, FuncId, TypeAliasId, TypeId},
 };
 
 <span class="kw">use super</span>::{
@@ -708,7 +746,13 @@
 };
 
 <span class="kw">impl </span>Elaborator&lt;<span class="lifetime">'_</span>&gt; {
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>elaborate_pattern(
+    <span class="doccomment">/// Elaborate a pattern, which can appear in a `let &lt;pattern&gt; = &lt;expr&gt;`, or a `match` statement.
+    ///
+    /// The `definition_kind` specifies the kind of variables the pattern will create, e.g. a local or global variable.
+    ///
+    /// The `expected_type` is always known, because we can first infer the type of the `&lt;expr&gt;` and try to match it to
+    /// the pattern.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>elaborate_pattern(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         pattern: Pattern,
         expected_type: Type,
@@ -726,7 +770,7 @@
     }
 
     <span class="doccomment">/// Equivalent to `elaborate_pattern`, this version just also
-    /// adds any new DefinitionIds that were created to the given Vec.
+    /// adds any new `DefinitionIds` that were created to the given `Vec`.
     </span><span class="kw">pub fn </span>elaborate_pattern_and_store_ids(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         pattern: Pattern,
@@ -745,20 +789,24 @@
         )
     }
 
-    <span class="attr">#[allow(clippy::too_many_arguments)]
+    <span class="doccomment">/// Elaborate the (potentially mutable) pattern and add the variables
+    /// it created to the scope if necessary.
+    </span><span class="attr">#[allow(clippy::too_many_arguments)]
     </span><span class="kw">fn </span>elaborate_pattern_mut(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         pattern: Pattern,
         expected_type: Type,
         definition: DefinitionKind,
-        mutable: <span class="prelude-ty">Option</span>&lt;Location&gt;,
+        <span class="comment">// Location of the `mut` keyword.
+        </span>mutable: <span class="prelude-ty">Option</span>&lt;Location&gt;,
         new_definitions: <span class="kw-2">&amp;mut </span>Vec&lt;HirIdent&gt;,
         warn_if_unused: bool,
     ) -&gt; HirPattern {
         <span class="kw">match </span>pattern {
-            Pattern::Identifier(name) =&gt; {
-                <span class="comment">// If this definition is mutable, do not store the rhs because it will
-                // not always refer to the correct value of the variable
+            <span class="comment">// e.g. let &lt;ident&gt; = ...;
+            </span>Pattern::Identifier(name) =&gt; {
+                <span class="comment">// If this definition is mutable, do not store the RHS because it will
+                // not always refer to the correct value of the variable.
                 </span><span class="kw">let </span>definition = <span class="kw">match </span>(mutable, definition) {
                     (<span class="prelude-val">Some</span>(<span class="kw">_</span>), DefinitionKind::Local(<span class="kw">_</span>)) =&gt; DefinitionKind::Local(<span class="prelude-val">None</span>),
                     (<span class="kw">_</span>, other) =&gt; other,
@@ -781,7 +829,8 @@
                 new_definitions.push(ident.clone());
                 HirPattern::Identifier(ident)
             }
-            Pattern::Mutable(pattern, location, <span class="kw">_</span>) =&gt; {
+            <span class="comment">// e.g. let mut &lt;pattern&gt; = ...;
+            </span>Pattern::Mutable(pattern, location, <span class="kw">_</span>) =&gt; {
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(first_mut) = mutable {
                     <span class="self">self</span>.push_err(ResolverError::UnnecessaryMut {
                         first_mut,
@@ -799,7 +848,8 @@
                 );
                 HirPattern::Mutable(Box::new(pattern), location)
             }
-            Pattern::Tuple(fields, location) =&gt; {
+            <span class="comment">// e.g. let (&lt;pattern 0&gt;, &lt;pattern 1&gt;, ...) = ...;
+            </span>Pattern::Tuple(fields, location) =&gt; {
                 <span class="kw">let </span>field_types = <span class="kw">match </span>expected_type.follow_bindings() {
                     Type::Tuple(fields) =&gt; fields,
                     Type::Error =&gt; Vec::new(),
@@ -838,7 +888,8 @@
                 });
                 HirPattern::Tuple(fields, location)
             }
-            Pattern::Struct(name, fields, location) =&gt; {
+            <span class="comment">// e.g. let &lt;name&gt; { &lt;field 0&gt;: &lt;pattern 0&gt;, &lt;field 1&gt;: &lt;pattern 0&gt;, ... } = ...'
+            </span>Pattern::Struct(name, fields, location) =&gt; {
                 <span class="kw">let </span>name = <span class="self">self</span>.validate_path(name);
                 <span class="self">self</span>.elaborate_struct_pattern(
                     name,
@@ -850,7 +901,8 @@
                     new_definitions,
                 )
             }
-            Pattern::Parenthesized(pattern, <span class="kw">_</span>) =&gt; <span class="self">self</span>.elaborate_pattern_mut(
+            <span class="comment">// e.g. let (&lt;pattern&gt;) = ...;
+            </span>Pattern::Parenthesized(pattern, <span class="kw">_</span>) =&gt; <span class="self">self</span>.elaborate_pattern_mut(
                 <span class="kw-2">*</span>pattern,
                 expected_type,
                 definition,
@@ -1020,7 +1072,13 @@
         ret
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>add_variable_decl(
+    <span class="doccomment">/// Add a local or const numeric variable declaration to the scope,
+    /// unless the name is `"_"`.
+    ///
+    /// Returns the created identifier.
+    ///
+    /// Panics if the `definition` is [DefinitionKind::Global].
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>add_variable_decl(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         name: Ident,
         mutable: bool,
@@ -1028,8 +1086,8 @@
         warn_if_unused: bool,
         definition: DefinitionKind,
     ) -&gt; HirIdent {
-        <span class="kw">if let </span>DefinitionKind::Global(global_id) = definition {
-            <span class="kw">return </span><span class="self">self</span>.add_global_variable_decl(name, global_id);
+        <span class="kw">if let </span>DefinitionKind::Global(<span class="kw">_</span>) = definition {
+            <span class="macro">unreachable!</span>(<span class="string">"ICE: globals don't need to be added to the scope"</span>);
         }
 
         <span class="kw">let </span>location = name.location();
@@ -1038,67 +1096,42 @@
         <span class="kw">let </span>id =
             <span class="self">self</span>.interner.push_definition(name.clone(), mutable, comptime, definition, location);
         <span class="kw">let </span>ident = HirIdent::non_trait_method(id, location);
-        <span class="kw">let </span>resolver_meta =
-            ResolverMeta { num_times_used: <span class="number">0</span>, ident: ident.clone(), warn_if_unused };
 
-        <span class="kw">if </span>name != <span class="string">"_" </span>{
-            <span class="kw">let </span>scope = <span class="self">self</span>.scopes.get_mut_scope();
-            <span class="kw">let </span>old_value = scope.add_key_value(name.clone(), resolver_meta);
-
-            <span class="kw">if </span>!allow_shadowing {
-                <span class="kw">if let </span><span class="prelude-val">Some</span>(old_value) = old_value {
-                    <span class="self">self</span>.push_err(ResolverError::DuplicateDefinition {
-                        name,
-                        first_location: old_value.ident.location,
-                        second_location: location,
-                    });
-                }
-            }
-        }
+        <span class="self">self</span>.add_existing_variable_to_scope(name, ident.clone(), warn_if_unused, allow_shadowing);
 
         ident
     }
 
-    <span class="kw">pub fn </span>add_existing_variable_to_scope(
+    <span class="doccomment">/// Add a [ResolverMeta] to the last scope for a given [HirIdent], which already has its definition interned,
+    /// unless its name is `"_"`.
+    </span><span class="kw">pub fn </span>add_existing_variable_to_scope(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         name: String,
         ident: HirIdent,
         warn_if_unused: bool,
+        allow_shadowing: bool,
     ) {
+        <span class="kw">if </span>name == <span class="string">"_" </span>{
+            <span class="kw">return</span>;
+        }
+
         <span class="kw">let </span>second_location = ident.location;
         <span class="kw">let </span>resolver_meta = ResolverMeta { num_times_used: <span class="number">0</span>, ident, warn_if_unused };
 
         <span class="kw">let </span>old_value = <span class="self">self</span>.scopes.get_mut_scope().add_key_value(name.clone(), resolver_meta);
 
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(old_value) = old_value {
-            <span class="kw">let </span>first_location = old_value.ident.location;
-            <span class="self">self</span>.push_err(ResolverError::DuplicateDefinition {
-                name,
-                first_location,
-                second_location,
-            });
+        <span class="kw">if </span>!allow_shadowing {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(old_value) = old_value {
+                <span class="self">self</span>.push_err(ResolverError::DuplicateDefinition {
+                    name,
+                    first_location: old_value.ident.location,
+                    second_location,
+                });
+            }
         }
     }
 
-    <span class="kw">pub fn </span>add_global_variable_decl(<span class="kw-2">&amp;mut </span><span class="self">self</span>, name: Ident, global_id: GlobalId) -&gt; HirIdent {
-        <span class="kw">let </span>scope = <span class="self">self</span>.scopes.get_mut_scope();
-        <span class="kw">let </span>global = <span class="self">self</span>.interner.get_global(global_id);
-        <span class="kw">let </span>ident = HirIdent::non_trait_method(global.definition_id, global.location);
-        <span class="kw">let </span>resolver_meta =
-            ResolverMeta { num_times_used: <span class="number">0</span>, ident: ident.clone(), warn_if_unused: <span class="bool-val">true </span>};
-
-        <span class="kw">let </span>old_global_value = scope.add_key_value(name.to_string(), resolver_meta);
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(old_global_value) = old_global_value {
-            <span class="self">self</span>.push_err(ResolverError::DuplicateDefinition {
-                first_location: old_global_value.ident.location,
-                second_location: name.location(),
-                name: name.into_string(),
-            });
-        }
-        ident
-    }
-
-    <span class="doccomment">/// Lookup and use the specified variable.
+    <span class="doccomment">/// Lookup and use the specified local variable.
     /// This will increment its use counter by one and return the variable if found.
     /// If the variable is not found, an error is returned.
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>use_variable(
@@ -1122,17 +1155,23 @@
         }
     }
 
-    <span class="doccomment">/// Resolve generics using the expected kinds of the function we are calling
+    <span class="doccomment">/// Resolve generics using the expected kinds of the function we are calling.
+    ///
+    /// Looks up the generics of the function in [FuncMeta][crate::hir_def::function::FuncMeta].
+    ///
+    /// If there is no turbofish, it returns `None`.
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_function_turbofish_generics(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         func_id: <span class="kw-2">&amp;</span>FuncId,
         resolved_turbofish: <span class="prelude-ty">Option</span>&lt;Vec&lt;Located&lt;Type&gt;&gt;&gt;,
         location: Location,
     ) -&gt; <span class="prelude-ty">Option</span>&lt;Vec&lt;Type&gt;&gt; {
-        <span class="kw">let </span>direct_generic_kinds =
-            vecmap(<span class="kw-2">&amp;</span><span class="self">self</span>.interner.function_meta(func_id).direct_generics, |generic| generic.kind());
-
         resolved_turbofish.map(|resolved_turbofish| {
+            <span class="kw">let </span>direct_generic_kinds =
+                vecmap(<span class="kw-2">&amp;</span><span class="self">self</span>.interner.function_meta(func_id).direct_generics, |generic| {
+                    generic.kind()
+                });
+
             <span class="kw">if </span>resolved_turbofish.len() != direct_generic_kinds.len() {
                 <span class="kw">let </span>type_check_err = TypeCheckError::IncorrectTurbofishGenericCount {
                     expected_count: direct_generic_kinds.len(),
@@ -1146,7 +1185,10 @@
         })
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_struct_turbofish_generics(
+    <span class="doccomment">/// Resolve generics using the generic kinds of a struct [DataType].
+    ///
+    /// If there are no turbofish, returns the generics of the struct itself, as constructed by the caller.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_struct_turbofish_generics(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         struct_type: <span class="kw-2">&amp;</span>DataType,
         generics: Vec&lt;Type&gt;,
@@ -1164,7 +1206,10 @@
         )
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_trait_turbofish_generics(
+    <span class="doccomment">/// Resolve generics using the generics and generic kinds of a [Trait][crate::hir_def::traits::Trait].
+    ///
+    /// If there are no turbofish, returns the generics of the trait itself, as constructed by the caller.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_trait_turbofish_generics(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         trait_name: <span class="kw-2">&amp;</span>str,
         trait_generic_kinds: Vec&lt;Kind&gt;,
@@ -1182,7 +1227,10 @@
         )
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_alias_turbofish_generics(
+    <span class="doccomment">/// Resolve generics using the generic and generic kinds of a [TypeAlias].
+    ///
+    /// If there are no turbofish, returns the generics of the trait itself, as constructed by the caller.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_alias_turbofish_generics(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         type_alias: <span class="kw-2">&amp;</span>TypeAlias,
         generics: Vec&lt;Type&gt;,
@@ -1200,7 +1248,11 @@
         )
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_item_turbofish_generics(
+    <span class="doccomment">/// Given the generic [Kind]s of a type and its own declared generic [Type]s,
+    /// check if we have a non-empty turbofish with the expected number of generics,
+    /// and if so try unify them with the expected kinds, otherwise return the default
+    /// generics of the type.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_item_turbofish_generics(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         item_kind: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str,
         item_name: <span class="kw-2">&amp;</span>str,
@@ -1209,6 +1261,12 @@
         resolved_turbofish: <span class="prelude-ty">Option</span>&lt;Vec&lt;Located&lt;Type&gt;&gt;&gt;,
         location: Location,
     ) -&gt; Vec&lt;Type&gt; {
+        <span class="macro">debug_assert_eq!</span>(
+            generics.len(),
+            item_generic_kinds.len(),
+            <span class="string">"ICE: generics count should match the expected kinds"
+        </span>);
+
         <span class="kw">let </span><span class="prelude-val">Some</span>(turbofish_generics) = resolved_turbofish <span class="kw">else </span>{
             <span class="kw">return </span>generics;
         };
@@ -1226,7 +1284,10 @@
         <span class="self">self</span>.resolve_turbofish_generics(item_generic_kinds, turbofish_generics)
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_turbofish_generics(
+    <span class="doccomment">/// Given the generic [Kind]s of a type, and the list of generic types in a non-empty turbofish,
+    /// which have already been verified to match the expected number of generics, run type checking
+    /// to ensure each turbofish generic matches the expected kind, and return the unified types.
+    </span><span class="kw">fn </span>resolve_turbofish_generics(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         kinds: Vec&lt;Kind&gt;,
         turbofish_generics: Vec&lt;Located&lt;Type&gt;&gt;,
@@ -1241,7 +1302,10 @@
         })
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>validate_path(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: Path) -&gt; TypedPath {
+    <span class="doccomment">/// Create a validated [TypedPath] from a [Path] by resolving all generics in every [PathSegment] in it.
+    ///
+    /// Pushes an error if the first segment is `Self` and it has turbofish generics.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>validate_path(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: Path) -&gt; TypedPath {
         <span class="kw">let </span><span class="kw-2">mut </span>segments = vecmap(path.segments, |segment| <span class="self">self</span>.validate_path_segment(segment));
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(first_segment) = segments.first_mut() {
@@ -1254,11 +1318,17 @@
             }
         }
 
-        <span class="kw">let </span>kind_location = path.kind_location;
-        TypedPath { segments, kind: path.kind, location: path.location, kind_location }
+        TypedPath {
+            segments,
+            kind: path.kind,
+            location: path.location,
+            kind_location: path.kind_location,
+        }
     }
 
-    <span class="kw">fn </span>validate_path_segment(<span class="kw-2">&amp;mut </span><span class="self">self</span>, segment: PathSegment) -&gt; TypedPathSegment {
+    <span class="doccomment">/// Create a validated [TypedPathSegment] from a [PathSegment] by resolving all turbofish generics
+    /// in it with [Kind::Any], allowing wildcards, and marking them as _used_.
+    </span><span class="kw">fn </span>validate_path_segment(<span class="kw-2">&amp;mut </span><span class="self">self</span>, segment: PathSegment) -&gt; TypedPathSegment {
         <span class="kw">let </span>generics = segment.generics.map(|generics| {
             vecmap(generics, |generic| {
                 <span class="kw">let </span>location = generic.location;
@@ -1270,7 +1340,8 @@
         TypedPathSegment { ident: segment.ident, generics, location: segment.location }
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_struct_id_turbofish_generics(
+    <span class="doccomment">/// Get the [DataType] of a [TypeId] and call [Elaborator::resolve_struct_turbofish_generics].
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_struct_id_turbofish_generics(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         struct_id: TypeId,
         <span class="kw-2">mut </span>turbofish: <span class="prelude-ty">Option</span>&lt;Turbofish&gt;,
@@ -1290,7 +1361,8 @@
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_type_alias_id_turbofish_generics(
+    <span class="doccomment">/// Get the [TypeAlias] of a [TypeAliasId] and call [Elaborator::resolve_alias_turbofish_generics].
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_type_alias_id_turbofish_generics(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         type_alias_id: TypeAliasId,
         generics: <span class="prelude-ty">Option</span>&lt;Turbofish&gt;,
@@ -1313,7 +1385,10 @@
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_ident_from_path(
+    <span class="doccomment">/// Resolve a [TypedPath] into a local or global [HirIdent].
+    ///
+    /// If it cannot be found, then it pushes the error and returns an ident with a [DefinitionId::dummy_id].
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_ident_from_path(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         path: TypedPath,
     ) -&gt; ((HirIdent, usize), <span class="prelude-ty">Option</span>&lt;PathResolutionItem&gt;) {
@@ -1326,7 +1401,8 @@
         })
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_ident_from_path_or_error(
+    <span class="doccomment">/// Resolve a [TypedPath] into a local or global [HirIdent], or return `Err` if it could not be found.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_ident_from_path_or_error(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         path: TypedPath,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;((HirIdent, usize), <span class="prelude-ty">Option</span>&lt;PathResolutionItem&gt;), ResolverError&gt; {

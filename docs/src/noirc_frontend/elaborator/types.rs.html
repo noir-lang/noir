@@ -2443,7 +2443,37 @@
 <a href="#2442" id="2442">2442</a>
 <a href="#2443" id="2443">2443</a>
 <a href="#2444" id="2444">2444</a>
-<a href="#2445" id="2445">2445</a></pre></div><pre class="rust"><code><span class="doccomment">//! Type resolution, unification, and method resolution (for both types and traits).
+<a href="#2445" id="2445">2445</a>
+<a href="#2446" id="2446">2446</a>
+<a href="#2447" id="2447">2447</a>
+<a href="#2448" id="2448">2448</a>
+<a href="#2449" id="2449">2449</a>
+<a href="#2450" id="2450">2450</a>
+<a href="#2451" id="2451">2451</a>
+<a href="#2452" id="2452">2452</a>
+<a href="#2453" id="2453">2453</a>
+<a href="#2454" id="2454">2454</a>
+<a href="#2455" id="2455">2455</a>
+<a href="#2456" id="2456">2456</a>
+<a href="#2457" id="2457">2457</a>
+<a href="#2458" id="2458">2458</a>
+<a href="#2459" id="2459">2459</a>
+<a href="#2460" id="2460">2460</a>
+<a href="#2461" id="2461">2461</a>
+<a href="#2462" id="2462">2462</a>
+<a href="#2463" id="2463">2463</a>
+<a href="#2464" id="2464">2464</a>
+<a href="#2465" id="2465">2465</a>
+<a href="#2466" id="2466">2466</a>
+<a href="#2467" id="2467">2467</a>
+<a href="#2468" id="2468">2468</a>
+<a href="#2469" id="2469">2469</a>
+<a href="#2470" id="2470">2470</a>
+<a href="#2471" id="2471">2471</a>
+<a href="#2472" id="2472">2472</a>
+<a href="#2473" id="2473">2473</a>
+<a href="#2474" id="2474">2474</a>
+<a href="#2475" id="2475">2475</a></pre></div><pre class="rust"><code><span class="doccomment">//! Type resolution, unification, and method resolution (for both types and traits).
 
 </span><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
 
@@ -2505,7 +2535,7 @@
 }
 
 <span class="kw">impl </span>Elaborator&lt;<span class="lifetime">'_</span>&gt; {
-    <span class="doccomment">/// Resolves a type and marks it, and any generic types it contains, as referenced.
+    <span class="doccomment">/// Resolves an [UnresolvedType] to a [Type] with [Kind::Normal] and marks it, and any generic types it contains, as _referenced_.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>resolve_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, typ: UnresolvedType, wildcard_allowed: bool) -&gt; Type {
         <span class="self">self</span>.resolve_type_inner(
             typ,
@@ -2515,12 +2545,13 @@
         )
     }
 
-    <span class="doccomment">/// Resolves a type and marks it, and any generic types it contains, as used.
+    <span class="doccomment">/// Resolves an [UnresolvedType] to a [Type] with [Kind::Normal] and marks it, and any generic types it contains, as _used_.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>use_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, typ: UnresolvedType, wildcard_allowed: bool) -&gt; Type {
         <span class="self">self</span>.use_type_with_kind(typ, <span class="kw-2">&amp;</span>Kind::Normal, wildcard_allowed)
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>use_type_with_kind(
+    <span class="doccomment">/// Resolves an [UnresolvedType] to a [Type] and marks it, and any generic types it contains, as _used_.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>use_type_with_kind(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         typ: UnresolvedType,
         kind: <span class="kw-2">&amp;</span>Kind,
@@ -2529,7 +2560,9 @@
         <span class="self">self</span>.resolve_type_inner(typ, kind, PathResolutionMode::MarkAsUsed, wildcard_allowed)
     }
 
-    <span class="doccomment">/// Translates an UnresolvedType to a Type with a `TypeKind::Normal`
+    <span class="doccomment">/// Translates an [UnresolvedType] to a [Type] with a given [Kind] and [PathResolutionMode].
+    ///
+    /// Pushes an error if the resolved type is invalid.
     </span><span class="kw">fn </span>resolve_type_inner(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         typ: UnresolvedType,
@@ -2545,7 +2578,8 @@
         resolved_type
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>resolve_type_with_kind(
+    <span class="doccomment">/// Resolves an [UnresolvedType] to a [Type] with a given [Kind] and marks it, and any generic types it contains, as _referenced_.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>resolve_type_with_kind(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         typ: UnresolvedType,
         kind: <span class="kw-2">&amp;</span>Kind,
@@ -2554,7 +2588,7 @@
         <span class="self">self</span>.resolve_type_inner(typ, kind, PathResolutionMode::MarkAsReferenced, wildcard_allowed)
     }
 
-    <span class="doccomment">/// Translates an UnresolvedType into a Type.
+    <span class="doccomment">/// Translates an [UnresolvedType] into a [Type] with a given [Kind] and [PathResolutionMode].
     </span><span class="kw">fn </span>resolve_type_with_kind_inner(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         typ: UnresolvedType,
@@ -2695,7 +2729,7 @@
         <span class="self">self</span>.check_kind(resolved_type, kind, location)
     }
 
-    <span class="comment">// Resolve Self::Foo to an associated type on the current trait or trait impl
+    <span class="doccomment">/// Resolve Self::Foo to an associated type on the current trait or trait impl
     </span><span class="kw">fn </span>lookup_associated_type_on_self(<span class="kw-2">&amp;</span><span class="self">self</span>, path: <span class="kw-2">&amp;</span>TypedPath) -&gt; <span class="prelude-ty">Option</span>&lt;Type&gt; {
         <span class="kw">if </span>path.segments.len() == <span class="number">2 </span>&amp;&amp; path.first_name() == <span class="prelude-val">Some</span>(SELF_TYPE_NAME) {
             <span class="kw">if let </span><span class="prelude-val">Some</span>(trait_id) = <span class="self">self</span>.current_trait {
@@ -2897,7 +2931,9 @@
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>use_type_args(
+    <span class="doccomment">/// Resolves the ordered and named [GenericTypeArgs] into [Type]s and associated [NamedType]s,
+    /// marking all of them as _used_.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>use_type_args(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         args: GenericTypeArgs,
         item: <span class="kw">impl </span>Generic,
@@ -2908,7 +2944,8 @@
         <span class="self">self</span>.resolve_type_args_inner(args, item, location, mode, wildcard_allowed)
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_type_args_inner(
+    <span class="doccomment">/// Resolves the ordered and named [GenericTypeArgs] into [Type]s and associated [NamedType]s.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_type_args_inner(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         args: GenericTypeArgs,
         item: <span class="kw">impl </span>Generic,
@@ -2927,7 +2964,10 @@
         )
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_type_or_trait_args_inner(
+    <span class="doccomment">/// Matches [GenericTypeArgs::ordered_args] to the [Generic::generic_kinds] of a [Generic] type,
+    /// resolving them to [Type]s with the given [PathResolutionMode]. If the type accepts named
+    /// generic arguments, those are resolved as well and returned as associated [NamedType]s.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_type_or_trait_args_inner(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         <span class="kw-2">mut </span>args: GenericTypeArgs,
         item: <span class="kw">impl </span>Generic,
@@ -2973,7 +3013,10 @@
         (ordered, associated)
     }
 
-    <span class="kw">fn </span>resolve_associated_type_args(
+    <span class="doccomment">/// Assuming that a [Generic] type accepts named type arguments, ie. has associated types,
+    /// go through a list of named [UnresolvedType]s and match them up to the named generics of the type,
+    /// returning the resolved [NamedType]s and pushing errors for any unexpected, duplicate or missing entries.
+    </span><span class="kw">fn </span>resolve_associated_type_args(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         args: Vec&lt;(Ident, UnresolvedType)&gt;,
         item: <span class="kw">impl </span>Generic,
@@ -3192,7 +3235,8 @@
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>check_kind(
+    <span class="doccomment">/// Check that a [Type] unifies with an expected [Kind] and returned the unified result.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>check_kind(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         typ: Type,
         expected_kind: <span class="kw-2">&amp;</span>Kind,
@@ -3259,11 +3303,11 @@
         }
     }
 
-    <span class="comment">// this resolves Self::some_static_method, inside an impl block (where we don't have a concrete self_type)
-    // or inside a trait default method.
-    //
-    // Returns the trait method, trait constraint, and whether the impl is assumed to exist by a where clause or not
-    // E.g. `t.method()` with `where T: Foo&lt;Bar&gt;` in scope will return `(Foo::method, T, vec![Bar])`
+    <span class="doccomment">/// This resolves `Self::some_static_method`, inside an impl block (where we don't have a concrete self_type)
+    /// or inside a trait default method.
+    ///
+    /// Returns the trait method, trait constraint, and whether the impl is assumed to exist by a where clause or not
+    /// E.g. `t.method()` with `where T: Foo&lt;Bar&gt;` in scope will return `(Foo::method, T, vec![Bar])`
     </span><span class="kw">fn </span>resolve_trait_static_method_by_self(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         path: <span class="kw-2">&amp;</span>TypedPath,
@@ -3294,10 +3338,10 @@
         <span class="prelude-val">None
     </span>}
 
-    <span class="comment">// this resolves TraitName::some_static_method
-    //
-    // Returns the trait method, trait constraint, and whether the impl is assumed to exist by a where clause or not
-    // E.g. `t.method()` with `where T: Foo&lt;Bar&gt;` in scope will return `(Foo::method, T, vec![Bar])`
+    <span class="doccomment">/// This resolves `TraitName::some_static_method`
+    ///
+    /// Returns the trait method, trait constraint, and whether the impl is assumed to exist by a where clause or not
+    /// E.g. `t.method()` with `where T: Foo&lt;Bar&gt;` in scope will return `(Foo::method, T, vec![Bar])`
     </span><span class="kw">fn </span>resolve_trait_static_method(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: <span class="kw-2">&amp;</span>TypedPath) -&gt; <span class="prelude-ty">Option</span>&lt;TraitPathResolution&gt; {
         <span class="kw">let </span>path_resolution = <span class="self">self</span>.use_path_as_type(path.clone()).ok()<span class="question-mark">?</span>;
         <span class="kw">let </span>func_id = path_resolution.item.function_id()<span class="question-mark">?</span>;
@@ -3311,11 +3355,11 @@
         <span class="prelude-val">Some</span>(TraitPathResolution { method, item, errors: path_resolution.errors })
     }
 
-    <span class="comment">// This resolves a static trait method T::trait_method by iterating over the where clause
-    //
-    // Returns the trait method, trait constraint, and whether the impl is assumed from a where
-    // clause. This is always true since this helper searches where clauses for a generic constraint.
-    // E.g. `t.method()` with `where T: Foo&lt;Bar&gt;` in scope will return `(Foo::method, T, vec![Bar])`
+    <span class="doccomment">/// This resolves a static trait method T::trait_method by iterating over the where clause
+    ///
+    /// Returns the trait method, trait constraint, and whether the impl is assumed from a where
+    /// clause. This is always true since this helper searches where clauses for a generic constraint.
+    /// E.g. `t.method()` with `where T: Foo&lt;Bar&gt;` in scope will return `(Foo::method, T, vec![Bar])`
     </span><span class="kw">fn </span>resolve_trait_method_by_named_generic(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         path: <span class="kw-2">&amp;</span>TypedPath,
@@ -3437,10 +3481,10 @@
         }
     }
 
-    <span class="comment">// Try to resolve the given trait method path.
-    //
-    // Returns the trait method, trait constraint, and whether the impl is assumed to exist by a where clause or not
-    // E.g. `t.method()` with `where T: Foo&lt;Bar&gt;` in scope will return `(Foo::method, T, vec![Bar])`
+    <span class="doccomment">/// Try to resolve a [TypedPath] to a trait method path.
+    ///
+    /// Returns the trait method, trait constraint, and whether the impl is assumed to exist by a where clause or not
+    /// E.g. `t.method()` with `where T: Foo&lt;Bar&gt;` in scope will return `(Foo::method, T, vec![Bar])`
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_trait_generic_path(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         path: <span class="kw-2">&amp;</span>TypedPath,
@@ -3451,7 +3495,10 @@
             .or_else(|| <span class="self">self</span>.resolve_type_trait_method(path))
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>unify(
+    <span class="doccomment">/// Unify two types, modifying both in the process.
+    ///
+    /// Pushes an error on failure.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>unify(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         actual: <span class="kw-2">&amp;</span>Type,
         expected: <span class="kw-2">&amp;</span>Type,
@@ -3462,7 +3509,7 @@
         }
     }
 
-    <span class="doccomment">/// Wrapper of Type::unify_with_coercions using self.errors
+    <span class="doccomment">/// Wrapper of [Type::unify_with_coercions], pushing any unification errors.
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>unify_with_coercions(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         actual: <span class="kw-2">&amp;</span>Type,
@@ -3730,10 +3777,10 @@
         }
     }
 
-    <span class="comment">// Given a binary comparison operator and another type. This method will produce the output type
-    // and a boolean indicating whether to use the trait impl corresponding to the operator
-    // or not. A value of false indicates the caller to use a primitive operation for this
-    // operator, while a true value indicates a user-provided trait impl is required.
+    <span class="doccomment">/// Given a binary comparison operator and another type. This method will produce the output type
+    /// and a boolean indicating whether to use the trait impl corresponding to the operator
+    /// or not. A value of false indicates the caller to use a primitive operation for this
+    /// operator, while a true value indicates a user-provided trait impl is required.
     </span><span class="kw">fn </span>comparator_operand_type_rules(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         lhs_type: <span class="kw-2">&amp;</span>Type,
@@ -3840,10 +3887,13 @@
         use_impl
     }
 
-    <span class="comment">// Given a binary operator and another type. This method will produce the output type
-    // and a boolean indicating whether to use the trait impl corresponding to the operator
-    // or not. A value of false indicates the caller to use a primitive operation for this
-    // operator, while a true value indicates a user-provided trait impl is required.
+    <span class="doccomment">/// Given a binary operator and another type, this method will produce the output type
+    /// and a boolean indicating whether to use the trait impl corresponding to the operator
+    /// or not. A value of false indicates the caller to use a primitive operation for this
+    /// operator, while a true value indicates a user-provided trait impl is required.
+    ///
+    /// Returns an `Err` if the operator cannot be applied on the argument types,
+    /// or if the arguments are incompatible with each other.
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>infix_operand_type_rules(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         lhs_type: <span class="kw-2">&amp;</span>Type,
@@ -3939,6 +3989,8 @@
     /// and a boolean indicating whether to use the trait impl corresponding to the operator
     /// or not. A value of false indicates to the caller to use a primitive operation for this
     /// operator, while a true value indicates a user-provided trait impl is required.
+    ///
+    /// Returns `Err` if the type cannot be used with the given unary operator.
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>prefix_operand_type_rules(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         op: <span class="kw-2">&amp;</span>UnaryOp,
@@ -4122,7 +4174,10 @@
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>lookup_method(
+    <span class="doccomment">/// Try to look up a method on a [Type] by name:
+    /// * if the object type is generic, look it up in the trait constraints
+    /// * otherwise look it up directly on the type, or in traits the type implements
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>lookup_method(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         object_type: <span class="kw-2">&amp;</span>Type,
         method_name: <span class="kw-2">&amp;</span>str,
@@ -4353,7 +4408,14 @@
         HirMethodReference::TraitItemId(trait_method_id, trait_id, generics, <span class="bool-val">false</span>)
     }
 
-    <span class="kw">fn </span>lookup_method_in_trait_constraints(
+    <span class="doccomment">/// Assuming that we are currently elaborating a function, try to look up a method in:
+    /// * the trait the function belongs to, if the object is the self-type of the method, or
+    /// * in any of the traits which appear in the constraints of the function
+    ///
+    /// Pushes an error if the method cannot be found.
+    ///
+    /// Panics if we are not elaborating a function currently.
+    </span><span class="kw">fn </span>lookup_method_in_trait_constraints(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         object_type: <span class="kw-2">&amp;</span>Type,
         method_name: <span class="kw-2">&amp;</span>str,
@@ -4507,9 +4569,7 @@
             }
 
             <span class="kw">let </span>errors = lints::unconstrained_function_args(<span class="kw-2">&amp;</span>args);
-            <span class="kw">for </span>error <span class="kw">in </span>errors {
-                <span class="self">self</span>.push_err(error);
-            }
+            <span class="self">self</span>.push_errors(errors);
         }
 
         <span class="kw">let </span>return_type = <span class="self">self</span>.bind_function_type(func_type, args, location);

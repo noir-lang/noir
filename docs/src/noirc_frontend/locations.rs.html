@@ -417,7 +417,17 @@
 <a href="#416" id="416">416</a>
 <a href="#417" id="417">417</a>
 <a href="#418" id="418">418</a>
-<a href="#419" id="419">419</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileId;
+<a href="#419" id="419">419</a>
+<a href="#420" id="420">420</a>
+<a href="#421" id="421">421</a>
+<a href="#422" id="422">422</a>
+<a href="#423" id="423">423</a>
+<a href="#424" id="424">424</a>
+<a href="#425" id="425">425</a>
+<a href="#426" id="426">426</a>
+<a href="#427" id="427">427</a>
+<a href="#428" id="428">428</a>
+<a href="#429" id="429">429</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileId;
 <span class="kw">use </span>noirc_errors::Location;
 <span class="kw">use </span>rangemap::RangeMap;
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
@@ -490,7 +500,7 @@
     ///     mod bar {
     ///         pub struct Baz {} // This is the item
     ///     }
-    ///     
+    ///
     ///     pub use bar::Baz; // Here's the visibility
     /// }
     /// ```
@@ -569,11 +579,13 @@
         };
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>add_module_reference(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: ModuleId, location: Location) {
+    <span class="doccomment">/// In LSP mode, take note that a [ModuleId] was referenced at a [Location].
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>add_module_reference(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: ModuleId, location: Location) {
         <span class="self">self</span>.add_reference(ReferenceId::Module(id), location, <span class="bool-val">false</span>);
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>add_type_reference(
+    <span class="doccomment">/// In LSP mode, take note that a [TypeId] was referenced at a [Location].
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>add_type_reference(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         id: TypeId,
         location: Location,
@@ -582,7 +594,8 @@
         <span class="self">self</span>.add_reference(ReferenceId::Type(id), location, is_self_type);
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>add_struct_member_reference(
+    <span class="doccomment">/// In LSP mode, take note that a specific field of a struct was referenced at a [Location].
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>add_struct_member_reference(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         id: TypeId,
         member_index: usize,
@@ -591,7 +604,8 @@
         <span class="self">self</span>.add_reference(ReferenceId::StructMember(id, member_index), location, <span class="bool-val">false</span>);
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>add_trait_reference(
+    <span class="doccomment">/// In LSP mode, take note that a [TraitId] was referenced at a [Location].
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>add_trait_reference(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         id: TraitId,
         location: Location,
@@ -600,7 +614,8 @@
         <span class="self">self</span>.add_reference(ReferenceId::Trait(id), location, is_self_type);
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>add_trait_associated_type_reference(
+    <span class="doccomment">/// In LSP mode, take note that a [TraitAssociatedTypeId] was referenced at a [Location].
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>add_trait_associated_type_reference(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         id: TraitAssociatedTypeId,
         location: Location,
@@ -608,23 +623,28 @@
         <span class="self">self</span>.add_reference(ReferenceId::TraitAssociatedType(id), location, <span class="bool-val">false</span>);
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>add_alias_reference(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: TypeAliasId, location: Location) {
+    <span class="doccomment">/// In LSP mode, take note that a [TypeAliasId] was referenced at a [Location].
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>add_alias_reference(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: TypeAliasId, location: Location) {
         <span class="self">self</span>.add_reference(ReferenceId::Alias(id), location, <span class="bool-val">false</span>);
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>add_function_reference(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: FuncId, location: Location) {
+    <span class="doccomment">/// In LSP mode, take note that a [FuncId] was referenced at a [Location].
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>add_function_reference(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: FuncId, location: Location) {
         <span class="self">self</span>.add_reference(ReferenceId::Function(id), location, <span class="bool-val">false</span>);
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>add_global_reference(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: GlobalId, location: Location) {
+    <span class="doccomment">/// In LSP mode, take note that a [GlobalId] was referenced at a [Location].
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>add_global_reference(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: GlobalId, location: Location) {
         <span class="self">self</span>.add_reference(ReferenceId::Global(id), location, <span class="bool-val">false</span>);
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>add_local_reference(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: DefinitionId, location: Location) {
+    <span class="doccomment">/// In LSP mode, take note that a [DefinitionId] was referenced at a [Location].
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>add_local_reference(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: DefinitionId, location: Location) {
         <span class="self">self</span>.add_reference(ReferenceId::Local(id), location, <span class="bool-val">false</span>);
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>add_reference(
+    <span class="doccomment">/// In LSP mode, take note that a [ReferenceId] was referenced at a [Location].
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>add_reference(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         referenced: ReferenceId,
         location: Location,

@@ -1038,7 +1038,8 @@
 <a href="#1037" id="1037">1037</a>
 <a href="#1038" id="1038">1038</a>
 <a href="#1039" id="1039">1039</a>
-<a href="#1040" id="1040">1040</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
+<a href="#1040" id="1040">1040</a>
+<a href="#1041" id="1041">1041</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
 
 <span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>acvm::acir::AcirField;
@@ -1090,14 +1091,14 @@
     Continue,
     <span class="doccomment">/// This statement should be executed at compile-time
     </span>Comptime(Box&lt;Statement&gt;),
-    <span class="comment">// This is an expression with a trailing semi-colon
+    <span class="doccomment">/// This is an expression with a trailing semi-colon
     </span>Semi(Expression),
-    <span class="comment">// This is an interned StatementKind during comptime code.
-    // The actual StatementKind can be retrieved with a NodeInterner.
+    <span class="doccomment">/// This is an interned StatementKind during comptime code.
+    /// The actual StatementKind can be retrieved with a NodeInterner.
     </span>Interned(InternedStatementKind),
-    <span class="comment">// This statement is the result of a recovered parse error.
-    // To avoid issuing multiple errors in later steps, it should
-    // be skipped in any future analysis if possible.
+    <span class="doccomment">/// This statement is the result of a recovered parse error.
+    /// To avoid issuing multiple errors in later steps, it should
+    /// be skipped in any future analysis if possible.
     </span>Error,
 }
 
@@ -1461,7 +1462,7 @@
     <span class="kw">pub </span>segments: Vec&lt;PathSegment&gt;,
     <span class="kw">pub </span>kind: PathKind,
     <span class="kw">pub </span>location: Location,
-    <span class="comment">// The location of `kind` (this is the same as `location` for plain kinds)
+    <span class="doccomment">/// The location of `kind` (this is the same as `location` for plain kinds)
     </span><span class="kw">pub </span>kind_location: Location,
 }
 
@@ -1479,13 +1480,14 @@
         <span class="self">self
     </span>}
 
-    <span class="doccomment">/// Construct a PathKind::Plain from this single
+    <span class="doccomment">/// Construct a [PathKind::Plain] from a single identifier name.
     </span><span class="kw">pub fn </span>from_single(name: String, location: Location) -&gt; Path {
         <span class="kw">let </span>segment = Ident::from(Located::from(location, name));
         Path::from_ident(segment)
     }
 
-    <span class="kw">pub fn </span>from_ident(name: Ident) -&gt; Path {
+    <span class="doccomment">/// Construct a [PathKind::Plain] from a single [Ident].
+    </span><span class="kw">pub fn </span>from_ident(name: Ident) -&gt; Path {
         <span class="kw">let </span>location = name.location();
         Path::plain(<span class="macro">vec!</span>[PathSegment::from(name)], location)
     }

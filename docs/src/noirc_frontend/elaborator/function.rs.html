@@ -562,7 +562,10 @@
 <a href="#561" id="561">561</a>
 <a href="#562" id="562">562</a>
 <a href="#563" id="563">563</a>
-<a href="#564" id="564">564</a></pre></div><pre class="rust"><code><span class="doccomment">//! Function metadata and function body elaboration.
+<a href="#564" id="564">564</a>
+<a href="#565" id="565">565</a>
+<a href="#566" id="566">566</a>
+<a href="#567" id="567">567</a></pre></div><pre class="rust"><code><span class="doccomment">//! Function metadata and function body elaboration.
 //!
 //! This module handles the definition and elaboration of functions:
 //! - Collect and resolve function metadata (i.e., signatures with type information). Type information includes:
@@ -1043,11 +1046,14 @@
         // so we need to reintroduce the same IDs into scope here.
         </span><span class="kw">for </span>parameter <span class="kw">in </span><span class="kw-2">&amp;</span>func_meta.parameter_idents {
             <span class="kw">let </span>name = <span class="self">self</span>.interner.definition_name(parameter.id).to_owned();
-            <span class="kw">if </span>name == <span class="string">"_" </span>{
-                <span class="kw">continue</span>;
-            }
             <span class="kw">let </span>warn_if_unused = !(func_meta.trait_impl.is_some() &amp;&amp; name == <span class="string">"self"</span>);
-            <span class="self">self</span>.add_existing_variable_to_scope(name, parameter.clone(), warn_if_unused);
+            <span class="kw">let </span>allow_shadowing = <span class="bool-val">false</span>;
+            <span class="self">self</span>.add_existing_variable_to_scope(
+                name,
+                parameter.clone(),
+                warn_if_unused,
+                allow_shadowing,
+            );
         }
 
         <span class="self">self</span>.add_trait_constraints_to_scope(func_meta.all_trait_constraints(), func_meta.location);

@@ -1604,9 +1604,25 @@
 <a href="#1603" id="1603">1603</a>
 <a href="#1604" id="1604">1604</a>
 <a href="#1605" id="1605">1605</a>
-<a href="#1606" id="1606">1606</a></pre></div><pre class="rust"><code><span class="doccomment">//! Expression elaboration, covering all expression [kinds][ExpressionKind].
+<a href="#1606" id="1606">1606</a>
+<a href="#1607" id="1607">1607</a>
+<a href="#1608" id="1608">1608</a>
+<a href="#1609" id="1609">1609</a>
+<a href="#1610" id="1610">1610</a>
+<a href="#1611" id="1611">1611</a>
+<a href="#1612" id="1612">1612</a>
+<a href="#1613" id="1613">1613</a>
+<a href="#1614" id="1614">1614</a>
+<a href="#1615" id="1615">1615</a>
+<a href="#1616" id="1616">1616</a>
+<a href="#1617" id="1617">1617</a>
+<a href="#1618" id="1618">1618</a>
+<a href="#1619" id="1619">1619</a>
+<a href="#1620" id="1620">1620</a></pre></div><pre class="rust"><code><span class="doccomment">//! Expression elaboration, covering all expression [kinds][ExpressionKind].
 
-</span><span class="kw">use </span>iter_extended::vecmap;
+</span><span class="kw">use </span>std::collections::HashMap;
+
+<span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{Located, Location};
 <span class="kw">use </span>rustc_hash::FxHashSet <span class="kw">as </span>HashSet;
 
@@ -1741,7 +1757,8 @@
         }
     }
 
-    <span class="kw">fn </span>elaborate_interned_statement_as_expr(
+    <span class="doccomment">/// Given its ID, retrieve and elaborate an interned [StatementKind].
+    </span><span class="kw">fn </span>elaborate_interned_statement_as_expr(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         id: InternedStatementKind,
         location: Location,
@@ -2122,7 +2139,10 @@
         (expr_id, typ)
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>check_can_mutate(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr_id: ExprId, location: Location) {
+    <span class="doccomment">/// Check whether we can create a mutable reference over an expression.
+    ///
+    /// Pushes an error if it cannot be done.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>check_can_mutate(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr_id: ExprId, location: Location) {
         <span class="kw">match </span><span class="self">self</span>.interner.expression(<span class="kw-2">&amp;</span>expr_id) {
             HirExpression::Ident(hir_ident, <span class="kw">_</span>) =&gt; {
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(definition) = <span class="self">self</span>.interner.try_definition(hir_ident.id) {
@@ -2147,9 +2167,12 @@
         }
     }
 
-    <span class="comment">// We must check whether the mutable variable we are attempting to mutate
-    // comes from a lambda capture. All captures are immutable so we want to error
-    // if the user attempts to mutate a captured variable inside of a lambda without mutable references.
+    <span class="doccomment">/// We must check whether the mutable variable we are attempting to mutate
+    /// comes from a lambda capture. All captures are immutable so we want to error
+    /// if the user attempts to mutate a captured variable inside of a lambda without
+    /// having captured a mutable reference.
+    ///
+    /// Pushes an error if the mutation is illegal.
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>check_can_mutate_lambda_capture(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         id: DefinitionId,
@@ -2215,6 +2238,7 @@
         call: CallExpression,
         location: Location,
     ) -&gt; (HirExpression, Type) {
+        <span class="kw">let </span>is_macro_call = call.is_macro_call;
         <span class="kw">let </span>(func, func_type) = <span class="self">self</span>.elaborate_expression(<span class="kw-2">*</span>call.func);
         <span class="kw">let </span>func_type = func_type.follow_bindings();
         <span class="kw">let </span>func_arg_types =
@@ -2225,18 +2249,18 @@
             <span class="kw">let </span>location = arg.location;
             <span class="kw">let </span>expected_type = func_arg_types.and_then(|args| args.get(arg_index));
 
-            <span class="kw">let </span>(arg, typ) = <span class="kw">if </span>call.is_macro_call {
+            <span class="kw">let </span>(arg, typ) = <span class="kw">if </span>is_macro_call {
                 <span class="self">self</span>.elaborate_in_comptime_context(|this| {
-                    this.elaborate_expression_with_type(arg, expected_type)
+                    this.elaborate_expression_with_target_type(arg, expected_type)
                 })
             } <span class="kw">else </span>{
-                <span class="self">self</span>.elaborate_expression_with_type(arg, expected_type)
+                <span class="self">self</span>.elaborate_expression_with_target_type(arg, expected_type)
             };
 
             <span class="comment">// Try to unify this argument type against the function's argument type
             // so that a potential lambda following this argument can have more concrete types.
             </span><span class="kw">if let </span><span class="prelude-val">Some</span>(expected_type) = expected_type {
-                <span class="kw">let _ </span>= expected_type.unify(<span class="kw-2">&amp;</span>typ);
+                <span class="kw">let _ </span>= typ.unify(expected_type);
             }
 
             arguments.push(arg);
@@ -2245,11 +2269,10 @@
 
         <span class="comment">// Avoid cloning arguments unless this is a macro call
         </span><span class="kw">let </span><span class="kw-2">mut </span>comptime_args = Vec::new();
-        <span class="kw">if </span>call.is_macro_call {
+        <span class="kw">if </span>is_macro_call {
             comptime_args = arguments.clone();
         }
 
-        <span class="kw">let </span>is_macro_call = call.is_macro_call;
         <span class="kw">let </span>hir_call = HirCallExpression { func, arguments, location, is_macro_call };
         <span class="kw">let </span><span class="kw-2">mut </span>typ = <span class="self">self</span>.type_check_call(<span class="kw-2">&amp;</span>hir_call, func_type, args, location);
 
@@ -2266,7 +2289,8 @@
         (HirExpression::Call(hir_call), typ)
     }
 
-    <span class="kw">fn </span>elaborate_method_call(
+    <span class="doccomment">/// Elaborate the target of the method call and try to look up the method in its type.
+    </span><span class="kw">fn </span>elaborate_method_call(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         method_call: MethodCallExpression,
         location: Location,
@@ -2350,7 +2374,7 @@
                 <span class="kw">for </span>(arg_index, arg) <span class="kw">in </span>method_call.arguments.into_iter().enumerate() {
                     <span class="kw">let </span>location = arg.location;
                     <span class="kw">let </span>expected_type = func_arg_types.and_then(|args| args.get(arg_index + <span class="number">1</span>));
-                    <span class="kw">let </span>(arg, typ) = <span class="self">self</span>.elaborate_expression_with_type(arg, expected_type);
+                    <span class="kw">let </span>(arg, typ) = <span class="self">self</span>.elaborate_expression_with_target_type(arg, expected_type);
 
                     <span class="comment">// Try to unify this argument type against the function's argument type
                     // so that a potential lambda following this argument can have more concrete types.
@@ -2453,25 +2477,11 @@
         (HirExpression::Constrain(HirConstrainExpression(expr_id, location.file, msg)), Type::Unit)
     }
 
-    <span class="doccomment">/// Elaborates an expression knowing that it has to match a given type.
-    </span><span class="kw">fn </span>elaborate_expression_with_type(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        arg: Expression,
-        typ: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Type&gt;,
-    ) -&gt; (ExprId, Type) {
-        <span class="kw">let </span>ExpressionKind::Lambda(lambda) = arg.kind <span class="kw">else </span>{
-            <span class="kw">return </span><span class="self">self</span>.elaborate_expression(arg);
-        };
-
-        <span class="kw">let </span>location = arg.location;
-        <span class="kw">let </span>type_hint =
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(Type::Function(func_args, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>)) = typ { <span class="prelude-val">Some</span>(func_args) } <span class="kw">else </span>{ <span class="prelude-val">None </span>};
-        <span class="kw">let </span>(hir_expr, typ) = <span class="self">self</span>.elaborate_lambda_with_parameter_type_hints(<span class="kw-2">*</span>lambda, type_hint);
-        <span class="kw">let </span>id = <span class="self">self</span>.interner.push_expr_full(hir_expr, location, typ.clone());
-        (id, typ)
-    }
-
-    <span class="kw">fn </span>elaborate_constructor(
+    <span class="doccomment">/// Elaborate a struct constructor.
+    ///
+    /// This method resolves the [UnresolvedType][crate::ast::UnresolvedType] into the [Type] being constructed,
+    /// then delegates to [Elaborator::elaborate_constructor_with_type] to handle the fields.
+    </span><span class="kw">fn </span>elaborate_constructor(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         constructor: ConstructorExpression,
     ) -&gt; (HirExpression, Type) {
@@ -2503,8 +2513,10 @@
             <span class="kw">return </span>(HirExpression::Error, Type::Error);
         };
 
-        <span class="kw">let </span>last_segment = path.segments.last_mut().unwrap();
-        <span class="kw">if </span>!generics.ordered_args.is_empty() {
+        <span class="comment">// When instantiating a generic struct, treat any generics in the type
+        // as if they were part of the turbofish, so they can be validated with the path.
+        </span><span class="kw">if </span>!generics.ordered_args.is_empty() {
+            <span class="kw">let </span>last_segment = path.segments.last_mut().unwrap();
             last_segment.generics = <span class="prelude-val">Some</span>(generics.ordered_args);
         }
 
@@ -2518,7 +2530,8 @@
         <span class="self">self</span>.elaborate_constructor_with_type(typ, constructor.fields, location, <span class="prelude-val">Some</span>(last_segment))
     }
 
-    <span class="kw">fn </span>elaborate_constructor_with_type(
+    <span class="doccomment">/// Knowing the [Type] being constructed, elaborate all field expressions.
+    </span><span class="kw">fn </span>elaborate_constructor_with_type(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         typ: Type,
         fields: Vec&lt;(Ident, Expression)&gt;,
@@ -2526,9 +2539,9 @@
         last_segment: <span class="prelude-ty">Option</span>&lt;TypedPathSegment&gt;,
     ) -&gt; (HirExpression, Type) {
         <span class="kw">let </span>typ = typ.follow_bindings_shallow();
-        <span class="kw">let </span>(r#type, generics) = <span class="kw">match </span>typ.as_ref() {
-            Type::DataType(r#type, struct_generics) <span class="kw">if </span>r#type.borrow().is_struct() =&gt; {
-                (r#type, struct_generics)
+        <span class="kw">let </span>(struct_type, generics) = <span class="kw">match </span>typ.as_ref() {
+            Type::DataType(struct_type, struct_generics) <span class="kw">if </span>struct_type.borrow().is_struct() =&gt; {
+                (struct_type.clone(), struct_generics)
             }
             typ =&gt; {
                 <span class="self">self</span>.push_err(ResolverError::NonStructUsedInConstructor {
@@ -2538,7 +2551,9 @@
                 <span class="kw">return </span>(HirExpression::Error, Type::Error);
             }
         };
-        <span class="self">self</span>.mark_struct_as_constructed(r#type.clone());
+        <span class="kw">let </span>struct_id = struct_type.borrow().id;
+
+        <span class="self">self</span>.mark_struct_as_constructed(struct_type.clone());
 
         <span class="comment">// `last_segment` is optional if this constructor was resolved from a quoted type
         </span><span class="kw">let </span><span class="kw-2">mut </span>generics = generics.clone();
@@ -2551,7 +2566,7 @@
             constructor_type_location = last_segment.ident.location();
 
             generics = <span class="self">self</span>.resolve_struct_turbofish_generics(
-                <span class="kw-2">&amp;</span>r#type.borrow(),
+                <span class="kw-2">&amp;</span>struct_type.borrow(),
                 generics,
                 last_segment.generics,
                 turbofish_location,
@@ -2559,8 +2574,7 @@
         }
 
         <span class="comment">// Each of the struct generics must be bound at the end of the function
-        </span><span class="kw">let </span>struct_id = r#type.borrow().id;
-        <span class="kw">for </span>(index, generic) <span class="kw">in </span>generics.iter().enumerate() {
+        </span><span class="kw">for </span>(index, generic) <span class="kw">in </span>generics.iter().enumerate() {
             <span class="kw">if let </span>Type::TypeVariable(type_variable) = generic {
                 <span class="self">self</span>.push_required_type_variable(
                     type_variable.id(),
@@ -2571,9 +2585,7 @@
             }
         }
 
-        <span class="kw">let </span>struct_type = r#type.clone();
-
-        <span class="kw">let </span>field_types = r#type
+        <span class="kw">let </span>field_types = struct_type
             .borrow()
             .get_fields_with_visibility(<span class="kw-2">&amp;</span>generics)
             .expect(<span class="string">"This type should already be validated to be a struct"</span>);
@@ -2590,13 +2602,13 @@
             struct_generics: generics.clone(),
         });
 
-        <span class="kw">let </span>struct_id = struct_type.borrow().id;
         <span class="self">self</span>.interner.add_type_reference(struct_id, constructor_type_location, is_self_type);
 
         (expr, Type::DataType(struct_type, generics))
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>mark_struct_as_constructed(<span class="kw-2">&amp;mut </span><span class="self">self</span>, struct_type: Shared&lt;DataType&gt;) {
+    <span class="doccomment">/// Mark a struct as used in the [UsageTracker][crate::usage_tracker::UsageTracker].
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>mark_struct_as_constructed(<span class="kw-2">&amp;mut </span><span class="self">self</span>, struct_type: Shared&lt;DataType&gt;) {
         <span class="kw">let </span>struct_type = struct_type.borrow();
         <span class="kw">let </span>parent_module_id = struct_type.id.parent_module_id(<span class="self">self</span>.def_maps);
         <span class="self">self</span>.usage_tracker.mark_as_used(parent_module_id, <span class="kw-2">&amp;</span>struct_type.name);
@@ -2619,15 +2631,18 @@
             .field_names()
             .expect(<span class="string">"This type should already be validated to be a struct"</span>);
 
+        <span class="kw">let </span>expected_fields_by_name = field_types
+            .iter()
+            .enumerate()
+            .map(|(i, (name, vis, typ))| (name.as_str(), (i, vis, typ)))
+            .collect::&lt;HashMap&lt;<span class="kw">_</span>, <span class="kw">_</span>&gt;&gt;();
+
         <span class="kw">for </span>(field_name, field) <span class="kw">in </span>fields {
-            <span class="kw">let </span>expected_field_with_index = field_types
-                .iter()
-                .enumerate()
-                .find(|(<span class="kw">_</span>, (name, <span class="kw">_</span>, <span class="kw">_</span>))| name == field_name.as_str());
+            <span class="kw">let </span>expected_field = expected_fields_by_name.get(field_name.as_str());
+
             <span class="kw">let </span>expected_index_and_visibility =
-                expected_field_with_index.map(|(index, (<span class="kw">_</span>, visibility, <span class="kw">_</span>))| (index, visibility));
-            <span class="kw">let </span>expected_type =
-                expected_field_with_index.map(|(<span class="kw">_</span>, (<span class="kw">_</span>, <span class="kw">_</span>, typ))| typ).unwrap_or(<span class="kw-2">&amp;</span>Type::Error);
+                expected_field.map(|(index, visibility, <span class="kw">_</span>)| (index, visibility));
+            <span class="kw">let </span>expected_type = expected_field.map(|(<span class="kw">_</span>, <span class="kw">_</span>, typ)| typ).unwrap_or(&amp;&amp;Type::Error);
 
             <span class="kw">let </span>field_location = field.location;
             <span class="kw">let </span>(resolved, field_type) = <span class="self">self</span>.elaborate_expression(field);
@@ -2667,11 +2682,11 @@
                 <span class="self">self</span>.check_struct_field_visibility(
                     <span class="kw-2">&amp;</span>struct_type,
                     field_name,
-                    <span class="kw-2">*</span>visibility,
+                    <span class="kw-2">**</span>visibility,
                     field_location,
                 );
 
-                <span class="self">self</span>.interner.add_struct_member_reference(struct_type.id, index, field_location);
+                <span class="self">self</span>.interner.add_struct_member_reference(struct_type.id, <span class="kw-2">*</span>index, field_location);
             }
 
             ret.push((field_name, resolved));
@@ -2731,7 +2746,8 @@
         expr_id.push_type(<span class="self">self</span>.interner, typ)
     }
 
-    <span class="kw">fn </span>elaborate_cast(
+    <span class="doccomment">/// Elaborate the expression, resolve the target type, then type check that they are compatible.
+    </span><span class="kw">fn </span>elaborate_cast(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         cast: CastExpression,
         location: Location,
@@ -2773,7 +2789,11 @@
         (expr_id, typ)
     }
 
-    <span class="kw">fn </span>handle_operand_type_rules_result(
+    <span class="doccomment">/// Handles the results of [Self::prefix_operand_type_rules] and [Self::infix_operand_type_rules].
+    /// * if the rules returned an `Err`, it returns [Type::Error]
+    /// * if the results indicate that a trait method should be used,
+    ///   it pushes a trait constraint and checks that the expression type is compatible with the trait method
+    </span><span class="kw">fn </span>handle_operand_type_rules_result(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         result: <span class="prelude-ty">Result</span>&lt;(Type, bool), TypeCheckError&gt;,
         operand_type: <span class="kw-2">&amp;</span>Type,
@@ -2865,7 +2885,14 @@
         (HirExpression::If(if_expr), ret_type)
     }
 
-    <span class="kw">fn </span>elaborate_match(
+    <span class="doccomment">/// Elaborate a `match &lt;expr&gt; { &lt;rules&gt; }` expression by creating an block such as this:
+    /// ```text
+    /// {
+    ///   let internal variable = &lt;expr&gt;;
+    ///   match internal variable { &lt;rules&gt; }
+    /// }
+    /// ```
+    </span><span class="kw">fn </span>elaborate_match(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         match_expr: MatchExpression,
         location: Location,
@@ -2896,7 +2923,8 @@
         (block, result_type)
     }
 
-    <span class="kw">fn </span>wrap_in_let(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr_id: ExprId, typ: Type) -&gt; (StmtId, DefinitionId) {
+    <span class="doccomment">/// Introduce an internal variable in order to be able to refer to the expression using a local identifier.
+    </span><span class="kw">fn </span>wrap_in_let(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr_id: ExprId, typ: Type) -&gt; (StmtId, DefinitionId) {
         <span class="kw">let </span>location = <span class="self">self</span>.interner.expr_location(<span class="kw-2">&amp;</span>expr_id);
         <span class="kw">let </span>name = <span class="string">"internal variable"</span>.to_string();
         <span class="kw">let </span>definition = DefinitionKind::Local(<span class="prelude-val">None</span>);

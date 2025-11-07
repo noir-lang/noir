@@ -582,7 +582,28 @@
 <a href="#581" id="581">581</a>
 <a href="#582" id="582">582</a>
 <a href="#583" id="583">583</a>
-<a href="#584" id="584">584</a></pre></div><pre class="rust"><code><span class="doccomment">//! Everything to do with elaboration of variables.
+<a href="#584" id="584">584</a>
+<a href="#585" id="585">585</a>
+<a href="#586" id="586">586</a>
+<a href="#587" id="587">587</a>
+<a href="#588" id="588">588</a>
+<a href="#589" id="589">589</a>
+<a href="#590" id="590">590</a>
+<a href="#591" id="591">591</a>
+<a href="#592" id="592">592</a>
+<a href="#593" id="593">593</a>
+<a href="#594" id="594">594</a>
+<a href="#595" id="595">595</a>
+<a href="#596" id="596">596</a>
+<a href="#597" id="597">597</a>
+<a href="#598" id="598">598</a>
+<a href="#599" id="599">599</a>
+<a href="#600" id="600">600</a>
+<a href="#601" id="601">601</a>
+<a href="#602" id="602">602</a>
+<a href="#603" id="603">603</a>
+<a href="#604" id="604">604</a>
+<a href="#605" id="605">605</a></pre></div><pre class="rust"><code><span class="doccomment">//! Everything to do with elaboration of variables.
 //! Notably, variables may require trait constraints to be solved later on.
 
 </span><span class="kw">use </span><span class="kw">super</span>::Elaborator;
@@ -619,9 +640,9 @@
         <span class="kw">let </span>definition_id = expr.id;
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(PathResolutionItem::TypeAlias(alias)) = item {
-            <span class="comment">// A type alias to a numeric generics is considered like a variable
-            // but it is not a real variable so it does not resolve to a valid Identifier
-            // In order to handle this, we retrieve the numeric generics expression that the type aliases to
+            <span class="comment">// A type alias to a numeric generics is considered like a variable,
+            // but it is not a real variable so it does not resolve to a valid Identifier.
+            // In order to handle this, we retrieve the numeric generics expression that the type aliases to.
             </span><span class="kw">let </span>type_alias = <span class="self">self</span>.interner.get_type_alias(alias);
             <span class="kw">if let </span><span class="prelude-val">Some</span>(expr) = <span class="kw-2">&amp;</span>type_alias.borrow().numeric_expr {
                 <span class="kw">let </span>expr = UnresolvedTypeExpression::to_expression_kind(expr);
@@ -711,9 +732,9 @@
     <span class="doccomment">/// Checks whether `variable` is `Self::method_name` or `Self::AssociatedConstant` when we are inside a trait impl and `Self`
     /// resolves to a primitive type.
     ///
-    /// In the first case we elaborate this as if it were a TypePath
+    /// In the first case we elaborate this as if it were a [TypePath]
     /// (for example, if `Self` is `u32` then we consider this the same as `u32::method_name`).
-    /// A regular path lookup won't work here for the same reason `TypePath` exists.
+    /// A regular path lookup won't work here for the same reason [TypePath] exists.
     ///
     /// In the second case we solve the associated constant by looking up its value, later
     /// turning it into a literal.
@@ -750,11 +771,10 @@
         <span class="prelude-val">Some</span>(<span class="self">self</span>.elaborate_type_path_impl(self_type.clone(), ident, <span class="prelude-val">None</span>, typ_location))
     }
 
-    <span class="kw">fn </span>resolve_variable(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: TypedPath) -&gt; (HirIdent, <span class="prelude-ty">Option</span>&lt;PathResolutionItem&gt;) {
+    <span class="doccomment">/// Resolve a [TypedPath] to a [HirIdent] of either some trait method, or a local or global variable.
+    </span><span class="kw">fn </span>resolve_variable(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: TypedPath) -&gt; (HirIdent, <span class="prelude-ty">Option</span>&lt;PathResolutionItem&gt;) {
         <span class="kw">if let </span><span class="prelude-val">Some</span>(trait_path_resolution) = <span class="self">self</span>.resolve_trait_generic_path(<span class="kw-2">&amp;</span>path) {
-            <span class="kw">for </span>error <span class="kw">in </span>trait_path_resolution.errors {
-                <span class="self">self</span>.push_err(error);
-            }
+            <span class="self">self</span>.push_errors(trait_path_resolution.errors);
 
             <span class="kw">return match </span>trait_path_resolution.method {
                 TraitPathResolutionMethod::NotATraitMethod(func_id) =&gt; (
@@ -933,7 +953,12 @@
         (id, typ)
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>handle_hir_ident(
+    <span class="doccomment">/// Given an [HirIdent], look up its definition, and:
+    /// * mark it as referenced at the ident [Location] (LSP mode only)
+    /// * mark the item currently being elaborated as a dependency of it
+    /// * elaborate a global definition, if needed
+    /// * add local identifiers to lambda captures
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>handle_hir_ident(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         hir_ident: <span class="kw-2">&amp;</span>HirIdent,
         var_scope_index: usize,
@@ -982,7 +1007,9 @@
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>type_check_variable(
+    <span class="doccomment">/// Starting with empty bindings, perform the type checking of an interned expression
+    /// and a corresponding identifier, returning the instantiated [Type].
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>type_check_variable(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         ident: HirIdent,
         expr_id: <span class="kw-2">&amp;</span>PushedExpr&lt;HasLocation&gt;,
@@ -1000,7 +1027,12 @@
         )
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>type_check_variable_with_bindings(
+    <span class="doccomment">/// Perform the type checking of an interned expression and a corresponding identifier,
+    /// returning the instantiated [Type].
+    ///
+    /// If `push_required_type_variables`, the bindings are added to the function context,
+    /// to be checked before it's finished.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>type_check_variable_with_bindings(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         ident: HirIdent,
         expr_id: <span class="kw-2">&amp;</span>PushedExpr&lt;HasLocation&gt;,
@@ -1118,7 +1150,12 @@
         typ
     }
 
-    <span class="kw">fn </span>instantiate(
+    <span class="doccomment">/// Instantiate a [Type] with the given [TypeBindings], returning the bindings potentially
+    /// extended from any turbofish generics.
+    ///
+    /// If there are turbofish generics and their number matches the expectations of the function,
+    /// those are used as well, otherwise they are ignored and an error is pushed.
+    </span><span class="kw">fn </span>instantiate(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         typ: Type,
         bindings: TypeBindings,
@@ -1156,7 +1193,12 @@
     }
 }
 
-<span class="kw">fn </span>get_type_alias_generics(type_alias: <span class="kw-2">&amp;</span>TypeAlias, generics: <span class="kw-2">&amp;</span>[Type]) -&gt; Vec&lt;Type&gt; {
+<span class="doccomment">/// Bind the generics of the [Type] aliased by the [TypeAlias] to a list of generic arguments,
+/// recursively expanding the generics aliased aliases, finally returning the generics of the
+/// innermost aliased struct.
+///
+/// Panics if it encounters a type other than alias or struct.
+</span><span class="kw">fn </span>get_type_alias_generics(type_alias: <span class="kw-2">&amp;</span>TypeAlias, generics: <span class="kw-2">&amp;</span>[Type]) -&gt; Vec&lt;Type&gt; {
     <span class="kw">let </span>typ = type_alias.get_type(generics);
     <span class="kw">match </span>typ {
         Type::DataType(<span class="kw">_</span>, generics) =&gt; generics,

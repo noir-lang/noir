@@ -906,7 +906,18 @@
 <a href="#905" id="905">905</a>
 <a href="#906" id="906">906</a>
 <a href="#907" id="907">907</a>
-<a href="#908" id="908">908</a></pre></div><pre class="rust"><code><span class="doccomment">//! Path resolution for types, values, and trait methods across modules.
+<a href="#908" id="908">908</a>
+<a href="#909" id="909">909</a>
+<a href="#910" id="910">910</a>
+<a href="#911" id="911">911</a>
+<a href="#912" id="912">912</a>
+<a href="#913" id="913">913</a>
+<a href="#914" id="914">914</a>
+<a href="#915" id="915">915</a>
+<a href="#916" id="916">916</a>
+<a href="#917" id="917">917</a>
+<a href="#918" id="918">918</a>
+<a href="#919" id="919">919</a></pre></div><pre class="rust"><code><span class="doccomment">//! Path resolution for types, values, and trait methods across modules.
 
 </span><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{Located, Location, Span};
@@ -966,7 +977,8 @@
 }
 
 <span class="kw">impl </span>PathResolutionItem {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>function_id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;FuncId&gt; {
+    <span class="doccomment">/// Return a [FuncId] if the item refers to some kind of function, otherwise `None`.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>function_id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;FuncId&gt; {
         <span class="kw">match </span><span class="self">self </span>{
             PathResolutionItem::ModuleFunction(func_id)
             | PathResolutionItem::Method(<span class="kw">_</span>, <span class="kw">_</span>, func_id)
@@ -1089,7 +1101,7 @@
     <span class="kw">pub </span>segments: Vec&lt;TypedPathSegment&gt;,
     <span class="kw">pub </span>kind: PathKind,
     <span class="kw">pub </span>location: Location,
-    <span class="comment">// The location of `kind` (this is the same as `location` for plain kinds)
+    <span class="doccomment">/// The location of `kind` (this is the same as `location` for plain kinds)
     </span><span class="kw">pub </span>kind_location: Location,
 }
 
@@ -1137,7 +1149,8 @@
         <span class="self">self</span>.segments.last().unwrap().ident.as_str()
     }
 
-    <span class="kw">pub fn </span>as_single_segment(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>TypedPathSegment&gt; {
+    <span class="doccomment">/// Returns `Some` if the [TypedPath] consists of a single [PathKind::Plain] segment, otherwise `None`.
+    </span><span class="kw">pub fn </span>as_single_segment(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>TypedPathSegment&gt; {
         <span class="kw">if </span><span class="self">self</span>.kind == PathKind::Plain &amp;&amp; <span class="self">self</span>.segments.len() == <span class="number">1 </span>{
             <span class="self">self</span>.segments.first()
         } <span class="kw">else </span>{
@@ -1166,7 +1179,7 @@
 }
 
 <span class="kw">impl </span>TypedPathSegment {
-    <span class="doccomment">/// Returns the span where turbofish happen. For example:
+    <span class="doccomment">/// Returns the span where turbofish can happen. For example:
     ///
     /// ```noir
     ///    foo::&lt;T&gt;
@@ -1176,13 +1189,17 @@
     /// Returns an empty span at the end of `foo` if there's no turbofish.
     </span><span class="kw">pub fn </span>turbofish_span(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Span {
         <span class="kw">if </span><span class="self">self</span>.ident.location().file == <span class="self">self</span>.location.file {
-            Span::from(<span class="self">self</span>.ident.span().end()..<span class="self">self</span>.location.span.end())
+            <span class="comment">// The `location` contains both the `ident` and the potential turbofish.
+            </span>Span::from(<span class="self">self</span>.ident.span().end()..<span class="self">self</span>.location.span.end())
         } <span class="kw">else </span>{
             <span class="self">self</span>.location.span
         }
     }
 
-    <span class="kw">pub fn </span>turbofish_location(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Location {
+    <span class="doccomment">/// [Location] of any turbofish in the segment.
+    ///
+    /// The [Span] will be empty if there was no turbofish.
+    </span><span class="kw">pub fn </span>turbofish_location(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Location {
         Location::new(<span class="self">self</span>.turbofish_span(), <span class="self">self</span>.location.file)
     }
 
@@ -1208,7 +1225,8 @@
 }
 
 <span class="kw">impl </span>Elaborator&lt;<span class="lifetime">'_</span>&gt; {
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_path_or_error(
+    <span class="doccomment">/// Try to resolve a [TypedPath] into a [PathResolutionItem], marking it as _referenced_.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_path_or_error(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         path: TypedPath,
         target: PathResolutionTarget,
@@ -1216,7 +1234,8 @@
         <span class="self">self</span>.resolve_path_or_error_inner(path, target, PathResolutionMode::MarkAsReferenced)
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>use_path_or_error(
+    <span class="doccomment">/// Try to resolve a [TypedPath] into a [PathResolutionItem], marking it as _used_.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>use_path_or_error(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         path: TypedPath,
         target: PathResolutionTarget,
@@ -1224,7 +1243,10 @@
         <span class="self">self</span>.resolve_path_or_error_inner(path, target, PathResolutionMode::MarkAsUsed)
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_path_or_error_inner(
+    <span class="doccomment">/// Try to resolve a [TypedPath] into a [PathResolutionItem].
+    ///
+    /// Pushes the `errors` from the [PathResolution], returning only the `item`.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_path_or_error_inner(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         path: TypedPath,
         target: PathResolutionTarget,
@@ -1232,14 +1254,13 @@
     ) -&gt; <span class="prelude-ty">Result</span>&lt;PathResolutionItem, ResolverError&gt; {
         <span class="kw">let </span>path_resolution = <span class="self">self</span>.resolve_path_inner(path, target, mode)<span class="question-mark">?</span>;
 
-        <span class="kw">for </span>error <span class="kw">in </span>path_resolution.errors {
-            <span class="self">self</span>.push_err(error);
-        }
+        <span class="self">self</span>.push_errors(path_resolution.errors);
 
         <span class="prelude-val">Ok</span>(path_resolution.item)
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_path_as_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: TypedPath) -&gt; PathResolutionResult {
+    <span class="doccomment">/// Try to resolve a [TypedPath] into a [PathResolution] with [PathResolutionTarget::Type], marking it as _referenced_.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_path_as_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: TypedPath) -&gt; PathResolutionResult {
         <span class="self">self</span>.resolve_path_inner(
             path,
             PathResolutionTarget::Type,
@@ -1247,7 +1268,8 @@
         )
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>use_path_as_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: TypedPath) -&gt; PathResolutionResult {
+    <span class="doccomment">/// Try to resolve a [TypedPath] into a [PathResolution] with [PathResolutionTarget::Type], marking it as _used_.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>use_path_as_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: TypedPath) -&gt; PathResolutionResult {
         <span class="self">self</span>.resolve_path_inner(path, PathResolutionTarget::Type, PathResolutionMode::MarkAsUsed)
     }
 
