@@ -1249,7 +1249,7 @@ impl NodeInterner {
         &self.interned_statement_kinds[id.0]
     }
 
-    /// Intern an [LValue] by turning it into an [Expression] and interning its [ExpressionKind].
+    /// Intern an [LValue] by turning it into an [Expression][crate::ast::Expression] and interning its [ExpressionKind].
     pub fn push_lvalue(&mut self, lvalue: LValue) -> InternedExpressionKind {
         self.push_expression_kind(lvalue.as_expression().kind)
     }

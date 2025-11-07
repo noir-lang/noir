@@ -864,7 +864,7 @@ impl Elaborator<'_> {
 
     /// Elaborate a struct constructor.
     ///
-    /// This method resolves the [UnresolvedType] into the [Type] being constructed,
+    /// This method resolves the [UnresolvedType][crate::ast::UnresolvedType] into the [Type] being constructed,
     /// then delegates to [Elaborator::elaborate_constructor_with_type] to handle the fields.
     fn elaborate_constructor(
         &mut self,

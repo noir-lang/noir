@@ -26,7 +26,7 @@ impl Elaborator<'_> {
     ///
     /// The `definition_kind` specifies the kind of variables the pattern will create, e.g. a local or global variable.
     ///
-    /// The `expected_type` is always known, because we can first infer the type of the <expr> and try to match it to
+    /// The `expected_type` is always known, because we can first infer the type of the `<expr>` and try to match it to
     /// the pattern.
     pub(super) fn elaborate_pattern(
         &mut self,
