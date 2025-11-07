@@ -103,7 +103,7 @@ impl std::fmt::Display for ProcedureId {
             ProcedureId::PrepareVectorInsert => write!(f, "PrepareVectorInsert"),
             ProcedureId::VectorRemove => write!(f, "VectorRemove"),
             ProcedureId::CheckMaxStackDepth => write!(f, "CheckMaxStackDepth"),
-            ProcedureId::ErrorWithString(_) => write!(f, "RevertWithString"),
+            ProcedureId::ErrorWithString(_) => write!(f, "ErrorWithString"),
         }
     }
 }
