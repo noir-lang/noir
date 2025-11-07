@@ -184,3 +184,32 @@ fn does_not_error_on_return_values_after_block_expression() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn must_use() {
+    let src = r#"
+        #[must_use = "This thingy must be used!"]
+        struct PleaseUseMe {}
+
+        #[must_use]
+        struct PleaseUseMe2 {}
+
+        fn main() {
+            PleaseUseMe {};
+            ^^^^^^^^^^^^^^ This thingy must be used!
+            ~~~~~~~~~~~~~~ Unused expression result of type PleaseUseMe which must be used
+            PleaseUseMe2 {};
+            ^^^^^^^^^^^^^^^ Unused expression result of type PleaseUseMe2 which must be used
+            ~~~~~~~~~~~~~~~ `PleaseUseMe2` was declared with `#[must_use]`
+            foo();
+            ^^^^^ This thingy must be used!
+            ~~~~~ Unused expression result of type PleaseUseMe which must be used
+            let _ = foo();
+        }
+
+        fn foo() -> PleaseUseMe {
+            PleaseUseMe {}
+        }
+    "#;
+    check_errors(src);
+}

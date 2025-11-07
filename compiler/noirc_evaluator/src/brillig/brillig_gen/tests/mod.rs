@@ -16,7 +16,7 @@ mod black_box;
 mod call;
 mod memory;
 
-fn ssa_to_brillig_artifacts(src: &str) -> Brillig {
+pub(crate) fn ssa_to_brillig_artifacts(src: &str) -> Brillig {
     let ssa = Ssa::from_str(src).unwrap();
     ssa.to_brillig(&BrilligOptions { enable_debug_trace: false, ..Default::default() })
 }
