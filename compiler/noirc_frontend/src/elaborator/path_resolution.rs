@@ -260,7 +260,7 @@ pub struct TypedPathSegment {
 }
 
 impl TypedPathSegment {
-    /// Returns the span where turbofish happen. For example:
+    /// Returns the span where turbofish can happen. For example:
     ///
     /// ```noir
     ///    foo::<T>
@@ -270,6 +270,7 @@ impl TypedPathSegment {
     /// Returns an empty span at the end of `foo` if there's no turbofish.
     pub fn turbofish_span(&self) -> Span {
         if self.ident.location().file == self.location.file {
+            // The `location` contains both the `ident` and the potential turbofish.
             Span::from(self.ident.span().end()..self.location.span.end())
         } else {
             self.location.span

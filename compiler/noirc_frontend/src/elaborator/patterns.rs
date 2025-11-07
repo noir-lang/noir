@@ -22,6 +22,12 @@ use super::{
 };
 
 impl Elaborator<'_> {
+    /// Elaborate a pattern, which can appear in a `let <pattern> = <expr>`, or a `match` statement.
+    ///
+    /// The `definition_kind` specifies the kind of variables the pattern will create, e.g. a local or global variable.
+    ///
+    /// The `expected_type` is always known, because we can first infer the type of the <expr> and try to match it to
+    /// the pattern.
     pub(super) fn elaborate_pattern(
         &mut self,
         pattern: Pattern,
@@ -40,7 +46,7 @@ impl Elaborator<'_> {
     }
 
     /// Equivalent to `elaborate_pattern`, this version just also
-    /// adds any new DefinitionIds that were created to the given Vec.
+    /// adds any new `DefinitionIds` that were created to the given `Vec`.
     pub fn elaborate_pattern_and_store_ids(
         &mut self,
         pattern: Pattern,
@@ -59,17 +65,21 @@ impl Elaborator<'_> {
         )
     }
 
+    /// Elaborate the (potentially mutable) pattern and add the variables
+    /// it created to the scope if necessary.
     #[allow(clippy::too_many_arguments)]
     fn elaborate_pattern_mut(
         &mut self,
         pattern: Pattern,
         expected_type: Type,
         definition: DefinitionKind,
+        // Location of the `mut` keyword.
         mutable: Option<Location>,
         new_definitions: &mut Vec<HirIdent>,
         warn_if_unused: bool,
     ) -> HirPattern {
         match pattern {
+            // e.g. let <ident> = ...;
             Pattern::Identifier(name) => {
                 // If this definition is mutable, do not store the rhs because it will
                 // not always refer to the correct value of the variable
@@ -95,6 +105,7 @@ impl Elaborator<'_> {
                 new_definitions.push(ident.clone());
                 HirPattern::Identifier(ident)
             }
+            // e.g. let mut <pattern> = ...;
             Pattern::Mutable(pattern, location, _) => {
                 if let Some(first_mut) = mutable {
                     self.push_err(ResolverError::UnnecessaryMut {
@@ -113,6 +124,7 @@ impl Elaborator<'_> {
                 );
                 HirPattern::Mutable(Box::new(pattern), location)
             }
+            // e.g. let (<pattern 0>, <pattern 1>, ...) = ...;
             Pattern::Tuple(fields, location) => {
                 let field_types = match expected_type.follow_bindings() {
                     Type::Tuple(fields) => fields,
@@ -152,6 +164,7 @@ impl Elaborator<'_> {
                 });
                 HirPattern::Tuple(fields, location)
             }
+            // e.g. let <name> { <field 0>: <pattern 0>, <field 1>: <pattern 0>, ... } = ...'
             Pattern::Struct(name, fields, location) => {
                 let name = self.validate_path(name);
                 self.elaborate_struct_pattern(
@@ -164,6 +177,7 @@ impl Elaborator<'_> {
                     new_definitions,
                 )
             }
+            // e.g. let (<pattern>) = ...;
             Pattern::Parenthesized(pattern, _) => self.elaborate_pattern_mut(
                 *pattern,
                 expected_type,
@@ -460,6 +474,7 @@ impl Elaborator<'_> {
         })
     }
 
+    /// Resolve generics using the generic kinds of a struct [DataType].
     pub(super) fn resolve_struct_turbofish_generics(
         &mut self,
         struct_type: &DataType,
@@ -514,6 +529,10 @@ impl Elaborator<'_> {
         )
     }
 
+    /// Given the generic [Kind]s of a type and its own declared generic [Type]s,
+    /// check if we have a non-empty turbofish with the expected number of generics,
+    /// and if so try unify them with the expected kinds, otherwise return the default
+    /// generics of the type.
     pub(super) fn resolve_item_turbofish_generics(
         &mut self,
         item_kind: &'static str,
@@ -523,6 +542,12 @@ impl Elaborator<'_> {
         resolved_turbofish: Option<Vec<Located<Type>>>,
         location: Location,
     ) -> Vec<Type> {
+        debug_assert_eq!(
+            generics.len(),
+            item_generic_kinds.len(),
+            "ICE: generics count should match the expected kinds"
+        );
+
         let Some(turbofish_generics) = resolved_turbofish else {
             return generics;
         };
@@ -540,7 +565,10 @@ impl Elaborator<'_> {
         self.resolve_turbofish_generics(item_generic_kinds, turbofish_generics)
     }
 
-    pub(super) fn resolve_turbofish_generics(
+    /// Given the generic [Kind]s of a type, and the list of generic types in a non-empty turbofish,
+    /// which have already been verified to match the expected number of generics, run type checking
+    /// to ensure each turbofish generic matches the expected kind, and return the unified types.
+    fn resolve_turbofish_generics(
         &mut self,
         kinds: Vec<Kind>,
         turbofish_generics: Vec<Located<Type>>,

@@ -760,6 +760,7 @@ impl Elaborator<'_> {
         }
     }
 
+    /// Check that a [Type] unifies with an expected [Kind] and returned the unified result.
     pub(super) fn check_kind(
         &mut self,
         typ: Type,

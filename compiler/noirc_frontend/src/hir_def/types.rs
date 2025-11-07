@@ -1911,8 +1911,10 @@ impl Type {
         }
     }
 
-    /// Retrieves the type of the given field name
-    /// Panics if the type is not a struct or tuple.
+    /// Retrieves the [Type] and [ItemVisibility] of the given field name:
+    /// * for structs, it finds a member with a matching name
+    /// * for tuples, it find the item by index, treating indexes as names "0", "1", ...
+    /// * otherwise returns `None`
     pub fn get_field_type_and_visibility(
         &self,
         field_name: &str,

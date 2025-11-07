@@ -400,7 +400,9 @@ pub enum DefinitionKind {
     Global(GlobalId),
 
     /// Locals may be defined in let statements or parameters,
-    /// in which case they will not have an associated ExprId
+    /// in which case they will not have an associated ExprId.
+    /// For example a mutable variable can change, so it does
+    /// not have a stable defining expression.
     Local(Option<ExprId>),
 
     /// Generic types in functions (T, U in `fn foo<T, U>(...)` are declared as variables
@@ -1232,6 +1234,7 @@ impl NodeInterner {
         InternedExpressionKind(self.interned_expression_kinds.insert(expr))
     }
 
+    /// Get an interned [ExpressionKind] by its [InternedExpressionKind] ID.
     pub fn get_expression_kind(&self, id: InternedExpressionKind) -> &ExpressionKind {
         &self.interned_expression_kinds[id.0]
     }
@@ -1241,23 +1244,28 @@ impl NodeInterner {
         InternedStatementKind(self.interned_statement_kinds.insert(statement))
     }
 
+    /// Get an interned [StatementKind] by its [InternedStatementKind] ID.
     pub fn get_statement_kind(&self, id: InternedStatementKind) -> &StatementKind {
         &self.interned_statement_kinds[id.0]
     }
 
+    /// Intern an [LValue] by turning it into an [Expression] and interning its [ExpressionKind].
     pub fn push_lvalue(&mut self, lvalue: LValue) -> InternedExpressionKind {
         self.push_expression_kind(lvalue.as_expression().kind)
     }
 
+    /// Get an interned [LValue] by its [InternedExpressionKind] ID.
     pub fn get_lvalue(&self, id: InternedExpressionKind, location: Location) -> LValue {
         LValue::from_expression_kind(self.get_expression_kind(id).clone(), location)
             .expect("Called LValue::from_expression with an invalid expression")
     }
 
+    /// Intern a [Pattern].
     pub fn push_pattern(&mut self, pattern: Pattern) -> InternedPattern {
         InternedPattern(self.interned_patterns.insert(pattern))
     }
 
+    /// Get an interned [Pattern] by its [InternedPattern] ID.
     pub fn get_pattern(&self, id: InternedPattern) -> &Pattern {
         &self.interned_patterns[id.0]
     }

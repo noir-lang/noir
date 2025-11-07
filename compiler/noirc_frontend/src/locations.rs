@@ -150,10 +150,12 @@ impl NodeInterner {
         };
     }
 
+    /// In LSP mode, mark a [ModuleId] as referenced at a [Location].
     pub(crate) fn add_module_reference(&mut self, id: ModuleId, location: Location) {
         self.add_reference(ReferenceId::Module(id), location, false);
     }
 
+    /// In LSP mode, mark a [TypeId] as referenced at a [Location].
     pub(crate) fn add_type_reference(
         &mut self,
         id: TypeId,
@@ -163,6 +165,7 @@ impl NodeInterner {
         self.add_reference(ReferenceId::Type(id), location, is_self_type);
     }
 
+    /// In LSP mode, mark a specific field of a struct as referenced at a [Location].
     pub(crate) fn add_struct_member_reference(
         &mut self,
         id: TypeId,
@@ -172,7 +175,7 @@ impl NodeInterner {
         self.add_reference(ReferenceId::StructMember(id, member_index), location, false);
     }
 
-    /// Mark a [TraitId] as referenced at a [Location].
+    /// In LSP mode, mark a [TraitId] as referenced at a [Location].
     pub(crate) fn add_trait_reference(
         &mut self,
         id: TraitId,
@@ -182,7 +185,7 @@ impl NodeInterner {
         self.add_reference(ReferenceId::Trait(id), location, is_self_type);
     }
 
-    /// Mark a [TraitAssociatedTypeId] as referenced at a [Location].
+    /// In LSP mode, mark a [TraitAssociatedTypeId] as referenced at a [Location].
     pub(crate) fn add_trait_associated_type_reference(
         &mut self,
         id: TraitAssociatedTypeId,
@@ -191,29 +194,27 @@ impl NodeInterner {
         self.add_reference(ReferenceId::TraitAssociatedType(id), location, false);
     }
 
-    /// Mark a [TypeAliasId] as referenced at a [Location].
+    /// In LSP mode, mark a [TypeAliasId] as referenced at a [Location].
     pub(crate) fn add_alias_reference(&mut self, id: TypeAliasId, location: Location) {
         self.add_reference(ReferenceId::Alias(id), location, false);
     }
 
-    /// Mark a [FuncId] as referenced at a [Location].
+    /// In LSP mode, mark a [FuncId] as referenced at a [Location].
     pub(crate) fn add_function_reference(&mut self, id: FuncId, location: Location) {
         self.add_reference(ReferenceId::Function(id), location, false);
     }
 
-    /// Mark a [GlobalId] as referenced at a [Location].
+    /// In LSP mode, mark a [GlobalId] as referenced at a [Location].
     pub(crate) fn add_global_reference(&mut self, id: GlobalId, location: Location) {
         self.add_reference(ReferenceId::Global(id), location, false);
     }
 
-    /// Mark a [DefinitionId] as referenced at a [Location].
+    /// In LSP mode, mark a [DefinitionId] as referenced at a [Location].
     pub(crate) fn add_local_reference(&mut self, id: DefinitionId, location: Location) {
         self.add_reference(ReferenceId::Local(id), location, false);
     }
 
-    /// Mark a [ReferenceId] as referenced at a [Location].
-    ///
-    /// LSP mode only.
+    /// In LSP mode, mark a [ReferenceId] as referenced at a [Location].
     pub(crate) fn add_reference(
         &mut self,
         referenced: ReferenceId,
