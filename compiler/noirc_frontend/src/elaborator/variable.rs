@@ -585,6 +585,11 @@ impl Elaborator<'_> {
     }
 }
 
+/// Bind the generics of the [Type] aliased by the [TypeAlias] to a list of generic arguments,
+/// recursively expanding the generics aliased aliases, finally returning the generics of the
+/// innermost aliased struct.
+///
+/// Panics if it encounters a type other than alias or struct.
 fn get_type_alias_generics(type_alias: &TypeAlias, generics: &[Type]) -> Vec<Type> {
     let typ = type_alias.get_type(generics);
     match typ {

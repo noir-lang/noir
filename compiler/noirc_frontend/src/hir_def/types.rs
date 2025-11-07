@@ -790,6 +790,9 @@ impl TypeAlias {
         self.numeric_expr = num_expr;
     }
 
+    /// Bind the generics of the aliased [Type] to the given generic arguments.
+    ///
+    /// Panics if the number of arguments do not meet expectations.
     pub fn get_type(&self, generic_args: &[Type]) -> Type {
         assert_eq!(self.generics.len(), generic_args.len());
 
