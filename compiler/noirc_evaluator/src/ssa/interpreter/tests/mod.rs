@@ -47,7 +47,7 @@ fn expect_values_with_args(src: &str, args: Vec<Value>) -> Vec<Value> {
 }
 
 #[track_caller]
-fn expect_value_with_args(src: &str, args: Vec<Value>) -> Value {
+pub(crate) fn expect_value_with_args(src: &str, args: Vec<Value>) -> Value {
     let mut results = expect_values_with_args(src, args);
     assert_eq!(results.len(), 1);
     results.pop().unwrap()
@@ -68,7 +68,7 @@ pub(crate) fn from_constant(constant: FieldElement, typ: NumericType) -> Value {
 }
 
 fn from_u32_slice(slice: &[u32], typ: NumericType) -> Value {
-    let values = slice.iter().map(|v| from_constant((*v as u128).into(), typ)).collect();
+    let values = slice.iter().map(|v| from_constant(u128::from(*v).into(), typ)).collect();
     Value::array(values, vec![Type::Numeric(typ)])
 }
 
@@ -137,17 +137,17 @@ fn return_all_numeric_constant_types() {
     let returns = expect_values(src);
     assert_eq!(returns.len(), 11);
 
-    assert_eq!(returns[0], Value::Numeric(NumericValue::Field(FieldElement::zero())));
-    assert_eq!(returns[1], Value::Numeric(NumericValue::U1(true)));
-    assert_eq!(returns[2], Value::Numeric(NumericValue::U8(2)));
-    assert_eq!(returns[3], Value::Numeric(NumericValue::U16(3)));
-    assert_eq!(returns[4], Value::Numeric(NumericValue::U32(4)));
-    assert_eq!(returns[5], Value::Numeric(NumericValue::U64(5)));
-    assert_eq!(returns[6], Value::Numeric(NumericValue::U128(6)));
-    assert_eq!(returns[7], Value::Numeric(NumericValue::I8(-1)));
-    assert_eq!(returns[8], Value::Numeric(NumericValue::I16(-2)));
-    assert_eq!(returns[9], Value::Numeric(NumericValue::I32(-3)));
-    assert_eq!(returns[10], Value::Numeric(NumericValue::I64(-4)));
+    assert_eq!(returns[0], Value::field(FieldElement::zero()));
+    assert_eq!(returns[1], Value::bool(true));
+    assert_eq!(returns[2], Value::u8(2));
+    assert_eq!(returns[3], Value::u16(3));
+    assert_eq!(returns[4], Value::u32(4));
+    assert_eq!(returns[5], Value::u64(5));
+    assert_eq!(returns[6], Value::u128(6));
+    assert_eq!(returns[7], Value::i8(-1));
+    assert_eq!(returns[8], Value::i16(-2));
+    assert_eq!(returns[9], Value::i32(-3));
+    assert_eq!(returns[10], Value::i64(-4));
 }
 
 #[test]
@@ -166,7 +166,7 @@ fn call_function() {
         }
     ";
     let actual = expect_value(src);
-    assert_eq!(Value::Numeric(NumericValue::U32(6)), actual);
+    assert_eq!(Value::u32(6), actual);
 }
 
 #[test]
@@ -1697,7 +1697,7 @@ fn signed_integer_casting() {
       }
       "#;
     let value = expect_value(src);
-    assert_eq!(value, Value::Numeric(NumericValue::I8(0)));
+    assert_eq!(value, Value::i8(0));
 }
 
 #[test]
@@ -1738,5 +1738,5 @@ fn signed_integer_casting_2() {
       }
       "#;
     let value = expect_value(src);
-    assert_eq!(value, Value::Numeric(NumericValue::I64(89)));
+    assert_eq!(value, Value::i64(89));
 }

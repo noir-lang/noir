@@ -163,7 +163,6 @@ use crate::ssa::{
 };
 
 mod branch_analysis;
-pub(crate) mod value_merger;
 
 impl Ssa {
     /// Flattens the control flow graph of main such that the function is left with a
@@ -208,7 +207,7 @@ fn flatten_cfg_pre_check(function: &Function) {
     if !function.runtime().is_acir() {
         return;
     }
-    let loops = super::unrolling::Loops::find_all(function);
+    let loops = super::Loops::find_all(function);
     assert_eq!(loops.yet_to_unroll.len(), 0);
 
     for block in function.reachable_blocks() {
@@ -841,8 +840,13 @@ impl<'f> Context<'f> {
         let instruction = self.handle_instruction_side_effects(instruction, call_stack);
 
         let instruction_is_allocate = matches!(&instruction, Instruction::Allocate);
-        let results =
-            self.inserter.push_instruction_value(instruction, id, self.target_block, call_stack);
+        let results = self.inserter.push_instruction_value(
+            instruction,
+            id,
+            self.target_block,
+            call_stack,
+            true,
+        );
 
         // Remember an allocate was created local to this branch so that we do not try to merge store
         // values across branches for it later.
@@ -1050,7 +1054,9 @@ impl<'f> Context<'f> {
                     arguments[3] = point2_x;
                     arguments[4] = point2_y;
                 }
-
+                // TODO: We now use a predicate in order to disable the blackbox on the backend side
+                // the predicates on the inputs above will be removed once the backend is updated
+                arguments[5] = self.mul_by_condition(arguments[5], condition, call_stack);
                 arguments
             }
 
@@ -1058,10 +1064,12 @@ impl<'f> Context<'f> {
             BlackBoxFunc::MultiScalarMul => {
                 let (elements, typ) =
                     self.apply_predicate_to_msm_argument(arguments[0], condition, call_stack);
-
                 let instruction = Instruction::MakeArray { elements, typ };
                 let array = self.insert_instruction(instruction, call_stack);
                 arguments[0] = array;
+                // TODO: We now use a predicate in order to disable the blackbox on the backend side
+                // the predicates on the inputs above will be removed once the backend is updated
+                arguments[2] = self.mul_by_condition(arguments[2], condition, call_stack);
                 arguments
             }
 
@@ -1095,7 +1103,9 @@ impl<'f> Context<'f> {
                     condition,
                     call_stack,
                 );
-
+                // TODO: We now use a predicate in order to disable the blackbox on the backend side
+                // the predicates on the inputs above will be removed once the backend is updated
+                arguments[4] = self.mul_by_condition(arguments[4], condition, call_stack);
                 arguments
             }
             BlackBoxFunc::EcdsaSecp256r1 => {
@@ -1123,7 +1133,9 @@ impl<'f> Context<'f> {
                     condition,
                     call_stack,
                 );
-
+                // TODO: We now use a predicate in order to disable the blackbox on the backend side
+                // the predicates on the inputs above will be removed once the backend is updated
+                arguments[4] = self.mul_by_condition(arguments[4], condition, call_stack);
                 arguments
             }
 
@@ -1142,15 +1154,6 @@ impl<'f> Context<'f> {
 
             BlackBoxFunc::RANGE => {
                 unreachable!("RANGE should have been converted into `Instruction::RangeCheck`")
-            }
-
-            BlackBoxFunc::BigIntAdd
-            | BlackBoxFunc::BigIntSub
-            | BlackBoxFunc::BigIntMul
-            | BlackBoxFunc::BigIntDiv
-            | BlackBoxFunc::BigIntFromLeBytes
-            | BlackBoxFunc::BigIntToLeBytes => {
-                todo!("BigInt opcodes are not supported yet")
             }
         }
     }
@@ -1192,7 +1195,7 @@ impl<'f> Context<'f> {
                 self.inserter
                     .function
                     .dfg
-                    .make_constant(FieldElement::from(*elem as u32), NumericType::unsigned(8))
+                    .make_constant(FieldElement::from(u32::from(*elem)), NumericType::unsigned(8))
             })
             .collect();
         let constant_array = Instruction::MakeArray { elements, typ: expected_array_type };
@@ -1226,7 +1229,7 @@ impl<'f> Context<'f> {
         condition: ValueId,
         call_stack: CallStackId,
     ) -> (ValueId, ValueId) {
-        let index = !abscissa as usize;
+        let index = usize::from(!abscissa);
         if inputs[3] == inputs[0] && inputs[4] == inputs[1] {
             // Point doubling
             let predicated_value =
@@ -2030,7 +2033,7 @@ mod test {
 
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.flatten_cfg().mem2reg().fold_constants();
+        let ssa = ssa.flatten_cfg().mem2reg().fold_constants(1);
 
         let main = ssa.main();
 
@@ -2097,7 +2100,7 @@ mod test {
 
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.flatten_cfg().mem2reg().fold_constants();
+        let ssa = ssa.flatten_cfg().mem2reg().fold_constants(1);
 
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -2143,7 +2146,7 @@ mod test {
             .mem2reg()
             .remove_if_else()
             .unwrap()
-            .fold_constants()
+            .fold_constants(1)
             .dead_instruction_elimination();
 
         assert_ssa_snapshot!(ssa, @r"
@@ -2273,19 +2276,18 @@ mod test {
             v3 = add u32 42, v1
             enable_side_effects v0
             v4 = cast v0 as u32
-            v5 = cast v0 as u32
-            v6 = unchecked_mul v3, v5
-            range_check v6 to 16 bits
-            v7 = not v0
-            enable_side_effects v7
-            v9 = add u32 3, v3
+            v5 = unchecked_mul v3, v4
+            range_check v5 to 16 bits
+            v6 = not v0
+            enable_side_effects v6
+            v8 = add u32 3, v3
             enable_side_effects u1 1
-            v11 = cast v0 as u32
-            v12 = cast v7 as u32
-            v13 = unchecked_mul v11, v3
-            v14 = unchecked_mul v12, v9
-            v15 = unchecked_add v13, v14
-            return v15
+            v10 = cast v0 as u32
+            v11 = cast v6 as u32
+            v12 = unchecked_mul v10, v3
+            v13 = unchecked_mul v11, v8
+            v14 = unchecked_add v12, v13
+            return v14
         }
         ");
     }

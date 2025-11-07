@@ -9,6 +9,7 @@
     "clean": "rm -rf ./processed-docs ./processed-docs-cache ./build",
     "version::stables": "ts-node ./scripts/setStable.ts",
     "serve": "serve build",
+    "production:serve": "mkdir -p temp-serve/docs && cp -r build/* temp-serve/docs/ && serve temp-serve -l 3000 && rm -rf temp-serve",
     "swizzle": "docusaurus swizzle",
     "cut_version": "yarn version::stables && ./scripts/cut_version.sh"
   },

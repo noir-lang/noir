@@ -462,6 +462,28 @@ impl InlineType {
             InlineType::NoPredicates => false,
         }
     }
+
+    /// Produce an `InlineType` which we can use with an unconstrained version of a function.
+    pub fn into_unconstrained(self) -> Self {
+        match self {
+            InlineType::Inline | InlineType::InlineAlways => self,
+            InlineType::Fold => {
+                // The #[fold] attribute is about creating separate ACIR circuits for proving,
+                // not relevant in Brillig. Leaving it violates some expectations that each
+                // will become its own entry point.
+                Self::default()
+            }
+            InlineType::NoPredicates => {
+                // The #[no_predicates] are guaranteed to be inlined after flattening,
+                // which is needed for some of the programs even in Brillig, otherwise
+                // some intrinsics can survive until Brillig-gen that weren't supposed to.
+                // We can keep these, or try inlining more aggressively, since we don't
+                // have to wait until after flattening in Brillig, but InlineAlways
+                // resulted in some Brillig bytecode size regressions.
+                self
+            }
+        }
+    }
 }
 
 impl Display for InlineType {

@@ -44,20 +44,20 @@ pub enum StatementKind {
     Expression(Expression),
     Assign(AssignStatement),
     For(ForLoopStatement),
-    Loop(Expression, Location /* loop keyword location */),
+    Loop(LoopStatement),
     While(WhileStatement),
     Break,
     Continue,
     /// This statement should be executed at compile-time
     Comptime(Box<Statement>),
-    // This is an expression with a trailing semi-colon
+    /// This is an expression with a trailing semi-colon
     Semi(Expression),
-    // This is an interned StatementKind during comptime code.
-    // The actual StatementKind can be retrieved with a NodeInterner.
+    /// This is an interned StatementKind during comptime code.
+    /// The actual StatementKind can be retrieved with a NodeInterner.
     Interned(InternedStatementKind),
-    // This statement is the result of a recovered parse error.
-    // To avoid issuing multiple errors in later steps, it should
-    // be skipped in any future analysis if possible.
+    /// This statement is the result of a recovered parse error.
+    /// To avoid issuing multiple errors in later steps, it should
+    /// be skipped in any future analysis if possible.
     Error,
 }
 
@@ -421,7 +421,7 @@ pub struct Path {
     pub segments: Vec<PathSegment>,
     pub kind: PathKind,
     pub location: Location,
-    // The location of `kind` (this is the same as `location` for plain kinds)
+    /// The location of `kind` (this is the same as `location` for plain kinds)
     pub kind_location: Location,
 }
 
@@ -439,12 +439,13 @@ impl Path {
         self
     }
 
-    /// Construct a PathKind::Plain from this single
+    /// Construct a [PathKind::Plain] from a single identifier name.
     pub fn from_single(name: String, location: Location) -> Path {
         let segment = Ident::from(Located::from(location, name));
         Path::from_ident(segment)
     }
 
+    /// Construct a [PathKind::Plain] from a single [Ident].
     pub fn from_ident(name: Ident) -> Path {
         let location = name.location();
         Path::plain(vec![PathSegment::from(name)], location)
@@ -904,6 +905,12 @@ pub struct WhileStatement {
     pub while_keyword_location: Location,
 }
 
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct LoopStatement {
+    pub body: Expression,
+    pub loop_keyword_location: Location,
+}
+
 impl Display for StatementKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -911,7 +918,7 @@ impl Display for StatementKind {
             StatementKind::Expression(expression) => expression.fmt(f),
             StatementKind::Assign(assign) => assign.fmt(f),
             StatementKind::For(for_loop) => for_loop.fmt(f),
-            StatementKind::Loop(block, _) => write!(f, "loop {block}"),
+            StatementKind::Loop(loop_) => write!(f, "loop {}", loop_.body),
             StatementKind::While(while_) => {
                 write!(f, "while {} {}", while_.condition, while_.body)
             }

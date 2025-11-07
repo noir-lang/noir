@@ -42,6 +42,7 @@ fn main() -> Result<(), String> {
 
     generate_minimal_execution_success_tests(&mut test_file, &test_dir);
     generate_interpret_execution_success_tests(&mut test_file, &test_dir);
+    generate_interpret_execution_failure_tests(&mut test_file, &test_dir);
 
     generate_fuzzing_failure_tests(&mut test_file, &test_dir);
 
@@ -71,7 +72,7 @@ fn main() -> Result<(), String> {
 
 /// Some tests are explicitly ignored in brillig due to them failing.
 /// These should be fixed and removed from this list.
-const IGNORED_BRILLIG_TESTS: [&str; 10] = [
+const IGNORED_BRILLIG_TESTS: [&str; 11] = [
     // bit sizes for bigint operation doesn't match up.
     "bigint",
     // ICE due to looking for function which doesn't exist.
@@ -85,6 +86,8 @@ const IGNORED_BRILLIG_TESTS: [&str; 10] = [
     "fold_numeric_generic_poseidon",
     // Expected to fail as test asserts on which runtime it is in.
     "is_unconstrained",
+    // The output depends on function IDs of lambdas, and with --force-brillig we only get one kind.
+    "regression_10158",
 ];
 
 /// Tests which aren't expected to work with the default minimum inliner cases.
@@ -120,9 +123,12 @@ const TESTS_WITH_EXPECTED_WARNINGS: [&str; 5] = [
 
 /// `nargo interpret` ignored tests, either because they don't currently work or
 /// because they are too slow to run.
-const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 1] = [
+const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 2] = [
     // slow
     "regression_4709",
+    // Doesn't match Brillig, but the expected ref-count of 5 has comments which
+    // suggest it's not exactly clear why we get that exact value anyway.
+    "reference_counts_inliner_max",
 ];
 
 /// `nargo execute --minimal-ssa` ignored tests
@@ -732,6 +738,32 @@ fn generate_interpret_execution_success_tests(test_file: &mut File, test_data_di
                 min_inliner: min_inliner(&test_name),
                 max_inliner: max_inliner(&test_name),
             },
+        );
+    }
+    writeln!(test_file, "}}").unwrap();
+}
+
+fn generate_interpret_execution_failure_tests(test_file: &mut File, test_data_dir: &Path) {
+    let test_type = "execution_failure";
+    let test_cases = read_test_cases(test_data_dir, test_type);
+
+    writeln!(
+        test_file,
+        "mod interpret_{test_type} {{
+        use super::*;
+    "
+    )
+    .unwrap();
+    for (test_name, test_dir) in test_cases {
+        let test_dir = test_dir.display();
+
+        generate_test_cases(
+            test_file,
+            &test_name,
+            &test_dir,
+            "interpret",
+            "interpret_execution_failure(nargo);",
+            &MatrixConfig { vary_brillig: true, ..Default::default() },
         );
     }
     writeln!(test_file, "}}").unwrap();

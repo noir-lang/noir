@@ -18,7 +18,7 @@ use crate::fuzzer::FuzzerData;
 use crate::initial_witness::{WitnessValue, WitnessValueNumeric};
 use crate::instruction::{Instruction, InstructionBlock, NumericArgument};
 use crate::options::FuzzerOptions;
-use crate::tests::common::default_input_types;
+use crate::tests::common::{default_input_types, default_runtimes};
 use acvm::FieldElement;
 use noir_ssa_fuzzer::typed_value::{NumericType, Type};
 
@@ -77,7 +77,7 @@ fn test_op_u64(op: UnsignedOp) -> FieldElement {
         }],
         initial_witness: default_unsigned_witness(),
     };
-    fuzz_target(data, FuzzerOptions::default()).unwrap().get_return_values()[0]
+    fuzz_target(data, default_runtimes(), FuzzerOptions::default()).get_return_witnesses()[0]
 }
 
 #[test]

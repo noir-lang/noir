@@ -136,11 +136,11 @@ where
             }
             CompareResult::LeftFailed(e, _) => {
                 let e = &e.error;
-                bail!("first program failed: {e}\n{e:?}")
+                bail!("first program failed: {e}\n\n{e:?}")
             }
             CompareResult::RightFailed(_, e) => {
                 let e = &e.error;
-                bail!("second program failed: {e}\n{e:?}")
+                bail!("second program failed: {e}\n\n{e:?}")
             }
             CompareResult::BothPassed(o1, o2) => match (&o1.return_value, &o2.return_value) {
                 (Some(r1), Some(r2)) if !Comparable::equivalent(r1, r2) => {
@@ -164,5 +164,58 @@ where
                 }
             },
         }
+    }
+}
+
+/// We can turn on the logging of artifacts by setting the `RUST_LOG=debug` env var.
+///
+/// This can help reproducing failures. The functions in this module can help cut back some repetition.
+/// Log things as soon as they are available in case the next step fails.
+mod logging {
+    use noirc_abi::{Abi, InputMap};
+    use noirc_evaluator::ssa::{interpreter::value::Value, ssa_gen::Ssa};
+    use noirc_frontend::monomorphization::ast::Program;
+
+    use crate::{DisplayAstAsNoir, compare::CompareOptions};
+
+    fn format_msg(msg: &str) -> String {
+        if msg.is_empty() { String::new() } else { format!(" ({msg})") }
+    }
+
+    pub(super) fn log_program(program: &Program, msg: &str) {
+        log::debug!("AST{}:\n{}\n", format_msg(msg), DisplayAstAsNoir(program));
+    }
+
+    pub(super) fn log_ssa(ssa: &Ssa, msg: &str) {
+        log::debug!("SSA{}:\n{}\n", format_msg(msg), ssa.print_without_locations());
+    }
+
+    pub(super) fn log_comptime(src: &str, msg: &str) {
+        log::debug!("comptime source{}:\n{}\n", format_msg(msg), src);
+    }
+
+    pub(super) fn log_options(options: &CompareOptions, msg: &str) {
+        log::debug!("Options{}:\n{:?}\n", format_msg(msg), options);
+    }
+
+    pub(super) fn log_abi_inputs(abi: &Abi, input_map: &InputMap) {
+        log::debug!(
+            "ABI inputs:\n{}\n",
+            noirc_abi::input_parser::Format::Toml
+                .serialize(input_map, abi)
+                .unwrap_or_else(|e| format!("failed to serialize inputs: {e}"))
+        );
+    }
+
+    pub(super) fn log_ssa_inputs(ssa_args: &[Value]) {
+        log::debug!(
+            "SSA inputs:\n{}\n",
+            ssa_args
+                .iter()
+                .enumerate()
+                .map(|(i, v)| format!("{i}: {v}"))
+                .collect::<Vec<_>>()
+                .join("\n")
+        );
     }
 }

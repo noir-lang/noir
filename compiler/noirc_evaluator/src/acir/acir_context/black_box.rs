@@ -1,139 +1,26 @@
-use acvm::{
-    BlackBoxFunctionSolver,
-    acir::{
-        AcirField, BlackBoxFunc,
-        circuit::opcodes::{ConstantOrWitnessEnum, FunctionInput},
-    },
-};
+use acvm::acir::{AcirField, BlackBoxFunc, circuit::opcodes::FunctionInput};
 use iter_extended::vecmap;
-use num_bigint::BigUint;
 
-use crate::errors::{InternalError, RuntimeError};
+use crate::{
+    errors::{InternalError, RuntimeError},
+    ssa::ir::types::NumericType,
+};
 
 use super::{AcirContext, AcirValue, AcirVar};
 
-impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
+impl<F: AcirField> AcirContext<F> {
     /// Calls a Blackbox function on the given inputs and returns a given set of outputs
     /// to represent the result of the blackbox function.
     pub(crate) fn black_box_function(
         &mut self,
         name: BlackBoxFunc,
         mut inputs: Vec<AcirValue>,
-        mut output_count: usize,
+        num_bits: Option<u32>,
+        output_count: usize,
+        predicate: Option<AcirVar>,
     ) -> Result<Vec<AcirVar>, RuntimeError> {
         // Separate out any arguments that should be constants
-        let (constant_inputs, constant_outputs) = match name {
-            BlackBoxFunc::Poseidon2Permutation => {
-                // The last argument is the state length, which must be a constant
-                let state_len = match inputs.pop() {
-                    Some(state_len) => state_len.into_var()?,
-                    None => {
-                        return Err(RuntimeError::InternalError(InternalError::MissingArg {
-                            name: "poseidon_2_permutation call".to_string(),
-                            arg: "length".to_string(),
-                            call_stack: self.get_call_stack(),
-                        }));
-                    }
-                };
-
-                let state_len = match self.var_to_expression(state_len)?.to_const() {
-                    Some(state_len) => *state_len,
-                    None => {
-                        return Err(RuntimeError::InternalError(InternalError::NotAConstant {
-                            name: "length".to_string(),
-                            call_stack: self.get_call_stack(),
-                        }));
-                    }
-                };
-
-                (vec![state_len], Vec::new())
-            }
-            BlackBoxFunc::BigIntAdd
-            | BlackBoxFunc::BigIntSub
-            | BlackBoxFunc::BigIntMul
-            | BlackBoxFunc::BigIntDiv => {
-                assert_eq!(inputs.len(), 4, "ICE - bigint operation requires 4 inputs");
-                let const_inputs = vecmap(inputs, |i| {
-                    let var = i.into_var()?;
-                    match self.var_to_expression(var)?.to_const() {
-                        Some(const_var) => Ok(*const_var),
-                        None => Err(RuntimeError::InternalError(InternalError::NotAConstant {
-                            name: "big integer".to_string(),
-                            call_stack: self.get_call_stack(),
-                        })),
-                    }
-                });
-                inputs = Vec::new();
-                output_count = 0;
-                let mut field_inputs = Vec::new();
-                for i in const_inputs {
-                    field_inputs.push(i?);
-                }
-                if field_inputs[1] != field_inputs[3] {
-                    return Err(RuntimeError::BigIntModulus { call_stack: self.get_call_stack() });
-                }
-
-                let result_id = self.big_int_ctx.new_big_int(field_inputs[1]);
-                (
-                    vec![field_inputs[0], field_inputs[2]],
-                    vec![result_id.bigint_id::<F>(), result_id.modulus_id::<F>()],
-                )
-            }
-            BlackBoxFunc::BigIntToLeBytes => {
-                let const_inputs = vecmap(inputs, |i| {
-                    let var = i.into_var()?;
-                    match self.var_to_expression(var)?.to_const() {
-                        Some(const_var) => Ok(*const_var),
-                        None => Err(RuntimeError::InternalError(InternalError::NotAConstant {
-                            name: "big integer".to_string(),
-                            call_stack: self.get_call_stack(),
-                        })),
-                    }
-                });
-                inputs = Vec::new();
-                let mut field_inputs = Vec::new();
-                for i in const_inputs {
-                    field_inputs.push(i?);
-                }
-                let bigint = self.big_int_ctx.get(field_inputs[0]);
-                let modulus = self.big_int_ctx.modulus(bigint.modulus_id::<F>());
-                let bytes_len = ((modulus - BigUint::from(1_u32)).bits() - 1) / 8 + 1;
-                output_count = bytes_len as usize;
-                assert!(bytes_len == 32);
-                (field_inputs, vec![])
-            }
-            BlackBoxFunc::BigIntFromLeBytes => {
-                let invalid_input = "ICE - bigint operation requires 2 inputs";
-                assert_eq!(inputs.len(), 2, "{invalid_input}");
-                let mut modulus = Vec::new();
-                match inputs.pop().expect(invalid_input) {
-                    AcirValue::Array(values) => {
-                        for value in values {
-                            modulus.push(
-                                *self.var_to_expression(value.into_var()?)?.to_const().ok_or(
-                                    RuntimeError::InternalError(InternalError::NotAConstant {
-                                        name: "big integer".to_string(),
-                                        call_stack: self.get_call_stack(),
-                                    }),
-                                )?,
-                            );
-                        }
-                    }
-                    _ => {
-                        return Err(RuntimeError::InternalError(InternalError::MissingArg {
-                            name: "big_int_from_le_bytes".to_owned(),
-                            arg: "modulus".to_owned(),
-                            call_stack: self.get_call_stack(),
-                        }));
-                    }
-                }
-                let big_modulus = BigUint::from_bytes_le(&vecmap(&modulus, |b| b.to_u128() as u8));
-                output_count = 0;
-
-                let modulus_id = self.big_int_ctx.get_or_insert_modulus(big_modulus);
-                let result_id = self.big_int_ctx.new_big_int(F::from(modulus_id as u128));
-                (modulus, vec![result_id.bigint_id::<F>(), result_id.modulus_id::<F>()])
-            }
+        let constant_inputs = match name {
             BlackBoxFunc::AES128Encrypt => {
                 let invalid_input = "aes128_encrypt - operation requires a plaintext to encrypt";
                 let input_size: usize = match inputs.first().expect(invalid_input) {
@@ -146,8 +33,14 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                         }));
                     }
                 }?;
-                output_count = input_size + (16 - input_size % 16);
-                (vec![], vec![])
+
+                assert_eq!(
+                    output_count,
+                    input_size + 16 - input_size % 16,
+                    "output count mismatch"
+                );
+
+                Vec::new()
             }
             BlackBoxFunc::RecursiveAggregation => {
                 let proof_type_var = match inputs.pop() {
@@ -170,35 +63,26 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                         }));
                     }
                 };
-
-                (vec![proof_type_constant], Vec::new())
+                inputs.push(AcirValue::Var(predicate.unwrap(), NumericType::bool()));
+                vec![proof_type_constant]
             }
-            _ => (vec![], vec![]),
+            _ => Vec::new(),
         };
         let inputs = self.prepare_inputs_for_black_box_func(inputs, name)?;
-        // Call Black box with `FunctionInput`
-        let mut results = vecmap(&constant_outputs, |c| self.add_constant(*c));
 
         let output_vars = vecmap(0..output_count, |_| self.add_variable());
         let output_witnesses = vecmap(&output_vars, |var| {
             self.var_to_witness(*var).expect("variable was just created as witness")
         });
 
-        self.acir_ir.call_black_box(
-            name,
-            &inputs,
-            constant_inputs,
-            constant_outputs,
-            output_witnesses,
-        )?;
+        self.acir_ir.call_black_box(name, inputs, constant_inputs, num_bits, output_witnesses)?;
 
         // Convert `Witness` values which are now constrained to be the output of the
         // black box function call into `AcirVar`s.
         //
         // We do not apply range information on the output of the black box function.
         // See issue #1439
-        results.extend(output_vars);
-        Ok(results)
+        Ok(output_vars)
     }
 
     pub(super) fn prepare_inputs_for_black_box_func(
@@ -224,7 +108,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         let mut inputs =
             self.prepare_inputs_for_black_box_func_call(inputs, allow_constant_inputs)?;
         if name == BlackBoxFunc::EmbeddedCurveAdd {
-            inputs = self.all_or_nothing_for_ec_add(inputs)?;
+            inputs = self.all_variables_or_constants_for_ec_add(inputs)?;
         }
         Ok(inputs)
     }
@@ -244,23 +128,20 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                 let num_bits = typ.bit_size::<F>();
                 match self.var_to_expression(input)?.to_const() {
                     Some(constant) if allow_constant_inputs => {
-                        single_val_witnesses.push(
-                            FunctionInput::constant(*constant, num_bits).map_err(
-                                |invalid_input_bit_size| {
-                                    RuntimeError::InvalidBlackBoxInputBitSize {
-                                        value: invalid_input_bit_size.value,
-                                        num_bits: invalid_input_bit_size.value_num_bits,
-                                        max_num_bits: invalid_input_bit_size.max_bits,
-                                        call_stack: self.get_call_stack(),
-                                    }
-                                },
-                            )?,
-                        );
+                        if num_bits < constant.num_bits() {
+                            return Err(RuntimeError::InvalidBlackBoxInputBitSize {
+                                value: constant.to_string(),
+                                num_bits: constant.num_bits(),
+                                max_num_bits: num_bits,
+                                call_stack: self.get_call_stack(),
+                            });
+                        }
+                        single_val_witnesses.push(FunctionInput::Constant(*constant));
                     }
                     _ => {
                         let witness_var = self.get_or_create_witness_var(input)?;
                         let witness = self.var_to_witness(witness_var)?;
-                        single_val_witnesses.push(FunctionInput::witness(witness, num_bits));
+                        single_val_witnesses.push(FunctionInput::Witness(witness));
                     }
                 }
             }
@@ -269,9 +150,11 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         Ok(witnesses)
     }
 
-    /// EcAdd has 6 inputs representing the two points to add
-    /// Each point must be either all constant, or all witnesses
-    fn all_or_nothing_for_ec_add(
+    /// [`BlackBoxFunc::EmbeddedCurveAdd`] has 6 inputs representing the two points to add
+    /// Each point must be either all constants, or all witnesses,
+    /// where constants are converted to witnesses here if mixed constant and witnesses are
+    /// encountered
+    fn all_variables_or_constants_for_ec_add(
         &mut self,
         inputs: Vec<Vec<FunctionInput<F>>>,
     ) -> Result<Vec<Vec<FunctionInput<F>>>, RuntimeError> {
@@ -279,21 +162,23 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         let mut has_witness = false;
         let mut result = inputs.clone();
         for (i, input) in inputs.iter().enumerate() {
+            assert_eq!(input.len(), 1);
             if input[0].is_constant() {
                 has_constant = true;
             } else {
                 has_witness = true;
             }
+
             if i % 3 == 2 {
                 if has_constant && has_witness {
-                    // Convert the constants to witness if mixed constant and witness,
+                    // Convert the constants to witnesses if mixed constants and witnesses are
+                    // encountered
                     for j in i - 2..i + 1 {
-                        if let ConstantOrWitnessEnum::Constant(constant) = inputs[j][0].input() {
+                        if let FunctionInput::Constant(constant) = inputs[j][0] {
                             let constant = self.add_constant(constant);
                             let witness_var = self.get_or_create_witness_var(constant)?;
                             let witness = self.var_to_witness(witness_var)?;
-                            result[j] =
-                                vec![FunctionInput::witness(witness, inputs[j][0].num_bits())];
+                            result[j] = vec![FunctionInput::Witness(witness)];
                         }
                     }
                 }

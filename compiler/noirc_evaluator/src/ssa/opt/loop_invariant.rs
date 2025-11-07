@@ -30,8 +30,7 @@
 //! ```text
 //! Let G be a control flow graph. Let X and Y be nodes in G. Y is
 //! control dependent on X iff
-//! (1) there exists a directed path P from X to Y with any 2 in P (excluding X
-//! and Y) post-dominated by Y and
+//! (1) there exists a directed path P from X to Y with any Z in P (excluding X and Y) post-dominated by Y, and
 //! (2) X is not post-dominated by Y.
 //!
 //! If Y is control dependent on X then X must have two exits. Following one of the
@@ -91,6 +90,7 @@ use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         cfg::ControlFlowGraph,
+        dfg::DataFlowGraph,
         dom::DominatorTree,
         function::Function,
         function_inserter::FunctionInserter,
@@ -422,22 +422,17 @@ impl<'f> LoopInvariantContext<'f> {
                 if self.simplify_from_loop_bounds(&loop_context, &block_context, instruction_id) {
                     continue;
                 }
-                let hoist_invariant =
+                let (hoist_invariant, insert_rc) =
                     self.can_hoist_invariant(&loop_context, &block_context, instruction_id);
 
                 if hoist_invariant {
-                    self.inserter.push_instruction(instruction_id, pre_header);
+                    self.inserter.push_instruction(instruction_id, pre_header, false);
 
                     // If we are hoisting a MakeArray instruction,
                     // we need to issue an extra inc_rc in case they are mutated afterward.
-                    if self.inserter.function.runtime().is_brillig()
-                        && matches!(
-                            self.inserter.function.dfg[instruction_id],
-                            Instruction::MakeArray { .. }
-                        )
-                    {
-                        let result =
-                            self.inserter.function.dfg.instruction_results(instruction_id)[0];
+                    if insert_rc {
+                        let [result] =
+                            self.inserter.function.dfg.instruction_result(instruction_id);
                         let inc_rc = Instruction::IncrementRc { value: result };
                         let call_stack = self
                             .inserter
@@ -456,7 +451,7 @@ impl<'f> LoopInvariantContext<'f> {
                     if !block_context.is_impure {
                         block_context.is_impure = dfg[instruction_id].has_side_effects(dfg);
                     }
-                    self.inserter.push_instruction(instruction_id, *block);
+                    self.inserter.push_instruction(instruction_id, *block, true);
                 }
 
                 // We will have new IDs after pushing instructions.
@@ -658,14 +653,18 @@ impl<'f> LoopInvariantContext<'f> {
         }
     }
 
+    /// Decide if an in instruction can be hoisted into the pre-header of the loop.
+    ///
+    /// Returns 2 flags:
+    /// 1. Whether the instruction can be hoisted
+    /// 2. If it can be hoisted, does it require an `IncrementRc` instruction.
     fn can_hoist_invariant(
         &mut self,
         loop_context: &LoopContext,
         block_context: &BlockContext,
         instruction_id: InstructionId,
-    ) -> bool {
+    ) -> (bool, bool) {
         use CanBeHoistedResult::*;
-        use Instruction::*;
 
         let mut is_loop_invariant = true;
         // The list of blocks for a nested loop contain any inner loops as well.
@@ -683,25 +682,20 @@ impl<'f> LoopInvariantContext<'f> {
         });
 
         if !is_loop_invariant {
-            return false;
-        }
-
-        // MakeArray is only safe to hoist in ACIR, but we know that in Brillig we will insert an `IncRc`
-        // in `LoopInvariantContext::hoist_loop_invariants` to keep it safe, so it's okay to hoist them.
-        if matches!(instruction, MakeArray { .. }) {
-            return true;
+            return (false, false);
         }
 
         // Check if the operation depends only on the outer loop variable, in which case it can be hoisted
         // into the pre-header of a nested loop even if the nested loop does not execute.
         if self.can_be_hoisted_from_loop_bounds(loop_context, &instruction) {
-            return true;
+            return (true, false);
         }
 
-        match can_be_hoisted(&instruction, self.inserter.function) {
-            Yes => true,
-            No => false,
-            WithPredicate => block_context.can_hoist_control_dependent_instruction(),
+        match can_be_hoisted(&instruction, &self.inserter.function.dfg) {
+            Yes => (true, false),
+            No => (false, false),
+            WithRefCount => (true, true),
+            WithPredicate => (block_context.can_hoist_control_dependent_instruction(), false),
         }
     }
 
@@ -723,7 +717,7 @@ impl<'f> LoopInvariantContext<'f> {
         use Instruction::*;
 
         match instruction {
-            ArrayGet { array, index, offset: _ } => {
+            ArrayGet { array, index } => {
                 let array_typ = self.inserter.function.dfg.type_of_value(*array);
                 let upper_bound = self.outer_induction_variables.get(index).map(|bounds| bounds.1);
                 if let (Type::Array(_, len), Some(upper_bound)) = (array_typ, upper_bound) {
@@ -753,7 +747,7 @@ impl<'f> LoopInvariantContext<'f> {
 
         for block in block_order {
             for instruction_id in self.inserter.function.dfg[block].take_instructions() {
-                self.inserter.push_instruction(instruction_id, block);
+                self.inserter.push_instruction(instruction_id, block, true);
             }
             self.inserter.map_terminator_in_place(block);
         }
@@ -797,6 +791,7 @@ enum CanBeHoistedResult {
     Yes,
     No,
     WithPredicate,
+    WithRefCount,
 }
 
 impl From<bool> for CanBeHoistedResult {
@@ -825,7 +820,7 @@ impl From<bool> for CanBeHoistedResult {
 /// This differs from `can_be_deduplicated` as that method assumes there is a matching instruction
 /// with the same inputs. Hoisting is for lone instructions, meaning a mislabeled hoist could cause
 /// unexpected failures if the instruction was never meant to be executed.
-fn can_be_hoisted(instruction: &Instruction, function: &Function) -> CanBeHoistedResult {
+fn can_be_hoisted(instruction: &Instruction, dfg: &DataFlowGraph) -> CanBeHoistedResult {
     use CanBeHoistedResult::*;
     use Instruction::*;
 
@@ -839,9 +834,9 @@ fn can_be_hoisted(instruction: &Instruction, function: &Function) -> CanBeHoiste
         | DecrementRc { .. } => No,
 
         Call { func, .. } => {
-            let purity = match function.dfg[*func] {
+            let purity = match dfg[*func] {
                 Value::Intrinsic(intrinsic) => Some(intrinsic.purity()),
-                Value::Function(id) => function.dfg.purity_of(id),
+                Value::Function(id) => dfg.purity_of(id),
                 _ => None,
             };
             match purity {
@@ -855,8 +850,9 @@ fn can_be_hoisted(instruction: &Instruction, function: &Function) -> CanBeHoiste
         Cast(source, target_type) => {
             // A cast may have dependence on a range-check, which may not be hoisted, so we cannot always hoist a cast.
             // We can safely hoist a cast from a smaller to a larger type as no range check is necessary in this case.
-            let source_type = function.dfg.type_of_value(*source).unwrap_numeric();
-            (source_type.bit_size() <= target_type.bit_size()).into()
+            let source_type = dfg.type_of_value(*source).unwrap_numeric();
+            (source_type.bit_size::<FieldElement>() <= target_type.bit_size::<FieldElement>())
+                .into()
         }
 
         // These instructions can always be hoisted
@@ -869,19 +865,19 @@ fn can_be_hoisted(instruction: &Instruction, function: &Function) -> CanBeHoiste
         Noop => Yes,
 
         // Arrays can be mutated in unconstrained code so code that handles this case must
-        // take care to track whether the array was possibly mutated or not before
-        // hoisted. We know that in this module we will insert a corresponding `IncRc` to
-        // allow safe hoisting in unconstrained code, but just in case we would expose this
-        // function to other modules, we return a more restrictive result here.
-        MakeArray { .. } => function.runtime().is_acir().into(),
-
-        // These can have different behavior depending on the predicate.
-        Binary(_) | ArrayGet { .. } | ArraySet { .. } => {
-            if !instruction.requires_acir_gen_predicate(&function.dfg) {
+        // take care to track whether the array was possibly mutated or not before hoisted.
+        // An ACIR it is always safe to hoist MakeArray.
+        MakeArray { .. } => {
+            if dfg.runtime().is_acir() {
                 Yes
             } else {
-                WithPredicate
+                WithRefCount
             }
+        }
+
+        // These can have different behavior depending on the predicate.
+        Binary(_) | ArraySet { .. } | ArrayGet { .. } => {
+            if !instruction.requires_acir_gen_predicate(dfg) { Yes } else { WithPredicate }
         }
     }
 }
@@ -896,11 +892,11 @@ mod test {
     use crate::ssa::ir::function::RuntimeType;
     use crate::ssa::ir::instruction::{Instruction, Intrinsic, TerminatorInstruction};
     use crate::ssa::ir::types::Type;
+    use crate::ssa::opt::Loops;
     use crate::ssa::opt::loop_invariant::{
         CanBeHoistedResult, LoopContext, LoopInvariantContext, can_be_hoisted,
     };
     use crate::ssa::opt::pure::Purity;
-    use crate::ssa::opt::unrolling::Loops;
     use crate::ssa::opt::{assert_normalized_ssa_equals, assert_ssa_does_not_change};
     use acvm::AcirField;
     use noirc_frontend::monomorphization::ast::InlineType;
@@ -2020,17 +2016,47 @@ mod test {
         true,
         "nested loop empty, but add cannot overflow"
     )]
-    #[test_case("u32", 0, 10, 10, true, "add", (u32::MAX-5) as i64, true, "add overflows, and loop executes")]
-    #[test_case("u32", 0, 10, 0, true, "add", (u32::MAX-5) as i64, false, "add overflows, but loop empty")]
-    #[test_case("u32", 0, 10, 0, true, "unchecked_add", (u32::MAX-5) as i64, true, "loop empty, but add unchecked")]
+    #[test_case("u32", 0, 10, 10, true, "add", i64::from(u32::MAX - 5), true, "add overflows, and loop executes")]
+    #[test_case("u32", 0, 10, 0, true, "add", i64::from(u32::MAX - 5), false, "add overflows, but loop empty")]
+    #[test_case("u32", 0, 10, 0, true, "unchecked_add", i64::from(u32::MAX - 5), true, "loop empty, but add unchecked")]
     #[test_case("u32", 5, 10, 10, true, "sub", 5, true, "loop executes, sub cannot overflow")]
     #[test_case("u32", 0, 10, 10, true, "sub", 5, true, "sub overflows, and loop executes")]
     #[test_case("u32", 0, 10, 0, true, "sub", 5, false, "sub overflows, but loop empty")]
     #[test_case("u32", 0, 10, 0, true, "unchecked_sub", 5, true, "loop empty, but sub unchecked")]
     #[test_case("u32", 0, 10, 10, true, "mul", 10, true, "loop executes, mul cannot overflow")]
-    #[test_case("u32", 0, 10, 10, true, "mul", u32::MAX as i64, true, "mul overflows, and loop executes")]
-    #[test_case("u32", 0, 10, 0, true, "mul", u32::MAX as i64, false, "mul overflows, but loop empty")]
-    #[test_case("u32", 0, 10, 0, true, "unchecked_mul", u32::MAX as i64, true, "loop empty, but mul unchecked")]
+    #[test_case(
+        "u32",
+        0,
+        10,
+        10,
+        true,
+        "mul",
+        i64::from(u32::MAX),
+        true,
+        "mul overflows, and loop executes"
+    )]
+    #[test_case(
+        "u32",
+        0,
+        10,
+        0,
+        true,
+        "mul",
+        i64::from(u32::MAX),
+        false,
+        "mul overflows, but loop empty"
+    )]
+    #[test_case(
+        "u32",
+        0,
+        10,
+        0,
+        true,
+        "unchecked_mul",
+        i64::from(u32::MAX),
+        true,
+        "loop empty, but mul unchecked"
+    )]
     #[test_case("u32", 0, 10, 10, true, "div", 2, true, "loop executes, div ok")]
     #[test_case("u32", 0, 10, 0, true, "div", 2, true, "loop empty, div ok")]
     #[test_case("u32", 0, 10, 10, true, "div", 0, true, "div by zero, and loop executes")]
@@ -2043,8 +2069,8 @@ mod test {
     #[test_case("u32", 0, 10, 0, true, "eq", 5, true, "loop empty, but eq is safe")]
     #[test_case("u32", 5, 10, 10, true, "shr", 1, true, "loop executes, shr ok")]
     #[test_case("u32", 5, 10, 0, true, "shr", 1, false, "loop empty, shr ok")]
-    #[test_case("u32", 5, 10, 10, true, "shr", 10, true, "shr overflow, and loop executes")]
-    #[test_case("u32", 5, 10, 0, true, "shr", 10, false, "shr overflow, but loop empty")]
+    #[test_case("u32", 5, 10, 10, true, "shr", 32, true, "shr overflow, and loop executes")]
+    #[test_case("u32", 5, 10, 0, true, "shr", 32, false, "shr overflow, but loop empty")]
     #[test_case("u32", 5, 10, 10, true, "shl", 1, true, "loop executes, shl ok")]
     #[test_case("u32", 5, 10, 0, true, "shl", 1, false, "loop empty, shl ok")]
     #[test_case("u32", 5, 10, 10, true, "shl", 32, true, "shl overflow, and loop executes")]
@@ -2121,9 +2147,6 @@ mod test {
     #[test_case(1, TestCall::Function(Some(Purity::Impure)), false; "impure function")]
     #[test_case(1, TestCall::Function(None), false; "purity unknown")]
     #[test_case(1, TestCall::ForeignFunction, false; "foreign functions always impure")]
-    #[test_case(0, TestCall::Intrinsic(Intrinsic::AsWitness), false; "empty loop; predicate pure intrinsic")]
-    #[test_case(1, TestCall::Intrinsic(Intrinsic::AsWitness), true; "non-empty loop; predicate pure intrinsic")]
-    #[test_case(1, TestCall::Intrinsic(Intrinsic::ArrayRefCount), false; "non-empty loop, impure intrinsic")]
     #[test_case(0, TestCall::Intrinsic(Intrinsic::BlackBox(acvm::acir::BlackBoxFunc::Keccakf1600)), true; "empty loop, pure intrinsic")]
     #[test_case(1, TestCall::Intrinsic(Intrinsic::BlackBox(acvm::acir::BlackBoxFunc::Keccakf1600)), true; "non-empty loop, pure intrinsic")]
     fn hoist_from_loop_call_with_purity(upper: u32, test_call: TestCall, should_hoist: bool) {
@@ -2170,6 +2193,65 @@ mod test {
         } else {
             assert_eq!(pre_header.instructions().len(), 1, "should hoist");
         }
+    }
+
+    #[test_case(0, false; "empty loop; predicate pure intrinsic")]
+    #[test_case(1, true; "non-empty loop; predicate pure intrinsic")]
+    fn hoist_as_witness_from_loop_call_with_purity(upper: u32, should_hoist: bool) {
+        let src = format!(
+            r#"
+        acir(inline) fn main f0 {{
+          b0(v0: Field):
+            jmp b1(u32 0)
+          b1(v1: u32):
+            v2 = lt v1, u32 {upper}
+            jmpif v2 then: b2, else: b3
+          b2():
+            call as_witness(v0)
+            v4 = unchecked_add v1, u32 1
+            jmp b1(v4)
+          b3():
+            return
+        }}
+        "#,
+        );
+
+        let ssa = Ssa::from_str(&src).unwrap();
+        let ssa = ssa.loop_invariant_code_motion();
+
+        // The pre-header of the loop b1 is b0
+        let pre_header = &ssa.main().dfg[BasicBlockId::new(0)];
+        if !should_hoist {
+            assert!(pre_header.instructions().is_empty(), "should not hoist");
+        } else {
+            assert_eq!(pre_header.instructions().len(), 1, "should hoist");
+        }
+    }
+
+    #[test]
+    fn does_not_hoist_array_refcount_from_loop_call_with_purity() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3]):
+            jmp b1(u32 0)
+          b1(v1: u32):
+            v2 = lt v1, u32 1
+            jmpif v2 then: b2, else: b3
+          b2():
+            v3 = call array_refcount(v0) -> u32
+            v4 = unchecked_add v1, u32 1
+            jmp b1(v4)
+          b3():
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.loop_invariant_code_motion();
+
+        // The pre-header of the loop b1 is b0
+        let pre_header = &ssa.main().dfg[BasicBlockId::new(0)];
+        assert!(pre_header.instructions().is_empty(), "should not hoist");
     }
 
     /// Test cases where `i < const` or `const < i` should or shouldn't be simplified.
@@ -2300,8 +2382,37 @@ mod test {
         assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
     }
 
+    #[test]
+    fn do_not_hoist_signed_div_by_minus_one_from_non_executed_nested_loop() {
+        let src = r#"
+          brillig(inline) predicate_pure fn main f0 {
+            b0():
+              jmp b1(i32 0)
+            b1(v0: i32):
+              v4 = lt v0, i32 10
+              jmpif v4 then: b2, else: b3
+            b2():
+              jmp b4(i32 10)
+            b3():
+              return
+            b4(v1: i32):
+              v6 = lt v1, i32 10
+              jmpif v6 then: b5, else: b6
+            b5():
+              v9 = div v0, i32 -1
+              v10 = unchecked_add v1, i32 1
+              jmp b4(v10)
+            b6():
+              v8 = unchecked_add v0, i32 1
+              jmp b1(v8)
+          }
+        "#;
+
+        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
+    }
+
     /// Test that in itself `MakeArray` is only safe to be hoisted in ACIR.
-    #[test_case(RuntimeType::Brillig(InlineType::default()), CanBeHoistedResult::No)]
+    #[test_case(RuntimeType::Brillig(InlineType::default()), CanBeHoistedResult::WithRefCount)]
     #[test_case(RuntimeType::Acir(InlineType::default()), CanBeHoistedResult::Yes)]
     fn make_array_can_be_hoisted(runtime: RuntimeType, result: CanBeHoistedResult) {
         // This is just a stub to create a function with the expected runtime.
@@ -2321,7 +2432,7 @@ mod test {
             typ: Type::Array(Arc::new(vec![]), 0),
         };
 
-        assert_eq!(can_be_hoisted(&instruction, function), result);
+        assert_eq!(can_be_hoisted(&instruction, &function.dfg), result);
     }
 }
 
@@ -2331,11 +2442,13 @@ mod control_dependence {
         assert_ssa_snapshot,
         ssa::{
             interpreter::{errors::InterpreterError, tests::from_constant},
-            ir::types::NumericType,
+            ir::{function::RuntimeType, types::NumericType},
             opt::{assert_normalized_ssa_equals, assert_ssa_does_not_change, unrolling::Loops},
             ssa_gen::Ssa,
         },
     };
+    use noirc_frontend::monomorphization::ast::InlineType;
+    use test_case::test_case;
 
     #[test]
     fn do_not_hoist_unsafe_mul_in_control_dependent_block() {
@@ -2663,7 +2776,7 @@ mod control_dependence {
           loop_body():
             v6 = unchecked_mul v0, v1
             v7 = unchecked_mul v6, v0
-            call f1()
+            call f1(v7)
             v10 = unchecked_add v2, u32 1
             jmp loop(v10)
           exit():
@@ -2690,7 +2803,7 @@ mod control_dependence {
             v6 = lt v2, v1
             jmpif v6 then: b2, else: b3
           b2():
-            call f1()
+            call f1(v4)
             v9 = unchecked_add v2, u32 1
             jmp b1(v9)
           b3():
@@ -2718,7 +2831,7 @@ mod control_dependence {
           loop_body():
             v6 = mul v0, v1
             v7 = mul v6, v0
-            call f1()
+            call f1(v7)
             v10 = unchecked_add v2, u32 1
             jmp loop(v10)
           exit():
@@ -2740,7 +2853,7 @@ mod control_dependence {
           b0(v0: u32, v1: u32):
             v3 = mul v0, v1
             v4 = mul v3, v0
-            call f1()
+            call f1(v4)
             jmp b1(u32 0)
           b1(v2: u32):
             v8 = lt v2, u32 4
@@ -2761,7 +2874,7 @@ mod control_dependence {
 
     #[test]
     fn simplify_constraint() {
-        // This test shows the simplification of the constraint constrain v17 == u1 1 which is converted into constrain u1 0 == u1 1 in b5
+        // This test shows the constraint constrain v17 == u1 1 is not simplified into constrain u1 0 == u1 1
         let src = "
         brillig(inline) fn main f0 {
           entry(v0: u32, v1: u32, v2: u32):
@@ -2793,11 +2906,10 @@ mod control_dependence {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-
         let ssa = ssa.loop_invariant_code_motion();
-        // The loop is guaranteed to fully execute, so we expect the constrain to be simplified into constrain u1 0 == u1 1
-        // However, even though the constrain is not a loop invariant we expect it to remain in place
-        // as it is control dependent upon its predecessor blocks which are not pure.
+
+        // Despite the loop is guaranteed to fully execute, which implies that the constrain will fail at some iteration,
+        // the constraint is not simplified in case some side-effect instruction would run in the previous iterations.
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: u32, v1: u32, v2: u32):
@@ -2821,9 +2933,9 @@ mod control_dependence {
             jmp b5()
           b5():
             v15 = lt v3, u32 4
-            constrain u1 0 == u1 1
-            v17 = unchecked_add v3, u32 1
-            jmp b1(v17)
+            constrain v15 == u1 1
+            v16 = unchecked_add v3, u32 1
+            jmp b1(v16)
         }
         ");
     }
@@ -3489,5 +3601,39 @@ mod control_dependence {
         let mut loops = Loops::find_all(ssa.main());
         let loop_ = loops.yet_to_unroll.pop().unwrap();
         assert!(!loop_.is_fully_executed(&loops.cfg));
+    }
+
+    #[test_case(RuntimeType::Brillig(InlineType::default()))]
+    #[test_case(RuntimeType::Acir(InlineType::default()))]
+    fn do_not_hoist_unsafe_array_get_from_control_dependent_block(runtime: RuntimeType) {
+        // We use an unknown index v0 to index an array, but only if v1 is true,
+        // so we should not hoist the constraint or the array_get into the header.
+        // Hoisting the array operation and indexing with an invalid `v0` would
+        // not cause an OOB in Brillig, however the returned value would be invalid,
+        // causing knockdown loop invariant instructions to fail when the loop is not meant to fail.
+        let src = format!(
+            r#"
+          {runtime} impure fn main f0 {{
+            b0(v0: u32, v1: u1):
+              v2 = make_array [u8 0, u8 1] : [u8; 2]
+              jmp b1(u32 0)
+            b1(v3: u32):
+              v4 = lt v3, u32 2
+              jmpif v4 then: b2, else: b3
+            b2():
+              jmpif v1 then: b4, else: b5
+            b3():
+              return
+            b4():
+              constrain v0 == u32 0, "Index out of bounds"
+              v5 = array_get v2, index v0 -> u8
+              jmp b5()
+            b5():
+              v6 = unchecked_add v3, u32 1
+              jmp b1(v6)
+          }}
+          "#
+        );
+        assert_ssa_does_not_change(&src, Ssa::loop_invariant_code_motion);
     }
 }

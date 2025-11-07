@@ -131,6 +131,9 @@ impl Context {
     ///
     /// Note that this also matches on dereference operations to exempt their LHS from clones,
     /// but their LHS is always exempt from clones so this is unchanged.
+    ///
+    /// # Returns
+    /// A boolean representing whether or not the expression was borrowed by reference (false) or moved (true).
     fn handle_reference_expression(&mut self, expr: &mut Expression) {
         match expr {
             Expression::Ident(_) => (),
@@ -280,6 +283,7 @@ impl Context {
         self.handle_reference_expression(&mut index.collection);
         self.handle_expression(&mut index.index);
 
+        // If the index collection is being borrowed we need to clone the result.
         if contains_array_or_str_type(&index.element_type) {
             clone_expr(index_expr);
         }
@@ -362,8 +366,8 @@ impl Context {
     }
 
     fn handle_assign(&mut self, assign: &mut crate::monomorphization::ast::Assign) {
-        self.handle_lvalue(&mut assign.lvalue);
         self.handle_expression(&mut assign.expression);
+        self.handle_lvalue(&mut assign.lvalue);
     }
 
     fn handle_lvalue(&mut self, lvalue: &mut LValue) {
