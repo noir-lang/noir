@@ -13,17 +13,17 @@ use crate::{
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     /// Reverts with the error selector of the given string
     /// This procedure is useful to deduplicate generating code for the same selector.
-    pub(crate) fn call_error_with_string_procedure(&mut self, revert_string: String) {
-        self.add_procedure_call_instruction(ProcedureId::ErrorWithString(revert_string));
+    pub(crate) fn call_error_with_string_procedure(&mut self, error_string: String) {
+        self.add_procedure_call_instruction(ProcedureId::ErrorWithString(error_string));
     }
 }
 
 pub(super) fn compile_error_with_string_procedure<F: AcirField + DebugToString>(
     brillig_context: &mut BrilligContext<F, ScratchSpace>,
-    revert_string: String,
+    error_string: String,
 ) {
     // Compute the error selector and register the error type
-    let error_type = ErrorType::String(revert_string);
+    let error_type = ErrorType::String(error_string);
     let error_selector = error_type.selector();
     brillig_context.obj.error_types.insert(error_selector, error_type);
 

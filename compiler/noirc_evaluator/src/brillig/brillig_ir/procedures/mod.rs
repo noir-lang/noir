@@ -137,8 +137,8 @@ pub(crate) fn compile_procedure<F: AcirField + DebugToString>(
         ProcedureId::CheckMaxStackDepth => {
             compile_check_max_stack_depth_procedure(&mut brillig_context, stack_start);
         }
-        ProcedureId::ErrorWithString(revert_string) => {
-            compile_error_with_string_procedure(&mut brillig_context, revert_string);
+        ProcedureId::ErrorWithString(error_string) => {
+            compile_error_with_string_procedure(&mut brillig_context, error_string);
         }
     };
 
