@@ -106,51 +106,50 @@ fn accesses_associated_constant_inside_trait_using_self() {
 #[test]
 fn accesses_associated_type_inside_trait_and_impl_using_self() {
     let src = r#"
-      pub struct CustomType {}
+    pub struct CustomType {}
 
-      pub trait Trait {
-          type Output;
+    pub trait Trait {
+        type Output;
+        fn foo() -> Self::Output;
+    }
 
-          fn foo() -> Self::Output;
-      }
+    impl Trait for i32 {
+        type Output = CustomType;
+        
+        fn foo() -> Self::Output {
+            CustomType {}
+        }
+    }
 
-      impl Trait for i32 {
-          type Output = CustomType;
-          
-          fn foo() -> Self::Output {
-              CustomType {}
-          }
-      }
-
-      fn main() {
-          let _: CustomType = i32::foo();
-      }
-      "#;
+    fn main() {
+        let _: CustomType = i32::foo();
+    }
+    "#;
     assert_no_errors(src);
 }
 
 #[test]
 fn accesses_associated_constant_on_data_type_using_self() {
     let src = r#"
-      trait Container {
-          let N: u32;
-          fn get_item() -> u32;
-      }
+    trait Container {
+        let N: u32;
+        fn get_item() -> u32;
+    }
+    
+    struct MyContainer {}
 
-      struct MyContainer {}
+    impl Container for MyContainer {
+        let N: u32 = 10;
+        
+        fn get_item() -> u32 {
+            Self::N
+        }
+    }
 
-      impl Container for MyContainer {
-          let N: u32 = 10;
-          
-          fn get_item() -> u32 {
-              Self::N
-          }
-      }
-
-      fn main() {
-          let _: u32 = MyContainer::get_item();
-      }
-      "#;
+    fn main() {
+        let _: u32 = MyContainer::get_item();
+    }
+    "#;
     assert_no_errors(src);
 }
 
