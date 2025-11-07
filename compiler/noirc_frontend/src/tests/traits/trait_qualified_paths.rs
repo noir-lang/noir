@@ -352,8 +352,9 @@ fn self_with_associated_type_method_call_on_primitive() {
     assert_no_errors(src);
 }
 
+/// TODO(https://github.com/noir-lang/noir/issues/10435): Improve error message
 #[test]
-fn self_with_nested_item_access() {
+fn self_with_non_associated_item_access() {
     let src = r#"
     struct Outer {
         inner: Inner

@@ -623,4 +623,3 @@ fn inherent_impl_shadows_trait_impl_for_qualified_calls() {
     "#;
     assert_no_errors(src);
 }
-
