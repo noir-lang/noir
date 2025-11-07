@@ -13,7 +13,7 @@ use crate::{
         type_check::{Source, TypeCheckError},
     },
     hir_def::{expr::HirIdent, stmt::HirPattern},
-    node_interner::{DefinitionId, DefinitionKind, FuncId, GlobalId, TypeAliasId, TypeId},
+    node_interner::{DefinitionId, DefinitionKind, FuncId, TypeAliasId, TypeId},
 };
 
 use super::{
@@ -81,8 +81,8 @@ impl Elaborator<'_> {
         match pattern {
             // e.g. let <ident> = ...;
             Pattern::Identifier(name) => {
-                // If this definition is mutable, do not store the rhs because it will
-                // not always refer to the correct value of the variable
+                // If this definition is mutable, do not store the RHS because it will
+                // not always refer to the correct value of the variable.
                 let definition = match (mutable, definition) {
                     (Some(_), DefinitionKind::Local(_)) => DefinitionKind::Local(None),
                     (_, other) => other,
@@ -348,6 +348,12 @@ impl Elaborator<'_> {
         ret
     }
 
+    /// Add a local or const numeric variable declaration to the scope,
+    /// unless the name is `"_"`.
+    ///
+    /// Returns the created identifier.
+    ///
+    /// Panics if the `definition` is [DefinitionKind::Global].
     pub(super) fn add_variable_decl(
         &mut self,
         name: Ident,
@@ -356,8 +362,8 @@ impl Elaborator<'_> {
         warn_if_unused: bool,
         definition: DefinitionKind,
     ) -> HirIdent {
-        if let DefinitionKind::Global(global_id) = definition {
-            return self.add_global_variable_decl(name, global_id);
+        if let DefinitionKind::Global(_) = definition {
+            unreachable!("ICE: globals don't need to be added to the scope");
         }
 
         let location = name.location();
@@ -406,24 +412,6 @@ impl Elaborator<'_> {
                 second_location,
             });
         }
-    }
-
-    pub fn add_global_variable_decl(&mut self, name: Ident, global_id: GlobalId) -> HirIdent {
-        let scope = self.scopes.get_mut_scope();
-        let global = self.interner.get_global(global_id);
-        let ident = HirIdent::non_trait_method(global.definition_id, global.location);
-        let resolver_meta =
-            ResolverMeta { num_times_used: 0, ident: ident.clone(), warn_if_unused: true };
-
-        let old_global_value = scope.add_key_value(name.to_string(), resolver_meta);
-        if let Some(old_global_value) = old_global_value {
-            self.push_err(ResolverError::DuplicateDefinition {
-                first_location: old_global_value.ident.location,
-                second_location: name.location(),
-                name: name.into_string(),
-            });
-        }
-        ident
     }
 
     /// Lookup and use the specified local variable.
