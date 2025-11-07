@@ -120,6 +120,8 @@ pub struct TraitConstraint {
 }
 
 impl TraitConstraint {
+    /// Update the type in the constraint by substituting the bindings onto it,
+    /// then apply the bindings onto the trait bounds as well.
     pub fn apply_bindings(&mut self, type_bindings: &TypeBindings) {
         self.typ = self.typ.substitute(type_bindings);
         self.trait_bound.apply_bindings(type_bindings);
@@ -143,6 +145,7 @@ pub struct ResolvedTraitBound {
 }
 
 impl ResolvedTraitBound {
+    /// Update all [Type]s in the bound generics by substituting some [TypeBindings] onto them.
     pub fn apply_bindings(&mut self, type_bindings: &TypeBindings) {
         for typ in &mut self.trait_generics.ordered {
             *typ = typ.substitute(type_bindings);

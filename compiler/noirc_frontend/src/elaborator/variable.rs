@@ -35,9 +35,9 @@ impl Elaborator<'_> {
         let definition_id = expr.id;
 
         if let Some(PathResolutionItem::TypeAlias(alias)) = item {
-            // A type alias to a numeric generics is considered like a variable
-            // but it is not a real variable so it does not resolve to a valid Identifier
-            // In order to handle this, we retrieve the numeric generics expression that the type aliases to
+            // A type alias to a numeric generics is considered like a variable,
+            // but it is not a real variable so it does not resolve to a valid Identifier.
+            // In order to handle this, we retrieve the numeric generics expression that the type aliases to.
             let type_alias = self.interner.get_type_alias(alias);
             if let Some(expr) = &type_alias.borrow().numeric_expr {
                 let expr = UnresolvedTypeExpression::to_expression_kind(expr);
@@ -127,9 +127,9 @@ impl Elaborator<'_> {
     /// Checks whether `variable` is `Self::method_name` or `Self::AssociatedConstant` when we are inside a trait impl and `Self`
     /// resolves to a primitive type.
     ///
-    /// In the first case we elaborate this as if it were a TypePath
+    /// In the first case we elaborate this as if it were a [TypePath]
     /// (for example, if `Self` is `u32` then we consider this the same as `u32::method_name`).
-    /// A regular path lookup won't work here for the same reason `TypePath` exists.
+    /// A regular path lookup won't work here for the same reason [TypePath] exists.
     ///
     /// In the second case we solve the associated constant by looking up its value, later
     /// turning it into a literal.
@@ -166,11 +166,10 @@ impl Elaborator<'_> {
         Some(self.elaborate_type_path_impl(self_type.clone(), ident, None, typ_location))
     }
 
+    /// Resolve a [TypedPath] to a [HirIdent] of either some trait method, or a local or global variable.
     fn resolve_variable(&mut self, path: TypedPath) -> (HirIdent, Option<PathResolutionItem>) {
         if let Some(trait_path_resolution) = self.resolve_trait_generic_path(&path) {
-            for error in trait_path_resolution.errors {
-                self.push_err(error);
-            }
+            self.push_errors(trait_path_resolution.errors);
 
             return match trait_path_resolution.method {
                 TraitPathResolutionMethod::NotATraitMethod(func_id) => (
@@ -349,6 +348,11 @@ impl Elaborator<'_> {
         (id, typ)
     }
 
+    /// Given an [HirIdent], look up its definition, and:
+    /// * mark it as referenced at the ident [Location] (LSP mode only)
+    /// * mark the item currently being elaborated as a dependency of it
+    /// * elaborate a global definition, if needed
+    /// * add local identifiers to lambda captures
     pub(crate) fn handle_hir_ident(
         &mut self,
         hir_ident: &HirIdent,
@@ -398,6 +402,8 @@ impl Elaborator<'_> {
         }
     }
 
+    /// Starting with empty bindings, perform the type checking of an interned expression
+    /// and a corresponding identifier, returning the instantiated [Type].
     pub(crate) fn type_check_variable(
         &mut self,
         ident: HirIdent,
@@ -416,6 +422,11 @@ impl Elaborator<'_> {
         )
     }
 
+    /// Perform the type checking of an interned expression and a corresponding identifier,
+    /// returning the instantiated [Type].
+    ///
+    /// If `push_required_type_variables`, the bindings are added to the function context,
+    /// to be checked before it's finished.
     pub(crate) fn type_check_variable_with_bindings(
         &mut self,
         ident: HirIdent,
@@ -534,6 +545,11 @@ impl Elaborator<'_> {
         typ
     }
 
+    /// Instantiate a [Type] with the given [TypeBindings], returning the bindings potentially
+    /// extended from any turbofish generics.
+    ///
+    /// If there are turbofish generics and their number matches the expectations of the function,
+    /// those are used as well, otherwise they are ignored and an error is pushed.
     fn instantiate(
         &mut self,
         typ: Type,
@@ -572,6 +588,11 @@ impl Elaborator<'_> {
     }
 }
 
+/// Bind the generics of the [Type] aliased by the [TypeAlias] to a list of generic arguments,
+/// recursively expanding the generics aliased aliases, finally returning the generics of the
+/// innermost aliased struct.
+///
+/// Panics if it encounters a type other than alias or struct.
 fn get_type_alias_generics(type_alias: &TypeAlias, generics: &[Type]) -> Vec<Type> {
     let typ = type_alias.get_type(generics);
     match typ {
