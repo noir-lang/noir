@@ -59,21 +59,12 @@ mod primitive_i64 {}
 /// The size of a Noir field depends on the elliptic curve's finite field for the proving backend adopted.
 /// For example, a field would be a 254-bit integer when paired with the default backend that spans the Grumpkin curve.
 ///
-/// Fields support integer arithmetic:
-///
-/// ```
-/// fn main(x : Field, y : Field)  {
-///     let z = x + y;
-/// }
-/// ```
-///
-/// `x`, `y` and `z` are all private fields in this example.
-/// Using the `let` keyword we defined a new private value `z` constrained to be equal to `x + y`.
+/// Fields support integer arithmetic.
 ///
 /// If proving efficiency is of priority, fields should be used as a default for solving problems.
 /// Smaller integer types (e.g. `u64`) incur extra range constraints.
 #['nargo_doc_primitive Field]
-mod primitive_field {}
+mod primitive_Field {}
 
 /// A a compile-time, dynamically-sized string type.
 ///
@@ -88,7 +79,17 @@ mod primitive_field {}
 #['nargo_doc_primitive CtString]
 mod primitive_CtString {}
 
-/// A compile-time, quoted, syntactically valid expressions
+/// A compile-time, quoted, syntactically valid expression.
+///
+/// An `Expr` can be obtained using `Quoted::as_expr`:
+///
+/// ```
+/// fn main() {
+///     comptime {
+///         let expr = quote { 1 + 2 }.as_expr().unwrap();
+///     }
+/// }
+/// ```
 #['nargo_doc_primitive Expr]
 mod primitive_Expr {}
 
@@ -109,10 +110,46 @@ mod primitive_Expr {}
 mod primitive_fmtstr {}
 
 /// A compile-time type which represents a function definition in this source program.
+///
+/// A `FunctionDefinition` is passed as the first argument to a macro attribute on
+/// top of a function:
+///
+/// ```
+/// #[attr]
+/// fn foo() {}
+///
+/// comptime fn attr(function: FunctionDefinition) {
+///     println(function.name()); // prints "quote { foo }"
+/// }
+/// ```
 #['nargo_doc_primitive FunctionDefinition]
 mod primitive_FunctionDefinition {}
 
 /// A compile-time type which represents a module in this source program.
+///
+/// A `Module` is passed as the first argument to a macro attribute on top of a module:
+///
+/// ```
+/// #[attr]
+/// mod foo {}
+///
+/// comptime fn attr(module: Module) {
+///     println(module.name()); // outputs "quote { foo }"
+/// }
+/// ```
+///
+/// It can also be obtained using `Quoted::as_module`:
+///
+/// ```
+/// mod foo {}
+///
+/// fn main() {
+///     comptime {
+///         let module = quote { foo }.as_module().unwrap();
+///         println(module.name()); // outputs "quote { foo }"
+///     }
+/// }
+/// ```
 #['nargo_doc_primitive Module]
 mod primitive_Module {}
 
@@ -139,10 +176,32 @@ mod primitive_str {}
 ///
 /// This is similar syntactically to just the trait itself, but can also contain generic arguments.
 /// E.g. `Eq`, `Default`, `BuildHasher<Poseidon2Hasher>`.
+///
+/// A `TraitConstraint` can be obtained using `Quoted::as_trait_constraint`:
+///
+/// ```
+/// fn main() {
+///     comptime {
+///         let constraint = quote { Eq }.as_trait_constraint();
+///         println(constraint); // outputs "Eq"
+///     }
+/// }
+/// ```
 #['nargo_doc_primitive TraitConstraint]
 mod primitive_TraitConstraint {}
 
 /// A compile-time type which represents a trait definition such as `trait Foo { .. }`.
+///
+/// A `TraitDefinition` is passed as the first argument to a macro attribute on top of a trait:
+///
+/// ```
+/// #[attr]
+/// trait Foo {}
+///
+/// comptime fn attr(trait_definition: TraitDefinition) {
+///     println(trait_definition); // outputs "Foo"
+/// }
+/// ```
 #['nargo_doc_primitive TraitDefinition]
 mod primitive_TraitDefinition {}
 
@@ -151,14 +210,48 @@ mod primitive_TraitDefinition {}
 mod primitive_TraitImpl {}
 
 /// A compile-time type which represents a type in the source program.
+///
+/// It can be obtained using `Quoted::as_type()`:
+///
+/// ```
+/// fn main() {
+///     comptime {
+///         let typ = quote { i32 }.as_type();
+///         println(typ); // outputs "i32"
+///     }
+/// }
+/// ```
 #['nargo_doc_primitive Type]
 mod primitive_Type {}
 
 /// A compile-time type which represents a type definition such as `struct Foo { ... }`.
+///
+/// A `TypeDefinition` is passed as the first argument to a macro attribute on top of a struct:
+///
+/// ```
+/// #[attr]
+/// struct Foo {}
+///
+/// comptime fn attr(type_definition: TypeDefinition) {
+///     println(type_definition.name()); // outputs "Foo"
+/// }
+/// ```
 #['nargo_doc_primitive TypeDefinition]
 mod primitive_TypeDefinition {}
 
 /// A compile-time type which represents a resolved and type-checked expression.
+///
+/// A `TypedExpr` can be obtained using `Expr::resolve`:
+///
+/// ```
+/// fn main() {
+///     comptime {
+///         let expr = quote { [1, 2, 3].len() }.as_expr().unwrap();
+///         let typ = expr.resolve(Option::none());
+///         println(typ.get_type().unwrap()); // outputs "u32"
+///     }
+/// }
+/// ```
 #['nargo_doc_primitive TypedExpr]
 mod primitive_TypedExpr {}
 
