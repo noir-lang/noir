@@ -1211,7 +1211,23 @@
 <a href="#1210" id="1210">1210</a>
 <a href="#1211" id="1211">1211</a>
 <a href="#1212" id="1212">1212</a>
-<a href="#1213" id="1213">1213</a></pre></div><pre class="rust"><code><span class="doccomment">//! Dead Instruction Elimination (DIE) pass: Removes any instruction without side-effects for
+<a href="#1213" id="1213">1213</a>
+<a href="#1214" id="1214">1214</a>
+<a href="#1215" id="1215">1215</a>
+<a href="#1216" id="1216">1216</a>
+<a href="#1217" id="1217">1217</a>
+<a href="#1218" id="1218">1218</a>
+<a href="#1219" id="1219">1219</a>
+<a href="#1220" id="1220">1220</a>
+<a href="#1221" id="1221">1221</a>
+<a href="#1222" id="1222">1222</a>
+<a href="#1223" id="1223">1223</a>
+<a href="#1224" id="1224">1224</a>
+<a href="#1225" id="1225">1225</a>
+<a href="#1226" id="1226">1226</a>
+<a href="#1227" id="1227">1227</a>
+<a href="#1228" id="1228">1228</a>
+<a href="#1229" id="1229">1229</a></pre></div><pre class="rust"><code><span class="doccomment">//! Dead Instruction Elimination (DIE) pass: Removes any instruction without side-effects for
 //! which the results are unused.
 //!
 //! DIE also tracks which block parameters are unused.
@@ -1782,6 +1798,7 @@
             opt::assert_ssa_does_not_change,
         },
     };
+    <span class="kw">use </span>test_case::test_case;
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>dead_instruction_elimination() {
@@ -2422,6 +2439,21 @@
         }
         "#</span>;
         assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
+    }
+
+    <span class="attr">#[test_case(<span class="string">"ecdsa_secp256k1"</span>)]
+    #[test_case(<span class="string">"ecdsa_secp256r1"</span>)]
+    </span><span class="kw">fn </span>does_not_remove_unused_ecdsa_verification(ecdsa_func: <span class="kw-2">&amp;</span>str) {
+        <span class="kw">let </span>src = <span class="macro">format!</span>(
+            <span class="string">r#"
+        acir(inline) fn main f0 {{
+            b0(v0: [u8; 32], v1: [u8; 32], v2: [u8; 64], v3: [u8; 32]):
+            v4 = call {ecdsa_func}(v0, v1, v2, v3, u1 1) -&gt; u1
+            return
+        }}
+        "#
+        </span>);
+        assert_ssa_does_not_change(<span class="kw-2">&amp;</span>src, Ssa::dead_instruction_elimination);
     }
 }
 </code></pre></div></section></main></body></html>

@@ -127,7 +127,8 @@
 <a href="#126" id="126">126</a>
 <a href="#127" id="127">127</a>
 <a href="#128" id="128">128</a>
-<a href="#129" id="129">129</a></pre></div><pre class="rust"><code><span class="doccomment">//! Black box functions are ACIR opcodes which rely on backends implementing
+<a href="#129" id="129">129</a>
+<a href="#130" id="130">130</a></pre></div><pre class="rust"><code><span class="doccomment">//! Black box functions are ACIR opcodes which rely on backends implementing
 //! support for specialized constraints.
 //! This makes certain zk-snark unfriendly computations cheaper than if they were
 //! implemented in more basic constraints.
@@ -221,15 +222,16 @@
         <span class="kw">match </span><span class="self">self </span>{
             BlackBoxFunc::RecursiveAggregation
             | BlackBoxFunc::MultiScalarMul
-            | BlackBoxFunc::EmbeddedCurveAdd =&gt; <span class="bool-val">true</span>,
+            | BlackBoxFunc::EmbeddedCurveAdd
+            | BlackBoxFunc::EcdsaSecp256k1
+            | BlackBoxFunc::EcdsaSecp256r1
+            | BlackBoxFunc::RANGE =&gt; <span class="bool-val">true</span>,
+
             BlackBoxFunc::AES128Encrypt
             | BlackBoxFunc::AND
             | BlackBoxFunc::XOR
-            | BlackBoxFunc::RANGE
             | BlackBoxFunc::Blake2s
             | BlackBoxFunc::Blake3
-            | BlackBoxFunc::EcdsaSecp256k1
-            | BlackBoxFunc::EcdsaSecp256r1
             | BlackBoxFunc::Keccakf1600
             | BlackBoxFunc::Poseidon2Permutation
             | BlackBoxFunc::Sha256Compression =&gt; <span class="bool-val">false</span>,
