@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1762542401705,
+  "lastUpdate": 1762543562678,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23236,48 +23236,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "b43153bd34f52ea835f6b7715bcf2c1f931a0fc8",
-          "message": "chore(frontend): Elaborator lazy globals and documentation (#10260)",
-          "timestamp": "2025-10-27T15:58:07Z",
-          "tree_id": "79ab81fb1132b126e874107c418502ed94d5549b",
-          "url": "https://github.com/noir-lang/noir/commit/b43153bd34f52ea835f6b7715bcf2c1f931a0fc8"
-        },
-        "date": 1761582435048,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 263529,
-            "range": "± 508",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 233286,
-            "range": "± 2788",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2797292,
-            "range": "± 14705",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25329,6 +25287,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2828879,
             "range": "± 5726",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "89c2b2d0a5c8a60db85a7224398cd9ed0f010c4e",
+          "message": "chore(elaborator): Infer type of lambdas in tuple args; more docs (#10405)",
+          "timestamp": "2025-11-07T19:04:58Z",
+          "tree_id": "847b6d5b1a5adf6dc719731057750cee3ea7a0e0",
+          "url": "https://github.com/noir-lang/noir/commit/89c2b2d0a5c8a60db85a7224398cd9ed0f010c4e"
+        },
+        "date": 1762543535912,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 266768,
+            "range": "± 864",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 236840,
+            "range": "± 589",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2804010,
+            "range": "± 33118",
             "unit": "ns/iter"
           }
         ]
