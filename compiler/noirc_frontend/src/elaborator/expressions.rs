@@ -1131,6 +1131,7 @@ impl Elaborator<'_> {
         expr_id.push_type(self.interner, typ)
     }
 
+    /// Elaborate the expression, resolve the target type, then type check that they are compatible.
     fn elaborate_cast(
         &mut self,
         cast: CastExpression,
@@ -1269,6 +1270,13 @@ impl Elaborator<'_> {
         (HirExpression::If(if_expr), ret_type)
     }
 
+    /// Elaborate a `match <expr> { <rules> }` expression by creating an block such as this:
+    /// ```text
+    /// {
+    ///   let internal variable = <expr>;
+    ///   match internal variable { <rules> }
+    /// }
+    /// ```
     fn elaborate_match(
         &mut self,
         match_expr: MatchExpression,
@@ -1300,6 +1308,7 @@ impl Elaborator<'_> {
         (block, result_type)
     }
 
+    /// Introduce an internal variable in order to be able to refer to the expression using a local identifier.
     fn wrap_in_let(&mut self, expr_id: ExprId, typ: Type) -> (StmtId, DefinitionId) {
         let location = self.interner.expr_location(&expr_id);
         let name = "internal variable".to_string();
