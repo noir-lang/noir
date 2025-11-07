@@ -47,7 +47,7 @@ impl Parser<'_> {
             }
         } else {
             expr_location = self.current_token_location;
-            let typ = self.parse_type_or_type_expression().unwrap_or_else(|| UnresolvedType {
+            let typ = self.parse_type_or_type_expression().unwrap_or(UnresolvedType {
                 typ: UnresolvedTypeData::Error,
                 location: expr_location,
             });
