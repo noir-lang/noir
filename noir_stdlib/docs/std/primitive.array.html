@@ -98,6 +98,15 @@
 <main>
 <div><a href="../index.html">noir_stdlib</a> - <a href="index.html">std</a></div>
 <h1>Primitive type <span id="primitive" class="primitive">array</span></h1>
+<div class="comments">
+<p>A fixed-size array, denoted <code>[T; N]</code>, for the element type, <code>T</code>,
+and the non-negative compile-time constant size, <code>N</code>.</p>
+<p>There are two syntactic forms for creating an array:</p>
+<ul>
+<li>A list with each element, i.e., <code>[x, y, z]</code>.</li>
+<li>A repeat expression <code>[expr; N]</code> where <code>N</code> is how many times to repeat <code>expr</code> in the array.</li>
+</ul>
+</div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>, T&gt; [T; N]</code></h3>
 
