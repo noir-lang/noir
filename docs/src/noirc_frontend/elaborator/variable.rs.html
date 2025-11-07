@@ -579,7 +579,10 @@
 <a href="#578" id="578">578</a>
 <a href="#579" id="579">579</a>
 <a href="#580" id="580">580</a>
-<a href="#581" id="581">581</a></pre></div><pre class="rust"><code><span class="doccomment">//! Everything to do with elaboration of variables.
+<a href="#581" id="581">581</a>
+<a href="#582" id="582">582</a>
+<a href="#583" id="583">583</a>
+<a href="#584" id="584">584</a></pre></div><pre class="rust"><code><span class="doccomment">//! Everything to do with elaboration of variables.
 //! Notably, variables may require trait constraints to be solved later on.
 
 </span><span class="kw">use </span><span class="kw">super</span>::Elaborator;
@@ -841,15 +844,18 @@
                 (Vec::new(), <span class="prelude-val">Some</span>(self_type))
             }
             PathResolutionItem::PrimitiveFunction(primitive_type, turbofish, _func_id) =&gt; {
-                <span class="kw">let </span>typ = <span class="self">self</span>.instantiate_primitive_type_with_turbofish(primitive_type, turbofish);
-                <span class="kw">let </span>generics = <span class="kw">match </span>typ {
-                    Type::String(length) =&gt; {
-                        <span class="macro">vec!</span>[<span class="kw-2">*</span>length]
+                <span class="kw">let </span>(typ, has_generics) =
+                    <span class="self">self</span>.instantiate_primitive_type_with_turbofish(primitive_type, turbofish);
+                <span class="kw">let </span>generics = <span class="kw">if </span>has_generics {
+                    <span class="kw">match </span>typ {
+                        Type::String(length) =&gt; <span class="macro">vec!</span>[<span class="kw-2">*</span>length],
+                        Type::FmtString(length, element) =&gt; <span class="macro">vec!</span>[<span class="kw-2">*</span>length, <span class="kw-2">*</span>element],
+                        <span class="kw">_ </span>=&gt; {
+                            <span class="macro">unreachable!</span>(<span class="string">"ICE: Primitive type has been specified to have generics"</span>)
+                        }
                     }
-                    Type::FmtString(length, element) =&gt; {
-                        <span class="macro">vec!</span>[<span class="kw-2">*</span>length, <span class="kw-2">*</span>element]
-                    }
-                    <span class="kw">_ </span>=&gt; Vec::new(),
+                } <span class="kw">else </span>{
+                    Vec::new()
                 };
                 (generics, <span class="prelude-val">None</span>)
             }

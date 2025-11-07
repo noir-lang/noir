@@ -351,7 +351,13 @@
 <a href="#350" id="350">350</a>
 <a href="#351" id="351">351</a>
 <a href="#352" id="352">352</a>
-<a href="#353" id="353">353</a></pre></div><pre class="rust"><code><span class="doccomment">//! Primitive type definitions
+<a href="#353" id="353">353</a>
+<a href="#354" id="354">354</a>
+<a href="#355" id="355">355</a>
+<a href="#356" id="356">356</a>
+<a href="#357" id="357">357</a>
+<a href="#358" id="358">358</a>
+<a href="#359" id="359">359</a></pre></div><pre class="rust"><code><span class="doccomment">//! Primitive type definitions
 
 </span><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
@@ -613,11 +619,17 @@
         primitive_type.to_type()
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>instantiate_primitive_type_with_turbofish(
+    <span class="doccomment">/// Instantiates a primitive type with turbofish generics.
+    ///
+    /// # Returns
+    /// A tuple of:
+    /// - The instantiated [Type]
+    /// - A boolean indicating whether this primitive type has generics
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>instantiate_primitive_type_with_turbofish(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         primitive_type: PrimitiveType,
         turbofish: <span class="prelude-ty">Option</span>&lt;Turbofish&gt;,
-    ) -&gt; Type {
+    ) -&gt; (Type, bool) {
         <span class="kw">match </span>primitive_type {
             PrimitiveType::Bool
             | PrimitiveType::CtString
@@ -654,7 +666,7 @@
                         },
                     ));
                 }
-                primitive_type.to_type()
+                (primitive_type.to_type(), <span class="bool-val">false</span>)
             }
             PrimitiveType::Str =&gt; {
                 <span class="kw">let </span>item = StrPrimitiveType;
@@ -676,7 +688,7 @@
                 };
                 <span class="macro">assert_eq!</span>(args.len(), <span class="number">1</span>, <span class="string">"str generics should be: [length]"</span>);
                 <span class="kw">let </span>length = args.pop().unwrap();
-                Type::String(Box::new(length))
+                (Type::String(Box::new(length)), <span class="bool-val">true</span>)
             }
             PrimitiveType::Fmtstr =&gt; {
                 <span class="kw">let </span>item = FmtstrPrimitiveType;
@@ -699,7 +711,7 @@
                 <span class="macro">assert_eq!</span>(args.len(), <span class="number">2</span>, <span class="string">"fmtstr generics should be: [length, element]"</span>);
                 <span class="kw">let </span>element = args.pop().unwrap();
                 <span class="kw">let </span>length = args.pop().unwrap();
-                Type::FmtString(Box::new(length), Box::new(element))
+                (Type::FmtString(Box::new(length), Box::new(element)), <span class="bool-val">true</span>)
             }
         }
     }

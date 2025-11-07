@@ -2441,7 +2441,9 @@
 <a href="#2440" id="2440">2440</a>
 <a href="#2441" id="2441">2441</a>
 <a href="#2442" id="2442">2442</a>
-<a href="#2443" id="2443">2443</a></pre></div><pre class="rust"><code><span class="doccomment">//! Type resolution, unification, and method resolution (for both types and traits).
+<a href="#2443" id="2443">2443</a>
+<a href="#2444" id="2444">2444</a>
+<a href="#2445" id="2445">2445</a></pre></div><pre class="rust"><code><span class="doccomment">//! Type resolution, unification, and method resolution (for both types and traits).
 
 </span><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
 
@@ -3369,7 +3371,9 @@
                 type_alias.get_type(<span class="kw-2">&amp;</span>generics)
             }
             PathResolutionItem::PrimitiveType(primitive_type) =&gt; {
-                <span class="self">self</span>.instantiate_primitive_type_with_turbofish(primitive_type, turbofish)
+                <span class="kw">let </span>(typ, <span class="kw">_</span>) =
+                    <span class="self">self</span>.instantiate_primitive_type_with_turbofish(primitive_type, turbofish);
+                typ
             }
             PathResolutionItem::Module(..)
             | PathResolutionItem::Trait(..)

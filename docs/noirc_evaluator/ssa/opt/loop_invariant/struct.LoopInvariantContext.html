@@ -37,7 +37,7 @@ If we determine that an overflow is not possible we can convert the checked oper
     lhs: &amp;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
     rhs: &amp;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
     err: &amp;<a class="enum" href="https://doc.rust-lang.org/1.85.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="enum" href="../../ir/instruction/enum.ConstrainError.html" title="enum noirc_evaluator::ssa::ir::instruction::ConstrainError">ConstrainError</a>&gt;,
-    call_stack: <a class="struct" href="../../../../noirc_errors/call_stack/struct.CallStackId.html" title="struct noirc_errors::call_stack::CallStackId">CallStackId</a>,
+    call_stack: CallStackId,
 ) -&gt; <a class="enum" href="../../ir/dfg/simplify/enum.SimplifyResult.html" title="enum noirc_evaluator::ssa::ir::dfg::simplify::SimplifyResult">SimplifyResult</a></h4></section></summary><div class="docblock"><p>Replace ‘assert(invariant != induction)’ with assert((invariant &lt; min(induction) || (invariant &gt; max(induction)))
 For this simplification to be valid, we need to ensure that the induction variable takes all the values from min(induction) up to max(induction)
 This means that the assert must be executed at each loop iteration, and that the loop processes all the iteration space.
