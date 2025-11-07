@@ -921,7 +921,7 @@ impl Elaborator<'_> {
         let typ = typ.follow_bindings_shallow();
         let (struct_type, generics) = match typ.as_ref() {
             Type::DataType(struct_type, struct_generics) if struct_type.borrow().is_struct() => {
-                (struct_type, struct_generics)
+                (struct_type.clone(), struct_generics)
             }
             typ => {
                 self.push_err(ResolverError::NonStructUsedInConstructor {
@@ -984,7 +984,7 @@ impl Elaborator<'_> {
 
         self.interner.add_type_reference(struct_id, constructor_type_location, is_self_type);
 
-        (expr, Type::DataType(struct_type.clone(), generics))
+        (expr, Type::DataType(struct_type, generics))
     }
 
     /// Mark a struct as used in the [UsageTracker][crate::usage_tracker::UsageTracker].
