@@ -663,9 +663,7 @@ impl NodeInterner {
         }
     }
 
-    /// Take note that a [Type] has been referenced at a [Location].
-    ///
-    /// Only in LSP mode.
+    /// In LSP mode, take note that the [Type] was referenced at a [Location].
     pub fn push_type_ref_location(&mut self, typ: &Type, location: Location) {
         if !self.is_in_lsp_mode() {
             return;

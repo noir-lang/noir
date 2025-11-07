@@ -35,9 +35,9 @@ impl Elaborator<'_> {
         let definition_id = expr.id;
 
         if let Some(PathResolutionItem::TypeAlias(alias)) = item {
-            // A type alias to a numeric generics is considered like a variable
-            // but it is not a real variable so it does not resolve to a valid Identifier
-            // In order to handle this, we retrieve the numeric generics expression that the type aliases to
+            // A type alias to a numeric generics is considered like a variable,
+            // but it is not a real variable so it does not resolve to a valid Identifier.
+            // In order to handle this, we retrieve the numeric generics expression that the type aliases to.
             let type_alias = self.interner.get_type_alias(alias);
             if let Some(expr) = &type_alias.borrow().numeric_expr {
                 let expr = UnresolvedTypeExpression::to_expression_kind(expr);
@@ -127,9 +127,9 @@ impl Elaborator<'_> {
     /// Checks whether `variable` is `Self::method_name` or `Self::AssociatedConstant` when we are inside a trait impl and `Self`
     /// resolves to a primitive type.
     ///
-    /// In the first case we elaborate this as if it were a TypePath
+    /// In the first case we elaborate this as if it were a [TypePath]
     /// (for example, if `Self` is `u32` then we consider this the same as `u32::method_name`).
-    /// A regular path lookup won't work here for the same reason `TypePath` exists.
+    /// A regular path lookup won't work here for the same reason [TypePath] exists.
     ///
     /// In the second case we solve the associated constant by looking up its value, later
     /// turning it into a literal.

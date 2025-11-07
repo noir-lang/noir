@@ -431,17 +431,23 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Resolve generics using the expected kinds of the function we are calling
+    /// Resolve generics using the expected kinds of the function we are calling.
+    ///
+    /// Looks up the generics of the function in [FuncMeta][crate::hir_def::function::FuncMeta].
+    ///
+    /// If there is no turbofish, it returns `None`.
     pub(super) fn resolve_function_turbofish_generics(
         &mut self,
         func_id: &FuncId,
         resolved_turbofish: Option<Vec<Located<Type>>>,
         location: Location,
     ) -> Option<Vec<Type>> {
-        let direct_generic_kinds =
-            vecmap(&self.interner.function_meta(func_id).direct_generics, |generic| generic.kind());
-
         resolved_turbofish.map(|resolved_turbofish| {
+            let direct_generic_kinds =
+                vecmap(&self.interner.function_meta(func_id).direct_generics, |generic| {
+                    generic.kind()
+                });
+
             if resolved_turbofish.len() != direct_generic_kinds.len() {
                 let type_check_err = TypeCheckError::IncorrectTurbofishGenericCount {
                     expected_count: direct_generic_kinds.len(),
@@ -456,6 +462,8 @@ impl Elaborator<'_> {
     }
 
     /// Resolve generics using the generic kinds of a struct [DataType].
+    ///
+    /// If there are no turbofish, returns the generics of the struct itself, as constructed by the caller.
     pub(super) fn resolve_struct_turbofish_generics(
         &mut self,
         struct_type: &DataType,
@@ -474,6 +482,9 @@ impl Elaborator<'_> {
         )
     }
 
+    /// Resolve generics using the generics and generic kinds of a [Trait][crate::hir_def::traits::Trait].
+    ///
+    /// If there are no turbofish, returns the generics of the trait itself, as constructed by the caller.
     pub(super) fn resolve_trait_turbofish_generics(
         &mut self,
         trait_name: &str,
@@ -492,6 +503,9 @@ impl Elaborator<'_> {
         )
     }
 
+    /// Resolve generics using the generic and generic kinds of a [TypeAlias].
+    ///
+    /// If there are no turbofish, returns the generics of the trait itself, as constructed by the caller.
     pub(super) fn resolve_alias_turbofish_generics(
         &mut self,
         type_alias: &TypeAlias,
