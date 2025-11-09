@@ -400,7 +400,9 @@ pub enum DefinitionKind {
     Global(GlobalId),
 
     /// Locals may be defined in let statements or parameters,
-    /// in which case they will not have an associated ExprId
+    /// in which case they will not have an associated ExprId.
+    /// For example a mutable variable can change, so it does
+    /// not have a stable defining expression.
     Local(Option<ExprId>),
 
     /// Generic types in functions (T, U in `fn foo<T, U>(...)` are declared as variables
@@ -661,7 +663,7 @@ impl NodeInterner {
         }
     }
 
-    /// Store [Location] of [Type] reference
+    /// In LSP mode, take note that the [Type] was referenced at a [Location].
     pub fn push_type_ref_location(&mut self, typ: &Type, location: Location) {
         if !self.is_in_lsp_mode() {
             return;
@@ -823,7 +825,7 @@ impl NodeInterner {
         self.type_aliases[id.0].clone()
     }
 
-    /// Returns the type of an item stored in the Interner or Error if it was not found.
+    /// Returns the type of an item stored in the [NodeInterner], or [Type::Error] if it was not found.
     pub fn id_type(&self, index: impl Into<Index>) -> Type {
         self.try_id_type(index).cloned().unwrap_or(Type::Error)
     }
@@ -832,11 +834,14 @@ impl NodeInterner {
         self.id_to_type.get(&index.into())
     }
 
-    /// Returns the type of the definition or `Type::Error` if it was not found.
+    /// Returns the type of the definition, or [Type::Error] if it was not found.
     pub fn definition_type(&self, id: DefinitionId) -> Type {
         self.definition_to_type.get(&id).cloned().unwrap_or(Type::Error)
     }
 
+    /// Returns the type of the definition, unless it's a function returning an `impl Trait`,
+    /// in which case it looks up the type of its body and returns a new function type with
+    /// the type fo the body substituted to its return type.
     pub fn id_type_substitute_trait_as_type(&self, def_id: DefinitionId) -> Type {
         let typ = self.definition_type(def_id);
         if let Type::Function(args, ret, env, unconstrained) = &typ {
@@ -896,6 +901,7 @@ impl NodeInterner {
         Type::type_variable_with_kind(self, kind)
     }
 
+    /// Remember the [TypeBindings] used during the instantiation of an expression.
     pub fn store_instantiation_bindings(
         &mut self,
         expr_id: ExprId,
@@ -920,6 +926,9 @@ impl NodeInterner {
         self.field_indices.insert(expr_id, index);
     }
 
+    /// Look up the [DefinitionId] of a [FuncId].
+    ///
+    /// Panics if it's not found.
     pub fn function_definition_id(&self, function: FuncId) -> DefinitionId {
         self.function_definition_ids[&function]
     }
@@ -1218,39 +1227,48 @@ impl NodeInterner {
         &self.quoted_types[id.0]
     }
 
+    /// Intern a [ExpressionKind].
     pub fn push_expression_kind(&mut self, expr: ExpressionKind) -> InternedExpressionKind {
         InternedExpressionKind(self.interned_expression_kinds.insert(expr))
     }
 
+    /// Get an interned [ExpressionKind] by its [InternedExpressionKind] ID.
     pub fn get_expression_kind(&self, id: InternedExpressionKind) -> &ExpressionKind {
         &self.interned_expression_kinds[id.0]
     }
 
+    /// Intern a [StatementKind].
     pub fn push_statement_kind(&mut self, statement: StatementKind) -> InternedStatementKind {
         InternedStatementKind(self.interned_statement_kinds.insert(statement))
     }
 
+    /// Get an interned [StatementKind] by its [InternedStatementKind] ID.
     pub fn get_statement_kind(&self, id: InternedStatementKind) -> &StatementKind {
         &self.interned_statement_kinds[id.0]
     }
 
+    /// Intern an [LValue] by turning it into an [Expression][crate::ast::Expression] and interning its [ExpressionKind].
     pub fn push_lvalue(&mut self, lvalue: LValue) -> InternedExpressionKind {
         self.push_expression_kind(lvalue.as_expression().kind)
     }
 
+    /// Get an interned [LValue] by its [InternedExpressionKind] ID.
     pub fn get_lvalue(&self, id: InternedExpressionKind, location: Location) -> LValue {
         LValue::from_expression_kind(self.get_expression_kind(id).clone(), location)
             .expect("Called LValue::from_expression with an invalid expression")
     }
 
+    /// Intern a [Pattern].
     pub fn push_pattern(&mut self, pattern: Pattern) -> InternedPattern {
         InternedPattern(self.interned_patterns.insert(pattern))
     }
 
+    /// Get an interned [Pattern] by its [InternedPattern] ID.
     pub fn get_pattern(&self, id: InternedPattern) -> &Pattern {
         &self.interned_patterns[id.0]
     }
 
+    /// Intern a [UnresolvedTypeData].
     pub fn push_unresolved_type_data(
         &mut self,
         typ: UnresolvedTypeData,

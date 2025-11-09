@@ -380,10 +380,10 @@ pub enum UnaryOp {
         mutable: bool,
     },
 
-    /// If implicitly_added is true, this operation was implicitly added by the compiler for a
+    /// If `implicitly_added` is true, this operation was implicitly added by the compiler for a
     /// field dereference. The compiler may undo some of these implicitly added dereferences if
     /// the reference later turns out to be needed (e.g. passing a field by reference to a function
-    /// requiring an &mut parameter).
+    /// requiring an `&mut` parameter).
     Dereference {
         implicitly_added: bool,
     },
@@ -577,6 +577,8 @@ pub enum ConstrainKind {
 }
 
 impl ConstrainKind {
+    /// The number of arguments expected by the constraint,
+    /// not counting the optional assertion message.
     pub fn required_arguments_count(&self) -> usize {
         match self {
             ConstrainKind::Assert | ConstrainKind::Constrain => 1,
