@@ -41,7 +41,7 @@ fn default_removes_target() {
 }
 
 #[test]
-fn crs_only_removes_subdirs_not_other_dirs() {
+fn clean_removes_local_crs_and_srs_only() {
     let tmp = TempDir::new().unwrap();
     init_minimal_project(tmp.path());
     fs::create_dir_all(tmp.path().join("target/crs")).unwrap();
