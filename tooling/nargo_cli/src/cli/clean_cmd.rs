@@ -93,12 +93,8 @@ pub(crate) fn run(cmd: CleanCommand, workspace: Workspace) -> Result<(), CliErro
     }
 
     if errors.is_empty() {
-        if cmd.verbose {
-            println!("Cleaned {} path(s).", planned.len());
-        } else {
-            println!("Clean complete.");
-        }
-        Ok(())
+    println!("Clean complete.");
+    Ok(())
     } else {
         eprintln!("Completed with {} error(s):", errors.len());
         for (p, e) in &errors {
@@ -208,17 +204,6 @@ fn canonical_key(p: &Path) -> String {
     p.canonicalize()
         .map(|c| c.to_string_lossy().into_owned())
         .unwrap_or_else(|_| p.to_string_lossy().into_owned())
-}
-
-fn possible_global_crs_dir() -> Option<PathBuf> {
-    if let Ok(env_path) = std::env::var("NARGO_GLOBAL_CRS_DIR") {
-        let p = PathBuf::from(env_path);
-        if p.is_dir() {
-            return Some(p);
-        }
-    }
-    let home = home_dir()?;
-    [home.join(".nargo/crs"), home.join(".cache/nargo/crs")].into_iter().find(|p| p.is_dir())
 }
 
 fn home_dir() -> Option<PathBuf> {
