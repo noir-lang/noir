@@ -30,8 +30,7 @@
 //! ```text
 //! Let G be a control flow graph. Let X and Y be nodes in G. Y is
 //! control dependent on X iff
-//! (1) there exists a directed path P from X to Y with any 2 in P (excluding X
-//! and Y) post-dominated by Y and
+//! (1) there exists a directed path P from X to Y with any Z in P (excluding X and Y) post-dominated by Y, and
 //! (2) X is not post-dominated by Y.
 //!
 //! If Y is control dependent on X then X must have two exits. Following one of the

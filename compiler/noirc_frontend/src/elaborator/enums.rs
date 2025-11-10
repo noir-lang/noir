@@ -334,23 +334,23 @@ impl Elaborator<'_> {
             .ok();
     }
 
-    // Given:
-    // ```
-    // enum FooEnum { Foo(u32, u8), ... }
-    //
-    // fn Foo(a: u32, b: u8) -> FooEnum {}
-    // ```
-    // Create (pseudocode):
-    // ```
-    // fn Foo(a: u32, b: u8) -> FooEnum {
-    //     // This can't actually be written directly in Noir
-    //     FooEnum {
-    //         tag: Foo_tag,
-    //         Foo: (a, b),
-    //         // fields from other variants are zeroed in monomorphization
-    //     }
-    // }
-    // ```
+    /// Given:
+    /// ```ignore
+    /// enum FooEnum { Foo(u32, u8), ... }
+    ///
+    /// fn Foo(a: u32, b: u8) -> FooEnum {}
+    /// ```
+    /// Create (pseudocode):
+    /// ```ignore
+    /// fn Foo(a: u32, b: u8) -> FooEnum {
+    ///     // This can't actually be written directly in Noir
+    ///     FooEnum {
+    ///         tag: Foo_tag,
+    ///         Foo: (a, b),
+    ///         // fields from other variants are zeroed in monomorphization
+    ///     }
+    /// }
+    /// ```
     fn make_enum_variant_constructor(
         &mut self,
         self_type: &Shared<DataType>,
@@ -836,26 +836,13 @@ impl Elaborator<'_> {
             expr_location: location,
         });
 
-        // Convert a signed integer type like i32 to SignedField
-        macro_rules! signed_to_signed_field {
-            ($value:expr) => {{
-                let negative = $value < 0;
-                // Widen the value so that SignedType::MIN does not wrap to 0 when negated below
-                let mut widened = i128::from($value);
-                if negative {
-                    widened = -widened;
-                }
-                SignedField::new(widened.into(), negative)
-            }};
-        }
-
         let value = match constant {
             Value::Bool(value) => SignedField::positive(value),
             Value::Field(value) => value,
-            Value::I8(value) => signed_to_signed_field!(value),
-            Value::I16(value) => signed_to_signed_field!(value),
-            Value::I32(value) => signed_to_signed_field!(value),
-            Value::I64(value) => signed_to_signed_field!(value),
+            Value::I8(value) => SignedField::from_signed(value),
+            Value::I16(value) => SignedField::from_signed(value),
+            Value::I32(value) => SignedField::from_signed(value),
+            Value::I64(value) => SignedField::from_signed(value),
             Value::U1(value) => SignedField::positive(value),
             Value::U8(value) => SignedField::positive(u128::from(value)),
             Value::U16(value) => SignedField::positive(u128::from(value)),
