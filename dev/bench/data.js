@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1762788290148,
+  "lastUpdate": 1762788410055,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23236,48 +23236,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "fcafe4e506fe1c2a5d4fc61fb923429db185e312",
-          "message": "chore(audit): Fix vector items offset and other refactors (#10294)",
-          "timestamp": "2025-10-28T22:21:48Z",
-          "tree_id": "52f8cb86eb3e40f03e609974969f1269604a7319",
-          "url": "https://github.com/noir-lang/noir/commit/fcafe4e506fe1c2a5d4fc61fb923429db185e312"
-        },
-        "date": 1761691540806,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 265266,
-            "range": "± 677",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 234281,
-            "range": "± 2934",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2799529,
-            "range": "± 5663",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "michaeljklein@users.noreply.github.com",
             "name": "Michael J Klein",
             "username": "michaeljklein"
@@ -25329,6 +25287,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2800589,
             "range": "± 7047",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "89155182+CECILIA-MULANDI@users.noreply.github.com",
+            "name": "Mulandi",
+            "username": "CECILIA-MULANDI"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "f51f75613474c532eaf5a3f42316340a13005e5e",
+          "message": "fix(compiler): Improve error message for impl on primitive types (#10430) (#10442)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>",
+          "timestamp": "2025-11-10T14:42:30Z",
+          "tree_id": "4b0ec2381efcc7b2003cf994b81ac9ad24f013c2",
+          "url": "https://github.com/noir-lang/noir/commit/f51f75613474c532eaf5a3f42316340a13005e5e"
+        },
+        "date": 1762788384320,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 260908,
+            "range": "± 854",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 230772,
+            "range": "± 3582",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2800216,
+            "range": "± 1924",
             "unit": "ns/iter"
           }
         ]
