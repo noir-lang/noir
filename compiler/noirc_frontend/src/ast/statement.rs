@@ -50,14 +50,14 @@ pub enum StatementKind {
     Continue,
     /// This statement should be executed at compile-time
     Comptime(Box<Statement>),
-    // This is an expression with a trailing semi-colon
+    /// This is an expression with a trailing semi-colon
     Semi(Expression),
-    // This is an interned StatementKind during comptime code.
-    // The actual StatementKind can be retrieved with a NodeInterner.
+    /// This is an interned StatementKind during comptime code.
+    /// The actual StatementKind can be retrieved with a NodeInterner.
     Interned(InternedStatementKind),
-    // This statement is the result of a recovered parse error.
-    // To avoid issuing multiple errors in later steps, it should
-    // be skipped in any future analysis if possible.
+    /// This statement is the result of a recovered parse error.
+    /// To avoid issuing multiple errors in later steps, it should
+    /// be skipped in any future analysis if possible.
     Error,
 }
 
@@ -421,7 +421,7 @@ pub struct Path {
     pub segments: Vec<PathSegment>,
     pub kind: PathKind,
     pub location: Location,
-    // The location of `kind` (this is the same as `location` for plain kinds)
+    /// The location of `kind` (this is the same as `location` for plain kinds)
     pub kind_location: Location,
 }
 
@@ -439,12 +439,13 @@ impl Path {
         self
     }
 
-    /// Construct a PathKind::Plain from this single
+    /// Construct a [PathKind::Plain] from a single identifier name.
     pub fn from_single(name: String, location: Location) -> Path {
         let segment = Ident::from(Located::from(location, name));
         Path::from_ident(segment)
     }
 
+    /// Construct a [PathKind::Plain] from a single [Ident].
     pub fn from_ident(name: Ident) -> Path {
         let location = name.location();
         Path::plain(vec![PathSegment::from(name)], location)

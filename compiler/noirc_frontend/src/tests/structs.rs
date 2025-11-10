@@ -300,3 +300,30 @@ fn constructor_extra_field() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn constructor_private_field() {
+    let src = r#"
+        mod foo {
+            pub struct Foo {
+                pub x: Field,
+                y: Field,
+            }
+
+            pub fn make() -> Foo {
+                Foo { x: 1, y: 2 }
+            }
+        }
+
+        fn main() {
+            let f = foo::make();
+            let foo::Foo { x: _, y: _ } = f;
+                                 ^ y is private and not visible from the current module
+                                 ~ y is private
+            let foo::Foo { x: _ } = f;
+                ^^^^^^^^^^^^^^^^^ missing field y in struct Foo
+        }
+    "#;
+    // NOTE: The second attempt could work with `foo::Foo { x: _, .. }` if Noir supported `..`.
+    check_errors(src);
+}

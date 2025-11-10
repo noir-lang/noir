@@ -59,6 +59,9 @@ pub struct HirIdent {
 }
 
 impl HirIdent {
+    /// Create a [HirIdent] with [ImplKind::NotATraitMethod].
+    ///
+    /// It may not be a method at all.
     pub fn non_trait_method(id: DefinitionId, location: Location) -> Self {
         Self { id, location, impl_kind: ImplKind::NotATraitMethod }
     }
@@ -247,6 +250,9 @@ pub enum HirMethodReference {
 }
 
 impl HirMethodReference {
+    /// Return the [FuncId] of a method if it's known.
+    ///
+    /// Returns `None` for trait methods don't have a know function definition.
     pub fn func_id(&self, interner: &NodeInterner) -> Option<FuncId> {
         match self {
             HirMethodReference::FuncId(func_id) => Some(*func_id),
@@ -259,6 +265,8 @@ impl HirMethodReference {
         }
     }
 
+    /// Looks up definition of a function and its implementation kind (a normal function or a trait method),
+    /// and interns an identifier we can use to call the function.
     pub fn into_function_id_and_name(
         self,
         object_type: Type,
