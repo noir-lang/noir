@@ -1,4 +1,4 @@
-use std::io::Write;
+use std::{hash::BuildHasher, io::Write};
 
 use acvm::{AcirField, BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
 use bn254_blackbox_solver::derive_generators;
@@ -845,11 +845,16 @@ fn values_to_fields(values: &[Value]) -> Vec<FieldElement> {
                     // but that's catered for the by the SSA generation: the env is passed as separate values.
                     fields.push(FieldElement::from(id.to_u32()));
                 }
-                Value::Intrinsic(x) => {
-                    panic!("didn't expect to print intrinsics: {x}")
-                }
                 Value::ForeignFunction(x) => {
-                    panic!("didn't expect to print foreign functions: {x}")
+                    // The actual display of functions only shows the type, but expects the ID.
+                    // Send a hash so we can interpret the Initial SSA until we wrap these values with a normal function.
+                    let hash = rustc_hash::FxBuildHasher.hash_one(x);
+                    fields.push(FieldElement::from(hash));
+                }
+                Value::Intrinsic(x) => {
+                    // Same as foreign functions: just pass something so we can handle the initial SSA even if somehow an intrinsic makes it here.
+                    let hash = rustc_hash::FxBuildHasher.hash_one(x);
+                    fields.push(FieldElement::from(hash));
                 }
             }
             // Chamber the length for a potential vector following it.
