@@ -721,8 +721,7 @@
 <a href="#720" id="720">720</a>
 <a href="#721" id="721">721</a>
 <a href="#722" id="722">722</a>
-<a href="#723" id="723">723</a>
-<a href="#724" id="724">724</a></pre></div><pre class="rust"><code><span class="doccomment">//! Pattern elaboration, variable binding, and turbofish generic resolution.
+<a href="#723" id="723">723</a></pre></div><pre class="rust"><code><span class="doccomment">//! Pattern elaboration, variable binding, and turbofish generic resolution.
 
 </span><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{Located, Location};
@@ -1134,10 +1133,9 @@
     <span class="doccomment">/// Lookup and use the specified local variable.
     /// This will increment its use counter by one and return the variable if found.
     /// If the variable is not found, an error is returned.
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>use_variable(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        name: <span class="kw-2">&amp;</span>Ident,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;(HirIdent, usize), ResolverError&gt; {
+    ///
+    /// This method is private and is expected to be called through [Self::get_ident_from_path_or_error].
+    </span><span class="kw">fn </span>use_variable(<span class="kw-2">&amp;mut </span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>Ident) -&gt; <span class="prelude-ty">Result</span>&lt;(HirIdent, usize), ResolverError&gt; {
         <span class="comment">// Find the definition for this Ident
         </span><span class="kw">let </span>scope_tree = <span class="self">self</span>.scopes.current_scope_tree();
         <span class="kw">let </span>variable = scope_tree.find(name.as_str());
