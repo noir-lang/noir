@@ -441,8 +441,11 @@ impl<'context> Elaborator<'context> {
         self.errors.push(error);
     }
 
-    pub(crate) fn push_errors(&mut self, errors: impl IntoIterator<Item = CompilationError>) {
-        self.errors.extend(errors);
+    pub(crate) fn push_errors<E: Into<CompilationError>>(
+        &mut self,
+        errors: impl IntoIterator<Item = E>,
+    ) {
+        self.errors.extend(errors.into_iter().map(|e| e.into()));
     }
 
     fn run_lint(&mut self, lint: impl Fn(&Elaborator) -> Option<CompilationError>) {
@@ -465,9 +468,7 @@ impl<'context> Elaborator<'context> {
     fn resolve_trait_by_path(&mut self, path: TypedPath) -> Option<TraitId> {
         let error = match self.resolve_path_as_type(path.clone()) {
             Ok(PathResolution { item: PathResolutionItem::Trait(trait_id), errors }) => {
-                for error in errors {
-                    self.push_err(error);
-                }
+                self.push_errors(errors);
                 return Some(trait_id);
             }
             Ok(_) => DefCollectorErrorKind::NotATrait { not_a_trait_name: path },
@@ -581,7 +582,7 @@ impl<'context> Elaborator<'context> {
                 *function,
                 noir_function,
             );
-            self.push_errors(errors.into_iter().map(|error| error.into()));
+            self.push_errors(errors);
         }
 
         self.elaborate_functions(trait_impl.methods);
