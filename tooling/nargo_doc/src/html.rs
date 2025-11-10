@@ -695,6 +695,7 @@ impl HTMLCreator {
             "Primitive type <span id=\"primitive\" class=\"primitive\">{}</span>",
             primitive.kind
         ));
+        self.render_comments(&primitive.comments, 1);
         self.render_impls(&primitive.impls);
 
         let mut trait_impls = primitive.trait_impls.clone();
