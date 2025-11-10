@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1762803899151,
+  "lastUpdate": 1762804385279,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23161,48 +23161,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "53da0afe66ed9946c6dc071f7e24b2d937b46092",
-          "message": "fix: remove leading stars from block doc comments (#10316)",
-          "timestamp": "2025-10-30T19:17:15Z",
-          "tree_id": "a4c1c39843cb15f5cd0530ebaef48ff8de12601e",
-          "url": "https://github.com/noir-lang/noir/commit/53da0afe66ed9946c6dc071f7e24b2d937b46092"
-        },
-        "date": 1761853339758,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 262303,
-            "range": "± 1728",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 232013,
-            "range": "± 4294",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2794579,
-            "range": "± 6877",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -25254,6 +25212,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2261356,
             "range": "± 1811",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "597633c521dc1dbcdc9f62f54f01e4b2c9563440",
+          "message": "fix: Defunctionalize foreign functions in pre-SSA pass over mAST (#10160)",
+          "timestamp": "2025-11-10T19:24:38Z",
+          "tree_id": "84937e322a42d8f563e27bf156374b9d64483270",
+          "url": "https://github.com/noir-lang/noir/commit/597633c521dc1dbcdc9f62f54f01e4b2c9563440"
+        },
+        "date": 1762804359583,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 260386,
+            "range": "± 892",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 231207,
+            "range": "± 3054",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2805956,
+            "range": "± 9071",
             "unit": "ns/iter"
           }
         ]
