@@ -218,54 +218,96 @@ impl VariableLiveness {
     /// The variables live at the *beginning* of a block are the variables used by the block,
     /// plus the variables used by the successors of the block, minus the variables defined
     /// in the block (by definition not alive at the beginning).
+    ///
+    /// This is an iterative implementation to avoid stack overflows on complex programs.
     fn compute_live_in_recursive(
         &mut self,
         func: &Function,
-        block_id: BasicBlockId,
+        entry_block: BasicBlockId,
         constants: &ConstantAllocation,
         back_edges: &LoopMap,
     ) {
-        let block = &func.dfg[block_id];
-        let mut live_out = HashSet::default();
+        // Use an explicit stack to simulate recursion
+        // Each entry is (block_id, processing_state)
+        // processing_state: false = need to process successors, true = ready to compute live_in
+        let mut stack = vec![(entry_block, false)];
+        let mut visited = HashSet::default();
 
-        // Collect the `live_in` of successors; their union is the `live_in` of the parent.
-        for successor_id in block.successors() {
-            // Skip back edges: do not revisit the header of the loop, to avoid infinite recursion.
-            // Because of this, we will have to revisit this block, to complete its definition of live_out,
-            // once we know what the live_in of the header is.
-            if back_edges.contains_key(&BackEdge { start: block_id, header: successor_id }) {
-                continue;
+        while let Some((block_id, ready_to_compute)) = stack.pop() {
+            if ready_to_compute {
+                // All successors have been processed, now compute live_in for this block
+                let block = &func.dfg[block_id];
+                let mut live_out = HashSet::default();
+
+                // Collect the `live_in` of successors; their union is the `live_out` of the parent.
+                for successor_id in block.successors() {
+                    // Skip back edges: do not revisit the header of the loop
+                    if back_edges.contains_key(&BackEdge { start: block_id, header: successor_id })
+                    {
+                        continue;
+                    }
+                    // Add the live_in of the successor to the union that forms the live_out of the parent.
+                    live_out.extend(
+                        self.live_in
+                            .get(&successor_id)
+                            .expect("live_in for successor should have been calculated")
+                            .iter()
+                            .copied(),
+                    );
+                }
+
+                // Variables used in this block, defined in this block or before.
+                let used = variables_used_in_block(block, &func.dfg);
+
+                // Variables defined in this block are not alive at the beginning.
+                let defined = self.variables_defined_in_block(block_id, &func.dfg, constants);
+
+                // Live at the beginning are the variables used, but not defined in this block, plus the ones
+                // it passes through to its successors, which are used by them, but not defined here.
+                let live_in =
+                    used.union(&live_out).filter(|v| !defined.contains(v)).copied().collect();
+
+                self.live_in.insert(block_id, live_in);
+            } else {
+                // First visit: check if we've already processed this block
+                if visited.contains(&block_id) {
+                    continue;
+                }
+                visited.insert(block_id);
+
+                let block = &func.dfg[block_id];
+
+                // Check if all successors (except back edges) have been processed
+                let mut all_successors_processed = true;
+                let mut unprocessed_successors = Vec::new();
+
+                for successor_id in block.successors() {
+                    // Skip back edges
+                    if back_edges.contains_key(&BackEdge { start: block_id, header: successor_id })
+                    {
+                        continue;
+                    }
+                    // If successor hasn't been processed yet, we need to process it first
+                    if !self.live_in.contains_key(&successor_id) {
+                        all_successors_processed = false;
+                        unprocessed_successors.push(successor_id);
+                    }
+                }
+
+                if all_successors_processed {
+                    // All successors ready, push this block with ready_to_compute = true
+                    stack.push((block_id, true));
+                } else {
+                    // Need to process successors first
+                    // Push this block back with ready_to_compute = true (for after successors)
+                    stack.push((block_id, true));
+                    // Push unprocessed successors with ready_to_compute = false
+                    for successor_id in unprocessed_successors {
+                        stack.push((successor_id, false));
+                    }
+                }
             }
-            // If we haven't visited this successor yet, dive in.
-            if !self.live_in.contains_key(&successor_id) {
-                self.compute_live_in_recursive(func, successor_id, constants, back_edges);
-            }
-            // Add the live_in of the successor to the union that forms the live_out of the parent.
-            // Note that because we skipped the back-edge, we couldn't call `get_live_out` here.
-            live_out.extend(
-                self.live_in
-                    .get(&successor_id)
-                    .expect("live_in for successor should have been calculated")
-                    .iter()
-                    .copied(),
-            );
         }
-
-        // Based on the paper mentioned in the module docs, the definition would be:
-        // live_in[BlockId] = before_def[BlockId] union (live_out[BlockId] - killed[BlockId])
-
-        // Variables used in this block, defined in this block or before.
-        let used = variables_used_in_block(block, &func.dfg);
-
-        // Variables defined in this block are not alive at the beginning.
-        let defined = self.variables_defined_in_block(block_id, &func.dfg, constants);
-
-        // Live at the beginning are the variables used, but not defined in this block, plus the ones
-        // it passes through to its successors, which are used by them, but not defined here.
-        // (Variables used by successors and defined in this block are part of `live_out`, but not `live_in`).
-        let live_in = used.union(&live_out).filter(|v| !defined.contains(v)).copied().collect();
-
-        self.live_in.insert(block_id, live_in);
     }
 
     /// Collects all the variables defined in a block, which includes:
