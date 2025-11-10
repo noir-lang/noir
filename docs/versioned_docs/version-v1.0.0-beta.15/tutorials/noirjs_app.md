@@ -16,14 +16,14 @@ You can find the complete app code for this guide [here](https://github.com/noir
 
 Before we start, we want to make sure we have Node installed. If you don't have it already you can install it [here](https://nodejs.org/en/download), we recommend using [Yarn](https://yarnpkg.com/getting-started/install) as our package manager for this tutorial.
 
-We'll also need version 1.0.0-beta.2 nargo installed, see the Noir [installation guide](../getting_started/noir_installation.md) for details.
+We'll also need version 1.0.0-beta.15 nargo installed, see the Noir [installation guide](../getting_started/noir_installation.md) for details.
 
 Let's go barebones. Doing the bare minimum is not only simple, but also allows you to easily adapt it to almost any frontend framework.
 
 Barebones means we can immediately start with the dependencies even on an empty folder 😈:
 
 ```bash
-yarn add @noir-lang/noir_js@1.0.0-beta.9 @aztec/bb.js@0.87.0
+yarn add @noir-lang/noir_js@1.0.0-beta.15 @aztec/bb.js@3.0.0-nightly.20251104 buffer vite vite-plugin-node-polyfills@0.17.0
 ```
 
 Wait, what are these dependencies?
@@ -47,7 +47,7 @@ It's not just you. We also enjoy syntax highlighting. [Check out the Language Se
 
 :::
 
-All you need is a `main.nr` and a `Nargo.toml` file. You can follow the [noirup](../getting_started/noir_installation.md) installation and just run `noirup -v 1.0.0-beta.6`, or just create them by hand:
+All you need is a `main.nr` and a `Nargo.toml` file. You can follow the [noirup](../getting_started/noir_installation.md) installation and just run `noirup -v 1.0.0-beta.15`, or just create them by hand:
 
 ```bash
 mkdir -p circuit/src
@@ -56,7 +56,7 @@ touch circuit/src/main.nr circuit/Nargo.toml
 
 To make our program interesting, let's give it a real use-case scenario: Bob wants to prove he is older than 18, without disclosing his age. Open `main.nr` and write:
 
-```rust title="age_check" showLineNumbers 
+```rust title="age_check" showLineNumbers
 fn main(age: u8) {
     assert(age > 18);
 }
@@ -100,7 +100,7 @@ touch index.html index.js
 
 And add something useful to our HTML file:
 
-```html title="index" showLineNumbers 
+```html title="index" showLineNumbers
 <!DOCTYPE html>
 <head>
   <style>
@@ -138,7 +138,7 @@ It _could_ be a beautiful UI... Depending on which universe you live in. In any 
 
 As for the JS, real madmen could just `console.log` everything, but let's say we want to see things happening (the true initial purpose of JS... right?). Here's some boilerplate for that. Just paste it in `index.js`:
 
-```js title="show_function" showLineNumbers 
+```js title="show_function" showLineNumbers
 const show = (id, content) => {
   const container = document.getElementById(id);
   container.appendChild(document.createTextNode(content));
@@ -171,7 +171,7 @@ At this point in the tutorial, your folder structure should look like this:
 
 We're starting with the good stuff now. We want to execute our circuit to get the witness, and then feed that witness to Barretenberg. Luckily, both packages are quite easy to work with. Let's import them at the top of the file:
 
-```js title="imports" showLineNumbers 
+```js title="imports" showLineNumbers
 import { UltraHonkBackend } from '@aztec/bb.js';
 import { Noir } from '@noir-lang/noir_js';
 import circuit from './target/circuit.json';
@@ -181,7 +181,7 @@ import circuit from './target/circuit.json';
 
 And instantiate them inside our try-catch block:
 
-```js title="init" showLineNumbers 
+```js title="init" showLineNumbers
 const noir = new Noir(circuit);
     const backend = new UltraHonkBackend(circuit.bytecode);
 ```
@@ -192,7 +192,7 @@ const noir = new Noir(circuit);
 
 Now for the app itself. We're capturing whatever is in the input when people press the submit button. Inside our `try` block, let's just grab that input and get its value. Noir will gladly execute it, and give us a witness:
 
-```js title="execute" showLineNumbers 
+```js title="execute" showLineNumbers
 const age = document.getElementById('age').value;
     show('logs', 'Generating witness... ⏳');
     const { witness } = await noir.execute({ age });
@@ -209,7 +209,7 @@ For the remainder of the tutorial, everything will be happening inside the `try`
 
 Now we're ready to prove stuff! Let's feed some inputs to our circuit and calculate the proof:
 
-```js title="prove" showLineNumbers 
+```js title="prove" showLineNumbers
 show('logs', 'Generating proof... ⏳');
     const proof = await backend.generateProof(witness);
     show('logs', 'Generated proof... ✅');
@@ -227,12 +227,21 @@ touch vite.config.js
 Noir needs to load two WASM modules, but Vite doesn't include them by default in the bundle. We need to add the configuration below to `vite.config.js` to make it work.
 We also need to target ESNext since `bb.js` uses top-level await, which isn't supported in some browsers.
 
-```js title="config" showLineNumbers 
-export default {
+```js title="config" showLineNumbers
+import { defineConfig } from 'vite';
+import { nodePolyfills } from 'vite-plugin-node-polyfills';
+
+export default defineConfig({
+  plugins: [nodePolyfills()],
   optimizeDeps: {
-    esbuildOptions: { target: 'esnext' },
-    exclude: ['@noir-lang/noirc_abi', '@noir-lang/acvm_js'],
+    exclude: ['@aztec/bb.js'],
   },
+  resolve: {
+    alias: {
+      pino: 'pino/browser.js',
+    },
+  },
+});
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/examples/browser/vite.config.js#L1-L7" target="_blank" rel="noopener noreferrer">Source code: examples/browser/vite.config.js#L1-L7</a></sub></sup>
 
@@ -240,7 +249,7 @@ export default {
 This should be enough for vite. We don't even need to install it, just run:
 
 ```bash
-yarn dlx vite
+yarn vite dev
 ```
 
 If it doesn't open a browser for you, just visit `localhost:5173`. You should now see the worst UI ever, with an ugly input.
@@ -255,7 +264,7 @@ By the way, if you're human, you shouldn't be able to understand anything on the
 
 Time to celebrate, yes! But we shouldn't trust machines so blindly. Let's add these lines to see our proof being verified:
 
-```js title="verify" showLineNumbers 
+```js title="verify" showLineNumbers
 show('logs', 'Verifying proof... ⌛');
     const isValid = await backend.verifyProof(proof);
     show('logs', `Proof is ${isValid ? 'valid' : 'invalid'}... ✅`);
