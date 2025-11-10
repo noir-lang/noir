@@ -1,6 +1,8 @@
 use acvm::AcirField;
 use serde::{Deserialize, Serialize};
 
+use crate::foreign_calls::layers::RejectAztecOracles;
+
 use super::{
     ForeignCallExecutor,
     layers::{self, Either, Layer, Layering},
@@ -92,19 +94,21 @@ impl<W> DefaultForeignCallBuilder<W> {
             {
                 use rand::Rng;
 
-                base.add_layer(self.resolver_url.map(|resolver_url| {
-                    let id = rand::thread_rng().r#gen();
-                    RPCForeignCallExecutor::new(
-                        &resolver_url,
-                        id,
-                        self.root_path,
-                        self.package_name,
-                    )
-                }))
+                base.add_layer(RejectAztecOracles).add_layer(self.resolver_url.map(
+                    |resolver_url| {
+                        let id = rand::thread_rng().r#gen();
+                        RPCForeignCallExecutor::new(
+                            &resolver_url,
+                            id,
+                            self.root_path,
+                            self.package_name,
+                        )
+                    },
+                ))
             }
             #[cfg(not(feature = "rpc"))]
             {
-                base
+                base.add_layer(RejectAztecOracles)
             }
         };
 
@@ -124,13 +128,16 @@ pub type DefaultForeignCallLayers<W, B, F> = Layer<
     PrintForeignCallExecutor<W>,
     Layer<
         Either<MockForeignCallExecutor<F>, DisabledMockForeignCallExecutor>,
-        Layer<Option<RPCForeignCallExecutor>, B>,
+        Layer<Option<RPCForeignCallExecutor>, Layer<RejectAztecOracles, B>>,
     >,
 >;
 #[cfg(not(feature = "rpc"))]
 pub type DefaultForeignCallLayers<W, B, F> = Layer<
     PrintForeignCallExecutor<W>,
-    Layer<Either<MockForeignCallExecutor<F>, DisabledMockForeignCallExecutor>, B>,
+    Layer<
+        Either<MockForeignCallExecutor<F>, DisabledMockForeignCallExecutor>,
+        Layer<RejectAztecOracles, B>,
+    >,
 >;
 
 /// Convenience constructor for code that used to create the executor this way.
