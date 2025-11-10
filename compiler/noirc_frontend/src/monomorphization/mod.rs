@@ -2877,6 +2877,7 @@ pub fn append_printable_type_info_for_type(typ: Type, arguments: &mut Vec<ast::E
                         append_printable_type_info_inner(&typ, arguments);
                     }
                 }
+                Type::Unit => {}
                 _ => unreachable!("ICE: format string type should be a tuple but got a {elements}"),
             }
             true

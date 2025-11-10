@@ -447,7 +447,9 @@ impl Elaborator<'_> {
         }
 
         let len = Type::Constant(length.into(), Kind::u32());
-        let typ = Type::FmtString(Box::new(len), Box::new(Type::Tuple(capture_types)));
+        let fmtstr_type =
+            if capture_types.is_empty() { Type::Unit } else { Type::Tuple(capture_types) };
+        let typ = Type::FmtString(Box::new(len), Box::new(fmtstr_type));
         (HirExpression::Literal(HirLiteral::FmtStr(fragments, fmt_str_idents, length)), typ)
     }
 
