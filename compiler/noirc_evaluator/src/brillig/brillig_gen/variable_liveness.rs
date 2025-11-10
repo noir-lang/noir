@@ -257,6 +257,7 @@ impl VariableLiveness {
 
                 // Based on the paper mentioned in the module docs, the definition would be:
                 // live_in[BlockId] = before_def[BlockId] union (live_out[BlockId] - killed[BlockId])
+
                 // Variables used in this block, defined in this block or before.
                 let used = variables_used_in_block(block, &func.dfg);
 
