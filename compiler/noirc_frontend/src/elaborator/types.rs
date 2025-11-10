@@ -13,7 +13,7 @@ use crate::{
         AsTraitPath, BinaryOpKind, GenericTypeArgs, Ident, PathKind, UnaryOp, UnresolvedType,
         UnresolvedTypeData, UnresolvedTypeExpression, WILDCARD_TYPE,
     },
-    elaborator::UnstableFeature,
+    elaborator::{UnstableFeature, path_resolution::PathResolution},
     hir::{
         def_collector::dc_crate::CompilationError,
         def_map::{ModuleDefId, fully_qualified_module_path},
@@ -619,8 +619,10 @@ impl Elaborator<'_> {
         }
 
         // If we cannot find a local generic of the same name, try to look up a global
-        match self.resolve_path_or_error_inner(path.clone(), PathResolutionTarget::Value, mode) {
-            Ok(PathResolutionItem::Global(id)) => {
+        match self.resolve_path_inner(path.clone(), PathResolutionTarget::Value, mode) {
+            Ok(PathResolution { item: PathResolutionItem::Global(id), errors }) => {
+                self.push_errors(errors);
+
                 if let Some(current_item) = self.current_item {
                     self.interner.add_global_dependency(current_item, id);
                 }
