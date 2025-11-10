@@ -196,8 +196,8 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
             DefCollectorErrorKind::NonStructTypeInImpl { location, is_primitive } =>{
                 if *is_primitive {
                     Diagnostic::simple_error(
-                        "cannot define inherent `impl` for primitive types".into(),
-                        "primitive types can only have implementation methods defined in the standard library".into(),
+                        "Cannot define inherent `impl` for primitive types".into(),
+                        "Primitive types can only have implementation methods defined in the standard library".into(),
                         *location,
                     )
                 }else{

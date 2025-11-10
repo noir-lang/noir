@@ -222,8 +222,8 @@ fn errors_on_impl_for_primitive_type_outside_stdlib() {
     let src = r#"
     // User code (not stdlib) cannot impl methods on primitive types
     impl Field {
-         ^^^^^ cannot define inherent `impl` for primitive types
-         ~~~~~ primitive types can only have implementation methods defined in the standard library
+         ^^^^^ Cannot define inherent `impl` for primitive types
+         ~~~~~ Primitive types can only have implementation methods defined in the standard library
         fn my_method(self) -> Field {
             self
         }
