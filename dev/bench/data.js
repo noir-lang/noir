@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1762810107786,
+  "lastUpdate": 1762811541725,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23171,48 +23171,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "4ae0fbdc473ae9d66823c9b4049b8fc71a9518ae",
-          "message": "chore: add unit tests to show some features of the analysis (#10286)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
-          "timestamp": "2025-10-31T15:21:14Z",
-          "tree_id": "070c436573f622dbc5a3e1eb9c45251b70b30401",
-          "url": "https://github.com/noir-lang/noir/commit/4ae0fbdc473ae9d66823c9b4049b8fc71a9518ae"
-        },
-        "date": 1761925880890,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 253059,
-            "range": "± 451",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 221576,
-            "range": "± 2796",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2260662,
-            "range": "± 1161",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "1324e732b92ee9624307ee226ffeed01610287a6",
           "message": "chore: green light for basic_conditional audit (#10134)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
           "timestamp": "2025-10-31T16:16:32Z",
@@ -25254,6 +25212,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2803430,
             "range": "± 8470",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "2ff4d11df5fecff666e9e60dbfef1255d11c73c9",
+          "message": "chore: lock Cargo.lock in cargo-binstall (#10459)",
+          "timestamp": "2025-11-10T20:42:33Z",
+          "tree_id": "7e8881e080c6aa9f6fa8da098f335f2509612963",
+          "url": "https://github.com/noir-lang/noir/commit/2ff4d11df5fecff666e9e60dbfef1255d11c73c9"
+        },
+        "date": 1762811516205,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 264944,
+            "range": "± 894",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 236733,
+            "range": "± 4520",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2815100,
+            "range": "± 2316",
             "unit": "ns/iter"
           }
         ]
