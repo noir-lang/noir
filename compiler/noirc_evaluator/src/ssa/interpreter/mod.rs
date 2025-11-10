@@ -1295,7 +1295,7 @@ macro_rules! apply_fit_comparison_op {
         if let (Fitted::Fit(lhs), Fitted::Fit(rhs)) = ($lhs, $rhs) {
             $f(lhs, rhs)
         } else {
-            $g($lhs_num.convert_to_field(), $rhs_num.convert_to_field())
+            $g($lhs_num, $rhs_num)
         }
     }};
 }
@@ -1464,6 +1464,30 @@ macro_rules! apply_int_comparison_op {
     }};
 }
 
+/// Helper function to try to compare two [NumericValue]s when at least one of them was [Fitted::Unfit].
+///
+/// We know that their types were the same; we can try to fit signed values into `i128`
+/// and unsigned ones into `u128` and compare them that way.
+///
+/// Panics if these conversions cannot be done, in which case we have to come up with
+/// another way to handle SSA that tries to compare potentially overflowed values.
+fn unfit_lt(a: NumericValue, b: NumericValue) -> bool {
+    use NumericValue::*;
+    match a {
+        U8(_) | U16(_) | U32(_) | U64(_) | U128(_) => {
+            let a = a.convert_to_field().try_into_u128().expect("unfit value doesn't fit u128");
+            let b = b.convert_to_field().try_into_u128().expect("unfit value doesn't fit u128");
+            a < b
+        }
+        I8(_) | I16(_) | I32(_) | I64(_) => {
+            let a = a.convert_to_field().try_into_i128().expect("unfit value doesn't fit i128");
+            let b = b.convert_to_field().try_into_i128().expect("unfit value doesn't fit i128");
+            a < b
+        }
+        U1(_) | Field(_) => unreachable!("never unfit"),
+    }
+}
+
 fn evaluate_binary(
     binary: &Binary,
     lhs: NumericValue,
@@ -1549,11 +1573,15 @@ fn evaluate_binary(
             num_traits::CheckedRem::checked_rem,
             display_binary
         ),
-        BinaryOp::Eq => apply_int_comparison_op!(lhs, rhs, binary, |a, b| a == b, |a, b| a == b),
+        BinaryOp::Eq => apply_int_comparison_op!(
+            lhs,
+            rhs,
+            binary,
+            |a, b| a == b,
+            |a: NumericValue, b: NumericValue| a.convert_to_field() == b.convert_to_field()
+        ),
         BinaryOp::Lt => {
-            apply_int_comparison_op!(lhs, rhs, binary, |a, b| a < b, |_, _| unreachable!(
-                "unfit lt: fit types should have been restored already"
-            ))
+            apply_int_comparison_op!(lhs, rhs, binary, |a, b| a < b, unfit_lt)
         }
         BinaryOp::And => {
             apply_int_binop!(lhs, rhs, binary, |a, b| Some(a & b), |_, _| unreachable!(
