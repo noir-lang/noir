@@ -1442,7 +1442,13 @@
 <a href="#1441" id="1441">1441</a>
 <a href="#1442" id="1442">1442</a>
 <a href="#1443" id="1443">1443</a>
-<a href="#1444" id="1444">1444</a></pre></div><pre class="rust"><code><span class="doccomment">//! Enum definition collection and variant resolution.
+<a href="#1444" id="1444">1444</a>
+<a href="#1445" id="1445">1445</a>
+<a href="#1446" id="1446">1446</a>
+<a href="#1447" id="1447">1447</a>
+<a href="#1448" id="1448">1448</a>
+<a href="#1449" id="1449">1449</a>
+<a href="#1450" id="1450">1450</a></pre></div><pre class="rust"><code><span class="doccomment">//! Enum definition collection and variant resolution.
 
 </span><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet};
 
@@ -1468,7 +1474,7 @@
     hir_def::{
         expr::{
             Case, Constructor, HirBlockExpression, HirEnumConstructorExpression, HirExpression,
-            HirIdent, HirMatch,
+            HirIdent, HirLiteral, HirMatch,
         },
         function::{FuncMeta, FunctionBody, HirFunction, Parameters},
         stmt::{HirLetStatement, HirPattern, HirStatement},
@@ -1906,6 +1912,12 @@
                     <span class="prelude-val">None </span>=&gt; <span class="self">self</span>.interner.next_type_variable_with_kind(Kind::IntegerOrField),
                 };
                 unify_with_expected_type(<span class="self">self</span>, <span class="kw-2">&amp;</span>actual);
+
+                <span class="kw">let </span>expr = HirExpression::Literal(HirLiteral::Integer(value));
+                <span class="kw">let </span>location = expr_location;
+                <span class="kw">let </span>expr_id = <span class="self">self</span>.interner.push_expr_full(expr, location, actual.clone());
+                <span class="self">self</span>.push_integer_literal_expr_id(expr_id);
+
                 Pattern::Int(value)
             }
             ExpressionKind::Literal(Literal::Bool(value)) =&gt; {
