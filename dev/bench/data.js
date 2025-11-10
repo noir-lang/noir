@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1762806912092,
+  "lastUpdate": 1762806938856,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23161,48 +23161,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "577cbdc068800166f543e350d2f5d0dca75a1292",
-          "message": "fix(print): Convert `HirType::Function` into `PrintableType::Tuple`  (#10189)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
-          "timestamp": "2025-10-31T10:12:01Z",
-          "tree_id": "1c4aa0b15fc03fa94a7ed1f725e6a3c1073ea2ee",
-          "url": "https://github.com/noir-lang/noir/commit/577cbdc068800166f543e350d2f5d0dca75a1292"
-        },
-        "date": 1761906980877,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 263144,
-            "range": "± 1124",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 233844,
-            "range": "± 10977",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2799210,
-            "range": "± 5794",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -25254,6 +25212,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2798821,
             "range": "± 1154",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "1bbaffe34b868226cd95d4282a668b7e57feac9d",
+          "message": "fix(acir-gen): Use the side effect variable in `slice_pop_back` (#10455)",
+          "timestamp": "2025-11-10T19:34:08Z",
+          "tree_id": "e401b06f01a14a5f8b67ba42a8fa92fa086d1159",
+          "url": "https://github.com/noir-lang/noir/commit/1bbaffe34b868226cd95d4282a668b7e57feac9d"
+        },
+        "date": 1762806912805,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 263353,
+            "range": "± 1072",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 233716,
+            "range": "± 1644",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2803430,
+            "range": "± 8470",
             "unit": "ns/iter"
           }
         ]
