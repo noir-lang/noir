@@ -1,6 +1,7 @@
 //! Lexical scoping, variable lookup, and closure capture tracking.
 
 use crate::ast::{ERROR_IDENT, Ident};
+use crate::elaborator::path_resolution::PathResolution;
 use crate::hir::def_map::{LocalModuleId, ModuleId};
 
 use crate::hir::scope::{Scope as GenericScope, ScopeTree as GenericScopeTree};
@@ -226,8 +227,9 @@ impl Elaborator<'_> {
         path: TypedPath,
         mode: PathResolutionMode,
     ) -> Option<Shared<TypeAlias>> {
-        match self.resolve_path_or_error_inner(path, PathResolutionTarget::Type, mode) {
-            Ok(PathResolutionItem::TypeAlias(type_alias_id)) => {
+        match self.resolve_path_inner(path, PathResolutionTarget::Type, mode) {
+            Ok(PathResolution { item: PathResolutionItem::TypeAlias(type_alias_id), errors }) => {
+                self.push_errors(errors);
                 Some(self.interner.get_type_alias(type_alias_id))
             }
             _ => None,
