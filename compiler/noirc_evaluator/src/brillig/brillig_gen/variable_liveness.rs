@@ -296,17 +296,15 @@ impl VariableLiveness {
                     }
                 }
 
-                if all_successors_processed {
-                    // All successors ready, push this block with processed = true
-                    stack.push((block_id, true));
-                } else {
-                    // Need to process successors first
-                    // Push this block back with processed = true (for after successors)
-                    stack.push((block_id, true));
+                // Push this block back with processed = true (for after successors)
+                stack.push((block_id, true));
+                if !all_successors_processed {
                     // Push unprocessed successors with processed = false
                     for successor_id in unprocessed_successors {
                         stack.push((successor_id, false));
                     }
+                    // All successors ready, push this block with processed = true
+                    stack.push((block_id, true));
                 }
             }
         }
