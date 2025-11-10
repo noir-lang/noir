@@ -210,7 +210,9 @@ impl Elaborator<'_> {
                     self.declare_methods(self_type, &function_ids);
                 }
             } else {
-                self.push_err(DefCollectorErrorKind::NonStructTypeInImpl { location });
+                self.push_err(DefCollectorErrorKind::CannotDefineInherentImplForPrimitiveTypes {
+                    location,
+                });
             }
         }
     }
