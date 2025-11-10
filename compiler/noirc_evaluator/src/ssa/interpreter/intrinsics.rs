@@ -309,8 +309,14 @@ impl<W: Write> Interpreter<'_, W> {
                             )?);
                         }
                     }
+                    let predicate = self.lookup_bool(
+                        args[2],
+                        "retrieving predicate in call to MultiScalarMul blackbox",
+                    )?;
+
                     let solver = bn254_blackbox_solver::Bn254BlackBoxSolver(false);
-                    let result = solver.multi_scalar_mul(&points, &scalars_lo, &scalars_hi);
+                    let result =
+                        solver.multi_scalar_mul(&points, &scalars_lo, &scalars_hi, predicate);
                     let (x, y, is_infinite) = result.map_err(Self::convert_error)?;
                     let result = new_embedded_curve_point(x, y, is_infinite)?;
                     Ok(vec![result])
@@ -350,8 +356,16 @@ impl<W: Write> Interpreter<'_, W> {
                         self.lookup_field(args[4], "call EmbeddedCurveAdd BlackBox")?,
                         self.lookup_bool(args[5], "call EmbeddedCurveAdd BlackBox")?,
                     );
-                    let result =
-                        solver.ec_add(&lhs.0, &lhs.1, &lhs.2.into(), &rhs.0, &rhs.1, &rhs.2.into());
+                    let predicate = self.lookup_bool(args[6], "call EmbeddedCurveAdd BlackBox")?;
+                    let result = solver.ec_add(
+                        &lhs.0,
+                        &lhs.1,
+                        &lhs.2.into(),
+                        &rhs.0,
+                        &rhs.1,
+                        &rhs.2.into(),
+                        predicate,
+                    );
                     let (x, y, is_infinite) = result.map_err(Self::convert_error)?;
                     let result = new_embedded_curve_point(x, y, is_infinite)?;
                     Ok(vec![result])
