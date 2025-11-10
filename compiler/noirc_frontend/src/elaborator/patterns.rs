@@ -410,7 +410,9 @@ impl Elaborator<'_> {
     /// Lookup and use the specified local variable.
     /// This will increment its use counter by one and return the variable if found.
     /// If the variable is not found, an error is returned.
-    pub(super) fn use_variable(
+    /// 
+    /// This method is private and is expected to be called through [Self::get_ident_from_path_or_error].
+    fn use_variable(
         &mut self,
         name: &Ident,
     ) -> Result<(HirIdent, usize), ResolverError> {
