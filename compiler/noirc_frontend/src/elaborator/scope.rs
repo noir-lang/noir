@@ -41,8 +41,8 @@ impl Elaborator<'_> {
         self.interner.get_type(type_id)
     }
 
-    pub(super) fn get_trait_mut(&mut self, trait_id: TraitId) -> &mut Trait {
-        self.interner.get_trait_mut(trait_id)
+    pub(super) fn get_trait(&mut self, trait_id: TraitId) -> &Trait {
+        self.interner.get_trait(trait_id)
     }
 
     /// For each [crate::elaborator::LambdaContext] on the lambda stack with a scope index higher than that
@@ -159,12 +159,12 @@ impl Elaborator<'_> {
     }
 
     /// Lookup a given trait by name/path.
-    pub(crate) fn lookup_trait_or_error(&mut self, path: TypedPath) -> Option<&mut Trait> {
+    pub(crate) fn lookup_trait_or_error(&mut self, path: TypedPath) -> Option<&Trait> {
         let location = path.location;
         match self.resolve_path_or_error(path, PathResolutionTarget::Type) {
             Ok(item) => {
                 if let PathResolutionItem::Trait(trait_id) = item {
-                    Some(self.get_trait_mut(trait_id))
+                    Some(self.get_trait(trait_id))
                 } else {
                     self.push_err(ResolverError::Expected {
                         expected: "trait",
