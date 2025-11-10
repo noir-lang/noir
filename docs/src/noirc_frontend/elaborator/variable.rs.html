@@ -600,10 +600,7 @@
 <a href="#599" id="599">599</a>
 <a href="#600" id="600">600</a>
 <a href="#601" id="601">601</a>
-<a href="#602" id="602">602</a>
-<a href="#603" id="603">603</a>
-<a href="#604" id="604">604</a>
-<a href="#605" id="605">605</a></pre></div><pre class="rust"><code><span class="doccomment">//! Everything to do with elaboration of variables.
+<a href="#602" id="602">602</a></pre></div><pre class="rust"><code><span class="doccomment">//! Everything to do with elaboration of variables.
 //! Notably, variables may require trait constraints to be solved later on.
 
 </span><span class="kw">use </span><span class="kw">super</span>::Elaborator;
@@ -663,16 +660,7 @@
         <span class="kw">let </span>definition_kind = definition.as_ref().map(|definition| definition.kind.clone());
 
         <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
-
-        <span class="comment">// Resolve any generics if we the variable we have resolved is a function
-        // and if the turbofish operator was used.
-        </span><span class="kw">let </span>generics = <span class="kw">if let </span><span class="prelude-val">Some</span>(DefinitionKind::Function(func_id)) = <span class="kw-2">&amp;</span>definition_kind {
-            <span class="self">self</span>.resolve_function_turbofish_generics(func_id, resolved_turbofish, location)
-        } <span class="kw">else </span>{
-            <span class="prelude-val">None
-        </span>};
-
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(DefinitionKind::Function(func_id)) = <span class="kw-2">&amp;</span>definition_kind {
+        <span class="kw">let </span>generics = <span class="kw">if let </span><span class="prelude-val">Some</span>(DefinitionKind::Function(func_id)) = <span class="kw-2">&amp;</span>definition_kind {
             <span class="comment">// If there's a self type, bind it to the self type generic
             </span><span class="kw">if let </span><span class="prelude-val">Some</span>(self_generic) = self_generic {
                 <span class="kw">let </span>func_generics = <span class="kw-2">&amp;</span><span class="self">self</span>.interner.function_meta(func_id).all_generics;
@@ -695,7 +683,13 @@
                         .insert(type_var.id(), (type_var.clone(), type_var.kind(), type_generic));
                 }
             }
-        }
+
+            <span class="comment">// Resolve any generics if the variable we have resolved is a function
+            // and if the turbofish operator was used.
+            </span><span class="self">self</span>.resolve_function_turbofish_generics(func_id, resolved_turbofish, location)
+        } <span class="kw">else </span>{
+            <span class="prelude-val">None
+        </span>};
 
         <span class="kw">let </span>id = <span class="self">self</span>.intern_expr(HirExpression::Ident(expr.clone(), generics.clone()), location);
 
