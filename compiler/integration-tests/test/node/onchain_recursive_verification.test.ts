@@ -1,12 +1,14 @@
 import { expect } from 'chai';
-import { ethers } from 'hardhat';
+import { network } from 'hardhat';
 import { CompiledCircuit, Noir } from '@noir-lang/noir_js';
 import { Barretenberg, UltraHonkBackend, deflattenFields } from '@aztec/bb.js';
 
-import assertLtCircuit from '../../circuits/assert_lt/target/assert_lt.json' assert { type: 'json' };
-import recursionCircuit from '../../circuits/recursion/target/recursion.json' assert { type: 'json' };
+import assertLtCircuit from '../../circuits/assert_lt/target/assert_lt.json';
+import recursionCircuit from '../../circuits/recursion/target/recursion.json';
 
-it(`smart contract can verify a recursive proof`, async () => {
+it(`smart contract can verify a recursive proof`, async function () {
+  this.timeout(5 * 60 * 1000);
+
   // Inner circuit
   const innerBackend = new UltraHonkBackend(assertLtCircuit.bytecode, {}, { recursive: true });
   const inner = new Noir(assertLtCircuit as CompiledCircuit);
@@ -68,6 +70,7 @@ it(`smart contract can verify a recursive proof`, async () => {
   // Smart contract verification
 
   // Link the ZKTranscriptLib
+  const { ethers } = await network.connect();
   const ZKTranscriptLib = await ethers.deployContract('contracts/recursion.sol:ZKTranscriptLib');
   await ZKTranscriptLib.waitForDeployment();
 
