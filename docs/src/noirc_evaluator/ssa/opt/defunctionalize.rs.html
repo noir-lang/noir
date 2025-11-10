@@ -2260,7 +2260,31 @@
 <a href="#2259" id="2259">2259</a>
 <a href="#2260" id="2260">2260</a>
 <a href="#2261" id="2261">2261</a>
-<a href="#2262" id="2262">2262</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines the defunctionalization pass for the SSA IR.
+<a href="#2262" id="2262">2262</a>
+<a href="#2263" id="2263">2263</a>
+<a href="#2264" id="2264">2264</a>
+<a href="#2265" id="2265">2265</a>
+<a href="#2266" id="2266">2266</a>
+<a href="#2267" id="2267">2267</a>
+<a href="#2268" id="2268">2268</a>
+<a href="#2269" id="2269">2269</a>
+<a href="#2270" id="2270">2270</a>
+<a href="#2271" id="2271">2271</a>
+<a href="#2272" id="2272">2272</a>
+<a href="#2273" id="2273">2273</a>
+<a href="#2274" id="2274">2274</a>
+<a href="#2275" id="2275">2275</a>
+<a href="#2276" id="2276">2276</a>
+<a href="#2277" id="2277">2277</a>
+<a href="#2278" id="2278">2278</a>
+<a href="#2279" id="2279">2279</a>
+<a href="#2280" id="2280">2280</a>
+<a href="#2281" id="2281">2281</a>
+<a href="#2282" id="2282">2282</a>
+<a href="#2283" id="2283">2283</a>
+<a href="#2284" id="2284">2284</a>
+<a href="#2285" id="2285">2285</a>
+<a href="#2286" id="2286">2286</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines the defunctionalization pass for the SSA IR.
 //! Certain IR targets (e.g., Brillig and ACIR) do not support higher-order functions directly.
 //!
 //! The pass eliminates higher-order functions (a function which accepts function values as arguments or returns functions)
@@ -2321,7 +2345,7 @@
 /// fn apply(function_id: Field, arg1: Field, arg2: Field) -&gt; Field {
 ///     match function_id {
 ///         0 -&gt; function0(arg1, arg2),
-///         1 -&gt; function0(arg1, arg2),
+///         1 -&gt; function1(arg1, arg2),
 ///         ...
 ///         N -&gt; functionN(arg1, arg2),
 ///     }
@@ -2337,7 +2361,7 @@
 }
 
 <span class="doccomment">/// All functions used as a value that share the same signature and runtime type
-/// Maps ([Signature], [RuntimeType]) -&gt; Vec&lt;[FunctionId]&gt;
+/// Maps ([Signature], Caller [RuntimeType]) -&gt; Vec&lt;([FunctionId], Callee [RuntimeType])&gt;
 </span><span class="kw">type </span>Variants = BTreeMap&lt;(Signature, RuntimeType), Vec&lt;(FunctionId, RuntimeType)&gt;&gt;;
 <span class="doccomment">/// All generated apply functions for each grouping of function variants.
 /// Each apply function is handles a specific ([Signature], [RuntimeType]) group.
@@ -2356,6 +2380,10 @@
     <span class="doccomment">/// See [`defunctionalize`][self] module for more information.
     </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip(<span class="self">self</span>))]
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>defunctionalize(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; Ssa {
+        <span class="comment">// Check that we have removed all cases we don't handle in this pass.
+        </span><span class="attr">#[cfg(debug_assertions)]
+        </span><span class="self">self</span>.functions.values().for_each(defunctionalize_pre_check);
+
         <span class="comment">// Find all functions used as value that share the same signature and runtime type
         </span><span class="kw">let </span>variants = find_variants(<span class="kw-2">&amp;</span><span class="self">self</span>);
 
@@ -2622,10 +2650,19 @@
 </span><span class="kw">fn </span>find_functions_as_values(func: <span class="kw-2">&amp;</span>Function) -&gt; BTreeSet&lt;FunctionId&gt; {
     <span class="kw">let </span><span class="kw-2">mut </span>functions_as_values: BTreeSet&lt;FunctionId&gt; = BTreeSet::new();
 
-    <span class="kw">let </span><span class="kw-2">mut </span>process_value = |value_id: ValueId| {
-        <span class="kw">if let </span>Value::Function(id) = func.dfg[value_id] {
-            functions_as_values.insert(id);
+    visit_values_other_than_call_target(func, |value| {
+        <span class="kw">if let </span>Value::Function(id) = value {
+            functions_as_values.insert(<span class="kw-2">*</span>id);
         }
+    });
+
+    functions_as_values
+}
+
+<span class="doccomment">/// Visit all values which are *not* targets of a `Call`.
+</span><span class="kw">fn </span>visit_values_other_than_call_target(func: <span class="kw-2">&amp;</span>Function, <span class="kw-2">mut </span>f: <span class="kw">impl </span>FnMut(<span class="kw-2">&amp;</span>Value)) {
+    <span class="kw">let </span><span class="kw-2">mut </span>process_value = |value_id: ValueId| {
+        f(<span class="kw-2">&amp;</span>func.dfg[value_id]);
     };
 
     <span class="kw">for </span>block_id <span class="kw">in </span>func.reachable_blocks() {
@@ -2644,8 +2681,6 @@
 
         block.unwrap_terminator().for_each_value(<span class="kw-2">&amp;mut </span>process_value);
     }
-
-    functions_as_values
 }
 
 <span class="doccomment">/// Finds all dynamic dispatch signatures in the given function.
@@ -2808,7 +2843,7 @@
     caller_runtime: RuntimeType,
     function_ids: Vec&lt;(FunctionId, RuntimeType)&gt;,
 ) -&gt; FunctionId {
-    <span class="macro">assert!</span>(
+    <span class="macro">debug_assert!</span>(
         function_ids.len() &gt; <span class="number">1</span>,
         <span class="string">"create_apply_function is expected to be called with two or more FunctionIds"
     </span>);
@@ -3014,6 +3049,19 @@
             </span>)
         }
     }
+}
+
+<span class="doccomment">/// Check pre-execution properties.
+///
+/// Panics if:
+///   * Any intrinsic or foreign function is passed as a value.
+</span><span class="attr">#[cfg(debug_assertions)]
+</span><span class="kw">fn </span>defunctionalize_pre_check(function: <span class="kw-2">&amp;</span>Function) {
+    visit_values_other_than_call_target(function, |value| <span class="kw">match </span>value {
+        Value::ForeignFunction(name) =&gt; <span class="macro">panic!</span>(<span class="string">"foreign function as value: {name}"</span>),
+        Value::Intrinsic(intrinsic) =&gt; <span class="macro">panic!</span>(<span class="string">"intrinsic function as value: {intrinsic}"</span>),
+        <span class="kw">_ </span>=&gt; (),
+    });
 }
 
 <span class="doccomment">/// Check post-execution properties:
@@ -3358,7 +3406,7 @@
           acir(inline) fn main f0 {
             b0():
               call f1()
-              return f1 
+              return f1
           }
           acir(inline) fn bar f1 {
             b0():

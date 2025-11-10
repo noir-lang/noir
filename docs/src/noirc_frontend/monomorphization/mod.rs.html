@@ -2897,7 +2897,16 @@
 <a href="#2896" id="2896">2896</a>
 <a href="#2897" id="2897">2897</a>
 <a href="#2898" id="2898">2898</a>
-<a href="#2899" id="2899">2899</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
+<a href="#2899" id="2899">2899</a>
+<a href="#2900" id="2900">2900</a>
+<a href="#2901" id="2901">2901</a>
+<a href="#2902" id="2902">2902</a>
+<a href="#2903" id="2903">2903</a>
+<a href="#2904" id="2904">2904</a>
+<a href="#2905" id="2905">2905</a>
+<a href="#2906" id="2906">2906</a>
+<a href="#2907" id="2907">2907</a>
+<a href="#2908" id="2908">2908</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
 //! It accepts the type checked HIR as input and produces a monomorphized AST as output.
 //! This file implements the pass itself, while the AST is defined in the ast module.
 //!
@@ -2948,7 +2957,9 @@
 <span class="kw">pub mod </span>debug_types;
 <span class="kw">pub mod </span>errors;
 <span class="kw">pub mod </span>printer;
+<span class="kw">pub mod </span>proxies;
 <span class="kw">pub mod </span>tests;
+<span class="kw">pub mod </span>visitor;
 
 <span class="kw">struct </span>LambdaContext {
     env_ident: ast::Ident,
@@ -2959,7 +2970,7 @@
 ///
 /// This struct holds the FIFO queue of functions to monomorphize, which is added to
 /// whenever a new (function, type) combination is encountered.
-</span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">struct </span>Monomorphizer&lt;<span class="lifetime">'interner</span>&gt; {
+</span><span class="kw">pub struct </span>Monomorphizer&lt;<span class="lifetime">'interner</span>&gt; {
     <span class="doccomment">/// Functions are keyed by their unique ID, whether they're unconstrained, their expected type,
     /// and any generics they have so that we can monomorphize a new version of the function for each type.
     ///
@@ -3102,8 +3113,11 @@
         debug_variables,
         debug_functions,
         debug_types,
-    );
-    <span class="prelude-val">Ok</span>(program.handle_ownership())
+    )
+    .handle_ownership()
+    .create_foreign_proxies();
+
+    <span class="prelude-val">Ok</span>(program)
 }
 
 <span class="kw">impl</span>&lt;<span class="lifetime">'interner</span>&gt; Monomorphizer&lt;<span class="lifetime">'interner</span>&gt; {
@@ -4181,7 +4195,10 @@
     }
 
     <span class="doccomment">/// Convert a non-tuple/struct type to a monomorphized type
-    </span><span class="kw">fn </span>convert_type(typ: <span class="kw-2">&amp;</span>HirType, location: Location) -&gt; <span class="prelude-ty">Result</span>&lt;ast::Type, MonomorphizationError&gt; {
+    </span><span class="kw">pub fn </span>convert_type(
+        typ: <span class="kw-2">&amp;</span>HirType,
+        location: Location,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;ast::Type, MonomorphizationError&gt; {
         <span class="self">Self</span>::convert_type_helper(typ, location, <span class="kw-2">&amp;mut </span>HashSet::default())
     }
 
@@ -5776,6 +5793,7 @@
                         append_printable_type_info_inner(<span class="kw-2">&amp;</span>typ, arguments);
                     }
                 }
+                Type::Unit =&gt; {}
                 <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: format string type should be a tuple but got a {elements}"</span>),
             }
             <span class="bool-val">true

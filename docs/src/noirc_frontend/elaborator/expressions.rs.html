@@ -1603,7 +1603,9 @@
 <a href="#1602" id="1602">1602</a>
 <a href="#1603" id="1603">1603</a>
 <a href="#1604" id="1604">1604</a>
-<a href="#1605" id="1605">1605</a></pre></div><pre class="rust"><code><span class="doccomment">//! Expression elaboration, covering all expression [kinds][ExpressionKind].
+<a href="#1605" id="1605">1605</a>
+<a href="#1606" id="1606">1606</a>
+<a href="#1607" id="1607">1607</a></pre></div><pre class="rust"><code><span class="doccomment">//! Expression elaboration, covering all expression [kinds][ExpressionKind].
 
 </span><span class="kw">use </span>std::collections::HashMap;
 
@@ -2052,7 +2054,9 @@
         }
 
         <span class="kw">let </span>len = Type::Constant(length.into(), Kind::u32());
-        <span class="kw">let </span>typ = Type::FmtString(Box::new(len), Box::new(Type::Tuple(capture_types)));
+        <span class="kw">let </span>fmtstr_type =
+            <span class="kw">if </span>capture_types.is_empty() { Type::Unit } <span class="kw">else </span>{ Type::Tuple(capture_types) };
+        <span class="kw">let </span>typ = Type::FmtString(Box::new(len), Box::new(fmtstr_type));
         (HirExpression::Literal(HirLiteral::FmtStr(fragments, fmt_str_idents, length)), typ)
     }
 

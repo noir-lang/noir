@@ -235,7 +235,9 @@
 <a href="#234" id="234">234</a>
 <a href="#235" id="235">235</a>
 <a href="#236" id="236">236</a>
-<a href="#237" id="237">237</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#237" id="237">237</a>
+<a href="#238" id="238">238</a>
+<a href="#239" id="239">239</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 
 <span class="kw">use </span>acvm::AcirField;
 <span class="kw">use </span>acvm::acir::circuit::ErrorSelector;
@@ -293,11 +295,13 @@
             <span class="kw">if let </span>Type::FmtString(len, item_types) = typ {
                 <span class="kw">let </span>span = get_main_function_location(context);
                 <span class="kw">let </span>length = len.evaluate_to_u32(span).expect(<span class="string">"Cannot evaluate fmt length"</span>);
-                <span class="kw">let </span>Type::Tuple(item_types) = item_types.as_ref() <span class="kw">else </span>{
-                    <span class="macro">unreachable!</span>(<span class="string">"FmtString items must be a tuple"</span>)
+                <span class="kw">let </span>item_types = <span class="kw">match </span>item_types.as_ref() {
+                    Type::Tuple(item_types) =&gt; {
+                        vecmap(item_types, |typ| abi_type_from_hir_type(context, typ))
+                    }
+                    Type::Unit =&gt; Vec::new(),
+                    <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"FmtString items must be a tuple or unit"</span>),
                 };
-                <span class="kw">let </span>item_types =
-                    item_types.iter().map(|typ| abi_type_from_hir_type(context, typ)).collect();
                 AbiErrorType::FmtString { length, item_types }
             } <span class="kw">else </span>{
                 AbiErrorType::Custom(abi_type_from_hir_type(context, <span class="kw-2">&amp;</span>typ))

@@ -887,7 +887,12 @@
 <a href="#886" id="886">886</a>
 <a href="#887" id="887">887</a>
 <a href="#888" id="888">888</a>
-<a href="#889" id="889">889</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::io::Write;
+<a href="#889" id="889">889</a>
+<a href="#890" id="890">890</a>
+<a href="#891" id="891">891</a>
+<a href="#892" id="892">892</a>
+<a href="#893" id="893">893</a>
+<a href="#894" id="894">894</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{hash::BuildHasher, io::Write};
 
 <span class="kw">use </span>acvm::{AcirField, BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
 <span class="kw">use </span>bn254_blackbox_solver::derive_generators;
@@ -1720,11 +1725,16 @@
                     // but that's catered for the by the SSA generation: the env is passed as separate values.
                     </span>fields.push(FieldElement::from(id.to_u32()));
                 }
-                Value::Intrinsic(x) =&gt; {
-                    <span class="macro">panic!</span>(<span class="string">"didn't expect to print intrinsics: {x}"</span>)
-                }
                 Value::ForeignFunction(x) =&gt; {
-                    <span class="macro">panic!</span>(<span class="string">"didn't expect to print foreign functions: {x}"</span>)
+                    <span class="comment">// The actual display of functions only shows the type, but expects the ID.
+                    // Send a hash so we can interpret the Initial SSA until we wrap these values with a normal function.
+                    </span><span class="kw">let </span>hash = rustc_hash::FxBuildHasher.hash_one(x);
+                    fields.push(FieldElement::from(hash));
+                }
+                Value::Intrinsic(x) =&gt; {
+                    <span class="comment">// Same as foreign functions: just pass something so we can handle the initial SSA even if somehow an intrinsic makes it here.
+                    </span><span class="kw">let </span>hash = rustc_hash::FxBuildHasher.hash_one(x);
+                    fields.push(FieldElement::from(hash));
                 }
             }
             <span class="comment">// Chamber the length for a potential vector following it.

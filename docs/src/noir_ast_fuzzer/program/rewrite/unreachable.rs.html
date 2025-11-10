@@ -73,12 +73,18 @@
 <a href="#72" id="72">72</a>
 <a href="#73" id="73">73</a>
 <a href="#74" id="74">74</a>
-<a href="#75" id="75">75</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeSet, VecDeque};
+<a href="#75" id="75">75</a>
+<a href="#76" id="76">76</a>
+<a href="#77" id="77">77</a>
+<a href="#78" id="78">78</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeSet, VecDeque};
 
 <span class="kw">use </span>im::HashMap;
-<span class="kw">use </span>noirc_frontend::monomorphization::ast::{Definition, Expression, FuncId, Ident, Program};
+<span class="kw">use </span>noirc_frontend::monomorphization::{
+    ast::{Definition, Expression, FuncId, Ident, Program},
+    visitor::visit_expr_mut,
+};
 
-<span class="kw">use crate</span>::{expr, program::Context, visitor::visit_expr_mut};
+<span class="kw">use crate</span>::{expr, program::Context};
 
 <span class="doccomment">/// Remove functions that are unreachable from main.
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>remove_unreachable_functions(ctx: <span class="kw-2">&amp;mut </span>Context) {

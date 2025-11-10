@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["is_foreign_func","is_func_pair","make_proxy"],"struct":["ForeignFunctionValue","ProxyContext"]};

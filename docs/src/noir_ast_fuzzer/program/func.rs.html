@@ -2400,7 +2400,8 @@
 <a href="#2399" id="2399">2399</a>
 <a href="#2400" id="2400">2400</a>
 <a href="#2401" id="2401">2401</a>
-<a href="#2402" id="2402">2402</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#2402" id="2402">2402</a>
+<a href="#2403" id="2403">2403</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>nargo::errors::Location;
 <span class="kw">use </span>std::{
     collections::{BTreeMap, BTreeSet, HashSet},
@@ -2466,7 +2467,7 @@
             .collect();
 
         <span class="kw">let </span>return_type =
-            (!types::is_unit(<span class="kw-2">&amp;</span><span class="self">self</span>.return_type)).then(|| types::to_hir_type(<span class="kw-2">&amp;</span><span class="self">self</span>.return_type));
+            (!types::is_unit(<span class="kw-2">&amp;</span><span class="self">self</span>.return_type)).then_some(types::to_hir_type(<span class="kw-2">&amp;</span><span class="self">self</span>.return_type));
 
         (param_types, return_type)
     }
@@ -3868,6 +3869,7 @@
         // but it takes 2 more arguments: the type descriptor and the format string marker,
         // which are inserted automatically by the monomorphizer.
         </span><span class="kw">let </span>param_types = <span class="macro">vec!</span>[Type::Bool, typ.clone()];
+
         <span class="kw">let </span>hir_type = types::to_hir_type(typ);
         <span class="kw">let </span>ident = <span class="self">self</span>.local_ident(id);
 

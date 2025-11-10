@@ -699,7 +699,8 @@
 <a href="#698" id="698">698</a>
 <a href="#699" id="699">699</a>
 <a href="#700" id="700">700</a>
-<a href="#701" id="701">701</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, collections::BTreeMap, fmt::Display};
+<a href="#701" id="701">701</a>
+<a href="#702" id="702">702</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, collections::BTreeMap, fmt::Display};
 
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{
@@ -1230,7 +1231,8 @@
     Tuple(Vec&lt;Type&gt;),
     Slice(Box&lt;Type&gt;),
     Reference(Box&lt;Type&gt;, <span class="comment">/*mutable:*/ </span>bool),
-    Function(
+    <span class="doccomment">/// `(args, ret, env, unconstrained)`
+    </span>Function(
         <span class="comment">/*args:*/ </span>Vec&lt;Type&gt;,
         <span class="comment">/*ret:*/ </span>Box&lt;Type&gt;,
         <span class="comment">/*env:*/ </span>Box&lt;Type&gt;,

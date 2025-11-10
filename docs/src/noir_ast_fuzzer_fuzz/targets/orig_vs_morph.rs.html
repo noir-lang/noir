@@ -836,7 +836,10 @@
 <a href="#835" id="835">835</a>
 <a href="#836" id="836">836</a>
 <a href="#837" id="837">837</a>
-<a href="#838" id="838">838</a></pre></div><pre class="rust"><code><span class="doccomment">//! Perform random metamorphic mutations on the AST and check that the
+<a href="#838" id="838">838</a>
+<a href="#839" id="839">839</a>
+<a href="#840" id="840">840</a>
+<a href="#841" id="841">841</a></pre></div><pre class="rust"><code><span class="doccomment">//! Perform random metamorphic mutations on the AST and check that the
 //! execution result does not change.
 
 </span><span class="kw">use </span>std::cell::{Cell, RefCell};
@@ -846,13 +849,13 @@
 <span class="kw">use </span>arbitrary::{Arbitrary, Unstructured};
 <span class="kw">use </span>color_eyre::eyre;
 <span class="kw">use </span>noir_ast_fuzzer::compare::{CompareMorph, CompareOptions};
+<span class="kw">use </span>noir_ast_fuzzer::rewrite;
 <span class="kw">use </span>noir_ast_fuzzer::scope::ScopeStack;
-<span class="kw">use </span>noir_ast_fuzzer::visitor::visit_expr_be_mut;
-<span class="kw">use </span>noir_ast_fuzzer::{rewrite, visitor};
 <span class="kw">use </span>noirc_frontend::ast::UnaryOp;
 <span class="kw">use </span>noirc_frontend::monomorphization::ast::{
     Call, Definition, Expression, Function, Ident, IdentId, LocalId, Program, Unary,
 };
+<span class="kw">use </span>noirc_frontend::monomorphization::visitor::{visit_expr, visit_expr_be_mut};
 
 <span class="kw">pub fn </span>fuzz(u: <span class="kw-2">&amp;mut </span>Unstructured) -&gt; eyre::Result&lt;()&gt; {
     <span class="kw">let </span>config = default_config(u)<span class="question-mark">?</span>;
@@ -1110,7 +1113,7 @@
     rules: <span class="kw-2">&amp;</span>[rules::Rule],
 ) -&gt; usize {
     <span class="kw">let </span><span class="kw-2">mut </span>count = <span class="number">0</span>;
-    visitor::visit_expr(expr, <span class="kw-2">&amp;mut </span>|expr| {
+    visit_expr(expr, <span class="kw-2">&amp;mut </span>|expr| {
         <span class="kw">for </span>rule <span class="kw">in </span>rules {
             <span class="kw">if </span>rule.matches(ctx, expr) {
                 count += <span class="number">1</span>;
@@ -1462,10 +1465,13 @@
     <span class="kw">use </span>std::{cell::RefCell, collections::HashMap, sync::OnceLock};
 
     <span class="kw">use </span>arbitrary::Unstructured;
-    <span class="kw">use </span>noir_ast_fuzzer::{Config, expr, types, visitor::visit_expr_be_mut};
+    <span class="kw">use </span>noir_ast_fuzzer::{Config, expr, types};
     <span class="kw">use </span>noirc_frontend::{
         ast::{IntegerBitSize, UnaryOp},
-        monomorphization::ast::{BinaryOp, Definition, Expression, LocalId, Type},
+        monomorphization::{
+            ast::{BinaryOp, Definition, Expression, LocalId, Type},
+            visitor::visit_expr_be_mut,
+        },
         shared::Signedness,
     };
     <span class="kw">use </span>strum::IntoEnumIterator;

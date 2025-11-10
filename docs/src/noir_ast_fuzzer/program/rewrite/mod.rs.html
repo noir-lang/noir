@@ -83,16 +83,12 @@
 <a href="#82" id="82">82</a>
 <a href="#83" id="83">83</a>
 <a href="#84" id="84">84</a>
-<a href="#85" id="85">85</a>
-<a href="#86" id="86">86</a>
-<a href="#87" id="87">87</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::monomorphization::ast::{
-    Call, Expression, Function, Ident, LocalId, Program, Type,
-};
-
-<span class="kw">use super</span>::{
-    expr, types,
+<a href="#85" id="85">85</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::monomorphization::{
+    ast::{Call, Expression, Function, Ident, LocalId, Program, Type},
     visitor::{visit_expr, visit_expr_mut},
 };
+
+<span class="kw">use super</span>::{expr, types};
 
 <span class="kw">mod </span>limit;
 <span class="kw">mod </span>unreachable;
