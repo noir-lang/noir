@@ -46,25 +46,25 @@ pub(crate) fn run(args: DocCommand, workspace: Workspace) -> Result<(), CliError
 
     let mut crates = Vec::new();
     // Maps a crate's root file to its crate
-    let mut all_dependencies = HashMap::new();
+    let mut dependencies = HashMap::new();
     let mut ids = HashMap::new();
     for package in &workspace {
-        let (krate, dependencies) = package_crate(
+        let krate = package_crate(
             &workspace_file_manager,
             &parsed_files,
             package,
             &args.compile_options,
             &mut ids,
+            &mut dependencies,
         )?;
         crates.push(krate);
-        all_dependencies.extend(dependencies);
     }
     // Crates in the workspace might depend on other crates in the workspace.
     // Remove them from `all_dependencies`.
     for krate in &crates {
-        all_dependencies.remove(&krate.root_file);
+        dependencies.remove(&krate.root_file);
     }
-    let dependencies = all_dependencies.into_values().collect::<Vec<_>>();
+    let dependencies = dependencies.into_values().collect::<Vec<_>>();
 
     let name = workspace.root_dir.file_name().unwrap().to_string_lossy().to_string();
     let crates = nargo_doc::items::Workspace { crates, name, dependencies };
@@ -97,7 +97,8 @@ fn package_crate(
     package: &Package,
     compile_options: &CompileOptions,
     ids: &mut ItemIds,
-) -> Result<(Crate, HashMap<String, Crate>), CompileError> {
+    dependencies: &mut HashMap<String, Crate>,
+) -> Result<Crate, CompileError> {
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
 
     check_crate_and_report_errors(&mut context, crate_id, compile_options)?;
@@ -105,8 +106,7 @@ fn package_crate(
     let module =
         crate_module(crate_id, &context.crate_graph, &context.def_maps, &context.def_interner, ids);
 
-    let mut dependencies = HashMap::new();
-    collect_dependencies(&context, Some(package), crate_id, file_manager, &mut dependencies, ids)?;
+    collect_dependencies(&context, Some(package), crate_id, file_manager, dependencies, ids)?;
 
     let root_file = &context.crate_graph[crate_id].root_file_id;
     let root_file = file_manager.path(*root_file).unwrap().display().to_string();
@@ -114,7 +114,7 @@ fn package_crate(
     let name = package.name.to_string();
     let version = package.version.clone();
     let krate = Crate { name, version, root_module: module, root_file };
-    Ok((krate, dependencies))
+    Ok(krate)
 }
 
 fn collect_dependencies(
@@ -130,6 +130,10 @@ fn collect_dependencies(
         let crate_data = &context.crate_graph[crate_id];
         let root_file = crate_data.root_file_id;
         let root_file = file_manager.path(root_file).unwrap().display().to_string();
+        if dependencies.contains_key(&root_file) {
+            continue;
+        }
+
         let module = crate_module(
             crate_id,
             &context.crate_graph,

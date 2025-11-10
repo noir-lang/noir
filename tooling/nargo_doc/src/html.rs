@@ -234,6 +234,7 @@ impl HTMLCreator {
         if !sidebar {
             self.render_reexports(items);
         }
+        self.render_contracts(items, sidebar, nesting);
         self.render_modules(items, sidebar, nesting);
         self.render_structs(items, sidebar, nesting);
         self.render_traits(items, sidebar, nesting);
@@ -247,6 +248,18 @@ impl HTMLCreator {
         let reexports = get_reexports(items);
         if !reexports.is_empty() {
             self.render_reexports_list("Re-exports", "re-exports", &reexports);
+        }
+    }
+
+    fn render_contracts(
+        &mut self,
+        items: &[(ItemVisibility, Item)],
+        sidebar: bool,
+        nesting: usize,
+    ) {
+        let modules = get_contracts(items);
+        if !modules.is_empty() {
+            self.render_list("Contracts", "contracts", sidebar, nesting, &modules);
         }
     }
 
@@ -429,12 +442,14 @@ impl HTMLCreator {
     fn create_module(&mut self, parent_module: &Module, module: &Module) {
         self.current_path.push(module.name.clone());
 
-        self.html_start(&format!("Module {}", module.name));
+        let kind = if module.is_contract { "Contract" } else { "Module" };
+
+        self.html_start(&format!("{kind} {}", module.name));
         self.sidebar_start();
         self.render_module_sidebar(parent_module, module);
         self.sidebar_end();
         self.main_start(false);
-        self.h1(&format!("Module <span id=\"mod\" class=\"module\">{}</span>", module.name));
+        self.h1(&format!("{kind} <span id=\"mod\" class=\"module\">{}</span>", module.name));
         self.render_comments(&module.comments, 1);
         self.render_items(&module.items, false, 0);
         self.main_end();
@@ -447,8 +462,9 @@ impl HTMLCreator {
     }
 
     fn render_module_sidebar(&mut self, parent_module: &Module, module: &Module) {
-        self.h2(&format!("<a href=\"#mod\">Module {}</a>", module.name));
-        self.render_module_items_sidebar("Module items", module);
+        let kind = if module.is_contract { "Contract" } else { "Module" };
+        self.h2(&format!("<a href=\"#mod\">{kind} {}</a>", module.name));
+        self.render_module_items_sidebar(&format!("{kind} items"), module);
         self.render_module_contents_sidebar(parent_module, 1);
     }
 
@@ -460,6 +476,9 @@ impl HTMLCreator {
         self.output.push_str("<ul class=\"sidebar-list\">\n");
         if !get_reexports(&module.items).is_empty() {
             self.output.push_str("<li><a href=\"#re-exports\">Re-exports</a></li>\n");
+        }
+        if !get_contracts(&module.items).is_empty() {
+            self.output.push_str("<li><a href=\"#contracts\">Contracts</a></li>\n");
         }
         if !get_modules(&module.items).is_empty() {
             self.output.push_str("<li><a href=\"#modules\">Modules</a></li>\n");
@@ -695,6 +714,7 @@ impl HTMLCreator {
             "Primitive type <span id=\"primitive\" class=\"primitive\">{}</span>",
             primitive.kind
         ));
+        self.render_comments(&primitive.comments, 1);
         self.render_impls(&primitive.impls);
 
         let mut trait_impls = primitive.trait_impls.clone();
@@ -1490,7 +1510,23 @@ fn get_modules(items: &[(ItemVisibility, Item)]) -> Vec<&Module> {
         .filter_map(|(visibility, item)| {
             if visibility == &ItemVisibility::Public {
                 if let Item::Module(module) = item {
-                    if module.has_public_items() {
+                    if !module.is_contract && module.has_public_items() {
+                        return Some(module);
+                    }
+                }
+            }
+            None
+        })
+        .collect()
+}
+
+fn get_contracts(items: &[(ItemVisibility, Item)]) -> Vec<&Module> {
+    items
+        .iter()
+        .filter_map(|(visibility, item)| {
+            if visibility == &ItemVisibility::Public {
+                if let Item::Module(module) = item {
+                    if module.is_contract && module.has_public_items() {
                         return Some(module);
                     }
                 }

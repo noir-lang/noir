@@ -58,16 +58,7 @@ impl Elaborator<'_> {
         let definition_kind = definition.as_ref().map(|definition| definition.kind.clone());
 
         let mut bindings = TypeBindings::default();
-
-        // Resolve any generics if we the variable we have resolved is a function
-        // and if the turbofish operator was used.
         let generics = if let Some(DefinitionKind::Function(func_id)) = &definition_kind {
-            self.resolve_function_turbofish_generics(func_id, resolved_turbofish, location)
-        } else {
-            None
-        };
-
-        if let Some(DefinitionKind::Function(func_id)) = &definition_kind {
             // If there's a self type, bind it to the self type generic
             if let Some(self_generic) = self_generic {
                 let func_generics = &self.interner.function_meta(func_id).all_generics;
@@ -90,7 +81,13 @@ impl Elaborator<'_> {
                         .insert(type_var.id(), (type_var.clone(), type_var.kind(), type_generic));
                 }
             }
-        }
+
+            // Resolve any generics if the variable we have resolved is a function
+            // and if the turbofish operator was used.
+            self.resolve_function_turbofish_generics(func_id, resolved_turbofish, location)
+        } else {
+            None
+        };
 
         let id = self.intern_expr(HirExpression::Ident(expr.clone(), generics.clone()), location);
 

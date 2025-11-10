@@ -210,7 +210,11 @@ impl Elaborator<'_> {
                     self.declare_methods(self_type, &function_ids);
                 }
             } else {
-                self.push_err(DefCollectorErrorKind::NonStructTypeInImpl { location });
+                let is_primitive = self_type.is_primitive();
+                self.push_err(DefCollectorErrorKind::NonStructTypeInImpl {
+                    location,
+                    is_primitive,
+                });
             }
         }
     }
