@@ -243,10 +243,12 @@ impl Context<'_> {
         let block_id = self.ensure_array_is_initialized(slice_contents, dfg)?;
         let slice = self.convert_value(slice_contents, dfg);
 
-        let is_constant_zero =
+        // Slices with constant zero length should be eliminated as unreachable instructions,
+        // but in case they aren't, fail with a constant rather than try to subtract from the index.
+        let is_constant_zero_length =
             dfg.get_numeric_constant(slice_length_var).is_some_and(|c| c.is_zero());
 
-        if is_constant_zero {
+        if is_constant_zero_length {
             self.acir_context
                 .assert_always_fail("cannot pop from a slice with length 0".to_string())?;
 
@@ -266,8 +268,19 @@ impl Context<'_> {
             return Ok(results);
         }
 
+        // For unknown length under a side effect variable, we want to multiply with the side effect variable
+        // to ensure we don't end up trying to look up an item at index -1, when the semantic length is 0.
+        let is_unknown_length = dfg.get_numeric_constant(slice_length_var).is_none();
+
         let one = self.acir_context.add_constant(FieldElement::one());
-        let new_slice_length = self.acir_context.sub_var(slice_length, one)?;
+        let mut new_slice_length = self.acir_context.sub_var(slice_length, one)?;
+
+        if is_unknown_length {
+            new_slice_length = self
+                .acir_context
+                .mul_var(new_slice_length, self.current_side_effects_enabled_var)?;
+        }
+
         // For a pop back operation we want to fetch from the `length - 1` as this is the
         // last valid index that can be accessed in a slice. After the pop back operation
         // the elements stored at that index will no longer be able to be accessed.
