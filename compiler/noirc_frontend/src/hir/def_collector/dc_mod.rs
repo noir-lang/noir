@@ -19,7 +19,7 @@ use crate::ast::{
 use crate::elaborator::PrimitiveType;
 use crate::hir::resolution::errors::ResolverError;
 use crate::node_interner::{DefinitionKind, ModuleAttributes, NodeInterner, ReferenceId, TypeId};
-use crate::token::{SecondaryAttribute, TestScope};
+use crate::token::{SecondaryAttribute, SecondaryAttributeKind, TestScope};
 use crate::usage_tracker::{UnusedItem, UsageTracker};
 use crate::{Generics, Kind, ResolvedGeneric, Type, TypeVariable};
 use crate::{
@@ -735,6 +735,8 @@ impl ModCollector<'_> {
                 false, // is struct
             ) {
                 Ok(child) => {
+                    let nargo_doc_primitive = check_nargo_doc_primitive(crate_id, &submodule);
+
                     self.collect_attributes(
                         submodule.outer_attributes,
                         file_id,
@@ -748,6 +750,13 @@ impl ModCollector<'_> {
                         && submodule.contents.inner_doc_comments.is_empty())
                     {
                         doc_comments.extend(submodule.contents.inner_doc_comments.clone());
+
+                        if let Some(primitive) = nargo_doc_primitive {
+                            context
+                                .def_interner
+                                .primitive_docs
+                                .insert(primitive, doc_comments.clone());
+                        }
 
                         context
                             .def_interner
@@ -923,6 +932,23 @@ impl ModCollector<'_> {
         errors.push(error.into());
         Type::Error
     }
+}
+
+/// If this submodule is an stdlib module that's tagged with `#['nargo_doc_primitive <primitive>]`,
+/// returns the primitive it refers to.
+fn check_nargo_doc_primitive(crate_id: CrateId, submodule: &SortedSubModule) -> Option<String> {
+    if !crate_id.is_stdlib() {
+        return None;
+    }
+
+    submodule.outer_attributes.iter().find_map(|attr| {
+        if let SecondaryAttributeKind::Tag(tag) = &attr.kind {
+            if let Some(primitive) = tag.strip_prefix("nargo_doc_primitive ") {
+                return Some(primitive.to_string());
+            }
+        }
+        None
+    })
 }
 
 /// Add a child module to the current def_map.
