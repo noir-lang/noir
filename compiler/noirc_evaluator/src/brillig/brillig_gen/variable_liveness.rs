@@ -257,6 +257,7 @@ impl VariableLiveness {
 
                 // Based on the paper mentioned in the module docs, the definition would be:
                 // live_in[BlockId] = before_def[BlockId] union (live_out[BlockId] - killed[BlockId])
+
                 // Variables used in this block, defined in this block or before.
                 let used = variables_used_in_block(block, &func.dfg);
 
@@ -296,13 +297,13 @@ impl VariableLiveness {
                 }
 
                 if all_successors_processed {
-                    // All successors ready, push this block with ready_to_compute = true
+                    // All successors ready, push this block with processed = true
                     stack.push((block_id, true));
                 } else {
                     // Need to process successors first
-                    // Push this block back with ready_to_compute = true (for after successors)
+                    // Push this block back with processed = true (for after successors)
                     stack.push((block_id, true));
-                    // Push unprocessed successors with ready_to_compute = false
+                    // Push unprocessed successors with processed = false
                     for successor_id in unprocessed_successors {
                         stack.push((successor_id, false));
                     }
