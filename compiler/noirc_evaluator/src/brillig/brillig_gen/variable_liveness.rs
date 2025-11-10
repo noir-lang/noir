@@ -272,7 +272,7 @@ impl VariableLiveness {
                 self.live_in.insert(block_id, live_in);
             } else {
                 // First visit: check if we've already processed this block
-                if !visited.insert(&block_id) {
+                if !visited.insert(block_id) {
                     continue;
                 }
 
