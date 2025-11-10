@@ -334,23 +334,23 @@ impl Elaborator<'_> {
             .ok();
     }
 
-    // Given:
-    // ```
-    // enum FooEnum { Foo(u32, u8), ... }
-    //
-    // fn Foo(a: u32, b: u8) -> FooEnum {}
-    // ```
-    // Create (pseudocode):
-    // ```
-    // fn Foo(a: u32, b: u8) -> FooEnum {
-    //     // This can't actually be written directly in Noir
-    //     FooEnum {
-    //         tag: Foo_tag,
-    //         Foo: (a, b),
-    //         // fields from other variants are zeroed in monomorphization
-    //     }
-    // }
-    // ```
+    /// Given:
+    /// ```ignore
+    /// enum FooEnum { Foo(u32, u8), ... }
+    ///
+    /// fn Foo(a: u32, b: u8) -> FooEnum {}
+    /// ```
+    /// Create (pseudocode):
+    /// ```ignore
+    /// fn Foo(a: u32, b: u8) -> FooEnum {
+    ///     // This can't actually be written directly in Noir
+    ///     FooEnum {
+    ///         tag: Foo_tag,
+    ///         Foo: (a, b),
+    ///         // fields from other variants are zeroed in monomorphization
+    ///     }
+    /// }
+    /// ```
     fn make_enum_variant_constructor(
         &mut self,
         self_type: &Shared<DataType>,
