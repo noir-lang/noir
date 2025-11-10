@@ -513,7 +513,15 @@
 <a href="#512" id="512">512</a>
 <a href="#513" id="513">513</a>
 <a href="#514" id="514">514</a>
-<a href="#515" id="515">515</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::future::{<span class="self">self</span>, Future};
+<a href="#515" id="515">515</a>
+<a href="#516" id="516">516</a>
+<a href="#517" id="517">517</a>
+<a href="#518" id="518">518</a>
+<a href="#519" id="519">519</a>
+<a href="#520" id="520">520</a>
+<a href="#521" id="521">521</a>
+<a href="#522" id="522">522</a>
+<a href="#523" id="523">523</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::future::{<span class="self">self</span>, Future};
 
 <span class="kw">use </span>async_lsp::ResponseError;
 <span class="kw">use </span>async_lsp::lsp_types::{Hover, HoverParams};
@@ -1026,6 +1034,14 @@ Like a tomato"
             get_hover_text(<span class="string">"workspace"</span>, <span class="string">"two/src/lib.nr"</span>, Position { line: <span class="number">113</span>, character: <span class="number">5 </span>})
                 .<span class="kw">await</span>;
         <span class="macro">assert_eq!</span>(<span class="kw-2">&amp;</span>hover_text, <span class="string">"    i32\n---\nvalue of literal: `-8 (-0x08)`"</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">async fn </span>hover_on_i32() {
+        <span class="kw">let </span>hover_text =
+            get_hover_text(<span class="string">"workspace"</span>, <span class="string">"two/src/lib.nr"</span>, Position { line: <span class="number">30</span>, character: <span class="number">30 </span>})
+                .<span class="kw">await</span>;
+        <span class="macro">assert_eq!</span>(<span class="kw-2">&amp;</span>hover_text, <span class="string">"    i32\n---\nThe 32-bit signed integer type.\n"</span>);
     }
 }
 </code></pre></div></section></main></body></html>

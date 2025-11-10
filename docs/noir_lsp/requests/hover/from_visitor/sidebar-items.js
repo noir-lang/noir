@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["format_integer","hover_from_visitor"],"struct":["HoverFinder"]};
+window.SIDEBAR_ITEMS = {"fn":["format_integer","hover_from_visitor","primitive_type_markup_content"],"struct":["HoverFinder"]};

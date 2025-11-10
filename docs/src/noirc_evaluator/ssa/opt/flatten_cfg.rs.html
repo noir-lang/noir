@@ -2322,8 +2322,7 @@
 <a href="#2321" id="2321">2321</a>
 <a href="#2322" id="2322">2322</a>
 <a href="#2323" id="2323">2323</a>
-<a href="#2324" id="2324">2324</a>
-<a href="#2325" id="2325">2325</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the SSA flattening pass - a required pass for ACIR to remove any remaining
+<a href="#2324" id="2324">2324</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the SSA flattening pass - a required pass for ACIR to remove any remaining
 //! control-flow in the singular program-function, resulting in a single block containing the
 //! program logic.
 //!
@@ -2715,9 +2714,8 @@
     /// it is 'AND-ed' with the previous condition (if any)
     </span><span class="kw">fn </span>link_condition(<span class="kw-2">&amp;mut </span><span class="self">self</span>, condition: ValueId) -&gt; ValueId {
         <span class="comment">// Retrieve the previous condition
-        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(context) = <span class="self">self</span>.condition_stack.last() {
-            <span class="kw">let </span>previous_branch = context.else_branch.as_ref().unwrap_or(<span class="kw-2">&amp;</span>context.then_branch);
-            <span class="kw">let </span>and = Instruction::binary(BinaryOp::And, previous_branch.condition, condition);
+        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(last_condition) = <span class="self">self</span>.get_last_condition() {
+            <span class="kw">let </span>and = Instruction::binary(BinaryOp::And, last_condition, condition);
             <span class="kw">let </span>call_stack = <span class="self">self</span>.inserter.function.dfg.get_value_call_stack_id(condition);
             <span class="self">self</span>.insert_instruction(and, call_stack)
         } <span class="kw">else </span>{

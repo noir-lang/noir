@@ -1509,7 +1509,13 @@
 <a href="#1508" id="1508">1508</a>
 <a href="#1509" id="1509">1509</a>
 <a href="#1510" id="1510">1510</a>
-<a href="#1511" id="1511">1511</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::hash::Hash;
+<a href="#1511" id="1511">1511</a>
+<a href="#1512" id="1512">1512</a>
+<a href="#1513" id="1513">1513</a>
+<a href="#1514" id="1514">1514</a>
+<a href="#1515" id="1515">1515</a>
+<a href="#1516" id="1516">1516</a>
+<a href="#1517" id="1517">1517</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::hash::Hash;
 <span class="kw">use </span>std::marker::Copy;
 
 <span class="kw">use </span>fm::FileId;
@@ -1799,6 +1805,11 @@
     /// This is used to offer importing the item via one of these exports if
     /// the item is not visible where it's defined.
     </span><span class="kw">pub </span>reexports: HashMap&lt;ModuleDefId, Vec&lt;Reexport&gt;&gt;,
+
+    <span class="doccomment">/// Contains the docs comments of primitive types.
+    /// These are defined in `noir_stdlib/src/primitive_docs.nr` using a tag
+    /// attribute `#['nargo_primitive_doc]` on private modules.
+    </span><span class="kw">pub </span>primitive_docs: HashMap&lt;String, Vec&lt;String&gt;&gt;,
 }
 
 <span class="doccomment">/// A trait implementation is either a normal implementation that is present in the source
@@ -1992,6 +2003,7 @@
             trait_impl_associated_constants: HashMap::default(),
             doc_comments: HashMap::default(),
             reexports: HashMap::default(),
+            primitive_docs: HashMap::default(),
         }
     }
 }

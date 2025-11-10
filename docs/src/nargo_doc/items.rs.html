@@ -438,7 +438,8 @@
 <a href="#437" id="437">437</a>
 <a href="#438" id="438">438</a>
 <a href="#439" id="439">439</a>
-<a href="#440" id="440">440</a></pre></div><pre class="rust"><code><span class="doccomment">//! Contains the data structures that represent items to be shown by the documentation generator.
+<a href="#440" id="440">440</a>
+<a href="#441" id="441">441</a></pre></div><pre class="rust"><code><span class="doccomment">//! Contains the data structures that represent items to be shown by the documentation generator.
 
 </span><span class="kw">use </span>std::collections::BTreeMap;
 
@@ -780,6 +781,7 @@
     <span class="kw">pub </span>kind: PrimitiveTypeKind,
     <span class="kw">pub </span>impls: Vec&lt;Impl&gt;,
     <span class="kw">pub </span>trait_impls: Vec&lt;TraitImpl&gt;,
+    <span class="kw">pub </span>comments: <span class="prelude-ty">Option</span>&lt;String&gt;,
 }
 
 <span class="kw">impl </span>HasNameAndComments <span class="kw">for </span>PrimitiveType {
@@ -788,8 +790,8 @@
     }
 
     <span class="kw">fn </span>comments(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt; {
-        <span class="prelude-val">None
-    </span>}
+        <span class="self">self</span>.comments.as_deref()
+    }
 }
 
 <span class="attr">#[derive(Clone, PartialEq, Eq, Hash)]

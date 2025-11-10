@@ -1797,7 +1797,8 @@
 <a href="#1796" id="1796">1796</a>
 <a href="#1797" id="1797">1797</a>
 <a href="#1798" id="1798">1798</a>
-<a href="#1799" id="1799">1799</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#1799" id="1799">1799</a>
+<a href="#1800" id="1800">1800</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     collections::{BTreeMap, HashMap, HashSet},
     path::PathBuf,
 };
@@ -2494,6 +2495,7 @@
             <span class="string">"Primitive type &lt;span id=\"primitive\" class=\"primitive\"&gt;{}&lt;/span&gt;"</span>,
             primitive.kind
         ));
+        <span class="self">self</span>.render_comments(<span class="kw-2">&amp;</span>primitive.comments, <span class="number">1</span>);
         <span class="self">self</span>.render_impls(<span class="kw-2">&amp;</span>primitive.impls);
 
         <span class="kw">let </span><span class="kw-2">mut </span>trait_impls = primitive.trait_impls.clone();

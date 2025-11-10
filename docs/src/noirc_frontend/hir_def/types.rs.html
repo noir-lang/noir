@@ -4392,7 +4392,8 @@
             | Type::FmtString(<span class="kw">_</span>, <span class="kw">_</span>)
             | Type::Unit
             | Type::Function(..)
-            | Type::Tuple(..) =&gt; <span class="bool-val">true</span>,
+            | Type::Tuple(..)
+            | Type::Quoted(..) =&gt; <span class="bool-val">true</span>,
             Type::Alias(alias_type, generics) =&gt; {
                 alias_type.borrow().get_type(<span class="kw-2">&amp;</span>generics).is_primitive()
             }
@@ -4404,7 +4405,6 @@
             | Type::CheckedCast { .. }
             | Type::Forall(..)
             | Type::Constant(..)
-            | Type::Quoted(..)
             | Type::InfixExpr(..)
             | Type::Error =&gt; <span class="bool-val">false</span>,
         }

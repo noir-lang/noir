@@ -753,7 +753,13 @@
 <a href="#752" id="752">752</a>
 <a href="#753" id="753">753</a>
 <a href="#754" id="754">754</a>
-<a href="#755" id="755">755</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
+<a href="#755" id="755">755</a>
+<a href="#756" id="756">756</a>
+<a href="#757" id="757">757</a>
+<a href="#758" id="758">758</a>
+<a href="#759" id="759">759</a>
+<a href="#760" id="760">760</a>
+<a href="#761" id="761">761</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_driver::CrateId;
@@ -1004,7 +1010,13 @@
                 <span class="kw">let </span>impls = vecmap(primitive_type.impls, |impl_| <span class="self">self</span>.convert_impl(impl_));
                 <span class="kw">let </span>trait_impls =
                     vecmap(primitive_type.trait_impls, |impl_| <span class="self">self</span>.convert_trait_impl(impl_));
-                Item::PrimitiveType(PrimitiveType { kind, impls, trait_impls })
+                <span class="kw">let </span>comments = <span class="self">self
+                    </span>.interner
+                    .primitive_docs
+                    .get(<span class="kw-2">&amp;</span>kind.to_string())
+                    .cloned()
+                    .map(|comments| comments.join(<span class="string">"\n"</span>).trim().to_string());
+                Item::PrimitiveType(PrimitiveType { kind, impls, trait_impls, comments })
             }
             expand_items::Item::Global(global_id) =&gt; {
                 <span class="kw">let </span>global_info = <span class="self">self</span>.interner.get_global(global_id);

@@ -121,13 +121,80 @@
 <a href="#120" id="120">120</a>
 <a href="#121" id="121">121</a>
 <a href="#122" id="122">122</a>
-<a href="#123" id="123">123</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::str::FromStr;
+<a href="#123" id="123">123</a>
+<a href="#124" id="124">124</a>
+<a href="#125" id="125">125</a>
+<a href="#126" id="126">126</a>
+<a href="#127" id="127">127</a>
+<a href="#128" id="128">128</a>
+<a href="#129" id="129">129</a>
+<a href="#130" id="130">130</a>
+<a href="#131" id="131">131</a>
+<a href="#132" id="132">132</a>
+<a href="#133" id="133">133</a>
+<a href="#134" id="134">134</a>
+<a href="#135" id="135">135</a>
+<a href="#136" id="136">136</a>
+<a href="#137" id="137">137</a>
+<a href="#138" id="138">138</a>
+<a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a>
+<a href="#141" id="141">141</a>
+<a href="#142" id="142">142</a>
+<a href="#143" id="143">143</a>
+<a href="#144" id="144">144</a>
+<a href="#145" id="145">145</a>
+<a href="#146" id="146">146</a>
+<a href="#147" id="147">147</a>
+<a href="#148" id="148">148</a>
+<a href="#149" id="149">149</a>
+<a href="#150" id="150">150</a>
+<a href="#151" id="151">151</a>
+<a href="#152" id="152">152</a>
+<a href="#153" id="153">153</a>
+<a href="#154" id="154">154</a>
+<a href="#155" id="155">155</a>
+<a href="#156" id="156">156</a>
+<a href="#157" id="157">157</a>
+<a href="#158" id="158">158</a>
+<a href="#159" id="159">159</a>
+<a href="#160" id="160">160</a>
+<a href="#161" id="161">161</a>
+<a href="#162" id="162">162</a>
+<a href="#163" id="163">163</a>
+<a href="#164" id="164">164</a>
+<a href="#165" id="165">165</a>
+<a href="#166" id="166">166</a>
+<a href="#167" id="167">167</a>
+<a href="#168" id="168">168</a>
+<a href="#169" id="169">169</a>
+<a href="#170" id="170">170</a>
+<a href="#171" id="171">171</a>
+<a href="#172" id="172">172</a>
+<a href="#173" id="173">173</a>
+<a href="#174" id="174">174</a>
+<a href="#175" id="175">175</a>
+<a href="#176" id="176">176</a>
+<a href="#177" id="177">177</a>
+<a href="#178" id="178">178</a>
+<a href="#179" id="179">179</a>
+<a href="#180" id="180">180</a>
+<a href="#181" id="181">181</a>
+<a href="#182" id="182">182</a>
+<a href="#183" id="183">183</a>
+<a href="#184" id="184">184</a>
+<a href="#185" id="185">185</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::str::FromStr;
 
 <span class="kw">use </span>async_lsp::lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Position};
 <span class="kw">use </span>fm::{FileId, FileMap};
 <span class="kw">use </span>noirc_errors::{Location, Span};
 <span class="kw">use </span>noirc_frontend::{
-    Type, ast::Visitor, node_interner::NodeInterner, parse_program, signed_field::SignedField,
+    Type,
+    ast::{GenericTypeArgs, Path, Visitor},
+    elaborator::PrimitiveType,
+    node_interner::NodeInterner,
+    parse_program,
+    signed_field::SignedField,
     token::IntegerTypeSuffix,
 };
 <span class="kw">use </span>num_bigint::BigInt;
@@ -197,6 +264,43 @@
         <span class="kw">let </span>contents = HoverContents::Markup(MarkupContent { kind: MarkupKind::Markdown, value });
         <span class="self">self</span>.hover = <span class="prelude-val">Some</span>(Hover { contents, range });
     }
+
+    <span class="kw">fn </span>visit_named_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: <span class="kw-2">&amp;</span>Path, _args: <span class="kw-2">&amp;</span>GenericTypeArgs, span: Span) -&gt; bool {
+        <span class="comment">// Here we'll try to show docs for primitive types. Non-primitive types are tracked
+        // as references, which is handled in `from_reference.rs`.
+
+        </span><span class="kw">if </span>!<span class="self">self</span>.intersects_span(span) {
+            <span class="kw">return </span><span class="bool-val">true</span>;
+        }
+
+        <span class="kw">let </span><span class="prelude-val">Some</span>(ident) = path.as_ident() <span class="kw">else </span>{
+            <span class="kw">return </span><span class="bool-val">true</span>;
+        };
+
+        <span class="kw">if </span>!<span class="self">self</span>.intersects_span(ident.span()) {
+            <span class="kw">return </span><span class="bool-val">true</span>;
+        }
+
+        <span class="kw">let </span>location = ident.location();
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = <span class="self">self</span>.interner.type_at_location(location) {
+            <span class="kw">if </span>!typ.is_primitive() {
+                <span class="kw">return </span><span class="bool-val">true</span>;
+            }
+        }
+
+        <span class="kw">let </span>name = ident.as_str();
+        <span class="kw">let </span><span class="prelude-val">Some</span>(markup) = primitive_type_markup_content(name, <span class="self">self</span>.interner) <span class="kw">else </span>{
+            <span class="kw">return </span><span class="bool-val">true</span>;
+        };
+
+        <span class="kw">let </span>lsp_location = to_lsp_location(<span class="self">self</span>.files, location.file, location.span);
+        <span class="kw">let </span>range = lsp_location.map(|location| location.range);
+
+        <span class="kw">let </span>contents = HoverContents::Markup(markup);
+        <span class="self">self</span>.hover = <span class="prelude-val">Some</span>(Hover { contents, range });
+
+        <span class="bool-val">false
+    </span>}
 }
 
 <span class="kw">fn </span>format_integer(typ: <span class="kw-2">&amp;</span>Type, value: SignedField) -&gt; String {
@@ -210,6 +314,26 @@
     <span class="macro">format!</span>(
         <span class="string">"    {typ}\n---\nvalue of literal: `{negative}{value_base_10} ({negative}0x{value_big_int:02x})`"
     </span>)
+}
+
+<span class="doccomment">/// Returns the MarkupContent for the given primitive type name, if the name denotes
+/// a primitive type.
+</span><span class="kw">fn </span>primitive_type_markup_content(name: <span class="kw-2">&amp;</span>str, interner: <span class="kw-2">&amp;</span>NodeInterner) -&gt; <span class="prelude-ty">Option</span>&lt;MarkupContent&gt; {
+    PrimitiveType::lookup_by_name(name)<span class="question-mark">?</span>;
+
+    <span class="kw">let </span><span class="kw-2">mut </span>value = String::new();
+    value.push_str(<span class="string">"    "</span>);
+    value.push_str(name);
+
+    <span class="kw">if let </span><span class="prelude-val">Some</span>(comments) = interner.primitive_docs.get(name) {
+        value.push_str(<span class="string">"\n---\n"</span>);
+        <span class="kw">for </span>comment <span class="kw">in </span>comments {
+            value.push_str(comment);
+            value.push(<span class="string">'\n'</span>);
+        }
+    }
+
+    <span class="prelude-val">Some</span>(MarkupContent { kind: MarkupKind::Markdown, value })
 }
 
 <span class="attr">#[cfg(test)]
