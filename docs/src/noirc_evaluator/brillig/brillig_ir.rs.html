@@ -532,7 +532,9 @@
 <a href="#531" id="531">531</a>
 <a href="#532" id="532">532</a>
 <a href="#533" id="533">533</a>
-<a href="#534" id="534">534</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module is an abstraction layer over `Brillig`.
+<a href="#534" id="534">534</a>
+<a href="#535" id="535">535</a>
+<a href="#536" id="536">536</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module is an abstraction layer over `Brillig`.
 //! To allow for separation of concerns, it knows nothing
 //! about SSA types, and can therefore be tested independently.
 //! `brillig_gen` is therefore the module which combines both
@@ -892,6 +894,7 @@
             _points: <span class="kw-2">&amp;</span>[FieldElement],
             _scalars_lo: <span class="kw-2">&amp;</span>[FieldElement],
             _scalars_hi: <span class="kw-2">&amp;</span>[FieldElement],
+            _predicate: bool,
         ) -&gt; <span class="prelude-ty">Result</span>&lt;(FieldElement, FieldElement, FieldElement), BlackBoxResolutionError&gt; {
             <span class="prelude-val">Ok</span>((<span class="number">4_u128</span>.into(), <span class="number">5_u128</span>.into(), <span class="number">0_u128</span>.into()))
         }
@@ -904,6 +907,7 @@
             _input2_x: <span class="kw-2">&amp;</span>FieldElement,
             _input2_y: <span class="kw-2">&amp;</span>FieldElement,
             _input2_infinite: <span class="kw-2">&amp;</span>FieldElement,
+            _predicate: bool,
         ) -&gt; <span class="prelude-ty">Result</span>&lt;(FieldElement, FieldElement, FieldElement), BlackBoxResolutionError&gt; {
             <span class="macro">panic!</span>(<span class="string">"Path not trodden by this test"</span>)
         }

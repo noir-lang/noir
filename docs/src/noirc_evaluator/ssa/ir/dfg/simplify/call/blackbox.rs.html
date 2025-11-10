@@ -479,7 +479,9 @@
 <a href="#478" id="478">478</a>
 <a href="#479" id="479">479</a>
 <a href="#480" id="480">480</a>
-<a href="#481" id="481">481</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
+<a href="#481" id="481">481</a>
+<a href="#482" id="482">482</a>
+<a href="#483" id="483">483</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>acvm::acir::BlackBoxFunc;
 <span class="kw">use </span>acvm::blackbox_solver::sha256_compression;
@@ -527,6 +529,7 @@
                 <span class="kw-2">&amp;</span>point2_x,
                 <span class="kw-2">&amp;</span>point2_y,
                 <span class="kw-2">&amp;</span>point2_is_infinity,
+                <span class="bool-val">true</span>,
             ) <span class="kw">else </span>{
                 <span class="kw">return </span>SimplifyResult::None;
             };
@@ -620,6 +623,7 @@
                 <span class="kw-2">&amp;</span>constant_points,
                 <span class="kw-2">&amp;</span>constant_scalars_lo,
                 <span class="kw-2">&amp;</span>constant_scalars_hi,
+                <span class="bool-val">true</span>,
             ) <span class="kw">else </span>{
                 <span class="kw">return </span>SimplifyResult::None;
             };

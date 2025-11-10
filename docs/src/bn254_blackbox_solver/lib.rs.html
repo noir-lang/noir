@@ -57,9 +57,21 @@
 <a href="#56" id="56">56</a>
 <a href="#57" id="57">57</a>
 <a href="#58" id="58">58</a>
-<a href="#59" id="59">59</a></pre></div><pre class="rust"><code><span class="attr">#![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
+<a href="#59" id="59">59</a>
+<a href="#60" id="60">60</a>
+<a href="#61" id="61">61</a>
+<a href="#62" id="62">62</a>
+<a href="#63" id="63">63</a>
+<a href="#64" id="64">64</a>
+<a href="#65" id="65">65</a>
+<a href="#66" id="66">66</a>
+<a href="#67" id="67">67</a>
+<a href="#68" id="68">68</a>
+<a href="#69" id="69">69</a>
+<a href="#70" id="70">70</a></pre></div><pre class="rust"><code><span class="attr">#![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
-</span><span class="kw">use </span>acvm_blackbox_solver::{BlackBoxFunctionSolver, BlackBoxResolutionError};
+</span><span class="kw">use </span>acir::AcirField;
+<span class="kw">use </span>acvm_blackbox_solver::{BlackBoxFunctionSolver, BlackBoxResolutionError};
 
 <span class="kw">mod </span>embedded_curve_ops;
 <span class="kw">mod </span>generator;
@@ -89,8 +101,13 @@
         points: <span class="kw-2">&amp;</span>[FieldElement],
         scalars_lo: <span class="kw-2">&amp;</span>[FieldElement],
         scalars_hi: <span class="kw-2">&amp;</span>[FieldElement],
+        predicate: bool,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(FieldElement, FieldElement, FieldElement), BlackBoxResolutionError&gt; {
-        multi_scalar_mul(points, scalars_lo, scalars_hi, <span class="self">self</span>.pedantic_solving())
+        <span class="kw">if </span>predicate {
+            multi_scalar_mul(points, scalars_lo, scalars_hi, <span class="self">self</span>.pedantic_solving())
+        } <span class="kw">else </span>{
+            <span class="prelude-val">Ok</span>((FieldElement::zero(), FieldElement::zero(), FieldElement::one()))
+        }
     }
 
     <span class="kw">fn </span>ec_add(
@@ -101,12 +118,17 @@
         input2_x: <span class="kw-2">&amp;</span>FieldElement,
         input2_y: <span class="kw-2">&amp;</span>FieldElement,
         input2_infinite: <span class="kw-2">&amp;</span>FieldElement,
+        predicate: bool,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(FieldElement, FieldElement, FieldElement), BlackBoxResolutionError&gt; {
-        embedded_curve_add(
-            [<span class="kw-2">*</span>input1_x, <span class="kw-2">*</span>input1_y, <span class="kw-2">*</span>input1_infinite],
-            [<span class="kw-2">*</span>input2_x, <span class="kw-2">*</span>input2_y, <span class="kw-2">*</span>input2_infinite],
-            <span class="self">self</span>.pedantic_solving(),
-        )
+        <span class="kw">if </span>predicate {
+            embedded_curve_add(
+                [<span class="kw-2">*</span>input1_x, <span class="kw-2">*</span>input1_y, <span class="kw-2">*</span>input1_infinite],
+                [<span class="kw-2">*</span>input2_x, <span class="kw-2">*</span>input2_y, <span class="kw-2">*</span>input2_infinite],
+                <span class="self">self</span>.pedantic_solving(),
+            )
+        } <span class="kw">else </span>{
+            <span class="prelude-val">Ok</span>((FieldElement::zero(), FieldElement::zero(), FieldElement::one()))
+        }
     }
 
     <span class="kw">fn </span>poseidon2_permutation(

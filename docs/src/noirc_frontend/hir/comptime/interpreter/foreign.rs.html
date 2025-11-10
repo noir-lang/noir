@@ -425,7 +425,20 @@
 <a href="#424" id="424">424</a>
 <a href="#425" id="425">425</a>
 <a href="#426" id="426">426</a>
-<a href="#427" id="427">427</a></pre></div><pre class="rust"><code><span class="doccomment">//! The foreign function counterpart to `interpreter/builtin.rs`, defines how to call
+<a href="#427" id="427">427</a>
+<a href="#428" id="428">428</a>
+<a href="#429" id="429">429</a>
+<a href="#430" id="430">430</a>
+<a href="#431" id="431">431</a>
+<a href="#432" id="432">432</a>
+<a href="#433" id="433">433</a>
+<a href="#434" id="434">434</a>
+<a href="#435" id="435">435</a>
+<a href="#436" id="436">436</a>
+<a href="#437" id="437">437</a>
+<a href="#438" id="438">438</a>
+<a href="#439" id="439">439</a>
+<a href="#440" id="440">440</a></pre></div><pre class="rust"><code><span class="doccomment">//! The foreign function counterpart to `interpreter/builtin.rs`, defines how to call
 //! all foreign functions available to the interpreter.
 </span><span class="kw">use </span>acvm::{
     AcirField, BlackBoxResolutionError, FieldElement, acir::BlackBoxFunc,
@@ -638,7 +651,15 @@
     <span class="kw">let </span>(p2x, p2y, p2inf) = get_embedded_curve_point(point2)<span class="question-mark">?</span>;
 
     <span class="kw">let </span>(x, y, inf) = Bn254BlackBoxSolver(pedantic_solving)
-        .ec_add(<span class="kw-2">&amp;</span>p1x, <span class="kw-2">&amp;</span>p1y, <span class="kw-2">&amp;</span>p1inf.into(), <span class="kw-2">&amp;</span>p2x, <span class="kw-2">&amp;</span>p2y, <span class="kw-2">&amp;</span>p2inf.into())
+        .ec_add(
+            <span class="kw-2">&amp;</span>p1x,
+            <span class="kw-2">&amp;</span>p1y,
+            <span class="kw-2">&amp;</span>p1inf.into(),
+            <span class="kw-2">&amp;</span>p2x,
+            <span class="kw-2">&amp;</span>p2y,
+            <span class="kw-2">&amp;</span>p2inf.into(),
+            <span class="bool-val">true</span>, <span class="comment">// Predicate is always true as interpreter has control flow to handle false case
+        </span>)
         .map_err(|e| InterpreterError::BlackBoxError(e, location))<span class="question-mark">?</span>;
 
     <span class="prelude-val">Ok</span>(Value::Array(
@@ -675,7 +696,12 @@
     }
 
     <span class="kw">let </span>(x, y, inf) = Bn254BlackBoxSolver(pedantic_solving)
-        .multi_scalar_mul(<span class="kw-2">&amp;</span>points, <span class="kw-2">&amp;</span>scalars_lo, <span class="kw-2">&amp;</span>scalars_hi)
+        .multi_scalar_mul(
+            <span class="kw-2">&amp;</span>points,
+            <span class="kw-2">&amp;</span>scalars_lo,
+            <span class="kw-2">&amp;</span>scalars_hi,
+            <span class="bool-val">true</span>, <span class="comment">// Predicate is always true as interpreter has control flow to handle false case
+        </span>)
         .map_err(|e| InterpreterError::BlackBoxError(e, location))<span class="question-mark">?</span>;
 
     <span class="kw">let </span>embedded_curve_point_typ = <span class="kw">match </span><span class="kw-2">&amp;</span>return_type {

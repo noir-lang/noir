@@ -156,7 +156,9 @@
 <a href="#155" id="155">155</a>
 <a href="#156" id="156">156</a>
 <a href="#157" id="157">157</a>
-<a href="#158" id="158">158</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{
+<a href="#158" id="158">158</a>
+<a href="#159" id="159">159</a>
+<a href="#160" id="160">160</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{
     AcirField,
     circuit::opcodes::{BlackBoxFuncCall, FunctionInput},
     native_types::{Witness, WitnessMap},
@@ -274,13 +276,14 @@
             signature,
             hashed_message: message,
             output,
-            ..
+            predicate,
         } =&gt; secp256k1_prehashed(
             initial_witness,
             public_key_x,
             public_key_y,
             signature,
             message.as_ref(),
+            predicate,
             <span class="kw-2">*</span>output,
         ),
         BlackBoxFuncCall::EcdsaSecp256r1 {
@@ -289,20 +292,21 @@
             signature,
             hashed_message: message,
             output,
-            ..
+            predicate,
         } =&gt; secp256r1_prehashed(
             initial_witness,
             public_key_x,
             public_key_y,
             signature,
             message.as_ref(),
+            predicate,
             <span class="kw-2">*</span>output,
         ),
-        BlackBoxFuncCall::MultiScalarMul { points, scalars, outputs, .. } =&gt; {
-            multi_scalar_mul(backend, initial_witness, points, scalars, <span class="kw-2">*</span>outputs)
+        BlackBoxFuncCall::MultiScalarMul { points, scalars, outputs, predicate } =&gt; {
+            multi_scalar_mul(backend, initial_witness, points, scalars, <span class="kw-2">*</span>predicate, <span class="kw-2">*</span>outputs)
         }
-        BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, outputs, .. } =&gt; {
-            embedded_curve_add(backend, initial_witness, <span class="kw-2">**</span>input1, <span class="kw-2">**</span>input2, <span class="kw-2">*</span>outputs)
+        BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, outputs, predicate } =&gt; {
+            embedded_curve_add(backend, initial_witness, <span class="kw-2">**</span>input1, <span class="kw-2">**</span>input2, <span class="kw-2">*</span>predicate, <span class="kw-2">*</span>outputs)
         }
         <span class="comment">// Recursive aggregation will be entirely handled by the backend and is not solved by the ACVM
         </span>BlackBoxFuncCall::RecursiveAggregation { .. } =&gt; <span class="prelude-val">Ok</span>(()),

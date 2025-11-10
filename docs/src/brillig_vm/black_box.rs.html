@@ -452,7 +452,13 @@
 <a href="#451" id="451">451</a>
 <a href="#452" id="452">452</a>
 <a href="#453" id="453">453</a>
-<a href="#454" id="454">454</a></pre></div><pre class="rust"><code><span class="doccomment">//! Implementations for VM native [black box functions][acir::brillig::Opcode::BlackBox].
+<a href="#454" id="454">454</a>
+<a href="#455" id="455">455</a>
+<a href="#456" id="456">456</a>
+<a href="#457" id="457">457</a>
+<a href="#458" id="458">458</a>
+<a href="#459" id="459">459</a>
+<a href="#460" id="460">460</a></pre></div><pre class="rust"><code><span class="doccomment">//! Implementations for VM native [black box functions][acir::brillig::Opcode::BlackBox].
 </span><span class="kw">use </span>acir::brillig::{BlackBoxOp, HeapArray, HeapVector};
 <span class="kw">use </span>acir::{AcirField, BlackBoxFunc};
 <span class="kw">use </span>acvm_blackbox_solver::{
@@ -674,7 +680,12 @@
                     scalars_hi.push(<span class="kw-2">*</span>scalar);
                 }
             }
-            <span class="kw">let </span>(x, y, is_infinite) = solver.multi_scalar_mul(<span class="kw-2">&amp;</span>points, <span class="kw-2">&amp;</span>scalars_lo, <span class="kw-2">&amp;</span>scalars_hi)<span class="question-mark">?</span>;
+            <span class="kw">let </span>(x, y, is_infinite) = solver.multi_scalar_mul(
+                <span class="kw-2">&amp;</span>points,
+                <span class="kw-2">&amp;</span>scalars_lo,
+                <span class="kw-2">&amp;</span>scalars_hi,
+                <span class="bool-val">true</span>, <span class="comment">// Predicate is always true as brillig has control flow to handle false case
+            </span>)<span class="question-mark">?</span>;
             write_heap_array(
                 memory,
                 result,
@@ -708,7 +719,8 @@
                 <span class="kw-2">&amp;</span>input2_x,
                 <span class="kw-2">&amp;</span>input2_y,
                 <span class="kw-2">&amp;</span>input2_infinite.into(),
-            )<span class="question-mark">?</span>;
+                <span class="bool-val">true</span>, <span class="comment">// Predicate is always true as brillig has control flow to handle false case
+            </span>)<span class="question-mark">?</span>;
 
             write_heap_array(
                 memory,

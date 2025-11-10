@@ -189,7 +189,36 @@
 <a href="#188" id="188">188</a>
 <a href="#189" id="189">189</a>
 <a href="#190" id="190">190</a>
-<a href="#191" id="191">191</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::{AcirField, BlackBoxFunc, circuit::opcodes::FunctionInput};
+<a href="#191" id="191">191</a>
+<a href="#192" id="192">192</a>
+<a href="#193" id="193">193</a>
+<a href="#194" id="194">194</a>
+<a href="#195" id="195">195</a>
+<a href="#196" id="196">196</a>
+<a href="#197" id="197">197</a>
+<a href="#198" id="198">198</a>
+<a href="#199" id="199">199</a>
+<a href="#200" id="200">200</a>
+<a href="#201" id="201">201</a>
+<a href="#202" id="202">202</a>
+<a href="#203" id="203">203</a>
+<a href="#204" id="204">204</a>
+<a href="#205" id="205">205</a>
+<a href="#206" id="206">206</a>
+<a href="#207" id="207">207</a>
+<a href="#208" id="208">208</a>
+<a href="#209" id="209">209</a>
+<a href="#210" id="210">210</a>
+<a href="#211" id="211">211</a>
+<a href="#212" id="212">212</a>
+<a href="#213" id="213">213</a>
+<a href="#214" id="214">214</a>
+<a href="#215" id="215">215</a>
+<a href="#216" id="216">216</a>
+<a href="#217" id="217">217</a>
+<a href="#218" id="218">218</a>
+<a href="#219" id="219">219</a>
+<a href="#220" id="220">220</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::{AcirField, BlackBoxFunc, circuit::opcodes::FunctionInput};
 <span class="kw">use </span>iter_extended::vecmap;
 
 <span class="kw">use crate</span>::{
@@ -278,29 +307,64 @@
 
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>prepare_inputs_for_black_box_func(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        inputs: Vec&lt;AcirValue&gt;,
+        <span class="kw-2">mut </span>inputs: Vec&lt;AcirValue&gt;,
         name: BlackBoxFunc,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;Vec&lt;FunctionInput&lt;F&gt;&gt;&gt;, RuntimeError&gt; {
-        <span class="comment">// Allow constant inputs for most blackbox, but:
-        // - EmbeddedCurveAdd requires all-or-nothing constant inputs
-        // - Poseidon2Permutation requires witness input
-        </span><span class="kw">let </span>allow_constant_inputs = <span class="macro">matches!</span>(
-            name,
+        <span class="comment">// Allow constant inputs for most blackbox
+        // Allow constant predicate for all blackbox having predicate
+        </span><span class="kw">let </span>inputs = <span class="kw">match </span>name {
             BlackBoxFunc::MultiScalarMul
-                | BlackBoxFunc::Keccakf1600
-                | BlackBoxFunc::Blake2s
-                | BlackBoxFunc::Blake3
-                | BlackBoxFunc::AND
-                | BlackBoxFunc::XOR
-                | BlackBoxFunc::AES128Encrypt
-                | BlackBoxFunc::EmbeddedCurveAdd
-        );
-        <span class="comment">// Convert `AcirVar` to `FunctionInput`
-        </span><span class="kw">let </span><span class="kw-2">mut </span>inputs =
-            <span class="self">self</span>.prepare_inputs_for_black_box_func_call(inputs, allow_constant_inputs)<span class="question-mark">?</span>;
-        <span class="kw">if </span>name == BlackBoxFunc::EmbeddedCurveAdd {
-            inputs = <span class="self">self</span>.all_variables_or_constants_for_ec_add(inputs)<span class="question-mark">?</span>;
-        }
+            | BlackBoxFunc::Keccakf1600
+            | BlackBoxFunc::Blake2s
+            | BlackBoxFunc::Blake3
+            | BlackBoxFunc::AND
+            | BlackBoxFunc::XOR
+            | BlackBoxFunc::AES128Encrypt
+            | BlackBoxFunc::EmbeddedCurveAdd =&gt; {
+                <span class="self">self</span>.prepare_inputs_for_black_box_func_call(inputs, <span class="bool-val">true</span>)<span class="question-mark">?
+            </span>}
+            BlackBoxFunc::EcdsaSecp256k1 | BlackBoxFunc::EcdsaSecp256r1 =&gt; {
+                <span class="comment">// ECDSA blackbox functions have 6 inputs, the last ones are: [.., predicate, output]
+                </span><span class="kw">let </span>predicate = inputs.swap_remove(<span class="number">4</span>);
+                <span class="comment">// convert the inputs into witness, except for the predicate which has been removed
+                </span><span class="kw">let </span><span class="kw-2">mut </span>inputs = <span class="self">self</span>.prepare_inputs_for_black_box_func_call(inputs, <span class="bool-val">false</span>)<span class="question-mark">?</span>;
+                <span class="comment">// convert the predicate into witness or constant
+                </span><span class="kw">let </span>predicate = <span class="self">self</span>.value_to_function_input(predicate)<span class="question-mark">?</span>;
+                <span class="comment">// Sanity check: proving system does not expect to receive 0 predicates
+                </span><span class="macro">assert_ne!</span>(
+                    predicate,
+                    FunctionInput::Constant(F::zero()),
+                    <span class="string">"0 predicate should have been optimized away"
+                </span>);
+
+                <span class="comment">// add back the predicate into the FunctionInputs
+                </span>inputs.insert(<span class="number">4</span>, <span class="macro">vec!</span>[predicate]);
+                inputs
+            }
+            BlackBoxFunc::RecursiveAggregation =&gt; {
+                <span class="kw">let </span>predicate = inputs.pop().ok_or_else(|| {
+                    RuntimeError::InternalError(InternalError::MissingArg {
+                        name: <span class="string">"recursive aggregation"</span>.to_string(),
+                        arg: <span class="string">"predicate"</span>.to_string(),
+                        call_stack: <span class="self">self</span>.get_call_stack(),
+                    })
+                })<span class="question-mark">?</span>;
+                <span class="comment">// convert the inputs into witness, except for the predicate which has been removed
+                </span><span class="kw">let </span><span class="kw-2">mut </span>inputs = <span class="self">self</span>.prepare_inputs_for_black_box_func_call(inputs, <span class="bool-val">false</span>)<span class="question-mark">?</span>;
+                <span class="comment">// convert the predicate into witness or constant
+                </span><span class="kw">let </span>predicate = <span class="self">self</span>.value_to_function_input(predicate)<span class="question-mark">?</span>;
+                <span class="comment">// Sanity check: proving system does not expect to receive 0 predicates
+                </span><span class="macro">assert_ne!</span>(
+                    predicate,
+                    FunctionInput::Constant(F::zero()),
+                    <span class="string">"0 predicate should have been optimized away"
+                </span>);
+                <span class="comment">// add back the predicate into the FunctionInputs
+                </span>inputs.push(<span class="macro">vec!</span>[predicate]);
+                inputs
+            }
+            <span class="kw">_ </span>=&gt; <span class="self">self</span>.prepare_inputs_for_black_box_func_call(inputs, <span class="bool-val">false</span>)<span class="question-mark">?</span>,
+        };
         <span class="prelude-val">Ok</span>(inputs)
     }
 
@@ -341,43 +405,37 @@
         <span class="prelude-val">Ok</span>(witnesses)
     }
 
-    <span class="doccomment">/// [`BlackBoxFunc::EmbeddedCurveAdd`] has 6 inputs representing the two points to add
-    /// Each point must be either all constants, or all witnesses,
-    /// where constants are converted to witnesses here if mixed constant and witnesses are
-    /// encountered
-    </span><span class="kw">fn </span>all_variables_or_constants_for_ec_add(
+    <span class="doccomment">/// Converts an `AcirValue` into a `FunctionInput` for use in black box function calls.
+    ///
+    /// - If the value can be evaluated to a constant, it returns `FunctionInput::Constant`
+    /// - Otherwise, it creates or retrieves a witness variable and returns `FunctionInput::Witness`
+    </span><span class="kw">fn </span>value_to_function_input(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        inputs: Vec&lt;Vec&lt;FunctionInput&lt;F&gt;&gt;&gt;,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;Vec&lt;FunctionInput&lt;F&gt;&gt;&gt;, RuntimeError&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>has_constant = <span class="bool-val">false</span>;
-        <span class="kw">let </span><span class="kw-2">mut </span>has_witness = <span class="bool-val">false</span>;
-        <span class="kw">let </span><span class="kw-2">mut </span>result = inputs.clone();
-        <span class="kw">for </span>(i, input) <span class="kw">in </span>inputs.iter().enumerate() {
-            <span class="macro">assert_eq!</span>(input.len(), <span class="number">1</span>);
-            <span class="kw">if </span>input[<span class="number">0</span>].is_constant() {
-                has_constant = <span class="bool-val">true</span>;
-            } <span class="kw">else </span>{
-                has_witness = <span class="bool-val">true</span>;
-            }
-
-            <span class="kw">if </span>i % <span class="number">3 </span>== <span class="number">2 </span>{
-                <span class="kw">if </span>has_constant &amp;&amp; has_witness {
-                    <span class="comment">// Convert the constants to witnesses if mixed constants and witnesses are
-                    // encountered
-                    </span><span class="kw">for </span>j <span class="kw">in </span>i - <span class="number">2</span>..i + <span class="number">1 </span>{
-                        <span class="kw">if let </span>FunctionInput::Constant(constant) = inputs[j][<span class="number">0</span>] {
-                            <span class="kw">let </span>constant = <span class="self">self</span>.add_constant(constant);
-                            <span class="kw">let </span>witness_var = <span class="self">self</span>.get_or_create_witness_var(constant)<span class="question-mark">?</span>;
-                            <span class="kw">let </span>witness = <span class="self">self</span>.var_to_witness(witness_var)<span class="question-mark">?</span>;
-                            result[j] = <span class="macro">vec!</span>[FunctionInput::Witness(witness)];
-                        }
-                    }
+        value: AcirValue,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;FunctionInput&lt;F&gt;, RuntimeError&gt; {
+        <span class="kw">if let </span>AcirValue::Var(acir_var, acir_type) = value {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(constant) = <span class="self">self</span>.var_to_expression(acir_var)<span class="question-mark">?</span>.to_const() {
+                <span class="kw">let </span>num_bits = acir_type.bit_size::&lt;F&gt;();
+                <span class="kw">if </span>num_bits &lt; constant.num_bits() {
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(RuntimeError::InvalidBlackBoxInputBitSize {
+                        value: constant.to_string(),
+                        num_bits: constant.num_bits(),
+                        max_num_bits: num_bits,
+                        call_stack: <span class="self">self</span>.get_call_stack(),
+                    });
                 }
-                has_constant = <span class="bool-val">false</span>;
-                has_witness = <span class="bool-val">false</span>;
+                <span class="prelude-val">Ok</span>(FunctionInput::Constant(<span class="kw-2">*</span>constant))
+            } <span class="kw">else </span>{
+                <span class="kw">let </span>witness_var = <span class="self">self</span>.get_or_create_witness_var(acir_var)<span class="question-mark">?</span>;
+                <span class="kw">let </span>witness = <span class="self">self</span>.var_to_witness(witness_var)<span class="question-mark">?</span>;
+                <span class="prelude-val">Ok</span>(FunctionInput::Witness(witness))
             }
+        } <span class="kw">else </span>{
+            <span class="prelude-val">Err</span>(RuntimeError::InternalError(InternalError::General {
+                message: <span class="string">"Expected AcirValue"</span>.to_string(),
+                call_stack: <span class="self">self</span>.get_call_stack(),
+            }))
         }
-        <span class="prelude-val">Ok</span>(result)
     }
 }
 </code></pre></div></section></main></body></html>
