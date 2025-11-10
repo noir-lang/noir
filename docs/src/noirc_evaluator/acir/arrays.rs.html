@@ -1225,9 +1225,7 @@
 <a href="#1224" id="1224">1224</a>
 <a href="#1225" id="1225">1225</a>
 <a href="#1226" id="1226">1226</a>
-<a href="#1227" id="1227">1227</a>
-<a href="#1228" id="1228">1228</a>
-<a href="#1229" id="1229">1229</a></pre></div><pre class="rust"><code><span class="doccomment">//! Array handling in ACIR.
+<a href="#1227" id="1227">1227</a></pre></div><pre class="rust"><code><span class="doccomment">//! Array handling in ACIR.
 //!
 //! This modules how Noir's SSA array semantics are lowered into ACIR's flat memory model.
 //! Arrays in SSA can appear as constants or dynamically allocated blocks.
@@ -1494,9 +1492,7 @@
         }
         <span class="comment">// Make sure this code is disabled, or fail with "Index out of bounds".
         </span><span class="kw">let </span>msg = <span class="string">"Index out of bounds, array has size 0"</span>.to_string();
-        <span class="kw">let </span>msg = <span class="self">self</span>.acir_context.generate_assertion_message_payload(msg);
-        <span class="kw">let </span>zero = <span class="self">self</span>.acir_context.add_constant(FieldElement::zero());
-        <span class="self">self</span>.acir_context.assert_eq_var(<span class="self">self</span>.current_side_effects_enabled_var, zero, <span class="prelude-val">Some</span>(msg))<span class="question-mark">?</span>;
+        <span class="self">self</span>.acir_context.assert_zero_var(<span class="self">self</span>.current_side_effects_enabled_var, msg)<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(<span class="bool-val">true</span>)
     }
 

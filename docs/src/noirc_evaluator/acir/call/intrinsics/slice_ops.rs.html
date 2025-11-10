@@ -694,7 +694,45 @@
 <a href="#693" id="693">693</a>
 <a href="#694" id="694">694</a>
 <a href="#695" id="695">695</a>
-<a href="#696" id="696">696</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::acir::types::{flat_element_types, flat_numeric_types};
+<a href="#696" id="696">696</a>
+<a href="#697" id="697">697</a>
+<a href="#698" id="698">698</a>
+<a href="#699" id="699">699</a>
+<a href="#700" id="700">700</a>
+<a href="#701" id="701">701</a>
+<a href="#702" id="702">702</a>
+<a href="#703" id="703">703</a>
+<a href="#704" id="704">704</a>
+<a href="#705" id="705">705</a>
+<a href="#706" id="706">706</a>
+<a href="#707" id="707">707</a>
+<a href="#708" id="708">708</a>
+<a href="#709" id="709">709</a>
+<a href="#710" id="710">710</a>
+<a href="#711" id="711">711</a>
+<a href="#712" id="712">712</a>
+<a href="#713" id="713">713</a>
+<a href="#714" id="714">714</a>
+<a href="#715" id="715">715</a>
+<a href="#716" id="716">716</a>
+<a href="#717" id="717">717</a>
+<a href="#718" id="718">718</a>
+<a href="#719" id="719">719</a>
+<a href="#720" id="720">720</a>
+<a href="#721" id="721">721</a>
+<a href="#722" id="722">722</a>
+<a href="#723" id="723">723</a>
+<a href="#724" id="724">724</a>
+<a href="#725" id="725">725</a>
+<a href="#726" id="726">726</a>
+<a href="#727" id="727">727</a>
+<a href="#728" id="728">728</a>
+<a href="#729" id="729">729</a>
+<a href="#730" id="730">730</a>
+<a href="#731" id="731">731</a>
+<a href="#732" id="732">732</a>
+<a href="#733" id="733">733</a>
+<a href="#734" id="734">734</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::acir::types::{flat_element_types, flat_numeric_types};
 <span class="kw">use </span><span class="kw">crate</span>::acir::{AcirDynamicArray, AcirValue};
 <span class="kw">use </span><span class="kw">crate</span>::errors::RuntimeError;
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::types::{NumericType, Type};
@@ -931,17 +969,56 @@
         dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
         result_ids: <span class="kw-2">&amp;</span>[ValueId],
     ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;AcirValue&gt;, RuntimeError&gt; {
-        <span class="kw">let </span>slice_length = <span class="self">self</span>.convert_value(arguments[<span class="number">0</span>], dfg).into_var()<span class="question-mark">?</span>;
+        <span class="kw">let </span>slice_length_var = arguments[<span class="number">0</span>];
         <span class="kw">let </span>slice_contents = arguments[<span class="number">1</span>];
 
+        <span class="kw">let </span>slice_value = <span class="self">self</span>.convert_value(slice_length_var, dfg);
+        <span class="kw">let </span>slice_length = slice_value.clone().into_var()<span class="question-mark">?</span>;
+        <span class="kw">let </span>block_id = <span class="self">self</span>.ensure_array_is_initialized(slice_contents, dfg)<span class="question-mark">?</span>;
+        <span class="kw">let </span>slice = <span class="self">self</span>.convert_value(slice_contents, dfg);
+
+        <span class="comment">// Slices with constant zero length should be eliminated as unreachable instructions,
+        // but in case they aren't, fail with a constant rather than try to subtract from the index.
+        </span><span class="kw">let </span>is_constant_zero_length =
+            dfg.get_numeric_constant(slice_length_var).is_some_and(|c| c.is_zero());
+
+        <span class="kw">if </span>is_constant_zero_length {
+            <span class="self">self</span>.acir_context
+                .assert_always_fail(<span class="string">"cannot pop from a slice with length 0"</span>.to_string())<span class="question-mark">?</span>;
+
+            <span class="comment">// Fill the result with default values.
+            </span><span class="kw">let </span><span class="kw-2">mut </span>results = Vec::with_capacity(result_ids.len());
+
+            <span class="comment">// The results shall be: [new len, new slice, ...popped]
+            </span>results.push(slice_value);
+            results.push(slice);
+
+            <span class="kw">for </span>result_id <span class="kw">in </span><span class="kw-2">&amp;</span>result_ids[<span class="number">2</span>..] {
+                <span class="kw">let </span>result_type = dfg.type_of_value(<span class="kw-2">*</span>result_id);
+                <span class="kw">let </span>result_zero = <span class="self">self</span>.array_zero_value(<span class="kw-2">&amp;</span>result_type)<span class="question-mark">?</span>;
+                results.push(result_zero);
+            }
+
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(results);
+        }
+
+        <span class="comment">// For unknown length under a side effect variable, we want to multiply with the side effect variable
+        // to ensure we don't end up trying to look up an item at index -1, when the semantic length is 0.
+        </span><span class="kw">let </span>is_unknown_length = dfg.get_numeric_constant(slice_length_var).is_none();
+
         <span class="kw">let </span>one = <span class="self">self</span>.acir_context.add_constant(FieldElement::one());
-        <span class="kw">let </span>new_slice_length = <span class="self">self</span>.acir_context.sub_var(slice_length, one)<span class="question-mark">?</span>;
+        <span class="kw">let </span><span class="kw-2">mut </span>new_slice_length = <span class="self">self</span>.acir_context.sub_var(slice_length, one)<span class="question-mark">?</span>;
+
+        <span class="kw">if </span>is_unknown_length {
+            new_slice_length = <span class="self">self
+                </span>.acir_context
+                .mul_var(new_slice_length, <span class="self">self</span>.current_side_effects_enabled_var)<span class="question-mark">?</span>;
+        }
+
         <span class="comment">// For a pop back operation we want to fetch from the `length - 1` as this is the
         // last valid index that can be accessed in a slice. After the pop back operation
         // the elements stored at that index will no longer be able to be accessed.
         </span><span class="kw">let </span><span class="kw-2">mut </span>var_index = new_slice_length;
-
-        <span class="kw">let </span>block_id = <span class="self">self</span>.ensure_array_is_initialized(slice_contents, dfg)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>slice_type = dfg.type_of_value(slice_contents);
         <span class="kw">let </span>item_size = slice_type.element_size();
@@ -954,7 +1031,6 @@
             popped_elements.push(elem);
         }
 
-        <span class="kw">let </span>slice = <span class="self">self</span>.convert_value(slice_contents, dfg);
         <span class="kw">let </span><span class="kw-2">mut </span>new_slice = <span class="self">self</span>.read_array_with_type(slice, <span class="kw-2">&amp;</span>slice_type)<span class="question-mark">?</span>;
         <span class="kw">for _ in </span><span class="number">0</span>..popped_elements.len() {
             new_slice.pop_back();
@@ -1054,33 +1130,33 @@
     ///
     /// # Arguments
     ///
-    /// * `arguments[0]` - Current slice length  
-    /// * `arguments[1]` - Slice contents  
-    /// * `arguments[2]` - Insert index (logical element index, not flattened)  
-    /// * `arguments[3..]` - Elements to insert  
-    /// * `result_ids[0]` - Updated slice length  
-    /// * `result_ids[1]` - Updated slice contents  
+    /// * `arguments[0]` - Current slice length
+    /// * `arguments[1]` - Slice contents
+    /// * `arguments[2]` - Insert index (logical element index, not flattened)
+    /// * `arguments[3..]` - Elements to insert
+    /// * `result_ids[0]` - Updated slice length
+    /// * `result_ids[1]` - Updated slice contents
     ///
     /// # Returns
     ///
     /// A vector of [AcirValue]s containing:
-    /// 1. Updated slice length (incremented by one)  
-    /// 2. Updated slice contents with the new elements inserted at the given index  
+    /// 1. Updated slice length (incremented by one)
+    /// 2. Updated slice contents with the new elements inserted at the given index
     ///
     /// # Design
     ///
     /// Slices are represented in **flattened form** in memory. Inserting requires
     /// shifting a contiguous region of elements upward to make room for the new ones:
     ///
-    /// 1. Compute the flattened insert index:  
-    ///    - Multiply the logical insert index by the element size.  
+    /// 1. Compute the flattened insert index:
+    ///    - Multiply the logical insert index by the element size.
     ///    - Adjust for non-homogenous structures via [Self::get_flattened_index].
     /// 2. Flatten the new elements (`flattened_elements`)
-    /// 3. For each position in the result slice:  
-    ///    - If below the insert index, copy from the original slice.  
-    ///    - If within the insertion window, write values from `flattened_elements`.  
-    ///    - If above the window, shift elements upward by the size of the inserted data.  
-    /// 4. Initialize a new memory block for the resulting slice, ensuring its type information is preserved.  
+    /// 3. For each position in the result slice:
+    ///    - If below the insert index, copy from the original slice.
+    ///    - If within the insertion window, write values from `flattened_elements`.
+    ///    - If above the window, shift elements upward by the size of the inserted data.
+    /// 4. Initialize a new memory block for the resulting slice, ensuring its type information is preserved.
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>convert_slice_insert(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         arguments: <span class="kw-2">&amp;</span>[ValueId],
@@ -1242,40 +1318,40 @@
     ///
     /// # Arguments
     ///
-    /// * `arguments[0]` - Current slice length  
-    /// * `arguments[1]` - Slice contents  
-    /// * `arguments[2]` - Removal index (logical element index, not flattened)  
-    /// * `result_ids[0]` - Updated slice length  
-    /// * `result_ids[1]` - Updated slice contents  
-    /// * `result_ids[2..]` - Locations for the removed elements  
+    /// * `arguments[0]` - Current slice length
+    /// * `arguments[1]` - Slice contents
+    /// * `arguments[2]` - Removal index (logical element index, not flattened)
+    /// * `result_ids[0]` - Updated slice length
+    /// * `result_ids[1]` - Updated slice contents
+    /// * `result_ids[2..]` - Locations for the removed elements
     ///
     /// # Returns
     ///
     /// A vector of [AcirValue]s containing:
-    /// 1. Updated slice length (decremented by one)  
-    /// 2. Updated slice contents with the target elements removed  
-    /// 3. The removed elements, in order  
+    /// 1. Updated slice length (decremented by one)
+    /// 2. Updated slice contents with the target elements removed
+    /// 3. The removed elements, in order
     ///
     /// # Design
     ///
     /// Slices are stored in **flattened form** in memory. Removing requires
     /// shifting a contiguous region of elements downward to overwrite the removed values:
     ///
-    /// 1. Compute the flattened remove index:  
-    ///    - Multiply the logical remove index by the element size.  
+    /// 1. Compute the flattened remove index:
+    ///    - Multiply the logical remove index by the element size.
     ///    - Adjust for non-homogenous structures via [Self::get_flattened_index].
-    /// 2. Read out the element(s) to be removed:  
+    /// 2. Read out the element(s) to be removed:
     ///    - Iterate over `result_ids[2..(2 + element_size)]`
     ///    - `element_size` refers to the result of [crate::ssa::ir::types::Type::element_size].
     ///    - Use these IDs to fetch the appropriate type information for the values to remove and drive `array_get_value`.
-    ///      While extracting the values to remove we compute the total `popped_elements_size` (the flattened width of the removed data).  
-    /// 3. For each index in the result slice:  
-    ///   - If the index is below the remove index, copy directly.  
+    ///      While extracting the values to remove we compute the total `popped_elements_size` (the flattened width of the removed data).
+    /// 3. For each index in the result slice:
+    ///   - If the index is below the remove index, copy directly.
     ///   - If the index is at or beyond the removed element, fetch the value from `index + popped_elements_size`
-    ///     in the original slice and write it to the current index.  
+    ///     in the original slice and write it to the current index.
     ///   - If `index + popped_elements_size` would exceed the slice length we do nothing. This ensures safe access at the tail of the array
     ///     and is safe to do as we are decreasing the slice length which gates slice accesses.
-    /// 4. Initialize a new memory block for the resulting slice, ensuring its type information is preserved.  
+    /// 4. Initialize a new memory block for the resulting slice, ensuring its type information is preserved.
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>convert_slice_remove(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         arguments: <span class="kw-2">&amp;</span>[ValueId],
