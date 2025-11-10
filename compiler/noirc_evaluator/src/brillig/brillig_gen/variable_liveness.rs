@@ -303,8 +303,6 @@ impl VariableLiveness {
                     for successor_id in unprocessed_successors {
                         stack.push((successor_id, false));
                     }
-                    // All successors ready, push this block with processed = true
-                    stack.push((block_id, true));
                 }
             }
         }
