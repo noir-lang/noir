@@ -134,6 +134,8 @@ pub enum ResolverError {
     QuoteInRuntimeCode { location: Location },
     #[error("Comptime-only type `{typ}` cannot be used in runtime code")]
     ComptimeTypeInRuntimeCode { typ: String, location: Location },
+    #[error("Comptime-only type `{typ}` cannot be used in non-comptime global")]
+    ComptimeTypeInNonComptimeGlobal { typ: String, location: Location },
     #[error("Comptime variable `{name}` cannot be mutated in a non-comptime context")]
     MutatingComptimeInNonComptimeContext { name: String, location: Location },
     #[error("Failed to parse `{statement}` as an expression")]
@@ -238,6 +240,7 @@ impl ResolverError {
             | ResolverError::BinaryOpError { location, .. }
             | ResolverError::QuoteInRuntimeCode { location }
             | ResolverError::ComptimeTypeInRuntimeCode { location, .. }
+            | ResolverError::ComptimeTypeInNonComptimeGlobal { location, .. }
             | ResolverError::MutatingComptimeInNonComptimeContext { location, .. }
             | ResolverError::InvalidInternedStatementInExpr { location, .. }
             | ResolverError::InvalidSyntaxInPattern { location }
@@ -652,6 +655,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
             ResolverError::ComptimeTypeInRuntimeCode { typ, location } => {
                                 Diagnostic::simple_error(
                                     format!("Comptime-only type `{typ}` cannot be used in runtime code"),
+                                    "Comptime-only type used here".to_string(),
+                                    *location,
+                                )
+                            },
+            ResolverError::ComptimeTypeInNonComptimeGlobal { typ, location } => {
+                                Diagnostic::simple_error(
+                                    format!("Comptime-only type `{typ}` cannot be used in non-comptime global"),
                                     "Comptime-only type used here".to_string(),
                                     *location,
                                 )
