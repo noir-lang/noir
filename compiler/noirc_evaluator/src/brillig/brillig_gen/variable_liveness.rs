@@ -202,7 +202,7 @@ impl VariableLiveness {
         back_edges: LoopMap,
     ) -> Self {
         // First pass, propagate up the live_ins skipping back edges.
-        self.compute_live_in_recursive(func, func.entry_block(), constants, &back_edges);
+        self.compute_live_in(func, func.entry_block(), constants, &back_edges);
 
         // Second pass, propagate header live_ins to the loop bodies.
         for (back_edge, loop_body) in back_edges {
@@ -220,14 +220,13 @@ impl VariableLiveness {
     /// in the block (by definition not alive at the beginning).
     ///
     /// This is an iterative implementation to avoid stack overflows on complex programs.
-    fn compute_live_in_recursive(
+    fn compute_live_in(
         &mut self,
         func: &Function,
         entry_block: BasicBlockId,
         constants: &ConstantAllocation,
         back_edges: &LoopMap,
     ) {
-        // Use an explicit stack to simulate recursion
         // Each entry is (block_id, processing_state)
         // processing_state: false = need to process successors, true = ready to compute live_in
         let mut stack = vec![(entry_block, false)];
@@ -256,6 +255,8 @@ impl VariableLiveness {
                     );
                 }
 
+                // Based on the paper mentioned in the module docs, the definition would be:
+                // live_in[BlockId] = before_def[BlockId] union (live_out[BlockId] - killed[BlockId])
                 // Variables used in this block, defined in this block or before.
                 let used = variables_used_in_block(block, &func.dfg);
 
@@ -264,6 +265,7 @@ impl VariableLiveness {
 
                 // Live at the beginning are the variables used, but not defined in this block, plus the ones
                 // it passes through to its successors, which are used by them, but not defined here.
+                // (Variables used by successors and defined in this block are part of `live_out`, but not `live_in`).
                 let live_in =
                     used.union(&live_out).filter(|v| !defined.contains(v)).copied().collect();
 
