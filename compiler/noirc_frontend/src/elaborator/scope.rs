@@ -1,6 +1,7 @@
 //! Lexical scoping, variable lookup, and closure capture tracking.
 
 use crate::ast::{ERROR_IDENT, Ident};
+use crate::elaborator::path_resolution::PathResolution;
 use crate::hir::def_map::{LocalModuleId, ModuleId};
 
 use crate::hir::scope::{Scope as GenericScope, ScopeTree as GenericScopeTree};
@@ -41,10 +42,12 @@ impl Elaborator<'_> {
         self.interner.get_type(type_id)
     }
 
-    pub(super) fn get_trait_mut(&mut self, trait_id: TraitId) -> &mut Trait {
-        self.interner.get_trait_mut(trait_id)
+    pub(super) fn get_trait(&mut self, trait_id: TraitId) -> &Trait {
+        self.interner.get_trait(trait_id)
     }
 
+    /// For each [crate::elaborator::LambdaContext] on the lambda stack with a scope index higher than that
+    /// of the variable, add the [HirIdent] to the list of captures.
     pub(super) fn resolve_local_variable(&mut self, hir_ident: HirIdent, var_scope_index: usize) {
         let mut transitive_capture_index: Option<usize> = None;
 
@@ -79,6 +82,9 @@ impl Elaborator<'_> {
         }
     }
 
+    /// Try to look up a [TypedPath] in the globals.
+    ///
+    /// If the item is a type alias to some as-of-yet unknown numeric generic, it returns a [DefinitionId::dummy_id].
     pub(super) fn lookup_global(
         &mut self,
         path: TypedPath,
@@ -154,12 +160,12 @@ impl Elaborator<'_> {
     }
 
     /// Lookup a given trait by name/path.
-    pub(crate) fn lookup_trait_or_error(&mut self, path: TypedPath) -> Option<&mut Trait> {
+    pub(crate) fn lookup_trait_or_error(&mut self, path: TypedPath) -> Option<&Trait> {
         let location = path.location;
         match self.resolve_path_or_error(path, PathResolutionTarget::Type) {
             Ok(item) => {
                 if let PathResolutionItem::Trait(trait_id) = item {
-                    Some(self.get_trait_mut(trait_id))
+                    Some(self.get_trait(trait_id))
                 } else {
                     self.push_err(ResolverError::Expected {
                         expected: "trait",
@@ -176,7 +182,8 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Looks up a given type by name.
+    /// Looks up a given [Type] by name.
+    ///
     /// This will also instantiate any struct types found.
     pub(super) fn lookup_type_or_error(&mut self, path: TypedPath) -> Option<Type> {
         let segment = path.as_single_segment();
@@ -220,8 +227,9 @@ impl Elaborator<'_> {
         path: TypedPath,
         mode: PathResolutionMode,
     ) -> Option<Shared<TypeAlias>> {
-        match self.resolve_path_or_error_inner(path, PathResolutionTarget::Type, mode) {
-            Ok(PathResolutionItem::TypeAlias(type_alias_id)) => {
+        match self.resolve_path_inner(path, PathResolutionTarget::Type, mode) {
+            Ok(PathResolution { item: PathResolutionItem::TypeAlias(type_alias_id), errors }) => {
+                self.push_errors(errors);
                 Some(self.interner.get_type_alias(type_alias_id))
             }
             _ => None,

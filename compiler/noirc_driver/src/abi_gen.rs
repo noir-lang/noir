@@ -56,11 +56,13 @@ fn build_abi_error_type(context: &Context, typ: ErrorType) -> AbiErrorType {
             if let Type::FmtString(len, item_types) = typ {
                 let span = get_main_function_location(context);
                 let length = len.evaluate_to_u32(span).expect("Cannot evaluate fmt length");
-                let Type::Tuple(item_types) = item_types.as_ref() else {
-                    unreachable!("FmtString items must be a tuple")
+                let item_types = match item_types.as_ref() {
+                    Type::Tuple(item_types) => {
+                        vecmap(item_types, |typ| abi_type_from_hir_type(context, typ))
+                    }
+                    Type::Unit => Vec::new(),
+                    _ => unreachable!("FmtString items must be a tuple or unit"),
                 };
-                let item_types =
-                    item_types.iter().map(|typ| abi_type_from_hir_type(context, typ)).collect();
                 AbiErrorType::FmtString { length, item_types }
             } else {
                 AbiErrorType::Custom(abi_type_from_hir_type(context, &typ))

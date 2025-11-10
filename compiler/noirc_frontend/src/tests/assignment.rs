@@ -438,6 +438,33 @@ fn dereference_in_lvalue() {
 }
 
 #[test]
+fn reference_chain_in_tuple_member_access() {
+    // Ensure that references appearing in the middle of a member access chain are properly dereferenced.
+    //
+    // 1. `x` has type `(&mut (u32, &mut (u32, u32)), u32)`
+    // 2. Accessing `.0` yields `&mut (u32, &mut (u32, u32))`
+    // 3. Must dereference to get `(u32, &mut (u32, u32))`
+    // 4. Accessing `.1` yields `&mut (u32, u32)`
+    // 5. Must dereference to get `(u32, u32)`
+    // 6. Accessing `.0` yields `u32`
+    let src = r#"
+        fn main() {
+            let inner = &mut (10, 20);
+            let outer = &mut (5, inner);
+            let mut x = (outer, 99);
+
+            x.0.1.0 = 42;
+
+            assert(x.0.1.0 == 42);
+            assert(x.0.1.1 == 20);
+            assert(x.0.0 == 5);
+            assert(x.1 == 99);
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn mut_comptime_variable_in_runtime() {
     let src = r#"
     fn main() {
