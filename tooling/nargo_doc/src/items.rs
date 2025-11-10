@@ -78,6 +78,7 @@ pub struct Module {
     pub name: String,
     pub items: Vec<(ItemVisibility, Item)>,
     pub comments: Option<String>,
+    pub is_contract: bool,
 }
 
 impl Module {

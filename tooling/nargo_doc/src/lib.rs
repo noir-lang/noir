@@ -48,7 +48,7 @@ struct DocItemBuilder<'a> {
     /// Maps a ModuleDefId to the item it converted to.
     /// This is needed because if an item is publicly exported, but the item
     /// isn't publicly visible (because its parent module is private) then we'll
-    /// include the item directly undert the module that publicly exports it.
+    /// include the item directly under the module that publicly exports it.
     /// We do this by looking up the item in this map.
     module_def_id_to_item: HashMap<ModuleDefId, ConvertedItem>,
     module_imports: HashMap<ModuleId, Vec<expand_items::Import>>,
@@ -293,8 +293,9 @@ impl DocItemBuilder<'_> {
             .map(|(visibility, item)| (visibility, self.convert_item(item, visibility)))
             .collect();
         self.module_imports.insert(module.id, module.imports);
+        let is_contract = module.is_contract;
         let id = self.get_module_id(module.id);
-        Module { id, module_id: module.id, name, comments, items }
+        Module { id, module_id: module.id, name, comments, items, is_contract }
     }
 
     fn convert_impl(&mut self, impl_: expand_items::Impl) -> Impl {
@@ -583,6 +584,15 @@ impl DocItemBuilder<'_> {
     /// Goes over a module's imports. If an import is a re-export of a private item,
     /// the item is added to the module's items.
     fn process_module_reexports(&mut self, module: &mut Module) {
+        // Process this module's sub-modules first because when we actually process the
+        // imports we might add a publicly exported module into this module's items,
+        // visiting it twice.
+        for (_visibility, item) in &mut module.items {
+            if let Item::Module(sub_module) = item {
+                self.process_module_reexports(sub_module);
+            }
+        }
+
         let imports = self.module_imports.remove(&module.module_id).unwrap();
         for import in imports {
             if import.visibility == ItemVisibility::Private {
@@ -612,12 +622,6 @@ impl DocItemBuilder<'_> {
                     name: import.name.to_string(),
                 }),
             ));
-        }
-
-        for (_visibility, item) in &mut module.items {
-            if let Item::Module(sub_module) = item {
-                self.process_module_reexports(sub_module);
-            }
         }
     }
 
