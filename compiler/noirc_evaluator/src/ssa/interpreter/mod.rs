@@ -1464,28 +1464,20 @@ macro_rules! apply_int_comparison_op {
     }};
 }
 
-/// Helper function to try to compare two [NumericValue]s when at least one of them was [Fitted::Unfit].
+/// We are trying to compare two numeric values, at least one of which was `Unfit`.
 ///
-/// We know that their types were the same; we can try to fit signed values into `i128`
-/// and unsigned ones into `u128` and compare them that way.
+/// This is the result of the DIE pass removing an `ArrayGet` and leaving a `LessThan`
+/// and a `Constrain` in its place. `LessThan` implicitly includes a `RangeCheck` on
+/// the operands during ACIR generation, which an `Unfit` value would fail, so we
+/// cannot treat them differently here, even if we could compare the values as `u128`
+/// or `i128`.
 ///
-/// Panics if these conversions cannot be done, in which case we have to come up with
-/// another way to handle SSA that tries to compare potentially overflowed values.
+/// Instead we `Cast` the values in SSA, which should have converted our `Unfit` value
+/// back to a `Fit` one with an acceptable number of bits (e.g. an `Unfit` `u32` into a `u64`).
+///
+/// If we still hit this method, we have a problem.
 fn unfit_lt(a: NumericValue, b: NumericValue) -> bool {
-    use NumericValue::*;
-    match a {
-        U8(_) | U16(_) | U32(_) | U64(_) | U128(_) => {
-            let a = a.convert_to_field().try_into_u128().expect("unfit value doesn't fit u128");
-            let b = b.convert_to_field().try_into_u128().expect("unfit value doesn't fit u128");
-            a < b
-        }
-        I8(_) | I16(_) | I32(_) | I64(_) => {
-            let a = a.convert_to_field().try_into_i128().expect("unfit value doesn't fit i128");
-            let b = b.convert_to_field().try_into_i128().expect("unfit value doesn't fit i128");
-            a < b
-        }
-        U1(_) | Field(_) => unreachable!("never unfit"),
-    }
+    unreachable!("shouldn't have to compare unfit values: lt {a}, {b}");
 }
 
 fn evaluate_binary(
