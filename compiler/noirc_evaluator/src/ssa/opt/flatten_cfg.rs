@@ -389,9 +389,8 @@ impl<'f> Context<'f> {
     /// it is 'AND-ed' with the previous condition (if any)
     fn link_condition(&mut self, condition: ValueId) -> ValueId {
         // Retrieve the previous condition
-        if let Some(context) = self.condition_stack.last() {
-            let previous_branch = context.else_branch.as_ref().unwrap_or(&context.then_branch);
-            let and = Instruction::binary(BinaryOp::And, previous_branch.condition, condition);
+        if let Some(last_condition) = self.get_last_condition() {
+            let and = Instruction::binary(BinaryOp::And, last_condition, condition);
             let call_stack = self.inserter.function.dfg.get_value_call_stack_id(condition);
             self.insert_instruction(and, call_stack)
         } else {

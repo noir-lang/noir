@@ -23,6 +23,8 @@ pub mod mem;
 pub mod panic;
 pub mod hint;
 
+mod primitive_docs;
+
 use convert::AsPrimitive;
 
 // Oracle calls are required to be wrapped in an unconstrained function
