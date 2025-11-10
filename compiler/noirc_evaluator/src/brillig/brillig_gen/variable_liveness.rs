@@ -233,8 +233,8 @@ impl VariableLiveness {
         let mut stack = vec![(entry_block, false)];
         let mut visited = HashSet::default();
 
-        while let Some((block_id, ready_to_compute)) = stack.pop() {
-            if ready_to_compute {
+        while let Some((block_id, processed)) = stack.pop() {
+            if processed {
                 // All successors have been processed, now compute live_in for this block
                 let block = &func.dfg[block_id];
                 let mut live_out = HashSet::default();
