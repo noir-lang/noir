@@ -975,7 +975,47 @@
 <a href="#974" id="974">974</a>
 <a href="#975" id="975">975</a>
 <a href="#976" id="976">976</a>
-<a href="#977" id="977">977</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module analyzes the liveness of variables (non-constant values) throughout a function.
+<a href="#977" id="977">977</a>
+<a href="#978" id="978">978</a>
+<a href="#979" id="979">979</a>
+<a href="#980" id="980">980</a>
+<a href="#981" id="981">981</a>
+<a href="#982" id="982">982</a>
+<a href="#983" id="983">983</a>
+<a href="#984" id="984">984</a>
+<a href="#985" id="985">985</a>
+<a href="#986" id="986">986</a>
+<a href="#987" id="987">987</a>
+<a href="#988" id="988">988</a>
+<a href="#989" id="989">989</a>
+<a href="#990" id="990">990</a>
+<a href="#991" id="991">991</a>
+<a href="#992" id="992">992</a>
+<a href="#993" id="993">993</a>
+<a href="#994" id="994">994</a>
+<a href="#995" id="995">995</a>
+<a href="#996" id="996">996</a>
+<a href="#997" id="997">997</a>
+<a href="#998" id="998">998</a>
+<a href="#999" id="999">999</a>
+<a href="#1000" id="1000">1000</a>
+<a href="#1001" id="1001">1001</a>
+<a href="#1002" id="1002">1002</a>
+<a href="#1003" id="1003">1003</a>
+<a href="#1004" id="1004">1004</a>
+<a href="#1005" id="1005">1005</a>
+<a href="#1006" id="1006">1006</a>
+<a href="#1007" id="1007">1007</a>
+<a href="#1008" id="1008">1008</a>
+<a href="#1009" id="1009">1009</a>
+<a href="#1010" id="1010">1010</a>
+<a href="#1011" id="1011">1011</a>
+<a href="#1012" id="1012">1012</a>
+<a href="#1013" id="1013">1013</a>
+<a href="#1014" id="1014">1014</a>
+<a href="#1015" id="1015">1015</a>
+<a href="#1016" id="1016">1016</a>
+<a href="#1017" id="1017">1017</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module analyzes the liveness of variables (non-constant values) throughout a function.
 //! It uses the approach detailed in the section 4.2 of this paper &lt;https://inria.hal.science/inria-00558509v2/document&gt;
 
 </span><span class="kw">use </span>std::collections::BTreeSet;
@@ -1179,7 +1219,7 @@
         back_edges: LoopMap,
     ) -&gt; <span class="self">Self </span>{
         <span class="comment">// First pass, propagate up the live_ins skipping back edges.
-        </span><span class="self">self</span>.compute_live_in_recursive(func, func.entry_block(), constants, <span class="kw-2">&amp;</span>back_edges);
+        </span><span class="self">self</span>.compute_live_in(func, func.entry_block(), constants, <span class="kw-2">&amp;</span>back_edges);
 
         <span class="comment">// Second pass, propagate header live_ins to the loop bodies.
         </span><span class="kw">for </span>(back_edge, loop_body) <span class="kw">in </span>back_edges {
@@ -1195,54 +1235,94 @@
     /// The variables live at the *beginning* of a block are the variables used by the block,
     /// plus the variables used by the successors of the block, minus the variables defined
     /// in the block (by definition not alive at the beginning).
-    </span><span class="kw">fn </span>compute_live_in_recursive(
+    ///
+    /// This is an iterative implementation to avoid stack overflows on complex programs.
+    </span><span class="kw">fn </span>compute_live_in(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         func: <span class="kw-2">&amp;</span>Function,
-        block_id: BasicBlockId,
+        entry_block: BasicBlockId,
         constants: <span class="kw-2">&amp;</span>ConstantAllocation,
         back_edges: <span class="kw-2">&amp;</span>LoopMap,
     ) {
-        <span class="kw">let </span>block = <span class="kw-2">&amp;</span>func.dfg[block_id];
-        <span class="kw">let </span><span class="kw-2">mut </span>live_out = HashSet::default();
+        <span class="comment">// Each entry is (block_id, processing_state)
+        // processing_state: false = need to process successors, true = ready to compute live_in
+        </span><span class="kw">let </span><span class="kw-2">mut </span>stack = <span class="macro">vec!</span>[(entry_block, <span class="bool-val">false</span>)];
+        <span class="kw">let </span><span class="kw-2">mut </span>visited = HashSet::default();
 
-        <span class="comment">// Collect the `live_in` of successors; their union is the `live_in` of the parent.
-        </span><span class="kw">for </span>successor_id <span class="kw">in </span>block.successors() {
-            <span class="comment">// Skip back edges: do not revisit the header of the loop, to avoid infinite recursion.
-            // Because of this, we will have to revisit this block, to complete its definition of live_out,
-            // once we know what the live_in of the header is.
-            </span><span class="kw">if </span>back_edges.contains_key(<span class="kw-2">&amp;</span>BackEdge { start: block_id, header: successor_id }) {
-                <span class="kw">continue</span>;
+        <span class="kw">while let </span><span class="prelude-val">Some</span>((block_id, processed)) = stack.pop() {
+            <span class="kw">if </span>processed {
+                <span class="comment">// All successors have been processed, now compute live_in for this block
+                </span><span class="kw">let </span>block = <span class="kw-2">&amp;</span>func.dfg[block_id];
+                <span class="kw">let </span><span class="kw-2">mut </span>live_out = HashSet::default();
+
+                <span class="comment">// Collect the `live_in` of successors; their union is the `live_out` of the parent.
+                </span><span class="kw">for </span>successor_id <span class="kw">in </span>block.successors() {
+                    <span class="comment">// Skip back edges: do not revisit the header of the loop
+                    </span><span class="kw">if </span>back_edges.contains_key(<span class="kw-2">&amp;</span>BackEdge { start: block_id, header: successor_id })
+                    {
+                        <span class="kw">continue</span>;
+                    }
+                    <span class="comment">// Add the live_in of the successor to the union that forms the live_out of the parent.
+                    </span>live_out.extend(
+                        <span class="self">self</span>.live_in
+                            .get(<span class="kw-2">&amp;</span>successor_id)
+                            .expect(<span class="string">"live_in for successor should have been calculated"</span>)
+                            .iter()
+                            .copied(),
+                    );
+                }
+
+                <span class="comment">// Based on the paper mentioned in the module docs, the definition would be:
+                // live_in[BlockId] = before_def[BlockId] union (live_out[BlockId] - killed[BlockId])
+
+                // Variables used in this block, defined in this block or before.
+                </span><span class="kw">let </span>used = variables_used_in_block(block, <span class="kw-2">&amp;</span>func.dfg);
+
+                <span class="comment">// Variables defined in this block are not alive at the beginning.
+                </span><span class="kw">let </span>defined = <span class="self">self</span>.variables_defined_in_block(block_id, <span class="kw-2">&amp;</span>func.dfg, constants);
+
+                <span class="comment">// Live at the beginning are the variables used, but not defined in this block, plus the ones
+                // it passes through to its successors, which are used by them, but not defined here.
+                // (Variables used by successors and defined in this block are part of `live_out`, but not `live_in`).
+                </span><span class="kw">let </span>live_in =
+                    used.union(<span class="kw-2">&amp;</span>live_out).filter(|v| !defined.contains(v)).copied().collect();
+
+                <span class="self">self</span>.live_in.insert(block_id, live_in);
+            } <span class="kw">else </span>{
+                <span class="comment">// First visit: check if we've already processed this block
+                </span><span class="kw">if </span>!visited.insert(block_id) {
+                    <span class="kw">continue</span>;
+                }
+
+                <span class="kw">let </span>block = <span class="kw-2">&amp;</span>func.dfg[block_id];
+
+                <span class="comment">// Check if all successors (except back edges) have been processed
+                </span><span class="kw">let </span><span class="kw-2">mut </span>all_successors_processed = <span class="bool-val">true</span>;
+                <span class="kw">let </span><span class="kw-2">mut </span>unprocessed_successors = Vec::new();
+
+                <span class="kw">for </span>successor_id <span class="kw">in </span>block.successors() {
+                    <span class="comment">// Skip back edges
+                    </span><span class="kw">if </span>back_edges.contains_key(<span class="kw-2">&amp;</span>BackEdge { start: block_id, header: successor_id })
+                    {
+                        <span class="kw">continue</span>;
+                    }
+                    <span class="comment">// If successor hasn't been processed yet, we need to process it first
+                    </span><span class="kw">if </span>!<span class="self">self</span>.live_in.contains_key(<span class="kw-2">&amp;</span>successor_id) {
+                        all_successors_processed = <span class="bool-val">false</span>;
+                        unprocessed_successors.push(successor_id);
+                    }
+                }
+
+                <span class="comment">// Push this block back with processed = true (for after successors)
+                </span>stack.push((block_id, <span class="bool-val">true</span>));
+                <span class="kw">if </span>!all_successors_processed {
+                    <span class="comment">// Push unprocessed successors with processed = false
+                    </span><span class="kw">for </span>successor_id <span class="kw">in </span>unprocessed_successors {
+                        stack.push((successor_id, <span class="bool-val">false</span>));
+                    }
+                }
             }
-            <span class="comment">// If we haven't visited this successor yet, dive in.
-            </span><span class="kw">if </span>!<span class="self">self</span>.live_in.contains_key(<span class="kw-2">&amp;</span>successor_id) {
-                <span class="self">self</span>.compute_live_in_recursive(func, successor_id, constants, back_edges);
-            }
-            <span class="comment">// Add the live_in of the successor to the union that forms the live_out of the parent.
-            // Note that because we skipped the back-edge, we couldn't call `get_live_out` here.
-            </span>live_out.extend(
-                <span class="self">self</span>.live_in
-                    .get(<span class="kw-2">&amp;</span>successor_id)
-                    .expect(<span class="string">"live_in for successor should have been calculated"</span>)
-                    .iter()
-                    .copied(),
-            );
         }
-
-        <span class="comment">// Based on the paper mentioned in the module docs, the definition would be:
-        // live_in[BlockId] = before_def[BlockId] union (live_out[BlockId] - killed[BlockId])
-
-        // Variables used in this block, defined in this block or before.
-        </span><span class="kw">let </span>used = variables_used_in_block(block, <span class="kw-2">&amp;</span>func.dfg);
-
-        <span class="comment">// Variables defined in this block are not alive at the beginning.
-        </span><span class="kw">let </span>defined = <span class="self">self</span>.variables_defined_in_block(block_id, <span class="kw-2">&amp;</span>func.dfg, constants);
-
-        <span class="comment">// Live at the beginning are the variables used, but not defined in this block, plus the ones
-        // it passes through to its successors, which are used by them, but not defined here.
-        // (Variables used by successors and defined in this block are part of `live_out`, but not `live_in`).
-        </span><span class="kw">let </span>live_in = used.union(<span class="kw-2">&amp;</span>live_out).filter(|v| !defined.contains(v)).copied().collect();
-
-        <span class="self">self</span>.live_in.insert(block_id, live_in);
     }
 
     <span class="doccomment">/// Collects all the variables defined in a block, which includes:
