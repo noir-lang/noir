@@ -207,7 +207,7 @@ fn flatten_cfg_pre_check(function: &Function) {
     if !function.runtime().is_acir() {
         return;
     }
-    let loops = super::unrolling::Loops::find_all(function);
+    let loops = super::Loops::find_all(function);
     assert_eq!(loops.yet_to_unroll.len(), 0);
 
     for block in function.reachable_blocks() {
@@ -390,9 +390,8 @@ impl<'f> Context<'f> {
     /// it is 'AND-ed' with the previous condition (if any)
     fn link_condition(&mut self, condition: ValueId) -> ValueId {
         // Retrieve the previous condition
-        if let Some(context) = self.condition_stack.last() {
-            let previous_branch = context.else_branch.as_ref().unwrap_or(&context.then_branch);
-            let and = Instruction::binary(BinaryOp::And, previous_branch.condition, condition);
+        if let Some(last_condition) = self.get_last_condition() {
+            let and = Instruction::binary(BinaryOp::And, last_condition, condition);
             let call_stack = self.inserter.function.dfg.get_value_call_stack_id(condition);
             self.insert_instruction(and, call_stack)
         } else {
@@ -840,8 +839,13 @@ impl<'f> Context<'f> {
         let instruction = self.handle_instruction_side_effects(instruction, call_stack);
 
         let instruction_is_allocate = matches!(&instruction, Instruction::Allocate);
-        let results =
-            self.inserter.push_instruction_value(instruction, id, self.target_block, call_stack);
+        let results = self.inserter.push_instruction_value(
+            instruction,
+            id,
+            self.target_block,
+            call_stack,
+            true,
+        );
 
         // Remember an allocate was created local to this branch so that we do not try to merge store
         // values across branches for it later.

@@ -52,8 +52,12 @@ pub trait AcirField:
     /// This is the number of bits required to represent this specific field element
     fn num_bits(&self) -> u32;
 
+    /// Downcast the field into a `u128`.
+    ///
+    /// If the value does not fit, it is truncated.
     fn to_u128(self) -> u128;
 
+    /// Downcast the field into a `u128` if it fits into 128 bits, otherwise return `None`.
     fn try_into_u128(self) -> Option<u128>;
 
     fn to_i128(self) -> i128;
