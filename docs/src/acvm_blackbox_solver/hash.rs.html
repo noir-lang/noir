@@ -147,8 +147,8 @@
 }
 
 <span class="kw">const </span>KECCAK_LANES: usize = <span class="number">25</span>;
-
-<span class="kw">pub fn </span>keccakf1600(
+<span class="doccomment">/// Keccak permutation for a state of size 1600 bits, represented by 25 lanes of 64 bits (25*64 = 1600)
+</span><span class="kw">pub fn </span>keccakf1600(
     <span class="kw-2">mut </span>state: [u64; KECCAK_LANES],
 ) -&gt; <span class="prelude-ty">Result</span>&lt;[u64; KECCAK_LANES], BlackBoxResolutionError&gt; {
     keccak::f1600(<span class="kw-2">&amp;mut </span>state);

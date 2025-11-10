@@ -138,7 +138,27 @@
 <a href="#137" id="137">137</a>
 <a href="#138" id="138">138</a>
 <a href="#139" id="139">139</a>
-<a href="#140" id="140">140</a></pre></div><pre class="rust"><code><span class="kw">use </span>k256::elliptic_curve::PrimeField;
+<a href="#140" id="140">140</a>
+<a href="#141" id="141">141</a>
+<a href="#142" id="142">142</a>
+<a href="#143" id="143">143</a>
+<a href="#144" id="144">144</a>
+<a href="#145" id="145">145</a>
+<a href="#146" id="146">146</a>
+<a href="#147" id="147">147</a>
+<a href="#148" id="148">148</a>
+<a href="#149" id="149">149</a>
+<a href="#150" id="150">150</a>
+<a href="#151" id="151">151</a>
+<a href="#152" id="152">152</a>
+<a href="#153" id="153">153</a>
+<a href="#154" id="154">154</a>
+<a href="#155" id="155">155</a>
+<a href="#156" id="156">156</a>
+<a href="#157" id="157">157</a>
+<a href="#158" id="158">158</a>
+<a href="#159" id="159">159</a>
+<a href="#160" id="160">160</a></pre></div><pre class="rust"><code><span class="kw">use </span>k256::elliptic_curve::PrimeField;
 <span class="kw">use </span>k256::elliptic_curve::sec1::FromEncodedPoint;
 
 <span class="kw">use </span>blake2::digest::generic_array::GenericArray;
@@ -151,7 +171,28 @@
 };
 <span class="kw">use </span>k256::{Scalar, ecdsa::Signature};
 
-<span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>verify_signature(
+<span class="doccomment">/// Verifies an ECDSA signature over the Secp256k1 elliptic curve.
+///
+/// This function implements ECDSA signature verification on the Secp256k1 curve
+///
+/// # Parameters:
+///
+/// * `hashed_msg` - The 32-byte hash of the message that was signed
+/// * `public_key_x_bytes` - The x-coordinate of the public key (32 bytes, big-endian)
+/// * `public_key_y_bytes` - The y-coordinate of the public key (32 bytes, big-endian)
+/// * `signature` - The 64-byte signature in (r, s) format, where r and s are 32 bytes each
+///
+/// Returns `true` if the signature is valid, `false` otherwise.
+///
+/// The function panic if the following is not true:
+/// - The signature components `r` and `s` must be non-zero
+/// - The public key point must lie on the Secp256k1 curve
+/// - The signature must be "low S" normalized per BIP 0062 to prevent malleability
+///
+/// The function will also panic if `hashed_msg &gt;= k256::Secp256k1::ORDER`.
+/// According to ECDSA specification, the message hash leftmost bits should be truncated
+/// up to the curve order length, and then reduced modulo the curve order.
+</span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>verify_signature(
     hashed_msg: <span class="kw-2">&amp;</span>[u8; <span class="number">32</span>],
     public_key_x_bytes: <span class="kw-2">&amp;</span>[u8; <span class="number">32</span>],
     public_key_y_bytes: <span class="kw-2">&amp;</span>[u8; <span class="number">32</span>],
@@ -171,15 +212,14 @@
     );
 
     <span class="kw">let </span>pubkey = PublicKey::from_encoded_point(<span class="kw-2">&amp;</span>point);
-    <span class="kw">let </span>pubkey = <span class="kw">if </span>pubkey.is_some().into() {
-        pubkey.unwrap()
-    } <span class="kw">else </span>{
+    <span class="kw">if </span>pubkey.is_none().into() {
         <span class="comment">// Public key must sit on the Secp256k1 curve.
         </span><span class="macro">log::warn!</span>(<span class="string">"Invalid public key provided for ECDSA verification"</span>);
         <span class="kw">return </span><span class="bool-val">false</span>;
-    };
+    }
+    <span class="kw">let </span>pubkey = pubkey.unwrap();
 
-    <span class="comment">// Note: This is incorrect as it will panic if `hashed_msg &gt;= k256::Secp256k1::ORDER`.
+    <span class="comment">// Note: This will panic if `hashed_msg &gt;= k256::Secp256k1::ORDER`.
     // In this scenario we should just take the leftmost bits from `hashed_msg` up to the group order length.
     </span><span class="kw">let </span>z = Scalar::from_repr(<span class="kw-2">*</span>GenericArray::from_slice(hashed_msg)).unwrap();
 

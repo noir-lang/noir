@@ -1307,7 +1307,7 @@
             <span class="kw">return </span>Vec::new();
         };
 
-        <span class="kw">let </span>the_trait = <span class="self">self</span>.get_trait_mut(trait_id);
+        <span class="kw">let </span>the_trait = <span class="self">self</span>.get_trait(trait_id);
 
         <span class="kw">if </span>the_trait.associated_types.len() &gt; bound.trait_generics.named_args.len() {
             <span class="kw">let </span>trait_name = the_trait.name.to_string();

@@ -2473,7 +2473,78 @@
 <a href="#2472" id="2472">2472</a>
 <a href="#2473" id="2473">2473</a>
 <a href="#2474" id="2474">2474</a>
-<a href="#2475" id="2475">2475</a></pre></div><pre class="rust"><code><span class="doccomment">//! Type resolution, unification, and method resolution (for both types and traits).
+<a href="#2475" id="2475">2475</a>
+<a href="#2476" id="2476">2476</a>
+<a href="#2477" id="2477">2477</a>
+<a href="#2478" id="2478">2478</a>
+<a href="#2479" id="2479">2479</a>
+<a href="#2480" id="2480">2480</a>
+<a href="#2481" id="2481">2481</a>
+<a href="#2482" id="2482">2482</a>
+<a href="#2483" id="2483">2483</a>
+<a href="#2484" id="2484">2484</a>
+<a href="#2485" id="2485">2485</a>
+<a href="#2486" id="2486">2486</a>
+<a href="#2487" id="2487">2487</a>
+<a href="#2488" id="2488">2488</a>
+<a href="#2489" id="2489">2489</a>
+<a href="#2490" id="2490">2490</a>
+<a href="#2491" id="2491">2491</a>
+<a href="#2492" id="2492">2492</a>
+<a href="#2493" id="2493">2493</a>
+<a href="#2494" id="2494">2494</a>
+<a href="#2495" id="2495">2495</a>
+<a href="#2496" id="2496">2496</a>
+<a href="#2497" id="2497">2497</a>
+<a href="#2498" id="2498">2498</a>
+<a href="#2499" id="2499">2499</a>
+<a href="#2500" id="2500">2500</a>
+<a href="#2501" id="2501">2501</a>
+<a href="#2502" id="2502">2502</a>
+<a href="#2503" id="2503">2503</a>
+<a href="#2504" id="2504">2504</a>
+<a href="#2505" id="2505">2505</a>
+<a href="#2506" id="2506">2506</a>
+<a href="#2507" id="2507">2507</a>
+<a href="#2508" id="2508">2508</a>
+<a href="#2509" id="2509">2509</a>
+<a href="#2510" id="2510">2510</a>
+<a href="#2511" id="2511">2511</a>
+<a href="#2512" id="2512">2512</a>
+<a href="#2513" id="2513">2513</a>
+<a href="#2514" id="2514">2514</a>
+<a href="#2515" id="2515">2515</a>
+<a href="#2516" id="2516">2516</a>
+<a href="#2517" id="2517">2517</a>
+<a href="#2518" id="2518">2518</a>
+<a href="#2519" id="2519">2519</a>
+<a href="#2520" id="2520">2520</a>
+<a href="#2521" id="2521">2521</a>
+<a href="#2522" id="2522">2522</a>
+<a href="#2523" id="2523">2523</a>
+<a href="#2524" id="2524">2524</a>
+<a href="#2525" id="2525">2525</a>
+<a href="#2526" id="2526">2526</a>
+<a href="#2527" id="2527">2527</a>
+<a href="#2528" id="2528">2528</a>
+<a href="#2529" id="2529">2529</a>
+<a href="#2530" id="2530">2530</a>
+<a href="#2531" id="2531">2531</a>
+<a href="#2532" id="2532">2532</a>
+<a href="#2533" id="2533">2533</a>
+<a href="#2534" id="2534">2534</a>
+<a href="#2535" id="2535">2535</a>
+<a href="#2536" id="2536">2536</a>
+<a href="#2537" id="2537">2537</a>
+<a href="#2538" id="2538">2538</a>
+<a href="#2539" id="2539">2539</a>
+<a href="#2540" id="2540">2540</a>
+<a href="#2541" id="2541">2541</a>
+<a href="#2542" id="2542">2542</a>
+<a href="#2543" id="2543">2543</a>
+<a href="#2544" id="2544">2544</a>
+<a href="#2545" id="2545">2545</a>
+<a href="#2546" id="2546">2546</a></pre></div><pre class="rust"><code><span class="doccomment">//! Type resolution, unification, and method resolution (for both types and traits).
 
 </span><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
 
@@ -4173,6 +4244,77 @@
             <span class="prelude-val">None </span>=&gt; Type::Error,
         }
     }
+
+    <span class="doccomment">/// Type checks a field access, adding dereference operators as necessary
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>check_field_access(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        lhs_type: <span class="kw-2">&amp;</span>Type,
+        field_name: <span class="kw-2">&amp;</span>str,
+        location: Location,
+        dereference_lhs: <span class="prelude-ty">Option</span>&lt;<span class="kw">impl </span>FnMut(<span class="kw-2">&amp;mut </span><span class="self">Self</span>, Type, Type)&gt;,
+    ) -&gt; <span class="prelude-ty">Option</span>&lt;(Type, usize)&gt; {
+        <span class="kw">let </span>lhs_type = lhs_type.follow_bindings();
+
+        <span class="kw">match </span><span class="kw-2">&amp;</span>lhs_type {
+            Type::DataType(s, args) =&gt; {
+                <span class="kw">let </span>s = s.borrow();
+                <span class="kw">if let </span><span class="prelude-val">Some</span>((field, visibility, index)) = s.get_field(field_name, args) {
+                    <span class="self">self</span>.interner.add_struct_member_reference(s.id, index, location);
+
+                    <span class="self">self</span>.check_struct_field_visibility(<span class="kw-2">&amp;</span>s, field_name, visibility, location);
+
+                    <span class="kw">return </span><span class="prelude-val">Some</span>((field, index));
+                }
+            }
+            Type::Tuple(elements) =&gt; {
+                <span class="kw">if let </span><span class="prelude-val">Ok</span>(index) = field_name.parse::&lt;usize&gt;() {
+                    <span class="kw">let </span>length = elements.len();
+                    <span class="kw">if </span>index &lt; length {
+                        <span class="kw">return </span><span class="prelude-val">Some</span>((elements[index].clone(), index));
+                    } <span class="kw">else </span>{
+                        <span class="self">self</span>.push_err(TypeCheckError::TupleIndexOutOfBounds {
+                            index,
+                            lhs_type,
+                            length,
+                            location,
+                        });
+                        <span class="kw">return </span><span class="prelude-val">None</span>;
+                    }
+                }
+            }
+            <span class="comment">// If the lhs is a reference we automatically transform `lhs.field` into `(*lhs).field`
+            </span>Type::Reference(element, mutable) =&gt; {
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">mut </span>dereference_lhs) = dereference_lhs {
+                    dereference_lhs(<span class="self">self</span>, lhs_type.clone(), element.as_ref().clone());
+                    <span class="kw">return </span><span class="self">self</span>.check_field_access(
+                        element,
+                        field_name,
+                        location,
+                        <span class="prelude-val">Some</span>(dereference_lhs),
+                    );
+                } <span class="kw">else </span>{
+                    <span class="kw">let </span>(element, index) =
+                        <span class="self">self</span>.check_field_access(element, field_name, location, dereference_lhs)<span class="question-mark">?</span>;
+                    <span class="kw">return </span><span class="prelude-val">Some</span>((Type::Reference(Box::new(element), <span class="kw-2">*</span>mutable), index));
+                }
+            }
+            <span class="kw">_ </span>=&gt; (),
+        }
+
+        <span class="comment">// If we get here the type has no field named 'access.rhs'.
+        // Now we specialize the error message based on whether we know the object type in question yet.
+        </span><span class="kw">if let </span>Type::TypeVariable(..) = <span class="kw-2">&amp;</span>lhs_type {
+            <span class="self">self</span>.push_err(TypeCheckError::TypeAnnotationsNeededForFieldAccess { location });
+        } <span class="kw">else if </span>lhs_type != Type::Error {
+            <span class="self">self</span>.push_err(TypeCheckError::AccessUnknownMember {
+                lhs_type,
+                field_name: field_name.to_string(),
+                location,
+            });
+        }
+
+        <span class="prelude-val">None
+    </span>}
 
     <span class="doccomment">/// Try to look up a method on a [Type] by name:
     /// * if the object type is generic, look it up in the trait constraints

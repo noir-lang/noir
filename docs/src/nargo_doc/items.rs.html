@@ -439,7 +439,8 @@
 <a href="#438" id="438">438</a>
 <a href="#439" id="439">439</a>
 <a href="#440" id="440">440</a>
-<a href="#441" id="441">441</a></pre></div><pre class="rust"><code><span class="doccomment">//! Contains the data structures that represent items to be shown by the documentation generator.
+<a href="#441" id="441">441</a>
+<a href="#442" id="442">442</a></pre></div><pre class="rust"><code><span class="doccomment">//! Contains the data structures that represent items to be shown by the documentation generator.
 
 </span><span class="kw">use </span>std::collections::BTreeMap;
 
@@ -519,6 +520,7 @@
     <span class="kw">pub </span>name: String,
     <span class="kw">pub </span>items: Vec&lt;(ItemVisibility, Item)&gt;,
     <span class="kw">pub </span>comments: <span class="prelude-ty">Option</span>&lt;String&gt;,
+    <span class="kw">pub </span>is_contract: bool,
 }
 
 <span class="kw">impl </span>Module {

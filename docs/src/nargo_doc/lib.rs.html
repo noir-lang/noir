@@ -759,7 +759,11 @@
 <a href="#758" id="758">758</a>
 <a href="#759" id="759">759</a>
 <a href="#760" id="760">760</a>
-<a href="#761" id="761">761</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
+<a href="#761" id="761">761</a>
+<a href="#762" id="762">762</a>
+<a href="#763" id="763">763</a>
+<a href="#764" id="764">764</a>
+<a href="#765" id="765">765</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_driver::CrateId;
@@ -809,7 +813,7 @@
     <span class="doccomment">/// Maps a ModuleDefId to the item it converted to.
     /// This is needed because if an item is publicly exported, but the item
     /// isn't publicly visible (because its parent module is private) then we'll
-    /// include the item directly undert the module that publicly exports it.
+    /// include the item directly under the module that publicly exports it.
     /// We do this by looking up the item in this map.
     </span>module_def_id_to_item: HashMap&lt;ModuleDefId, ConvertedItem&gt;,
     module_imports: HashMap&lt;ModuleId, Vec&lt;expand_items::Import&gt;&gt;,
@@ -1054,8 +1058,9 @@
             .map(|(visibility, item)| (visibility, <span class="self">self</span>.convert_item(item, visibility)))
             .collect();
         <span class="self">self</span>.module_imports.insert(module.id, module.imports);
+        <span class="kw">let </span>is_contract = module.is_contract;
         <span class="kw">let </span>id = <span class="self">self</span>.get_module_id(module.id);
-        Module { id, module_id: module.id, name, comments, items }
+        Module { id, module_id: module.id, name, comments, items, is_contract }
     }
 
     <span class="kw">fn </span>convert_impl(<span class="kw-2">&amp;mut </span><span class="self">self</span>, impl_: expand_items::Impl) -&gt; Impl {
@@ -1344,6 +1349,15 @@
     <span class="doccomment">/// Goes over a module's imports. If an import is a re-export of a private item,
     /// the item is added to the module's items.
     </span><span class="kw">fn </span>process_module_reexports(<span class="kw-2">&amp;mut </span><span class="self">self</span>, module: <span class="kw-2">&amp;mut </span>Module) {
+        <span class="comment">// Process this module's sub-modules first because when we actually process the
+        // imports we might add a publicly exported module into this module's items,
+        // visiting it twice.
+        </span><span class="kw">for </span>(_visibility, item) <span class="kw">in </span><span class="kw-2">&amp;mut </span>module.items {
+            <span class="kw">if let </span>Item::Module(sub_module) = item {
+                <span class="self">self</span>.process_module_reexports(sub_module);
+            }
+        }
+
         <span class="kw">let </span>imports = <span class="self">self</span>.module_imports.remove(<span class="kw-2">&amp;</span>module.module_id).unwrap();
         <span class="kw">for </span>import <span class="kw">in </span>imports {
             <span class="kw">if </span>import.visibility == ItemVisibility::Private {
@@ -1373,12 +1387,6 @@
                     name: import.name.to_string(),
                 }),
             ));
-        }
-
-        <span class="kw">for </span>(_visibility, item) <span class="kw">in </span><span class="kw-2">&amp;mut </span>module.items {
-            <span class="kw">if let </span>Item::Module(sub_module) = item {
-                <span class="self">self</span>.process_module_reexports(sub_module);
-            }
         }
     }
 
