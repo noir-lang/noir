@@ -83,7 +83,7 @@ Finally we're up for something cool. But before we can execute a Noir program, w
 This can be done by cd-ing into our circuit directory and running the `nargo compile` command.
 
 ```bash
-cd circuits
+cd circuit
 
 nargo compile
 ```
@@ -92,7 +92,7 @@ This will write the compiled circuit into the `target` directory, which we'll th
 
 ## Setting up our app
 
-Remember when apps only had one `html` and one `js` file? Well, that's enough for Noir webapps. Let's create them:
+Remember when apps only had one `html` and one `js` file? Well, that's enough for Noir webapps. Let's create them in the project root:
 
 ```bash
 touch index.html index.js
@@ -144,6 +144,14 @@ const show = (id, content) => {
   container.appendChild(document.createTextNode(content));
   container.appendChild(document.createElement('br'));
 };
+
+document.getElementById('submit').addEventListener('click', async () => {
+  try {
+    // code will go in here
+  }  catch {
+    show('logs', 'Oh 💔');
+  }
+});
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/examples/browser/index.js#L7-L13" target="_blank" rel="noopener noreferrer">Source code: examples/browser/index.js#L7-L13</a></sub></sup>
 
@@ -154,15 +162,16 @@ At this point in the tutorial, your folder structure should look like this:
 
 ```tree
 .
-└── circuit
-    └── node_modules
-    └── src
-           └── main.nr
-        Nargo.toml
-    index.html
-    index.js
-    package.json
-    ...etc
+├── circuit
+│   ├── Nargo.toml
+│   ├── src
+│   │   └── main.nr
+│   └── target
+│       └── circuit.json
+├── index.html
+├── index.js
+├── package.json
+├── etc...
 ```
 
 :::
@@ -172,9 +181,16 @@ At this point in the tutorial, your folder structure should look like this:
 We're starting with the good stuff now. We want to execute our circuit to get the witness, and then feed that witness to Barretenberg. Luckily, both packages are quite easy to work with. Let's import them at the top of the file:
 
 ```js title="imports" showLineNumbers
-import { UltraHonkBackend } from '@aztec/bb.js';
-import { Noir } from '@noir-lang/noir_js';
-import circuit from './target/circuit.json';
+import { UltraHonkBackend } from "@aztec/bb.js";
+import { Noir } from "@noir-lang/noir_js";
+import initNoirC from "@noir-lang/noirc_abi";
+import initACVM from "@noir-lang/acvm_js";
+import acvm from "@noir-lang/acvm_js/web/acvm_js_bg.wasm?url";
+import noirc from "@noir-lang/noirc_abi/web/noirc_abi_wasm_bg.wasm?url";
+import circuit from "./circuit/target/circuit.json";
+
+// Initialize WASM modules
+await Promise.all([initACVM(fetch(acvm)), initNoirC(fetch(noirc))]);
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/examples/browser/index.js#L1-L5" target="_blank" rel="noopener noreferrer">Source code: examples/browser/index.js#L1-L5</a></sub></sup>
 
@@ -183,7 +199,7 @@ And instantiate them inside our try-catch block:
 
 ```js title="init" showLineNumbers
 const noir = new Noir(circuit);
-    const backend = new UltraHonkBackend(circuit.bytecode);
+const backend = new UltraHonkBackend(circuit.bytecode);
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/examples/browser/index.js#L17-L20" target="_blank" rel="noopener noreferrer">Source code: examples/browser/index.js#L17-L20</a></sub></sup>
 
@@ -194,9 +210,9 @@ Now for the app itself. We're capturing whatever is in the input when people pre
 
 ```js title="execute" showLineNumbers
 const age = document.getElementById('age').value;
-    show('logs', 'Generating witness... ⏳');
-    const { witness } = await noir.execute({ age });
-    show('logs', 'Generated witness... ✅');
+show('logs', 'Generating witness... ⏳');
+const { witness } = await noir.execute({ age });
+show('logs', 'Generated witness... ✅');
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/examples/browser/index.js#L21-L26" target="_blank" rel="noopener noreferrer">Source code: examples/browser/index.js#L21-L26</a></sub></sup>
 
@@ -211,9 +227,9 @@ Now we're ready to prove stuff! Let's feed some inputs to our circuit and calcul
 
 ```js title="prove" showLineNumbers
 show('logs', 'Generating proof... ⏳');
-    const proof = await backend.generateProof(witness);
-    show('logs', 'Generated proof... ✅');
-    show('results', proof.proof);
+const proof = await backend.generateProof(witness);
+show('logs', 'Generated proof... ✅');
+show('results', proof.proof);
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/examples/browser/index.js#L27-L32" target="_blank" rel="noopener noreferrer">Source code: examples/browser/index.js#L27-L32</a></sub></sup>
 
@@ -266,8 +282,8 @@ Time to celebrate, yes! But we shouldn't trust machines so blindly. Let's add th
 
 ```js title="verify" showLineNumbers
 show('logs', 'Verifying proof... ⌛');
-    const isValid = await backend.verifyProof(proof);
-    show('logs', `Proof is ${isValid ? 'valid' : 'invalid'}... ✅`);
+const isValid = await backend.verifyProof(proof);
+show('logs', `Proof is ${isValid ? 'valid' : 'invalid'}... ✅`);
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/examples/browser/index.js#L34-L38" target="_blank" rel="noopener noreferrer">Source code: examples/browser/index.js#L34-L38</a></sub></sup>
 

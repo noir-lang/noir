@@ -77,7 +77,7 @@ Finally we're up for something cool. But before we can execute a Noir program, w
 This can be done by cd-ing into our circuit directory and running the `nargo compile` command.
 
 ```bash
-cd circuits
+cd circuit
 
 nargo compile
 ```
@@ -86,7 +86,7 @@ This will write the compiled circuit into the `target` directory, which we'll th
 
 ## Setting up our app
 
-Remember when apps only had one `html` and one `js` file? Well, that's enough for Noir webapps. Let's create them:
+Remember when apps only had one `html` and one `js` file? Well, that's enough for Noir webapps. Let's create them in the project root:
 
 ```bash
 touch index.html index.js
@@ -100,7 +100,17 @@ It _could_ be a beautiful UI... Depending on which universe you live in. In any 
 
 As for the JS, real madmen could just `console.log` everything, but let's say we want to see things happening (the true initial purpose of JS... right?). Here's some boilerplate for that. Just paste it in `index.js`:
 
-#include_code show_function examples/browser/index.js js
+```js
+#include_code show_function examples/browser/index.js raw
+
+document.getElementById('submit').addEventListener('click', async () => {
+  try {
+    // code will go in here
+  }  catch {
+    show('logs', 'Oh 💔');
+  }
+});
+```
 
 :::info
 
@@ -108,22 +118,23 @@ At this point in the tutorial, your folder structure should look like this:
 
 ```tree
 .
-└── circuit
-    └── node_modules
-    └── src
-           └── main.nr
-        Nargo.toml
-    index.html
-    index.js
-    package.json
-    ...etc
+├── circuit
+│   ├── Nargo.toml
+│   ├── src
+│   │   └── main.nr
+│   └── target
+│       └── circuit.json
+├── index.html
+├── index.js
+├── package.json
+├── etc...
 ```
 
 :::
 
 ## Some more JS
 
-We're starting with the good stuff now. We want to execute our circuit to get the witness, and then feed that witness to Barretenberg. Luckily, both packages are quite easy to work with. Let's import them at the top of the file:
+We're starting with the good stuff now. We want to execute our circuit to get the witness, and then feed that witness to Barretenberg. Luckily, both packages are quite easy to work with. Let's import them at the top of the file and initialize the WASM modules:
 
 #include_code imports examples/browser/index.js js
 
