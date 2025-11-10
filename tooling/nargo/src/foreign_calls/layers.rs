@@ -34,7 +34,7 @@ impl<F: AcirField> ForeignCallExecutor<F> for Unhandled {
     }
 }
 
-/// Returns `NoHandler` for every call.
+/// Returns `AztecOracleError`  if the oracle call depends on an Aztec environment.
 pub struct RejectAztecOracles;
 
 impl<F: AcirField> ForeignCallExecutor<F> for RejectAztecOracles {
