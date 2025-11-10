@@ -232,5 +232,6 @@ mod tests {
 
         assert_eq!(stack.length(), 1);
         assert_eq!(stack.peek().unwrap().index, 0);
+        assert_eq!(stack.length(), 1);
     }
 }
