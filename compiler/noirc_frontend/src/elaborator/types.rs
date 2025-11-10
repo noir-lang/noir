@@ -1699,6 +1699,77 @@ impl Elaborator<'_> {
         }
     }
 
+    /// Type checks a field access, adding dereference operators as necessary
+    pub(super) fn check_field_access(
+        &mut self,
+        lhs_type: &Type,
+        field_name: &str,
+        location: Location,
+        dereference_lhs: Option<impl FnMut(&mut Self, Type, Type)>,
+    ) -> Option<(Type, usize)> {
+        let lhs_type = lhs_type.follow_bindings();
+
+        match &lhs_type {
+            Type::DataType(s, args) => {
+                let s = s.borrow();
+                if let Some((field, visibility, index)) = s.get_field(field_name, args) {
+                    self.interner.add_struct_member_reference(s.id, index, location);
+
+                    self.check_struct_field_visibility(&s, field_name, visibility, location);
+
+                    return Some((field, index));
+                }
+            }
+            Type::Tuple(elements) => {
+                if let Ok(index) = field_name.parse::<usize>() {
+                    let length = elements.len();
+                    if index < length {
+                        return Some((elements[index].clone(), index));
+                    } else {
+                        self.push_err(TypeCheckError::TupleIndexOutOfBounds {
+                            index,
+                            lhs_type,
+                            length,
+                            location,
+                        });
+                        return None;
+                    }
+                }
+            }
+            // If the lhs is a reference we automatically transform `lhs.field` into `(*lhs).field`
+            Type::Reference(element, mutable) => {
+                if let Some(mut dereference_lhs) = dereference_lhs {
+                    dereference_lhs(self, lhs_type.clone(), element.as_ref().clone());
+                    return self.check_field_access(
+                        element,
+                        field_name,
+                        location,
+                        Some(dereference_lhs),
+                    );
+                } else {
+                    let (element, index) =
+                        self.check_field_access(element, field_name, location, dereference_lhs)?;
+                    return Some((Type::Reference(Box::new(element), *mutable), index));
+                }
+            }
+            _ => (),
+        }
+
+        // If we get here the type has no field named 'access.rhs'.
+        // Now we specialize the error message based on whether we know the object type in question yet.
+        if let Type::TypeVariable(..) = &lhs_type {
+            self.push_err(TypeCheckError::TypeAnnotationsNeededForFieldAccess { location });
+        } else if lhs_type != Type::Error {
+            self.push_err(TypeCheckError::AccessUnknownMember {
+                lhs_type,
+                field_name: field_name.to_string(),
+                location,
+            });
+        }
+
+        None
+    }
+
     /// Try to look up a method on a [Type] by name:
     /// * if the object type is generic, look it up in the trait constraints
     /// * otherwise look it up directly on the type, or in traits the type implements
