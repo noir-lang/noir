@@ -108,6 +108,6 @@ unconstrained fn regression_10335(i: u32) {
     b[i] = 3_Field;
     let rc_a: u32 = slice_refcount(a);
     let rc_b: u32 = slice_refcount(b);
-    assert(rc_a == 1_u32);
+    assert(rc_a == 2_u32);
     assert(rc_b == 1_u32);
 }

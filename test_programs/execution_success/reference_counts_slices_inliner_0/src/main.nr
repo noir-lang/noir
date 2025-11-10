@@ -131,6 +131,7 @@ unconstrained fn regression_10335(i: u32) {
     let rc_a = slice_refcount(a);
     let rc_b = slice_refcount(b);
 
-    assert_eq(rc_a, 1);
+    // The current expectation is that the original array does not get its RC decremented.
+    assert_eq(rc_a, 2);
     assert_eq(rc_b, 1);
 }

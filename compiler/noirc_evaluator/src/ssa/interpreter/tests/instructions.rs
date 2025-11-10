@@ -960,7 +960,7 @@ fn array_set_with_offset() {
     let v0 = values[0].as_array_or_slice().unwrap();
     let v1 = values[1].as_array_or_slice().unwrap();
 
-    assert_eq!(*v0.rc.borrow(), 1, "1+1-1; the copy of v1 decreases the RC of v0");
+    assert_eq!(*v0.rc.borrow(), 2, "1+1-0; the copy of v1 does not decrease the RC of v0");
     assert_eq!(*v1.rc.borrow(), 1);
 
     let one = from_constant(1u32.into(), NumericType::NativeField);

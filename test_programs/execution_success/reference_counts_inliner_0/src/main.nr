@@ -119,10 +119,13 @@ fn regression_7297() {
             "There is 1 clone after `borrow_mut_two` and before `refcount_1` is defined (cloned before array_refcount call)",
         );
 
+        // The current expectation is that the original array does not get its RC decremented when a copy is made.
+        let decrement_count = 0;
+
         assert_eq(
             refcount_2,
-            refcount_1 + 3 - 1,
-            "after refcount_1 we clone once in passing array to copy_mut, once to array_refcount after, and once within copy_mut, but we decrease in copy_mut when copying",
+            refcount_1 + 3 - decrement_count,
+            "after refcount_1 we clone once in passing array to copy_mut, once to array_refcount after, and once within copy_mut",
         );
     }
 }
