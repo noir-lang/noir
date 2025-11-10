@@ -234,9 +234,12 @@
 <a href="#233" id="233">233</a>
 <a href="#234" id="234">234</a>
 <a href="#235" id="235">235</a>
-<a href="#236" id="236">236</a></pre></div><pre class="rust"><code><span class="doccomment">//! Lexical scoping, variable lookup, and closure capture tracking.
+<a href="#236" id="236">236</a>
+<a href="#237" id="237">237</a>
+<a href="#238" id="238">238</a></pre></div><pre class="rust"><code><span class="doccomment">//! Lexical scoping, variable lookup, and closure capture tracking.
 
 </span><span class="kw">use </span><span class="kw">crate</span>::ast::{ERROR_IDENT, Ident};
+<span class="kw">use </span><span class="kw">crate</span>::elaborator::path_resolution::PathResolution;
 <span class="kw">use </span><span class="kw">crate</span>::hir::def_map::{LocalModuleId, ModuleId};
 
 <span class="kw">use </span><span class="kw">crate</span>::hir::scope::{Scope <span class="kw">as </span>GenericScope, ScopeTree <span class="kw">as </span>GenericScopeTree};
@@ -462,8 +465,9 @@
         path: TypedPath,
         mode: PathResolutionMode,
     ) -&gt; <span class="prelude-ty">Option</span>&lt;Shared&lt;TypeAlias&gt;&gt; {
-        <span class="kw">match </span><span class="self">self</span>.resolve_path_or_error_inner(path, PathResolutionTarget::Type, mode) {
-            <span class="prelude-val">Ok</span>(PathResolutionItem::TypeAlias(type_alias_id)) =&gt; {
+        <span class="kw">match </span><span class="self">self</span>.resolve_path_inner(path, PathResolutionTarget::Type, mode) {
+            <span class="prelude-val">Ok</span>(PathResolution { item: PathResolutionItem::TypeAlias(type_alias_id), errors }) =&gt; {
+                <span class="self">self</span>.push_errors(errors);
                 <span class="prelude-val">Some</span>(<span class="self">self</span>.interner.get_type_alias(type_alias_id))
             }
             <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,

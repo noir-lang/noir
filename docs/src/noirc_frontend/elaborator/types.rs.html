@@ -2544,7 +2544,9 @@
 <a href="#2543" id="2543">2543</a>
 <a href="#2544" id="2544">2544</a>
 <a href="#2545" id="2545">2545</a>
-<a href="#2546" id="2546">2546</a></pre></div><pre class="rust"><code><span class="doccomment">//! Type resolution, unification, and method resolution (for both types and traits).
+<a href="#2546" id="2546">2546</a>
+<a href="#2547" id="2547">2547</a>
+<a href="#2548" id="2548">2548</a></pre></div><pre class="rust"><code><span class="doccomment">//! Type resolution, unification, and method resolution (for both types and traits).
 
 </span><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
 
@@ -2559,7 +2561,7 @@
         AsTraitPath, BinaryOpKind, GenericTypeArgs, Ident, PathKind, UnaryOp, UnresolvedType,
         UnresolvedTypeData, UnresolvedTypeExpression, WILDCARD_TYPE,
     },
-    elaborator::UnstableFeature,
+    elaborator::{UnstableFeature, path_resolution::PathResolution},
     hir::{
         def_collector::dc_crate::CompilationError,
         def_map::{ModuleDefId, fully_qualified_module_path},
@@ -3165,8 +3167,10 @@
         }
 
         <span class="comment">// If we cannot find a local generic of the same name, try to look up a global
-        </span><span class="kw">match </span><span class="self">self</span>.resolve_path_or_error_inner(path.clone(), PathResolutionTarget::Value, mode) {
-            <span class="prelude-val">Ok</span>(PathResolutionItem::Global(id)) =&gt; {
+        </span><span class="kw">match </span><span class="self">self</span>.resolve_path_inner(path.clone(), PathResolutionTarget::Value, mode) {
+            <span class="prelude-val">Ok</span>(PathResolution { item: PathResolutionItem::Global(id), errors }) =&gt; {
+                <span class="self">self</span>.push_errors(errors);
+
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(current_item) = <span class="self">self</span>.current_item {
                     <span class="self">self</span>.interner.add_global_dependency(current_item, id);
                 }
