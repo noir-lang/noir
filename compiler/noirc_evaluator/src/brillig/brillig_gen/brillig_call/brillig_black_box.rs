@@ -8,10 +8,8 @@ use acvm::{
 };
 
 use crate::brillig::brillig_ir::{
-    BrilligContext,
-    brillig_variable::BrilligVariable,
-    debug_show::DebugToString,
-    registers::{Allocated, RegisterAllocator},
+    BrilligContext, brillig_variable::BrilligVariable, debug_show::DebugToString,
+    registers::RegisterAllocator,
 };
 
 /// Transforms SSA's black box function calls into the corresponding brillig instructions
@@ -94,7 +92,7 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString, Registers: Re
                 let signature = brillig_context.codegen_brillig_array_to_heap_array(*signature);
 
                 brillig_context.black_box_op_instruction(BlackBoxOp::EcdsaSecp256k1 {
-                    hashed_msg: hashed_msg,
+                    hashed_msg,
                     public_key_x: *public_key_x,
                     public_key_y: *public_key_y,
                     signature: *signature,
@@ -125,7 +123,7 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString, Registers: Re
                 let signature = brillig_context.codegen_brillig_array_to_heap_array(*signature);
 
                 brillig_context.black_box_op_instruction(BlackBoxOp::EcdsaSecp256r1 {
-                    hashed_msg: hashed_msg,
+                    hashed_msg,
                     public_key_x: *public_key_x,
                     public_key_y: *public_key_y,
                     signature: *signature,
@@ -147,8 +145,8 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString, Registers: Re
                 let outputs = brillig_context.codegen_brillig_array_to_heap_array(*outputs);
 
                 brillig_context.black_box_op_instruction(BlackBoxOp::MultiScalarMul {
-                    points: points,
-                    scalars: scalars,
+                    points,
+                    scalars,
                     outputs: *outputs,
                 });
             } else {
