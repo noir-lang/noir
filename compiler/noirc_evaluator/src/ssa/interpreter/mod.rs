@@ -1551,23 +1551,32 @@ fn evaluate_binary(
         ),
         BinaryOp::Eq => apply_int_comparison_op!(lhs, rhs, binary, |a, b| a == b, |a, b| a == b),
         BinaryOp::Lt => {
-            apply_int_comparison_op!(lhs, rhs, binary, |a, b| a < b, |_, _| unreachable!(
-                "unfit lt: fit types should have been restored already"
-            ))
+            apply_int_comparison_op!(lhs, rhs, binary, |a, b| a < b, |_, _| {
+                // This could be the result of the DIE pass removing an `ArrayGet` and leaving a `LessThan`
+                // and a `Constrain` in its place. `LessThan` implicitly includes a `RangeCheck` on
+                // the operands during ACIR generation, which an `Unfit` value would fail, so we
+                // cannot treat them differently here, even if we could compare the values as `u128` or `i128`.
+                //
+                // Instead we `Cast` the values in SSA, which should have converted our `Unfit` value
+                // back to a `Fit` one with an acceptable number of bits.
+                //
+                // If we still hit this case, we have a problem.
+                unreachable!("unfit 'lt': fit types should have been restored already")
+            })
         }
         BinaryOp::And => {
             apply_int_binop!(lhs, rhs, binary, |a, b| Some(a & b), |_, _| unreachable!(
-                "unfit and: fit types should have been restored already"
+                "unfit 'and': fit types should have been restored already"
             ))
         }
         BinaryOp::Or => {
             apply_int_binop!(lhs, rhs, binary, |a, b| Some(a | b), |_, _| unreachable!(
-                "unfit or: fit types should have been restored already"
+                "unfit 'or': fit types should have been restored already"
             ))
         }
         BinaryOp::Xor => {
             apply_int_binop!(lhs, rhs, binary, |a, b| Some(a ^ b), |_, _| unreachable!(
-                "unfit xor: fit types should have been restored already"
+                "unfit 'xor': fit types should have been restored already"
             ))
         }
         BinaryOp::Shl => {
