@@ -7,13 +7,13 @@
 //!
 //! Conditions:
 //!   - Precondition: Inlining has been performed which should result in there being no remaining
-//!     `call` instructions to acir/constrained functions (unless they are `InlineType::Fold`).
-//!     This also means the only acir functions in the program should be `main` (if main is
-//!     constrained), or any constrained `InlineType::Fold` functions.
+//!     `call` instructions to acir/constrained functions (unless they are `InlineType::Fold`
+//!     or `InlineType::NoPredicates`). This also means the only acir functions in the program
+//!     should be `main` (if main is constrained), or any constrained `InlineType::Fold`
+//!     or `InlineType::NoPredicates` functions.
 //!   - Precondition: Each constrained function should have no loops (unrolling has been performed).
 //!   - Precondition: "Equal" constraints have not been turned into "NotEqual".
-//!   - Postcondition: Each constrained function should now consist of only one block where the
-//!     terminator instruction is always a return.
+//!   - Postcondition: Each constrained function should now consist of only one block.
 //!
 //! Relevance to other passes:
 //!   - Flattening effectively eliminates control-flow entirely which can make it easier for
@@ -176,6 +176,10 @@ impl Ssa {
         let no_predicates: HashMap<_, _> =
             self.functions.values().map(|f| (f.id(), f.is_no_predicates())).collect();
 
+
+        #[cfg(debug_assertions)]
+        flatten_cfg_pre_check(&self);
+
         for function in self.functions.values_mut() {
             // This pass may run forever on a brillig function - we check if block predecessors have
             // been processed and push the block to the back of the queue. This loops forever if
@@ -183,9 +187,6 @@ impl Ssa {
             if matches!(function.runtime(), RuntimeType::Brillig(_)) {
                 continue;
             }
-
-            #[cfg(debug_assertions)]
-            flatten_cfg_pre_check(function);
 
             flatten_function_cfg(function, &no_predicates);
 
@@ -202,17 +203,34 @@ impl Ssa {
 ///   - Any ACIR function has at least 1 loop
 ///   - Any ACIR function has a `ConstrainNotEqual` instruction
 #[cfg(debug_assertions)]
-fn flatten_cfg_pre_check(function: &Function) {
-    if !function.runtime().is_acir() {
-        return;
-    }
-    let loops = super::Loops::find_all(function);
-    assert_eq!(loops.yet_to_unroll.len(), 0);
+fn flatten_cfg_pre_check(ssa: &Ssa) {
+    for function in ssa.functions.values() {
+        if !function.runtime().is_acir() {
+            return;
+        }
+        let loops = super::Loops::find_all(function);
+        assert_eq!(loops.yet_to_unroll.len(), 0);
 
-    for block in function.reachable_blocks() {
-        for instruction in function.dfg[block].instructions() {
-            if matches!(function.dfg[*instruction], Instruction::ConstrainNotEqual(_, _, _)) {
-                panic!("ConstrainNotEqual should not be introduced before flattening");
+        for block in function.reachable_blocks() {
+            for instruction in function.dfg[block].instructions() {
+                match function.dfg[*instruction] {
+                    Instruction::ConstrainNotEqual(_, _, _) => {
+                        panic!("ConstrainNotEqual should not be introduced before flattening")
+                    }
+                    Instruction::Call { func, .. } => {
+                        if let Value::Function(function_id) = function.dfg[func] {
+                            use noirc_frontend::monomorphization::ast::InlineType;
+
+                          let called_function_runtime = &ssa.functions[&function_id].runtime();
+
+                          // ACIR functions are expected to be inlined by this point unless they are InlineType::Fold or InlineType::NoPredicates
+                          assert!(!matches!(called_function_runtime, RuntimeType::Acir(InlineType::Inline | InlineType::InlineAlways)),
+                            "Unexpected call to ACIR function that should have been inlined before flattening"
+                          );
+                        }
+                    }
+                    _ => (),
+                }
             }
         }
     }
@@ -229,6 +247,13 @@ pub(super) fn flatten_cfg_post_check(function: &Function) {
     }
     let blocks = function.reachable_blocks();
     assert_eq!(blocks.len(), 1, "CFG contains more than 1 block");
+    assert!(
+        matches!(
+            function.dfg[*blocks.first().unwrap()].unwrap_terminator(),
+            TerminatorInstruction::Return { .. } | TerminatorInstruction::Unreachable { .. }
+        ),
+        "Block terminator attempts a jump"
+    );
 
     // Note: it's tempting to assert that we have no `enable_side_effects u1 0` instruction here,
     // however there are a few way that these can be inserted(e.g. conditions in a `no_predicates` function
