@@ -666,8 +666,7 @@ mod tests {
                 .expect("Should successfully convert back from u32");
             assert_eq!(
                 int_size, roundtrip,
-                "IntegerBitSize::{:?} should roundtrip through From<IntegerBitSize> for u32 and TryFrom<u32>",
-                int_size
+                "IntegerBitSize::{int_size} should roundtrip through From<IntegerBitSize> for u32 and TryFrom<u32>"
             );
         }
     }
@@ -717,8 +716,7 @@ mod tests {
                 .expect("Should successfully convert back from u32");
             assert_eq!(
                 bit_size, roundtrip,
-                "BitSize::Integer({:?}) should roundtrip through to_u32/try_from_u32",
-                int_size
+                "BitSize::Integer({int_size}) should roundtrip through to_u32/try_from_u32"
             );
         }
 
