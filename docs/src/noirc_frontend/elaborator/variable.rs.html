@@ -600,7 +600,24 @@
 <a href="#599" id="599">599</a>
 <a href="#600" id="600">600</a>
 <a href="#601" id="601">601</a>
-<a href="#602" id="602">602</a></pre></div><pre class="rust"><code><span class="doccomment">//! Everything to do with elaboration of variables.
+<a href="#602" id="602">602</a>
+<a href="#603" id="603">603</a>
+<a href="#604" id="604">604</a>
+<a href="#605" id="605">605</a>
+<a href="#606" id="606">606</a>
+<a href="#607" id="607">607</a>
+<a href="#608" id="608">608</a>
+<a href="#609" id="609">609</a>
+<a href="#610" id="610">610</a>
+<a href="#611" id="611">611</a>
+<a href="#612" id="612">612</a>
+<a href="#613" id="613">613</a>
+<a href="#614" id="614">614</a>
+<a href="#615" id="615">615</a>
+<a href="#616" id="616">616</a>
+<a href="#617" id="617">617</a>
+<a href="#618" id="618">618</a>
+<a href="#619" id="619">619</a></pre></div><pre class="rust"><code><span class="doccomment">//! Everything to do with elaboration of variables.
 //! Notably, variables may require trait constraints to be solved later on.
 
 </span><span class="kw">use </span><span class="kw">super</span>::Elaborator;
@@ -614,7 +631,9 @@
 <span class="kw">use </span><span class="kw">crate</span>::elaborator::types::{SELF_TYPE_NAME, TraitPathResolutionMethod};
 <span class="kw">use </span><span class="kw">crate</span>::hir::def_collector::dc_crate::CompilationError;
 <span class="kw">use </span><span class="kw">crate</span>::hir::type_check::TypeCheckError;
-<span class="kw">use </span><span class="kw">crate</span>::hir_def::expr::{HirExpression, HirIdent, HirMethodReference, ImplKind, TraitItem};
+<span class="kw">use </span><span class="kw">crate</span>::hir_def::expr::{
+    HirExpression, HirIdent, HirMethodReference, HirTraitMethodReference, ImplKind, TraitItem,
+};
 <span class="kw">use </span><span class="kw">crate</span>::node_interner::pusher::{HasLocation, PushedExpr};
 <span class="kw">use </span><span class="kw">crate</span>::node_interner::{DefinitionId, DefinitionInfo, DefinitionKind, ExprId, TraitImplKind};
 <span class="kw">use crate</span>::{Kind, Type, TypeBindings};
@@ -788,6 +807,16 @@
                     },
                     trait_path_resolution.item,
                 ),
+
+                TraitPathResolutionMethod::MultipleTraitsInScope =&gt; {
+                    <span class="comment">// An error has already been pushed, return a dummy identifier
+                    </span><span class="kw">let </span>hir_ident = HirIdent {
+                        location: path.location,
+                        id: DefinitionId::dummy_id(),
+                        impl_kind: ImplKind::NotATraitMethod,
+                    };
+                    (hir_ident, trait_path_resolution.item)
+                }
             };
         }
 
@@ -929,10 +958,15 @@
 
         <span class="kw">let </span>impl_kind = <span class="kw">match </span>method {
             HirMethodReference::FuncId(<span class="kw">_</span>) =&gt; ImplKind::NotATraitMethod,
-            HirMethodReference::TraitItemId(definition, trait_id, generics, <span class="kw">_</span>) =&gt; {
+            HirMethodReference::TraitItemId(HirTraitMethodReference {
+                definition,
+                trait_id,
+                trait_generics,
+                assumed: <span class="kw">_</span>,
+            }) =&gt; {
                 <span class="kw">let </span><span class="kw-2">mut </span>constraint =
                     <span class="self">self</span>.interner.get_trait(trait_id).as_constraint(ident_location);
-                constraint.trait_bound.trait_generics = generics;
+                constraint.trait_bound.trait_generics = trait_generics;
                 ImplKind::TraitItem(TraitItem { definition, constraint, assumed: <span class="bool-val">false </span>})
             }
         };

@@ -529,7 +529,20 @@
 <a href="#528" id="528">528</a>
 <a href="#529" id="529">529</a>
 <a href="#530" id="530">530</a>
-<a href="#531" id="531">531</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileId;
+<a href="#531" id="531">531</a>
+<a href="#532" id="532">532</a>
+<a href="#533" id="533">533</a>
+<a href="#534" id="534">534</a>
+<a href="#535" id="535">535</a>
+<a href="#536" id="536">536</a>
+<a href="#537" id="537">537</a>
+<a href="#538" id="538">538</a>
+<a href="#539" id="539">539</a>
+<a href="#540" id="540">540</a>
+<a href="#541" id="541">541</a>
+<a href="#542" id="542">542</a>
+<a href="#543" id="543">543</a>
+<a href="#544" id="544">544</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileId;
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
 
@@ -777,7 +790,15 @@
     <span class="doccomment">/// Or a method can come from a Trait impl block, in which case
     /// the actual function called will depend on the instantiated type,
     /// which can be only known during monomorphization.
-    </span>TraitItemId(DefinitionId, TraitId, TraitGenerics, bool <span class="comment">/* assumed */</span>),
+    </span>TraitItemId(HirTraitMethodReference),
+}
+
+<span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>HirTraitMethodReference {
+    <span class="kw">pub </span>trait_id: TraitId,
+    <span class="kw">pub </span>definition: DefinitionId,
+    <span class="kw">pub </span>trait_generics: TraitGenerics,
+    <span class="kw">pub </span>assumed: bool,
 }
 
 <span class="kw">impl </span>HirMethodReference {
@@ -787,8 +808,8 @@
     </span><span class="kw">pub fn </span>func_id(<span class="kw-2">&amp;</span><span class="self">self</span>, interner: <span class="kw-2">&amp;</span>NodeInterner) -&gt; <span class="prelude-ty">Option</span>&lt;FuncId&gt; {
         <span class="kw">match </span><span class="self">self </span>{
             HirMethodReference::FuncId(func_id) =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>func_id),
-            HirMethodReference::TraitItemId(method_id, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
-                <span class="kw">match </span><span class="kw-2">&amp;</span>interner.try_definition(<span class="kw-2">*</span>method_id)<span class="question-mark">?</span>.kind {
+            HirMethodReference::TraitItemId(HirTraitMethodReference { definition, .. }) =&gt; {
+                <span class="kw">match </span><span class="kw-2">&amp;</span>interner.try_definition(<span class="kw-2">*</span>definition)<span class="question-mark">?</span>.kind {
                     DefinitionKind::Function(func_id) =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>func_id),
                     <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
                 }
@@ -809,7 +830,12 @@
             HirMethodReference::FuncId(func_id) =&gt; {
                 (interner.function_definition_id(func_id), ImplKind::NotATraitMethod)
             }
-            HirMethodReference::TraitItemId(definition, trait_id, trait_generics, assumed) =&gt; {
+            HirMethodReference::TraitItemId(HirTraitMethodReference {
+                definition,
+                trait_id,
+                trait_generics,
+                assumed,
+            }) =&gt; {
                 <span class="kw">let </span>constraint = TraitConstraint {
                     typ: object_type,
                     trait_bound: ResolvedTraitBound { trait_id, trait_generics, location },
