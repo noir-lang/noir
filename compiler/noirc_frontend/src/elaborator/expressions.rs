@@ -893,7 +893,6 @@ impl Elaborator<'_> {
         if !generics.ordered_args.is_empty() {
             let last_segment = path.segments.last_mut().unwrap();
             last_segment.generics = Some(generics.ordered_args);
-            // panic!("got here");
         }
 
         let path = self.validate_path(path);
