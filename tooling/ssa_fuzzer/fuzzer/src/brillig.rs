@@ -45,7 +45,45 @@ static ARTIFACTS_SUFFIX: OnceLock<String> = OnceLock::new();
 
 /// Placeholder for creating a base contract artifact to feed to the transpiler
 fn create_base_contract_artifact() -> Value {
-    json!({"noir_version":"1.0.0-beta.15+9eee29a37dc509be15e24777188d87ca38b522f7-aztec","name":"Amogus","functions":[{"name":"__aztec_nr_internals__amogus","hash":"11929022434097697943","is_unconstrained":true,"custom_attributes":["abi_public"],"abi":{"parameters":[{"name":"a","type":{"kind":"field"},"visibility":"private"}],"return_type":null,"error_types":{"15764276373176857197":{"error_kind":"string","string":"Stack too deep"}}},"bytecode":"H4sIAAAAAAAA/71UTcrCQAxNderXzx9QN7pQ8QzeQNCNG49Qii0i2CqtirjyUF7BK7jwHu61mmiIIjMKPiiZSfJeMukwFtzQQOu63mYRjNwodifRIogjb5pcfOFsvEzSuIV5Ci3tOcjXBi1YBrmCpZmjc7gW5jhoM0wjq9+g5YjaZvxt35GCRny48lPON/0T5wM+5ND2GF/2kqKIe/4fifOHcVqXcO0Izo9nA9UX9Ukrj73WcV+4fGVce6twOB/N/KDr+3GQJPzMsp93MNHMamrSTBTztUELGdK30WHD83yUqMNjBrXuXNLjD5AtcijO82uijxzjmNyBCuOB0MrD4/1QH+mv+6RL/89maw45B8ppov1n9ckqjT6O+9NhN+iE8pwp+F0/A5sfcHo5BgAA","debug_symbols":"tZPBboQgEED/hbMHBkHRX9lsDCpuSAgaVps0xn/voGL14J7aCw8c5w1DYCatrqdXZVzXv0n5mEntjbXmVdm+UaPpHX6dCQ0DcFKmCQFByhyRkVIi8g1yQ7GC0Q2wgSGWJSFRWY1e62A81cDKg/LajaR0k7UJ+VJ2Wn96D8qtHJXHKE2Idi0ShZ2xOsyW5Deb3qcC5FLs6QCSikMBNL9I4INEUs6iBB1wSDJ5cbB7R8pEGvvAOc/uHJ+aYQx43AdLIb9tht9LWJoxuUtwzuUhyeHiEH9wINn/HogoYicZ5Ue+wNvxxJVqjL/c6SWYvFG11fuym1xzio7fQ4zENzH4vtHt5HUwnR4Gjg/GE1Y8l1DtBw==","expression_width":{"Bounded":{"width":4}}}],"outputs":{},"file_map":{}})
+    json!({
+        "noir_version": "1.0.0-beta.15+9eee29a37dc509be15e24777188d87ca38b522f7-aztec",
+        "name": "Amogus",
+        "functions": [
+            {
+                "name": "main2",
+                "hash": "11929022434097697943",
+                "is_unconstrained": true,
+                "custom_attributes": ["abi_public"],
+                "abi": {
+                    "parameters": [
+                        {
+                            "name": "a",
+                            "type": {
+                                "kind": "field"
+                            },
+                            "visibility": "private"
+                        }
+                    ],
+                    "return_type": null,
+                    "error_types": {
+                        "15764276373176857197": {
+                            "error_kind": "string",
+                            "string": "Stack too deep"
+                        }
+                    }
+                },
+                "bytecode": "H4sIAAAAAAAA/71UTcrCQAxNderXzx9QN7pQ8QzeQNCNG49Qii0i2CqtirjyUF7BK7jwHu61mmiIIjMKPiiZSfJeMukwFtzQQOu63mYRjNwodifRIogjb5pcfOFsvEzSuIV5Ci3tOcjXBi1YBrmCpZmjc7gW5jhoM0wjq9+g5YjaZvxt35GCRny48lPON/0T5wM+5ND2GF/2kqKIe/4fifOHcVqXcO0Izo9nA9UX9Ukrj73WcV+4fGVce6twOB/N/KDr+3GQJPzMsp93MNHMamrSTBTztUELGdK30WHD83yUqMNjBrXuXNLjD5AtcijO82uijxzjmNyBCuOB0MrD4/1QH+mv+6RL/89maw45B8ppov1n9ckqjT6O+9NhN+iE8pwp+F0/A5sfcHo5BgAA",
+                "debug_symbols": "tZPBboQgEED/hbMHBkHRX9lsDCpuSAgaVps0xn/voGL14J7aCw8c5w1DYCatrqdXZVzXv0n5mEntjbXmVdm+UaPpHX6dCQ0DcFKmCQFByhyRkVIi8g1yQ7GC0Q2wgSGWJSFRWY1e62A81cDKg/LajaR0k7UJ+VJ2Wn96D8qtHJXHKE2Idi0ShZ2xOsyW5Deb3qcC5FLs6QCSikMBNL9I4INEUs6iBB1wSDJ5cbB7R8pEGvvAOc/uHJ+aYQx43AdLIb9tht9LWJoxuUtwzuUhyeHiEH9wINn/HogoYicZ5Ue+wNvxxJVqjL/c6SWYvFG11fuym1xzio7fQ4zENzH4vtHt5HUwnR4Gjg/GE1Y8l1DtBw==",
+                "expression_width": {
+                    "Bounded": {
+                        "width": 4
+                    }
+                }
+            }
+        ],
+        "outputs": {},
+        "file_map": {}
+    })
 }
 
 fn transpile(bytecode_base64: String) -> Result<String, String> {
