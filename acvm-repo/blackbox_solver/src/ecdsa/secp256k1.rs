@@ -11,8 +11,29 @@ use k256::{
 };
 use k256::{Scalar, ecdsa::Signature};
 
+/// Verifies an ECDSA signature over the Secp256k1 elliptic curve.
+///
+/// This function implements ECDSA signature verification on the Secp256k1 curve
+///
+/// # Parameters:
+///
+/// * `hashed_msg` - The 32-byte hash of the message that was signed
+/// * `public_key_x_bytes` - The x-coordinate of the public key (32 bytes, big-endian)
+/// * `public_key_y_bytes` - The y-coordinate of the public key (32 bytes, big-endian)
+/// * `signature` - The 64-byte signature in (r, s) format, where r and s are 32 bytes each
+///
+/// Returns `true` if the signature is valid, `false` otherwise.
+///
+/// The function panic if the following is not true:
+/// - The signature components `r` and `s` must be non-zero
+/// - The public key point must lie on the Secp256k1 curve
+/// - The signature must be "low S" normalized per BIP 0062 to prevent malleability
+///
+/// The function will also panic if `hashed_msg >= k256::Secp256k1::ORDER`.
+/// According to ECDSA specification, the message hash leftmost bits should be truncated
+/// up to the curve order length, and then reduced modulo the curve order.
 pub(super) fn verify_signature(
-    hashed_msg: &[u8],
+    hashed_msg: &[u8; 32],
     public_key_x_bytes: &[u8; 32],
     public_key_y_bytes: &[u8; 32],
     signature: &[u8; 64],
@@ -31,15 +52,14 @@ pub(super) fn verify_signature(
     );
 
     let pubkey = PublicKey::from_encoded_point(&point);
-    let pubkey = if pubkey.is_some().into() {
-        pubkey.unwrap()
-    } else {
+    if pubkey.is_none().into() {
         // Public key must sit on the Secp256k1 curve.
         log::warn!("Invalid public key provided for ECDSA verification");
         return false;
-    };
+    }
+    let pubkey = pubkey.unwrap();
 
-    // Note: This is incorrect as it will panic if `hashed_msg >= k256::Secp256k1::ORDER`.
+    // Note: This will panic if `hashed_msg >= k256::Secp256k1::ORDER`.
     // In this scenario we should just take the leftmost bits from `hashed_msg` up to the group order length.
     let z = Scalar::from_repr(*GenericArray::from_slice(hashed_msg)).unwrap();
 
@@ -136,16 +156,5 @@ mod secp256k1_tests {
             verify_signature(&HASHED_MESSAGE, &invalid_pub_key_x, &invalid_pub_key_y, &SIGNATURE);
 
         assert!(!valid);
-    }
-
-    #[test]
-    #[ignore = "ECDSA verification does not currently handle long hashes correctly"]
-    fn trims_overly_long_hashes_to_correct_length() {
-        let mut long_hashed_message = HASHED_MESSAGE.to_vec();
-        long_hashed_message.push(0xff);
-
-        let valid = verify_signature(&long_hashed_message, &PUB_KEY_X, &PUB_KEY_Y, &SIGNATURE);
-
-        assert!(valid);
     }
 }

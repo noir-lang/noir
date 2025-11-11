@@ -160,7 +160,18 @@ impl Comparable for NargoErrorWithTypes {
                         || msg.contains("division by zero")
                 })
                 || both(&msg1, &msg2, |msg| {
-                    msg.contains("attempted to shift by") || msg.contains("bit-shift with overflow")
+                    msg.contains("attempted to shift by")
+                        || msg.contains("shift with overflow")
+                        || msg.contains("shift right with overflow")
+                        || msg.contains("shift left with overflow")
+                })
+                || both(&msg1, &msg2, |msg| {
+                    // In Brillig we have constraints protecting overflows,
+                    // while in ACIR we have checked multiplication unless we know its safe.
+                    msg.contains("multiply with overflow") || msg.contains("index out of bounds")
+                })
+                || both(&msg1, &msg2, |msg| {
+                    msg.contains("add with overflow") || msg.contains("index out of bounds")
                 })
         } else {
             false
@@ -195,11 +206,15 @@ impl Comparable for NargoErrorWithTypes {
             (
                 SolvingError(OpcodeResolutionError::UnsatisfiedConstrain { .. }, _),
                 AssertionFailed(_, _, _),
-            ) => msg2.as_ref().is_some_and(|msg| msg.contains("divide by zero")),
+            ) => msg2.as_ref().is_some_and(|msg| {
+                msg.contains("divide by zero") || msg.contains("divisor of zero")
+            }),
             (
                 AssertionFailed(_, _, _),
                 SolvingError(OpcodeResolutionError::UnsatisfiedConstrain { .. }, _),
-            ) => msg1.is_some_and(|msg| msg.contains("divide by zero")),
+            ) => msg1.is_some_and(|msg| {
+                msg.contains("divide by zero") || msg.contains("divisor of zero")
+            }),
             (
                 SolvingError(OpcodeResolutionError::IndexOutOfBounds { .. }, _),
                 AssertionFailed(_, _, _),
@@ -221,7 +236,11 @@ impl Comparable for InputValue {
 
 impl std::fmt::Display for NargoErrorWithTypes {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        std::fmt::Display::fmt(&self.0, f)
+        if let Some(msg) = self.user_defined_failure_message() {
+            write!(f, "{}: {}", self.0, msg)
+        } else {
+            std::fmt::Display::fmt(&self.0, f)
+        }
     }
 }
 

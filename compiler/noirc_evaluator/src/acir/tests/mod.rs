@@ -23,8 +23,10 @@ use crate::{
 };
 use proptest::prelude::*;
 
+mod arrays;
 mod brillig_call;
 mod call;
+mod instructions;
 mod intrinsics;
 
 /// Test utility for converting [ACIR gen artifacts][crate::acir::ssa::Artifacts]
@@ -55,14 +57,13 @@ fn ssa_to_acir_program_with_debug_info(src: &str) -> (Program<FieldElement>, Vec
 
     let brillig = ssa.to_brillig(&BrilligOptions::default());
 
-    let (acir_functions, brillig_functions, brillig_names, _) = ssa
+    let (acir_functions, brillig_functions, _) = ssa
+        .generate_entry_point_index()
         .into_acir(&brillig, &BrilligOptions::default(), ExpressionWidth::default())
         .expect("Should compile manually written SSA into ACIR");
 
-    let artifacts = ArtifactsAndWarnings(
-        (acir_functions, brillig_functions, brillig_names, BTreeMap::default()),
-        vec![],
-    );
+    let artifacts =
+        ArtifactsAndWarnings((acir_functions, brillig_functions, BTreeMap::default()), vec![]);
     let program_artifact = combine_artifacts(
         artifacts,
         &arg_size_and_visibilities,
@@ -89,48 +90,65 @@ fn unchecked_mul_should_not_have_range_check() {
     // Check that range checks only exist on the function parameters
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w2
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
-    BLACKBOX::RANGE [(w0, 32)] []
-    BLACKBOX::RANGE [(w1, 32)] []
-    EXPR [ (-1, w0, w1) (1, w2) 0 ]
+    BLACKBOX::RANGE input: w0, bits: 32
+    BLACKBOX::RANGE input: w1, bits: 32
+    ASSERT w2 = w0*w1
     ");
 }
 
 #[test]
-fn does_not_generate_memory_blocks_without_dynamic_accesses() {
+fn no_zero_bits_range_check() {
     let src = "
-        acir(inline) fn main f0 {
-          b0(v0: [Field; 2]):
-            v2, v3 = call as_slice(v0) -> (u32, [Field])
-            call f1(u32 2, v3)
-            v7 = array_get v0, index u32 0 -> Field
-            constrain v7 == Field 0
-            return
+    acir(inline) fn main f0 {   
+        b0(v0: Field):
+            v1 = truncate v0 to 8 bits, max_bit_size: 254
+            v2 = cast v1 as u8
+            return v2
         }
-
-        brillig(inline) fn foo f1 {
-          b0(v0: u32, v1: [Field]):
-              return
-          }
-        ";
+    ";
     let program = ssa_to_acir_program(src);
-    println!("{program}");
 
-    // Check that no memory opcodes were emitted.
+    // Check that there is no 0-bits range check, but 'ASSERT w7 = 0' instead
     assert_circuit_snapshot!(program, @r"
     func 0
-    current witness: w1
-    private parameters: [w0, w1]
+    private parameters: [w0]
     public parameters: []
-    return values: []
-    BRILLIG CALL func 0: inputs: [EXPR [ 2 ], [EXPR [ (1, w0) 0 ], EXPR [ (1, w1) 0 ]]], outputs: []
-    EXPR [ (1, w0) 0 ]
+    return values: [w1]
+    BRILLIG CALL func: 0, inputs: [w0, 256], outputs: [w2, w3]
+    BLACKBOX::RANGE input: w2, bits: 246
+    BLACKBOX::RANGE input: w3, bits: 8
+    ASSERT w3 = w0 - 256*w2
+    ASSERT w4 = -w2 + 85500948718122168836900022442411230814642048439125134155071110103811751936
+    BLACKBOX::RANGE input: w4, bits: 246
+    BRILLIG CALL func: 1, inputs: [-w2 + 85500948718122168836900022442411230814642048439125134155071110103811751936], outputs: [w5]
+    ASSERT w6 = w2*w5 - 85500948718122168836900022442411230814642048439125134155071110103811751936*w5 + 1
+    ASSERT 0 = -w2*w6 + 85500948718122168836900022442411230814642048439125134155071110103811751936*w6
+    ASSERT w7 = w3*w6
+    ASSERT w7 = 0
+    ASSERT w1 = w3
 
-    unconstrained func 0
-    [Const { destination: Direct(2), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(1), bit_size: Integer(U32), value: 32839 }, Const { destination: Direct(0), bit_size: Integer(U32), value: 3 }, Const { destination: Relative(3), bit_size: Integer(U32), value: 3 }, Const { destination: Relative(4), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(32836), size_address: Relative(3), offset_address: Relative(4) }, Cast { destination: Direct(32836), source: Direct(32836), bit_size: Integer(U32) }, Mov { destination: Relative(1), source: Direct(32836) }, Const { destination: Relative(2), bit_size: Integer(U32), value: 32837 }, Const { destination: Relative(4), bit_size: Integer(U32), value: 2 }, Const { destination: Relative(6), bit_size: Integer(U32), value: 3 }, BinaryIntOp { destination: Relative(5), op: Add, bit_size: U32, lhs: Relative(4), rhs: Relative(6) }, Mov { destination: Relative(3), source: Direct(1) }, BinaryIntOp { destination: Direct(1), op: Add, bit_size: U32, lhs: Direct(1), rhs: Relative(5) }, IndirectConst { destination_pointer: Relative(3), bit_size: Integer(U32), value: 1 }, BinaryIntOp { destination: Relative(5), op: Add, bit_size: U32, lhs: Relative(3), rhs: Direct(2) }, Store { destination_pointer: Relative(5), source: Relative(4) }, BinaryIntOp { destination: Relative(5), op: Add, bit_size: U32, lhs: Relative(5), rhs: Direct(2) }, Store { destination_pointer: Relative(5), source: Relative(4) }, Const { destination: Relative(6), bit_size: Integer(U32), value: 3 }, BinaryIntOp { destination: Relative(5), op: Add, bit_size: U32, lhs: Relative(3), rhs: Relative(6) }, Mov { destination: Direct(32771), source: Relative(2) }, Mov { destination: Direct(32772), source: Relative(5) }, Mov { destination: Direct(32773), source: Relative(4) }, Call { location: 31 }, Mov { destination: Relative(2), source: Relative(3) }, Call { location: 42 }, Call { location: 43 }, Const { destination: Relative(1), bit_size: Integer(U32), value: 32839 }, Const { destination: Relative(2), bit_size: Integer(U32), value: 0 }, Stop { return_data: HeapVector { pointer: Relative(1), size: Relative(2) } }, BinaryIntOp { destination: Direct(32775), op: Add, bit_size: U32, lhs: Direct(32771), rhs: Direct(32773) }, Mov { destination: Direct(32776), source: Direct(32771) }, Mov { destination: Direct(32777), source: Direct(32772) }, BinaryIntOp { destination: Direct(32778), op: Equals, bit_size: U32, lhs: Direct(32776), rhs: Direct(32775) }, JumpIf { condition: Direct(32778), location: 41 }, Load { destination: Direct(32774), source_pointer: Direct(32776) }, Store { destination_pointer: Direct(32777), source: Direct(32774) }, BinaryIntOp { destination: Direct(32776), op: Add, bit_size: U32, lhs: Direct(32776), rhs: Direct(2) }, BinaryIntOp { destination: Direct(32777), op: Add, bit_size: U32, lhs: Direct(32777), rhs: Direct(2) }, Jump { location: 34 }, Return, Return, Call { location: 45 }, Return, Const { destination: Direct(32772), bit_size: Integer(U32), value: 30720 }, BinaryIntOp { destination: Direct(32771), op: LessThan, bit_size: U32, lhs: Direct(0), rhs: Direct(32772) }, JumpIf { condition: Direct(32771), location: 50 }, IndirectConst { destination_pointer: Direct(1), bit_size: Integer(U64), value: 15764276373176857197 }, Trap { revert_data: HeapVector { pointer: Direct(1), size: Direct(2) } }, Return]
+    unconstrained func 0: directive_integer_quotient
+    0: @10 = const u32 2
+    1: @11 = const u32 0
+    2: @0 = calldata copy [@11; @10]
+    3: @2 = field int_div @0, @1
+    4: @1 = field mul @2, @1
+    5: @1 = field sub @0, @1
+    6: @0 = @2
+    7: stop &[@11; @10]
+    unconstrained func 1: directive_invert
+    0: @21 = const u32 1
+    1: @20 = const u32 0
+    2: @0 = calldata copy [@20; @21]
+    3: @2 = const field 0
+    4: @3 = field eq @0, @2
+    5: jump if @3 to 8
+    6: @1 = const field 1
+    7: @0 = field field_div @1, @0
+    8: stop &[@20; @21]
     ");
 }
 
@@ -209,7 +227,7 @@ fn properly_constrains_quotient_when_truncating_fields() {
     let malicious_brillig_stdlib =
         BrilligStdLib { quotient: malicious_quotient, ..BrilligStdLib::default() };
 
-    let (acir_functions, brillig_functions, _, _) = codegen_acir(
+    let (acir_functions, brillig_functions, _) = codegen_acir(
         ssa,
         &Brillig::default(),
         malicious_brillig_stdlib,
@@ -225,13 +243,10 @@ fn properly_constrains_quotient_when_truncating_fields() {
     let main = &acir_functions[0];
 
     let initial_witness = WitnessMap::from(BTreeMap::from([(Witness(0), input)]));
-    let mut acvm = ACVM::new(
-        &StubbedBlackBoxSolver(true),
-        main.opcodes(),
-        initial_witness,
-        &brillig_functions,
-        &[],
-    );
+    let pedantic_solving = true;
+    let blackbox_solver = StubbedBlackBoxSolver(pedantic_solving);
+    let mut acvm =
+        ACVM::new(&blackbox_solver, main.opcodes(), initial_witness, &brillig_functions, &[]);
 
     assert!(matches!(acvm.solve(), ACVMStatus::Failure::<FieldElement>(_)));
 }
@@ -252,7 +267,7 @@ fn do_not_overflow_with_constant_constrain_neq() {
     let ssa = Ssa::from_str(src).unwrap();
     let brillig = ssa.to_brillig(&BrilligOptions::default());
 
-    let (acir_functions, _brillig_functions, _, _) = ssa
+    let (acir_functions, _brillig_functions, _) = ssa
         .into_acir(&brillig, &BrilligOptions::default(), ExpressionWidth::default())
         .expect("Should compile manually written SSA into ACIR");
 
@@ -279,30 +294,31 @@ fn derive_pedersen_generators_requires_constant_input() {
 }
 
 #[test]
-// Regression for https://github.com/noir-lang/noir/issues/9847
-fn signed_div_overflow() {
-    // Test that check -128 / -1 overflow for i8
-    let src = r#"
-        acir(inline) predicate_pure fn main f0 {
-          b0(v1: i8, v2: i8):
-            v3 = div v1, v2
-            return
+fn databus() {
+    let src = "
+    acir(inline) predicate_pure fn main f0 {
+        b0(v0: u32, v1: u32):
+            v2 = cast v0 as Field
+            v3 = make_array [v2] : [Field; 1]
+            constrain v0 == u32 0
+            v4 = add v0, v1
+            return v4
         }
-        "#;
+    ";
+    let program = ssa_to_acir_program(src);
 
-    let ssa = Ssa::from_str(src).unwrap();
-    let inputs = vec![FieldElement::from(128_u128), FieldElement::from(255_u128)];
-    let inputs = inputs
-        .into_iter()
-        .enumerate()
-        .map(|(i, f)| (Witness(i as u32), f))
-        .collect::<BTreeMap<_, _>>();
-    let initial_witness = WitnessMap::from(inputs);
-    let output = None;
-
-    // acir execution should fail to divide -128 / -1
-    let acir_execution_result = execute_ssa(ssa, initial_witness.clone(), output.as_ref());
-    assert!(matches!(acir_execution_result, (ACVMStatus::Failure(_), _)));
+    // Check that w0 is not replaced
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0, w1]
+    public parameters: []
+    return values: [w2]
+    BLACKBOX::RANGE input: w1, bits: 32
+    ASSERT w0 = 0
+    ASSERT w3 = w0 + w1
+    BLACKBOX::RANGE input: w3, bits: 32
+    ASSERT w2 = w3
+    ");
 }
 
 /// Convert the SSA input into ACIR and use ACVM to execute it
@@ -314,18 +330,15 @@ fn execute_ssa(
     output: Option<&Witness>,
 ) -> (ACVMStatus<FieldElement>, Option<FieldElement>) {
     let brillig = ssa.to_brillig(&BrilligOptions::default());
-    let (acir_functions, brillig_functions, _, _) = ssa
+    let (acir_functions, brillig_functions, _) = ssa
         .into_acir(&brillig, &BrilligOptions::default(), ExpressionWidth::default())
         .expect("Should compile manually written SSA into ACIR");
     assert_eq!(acir_functions.len(), 1);
     let main = &acir_functions[0];
-    let mut acvm = ACVM::new(
-        &StubbedBlackBoxSolver(true),
-        main.opcodes(),
-        initial_witness,
-        &brillig_functions,
-        &[],
-    );
+    let pedantic_solving = true;
+    let blackbox_solver = StubbedBlackBoxSolver(pedantic_solving);
+    let mut acvm =
+        ACVM::new(&blackbox_solver, main.opcodes(), initial_witness, &brillig_functions, &[]);
     let status = acvm.solve();
     if status == ACVMStatus::Solved {
         (status, output.map(|o| acvm.witness_map()[o]))
@@ -425,9 +438,9 @@ fn test_operators(
         let acir_execution_result = execute_ssa(ssa, initial_witness.clone(), output.as_ref());
 
         match (ssa_interpreter_result, acir_execution_result) {
-            // Both execution failed, so it is the same behavior, as expected.
+            // Both executions failed, so it is the same behavior, as expected.
             (Err(_), (ACVMStatus::Failure(_), _)) => (),
-            // Both execution succeeded and output the same value
+            // Both executions succeeded and output the same value
             (Ok(ssa_inner_result), (ACVMStatus::Solved, acvm_result)) => {
                 let ssa_result = if let Some(result) = ssa_inner_result.first() {
                     result.as_numeric().map(|v| v.convert_to_field())
@@ -442,113 +455,136 @@ fn test_operators(
 }
 
 proptest! {
-#[test]
-fn test_binary_on_field(lhs in 0u128.., rhs in 0u128..) {
-            let lhs = FieldElement::from(lhs);
-            let rhs = FieldElement::from(rhs);
-    // Test the following Binary operation on Fields
-    let operators = [
-        "add",
-        "sub",
-        "mul",
-        "div",
-        "eq",
-        // Bitwise operations are not allowed on field elements
-        // SSA interpreter will emit an error but not ACVM
-        // "and",
-        // "xor",
-        "unchecked_add",
-        "unchecked_sub",
-        "unchecked_mul",
-        "range_check 32",
-        "truncate 32 254",
-    ];
-    let inputs = [lhs, rhs];
-    test_operators(&operators, "Field", &inputs);
-}
-
-#[test]
-fn test_u32(lhs in 0u32.., rhs in 0u32..) {
-    let lhs = FieldElement::from(lhs);
-    let rhs = FieldElement::from(rhs);
-
-    // Test the following operations on u32
-    let operators = [
-        "add",
-        "sub",
-        "mul",
-        "div",
-        "eq",
-        "and",
-        "xor",
-        "mod",
-        "lt",
-        "or",
-        "not",
-        "range_check 8",
-        "truncate 8 32",
-    ];
-    let inputs = [lhs, rhs];
-    test_operators(&operators, "u32", &inputs);
-
-    //unchecked operations assume no under/over-flow
-    let mut unchecked_operators = vec![];
-    if (lhs + rhs).to_u128() <= u128::from(u32::MAX) {
-        unchecked_operators.push("unchecked_add");
+    #[test]
+    fn test_binary_on_field(lhs in 0u128.., rhs in 0u128..) {
+        let lhs = FieldElement::from(lhs);
+        let rhs = FieldElement::from(rhs);
+        // Test the following Binary operation on Fields
+        let operators = [
+            "add",
+            "sub",
+            "mul",
+            "div",
+            "eq",
+            // Bitwise operations are not allowed on field elements
+            // SSA interpreter will emit an error but not ACVM
+            // "and",
+            // "xor",
+            "unchecked_add",
+            "unchecked_sub",
+            "unchecked_mul",
+            "range_check 32",
+            "truncate 32 254",
+        ];
+        let inputs = [lhs, rhs];
+        test_operators(&operators, "Field", &inputs);
     }
-    if (lhs * rhs).to_u128() <= u128::from(u32::MAX) {
-    unchecked_operators.push("unchecked_mul");
+
+    #[test]
+    #[should_panic(expected = "Cannot use `and` with field elements")]
+    fn test_and_on_field(lhs in 0u128.., rhs in 0u128..) {
+        let lhs = FieldElement::from(lhs);
+        let rhs = FieldElement::from(rhs);
+        let operators = [
+            "and",
+        ];
+        let inputs = [lhs, rhs];
+        test_operators(&operators, "Field", &inputs);
     }
-    if lhs >= rhs {
-        unchecked_operators.push("unchecked_sub");
+
+    #[test]
+    #[should_panic(expected = "Cannot use `xor` with field elements")]
+    fn test_xor_on_field(lhs in 0u128.., rhs in 0u128..) {
+        let lhs = FieldElement::from(lhs);
+        let rhs = FieldElement::from(rhs);
+        let operators = [
+            "xor",
+        ];
+        let inputs = [lhs, rhs];
+        test_operators(&operators, "Field", &inputs);
     }
-    test_operators(&unchecked_operators, "u32", &inputs);
-}
+
+    #[test]
+    fn test_u32(lhs in 0u32.., rhs in 0u32..) {
+        let lhs = FieldElement::from(lhs);
+        let rhs = FieldElement::from(rhs);
+
+        // Test the following operations on u32
+        let operators = [
+            "add",
+            "sub",
+            "mul",
+            "div",
+            "eq",
+            "and",
+            "xor",
+            "mod",
+            "lt",
+            "or",
+            "not",
+            "range_check 8",
+            "truncate 8 32",
+        ];
+        let inputs = [lhs, rhs];
+        test_operators(&operators, "u32", &inputs);
+
+        //unchecked operations assume no under/over-flow
+        let mut unchecked_operators = vec![];
+        if (lhs + rhs).to_u128() <= u128::from(u32::MAX) {
+            unchecked_operators.push("unchecked_add");
+        }
+        if (lhs * rhs).to_u128() <= u128::from(u32::MAX) {
+        unchecked_operators.push("unchecked_mul");
+        }
+        if lhs >= rhs {
+            unchecked_operators.push("unchecked_sub");
+        }
+        test_operators(&unchecked_operators, "u32", &inputs);
+    }
 
 
- #[test]
-fn test_constraint_field(lhs in 0u128.., rhs in 0u128..) {
-    let lhs = FieldElement::from(lhs);
-    let rhs = FieldElement::from(rhs);
-    let operators = ["constrain ==", "constrain !="];
-    test_operators(&operators, "Field", &[lhs,rhs]);
-    test_operators(&operators, "u128", &[lhs,rhs]);
-}
+     #[test]
+    fn test_constraint_field(lhs in 0u128.., rhs in 0u128..) {
+        let lhs = FieldElement::from(lhs);
+        let rhs = FieldElement::from(rhs);
+        let operators = ["constrain ==", "constrain !="];
+        test_operators(&operators, "Field", &[lhs,rhs]);
+        test_operators(&operators, "u128", &[lhs,rhs]);
+    }
 
-#[test]
-fn test_constraint_u32(lhs in 0u32.., rhs in 0u32..) {
-    let lhs = FieldElement::from(lhs);
-    let rhs = FieldElement::from(rhs);
-    let operators = ["constrain ==", "constrain !="];
-    test_operators(&operators, "u32", &[lhs,rhs]);
-    test_operators(&operators, "i32", &[lhs,rhs]);
-}
+    #[test]
+    fn test_constraint_u32(lhs in 0u32.., rhs in 0u32..) {
+        let lhs = FieldElement::from(lhs);
+        let rhs = FieldElement::from(rhs);
+        let operators = ["constrain ==", "constrain !="];
+        test_operators(&operators, "u32", &[lhs,rhs]);
+        test_operators(&operators, "i32", &[lhs,rhs]);
+    }
 
-#[test]
-fn test_constraint_u64(lhs in 0u64.., rhs in 0u64..) {
-    let lhs = FieldElement::from(lhs);
-    let rhs = FieldElement::from(rhs);
-    let operators = ["constrain ==", "constrain !="];
-    test_operators(&operators, "u64", &[lhs,rhs]);
-    test_operators(&operators, "i64", &[lhs,rhs]);
-}
+    #[test]
+    fn test_constraint_u64(lhs in 0u64.., rhs in 0u64..) {
+        let lhs = FieldElement::from(lhs);
+        let rhs = FieldElement::from(rhs);
+        let operators = ["constrain ==", "constrain !="];
+        test_operators(&operators, "u64", &[lhs,rhs]);
+        test_operators(&operators, "i64", &[lhs,rhs]);
+    }
 
-#[test]
-fn test_constraint_u16(lhs in 0u16.., rhs in 0u16..) {
-    let lhs = FieldElement::from(u128::from(lhs));
-    let rhs = FieldElement::from(u128::from(rhs));
-    let operators = ["constrain ==", "constrain !="];
-    test_operators(&operators, "u16", &[lhs,rhs]);
-    test_operators(&operators, "i16", &[lhs,rhs]);
-}
+    #[test]
+    fn test_constraint_u16(lhs in 0u16.., rhs in 0u16..) {
+        let lhs = FieldElement::from(u128::from(lhs));
+        let rhs = FieldElement::from(u128::from(rhs));
+        let operators = ["constrain ==", "constrain !="];
+        test_operators(&operators, "u16", &[lhs,rhs]);
+        test_operators(&operators, "i16", &[lhs,rhs]);
+    }
 
-#[test]
-fn test_constraint_u8(lhs in 0u8.., rhs in 0u8..) {
-    let lhs = FieldElement::from(u128::from(lhs));
-    let rhs = FieldElement::from(u128::from(rhs));
-    let operators = ["constrain ==", "constrain !="];
-    test_operators(&operators, "u8", &[lhs,rhs]);
-    test_operators(&operators, "i8", &[lhs,rhs]);
-}
-
+    #[test]
+    fn test_constraint_u8(lhs in 0u8.., rhs in 0u8..) {
+        let lhs = FieldElement::from(u128::from(lhs));
+        let rhs = FieldElement::from(u128::from(rhs));
+        let operators = ["constrain ==", "constrain !="];
+        test_operators(&operators, "u8", &[lhs,rhs]);
+        test_operators(&operators, "i8", &[lhs,rhs]);
+    }
 }

@@ -90,7 +90,7 @@ impl CallStackHelper {
         result
     }
 
-    /// Returns a new CallStackId which extends the call_stack with the provided call_stack.
+    /// Returns a new [CallStackId] which extends the `call_stack` with the provided `locations`.
     pub fn extend_call_stack(
         &mut self,
         mut call_stack: CallStackId,
@@ -102,7 +102,7 @@ impl CallStackHelper {
         call_stack
     }
 
-    /// Adds a location to the call stack
+    /// Adds a location to the call stack, maintaining the location cache along the way.
     pub fn add_child(&mut self, call_stack: CallStackId, location: Location) -> CallStackId {
         let key = rustc_hash::FxBuildHasher.hash_one(location);
         if let Some(result) = self.locations[call_stack.index()].children_hash.get(&key) {
@@ -142,7 +142,7 @@ impl CallStackHelper {
         }
     }
 
-    /// Get (or create) a CallStackId corresponding to the given locations
+    /// Get (or create) a CallStackId corresponding to the given locations.
     pub fn get_or_insert_locations(&mut self, locations: &CallStack) -> CallStackId {
         self.extend_call_stack(CallStackId::root(), locations)
     }

@@ -261,6 +261,9 @@ pub enum InterpreterError {
     GlobalsDependencyCycle {
         location: Location,
     },
+    GlobalCouldNotBeResolved {
+        location: Location,
+    },
     LoopHaltedForUiResponsiveness {
         location: Location,
     },
@@ -341,8 +344,8 @@ impl InterpreterError {
             | InterpreterError::UnknownArrayLength { location, .. }
             | InterpreterError::CannotInterpretFormatStringWithErrors { location }
             | InterpreterError::GlobalsDependencyCycle { location }
-            | InterpreterError::LoopHaltedForUiResponsiveness { location } => *location,
-
+            | InterpreterError::LoopHaltedForUiResponsiveness { location }
+            | InterpreterError::GlobalCouldNotBeResolved { location } => *location,
             InterpreterError::FailedToParseMacro { error, .. } => error.location(),
             InterpreterError::NoMatchingImplFound { error } => error.location,
             InterpreterError::Break | InterpreterError::Continue => {
@@ -512,6 +515,8 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             InterpreterError::InvalidValuesForBinary { lhs, rhs, operator, location } => {
                 let msg = if *operator == "/" {
                     "Attempt to divide by zero".to_string()
+                } else if *operator == "%" {
+                    "Attempt to calculate the remainder with a divisor of zero".to_string()
                 } else {
                     format!("No implementation for `{lhs}` {operator} `{rhs}`")
                 };
@@ -682,8 +687,8 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             }
             InterpreterError::GenericNameShouldBeAnIdent { name, location } => {
                 let msg =
-                    "Generic name needs to be a valid identifier (one word beginning with a letter)"
-                        .to_string();
+                            "Generic name needs to be a valid identifier (one word beginning with a letter)"
+                                .to_string();
                 let secondary = format!("`{name}` is not a valid identifier");
                 CustomDiagnostic::simple_error(msg, secondary, *location)
             }
@@ -725,9 +730,15 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let secondary = String::new();
                 CustomDiagnostic::simple_error(msg, secondary, *location)
             }
+            InterpreterError::GlobalCouldNotBeResolved { location } => {
+                let msg = "Failed to resolve this global".to_string();
+                let secondary = String::new();
+                CustomDiagnostic::simple_error(msg, secondary, *location)
+            }
+
             InterpreterError::LoopHaltedForUiResponsiveness { location } => {
                 let msg = "This loop took too much time to execute so it was halted for UI responsiveness"
-                    .to_string();
+                            .to_string();
                 let secondary =
                     "This error doesn't happen in normal executions of `nargo`".to_string();
                 CustomDiagnostic::simple_warning(msg, secondary, *location)

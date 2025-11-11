@@ -73,6 +73,7 @@ pub(super) fn run(args: InterpretCommand, ssa: Ssa) -> eyre::Result<()> {
             println_to_stdout!("--- Interpreter result:\nErr({err})\n---");
         }
     }
+    let is_ok = result.is_ok();
 
     if let Some(return_value) = ssa_return {
         let return_value_as_string = vecmap(&return_value, ToString::to_string).join(", ");
@@ -89,7 +90,7 @@ pub(super) fn run(args: InterpretCommand, ssa: Ssa) -> eyre::Result<()> {
         }
     }
 
-    Ok(())
+    if is_ok { Ok(()) } else { bail!("The interpreter encountered an error.") }
 }
 
 /// Derive an ABI description from the SSA parameters.
@@ -103,6 +104,7 @@ fn abi_from_ssa(ssa: &Ssa) -> Abi {
     let visibility = AbiVisibility::Public;
 
     let parameters = main
+        .view()
         .parameter_types()
         .iter()
         .enumerate()
@@ -114,6 +116,7 @@ fn abi_from_ssa(ssa: &Ssa) -> Abi {
         .collect();
 
     let return_type = main
+        .view()
         .return_types()
         .filter(|ts| !ts.is_empty())
         .map(|types| AbiReturnType { abi_type: abi_type_from_multi_ssa(&types), visibility });

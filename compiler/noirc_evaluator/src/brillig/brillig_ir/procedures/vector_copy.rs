@@ -1,70 +1,72 @@
-use std::vec;
-
-use acvm::{AcirField, acir::brillig::MemoryAddress};
+use acvm::{AcirField, brillig_vm::offsets};
 
 use super::ProcedureId;
 use crate::brillig::brillig_ir::{
-    BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, BrilligBinaryOp, BrilligContext,
-    brillig_variable::{BrilligVector, SingleAddrVariable},
+    BrilligBinaryOp, BrilligContext,
+    brillig_variable::BrilligVector,
     debug_show::DebugToString,
     registers::{RegisterAllocator, ScratchSpace},
 };
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
-    /// Conditionally copies a source array to a destination array.
-    /// If the reference count of the source array is 1, then we can directly copy the pointer of the source array to the destination array.
+    /// Copy arguments to [ScratchSpace] and call [ProcedureId::VectorCopy].
+    ///
+    /// Conditionally copies a source vector to a destination vector.
+    /// If the reference count of the source vector is 1, then we can directly copy the pointer of the source vector to the destination vector.
     pub(crate) fn call_vector_copy_procedure(
         &mut self,
         source_vector: BrilligVector,
         destination_vector: BrilligVector,
     ) {
-        let source_vector_pointer_arg = MemoryAddress::direct(ScratchSpace::start());
-        let new_vector_pointer_return = MemoryAddress::direct(ScratchSpace::start() + 1);
+        let [source_vector_pointer_arg, destination_vector_pointer_return] =
+            self.make_scratch_registers();
 
         self.mov_instruction(source_vector_pointer_arg, source_vector.pointer);
 
         self.add_procedure_call_instruction(ProcedureId::VectorCopy);
 
-        self.mov_instruction(destination_vector.pointer, new_vector_pointer_return);
+        self.mov_instruction(destination_vector.pointer, destination_vector_pointer_return);
     }
 }
 
+/// Compile [ProcedureId::VectorCopy].
 pub(super) fn compile_vector_copy_procedure<F: AcirField + DebugToString>(
     brillig_context: &mut BrilligContext<F, ScratchSpace>,
 ) {
-    let source_vector_pointer_arg = MemoryAddress::direct(ScratchSpace::start());
-    let new_vector_pointer_return = MemoryAddress::direct(ScratchSpace::start() + 1);
+    let [source_vector_pointer_arg, destination_vector_pointer_return] =
+        brillig_context.allocate_scratch_registers();
 
-    brillig_context
-        .set_allocated_registers(vec![source_vector_pointer_arg, new_vector_pointer_return]);
+    let source_vector = BrilligVector { pointer: source_vector_pointer_arg };
+    let target_vector = BrilligVector { pointer: destination_vector_pointer_return };
 
-    let rc = SingleAddrVariable::new_usize(brillig_context.allocate_register());
-    brillig_context.load_instruction(rc.address, source_vector_pointer_arg);
+    let rc = brillig_context.codegen_read_vector_rc(source_vector);
 
-    let is_rc_one = SingleAddrVariable::new(brillig_context.allocate_register(), 1);
-    brillig_context.codegen_usize_op(rc.address, is_rc_one.address, BrilligBinaryOp::Equals, 1);
+    let is_rc_one = brillig_context.codegen_usize_equals_one(*rc);
 
     brillig_context.codegen_branch(is_rc_one.address, |ctx, cond| {
         if cond {
-            // Reference count is 1, we can mutate the array directly
-            ctx.mov_instruction(new_vector_pointer_return, source_vector_pointer_arg);
+            // Reference count is 1, we can mutate the vector directly; just the the destination to equal the source.
+            ctx.mov_instruction(target_vector.pointer, source_vector.pointer);
         } else {
-            let source_vector = BrilligVector { pointer: source_vector_pointer_arg };
-            let result_vector = BrilligVector { pointer: new_vector_pointer_return };
-
-            // Allocate the memory for the new vec
-            let allocation_size = ctx.codegen_make_vector_capacity(source_vector);
-            ctx.codegen_usize_op_in_place(allocation_size.address, BrilligBinaryOp::Add, 3_usize); // Capacity plus 3 (rc, len, cap)
-            ctx.codegen_allocate_mem(result_vector.pointer, allocation_size.address);
-
-            ctx.codegen_mem_copy(source_vector.pointer, result_vector.pointer, allocation_size);
-            // Then set the new rc to 1
-            ctx.indirect_const_instruction(
-                result_vector.pointer,
-                BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
-                1_usize.into(),
+            // Allocate the memory for the new vector.
+            let allocation_size = ctx.codegen_read_vector_capacity(source_vector);
+            ctx.codegen_usize_op_in_place(
+                allocation_size.address,
+                BrilligBinaryOp::Add,
+                offsets::VECTOR_META_COUNT,
             );
-            ctx.deallocate_single_addr(allocation_size);
+            ctx.codegen_allocate_mem(target_vector.pointer, allocation_size.address);
+
+            // Copy the entire source vector, including metadata and items.
+            ctx.codegen_mem_copy(source_vector.pointer, target_vector.pointer, *allocation_size);
+
+            // Then reset the new RC to 1.
+            ctx.codegen_initialize_rc(target_vector.pointer, 1);
+
+            // Decrease the original ref count now that this copy is no longer pointing to it.
+            // Copying a vector this way is an implicit side effect of setting an item by index through a mutable variable;
+            // unlike with pop and push, we won't end up with a new vector handle, so we can split the RC between the old and the new.
+            ctx.codegen_decrement_rc(source_vector.pointer, rc.address);
         }
     });
 }

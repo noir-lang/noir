@@ -1,5 +1,5 @@
 //! The redundant range constraint optimization pass aims to remove any [BlackBoxFunc::Range] opcodes
-//! which doesn't result in additional restrictions on the value of witnesses.
+//! which doesn't result in additional restrictions on the values of witnesses.
 //!
 //! Suppose we had the following pseudo-code:
 //!
@@ -63,7 +63,7 @@ use acir::{
     circuit::{
         Circuit, Opcode,
         brillig::BrilligFunctionId,
-        opcodes::{BlackBoxFuncCall, BlockId, ConstantOrWitnessEnum, MemOp},
+        opcodes::{BlackBoxFuncCall, BlockId, FunctionInput, MemOp},
     },
     native_types::Witness,
 };
@@ -71,12 +71,13 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 /// Information gathered about witnesses which are subject to range constraints.
 struct RangeInfo {
-    /// Opcode positions at which stricter bit size information becomes available.
+    /// Opcode positions which updated this RangeInfo, i.e
+    /// at which stricter bit size information becomes available.
     switch_points: BTreeSet<usize>,
     /// Strictest constraint on bit size so far.
     num_bits: u32,
-    /// Indicate whether the bit size comes from an assertion, in which case we
-    /// can save an equivalent range constraint.
+    /// Indicate whether the bit size comes from an assertion or from array indexing,
+    /// in which cases we can save an equivalent range constraint.
     is_implied: bool,
 }
 
@@ -112,6 +113,10 @@ impl<'a, F: AcirField> RangeOptimizer<'a, F> {
                     if expr.is_degree_one_univariate() {
                         let (k, witness) = expr.linear_combinations[0];
                         let constant = expr.q_c;
+                        assert!(
+                            k != F::zero(),
+                            "collect_ranges: attempting to divide -constant by F::zero()"
+                        );
                         let witness_value = -constant / k;
 
                         if witness_value.is_zero() {
@@ -125,9 +130,9 @@ impl<'a, F: AcirField> RangeOptimizer<'a, F> {
                     }
                 }
 
-                Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE { input }) => {
-                    if let ConstantOrWitnessEnum::Witness(witness) = input.input() {
-                        Some((witness, input.num_bits(), false))
+                Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE { input, num_bits }) => {
+                    if let FunctionInput::Witness(witness) = input {
+                        Some((*witness, *num_bits, false))
                     } else {
                         None
                     }
@@ -156,8 +161,8 @@ impl<'a, F: AcirField> RangeOptimizer<'a, F> {
                 continue;
             };
 
-            // Check if the witness has already been recorded and if the witness
-            // size is more than the current one, we replace it
+            // Check if the witness has already been recorded and if the witness'
+            // recorded size is more than the current one, we replace it
             infos
                 .entry(witness)
                 .and_modify(|info| {
@@ -181,23 +186,28 @@ impl<'a, F: AcirField> RangeOptimizer<'a, F> {
     /// Returns a `Circuit` where each Witness is only range constrained
     /// a minimal number of times that still allows us to avoid executing
     /// any new side effects due to their removal.
+    ///
+    /// The idea is to keep only the RANGE opcodes that have strictly smaller bit-size requirements
+    /// than before, i.e the ones that are at a 'switch point'.
+    /// Furthermore, we only keep the switch points that are last before
+    /// a 'side-effect' opcode (i.e a Brillig call).
+    /// As a result, we simply do a backward pass on the opcodes, so that the last Brillig call
+    /// is known before reaching a RANGE opcode.
     pub(crate) fn replace_redundant_ranges(
         self,
         order_list: Vec<usize>,
     ) -> (Circuit<F>, Vec<usize>) {
         let mut new_order_list = Vec::with_capacity(order_list.len());
         let mut optimized_opcodes = Vec::with_capacity(self.circuit.opcodes.len());
-        // Consider the index beyond the last as a pseudo size effect by which time all constraints need to be inserted.
+        // Consider the index beyond the last as a pseudo side effect by which time all constraints need to be inserted.
         let mut next_side_effect = self.circuit.opcodes.len();
         // Going in reverse so we can propagate the side effect information backwards.
         for (idx, opcode) in self.circuit.opcodes.into_iter().enumerate().rev() {
             let Some(witness) = (match opcode {
-                Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE { input }) => {
-                    match input.input() {
-                        ConstantOrWitnessEnum::Witness(witness) => Some(witness),
-                        _ => None,
-                    }
-                }
+                Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
+                    input: FunctionInput::Witness(witness),
+                    ..
+                }) => Some(witness),
                 Opcode::BrilligCall { id, .. } => {
                     // Assume that Brillig calls might have side effects, unless we know they don't.
                     if self.brillig_side_effects.get(&id).copied().unwrap_or(true) {
@@ -255,12 +265,19 @@ mod tests {
     use std::collections::BTreeMap;
 
     use crate::{
-        assert_circuit_snapshot,
-        compiler::optimizers::redundant_range::{RangeOptimizer, memory_block_implied_max_bits},
+        FieldElement, assert_circuit_snapshot,
+        compiler::{
+            CircuitSimulator,
+            optimizers::{
+                Opcode,
+                redundant_range::{RangeOptimizer, memory_block_implied_max_bits},
+            },
+        },
     };
     use acir::{
+        AcirField,
         circuit::{Circuit, brillig::BrilligFunctionId},
-        native_types::Witness,
+        native_types::{Expression, Witness},
     };
 
     #[test]
@@ -279,14 +296,14 @@ mod tests {
     fn retain_lowest_range_size() {
         // The optimizer should keep the lowest bit size range constraint
         let src = "
-        current witness: w1
-        private parameters: []
+        private parameters: [w1]
         public parameters: []
         return values: []
-        BLACKBOX::RANGE [(w1, 32)] []
-        BLACKBOX::RANGE [(w1, 16)] []
+        BLACKBOX::RANGE input: w1, bits: 32
+        BLACKBOX::RANGE input: w1, bits: 16
         ";
         let circuit = Circuit::from_str(src).unwrap();
+        assert!(CircuitSimulator::check_circuit(&circuit).is_none());
 
         let acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, _)| i).collect();
         let brillig_side_effects = BTreeMap::new();
@@ -302,12 +319,12 @@ mod tests {
         );
 
         let (optimized_circuit, _) = optimizer.replace_redundant_ranges(acir_opcode_positions);
+        assert!(CircuitSimulator::check_circuit(&optimized_circuit).is_none());
         assert_circuit_snapshot!(optimized_circuit, @r"
-        current witness: w1
-        private parameters: []
+        private parameters: [w1]
         public parameters: []
         return values: []
-        BLACKBOX::RANGE [(w1, 16)] []
+        BLACKBOX::RANGE input: w1, bits: 16
         ");
     }
 
@@ -315,28 +332,28 @@ mod tests {
     fn remove_duplicates() {
         // The optimizer should remove all duplicate range opcodes.
         let src = "
-        current witness: w1
-        private parameters: []
+        private parameters: [w1, w2]
         public parameters: []
         return values: []
-        BLACKBOX::RANGE [(w1, 16)] []
-        BLACKBOX::RANGE [(w1, 16)] []
-        BLACKBOX::RANGE [(w2, 23)] []
-        BLACKBOX::RANGE [(w2, 23)] []
+        BLACKBOX::RANGE input: w1, bits: 16
+        BLACKBOX::RANGE input: w1, bits: 16
+        BLACKBOX::RANGE input: w2, bits: 23
+        BLACKBOX::RANGE input: w2, bits: 23
         ";
         let circuit = Circuit::from_str(src).unwrap();
+        assert!(CircuitSimulator::check_circuit(&circuit).is_none());
 
         let acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, _)| i).collect();
         let brillig_side_effects = BTreeMap::new();
         let optimizer = RangeOptimizer::new(circuit, &brillig_side_effects);
         let (optimized_circuit, _) = optimizer.replace_redundant_ranges(acir_opcode_positions);
+        assert!(CircuitSimulator::check_circuit(&optimized_circuit).is_none());
         assert_circuit_snapshot!(optimized_circuit, @r"
-        current witness: w1
-        private parameters: []
+        private parameters: [w1, w2]
         public parameters: []
         return values: []
-        BLACKBOX::RANGE [(w1, 16)] []
-        BLACKBOX::RANGE [(w2, 23)] []
+        BLACKBOX::RANGE input: w1, bits: 16
+        BLACKBOX::RANGE input: w2, bits: 23
         ");
     }
 
@@ -345,59 +362,90 @@ mod tests {
         // The optimizer should not remove or change non-range opcodes
         // The four AssertZero opcodes should remain unchanged.
         let src = "
-        current witness: w1
-        private parameters: []
+        private parameters: [w1]
         public parameters: []
         return values: []
-        BLACKBOX::RANGE [(w1, 16)] []
-        BLACKBOX::RANGE [(w1, 16)] []
-        EXPR [ 0 ]
-        EXPR [ 0 ]
-        EXPR [ 0 ]
-        EXPR [ 0 ]
+        BLACKBOX::RANGE input: w1, bits: 16
+        BLACKBOX::RANGE input: w1, bits: 16
+        ASSERT 0 = 0
+        ASSERT 0 = 0
+        ASSERT 0 = 0
+        ASSERT 0 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
+        assert!(CircuitSimulator::check_circuit(&circuit).is_none());
 
         let acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, _)| i).collect();
         let brillig_side_effects = BTreeMap::new();
         let optimizer = RangeOptimizer::new(circuit, &brillig_side_effects);
         let (optimized_circuit, _) = optimizer.replace_redundant_ranges(acir_opcode_positions);
+        assert!(CircuitSimulator::check_circuit(&optimized_circuit).is_none());
         assert_circuit_snapshot!(optimized_circuit, @r"
-        current witness: w1
-        private parameters: []
+        private parameters: [w1]
         public parameters: []
         return values: []
-        BLACKBOX::RANGE [(w1, 16)] []
-        EXPR [ 0 ]
-        EXPR [ 0 ]
-        EXPR [ 0 ]
-        EXPR [ 0 ]
+        BLACKBOX::RANGE input: w1, bits: 16
+        ASSERT 0 = 0
+        ASSERT 0 = 0
+        ASSERT 0 = 0
+        ASSERT 0 = 0
         ");
     }
 
     #[test]
     fn constant_implied_ranges() {
-        // The optimizer should use knowledge about constant witness assignments to remove range opcodes.
+        // The optimizer should use knowledge about constant witness assignments to remove range opcodes, when possible.
+        // In this case, the `BLACKBOX::RANGE` opcode is expected to be removed because its range is larger than
+        // the range checked by the `ASSERT` opcode
         let src = "
-        current witness: w1
-        private parameters: []
+        private parameters: [w1]
         public parameters: []
         return values: []
-        BLACKBOX::RANGE [(w1, 16)] []
-        EXPR [ (1, w1) 0 ]
+        BLACKBOX::RANGE input: w1, bits: 16
+        ASSERT w1 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
+        assert!(CircuitSimulator::check_circuit(&circuit).is_none());
 
         let acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, _)| i).collect();
         let brillig_side_effects = BTreeMap::new();
         let optimizer = RangeOptimizer::new(circuit, &brillig_side_effects);
         let (optimized_circuit, _) = optimizer.replace_redundant_ranges(acir_opcode_positions);
+        assert!(CircuitSimulator::check_circuit(&optimized_circuit).is_none());
         assert_circuit_snapshot!(optimized_circuit, @r"
-        current witness: w1
-        private parameters: []
+        private parameters: [w1]
         public parameters: []
         return values: []
-        EXPR [ (1, w1) 0 ]
+        ASSERT w1 = 0
+        ");
+    }
+
+    #[test]
+    fn large_constant_implied_ranges() {
+        // The optimizer should use knowledge about constant witness assignments to remove range opcodes, when possible.
+        // In this case, the `BLACKBOX::RANGE` opcode is expected to be retained because its range is smaller than
+        // the range checked by the `ASSERT` opcode
+        let src = "
+        private parameters: [w1]
+        public parameters: []
+        return values: []
+        BLACKBOX::RANGE input: w1, bits: 8
+        ASSERT w1 = 256
+        ";
+        let circuit = Circuit::from_str(src).unwrap();
+        assert!(CircuitSimulator::check_circuit(&circuit).is_none());
+
+        let acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, _)| i).collect();
+        let brillig_side_effects = BTreeMap::new();
+        let optimizer = RangeOptimizer::new(circuit, &brillig_side_effects);
+        let (optimized_circuit, _) = optimizer.replace_redundant_ranges(acir_opcode_positions);
+        assert!(CircuitSimulator::check_circuit(&optimized_circuit).is_none());
+        assert_circuit_snapshot!(optimized_circuit, @r"
+        private parameters: [w1]
+        public parameters: []
+        return values: []
+        BLACKBOX::RANGE input: w1, bits: 8
+        ASSERT w1 = 256
         ");
     }
 
@@ -405,26 +453,26 @@ mod tests {
     fn potential_side_effects() {
         // The optimizer should not remove range constraints if doing so might allow invalid side effects to go through.
         let src = "
-        current witness: w1
-        private parameters: []
+        private parameters: [w1, w2]
         public parameters: []
         return values: []
-        BLACKBOX::RANGE [(w1, 32)] []
+        BLACKBOX::RANGE input: w1, bits: 32
 
         // Call brillig with w2
-        BRILLIG CALL func 0: inputs: [EXPR [ (1, w2) 0 ]], outputs: []
-        BLACKBOX::RANGE [(w1, 16)] []
+        BRILLIG CALL func: 0, inputs: [w2], outputs: []
+        BLACKBOX::RANGE input: w1, bits: 16
 
         // Another call
-        BRILLIG CALL func 0: inputs: [EXPR [ (1, w2) 0 ]], outputs: []
+        BRILLIG CALL func: 0, inputs: [w2], outputs: []
 
         // One more constraint, but this is redundant.
-        BLACKBOX::RANGE [(w1, 64)] []
+        BLACKBOX::RANGE input: w1, bits: 64
 
         // assert w1 == 0
-        EXPR [ (1, w1) 0 ]
+        ASSERT w1 = 0
         ";
         let circuit = Circuit::from_str(src).unwrap();
+        assert!(CircuitSimulator::check_circuit(&circuit).is_none());
 
         let acir_opcode_positions: Vec<usize> =
             circuit.opcodes.iter().enumerate().map(|(i, _)| i).collect();
@@ -435,18 +483,18 @@ mod tests {
         let optimizer = RangeOptimizer::new(circuit, &brillig_side_effects);
         let (optimized_circuit, _) =
             optimizer.replace_redundant_ranges(acir_opcode_positions.clone());
+        assert!(CircuitSimulator::check_circuit(&optimized_circuit).is_none());
 
-        // `BLACKBOX::RANGE [(w1, 32)] []` remains: The minimum does not propagate backwards.
+        // `BLACKBOX::RANGE [w1]:32 bits []` remains: The minimum does not propagate backwards.
         assert_circuit_snapshot!(optimized_circuit, @r"
-        current witness: w1
-        private parameters: []
+        private parameters: [w1, w2]
         public parameters: []
         return values: []
-        BLACKBOX::RANGE [(w1, 32)] []
-        BRILLIG CALL func 0: inputs: [EXPR [ (1, w2) 0 ]], outputs: []
-        BLACKBOX::RANGE [(w1, 16)] []
-        BRILLIG CALL func 0: inputs: [EXPR [ (1, w2) 0 ]], outputs: []
-        EXPR [ (1, w1) 0 ]
+        BLACKBOX::RANGE input: w1, bits: 32
+        BRILLIG CALL func: 0, inputs: [w2], outputs: []
+        BLACKBOX::RANGE input: w1, bits: 16
+        BRILLIG CALL func: 0, inputs: [w2], outputs: []
+        ASSERT w1 = 0
         ");
 
         // Applying again should have no effect (despite the range having the same bit size as the assert).
@@ -458,29 +506,79 @@ mod tests {
 
     #[test]
     fn array_implied_ranges() {
-        // The optimizer should use knowledge about array lengths and witnesses used to index these to remove range opcodes.
+        // The optimizer should use knowledge about array lengths and witnesses used to index these to remove range opcodes, when possible.
+        // The `BLACKBOX::RANGE` call is removed because its range is larger than the array's length
         let src = "
-        current witness: w1
-        private parameters: []
+        private parameters: [w0, w1]
         public parameters: []
         return values: []
-        BLACKBOX::RANGE [(w1, 16)] []
-        INIT (id: 0, len: 8, witnesses: [w0, w0, w0, w0, w0, w0, w0, w0])
-        MEM (id: 0, read at: EXPR [ (1, w1) 0 ], value: EXPR [ (1, w2) 0 ])
+        BLACKBOX::RANGE input: w1, bits: 16
+        INIT b0 = [w0, w0, w0, w0, w0, w0, w0, w0]
+        READ w2 = b0[w1]
         ";
         let circuit = Circuit::from_str(src).unwrap();
+        assert!(CircuitSimulator::check_circuit(&circuit).is_none());
 
         let acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, _)| i).collect();
         let brillig_side_effects = BTreeMap::new();
         let optimizer = RangeOptimizer::new(circuit, &brillig_side_effects);
         let (optimized_circuit, _) = optimizer.replace_redundant_ranges(acir_opcode_positions);
+        assert!(CircuitSimulator::check_circuit(&optimized_circuit).is_none());
         assert_circuit_snapshot!(optimized_circuit, @r"
-        current witness: w1
-        private parameters: []
+        private parameters: [w0, w1]
         public parameters: []
         return values: []
-        INIT (id: 0, len: 8, witnesses: [w0, w0, w0, w0, w0, w0, w0, w0])
-        MEM (id: 0, read at: EXPR [ (1, w1) 0 ], value: EXPR [ (1, w2) 0 ])
+        INIT b0 = [w0, w0, w0, w0, w0, w0, w0, w0]
+        READ w2 = b0[w1]
         ");
+    }
+
+    #[test]
+    fn large_array_implied_ranges() {
+        // The optimizer should use knowledge about array lengths and witnesses used to index these to remove range opcodes, when possible.
+        // The `BLACKBOX::RANGE` call is not removed because its range is smaller than the array's length
+        let src = "
+        private parameters: [w0, w1]
+        public parameters: []
+        return values: []
+        BLACKBOX::RANGE input: w1, bits: 2
+        INIT b0 = [w0, w0, w0, w0, w0, w0, w0, w0]
+        READ w2 = b0[w1]
+        ";
+        let circuit = Circuit::from_str(src).unwrap();
+        assert!(CircuitSimulator::check_circuit(&circuit).is_none());
+
+        let acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, _)| i).collect();
+        let brillig_side_effects = BTreeMap::new();
+        let optimizer = RangeOptimizer::new(circuit, &brillig_side_effects);
+        let (optimized_circuit, _) = optimizer.replace_redundant_ranges(acir_opcode_positions);
+        assert!(CircuitSimulator::check_circuit(&optimized_circuit).is_none());
+        assert_circuit_snapshot!(optimized_circuit, @r"
+        private parameters: [w0, w1]
+        public parameters: []
+        return values: []
+        BLACKBOX::RANGE input: w1, bits: 2
+        INIT b0 = [w0, w0, w0, w0, w0, w0, w0, w0]
+        READ w2 = b0[w1]
+        ");
+    }
+
+    #[test]
+    #[should_panic(expected = "collect_ranges: attempting to divide -constant by F::zero()")]
+    fn collect_ranges_zero_linear_combination_panics() {
+        let src = "
+        private parameters: [w1]
+        public parameters: []
+        return values: []
+        ";
+        let mut circuit = Circuit::from_str(src).unwrap();
+        let expr = Expression {
+            mul_terms: vec![],
+            linear_combinations: vec![(FieldElement::zero(), Witness(0))],
+            q_c: FieldElement::one(),
+        };
+        let opcode = Opcode::AssertZero(expr);
+        circuit.opcodes.push(opcode);
+        RangeOptimizer::collect_ranges(&circuit);
     }
 }

@@ -175,7 +175,11 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
                 BinaryOp::Add { unchecked: false } => msg == "attempt to add with overflow",
                 BinaryOp::Sub { unchecked: false } => msg == "attempt to subtract with overflow",
                 BinaryOp::Mul { unchecked: false } => msg == "attempt to multiply with overflow",
-                BinaryOp::Shl | BinaryOp::Shr => msg == "attempt to bit-shift with overflow",
+                BinaryOp::Shl | BinaryOp::Shr => {
+                    msg == "attempt to bit-shift with overflow"
+                        || msg == "attempt to shift right with overflow"
+                        || msg == "attempt to shift left with overflow"
+                }
                 _ => false,
             },
             (
@@ -202,7 +206,13 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
                 msg2.as_ref().is_some_and(|msg| msg == msg1)
             }
             (DivisionByZero { .. }, ConstrainEqFailed { msg, .. }) => {
-                msg.as_ref().is_some_and(|msg| msg == "attempt to divide by zero")
+                msg.as_ref().is_some_and(|msg| {
+                    msg == "attempt to divide by zero" || msg.contains("divisor of zero")
+                })
+            }
+            (DivisionByZero { .. }, DivisionByZero { .. }) => {
+                // Signed math in ACIR is expanded to unsigned math. We may have two different `DivisionByZero` errors due to differing types.
+                true
             }
             (PoppedFromEmptySlice { .. }, ConstrainEqFailed { msg, .. }) => {
                 // The removal of unreachable instructions can replace popping from an empty slice with an always-fail constraint.
@@ -289,10 +299,8 @@ fn append_input_value_to_ssa(typ: &AbiType, input: &InputValue, values: &mut Vec
             let num_val = NumericValue::from_constant(*f, num_typ).expect("cannot create constant");
             values.push(Value::Numeric(num_val));
         }
-        InputValue::String(s) => values.push(array_value(
-            vecmap(s.as_bytes(), |b| Value::Numeric(NumericValue::U8(*b))),
-            vec![Type::unsigned(8)],
-        )),
+        InputValue::String(s) => values
+            .push(array_value(vecmap(s.as_bytes(), |b| Value::u8(*b)), vec![Type::unsigned(8)])),
         InputValue::Vec(input_values) => match typ {
             AbiType::Array { length, typ } => {
                 assert_eq!(*length as usize, input_values.len(), "array length != input length");

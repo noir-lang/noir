@@ -1,4 +1,7 @@
-use crate::check_errors;
+use crate::{
+    elaborator::UnstableFeature,
+    tests::{check_errors, get_program_using_features},
+};
 
 #[test]
 fn cannot_mutate_immutable_variable() {
@@ -11,7 +14,7 @@ fn cannot_mutate_immutable_variable() {
 
     fn mutate(_: &mut [Field; 1]) {}
     "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
 #[test]
@@ -31,7 +34,7 @@ fn cannot_mutate_immutable_variable_on_member_access() {
         *foo = 1;
     }
     "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
 #[test]
@@ -47,7 +50,7 @@ fn does_not_crash_when_passing_mutable_undefined_variable() {
         *foo = 1;
     }
     "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
 #[test]
@@ -70,5 +73,37 @@ fn constrained_reference_to_unconstrained() {
         *x = y;
     }
     "#;
-    check_errors!(src);
+    check_errors(src);
+}
+
+#[test]
+fn immutable_references_with_ownership_feature() {
+    let src = r#"
+        unconstrained fn main() {
+            let mut array = [1, 2, 3];
+            borrow(&array);
+        }
+
+        fn borrow(_array: &[Field; 3]) {}
+    "#;
+
+    let (_, _, errors) = get_program_using_features(src, &[UnstableFeature::Ownership]);
+    assert_eq!(errors.len(), 0);
+}
+
+#[test]
+fn immutable_references_without_ownership_feature() {
+    let src = r#"
+        fn main() {
+            let mut array = [1, 2, 3];
+            borrow(&array);
+                   ^^^^^^ This requires the unstable feature 'ownership' which is not enabled
+                   ~~~~~~ Pass -Zownership to nargo to enable this feature at your own risk.
+        }
+
+        fn borrow(_array: &[Field; 3]) {}
+                          ^^^^^^^^^^^ This requires the unstable feature 'ownership' which is not enabled
+                          ~~~~~~~~~~~ Pass -Zownership to nargo to enable this feature at your own risk.
+    "#;
+    check_errors(src);
 }

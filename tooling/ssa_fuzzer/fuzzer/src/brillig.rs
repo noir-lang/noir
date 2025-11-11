@@ -10,6 +10,7 @@ use abstract_vm_integration::{
     TranspileBrilligBytecodeToAbstractVMBytecode, compare_with_abstract_vm,
 };
 use bincode::serde::{borrow_decode_from_slice, encode_to_vec};
+use flate2::read::GzDecoder;
 use fuzz_lib::{
     fuzz_target_lib::fuzz_target,
     fuzzer::FuzzerData,
@@ -21,63 +22,72 @@ use noirc_driver::CompileOptions;
 use noirc_evaluator::ssa::ir::function::RuntimeType;
 use noirc_frontend::monomorphization::ast::InlineType as FrontendInlineType;
 use rand::{SeedableRng, rngs::StdRng};
+use sancov::Counters;
+use serde::Deserialize;
 use serde_json::{Value, json};
 use std::fs;
+use std::io::Read;
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, Command, Stdio};
 use std::sync::{Mutex, OnceLock};
+use std::{collections::HashMap, time::Instant};
 
 lazy_static::lazy_static! {
     static ref SIMULATOR_BIN_PATH: String = std::env::var("SIMULATOR_BIN_PATH").expect("SIMULATOR_BIN_PATH must be set");
     static ref TRANSPILER_BIN_PATH: String = std::env::var("TRANSPILER_BIN_PATH").expect("TRANSPILER_BIN_PATH must be set");
 }
 
+/// Global simulator process that stays alive across calls
+static SIMULATOR_PROCESS: OnceLock<Mutex<Option<SimulatorProcess>>> = OnceLock::new();
+
+/// Global artifacts suffix that stays alive across calls
+static ARTIFACTS_SUFFIX: OnceLock<String> = OnceLock::new();
+
 /// Placeholder for creating a base contract artifact to feed to the transpiler
 fn create_base_contract_artifact() -> Value {
     json!({
-        "noir_version": "1.0.0-beta.11+a92d049c8771332a383aec07474691764c4d90f0-aztec",
+        "noir_version": "1.0.0-beta.15+9eee29a37dc509be15e24777188d87ca38b522f7-aztec",
         "name": "AvmTest",
-        "functions": [{
-            "name": "main2",
-            "hash": "9106907505563584043",
-            "is_unconstrained": true,
-            "custom_attributes": ["public"],
-            "abi": {
-                "parameters": [{
-                    "name": "a",
-                    "type": {
-                        "kind": "integer",
-                        "sign": "unsigned",
-                        "width": 64
-                    },
-                    "visibility": "private"
-                }],
-                "return_type": {
-                    "abi_type": {
-                        "kind": "integer",
-                        "sign": "unsigned",
-                        "width": 64
-                    },
-                    "visibility": "public"
+        "functions": [
+            {
+                "name": "main2",
+                "hash": "11929022434097697943",
+                "is_unconstrained": true,
+                "custom_attributes": ["abi_public"],
+                "abi": {
+                    "parameters": [
+                        {
+                            "name": "a",
+                            "type": {
+                                "kind": "field"
+                            },
+                            "visibility": "private"
+                        }
+                    ],
+                    "return_type": null,
+                    "error_types": {
+                        "15764276373176857197": {
+                            "error_kind": "string",
+                            "string": "Stack too deep"
+                        }
+                    }
                 },
-                "error_types": {
-                    "17843811134343075018": {
-                        "error_kind": "string",
-                        "string": "Stack too deep"
+                "bytecode": "H4sIAAAAAAAA/71UTcrCQAxNderXzx9QN7pQ8QzeQNCNG49Qii0i2CqtirjyUF7BK7jwHu61mmiIIjMKPiiZSfJeMukwFtzQQOu63mYRjNwodifRIogjb5pcfOFsvEzSuIV5Ci3tOcjXBi1YBrmCpZmjc7gW5jhoM0wjq9+g5YjaZvxt35GCRny48lPON/0T5wM+5ND2GF/2kqKIe/4fifOHcVqXcO0Izo9nA9UX9Ukrj73WcV+4fGVce6twOB/N/KDr+3GQJPzMsp93MNHMamrSTBTztUELGdK30WHD83yUqMNjBrXuXNLjD5AtcijO82uijxzjmNyBCuOB0MrD4/1QH+mv+6RL/89maw45B8ppov1n9ckqjT6O+9NhN+iE8pwp+F0/A5sfcHo5BgAA",
+                "debug_symbols": "tZPBboQgEED/hbMHBkHRX9lsDCpuSAgaVps0xn/voGL14J7aCw8c5w1DYCatrqdXZVzXv0n5mEntjbXmVdm+UaPpHX6dCQ0DcFKmCQFByhyRkVIi8g1yQ7GC0Q2wgSGWJSFRWY1e62A81cDKg/LajaR0k7UJ+VJ2Wn96D8qtHJXHKE2Idi0ShZ2xOsyW5Deb3qcC5FLs6QCSikMBNL9I4INEUs6iBB1wSDJ5cbB7R8pEGvvAOc/uHJ+aYQx43AdLIb9tht9LWJoxuUtwzuUhyeHiEH9wINn/HogoYicZ5Ue+wNvxxJVqjL/c6SWYvFG11fuym1xzio7fQ4zENzH4vtHt5HUwnR4Gjg/GE1Y8l1DtBw==",
+                "expression_width": {
+                    "Bounded": {
+                        "width": 4
                     }
                 }
-            },
-            "bytecode": "",
-            "debug_symbols": "dVDNCoQgEH6XOXtIoVp6lYgwm0IQFdOFJXz3HaN228Ne5pvx+5GZHWac0jpqu7gNun6HKWhj9Doap2TUztLrDlUpvIGOM+AtQc4MLsUYA2IR3CwU5GVAG6GzyRgGT2nSIdq8tAdGGYitGKCdCSlw0QZLl9nXXf23cl43j9NOfSs+EaLOeaBJKh1+FsklLWg5GTzHJVl1Y+PLX8x1CB+cwjkFLEm3a1DtRcVEPeTy2xs=",
-            "expression_width": {"Bounded": {"width": 4}}
-        }],
+            }
+        ],
         "outputs": {},
         "file_map": {}
     })
 }
 
 fn transpile(bytecode_base64: String) -> Result<String, String> {
-    let start_time = std::time::Instant::now();
+    let start_time = Instant::now();
     let mut contract = create_base_contract_artifact();
 
     // Set the bytecode in the contract
@@ -92,11 +102,11 @@ fn transpile(bytecode_base64: String) -> Result<String, String> {
     let contract_json = serde_json::to_string(&contract)
         .map_err(|e| format!("Failed to serialize contract: {e}"))?;
 
-    fs::write("contract_artifact.json", contract_json)
+    fs::write(format!("contract_artifact_{}.json", ARTIFACTS_SUFFIX.get().unwrap()), contract_json)
         .map_err(|e| format!("Failed to write contract artifact: {e}"))?;
     let output = Command::new(TRANSPILER_BIN_PATH.as_str())
-        .arg("contract_artifact.json")
-        .arg("output.json")
+        .arg(format!("contract_artifact_{}.json", ARTIFACTS_SUFFIX.get().unwrap()))
+        .arg(format!("output_{}.json", ARTIFACTS_SUFFIX.get().unwrap()))
         .output()
         .map_err(|e| format!("Failed to execute transpiler: {e}"))?;
 
@@ -107,8 +117,9 @@ fn transpile(bytecode_base64: String) -> Result<String, String> {
 
     log::debug!("Transpiler output: {output:?}");
 
-    let output_content = fs::read_to_string("output.json")
-        .map_err(|e| format!("Failed to read output.json: {e}"))?;
+    let output_content =
+        fs::read_to_string(format!("output_{}.json", ARTIFACTS_SUFFIX.get().unwrap()))
+            .map_err(|e| format!("Failed to read output.json: {e}"))?;
 
     let output_json: Value = serde_json::from_str(&output_content)
         .map_err(|e| format!("Failed to parse output.json: {e}"))?;
@@ -121,12 +132,9 @@ fn transpile(bytecode_base64: String) -> Result<String, String> {
         .and_then(|bc| bc.as_str())
         .ok_or("Failed to extract bytecode from output")?;
 
-    log::debug!("Transpilation took: {:?}", start_time.elapsed());
+    log::debug!("Transpilation time: {:?}", start_time.elapsed());
     Ok(bytecode.to_string())
 }
-
-/// Global simulator process that stays alive across calls
-static SIMULATOR_PROCESS: OnceLock<Mutex<Option<SimulatorProcess>>> = OnceLock::new();
 
 struct SimulatorProcess {
     child: Child,
@@ -139,6 +147,13 @@ impl Drop for SimulatorProcess {
         let _ = self.child.kill();
         let _ = self.child.wait();
     }
+}
+
+#[derive(Deserialize)]
+struct SimulatorResponse {
+    reverted: bool,
+    output: Vec<String>,
+    coverage: HashMap<String, u16>,
 }
 
 impl SimulatorProcess {
@@ -159,7 +174,21 @@ impl SimulatorProcess {
         Ok(SimulatorProcess { child, stdin, stdout })
     }
 
-    fn execute(&mut self, bytecode: &str, inputs: &[String]) -> Result<Vec<String>, String> {
+    /// Execute the bytecode with the inputs and return the outputs and the coverage map
+    ///
+    /// Output is in the base64 format, which is gzip compressed json of the following format:
+    /// ```json
+    /// {
+    ///     "reverted":false,
+    ///     "output":["0x0000000000000000000000000000000000000000000000000000000000000001","0x0000000000000000000000000000000000000000000000000000000000000001"],
+    ///     "coverage":{"s_0":1,"f_0":1,"b_0_0":1,"b_0_1":1...
+    /// }
+    /// ```
+    fn execute(
+        &mut self,
+        bytecode: &str,
+        inputs: &[String],
+    ) -> (Result<Vec<String>, String>, HashMap<String, u16>) {
         let request = json!({
             "bytecode": bytecode,
             "inputs": inputs
@@ -168,45 +197,104 @@ impl SimulatorProcess {
         // Send request
         let request_line = format!(
             "{}\n",
-            serde_json::to_string(&request)
-                .map_err(|e| format!("Failed to serialize request: {e}"))?
+            match serde_json::to_string(&request) {
+                Ok(request_line) => request_line,
+                Err(e) => panic!("Failed to serialize request: {e}"),
+            }
         );
         log::debug!("Simulator request: {request_line}");
 
-        self.stdin
+        let result = self
+            .stdin
             .write_all(request_line.as_bytes())
-            .map_err(|e| format!("Failed to write to simulator: {e}"))?;
-        self.stdin.flush().map_err(|e| format!("Failed to flush simulator input: {e}"))?;
+            .map_err(|e| format!("Failed to write to simulator: {e}"));
+        match result {
+            Ok(_) => (),
+            Err(e) => panic!("Failed to write to simulator: {e}"),
+        }
+        let result =
+            self.stdin.flush().map_err(|e| format!("Failed to flush simulator input: {e}"));
+        match result {
+            Ok(_) => (),
+            Err(e) => panic!("Failed to flush simulator input: {e}"),
+        }
 
         // Read response
         log::debug!("Reading response from simulator");
-        let mut response_line = String::new();
-        self.stdout
-            .read_line(&mut response_line)
-            .map_err(|e| format!("Failed to read from simulator: {e}"))?;
-
-        log::debug!("Simulator response: {response_line}");
-
-        let response: Value = serde_json::from_str(response_line.trim())
-            .map_err(|e| format!("Failed to parse simulator response: {e}"))?;
-
-        if let Some(reverted) = response.get("reverted").and_then(|v| v.as_bool()) {
-            if reverted {
-                return Err("Execution reverted".to_string());
-            }
+        let decode_step = Instant::now();
+        let step = Instant::now();
+        let mut response_line_gzip_base64 = String::new();
+        let result = self
+            .stdout
+            .read_line(&mut response_line_gzip_base64)
+            .map_err(|e| format!("Failed to read from simulator: {e}"));
+        log::debug!("Reading response time {:?}", step.elapsed());
+        match result {
+            Ok(_) => (),
+            Err(e) => panic!("Failed to read from simulator: {e}"),
         }
 
-        let outputs = response
-            .get("output")
-            .and_then(|v| v.as_array())
-            .ok_or("Missing output in simulator response")?;
+        let response_line_gzip = match base64::Engine::decode(
+            &base64::engine::general_purpose::STANDARD,
+            response_line_gzip_base64.trim(),
+        )
+        .map_err(|e| format!("Failed to decode simulator response from base64: {e}"))
+        {
+            Ok(response_line) => response_line,
+            Err(e) => {
+                if e.to_string().contains("unexpected end of file") {
+                    log::warn!("Unexpected end of file, recreating simulator");
+                    recreate_simulator().expect("Failed to recreate simulator");
+                    return self.execute(bytecode, inputs);
+                } else {
+                    panic!("Failed to decode simulator response: {e}");
+                }
+            }
+        };
 
-        let result: Result<Vec<String>, String> = outputs
-            .iter()
-            .map(|v| v.as_str().ok_or("Invalid output format".to_string()).map(|s| s.to_string()))
-            .collect();
+        let gz_decode_step = Instant::now();
+        let mut gz_decoder = GzDecoder::new(response_line_gzip.as_slice());
+        let mut response_line = Vec::new();
+        match gz_decoder
+            .read_to_end(&mut response_line)
+            .map_err(|e| format!("Failed to read simulator response: {e}"))
+        {
+            Ok(_) => (),
+            Err(e) => {
+                if e.to_string().contains("unexpected end of file") {
+                    log::warn!("Unexpected end of file, recreating simulator");
+                    recreate_simulator().expect("Failed to recreate simulator");
+                    return self.execute(bytecode, inputs);
+                } else {
+                    panic!("Failed to decode simulator response: {e}");
+                }
+            }
+        };
+        let response_line = String::from_utf8(response_line).unwrap();
+        log::debug!("Gz decoding response time {:?}", gz_decode_step.elapsed());
+        log::debug!("Decoding response time {:?}", decode_step.elapsed());
 
-        result.map_err(|e| format!("Failed to parse output array: {e}"))
+        log::debug!("Simulator response: {}", &response_line[..300]);
+
+        let step = Instant::now();
+        let response: SimulatorResponse = match serde_json::from_str(response_line.trim())
+            .map_err(|e| format!("Failed to parse simulator response: {e}"))
+        {
+            Ok(response) => response,
+            Err(e) => panic!("Failed to parse simulator response: {e}"),
+        };
+        log::debug!("Parsing to json time {:?}", step.elapsed());
+
+        let coverage_map = response.coverage;
+
+        if response.reverted {
+            return (Err("Execution reverted".to_string()), coverage_map);
+        }
+
+        let outputs = response.output;
+        let result: Result<Vec<String>, String> = Ok(outputs);
+
+        (result, coverage_map)
     }
 }
 
@@ -230,20 +318,35 @@ fn get_or_create_simulator()
 }
 
 /// Initialize the simulator process
-fn initialize() {
+fn initialize_simulator() {
     let _mutex = get_or_create_simulator().expect("Failed to create simulator");
 }
 
+/// Initialize the artifacts suffix
+///
+/// This is used to avoid transpiler writing to the same file in multiple threaded fuzzing
+fn initialize_artifacts_suffix() {
+    // Set a random string to the ARTIFACTS_SUFFIX global variable
+    use rand::{Rng, distributions::Alphanumeric};
+
+    let random_string: String =
+        rand::thread_rng().sample_iter(&Alphanumeric).take(16).map(char::from).collect();
+
+    ARTIFACTS_SUFFIX.get_or_init(|| random_string);
+}
 /// Simulate Abstract VM bytecode execution
-fn simulate_abstract_vm(bytecode: String, inputs: Vec<String>) -> Result<Vec<String>, String> {
+fn simulate_abstract_vm(
+    bytecode: String,
+    inputs: Vec<String>,
+) -> (Result<Vec<String>, String>, HashMap<String, u16>) {
     log::debug!(
         "Simulating Abstract VM with bytecode length: {}, inputs: {:?}",
         bytecode.len(),
         inputs
     );
 
-    let mut simulator_guard = get_or_create_simulator()?;
-    let simulator = simulator_guard.as_mut().ok_or("Simulator not initialized")?;
+    let mut simulator_guard = get_or_create_simulator().expect("Failed to create simulator");
+    let simulator = simulator_guard.as_mut().expect("Simulator not initialized");
 
     simulator.execute(&bytecode, &inputs)
 }
@@ -256,8 +359,12 @@ const TARGET_RUNTIMES: [RuntimeType; 1] = [BRILLIG_RUNTIME];
 libfuzzer_sys::fuzz_target!(
     init: {
         println!("Initializing simulator process");
-        initialize();
+        initialize_simulator();
+        initialize_artifacts_suffix();
     }, |data: &[u8]| -> Corpus {
+
+    static COUNTERS: Counters<100000> = Counters::new();
+    COUNTERS.register();
     let _ = env_logger::try_init();
 
     let mut compile_options = CompileOptions::default();
@@ -281,18 +388,22 @@ libfuzzer_sys::fuzz_target!(
     // You can disable some instructions with bugs that are not fixed yet
     let modes = vec![FuzzerMode::NonConstant];
     let instruction_options = InstructionOptions {
-        array_get_enabled: false,
-        array_set_enabled: false,
+        // AVM does not support these instructions
         ecdsa_secp256k1_enabled: false,
         ecdsa_secp256r1_enabled: false,
         blake2s_hash_enabled: false,
         blake3_hash_enabled: false,
         aes128_encrypt_enabled: false,
-        field_to_bytes_to_field_enabled: false,
+        // https://github.com/AztecProtocol/aztec-packages/issues/17182
+        // https://github.com/AztecProtocol/aztec-packages/issues/16948
         point_add_enabled: false,
         multi_scalar_mul_enabled: false,
+        // https://github.com/AztecProtocol/aztec-packages/issues/16944
         shl_enabled: false,
         shr_enabled: false,
+
+        //https://github.com/noir-lang/noir/issues/10035
+        unsafe_get_set_enabled: false,
         ..InstructionOptions::default()
     };
     let fuzzer_command_options =
@@ -307,7 +418,7 @@ libfuzzer_sys::fuzz_target!(
     let fuzzer_data = borrow_decode_from_slice(data, bincode::config::legacy())
         .unwrap_or((FuzzerData::default(), 1337))
         .0;
-    let start = std::time::Instant::now();
+    let start = Instant::now();
     let fuzzer_output = fuzz_target(fuzzer_data, TARGET_RUNTIMES.to_vec(), options);
 
     let transpiler: TranspileBrilligBytecodeToAbstractVMBytecode = Box::new(transpile);

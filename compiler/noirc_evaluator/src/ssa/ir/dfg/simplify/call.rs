@@ -7,15 +7,13 @@ use bn254_blackbox_solver::derive_generators;
 use iter_extended::vecmap;
 use num_bigint::BigUint;
 
-use crate::ssa::{
-    ir::{
-        basic_block::BasicBlockId,
-        dfg::DataFlowGraph,
-        instruction::{ArrayOffset, Binary, BinaryOp, Endian, Hint, Instruction, Intrinsic},
-        types::{NumericType, Type},
-        value::{Value, ValueId},
-    },
-    opt::flatten_cfg::value_merger::ValueMerger,
+use crate::ssa::ir::{
+    basic_block::BasicBlockId,
+    dfg::{DataFlowGraph, simplify::value_merger::ValueMerger},
+    instruction::{Binary, BinaryOp, Endian, Hint, Instruction, Intrinsic},
+    integer::IntegerConstant,
+    types::{NumericType, Type},
+    value::{Value, ValueId},
 };
 
 use super::SimplifyResult;
@@ -94,14 +92,17 @@ pub(super) fn simplify_call(
             }
         }
         Intrinsic::ArrayLen => {
-            if let Some(length) = dfg.try_get_array_length(arguments[0]) {
-                let length = FieldElement::from(u128::from(length));
-                SimplifyResult::SimplifiedTo(dfg.make_constant(length, NumericType::length_type()))
-            } else if matches!(dfg.type_of_value(arguments[1]), Type::Slice(_)) {
-                SimplifyResult::SimplifiedTo(arguments[0])
-            } else {
-                SimplifyResult::None
-            }
+            let length = match dfg.type_of_value(arguments[0]) {
+                Type::Array(_, length) => {
+                    dfg.make_constant(FieldElement::from(length), NumericType::length_type())
+                }
+                Type::Numeric(NumericType::Unsigned { bit_size: 32 }) => {
+                    assert!(matches!(dfg.type_of_value(arguments[1]), Type::Slice(_)));
+                    arguments[0]
+                }
+                _ => panic!("First argument to ArrayLen must be an array or a slice length"),
+            };
+            SimplifyResult::SimplifiedTo(length)
         }
         // Strings are already arrays of bytes in SSA
         Intrinsic::ArrayAsStrUnchecked => SimplifyResult::SimplifiedTo(arguments[0]),
@@ -133,16 +134,28 @@ pub(super) fn simplify_call(
                 // TODO(#2752): We need to handle the element_type size to appropriately handle slices of complex types.
                 // This is reliant on dynamic indices of non-homogenous slices also being implemented.
                 if element_type.element_size() != 1 {
-                    // Old code before implementing multiple slice mergers
-                    for elem in &arguments[2..] {
-                        slice.push_back(*elem);
+                    if let Some(IntegerConstant::Unsigned { value: slice_len, .. }) =
+                        dfg.get_integer_constant(arguments[0])
+                    {
+                        // This simplification, which push back directly on the slice, only works if the real slice_len is the
+                        // the length of the slice.
+                        if slice_len as usize == slice.len() {
+                            // Old code before implementing multiple slice mergers
+                            for elem in &arguments[2..] {
+                                slice.push_back(*elem);
+                            }
+
+                            let new_slice_length =
+                                increment_slice_length(arguments[0], dfg, block, call_stack);
+
+                            let new_slice = make_array(dfg, slice, element_type, block, call_stack);
+                            return SimplifyResult::SimplifiedToMultiple(vec![
+                                new_slice_length,
+                                new_slice,
+                            ]);
+                        }
                     }
-
-                    let new_slice_length =
-                        increment_slice_length(arguments[0], dfg, block, call_stack);
-
-                    let new_slice = make_array(dfg, slice, element_type, block, call_stack);
-                    return SimplifyResult::SimplifiedToMultiple(vec![new_slice_length, new_slice]);
+                    return SimplifyResult::None;
                 }
 
                 simplify_slice_push_back(slice, element_type, arguments, dfg, block, call_stack)
@@ -349,8 +362,15 @@ pub(super) fn simplify_call(
                 SimplifyResult::None
             }
         }
-        Intrinsic::ArrayRefCount => SimplifyResult::None,
-        Intrinsic::SliceRefCount => SimplifyResult::None,
+        Intrinsic::ArrayRefCount | Intrinsic::SliceRefCount => {
+            if dfg.runtime.is_acir() {
+                // In ACIR, ref counts are not tracked so we always simplify them to zero.
+                let zero = dfg.make_constant(FieldElement::zero(), NumericType::unsigned(32));
+                SimplifyResult::SimplifiedTo(zero)
+            } else {
+                SimplifyResult::None
+            }
+        }
     };
 
     if let (Some(expected_types), SimplifyResult::SimplifiedTo(result)) =
@@ -511,7 +531,6 @@ fn simplify_slice_push_back(
         index: arguments[0],
         value: arguments[2],
         mutable: false,
-        offset: ArrayOffset::None,
     };
 
     let set_last_slice_value = dfg
@@ -522,7 +541,7 @@ fn simplify_slice_push_back(
     slice_sizes.insert(set_last_slice_value, slice_size / element_size);
     slice_sizes.insert(new_slice, slice_size / element_size);
 
-    let mut value_merger = ValueMerger::new(dfg, block, &mut slice_sizes, call_stack);
+    let mut value_merger = ValueMerger::new(dfg, block, &slice_sizes, call_stack);
 
     let Ok(new_slice) = value_merger.merge_values(
         len_not_equals_capacity,
@@ -565,11 +584,8 @@ fn simplify_slice_pop_back(
     // Iterating through element types in reverse here since we're popping from the end
     for element_type in element_types.iter().rev() {
         flattened_len = decrement_slice_length(flattened_len, dfg, block, call_stack);
-        let get_last_elem_instr = Instruction::ArrayGet {
-            array: arguments[1],
-            index: flattened_len,
-            offset: ArrayOffset::None,
-        };
+        let get_last_elem_instr =
+            Instruction::ArrayGet { array: arguments[1], index: flattened_len };
 
         let element_type = Some(vec![element_type.clone()]);
         let get_last_elem = dfg
@@ -670,13 +686,7 @@ fn simplify_black_box_func(
             blackbox::simplify_ec_add(dfg, solver, arguments, block, call_stack)
         }
 
-        BlackBoxFunc::BigIntAdd
-        | BlackBoxFunc::BigIntSub
-        | BlackBoxFunc::BigIntMul
-        | BlackBoxFunc::BigIntDiv
-        | BlackBoxFunc::RecursiveAggregation
-        | BlackBoxFunc::BigIntFromLeBytes
-        | BlackBoxFunc::BigIntToLeBytes => SimplifyResult::None,
+        BlackBoxFunc::RecursiveAggregation => SimplifyResult::None,
 
         BlackBoxFunc::AND => {
             unreachable!("ICE: `BlackBoxFunc::AND` calls should be transformed into a `BinaryOp`")
@@ -712,6 +722,14 @@ fn array_is_constant(dfg: &DataFlowGraph, values: &im::Vector<ValueId>) -> bool 
     values.iter().all(|value| dfg.get_numeric_constant(*value).is_some())
 }
 
+/// Replaces a call to `derive_pedersen_generators` with the results of the computation.
+///
+/// It only works if the arguments to the call are both constants, which means that the
+/// function which contains this call needs to be inlined into its caller, where the
+/// arguments are known. This is taken care of by the `#[no_predicates]` attribute,
+/// which forces inlining after flattening.
+///
+/// This intrinsic must not reach Brillig-gen.
 fn simplify_derive_generators(
     dfg: &mut DataFlowGraph,
     arguments: &[ValueId],
@@ -786,5 +804,134 @@ mod tests {
             return v19
         }
         "#);
+    }
+
+    #[test]
+    fn simplifies_array_refcount_in_acir_to_zero() {
+        let src = r#"
+        acir(inline) fn main func {
+          b0(v0: [Field; 3]):
+            v1 = call array_refcount(v0) -> u32
+            return v1
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3]):
+            return u32 0
+        }
+        ");
+    }
+
+    #[test]
+    fn does_not_simplify_array_refcount_in_brillig() {
+        let src = r#"
+        brillig(inline) fn main func {
+          b0(v0: [Field; 3]):
+            v1 = call array_refcount(v0) -> u32
+            return v1
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: [Field; 3]):
+            v2 = call array_refcount(v0) -> u32
+            return v2
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_slice_refcount_in_acir_to_zero() {
+        let src = r#"
+        acir(inline) fn main func {
+          b0(v0: [Field]):
+            v1 = call slice_refcount(u32 3, v0) -> u32
+            return v1
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: [Field]):
+            return u32 0
+        }
+        ");
+    }
+
+    #[test]
+    fn does_not_simplify_slice_refcount_in_brillig() {
+        let src = r#"
+        brillig(inline) fn main func {
+          b0(v0: [Field]):
+            v1 = call slice_refcount(u32 3, v0) -> u32
+            return v1
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: [Field]):
+            v3 = call slice_refcount(u32 3, v0) -> u32
+            return v3
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_array_len_for_array() {
+        let src = r#"
+        acir(inline) fn main func {
+          b0(v0: [Field; 3]):
+            v1 = call array_len(v0) -> u32
+            return v1
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3]):
+            return u32 3
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_array_len_for_slice() {
+        let src = r#"
+        acir(inline) fn main func {
+          b0(v0: u32, v1: [Field]):
+            v2 = call array_len(v0, v1) -> u32
+            return v2
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u32, v1: [Field]):
+            return v0
+        }
+        ");
+    }
+
+    #[should_panic(expected = "First argument to ArrayLen must be an array or a slice length")]
+    #[test]
+    fn panics_on_array_len_with_wrong_type() {
+        let src = r#"
+        acir(inline) fn main func {
+          b0(v0: u64):
+            v2 = call array_len(v0) -> u32
+            return v2
+        }
+        "#;
+        let _ = Ssa::from_str_simplifying(src).unwrap();
     }
 }

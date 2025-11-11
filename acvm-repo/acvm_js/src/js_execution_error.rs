@@ -1,5 +1,5 @@
 use acvm::{
-    FieldElement,
+    AcirField, FieldElement,
     acir::circuit::{OpcodeLocation, brillig::BrilligFunctionId, opcodes::AcirFunctionId},
     pwg::RawAssertionPayload,
 };
@@ -57,8 +57,15 @@ impl JsExecutionError {
             None => JsValue::UNDEFINED,
         };
         let assertion_payload = match assertion_payload {
-            Some(raw) => <JsValue as JsValueSerdeExt>::from_serde(&raw)
-                .expect("Cannot serialize assertion payload"),
+            Some(raw) => {
+                let stringified_raw_payload: RawAssertionPayload<String> = RawAssertionPayload {
+                    selector: raw.selector,
+                    data: raw.data.into_iter().map(|x| x.to_hex()).collect(),
+                };
+
+                <JsValue as JsValueSerdeExt>::from_serde(&stringified_raw_payload)
+                    .expect("Cannot serialize assertion payload")
+            }
             None => JsValue::UNDEFINED,
         };
 

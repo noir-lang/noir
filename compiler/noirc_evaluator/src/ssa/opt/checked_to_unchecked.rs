@@ -47,7 +47,7 @@ impl Function {
 
             let dfg = &context.dfg;
 
-            match binary.operator {
+            let unchecked = match binary.operator {
                 BinaryOp::Add { unchecked: false } => {
                     let bit_size = dfg.type_of_value(lhs).bit_size();
                     let max_lhs_bits = get_max_num_bits(dfg, lhs, &mut value_max_num_bits);
@@ -57,19 +57,14 @@ impl Function {
                     //    value is at most `2^(n-1) - 1`, assuming `n = bit_size`. Adding those
                     //    we get `2^(n-1) - 1 + 2^(n-1) - 1`, so `2*(2^(n-1)) - 2`,
                     //    so `2^n - 2` which fits in `0..2^n`.
-                    if max_lhs_bits < bit_size && max_rhs_bits < bit_size {
-                        // `lhs` and `rhs` have both been casted up from smaller types and so cannot overflow.
-                        let operator = BinaryOp::Add { unchecked: true };
-                        let binary = Binary { operator, ..*binary };
-                        context.replace_current_instruction_with(Instruction::Binary(binary));
-                    }
+                    // In that case, `lhs` and `rhs` have both been casted up from smaller types and so cannot overflow.
+                    max_lhs_bits < bit_size && max_rhs_bits < bit_size
                 }
                 BinaryOp::Sub { unchecked: false } => {
                     let Some(lhs_const) = dfg.get_numeric_constant(lhs) else {
                         return;
                     };
 
-                    let lhs_bits = lhs_const.num_bits();
                     let max_rhs_bits = get_max_num_bits(dfg, rhs, &mut value_max_num_bits);
                     let max_rhs =
                         if max_rhs_bits == 128 { u128::MAX } else { (1 << max_rhs_bits) - 1 };
@@ -79,11 +74,7 @@ impl Function {
                     // 2. `lhs` is the maximum value for the maximum bitsize of `rhs`.
                     //    For example: `lhs` is 1 and `rhs` max bitsize is 1, so at most it's `1 - 1` which cannot overflow.
                     //    Another example: `lhs` is 255 and `rhs` max bitsize is 8, so at most it's `255 - 255` which cannot overflow, etc.
-                    if lhs_bits > max_rhs_bits || (lhs_const == max_rhs.into()) {
-                        let operator = BinaryOp::Sub { unchecked: true };
-                        let binary = Binary { operator, ..*binary };
-                        context.replace_current_instruction_with(Instruction::Binary(binary));
-                    }
+                    lhs_const >= max_rhs.into()
                 }
                 BinaryOp::Mul { unchecked: false } => {
                     let bit_size = dfg.type_of_value(lhs).bit_size();
@@ -95,19 +86,21 @@ impl Function {
                     //    less than or equal to the bit size of the result then it cannot overflow.
                     // 3. lhs was upcasted from a boolean
                     // 4. rhs was upcasted from a boolean
-                    if bit_size == 1
-                        || max_lhs_bits + max_rhs_bits <= bit_size
+                    // So either performing boolean multiplication (which cannot overflow),
+                    // or `lhs` and `rhs` have both been casted up from smaller types and cannot overflow.
+                    max_lhs_bits + max_rhs_bits <= bit_size
                         || max_lhs_bits == 1
                         || max_rhs_bits == 1
-                    {
-                        // Either performing boolean multiplication (which cannot overflow),
-                        // or `lhs` and `rhs` have both been casted up from smaller types and so cannot overflow.
-                        let operator = BinaryOp::Mul { unchecked: true };
-                        let binary = Binary { operator, ..*binary };
-                        context.replace_current_instruction_with(Instruction::Binary(binary));
-                    }
                 }
-                _ => (),
+                _ => false,
+            };
+            if unchecked {
+                let operator = binary.operator.into_unchecked();
+                context.replace_current_instruction_with(Instruction::Binary(Binary {
+                    lhs: binary.lhs,
+                    rhs: binary.rhs,
+                    operator,
+                }));
             }
         });
     }
@@ -144,6 +137,11 @@ fn get_max_num_bits(
                 {
                     // When multiplying two values, if their bitsize is 1 then the result's bitsize will be 1 too
                     1
+                }
+                Instruction::Truncate { value, bit_size, .. } => {
+                    let value_bit_size =
+                        value_bit_size.min(get_max_num_bits(dfg, value, value_max_num_bits));
+                    value_bit_size.min(bit_size)
                 }
                 _ => value_bit_size,
             }
@@ -363,6 +361,30 @@ mod tests {
             v5 = unchecked_mul v3, v4
             v6 = unchecked_mul v2, v5
             return v6
+        }
+        ");
+    }
+
+    #[test]
+    fn checked_to_unchecked_when_adding_two_u32_truncated_to_16_bits() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32, v1: u32):
+            v2 = truncate v0 to 16 bits, max_bit_size: 33
+            v3 = truncate v1 to 16 bits, max_bit_size: 33
+            v4 = add v2, v3
+            return v4
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.checked_to_unchecked();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u32, v1: u32):
+            v2 = truncate v0 to 16 bits, max_bit_size: 33
+            v3 = truncate v1 to 16 bits, max_bit_size: 33
+            v4 = unchecked_add v2, v3
+            return v4
         }
         ");
     }
