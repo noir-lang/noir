@@ -450,12 +450,20 @@ pub fn decode_printable_value<F: AcirField>(
             // So the number of fields are always the same, and we have to consume all of them;
             // the tag tells us which ones are non-default values.
 
-            let mut all_variants: Vec<Vec<PrintableValue<F>>> =
-                vecmap(variants, |(_, variant_types)| {
-                    vecmap(variant_types, |typ| decode_printable_value(field_iterator, typ))
-                });
+            let mut elements = None;
+            for (i, (_, types)) in variants.iter().enumerate() {
+                // We have to consume all elements, so that the item that follows the enum can start at the right place in the iterator.
+                let variant_elements =
+                    vecmap(types, |typ| decode_printable_value(field_iterator, typ));
+                if i == tag {
+                    elements = Some(variant_elements);
+                }
+            }
 
-            PrintableValue::Enum { tag, elements: all_variants.swap_remove(tag) }
+            PrintableValue::Enum {
+                tag,
+                elements: elements.expect("could not find the tag in the variants"),
+            }
         }
     }
 }
