@@ -895,10 +895,15 @@ impl Elaborator<'_> {
             return None;
         }
 
+        let type_name = path.segments[0].ident.as_str();
+        let method_name = path.last_name();
+
+        let mut matches = Vec::new();
+
         for constraint in self.trait_bounds.clone() {
             if let Type::NamedGeneric(NamedGeneric { name, .. }) = &constraint.typ {
                 // if `path` is `T::method_name`, we're looking for constraint of the form `T: SomeTrait`
-                if path.segments[0].ident.as_str() != name.as_str() {
+                if type_name != name.as_str() {
                     continue;
                 }
 
@@ -908,10 +913,27 @@ impl Elaborator<'_> {
                 {
                     let trait_item = TraitItem { definition, constraint, assumed: true };
                     let method = TraitPathResolutionMethod::TraitItem(trait_item);
-                    return Some(TraitPathResolution { method, item: None, errors: Vec::new() });
+                    matches.push((method, the_trait.id));
                 }
             }
         }
+
+        if matches.len() == 1 {
+            let method = matches.remove(0).0;
+            return Some(TraitPathResolution { method, item: None, errors: Vec::new() });
+        }
+
+        if matches.len() > 1 {
+            let location = path.location;
+            let ident = Ident::new(method_name.to_string(), location);
+            let traits = vecmap(matches, |(_, trait_id)| {
+                let trait_ = self.interner.get_trait(trait_id);
+                self.fully_qualified_trait_path(trait_)
+            });
+            self.push_err(PathResolutionError::MultipleTraitsInScope { ident, traits });
+            return None;
+        }
+
         None
     }
 

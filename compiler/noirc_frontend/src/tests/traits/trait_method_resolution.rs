@@ -651,3 +651,32 @@ fn ambiguous_trait_method_multiple_bounds_with_self() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn ambiguous_trait_method_multiple_bounds_without_self() {
+    let src = r#"
+    pub trait One {
+        fn method() {}
+    }
+
+    pub trait Two {
+        fn method() {}
+    }
+
+    pub struct Foo {}
+    impl One for Foo {}
+    impl Two for Foo {}
+
+    fn foo<T: One + Two>() {
+        T::method();
+        ^^^^^^^^^ Multiple applicable items in scope
+        ~~~~~~~~~ All these trait which provide `method` are implemented and in scope: `One`, `Two`
+        ^ Could not resolve 'T' in path
+    }
+
+    fn main() {
+        foo::<Foo>();
+    }
+    "#;
+    check_errors(src);
+}
