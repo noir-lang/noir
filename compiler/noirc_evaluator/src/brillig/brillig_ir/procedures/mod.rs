@@ -38,16 +38,36 @@ use super::{
 /// Procedures receive their arguments on scratch space to avoid stack dumping&restoring.
 #[derive(Debug, Clone, Eq, PartialEq, Hash, PartialOrd, Ord, Deserialize, Serialize)]
 pub enum ProcedureId {
+    /// Conditionally copies a source array to a destination array.
+    /// If the reference count of the source array is 1, then we can directly copy the pointer of the source array to the destination array.
     ArrayCopy,
+    /// Reverses an array in-place.
+    /// It is the responsibility of the caller to ensure the reference count of the array is 1.
     ArrayReverse,
+    /// Conditionally copies a source vector to a destination vector.
+    /// If the reference count of the source vector is 1, then we can directly copy the pointer of the source vector to the destination vector.
     VectorCopy,
+    /// Copy a number of items between two heap addresses.
     MemCopy,
+    /// Prepares a vector for pushing a new item. It tries to reuse the source vector,
+    /// allocating a new vector with a higher capacity and the copy of the source vector items if necessary.
+    ///
+    /// If the parameter is `true` it pushes to the back, otherwise to the front.
     PrepareVectorPush(bool),
+    /// Pops items from the front of a vector, returning the new vector.
+    /// Reuses the source vector if the reference count is 1.
     VectorPopFront,
+    /// Pops items from the back of a vector, returning the new vector and the pointer to the popped items.
+    /// Reuses the source vector if the reference count is 1.
     VectorPopBack,
+    /// Prepare a vector for a insert operation, leaving a hole at the index position, returning a pointer where the item can be written.
     PrepareVectorInsert,
+    /// Remove items at a given index from a vector, returning the new vector.
+    /// Reuses the source vector if the reference count is 1.
     VectorRemove,
+    /// Check that the stack memory has not exceeded the maximum size allowed by the layout.
     CheckMaxStackDepth,
+    /// Revert with the given error message.
     RevertWithString(String),
 }
 
@@ -108,6 +128,8 @@ impl std::fmt::Display for ProcedureId {
     }
 }
 
+/// Compile a procedure as a stand-alone Brillig artifact, generating byte code for a specific operation,
+/// reading and returning arguments through the [ScratchSpace][crate::brillig::brillig_ir::registers::ScratchSpace].
 pub(crate) fn compile_procedure<F: AcirField + DebugToString>(
     procedure_id: ProcedureId,
     options: &BrilligOptions,
