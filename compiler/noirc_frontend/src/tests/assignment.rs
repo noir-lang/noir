@@ -3,9 +3,7 @@
 //! 2. Nested pattern matching, including nested tuples and dereferences
 //! 3. Miscellaneous error cases such as comptime assignment and string indexing
 
-use crate::tests::{
-    assert_no_errors, assert_no_errors_and_to_string, check_errors, get_program_errors,
-};
+use crate::tests::{assert_no_errors, assert_no_errors_and_to_string, check_errors};
 
 // LValue side-effect ordering
 
