@@ -21,7 +21,8 @@
 //! must be elaborated first. It is assumed that the caller of this module has enforced elaborating globals in their dependency order.
 
 use crate::{
-    ast::Pattern,
+    Type,
+    ast::{Pattern, UnresolvedTypeData},
     hir::{def_collector::dc_crate::UnresolvedGlobal, resolution::errors::ResolverError},
     hir_def::stmt::HirStatement,
     node_interner::{DependencyId, GlobalId, GlobalValue},
@@ -69,6 +70,11 @@ impl Elaborator<'_> {
         };
 
         let location = let_stmt.pattern.location();
+        let type_location = if matches!(let_stmt.r#type.typ, UnresolvedTypeData::Unspecified) {
+            location
+        } else {
+            let_stmt.r#type.location
+        };
 
         // ABI attributes are only meaningful within contracts, so error if used elsewhere.
         if !self.in_contract() {
@@ -96,6 +102,12 @@ impl Elaborator<'_> {
         // All data in globals must be owned.
         if let_statement.r#type.contains_reference() {
             self.push_err(ResolverError::ReferencesNotAllowedInGlobals { location });
+        }
+
+        if !let_statement.comptime && matches!(let_statement.r#type, Type::Quoted(_)) {
+            let typ = let_statement.r#type.to_string();
+            let location = type_location;
+            self.push_err(ResolverError::ComptimeTypeInNonComptimeGlobal { typ, location });
         }
 
         let let_statement = HirStatement::Let(let_statement);

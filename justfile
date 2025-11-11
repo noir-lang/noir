@@ -22,7 +22,7 @@ install-binstall:
     curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
   fi
 
-cargo-binstall-args := if ci == "1" { "--force" } else { "" }
+cargo-binstall-args := if ci == "1" { "--force --locked" } else { "--locked" }
 
 # Installs tools necessary for working with Rust code
 install-rust-tools: install-binstall
