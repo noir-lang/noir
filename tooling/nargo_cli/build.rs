@@ -170,12 +170,12 @@ const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 10] = [
     // bug
     "numeric_type_alias",
     "negative_associated_constants",
-    // bug
-    "regression_9116",
     // There's no "src/main.nr" here so it's trickier to make this work
     "overlapping_dep_and_mod",
     // bug
     "regression_9116",
+    // bug
+    "regression_10466",
     // bug
     "trait_associated_constant",
     // There's no "src/main.nr" here so it's trickier to make this work
