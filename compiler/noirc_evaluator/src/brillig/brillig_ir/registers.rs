@@ -677,19 +677,6 @@ impl<A, R: RegisterAllocator> Allocated<A, R> {
         })
     }
 
-    /// Map the `value` to something else that involves allocation.
-    ///
-    /// The resulting value keeps both addresses alive.
-    pub(crate) fn and_then<B>(self, f: impl FnOnce(A) -> Allocated<B, R>) -> Allocated<B, R> {
-        let inner = self.into_inner();
-        let other = f(inner.value).into_inner();
-        Allocated::from_inner(AllocatedInner {
-            value: other.value,
-            addresses: Self::merge_addresses(inner.addresses, other.addresses),
-            registers: inner.registers.or(other.registers),
-        })
-    }
-
     fn merge_addresses(mut a: AddressList, mut b: AddressList) -> AddressList {
         a.append(&mut b);
         a.sort();
