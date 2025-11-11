@@ -72,13 +72,11 @@ pub fn ecdsa_secp256r1_verify(
     let public_key_y_bytes: &[u8; 32] = public_key_y_bytes.try_into().unwrap();
     let signature: &[u8; 64] = signature.try_into().unwrap();
 
-    match acvm::blackbox_solver::ecdsa_secp256r1_verify(
+    acvm::blackbox_solver::ecdsa_secp256r1_verify(
         hashed_msg,
         public_key_x_bytes,
         public_key_y_bytes,
         signature,
-    ) {
-        Ok(valid) => valid,
-        Err(_) => false,
-    }
+    )
+    .unwrap_or_default()
 }
