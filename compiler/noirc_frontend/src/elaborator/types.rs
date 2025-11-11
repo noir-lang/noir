@@ -26,7 +26,7 @@ use crate::{
     hir_def::{
         expr::{
             HirBinaryOp, HirCallExpression, HirExpression, HirLiteral, HirMemberAccess,
-            HirMethodReference, HirPrefixExpression, TraitItem,
+            HirMethodReference, HirPrefixExpression, HirTraitMethodReference, TraitItem,
         },
         function::FuncMeta,
         stmt::HirStatement,
@@ -57,6 +57,7 @@ pub(super) struct TraitPathResolution {
 pub(super) enum TraitPathResolutionMethod {
     NotATraitMethod(FuncId),
     TraitItem(TraitItem),
+    MultipleTraitsInScope,
 }
 
 impl Elaborator<'_> {
@@ -895,24 +896,85 @@ impl Elaborator<'_> {
             return None;
         }
 
+        let type_name = path.segments[0].ident.as_str();
+        let method_name = path.last_name();
+
+        let mut matches = Vec::new();
+
         for constraint in self.trait_bounds.clone() {
             if let Type::NamedGeneric(NamedGeneric { name, .. }) = &constraint.typ {
                 // if `path` is `T::method_name`, we're looking for constraint of the form `T: SomeTrait`
-                if path.segments[0].ident.as_str() != name.as_str() {
+                if type_name != name.as_str() {
                     continue;
                 }
 
                 let the_trait = self.interner.get_trait(constraint.trait_bound.trait_id);
-                if let Some(definition) =
-                    the_trait.find_method_or_constant(path.last_name(), self.interner)
-                {
-                    let trait_item = TraitItem { definition, constraint, assumed: true };
-                    let method = TraitPathResolutionMethod::TraitItem(trait_item);
-                    return Some(TraitPathResolution { method, item: None, errors: Vec::new() });
-                }
+                self.find_methods_or_constants_in_trait(
+                    path,
+                    constraint,
+                    the_trait,
+                    the_trait.id,
+                    &mut matches,
+                );
             }
         }
+
+        if matches.len() == 1 {
+            let method = matches.remove(0).0;
+            return Some(TraitPathResolution { method, item: None, errors: Vec::new() });
+        }
+
+        if matches.len() > 1 {
+            let location = path.location;
+            let ident = Ident::new(method_name.to_string(), location);
+            let traits = vecmap(matches, |(_, trait_id)| {
+                let trait_ = self.interner.get_trait(trait_id);
+                self.fully_qualified_trait_path(trait_)
+            });
+            let errors = vec![PathResolutionError::MultipleTraitsInScope { ident, traits }];
+            return Some(TraitPathResolution {
+                method: TraitPathResolutionMethod::MultipleTraitsInScope,
+                item: None,
+                errors,
+            });
+        }
+
         None
+    }
+
+    fn find_methods_or_constants_in_trait(
+        &self,
+        path: &TypedPath,
+        constraint: TraitConstraint,
+        the_trait: &Trait,
+        starting_trait_id: TraitId,
+        matches: &mut Vec<(TraitPathResolutionMethod, TraitId)>,
+    ) {
+        if let Some(definition) = the_trait.find_method_or_constant(path.last_name(), self.interner)
+        {
+            let trait_item =
+                TraitItem { definition, constraint: constraint.clone(), assumed: true };
+            let method = TraitPathResolutionMethod::TraitItem(trait_item);
+            matches.push((method, the_trait.id));
+        }
+
+        for trait_bound in &the_trait.trait_bounds {
+            let parent_trait = self.interner.get_trait(trait_bound.trait_id);
+            if parent_trait.id == starting_trait_id {
+                // Avoid infinite recursion in case of cyclic trait bounds
+                continue;
+            }
+
+            let constraint =
+                TraitConstraint { typ: constraint.typ.clone(), trait_bound: trait_bound.clone() };
+            self.find_methods_or_constants_in_trait(
+                path,
+                constraint,
+                parent_trait,
+                starting_trait_id,
+                matches,
+            );
+        }
     }
 
     /// This resolves a method in the form `Type::method` where `method` is a trait method
@@ -989,7 +1051,11 @@ impl Elaborator<'_> {
                 let method = TraitPathResolutionMethod::NotATraitMethod(func_id);
                 Some(TraitPathResolution { method, item: None, errors })
             }
-            HirMethodReference::TraitItemId(definition, trait_id, _, _) => {
+            HirMethodReference::TraitItemId(HirTraitMethodReference {
+                definition,
+                trait_id,
+                ..
+            }) => {
                 let trait_ = self.interner.get_trait(trait_id);
                 let mut constraint = trait_.as_constraint(location);
                 constraint.typ = typ.clone();
@@ -2001,9 +2067,14 @@ impl Elaborator<'_> {
 
         // Return a TraitMethodId with unbound generics. These will later be bound by the type-checker.
         let trait_ = self.interner.get_trait(trait_id);
-        let generics = trait_.get_trait_generics(location);
-        let trait_method_id = trait_.find_method(method_name, self.interner).unwrap();
-        HirMethodReference::TraitItemId(trait_method_id, trait_id, generics, false)
+        let trait_generics = trait_.get_trait_generics(location);
+        let definition = trait_.find_method(method_name, self.interner).unwrap();
+        HirMethodReference::TraitItemId(HirTraitMethodReference {
+            definition,
+            trait_id,
+            trait_generics,
+            assumed: false,
+        })
     }
 
     /// Assuming that we are currently elaborating a function, try to look up a method in:
@@ -2031,39 +2102,81 @@ impl Elaborator<'_> {
             if Some(object_type) == self.self_type.as_ref() {
                 let the_trait = self.interner.get_trait(trait_id);
                 let constraint = the_trait.as_constraint(the_trait.name.location());
-                if let Some(HirMethodReference::TraitItemId(method_id, trait_id, generics, _)) =
-                    self.lookup_method_in_trait(
-                        the_trait,
-                        method_name,
-                        &constraint.trait_bound,
-                        the_trait.id,
-                    )
-                {
+                let mut matches = self.lookup_methods_in_trait(
+                    the_trait,
+                    method_name,
+                    &constraint.trait_bound,
+                    the_trait.id,
+                );
+                if matches.len() == 1 {
+                    let method = matches.remove(0);
                     // If it is, it's an assumed trait
                     // Note that here we use the `trait_id` from `TraitItemId` because looking a method on a trait
                     // might return a method on a parent trait.
-                    return Some(HirMethodReference::TraitItemId(
-                        method_id, trait_id, generics, true,
-                    ));
+                    return Some(HirMethodReference::TraitItemId(HirTraitMethodReference {
+                        assumed: true,
+                        ..method
+                    }));
+                }
+                if matches.len() > 1 {
+                    return self.handle_trait_method_lookup_matches(
+                        object_type,
+                        method_name,
+                        location,
+                        object_location,
+                        matches,
+                    );
                 }
             }
         }
+
+        let mut matches = Vec::new();
 
         for constraint in func_meta.all_trait_constraints() {
             if *object_type == constraint.typ {
                 if let Some(the_trait) =
                     self.interner.try_get_trait(constraint.trait_bound.trait_id)
                 {
-                    if let Some(method) = self.lookup_method_in_trait(
+                    let trait_matches = self.lookup_methods_in_trait(
                         the_trait,
                         method_name,
                         &constraint.trait_bound,
                         the_trait.id,
-                    ) {
-                        return Some(method);
-                    }
+                    );
+                    matches.extend(trait_matches);
                 }
             }
+        }
+
+        self.handle_trait_method_lookup_matches(
+            object_type,
+            method_name,
+            location,
+            object_location,
+            matches,
+        )
+    }
+
+    fn handle_trait_method_lookup_matches(
+        &mut self,
+        object_type: &Type,
+        method_name: &str,
+        location: Location,
+        object_location: Location,
+        mut matches: Vec<HirTraitMethodReference>,
+    ) -> Option<HirMethodReference> {
+        if matches.len() == 1 {
+            return Some(HirMethodReference::TraitItemId(matches.remove(0)));
+        }
+
+        if matches.len() > 1 {
+            let ident = Ident::new(method_name.to_string(), location);
+            let traits = vecmap(matches, |method| {
+                let trait_ = self.interner.get_trait(method.trait_id);
+                self.fully_qualified_trait_path(trait_)
+            });
+            self.push_err(PathResolutionError::MultipleTraitsInScope { ident, traits });
+            return None;
         }
 
         if object_type.is_bindable() {
@@ -2081,18 +2194,27 @@ impl Elaborator<'_> {
         None
     }
 
-    fn lookup_method_in_trait(
+    /// Looks up a method in the given trait and its parent traits, recursively.
+    /// Multiple matches are possible if a method with the same name exists in, for example,
+    /// a child and its parent.
+    fn lookup_methods_in_trait(
         &self,
         the_trait: &Trait,
         method_name: &str,
         trait_bound: &ResolvedTraitBound,
         starting_trait_id: TraitId,
-    ) -> Option<HirMethodReference> {
+    ) -> Vec<HirTraitMethodReference> {
+        let mut matches = Vec::new();
+
         if let Some(trait_method) = the_trait.find_method(method_name, self.interner) {
             let trait_generics = trait_bound.trait_generics.clone();
-            let trait_item_id =
-                HirMethodReference::TraitItemId(trait_method, the_trait.id, trait_generics, false);
-            return Some(trait_item_id);
+            let trait_method = HirTraitMethodReference {
+                definition: trait_method,
+                trait_id: the_trait.id,
+                trait_generics,
+                assumed: false,
+            };
+            matches.push(trait_method);
         }
 
         // Search in the parent traits, if any
@@ -2105,18 +2227,17 @@ impl Elaborator<'_> {
 
                 let parent_trait_bound =
                     self.instantiate_parent_trait_bound(trait_bound, parent_trait_bound);
-                if let Some(method) = self.lookup_method_in_trait(
+                let parent_matches = self.lookup_methods_in_trait(
                     the_trait,
                     method_name,
                     &parent_trait_bound,
                     starting_trait_id,
-                ) {
-                    return Some(method);
-                }
+                );
+                matches.extend(parent_matches);
             }
         }
 
-        None
+        matches
     }
 
     pub(super) fn type_check_call(
