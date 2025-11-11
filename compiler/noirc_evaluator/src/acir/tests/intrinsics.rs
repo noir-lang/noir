@@ -175,6 +175,64 @@ fn slice_pop_back() {
 }
 
 #[test]
+fn slice_pop_back_zero_length() {
+    let src = "
+    acir(inline) predicate_pure fn main f0 {
+      b0(v0: u32, v1: u1):
+        v7 = make_array [] : [Field]
+        enable_side_effects v1
+        v9, v10, v11 = call slice_pop_back(u32 0, v7) -> (u32, [Field], Field)
+        return
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    // An SSA with constant zero slice length should be removed in the "Remove unreachable instructions" pass,
+    // however if it wasn't, we'd still want to generate a runtime constraint failure.
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0, w1]
+    public parameters: []
+    return values: []
+    BLACKBOX::RANGE input: w0, bits: 32
+    BLACKBOX::RANGE input: w1, bits: 1
+    ASSERT 0 = 1
+    ");
+}
+
+#[test]
+fn slice_pop_back_unknown_length() {
+    let src = "
+    acir(inline) predicate_pure fn main f0 {
+      b0(v0: u32, v1: u1):
+        v5 = cast v1 as u32
+        v6 = unchecked_mul u32 1, v5
+        v7 = make_array [Field 1]: [Field]
+        enable_side_effects v1
+        v9, v10, v11 = call slice_pop_back(v6, v7) -> (u32, [Field], Field)
+        return
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    // In practice the multiplication will come from flattening, resulting in a slice
+    // that can have a semantic length of 0, but only when the side effects are disabled;
+    // popping should not fail in such a scenario.
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0, w1]
+    public parameters: []
+    return values: []
+    BLACKBOX::RANGE input: w0, bits: 32
+    BLACKBOX::RANGE input: w1, bits: 1
+    ASSERT w2 = 1
+    INIT b0 = [w2]
+    ASSERT w3 = w1*w1 - w1
+    READ w4 = b0[w3]
+    ");
+}
+
+#[test]
 fn slice_pop_front() {
     let src = "
     acir(inline) predicate_pure fn main f0 {
@@ -444,7 +502,7 @@ fn slice_push_front_not_affected_by_predicate() {
 }
 
 #[test]
-fn slice_pop_back_not_affected_by_predicate() {
+fn slice_pop_back_positive_length_not_affected_by_predicate() {
     let src_side_effects = "
     acir(inline) predicate_pure fn main f0 {
       b0(v0: u32, v1: u1):
@@ -470,6 +528,60 @@ fn slice_pop_back_not_affected_by_predicate() {
     let program_side_effects = ssa_to_acir_program(src_side_effects);
     let program_no_side_effects = ssa_to_acir_program(src_no_side_effects);
     assert_eq!(program_side_effects, program_no_side_effects);
+}
+
+#[test]
+fn slice_pop_back_zero_length_not_affected_by_predicate() {
+    let src_side_effects = "
+    acir(inline) predicate_pure fn main f0 {
+      b0(v0: u32, v1: u1):
+        v7 = make_array [] : [Field]
+        enable_side_effects v1
+        v9, v10, v11 = call slice_pop_back(u32 0, v7) -> (u32, [Field], Field)
+        return
+    }
+    ";
+    let src_no_side_effects = "
+    acir(inline) predicate_pure fn main f0 {
+      b0(v0: u32, v1: u1):
+        v7 = make_array [] : [Field]
+        v9, v10, v11 = call slice_pop_back(u32 0, v7) -> (u32, [Field], Field)
+        return
+    }
+    ";
+
+    let program_side_effects = ssa_to_acir_program(src_side_effects);
+    let program_no_side_effects = ssa_to_acir_program(src_no_side_effects);
+    assert_eq!(program_side_effects, program_no_side_effects);
+}
+
+#[test]
+fn slice_pop_back_unknown_length_affected_by_predicate() {
+    let src_side_effects = "
+    acir(inline) predicate_pure fn main f0 {
+      b0(v0: u32, v1: u1):
+        v4 = cast v1 as u32
+        v5 = unchecked_mul u32 1, v4
+        v7 = make_array [Field 1] : [Field]
+        enable_side_effects v1
+        v9, v10, v11 = call slice_pop_back(v5, v7) -> (u32, [Field], Field)
+        return
+    }
+    ";
+    let src_no_side_effects = "
+    acir(inline) predicate_pure fn main f0 {
+      b0(v0: u32, v1: u1):
+        v4 = cast v1 as u32
+        v5 = unchecked_mul u32 1, v4
+        v7 = make_array [Field 1] : [Field]
+        v9, v10, v11 = call slice_pop_back(v5, v7) -> (u32, [Field], Field)
+        return
+    }
+    ";
+
+    let program_side_effects = ssa_to_acir_program(src_side_effects);
+    let program_no_side_effects = ssa_to_acir_program(src_no_side_effects);
+    assert_ne!(program_side_effects, program_no_side_effects);
 }
 
 #[test]

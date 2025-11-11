@@ -202,7 +202,7 @@ impl VariableLiveness {
         back_edges: LoopMap,
     ) -> Self {
         // First pass, propagate up the live_ins skipping back edges.
-        self.compute_live_in_recursive(func, func.entry_block(), constants, &back_edges);
+        self.compute_live_in(func, func.entry_block(), constants, &back_edges);
 
         // Second pass, propagate header live_ins to the loop bodies.
         for (back_edge, loop_body) in back_edges {
@@ -218,54 +218,94 @@ impl VariableLiveness {
     /// The variables live at the *beginning* of a block are the variables used by the block,
     /// plus the variables used by the successors of the block, minus the variables defined
     /// in the block (by definition not alive at the beginning).
-    fn compute_live_in_recursive(
+    ///
+    /// This is an iterative implementation to avoid stack overflows on complex programs.
+    fn compute_live_in(
         &mut self,
         func: &Function,
-        block_id: BasicBlockId,
+        entry_block: BasicBlockId,
         constants: &ConstantAllocation,
         back_edges: &LoopMap,
     ) {
-        let block = &func.dfg[block_id];
-        let mut live_out = HashSet::default();
+        // Each entry is (block_id, processing_state)
+        // processing_state: false = need to process successors, true = ready to compute live_in
+        let mut stack = vec![(entry_block, false)];
+        let mut visited = HashSet::default();
 
-        // Collect the `live_in` of successors; their union is the `live_in` of the parent.
-        for successor_id in block.successors() {
-            // Skip back edges: do not revisit the header of the loop, to avoid infinite recursion.
-            // Because of this, we will have to revisit this block, to complete its definition of live_out,
-            // once we know what the live_in of the header is.
-            if back_edges.contains_key(&BackEdge { start: block_id, header: successor_id }) {
-                continue;
+        while let Some((block_id, processed)) = stack.pop() {
+            if processed {
+                // All successors have been processed, now compute live_in for this block
+                let block = &func.dfg[block_id];
+                let mut live_out = HashSet::default();
+
+                // Collect the `live_in` of successors; their union is the `live_out` of the parent.
+                for successor_id in block.successors() {
+                    // Skip back edges: do not revisit the header of the loop
+                    if back_edges.contains_key(&BackEdge { start: block_id, header: successor_id })
+                    {
+                        continue;
+                    }
+                    // Add the live_in of the successor to the union that forms the live_out of the parent.
+                    live_out.extend(
+                        self.live_in
+                            .get(&successor_id)
+                            .expect("live_in for successor should have been calculated")
+                            .iter()
+                            .copied(),
+                    );
+                }
+
+                // Based on the paper mentioned in the module docs, the definition would be:
+                // live_in[BlockId] = before_def[BlockId] union (live_out[BlockId] - killed[BlockId])
+
+                // Variables used in this block, defined in this block or before.
+                let used = variables_used_in_block(block, &func.dfg);
+
+                // Variables defined in this block are not alive at the beginning.
+                let defined = self.variables_defined_in_block(block_id, &func.dfg, constants);
+
+                // Live at the beginning are the variables used, but not defined in this block, plus the ones
+                // it passes through to its successors, which are used by them, but not defined here.
+                // (Variables used by successors and defined in this block are part of `live_out`, but not `live_in`).
+                let live_in =
+                    used.union(&live_out).filter(|v| !defined.contains(v)).copied().collect();
+
+                self.live_in.insert(block_id, live_in);
+            } else {
+                // First visit: check if we've already processed this block
+                if !visited.insert(block_id) {
+                    continue;
+                }
+
+                let block = &func.dfg[block_id];
+
+                // Check if all successors (except back edges) have been processed
+                let mut all_successors_processed = true;
+                let mut unprocessed_successors = Vec::new();
+
+                for successor_id in block.successors() {
+                    // Skip back edges
+                    if back_edges.contains_key(&BackEdge { start: block_id, header: successor_id })
+                    {
+                        continue;
+                    }
+                    // If successor hasn't been processed yet, we need to process it first
+                    if !self.live_in.contains_key(&successor_id) {
+                        all_successors_processed = false;
+                        unprocessed_successors.push(successor_id);
+                    }
+                }
+
+                // Push this block back with processed = true (for after successors)
+                stack.push((block_id, true));
+                if !all_successors_processed {
+                    // Push unprocessed successors with processed = false
+                    for successor_id in unprocessed_successors {
+                        stack.push((successor_id, false));
+                    }
+                }
             }
-            // If we haven't visited this successor yet, dive in.
-            if !self.live_in.contains_key(&successor_id) {
-                self.compute_live_in_recursive(func, successor_id, constants, back_edges);
-            }
-            // Add the live_in of the successor to the union that forms the live_out of the parent.
-            // Note that because we skipped the back-edge, we couldn't call `get_live_out` here.
-            live_out.extend(
-                self.live_in
-                    .get(&successor_id)
-                    .expect("live_in for successor should have been calculated")
-                    .iter()
-                    .copied(),
-            );
         }
-
-        // Based on the paper mentioned in the module docs, the definition would be:
-        // live_in[BlockId] = before_def[BlockId] union (live_out[BlockId] - killed[BlockId])
-
-        // Variables used in this block, defined in this block or before.
-        let used = variables_used_in_block(block, &func.dfg);
-
-        // Variables defined in this block are not alive at the beginning.
-        let defined = self.variables_defined_in_block(block_id, &func.dfg, constants);
-
-        // Live at the beginning are the variables used, but not defined in this block, plus the ones
-        // it passes through to its successors, which are used by them, but not defined here.
-        // (Variables used by successors and defined in this block are part of `live_out`, but not `live_in`).
-        let live_in = used.union(&live_out).filter(|v| !defined.contains(v)).copied().collect();
-
-        self.live_in.insert(block_id, live_in);
     }
 
     /// Collects all the variables defined in a block, which includes:
@@ -363,7 +403,9 @@ mod test {
     use noirc_frontend::monomorphization::ast::InlineType;
     use rustc_hash::FxHashSet;
 
+    use crate::assert_artifact_snapshot;
     use crate::brillig::brillig_gen::constant_allocation::ConstantAllocation;
+    use crate::brillig::brillig_gen::tests::ssa_to_brillig_artifacts;
     use crate::brillig::brillig_gen::variable_liveness::VariableLiveness;
     use crate::ssa::function_builder::FunctionBuilder;
     use crate::ssa::ir::basic_block::BasicBlockId;
@@ -728,5 +770,248 @@ mod test {
 
     fn block_ids<const N: usize>() -> [BasicBlockId; N] {
         std::array::from_fn(|i| BasicBlockId::new(i as u32))
+    }
+
+    #[test]
+    fn test_entry_block_parameters() {
+        // Entry block parameters are allocated in the entry block itself
+        // but are not in the live-in set (no predecessor to pass them).
+        // The entry block defines its own parameters via defined_block_params().
+        //
+        // SSA v0 (entry parameter) → Brillig sp[1]
+        // SSA v1 (result of add) → Brillig sp[3] (line 2: result of add stored in sp[3])
+        // Line 3: sp[1] = sp[3] moves v1 to return position
+        let src = "
+        brillig(inline) fn main f0 {
+        b0(v0: Field):
+            v1 = add v0, Field 10
+            return v1
+        }
+        ";
+        let brillig = ssa_to_brillig_artifacts(src);
+        let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
+
+        assert_artifact_snapshot!(main, @r"
+        fn main
+        0: call 0
+        1: sp[2] = const field 10
+        2: sp[3] = field add sp[1], sp[2]
+        3: sp[1] = sp[3]
+        4: return
+        ");
+    }
+
+    #[test]
+    fn test_last_use_deallocation() {
+        // When a variable reaches its last use, its register is deallocated
+        // and can be reused for subsequent variables. This is tracked per-instruction
+        // via get_last_uses().
+        //
+        // SSA v0 (entry parameter) → Brillig sp[1]
+        // SSA v1 (v0 + 1) → Brillig sp[3] (line 2: result). v0 dies after this, sp[1] freed
+        // SSA v2 (v1 + 2) → Brillig sp[2] (line 4: result, reuses sp[1]). v1 dies, sp[3] freed
+        // SSA v3 (v2 + 3) → Brillig sp[3] (line 6: result, reuses freed sp[3]). v2 dies
+        // Line 7: sp[1] = sp[3] moves v3 to return position
+        // Register reuse: sp[1] freed after v0, reused for v2; sp[3] freed after v1, reused for v3
+        let src = "
+        brillig(inline) fn main f0 {
+        b0(v0: Field):
+            v1 = add v0, Field 1
+            v2 = add v1, Field 2
+            v3 = add v2, Field 3
+            return v3
+        }
+        ";
+        let brillig = ssa_to_brillig_artifacts(src);
+        let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
+
+        assert_artifact_snapshot!(main, @r"
+        fn main
+        0: call 0
+        1: sp[2] = const field 1
+        2: sp[3] = field add sp[1], sp[2]
+        3: sp[1] = const field 2
+        4: sp[2] = field add sp[3], sp[1]
+        5: sp[1] = const field 3
+        6: sp[3] = field add sp[2], sp[1]
+        7: sp[1] = sp[3]
+        8: return
+        ");
+    }
+
+    #[test]
+    fn test_loop_liveness() {
+        // Variables live in the loop header must remain alive throughout the loop body
+        // because the back edge jumps back to the header.
+        //
+        // SSA v0 (loop bound) → Brillig sp[1]
+        // SSA v1 (loop variable, b1's parameter) → Brillig sp[2] (allocated in b0)
+        // Line 3: sp[2] = sp[3] initializes v1 to 0
+        // Line 5 (b1 header): sp[3] = lt sp[2], sp[1] tests v1 < v0
+        // Line 10 (b2 body): sp[3] = add sp[2], sp[4] computes v1 + 1
+        // Line 14: sp[2] = sp[3] updates v1 for next iteration
+        // Line 15: jump back to b1
+        // v0 (sp[1]) stays alive throughout loop (used at line 5 each iteration)
+        // Back edge at line 15 ensures b1's live-in includes both v0 and v1
+        let src = "
+        brillig(inline) fn main f0 {
+        b0(v0: u32):
+            jmp b1(u32 0)
+        b1(v1: u32):
+            v2 = lt v1, v0
+            jmpif v2 then: b2, else: b3
+        b2():
+            v3 = add v1, u32 1
+            jmp b1(v3)
+        b3():
+            return v1
+        }
+        ";
+        let brillig = ssa_to_brillig_artifacts(src);
+        let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
+        assert_artifact_snapshot!(main, @r"
+        fn main
+         0: call 0
+         1: sp[3] = const u32 0
+         2: sp[4] = const u32 1
+         3: sp[2] = sp[3]
+         4: jump to 0
+         5: sp[3] = u32 lt sp[2], sp[1]
+         6: jump if sp[3] to 0
+         7: jump to 0
+         8: sp[1] = sp[2]
+         9: return
+        10: sp[3] = u32 add sp[2], sp[4]
+        11: sp[5] = u32 lt_eq sp[2], sp[3]
+        12: jump if sp[5] to 0
+        13: call 0
+        14: sp[2] = sp[3]
+        15: jump to 0
+        ");
+    }
+
+    #[test]
+    fn test_block_parameters() {
+        // Multiple predecessors pass different values (42 and v2) to the same parameter.
+        // The parameter must be allocated in the immediate dominator (v1: allocated to sp[2] in b0),
+        // and each predecessor generates a mov to that register.
+        //
+        // SSA v0 (condition) → Brillig sp[1]
+        // SSA v1 (b3's parameter) → Brillig sp[2] (allocated in b0, dominator of b3)
+        // SSA v2 (27 + 42) → Brillig sp[4] (line 7: result of add)
+        // Field 42 constant → sp[3] (line 1)
+        // Line 2: jmpif sp[1] branches to b1 or b2
+        // Line 4 (b2 path): sp[2] = sp[3] moves constant 42 into v1's register
+        // Line 8 (b1 path): sp[2] = sp[4] moves v2 into v1's register
+        // Line 10 (b3): sp[1] = sp[2] prepares return
+        let src = "
+        brillig(inline) fn main f0 {
+        b0(v0: u1):
+            jmpif v0 then: b1, else: b2
+        b1():
+            v2 = add Field 27, Field 42
+            jmp b3(v2)
+        b2():
+            jmp b3(Field 42)
+        b3(v1: Field):
+            return v1
+        }
+        ";
+        let brillig = ssa_to_brillig_artifacts(src);
+        let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
+        assert_artifact_snapshot!(main, @r"
+        fn main
+         0: call 0
+         1: sp[3] = const field 42
+         2: jump if sp[1] to 0
+         3: jump to 0
+         4: sp[2] = sp[3]
+         5: jump to 0
+         6: sp[1] = const field 27
+         7: sp[4] = field add sp[1], sp[3]
+         8: sp[2] = sp[4]
+         9: jump to 0
+        10: sp[1] = sp[2]
+        11: return
+        ");
+    }
+
+    #[test]
+    fn test_constants_liveness() {
+        // Constant SSA values are also included in liveness analysis
+        // Only hoisted global constants are filtered out.
+        //
+        // SSA v0 (entry parameter) → Brillig sp[1]
+        // SSA Field 100 constant → Brillig sp[2] (line 1: allocated on-demand via constant_allocation)
+        // SSA v1 (v0 + 100) → Brillig sp[3] (line 2: result)
+        // After line 2: Field 100 reaches its LAST USE, sp[2] is deallocated
+        // SSA Field 200 constant → Brillig sp[2] (line 3: REUSES sp[2])
+        // SSA v2 (v0 * 200) → Brillig sp[4] (line 4: result)
+        // SSA v3 (v1 + v2) → Brillig sp[1] (line 5: result, reuses sp[1] after v0 dies)
+        //
+        let src = "
+        brillig(inline) fn main f0 {
+        b0(v0: Field):
+            v1 = add v0, Field 100
+            v2 = mul v0, Field 200
+            v3 = add v1, v2
+            return v3
+        }
+        ";
+        let brillig = ssa_to_brillig_artifacts(src);
+        let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
+        assert_artifact_snapshot!(main, @r"
+        fn main
+        0: call 0
+        1: sp[2] = const field 100
+        2: sp[3] = field add sp[1], sp[2]
+        3: sp[2] = const field 200
+        4: sp[4] = field mul sp[1], sp[2]
+        5: sp[1] = field add sp[3], sp[4]
+        6: return
+        ");
+    }
+
+    #[test]
+    fn test_terminator_arguments_stay_alive() {
+        // Arguments to terminator instructions must remain alive until the terminator executes.
+        // They cannot be deallocated in the last instruction of the block.
+        //
+        // SSA v0 (entry parameter) → Brillig sp[1]
+        // SSA v1 (v0 + 1) → Brillig sp[4] (line 2: result)
+        // SSA v2 (v1 + 2) → Brillig sp[3] (line 4: result)
+        // SSA v3 (v2 * 3) → Brillig sp[4] (line 6: result, last instruction before terminator)
+        // SSA v4 (b1's parameter) → Brillig sp[2] (allocated in b0)
+        // Line 7: sp[2] = sp[4] copies v3 into v4's register (terminator argument)
+        // Line 8: jump to b1
+        // v3 cannot be marked as dead at line 6 because it's used in terminator at line 7
+        // This ensures v3's register (sp[4]) stays valid throughout the copy instruction
+        let src = "
+        brillig(inline) fn main f0 {
+        b0(v0: Field):
+            v1 = add v0, Field 1
+            v2 = add v1, Field 2
+            v3 = mul v2, Field 3
+            jmp b1(v3)
+        b1(v4: Field):
+            return v4
+        }
+        ";
+        let brillig = ssa_to_brillig_artifacts(src);
+        let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
+        assert_artifact_snapshot!(main, @r"
+        fn main
+         0: call 0
+         1: sp[3] = const field 1
+         2: sp[4] = field add sp[1], sp[3]
+         3: sp[1] = const field 2
+         4: sp[3] = field add sp[4], sp[1]
+         5: sp[1] = const field 3
+         6: sp[4] = field mul sp[3], sp[1]
+         7: sp[2] = sp[4]
+         8: jump to 0
+         9: sp[1] = sp[2]
+        10: return
+        ");
     }
 }

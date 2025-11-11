@@ -1,3 +1,7 @@
+//! Various helpers for implementing built-in functions in the comptime interpreter.
+//!
+//! These functions may implement error checking for argument count, type-check an
+//! argument for a specific type, returning its value, etc.
 use std::hash::Hash;
 use std::{hash::Hasher, rc::Rc};
 
@@ -604,6 +608,7 @@ fn secondary_attribute_name(
         SecondaryAttributeKind::Varargs => Some("varargs".to_string()),
         SecondaryAttributeKind::UseCallersScope => Some("use_callers_scope".to_string()),
         SecondaryAttributeKind::Allow(_) => Some("allow".to_string()),
+        SecondaryAttributeKind::MustUse(_) => Some("must_use".to_string()),
     }
 }
 

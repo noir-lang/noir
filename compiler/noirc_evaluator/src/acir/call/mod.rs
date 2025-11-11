@@ -201,7 +201,7 @@ impl Context<'_> {
                             // len holds the non-flattened length of all elements in the slice,
                             // so here we need to divide by the non-flattened length of a single
                             // slice entry
-                            if item_types.len() == 0 { 0 } else { array.len() / item_types.len() }
+                            if item_types.is_empty() { 0 } else { array.len() / item_types.len() }
                         }
                         _ => unreachable!("ICE: Slice value is not an array"),
                     };

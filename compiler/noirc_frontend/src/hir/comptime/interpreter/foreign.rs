@@ -1,3 +1,5 @@
+//! The foreign function counterpart to `interpreter/builtin.rs`, defines how to call
+//! all foreign functions available to the interpreter.
 use acvm::{
     AcirField, BlackBoxResolutionError, FieldElement, acir::BlackBoxFunc,
     blackbox_solver::BlackBoxFunctionSolver,
@@ -45,7 +47,9 @@ impl Interpreter<'_, '_> {
     }
 }
 
-// Similar to `evaluate_black_box` in `brillig_vm`.
+/// Calls the given foreign function.
+///
+/// Similar to `evaluate_black_box` in `brillig_vm`.
 fn call_foreign(
     interner: &mut NodeInterner,
     name: &str,
@@ -207,7 +211,15 @@ fn embedded_curve_add(
     let (p2x, p2y, p2inf) = get_embedded_curve_point(point2)?;
 
     let (x, y, inf) = Bn254BlackBoxSolver(pedantic_solving)
-        .ec_add(&p1x, &p1y, &p1inf.into(), &p2x, &p2y, &p2inf.into())
+        .ec_add(
+            &p1x,
+            &p1y,
+            &p1inf.into(),
+            &p2x,
+            &p2y,
+            &p2inf.into(),
+            true, // Predicate is always true as interpreter has control flow to handle false case
+        )
         .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
 
     Ok(Value::Array(
@@ -244,7 +256,12 @@ fn multi_scalar_mul(
     }
 
     let (x, y, inf) = Bn254BlackBoxSolver(pedantic_solving)
-        .multi_scalar_mul(&points, &scalars_lo, &scalars_hi)
+        .multi_scalar_mul(
+            &points,
+            &scalars_lo,
+            &scalars_hi,
+            true, // Predicate is always true as interpreter has control flow to handle false case
+        )
         .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
 
     let embedded_curve_point_typ = match &return_type {

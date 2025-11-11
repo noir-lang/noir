@@ -58,6 +58,7 @@ pub(crate) enum PathResolutionItem {
 }
 
 impl PathResolutionItem {
+    /// Return a [FuncId] if the item refers to some kind of function, otherwise `None`.
     pub(crate) fn function_id(&self) -> Option<FuncId> {
         match self {
             PathResolutionItem::ModuleFunction(func_id)
@@ -181,7 +182,7 @@ pub struct TypedPath {
     pub segments: Vec<TypedPathSegment>,
     pub kind: PathKind,
     pub location: Location,
-    // The location of `kind` (this is the same as `location` for plain kinds)
+    /// The location of `kind` (this is the same as `location` for plain kinds)
     pub kind_location: Location,
 }
 
@@ -229,6 +230,7 @@ impl TypedPath {
         self.segments.last().unwrap().ident.as_str()
     }
 
+    /// Returns `Some` if the [TypedPath] consists of a single [PathKind::Plain] segment, otherwise `None`.
     pub fn as_single_segment(&self) -> Option<&TypedPathSegment> {
         if self.kind == PathKind::Plain && self.segments.len() == 1 {
             self.segments.first()
@@ -258,7 +260,7 @@ pub struct TypedPathSegment {
 }
 
 impl TypedPathSegment {
-    /// Returns the span where turbofish happen. For example:
+    /// Returns the span where turbofish can happen. For example:
     ///
     /// ```noir
     ///    foo::<T>
@@ -268,12 +270,16 @@ impl TypedPathSegment {
     /// Returns an empty span at the end of `foo` if there's no turbofish.
     pub fn turbofish_span(&self) -> Span {
         if self.ident.location().file == self.location.file {
+            // The `location` contains both the `ident` and the potential turbofish.
             Span::from(self.ident.span().end()..self.location.span.end())
         } else {
             self.location.span
         }
     }
 
+    /// [Location] of any turbofish in the segment.
+    ///
+    /// The [Span] will be empty if there was no turbofish.
     pub fn turbofish_location(&self) -> Location {
         Location::new(self.turbofish_span(), self.location.file)
     }
@@ -300,6 +306,7 @@ impl std::fmt::Display for TypedPathSegment {
 }
 
 impl Elaborator<'_> {
+    /// Try to resolve a [TypedPath] into a [PathResolutionItem], marking it as _referenced_.
     pub(super) fn resolve_path_or_error(
         &mut self,
         path: TypedPath,
@@ -308,6 +315,7 @@ impl Elaborator<'_> {
         self.resolve_path_or_error_inner(path, target, PathResolutionMode::MarkAsReferenced)
     }
 
+    /// Try to resolve a [TypedPath] into a [PathResolutionItem], marking it as _used_.
     pub(super) fn use_path_or_error(
         &mut self,
         path: TypedPath,
@@ -316,6 +324,9 @@ impl Elaborator<'_> {
         self.resolve_path_or_error_inner(path, target, PathResolutionMode::MarkAsUsed)
     }
 
+    /// Try to resolve a [TypedPath] into a [PathResolutionItem].
+    ///
+    /// Pushes the `errors` from the [PathResolution], returning only the `item`.
     pub(super) fn resolve_path_or_error_inner(
         &mut self,
         path: TypedPath,
@@ -324,13 +335,12 @@ impl Elaborator<'_> {
     ) -> Result<PathResolutionItem, ResolverError> {
         let path_resolution = self.resolve_path_inner(path, target, mode)?;
 
-        for error in path_resolution.errors {
-            self.push_err(error);
-        }
+        self.push_errors(path_resolution.errors);
 
         Ok(path_resolution.item)
     }
 
+    /// Try to resolve a [TypedPath] into a [PathResolution] with [PathResolutionTarget::Type], marking it as _referenced_.
     pub(super) fn resolve_path_as_type(&mut self, path: TypedPath) -> PathResolutionResult {
         self.resolve_path_inner(
             path,
@@ -339,6 +349,7 @@ impl Elaborator<'_> {
         )
     }
 
+    /// Try to resolve a [TypedPath] into a [PathResolution] with [PathResolutionTarget::Type], marking it as _used_.
     pub(super) fn use_path_as_type(&mut self, path: TypedPath) -> PathResolutionResult {
         self.resolve_path_inner(path, PathResolutionTarget::Type, PathResolutionMode::MarkAsUsed)
     }

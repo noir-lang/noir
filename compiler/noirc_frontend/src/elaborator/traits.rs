@@ -351,7 +351,7 @@ impl Elaborator<'_> {
             return Vec::new();
         };
 
-        let the_trait = self.get_trait_mut(trait_id);
+        let the_trait = self.get_trait(trait_id);
 
         if the_trait.associated_types.len() > bound.trait_generics.named_args.len() {
             let trait_name = the_trait.name.to_string();

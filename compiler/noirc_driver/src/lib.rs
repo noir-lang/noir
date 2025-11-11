@@ -44,7 +44,7 @@ pub use contract::{CompiledContract, CompiledContractOutputs, ContractFunction};
 pub use debug::DebugFile;
 pub use noirc_frontend::graph::{CrateId, CrateName};
 pub use program::CompiledProgram;
-pub use stdlib::stdlib_paths_with_source;
+pub use stdlib::{stdlib_nargo_toml_source, stdlib_paths_with_source};
 
 const STD_CRATE_NAME: &str = "std";
 const DEBUG_CRATE_NAME: &str = "__debug";
@@ -58,7 +58,7 @@ pub const NOIRC_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const NOIR_ARTIFACT_VERSION_STRING: &str =
     concat!(env!("CARGO_PKG_VERSION"), "+", env!("GIT_COMMIT"));
 
-#[derive(Args, Clone, Debug, Default)]
+#[derive(Args, Clone, Debug)]
 pub struct CompileOptions {
     /// Specify the backend expression width that should be targeted
     #[arg(long, value_parser = parse_expression_width)]
@@ -230,6 +230,47 @@ pub struct CompileOptions {
     /// Used internally to avoid comptime println from producing output
     #[arg(long, hide = true)]
     pub disable_comptime_printing: bool,
+}
+
+impl Default for CompileOptions {
+    fn default() -> Self {
+        Self {
+            expression_width: None,
+            bounded_codegen: false,
+            force_compile: false,
+            show_ssa: false,
+            show_ssa_pass: Vec::new(),
+            with_ssa_locations: false,
+            show_contract_fn: None,
+            skip_ssa_pass: Vec::new(),
+            emit_ssa: false,
+            minimal_ssa: false,
+            show_brillig: false,
+            print_acir: false,
+            benchmark_codegen: false,
+            deny_warnings: false,
+            silence_warnings: false,
+            show_monomorphized: false,
+            instrument_debug: false,
+            force_brillig: false,
+            debug_comptime_in_file: None,
+            show_artifact_paths: false,
+            skip_underconstrained_check: false,
+            skip_brillig_constraints_check: false,
+            enable_brillig_debug_assertions: false,
+            count_array_copies: false,
+            enable_brillig_constraints_check_lookback: false,
+            inliner_aggressiveness: i64::MAX,
+            constant_folding_max_iter: CONSTANT_FOLDING_MAX_ITER,
+            small_function_max_instructions: INLINING_MAX_INSTRUCTIONS,
+            max_bytecode_increase_percent: None,
+            pedantic_solving: false,
+            debug_compile_stdin: false,
+            unstable_features: Vec::new(),
+            no_unstable_features: false,
+            disable_comptime_printing: false,
+        }
+    }
 }
 
 impl CompileOptions {

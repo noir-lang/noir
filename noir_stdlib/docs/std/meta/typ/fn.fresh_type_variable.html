@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../../../styles.css">
+<title>Function fresh_type_variable documentation</title>
+</head>
+<body>
+<nav class="sidebar">
+<h1><a href="../../../index.html">noir_stdlib</a></h1>
+<div><a href="../../../all.html">All items</a></div>
+<h2 id="crate-name"><a href="../../index.html">std</a></h2>
+<div id="crate-version">1.0.0-beta.14</div>
+<h2>In module typ</h2>
+<h3>Functions</h3><ul class="item-list">
+<li><a href="fn.fresh_type_variable.html">fresh_type_variable</a></div></li>
+</ul>
+</nav>
+<main>
+<div><a href="../../../index.html">noir_stdlib</a> - <a href="../../index.html">std</a>::<a href="../index.html">meta</a>::<a href="index.html">typ</a></div>
+<h1>Function <span class="fn">fresh_type_variable</span></h1>
+<pre><code>pub comptime fn fresh_type_variable() -> <a href="../../../std/primitive.Type.html" class="primitive">Type</a></code></pre>
+
+<div class="comments">
+<p>Creates and returns an unbound type variable. This is a special kind of type internal
+to type checking which will type check with any other type. When it is type checked
+against another type it will also be set to that type. For example, if <code>a</code> is a type
+variable and we have the type equality <code>(a, i32) = (u8, i32)</code>, the compiler will set
+<code>a</code> equal to <code>u8</code>.</p>
+<p>Unbound type variables will often be rendered as <code>_</code> while printing them. Bound type
+variables will appear as the type they are bound to.</p>
+<p>This can be used in conjunction with functions which internally perform type checks
+such as <code>Type::implements</code> or <code>Type::get_trait_impl</code> to potentially grab some of the types used.</p>
+<p>Note that calling <code>Type::implements</code> or <code>Type::get_trait_impl</code> on a type variable will always
+fail.</p>
+<p>Example:</p>
+<pre><code class="language-noir">trait Serialize&lt;let N: u32&gt; {}
+
+impl Serialize&lt;1&gt; for Field {}
+
+impl&lt;T, let N: u32, let M: u32&gt; Serialize&lt;N * M&gt; for [T; N]
+    where T: Serialize&lt;M&gt; {}
+
+impl&lt;T, U, let N: u32, let M: u32&gt; Serialize&lt;N + M&gt; for (T, U)
+    where T: Serialize&lt;N&gt;, U: Serialize&lt;M&gt; {}
+
+fn fresh_variable_example() {
+    let typevar1 = std::meta::typ::fresh_type_variable();
+    let constraint = quote { Serialize&lt;$typevar1&gt; }.as_trait_constraint();
+    let field_type = quote { Field }.as_type();
+
+    // Search for a trait impl (binding typevar1 to 1 when the impl is found):
+    assert(field_type.implements(constraint));
+
+    // typevar1 should be bound to the &quot;1&quot; generic now:
+    assert_eq(typevar1.as_constant().unwrap(), 1);
+
+    // If we want to do the same with a different type, we need to
+    // create a new type variable now that `typevar1` is bound
+    let typevar2 = std::meta::typ::fresh_type_variable();
+    let constraint = quote { Serialize&lt;$typevar2&gt; }.as_trait_constraint();
+    let array_type = quote { [(Field, Field); 5] }.as_type();
+    assert(array_type.implements(constraint));
+
+    // Now typevar2 should be bound to the serialized pair size 2 times the array length 5
+    assert_eq(typevar2.as_constant().unwrap(), 10);
+}
+</code></pre>
+</div>
+</main>
+</body>
+</html>
