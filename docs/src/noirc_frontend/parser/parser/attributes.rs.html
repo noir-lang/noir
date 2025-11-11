@@ -863,31 +863,7 @@
 <a href="#862" id="862">862</a>
 <a href="#863" id="863">863</a>
 <a href="#864" id="864">864</a>
-<a href="#865" id="865">865</a>
-<a href="#866" id="866">866</a>
-<a href="#867" id="867">867</a>
-<a href="#868" id="868">868</a>
-<a href="#869" id="869">869</a>
-<a href="#870" id="870">870</a>
-<a href="#871" id="871">871</a>
-<a href="#872" id="872">872</a>
-<a href="#873" id="873">873</a>
-<a href="#874" id="874">874</a>
-<a href="#875" id="875">875</a>
-<a href="#876" id="876">876</a>
-<a href="#877" id="877">877</a>
-<a href="#878" id="878">878</a>
-<a href="#879" id="879">879</a>
-<a href="#880" id="880">880</a>
-<a href="#881" id="881">881</a>
-<a href="#882" id="882">882</a>
-<a href="#883" id="883">883</a>
-<a href="#884" id="884">884</a>
-<a href="#885" id="885">885</a>
-<a href="#886" id="886">886</a>
-<a href="#887" id="887">887</a>
-<a href="#888" id="888">888</a>
-<a href="#889" id="889">889</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
+<a href="#865" id="865">865</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use </span><span class="kw">crate</span>::ast::{Expression, ExpressionKind, Ident, Literal, Path};
 <span class="kw">use </span><span class="kw">crate</span>::lexer::errors::LexerErrorKind;
@@ -1032,15 +1008,7 @@
     }
 
     <span class="kw">fn </span>parse_non_tag_attribute(<span class="kw-2">&amp;mut </span><span class="self">self</span>, start_location: Location) -&gt; Attribute {
-        <span class="kw">if </span><span class="macro">matches!</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.token.token(), Token::Keyword(..))
-            &amp;&amp; (<span class="self">self</span>.next_is(Token::LeftParen) || <span class="self">self</span>.next_is(Token::RightBracket))
-        {
-            <span class="comment">// This is a Meta attribute with the syntax `keyword(arg1, arg2, .., argN)`
-            </span><span class="kw">let </span>path = Path::from_single(<span class="self">self</span>.token.to_string(), <span class="self">self</span>.current_token_location);
-            <span class="kw">let </span>name = MetaAttributeName::Path(path);
-            <span class="self">self</span>.bump();
-            <span class="self">self</span>.parse_meta_attribute(name, start_location)
-        } <span class="kw">else if let </span><span class="prelude-val">Some</span>(path) = <span class="self">self</span>.parse_path_no_turbofish() {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(path) = <span class="self">self</span>.parse_path_no_turbofish() {
             <span class="kw">if let </span><span class="prelude-val">Some</span>(ident) = path.as_ident() {
                 <span class="kw">if </span>ident.as_str() == <span class="string">"test" </span>{
                     <span class="comment">// The test attribute is the only secondary attribute that has `a = b` in its syntax
@@ -1650,22 +1618,6 @@
             <span class="macro">panic!</span>(<span class="string">"Expected meta attribute"</span>);
         };
         <span class="macro">assert_eq!</span>(meta.name.to_string(), <span class="string">"foo"</span>);
-        <span class="macro">assert!</span>(meta.arguments.is_empty());
-    }
-
-    <span class="attr">#[test]
-    </span><span class="kw">fn </span>parses_meta_attribute_single_identifier_as_keyword() {
-        <span class="kw">let </span>src = <span class="string">"#[dep]"</span>;
-        <span class="kw">let </span><span class="kw-2">mut </span>parser = Parser::for_str_with_dummy_file(src);
-        <span class="kw">let </span>(attribute, _span) = parser.parse_attribute().unwrap();
-        expect_no_errors(<span class="kw-2">&amp;</span>parser.errors);
-        <span class="kw">let </span>Attribute::Secondary(attribute) = attribute <span class="kw">else </span>{
-            <span class="macro">panic!</span>(<span class="string">"Expected secondary attribute"</span>);
-        };
-        <span class="kw">let </span>SecondaryAttributeKind::Meta(meta) = attribute.kind <span class="kw">else </span>{
-            <span class="macro">panic!</span>(<span class="string">"Expected meta attribute"</span>);
-        };
-        <span class="macro">assert_eq!</span>(meta.name.to_string(), <span class="string">"dep"</span>);
         <span class="macro">assert!</span>(meta.arguments.is_empty());
     }
 
