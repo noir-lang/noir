@@ -1599,13 +1599,7 @@
 <a href="#1598" id="1598">1598</a>
 <a href="#1599" id="1599">1599</a>
 <a href="#1600" id="1600">1600</a>
-<a href="#1601" id="1601">1601</a>
-<a href="#1602" id="1602">1602</a>
-<a href="#1603" id="1603">1603</a>
-<a href="#1604" id="1604">1604</a>
-<a href="#1605" id="1605">1605</a>
-<a href="#1606" id="1606">1606</a>
-<a href="#1607" id="1607">1607</a></pre></div><pre class="rust"><code><span class="doccomment">//! Expression elaboration, covering all expression [kinds][ExpressionKind].
+<a href="#1601" id="1601">1601</a></pre></div><pre class="rust"><code><span class="doccomment">//! Expression elaboration, covering all expression [kinds][ExpressionKind].
 
 </span><span class="kw">use </span>std::collections::HashMap;
 
@@ -2096,7 +2090,10 @@
         });
         <span class="kw">let </span>expr_id = <span class="self">self</span>.intern_expr(expr, location);
 
-        <span class="kw">let </span>typ = <span class="kw">if </span>skip_op {
+        <span class="comment">// If `skip_op` is set we already know we have a mutable reference due to a member access on a mutable reference.
+        // The prefix operand type rules will return the result of a prefix operation.
+        // We do not want to check the prefix operand type rules as we will then get a type mismatch.
+        </span><span class="kw">let </span>typ = <span class="kw">if </span>skip_op {
             rhs_type
         } <span class="kw">else </span>{
             <span class="kw">let </span>result = <span class="self">self</span>.prefix_operand_type_rules(<span class="kw-2">&amp;</span>operator, <span class="kw-2">&amp;</span>rhs_type, location);
@@ -2215,7 +2212,9 @@
         <span class="kw">let </span>is_macro_call = call.is_macro_call;
         <span class="kw">let </span>(func, func_type) = <span class="self">self</span>.elaborate_expression(<span class="kw-2">*</span>call.func);
         <span class="kw">let </span>func_type = func_type.follow_bindings();
-        <span class="kw">let </span>func_arg_types =
+        <span class="comment">// Even if the function type is a Type::Error, we still want to elaborate the call's function arguments.
+        // Thus, we simply return None here for the argument types rather than returning early.
+        </span><span class="kw">let </span>func_arg_types =
             <span class="kw">if let </span>Type::Function(args, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>) = <span class="kw-2">&amp;</span>func_type { <span class="prelude-val">Some</span>(args) } <span class="kw">else </span>{ <span class="prelude-val">None </span>};
 
         <span class="kw">let </span><span class="kw-2">mut </span>arguments = Vec::with_capacity(call.arguments.len());
@@ -2241,19 +2240,15 @@
             (typ, arg, location)
         });
 
-        <span class="comment">// Avoid cloning arguments unless this is a macro call
-        </span><span class="kw">let </span><span class="kw-2">mut </span>comptime_args = Vec::new();
-        <span class="kw">if </span>is_macro_call {
-            comptime_args = arguments.clone();
-        }
-
         <span class="kw">let </span>hir_call = HirCallExpression { func, arguments, location, is_macro_call };
         <span class="kw">let </span><span class="kw-2">mut </span>typ = <span class="self">self</span>.type_check_call(<span class="kw-2">&amp;</span>hir_call, func_type, args, location);
-
-        <span class="kw">if </span>is_macro_call {
+        <span class="comment">// Macro calls that aren't in comptime context should be evaluated and their
+        // result should be inlined rather than keeping the call.
+        </span><span class="kw">if </span>is_macro_call {
             <span class="kw">if </span><span class="self">self</span>.in_comptime_context() {
                 typ = <span class="self">self</span>.interner.next_type_variable();
             } <span class="kw">else </span>{
+                <span class="kw">let </span>comptime_args = hir_call.arguments;
                 <span class="kw">return </span><span class="self">self
                     </span>.call_macro(func, comptime_args, location, typ)
                     .unwrap_or((HirExpression::Error, Type::Error));
@@ -2276,124 +2271,119 @@
         <span class="kw">let </span>method_name_location = method_call.method_name.location();
         <span class="kw">let </span>method_name = method_call.method_name.as_str();
         <span class="kw">let </span>check_self_param = <span class="bool-val">true</span>;
-        <span class="kw">match </span><span class="self">self</span>.lookup_method(
+
+        <span class="kw">let </span>method_ref = <span class="self">self</span>.lookup_method(
             <span class="kw-2">&amp;</span>object_type,
             method_name,
             location,
             object_location,
             check_self_param,
-        ) {
-            <span class="prelude-val">Some</span>(method_ref) =&gt; {
-                <span class="comment">// Automatically add `&amp;mut` if the method expects a mutable reference and
-                // the object is not already one.
-                </span><span class="kw">let </span>func_id = method_ref
-                    .func_id(<span class="self">self</span>.interner)
-                    .expect(<span class="string">"Expected trait function to be a DefinitionKind::Function"</span>);
+        );
+        <span class="kw">let </span><span class="prelude-val">Some</span>(method_ref) = method_ref <span class="kw">else </span>{
+            <span class="kw">return </span>(HirExpression::Error, Type::Error);
+        };
 
-                <span class="kw">let </span>generics = <span class="kw">if </span>func_id != FuncId::dummy_id() {
-                    <span class="kw">let </span>function_type = <span class="self">self</span>.interner.function_meta(<span class="kw-2">&amp;</span>func_id).typ.clone();
-                    <span class="self">self</span>.try_add_mutable_reference_to_object(
-                        <span class="kw-2">&amp;</span>function_type,
-                        <span class="kw-2">&amp;mut </span>object_type,
-                        <span class="kw-2">&amp;mut </span>object,
-                    );
-                    <span class="kw">let </span>generics = method_call.generics;
-                    <span class="kw">let </span>generics = generics.map(|generics| {
-                        vecmap(generics, |generic| {
-                            <span class="kw">let </span>location = generic.location;
-                            <span class="kw">let </span>wildcard_allowed = <span class="bool-val">true</span>;
-                            <span class="kw">let </span>typ =
-                                <span class="self">self</span>.use_type_with_kind(generic, <span class="kw-2">&amp;</span>Kind::Any, wildcard_allowed);
-                            Located::from(location, typ)
-                        })
-                    });
-                    <span class="self">self</span>.resolve_function_turbofish_generics(<span class="kw-2">&amp;</span>func_id, generics, location)
-                } <span class="kw">else </span>{
-                    <span class="prelude-val">None
-                </span>};
+        <span class="comment">// Automatically add `&amp;mut` if the method expects a mutable reference and
+        // the object is not already one.
+        </span><span class="kw">let </span>func_id = method_ref
+            .func_id(<span class="self">self</span>.interner)
+            .expect(<span class="string">"Expected trait function to be a DefinitionKind::Function"</span>);
 
-                <span class="kw">let </span>location = object_location.merge(method_name_location);
+        <span class="kw">let </span>generics = <span class="kw">if </span>func_id != FuncId::dummy_id() {
+            <span class="kw">let </span>function_type = <span class="self">self</span>.interner.function_meta(<span class="kw-2">&amp;</span>func_id).typ.clone();
+            <span class="self">self</span>.try_add_mutable_reference_to_object(<span class="kw-2">&amp;</span>function_type, <span class="kw-2">&amp;mut </span>object_type, <span class="kw-2">&amp;mut </span>object);
+            <span class="kw">let </span>generics = method_call.generics;
+            <span class="kw">let </span>generics = generics.map(|generics| {
+                vecmap(generics, |generic| {
+                    <span class="kw">let </span>location = generic.location;
+                    <span class="kw">let </span>wildcard_allowed = <span class="bool-val">true</span>;
+                    <span class="kw">let </span>typ = <span class="self">self</span>.use_type_with_kind(generic, <span class="kw-2">&amp;</span>Kind::Any, wildcard_allowed);
+                    Located::from(location, typ)
+                })
+            });
+            <span class="self">self</span>.resolve_function_turbofish_generics(<span class="kw-2">&amp;</span>func_id, generics, location)
+        } <span class="kw">else </span>{
+            <span class="prelude-val">None
+        </span>};
 
-                <span class="kw">let </span>(function_id, function_name) = method_ref.clone().into_function_id_and_name(
-                    object_type.clone(),
-                    generics.clone(),
-                    location,
-                    <span class="self">self</span>.interner,
-                );
+        <span class="kw">let </span>location = object_location.merge(method_name_location);
 
-                <span class="kw">let </span>func_type =
-                    <span class="self">self</span>.type_check_variable(function_name.clone(), <span class="kw-2">&amp;</span>function_id, generics.clone());
+        <span class="kw">let </span>(function_id, function_name) = method_ref.clone().into_function_id_and_name(
+            object_type.clone(),
+            generics.clone(),
+            location,
+            <span class="self">self</span>.interner,
+        );
 
-                <span class="kw">let </span>function_id = <span class="self">self</span>.intern_expr_type(function_id, func_type.clone());
+        <span class="kw">let </span>func_type =
+            <span class="self">self</span>.type_check_variable(function_name.clone(), <span class="kw-2">&amp;</span>function_id, generics.clone());
 
-                <span class="kw">let </span>func_arg_types =
-                    <span class="kw">if let </span>Type::Function(args, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>) = <span class="kw-2">&amp;</span>func_type { <span class="prelude-val">Some</span>(args) } <span class="kw">else </span>{ <span class="prelude-val">None </span>};
+        <span class="kw">let </span>function_id = <span class="self">self</span>.intern_expr_type(function_id, func_type.clone());
 
-                <span class="comment">// Try to unify the object type with the first argument of the function.
-                // The reason to do this is that many methods that take a lambda will yield `self` or part of `self`
-                // as a parameter. By unifying `self` with the first argument we'll potentially get more
-                // concrete types in the arguments that are function types, which will later be passed as
-                // lambda parameter hints.
-                </span><span class="kw">if let </span><span class="prelude-val">Some</span>(first_arg_type) = func_arg_types.and_then(|args| args.first()) {
-                    <span class="kw">let _ </span>= first_arg_type.unify(<span class="kw-2">&amp;</span>object_type);
-                }
+        <span class="kw">let </span>func_arg_types =
+            <span class="kw">if let </span>Type::Function(args, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>) = <span class="kw-2">&amp;</span>func_type { <span class="prelude-val">Some</span>(args) } <span class="kw">else </span>{ <span class="prelude-val">None </span>};
 
-                <span class="comment">// These arguments will be given to the desugared function call.
-                // Compared to the method arguments, they also contain the object.
-                </span><span class="kw">let </span><span class="kw-2">mut </span>function_args = Vec::with_capacity(method_call.arguments.len() + <span class="number">1</span>);
-                <span class="kw">let </span><span class="kw-2">mut </span>arguments = Vec::with_capacity(method_call.arguments.len());
-
-                function_args.push((object_type.clone(), object, object_location));
-
-                <span class="kw">for </span>(arg_index, arg) <span class="kw">in </span>method_call.arguments.into_iter().enumerate() {
-                    <span class="kw">let </span>location = arg.location;
-                    <span class="kw">let </span>expected_type = func_arg_types.and_then(|args| args.get(arg_index + <span class="number">1</span>));
-                    <span class="kw">let </span>(arg, typ) = <span class="self">self</span>.elaborate_expression_with_target_type(arg, expected_type);
-
-                    <span class="comment">// Try to unify this argument type against the function's argument type
-                    // so that a potential lambda following this argument can have more concrete types.
-                    </span><span class="kw">if let </span><span class="prelude-val">Some</span>(expected_type) = expected_type {
-                        <span class="kw">let _ </span>= expected_type.unify(<span class="kw-2">&amp;</span>typ);
-                    }
-
-                    arguments.push(arg);
-                    function_args.push((typ, arg, location));
-                }
-
-                <span class="kw">let </span>method = method_call.method_name;
-                <span class="kw">let </span>is_macro_call = method_call.is_macro_call;
-                <span class="kw">let </span>method_call =
-                    HirMethodCallExpression { method, object, arguments, location, generics };
-
-                <span class="self">self</span>.check_method_call_visibility(func_id, <span class="kw-2">&amp;</span>object_type, <span class="kw-2">&amp;</span>method_call.method);
-
-                <span class="comment">// Desugar the method call into a normal, resolved function call
-                // so that the backend doesn't need to worry about methods
-                // TODO: update object_type here?
-
-                </span><span class="kw">let </span>function_call =
-                    method_call.into_function_call(function_id, is_macro_call, location);
-
-                <span class="self">self</span>.interner.add_function_reference(func_id, method_name_location);
-
-                <span class="comment">// Type check the new call now that it has been changed from a method call
-                // to a function call. This way we avoid duplicating code.
-                </span><span class="kw">let </span><span class="kw-2">mut </span>typ =
-                    <span class="self">self</span>.type_check_call(<span class="kw-2">&amp;</span>function_call, func_type, function_args, location);
-                <span class="kw">if </span>is_macro_call {
-                    <span class="kw">if </span><span class="self">self</span>.in_comptime_context() {
-                        typ = <span class="self">self</span>.interner.next_type_variable();
-                    } <span class="kw">else </span>{
-                        <span class="kw">let </span>args = function_call.arguments.clone();
-                        <span class="kw">return </span><span class="self">self
-                            </span>.call_macro(function_call.func, args, location, typ)
-                            .unwrap_or((HirExpression::Error, Type::Error));
-                    }
-                }
-                (HirExpression::Call(function_call), typ)
-            }
-            <span class="prelude-val">None </span>=&gt; (HirExpression::Error, Type::Error),
+        <span class="comment">// Try to unify the object type with the first argument of the function.
+        // The reason to do this is that many methods that take a lambda will yield `self` or part of `self`
+        // as a parameter. By unifying `self` with the first argument we'll potentially get more
+        // concrete types in the arguments that are function types, which will later be passed as
+        // lambda parameter hints.
+        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(first_arg_type) = func_arg_types.and_then(|args| args.first()) {
+            <span class="kw">let _ </span>= first_arg_type.unify(<span class="kw-2">&amp;</span>object_type);
         }
+
+        <span class="comment">// These arguments will be given to the desugared function call.
+        // Compared to the method arguments, they also contain the object.
+        </span><span class="kw">let </span><span class="kw-2">mut </span>function_args = Vec::with_capacity(method_call.arguments.len() + <span class="number">1</span>);
+        <span class="kw">let </span><span class="kw-2">mut </span>arguments = Vec::with_capacity(method_call.arguments.len());
+
+        function_args.push((object_type.clone(), object, object_location));
+
+        <span class="kw">for </span>(arg_index, arg) <span class="kw">in </span>method_call.arguments.into_iter().enumerate() {
+            <span class="kw">let </span>location = arg.location;
+            <span class="comment">// The argument types also contain the object type as the first argument.
+            // Thus, we need to add one when indexing the argument types to match them up with method arguments.
+            </span><span class="kw">let </span>expected_type = func_arg_types.and_then(|args| args.get(arg_index + <span class="number">1</span>));
+            <span class="kw">let </span>(arg, typ) = <span class="self">self</span>.elaborate_expression_with_target_type(arg, expected_type);
+
+            <span class="comment">// Try to unify this argument type against the function's argument type
+            // so that a potential lambda following this argument can have more concrete types.
+            </span><span class="kw">if let </span><span class="prelude-val">Some</span>(expected_type) = expected_type {
+                <span class="kw">let _ </span>= expected_type.unify(<span class="kw-2">&amp;</span>typ);
+            }
+
+            arguments.push(arg);
+            function_args.push((typ, arg, location));
+        }
+
+        <span class="kw">let </span>method = method_call.method_name;
+        <span class="kw">let </span>is_macro_call = method_call.is_macro_call;
+        <span class="kw">let </span>method_call = HirMethodCallExpression { method, object, arguments, location, generics };
+
+        <span class="self">self</span>.check_method_call_visibility(func_id, <span class="kw-2">&amp;</span>object_type, <span class="kw-2">&amp;</span>method_call.method);
+
+        <span class="comment">// Desugar the method call into a normal, resolved function call
+        // so that the backend doesn't need to worry about methods
+        </span><span class="kw">let </span>function_call = method_call.into_function_call(function_id, is_macro_call, location);
+
+        <span class="self">self</span>.interner.add_function_reference(func_id, method_name_location);
+
+        <span class="comment">// Type check the new call now that it has been changed from a method call
+        // to a function call. This way we avoid duplicating code.
+        </span><span class="kw">let </span><span class="kw-2">mut </span>typ = <span class="self">self</span>.type_check_call(<span class="kw-2">&amp;</span>function_call, func_type, function_args, location);
+        <span class="comment">// Macro calls that aren't in comptime context should be evaluated and their
+        // result should be inlined rather than keeping the call.
+        </span><span class="kw">if </span>is_macro_call {
+            <span class="kw">if </span><span class="self">self</span>.in_comptime_context() {
+                typ = <span class="self">self</span>.interner.next_type_variable();
+            } <span class="kw">else </span>{
+                <span class="kw">let </span>args = function_call.arguments;
+                <span class="kw">return </span><span class="self">self
+                    </span>.call_macro(function_call.func, args, location, typ)
+                    .unwrap_or((HirExpression::Error, Type::Error));
+            }
+        }
+        (HirExpression::Call(function_call), typ)
     }
 
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>elaborate_constrain(
@@ -2402,10 +2392,10 @@
     ) -&gt; (HirExpression, Type) {
         <span class="kw">let </span>location = expr.location;
         <span class="kw">let </span>min_args_count = expr.kind.required_arguments_count();
-        <span class="kw">let </span>max_args_count = min_args_count + <span class="number">1</span>;
         <span class="kw">let </span>actual_args_count = expr.arguments.len();
+        <span class="kw">let </span>has_optional_msg = actual_args_count == min_args_count + <span class="number">1</span>;
 
-        <span class="kw">let </span>(message, expr) = <span class="kw">if </span>!(min_args_count..=max_args_count).contains(<span class="kw-2">&amp;</span>actual_args_count) {
+        <span class="kw">let </span>(message, expr) = <span class="kw">if </span>actual_args_count != min_args_count &amp;&amp; !has_optional_msg {
             <span class="self">self</span>.push_err(TypeCheckError::AssertionParameterCountMismatch {
                 kind: expr.kind,
                 found: actual_args_count,
@@ -2419,8 +2409,7 @@
             <span class="kw">let </span>expr = Expression { kind, location };
             (message, expr)
         } <span class="kw">else </span>{
-            <span class="kw">let </span>message =
-                (actual_args_count != min_args_count).then(|| expr.arguments.pop().unwrap());
+            <span class="kw">let </span>message = has_optional_msg.then(|| expr.arguments.pop().unwrap());
             <span class="kw">let </span>expr = <span class="kw">match </span>expr.kind {
                 ConstrainKind::Assert | ConstrainKind::Constrain =&gt; expr.arguments.pop().unwrap(),
                 ConstrainKind::AssertEq =&gt; {
@@ -2621,8 +2610,7 @@
             <span class="kw">let </span>field_location = field.location;
             <span class="kw">let </span>(resolved, field_type) = <span class="self">self</span>.elaborate_expression(field);
 
-            <span class="kw">if </span>unseen_fields.contains(<span class="kw-2">&amp;</span>field_name) {
-                unseen_fields.remove(<span class="kw-2">&amp;</span>field_name);
+            <span class="kw">if </span>unseen_fields.remove(<span class="kw-2">&amp;</span>field_name) {
                 seen_fields.insert(field_name.clone());
 
                 <span class="self">self</span>.unify_with_coercions(
