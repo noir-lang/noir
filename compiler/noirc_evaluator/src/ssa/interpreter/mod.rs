@@ -141,7 +141,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
     /// Increment the step counter, or return [InterpreterError::OutOfBudget].
     ///
-    /// If there is no limit step, then it doesn't increment the counter.
+    /// If there is no step limit, then it doesn't increment the counter.
     fn inc_step_counter(&mut self) -> IResult<()> {
         if let Some(limit) = self.options.step_limit {
             if self.step_counter >= limit {
