@@ -473,16 +473,20 @@ pub fn decode_printable_value<F: AcirField>(
             let tag = tag.to_u128() as usize;
             // A serialized enum looks as follows:
             //  [tag, variant0.field0, ..., variant0.fieldN, variant1.field0, ..., variant1.fieldM, ...]
-            // So the number of fields are always the same, and we have to consume all of them;
+            // So the number of fields are always the same, and we have to consume all of them
+            // to make sure the next item will resume parsing from the right index;
             // the tag tells us which ones are non-default values.
 
+            // Here we go out of our way to only keep in memory what we have to, discarding all the defaults.
             let mut elements = None;
             for (i, (_, types)) in variants.iter().enumerate() {
-                // We have to consume all elements, so that the item that follows the enum can start at the right place in the iterator.
-                let variant_elements =
-                    vecmap(types, |typ| decode_printable_value(field_iterator, typ));
                 if i == tag {
-                    elements = Some(variant_elements);
+                    let values = vecmap(types, |typ| decode_printable_value(field_iterator, typ));
+                    elements = Some(values);
+                } else {
+                    for typ in types {
+                        let _ = decode_printable_value(field_iterator, typ);
+                    }
                 }
             }
 
