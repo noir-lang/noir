@@ -30,8 +30,7 @@
 //! ```text
 //! Let G be a control flow graph. Let X and Y be nodes in G. Y is
 //! control dependent on X iff
-//! (1) there exists a directed path P from X to Y with any 2 in P (excluding X
-//! and Y) post-dominated by Y and
+//! (1) there exists a directed path P from X to Y with any Z in P (excluding X and Y) post-dominated by Y, and
 //! (2) X is not post-dominated by Y.
 //!
 //! If Y is control dependent on X then X must have two exits. Following one of the
@@ -427,7 +426,7 @@ impl<'f> LoopInvariantContext<'f> {
                     self.can_hoist_invariant(&loop_context, &block_context, instruction_id);
 
                 if hoist_invariant {
-                    self.inserter.push_instruction(instruction_id, pre_header);
+                    self.inserter.push_instruction(instruction_id, pre_header, false);
 
                     // If we are hoisting a MakeArray instruction,
                     // we need to issue an extra inc_rc in case they are mutated afterward.
@@ -452,7 +451,7 @@ impl<'f> LoopInvariantContext<'f> {
                     if !block_context.is_impure {
                         block_context.is_impure = dfg[instruction_id].has_side_effects(dfg);
                     }
-                    self.inserter.push_instruction(instruction_id, *block);
+                    self.inserter.push_instruction(instruction_id, *block, true);
                 }
 
                 // We will have new IDs after pushing instructions.
@@ -748,7 +747,7 @@ impl<'f> LoopInvariantContext<'f> {
 
         for block in block_order {
             for instruction_id in self.inserter.function.dfg[block].take_instructions() {
-                self.inserter.push_instruction(instruction_id, block);
+                self.inserter.push_instruction(instruction_id, block, true);
             }
             self.inserter.map_terminator_in_place(block);
         }
@@ -852,7 +851,8 @@ fn can_be_hoisted(instruction: &Instruction, dfg: &DataFlowGraph) -> CanBeHoiste
             // A cast may have dependence on a range-check, which may not be hoisted, so we cannot always hoist a cast.
             // We can safely hoist a cast from a smaller to a larger type as no range check is necessary in this case.
             let source_type = dfg.type_of_value(*source).unwrap_numeric();
-            (source_type.bit_size() <= target_type.bit_size()).into()
+            (source_type.bit_size::<FieldElement>() <= target_type.bit_size::<FieldElement>())
+                .into()
         }
 
         // These instructions can always be hoisted
@@ -892,11 +892,11 @@ mod test {
     use crate::ssa::ir::function::RuntimeType;
     use crate::ssa::ir::instruction::{Instruction, Intrinsic, TerminatorInstruction};
     use crate::ssa::ir::types::Type;
+    use crate::ssa::opt::Loops;
     use crate::ssa::opt::loop_invariant::{
         CanBeHoistedResult, LoopContext, LoopInvariantContext, can_be_hoisted,
     };
     use crate::ssa::opt::pure::Purity;
-    use crate::ssa::opt::unrolling::Loops;
     use crate::ssa::opt::{assert_normalized_ssa_equals, assert_ssa_does_not_change};
     use acvm::AcirField;
     use noirc_frontend::monomorphization::ast::InlineType;

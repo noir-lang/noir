@@ -1,3 +1,5 @@
+//! The foreign function counterpart to `interpreter/builtin.rs`, defines how to call
+//! all foreign functions available to the interpreter.
 use acvm::{
     AcirField, BlackBoxResolutionError, FieldElement, acir::BlackBoxFunc,
     blackbox_solver::BlackBoxFunctionSolver,
@@ -21,7 +23,7 @@ use super::{
     Interpreter,
     builtin::builtin_helpers::{
         check_arguments, check_one_argument, check_three_arguments, check_two_arguments,
-        get_array_map, get_bool, get_field, get_fixed_array_map, get_slice_map, get_struct_field,
+        get_array_map, get_bool, get_field, get_fixed_array_map, get_struct_field,
         get_struct_fields, get_u8, get_u32, get_u64, to_byte_slice, to_struct,
     },
 };
@@ -45,7 +47,9 @@ impl Interpreter<'_, '_> {
     }
 }
 
-// Similar to `evaluate_black_box` in `brillig_vm`.
+/// Calls the given foreign function.
+///
+/// Similar to `evaluate_black_box` in `brillig_vm`.
 fn call_foreign(
     interner: &mut NodeInterner,
     name: &str,
@@ -170,7 +174,7 @@ fn ecdsa_secp256_verify(
     interner: &mut NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
-    f: impl Fn(&[u8], &[u8; 32], &[u8; 32], &[u8; 64]) -> Result<bool, BlackBoxResolutionError>,
+    f: impl Fn(&[u8; 32], &[u8; 32], &[u8; 32], &[u8; 64]) -> Result<bool, BlackBoxResolutionError>,
 ) -> IResult<Value> {
     let [pub_key_x, pub_key_y, sig, msg_hash, predicate] = check_arguments(arguments, location)?;
     assert_eq!(predicate.0, Value::Bool(true), "verify_signature predicate should be true");
@@ -178,13 +182,7 @@ fn ecdsa_secp256_verify(
     let (pub_key_x, _) = get_fixed_array_map(interner, pub_key_x, get_u8)?;
     let (pub_key_y, _) = get_fixed_array_map(interner, pub_key_y, get_u8)?;
     let (sig, _) = get_fixed_array_map(interner, sig, get_u8)?;
-
-    // Hash can be an array or slice.
-    let (msg_hash, _) = if matches!(msg_hash.0.get_type().as_ref(), Type::Array(_, _)) {
-        get_array_map(interner, msg_hash.clone(), get_u8)?
-    } else {
-        get_slice_map(interner, msg_hash, get_u8)?
-    };
+    let (msg_hash, _) = get_fixed_array_map(interner, msg_hash.clone(), get_u8)?;
 
     let is_valid = f(&msg_hash, &pub_key_x, &pub_key_y, &sig)
         .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
@@ -213,7 +211,15 @@ fn embedded_curve_add(
     let (p2x, p2y, p2inf) = get_embedded_curve_point(point2)?;
 
     let (x, y, inf) = Bn254BlackBoxSolver(pedantic_solving)
-        .ec_add(&p1x, &p1y, &p1inf.into(), &p2x, &p2y, &p2inf.into())
+        .ec_add(
+            &p1x,
+            &p1y,
+            &p1inf.into(),
+            &p2x,
+            &p2y,
+            &p2inf.into(),
+            true, // Predicate is always true as interpreter has control flow to handle false case
+        )
         .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
 
     Ok(Value::Array(
@@ -250,7 +256,12 @@ fn multi_scalar_mul(
     }
 
     let (x, y, inf) = Bn254BlackBoxSolver(pedantic_solving)
-        .multi_scalar_mul(&points, &scalars_lo, &scalars_hi)
+        .multi_scalar_mul(
+            &points,
+            &scalars_lo,
+            &scalars_hi,
+            true, // Predicate is always true as interpreter has control flow to handle false case
+        )
         .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
 
     let embedded_curve_point_typ = match &return_type {

@@ -149,7 +149,7 @@ use crate::ssa::{
 impl Ssa {
     pub(crate) fn remove_unreachable_instructions(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            function.remove_unreachable_instructions();
+            function.remove_unreachable_instructions(function.id() == self.main_id);
         }
         self
     }
@@ -167,8 +167,12 @@ enum Reachability {
 }
 
 impl Function {
-    fn remove_unreachable_instructions(&mut self) {
+    fn remove_unreachable_instructions(&mut self, is_main: bool) {
         let func_id = self.id();
+
+        // Keep the return instruction in main if the databus is used
+        let replace_return = !(is_main && self.dfg.data_bus.return_data.is_some());
+
         // The current block we are currently processing
         let mut current_block_id = None;
 
@@ -189,7 +193,17 @@ impl Function {
             }
 
             if current_block_reachability == Reachability::Unreachable {
-                context.remove_current_instruction();
+                if context.dfg.is_returned_in_databus(context.instruction_id) {
+                    // We have to keep databus assignments at the end of the ACIR main function alive,
+                    // otherwise we can't print the SSA, as it will crash trying to normalize values
+                    // that no longer get created in the SSA.
+                    // The reason it is enough to this only for unreachable blocks without worrying
+                    // about their successors is that databus is only used in ACIR, and we only remove
+                    // unreachable instructions after flattening, so there is only one block.
+                    remove_and_replace_with_defaults(context, func_id, block_id);
+                } else {
+                    context.remove_current_instruction();
+                }
                 return;
             }
 
@@ -368,7 +382,7 @@ impl Function {
 
             // Once we find an instruction that will always fail, replace the terminator with `unreachable`.
             // Subsequent instructions in this block will be removed.
-            if current_block_reachability == Reachability::Unreachable {
+            if current_block_reachability == Reachability::Unreachable && replace_return {
                 let terminator = context.dfg[block_id].take_terminator();
                 let call_stack = terminator.call_stack();
                 context.dfg[block_id]
@@ -1374,5 +1388,33 @@ mod test {
             return
         }
         "#);
+    }
+
+    #[test]
+    fn replaces_databus_return_data_with_default_in_unreachable() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          return_data: v3
+          b0(v0: u32):
+            constrain u1 0 == u1 1
+            v1 = sub v0, u32 10
+            v2 = cast v1 as Field
+            v3 = make_array [v2] : [Field; 1]
+            return v3
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_unreachable_instructions();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          return_data: v4
+          b0(v0: u32):
+            constrain u1 0 == u1 1
+            v4 = make_array [Field 0] : [Field; 1]
+            return v4
+        }
+        ");
     }
 }

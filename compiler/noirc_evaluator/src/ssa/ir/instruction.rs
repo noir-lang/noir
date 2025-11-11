@@ -131,7 +131,7 @@ pub enum Intrinsic {
     /// in constrained context, it will be 0.
     ArrayRefCount,
     /// SliceRefCount - Gives the reference count of the slice
-    /// argument: slice (value id)
+    /// arguments: slice length, slice contents (value id)
     /// result: reference count of `slice`. In unconstrained context, the reference count is stored alongside the slice.
     /// in constrained context, it will be 0.
     SliceRefCount,
@@ -462,7 +462,9 @@ impl Instruction {
                 !dfg.is_safe_index(*index, *array)
             }
 
-            Instruction::EnableSideEffectsIf { .. } | Instruction::ArraySet { .. } => true,
+            Instruction::EnableSideEffectsIf { .. }
+            | Instruction::ArraySet { .. }
+            | Instruction::ConstrainNotEqual(..) => true,
 
             Instruction::Call { func, .. } => match dfg[*func] {
                 Value::Function(id) => !matches!(dfg.purity_of(id), Some(Purity::Pure)),
@@ -484,7 +486,6 @@ impl Instruction {
             Instruction::Cast(_, _)
             | Instruction::Not(_)
             | Instruction::Truncate { .. }
-            | Instruction::ConstrainNotEqual(..)
             | Instruction::Constrain(_, _, _)
             | Instruction::RangeCheck { .. }
             | Instruction::Allocate
@@ -687,10 +688,11 @@ impl Instruction {
                     else_value: f(*else_value),
                 }
             }
-            Instruction::MakeArray { elements, typ } => Instruction::MakeArray {
-                elements: elements.iter().copied().map(f).collect(),
-                typ: typ.clone(),
-            },
+            Instruction::MakeArray { elements, typ } => {
+                let mut elements = elements.clone();
+                im_vec_map_values_mut(&mut elements, f);
+                Instruction::MakeArray { elements, typ: typ.clone() }
+            }
             Instruction::Noop => Instruction::Noop,
         }
     }
@@ -755,9 +757,7 @@ impl Instruction {
                 *else_value = f(*else_value);
             }
             Instruction::MakeArray { elements, typ: _ } => {
-                for element in elements.iter_mut() {
-                    *element = f(*element);
-                }
+                im_vec_map_values_mut(elements, f);
             }
             Instruction::Noop => (),
         }
@@ -892,6 +892,7 @@ pub enum ErrorType {
 }
 
 impl ErrorType {
+    /// Hash the error type to get a unique selector for it.
     pub fn selector(&self) -> ErrorSelector {
         struct U64(pub u64);
 
@@ -1086,5 +1087,36 @@ impl TerminatorInstruction {
             | TerminatorInstruction::Return { call_stack, .. }
             | TerminatorInstruction::Unreachable { call_stack } => *call_stack = new_call_stack,
         }
+    }
+}
+
+/// Try to avoid mutation until we know something changed, to take advantage of
+/// structural sharing, and avoid needlessly calling `Arc::make_mut` which clones
+/// the content and increases memory use by allocating more pointers on the heap.
+fn im_vec_map_values_mut<T, F>(xs: &mut im::Vector<T>, mut f: F)
+where
+    T: Copy + PartialEq,
+    F: FnMut(T) -> T,
+{
+    // Even `xs.iter_mut()` calls `get_mut` on each element, regardless of whether there is actual mutation.
+    // If we go index-by-index, get the item, put it back only if it changed, then we can avoid
+    // allocating memory unless we need to, however we incur O(n * log(n)) complexity.
+    // Collecting changes first and then updating only those positions proved to be the
+    // fastest among some alternatives that didn't sacrifice memory for speed or vice versa.
+    let mut changes = Vec::new();
+    for (i, x) in xs.iter().enumerate() {
+        let y = f(*x);
+        if *x != y {
+            changes.push((i, y));
+        }
+    }
+    if changes.is_empty() {
+        return;
+    }
+    // Using `Focus` allows us to only make mutable what is needed,
+    // and should be faster for batches than indexing individual items.
+    let mut focus = xs.focus_mut();
+    for (i, y) in changes {
+        focus.set(i, y);
     }
 }

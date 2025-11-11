@@ -5,6 +5,7 @@ pub mod brillig;
 pub mod opcodes;
 
 use crate::{
+    circuit::opcodes::display_opcode,
     native_types::{Expression, Witness},
     serialization::{deserialize_any_format, serialize_with_format_from_env},
 };
@@ -326,8 +327,6 @@ impl<F: AcirField + for<'a> Deserialize<'a>> Program<F> {
 
 impl<F: AcirField> std::fmt::Display for Circuit<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "current witness: w{}", self.current_witness_index)?;
-
         let write_witness_indices =
             |f: &mut std::fmt::Formatter<'_>, indices: &[u32]| -> Result<(), std::fmt::Error> {
                 write!(f, "[")?;
@@ -357,7 +356,8 @@ impl<F: AcirField> std::fmt::Display for Circuit<F> {
         write_witness_indices(f, &self.return_values.indices())?;
 
         for opcode in &self.opcodes {
-            writeln!(f, "{opcode}")?;
+            display_opcode(opcode, Some(&self.return_values), f)?;
+            writeln!(f)?;
         }
         Ok(())
     }
@@ -376,7 +376,7 @@ impl<F: AcirField> std::fmt::Display for Program<F> {
             writeln!(f, "{function}")?;
         }
         for (func_index, function) in self.unconstrained_functions.iter().enumerate() {
-            writeln!(f, "unconstrained func {func_index}")?;
+            writeln!(f, "unconstrained func {func_index}: {}", function.function_name)?;
             let width = function.bytecode.len().to_string().len();
             for (index, opcode) in function.bytecode.iter().enumerate() {
                 writeln!(f, "{index:>width$}: {opcode}")?;
@@ -409,51 +409,21 @@ impl PublicInputs {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeSet;
-
-    use super::{
-        Circuit, Compression, Opcode, PublicInputs,
-        opcodes::{BlackBoxFuncCall, FunctionInput},
-    };
-    use crate::{circuit::Program, native_types::Witness};
+    use super::{Circuit, Compression};
+    use crate::circuit::Program;
     use acir_field::{AcirField, FieldElement};
     use serde::{Deserialize, Serialize};
 
-    fn and_opcode<F: AcirField>() -> Opcode<F> {
-        Opcode::BlackBoxFuncCall(BlackBoxFuncCall::AND {
-            lhs: FunctionInput::Witness(Witness(1)),
-            rhs: FunctionInput::Witness(Witness(2)),
-            num_bits: 4,
-            output: Witness(3),
-        })
-    }
-
-    fn range_opcode<F: AcirField>() -> Opcode<F> {
-        Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
-            input: FunctionInput::Witness(Witness(1)),
-            num_bits: 8,
-        })
-    }
-
-    fn keccakf1600_opcode<F: AcirField>() -> Opcode<F> {
-        let inputs: Box<[FunctionInput<F>; 25]> =
-            Box::new(std::array::from_fn(|i| FunctionInput::Witness(Witness(i as u32 + 1))));
-        let outputs: Box<[Witness; 25]> = Box::new(std::array::from_fn(|i| Witness(i as u32 + 26)));
-
-        Opcode::BlackBoxFuncCall(BlackBoxFuncCall::Keccakf1600 { inputs, outputs })
-    }
-
     #[test]
     fn serialization_roundtrip() {
-        let circuit = Circuit {
-            function_name: "test".to_string(),
-            current_witness_index: 5,
-            opcodes: vec![and_opcode::<FieldElement>(), range_opcode()],
-            private_parameters: BTreeSet::new(),
-            public_parameters: PublicInputs(BTreeSet::from_iter(vec![Witness(2), Witness(12)])),
-            return_values: PublicInputs(BTreeSet::from_iter(vec![Witness(4), Witness(12)])),
-            assert_messages: Default::default(),
-        };
+        let src = "
+        private parameters: []
+        public parameters: [w2, w12]
+        return values: [w4, w12]
+        BLACKBOX::AND lhs: w1, rhs: w2, output: w3, bits: 4
+        BLACKBOX::RANGE input: w1, bits: 8
+        ";
+        let circuit = Circuit::from_str(src).unwrap();
         let program = Program { functions: vec![circuit], unconstrained_functions: Vec::new() };
 
         fn read_write<F: Serialize + for<'a> Deserialize<'a> + AcirField>(
@@ -470,24 +440,16 @@ mod tests {
 
     #[test]
     fn test_serialize() {
-        let circuit = Circuit {
-            function_name: "test".to_string(),
-            current_witness_index: 0,
-            opcodes: vec![
-                Opcode::AssertZero(crate::native_types::Expression {
-                    mul_terms: vec![],
-                    linear_combinations: vec![],
-                    q_c: FieldElement::from(8u128),
-                }),
-                range_opcode(),
-                and_opcode(),
-                keccakf1600_opcode(),
-            ],
-            private_parameters: BTreeSet::new(),
-            public_parameters: PublicInputs(BTreeSet::from_iter(vec![Witness(2)])),
-            return_values: PublicInputs(BTreeSet::from_iter(vec![Witness(2)])),
-            assert_messages: Default::default(),
-        };
+        let src = "
+        private parameters: []
+        public parameters: [w2]
+        return values: [w2]
+        ASSERT 0 = 8
+        BLACKBOX::RANGE input: w1, bits: 8
+        BLACKBOX::AND lhs: w1, rhs: w2, output: w3, bits: 4
+        BLACKBOX::KECCAKF1600 inputs: [w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25], outputs: [w26, w27, w28, w29, w30, w31, w32, w33, w34, w35, w36, w37, w38, w39, w40, w41, w42, w43, w44, w45, w46, w47, w48, w49, w50]
+        ";
+        let circuit = Circuit::from_str(src).unwrap();
         let program = Program { functions: vec![circuit], unconstrained_functions: Vec::new() };
 
         let json = serde_json::to_string_pretty(&program).unwrap();
@@ -516,38 +478,28 @@ mod tests {
 
     #[test]
     fn circuit_display_snapshot() {
-        let circuit = Circuit {
-            function_name: "test".to_string(),
-            current_witness_index: 3,
-            opcodes: vec![
-                Opcode::AssertZero(crate::native_types::Expression {
-                    mul_terms: vec![],
-                    linear_combinations: vec![(FieldElement::from(2u128), Witness(1))],
-                    q_c: FieldElement::from(8u128),
-                }),
-                range_opcode(),
-                and_opcode(),
-                keccakf1600_opcode(),
-            ],
-            private_parameters: BTreeSet::new(),
-            public_parameters: PublicInputs(BTreeSet::from_iter(vec![Witness(2)])),
-            return_values: PublicInputs(BTreeSet::from_iter(vec![Witness(2)])),
-            assert_messages: Default::default(),
-        };
-
-        // We want to make sure that we witness indices are displayed in a unified format.
-        // All witnesses are expected to be formatted as `_{witness_index}`.
-        insta::assert_snapshot!(
-            circuit.to_string(),
-            @r"
-        current witness: w3
+        let src = "
         private parameters: []
         public parameters: [w2]
         return values: [w2]
-        EXPR 0 = 2*w1 + 8
-        BLACKBOX::RANGE [w1]:8 bits []
-        BLACKBOX::AND [w1, w2]:4 bits [w3]
-        BLACKBOX::KECCAKF1600 [w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25] [w26, w27, w28, w29, w30, w31, w32, w33, w34, w35, w36, w37, w38, w39, w40, w41, w42, w43, w44, w45, w46, w47, w48, w49, w50]
+        ASSERT 0 = 2*w1 + 8
+        BLACKBOX::RANGE input: w1, bits: 8
+        BLACKBOX::AND lhs: w1, rhs: w2, output: w3, bits: 4
+        BLACKBOX::KECCAKF1600 inputs: [w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25], outputs: [w26, w27, w28, w29, w30, w31, w32, w33, w34, w35, w36, w37, w38, w39, w40, w41, w42, w43, w44, w45, w46, w47, w48, w49, w50]
+        ";
+        let circuit = Circuit::from_str(src).unwrap();
+
+        // All witnesses are expected to be formatted as `w{witness_index}`.
+        insta::assert_snapshot!(
+            circuit.to_string(),
+            @r"
+        private parameters: []
+        public parameters: [w2]
+        return values: [w2]
+        ASSERT 0 = 2*w1 + 8
+        BLACKBOX::RANGE input: w1, bits: 8
+        BLACKBOX::AND lhs: w1, rhs: w2, output: w3, bits: 4
+        BLACKBOX::KECCAKF1600 inputs: [w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25], outputs: [w26, w27, w28, w29, w30, w31, w32, w33, w34, w35, w36, w37, w38, w39, w40, w41, w42, w43, w44, w45, w46, w47, w48, w49, w50]
         "
         );
     }

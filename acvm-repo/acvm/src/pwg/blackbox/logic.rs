@@ -59,16 +59,66 @@ fn solve_logic_opcode<F: AcirField>(
     pedantic_solving: bool,
     logic_op: impl Fn(F, F) -> F,
 ) -> Result<(), OpcodeResolutionError<F>> {
-    // TODO(https://github.com/noir-lang/noir/issues/5985): re-enable these by
-    // default once we figure out how to combine these with existing
-    // noirc_frontend/noirc_evaluator overflow error messages
-    let skip_bitsize_checks = !pedantic_solving;
     let w_l_value = input_to_value(initial_witness, *a)?;
     let w_r_value = input_to_value(initial_witness, *b)?;
     let assignment = logic_op(w_l_value, w_r_value);
-    if !skip_bitsize_checks {
+    // TODO(https://github.com/noir-lang/noir/issues/5985): re-enable these by
+    // default once we figure out how to combine these with existing
+    // noirc_frontend/noirc_evaluator overflow error messages
+    if pedantic_solving {
         check_bit_size(w_l_value, num_bits)?;
         check_bit_size(w_r_value, num_bits)?;
     }
     insert_value(&result, assignment, initial_witness)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::pwg::blackbox::{and, xor};
+    use acir::{
+        FieldElement,
+        circuit::opcodes::FunctionInput,
+        native_types::{Witness, WitnessMap},
+    };
+    use std::collections::BTreeMap;
+
+    #[test]
+    fn test_and() {
+        let lhs = FunctionInput::Witness(Witness(1));
+        let rhs = FunctionInput::Witness(Witness(2));
+
+        let mut initial_witness = WitnessMap::from(BTreeMap::from_iter([
+            (Witness(1), FieldElement::from(5u128)),
+            (Witness(2), FieldElement::from(8u128)),
+        ]));
+        and(&mut initial_witness, &lhs, &rhs, 8, &Witness(3), false).unwrap();
+        assert_eq!(initial_witness[&Witness(3)], FieldElement::from(0u128));
+
+        let mut initial_witness = WitnessMap::from(BTreeMap::from_iter([
+            (Witness(1), FieldElement::from(26u128)),
+            (Witness(2), FieldElement::from(34u128)),
+        ]));
+        and(&mut initial_witness, &lhs, &rhs, 8, &Witness(3), false).unwrap();
+        assert_eq!(initial_witness[&Witness(3)], FieldElement::from(2u128));
+    }
+
+    #[test]
+    fn test_xor() {
+        let lhs = FunctionInput::Witness(Witness(1));
+        let rhs = FunctionInput::Witness(Witness(2));
+
+        let mut initial_witness = WitnessMap::from(BTreeMap::from_iter([
+            (Witness(1), FieldElement::from(5u128)),
+            (Witness(2), FieldElement::from(8u128)),
+        ]));
+        xor(&mut initial_witness, &lhs, &rhs, 8, &Witness(3), false).unwrap();
+        assert_eq!(initial_witness[&Witness(3)], FieldElement::from(13u128));
+
+        let mut initial_witness = WitnessMap::from(BTreeMap::from_iter([
+            (Witness(1), FieldElement::from(26u128)),
+            (Witness(2), FieldElement::from(34u128)),
+        ]));
+        xor(&mut initial_witness, &lhs, &rhs, 8, &Witness(3), false).unwrap();
+        assert_eq!(initial_witness[&Witness(3)], FieldElement::from(56u128));
+    }
 }

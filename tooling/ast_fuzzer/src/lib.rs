@@ -16,7 +16,7 @@ pub use program::{
     DisplayAstAsNoir, DisplayAstAsNoirComptime, arb_program, arb_program_comptime,
     program_wrap_expression,
 };
-pub use program::{expr, rewrite, scope, types, visitor};
+pub use program::{expr, rewrite, scope, types};
 
 /// AST generation configuration.
 #[derive(Debug, Clone)]
@@ -109,14 +109,14 @@ impl Default for Config {
             ("constrain", 4),
         ]);
         let stmt_freqs_brillig = Freqs::new(&[
-            ("break", 35),
+            ("break", 45),
             ("continue", 25),
             ("assign", 30),
             ("if", 10),
             ("match", 15),
-            ("for", 30),
-            ("loop", 30),
-            ("while", 30),
+            ("for", 40),
+            ("loop", 40),
+            ("while", 40),
             ("let", 20),
             ("call", 5),
             ("print", 15),

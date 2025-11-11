@@ -1,9 +1,12 @@
 use acvm::acir::{AcirField, BlackBoxFunc, circuit::opcodes::FunctionInput};
 use iter_extended::vecmap;
 
-use crate::errors::{InternalError, RuntimeError};
+use crate::{
+    errors::{InternalError, RuntimeError},
+    ssa::ir::types::NumericType,
+};
 
-use super::{AcirContext, AcirType, AcirValue, AcirVar};
+use super::{AcirContext, AcirValue, AcirVar};
 
 impl<F: AcirField> AcirContext<F> {
     /// Calls a Blackbox function on the given inputs and returns a given set of outputs
@@ -13,7 +16,7 @@ impl<F: AcirField> AcirContext<F> {
         name: BlackBoxFunc,
         mut inputs: Vec<AcirValue>,
         num_bits: Option<u32>,
-        mut output_count: usize,
+        output_count: usize,
         predicate: Option<AcirVar>,
     ) -> Result<Vec<AcirVar>, RuntimeError> {
         // Separate out any arguments that should be constants
@@ -30,7 +33,13 @@ impl<F: AcirField> AcirContext<F> {
                         }));
                     }
                 }?;
-                output_count = input_size + (16 - input_size % 16);
+
+                assert_eq!(
+                    output_count,
+                    input_size + 16 - input_size % 16,
+                    "output count mismatch"
+                );
+
                 Vec::new()
             }
             BlackBoxFunc::RecursiveAggregation => {
@@ -54,7 +63,7 @@ impl<F: AcirField> AcirContext<F> {
                         }));
                     }
                 };
-                inputs.push(AcirValue::Var(predicate.unwrap(), AcirType::unsigned(1)));
+                inputs.push(AcirValue::Var(predicate.unwrap(), NumericType::bool()));
                 vec![proof_type_constant]
             }
             _ => Vec::new(),
@@ -66,7 +75,7 @@ impl<F: AcirField> AcirContext<F> {
             self.var_to_witness(*var).expect("variable was just created as witness")
         });
 
-        self.acir_ir.call_black_box(name, &inputs, constant_inputs, num_bits, output_witnesses)?;
+        self.acir_ir.call_black_box(name, inputs, constant_inputs, num_bits, output_witnesses)?;
 
         // Convert `Witness` values which are now constrained to be the output of the
         // black box function call into `AcirVar`s.
@@ -78,29 +87,64 @@ impl<F: AcirField> AcirContext<F> {
 
     pub(super) fn prepare_inputs_for_black_box_func(
         &mut self,
-        inputs: Vec<AcirValue>,
+        mut inputs: Vec<AcirValue>,
         name: BlackBoxFunc,
     ) -> Result<Vec<Vec<FunctionInput<F>>>, RuntimeError> {
-        // Allow constant inputs for most blackbox, but:
-        // - EmbeddedCurveAdd requires all-or-nothing constant inputs
-        // - Poseidon2Permutation requires witness input
-        let allow_constant_inputs = matches!(
-            name,
+        // Allow constant inputs for most blackbox
+        // Allow constant predicate for all blackbox having predicate
+        let inputs = match name {
             BlackBoxFunc::MultiScalarMul
-                | BlackBoxFunc::Keccakf1600
-                | BlackBoxFunc::Blake2s
-                | BlackBoxFunc::Blake3
-                | BlackBoxFunc::AND
-                | BlackBoxFunc::XOR
-                | BlackBoxFunc::AES128Encrypt
-                | BlackBoxFunc::EmbeddedCurveAdd
-        );
-        // Convert `AcirVar` to `FunctionInput`
-        let mut inputs =
-            self.prepare_inputs_for_black_box_func_call(inputs, allow_constant_inputs)?;
-        if name == BlackBoxFunc::EmbeddedCurveAdd {
-            inputs = self.all_or_nothing_for_ec_add(inputs)?;
-        }
+            | BlackBoxFunc::Keccakf1600
+            | BlackBoxFunc::Blake2s
+            | BlackBoxFunc::Blake3
+            | BlackBoxFunc::AND
+            | BlackBoxFunc::XOR
+            | BlackBoxFunc::AES128Encrypt
+            | BlackBoxFunc::EmbeddedCurveAdd => {
+                self.prepare_inputs_for_black_box_func_call(inputs, true)?
+            }
+            BlackBoxFunc::EcdsaSecp256k1 | BlackBoxFunc::EcdsaSecp256r1 => {
+                // ECDSA blackbox functions have 6 inputs, the last ones are: [.., predicate, output]
+                let predicate = inputs.swap_remove(4);
+                // convert the inputs into witness, except for the predicate which has been removed
+                let mut inputs = self.prepare_inputs_for_black_box_func_call(inputs, false)?;
+                // convert the predicate into witness or constant
+                let predicate = self.value_to_function_input(predicate)?;
+                // Sanity check: proving system does not expect to receive 0 predicates
+                assert_ne!(
+                    predicate,
+                    FunctionInput::Constant(F::zero()),
+                    "0 predicate should have been optimized away"
+                );
+
+                // add back the predicate into the FunctionInputs
+                inputs.insert(4, vec![predicate]);
+                inputs
+            }
+            BlackBoxFunc::RecursiveAggregation => {
+                let predicate = inputs.pop().ok_or_else(|| {
+                    RuntimeError::InternalError(InternalError::MissingArg {
+                        name: "recursive aggregation".to_string(),
+                        arg: "predicate".to_string(),
+                        call_stack: self.get_call_stack(),
+                    })
+                })?;
+                // convert the inputs into witness, except for the predicate which has been removed
+                let mut inputs = self.prepare_inputs_for_black_box_func_call(inputs, false)?;
+                // convert the predicate into witness or constant
+                let predicate = self.value_to_function_input(predicate)?;
+                // Sanity check: proving system does not expect to receive 0 predicates
+                assert_ne!(
+                    predicate,
+                    FunctionInput::Constant(F::zero()),
+                    "0 predicate should have been optimized away"
+                );
+                // add back the predicate into the FunctionInputs
+                inputs.push(vec![predicate]);
+                inputs
+            }
+            _ => self.prepare_inputs_for_black_box_func_call(inputs, false)?,
+        };
         Ok(inputs)
     }
 
@@ -141,37 +185,36 @@ impl<F: AcirField> AcirContext<F> {
         Ok(witnesses)
     }
 
-    /// EcAdd has 6 inputs representing the two points to add
-    /// Each point must be either all constant, or all witnesses
-    fn all_or_nothing_for_ec_add(
+    /// Converts an `AcirValue` into a `FunctionInput` for use in black box function calls.
+    ///
+    /// - If the value can be evaluated to a constant, it returns `FunctionInput::Constant`
+    /// - Otherwise, it creates or retrieves a witness variable and returns `FunctionInput::Witness`
+    fn value_to_function_input(
         &mut self,
-        inputs: Vec<Vec<FunctionInput<F>>>,
-    ) -> Result<Vec<Vec<FunctionInput<F>>>, RuntimeError> {
-        let mut has_constant = false;
-        let mut has_witness = false;
-        let mut result = inputs.clone();
-        for (i, input) in inputs.iter().enumerate() {
-            if input[0].is_constant() {
-                has_constant = true;
-            } else {
-                has_witness = true;
-            }
-            if i % 3 == 2 {
-                if has_constant && has_witness {
-                    // Convert the constants to witness if mixed constant and witness,
-                    for j in i - 2..i + 1 {
-                        if let FunctionInput::Constant(constant) = inputs[j][0] {
-                            let constant = self.add_constant(constant);
-                            let witness_var = self.get_or_create_witness_var(constant)?;
-                            let witness = self.var_to_witness(witness_var)?;
-                            result[j] = vec![FunctionInput::Witness(witness)];
-                        }
-                    }
+        value: AcirValue,
+    ) -> Result<FunctionInput<F>, RuntimeError> {
+        if let AcirValue::Var(acir_var, acir_type) = value {
+            if let Some(constant) = self.var_to_expression(acir_var)?.to_const() {
+                let num_bits = acir_type.bit_size::<F>();
+                if num_bits < constant.num_bits() {
+                    return Err(RuntimeError::InvalidBlackBoxInputBitSize {
+                        value: constant.to_string(),
+                        num_bits: constant.num_bits(),
+                        max_num_bits: num_bits,
+                        call_stack: self.get_call_stack(),
+                    });
                 }
-                has_constant = false;
-                has_witness = false;
+                Ok(FunctionInput::Constant(*constant))
+            } else {
+                let witness_var = self.get_or_create_witness_var(acir_var)?;
+                let witness = self.var_to_witness(witness_var)?;
+                Ok(FunctionInput::Witness(witness))
             }
+        } else {
+            Err(RuntimeError::InternalError(InternalError::General {
+                message: "Expected AcirValue".to_string(),
+                call_stack: self.get_call_stack(),
+            }))
         }
-        Ok(result)
     }
 }

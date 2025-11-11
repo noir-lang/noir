@@ -37,45 +37,50 @@ lazy_static::lazy_static! {
     static ref TRANSPILER_BIN_PATH: String = std::env::var("TRANSPILER_BIN_PATH").expect("TRANSPILER_BIN_PATH must be set");
 }
 
+/// Global simulator process that stays alive across calls
+static SIMULATOR_PROCESS: OnceLock<Mutex<Option<SimulatorProcess>>> = OnceLock::new();
+
+/// Global artifacts suffix that stays alive across calls
+static ARTIFACTS_SUFFIX: OnceLock<String> = OnceLock::new();
+
 /// Placeholder for creating a base contract artifact to feed to the transpiler
 fn create_base_contract_artifact() -> Value {
     json!({
-        "noir_version": "1.0.0-beta.11+a92d049c8771332a383aec07474691764c4d90f0-aztec",
+        "noir_version": "1.0.0-beta.15+9eee29a37dc509be15e24777188d87ca38b522f7-aztec",
         "name": "AvmTest",
-        "functions": [{
-            "name": "main2",
-            "hash": "9106907505563584043",
-            "is_unconstrained": true,
-            "custom_attributes": ["public"],
-            "abi": {
-                "parameters": [{
-                    "name": "a",
-                    "type": {
-                        "kind": "integer",
-                        "sign": "unsigned",
-                        "width": 64
-                    },
-                    "visibility": "private"
-                }],
-                "return_type": {
-                    "abi_type": {
-                        "kind": "integer",
-                        "sign": "unsigned",
-                        "width": 64
-                    },
-                    "visibility": "public"
+        "functions": [
+            {
+                "name": "main2",
+                "hash": "11929022434097697943",
+                "is_unconstrained": true,
+                "custom_attributes": ["abi_public"],
+                "abi": {
+                    "parameters": [
+                        {
+                            "name": "a",
+                            "type": {
+                                "kind": "field"
+                            },
+                            "visibility": "private"
+                        }
+                    ],
+                    "return_type": null,
+                    "error_types": {
+                        "15764276373176857197": {
+                            "error_kind": "string",
+                            "string": "Stack too deep"
+                        }
+                    }
                 },
-                "error_types": {
-                    "17843811134343075018": {
-                        "error_kind": "string",
-                        "string": "Stack too deep"
+                "bytecode": "H4sIAAAAAAAA/71UTcrCQAxNderXzx9QN7pQ8QzeQNCNG49Qii0i2CqtirjyUF7BK7jwHu61mmiIIjMKPiiZSfJeMukwFtzQQOu63mYRjNwodifRIogjb5pcfOFsvEzSuIV5Ci3tOcjXBi1YBrmCpZmjc7gW5jhoM0wjq9+g5YjaZvxt35GCRny48lPON/0T5wM+5ND2GF/2kqKIe/4fifOHcVqXcO0Izo9nA9UX9Ukrj73WcV+4fGVce6twOB/N/KDr+3GQJPzMsp93MNHMamrSTBTztUELGdK30WHD83yUqMNjBrXuXNLjD5AtcijO82uijxzjmNyBCuOB0MrD4/1QH+mv+6RL/89maw45B8ppov1n9ckqjT6O+9NhN+iE8pwp+F0/A5sfcHo5BgAA",
+                "debug_symbols": "tZPBboQgEED/hbMHBkHRX9lsDCpuSAgaVps0xn/voGL14J7aCw8c5w1DYCatrqdXZVzXv0n5mEntjbXmVdm+UaPpHX6dCQ0DcFKmCQFByhyRkVIi8g1yQ7GC0Q2wgSGWJSFRWY1e62A81cDKg/LajaR0k7UJ+VJ2Wn96D8qtHJXHKE2Idi0ShZ2xOsyW5Deb3qcC5FLs6QCSikMBNL9I4INEUs6iBB1wSDJ5cbB7R8pEGvvAOc/uHJ+aYQx43AdLIb9tht9LWJoxuUtwzuUhyeHiEH9wINn/HogoYicZ5Ue+wNvxxJVqjL/c6SWYvFG11fuym1xzio7fQ4zENzH4vtHt5HUwnR4Gjg/GE1Y8l1DtBw==",
+                "expression_width": {
+                    "Bounded": {
+                        "width": 4
                     }
                 }
-            },
-            "bytecode": "",
-            "debug_symbols": "dVDNCoQgEH6XOXtIoVp6lYgwm0IQFdOFJXz3HaN228Ne5pvx+5GZHWac0jpqu7gNun6HKWhj9Doap2TUztLrDlUpvIGOM+AtQc4MLsUYA2IR3CwU5GVAG6GzyRgGT2nSIdq8tAdGGYitGKCdCSlw0QZLl9nXXf23cl43j9NOfSs+EaLOeaBJKh1+FsklLWg5GTzHJVl1Y+PLX8x1CB+cwjkFLEm3a1DtRcVEPeTy2xs=",
-            "expression_width": {"Bounded": {"width": 4}}
-        }],
+            }
+        ],
         "outputs": {},
         "file_map": {}
     })
@@ -97,11 +102,11 @@ fn transpile(bytecode_base64: String) -> Result<String, String> {
     let contract_json = serde_json::to_string(&contract)
         .map_err(|e| format!("Failed to serialize contract: {e}"))?;
 
-    fs::write("contract_artifact.json", contract_json)
+    fs::write(format!("contract_artifact_{}.json", ARTIFACTS_SUFFIX.get().unwrap()), contract_json)
         .map_err(|e| format!("Failed to write contract artifact: {e}"))?;
     let output = Command::new(TRANSPILER_BIN_PATH.as_str())
-        .arg("contract_artifact.json")
-        .arg("output.json")
+        .arg(format!("contract_artifact_{}.json", ARTIFACTS_SUFFIX.get().unwrap()))
+        .arg(format!("output_{}.json", ARTIFACTS_SUFFIX.get().unwrap()))
         .output()
         .map_err(|e| format!("Failed to execute transpiler: {e}"))?;
 
@@ -112,8 +117,9 @@ fn transpile(bytecode_base64: String) -> Result<String, String> {
 
     log::debug!("Transpiler output: {output:?}");
 
-    let output_content = fs::read_to_string("output.json")
-        .map_err(|e| format!("Failed to read output.json: {e}"))?;
+    let output_content =
+        fs::read_to_string(format!("output_{}.json", ARTIFACTS_SUFFIX.get().unwrap()))
+            .map_err(|e| format!("Failed to read output.json: {e}"))?;
 
     let output_json: Value = serde_json::from_str(&output_content)
         .map_err(|e| format!("Failed to parse output.json: {e}"))?;
@@ -129,9 +135,6 @@ fn transpile(bytecode_base64: String) -> Result<String, String> {
     log::debug!("Transpilation time: {:?}", start_time.elapsed());
     Ok(bytecode.to_string())
 }
-
-/// Global simulator process that stays alive across calls
-static SIMULATOR_PROCESS: OnceLock<Mutex<Option<SimulatorProcess>>> = OnceLock::new();
 
 struct SimulatorProcess {
     child: Child,
@@ -238,18 +241,35 @@ impl SimulatorProcess {
         .map_err(|e| format!("Failed to decode simulator response from base64: {e}"))
         {
             Ok(response_line) => response_line,
-            Err(e) => panic!("Failed to decode simulator response: {e}"),
+            Err(e) => {
+                if e.to_string().contains("unexpected end of file") {
+                    log::warn!("Unexpected end of file, recreating simulator");
+                    recreate_simulator().expect("Failed to recreate simulator");
+                    return self.execute(bytecode, inputs);
+                } else {
+                    panic!("Failed to decode simulator response: {e}");
+                }
+            }
         };
 
         let gz_decode_step = Instant::now();
         let mut gz_decoder = GzDecoder::new(response_line_gzip.as_slice());
         let mut response_line = Vec::new();
-        let result = gz_decoder
+        match gz_decoder
             .read_to_end(&mut response_line)
-            .map_err(|e| format!("Failed to read simulator response: {e}"));
-        if result.is_err() {
-            panic!("Failed to read simulator response, gzip decoder: {}", result.err().unwrap());
-        }
+            .map_err(|e| format!("Failed to read simulator response: {e}"))
+        {
+            Ok(_) => (),
+            Err(e) => {
+                if e.to_string().contains("unexpected end of file") {
+                    log::warn!("Unexpected end of file, recreating simulator");
+                    recreate_simulator().expect("Failed to recreate simulator");
+                    return self.execute(bytecode, inputs);
+                } else {
+                    panic!("Failed to decode simulator response: {e}");
+                }
+            }
+        };
         let response_line = String::from_utf8(response_line).unwrap();
         log::debug!("Gz decoding response time {:?}", gz_decode_step.elapsed());
         log::debug!("Decoding response time {:?}", decode_step.elapsed());
@@ -298,10 +318,22 @@ fn get_or_create_simulator()
 }
 
 /// Initialize the simulator process
-fn initialize() {
+fn initialize_simulator() {
     let _mutex = get_or_create_simulator().expect("Failed to create simulator");
 }
 
+/// Initialize the artifacts suffix
+///
+/// This is used to avoid transpiler writing to the same file in multiple threaded fuzzing
+fn initialize_artifacts_suffix() {
+    // Set a random string to the ARTIFACTS_SUFFIX global variable
+    use rand::{Rng, distributions::Alphanumeric};
+
+    let random_string: String =
+        rand::thread_rng().sample_iter(&Alphanumeric).take(16).map(char::from).collect();
+
+    ARTIFACTS_SUFFIX.get_or_init(|| random_string);
+}
 /// Simulate Abstract VM bytecode execution
 fn simulate_abstract_vm(
     bytecode: String,
@@ -327,7 +359,8 @@ const TARGET_RUNTIMES: [RuntimeType; 1] = [BRILLIG_RUNTIME];
 libfuzzer_sys::fuzz_target!(
     init: {
         println!("Initializing simulator process");
-        initialize();
+        initialize_simulator();
+        initialize_artifacts_suffix();
     }, |data: &[u8]| -> Corpus {
 
     static COUNTERS: Counters<100000> = Counters::new();
@@ -355,18 +388,22 @@ libfuzzer_sys::fuzz_target!(
     // You can disable some instructions with bugs that are not fixed yet
     let modes = vec![FuzzerMode::NonConstant];
     let instruction_options = InstructionOptions {
-        array_get_enabled: false,
-        array_set_enabled: false,
+        // AVM does not support these instructions
         ecdsa_secp256k1_enabled: false,
         ecdsa_secp256r1_enabled: false,
         blake2s_hash_enabled: false,
         blake3_hash_enabled: false,
         aes128_encrypt_enabled: false,
-        field_to_bytes_to_field_enabled: false,
+        // https://github.com/AztecProtocol/aztec-packages/issues/17182
+        // https://github.com/AztecProtocol/aztec-packages/issues/16948
         point_add_enabled: false,
         multi_scalar_mul_enabled: false,
+        // https://github.com/AztecProtocol/aztec-packages/issues/16944
         shl_enabled: false,
         shr_enabled: false,
+
+        //https://github.com/noir-lang/noir/issues/10035
+        unsafe_get_set_enabled: false,
         ..InstructionOptions::default()
     };
     let fuzzer_command_options =

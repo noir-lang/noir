@@ -71,6 +71,7 @@ fn module_is_parent_of_struct_module(
     module_data.is_type && module_data.parent == Some(current)
 }
 
+/// Returns whether a struct member with the given visibility is visible from `current_module_id`.
 pub fn struct_member_is_visible(
     struct_id: TypeId,
     visibility: ItemVisibility,
@@ -80,6 +81,7 @@ pub fn struct_member_is_visible(
     type_member_is_visible(struct_id.module_id(), visibility, current_module_id, def_maps)
 }
 
+/// Returns whether a trait member with the given visibility is visible from `current_module_id`.
 pub fn trait_member_is_visible(
     trait_id: TraitId,
     visibility: ItemVisibility,
@@ -89,6 +91,7 @@ pub fn trait_member_is_visible(
     type_member_is_visible(trait_id.0, visibility, current_module_id, def_maps)
 }
 
+/// Returns whether a struct or trait member with the given visibility is visible from `current_module_id`.
 fn type_member_is_visible(
     type_module_id: ModuleId,
     visibility: ItemVisibility,
@@ -123,6 +126,11 @@ fn type_member_is_visible(
     }
 }
 
+/// Returns whether a method call `func_id` on an object of type `object_type` is visible from
+/// `current_module`.
+/// If there's a self type at the current location it must be passed as `self_type`. This is
+/// used for the case of calling, inside a generic trait impl, a private method on the same
+/// type as `self_type` regardless of its generic arguments (in this case the call is allowed).
 pub fn method_call_is_visible(
     self_type: Option<&Type>,
     object_type: &Type,
@@ -188,6 +196,7 @@ pub fn method_call_is_visible(
     }
 }
 
+/// Returns whether two types are the same disregarding their generic arguments.
 fn is_same_type_regardless_generics(type1: &Type, type2: &Type) -> bool {
     if type1 == type2 {
         return true;

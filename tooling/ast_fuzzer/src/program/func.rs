@@ -64,7 +64,7 @@ impl FunctionDeclaration {
             .collect();
 
         let return_type =
-            (!types::is_unit(&self.return_type)).then(|| types::to_hir_type(&self.return_type));
+            (!types::is_unit(&self.return_type)).then_some(types::to_hir_type(&self.return_type));
 
         (param_types, return_type)
     }
@@ -1073,7 +1073,6 @@ impl<'a> FunctionContext<'a> {
         // Find a type we can produce in the current scope which we can pass as input
         // to the operations we selected, and it returns the desired output.
         fn collect_input_types<'a, K: Ord>(
-            this: &FunctionContext,
             op: BinaryOp,
             type_out: &Type,
             scope: &'a Scope<K>,
@@ -1081,16 +1080,15 @@ impl<'a> FunctionContext<'a> {
             scope
                 .types_produced()
                 .filter(|type_in| types::can_binary_op_return_from_input(&op, type_in, type_out))
-                .filter(|type_in| !this.ctx.should_avoid_literals(type_in))
                 .collect::<Vec<_>>()
         }
 
         // Try local variables first.
-        let mut lhs_opts = collect_input_types(self, op, typ, self.locals.current());
+        let mut lhs_opts = collect_input_types(op, typ, self.locals.current());
 
         // If the locals don't have any type compatible with `op`, try the globals.
         if lhs_opts.is_empty() {
-            lhs_opts = collect_input_types(self, op, typ, &self.globals);
+            lhs_opts = collect_input_types(op, typ, &self.globals);
         }
 
         // We might not have any input that works for this operation.
@@ -1256,8 +1254,7 @@ impl<'a> FunctionContext<'a> {
         // Generate a type or choose an existing one.
         let max_depth = self.max_depth();
         let comptime_friendly = self.config().comptime_friendly;
-        let mut typ =
-            self.ctx.gen_type(u, max_depth, false, false, true, comptime_friendly, true)?;
+        let mut typ = self.ctx.gen_type(u, max_depth, false, false, comptime_friendly, true)?;
 
         // If we picked the target type to be a slice, we can consider popping from it.
         if let Type::Slice(ref item_type) = typ {
@@ -1463,17 +1460,31 @@ impl<'a> FunctionContext<'a> {
 
         // Print one of the variables as-is.
         let (id, typ) = u.choose_iter(opts)?;
+        let id = *id;
 
         // The print oracle takes 2 parameters: the newline marker and the value,
         // but it takes 2 more arguments: the type descriptor and the format string marker,
         // which are inserted automatically by the monomorphizer.
         let param_types = vec![Type::Bool, typ.clone()];
+
         let hir_type = types::to_hir_type(typ);
-        let ident = self.local_ident(*id);
+        let ident = self.local_ident(id);
+
+        // Functions need to be passed as a tuple.
+        let arg = if types::is_function(&ident.typ) {
+            Expression::Tuple(vec![
+                Expression::Ident(ident),
+                Expression::Ident(self.local_ident(id)),
+            ])
+        } else {
+            Expression::Ident(ident)
+        };
+
         let mut args = vec![
             expr::lit_bool(true), // include newline,
-            Expression::Ident(ident),
+            arg,
         ];
+
         append_printable_type_info_for_type(hir_type, &mut args);
 
         let print_oracle_ident = Ident {
