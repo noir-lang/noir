@@ -16,7 +16,7 @@ use num_traits::{
     ops::overflowing::{OverflowingAdd, OverflowingSub},
 };
 
-use rand::{Rng, seq::SliceRandom};
+use rand::{Rng, seq::IndexedRandom};
 use rand_xorshift::XorShiftRng;
 
 use super::{
@@ -242,8 +242,8 @@ fn add_sub_pow_2_update<
 ) -> FieldElement {
     let width = T::BITS;
     let lhs_int = T::from(field_to_u128(lhs)).expect("Should convert");
-    let update = T::from(1u128 << prng.gen_range(0..width)).expect("Should convert");
-    let result_int = if prng.gen_range(0..2).is_zero() {
+    let update = T::from(1u128 << prng.random_range(0..width)).expect("Should convert");
+    let result_int = if prng.random_range(0..2).is_zero() {
         lhs_int.wrapping_add(&update)
     } else {
         lhs_int.wrapping_sub(&update)
@@ -267,8 +267,8 @@ fn add_sub_pow_2_update_signed<
 ) -> FieldElement {
     let width = T::BITS;
     let lhs_int = T::from(field_to_i128(lhs, width)).expect("Should convert");
-    let update = T::from(1i128 << prng.gen_range(0..(width - 1))).expect("Should convert");
-    let result_int = if prng.gen_range(0..2).is_zero() {
+    let update = T::from(1i128 << prng.random_range(0..(width - 1))).expect("Should convert");
+    let result_int = if prng.random_range(0..2).is_zero() {
         lhs_int.wrapping_add(&update)
     } else {
         lhs_int.wrapping_sub(&update)
@@ -368,7 +368,7 @@ fn u128_to_field(value: u128) -> FieldElement {
 
 /// Generate a random unsigned integer of given width and convert to field
 fn generate_random_for_width(prng: &mut XorShiftRng, width: u32) -> FieldElement {
-    FieldElement::from(prng.gen_range(0..(1i128 << width)))
+    FieldElement::from(prng.random_range(0..(1i128 << width)))
 }
 
 struct IntMutator<'a> {
@@ -385,12 +385,12 @@ impl<'a> IntMutator<'a> {
     fn substitute_signed_int_with_fixed_value(&mut self, width: u32) -> InputValue {
         let value = match BASIC_FIXED_INT_SUBSTITUTION_CONFIGURATION.select(self.prng) {
             FixedIntSubstitutionOptions::Minimum => {
-                FIXED_SIGNED_VALUES[self.prng.gen_range(0..width as usize)]
+                FIXED_SIGNED_VALUES[self.prng.random_range(0..width as usize)]
             }
             FixedIntSubstitutionOptions::Maximum => {
-                FIXED_SIGNED_VALUES[self.prng.gen_range(64..(64 + width) as usize)]
+                FIXED_SIGNED_VALUES[self.prng.random_range(64..(64 + width) as usize)]
             }
-            FixedIntSubstitutionOptions::Pow2 => 2i128.pow(self.prng.gen_range(0..(width - 1))),
+            FixedIntSubstitutionOptions::Pow2 => 2i128.pow(self.prng.random_range(0..(width - 1))),
         };
         let checked_value = match width {
             8 => value.clamp(i128::from(i8::MIN), i128::from(i8::MAX)),
@@ -422,7 +422,7 @@ impl<'a> IntMutator<'a> {
 
     /// Add or subtract a small signed value to input
     fn sub_add_small_value_signed(&mut self, input: &i128, width: u32) -> InputValue {
-        let update = self.prng.gen_range(i8::MIN..=i8::MAX);
+        let update = self.prng.random_range(i8::MIN..=i8::MAX);
         InputValue::Field(match width {
             8 => add_small::<i8>(input, update),
             16 => add_small::<i16>(input, update),
@@ -437,7 +437,7 @@ impl<'a> IntMutator<'a> {
 
     /// Shift signed value
     fn shift_signed_int(&mut self, input: &i128, width: u32) -> InputValue {
-        let exponent = self.prng.gen_range(1..=(width * 2 - 1));
+        let exponent = self.prng.random_range(1..=(width * 2 - 1));
         InputValue::Field(match width {
             8 => shift_signed_int::<i8>(input, exponent),
             16 => shift_signed_int::<i16>(input, exponent),
@@ -536,7 +536,7 @@ impl<'a> IntMutator<'a> {
     // Get one of the fixed values in place of the original value
     fn substitute_unsigned_int_with_fixed_value(&mut self, width: u32) -> InputValue {
         InputValue::Field(FieldElement::from(
-            FIXED_UNSIGNED_VALUES[self.prng.gen_range(0..(width * 4) as usize)]
+            FIXED_UNSIGNED_VALUES[self.prng.random_range(0..(width * 4) as usize)]
                 & (u128::MAX >> (u128::BITS - width)),
         ))
     }
@@ -557,7 +557,7 @@ impl<'a> IntMutator<'a> {
 
     /// Shift signed value
     fn shift_unsigned_int(&mut self, input: &u128, width: u32) -> InputValue {
-        let exponent = self.prng.gen_range(1..=(width * 2 - 1));
+        let exponent = self.prng.random_range(1..=(width * 2 - 1));
         InputValue::Field(match width {
             8 => shift_unsigned_int::<u8>(input, exponent),
             16 => shift_unsigned_int::<u16>(input, exponent),
@@ -572,8 +572,8 @@ impl<'a> IntMutator<'a> {
 
     /// Add or subtract a small signed value to input
     fn sub_add_small_value_unsigned(&mut self, input: &u128, width: u32) -> InputValue {
-        let update = self.prng.gen_range(u8::MIN..=u8::MAX);
-        let is_add = self.prng.gen_range(0..2).is_zero();
+        let update = self.prng.random_range(u8::MIN..=u8::MAX);
+        let is_add = self.prng.random_range(0..2).is_zero();
 
         // Probability of addition and subtraction is equal
         if is_add {
@@ -661,7 +661,7 @@ impl<'a> IntMutator<'a> {
         // If it's just one bit just get a random value
         if width == 1 {
             assert!(*sign == Sign::Unsigned);
-            InputValue::Field(FieldElement::from(self.prng.gen_range(0..1u32)))
+            InputValue::Field(FieldElement::from(self.prng.random_range(0..1u32)))
         } else {
             match sign {
                 Sign::Signed => self.mutate_signed(initial_field_value, width),
