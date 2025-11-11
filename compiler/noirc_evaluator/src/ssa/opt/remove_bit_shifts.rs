@@ -258,16 +258,16 @@ impl Context<'_, '_, '_> {
                     self.context.call_stack_id,
                 );
 
-                 // Get the sign of the operand; positive signed operand will just do a division as well
+                // Get the sign of the operand; positive signed operand will just do a division as well
                 let unsigned_typ = NumericType::unsigned(bit_size);
-                let lhs_as_unsigned = self.insert_cast(lhs, unsigned_typ);
-                let zero = instruction_builder.numeric_constant(FieldElement::zero(), lhs_typ);
-                              // The sign will be 0 for positive numbers and 1 for negatives, so it covers both cases.
+                let lhs_as_unsigned = instruction_builder.insert_cast(lhs, unsigned_typ);
+                
+                // The sign will be 0 for positive numbers and 1 for negatives, so it covers both cases.
                 // To compute this we check if the value, as a Field, is greater or equal than the maximum
                 // value that is considered positive, that is, 2^(bit_size-1)-1: 2^(bit_size-1)-1 < lhs_as_field
                 let max_positive = (1_u128 << (bit_size - 1)) - 1;
-                let max_positive = self.numeric_constant(max_positive, unsigned_typ);
-                let lhs_sign = instruction_builder.insert_binary(lhs, BinaryOp::Lt, zero);
+                let max_positive = instruction_builder.numeric_constant(max_positive, unsigned_typ);
+                let lhs_sign = instruction_builder.insert_binary(max_positive, BinaryOp::Lt, lhs_as_unsigned);
 
                 let div_complement = instruction_builder.convert_to_div_complement(lhs, lhs_sign);
                 // Performs the division on the adjusted complement (or the operand if positive)
@@ -495,7 +495,7 @@ mod tests {
         assert_ssa_snapshot,
         ssa::{
             function_builder::FunctionBuilder,
-            interpreter::value::{NumericValue, Value},
+            interpreter::value::{Fitted, NumericValue, Value},
             ir::{
                 basic_block::BasicBlockId,
                 function::Function,
@@ -1176,8 +1176,8 @@ mod tests {
         runner
             .run(&any::<i8>(), |input| {
                 let mut result =
-                    ssa.interpret(vec![Value::Numeric(NumericValue::I8(input))]).unwrap();
-                let Value::Numeric(NumericValue::I8(result)) = result.remove(0) else {
+                    ssa.interpret(vec![Value::i8(input)]).unwrap();
+                let Value::Numeric(NumericValue::I8(Fitted::Fit(result))) = result.remove(0) else {
                     return Err(TestCaseError::Fail("Could not execute".into()));
                 };
 
