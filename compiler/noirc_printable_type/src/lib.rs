@@ -141,15 +141,20 @@ impl<F: AcirField> std::fmt::Display for PrintableValueDisplay<F> {
 
 /// Format a given [PrintableValue] according to an expected [PrintableType].
 ///
-/// Returns `None` if the value and type combination is unexpected.
-/// Remember to add new types!
+/// Returns `None` if the value not what we expect based on the type.
 fn to_string<F: AcirField>(value: &PrintableValue<F>, typ: &PrintableType) -> Option<String> {
     let mut output = String::new();
-    match (value, typ) {
-        (PrintableValue::Field(f), PrintableType::Field) => {
+    match typ {
+        PrintableType::Field => {
+            let PrintableValue::Field(f) = value else {
+                return None;
+            };
             output.push_str(&f.to_short_hex());
         }
-        (PrintableValue::Field(f), PrintableType::UnsignedInteger { width }) => {
+        PrintableType::UnsignedInteger { width } => {
+            let PrintableValue::Field(f) = value else {
+                return None;
+            };
             // Retain the lower 'width' bits
             debug_assert!(
                 *width <= 128,
@@ -162,7 +167,10 @@ fn to_string<F: AcirField>(value: &PrintableValue<F>, typ: &PrintableType) -> Op
 
             output.push_str(&uint_cast.to_string());
         }
-        (PrintableValue::Field(f), PrintableType::SignedInteger { width }) => {
+        PrintableType::SignedInteger { width } => {
+            let PrintableValue::Field(f) = value else {
+                return None;
+            };
             let mut uint = f.to_u128(); // Interpret as uint
 
             // Extract sign relative to width of input
@@ -173,24 +181,33 @@ fn to_string<F: AcirField>(value: &PrintableValue<F>, typ: &PrintableType) -> Op
 
             output.push_str(&uint.to_string());
         }
-        (PrintableValue::Field(f), PrintableType::Boolean) => {
+        PrintableType::Boolean => {
+            let PrintableValue::Field(f) = value else {
+                return None;
+            };
             if f.is_one() {
                 output.push_str("true");
             } else {
                 output.push_str("false");
             }
         }
-        (PrintableValue::Field(_), PrintableType::Function { .. }) => {
+        PrintableType::Function { .. } => {
+            let PrintableValue::Field(_) = value else {
+                return None;
+            };
             output.push_str(&format!("<<{typ}>>"));
         }
-        (_, PrintableType::Reference { mutable: false, .. }) => {
-            output.push_str("<<ref>>");
+        PrintableType::Reference { mutable, .. } => {
+            if *mutable {
+                output.push_str("<<mutable ref>>");
+            } else {
+                output.push_str("<<ref>>");
+            }
         }
-        (_, PrintableType::Reference { mutable: true, .. }) => {
-            output.push_str("<<mutable ref>>");
-        }
-        (PrintableValue::Vec { array_elements, is_slice }, PrintableType::Array { typ, .. })
-        | (PrintableValue::Vec { array_elements, is_slice }, PrintableType::Slice { typ }) => {
+        PrintableType::Array { typ, .. } | PrintableType::Slice { typ } => {
+            let PrintableValue::Vec { array_elements, is_slice } = value else {
+                return None;
+            };
             if *is_slice {
                 output.push('&');
             }
@@ -207,12 +224,16 @@ fn to_string<F: AcirField>(value: &PrintableValue<F>, typ: &PrintableType) -> Op
             }
             output.push(']');
         }
-
-        (PrintableValue::String(s), PrintableType::String { .. }) => {
+        PrintableType::String { .. } => {
+            let PrintableValue::String(s) = value else {
+                return None;
+            };
             output.push_str(s);
         }
-
-        (PrintableValue::FmtString(template, values), PrintableType::FmtString { typ, .. }) => {
+        PrintableType::FmtString { typ, .. } => {
+            let PrintableValue::FmtString(template, values) = value else {
+                return None;
+            };
             let PrintableType::Tuple { types } = typ.as_ref() else {
                 panic!("Expected type to be a Tuple for FmtString");
             };
@@ -220,8 +241,10 @@ fn to_string<F: AcirField>(value: &PrintableValue<F>, typ: &PrintableType) -> Op
             let args = values.iter().cloned().zip(types.iter().cloned()).collect::<Vec<_>>();
             output.push_str(&PrintableValueDisplay::FmtString(template, args).to_string());
         }
-
-        (PrintableValue::Struct(map), PrintableType::Struct { name, fields, .. }) => {
+        PrintableType::Struct { name, fields, .. } => {
+            let PrintableValue::Struct(map) = value else {
+                return None;
+            };
             output.push_str(&format!("{name} {{ "));
 
             let mut fields = fields.iter().peekable();
@@ -238,8 +261,10 @@ fn to_string<F: AcirField>(value: &PrintableValue<F>, typ: &PrintableType) -> Op
 
             output.push_str(" }");
         }
-
-        (PrintableValue::Vec { array_elements, .. }, PrintableType::Tuple { types }) => {
+        PrintableType::Tuple { types } => {
+            let PrintableValue::Vec { array_elements, .. } = value else {
+                return None;
+            };
             output.push('(');
             let mut elements = array_elements.iter().zip(types).peekable();
             while let Some((value, typ)) = elements.next() {
@@ -255,10 +280,13 @@ fn to_string<F: AcirField>(value: &PrintableValue<F>, typ: &PrintableType) -> Op
             }
             output.push(')');
         }
-
-        (_, PrintableType::Unit) => output.push_str("()"),
-
-        (PrintableValue::Enum { tag, elements }, PrintableType::Enum { name, variants }) => {
+        PrintableType::Unit => {
+            output.push_str("()");
+        }
+        PrintableType::Enum { name, variants } => {
+            let PrintableValue::Enum { tag, elements } = value else {
+                return None;
+            };
             let (variant_name, types) = &variants[*tag];
             let has_fields = !elements.is_empty();
             output.push_str(&format!("{name}::{variant_name}"));
@@ -278,9 +306,7 @@ fn to_string<F: AcirField>(value: &PrintableValue<F>, typ: &PrintableType) -> Op
                 output.push(')');
             }
         }
-
-        _ => return None,
-    };
+    }
 
     Some(output)
 }
