@@ -653,20 +653,20 @@ fn ambiguous_trait_method_multiple_bounds_with_self() {
 }
 
 #[test]
-fn ambiguous_trait_method_in_parent_child_relationship() {
+fn ambiguous_trait_method_in_parent_child_relationship_with_self() {
     let src = r#"
     trait Parent {
-        fn foo();
+        fn foo(_self: Self);
     }
 
     trait Child: Parent {
-        fn foo();
+        fn foo(_self: Self);
     }
 
-    pub fn foo<T: Child>() {
-        T::foo();
-        ^^^^^^ Multiple applicable items in scope
-        ~~~~~~ All these trait which provide `method` are implemented and in scope: `Child`, `Parent`
+    pub fn foo<T: Child>(x: T) {
+        x.foo();
+        ^^^^^^^ Multiple applicable items in scope
+        ~~~~~~~ All these trait which provide `foo` are implemented and in scope: `Child`, `Parent`
     }
 
     fn main() {}

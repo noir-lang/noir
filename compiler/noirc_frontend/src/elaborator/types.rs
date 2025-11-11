@@ -2067,26 +2067,30 @@ impl Elaborator<'_> {
             if Some(object_type) == self.self_type.as_ref() {
                 let the_trait = self.interner.get_trait(trait_id);
                 let constraint = the_trait.as_constraint(the_trait.name.location());
-                if let Some(HirTraitMethodReference {
-                    definition,
-                    trait_id,
-                    trait_generics,
-                    assumed: _,
-                }) = self.lookup_method_in_trait(
+                let mut matches = self.lookup_methods_in_trait(
                     the_trait,
                     method_name,
                     &constraint.trait_bound,
                     the_trait.id,
-                ) {
+                );
+                if matches.len() == 1 {
+                    let method = matches.remove(0);
                     // If it is, it's an assumed trait
                     // Note that here we use the `trait_id` from `TraitItemId` because looking a method on a trait
                     // might return a method on a parent trait.
                     return Some(HirMethodReference::TraitItemId(HirTraitMethodReference {
-                        definition,
-                        trait_id,
-                        trait_generics,
                         assumed: true,
+                        ..method
                     }));
+                }
+                if matches.len() > 1 {
+                    return self.handle_trait_method_lookup_matches(
+                        object_type,
+                        method_name,
+                        location,
+                        object_location,
+                        matches,
+                    );
                 }
             }
         }
@@ -2098,18 +2102,34 @@ impl Elaborator<'_> {
                 if let Some(the_trait) =
                     self.interner.try_get_trait(constraint.trait_bound.trait_id)
                 {
-                    if let Some(method) = self.lookup_method_in_trait(
+                    let trait_matches = self.lookup_methods_in_trait(
                         the_trait,
                         method_name,
                         &constraint.trait_bound,
                         the_trait.id,
-                    ) {
-                        matches.push(method);
-                    }
+                    );
+                    matches.extend(trait_matches);
                 }
             }
         }
 
+        self.handle_trait_method_lookup_matches(
+            object_type,
+            method_name,
+            location,
+            object_location,
+            matches,
+        )
+    }
+
+    fn handle_trait_method_lookup_matches(
+        &mut self,
+        object_type: &Type,
+        method_name: &str,
+        location: Location,
+        object_location: Location,
+        mut matches: Vec<HirTraitMethodReference>,
+    ) -> Option<HirMethodReference> {
         if matches.len() == 1 {
             return Some(HirMethodReference::TraitItemId(matches.remove(0)));
         }
@@ -2139,13 +2159,18 @@ impl Elaborator<'_> {
         None
     }
 
-    fn lookup_method_in_trait(
+    /// Looks up a method in the given trait and its parent traits, recursively.
+    /// Mulitple matches are possible if a method with the same name exists in, for example,
+    /// a child and its parent.
+    fn lookup_methods_in_trait(
         &self,
         the_trait: &Trait,
         method_name: &str,
         trait_bound: &ResolvedTraitBound,
         starting_trait_id: TraitId,
-    ) -> Option<HirTraitMethodReference> {
+    ) -> Vec<HirTraitMethodReference> {
+        let mut matches = Vec::new();
+
         if let Some(trait_method) = the_trait.find_method(method_name, self.interner) {
             let trait_generics = trait_bound.trait_generics.clone();
             let trait_method = HirTraitMethodReference {
@@ -2154,7 +2179,7 @@ impl Elaborator<'_> {
                 trait_generics,
                 assumed: false,
             };
-            return Some(trait_method);
+            matches.push(trait_method);
         }
 
         // Search in the parent traits, if any
@@ -2167,18 +2192,17 @@ impl Elaborator<'_> {
 
                 let parent_trait_bound =
                     self.instantiate_parent_trait_bound(trait_bound, parent_trait_bound);
-                if let Some(method) = self.lookup_method_in_trait(
+                let parent_matches = self.lookup_methods_in_trait(
                     the_trait,
                     method_name,
                     &parent_trait_bound,
                     starting_trait_id,
-                ) {
-                    return Some(method);
-                }
+                );
+                matches.extend(parent_matches);
             }
         }
 
-        None
+        matches
     }
 
     pub(super) fn type_check_call(
