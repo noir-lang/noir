@@ -821,7 +821,17 @@
 <a href="#820" id="820">820</a>
 <a href="#821" id="821">821</a>
 <a href="#822" id="822">822</a>
-<a href="#823" id="823">823</a></pre></div><pre class="rust"><code><span class="kw">pub use </span>noirc_errors::Span;
+<a href="#823" id="823">823</a>
+<a href="#824" id="824">824</a>
+<a href="#825" id="825">825</a>
+<a href="#826" id="826">826</a>
+<a href="#827" id="827">827</a>
+<a href="#828" id="828">828</a>
+<a href="#829" id="829">829</a>
+<a href="#830" id="830">830</a>
+<a href="#831" id="831">831</a>
+<a href="#832" id="832">832</a>
+<a href="#833" id="833">833</a></pre></div><pre class="rust"><code><span class="kw">pub use </span>noirc_errors::Span;
 <span class="kw">use </span>noirc_errors::{CustomDiagnostic <span class="kw">as </span>Diagnostic, Location};
 <span class="kw">use </span>thiserror::Error;
 
@@ -957,6 +967,8 @@
     </span>QuoteInRuntimeCode { location: Location },
     <span class="attr">#[error(<span class="string">"Comptime-only type `{typ}` cannot be used in runtime code"</span>)]
     </span>ComptimeTypeInRuntimeCode { typ: String, location: Location },
+    <span class="attr">#[error(<span class="string">"Comptime-only type `{typ}` cannot be used in non-comptime global"</span>)]
+    </span>ComptimeTypeInNonComptimeGlobal { typ: String, location: Location },
     <span class="attr">#[error(<span class="string">"Comptime variable `{name}` cannot be mutated in a non-comptime context"</span>)]
     </span>MutatingComptimeInNonComptimeContext { name: String, location: Location },
     <span class="attr">#[error(<span class="string">"Failed to parse `{statement}` as an expression"</span>)]
@@ -1061,6 +1073,7 @@
             | ResolverError::BinaryOpError { location, .. }
             | ResolverError::QuoteInRuntimeCode { location }
             | ResolverError::ComptimeTypeInRuntimeCode { location, .. }
+            | ResolverError::ComptimeTypeInNonComptimeGlobal { location, .. }
             | ResolverError::MutatingComptimeInNonComptimeContext { location, .. }
             | ResolverError::InvalidInternedStatementInExpr { location, .. }
             | ResolverError::InvalidSyntaxInPattern { location }
@@ -1108,134 +1121,132 @@
     </span><span class="kw">fn </span>from(error: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>ResolverError) -&gt; Diagnostic {
         <span class="kw">match </span>error {
             ResolverError::DuplicateDefinition { name, first_location, second_location} =&gt; {
-                        <span class="kw">let </span><span class="kw-2">mut </span>diag = Diagnostic::simple_error(
-                            <span class="macro">format!</span>(<span class="string">"duplicate definitions of {name} found"</span>),
-                            <span class="string">"second definition found here"</span>.to_string(),
-                            <span class="kw-2">*</span>second_location,
-                        );
-                        diag.add_secondary(<span class="string">"first definition found here"</span>.to_string(), <span class="kw-2">*</span>first_location);
-                        diag
-                    }
+                <span class="kw">let </span><span class="kw-2">mut </span>diag = Diagnostic::simple_error(
+                    <span class="macro">format!</span>(<span class="string">"duplicate definitions of {name} found"</span>),
+                    <span class="string">"second definition found here"</span>.to_string(),
+                    <span class="kw-2">*</span>second_location,
+                );
+                diag.add_secondary(<span class="string">"first definition found here"</span>.to_string(), <span class="kw-2">*</span>first_location);
+                diag
+            }
             ResolverError::UnusedVariable { ident } =&gt; {
-                        <span class="kw">let </span><span class="kw-2">mut </span>diagnostic = Diagnostic::simple_warning(
-                            <span class="macro">format!</span>(<span class="string">"unused variable {ident}"</span>),
-                            <span class="string">"unused variable"</span>.to_string(),
-                            ident.location(),
-                        );
-                        diagnostic.unnecessary = <span class="bool-val">true</span>;
-                        diagnostic
-                    }
+                <span class="kw">let </span><span class="kw-2">mut </span>diagnostic = Diagnostic::simple_warning(
+                    <span class="macro">format!</span>(<span class="string">"unused variable {ident}"</span>),
+                    <span class="string">"unused variable"</span>.to_string(),
+                    ident.location(),
+                );
+                diagnostic.unnecessary = <span class="bool-val">true</span>;
+                diagnostic
+            }
             ResolverError::UnusedItem { ident, item} =&gt; {
-                        <span class="kw">let </span>item_type = item.item_type();
+                <span class="kw">let </span>item_type = item.item_type();
 
-                        <span class="kw">let </span><span class="kw-2">mut </span>diagnostic =
-                            <span class="kw">if let </span>UnusedItem::Struct(..) = item {
-                                Diagnostic::simple_warning(
-                                    <span class="macro">format!</span>(<span class="string">"{item_type} `{ident}` is never constructed"</span>),
-                                    <span class="macro">format!</span>(<span class="string">"{item_type} is never constructed"</span>),
-                                    ident.location(),
-                                )
-                            } <span class="kw">else </span>{
-                                Diagnostic::simple_warning(
-                                    <span class="macro">format!</span>(<span class="string">"unused {item_type} {ident}"</span>),
-                                    <span class="macro">format!</span>(<span class="string">"unused {item_type}"</span>),
-                                    ident.location(),
-                                )
-                            };
-                        diagnostic.unnecessary = <span class="bool-val">true</span>;
-                        diagnostic
-                    }
+                <span class="kw">let </span><span class="kw-2">mut </span>diagnostic =
+                    <span class="kw">if let </span>UnusedItem::Struct(..) = item {
+                        Diagnostic::simple_warning(
+                            <span class="macro">format!</span>(<span class="string">"{item_type} `{ident}` is never constructed"</span>),
+                            <span class="macro">format!</span>(<span class="string">"{item_type} is never constructed"</span>),
+                            ident.location(),
+                        )
+                    } <span class="kw">else </span>{
+                        Diagnostic::simple_warning(
+                            <span class="macro">format!</span>(<span class="string">"unused {item_type} {ident}"</span>),
+                            <span class="macro">format!</span>(<span class="string">"unused {item_type}"</span>),
+                            ident.location(),
+                        )
+                    };
+                diagnostic.unnecessary = <span class="bool-val">true</span>;
+                diagnostic
+            }
             ResolverError::UnconditionalRecursion { name, location} =&gt; {
-                                Diagnostic::simple_warning(
-                                    <span class="macro">format!</span>(<span class="string">"function `{name}` cannot return without recursing"</span>),
-                                    <span class="string">"function cannot return without recursing"</span>.to_string(),
-                                    <span class="kw-2">*</span>location,
-                                )
-                            }
+                Diagnostic::simple_warning(
+                    <span class="macro">format!</span>(<span class="string">"function `{name}` cannot return without recursing"</span>),
+                    <span class="string">"function cannot return without recursing"</span>.to_string(),
+                    <span class="kw-2">*</span>location,
+                )
+            }
             ResolverError::VariableNotDeclared { name, location } =&gt;  {
-                                <span class="kw">if </span>name == <span class="string">"_" </span>{
-                                    Diagnostic::simple_error(
-                                        <span class="string">"in expressions, `_` can only be used on the left-hand side of an assignment"</span>.to_string(),
-                                        <span class="string">"`_` not allowed here"</span>.to_string(),
-                                        <span class="kw-2">*</span>location,
-                                    )
-                                } <span class="kw">else </span>{
-                                    Diagnostic::simple_error(
-                                        <span class="macro">format!</span>(<span class="string">"cannot find `{name}` in this scope"</span>),
-                                        <span class="string">"not found in this scope"</span>.to_string(),
-                                        <span class="kw-2">*</span>location,
-                                    )
-                                }
-                            },
+                <span class="kw">if </span>name == <span class="string">"_" </span>{
+                    Diagnostic::simple_error(
+                        <span class="string">"in expressions, `_` can only be used on the left-hand side of an assignment"</span>.to_string(),
+                        <span class="string">"`_` not allowed here"</span>.to_string(),
+                        <span class="kw-2">*</span>location,
+                    )
+                } <span class="kw">else </span>{
+                    Diagnostic::simple_error(
+                        <span class="macro">format!</span>(<span class="string">"cannot find `{name}` in this scope"</span>),
+                        <span class="string">"not found in this scope"</span>.to_string(),
+                        <span class="kw-2">*</span>location,
+                    )
+                }
+            }
             ResolverError::PathResolutionError(error) =&gt; error.into(),
             ResolverError::Expected { location, expected, got } =&gt; Diagnostic::simple_error(
-                                <span class="macro">format!</span>(<span class="string">"expected {expected} got {got}"</span>),
-                                String::new(),
-                                <span class="kw-2">*</span>location,
-                            ),
+                <span class="macro">format!</span>(<span class="string">"expected {expected} got {got}"</span>),
+                String::new(),
+                <span class="kw-2">*</span>location,
+            ),
             ResolverError::DuplicateField { field } =&gt; Diagnostic::simple_error(
-                                <span class="macro">format!</span>(<span class="string">"duplicate field {field}"</span>),
-                                String::new(),
-                                field.location(),
-                            ),
+                <span class="macro">format!</span>(<span class="string">"duplicate field {field}"</span>),
+                String::new(),
+                field.location(),
+            ),
             ResolverError::NoSuchField { field, struct_definition } =&gt; {
-                                Diagnostic::simple_error(
-                                    <span class="macro">format!</span>(<span class="string">"no such field {field} defined in struct {struct_definition}"</span>),
-                                    String::new(),
-                                    field.location(),
-                                )
-                            }
+                Diagnostic::simple_error(
+                    <span class="macro">format!</span>(<span class="string">"no such field {field} defined in struct {struct_definition}"</span>),
+                    String::new(),
+                    field.location(),
+                )
+            }
             ResolverError::MissingFields { location, missing_fields, struct_definition } =&gt; {
-                                <span class="kw">let </span>plural = <span class="kw">if </span>missing_fields.len() != <span class="number">1 </span>{ <span class="string">"s" </span>} <span class="kw">else </span>{ <span class="string">"" </span>};
-                                <span class="kw">let </span>remaining_fields_names = <span class="kw">match </span><span class="kw-2">&amp;</span>missing_fields[..] {
-                                    [field1] =&gt; field1.clone(),
-                                    [field1, field2] =&gt; <span class="macro">format!</span>(<span class="string">"{field1} and {field2}"</span>),
-                                    [field1, field2, field3] =&gt; <span class="macro">format!</span>(<span class="string">"{field1}, {field2} and {field3}"</span>),
-                                    <span class="kw">_ </span>=&gt; {
-                                        <span class="kw">let </span>len = missing_fields.len() - <span class="number">3</span>;
-                                        <span class="kw">let </span>len_plural = <span class="kw">if </span>len != <span class="number">1 </span>{<span class="string">"s"</span>} <span class="kw">else </span>{<span class="string">""</span>};
+                <span class="kw">let </span>plural = <span class="kw">if </span>missing_fields.len() != <span class="number">1 </span>{ <span class="string">"s" </span>} <span class="kw">else </span>{ <span class="string">"" </span>};
+                <span class="kw">let </span>remaining_fields_names = <span class="kw">match </span><span class="kw-2">&amp;</span>missing_fields[..] {
+                    [field1] =&gt; field1.clone(),
+                    [field1, field2] =&gt; <span class="macro">format!</span>(<span class="string">"{field1} and {field2}"</span>),
+                    [field1, field2, field3] =&gt; <span class="macro">format!</span>(<span class="string">"{field1}, {field2} and {field3}"</span>),
+                    <span class="kw">_ </span>=&gt; {
+                        <span class="kw">let </span>len = missing_fields.len() - <span class="number">3</span>;
+                        <span class="kw">let </span>len_plural = <span class="kw">if </span>len != <span class="number">1 </span>{<span class="string">"s"</span>} <span class="kw">else </span>{<span class="string">""</span>};
 
-                                        <span class="kw">let </span>truncated_fields = <span class="macro">format!</span>(<span class="string">" and {len} other field{len_plural}"</span>);
-                                        <span class="kw">let </span>missing_fields = <span class="kw-2">&amp;</span>missing_fields[<span class="number">0</span>..<span class="number">3</span>];
-                                        <span class="macro">format!</span>(<span class="string">"{}{truncated_fields}"</span>, missing_fields.join(<span class="string">", "</span>))
-                                    }
-                                };
+                        <span class="kw">let </span>truncated_fields = <span class="macro">format!</span>(<span class="string">" and {len} other field{len_plural}"</span>);
+                        <span class="kw">let </span>missing_fields = <span class="kw-2">&amp;</span>missing_fields[<span class="number">0</span>..<span class="number">3</span>];
+                        <span class="macro">format!</span>(<span class="string">"{}{truncated_fields}"</span>, missing_fields.join(<span class="string">", "</span>))
+                    }
+                };
 
-                                Diagnostic::simple_error(
-                                    <span class="macro">format!</span>(<span class="string">"missing field{plural} {remaining_fields_names} in struct {struct_definition}"</span>),
-                                    String::new(),
-                                    <span class="kw-2">*</span>location,
-                                )
-                            }
+                Diagnostic::simple_error(
+                    <span class="macro">format!</span>(<span class="string">"missing field{plural} {remaining_fields_names} in struct {struct_definition}"</span>),
+                    String::new(),
+                    <span class="kw-2">*</span>location,
+                )
+            }
             ResolverError::UnnecessaryMut { first_mut, second_mut } =&gt; {
-                                <span class="kw">let </span><span class="kw-2">mut </span>error = Diagnostic::simple_error(
-                                    <span class="string">"'mut' here is not necessary"</span>.to_owned(),
-                                    <span class="string">""</span>.to_owned(),
-                                    <span class="kw-2">*</span>second_mut,
-                                );
-                                error.add_secondary(
-                                    <span class="string">"Pattern was already made mutable from this 'mut'"</span>.to_owned(),
-                                    <span class="kw-2">*</span>first_mut,
-                                );
-                                error
-                            }
+                <span class="kw">let </span><span class="kw-2">mut </span>error = Diagnostic::simple_error(
+                    <span class="string">"'mut' here is not necessary"</span>.to_owned(),
+                    <span class="string">""</span>.to_owned(),
+                    <span class="kw-2">*</span>second_mut,
+                );
+                error.add_secondary(
+                    <span class="string">"Pattern was already made mutable from this 'mut'"</span>.to_owned(),
+                    <span class="kw-2">*</span>first_mut,
+                );
+                error
+            }
             ResolverError::UnnecessaryPub { ident, position } =&gt; {
-                        <span class="kw">let </span><span class="kw-2">mut </span>diag = Diagnostic::simple_error(
-                            <span class="macro">format!</span>(<span class="string">"unnecessary pub keyword on {position} for function {ident}"</span>),
-                            <span class="macro">format!</span>(<span class="string">"unnecessary pub {position}"</span>),
-                            ident.location(),
-                        );
-
-                                diag.add_note(<span class="string">"The `pub` keyword only has effects on arguments to the entry-point function of a program. Thus, adding it to other function parameters can be deceiving and should be removed"</span>.to_owned());
-                                diag
-                            }
+                <span class="kw">let </span><span class="kw-2">mut </span>diag = Diagnostic::simple_error(
+                    <span class="macro">format!</span>(<span class="string">"unnecessary pub keyword on {position} for function {ident}"</span>),
+                    <span class="macro">format!</span>(<span class="string">"unnecessary pub {position}"</span>),
+                    ident.location(),
+                );
+                diag.add_note(<span class="string">"The `pub` keyword only has effects on arguments to the entry-point function of a program. Thus, adding it to other function parameters can be deceiving and should be removed"</span>.to_owned());
+                diag
+            }
             ResolverError::NecessaryPub { ident } =&gt; {
-                        <span class="kw">let </span><span class="kw-2">mut </span>diag = Diagnostic::simple_error(
-                            <span class="macro">format!</span>(<span class="string">"missing pub keyword on return type of function {ident}"</span>),
-                            <span class="string">"missing pub on return type"</span>.to_string(),
-                            ident.location(),
-                        );
-
+                <span class="kw">let </span><span class="kw-2">mut </span>diag = Diagnostic::simple_error(
+                    <span class="macro">format!</span>(<span class="string">"missing pub keyword on return type of function {ident}"</span>),
+                    <span class="string">"missing pub on return type"</span>.to_string(),
+                    ident.location(),
+                );
                 diag.add_note(<span class="string">"The `pub` keyword is mandatory for the entry-point function return type because the verifier cannot retrieve private witness and thus the function will not be able to return a 'priv' value"</span>.to_owned());
                 diag
             }
@@ -1250,24 +1261,25 @@
                 <span class="kw-2">*</span>location,
             ),
             ResolverError::GenericsOnSelfType { location } =&gt; Diagnostic::simple_error(
-                                <span class="string">"Cannot apply generics to Self type"</span>.into(),
-                                <span class="string">"Use an explicit type name or apply the generics at the start of the impl instead"</span>.into(),
-                                <span class="kw-2">*</span>location,
-                            ),
+                <span class="string">"Cannot apply generics to Self type"</span>.into(),
+                <span class="string">"Use an explicit type name or apply the generics at the start of the impl instead"</span>.into(),
+                <span class="kw-2">*</span>location,
+            ),
             ResolverError::GenericsOnAssociatedType { location } =&gt; Diagnostic::simple_error(
-                                <span class="string">"Generic Associated Types (GATs) are currently unsupported in Noir"</span>.into(),
-                                <span class="string">"Cannot apply generics to an associated type"</span>.into(),
-                                <span class="kw-2">*</span>location,
-                            ),
+                <span class="string">"Generic Associated Types (GATs) are currently unsupported in Noir"</span>.into(),
+                <span class="string">"Cannot apply generics to an associated type"</span>.into(),
+                <span class="kw-2">*</span>location,
+            ),
             ResolverError::ParserError(error) =&gt; error.as_ref().into(),
             ResolverError::InvalidClosureEnvironment { location, typ } =&gt; Diagnostic::simple_error(
-                                <span class="macro">format!</span>(<span class="string">"{typ} is not a valid closure environment type"</span>),
-                                <span class="string">"Closure environment must be a tuple or unit type"</span>.to_string(), <span class="kw-2">*</span>location),
+                <span class="macro">format!</span>(<span class="string">"{typ} is not a valid closure environment type"</span>),
+                <span class="string">"Closure environment must be a tuple or unit type"</span>.to_string(), <span class="kw-2">*</span>location
+            ),
             ResolverError::NestedSlices { location } =&gt; Diagnostic::simple_error(
-                                <span class="string">"Nested slices, i.e. slices within an array or slice, are not supported"</span>.into(),
-                                <span class="string">"Try to use a constant sized array or BoundedVec instead"</span>.into(),
-                                <span class="kw-2">*</span>location,
-                            ),
+                <span class="string">"Nested slices, i.e. slices within an array or slice, are not supported"</span>.into(),
+                <span class="string">"Try to use a constant sized array or BoundedVec instead"</span>.into(),
+                <span class="kw-2">*</span>location,
+            ),
             ResolverError::AbiAttributeOutsideContract { location } =&gt; {
                 Diagnostic::simple_error(
                     <span class="string">"#[abi(tag)] attributes can only be used in contracts"</span>.to_string(),
@@ -1290,84 +1302,84 @@
                 diagnostic
             },
             ResolverError::UnconstrainedOracleReturnToConstrained { location } =&gt; Diagnostic::simple_error(
-                                error.to_string(),
-                                <span class="string">"This oracle call must be wrapped in a call to another unconstrained function before being returned to a constrained runtime"</span>.into(),
-                                <span class="kw-2">*</span>location,
-                            ),
+                error.to_string(),
+                <span class="string">"This oracle call must be wrapped in a call to another unconstrained function before being returned to a constrained runtime"</span>.into(),
+                <span class="kw-2">*</span>location,
+            ),
             ResolverError::DependencyCycle { location, item, cycle } =&gt; {
-                                Diagnostic::simple_error(
-                                    <span class="string">"Dependency cycle found"</span>.into(),
-                                    <span class="macro">format!</span>(<span class="string">"'{item}' recursively depends on itself: {cycle}"</span>),
-                                    <span class="kw-2">*</span>location,
-                                )
-                            },
+                Diagnostic::simple_error(
+                    <span class="string">"Dependency cycle found"</span>.into(),
+                    <span class="macro">format!</span>(<span class="string">"'{item}' recursively depends on itself: {cycle}"</span>),
+                    <span class="kw-2">*</span>location,
+                )
+            },
             ResolverError::JumpInConstrainedFn { is_break, location } =&gt; {
-                                <span class="kw">let </span>item = <span class="kw">if </span><span class="kw-2">*</span>is_break { <span class="string">"break" </span>} <span class="kw">else </span>{ <span class="string">"continue" </span>};
-                                Diagnostic::simple_error(
-                                    <span class="macro">format!</span>(<span class="string">"{item} is only allowed in unconstrained functions"</span>),
-                                    <span class="string">"Constrained code must always have a known number of loop iterations"</span>.into(),
-                                    <span class="kw-2">*</span>location,
-                                )
-                            },
+                <span class="kw">let </span>item = <span class="kw">if </span><span class="kw-2">*</span>is_break { <span class="string">"break" </span>} <span class="kw">else </span>{ <span class="string">"continue" </span>};
+                Diagnostic::simple_error(
+                    <span class="macro">format!</span>(<span class="string">"{item} is only allowed in unconstrained functions"</span>),
+                    <span class="string">"Constrained code must always have a known number of loop iterations"</span>.into(),
+                    <span class="kw-2">*</span>location,
+                )
+            },
             ResolverError::LoopInConstrainedFn { location } =&gt; {
-                                Diagnostic::simple_error(
-                                    <span class="string">"`loop` is only allowed in unconstrained functions"</span>.into(),
-                                    <span class="string">"Constrained code must always have a known number of loop iterations"</span>.into(),
-                                    <span class="kw-2">*</span>location,
-                                )
-                            },
+                Diagnostic::simple_error(
+                    <span class="string">"`loop` is only allowed in unconstrained functions"</span>.into(),
+                    <span class="string">"Constrained code must always have a known number of loop iterations"</span>.into(),
+                    <span class="kw-2">*</span>location,
+                )
+            },
             ResolverError::LoopWithoutBreak { location } =&gt; {
-                                Diagnostic::simple_error(
-                                    <span class="string">"`loop` must have at least one `break` in it"</span>.into(),
-                                    <span class="string">"Infinite loops are disallowed"</span>.into(),
-                                    <span class="kw-2">*</span>location,
-                                )
-                            },
+                Diagnostic::simple_error(
+                    <span class="string">"`loop` must have at least one `break` in it"</span>.into(),
+                    <span class="string">"Infinite loops are disallowed"</span>.into(),
+                    <span class="kw-2">*</span>location,
+                )
+            },
             ResolverError::WhileInConstrainedFn { location } =&gt; {
-                                Diagnostic::simple_error(
-                                    <span class="string">"`while` is only allowed in unconstrained functions"</span>.into(),
-                                    <span class="string">"Constrained code must always have a known number of loop iterations"</span>.into(),
-                                    <span class="kw-2">*</span>location,
-                                )
-                            },
+                Diagnostic::simple_error(
+                    <span class="string">"`while` is only allowed in unconstrained functions"</span>.into(),
+                    <span class="string">"Constrained code must always have a known number of loop iterations"</span>.into(),
+                    <span class="kw-2">*</span>location,
+                )
+            },
             ResolverError::JumpOutsideLoop { is_break, location } =&gt; {
-                                <span class="kw">let </span>item = <span class="kw">if </span><span class="kw-2">*</span>is_break { <span class="string">"break" </span>} <span class="kw">else </span>{ <span class="string">"continue" </span>};
-                                Diagnostic::simple_error(
-                                    <span class="macro">format!</span>(<span class="string">"{item} is only allowed within loops"</span>),
-                                    <span class="string">""</span>.into(),
-                                    <span class="kw-2">*</span>location,
-                                )
-                            },
+                <span class="kw">let </span>item = <span class="kw">if </span><span class="kw-2">*</span>is_break { <span class="string">"break" </span>} <span class="kw">else </span>{ <span class="string">"continue" </span>};
+                Diagnostic::simple_error(
+                    <span class="macro">format!</span>(<span class="string">"{item} is only allowed within loops"</span>),
+                    <span class="string">""</span>.into(),
+                    <span class="kw-2">*</span>location,
+                )
+            },
             ResolverError::MutableGlobal { location } =&gt; {
-                                Diagnostic::simple_error(
-                                    <span class="string">"Only `comptime` globals may be mutable"</span>.into(),
-                                    String::new(),
-                                    <span class="kw-2">*</span>location,
-                                )
-                            },
+                Diagnostic::simple_error(
+                    <span class="string">"Only `comptime` globals may be mutable"</span>.into(),
+                    String::new(),
+                    <span class="kw-2">*</span>location,
+                )
+            },
             ResolverError::UnspecifiedGlobalType { pattern_location, expr_location, expected_type } =&gt; {
-                                <span class="kw">let </span><span class="kw-2">mut </span>diagnostic = Diagnostic::simple_error(
-                                    <span class="string">"Globals must have a specified type"</span>.to_string(),
-                                    String::new(),
-                                    <span class="kw-2">*</span>pattern_location,
-                                );
-                                diagnostic.add_secondary(<span class="macro">format!</span>(<span class="string">"Inferred type is `{expected_type}`"</span>), <span class="kw-2">*</span>expr_location);
-                                diagnostic
-                            },
+                <span class="kw">let </span><span class="kw-2">mut </span>diagnostic = Diagnostic::simple_error(
+                    <span class="string">"Globals must have a specified type"</span>.to_string(),
+                    String::new(),
+                    <span class="kw-2">*</span>pattern_location,
+                );
+                diagnostic.add_secondary(<span class="macro">format!</span>(<span class="string">"Inferred type is `{expected_type}`"</span>), <span class="kw-2">*</span>expr_location);
+                diagnostic
+            },
             ResolverError::UnevaluatedGlobalType { location } =&gt; {
-                                Diagnostic::simple_error(
-                                    <span class="string">"Global failed to evaluate"</span>.to_string(),
-                                    String::new(),
-                                    <span class="kw-2">*</span>location,
-                                )
-                            }
+                Diagnostic::simple_error(
+                    <span class="string">"Global failed to evaluate"</span>.to_string(),
+                    String::new(),
+                    <span class="kw-2">*</span>location,
+                )
+            }
             ResolverError::NegativeGlobalType { location, global_value } =&gt; {
-                                Diagnostic::simple_error(
-                                    <span class="string">"Globals used in a type position must be non-negative"</span>.to_string(),
-                                    <span class="macro">format!</span>(<span class="string">"But found value `{global_value:?}`"</span>),
-                                    <span class="kw-2">*</span>location,
-                                )
-                            }
+                Diagnostic::simple_error(
+                    <span class="string">"Globals used in a type position must be non-negative"</span>.to_string(),
+                    <span class="macro">format!</span>(<span class="string">"But found value `{global_value:?}`"</span>),
+                    <span class="kw-2">*</span>location,
+                )
+            }
             ResolverError::NonIntegralGlobalType { location, global_value } =&gt; {
                 Diagnostic::simple_error(
                     <span class="string">"Globals used in a type position must be integers"</span>.to_string(),
@@ -1410,89 +1422,96 @@
                 diag
             }
             ResolverError::UnquoteUsedOutsideQuote { location } =&gt; {
-                                Diagnostic::simple_error(
-                                    <span class="string">"The unquote operator '$' can only be used within a quote expression"</span>.into(),
-                                    <span class="string">""</span>.into(),
-                                    <span class="kw-2">*</span>location,
-                                )
-                            },
+                Diagnostic::simple_error(
+                    <span class="string">"The unquote operator '$' can only be used within a quote expression"</span>.into(),
+                    <span class="string">""</span>.into(),
+                    <span class="kw-2">*</span>location,
+                )
+            },
             ResolverError::InvalidSyntaxInMacroCall { location } =&gt; {
-                                Diagnostic::simple_error(
-                                    <span class="string">"Invalid syntax in macro call"</span>.into(),
-                                    <span class="string">"Macro calls must call a comptime function directly, they cannot use higher-order functions"</span>.into(),
-                                    <span class="kw-2">*</span>location,
-                                )
-                            },
+                Diagnostic::simple_error(
+                    <span class="string">"Invalid syntax in macro call"</span>.into(),
+                    <span class="string">"Macro calls must call a comptime function directly, they cannot use higher-order functions"</span>.into(),
+                    <span class="kw-2">*</span>location,
+                )
+            },
             ResolverError::MacroIsNotComptime { location } =&gt; {
-                                Diagnostic::simple_error(
-                                    <span class="string">"This macro call is to a non-comptime function"</span>.into(),
-                                    <span class="string">"Macro calls must be to comptime functions"</span>.into(),
-                                    <span class="kw-2">*</span>location,
-                                )
-                            },
+                Diagnostic::simple_error(
+                    <span class="string">"This macro call is to a non-comptime function"</span>.into(),
+                    <span class="string">"Macro calls must be to comptime functions"</span>.into(),
+                    <span class="kw-2">*</span>location,
+                )
+            },
             ResolverError::NonFunctionInAnnotation { location } =&gt; {
-                                Diagnostic::simple_error(
-                                    <span class="string">"Unknown annotation"</span>.into(),
-                                    <span class="string">"The name of an annotation must refer to a comptime function"</span>.into(),
-                                    <span class="kw-2">*</span>location,
-                                )
-                            },
+                Diagnostic::simple_error(
+                    <span class="string">"Unknown annotation"</span>.into(),
+                    <span class="string">"The name of an annotation must refer to a comptime function"</span>.into(),
+                    <span class="kw-2">*</span>location,
+                )
+            },
             ResolverError::MacroResultInGenericsListNotAGeneric { location, typ } =&gt; {
-                                Diagnostic::simple_error(
-                                    <span class="macro">format!</span>(<span class="string">"Type `{typ}` was inserted into a generics list from a macro, but it is not a generic"</span>),
-                                    <span class="macro">format!</span>(<span class="string">"Type `{typ}` is not a generic"</span>),
-                                    <span class="kw-2">*</span>location,
-                                )
-                            }
+                Diagnostic::simple_error(
+                    <span class="macro">format!</span>(<span class="string">"Type `{typ}` was inserted into a generics list from a macro, but it is not a generic"</span>),
+                    <span class="macro">format!</span>(<span class="string">"Type `{typ}` is not a generic"</span>),
+                    <span class="kw-2">*</span>location,
+                )
+            }
             ResolverError::NamedTypeArgs { location, item_kind } =&gt; {
-                                Diagnostic::simple_error(
-                                    <span class="macro">format!</span>(<span class="string">"Named type arguments aren't allowed on a {item_kind}"</span>),
-                                    <span class="string">"Named type arguments are only allowed for associated types on traits"</span>.to_string(),
-                                    <span class="kw-2">*</span>location,
-                                )
-                            }
+                Diagnostic::simple_error(
+                    <span class="macro">format!</span>(<span class="string">"Named type arguments aren't allowed on a {item_kind}"</span>),
+                    <span class="string">"Named type arguments are only allowed for associated types on traits"</span>.to_string(),
+                    <span class="kw-2">*</span>location,
+                )
+            }
             ResolverError::AssociatedConstantsMustBeNumeric { location } =&gt; {
-                                Diagnostic::simple_error(
-                                    <span class="string">"Associated constants may only be a field or integer type"</span>.to_string(),
-                                    <span class="string">"Only numeric constants are allowed"</span>.to_string(),
-                                    <span class="kw-2">*</span>location,
-                                )
-                            }
+                Diagnostic::simple_error(
+                    <span class="string">"Associated constants may only be a field or integer type"</span>.to_string(),
+                    <span class="string">"Only numeric constants are allowed"</span>.to_string(),
+                    <span class="kw-2">*</span>location,
+                )
+            }
             ResolverError::BinaryOpError { lhs, op, rhs, err, location } =&gt; {
-                                Diagnostic::simple_error(
-                                    <span class="macro">format!</span>(<span class="string">"Computing `{lhs} {op} {rhs}` failed with error {err}"</span>),
-                                    String::new(),
-                                    <span class="kw-2">*</span>location,
-                                )
-                            }
+                Diagnostic::simple_error(
+                    <span class="macro">format!</span>(<span class="string">"Computing `{lhs} {op} {rhs}` failed with error {err}"</span>),
+                    String::new(),
+                    <span class="kw-2">*</span>location,
+                )
+            }
             ResolverError::QuoteInRuntimeCode { location } =&gt; {
-                                Diagnostic::simple_error(
-                                    <span class="string">"`quote` cannot be used in runtime code"</span>.to_string(),
-                                    <span class="string">"Wrap this in a `comptime` block or function to use it"</span>.to_string(),
-                                    <span class="kw-2">*</span>location,
-                                )
-                            },
+                Diagnostic::simple_error(
+                    <span class="string">"`quote` cannot be used in runtime code"</span>.to_string(),
+                    <span class="string">"Wrap this in a `comptime` block or function to use it"</span>.to_string(),
+                    <span class="kw-2">*</span>location,
+                )
+            },
             ResolverError::ComptimeTypeInRuntimeCode { typ, location } =&gt; {
-                                Diagnostic::simple_error(
-                                    <span class="macro">format!</span>(<span class="string">"Comptime-only type `{typ}` cannot be used in runtime code"</span>),
-                                    <span class="string">"Comptime-only type used here"</span>.to_string(),
-                                    <span class="kw-2">*</span>location,
-                                )
-                            },
+                Diagnostic::simple_error(
+                    <span class="macro">format!</span>(<span class="string">"Comptime-only type `{typ}` cannot be used in runtime code"</span>),
+                    <span class="string">"Comptime-only type used here"</span>.to_string(),
+                    <span class="kw-2">*</span>location,
+                )
+            },
+            ResolverError::ComptimeTypeInNonComptimeGlobal { typ, location } =&gt; {
+                Diagnostic::simple_error(
+                    <span class="macro">format!</span>(<span class="string">"Comptime-only type `{typ}` cannot be used in non-comptime global"</span>),
+                    <span class="string">"Comptime-only type used here"</span>.to_string(),
+                    <span class="kw-2">*</span>location,
+                )
+            },
             ResolverError::MutatingComptimeInNonComptimeContext { name, location } =&gt; {
-                                Diagnostic::simple_error(
-                                    <span class="macro">format!</span>(<span class="string">"Comptime variable `{name}` cannot be mutated in a non-comptime context"</span>),
-                                    <span class="macro">format!</span>(<span class="string">"`{name}` mutated here"</span>),
-                                    <span class="kw-2">*</span>location,
-                                )
-                            },
+                Diagnostic::simple_error(
+                    <span class="macro">format!</span>(<span class="string">"Comptime variable `{name}` cannot be mutated in a non-comptime context"</span>),
+                    <span class="macro">format!</span>(<span class="string">"`{name}` mutated here"</span>),
+                    <span class="kw-2">*</span>location,
+                )
+            },
             ResolverError::InvalidInternedStatementInExpr { statement, location } =&gt; {
-                                Diagnostic::simple_error(
-                                    <span class="macro">format!</span>(<span class="string">"Failed to parse `{statement}` as an expression"</span>),
-                                    <span class="string">"The statement was used from a macro here"</span>.to_string(),
-                                    <span class="kw-2">*</span>location,
-                                )
-                            },
+                Diagnostic::simple_error(
+                    <span class="macro">format!</span>(<span class="string">"Failed to parse `{statement}` as an expression"</span>),
+                    <span class="string">"The statement was used from a macro here"</span>.to_string(),
+                    <span class="kw-2">*</span>location,
+                )
+            },
             ResolverError::UnsupportedNumericGenericType(err) =&gt; err.into(),
             ResolverError::TypeIsMorePrivateThenItem { typ, item, location } =&gt; {
                 Diagnostic::simple_error(
@@ -1502,19 +1521,19 @@
                 )
             },
             ResolverError::AttributeFunctionIsNotAPath { function, location } =&gt; {
-                                Diagnostic::simple_error(
-                                    <span class="macro">format!</span>(<span class="string">"Attribute function `{function}` is not a path"</span>),
-                                    <span class="string">"An attribute's function should be a single identifier or a path"</span>.into(),
-                                    <span class="kw-2">*</span>location,
-                                )
-                            },
+                Diagnostic::simple_error(
+                    <span class="macro">format!</span>(<span class="string">"Attribute function `{function}` is not a path"</span>),
+                    <span class="string">"An attribute's function should be a single identifier or a path"</span>.into(),
+                    <span class="kw-2">*</span>location,
+                )
+            },
             ResolverError::AttributeFunctionNotInScope { name, location } =&gt; {
-                                Diagnostic::simple_error(
-                                    <span class="macro">format!</span>(<span class="string">"Attribute function `{name}` is not in scope"</span>),
-                                    String::new(),
-                                    <span class="kw-2">*</span>location,
-                                )
-                            },
+                Diagnostic::simple_error(
+                    <span class="macro">format!</span>(<span class="string">"Attribute function `{name}` is not in scope"</span>),
+                    String::new(),
+                    <span class="kw-2">*</span>location,
+                )
+            },
             ResolverError::TraitNotImplemented { impl_trait, missing_trait: the_trait, type_missing_trait: typ, location, missing_trait_location} =&gt; {
                 <span class="kw">let </span><span class="kw-2">mut </span>diagnostic = Diagnostic::simple_error(
                     <span class="macro">format!</span>(<span class="string">"The trait bound `{typ}: {the_trait}` is not satisfied"</span>), 
@@ -1524,58 +1543,59 @@
                 diagnostic
             },
             ResolverError::ExpectedTrait { found, location  } =&gt; {
-                                Diagnostic::simple_error(
-                                    <span class="macro">format!</span>(<span class="string">"Expected a trait, found {found}"</span>), 
-                                    String::new(),
-                                    <span class="kw-2">*</span>location)
-
-                            }
+                Diagnostic::simple_error(
+                    <span class="macro">format!</span>(<span class="string">"Expected a trait, found {found}"</span>), 
+                    String::new(),
+                    <span class="kw-2">*</span>location,
+                )
+            }
             ResolverError::InvalidSyntaxInPattern { location } =&gt; {
-                                Diagnostic::simple_error(
-                                    <span class="string">"Invalid syntax in match pattern"</span>.into(), 
-                                    <span class="string">"Only literal, constructor, and variable patterns are allowed"</span>.into(),
-                                    <span class="kw-2">*</span>location)
-                            },
+                Diagnostic::simple_error(
+                    <span class="string">"Invalid syntax in match pattern"</span>.into(), 
+                    <span class="string">"Only literal, constructor, and variable patterns are allowed"</span>.into(),
+                    <span class="kw-2">*</span>location,
+                )
+            },
             ResolverError::VariableAlreadyDefinedInPattern { existing, new_location } =&gt; {
-                                <span class="kw">let </span>message = <span class="macro">format!</span>(<span class="string">"Variable `{existing}` was already defined in the same match pattern"</span>);
-                                <span class="kw">let </span>secondary = <span class="macro">format!</span>(<span class="string">"`{existing}` redefined here"</span>);
-                                <span class="kw">let </span><span class="kw-2">mut </span>error = Diagnostic::simple_error(message, secondary, <span class="kw-2">*</span>new_location);
-                                error.add_secondary(<span class="macro">format!</span>(<span class="string">"`{existing}` was previously defined here"</span>), existing.location());
-                                error
-                            },
+                <span class="kw">let </span>message = <span class="macro">format!</span>(<span class="string">"Variable `{existing}` was already defined in the same match pattern"</span>);
+                <span class="kw">let </span>secondary = <span class="macro">format!</span>(<span class="string">"`{existing}` redefined here"</span>);
+                <span class="kw">let </span><span class="kw-2">mut </span>error = Diagnostic::simple_error(message, secondary, <span class="kw-2">*</span>new_location);
+                error.add_secondary(<span class="macro">format!</span>(<span class="string">"`{existing}` was previously defined here"</span>), existing.location());
+                error
+            },
             ResolverError::NonIntegerGlobalUsedInPattern { location } =&gt; {
-                                <span class="kw">let </span>message = <span class="string">"Only integer or boolean globals can be used in match patterns"</span>.to_string();
-                                <span class="kw">let </span>secondary = <span class="string">"This global is not an integer or boolean"</span>.to_string();
-                                Diagnostic::simple_error(message, secondary, <span class="kw-2">*</span>location)
-                            },
+                <span class="kw">let </span>message = <span class="string">"Only integer or boolean globals can be used in match patterns"</span>.to_string();
+                <span class="kw">let </span>secondary = <span class="string">"This global is not an integer or boolean"</span>.to_string();
+                Diagnostic::simple_error(message, secondary, <span class="kw-2">*</span>location)
+            },
             ResolverError::TypeUnsupportedInMatch { typ, location } =&gt; {
-                                Diagnostic::simple_error(
-                                    <span class="macro">format!</span>(<span class="string">"Cannot match on values of type `{typ}`"</span>), 
-                                    String::new(),
-                                    <span class="kw-2">*</span>location,
-                                )
-                            },
+                Diagnostic::simple_error(
+                    <span class="macro">format!</span>(<span class="string">"Cannot match on values of type `{typ}`"</span>), 
+                    String::new(),
+                    <span class="kw-2">*</span>location,
+                )
+            },
             ResolverError::UnexpectedItemInPattern { item, location } =&gt; {
-                                Diagnostic::simple_error(
-                                    <span class="macro">format!</span>(<span class="string">"Expected a struct, enum, or literal pattern, but found a {item}"</span>), 
-                                    String::new(),
-                                    <span class="kw-2">*</span>location,
-                                )
-                            },
+                Diagnostic::simple_error(
+                    <span class="macro">format!</span>(<span class="string">"Expected a struct, enum, or literal pattern, but found a {item}"</span>), 
+                    String::new(),
+                    <span class="kw-2">*</span>location,
+                )
+            },
             ResolverError::NoSuchMethodInTrait { trait_name, method_name, location } =&gt; {
-                                Diagnostic::simple_error(
-                                    <span class="macro">format!</span>(<span class="string">"Trait `{trait_name}` has no method named `{method_name}`"</span>), 
-                                    String::new(),
-                                    <span class="kw-2">*</span>location,
-                                )
-                            },
+                Diagnostic::simple_error(
+                    <span class="macro">format!</span>(<span class="string">"Trait `{trait_name}` has no method named `{method_name}`"</span>), 
+                    String::new(),
+                    <span class="kw-2">*</span>location,
+                )
+            },
             ResolverError::RecursiveTypeAlias { location } =&gt; {
-                        Diagnostic::simple_error(
-                            <span class="string">"Cannot use a type alias inside a type alias"</span>.to_string(), 
-                            String::new(),
-                            <span class="kw-2">*</span>location,
-                        )
-                    },
+                Diagnostic::simple_error(
+                    <span class="string">"Cannot use a type alias inside a type alias"</span>.to_string(), 
+                    String::new(),
+                    <span class="kw-2">*</span>location,
+                )
+            },
             ResolverError::ExpectedNumericExpression { typ, location } =&gt; {
                 Diagnostic::simple_error(
                     <span class="macro">format!</span>(<span class="string">"Expected a numeric expression, but got `{typ}`"</span>), 

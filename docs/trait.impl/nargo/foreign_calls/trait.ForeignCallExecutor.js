@@ -1,9 +1,9 @@
 (function() {
-    var implementors = Object.fromEntries([["nargo",[]],["noir_debugger",[["impl <a class=\"trait\" href=\"nargo/foreign_calls/trait.ForeignCallExecutor.html\" title=\"trait nargo::foreign_calls::ForeignCallExecutor\">ForeignCallExecutor</a>&lt;<a class=\"struct\" href=\"acir_field/field_element/struct.FieldElement.html\" title=\"struct acir_field::field_element::FieldElement\">FieldElement</a>&lt;Fp&lt;MontBackend&lt;FrConfig, 4&gt;, 4&gt;&gt;&gt; for <a class=\"struct\" href=\"noir_debugger/foreign_calls/struct.DefaultDebugForeignCallExecutor.html\" title=\"struct noir_debugger::foreign_calls::DefaultDebugForeignCallExecutor\">DefaultDebugForeignCallExecutor</a>"]]]]);
+    var implementors = Object.fromEntries([["nargo",[]],["noir_debugger",[["impl ForeignCallExecutor&lt;<a class=\"struct\" href=\"acir_field/field_element/struct.FieldElement.html\" title=\"struct acir_field::field_element::FieldElement\">FieldElement</a>&lt;Fp&lt;MontBackend&lt;FrConfig, 4&gt;, 4&gt;&gt;&gt; for <a class=\"struct\" href=\"noir_debugger/foreign_calls/struct.DefaultDebugForeignCallExecutor.html\" title=\"struct noir_debugger::foreign_calls::DefaultDebugForeignCallExecutor\">DefaultDebugForeignCallExecutor</a>"]]]]);
     if (window.register_implementors) {
         window.register_implementors(implementors);
     } else {
         window.pending_implementors = implementors;
     }
 })()
-//{"start":57,"fragment_lengths":[12,621]}
+//{"start":57,"fragment_lengths":[12,480]}
