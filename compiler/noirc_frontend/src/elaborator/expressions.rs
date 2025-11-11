@@ -589,7 +589,6 @@ impl Elaborator<'_> {
         let lhs_location = index_expr.collection.location;
         let (lhs, lhs_type) = self.elaborate_expression(index_expr.collection);
         let (collection, lhs_type) = self.insert_auto_dereferences(lhs, lhs_type);
-        // let (collection, lhs_type) = (lhs, lhs_type);
 
         let typ = match lhs_type.follow_bindings() {
             // XXX: We can check the array bounds here also, but it may be better to constant fold first
