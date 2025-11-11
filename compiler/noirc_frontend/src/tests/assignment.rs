@@ -3,7 +3,9 @@
 //! 2. Nested pattern matching, including nested tuples and dereferences
 //! 3. Miscellaneous error cases such as comptime assignment and string indexing
 
-use crate::tests::{assert_no_errors, assert_no_errors_and_to_string, check_errors};
+use crate::tests::{
+    assert_no_errors, assert_no_errors_and_to_string, check_errors, get_program_errors,
+};
 
 // LValue side-effect ordering
 
@@ -410,6 +412,30 @@ fn tuple_pattern_arity_mismatch() {
                 ^^^^^^^^ Expected a tuple with 3 elements, found one with 2 elements
                 ~~~~~~~~ The expression the tuple is assigned to has type `(Field,Field,Field)`
         }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn tuple_pattern_for_non_tuple_type() {
+    let src = r#"
+    fn main() {
+        let x: Field = 1;
+        let (_a, _b) = x;
+            ^^^^^^^^ Cannot assign an expression of type (_, _) to a value of type Field
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn tuple_pattern_with_error_type() {
+    let src = r#"
+    fn main() {
+        let x = 1;
+        let (_a, _b): DoesNotExist = x;
+                      ^^^^^^^^^^^^ Could not resolve 'DoesNotExist' in path
+    }
     "#;
     check_errors(src);
 }
