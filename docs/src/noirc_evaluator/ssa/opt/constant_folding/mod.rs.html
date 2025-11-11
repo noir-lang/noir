@@ -2442,7 +2442,9 @@
 <a href="#2441" id="2441">2441</a>
 <a href="#2442" id="2442">2442</a>
 <a href="#2443" id="2443">2443</a>
-<a href="#2444" id="2444">2444</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the constant folding optimization pass is to propagate any constants forwards into
+<a href="#2444" id="2444">2444</a>
+<a href="#2445" id="2445">2445</a>
+<a href="#2446" id="2446">2446</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the constant folding optimization pass is to propagate any constants forwards into
 //! later [`Instruction`]s to maximize the impact of [compile-time simplifications][crate::ssa::ir::dfg::simplify::simplify()].
 //!
 //! The pass works as follows:
@@ -4817,6 +4819,8 @@
     </span><span class="kw">fn </span>do_not_deduplicate_call_with_inc_rc() {
         <span class="comment">// This test ensures that a function which mutates an array pointer is marked impure.
         // This protects against future deduplication passes incorrectly assuming purity.
+        // The increasing RC numbers reflect the current expectation that the RC of the
+        // original array does not get decremented when a copy is made.
         </span><span class="kw">let </span>src = <span class="string">r#"
         brillig(inline) fn main f0 {
           b0(v0: u32):

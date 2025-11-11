@@ -21,7 +21,10 @@
 <a href="#20" id="20">20</a>
 <a href="#21" id="21">21</a>
 <a href="#22" id="22">22</a>
-<a href="#23" id="23">23</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::AcirField;
+<a href="#23" id="23">23</a>
+<a href="#24" id="24">24</a>
+<a href="#25" id="25">25</a>
+<a href="#26" id="26">26</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::AcirField;
 
 <span class="kw">use </span><span class="kw">super</span>::ProcedureId;
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::{
@@ -31,14 +34,17 @@
 };
 
 <span class="kw">impl</span>&lt;F: AcirField + DebugToString, Registers: RegisterAllocator&gt; BrilligContext&lt;F, Registers&gt; {
-    <span class="doccomment">/// Reverts with the error selector of the given string
-    /// This procedure is useful to deduplicate generating code for the same selector.
+    <span class="doccomment">/// Call [ProcedureId::RevertWithString].
+    ///
+    /// Reverts with the error selector of the given string.
+    /// This procedure is useful for deduplicating the code generation for the same selector.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>call_revert_with_string_procedure(<span class="kw-2">&amp;mut </span><span class="self">self</span>, revert_string: String) {
         <span class="self">self</span>.add_procedure_call_instruction(ProcedureId::RevertWithString(revert_string));
     }
 }
 
-<span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>compile_revert_with_string_procedure&lt;F: AcirField + DebugToString&gt;(
+<span class="doccomment">/// Compile [ProcedureId::RevertWithString].
+</span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>compile_revert_with_string_procedure&lt;F: AcirField + DebugToString&gt;(
     brillig_context: <span class="kw-2">&amp;mut </span>BrilligContext&lt;F, ScratchSpace&gt;,
     revert_string: String,
 ) {

@@ -123,18 +123,24 @@
 <a href="#122" id="122">122</a>
 <a href="#123" id="123">123</a>
 <a href="#124" id="124">124</a>
-<a href="#125" id="125">125</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, acir::brillig::MemoryAddress};
+<a href="#125" id="125">125</a>
+<a href="#126" id="126">126</a>
+<a href="#127" id="127">127</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::AcirField;
 
 <span class="kw">use </span><span class="kw">super</span>::ProcedureId;
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::{
     BrilligBinaryOp, BrilligContext,
     brillig_variable::{BrilligVector, SingleAddrVariable},
+    codegen_memory::VectorMetaData,
     debug_show::DebugToString,
     registers::{RegisterAllocator, ScratchSpace},
 };
 
 <span class="kw">impl</span>&lt;F: AcirField + DebugToString, Registers: RegisterAllocator&gt; BrilligContext&lt;F, Registers&gt; {
-    <span class="doccomment">/// Pops items from the front of a vector, returning the new vector
+    <span class="doccomment">/// Copy arguments to [ScratchSpace] and call [ProcedureId::VectorPopFront].
+    ///
+    /// Pops items from the front of a vector, returning the new vector.
+    /// The procedure assumes that there are constraints to prevent 0 size vectors from being popped.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>call_vector_pop_front_procedure(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         source_len: SingleAddrVariable,
@@ -142,11 +148,12 @@
         destination_vector: BrilligVector,
         item_pop_count: usize,
     ) {
-        <span class="kw">let </span>scratch_start = ScratchSpace::start();
-        <span class="kw">let </span>source_vector_length_arg = MemoryAddress::direct(scratch_start);
-        <span class="kw">let </span>source_vector_pointer_arg = MemoryAddress::direct(scratch_start + <span class="number">1</span>);
-        <span class="kw">let </span>item_pop_count_arg = MemoryAddress::direct(scratch_start + <span class="number">2</span>);
-        <span class="kw">let </span>new_vector_pointer_return = MemoryAddress::direct(scratch_start + <span class="number">3</span>);
+        <span class="kw">let </span>[
+            source_vector_length_arg,
+            source_vector_pointer_arg,
+            item_pop_count_arg,
+            destination_vector_pointer_return,
+        ] = <span class="self">self</span>.make_scratch_registers();
 
         <span class="self">self</span>.mov_instruction(source_vector_length_arg, source_len.address);
         <span class="self">self</span>.mov_instruction(source_vector_pointer_arg, source_vector.pointer);
@@ -154,37 +161,37 @@
 
         <span class="self">self</span>.add_procedure_call_instruction(ProcedureId::VectorPopFront);
 
-        <span class="self">self</span>.mov_instruction(destination_vector.pointer, new_vector_pointer_return);
+        <span class="self">self</span>.mov_instruction(destination_vector.pointer, destination_vector_pointer_return);
     }
 }
 
-<span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>compile_vector_pop_front_procedure&lt;F: AcirField + DebugToString&gt;(
+<span class="doccomment">/// Compile [ProcedureId::VectorPopFront].
+</span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>compile_vector_pop_front_procedure&lt;F: AcirField + DebugToString&gt;(
     brillig_context: <span class="kw-2">&amp;mut </span>BrilligContext&lt;F, ScratchSpace&gt;,
 ) {
     <span class="kw">let </span>[
         source_vector_length_arg,
         source_vector_pointer_arg,
         item_pop_count_arg,
-        new_vector_pointer_return,
+        destination_vector_pointer_return,
     ] = brillig_context.allocate_scratch_registers();
 
     <span class="kw">let </span>source_vector = BrilligVector { pointer: source_vector_pointer_arg };
-    <span class="kw">let </span>target_vector = BrilligVector { pointer: new_vector_pointer_return };
+    <span class="kw">let </span>target_vector = BrilligVector { pointer: destination_vector_pointer_return };
 
-    <span class="kw">let </span>source_rc = brillig_context.allocate_single_addr_usize();
-    <span class="kw">let </span>source_size = brillig_context.allocate_single_addr_usize();
-    <span class="kw">let </span>source_capacity = brillig_context.allocate_single_addr_usize();
-    <span class="kw">let </span>source_items_pointer = brillig_context.allocate_single_addr_usize();
-    brillig_context.codegen_read_vector_metadata(
+    <span class="kw">let </span>VectorMetaData {
+        rc: source_rc,
+        size: source_size,
+        capacity: source_capacity,
+        items_pointer: source_items_pointer,
+    } = brillig_context.codegen_read_vector_metadata(
         source_vector,
-        <span class="kw-2">*</span>source_rc,
-        <span class="kw-2">*</span>source_size,
-        <span class="kw-2">*</span>source_capacity,
-        <span class="kw-2">*</span>source_items_pointer,
         <span class="prelude-val">Some</span>((source_vector_length_arg, item_pop_count_arg)),
     );
 
     <span class="comment">// target_size = source_size - item_pop_count
+    // Assumes constraints exist against underflow.
+    // We don't have to worry about the semantic length of merged vectors here, because we are popping from the front.
     </span><span class="kw">let </span>target_size = brillig_context.allocate_single_addr_usize();
     brillig_context.memory_op_instruction(
         source_size.address,
@@ -193,15 +200,9 @@
         BrilligBinaryOp::Sub,
     );
 
-    <span class="kw">let </span>is_rc_one = brillig_context.allocate_register();
-    brillig_context.codegen_usize_op(
-        source_rc.address,
-        <span class="kw-2">*</span>is_rc_one,
-        BrilligBinaryOp::Equals,
-        <span class="number">1_usize</span>,
-    );
+    <span class="kw">let </span>is_rc_one = brillig_context.codegen_usize_equals_one(<span class="kw-2">*</span>source_rc);
 
-    brillig_context.codegen_branch(<span class="kw-2">*</span>is_rc_one, |brillig_context, is_rc_one| {
+    brillig_context.codegen_branch(is_rc_one.address, |brillig_context, is_rc_one| {
         <span class="kw">if </span>is_rc_one {
             <span class="comment">// We reuse the source vector, moving the metadata to the right (decreasing capacity)
             // Set the target vector pointer to be the source plus the number of popped items.
@@ -211,7 +212,8 @@
                 target_vector.pointer,
                 BrilligBinaryOp::Add,
             );
-            <span class="comment">// Decrease the source/target capacity by the number of popped items.
+            <span class="comment">// Decrease the source capacity by the number of popped items.
+            // This is done at the original address; it will be copied in the next step.
             </span>brillig_context.memory_op_instruction(
                 source_capacity.address,
                 item_pop_count_arg,
@@ -239,13 +241,15 @@
                 <span class="kw-2">*</span>source_copy_pointer,
                 BrilligBinaryOp::Add,
             );
-            <span class="comment">// Now we copy the source vector starting at index removed_items.len() into the target vector
+            <span class="comment">// Now we copy the source vector into the target vector, starting at index after the popped items.
             </span>brillig_context.codegen_mem_copy(
                 <span class="kw-2">*</span>source_copy_pointer,
                 <span class="kw-2">*</span>target_vector_items_pointer,
                 <span class="kw-2">*</span>target_size,
             );
-        }
+            <span class="comment">// We don't decrease the RC of the source vector, otherwise repeatedly popping the same item
+            // from the original (immutable) handle would bring its RC down to 1.
+        </span>}
     });
 }
 </code></pre></div></section></main></body></html>

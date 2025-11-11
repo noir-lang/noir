@@ -63,68 +63,82 @@
 <a href="#62" id="62">62</a>
 <a href="#63" id="63">63</a>
 <a href="#64" id="64">64</a>
-<a href="#65" id="65">65</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, acir::brillig::MemoryAddress};
+<a href="#65" id="65">65</a>
+<a href="#66" id="66">66</a>
+<a href="#67" id="67">67</a>
+<a href="#68" id="68">68</a>
+<a href="#69" id="69">69</a>
+<a href="#70" id="70">70</a>
+<a href="#71" id="71">71</a>
+<a href="#72" id="72">72</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, brillig_vm::offsets};
 
 <span class="kw">use </span><span class="kw">super</span>::ProcedureId;
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::{
-    BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, BrilligBinaryOp, BrilligContext,
+    BrilligBinaryOp, BrilligContext,
     brillig_variable::BrilligVector,
     debug_show::DebugToString,
     registers::{RegisterAllocator, ScratchSpace},
 };
 
 <span class="kw">impl</span>&lt;F: AcirField + DebugToString, Registers: RegisterAllocator&gt; BrilligContext&lt;F, Registers&gt; {
-    <span class="doccomment">/// Conditionally copies a source array to a destination array.
-    /// If the reference count of the source array is 1, then we can directly copy the pointer of the source array to the destination array.
+    <span class="doccomment">/// Copy arguments to [ScratchSpace] and call [ProcedureId::VectorCopy].
+    ///
+    /// Conditionally copies a source vector to a destination vector.
+    /// If the reference count of the source vector is 1, then we can directly copy the pointer of the source vector to the destination vector.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>call_vector_copy_procedure(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         source_vector: BrilligVector,
         destination_vector: BrilligVector,
     ) {
-        <span class="kw">let </span>scratch_start = ScratchSpace::start();
-        <span class="kw">let </span>source_vector_pointer_arg = MemoryAddress::direct(scratch_start);
-        <span class="kw">let </span>new_vector_pointer_return = MemoryAddress::direct(scratch_start + <span class="number">1</span>);
+        <span class="kw">let </span>[source_vector_pointer_arg, destination_vector_pointer_return] =
+            <span class="self">self</span>.make_scratch_registers();
 
         <span class="self">self</span>.mov_instruction(source_vector_pointer_arg, source_vector.pointer);
 
         <span class="self">self</span>.add_procedure_call_instruction(ProcedureId::VectorCopy);
 
-        <span class="self">self</span>.mov_instruction(destination_vector.pointer, new_vector_pointer_return);
+        <span class="self">self</span>.mov_instruction(destination_vector.pointer, destination_vector_pointer_return);
     }
 }
 
-<span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>compile_vector_copy_procedure&lt;F: AcirField + DebugToString&gt;(
+<span class="doccomment">/// Compile [ProcedureId::VectorCopy].
+</span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>compile_vector_copy_procedure&lt;F: AcirField + DebugToString&gt;(
     brillig_context: <span class="kw-2">&amp;mut </span>BrilligContext&lt;F, ScratchSpace&gt;,
 ) {
-    <span class="kw">let </span>[source_vector_pointer_arg, new_vector_pointer_return] =
+    <span class="kw">let </span>[source_vector_pointer_arg, destination_vector_pointer_return] =
         brillig_context.allocate_scratch_registers();
 
-    <span class="kw">let </span>rc = brillig_context.allocate_single_addr_usize();
-    brillig_context.load_instruction(rc.address, source_vector_pointer_arg);
+    <span class="kw">let </span>source_vector = BrilligVector { pointer: source_vector_pointer_arg };
+    <span class="kw">let </span>target_vector = BrilligVector { pointer: destination_vector_pointer_return };
 
-    <span class="kw">let </span>is_rc_one = brillig_context.allocate_single_addr_bool();
-    brillig_context.codegen_usize_op(rc.address, is_rc_one.address, BrilligBinaryOp::Equals, <span class="number">1</span>);
+    <span class="kw">let </span>rc = brillig_context.codegen_read_vector_rc(source_vector);
+
+    <span class="kw">let </span>is_rc_one = brillig_context.codegen_usize_equals_one(<span class="kw-2">*</span>rc);
 
     brillig_context.codegen_branch(is_rc_one.address, |ctx, cond| {
         <span class="kw">if </span>cond {
-            <span class="comment">// Reference count is 1, we can mutate the array directly
-            </span>ctx.mov_instruction(new_vector_pointer_return, source_vector_pointer_arg);
+            <span class="comment">// Reference count is 1, we can mutate the vector directly; just the the destination to equal the source.
+            </span>ctx.mov_instruction(target_vector.pointer, source_vector.pointer);
         } <span class="kw">else </span>{
-            <span class="kw">let </span>source_vector = BrilligVector { pointer: source_vector_pointer_arg };
-            <span class="kw">let </span>result_vector = BrilligVector { pointer: new_vector_pointer_return };
-
-            <span class="comment">// Allocate the memory for the new vec
+            <span class="comment">// Allocate the memory for the new vector.
             </span><span class="kw">let </span>allocation_size = ctx.codegen_read_vector_capacity(source_vector);
-            ctx.codegen_usize_op_in_place(allocation_size.address, BrilligBinaryOp::Add, <span class="number">3_usize</span>); <span class="comment">// Capacity plus 3 (rc, len, cap)
-            </span>ctx.codegen_allocate_mem(result_vector.pointer, allocation_size.address);
-
-            ctx.codegen_mem_copy(source_vector.pointer, result_vector.pointer, <span class="kw-2">*</span>allocation_size);
-            <span class="comment">// Then set the new rc to 1
-            </span>ctx.indirect_const_instruction(
-                result_vector.pointer,
-                BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
-                <span class="number">1_usize</span>.into(),
+            ctx.codegen_usize_op_in_place(
+                allocation_size.address,
+                BrilligBinaryOp::Add,
+                offsets::VECTOR_META_COUNT,
             );
+            ctx.codegen_allocate_mem(target_vector.pointer, allocation_size.address);
+
+            <span class="comment">// Copy the entire source vector, including metadata and items.
+            </span>ctx.codegen_mem_copy(source_vector.pointer, target_vector.pointer, <span class="kw-2">*</span>allocation_size);
+
+            <span class="comment">// Then reset the new RC to 1.
+            </span>ctx.codegen_initialize_rc(target_vector.pointer, <span class="number">1</span>);
+
+            <span class="comment">// Decrease the original ref count now that this copy is no longer pointing to it.
+            // Copying a vector this way is an implicit side effect of setting an item by index through a mutable variable;
+            // unlike with pop and push, we won't end up with a new vector handle, so we can split the RC between the old and the new.
+            </span>ctx.codegen_decrement_rc(source_vector.pointer, rc.address);
         }
     });
 }

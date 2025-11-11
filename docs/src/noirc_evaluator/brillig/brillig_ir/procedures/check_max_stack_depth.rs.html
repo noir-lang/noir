@@ -38,7 +38,12 @@
 <a href="#37" id="37">37</a>
 <a href="#38" id="38">38</a>
 <a href="#39" id="39">39</a>
-<a href="#40" id="40">40</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::AcirField;
+<a href="#40" id="40">40</a>
+<a href="#41" id="41">41</a>
+<a href="#42" id="42">42</a>
+<a href="#43" id="43">43</a>
+<a href="#44" id="44">44</a>
+<a href="#45" id="45">45</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::AcirField;
 
 <span class="kw">use </span><span class="kw">super</span>::ProcedureId;
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::{
@@ -48,12 +53,17 @@
 };
 
 <span class="kw">impl</span>&lt;F: AcirField + DebugToString, Registers: RegisterAllocator&gt; BrilligContext&lt;F, Registers&gt; {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>call_check_max_stack_depth_procedure(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+    <span class="doccomment">/// Call [ProcedureId::CheckMaxStackDepth].
+    ///
+    /// Ensures that the stack size does not grow beyond its boundaries, where it would encroach on the heap.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>call_check_max_stack_depth_procedure(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="self">self</span>.add_procedure_call_instruction(ProcedureId::CheckMaxStackDepth);
     }
 }
 
-<span class="doccomment">/// The stack start should be computed earlier after allocating space for globals and the entry point.
+<span class="doccomment">/// Compile [ProcedureId::CheckMaxStackDepth].
+///
+/// The stack start should be computed earlier after allocating space for globals and the entry point.
 ///
 /// Remember that the memory layout for entry points is as follows:
 ///

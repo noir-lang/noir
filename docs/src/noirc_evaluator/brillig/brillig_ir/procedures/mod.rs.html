@@ -145,7 +145,29 @@
 <a href="#144" id="144">144</a>
 <a href="#145" id="145">145</a>
 <a href="#146" id="146">146</a>
-<a href="#147" id="147">147</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::debug_info::ProcedureDebugId;
+<a href="#147" id="147">147</a>
+<a href="#148" id="148">148</a>
+<a href="#149" id="149">149</a>
+<a href="#150" id="150">150</a>
+<a href="#151" id="151">151</a>
+<a href="#152" id="152">152</a>
+<a href="#153" id="153">153</a>
+<a href="#154" id="154">154</a>
+<a href="#155" id="155">155</a>
+<a href="#156" id="156">156</a>
+<a href="#157" id="157">157</a>
+<a href="#158" id="158">158</a>
+<a href="#159" id="159">159</a>
+<a href="#160" id="160">160</a>
+<a href="#161" id="161">161</a>
+<a href="#162" id="162">162</a>
+<a href="#163" id="163">163</a>
+<a href="#164" id="164">164</a>
+<a href="#165" id="165">165</a>
+<a href="#166" id="166">166</a>
+<a href="#167" id="167">167</a>
+<a href="#168" id="168">168</a>
+<a href="#169" id="169">169</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::debug_info::ProcedureDebugId;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 
 <span class="kw">mod </span>array_copy;
@@ -185,17 +207,37 @@
 /// Procedures receive their arguments on scratch space to avoid stack dumping&amp;restoring.
 </span><span class="attr">#[derive(Debug, Clone, Eq, PartialEq, Hash, PartialOrd, Ord, Deserialize, Serialize)]
 </span><span class="kw">pub enum </span>ProcedureId {
-    ArrayCopy,
-    ArrayReverse,
-    VectorCopy,
-    MemCopy,
-    PrepareVectorPush(bool),
-    VectorPopFront,
-    VectorPopBack,
-    PrepareVectorInsert,
-    VectorRemove,
-    CheckMaxStackDepth,
-    RevertWithString(String),
+    <span class="doccomment">/// Conditionally copies a source array to a destination array.
+    /// If the reference count of the source array is 1, then we can directly copy the pointer of the source array to the destination array.
+    </span>ArrayCopy,
+    <span class="doccomment">/// Reverses an array in-place.
+    /// It is the responsibility of the caller to ensure the reference count of the array is 1.
+    </span>ArrayReverse,
+    <span class="doccomment">/// Conditionally copies a source vector to a destination vector.
+    /// If the reference count of the source vector is 1, then we can directly copy the pointer of the source vector to the destination vector.
+    </span>VectorCopy,
+    <span class="doccomment">/// Copy a number of items between two heap addresses.
+    </span>MemCopy,
+    <span class="doccomment">/// Prepares a vector for pushing a new item. It tries to reuse the source vector,
+    /// allocating a new vector with a higher capacity and the copy of the source vector items if necessary.
+    ///
+    /// If the parameter is `true` it pushes to the back, otherwise to the front.
+    </span>PrepareVectorPush(bool),
+    <span class="doccomment">/// Pops items from the front of a vector, returning the new vector.
+    /// Reuses the source vector if the reference count is 1.
+    </span>VectorPopFront,
+    <span class="doccomment">/// Pops items from the back of a vector, returning the new vector and the pointer to the popped items.
+    /// Reuses the source vector if the reference count is 1.
+    </span>VectorPopBack,
+    <span class="doccomment">/// Prepare a vector for a insert operation, leaving a hole at the index position, returning a pointer where the item can be written.
+    </span>PrepareVectorInsert,
+    <span class="doccomment">/// Remove items at a given index from a vector, returning the new vector.
+    /// Reuses the source vector if the reference count is 1.
+    </span>VectorRemove,
+    <span class="doccomment">/// Check that the stack memory has not exceeded the maximum size allowed by the layout.
+    </span>CheckMaxStackDepth,
+    <span class="doccomment">/// Revert with the given error message.
+    </span>RevertWithString(String),
 }
 
 <span class="kw">impl </span>ProcedureId {
@@ -255,7 +297,9 @@
     }
 }
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>compile_procedure&lt;F: AcirField + DebugToString&gt;(
+<span class="doccomment">/// Compile a procedure as a stand-alone Brillig artifact, generating byte code for a specific operation,
+/// reading and returning arguments through the [ScratchSpace][crate::brillig::brillig_ir::registers::ScratchSpace].
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>compile_procedure&lt;F: AcirField + DebugToString&gt;(
     procedure_id: ProcedureId,
     options: <span class="kw-2">&amp;</span>BrilligOptions,
     stack_start: usize,

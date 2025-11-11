@@ -177,20 +177,35 @@
 <a href="#176" id="176">176</a>
 <a href="#177" id="177">177</a>
 <a href="#178" id="178">178</a>
-<a href="#179" id="179">179</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::vec;
+<a href="#179" id="179">179</a>
+<a href="#180" id="180">180</a>
+<a href="#181" id="181">181</a>
+<a href="#182" id="182">182</a>
+<a href="#183" id="183">183</a>
+<a href="#184" id="184">184</a>
+<a href="#185" id="185">185</a>
+<a href="#186" id="186">186</a>
+<a href="#187" id="187">187</a>
+<a href="#188" id="188">188</a>
+<a href="#189" id="189">189</a>
+<a href="#190" id="190">190</a>
+<a href="#191" id="191">191</a>
+<a href="#192" id="192">192</a>
+<a href="#193" id="193">193</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::vec;
 
 <span class="kw">use </span>acvm::{
     AcirField,
     acir::brillig::{
         BitSize, HeapArray, HeapValueType, IntegerBitSize, MemoryAddress, ValueOrArray,
     },
+    brillig_vm::offsets,
 };
 
 <span class="kw">use </span><span class="kw">super</span>::ProcedureId;
 <span class="kw">use </span><span class="kw">crate</span>::brillig::{
     BrilligVariable,
     brillig_ir::{
-        BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, BrilligBinaryOp, BrilligContext, ReservedRegisters,
+        BrilligContext, ReservedRegisters,
         brillig_variable::{BrilligArray, SingleAddrVariable},
         debug_show::DebugToString,
         registers::{Allocated, RegisterAllocator, ScratchSpace},
@@ -198,61 +213,70 @@
 };
 
 <span class="kw">impl</span>&lt;F: AcirField + DebugToString, Registers: RegisterAllocator&gt; BrilligContext&lt;F, Registers&gt; {
-    <span class="doccomment">/// Conditionally copies a source array to a destination array.
+    <span class="doccomment">/// Call [ProcedureId::ArrayCopy].
+    ///
+    /// Conditionally copies a source array to a destination array.
     /// If the reference count of the source array is 1, then we can directly copy the pointer of the source array to the destination array.
+    /// Otherwise a copy is made, and the ref-count of the original is decreased by 1.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>call_array_copy_procedure(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         source_array: BrilligArray,
         destination_array: BrilligArray,
     ) {
-        <span class="kw">let </span>scratch_start = ScratchSpace::start();
-        <span class="kw">let </span>source_array_pointer_arg = MemoryAddress::direct(scratch_start);
-        <span class="kw">let </span>source_array_memory_size_arg = MemoryAddress::direct(scratch_start + <span class="number">1</span>);
-        <span class="kw">let </span>new_array_pointer_return = MemoryAddress::direct(scratch_start + <span class="number">2</span>);
+        <span class="kw">let </span>[
+            source_array_pointer_arg,
+            source_array_memory_size_arg,
+            destination_array_pointer_return,
+        ] = <span class="self">self</span>.make_scratch_registers();
 
         <span class="self">self</span>.mov_instruction(source_array_pointer_arg, source_array.pointer);
-        <span class="self">self</span>.usize_const_instruction(source_array_memory_size_arg, (source_array.size + <span class="number">1</span>).into());
+        <span class="self">self</span>.usize_const_instruction(
+            source_array_memory_size_arg,
+            (source_array.size + offsets::ARRAY_META_COUNT).into(),
+        );
 
         <span class="self">self</span>.add_procedure_call_instruction(ProcedureId::ArrayCopy);
 
-        <span class="self">self</span>.mov_instruction(destination_array.pointer, new_array_pointer_return);
+        <span class="self">self</span>.mov_instruction(destination_array.pointer, destination_array_pointer_return);
     }
 }
 
-<span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>compile_array_copy_procedure&lt;F: AcirField + DebugToString&gt;(
+<span class="doccomment">/// Compile [ProcedureId::ArrayCopy].
+</span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>compile_array_copy_procedure&lt;F: AcirField + DebugToString&gt;(
     brillig_context: <span class="kw-2">&amp;mut </span>BrilligContext&lt;F, ScratchSpace&gt;,
 ) {
-    <span class="kw">let </span>[source_array_pointer_arg, source_array_memory_size_arg, new_array_pointer_return] =
+    <span class="kw">let </span>[source_array_pointer_arg, source_array_memory_size_arg, destination_array_pointer_return] =
         brillig_context.allocate_scratch_registers();
 
-    <span class="kw">let </span>rc = brillig_context.allocate_single_addr_usize();
-    brillig_context.load_instruction(rc.address, source_array_pointer_arg);
+    <span class="kw">let </span>rc = brillig_context.codegen_read_rc(source_array_pointer_arg);
 
-    <span class="kw">let </span>is_rc_one = brillig_context.allocate_single_addr_bool();
-    brillig_context.codegen_usize_op(rc.address, is_rc_one.address, BrilligBinaryOp::Equals, <span class="number">1</span>);
+    <span class="kw">let </span>is_rc_one = brillig_context.codegen_usize_equals_one(<span class="kw-2">*</span>rc);
 
     brillig_context.codegen_branch(is_rc_one.address, |ctx, cond| {
         <span class="kw">if </span>cond {
             <span class="comment">// Reference count is 1, we can mutate the array directly
-            </span>ctx.mov_instruction(new_array_pointer_return, source_array_pointer_arg);
+            </span>ctx.mov_instruction(destination_array_pointer_return, source_array_pointer_arg);
         } <span class="kw">else </span>{
-            <span class="comment">// First issue a array copy to the destination
-            </span>ctx.codegen_allocate_mem(new_array_pointer_return, source_array_memory_size_arg);
+            <span class="comment">// We need to copy the array; allocate the required space on the heap.
+            </span>ctx.codegen_allocate_mem(
+                destination_array_pointer_return,
+                source_array_memory_size_arg,
+            );
 
-            ctx.codegen_mem_copy(
+            <span class="comment">// First issue an array copy to the destination.
+            // This copies the whole data structure, including metadata.
+            </span>ctx.codegen_mem_copy(
                 source_array_pointer_arg,
-                new_array_pointer_return,
+                destination_array_pointer_return,
                 SingleAddrVariable::new_usize(source_array_memory_size_arg),
             );
-            <span class="comment">// Then set the new rc to 1
-            </span>ctx.indirect_const_instruction(
-                new_array_pointer_return,
-                BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
-                <span class="number">1_usize</span>.into(),
-            );
+            <span class="comment">// Then set the new RC to 1.
+            </span>ctx.codegen_initialize_rc(destination_array_pointer_return, <span class="number">1</span>);
 
-            <span class="comment">// Decrease the original ref count now that this copy is no longer pointing to it
-            </span>ctx.codegen_usize_op(rc.address, rc.address, BrilligBinaryOp::Sub, <span class="number">1</span>);
+            <span class="comment">// Decrease the original ref count now that this copy is no longer pointing to it.
+            // Copying an array is a potential implicit side effect of setting an item by index through a mutable variable;
+            // we won't end up with two handles to the array, so we can split the RC between the old and the new.
+            </span>ctx.codegen_decrement_rc(source_array_pointer_arg, rc.address);
 
             <span class="comment">// Increase our array copy counter if that flag is set
             </span><span class="kw">if </span>ctx.count_arrays_copied {
@@ -266,25 +290,29 @@
 </span><span class="kw">const </span>PRINT_U32_TYPE_STRING: <span class="kw-2">&amp;</span>str = <span class="string">"{\"kind\":\"unsignedinteger\",\"width\":32}"</span>;
 <span class="comment">// "{\"kind\":\"array\",\"length\":2,\"type\":{\"kind\":\"unsignedinteger\",\"width\":32}}";
 
-// Create and return the string `PRINT_U32_TYPE_STRING`
+</span><span class="doccomment">/// Create and return the string `PRINT_U32_TYPE_STRING`
 </span><span class="kw">fn </span>literal_string_to_value&lt;F: AcirField + DebugToString, Registers: RegisterAllocator&gt;(
-    target: <span class="kw-2">&amp;</span>str,
+    data: <span class="kw-2">&amp;</span>str,
     brillig_context: <span class="kw-2">&amp;mut </span>BrilligContext&lt;F, Registers&gt;,
 ) -&gt; Allocated&lt;ValueOrArray, Registers&gt; {
-    <span class="kw">let </span>brillig_array = brillig_context.allocate_brillig_array(target.len());
+    <span class="kw">let </span>brillig_array = brillig_context.allocate_brillig_array(data.len());
 
-    brillig_context.codegen_initialize_array(<span class="kw-2">*</span>brillig_array);
+    <span class="comment">// Allocate space on the heap.
+    </span>brillig_context.codegen_initialize_array(<span class="kw-2">*</span>brillig_array);
 
-    <span class="kw">let </span>items_pointer = brillig_context.codegen_make_array_items_pointer(<span class="kw-2">*</span>brillig_array);
+    <span class="comment">// Get a pointer to where the items start on the heap.
+    </span><span class="kw">let </span>items_pointer = brillig_context.codegen_make_array_items_pointer(<span class="kw-2">*</span>brillig_array);
 
-    initialize_constant_string(brillig_context, target, <span class="kw-2">*</span>items_pointer);
+    <span class="comment">// Copy the data into the array.
+    </span>initialize_constant_string(brillig_context, data, <span class="kw-2">*</span>items_pointer);
 
-    brillig_array
-        .and_then(|array| brillig_context.codegen_make_array_items_pointer(array))
-        .map(|pointer| ValueOrArray::HeapArray(HeapArray { pointer, size: target.len() }))
+    <span class="comment">// Wrap the pointer into a `HeapArray`. The `BrilligArray` is no longer needed.
+    </span>items_pointer.map(|pointer| ValueOrArray::HeapArray(HeapArray { pointer, size: data.len() }))
 }
 
-<span class="comment">// This function was adapted from `initialize_constant_array_comptime`
+<span class="doccomment">/// Generate opcodes to initialize the memory at `pointer` to the bytes in the `data` string.
+///
+/// This function was adapted from `initialize_constant_array_comptime`.
 </span><span class="kw">fn </span>initialize_constant_string&lt;F: AcirField + DebugToString, Registers: RegisterAllocator&gt;(
     brillig_context: <span class="kw-2">&amp;mut </span>BrilligContext&lt;F, Registers&gt;,
     data: <span class="kw-2">&amp;</span>str,

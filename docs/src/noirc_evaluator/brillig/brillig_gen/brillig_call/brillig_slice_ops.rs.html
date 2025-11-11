@@ -823,7 +823,20 @@
 <a href="#822" id="822">822</a>
 <a href="#823" id="823">823</a>
 <a href="#824" id="824">824</a>
-<a href="#825" id="825">825</a></pre></div><pre class="rust"><code><span class="doccomment">//! Codegen for converting SSA slice intrinsic functions to Brillig bytecode.
+<a href="#825" id="825">825</a>
+<a href="#826" id="826">826</a>
+<a href="#827" id="827">827</a>
+<a href="#828" id="828">828</a>
+<a href="#829" id="829">829</a>
+<a href="#830" id="830">830</a>
+<a href="#831" id="831">831</a>
+<a href="#832" id="832">832</a>
+<a href="#833" id="833">833</a>
+<a href="#834" id="834">834</a>
+<a href="#835" id="835">835</a>
+<a href="#836" id="836">836</a>
+<a href="#837" id="837">837</a>
+<a href="#838" id="838">838</a></pre></div><pre class="rust"><code><span class="doccomment">//! Codegen for converting SSA slice intrinsic functions to Brillig bytecode.
 </span><span class="kw">use </span>acvm::acir::brillig::MemoryAddress;
 
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::{
@@ -835,7 +848,9 @@
 <span class="kw">use </span><span class="kw">super</span>::<span class="kw">super</span>::brillig_block::BrilligBlock;
 
 <span class="kw">impl</span>&lt;Registers: RegisterAllocator&gt; BrilligBlock&lt;<span class="lifetime">'_</span>, Registers&gt; {
-    <span class="kw">fn </span>write_variables(<span class="kw-2">&amp;mut </span><span class="self">self</span>, write_pointer: MemoryAddress, variables: <span class="kw-2">&amp;</span>[BrilligVariable]) {
+    <span class="doccomment">/// Take a list of [BrilligVariable] and copy the memory they point at to the `write_pointer`,
+    /// increasing the address by 1 between each variable.
+    </span><span class="kw">fn </span>write_variables(<span class="kw-2">&amp;mut </span><span class="self">self</span>, write_pointer: MemoryAddress, variables: <span class="kw-2">&amp;</span>[BrilligVariable]) {
         <span class="kw">for </span>(index, variable) <span class="kw">in </span>variables.iter().enumerate() {
             <span class="self">self</span>.brillig_context.store_instruction(write_pointer, variable.extract_register());
             <span class="kw">if </span>index != variables.len() - <span class="number">1 </span>{
@@ -848,7 +863,9 @@
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>slice_push_back_operation(
+    <span class="doccomment">/// Prepare a vector for pushing a number of new (flattened) items to the back,
+    /// then write those variables to the returned write pointer.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>slice_push_back_operation(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         target_vector: BrilligVector,
         source_len: SingleAddrVariable,
@@ -868,7 +885,9 @@
         <span class="self">self</span>.write_variables(<span class="kw-2">*</span>write_pointer, variables_to_insert);
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>slice_push_front_operation(
+    <span class="doccomment">/// Prepare a vector for pushing a number of new (flattened) items to the front,
+    /// then write those variables to the returned write pointer.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>slice_push_front_operation(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         target_vector: BrilligVector,
         source_len: SingleAddrVariable,
@@ -922,7 +941,9 @@
         );
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>slice_pop_back_operation(
+    <span class="doccomment">/// Create new vector with a number of (flattened) items popped from the back,
+    /// then read the popped items into the variables representing the removed items.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>slice_pop_back_operation(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         target_vector: BrilligVector,
         source_len: SingleAddrVariable,
@@ -941,7 +962,9 @@
         <span class="self">self</span>.read_variables(<span class="kw-2">*</span>read_pointer, removed_items);
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>slice_insert_operation(
+    <span class="doccomment">/// Prepare a vector for inserting a number of (flattened) items at a specific index
+    /// by making a hole for them, then write the variables to the returned write pointer.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>slice_insert_operation(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         target_vector: BrilligVector,
         source_vector: BrilligVector,
@@ -961,7 +984,10 @@
         <span class="self">self</span>.write_variables(<span class="kw-2">*</span>write_pointer, items);
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>slice_remove_operation(
+    <span class="doccomment">/// Read a number of (flattened) items at a specific index of a vector into the variables
+    /// representing the removed items, then create a new vector with the same number of
+    /// items removed and subsequent items shifted to the left.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>slice_remove_operation(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         target_vector: BrilligVector,
         source_vector: BrilligVector,

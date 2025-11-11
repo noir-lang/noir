@@ -5748,7 +5748,7 @@
                 <span class="comment">// We also need to apply any instantiation bindings if the expression has any
                 </span><span class="kw">let </span>instantiation_bindings = interner.try_get_instantiation_bindings(expr_id);
                 <span class="kw">let </span>value = <span class="kw">if let </span><span class="prelude-val">Some</span>(instantiation_bindings) = instantiation_bindings {
-                    item.typ.substitute(instantiation_bindings)
+                    item.typ.force_substitute(instantiation_bindings)
                 } <span class="kw">else </span>{
                     item.typ.clone()
                 };

@@ -777,7 +777,18 @@
 <a href="#776" id="776">776</a>
 <a href="#777" id="777">777</a>
 <a href="#778" id="778">778</a>
-<a href="#779" id="779">779</a></pre></div><pre class="rust"><code><span class="doccomment">//! Memory layout and register allocation for Brillig programs.
+<a href="#779" id="779">779</a>
+<a href="#780" id="780">780</a>
+<a href="#781" id="781">781</a>
+<a href="#782" id="782">782</a>
+<a href="#783" id="783">783</a>
+<a href="#784" id="784">784</a>
+<a href="#785" id="785">785</a>
+<a href="#786" id="786">786</a>
+<a href="#787" id="787">787</a>
+<a href="#788" id="788">788</a>
+<a href="#789" id="789">789</a>
+<a href="#790" id="790">790</a></pre></div><pre class="rust"><code><span class="doccomment">//! Memory layout and register allocation for Brillig programs.
 //!
 //! Brillig execution splits its memory/register space into fixed and dynamic regions. The layout
 //! is strictly enforced by the register allocators defined in this module.
@@ -1329,12 +1340,18 @@
         <span class="self">self</span>.allocate_single_addr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)
     }
 
-    <span class="doccomment">/// Allocate a [BrilligVector].
+    <span class="doccomment">/// Allocate a pointer for [BrilligVector].
+    ///
+    /// This does not include allocating memory for the data on the heap or shaping the meta-data.
+    /// That is done by [BrilligContext::codegen_initialize_vector].
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>allocate_brillig_vector(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Allocated&lt;BrilligVector, Registers&gt; {
         <span class="self">self</span>.allocate_register().map(|a| BrilligVector { pointer: a })
     }
 
-    <span class="doccomment">/// Allocate a [BrilligArray].
+    <span class="doccomment">/// Allocate a pointer for [BrilligArray].
+    ///
+    /// This does not include allocating memory for the data on the heap or shaping the meta-data.
+    /// That is done by [BrilligContext::codegen_initialize_array].
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>allocate_brillig_array(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         size: usize,
@@ -1353,14 +1370,19 @@
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>allocate_heap_array(<span class="kw-2">&amp;mut </span><span class="self">self</span>, size: usize) -&gt; Allocated&lt;HeapArray, Registers&gt; {
         <span class="self">self</span>.allocate_register().map(|pointer| HeapArray { pointer, size })
     }
+
+    <span class="doccomment">/// Create a number of consecutive [MemoryAddress::Direct] addresses at the start of the [ScratchSpace].
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>make_scratch_registers&lt;<span class="kw">const </span>N: usize&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; [MemoryAddress; N] {
+        <span class="kw">let </span>scratch_start = ScratchSpace::start();
+        std::array::from_fn(|i| MemoryAddress::direct(scratch_start + i))
+    }
 }
 
 <span class="kw">impl</span>&lt;F&gt; BrilligContext&lt;F, ScratchSpace&gt; {
     <span class="doccomment">/// Allocate a number of consecutive scratch registers and replace the current allocator with
     /// one that has the new registers pre-allocated.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>allocate_scratch_registers&lt;<span class="kw">const </span>N: usize&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; [MemoryAddress; N] {
-        <span class="kw">let </span>scratch_start = <span class="self">self</span>.registers().start();
-        <span class="kw">let </span>registers = std::array::from_fn(|i| MemoryAddress::direct(scratch_start + i));
+        <span class="kw">let </span>registers = <span class="self">self</span>.make_scratch_registers();
         <span class="self">self</span>.set_allocated_registers(registers.iter().copied().collect());
         registers
     }

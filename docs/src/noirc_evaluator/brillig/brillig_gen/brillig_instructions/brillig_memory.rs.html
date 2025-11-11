@@ -489,11 +489,7 @@
 <a href="#488" id="488">488</a>
 <a href="#489" id="489">489</a>
 <a href="#490" id="490">490</a>
-<a href="#491" id="491">491</a>
-<a href="#492" id="492">492</a>
-<a href="#493" id="493">493</a>
-<a href="#494" id="494">494</a>
-<a href="#495" id="495">495</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
+<a href="#491" id="491">491</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>acvm::acir::brillig::MemoryAddress;
 <span class="kw">use </span>acvm::{AcirField, FieldElement};
@@ -783,7 +779,7 @@
     /// have been written incorrectly.
     ///
     /// Should only be called if [BrilligContext::enable_debug_assertions] returns true.
-    </span><span class="kw">fn </span>assert_rc_neq_zero(<span class="kw-2">&amp;mut </span><span class="self">self</span>, rc_register: MemoryAddress) {
+    </span><span class="kw">fn </span>codegen_assert_rc_neq_zero(<span class="kw-2">&amp;mut </span><span class="self">self</span>, rc_register: MemoryAddress) {
         <span class="kw">let </span>zero = <span class="self">self</span>.brillig_context.allocate_single_addr(<span class="number">32</span>);
 
         <span class="self">self</span>.brillig_context.const_instruction(<span class="kw-2">*</span>zero, FieldElement::zero());
@@ -957,35 +953,31 @@
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_increment_rc(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: ValueId, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) {
         <span class="kw">let </span>array_or_vector = <span class="self">self</span>.convert_ssa_value(value, dfg);
-        <span class="kw">let </span>rc_register = <span class="self">self</span>.brillig_context.allocate_register();
+        <span class="kw">let </span>array_register = array_or_vector.extract_register();
 
-        <span class="comment">// RC is always directly pointed by the array/vector pointer
-        </span><span class="self">self</span>.brillig_context.load_instruction(<span class="kw-2">*</span>rc_register, array_or_vector.extract_register());
+        <span class="kw">let </span>rc_register = <span class="self">self</span>.brillig_context.codegen_read_rc(array_register);
 
         <span class="comment">// Ensure we're not incrementing from 0 back to 1
         </span><span class="kw">if </span><span class="self">self</span>.brillig_context.enable_debug_assertions() {
-            <span class="self">self</span>.assert_rc_neq_zero(<span class="kw-2">*</span>rc_register);
+            <span class="self">self</span>.codegen_assert_rc_neq_zero(rc_register.address);
         }
 
-        <span class="self">self</span>.brillig_context.codegen_usize_op_in_place(<span class="kw-2">*</span>rc_register, BrilligBinaryOp::Add, <span class="number">1</span>);
-        <span class="self">self</span>.brillig_context.store_instruction(array_or_vector.extract_register(), <span class="kw-2">*</span>rc_register);
+        <span class="self">self</span>.brillig_context.codegen_increment_rc(array_register, rc_register.address);
     }
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_decrement_rc(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: ValueId, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) {
         <span class="kw">let </span>array_or_vector = <span class="self">self</span>.convert_ssa_value(value, dfg);
         <span class="kw">let </span>array_register = array_or_vector.extract_register();
 
-        <span class="kw">let </span>rc_register = <span class="self">self</span>.brillig_context.allocate_register();
-        <span class="self">self</span>.brillig_context.load_instruction(<span class="kw-2">*</span>rc_register, array_register);
+        <span class="kw">let </span>rc_register = <span class="self">self</span>.brillig_context.codegen_read_rc(array_register);
 
         <span class="comment">// Check that the refcount isn't already 0 before we decrement. If we allow it to underflow
         // and become usize::MAX, and then return to 1, then it will indicate
         // an array as mutable when it probably shouldn't be.
         </span><span class="kw">if </span><span class="self">self</span>.brillig_context.enable_debug_assertions() {
-            <span class="self">self</span>.assert_rc_neq_zero(<span class="kw-2">*</span>rc_register);
+            <span class="self">self</span>.codegen_assert_rc_neq_zero(rc_register.address);
         }
 
-        <span class="self">self</span>.brillig_context.codegen_usize_op_in_place(<span class="kw-2">*</span>rc_register, BrilligBinaryOp::Sub, <span class="number">1</span>);
-        <span class="self">self</span>.brillig_context.store_instruction(array_register, <span class="kw-2">*</span>rc_register);
+        <span class="self">self</span>.brillig_context.codegen_decrement_rc(array_register, rc_register.address);
     }
 }
 </code></pre></div></section></main></body></html>

@@ -31,7 +31,9 @@
 <a href="#30" id="30">30</a>
 <a href="#31" id="31">31</a>
 <a href="#32" id="32">32</a>
-<a href="#33" id="33">33</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, acir::brillig::MemoryAddress};
+<a href="#33" id="33">33</a>
+<a href="#34" id="34">34</a>
+<a href="#35" id="35">35</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, acir::brillig::MemoryAddress};
 
 <span class="kw">use </span><span class="kw">super</span>::ProcedureId;
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::{
@@ -41,27 +43,29 @@
 };
 
 <span class="kw">impl</span>&lt;F: AcirField + DebugToString, Registers: RegisterAllocator&gt; BrilligContext&lt;F, Registers&gt; {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>call_array_reverse_procedure(
+    <span class="doccomment">/// Copy the arguments to the scratch space and call [ProcedureId::ArrayReverse].
+    ///
+    /// Reverses the `size` number of items pointed to by `pointer` in-place.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>call_array_reverse_procedure(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         pointer: MemoryAddress,
         size: MemoryAddress,
     ) {
-        <span class="kw">let </span>scratch_start = ScratchSpace::start();
-        <span class="kw">let </span>source_pointer = MemoryAddress::direct(scratch_start);
-        <span class="kw">let </span>size_register = MemoryAddress::direct(scratch_start + <span class="number">1</span>);
+        <span class="kw">let </span>[source_pointer_arg, size_register_arg] = <span class="self">self</span>.make_scratch_registers();
 
-        <span class="self">self</span>.mov_instruction(source_pointer, pointer);
-        <span class="self">self</span>.mov_instruction(size_register, size);
+        <span class="self">self</span>.mov_instruction(source_pointer_arg, pointer);
+        <span class="self">self</span>.mov_instruction(size_register_arg, size);
 
         <span class="self">self</span>.add_procedure_call_instruction(ProcedureId::ArrayReverse);
     }
 }
 
-<span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>compile_array_reverse_procedure&lt;F: AcirField + DebugToString&gt;(
+<span class="doccomment">/// Compile [ProcedureId::ArrayReverse].
+</span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>compile_array_reverse_procedure&lt;F: AcirField + DebugToString&gt;(
     brillig_context: <span class="kw-2">&amp;mut </span>BrilligContext&lt;F, ScratchSpace&gt;,
 ) {
-    <span class="kw">let </span>[source_pointer, size_register] = brillig_context.allocate_scratch_registers();
+    <span class="kw">let </span>[source_pointer_arg, size_register_arg] = brillig_context.allocate_scratch_registers();
 
-    brillig_context.codegen_array_reverse(source_pointer, size_register);
+    brillig_context.codegen_array_reverse(source_pointer_arg, size_register_arg);
 }
 </code></pre></div></section></main></body></html>

@@ -144,18 +144,31 @@
 <a href="#143" id="143">143</a>
 <a href="#144" id="144">144</a>
 <a href="#145" id="145">145</a>
-<a href="#146" id="146">146</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, acir::brillig::MemoryAddress};
+<a href="#146" id="146">146</a>
+<a href="#147" id="147">147</a>
+<a href="#148" id="148">148</a>
+<a href="#149" id="149">149</a>
+<a href="#150" id="150">150</a>
+<a href="#151" id="151">151</a>
+<a href="#152" id="152">152</a>
+<a href="#153" id="153">153</a>
+<a href="#154" id="154">154</a>
+<a href="#155" id="155">155</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, acir::brillig::MemoryAddress};
 
 <span class="kw">use super</span>::{ProcedureId, prepare_vector_push::reallocate_vector_for_insertion};
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::{
     BrilligBinaryOp, BrilligContext,
     brillig_variable::{BrilligVector, SingleAddrVariable},
+    codegen_memory::VectorMetaData,
     debug_show::DebugToString,
     registers::{RegisterAllocator, ScratchSpace},
 };
 
 <span class="kw">impl</span>&lt;F: AcirField + DebugToString, Registers: RegisterAllocator&gt; BrilligContext&lt;F, Registers&gt; {
-    <span class="doccomment">/// It prepares a vector for a insert operation, leaving a hole at the index position which is returned as the write_pointer.
+    <span class="doccomment">/// Copy the arguments to the [ScratchSpace] and call [ProcedureId::PrepareVectorInsert].
+    ///
+    /// Prepares a the `source_vector` for a insert operation by making a copy to `destination_vector`,
+    /// leaving an `item_count` hole at the `index` position, which is returned as the `write_pointer`.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>call_prepare_vector_insert_procedure(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         source_vector: BrilligVector,
@@ -164,12 +177,13 @@
         write_pointer: MemoryAddress,
         item_count: usize,
     ) {
-        <span class="kw">let </span>scratch_start = ScratchSpace::start();
-        <span class="kw">let </span>source_vector_pointer_arg = MemoryAddress::direct(scratch_start);
-        <span class="kw">let </span>index_arg = MemoryAddress::direct(scratch_start + <span class="number">1</span>);
-        <span class="kw">let </span>item_count_arg = MemoryAddress::direct(scratch_start + <span class="number">2</span>);
-        <span class="kw">let </span>new_vector_pointer_return = MemoryAddress::direct(scratch_start + <span class="number">3</span>);
-        <span class="kw">let </span>write_pointer_return = MemoryAddress::direct(scratch_start + <span class="number">4</span>);
+        <span class="kw">let </span>[
+            source_vector_pointer_arg,
+            index_arg,
+            item_count_arg,
+            destination_vector_pointer_return,
+            write_pointer_return,
+        ] = <span class="self">self</span>.make_scratch_registers();
 
         <span class="self">self</span>.mov_instruction(source_vector_pointer_arg, source_vector.pointer);
         <span class="self">self</span>.mov_instruction(index_arg, index.address);
@@ -177,38 +191,33 @@
 
         <span class="self">self</span>.add_procedure_call_instruction(ProcedureId::PrepareVectorInsert);
 
-        <span class="self">self</span>.mov_instruction(destination_vector.pointer, new_vector_pointer_return);
+        <span class="self">self</span>.mov_instruction(destination_vector.pointer, destination_vector_pointer_return);
         <span class="self">self</span>.mov_instruction(write_pointer, write_pointer_return);
     }
 }
 
-<span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>compile_prepare_vector_insert_procedure&lt;F: AcirField + DebugToString&gt;(
+<span class="doccomment">/// Compile [ProcedureId::PrepareVectorInsert].
+</span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>compile_prepare_vector_insert_procedure&lt;F: AcirField + DebugToString&gt;(
     brillig_context: <span class="kw-2">&amp;mut </span>BrilligContext&lt;F, ScratchSpace&gt;,
 ) {
     <span class="kw">let </span>[
         source_vector_pointer_arg,
         index_arg,
         item_count_arg,
-        new_vector_pointer_return,
+        destination_vector_pointer_return,
         write_pointer_return,
     ] = brillig_context.allocate_scratch_registers();
 
     <span class="kw">let </span>source_vector = BrilligVector { pointer: source_vector_pointer_arg };
-    <span class="kw">let </span>target_vector = BrilligVector { pointer: new_vector_pointer_return };
+    <span class="kw">let </span>target_vector = BrilligVector { pointer: destination_vector_pointer_return };
     <span class="kw">let </span>index = SingleAddrVariable::new_usize(index_arg);
 
-    <span class="kw">let </span>source_rc = brillig_context.allocate_single_addr_usize();
-    <span class="kw">let </span>source_size = brillig_context.allocate_single_addr_usize();
-    <span class="kw">let </span>source_capacity = brillig_context.allocate_single_addr_usize();
-    <span class="kw">let </span>source_items_pointer = brillig_context.allocate_single_addr_usize();
-    brillig_context.codegen_read_vector_metadata(
-        source_vector,
-        <span class="kw-2">*</span>source_rc,
-        <span class="kw-2">*</span>source_size,
-        <span class="kw-2">*</span>source_capacity,
-        <span class="kw-2">*</span>source_items_pointer,
-        <span class="prelude-val">None</span>,
-    );
+    <span class="kw">let </span>VectorMetaData {
+        rc: source_rc,
+        size: source_size,
+        capacity: source_capacity,
+        items_pointer: source_items_pointer,
+    } = brillig_context.codegen_read_vector_metadata(source_vector, <span class="prelude-val">None</span>);
 
     <span class="comment">// Target size is source size + item_count
     </span><span class="kw">let </span>target_size = brillig_context.allocate_single_addr_usize();
@@ -219,7 +228,7 @@
         BrilligBinaryOp::Add,
     );
 
-    <span class="comment">// Reallocate the target vector if necessary
+    <span class="comment">// Reallocate the target vector if necessary.
     </span>reallocate_vector_for_insertion(
         brillig_context,
         source_vector,
@@ -232,7 +241,8 @@
     <span class="kw">let </span>target_vector_items_pointer =
         brillig_context.codegen_make_vector_items_pointer(target_vector);
 
-    <span class="kw">let </span>was_reused = brillig_context.allocate_single_addr_bool();
+    <span class="comment">// Check if we were able to reuse the source vector by comparing with the destination address.
+    </span><span class="kw">let </span>was_reused = brillig_context.allocate_single_addr_bool();
     brillig_context.memory_op_instruction(
         source_vector.pointer,
         target_vector.pointer,
@@ -240,7 +250,9 @@
         BrilligBinaryOp::Equals,
     );
 
-    brillig_context.codegen_if_not(was_reused.address, |brillig_context| {
+    <span class="comment">// If we were unable to reuse the source index, we need to copy the items, up to the index where the hole needs to be:
+    // target[0..index] = source[0..index]
+    </span>brillig_context.codegen_if_not(was_reused.address, |brillig_context| {
         <span class="comment">// Copy the elements to the left of the index
         </span>brillig_context.codegen_mem_copy(
             source_items_pointer.address,
@@ -249,23 +261,27 @@
         );
     });
 
+    was_reused.deallocate();
+
     <span class="comment">// Compute the source pointer just at the index
     </span><span class="kw">let </span>source_pointer_at_index = brillig_context.allocate_register();
     brillig_context.memory_op_instruction(
         source_items_pointer.address,
-        index_arg,
+        index.address,
         <span class="kw-2">*</span>source_pointer_at_index,
         BrilligBinaryOp::Add,
     );
 
-    <span class="comment">// Compute the target pointer after the inserted elements
+    <span class="comment">// Compute the target pointer where the elements need to be inserted.
     </span>brillig_context.memory_op_instruction(
         <span class="kw-2">*</span>target_vector_items_pointer,
         index.address,
         write_pointer_return,
         BrilligBinaryOp::Add,
     );
-    <span class="kw">let </span>target_pointer_after_index = brillig_context.allocate_register();
+
+    <span class="comment">// Compute the target pointer pointing beyond the elements that need to be inserted.
+    </span><span class="kw">let </span>target_pointer_after_index = brillig_context.allocate_register();
 
     brillig_context.memory_op_instruction(
         write_pointer_return,
@@ -274,7 +290,8 @@
         BrilligBinaryOp::Add,
     );
 
-    <span class="comment">// Compute the number of elements to the right of the insertion index
+    <span class="comment">// Compute the number of elements to the right of the insertion index.
+    // source_size = index + element_count_to_the_right
     </span><span class="kw">let </span>element_count_to_the_right = brillig_context.allocate_register();
     brillig_context.memory_op_instruction(
         source_size.address,
@@ -283,7 +300,8 @@
         BrilligBinaryOp::Sub,
     );
 
-    <span class="comment">// Copy the elements to the right of the index
+    <span class="comment">// Copy the elements to the right of the index:
+    // target[index+item_count .. index+item_count+elem_count_to_the_right] = source[index .. index+elem_count_to_the_right]
     </span>brillig_context.codegen_mem_copy_from_the_end(
         <span class="kw-2">*</span>source_pointer_at_index,
         <span class="kw-2">*</span>target_pointer_after_index,

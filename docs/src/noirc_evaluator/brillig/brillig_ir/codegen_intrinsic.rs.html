@@ -92,7 +92,9 @@
 <a href="#91" id="91">91</a>
 <a href="#92" id="92">92</a>
 <a href="#93" id="93">93</a>
-<a href="#94" id="94">94</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::{
+<a href="#94" id="94">94</a>
+<a href="#95" id="95">95</a>
+<a href="#96" id="96">96</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::{
     AcirField,
     brillig::{BlackBoxOp, IntegerBitSize},
 };
@@ -153,16 +155,19 @@
         );
     }
 
-    <span class="doccomment">/// Issues a to_radix instruction. This instruction will write the modulus of the source register
-    /// And the radix register limb_count times to the target vector.
+    <span class="doccomment">/// Issues a `to_radix` instruction. This instruction will write the modulus of the `source_field` register
+    /// and the `radix` register `target_array`, with the number of limbs given by the size of `target_array`.
+    ///
+    /// If `output_bits` is true, it generates bit limbs, otherwise it generates byte limbs.
+    /// If `little_endian` is true, then the `target_array` will contain the results in Little Endian order.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_to_radix(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         source_field: SingleAddrVariable,
         target_array: BrilligArray,
         radix: SingleAddrVariable,
         little_endian: bool,
-        output_bits: bool, <span class="comment">// If true will generate bit limbs, if false will generate byte limbs
-    </span>) {
+        output_bits: bool,
+    ) {
         <span class="macro">assert!</span>(source_field.bit_size == F::max_num_bits());
         <span class="macro">assert!</span>(radix.bit_size == <span class="number">32</span>);
 
@@ -181,8 +186,7 @@
         });
 
         <span class="kw">if </span>little_endian {
-            <span class="kw">let </span>items_len = <span class="self">self</span>.make_usize_constant_instruction(target_array.size.into());
-            <span class="self">self</span>.codegen_array_reverse(<span class="kw-2">*</span>pointer, items_len.address);
+            <span class="self">self</span>.codegen_array_reverse(<span class="kw-2">*</span>pointer, num_limbs.address);
         }
     }
 }

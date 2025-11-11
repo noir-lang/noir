@@ -217,19 +217,27 @@
 <a href="#216" id="216">216</a>
 <a href="#217" id="217">217</a>
 <a href="#218" id="218">218</a>
-<a href="#219" id="219">219</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, acir::brillig::MemoryAddress};
+<a href="#219" id="219">219</a>
+<a href="#220" id="220">220</a>
+<a href="#221" id="221">221</a>
+<a href="#222" id="222">222</a>
+<a href="#223" id="223">223</a>
+<a href="#224" id="224">224</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, acir::brillig::MemoryAddress};
 
 <span class="kw">use </span><span class="kw">super</span>::ProcedureId;
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::{
     BrilligBinaryOp, BrilligContext,
     brillig_variable::{BrilligVector, SingleAddrVariable},
+    codegen_memory::VectorMetaData,
     debug_show::DebugToString,
     registers::{RegisterAllocator, ScratchSpace},
 };
 
 <span class="kw">impl</span>&lt;F: AcirField + DebugToString, Registers: RegisterAllocator&gt; BrilligContext&lt;F, Registers&gt; {
-    <span class="doccomment">/// Prepares a vector for a push operation, allocating a larger vector and copying the source vector into the destination vector.
-    /// It returns the write pointer to where to put the new items.
+    <span class="doccomment">/// Copy arguments to the [ScratchSpace] and call [ProcedureId::PrepareVectorPush].
+    ///
+    /// Prepares a vector for a push operation, allocating a larger vector and copying the source vector into the destination vector if necessary.
+    /// It returns the destination vector and the write pointer to where to put the new items.
     ///
     /// Brillig vectors have an inherent size and capacity, but their semantic length can be different,
     /// and it's passed as a separate variable in SSA. When ACIR flattens vectors of unequal length,
@@ -243,12 +251,13 @@
         item_push_count: usize,
         back: bool,
     ) {
-        <span class="kw">let </span>scratch_start = ScratchSpace::start();
-        <span class="kw">let </span>source_vector_length_arg = MemoryAddress::direct(scratch_start);
-        <span class="kw">let </span>source_vector_pointer_arg = MemoryAddress::direct(scratch_start + <span class="number">1</span>);
-        <span class="kw">let </span>item_push_count_arg = MemoryAddress::direct(scratch_start + <span class="number">2</span>);
-        <span class="kw">let </span>new_vector_pointer_return = MemoryAddress::direct(scratch_start + <span class="number">3</span>);
-        <span class="kw">let </span>write_pointer_return = MemoryAddress::direct(scratch_start + <span class="number">4</span>);
+        <span class="kw">let </span>[
+            source_vector_length_arg,
+            source_vector_pointer_arg,
+            item_push_count_arg,
+            destination_vector_pointer_return,
+            write_pointer_return,
+        ] = <span class="self">self</span>.make_scratch_registers();
 
         <span class="self">self</span>.mov_instruction(source_vector_length_arg, source_len.address);
         <span class="self">self</span>.mov_instruction(source_vector_pointer_arg, source_vector.pointer);
@@ -256,12 +265,13 @@
 
         <span class="self">self</span>.add_procedure_call_instruction(ProcedureId::PrepareVectorPush(back));
 
-        <span class="self">self</span>.mov_instruction(destination_vector.pointer, new_vector_pointer_return);
+        <span class="self">self</span>.mov_instruction(destination_vector.pointer, destination_vector_pointer_return);
         <span class="self">self</span>.mov_instruction(write_pointer, write_pointer_return);
     }
 }
 
-<span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>compile_prepare_vector_push_procedure&lt;F: AcirField + DebugToString&gt;(
+<span class="doccomment">/// Compile [ProcedureId::PrepareVectorPush].
+</span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>compile_prepare_vector_push_procedure&lt;F: AcirField + DebugToString&gt;(
     brillig_context: <span class="kw-2">&amp;mut </span>BrilligContext&lt;F, ScratchSpace&gt;,
     push_back: bool,
 ) {
@@ -269,23 +279,20 @@
         source_vector_length_arg,
         source_vector_pointer_arg,
         item_push_count_arg,
-        new_vector_pointer_return,
+        destination_vector_pointer_return,
         write_pointer_return,
     ] = brillig_context.allocate_scratch_registers();
 
     <span class="kw">let </span>source_vector = BrilligVector { pointer: source_vector_pointer_arg };
-    <span class="kw">let </span>target_vector = BrilligVector { pointer: new_vector_pointer_return };
+    <span class="kw">let </span>target_vector = BrilligVector { pointer: destination_vector_pointer_return };
 
-    <span class="kw">let </span>source_rc = brillig_context.allocate_single_addr_usize();
-    <span class="kw">let </span>source_size = brillig_context.allocate_single_addr_usize();
-    <span class="kw">let </span>source_capacity = brillig_context.allocate_single_addr_usize();
-    <span class="kw">let </span>source_items_pointer = brillig_context.allocate_single_addr_usize();
-    brillig_context.codegen_read_vector_metadata(
+    <span class="kw">let </span>VectorMetaData {
+        rc: source_rc,
+        size: source_size,
+        capacity: source_capacity,
+        items_pointer: source_items_pointer,
+    } = brillig_context.codegen_read_vector_metadata(
         source_vector,
-        <span class="kw-2">*</span>source_rc,
-        <span class="kw-2">*</span>source_size,
-        <span class="kw-2">*</span>source_capacity,
-        <span class="kw-2">*</span>source_items_pointer,
         <span class="prelude-val">Some</span>((source_vector_length_arg, item_push_count_arg)),
     );
 
@@ -314,7 +321,7 @@
         brillig_context.codegen_make_vector_items_pointer(target_vector);
 
     <span class="kw">if </span>push_back {
-        <span class="comment">// If we are pushing to the back, we could be reusing the source vector of the RC was 1 and it had excess capacity.
+        <span class="comment">// If we are pushing to the back, we could be reusing the source vector if the RC was 1 and it had excess capacity.
         </span><span class="kw">let </span>was_reused = brillig_context.allocate_single_addr_bool();
         brillig_context.memory_op_instruction(
             source_vector.pointer,
@@ -322,7 +329,7 @@
             was_reused.address,
             BrilligBinaryOp::Equals,
         );
-        <span class="comment">// If we are not reusing the source, then we need to copy its items (up to its semantic length) to the target.
+        <span class="comment">// If we are not reusing the source, then we need to copy its items to the target.
         </span>brillig_context.codegen_if_not(was_reused.address, |brillig_context| {
             brillig_context.codegen_mem_copy(
                 source_items_pointer.address,
@@ -339,7 +346,7 @@
             BrilligBinaryOp::Add,
         );
     } <span class="kw">else </span>{
-        <span class="comment">// If push front we need to shift the items independently of it being reused or not
+        <span class="comment">// If pushing to the front we need to shift the items independently of it being reused or not.
         </span><span class="kw">let </span>target_start = brillig_context.allocate_register();
         <span class="comment">// Shift items by the number of items we want to push to the front.
         </span>brillig_context.memory_op_instruction(
@@ -358,9 +365,15 @@
     }
 }
 
-<span class="doccomment">/// Reallocates the target vector for insertion, skipping reallocation if the source vector can be reused.
-/// If it doesn't fit capacity we will reallocate the vector to double the capacity.
+<span class="doccomment">/// Reallocates the target vector for insertion, skipping reallocation if the source vector can be reused:
+/// * if the capacity accommodates the target size:
+///   * if the RC is 1, we can increase the size of the source vector as reuse it as the destination
+///   * if the RC is not 1, we allocate a new destination vector with the source capacity and target size
+/// * if the capacity is too small for the target size, we allocate the destination vector with a capacity that is double the target size.
+///
 /// Does not copy the items, only reallocates the vector.
+///
+/// Whether a copy is necessary can be gleaned by comparing the target address to the source address.
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>reallocate_vector_for_insertion&lt;
     F: AcirField + DebugToString,
     Registers: RegisterAllocator,
@@ -380,20 +393,15 @@
         does_capacity_fit.address,
         BrilligBinaryOp::LessThanEquals,
     );
-    <span class="comment">// We can only reuse the source vector if the ref-count is 1.
-    </span><span class="kw">let </span>is_rc_one = brillig_context.allocate_single_addr_bool();
-    brillig_context.codegen_usize_op(
-        source_rc.address,
-        is_rc_one.address,
-        BrilligBinaryOp::Equals,
-        <span class="number">1</span>,
-    );
 
     <span class="comment">// Reallocate target vector for insertion
     </span>brillig_context.codegen_branch(
         does_capacity_fit.address,
         |brillig_context, does_capacity_fit| {
             <span class="kw">if </span>does_capacity_fit {
+                <span class="comment">// We can only reuse the source vector if the ref-count is 1.
+                </span><span class="kw">let </span>is_rc_one = brillig_context.codegen_usize_equals_one(source_rc);
+
                 brillig_context.codegen_branch(is_rc_one.address, |brillig_context, is_rc_one| {
                     <span class="kw">if </span>is_rc_one {
                         <span class="comment">// We can insert in place, so we can just move the source pointer to the destination pointer and update the length
@@ -422,7 +430,9 @@
                     BrilligBinaryOp::Mul,
                     <span class="number">2_usize</span>,
                 );
-                brillig_context.codegen_initialize_vector(
+
+                <span class="comment">// We will have to copy the vector to the new expanded memory region.
+                </span>brillig_context.codegen_initialize_vector(
                     target_vector,
                     target_size,
                     <span class="prelude-val">Some</span>(<span class="kw-2">*</span>double_size),

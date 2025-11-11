@@ -535,7 +535,80 @@
 <a href="#534" id="534">534</a>
 <a href="#535" id="535">535</a>
 <a href="#536" id="536">536</a>
-<a href="#537" id="537">537</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
+<a href="#537" id="537">537</a>
+<a href="#538" id="538">538</a>
+<a href="#539" id="539">539</a>
+<a href="#540" id="540">540</a>
+<a href="#541" id="541">541</a>
+<a href="#542" id="542">542</a>
+<a href="#543" id="543">543</a>
+<a href="#544" id="544">544</a>
+<a href="#545" id="545">545</a>
+<a href="#546" id="546">546</a>
+<a href="#547" id="547">547</a>
+<a href="#548" id="548">548</a>
+<a href="#549" id="549">549</a>
+<a href="#550" id="550">550</a>
+<a href="#551" id="551">551</a>
+<a href="#552" id="552">552</a>
+<a href="#553" id="553">553</a>
+<a href="#554" id="554">554</a>
+<a href="#555" id="555">555</a>
+<a href="#556" id="556">556</a>
+<a href="#557" id="557">557</a>
+<a href="#558" id="558">558</a>
+<a href="#559" id="559">559</a>
+<a href="#560" id="560">560</a>
+<a href="#561" id="561">561</a>
+<a href="#562" id="562">562</a>
+<a href="#563" id="563">563</a>
+<a href="#564" id="564">564</a>
+<a href="#565" id="565">565</a>
+<a href="#566" id="566">566</a>
+<a href="#567" id="567">567</a>
+<a href="#568" id="568">568</a>
+<a href="#569" id="569">569</a>
+<a href="#570" id="570">570</a>
+<a href="#571" id="571">571</a>
+<a href="#572" id="572">572</a>
+<a href="#573" id="573">573</a>
+<a href="#574" id="574">574</a>
+<a href="#575" id="575">575</a>
+<a href="#576" id="576">576</a>
+<a href="#577" id="577">577</a>
+<a href="#578" id="578">578</a>
+<a href="#579" id="579">579</a>
+<a href="#580" id="580">580</a>
+<a href="#581" id="581">581</a>
+<a href="#582" id="582">582</a>
+<a href="#583" id="583">583</a>
+<a href="#584" id="584">584</a>
+<a href="#585" id="585">585</a>
+<a href="#586" id="586">586</a>
+<a href="#587" id="587">587</a>
+<a href="#588" id="588">588</a>
+<a href="#589" id="589">589</a>
+<a href="#590" id="590">590</a>
+<a href="#591" id="591">591</a>
+<a href="#592" id="592">592</a>
+<a href="#593" id="593">593</a>
+<a href="#594" id="594">594</a>
+<a href="#595" id="595">595</a>
+<a href="#596" id="596">596</a>
+<a href="#597" id="597">597</a>
+<a href="#598" id="598">598</a>
+<a href="#599" id="599">599</a>
+<a href="#600" id="600">600</a>
+<a href="#601" id="601">601</a>
+<a href="#602" id="602">602</a>
+<a href="#603" id="603">603</a>
+<a href="#604" id="604">604</a>
+<a href="#605" id="605">605</a>
+<a href="#606" id="606">606</a>
+<a href="#607" id="607">607</a>
+<a href="#608" id="608">608</a>
+<a href="#609" id="609">609</a>
+<a href="#610" id="610">610</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
     AcirField,
     acir::brillig::{HeapArray, HeapVector, MemoryAddress, ValueOrArray},
     brillig_vm::offsets,
@@ -549,6 +622,13 @@
     debug_show::DebugToString,
     registers::RegisterAllocator,
 };
+
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>VectorMetaData&lt;Registers: RegisterAllocator&gt; {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) rc: Allocated&lt;SingleAddrVariable, Registers&gt;,
+    <span class="kw">pub</span>(<span class="kw">crate</span>) size: Allocated&lt;SingleAddrVariable, Registers&gt;,
+    <span class="kw">pub</span>(<span class="kw">crate</span>) capacity: Allocated&lt;SingleAddrVariable, Registers&gt;,
+    <span class="kw">pub</span>(<span class="kw">crate</span>) items_pointer: Allocated&lt;SingleAddrVariable, Registers&gt;,
+}
 
 <span class="kw">impl</span>&lt;F: AcirField + DebugToString, Registers: RegisterAllocator&gt; BrilligContext&lt;F, Registers&gt; {
     <span class="doccomment">/// Loads the current _free memory pointer_ into `pointer_register` and
@@ -622,8 +702,11 @@
                 num_elements_variable.address,
             );
         } <span class="kw">else </span>{
-            <span class="kw">let </span>value_register = <span class="self">self</span>.allocate_register();
-            <span class="kw">let </span>end_source_pointer = <span class="self">self</span>.allocate_register();
+            <span class="comment">// Temporary register for copying source to target, ie. between two heap addresses through the stack.
+            </span><span class="kw">let </span>value_register = <span class="self">self</span>.allocate_register();
+
+            <span class="comment">// End pointer for finish condition.
+            </span><span class="kw">let </span>end_source_pointer = <span class="self">self</span>.allocate_register();
             <span class="self">self</span>.memory_op_instruction(
                 source_pointer,
                 num_elements_variable.address,
@@ -646,7 +729,7 @@
                     brillig_context.memory_op_inc_by_usize_one(<span class="kw-2">**</span>target_iterator);
                 },
                 |brillig_context, (source_iterator, <span class="kw">_</span>)| {
-                    <span class="comment">// We have finished when the source/target pointer is less than the source/target start
+                    <span class="comment">// We have finished when the source iterator reaches the end pointer.
                     </span><span class="kw">let </span>finish_condition = brillig_context.allocate_single_addr_bool();
                     brillig_context.memory_op_instruction(
                         <span class="kw-2">**</span>source_iterator,
@@ -665,7 +748,10 @@
         }
     }
 
-    <span class="doccomment">/// Copies num_elements_variable from the source pointer to the target pointer, starting from the end
+    <span class="doccomment">/// Copies `num_elements_variable` number of elements from the `source_start` pointer to the `target_start` pointer,
+    /// starting from the end, moving backwards.
+    ///
+    /// By moving back-to-front, it can shift items backwards, modifying a vector in-place to make room in the front.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_mem_copy_from_the_end(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         source_start: MemoryAddress,
@@ -682,14 +768,16 @@
                     BrilligBinaryOp::Sub,
                     <span class="number">1</span>,
                 );
-                <span class="kw">let </span>target_pointer = brillig_context.allocate_register();
+                <span class="comment">// target = &amp;target_items[num_elements - 1]
+                </span><span class="kw">let </span>target_pointer = brillig_context.allocate_register();
                 brillig_context.memory_op_instruction(
                     target_start,
                     <span class="kw-2">*</span>num_items_minus_one,
                     <span class="kw-2">*</span>target_pointer,
                     BrilligBinaryOp::Add,
                 );
-                <span class="kw">let </span>source_pointer = brillig_context.allocate_register();
+                <span class="comment">// source = &amp;source_items[num_elements - 1]
+                </span><span class="kw">let </span>source_pointer = brillig_context.allocate_register();
                 brillig_context.memory_op_instruction(
                     source_start,
                     <span class="kw-2">*</span>num_items_minus_one,
@@ -699,12 +787,14 @@
                 (source_pointer, target_pointer)
             },
             |brillig_context, (source_pointer, target_pointer)| {
-                brillig_context.codegen_usize_op_in_place(
+                <span class="comment">// source -= 1
+                </span>brillig_context.codegen_usize_op_in_place(
                     <span class="kw-2">**</span>source_pointer,
                     BrilligBinaryOp::Sub,
                     <span class="number">1</span>,
                 );
-                brillig_context.codegen_usize_op_in_place(
+                <span class="comment">// target -= 1
+                </span>brillig_context.codegen_usize_op_in_place(
                     <span class="kw-2">**</span>target_pointer,
                     BrilligBinaryOp::Sub,
                     <span class="number">1</span>,
@@ -730,7 +820,9 @@
         );
     }
 
-    <span class="doccomment">/// This instruction will reverse the order of the `size` elements pointed by `pointer`.
+    <span class="doccomment">/// Emit opcodes to reverse the order of the `size` elements pointed by `pointer`.
+    ///
+    /// It is the responsibility of the caller to ensure that the ref-count of the array is 1.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_array_reverse(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         items_pointer: MemoryAddress,
@@ -741,35 +833,29 @@
             <span class="kw">return</span>;
         }
 
-        <span class="kw">let </span>iteration_count = <span class="self">self</span>.allocate_register();
+        <span class="comment">// for i in 0..size/2 { swap(items[i], items[size-1-i]); }
+        </span><span class="kw">let </span>iteration_count = <span class="self">self</span>.allocate_register();
         <span class="self">self</span>.codegen_usize_op(size, <span class="kw-2">*</span>iteration_count, BrilligBinaryOp::UnsignedDiv, <span class="number">2</span>);
 
         <span class="kw">let </span>start_value_register = <span class="self">self</span>.allocate_register();
         <span class="kw">let </span>end_value_register = <span class="self">self</span>.allocate_register();
-        <span class="kw">let </span>index_at_end_of_array = <span class="self">self</span>.allocate_register();
+        <span class="kw">let </span>index_at_end = <span class="self">self</span>.allocate_register();
 
-        <span class="self">self</span>.mov_instruction(<span class="kw-2">*</span>index_at_end_of_array, size);
+        <span class="comment">// The index going from back to front.
+        </span><span class="self">self</span>.mov_instruction(<span class="kw-2">*</span>index_at_end, size);
 
         <span class="self">self</span>.codegen_loop(<span class="kw-2">*</span>iteration_count, |ctx, iterator_register| {
-            <span class="comment">// The index at the end of array is size - 1 - iterator
-            </span>ctx.codegen_usize_op_in_place(<span class="kw-2">*</span>index_at_end_of_array, BrilligBinaryOp::Sub, <span class="number">1</span>);
-            <span class="kw">let </span>index_at_end_of_array_var = SingleAddrVariable::new_usize(<span class="kw-2">*</span>index_at_end_of_array);
+            <span class="comment">// The index at the end of the array is size - 1 - iterator
+            </span>ctx.codegen_usize_op_in_place(<span class="kw-2">*</span>index_at_end, BrilligBinaryOp::Sub, <span class="number">1</span>);
+            <span class="kw">let </span>index_at_end_var = SingleAddrVariable::new_usize(<span class="kw-2">*</span>index_at_end);
 
             <span class="comment">// Load both values
             </span>ctx.codegen_load_with_offset(items_pointer, iterator_register, <span class="kw-2">*</span>start_value_register);
-            ctx.codegen_load_with_offset(
-                items_pointer,
-                index_at_end_of_array_var,
-                <span class="kw-2">*</span>end_value_register,
-            );
+            ctx.codegen_load_with_offset(items_pointer, index_at_end_var, <span class="kw-2">*</span>end_value_register);
 
             <span class="comment">// Write both values
             </span>ctx.codegen_store_with_offset(items_pointer, iterator_register, <span class="kw-2">*</span>end_value_register);
-            ctx.codegen_store_with_offset(
-                items_pointer,
-                index_at_end_of_array_var,
-                <span class="kw-2">*</span>start_value_register,
-            );
+            ctx.codegen_store_with_offset(items_pointer, index_at_end_var, <span class="kw-2">*</span>start_value_register);
         });
     }
 
@@ -824,6 +910,24 @@
                 <span class="self">self</span>.codegen_brillig_vector_to_heap_vector(vector).map(ValueOrArray::HeapVector)
             }
         }
+    }
+
+    <span class="doccomment">/// Returns a variable holding the ref-count of a given array or vector.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_read_rc(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        pointer: MemoryAddress,
+    ) -&gt; Allocated&lt;SingleAddrVariable, Registers&gt; {
+        <span class="kw">let </span>result = <span class="self">self</span>.allocate_single_addr_usize();
+        <span class="self">self</span>.load_instruction(result.address, pointer);
+        result
+    }
+
+    <span class="doccomment">/// Returns a variable holding the ref-count of a given vector.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_read_vector_rc(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        vector: BrilligVector,
+    ) -&gt; Allocated&lt;SingleAddrVariable, Registers&gt; {
+        <span class="self">self</span>.codegen_read_rc(vector.pointer)
     }
 
     <span class="doccomment">/// Returns a variable holding the size of a given vector.
@@ -893,35 +997,48 @@
         result
     }
 
-    <span class="doccomment">/// Reads the metadata of a vector and stores it in the given variables
+    <span class="doccomment">/// Reads the metadata of a vector into individual registers and returns them as [VectorMetaData].
     ///
     /// If the `semantic_length_and_item_size` is given, then instead of reading the size from the
     /// vector data structure, it is calculated as a multiplication of length and item size.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_read_vector_metadata(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         vector: BrilligVector,
-        rc: SingleAddrVariable,
-        size: SingleAddrVariable,
-        capacity: SingleAddrVariable,
-        items_pointer: SingleAddrVariable,
         semantic_length_and_item_size: <span class="prelude-ty">Option</span>&lt;(MemoryAddress, MemoryAddress)&gt;,
-    ) {
-        <span class="macro">assert!</span>(rc.bit_size == BRILLIG_MEMORY_ADDRESSING_BIT_SIZE);
-        <span class="macro">assert!</span>(size.bit_size == BRILLIG_MEMORY_ADDRESSING_BIT_SIZE);
-        <span class="macro">assert!</span>(capacity.bit_size == BRILLIG_MEMORY_ADDRESSING_BIT_SIZE);
-        <span class="macro">assert!</span>(items_pointer.bit_size == BRILLIG_MEMORY_ADDRESSING_BIT_SIZE);
+    ) -&gt; VectorMetaData&lt;Registers&gt; {
+        <span class="kw">let </span>rc = <span class="self">self</span>.allocate_single_addr_usize();
+        <span class="kw">let </span>size = <span class="self">self</span>.allocate_single_addr_usize();
+        <span class="kw">let </span>capacity = <span class="self">self</span>.allocate_single_addr_usize();
+        <span class="kw">let </span>items_pointer = <span class="self">self</span>.allocate_single_addr_usize();
+
         <span class="comment">// Vector layout: [ref_count, size, capacity, items...]
         </span><span class="self">self</span>.load_instruction(rc.address, vector.pointer);
         <span class="kw">let </span>read_pointer = <span class="self">self</span>.allocate_register();
-        <span class="self">self</span>.codegen_usize_op(vector.pointer, <span class="kw-2">*</span>read_pointer, BrilligBinaryOp::Add, <span class="number">1</span>);
+        <span class="self">self</span>.codegen_usize_op(
+            vector.pointer,
+            <span class="kw-2">*</span>read_pointer,
+            BrilligBinaryOp::Add,
+            offsets::VECTOR_SIZE,
+        );
         <span class="kw">if let </span><span class="prelude-val">Some</span>((length, item_size)) = semantic_length_and_item_size {
             <span class="self">self</span>.codegen_vector_flattened_size(size.address, length, item_size);
         } <span class="kw">else </span>{
             <span class="self">self</span>.load_instruction(size.address, <span class="kw-2">*</span>read_pointer);
         }
-        <span class="self">self</span>.codegen_usize_op_in_place(<span class="kw-2">*</span>read_pointer, BrilligBinaryOp::Add, <span class="number">1</span>);
+        <span class="self">self</span>.codegen_usize_op_in_place(
+            <span class="kw-2">*</span>read_pointer,
+            BrilligBinaryOp::Add,
+            offsets::VECTOR_CAPACITY - offsets::VECTOR_SIZE,
+        );
         <span class="self">self</span>.load_instruction(capacity.address, <span class="kw-2">*</span>read_pointer);
-        <span class="self">self</span>.codegen_usize_op(<span class="kw-2">*</span>read_pointer, items_pointer.address, BrilligBinaryOp::Add, <span class="number">1</span>);
+        <span class="self">self</span>.codegen_usize_op(
+            <span class="kw-2">*</span>read_pointer,
+            items_pointer.address,
+            BrilligBinaryOp::Add,
+            offsets::VECTOR_ITEMS - offsets::VECTOR_CAPACITY,
+        );
+
+        VectorMetaData { rc, size, capacity, items_pointer }
     }
 
     <span class="doccomment">/// Generate code to calculate the flattened vector size from its semantic length and the item size.
@@ -963,21 +1080,48 @@
 
     <span class="doccomment">/// Initializes an array, allocating memory on the heap to store its representation and initializing the reference counter to 1.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_initialize_array(<span class="kw-2">&amp;mut </span><span class="self">self</span>, array: BrilligArray) {
-        <span class="comment">// Allocate memory for the 1 ref counter and `size` items.
+        <span class="comment">// Allocate memory for the ref counter and `size` items.
         </span><span class="self">self</span>.codegen_allocate_immediate_mem(array.pointer, array.size + offsets::ARRAY_META_COUNT);
-        <span class="self">self</span>.initialize_rc(array.pointer, <span class="number">1</span>);
+        <span class="self">self</span>.codegen_initialize_rc(array.pointer, <span class="number">1</span>);
     }
 
     <span class="doccomment">/// Initialize the reference counter for an array or vector.
     /// This should only be used internally in the array and vector initialization methods.
     ///
     /// The RC is in the 0th slot of the memory allocated for the array or vector.
-    </span><span class="kw">fn </span>initialize_rc(<span class="kw-2">&amp;mut </span><span class="self">self</span>, pointer: MemoryAddress, rc_value: usize) {
-        <span class="self">self</span>.indirect_const_instruction(
-            pointer,
-            BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
-            rc_value.into(),
-        );
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_initialize_rc(<span class="kw-2">&amp;mut </span><span class="self">self</span>, pointer: MemoryAddress, rc: usize) {
+        <span class="self">self</span>.indirect_const_instruction(pointer, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, rc.into());
+    }
+
+    <span class="doccomment">/// Decrement the ref-count by 1.
+    ///
+    /// The inputs are:
+    /// * the `pointer` to the array/vector
+    /// * the `rc` address of the vector where we have the current RC loaded already
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_decrement_rc(<span class="kw-2">&amp;mut </span><span class="self">self</span>, _pointer: MemoryAddress, _rc: MemoryAddress) {
+        <span class="comment">// In benchmarks having this on didn't have a noticeable performance benefit,
+        // but it does have a small increase in byte code size and the number of executed opcodes.
+        // When we disabled `dec_rc` in SSA, the performance improved, so for now we disabled this,
+        // in order to not deviate conceptually from SSA. The method is left in place as a reference
+        // to where we could re-enable them.
+
+        // // Modify the RC (it's on the stack, or scratch space).
+        // self.codegen_usize_op_in_place(rc, BrilligBinaryOp::Sub, 1);
+        // // Write it back onto the heap.
+        // self.store_instruction(pointer, rc);
+    </span>}
+
+    <span class="doccomment">/// Increment the ref-count by 1.
+    ///
+    /// The inputs are:
+    /// * the `pointer` to the array/vector
+    /// * the `rc` address of the vector where we have the current RC loaded already
+    /// * the `by` is a constant by which to increment the RC, typically 1
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_increment_rc(<span class="kw-2">&amp;mut </span><span class="self">self</span>, pointer: MemoryAddress, rc: MemoryAddress) {
+        <span class="comment">// Modify the RC (it's on the stack, or scratch space).
+        </span><span class="self">self</span>.codegen_usize_op_in_place(rc, BrilligBinaryOp::Add, <span class="number">1</span>);
+        <span class="comment">// Write it back onto the heap.
+        </span><span class="self">self</span>.store_instruction(pointer, rc);
     }
 
     <span class="doccomment">/// Initializes a vector, allocating memory on the heap to store its representation and initializing the reference counter, size and capacity.
@@ -1011,6 +1155,8 @@
     }
 
     <span class="doccomment">/// Writes vector metadata (reference count, size, and capacity) into the allocated memory.
+    ///
+    /// Sets the reference count to 1.
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>codegen_initialize_vector_metadata(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         vector: BrilligVector,
@@ -1018,7 +1164,7 @@
         capacity: SingleAddrVariable,
     ) {
         <span class="comment">// Write RC
-        </span><span class="self">self</span>.initialize_rc(vector.pointer, <span class="number">1</span>);
+        </span><span class="self">self</span>.codegen_initialize_rc(vector.pointer, <span class="number">1</span>);
 
         <span class="comment">// Write size
         </span><span class="kw">let </span>write_pointer = <span class="self">self</span>.allocate_register();
