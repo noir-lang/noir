@@ -3,7 +3,7 @@ use acvm::acir::circuit::opcodes::AcirFunctionId;
 use iter_extended::vecmap;
 
 use crate::acir::AcirVar;
-use crate::brillig::brillig_gen::brillig_fn::FunctionContext as BrilligFunctionContext;
+use crate::brillig::brillig_gen::brillig_fn::FunctionContext;
 use crate::brillig::brillig_gen::gen_brillig_for;
 use crate::brillig::brillig_ir::artifact::BrilligParameter;
 use crate::errors::{RuntimeError, SsaReport};
@@ -138,12 +138,13 @@ impl Context<'_> {
             self.shared_context.generated_brillig_pointer(func.id(), arguments.clone())
         {
             let code = self.shared_context.generated_brillig(generated_pointer.as_usize());
+            let safe_return_values = false;
             self.acir_context.brillig_call(
                 self.current_side_effects_enabled_var,
                 code,
                 inputs,
                 outputs,
-                false,
+                safe_return_values,
                 *generated_pointer,
                 None,
             )?
@@ -151,12 +152,13 @@ impl Context<'_> {
             let code =
                 gen_brillig_for(func, arguments.clone(), self.brillig, self.brillig_options)?;
             let generated_pointer = self.shared_context.new_generated_pointer();
+            let safe_return_values = false;
             let output_values = self.acir_context.brillig_call(
                 self.current_side_effects_enabled_var,
                 &code,
                 inputs,
                 outputs,
-                false,
+                safe_return_values,
                 generated_pointer,
                 None,
             )?;
@@ -188,20 +190,28 @@ impl Context<'_> {
                         .get(&value_id)
                         .expect("ICE: Unknown slice input to brillig")
                     {
-                        AcirValue::DynamicArray(AcirDynamicArray { len, .. }) => *len,
-                        AcirValue::Array(array) => array.len(),
+                        AcirValue::DynamicArray(AcirDynamicArray { len, .. }) => {
+                            // len holds the flattened length of all elements in the slice,
+                            // so to get the no-flattened length we need to divide by the flattened
+                            // length of a single slice entry
+                            let sum: u32 = item_types.iter().map(|typ| typ.flattened_size()).sum();
+                            if sum == 0 { 0 } else { *len / sum as usize }
+                        }
+                        AcirValue::Array(array) => {
+                            // len holds the non-flattened length of all elements in the slice,
+                            // so here we need to divide by the non-flattened length of a single
+                            // slice entry
+                            if item_types.is_empty() { 0 } else { array.len() / item_types.len() }
+                        }
                         _ => unreachable!("ICE: Slice value is not an array"),
                     };
 
                     BrilligParameter::Slice(
-                        item_types
-                            .iter()
-                            .map(BrilligFunctionContext::ssa_type_to_parameter)
-                            .collect(),
-                        len / item_types.len(),
+                        item_types.iter().map(FunctionContext::ssa_type_to_parameter).collect(),
+                        len,
                     )
                 } else {
-                    BrilligFunctionContext::ssa_type_to_parameter(&typ)
+                    FunctionContext::ssa_type_to_parameter(&typ)
                 }
             })
             .collect()
@@ -286,9 +296,12 @@ impl Context<'_> {
                 }
                 AcirValue::Array(element_values)
             }
-            typ => {
+            Type::Numeric(numeric_type) => {
                 let var = vars.next().unwrap();
-                AcirValue::Var(var, typ.into())
+                AcirValue::Var(var, *numeric_type)
+            }
+            typ => {
+                panic!("Unexpected type {typ} in convert_var_type_to_values");
             }
         }
     }

@@ -446,7 +446,7 @@ mod hover_tests {
 
 ---
 
- Red, blue, etc."
+Red, blue, etc."
         ));
     }
 
@@ -463,7 +463,7 @@ mod hover_tests {
 
 ---
 
- Red, blue, etc."
+Red, blue, etc."
         ));
     }
 
@@ -478,7 +478,7 @@ mod hover_tests {
 
 ---
 
- Like a tomato"
+Like a tomato"
         ));
     }
 
@@ -493,7 +493,7 @@ mod hover_tests {
 
 ---
 
- Like a tomato"
+Like a tomato"
         ));
     }
 
@@ -511,5 +511,13 @@ mod hover_tests {
             get_hover_text("workspace", "two/src/lib.nr", Position { line: 113, character: 5 })
                 .await;
         assert_eq!(&hover_text, "    i32\n---\nvalue of literal: `-8 (-0x08)`");
+    }
+
+    #[test]
+    async fn hover_on_i32() {
+        let hover_text =
+            get_hover_text("workspace", "two/src/lib.nr", Position { line: 30, character: 30 })
+                .await;
+        assert_eq!(&hover_text, "    i32\n---\nThe 32-bit signed integer type.\n");
     }
 }

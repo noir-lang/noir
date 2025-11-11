@@ -14,7 +14,7 @@ pub enum BlackBoxOp {
     Blake3 { message: HeapArray, output: HeapArray },
     /// Keccak Permutation function of 1600 width
     Keccakf1600 { input: HeapArray, output: HeapArray },
-    /// Verifies a ECDSA signature over the secp256k1 curve.
+    /// Verifies an ECDSA signature over the secp256k1 curve.
     EcdsaSecp256k1 {
         hashed_msg: HeapArray,
         public_key_x: HeapArray,
@@ -22,7 +22,7 @@ pub enum BlackBoxOp {
         signature: HeapArray,
         result: MemoryAddress,
     },
-    /// Verifies a ECDSA signature over the secp256r1 curve.
+    /// Verifies an ECDSA signature over the secp256r1 curve.
     EcdsaSecp256r1 {
         hashed_msg: HeapArray,
         public_key_x: HeapArray,

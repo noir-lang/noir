@@ -1,3 +1,5 @@
+//! Token stream processing for macro unquoting and variable interpolation.
+
 use crate::{
     ast::Path,
     token::{Keyword, LocatedToken, Token, Tokens},

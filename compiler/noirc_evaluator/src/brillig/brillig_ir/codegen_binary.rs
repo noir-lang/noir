@@ -1,5 +1,7 @@
 use acvm::{AcirField, acir::brillig::MemoryAddress};
 
+use crate::brillig::brillig_ir::{brillig_variable::SingleAddrVariable, registers::Allocated};
+
 use super::{
     BrilligContext, ReservedRegisters, debug_show::DebugToString, instructions::BrilligBinaryOp,
     registers::RegisterAllocator,
@@ -29,13 +31,21 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         } else {
             let const_register = self.make_usize_constant_instruction(F::from(constant));
             self.memory_op_instruction(operand, const_register.address, destination, op);
-            // Mark as no longer used for this purpose, frees for reuse
-            self.deallocate_single_addr(const_register);
         }
     }
 
     pub(crate) fn codegen_increment_array_copy_counter(&mut self) {
         let array_copy_counter = self.array_copy_counter_address();
         self.codegen_usize_op(array_copy_counter, array_copy_counter, BrilligBinaryOp::Add, 1);
+    }
+
+    /// Utility method to check if the value at a memory address equals one.
+    pub(crate) fn codegen_usize_equals_one(
+        &mut self,
+        operand: SingleAddrVariable,
+    ) -> Allocated<SingleAddrVariable, Registers> {
+        let is_one = self.allocate_single_addr_bool();
+        self.codegen_usize_op(operand.address, is_one.address, BrilligBinaryOp::Equals, 1);
+        is_one
     }
 }

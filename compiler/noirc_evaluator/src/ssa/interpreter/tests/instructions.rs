@@ -1,11 +1,12 @@
 use std::sync::Arc;
 
+use acvm::{AcirField, FieldElement};
 use iter_extended::vecmap;
 use noirc_frontend::Shared;
 
 use crate::ssa::{
     interpreter::{
-        InterpreterError, NumericValue, Value,
+        InterpreterError, Value,
         tests::{
             expect_value, expect_value_with_args, expect_values, expect_values_with_args,
             from_constant,
@@ -21,6 +22,10 @@ use crate::ssa::{
 
 use super::{executes_with_no_errors, expect_error};
 
+fn make_unfit(value: impl Into<FieldElement>, typ: NumericType) -> Value {
+    Value::unfit(value.into(), typ).unwrap()
+}
+
 #[test]
 fn add_unsigned() {
     let value = expect_value(
@@ -32,7 +37,7 @@ fn add_unsigned() {
         }
     ",
     );
-    assert_eq!(value, Value::Numeric(NumericValue::U32(102)));
+    assert_eq!(value, Value::u32(102));
 }
 
 #[test]
@@ -47,7 +52,7 @@ fn add_signed() {
         }
     ",
     );
-    assert_eq!(value, Value::Numeric(NumericValue::I32(102)));
+    assert_eq!(value, Value::i32(102));
 }
 
 #[test]
@@ -103,7 +108,8 @@ fn add_unchecked_signed() {
         }
     ",
     );
-    assert_eq!(value, Value::Numeric(NumericValue::I8(-127)));
+    assert_ne!(value, Value::i8(-128), "no wrapping");
+    assert_eq!(value, make_unfit(129u32, NumericType::signed(8)));
 }
 
 #[test]
@@ -117,7 +123,7 @@ fn sub_unsigned() {
         }
     ",
     );
-    assert_eq!(value, Value::Numeric(NumericValue::U32(10000)));
+    assert_eq!(value, Value::u32(10000));
 }
 
 #[test]
@@ -132,7 +138,7 @@ fn sub_signed() {
         }
     ",
     );
-    assert_eq!(value, Value::Numeric(NumericValue::I32(-1)));
+    assert_eq!(value, Value::i32(-1));
 }
 
 #[test]
@@ -176,7 +182,12 @@ fn sub_unchecked_unsigned() {
         }
     ",
     );
-    assert!(matches!(value, Value::Numeric(NumericValue::U8(246))));
+    assert_ne!(value, Value::u8(246), "no wrapping");
+    assert_eq!(
+        value,
+        // Note that this is not the same as `Value::i8(-10).convert_to_field()`, because that casts to u8 first.
+        make_unfit(FieldElement::zero() - FieldElement::from(10u32), NumericType::unsigned(8))
+    );
 }
 
 #[test]
@@ -190,7 +201,7 @@ fn sub_unchecked_signed() {
         }
     ",
     );
-    assert_eq!(value, Value::Numeric(NumericValue::I8(-7)));
+    assert_eq!(value, Value::i8(-7));
 }
 
 #[test]
@@ -204,7 +215,7 @@ fn mul_unsigned() {
         }
     ",
     );
-    assert_eq!(value, Value::Numeric(NumericValue::U64(200)));
+    assert_eq!(value, Value::u64(200));
 }
 
 #[test]
@@ -221,7 +232,7 @@ fn mul_signed() {
         }
     ",
     );
-    assert_eq!(value, Value::Numeric(NumericValue::I64(200)));
+    assert_eq!(value, Value::i64(200));
 }
 
 #[test]
@@ -263,7 +274,8 @@ fn mul_unchecked_unsigned() {
         }
     ",
     );
-    assert_eq!(value, Value::Numeric(NumericValue::U8(0)));
+    assert_ne!(value, Value::u8(0), "no wrapping");
+    assert_eq!(value, make_unfit(256u32, NumericType::unsigned(8)));
 }
 
 #[test]
@@ -277,7 +289,8 @@ fn mul_unchecked_signed() {
         }
     ",
     );
-    assert_eq!(value, Value::Numeric(NumericValue::I8(-2)));
+    assert_ne!(value, Value::i8(-2), "no wrapping");
+    assert_eq!(value, make_unfit(254u32, NumericType::signed(8)));
 }
 
 #[test]
@@ -291,7 +304,7 @@ fn div() {
         }
     ",
     );
-    assert_eq!(value, Value::Numeric(NumericValue::I16(64)));
+    assert_eq!(value, Value::i16(64));
 }
 
 #[test]
@@ -319,7 +332,7 @@ fn r#mod() {
         }
     ",
     );
-    assert_eq!(value, Value::Numeric(NumericValue::I64(2)));
+    assert_eq!(value, Value::i64(2));
 }
 
 #[test]
@@ -853,7 +866,7 @@ fn array_get_disabled_by_enable_side_effects_if_index_is_not_known_to_be_safe() 
             return v1
         }
     "#,
-        vec![Value::Numeric(NumericValue::U32(1))],
+        vec![Value::u32(1)],
     );
     // If enable_side_effects is false, array get will retrieve the value at the first compatible index
     assert_eq!(value, from_constant(1_u32.into(), NumericType::NativeField));
@@ -947,14 +960,14 @@ fn array_set_with_offset() {
     let v0 = values[0].as_array_or_slice().unwrap();
     let v1 = values[1].as_array_or_slice().unwrap();
 
-    assert_eq!(*v0.rc.borrow(), 2);
+    assert_eq!(*v0.rc.borrow(), 2, "1+1-0; the copy of v1 does not decrease the RC of v0");
     assert_eq!(*v1.rc.borrow(), 1);
 
     let one = from_constant(1u32.into(), NumericType::NativeField);
     let two = from_constant(2u32.into(), NumericType::NativeField);
     let five = from_constant(5u32.into(), NumericType::NativeField);
 
-    assert_eq!(*v0.elements.borrow(), vec![one.clone(), two.clone()], "v0 should not be mutated");
+    assert_eq!(*v0.elements.borrow(), vec![one.clone(), two], "v0 should not be mutated");
     assert_eq!(*v1.elements.borrow(), vec![one, five], "v1 should be mutated");
 }
 

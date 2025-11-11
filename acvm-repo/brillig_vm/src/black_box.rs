@@ -12,11 +12,24 @@ use crate::Memory;
 use crate::memory::MemoryValue;
 
 /// Reads a fixed-size [array][HeapArray] from memory.
+///
+/// The data is not expected to contain pointers to nested arrays or vector.
 fn read_heap_array<'a, F: AcirField>(
     memory: &'a Memory<F>,
     array: &HeapArray,
 ) -> &'a [MemoryValue<F>] {
-    memory.read_slice(memory.read_ref(array.pointer), array.size)
+    let items_start = memory.read_ref(array.pointer);
+    memory.read_slice(items_start, array.size)
+}
+
+/// Write values to a [array][HeapArray] in memory.
+fn write_heap_array<F: AcirField>(
+    memory: &mut Memory<F>,
+    array: &HeapArray,
+    values: &[MemoryValue<F>],
+) {
+    let items_start = memory.read_ref(array.pointer);
+    memory.write_slice(items_start, values);
 }
 
 /// Extracts the last byte of every value
@@ -80,13 +93,13 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
         BlackBoxOp::Blake2s { message, output } => {
             let message = to_u8_vec(read_heap_array(memory, message));
             let bytes = blake2s(message.as_slice())?;
-            memory.write_slice(memory.read_ref(output.pointer), &to_value_vec(&bytes));
+            write_heap_array(memory, output, &to_value_vec(&bytes));
             Ok(())
         }
         BlackBoxOp::Blake3 { message, output } => {
             let message = to_u8_vec(read_heap_array(memory, message));
             let bytes = blake3(message.as_slice())?;
-            memory.write_slice(memory.read_ref(output.pointer), &to_value_vec(&bytes));
+            write_heap_array(memory, output, &to_value_vec(&bytes));
             Ok(())
         }
         BlackBoxOp::Keccakf1600 { input, output } => {
@@ -99,7 +112,7 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             let new_state = keccakf1600(state)?;
 
             let new_state: Vec<MemoryValue<F>> = new_state.into_iter().map(|x| x.into()).collect();
-            memory.write_slice(memory.read_ref(output.pointer), &new_state);
+            write_heap_array(memory, output, &new_state);
             Ok(())
         }
         BlackBoxOp::EcdsaSecp256k1 {
@@ -184,9 +197,15 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
                     scalars_hi.push(*scalar);
                 }
             }
-            let (x, y, is_infinite) = solver.multi_scalar_mul(&points, &scalars_lo, &scalars_hi)?;
-            memory.write_slice(
-                memory.read_ref(result.pointer),
+            let (x, y, is_infinite) = solver.multi_scalar_mul(
+                &points,
+                &scalars_lo,
+                &scalars_hi,
+                true, // Predicate is always true as brillig has control flow to handle false case
+            )?;
+            write_heap_array(
+                memory,
+                result,
                 &[
                     MemoryValue::new_field(x),
                     MemoryValue::new_field(y),
@@ -217,9 +236,12 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
                 &input2_x,
                 &input2_y,
                 &input2_infinite.into(),
+                true, // Predicate is always true as brillig has control flow to handle false case
             )?;
-            memory.write_slice(
-                memory.read_ref(result.pointer),
+
+            write_heap_array(
+                memory,
+                result,
                 &[
                     MemoryValue::new_field(x),
                     MemoryValue::new_field(y),
@@ -236,7 +258,7 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             for i in result {
                 values.push(MemoryValue::new_field(i));
             }
-            memory.write_slice(memory.read_ref(output.pointer), &values);
+            write_heap_array(memory, output, &values);
             Ok(())
         }
         BlackBoxOp::Sha256Compression { input, hash_values, output } => {
@@ -266,7 +288,7 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             sha256_compression(&mut state, &message);
             let state = state.map(|x| x.into());
 
-            memory.write_slice(memory.read_ref(output.pointer), &state);
+            write_heap_array(memory, output, &state);
             Ok(())
         }
         BlackBoxOp::ToRadix { input, radix, output_pointer, num_limbs, output_bits } => {
