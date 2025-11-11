@@ -26,7 +26,7 @@ use crate::{
     hir_def::{
         expr::{
             HirBinaryOp, HirCallExpression, HirExpression, HirLiteral, HirMemberAccess,
-            HirMethodReference, HirPrefixExpression, TraitItem,
+            HirMethodReference, HirPrefixExpression, HirTraitMethodReference, TraitItem,
         },
         function::FuncMeta,
         stmt::HirStatement,
@@ -1016,7 +1016,11 @@ impl Elaborator<'_> {
                 let method = TraitPathResolutionMethod::NotATraitMethod(func_id);
                 Some(TraitPathResolution { method, item: None, errors })
             }
-            HirMethodReference::TraitItemId(definition, trait_id, _, _) => {
+            HirMethodReference::TraitItemId(HirTraitMethodReference {
+                definition,
+                trait_id,
+                ..
+            }) => {
                 let trait_ = self.interner.get_trait(trait_id);
                 let mut constraint = trait_.as_constraint(location);
                 constraint.typ = typ.clone();
@@ -2028,9 +2032,14 @@ impl Elaborator<'_> {
 
         // Return a TraitMethodId with unbound generics. These will later be bound by the type-checker.
         let trait_ = self.interner.get_trait(trait_id);
-        let generics = trait_.get_trait_generics(location);
-        let trait_method_id = trait_.find_method(method_name, self.interner).unwrap();
-        HirMethodReference::TraitItemId(trait_method_id, trait_id, generics, false)
+        let trait_generics = trait_.get_trait_generics(location);
+        let definition = trait_.find_method(method_name, self.interner).unwrap();
+        HirMethodReference::TraitItemId(HirTraitMethodReference {
+            definition,
+            trait_id,
+            trait_generics,
+            assumed: false,
+        })
     }
 
     /// Assuming that we are currently elaborating a function, try to look up a method in:
@@ -2058,20 +2067,26 @@ impl Elaborator<'_> {
             if Some(object_type) == self.self_type.as_ref() {
                 let the_trait = self.interner.get_trait(trait_id);
                 let constraint = the_trait.as_constraint(the_trait.name.location());
-                if let Some(HirMethodReference::TraitItemId(method_id, trait_id, generics, _)) =
-                    self.lookup_method_in_trait(
-                        the_trait,
-                        method_name,
-                        &constraint.trait_bound,
-                        the_trait.id,
-                    )
-                {
+                if let Some(HirMethodReference::TraitItemId(HirTraitMethodReference {
+                    definition,
+                    trait_id,
+                    trait_generics,
+                    ..
+                })) = self.lookup_method_in_trait(
+                    the_trait,
+                    method_name,
+                    &constraint.trait_bound,
+                    the_trait.id,
+                ) {
                     // If it is, it's an assumed trait
                     // Note that here we use the `trait_id` from `TraitItemId` because looking a method on a trait
                     // might return a method on a parent trait.
-                    return Some(HirMethodReference::TraitItemId(
-                        method_id, trait_id, generics, true,
-                    ));
+                    return Some(HirMethodReference::TraitItemId(HirTraitMethodReference {
+                        definition,
+                        trait_id,
+                        trait_generics,
+                        assumed: true,
+                    }));
                 }
             }
         }
@@ -2133,8 +2148,12 @@ impl Elaborator<'_> {
     ) -> Option<HirMethodReference> {
         if let Some(trait_method) = the_trait.find_method(method_name, self.interner) {
             let trait_generics = trait_bound.trait_generics.clone();
-            let trait_item_id =
-                HirMethodReference::TraitItemId(trait_method, the_trait.id, trait_generics, false);
+            let trait_item_id = HirMethodReference::TraitItemId(HirTraitMethodReference {
+                definition: trait_method,
+                trait_id: the_trait.id,
+                trait_generics,
+                assumed: false,
+            });
             return Some(trait_item_id);
         }
 
