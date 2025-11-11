@@ -270,7 +270,7 @@ fn as_trait_path_self_type() {
     assert_no_errors(src);
 }
 
-/// TODO(https://github.com/noir-lang/noir/issues/10436): Reactive once the issue is resolved
+/// TODO(https://github.com/noir-lang/noir/issues/10436): Reactivate once the issue is resolved
 #[test]
 #[should_panic]
 fn self_with_associated_type_method_call_on_non_primitives() {
@@ -316,7 +316,7 @@ fn self_with_associated_type_method_call_on_non_primitives() {
     assert_no_errors(src);
 }
 
-/// TODO(https://github.com/noir-lang/noir/issues/10434): Reactive once the issue is resolved
+/// TODO(https://github.com/noir-lang/noir/issues/10434): Reactivate once the issue is resolved
 #[test]
 #[should_panic]
 fn self_with_associated_type_method_call_on_primitive() {
