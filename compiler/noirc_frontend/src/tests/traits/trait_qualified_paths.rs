@@ -270,6 +270,28 @@ fn as_trait_path_self_type() {
     assert_no_errors(src);
 }
 
+/// TODO(https://github.com/noir-lang/noir/issues/9562): Reactive once the issue is resolved
+#[test]
+#[should_panic]
+fn as_trait_path_with_method_turbofish() {
+    let src = r#"
+    trait Foo {
+        fn bar<U>(x: U) -> U;
+    }
+    
+    impl Foo for u32 {
+        fn bar<U>(x: U) -> U { x }
+    }
+    
+    fn main() {
+        let _x: i32 = <u32 as Foo>::bar(42);
+        // Explicitly specify U instead of relying on inference
+        let _x: i32 = <u32 as Foo>::bar::<i32>(42);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
 /// TODO(https://github.com/noir-lang/noir/issues/10436): Reactivate once the issue is resolved
 #[test]
 #[should_panic]
