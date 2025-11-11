@@ -4,7 +4,6 @@ use crate::{
     Kind, NamedGeneric, ResolvedGeneric, Shared, TypeBindings, TypeVariable,
     ast::{GenericTypeArgs, Ident, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
     elaborator::{PathResolutionMode, types::bind_ordered_generics},
-    graph::CrateId,
     hir::{
         def_collector::{
             dc_crate::{CompilationError, UnresolvedTraitImpl},
@@ -408,12 +407,12 @@ impl Elaborator<'_> {
         self.local_module = trait_impl.module_id;
 
         let object_crate = match &trait_impl.resolved_object_type {
-            Some(Type::DataType(struct_type, _)) => struct_type.borrow().id.krate(),
-            _ => CrateId::Dummy,
+            Some(Type::DataType(struct_type, _)) => Some(struct_type.borrow().id.krate()),
+            _ => None,
         };
 
         let the_trait = self.interner.get_trait(trait_id);
-        if self.crate_id != the_trait.crate_id && self.crate_id != object_crate {
+        if self.crate_id != the_trait.crate_id && Some(self.crate_id) != object_crate {
             self.push_err(DefCollectorErrorKind::TraitImplOrphaned {
                 location: trait_impl.object_type.location,
             });

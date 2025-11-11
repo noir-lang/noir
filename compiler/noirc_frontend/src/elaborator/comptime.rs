@@ -447,7 +447,7 @@ impl<'context> Elaborator<'context> {
 
         if &parameters[0] != expected_type {
             return Err(InterpreterError::TypeMismatch {
-                expected: parameters[0].clone(),
+                expected: parameters[0].to_string(),
                 actual: expected_type.clone(),
                 location,
             }
@@ -504,7 +504,7 @@ impl<'context> Elaborator<'context> {
                     &mut errors,
                     || {
                         CompilationError::InterpreterError(InterpreterError::TypeMismatch {
-                            expected: param_type.clone(),
+                            expected: param_type.to_string(),
                             actual: expr_type.clone(),
                             location: arg_location,
                         })

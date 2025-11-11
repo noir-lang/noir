@@ -487,7 +487,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     (value, _) => {
                         let actual = value.get_type().into_owned();
                         Err(InterpreterError::TypeMismatch {
-                            expected: typ.clone(),
+                            expected: typ.to_string(),
                             actual,
                             location,
                         })
@@ -524,7 +524,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                         Ok(())
                     }
                     value => Err(InterpreterError::TypeMismatch {
-                        expected: typ.clone(),
+                        expected: typ.to_string(),
                         actual: value.get_type().into_owned(),
                         location,
                     }),

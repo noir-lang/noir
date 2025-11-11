@@ -79,13 +79,6 @@ impl fmt::Display for FuncId {
 pub struct TypeId(pub(super) ModuleId);
 
 impl TypeId {
-    //dummy id for error reporting
-    // This can be anything, as the program will ultimately fail
-    // after resolution
-    pub fn dummy_id() -> TypeId {
-        TypeId(ModuleId { krate: CrateId::dummy_id(), local_id: LocalModuleId::dummy_id() })
-    }
-
     pub fn module_id(self) -> ModuleId {
         self.0
     }
@@ -109,15 +102,6 @@ pub struct TypeAliasId(pub usize);
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct TraitId(pub ModuleId);
-
-impl TraitId {
-    // dummy id for error reporting
-    // This can be anything, as the program will ultimately fail
-    // after resolution
-    pub fn dummy_id() -> TraitId {
-        TraitId(ModuleId { krate: CrateId::dummy_id(), local_id: LocalModuleId::dummy_id() })
-    }
-}
 
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, PartialOrd, Ord)]
 pub struct TraitAssociatedTypeId(pub usize);
