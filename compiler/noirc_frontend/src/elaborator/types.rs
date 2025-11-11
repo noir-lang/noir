@@ -2049,6 +2049,8 @@ impl Elaborator<'_> {
             }
         }
 
+        let mut matches = Vec::new();
+
         for constraint in func_meta.all_trait_constraints() {
             if *object_type == constraint.typ {
                 if let Some(the_trait) =
@@ -2060,10 +2062,24 @@ impl Elaborator<'_> {
                         &constraint.trait_bound,
                         the_trait.id,
                     ) {
-                        return Some(method);
+                        matches.push((method, the_trait.id));
                     }
                 }
             }
+        }
+
+        if matches.len() == 1 {
+            return Some(matches.remove(0).0);
+        }
+
+        if matches.len() > 1 {
+            let ident = Ident::new(method_name.to_string(), location);
+            let traits = vecmap(matches, |(_, trait_id)| {
+                let trait_ = self.interner.get_trait(trait_id);
+                self.fully_qualified_trait_path(trait_)
+            });
+            self.push_err(PathResolutionError::MultipleTraitsInScope { ident, traits });
+            return None;
         }
 
         if object_type.is_bindable() {
