@@ -83,7 +83,7 @@ libraries:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/blob
-    timeout: 500
+    timeout: 600
     critical: false
   protocol_circuits_parity_lib:
     repo: AztecProtocol/aztec-packages
