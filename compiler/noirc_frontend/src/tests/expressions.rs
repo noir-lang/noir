@@ -228,7 +228,7 @@ fn must_use() {
 }
 
 #[test]
-fn unnecessary_mut_in_basic_let_pattern() {
+fn duplicated_mut_in_basic_let_pattern() {
     let src = r#"
     fn main() {
         let mut mut _x = 1;
@@ -242,7 +242,7 @@ fn unnecessary_mut_in_basic_let_pattern() {
 }
 
 #[test]
-fn unnecessary_mut_in_nested_pattern() {
+fn duplicated_mut_in_nested_pattern() {
     let src = r#"
     fn main() {
         let mut (_a, mut (_b, _c)) = (1, (2, 3));
