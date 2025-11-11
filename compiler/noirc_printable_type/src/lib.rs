@@ -112,6 +112,7 @@ pub enum PrintableValue<F> {
     FmtString(String, Vec<PrintableValue<F>>),
     Vec { array_elements: Vec<PrintableValue<F>>, is_slice: bool },
     Struct(BTreeMap<String, PrintableValue<F>>),
+    Enum { tag: usize, elements: Vec<PrintableValue<F>> },
     Other,
 }
 
@@ -138,6 +139,10 @@ impl<F: AcirField> std::fmt::Display for PrintableValueDisplay<F> {
     }
 }
 
+/// Format a given [PrintableValue] according to an expected [PrintableType].
+///
+/// Returns `None` if the value and type combination is unexpected.
+/// Remember to add new types!
 fn to_string<F: AcirField>(value: &PrintableValue<F>, typ: &PrintableType) -> Option<String> {
     let mut output = String::new();
     match (value, typ) {
@@ -252,6 +257,27 @@ fn to_string<F: AcirField>(value: &PrintableValue<F>, typ: &PrintableType) -> Op
         }
 
         (_, PrintableType::Unit) => output.push_str("()"),
+
+        (PrintableValue::Enum { tag, elements }, PrintableType::Enum { name, variants }) => {
+            let (variant_name, types) = &variants[*tag];
+            let has_fields = !elements.is_empty();
+            output.push_str(&format!("{name}::{variant_name}"));
+            if has_fields {
+                output.push('(');
+            }
+            let mut elements = elements.iter().zip(types).peekable();
+            while let Some((value, typ)) = elements.next() {
+                output.push_str(
+                    &PrintableValueDisplay::Plain(value.clone(), typ.clone()).to_string(),
+                );
+                if elements.peek().is_some() {
+                    output.push_str(", ");
+                }
+            }
+            if has_fields {
+                output.push(')');
+            }
+        }
 
         _ => return None,
     };
@@ -418,15 +444,18 @@ pub fn decode_printable_value<F: AcirField>(
         PrintableType::Unit => PrintableValue::Field(F::zero()),
         PrintableType::Enum { name: _, variants } => {
             let tag = field_iterator.next().expect("not enough data: expected enum tag");
-            let tag_value = tag.to_u128() as usize;
+            let tag = tag.to_u128() as usize;
+            // A serialized enum looks as follows:
+            //  [tag, variant0.field0, ..., variant0.fieldN, variant1.field0, ..., variant1.fieldM, ...]
+            // So the number of fields are always the same, and we have to consume all of them;
+            // the tag tells us which ones are non-default values.
 
-            let (_name, variant_types) = &variants[tag_value];
-            PrintableValue::Vec {
-                array_elements: vecmap(variant_types, |typ| {
-                    decode_printable_value(field_iterator, typ)
-                }),
-                is_slice: false,
-            }
+            let mut all_variants: Vec<Vec<PrintableValue<F>>> =
+                vecmap(variants, |(_, variant_types)| {
+                    vecmap(variant_types, |typ| decode_printable_value(field_iterator, typ))
+                });
+
+            PrintableValue::Enum { tag, elements: all_variants.swap_remove(tag) }
         }
     }
 }
