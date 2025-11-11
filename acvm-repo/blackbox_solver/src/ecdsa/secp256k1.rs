@@ -1,3 +1,4 @@
+use acir::BlackBoxFunc;
 use k256::elliptic_curve::PrimeField;
 use k256::elliptic_curve::sec1::FromEncodedPoint;
 
@@ -10,6 +11,8 @@ use k256::{
     },
 };
 use k256::{Scalar, ecdsa::Signature};
+
+use crate::BlackBoxResolutionError;
 
 /// Verifies an ECDSA signature over the Secp256k1 elliptic curve.
 ///
@@ -37,12 +40,14 @@ pub(super) fn verify_signature(
     public_key_x_bytes: &[u8; 32],
     public_key_y_bytes: &[u8; 32],
     signature: &[u8; 64],
-) -> bool {
+) -> Result<bool, BlackBoxResolutionError> {
     // Convert the inputs into k256 data structures
     let Ok(signature) = Signature::try_from(signature.as_slice()) else {
         // Signature `r` and `s` are forbidden from being zero.
-        log::warn!("Signature provided for ECDSA verification is zero");
-        return false;
+        return Err(BlackBoxResolutionError::Failed(
+            BlackBoxFunc::EcdsaSecp256k1,
+            "Signature provided for ECDSA verification is zero".to_string(),
+        ));
     };
 
     let point = EncodedPoint::from_affine_coordinates(
@@ -54,8 +59,10 @@ pub(super) fn verify_signature(
     let pubkey = PublicKey::from_encoded_point(&point);
     if pubkey.is_none().into() {
         // Public key must sit on the Secp256k1 curve.
-        log::warn!("Invalid public key provided for ECDSA verification");
-        return false;
+        return Err(BlackBoxResolutionError::Failed(
+            BlackBoxFunc::EcdsaSecp256k1,
+            "Invalid public key provided for ECDSA verification".to_string(),
+        ));
     }
     let pubkey = pubkey.unwrap();
 
@@ -73,7 +80,7 @@ pub(super) fn verify_signature(
         log::warn!(
             "Signature provided for ECDSA verification is not properly normalized (high S value)"
         );
-        return false;
+        return Ok(false);
     }
 
     let s_inv = s.invert().unwrap();
@@ -86,7 +93,7 @@ pub(super) fn verify_signature(
         .to_affine();
 
     match R.to_encoded_point(false).coordinates() {
-        Coordinates::Uncompressed { x, y: _ } => Scalar::from_repr(*x).unwrap().eq(&r),
+        Coordinates::Uncompressed { x, y: _ } => Ok(Scalar::from_repr(*x).unwrap().eq(&r)),
         _ => unreachable!("Point is uncompressed"),
     }
 }
