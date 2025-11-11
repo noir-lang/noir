@@ -671,7 +671,6 @@ fn ambiguous_trait_method_multiple_bounds_without_self() {
         T::method();
         ^^^^^^^^^ Multiple applicable items in scope
         ~~~~~~~~~ All these trait which provide `method` are implemented and in scope: `One`, `Two`
-        ^ Could not resolve 'T' in path
     }
 
     fn main() {

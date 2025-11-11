@@ -57,6 +57,7 @@ pub(super) struct TraitPathResolution {
 pub(super) enum TraitPathResolutionMethod {
     NotATraitMethod(FuncId),
     TraitItem(TraitItem),
+    MultipleTraitsInScope,
 }
 
 impl Elaborator<'_> {
@@ -930,8 +931,12 @@ impl Elaborator<'_> {
                 let trait_ = self.interner.get_trait(trait_id);
                 self.fully_qualified_trait_path(trait_)
             });
-            self.push_err(PathResolutionError::MultipleTraitsInScope { ident, traits });
-            return None;
+            let errors = vec![PathResolutionError::MultipleTraitsInScope { ident, traits }];
+            return Some(TraitPathResolution {
+                method: TraitPathResolutionMethod::MultipleTraitsInScope,
+                item: None,
+                errors,
+            });
         }
 
         None
