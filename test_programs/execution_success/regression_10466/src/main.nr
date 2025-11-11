@@ -1,4 +1,3 @@
-
 pub trait Serialize {
     let N: u32;
 
@@ -11,7 +10,6 @@ impl Serialize for Field {
     fn serialize(self) {}
 }
 
-
 impl<T, let M: u32> Serialize for [T; M]
 where
     T: Serialize,
@@ -22,7 +20,7 @@ where
         std::println(Self::N);
         std::println(<T as Serialize>::N);
         std::println(M);
-        assert_eq(<T as Serialize>::N * M , Self::N);
+        assert_eq(<T as Serialize>::N * M, Self::N);
     }
 }
 
