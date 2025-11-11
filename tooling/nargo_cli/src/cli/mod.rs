@@ -216,10 +216,12 @@ fn compile_with_maybe_dummy_workspace(
             CrateName::from_str(&package_name).expect("package_name to be a valid CrateName");
         let selection = PackageSelection::Selected(package_name);
 
+        let assume_default_entry = true;
         let workspace = resolve_workspace_from_fixed_toml(
             nargo_toml,
             selection,
             Some(NOIR_ARTIFACT_VERSION_STRING.to_owned()),
+            assume_default_entry,
         )?;
         compile_cmd::run(cmd, workspace)
     } else {
