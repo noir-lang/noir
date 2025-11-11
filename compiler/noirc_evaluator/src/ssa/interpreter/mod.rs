@@ -43,9 +43,14 @@ pub(crate) struct Interpreter<'ssa, W> {
     /// being executed is an unconstrained function.
     side_effects_enabled: bool,
 
+    /// The options the interpreter was created with.
     options: InterpreterOptions,
+
     /// Print output.
     output: W,
+
+    /// Number of instructions and terminators executed.
+    step_counter: usize,
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -54,6 +59,8 @@ pub struct InterpreterOptions {
     pub trace: bool,
     /// If true, the interpreter treats all foreign function calls (e.g., `print`) as unknown
     pub no_foreign_calls: bool,
+    /// Optional limit on the number of executed instructions and terminators, to avoid infinite loops.
+    pub step_limit: Option<usize>,
 }
 
 struct CallContext {
@@ -117,11 +124,30 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         output: W,
     ) -> Self {
         let call_stack = vec![CallContext::global_context()];
-        Self { functions, call_stack, side_effects_enabled: true, options, output }
+        Self { functions, call_stack, side_effects_enabled: true, options, output, step_counter: 0 }
     }
 
     pub(crate) fn functions(&self) -> &BTreeMap<FunctionId, Function> {
         self.functions
+    }
+
+    /// Resets the step counter to 0.
+    ///
+    /// This can be used when the interpreter is reused between calls,
+    /// to reset the budget before interpreting the next entry point.
+    pub(crate) fn reset_step_counter(&mut self) {
+        self.step_counter = 0;
+    }
+
+    /// Increment the step counter, or return [InterpreterError::OutOfBudget].
+    fn inc_step_counter(&mut self) -> IResult<()> {
+        if let Some(limit) = self.options.step_limit.as_ref() {
+            if self.step_counter >= *limit {
+                return Err(InterpreterError::OutOfBudget { steps: self.step_counter });
+            }
+        }
+        self.step_counter += 1;
+        Ok(())
     }
 
     fn call_context(&self) -> &CallContext {
@@ -246,6 +272,9 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 let results = dfg.instruction_results(*instruction_id);
                 self.interpret_instruction(&dfg[*instruction_id], results)?;
             }
+
+            // Account for the terminator; a function might not have actual instructions, other than jumping around.
+            self.inc_step_counter()?;
 
             match block.terminator() {
                 None => {
@@ -519,6 +548,8 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         instruction: &Instruction,
         results: &[ValueId],
     ) -> IResult<()> {
+        self.inc_step_counter()?;
+
         let side_effects_enabled = self.side_effects_enabled(instruction);
 
         match instruction {
