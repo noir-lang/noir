@@ -47,7 +47,7 @@ static ARTIFACTS_SUFFIX: OnceLock<String> = OnceLock::new();
 fn create_base_contract_artifact() -> Value {
     json!({
         "noir_version": "1.0.0-beta.15+9eee29a37dc509be15e24777188d87ca38b522f7-aztec",
-        "name": "Amogus",
+        "name": "AvmTest",
         "functions": [
             {
                 "name": "main2",
