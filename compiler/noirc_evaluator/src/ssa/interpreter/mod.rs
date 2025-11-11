@@ -140,13 +140,17 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
     }
 
     /// Increment the step counter, or return [InterpreterError::OutOfBudget].
+    ///
+    /// If there is no limit step, then it doesn't increment the counter.
     fn inc_step_counter(&mut self) -> IResult<()> {
-        if let Some(limit) = self.options.step_limit.as_ref() {
-            if self.step_counter >= *limit {
+        if let Some(limit) = self.options.step_limit {
+            if self.step_counter >= limit {
                 return Err(InterpreterError::OutOfBudget { steps: self.step_counter });
             }
-        }
-        self.step_counter += 1;
+            // With a limit we shouldn't wrap around, but just in case we wanted move this outside,
+            // use a safe wrap-around increment.
+            self.step_counter = self.step_counter.wrapping_add(1);
+        };
         Ok(())
     }
 
