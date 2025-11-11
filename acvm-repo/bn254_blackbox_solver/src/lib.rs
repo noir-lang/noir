@@ -1,5 +1,6 @@
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
+use acir::AcirField;
 use acvm_blackbox_solver::{BlackBoxFunctionSolver, BlackBoxResolutionError};
 
 mod embedded_curve_ops;
@@ -30,8 +31,13 @@ impl BlackBoxFunctionSolver<FieldElement> for Bn254BlackBoxSolver {
         points: &[FieldElement],
         scalars_lo: &[FieldElement],
         scalars_hi: &[FieldElement],
+        predicate: bool,
     ) -> Result<(FieldElement, FieldElement, FieldElement), BlackBoxResolutionError> {
-        multi_scalar_mul(points, scalars_lo, scalars_hi, self.pedantic_solving())
+        if predicate {
+            multi_scalar_mul(points, scalars_lo, scalars_hi, self.pedantic_solving())
+        } else {
+            Ok((FieldElement::zero(), FieldElement::zero(), FieldElement::one()))
+        }
     }
 
     fn ec_add(
@@ -42,12 +48,17 @@ impl BlackBoxFunctionSolver<FieldElement> for Bn254BlackBoxSolver {
         input2_x: &FieldElement,
         input2_y: &FieldElement,
         input2_infinite: &FieldElement,
+        predicate: bool,
     ) -> Result<(FieldElement, FieldElement, FieldElement), BlackBoxResolutionError> {
-        embedded_curve_add(
-            [*input1_x, *input1_y, *input1_infinite],
-            [*input2_x, *input2_y, *input2_infinite],
-            self.pedantic_solving(),
-        )
+        if predicate {
+            embedded_curve_add(
+                [*input1_x, *input1_y, *input1_infinite],
+                [*input2_x, *input2_y, *input2_infinite],
+                self.pedantic_solving(),
+            )
+        } else {
+            Ok((FieldElement::zero(), FieldElement::zero(), FieldElement::one()))
+        }
     }
 
     fn poseidon2_permutation(

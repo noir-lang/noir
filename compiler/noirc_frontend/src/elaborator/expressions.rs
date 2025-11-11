@@ -432,23 +432,8 @@ impl Elaborator<'_> {
 
         for fragment in &fragments {
             if let FmtStrFragment::Interpolation(ident_name, location) = fragment {
-                let ident = Ident::new(ident_name.clone(), *location);
-
-                let (hir_ident, var_scope_index) =
-                    if let Ok((ident, var_scope_index)) = self.use_variable(&ident) {
-                        (ident, var_scope_index)
-                    } else if let Ok((definition_id, _)) = self
-                        .lookup_global(TypedPath::from_single(ident_name.to_string(), *location))
-                    {
-                        (HirIdent::non_trait_method(definition_id, *location), 0)
-                    } else {
-                        self.push_err(ResolverError::VariableNotDeclared {
-                            name: ident_name.to_owned(),
-                            location: *location,
-                        });
-                        continue;
-                    };
-
+                let ((hir_ident, var_scope_index), _) = self
+                    .get_ident_from_path(TypedPath::from_single(ident_name.to_string(), *location));
                 self.handle_hir_ident(&hir_ident, var_scope_index, *location);
 
                 let hir_expr = HirExpression::Ident(hir_ident.clone(), None);
@@ -462,7 +447,9 @@ impl Elaborator<'_> {
         }
 
         let len = Type::Constant(length.into(), Kind::u32());
-        let typ = Type::FmtString(Box::new(len), Box::new(Type::Tuple(capture_types)));
+        let fmtstr_type =
+            if capture_types.is_empty() { Type::Unit } else { Type::Tuple(capture_types) };
+        let typ = Type::FmtString(Box::new(len), Box::new(fmtstr_type));
         (HirExpression::Literal(HirLiteral::FmtStr(fragments, fmt_str_idents, length)), typ)
     }
 
