@@ -9,6 +9,7 @@ enum Foo {
 }
 
 fn main() {
-    let c: [Foo; 3] = [Foo::One(10_Field), Foo::Two(20_u32, 30_u64), Foo::Three];
-    println(c);
+    let enums: [Foo; 3] = [Foo::One(10_Field), Foo::Two(20_u32, 30_u64), Foo::Three];
+    println((enums, 40_Field));
+    println(f"Hello {enums}!")
 }
