@@ -38,38 +38,36 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         let mut tail_candidates = Vec::new();
         for i in 0..n {
             // Generate a movement for each sink in the graph
-            if children[i] == 0 {
-                // A sink has no child
-                let mut node = i;
-                while children[node] == 0 {
-                    if to_index(&sources[node]) == Some(node) {
-                        //no-op: mark the node as processed
-                        children[node] = usize::MAX;
-                        processed += 1;
-                        break;
-                    }
-                    // Generates a move instruction
-                    self.perform_movement(node, sources[node], &mut children, &mut processed);
-                    // Follow the parent
-                    if let Some(index) = to_index(&sources[node]) {
-                        if index < n {
-                            children[index] -= 1;
-                            if children[index] > 0 {
-                                // The parent node has another child, so we cannot process it yet.
-                                tail_candidates.push((sources[node], node));
-                                break;
-                            }
-                            // process the parent node
-                            node = index;
-                            continue;
-                        }
-                    }
-                    // End of the path
+            let mut node = i;
+            // A sink has no child
+            while children[node] == 0 {
+                if to_index(&sources[node]) == Some(node) {
+                    //no-op: mark the node as processed
+                    children[node] = usize::MAX;
+                    processed += 1;
                     break;
                 }
-                if processed == n {
-                    return;
+                // Generates a move instruction
+                self.perform_movement(node, sources[node], &mut children, &mut processed);
+                // Follow the parent
+                if let Some(index) = to_index(&sources[node]) {
+                    if index < n {
+                        children[index] -= 1;
+                        if children[index] > 0 {
+                            // The parent node has another child, so we cannot process it yet.
+                            tail_candidates.push((sources[node], node));
+                            break;
+                        }
+                        // process the parent node
+                        node = index;
+                        continue;
+                    }
                 }
+                // End of the path
+                break;
+            }
+            if processed == n {
+                return;
             }
         }
         // All sinks and their parents have been processed, remaining nodes are part of a loop
