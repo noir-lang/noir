@@ -477,23 +477,17 @@ pub fn decode_printable_value<F: AcirField>(
             // to make sure the next item will resume parsing from the right index;
             // the tag tells us which ones are non-default values.
 
-            // Here we go out of our way to only keep in memory what we have to, discarding all the defaults.
-            let mut elements = None;
+            // Striving to keep only the non-default values in memory.
+            let mut elements = Vec::with_capacity(variants[tag].1.len());
             for (i, (_, types)) in variants.iter().enumerate() {
-                if i == tag {
-                    let values = vecmap(types, |typ| decode_printable_value(field_iterator, typ));
-                    elements = Some(values);
-                } else {
-                    for typ in types {
-                        let _ = decode_printable_value(field_iterator, typ);
+                for typ in types {
+                    let value = decode_printable_value(field_iterator, typ);
+                    if i == tag {
+                        elements.push(value);
                     }
                 }
             }
-
-            PrintableValue::Enum {
-                tag,
-                elements: elements.expect("could not find the tag in the variants"),
-            }
+            PrintableValue::Enum { tag, elements }
         }
     }
 }
