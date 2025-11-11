@@ -790,6 +790,9 @@ impl TypeAlias {
         self.numeric_expr = num_expr;
     }
 
+    /// Bind the generics of the aliased [Type] to the given generic arguments.
+    ///
+    /// Panics if the number of arguments do not meet expectations.
     pub fn get_type(&self, generic_args: &[Type]) -> Type {
         assert_eq!(self.generics.len(), generic_args.len());
 
@@ -1334,7 +1337,8 @@ impl Type {
             | Type::FmtString(_, _)
             | Type::Unit
             | Type::Function(..)
-            | Type::Tuple(..) => true,
+            | Type::Tuple(..)
+            | Type::Quoted(..) => true,
             Type::Alias(alias_type, generics) => {
                 alias_type.borrow().get_type(&generics).is_primitive()
             }
@@ -1346,7 +1350,6 @@ impl Type {
             | Type::CheckedCast { .. }
             | Type::Forall(..)
             | Type::Constant(..)
-            | Type::Quoted(..)
             | Type::InfixExpr(..)
             | Type::Error => false,
         }
@@ -1578,6 +1581,7 @@ impl Type {
         }
     }
 
+    /// Check whether this type is an array or slice, and contains a nested slice in its element type.
     pub(crate) fn is_nested_slice(&self) -> bool {
         match self {
             Type::Slice(elem) => elem.as_ref().contains_slice(),
@@ -1587,9 +1591,11 @@ impl Type {
         }
     }
 
+    /// Check whether this type is itself a slice, or a struct/enum/tuple/array which contains a slice.
     pub(crate) fn contains_slice(&self) -> bool {
         match self {
             Type::Slice(_) => true,
+            Type::Array(_, elem) => elem.as_ref().contains_slice(),
             Type::DataType(typ, generics) => {
                 let typ = typ.borrow();
                 if let Some(fields) = typ.get_fields(generics) {
@@ -1907,8 +1913,10 @@ impl Type {
         }
     }
 
-    /// Retrieves the type of the given field name
-    /// Panics if the type is not a struct or tuple.
+    /// Retrieves the [Type] and [ItemVisibility] of the given field name:
+    /// * for structs, it finds a member with a matching name
+    /// * for tuples, it find the item by index, treating indexes as names "0", "1", ...
+    /// * otherwise returns `None`
     pub fn get_field_type_and_visibility(
         &self,
         field_name: &str,

@@ -73,7 +73,7 @@ h2 {
     border-bottom: 1px solid var(--header-border-color);
 }
 
-ul {
+ul.item-list, ul.sidebar-list {
     list-style-type: none;
     width: 100%;
     margin: 0;
