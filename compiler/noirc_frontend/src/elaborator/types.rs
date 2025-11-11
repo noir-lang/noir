@@ -909,13 +909,13 @@ impl Elaborator<'_> {
                 }
 
                 let the_trait = self.interner.get_trait(constraint.trait_bound.trait_id);
-                if let Some(definition) =
-                    the_trait.find_method_or_constant(path.last_name(), self.interner)
-                {
-                    let trait_item = TraitItem { definition, constraint, assumed: true };
-                    let method = TraitPathResolutionMethod::TraitItem(trait_item);
-                    matches.push((method, the_trait.id));
-                }
+                self.find_methods_or_constants_in_trait(
+                    path,
+                    constraint,
+                    the_trait,
+                    the_trait.id,
+                    &mut matches,
+                );
             }
         }
 
@@ -940,6 +940,41 @@ impl Elaborator<'_> {
         }
 
         None
+    }
+
+    fn find_methods_or_constants_in_trait(
+        &self,
+        path: &TypedPath,
+        constraint: TraitConstraint,
+        the_trait: &Trait,
+        starting_trait_id: TraitId,
+        matches: &mut Vec<(TraitPathResolutionMethod, TraitId)>,
+    ) {
+        if let Some(definition) = the_trait.find_method_or_constant(path.last_name(), self.interner)
+        {
+            let trait_item =
+                TraitItem { definition, constraint: constraint.clone(), assumed: true };
+            let method = TraitPathResolutionMethod::TraitItem(trait_item);
+            matches.push((method, the_trait.id));
+        }
+
+        for trait_bound in &the_trait.trait_bounds {
+            let parent_trait = self.interner.get_trait(trait_bound.trait_id);
+            if parent_trait.id == starting_trait_id {
+                // Avoid infinite recursion in case of cyclic trait bounds
+                continue;
+            }
+
+            let constraint =
+                TraitConstraint { typ: constraint.typ.clone(), trait_bound: trait_bound.clone() };
+            self.find_methods_or_constants_in_trait(
+                path,
+                constraint,
+                parent_trait,
+                starting_trait_id,
+                matches,
+            );
+        }
     }
 
     /// This resolves a method in the form `Type::method` where `method` is a trait method

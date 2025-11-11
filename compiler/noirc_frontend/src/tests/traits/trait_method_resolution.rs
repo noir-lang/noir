@@ -673,3 +673,25 @@ fn ambiguous_trait_method_in_parent_child_relationship_with_self() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn ambiguous_trait_method_in_parent_child_relationship_without_self() {
+    let src = r#"
+    trait Parent {
+        fn foo();
+    }
+
+    trait Child: Parent {
+        fn foo();
+    }
+
+    pub fn foo<T: Child>() {
+        T::foo();
+        ^^^^^^ Multiple applicable items in scope
+        ~~~~~~ All these trait which provide `foo` are implemented and in scope: `Child`, `Parent`
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
