@@ -344,7 +344,7 @@ impl Loop {
     /// ```text
     /// brillig(inline) predicate_pure fn main f0 {
     ///   b0():
-    ///     jmp b1(u32 10)               // Pre-header
+    ///     jmp b1(u32 1)                // Pre-header
     ///   b1(v0: u32):                   // Header
     ///     v3 = lt v0, u32 20
     ///     jmpif v3 then: b2, else: b3
@@ -520,7 +520,7 @@ impl Loop {
     ///   v1 = 2
     ///   jmp loop_entry(v0)
     /// loop_entry(i: Field):
-    ///   v2 = lt i v1
+    ///   v2 = lt i, v1
     ///   jmpif v2, then: loop_body, else: loop_end
     /// ```
     ///
@@ -530,7 +530,7 @@ impl Loop {
     /// main():
     ///   v0 = 0
     ///   v1 = 2
-    ///   v2 = lt v0 v1
+    ///   v2 = lt v0, v1
     ///   // jmpif v2, then: loop_body, else: loop_end
     ///   jmp dest: loop_body
     /// ```
@@ -542,9 +542,9 @@ impl Loop {
     /// main():
     ///   v0 = 0
     ///   v1 = 2
-    ///   v2 = lt v0 v1
+    ///   v2 = lt v0, v1
     ///   v3 = ... body ...
-    ///   v4 = add 1, 0
+    ///   v4 = add v0, u32 1
     ///   jmp loop_entry(v4)
     /// ```
     ///
@@ -553,17 +553,17 @@ impl Loop {
     /// main():
     ///   v0 = 0
     ///   v1 = 2
-    ///   v2 = lt 0
+    ///   v2 = lt v0, v1
     ///   v3 = ... body ...
-    ///   v4 = add 1, v0
-    ///   v5 = lt v4 v1
+    ///   v4 = add u32 1, v0
+    ///   v5 = lt v4, v1
     ///   v6 = ... body ...
-    ///   v7 = add v4, 1
-    ///   v8 = lt v5 v1
+    ///   v7 = add v4, u32 1
+    ///   v8 = lt v7, v1
     ///   jmp loop_end
     /// ```
     ///
-    /// When e.g. `v8 = lt v5 v1` cannot be evaluated to a constant, the loop signals by returning `Err`
+    /// When e.g. `v8 = lt v7, v1` cannot be evaluated to a constant, the loop signals by returning `Err`
     /// that a few SSA passes are required to evaluate and simplify these values.
     fn unroll(&self, function: &mut Function, cfg: &ControlFlowGraph) -> Result<(), CallStack> {
         let mut unroll_into = self.get_pre_header(function, cfg)?;

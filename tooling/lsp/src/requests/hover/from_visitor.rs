@@ -4,7 +4,12 @@ use async_lsp::lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Posi
 use fm::{FileId, FileMap};
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
-    Type, ast::Visitor, node_interner::NodeInterner, parse_program, signed_field::SignedField,
+    Type,
+    ast::{GenericTypeArgs, Path, Visitor},
+    elaborator::PrimitiveType,
+    node_interner::NodeInterner,
+    parse_program,
+    signed_field::SignedField,
     token::IntegerTypeSuffix,
 };
 use num_bigint::BigInt;
@@ -74,6 +79,43 @@ impl Visitor for HoverFinder<'_> {
         let contents = HoverContents::Markup(MarkupContent { kind: MarkupKind::Markdown, value });
         self.hover = Some(Hover { contents, range });
     }
+
+    fn visit_named_type(&mut self, path: &Path, _args: &GenericTypeArgs, span: Span) -> bool {
+        // Here we'll try to show docs for primitive types. Non-primitive types are tracked
+        // as references, which is handled in `from_reference.rs`.
+
+        if !self.intersects_span(span) {
+            return true;
+        }
+
+        let Some(ident) = path.as_ident() else {
+            return true;
+        };
+
+        if !self.intersects_span(ident.span()) {
+            return true;
+        }
+
+        let location = ident.location();
+        if let Some(typ) = self.interner.type_at_location(location) {
+            if !typ.is_primitive() {
+                return true;
+            }
+        }
+
+        let name = ident.as_str();
+        let Some(markup) = primitive_type_markup_content(name, self.interner) else {
+            return true;
+        };
+
+        let lsp_location = to_lsp_location(self.files, location.file, location.span);
+        let range = lsp_location.map(|location| location.range);
+
+        let contents = HoverContents::Markup(markup);
+        self.hover = Some(Hover { contents, range });
+
+        false
+    }
 }
 
 fn format_integer(typ: &Type, value: SignedField) -> String {
@@ -87,6 +129,26 @@ fn format_integer(typ: &Type, value: SignedField) -> String {
     format!(
         "    {typ}\n---\nvalue of literal: `{negative}{value_base_10} ({negative}0x{value_big_int:02x})`"
     )
+}
+
+/// Returns the MarkupContent for the given primitive type name, if the name denotes
+/// a primitive type.
+fn primitive_type_markup_content(name: &str, interner: &NodeInterner) -> Option<MarkupContent> {
+    PrimitiveType::lookup_by_name(name)?;
+
+    let mut value = String::new();
+    value.push_str("    ");
+    value.push_str(name);
+
+    if let Some(comments) = interner.primitive_docs.get(name) {
+        value.push_str("\n---\n");
+        for comment in comments {
+            value.push_str(comment);
+            value.push('\n');
+        }
+    }
+
+    Some(MarkupContent { kind: MarkupKind::Markdown, value })
 }
 
 #[cfg(test)]

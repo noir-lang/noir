@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../../styles.css">
+<title>Function black_box documentation</title>
+</head>
+<body>
+<nav class="sidebar">
+<h1><a href="../../index.html">noir_stdlib</a></h1>
+<div><a href="../../all.html">All items</a></div>
+<h2 id="crate-name"><a href="../index.html">std</a></h2>
+<div id="crate-version">1.0.0-beta.14</div>
+<h2>In module hint</h2>
+<h3>Functions</h3><ul class="item-list">
+<li><a href="fn.black_box.html">black_box</a></div></li>
+</ul>
+</nav>
+<main>
+<div><a href="../../index.html">noir_stdlib</a> - <a href="../index.html">std</a>::<a href="index.html">hint</a></div>
+<h1>Function <span class="fn">black_box</span></h1>
+<pre><code>pub fn black_box&lt;T&gt;(value: T) -> T</code></pre>
+
+<div class="comments">
+<p>An identity function that <em>hints</em> to the compiler to be maximally pessimistic about what <code>black_box</code> could do.</p>
+<p>This can be used to block the SSA optimization passes being applied to a value, which should help to prevent
+test programs from being optimized down to nothing and have them resemble runtime code more closely.</p>
+</div>
+</main>
+</body>
+</html>

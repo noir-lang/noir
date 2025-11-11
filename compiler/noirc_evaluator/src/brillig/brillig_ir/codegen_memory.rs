@@ -270,24 +270,13 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         vector: BrilligVector,
     ) -> Allocated<HeapVector, Registers> {
         let heap_vector = self.allocate_heap_vector();
-        let current_pointer = self.allocate_register();
 
-        // Prepare a pointer to the size
-        self.codegen_usize_op(
-            vector.pointer,
-            *current_pointer,
-            BrilligBinaryOp::Add,
-            offsets::VECTOR_SIZE,
-        );
-        self.load_instruction(heap_vector.size, *current_pointer);
+        // Read the size using the dedicated helper function
+        let size_variable = self.codegen_read_vector_size(vector);
+        self.mov_instruction(heap_vector.size, size_variable.address);
 
-        // Now prepare the pointer to the items
-        self.codegen_usize_op(
-            *current_pointer,
-            heap_vector.pointer,
-            BrilligBinaryOp::Add,
-            offsets::VECTOR_ITEMS - offsets::VECTOR_SIZE,
-        );
+        // Get the pointer to the items using the dedicated helper function
+        self.codegen_vector_items_pointer(vector, heap_vector.pointer);
 
         heap_vector
     }
@@ -613,31 +602,9 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         // Increase the free memory pointer to make sure the vector is not going to be allocated to something else.
         self.increase_free_memory_pointer_instruction(*total_size);
 
-        // Write meta fields.
-        let write_pointer = self.allocate_register();
-
-        // Initialize the RC of the vector to 1.
-        self.indirect_const_instruction(
-            vector.pointer,
-            BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
-            1_usize.into(),
-        );
-
-        // Initialize size.
-        self.codegen_usize_op(
-            vector.pointer,
-            *write_pointer,
-            BrilligBinaryOp::Add,
-            offsets::VECTOR_SIZE,
-        );
-        self.store_instruction(*write_pointer, resulting_heap_vector.size);
-
-        // Initialize capacity to same value as the size.
-        self.codegen_usize_op_in_place(
-            *write_pointer,
-            BrilligBinaryOp::Add,
-            offsets::VECTOR_CAPACITY - offsets::VECTOR_SIZE,
-        );
-        self.store_instruction(*write_pointer, resulting_heap_vector.size);
+        // Initialize metadata (RC, size, capacity) using the shared helper
+        // For externally returned vectors, capacity equals size
+        let size_var = SingleAddrVariable::new_usize(resulting_heap_vector.size);
+        self.codegen_initialize_vector_metadata(vector, size_var, size_var);
     }
 }

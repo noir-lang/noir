@@ -265,9 +265,7 @@ impl Context<'_> {
         }
         // Make sure this code is disabled, or fail with "Index out of bounds".
         let msg = "Index out of bounds, array has size 0".to_string();
-        let msg = self.acir_context.generate_assertion_message_payload(msg);
-        let zero = self.acir_context.add_constant(FieldElement::zero());
-        self.acir_context.assert_eq_var(self.current_side_effects_enabled_var, zero, Some(msg))?;
+        self.acir_context.assert_zero_var(self.current_side_effects_enabled_var, msg)?;
         Ok(true)
     }
 

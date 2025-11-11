@@ -5,6 +5,7 @@ use noirc_errors::Location;
 use crate::Shared;
 use crate::ast::{BinaryOp, BinaryOpKind, Ident, UnaryOp};
 use crate::hir::type_check::generics::TraitGenerics;
+use crate::node_interner::pusher::{HasLocation, PushedExpr};
 use crate::node_interner::{
     DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId, TraitId, TraitItemId,
 };
@@ -58,6 +59,9 @@ pub struct HirIdent {
 }
 
 impl HirIdent {
+    /// Create a [HirIdent] with [ImplKind::NotATraitMethod].
+    ///
+    /// It may not be a method at all.
     pub fn non_trait_method(id: DefinitionId, location: Location) -> Self {
         Self { id, location, impl_kind: ImplKind::NotATraitMethod }
     }
@@ -246,6 +250,9 @@ pub enum HirMethodReference {
 }
 
 impl HirMethodReference {
+    /// Return the [FuncId] of a method if it's known.
+    ///
+    /// Returns `None` for trait methods don't have a know function definition.
     pub fn func_id(&self, interner: &NodeInterner) -> Option<FuncId> {
         match self {
             HirMethodReference::FuncId(func_id) => Some(*func_id),
@@ -258,13 +265,15 @@ impl HirMethodReference {
         }
     }
 
+    /// Looks up definition of a function and its implementation kind (a normal function or a trait method),
+    /// and interns an identifier we can use to call the function.
     pub fn into_function_id_and_name(
         self,
         object_type: Type,
         generics: Option<Vec<Type>>,
         location: Location,
         interner: &mut NodeInterner,
-    ) -> (ExprId, HirIdent) {
+    ) -> (PushedExpr<HasLocation>, HirIdent) {
         let (id, impl_kind) = match self {
             HirMethodReference::FuncId(func_id) => {
                 (interner.function_definition_id(func_id), ImplKind::NotATraitMethod)
@@ -279,8 +288,9 @@ impl HirMethodReference {
             }
         };
         let func_var = HirIdent { location, id, impl_kind };
-        let func = interner.push_expr(HirExpression::Ident(func_var.clone(), generics));
-        interner.push_expr_location(func, location);
+        let func = interner
+            .push_expr(HirExpression::Ident(func_var.clone(), generics))
+            .push_location(interner, location);
         (func, func_var)
     }
 }
