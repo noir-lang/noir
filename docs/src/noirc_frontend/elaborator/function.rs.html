@@ -1063,9 +1063,9 @@
             | FunctionKind::LowLevel
             | FunctionKind::TraitFunctionWithoutBody =&gt; {
                 <span class="kw">if </span>!body.statements.is_empty() {
-                    <span class="macro">panic!</span>(
-                        <span class="string">"Builtin, low-level, and trait function declarations cannot have a body"
-                    </span>);
+                    <span class="self">self</span>.push_err(ResolverError::BuiltinWithBody {
+                        location: func_meta.name.location,
+                    });
                 }
                 (HirFunction::empty(), Type::Error)
             }

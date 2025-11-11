@@ -831,7 +831,17 @@
 <a href="#830" id="830">830</a>
 <a href="#831" id="831">831</a>
 <a href="#832" id="832">832</a>
-<a href="#833" id="833">833</a></pre></div><pre class="rust"><code><span class="kw">pub use </span>noirc_errors::Span;
+<a href="#833" id="833">833</a>
+<a href="#834" id="834">834</a>
+<a href="#835" id="835">835</a>
+<a href="#836" id="836">836</a>
+<a href="#837" id="837">837</a>
+<a href="#838" id="838">838</a>
+<a href="#839" id="839">839</a>
+<a href="#840" id="840">840</a>
+<a href="#841" id="841">841</a>
+<a href="#842" id="842">842</a>
+<a href="#843" id="843">843</a></pre></div><pre class="rust"><code><span class="kw">pub use </span>noirc_errors::Span;
 <span class="kw">use </span>noirc_errors::{CustomDiagnostic <span class="kw">as </span>Diagnostic, Location};
 <span class="kw">use </span>thiserror::Error;
 
@@ -1027,6 +1037,8 @@
     </span>ReferencesNotAllowedInGlobals { location: Location },
     <span class="attr">#[error(<span class="string">"Functions marked with #[oracle] must have no body"</span>)]
     </span>OracleWithBody { location: Location },
+    <span class="attr">#[error(<span class="string">"Builtin and low-level function declarations cannot have a body"</span>)]
+    </span>BuiltinWithBody { location: Location },
 }
 
 <span class="kw">impl </span>ResolverError {
@@ -1094,7 +1106,8 @@
             | ResolverError::AmbiguousAssociatedType { location, .. }
             | ResolverError::WildcardTypeDisallowed { location }
             | ResolverError::ReferencesNotAllowedInGlobals { location }
-            | ResolverError::OracleWithBody { location } =&gt; <span class="kw-2">*</span>location,
+            | ResolverError::OracleWithBody { location }
+            | ResolverError::BuiltinWithBody { location } =&gt; <span class="kw-2">*</span>location,
             ResolverError::UnusedVariable { ident }
             | ResolverError::UnusedItem { ident, .. }
             | ResolverError::DuplicateField { field: ident }
@@ -1660,8 +1673,15 @@
                     <span class="string">"This function body will never be run so should be removed"</span>.to_string(),
                     <span class="kw-2">*</span>location,
                 )
+            }
+            ResolverError::BuiltinWithBody { location } =&gt; {
+                Diagnostic::simple_error(
+                    <span class="string">"Builtin and low-level function declarations cannot have a body"</span>.to_string(),
+                    <span class="string">"This function body should be removed"</span>.to_string(),
+                    <span class="kw-2">*</span>location,
+                )
+            }
         }
-    }
     }
 }
 </code></pre></div></section></main></body></html>
