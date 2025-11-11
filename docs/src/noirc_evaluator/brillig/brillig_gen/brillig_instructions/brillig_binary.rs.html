@@ -670,11 +670,11 @@
                     <span class="kw">let </span>value_type = dfg.type_of_value(<span class="kw-2">*</span>value);
                     FunctionContext::ssa_type_to_parameter(<span class="kw-2">&amp;</span>value_type)
                 });
-                <span class="self">self</span>.brillig_context.codegen_constrain_with_revert_data(
+                <span class="self">self</span>.brillig_context.codegen_constrain_with_error_data(
                     <span class="kw-2">*</span>condition,
                     payload_values,
                     payload_as_params,
-                    <span class="kw-2">*</span>selector,
+                    <span class="prelude-val">Some</span>(<span class="kw-2">*</span>selector),
                 );
             }
             <span class="prelude-val">Some</span>(ConstrainError::StaticString(message)) =&gt; {

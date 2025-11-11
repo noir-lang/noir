@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["compile_revert_with_string_procedure"]};

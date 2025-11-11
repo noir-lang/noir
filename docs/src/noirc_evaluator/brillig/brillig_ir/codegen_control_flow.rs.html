@@ -400,7 +400,22 @@
 <a href="#399" id="399">399</a>
 <a href="#400" id="400">400</a>
 <a href="#401" id="401">401</a>
-<a href="#402" id="402">402</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
+<a href="#402" id="402">402</a>
+<a href="#403" id="403">403</a>
+<a href="#404" id="404">404</a>
+<a href="#405" id="405">405</a>
+<a href="#406" id="406">406</a>
+<a href="#407" id="407">407</a>
+<a href="#408" id="408">408</a>
+<a href="#409" id="409">409</a>
+<a href="#410" id="410">410</a>
+<a href="#411" id="411">411</a>
+<a href="#412" id="412">412</a>
+<a href="#413" id="413">413</a>
+<a href="#414" id="414">414</a>
+<a href="#415" id="415">415</a>
+<a href="#416" id="416">416</a>
+<a href="#417" id="417">417</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
     AcirField,
     acir::{
         brillig::{HeapVector, MemoryAddress},
@@ -460,55 +475,51 @@
     /// The body of the loop should be issued by the caller in the on_iteration closure.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_for_loop(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        loop_start: <span class="prelude-ty">Option</span>&lt;MemoryAddress&gt;, <span class="comment">// Defaults to zero
-        </span>loop_bound: MemoryAddress,
-        step: <span class="prelude-ty">Option</span>&lt;MemoryAddress&gt;, <span class="comment">// Defaults to 1
-        </span>on_iteration: <span class="kw">impl </span>FnOnce(<span class="kw-2">&amp;mut </span>BrilligContext&lt;F, Registers&gt;, SingleAddrVariable),
+        loop_start: <span class="prelude-ty">Option</span>&lt;MemoryAddress&gt;,
+        loop_bound: MemoryAddress,
+        step: <span class="prelude-ty">Option</span>&lt;MemoryAddress&gt;,
+        on_iteration: <span class="kw">impl </span>FnOnce(<span class="kw-2">&amp;mut </span>BrilligContext&lt;F, Registers&gt;, SingleAddrVariable),
     ) {
-        <span class="kw">let </span>iterator_register = <span class="kw">if let </span><span class="prelude-val">Some</span>(loop_start) = loop_start {
-            <span class="kw">let </span>iterator_register = <span class="self">self</span>.allocate_single_addr_usize();
-            <span class="self">self</span>.mov_instruction(iterator_register.address, loop_start);
-            iterator_register
-        } <span class="kw">else </span>{
-            <span class="self">self</span>.make_usize_constant_instruction(<span class="number">0_usize</span>.into())
-        };
-
         <span class="kw">let </span>step_register = step.unwrap_or(ReservedRegisters::usize_one());
 
-        <span class="kw">let </span>(loop_section, loop_label) = <span class="self">self</span>.reserve_next_section_label();
-        <span class="self">self</span>.enter_section(loop_section);
-
-        <span class="comment">// Loop body
-
-        // Check if iterator &lt; loop_bound
-        </span><span class="kw">let </span>iterator_reached_bound = <span class="self">self</span>.allocate_single_addr_bool();
-
-        <span class="self">self</span>.memory_op_instruction(
-            loop_bound,
-            iterator_register.address,
-            iterator_reached_bound.address,
-            BrilligBinaryOp::LessThanEquals,
+        <span class="self">self</span>.codegen_generic_iteration(
+            <span class="comment">// 1. make_iterator: Initialize counter
+            </span>|ctx| {
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(loop_start) = loop_start {
+                    <span class="kw">let </span>iterator = ctx.allocate_single_addr_usize();
+                    ctx.mov_instruction(iterator.address, loop_start);
+                    iterator
+                } <span class="kw">else </span>{
+                    ctx.make_usize_constant_instruction(<span class="number">0_usize</span>.into())
+                }
+            },
+            <span class="comment">// 2. update_iterator: Add step
+            </span>|ctx, iterator| {
+                ctx.memory_op_instruction(
+                    iterator.address,
+                    step_register,
+                    iterator.address,
+                    BrilligBinaryOp::Add,
+                );
+            },
+            <span class="comment">// 3. make_finish_condition: Check bound &lt;= iterator
+            </span>|ctx, iterator| {
+                <span class="kw">let </span>reached_bound = ctx.allocate_single_addr_bool();
+                ctx.memory_op_instruction(
+                    loop_bound,
+                    iterator.address,
+                    reached_bound.address,
+                    BrilligBinaryOp::LessThanEquals,
+                );
+                reached_bound
+            },
+            <span class="comment">// 4. on_iteration: Call user's closure
+            </span>|ctx, iterator| {
+                on_iteration(ctx, <span class="kw-2">**</span>iterator);
+            },
+            <span class="comment">// 5. clean_iterator: Nothing to clean (auto-deallocated)
+            </span>|<span class="kw">_</span>, <span class="kw">_</span>| {},
         );
-
-        <span class="kw">let </span>(exit_loop_section, exit_loop_label) = <span class="self">self</span>.reserve_next_section_label();
-
-        <span class="self">self</span>.jump_if_instruction(iterator_reached_bound.address, exit_loop_label);
-
-        <span class="comment">// Call the on iteration function
-        </span>on_iteration(<span class="self">self</span>, <span class="kw-2">*</span>iterator_register);
-
-        <span class="comment">// Add step to the iterator register
-        </span><span class="self">self</span>.memory_op_instruction(
-            iterator_register.address,
-            step_register,
-            iterator_register.address,
-            BrilligBinaryOp::Add,
-        );
-
-        <span class="self">self</span>.jump_instruction(loop_label);
-
-        <span class="comment">// Exit the loop
-        </span><span class="self">self</span>.enter_section(exit_loop_section);
     }
 
     <span class="doccomment">/// This codegen will issue a loop that will iterate from 0 to iteration_count
@@ -584,72 +595,113 @@
     }
 
     <span class="doccomment">/// Jump to a trap condition if `condition` is false.
-    /// The trap will include the given message as revert data.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_constrain_with_revert_data(
+    /// The trap will include the given message as error data.
+    ///
+    /// If `error_selector` is None, an empty error data is generated (no error information).
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_constrain_with_error_data(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         condition: SingleAddrVariable,
-        revert_data_items: Vec&lt;BrilligVariable&gt;,
-        revert_data_types: Vec&lt;BrilligParameter&gt;,
-        error_selector: ErrorSelector,
+        error_data_items: Vec&lt;BrilligVariable&gt;,
+        error_data_types: Vec&lt;BrilligParameter&gt;,
+        error_selector: <span class="prelude-ty">Option</span>&lt;ErrorSelector&gt;,
     ) {
         <span class="macro">assert!</span>(condition.bit_size == <span class="number">1</span>);
 
         <span class="self">self</span>.codegen_if_not(condition.address, |ctx| {
-            <span class="comment">// + 1 due to the revert data id being the first item returned
-            </span><span class="kw">let </span>revert_data_size = <span class="self">Self</span>::flattened_tuple_size(<span class="kw-2">&amp;</span>revert_data_types) + <span class="number">1</span>;
-            <span class="kw">let </span>revert_data_size_var = ctx.make_usize_constant_instruction(revert_data_size.into());
-            <span class="kw">let </span>revert_data = ctx
-                .allocate_register()
-                .map(|pointer| HeapVector { pointer, size: revert_data_size_var.address });
-            ctx.codegen_allocate_immediate_mem(revert_data.pointer, revert_data_size);
+            <span class="kw">let </span>data_size = <span class="self">Self</span>::flattened_tuple_size(<span class="kw-2">&amp;</span>error_data_types);
 
-            <span class="kw">let </span>current_revert_data_pointer = ctx.allocate_register();
-            ctx.mov_instruction(<span class="kw-2">*</span>current_revert_data_pointer, revert_data.pointer);
+            <span class="comment">// Special case: No error selector means completely empty error data
+            </span><span class="kw">let </span><span class="prelude-val">Some</span>(error_selector) = error_selector <span class="kw">else </span>{
+                <span class="kw">let </span>error_data =
+                    ctx.make_usize_constant_instruction(<span class="number">0_usize</span>.into()).map(|size| HeapVector {
+                        pointer: ReservedRegisters::free_memory_pointer(),
+                        size: size.address,
+                    });
+                ctx.trap_instruction(<span class="kw-2">*</span>error_data);
+                <span class="kw">return</span>;
+            };
+
+            <span class="comment">// Shortcuts: empty data does not need without allocation, and can even use the procedure.
+            </span><span class="kw">if </span>data_size == <span class="number">0 </span>{
+                <span class="comment">// use the procedure call for better code reuse
+                </span><span class="kw">if </span>ctx.can_call_procedures {
+                    <span class="kw">if let </span><span class="prelude-val">Some</span>(ErrorType::String(message)) =
+                        ctx.obj.error_types.get(<span class="kw-2">&amp;</span>error_selector)
+                    {
+                        ctx.call_error_with_string_procedure(message.clone());
+                        <span class="kw">return</span>;
+                    }
+                }
+
+                <span class="comment">// Fast path: Just write selector to free memory pointer, no allocation needed
+                </span>ctx.indirect_const_instruction(
+                    ReservedRegisters::free_memory_pointer(),
+                    <span class="number">64</span>,
+                    u128::from(error_selector.as_u64()).into(),
+                );
+                ctx.trap_instruction(HeapVector {
+                    pointer: ReservedRegisters::free_memory_pointer(),
+                    size: ReservedRegisters::usize_one(),
+                });
+                <span class="kw">return</span>;
+            }
+
+            <span class="comment">// Allocate buffer and serialize data
+            // + 1 due to the error data id being the first item returned
+            </span><span class="kw">let </span>error_data_size = data_size + <span class="number">1</span>;
+            <span class="kw">let </span>error_data_size_var = ctx.make_usize_constant_instruction(error_data_size.into());
+            <span class="kw">let </span>error_data = ctx
+                .allocate_register()
+                .map(|pointer| HeapVector { pointer, size: error_data_size_var.address });
+            ctx.codegen_allocate_immediate_mem(error_data.pointer, error_data_size);
+
+            <span class="kw">let </span>current_error_data_pointer = ctx.allocate_register();
+            ctx.mov_instruction(<span class="kw-2">*</span>current_error_data_pointer, error_data.pointer);
             ctx.indirect_const_instruction(
-                <span class="kw-2">*</span>current_revert_data_pointer,
+                <span class="kw-2">*</span>current_error_data_pointer,
                 <span class="number">64</span>,
                 u128::from(error_selector.as_u64()).into(),
             );
 
-            ctx.codegen_usize_op_in_place(<span class="kw-2">*</span>current_revert_data_pointer, BrilligBinaryOp::Add, <span class="number">1</span>);
-            <span class="kw">for </span>(revert_variable, revert_param) <span class="kw">in
-                </span>revert_data_items.into_iter().zip(revert_data_types.into_iter())
+            ctx.codegen_usize_op_in_place(<span class="kw-2">*</span>current_error_data_pointer, BrilligBinaryOp::Add, <span class="number">1</span>);
+            <span class="kw">for </span>(error_variable, error_param) <span class="kw">in
+                </span>error_data_items.into_iter().zip(error_data_types.into_iter())
             {
-                <span class="kw">let </span>flattened_size = <span class="self">Self</span>::flattened_size(<span class="kw-2">&amp;</span>revert_param);
-                <span class="kw">match </span>revert_param {
+                <span class="kw">let </span>flattened_size = <span class="self">Self</span>::flattened_size(<span class="kw-2">&amp;</span>error_param);
+                <span class="kw">match </span>error_param {
                     BrilligParameter::SingleAddr(<span class="kw">_</span>) =&gt; {
                         ctx.store_instruction(
-                            <span class="kw-2">*</span>current_revert_data_pointer,
-                            revert_variable.extract_single_addr().address,
+                            <span class="kw-2">*</span>current_error_data_pointer,
+                            error_variable.extract_single_addr().address,
                         );
                     }
                     BrilligParameter::Array(item_type, item_count) =&gt; {
                         <span class="kw">let </span>deflattened_items_pointer =
-                            ctx.codegen_make_array_items_pointer(revert_variable.extract_array());
+                            ctx.codegen_make_array_items_pointer(error_variable.extract_array());
 
                         ctx.flatten_array(
                             <span class="kw-2">&amp;</span>item_type,
                             item_count,
-                            <span class="kw-2">*</span>current_revert_data_pointer,
+                            <span class="kw-2">*</span>current_error_data_pointer,
                             <span class="kw-2">*</span>deflattened_items_pointer,
                         );
                     }
                     BrilligParameter::Slice(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
-                        <span class="macro">unimplemented!</span>(<span class="string">"Slices are not supported as revert data"</span>)
+                        <span class="macro">unimplemented!</span>(<span class="string">"Slices are not supported as error data"</span>)
                     }
                 }
                 ctx.codegen_usize_op_in_place(
-                    <span class="kw-2">*</span>current_revert_data_pointer,
+                    <span class="kw-2">*</span>current_error_data_pointer,
                     BrilligBinaryOp::Add,
                     flattened_size,
                 );
             }
-            ctx.trap_instruction(<span class="kw-2">*</span>revert_data);
+            ctx.trap_instruction(<span class="kw-2">*</span>error_data);
         });
     }
 
     <span class="doccomment">/// Jump to a trap condition if `condition` is false,
-    /// with any assertion message written to the revert data.
+    /// with any assertion message written to the error data.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_constrain(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         condition: SingleAddrVariable,
@@ -657,42 +709,20 @@
     ) {
         <span class="macro">debug_assert!</span>(condition.bit_size == <span class="number">1</span>);
 
-        <span class="self">self</span>.codegen_if_not(condition.address, |ctx| {
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(assert_message) = assert_message {
-                ctx.revert_with_string(assert_message);
-            } <span class="kw">else </span>{
-                <span class="comment">// Create an empty revert data vector, with 0 size pointing at the start of free memory.
-                </span><span class="kw">let </span>revert_data =
-                    ctx.make_usize_constant_instruction(<span class="number">0_usize</span>.into()).map(|size| HeapVector {
-                        pointer: ReservedRegisters::free_memory_pointer(),
-                        size: size.address,
-                    });
-                ctx.trap_instruction(<span class="kw-2">*</span>revert_data);
-            };
-        });
-    }
-
-    <span class="doccomment">/// Emits bytecode with a trap opcode, reverting with data that contains a specific error message.
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>revert_with_string(<span class="kw-2">&amp;mut </span><span class="self">self</span>, revert_string: String) {
-        <span class="kw">if </span><span class="self">self</span>.can_call_procedures {
-            <span class="self">self</span>.call_revert_with_string_procedure(revert_string);
-        } <span class="kw">else </span>{
-            <span class="kw">let </span>error_type = ErrorType::String(revert_string);
-            <span class="comment">// Get a hash selector for the custom error type with the message and store it in the artifact.
-            </span><span class="kw">let </span>error_selector = error_type.selector();
+        <span class="comment">// Compute error selector if we have a message
+        </span><span class="kw">let </span>error_selector = assert_message.map(|message| {
+            <span class="kw">let </span>error_type = ErrorType::String(message);
+            <span class="kw">let </span>error_selector = error_type.selector();
             <span class="self">self</span>.obj.error_types.insert(error_selector, error_type);
-            <span class="comment">// Write the selector to the free memory pointer and return it as revert data.
-            // No need to increment the free memory pointer after this, since it's a trap.
-            </span><span class="self">self</span>.indirect_const_instruction(
-                ReservedRegisters::free_memory_pointer(),
-                <span class="number">64</span>,
-                u128::from(error_selector.as_u64()).into(),
-            );
-            <span class="self">self</span>.trap_instruction(HeapVector {
-                pointer: ReservedRegisters::free_memory_pointer(),
-                size: ReservedRegisters::usize_one(),
-            });
-        }
+            error_selector
+        });
+
+        <span class="self">self</span>.codegen_constrain_with_error_data(
+            condition,
+            <span class="macro">vec!</span>[], <span class="comment">// No runtime data items
+            </span><span class="macro">vec!</span>[], <span class="comment">// No runtime data types
+            </span>error_selector,
+        );
     }
 
     <span class="doccomment">/// Computes the size of a parameter if it was flattened

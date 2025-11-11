@@ -166,17 +166,16 @@
 <a href="#165" id="165">165</a>
 <a href="#166" id="166">166</a>
 <a href="#167" id="167">167</a>
-<a href="#168" id="168">168</a>
-<a href="#169" id="169">169</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::debug_info::ProcedureDebugId;
+<a href="#168" id="168">168</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::debug_info::ProcedureDebugId;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 
 <span class="kw">mod </span>array_copy;
 <span class="kw">mod </span>array_reverse;
 <span class="kw">mod </span>check_max_stack_depth;
+<span class="kw">mod </span>error_with_string;
 <span class="kw">mod </span>mem_copy;
 <span class="kw">mod </span>prepare_vector_insert;
 <span class="kw">mod </span>prepare_vector_push;
-<span class="kw">mod </span>revert_with_string;
 <span class="kw">mod </span>vector_copy;
 <span class="kw">mod </span>vector_pop_back;
 <span class="kw">mod </span>vector_pop_front;
@@ -185,10 +184,10 @@
 <span class="kw">use </span>array_copy::compile_array_copy_procedure;
 <span class="kw">use </span>array_reverse::compile_array_reverse_procedure;
 <span class="kw">use </span>check_max_stack_depth::compile_check_max_stack_depth_procedure;
+<span class="kw">use </span>error_with_string::compile_error_with_string_procedure;
 <span class="kw">use </span>mem_copy::compile_mem_copy_procedure;
 <span class="kw">use </span>prepare_vector_insert::compile_prepare_vector_insert_procedure;
 <span class="kw">use </span>prepare_vector_push::compile_prepare_vector_push_procedure;
-<span class="kw">use </span>revert_with_string::compile_revert_with_string_procedure;
 <span class="kw">use </span>vector_copy::compile_vector_copy_procedure;
 <span class="kw">use </span>vector_pop_back::compile_vector_pop_back_procedure;
 <span class="kw">use </span>vector_pop_front::compile_vector_pop_front_procedure;
@@ -272,8 +271,7 @@
             <span class="number">8 </span>=&gt; ProcedureId::PrepareVectorInsert,
             <span class="number">9 </span>=&gt; ProcedureId::VectorRemove,
             <span class="number">10 </span>=&gt; ProcedureId::CheckMaxStackDepth,
-            <span class="comment">// TODO: what to do here?
-            </span><span class="number">11 </span>=&gt; ProcedureId::RevertWithString(<span class="string">""</span>.to_string()),
+            <span class="number">11 </span>=&gt; ProcedureId::RevertWithString(<span class="string">""</span>.to_string()),
             <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"Unsupported procedure debug ID of {inner} was supplied"</span>),
         }
     }
@@ -292,7 +290,7 @@
             ProcedureId::PrepareVectorInsert =&gt; <span class="macro">write!</span>(f, <span class="string">"PrepareVectorInsert"</span>),
             ProcedureId::VectorRemove =&gt; <span class="macro">write!</span>(f, <span class="string">"VectorRemove"</span>),
             ProcedureId::CheckMaxStackDepth =&gt; <span class="macro">write!</span>(f, <span class="string">"CheckMaxStackDepth"</span>),
-            ProcedureId::RevertWithString(<span class="kw">_</span>) =&gt; <span class="macro">write!</span>(f, <span class="string">"RevertWithString"</span>),
+            ProcedureId::RevertWithString(<span class="kw">_</span>) =&gt; <span class="macro">write!</span>(f, <span class="string">"ErrorWithString"</span>),
         }
     }
 }
@@ -328,8 +326,8 @@
         ProcedureId::CheckMaxStackDepth =&gt; {
             compile_check_max_stack_depth_procedure(<span class="kw-2">&amp;mut </span>brillig_context, stack_start);
         }
-        ProcedureId::RevertWithString(revert_string) =&gt; {
-            compile_revert_with_string_procedure(<span class="kw-2">&amp;mut </span>brillig_context, revert_string);
+        ProcedureId::RevertWithString(error_string) =&gt; {
+            compile_error_with_string_procedure(<span class="kw-2">&amp;mut </span>brillig_context, error_string);
         }
     };
 
