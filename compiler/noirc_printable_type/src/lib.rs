@@ -141,7 +141,7 @@ impl<F: AcirField> std::fmt::Display for PrintableValueDisplay<F> {
 
 /// Format a given [PrintableValue] according to an expected [PrintableType].
 ///
-/// Returns `None` if the value not what we expect based on the type.
+/// Returns `None` if the value is not what we expect based on the type.
 fn to_string<F: AcirField>(value: &PrintableValue<F>, typ: &PrintableType) -> Option<String> {
     let mut output = String::new();
     match typ {
