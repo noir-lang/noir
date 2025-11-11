@@ -127,38 +127,34 @@ mod secp256r1_tests {
 
     #[test]
     fn verifies_valid_signature_with_low_s_value() {
-        let valid = verify_signature(&HASHED_MESSAGE, &PUB_KEY_X, &PUB_KEY_Y, &SIGNATURE);
+        let valid = verify_signature(&HASHED_MESSAGE, &PUB_KEY_X, &PUB_KEY_Y, &SIGNATURE).unwrap();
 
         assert!(valid);
     }
 
     #[test]
+    #[should_panic]
     fn rejects_signature_that_does_not_have_the_full_y_coordinate() {
         let mut pub_key_y_bytes = [0u8; 32];
         pub_key_y_bytes[31] = PUB_KEY_Y[31];
-        let valid = verify_signature(&HASHED_MESSAGE, &PUB_KEY_X, &pub_key_y_bytes, &SIGNATURE);
-
-        assert!(!valid);
+        verify_signature(&HASHED_MESSAGE, &PUB_KEY_X, &pub_key_y_bytes, &SIGNATURE).unwrap();
     }
 
     #[test]
+    #[should_panic]
     fn rejects_invalid_signature() {
         // This signature is invalid as ECDSA specifies that `r` and `s` must be non-zero.
         let invalid_signature: [u8; 64] = [0x00; 64];
-
-        let valid = verify_signature(&HASHED_MESSAGE, &PUB_KEY_X, &PUB_KEY_Y, &invalid_signature);
-        assert!(!valid);
+        verify_signature(&HASHED_MESSAGE, &PUB_KEY_X, &PUB_KEY_Y, &invalid_signature).unwrap();
     }
 
     #[test]
+    #[should_panic]
     fn rejects_invalid_public_key() {
         let invalid_pub_key_x: [u8; 32] = [0xff; 32];
         let invalid_pub_key_y: [u8; 32] = [0xff; 32];
-
-        let valid =
-            verify_signature(&HASHED_MESSAGE, &invalid_pub_key_x, &invalid_pub_key_y, &SIGNATURE);
-
-        assert!(!valid);
+        verify_signature(&HASHED_MESSAGE, &invalid_pub_key_x, &invalid_pub_key_y, &SIGNATURE)
+            .unwrap();
     }
 
     #[test]
@@ -167,7 +163,8 @@ mod secp256r1_tests {
         let mut long_hashed_message = HASHED_MESSAGE.to_vec();
         long_hashed_message.push(0xff);
 
-        let valid = verify_signature(&long_hashed_message, &PUB_KEY_X, &PUB_KEY_Y, &SIGNATURE);
+        let valid =
+            verify_signature(&long_hashed_message, &PUB_KEY_X, &PUB_KEY_Y, &SIGNATURE).unwrap();
 
         assert!(valid);
     }
