@@ -14,7 +14,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     /// Reverts with the error selector of the given string
     /// This procedure is useful to deduplicate generating code for the same selector.
     pub(crate) fn call_error_with_string_procedure(&mut self, error_string: String) {
-        self.add_procedure_call_instruction(ProcedureId::ErrorWithString(error_string));
+        self.add_procedure_call_instruction(ProcedureId::RevertWithString(error_string));
     }
 }
 
