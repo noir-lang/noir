@@ -1889,7 +1889,16 @@
 <a href="#1888" id="1888">1888</a>
 <a href="#1889" id="1889">1889</a>
 <a href="#1890" id="1890">1890</a>
-<a href="#1891" id="1891">1891</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{cmp::Ordering, collections::BTreeMap, io::Write};
+<a href="#1891" id="1891">1891</a>
+<a href="#1892" id="1892">1892</a>
+<a href="#1893" id="1893">1893</a>
+<a href="#1894" id="1894">1894</a>
+<a href="#1895" id="1895">1895</a>
+<a href="#1896" id="1896">1896</a>
+<a href="#1897" id="1897">1897</a>
+<a href="#1898" id="1898">1898</a>
+<a href="#1899" id="1899">1899</a>
+<a href="#1900" id="1900">1900</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{cmp::Ordering, collections::BTreeMap, io::Write};
 
 <span class="kw">use super</span>::{
     Ssa,
@@ -3442,23 +3451,32 @@
         ),
         BinaryOp::Eq =&gt; <span class="macro">apply_int_comparison_op!</span>(lhs, rhs, binary, |a, b| a == b, |a, b| a == b),
         BinaryOp::Lt =&gt; {
-            <span class="macro">apply_int_comparison_op!</span>(lhs, rhs, binary, |a, b| a &lt; b, |<span class="kw">_</span>, <span class="kw">_</span>| <span class="macro">unreachable!</span>(
-                <span class="string">"unfit lt: fit types should have been restored already"
-            </span>))
+            <span class="macro">apply_int_comparison_op!</span>(lhs, rhs, binary, |a, b| a &lt; b, |<span class="kw">_</span>, <span class="kw">_</span>| {
+                <span class="comment">// This could be the result of the DIE pass removing an `ArrayGet` and leaving a `LessThan`
+                // and a `Constrain` in its place. `LessThan` implicitly includes a `RangeCheck` on
+                // the operands during ACIR generation, which an `Unfit` value would fail, so we
+                // cannot treat them differently here, even if we could compare the values as `u128` or `i128`.
+                //
+                // Instead we `Cast` the values in SSA, which should have converted our `Unfit` value
+                // back to a `Fit` one with an acceptable number of bits.
+                //
+                // If we still hit this case, we have a problem.
+                </span><span class="macro">unreachable!</span>(<span class="string">"unfit 'lt': fit types should have been restored already"</span>)
+            })
         }
         BinaryOp::And =&gt; {
             <span class="macro">apply_int_binop!</span>(lhs, rhs, binary, |a, b| <span class="prelude-val">Some</span>(a &amp; b), |<span class="kw">_</span>, <span class="kw">_</span>| <span class="macro">unreachable!</span>(
-                <span class="string">"unfit and: fit types should have been restored already"
+                <span class="string">"unfit 'and': fit types should have been restored already"
             </span>))
         }
         BinaryOp::Or =&gt; {
             <span class="macro">apply_int_binop!</span>(lhs, rhs, binary, |a, b| <span class="prelude-val">Some</span>(a | b), |<span class="kw">_</span>, <span class="kw">_</span>| <span class="macro">unreachable!</span>(
-                <span class="string">"unfit or: fit types should have been restored already"
+                <span class="string">"unfit 'or': fit types should have been restored already"
             </span>))
         }
         BinaryOp::Xor =&gt; {
             <span class="macro">apply_int_binop!</span>(lhs, rhs, binary, |a, b| <span class="prelude-val">Some</span>(a ^ b), |<span class="kw">_</span>, <span class="kw">_</span>| <span class="macro">unreachable!</span>(
-                <span class="string">"unfit xor: fit types should have been restored already"
+                <span class="string">"unfit 'xor': fit types should have been restored already"
             </span>))
         }
         BinaryOp::Shl =&gt; {

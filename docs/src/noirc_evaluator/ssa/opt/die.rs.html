@@ -1227,7 +1227,8 @@
 <a href="#1226" id="1226">1226</a>
 <a href="#1227" id="1227">1227</a>
 <a href="#1228" id="1228">1228</a>
-<a href="#1229" id="1229">1229</a></pre></div><pre class="rust"><code><span class="doccomment">//! Dead Instruction Elimination (DIE) pass: Removes any instruction without side-effects for
+<a href="#1229" id="1229">1229</a>
+<a href="#1230" id="1230">1230</a></pre></div><pre class="rust"><code><span class="doccomment">//! Dead Instruction Elimination (DIE) pass: Removes any instruction without side-effects for
 //! which the results are unused.
 //!
 //! DIE also tracks which block parameters are unused.
@@ -2332,8 +2333,9 @@
           b0(v0: u32):
             v2 = make_array [u32 0, u32 0] : [u32; 2]
             v3 = array_get v2, index v0 -&gt; u32
-            v5 = lt v3, u32 2
-            constrain v5 == u1 1, "Index out of bounds"
+            v4 = cast v3 as u64
+            v6 = lt v4, u64 2
+            constrain v6 == u1 1, "Index out of bounds"
             return
         }
         "#</span>);

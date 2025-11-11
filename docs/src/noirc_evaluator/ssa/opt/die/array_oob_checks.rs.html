@@ -351,7 +351,15 @@
 <a href="#350" id="350">350</a>
 <a href="#351" id="351">351</a>
 <a href="#352" id="352">352</a>
-<a href="#353" id="353">353</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
+<a href="#353" id="353">353</a>
+<a href="#354" id="354">354</a>
+<a href="#355" id="355">355</a>
+<a href="#356" id="356">356</a>
+<a href="#357" id="357">357</a>
+<a href="#358" id="358">358</a>
+<a href="#359" id="359">359</a>
+<a href="#360" id="360">360</a>
+<a href="#361" id="361">361</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
     ir::{
@@ -445,10 +453,18 @@
                 };
                 <span class="comment">// `index` will be relative to the flattened array length, so we need to take that into account
                 </span><span class="kw">let </span>array_length = element_size * len;
-                <span class="comment">// let array_length = function.dfg.type_of_value(*array).flattened_size();
 
-                // If we are here it means the index is dynamic, so let's add a check that it's less than length
-                </span><span class="kw">let </span>length_type = NumericType::length_type();
+                <span class="comment">// If we are here it means the index is dynamic, so let's add a check that it's less than length.
+
+                // Normally the indexes are expected to be u32, however if the array element is a composite type,
+                // the value could have overflown due to the unchecked multiplication with the element size.
+                // In ACIR, we rely on the array operation itself to fail the circuit if it encounters an overflown value,
+                // however we are just removing the array operation and replacing it with a LessThan, which in ACIR gen
+                // lays down an RangeCheck that would fail if the value doesn't fit 32 bits. As a workaround,
+                // instead of finding the index instruction and changing into a checked multiplication,
+                // we cast to a higher bitsize, which we expect should fit any overflown index type.
+                </span><span class="kw">let </span>length_type = NumericType::unsigned(<span class="number">64</span>);
+
                 <span class="kw">let </span>index = function.dfg.insert_instruction_and_results(
                     Instruction::Cast(<span class="kw-2">*</span>index, length_type),
                     block_id,
