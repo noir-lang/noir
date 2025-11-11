@@ -183,7 +183,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 
     /// Jump to a trap condition if `condition` is false.
     /// The trap will include the given message as revert data.
-    pub(crate) fn codegen_constrain_with_revert_data(
+    pub(crate) fn codegen_constrain_with_error_data(
         &mut self,
         condition: SingleAddrVariable,
         revert_data_items: Vec<BrilligVariable>,
@@ -257,7 +257,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 
         self.codegen_if_not(condition.address, |ctx| {
             if let Some(assert_message) = assert_message {
-                ctx.revert_with_string(assert_message);
+                ctx.error_with_string(assert_message);
             } else {
                 // Create an empty revert data vector, with 0 size pointing at the start of free memory.
                 let revert_data =
@@ -271,9 +271,9 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     }
 
     /// Emits bytecode with a trap opcode, reverting with data that contains a specific error message.
-    pub(super) fn revert_with_string(&mut self, revert_string: String) {
+    pub(super) fn error_with_string(&mut self, revert_string: String) {
         if self.can_call_procedures {
-            self.call_revert_with_string_procedure(revert_string);
+            self.call_error_with_string_procedure(revert_string);
         } else {
             let error_type = ErrorType::String(revert_string);
             // Get a hash selector for the custom error type with the message and store it in the artifact.

@@ -4,10 +4,10 @@ use serde::{Deserialize, Serialize};
 mod array_copy;
 mod array_reverse;
 mod check_max_stack_depth;
+mod error_with_string;
 mod mem_copy;
 mod prepare_vector_insert;
 mod prepare_vector_push;
-mod revert_with_string;
 mod vector_copy;
 mod vector_pop_back;
 mod vector_pop_front;
@@ -16,10 +16,10 @@ mod vector_remove;
 use array_copy::compile_array_copy_procedure;
 use array_reverse::compile_array_reverse_procedure;
 use check_max_stack_depth::compile_check_max_stack_depth_procedure;
+use error_with_string::compile_error_with_string_procedure;
 use mem_copy::compile_mem_copy_procedure;
 use prepare_vector_insert::compile_prepare_vector_insert_procedure;
 use prepare_vector_push::compile_prepare_vector_push_procedure;
-use revert_with_string::compile_revert_with_string_procedure;
 use vector_copy::compile_vector_copy_procedure;
 use vector_pop_back::compile_vector_pop_back_procedure;
 use vector_pop_front::compile_vector_pop_front_procedure;
@@ -48,7 +48,7 @@ pub enum ProcedureId {
     PrepareVectorInsert,
     VectorRemove,
     CheckMaxStackDepth,
-    RevertWithString(String),
+    ErrorWithString(String),
 }
 
 impl ProcedureId {
@@ -65,7 +65,7 @@ impl ProcedureId {
             ProcedureId::PrepareVectorInsert => 8,
             ProcedureId::VectorRemove => 9,
             ProcedureId::CheckMaxStackDepth => 10,
-            ProcedureId::RevertWithString(_) => 11,
+            ProcedureId::ErrorWithString(_) => 11,
         })
     }
 
@@ -84,7 +84,7 @@ impl ProcedureId {
             9 => ProcedureId::VectorRemove,
             10 => ProcedureId::CheckMaxStackDepth,
             // TODO: what to do here?
-            11 => ProcedureId::RevertWithString("".to_string()),
+            11 => ProcedureId::ErrorWithString("".to_string()),
             _ => panic!("Unsupported procedure debug ID of {inner} was supplied"),
         }
     }
@@ -103,7 +103,7 @@ impl std::fmt::Display for ProcedureId {
             ProcedureId::PrepareVectorInsert => write!(f, "PrepareVectorInsert"),
             ProcedureId::VectorRemove => write!(f, "VectorRemove"),
             ProcedureId::CheckMaxStackDepth => write!(f, "CheckMaxStackDepth"),
-            ProcedureId::RevertWithString(_) => write!(f, "RevertWithString"),
+            ProcedureId::ErrorWithString(_) => write!(f, "ErrorWithString"),
         }
     }
 }
@@ -137,8 +137,8 @@ pub(crate) fn compile_procedure<F: AcirField + DebugToString>(
         ProcedureId::CheckMaxStackDepth => {
             compile_check_max_stack_depth_procedure(&mut brillig_context, stack_start);
         }
-        ProcedureId::RevertWithString(revert_string) => {
-            compile_revert_with_string_procedure(&mut brillig_context, revert_string);
+        ProcedureId::ErrorWithString(error_string) => {
+            compile_error_with_string_procedure(&mut brillig_context, error_string);
         }
     };
 

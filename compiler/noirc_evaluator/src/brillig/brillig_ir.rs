@@ -500,7 +500,7 @@ pub(crate) mod tests {
         });
         context.push_opcode(BrilligOpcode::JumpIf { condition: r_equality, location: 9 });
         context.push_opcode(BrilligOpcode::Trap {
-            revert_data: HeapVector {
+            error_data: HeapVector {
                 pointer: MemoryAddress::direct(0),
                 size: MemoryAddress::direct(0),
             },

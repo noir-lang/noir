@@ -129,7 +129,7 @@ impl<F: AcirField> ProtoCodec<brillig::Opcode<F>, BrilligOpcode> for ProtoSchema
             brillig::Opcode::BlackBox(black_box_op) => {
                 Value::BlackBox(BlackBox { op: Self::encode_some(black_box_op) })
             }
-            brillig::Opcode::Trap { revert_data: error_data } => {
+            brillig::Opcode::Trap { error_data } => {
                 Value::Trap(Trap { revert_data: Self::encode_some(error_data) })
             }
             brillig::Opcode::Stop { return_data } => {
@@ -236,7 +236,7 @@ impl<F: AcirField> ProtoCodec<brillig::Opcode<F>, BrilligOpcode> for ProtoSchema
                 Ok(brillig::Opcode::BlackBox(Self::decode_some_wrap(&v.op, "black_box")?))
             }
             Value::Trap(v) => Ok(brillig::Opcode::Trap {
-                revert_data: Self::decode_some_wrap(&v.revert_data, "revert_data")?,
+                error_data: Self::decode_some_wrap(&v.revert_data, "revert_data")?,
             }),
             Value::Stop(v) => Ok(brillig::Opcode::Stop {
                 return_data: Self::decode_some_wrap(&v.return_data, "return_data")?,
