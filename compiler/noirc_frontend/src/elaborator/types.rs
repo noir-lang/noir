@@ -2195,7 +2195,7 @@ impl Elaborator<'_> {
     }
 
     /// Looks up a method in the given trait and its parent traits, recursively.
-    /// Mulitple matches are possible if a method with the same name exists in, for example,
+    /// Multiple matches are possible if a method with the same name exists in, for example,
     /// a child and its parent.
     fn lookup_methods_in_trait(
         &self,
