@@ -2,16 +2,13 @@
 pub trait Serialize {
     let N: u32;
 
-    fn serialize(self) -> [Field; N];
+    fn serialize(self);
 }
 
 impl Serialize for Field {
     let N: u32 = 1;
 
-    #[inline_always]
-    fn serialize(self) -> [Field; Self::N] {
-        [self]
-    }
+    fn serialize(self) {}
 }
 
 
@@ -21,19 +18,11 @@ where
 {
     let N: u32 = <T as Serialize>::N * M;
 
-    #[inline_always]
-    fn serialize(self) -> [Field; Self::N] {
-        let mut result: [Field; _] = std::mem::zeroed();
+    fn serialize(self) {
         std::println(Self::N);
         std::println(<T as Serialize>::N);
         std::println(M);
-        for i in 0..M {
-            let serialized_t = self[i].serialize();
-            for j in 0..<T as Serialize>::N {
-                result[i * <T as Serialize>::N + j] = serialized_t[j];
-            }
-        }
-        result
+        assert_eq(<T as Serialize>::N * M , Self::N);
     }
 }
 
