@@ -2067,12 +2067,12 @@ impl Elaborator<'_> {
             if Some(object_type) == self.self_type.as_ref() {
                 let the_trait = self.interner.get_trait(trait_id);
                 let constraint = the_trait.as_constraint(the_trait.name.location());
-                if let Some(HirMethodReference::TraitItemId(HirTraitMethodReference {
+                if let Some(HirTraitMethodReference {
                     definition,
                     trait_id,
                     trait_generics,
-                    ..
-                })) = self.lookup_method_in_trait(
+                    assumed: _,
+                }) = self.lookup_method_in_trait(
                     the_trait,
                     method_name,
                     &constraint.trait_bound,
@@ -2104,20 +2104,20 @@ impl Elaborator<'_> {
                         &constraint.trait_bound,
                         the_trait.id,
                     ) {
-                        matches.push((method, the_trait.id));
+                        matches.push(method);
                     }
                 }
             }
         }
 
         if matches.len() == 1 {
-            return Some(matches.remove(0).0);
+            return Some(HirMethodReference::TraitItemId(matches.remove(0)));
         }
 
         if matches.len() > 1 {
             let ident = Ident::new(method_name.to_string(), location);
-            let traits = vecmap(matches, |(_, trait_id)| {
-                let trait_ = self.interner.get_trait(trait_id);
+            let traits = vecmap(matches, |method| {
+                let trait_ = self.interner.get_trait(method.trait_id);
                 self.fully_qualified_trait_path(trait_)
             });
             self.push_err(PathResolutionError::MultipleTraitsInScope { ident, traits });
@@ -2145,16 +2145,16 @@ impl Elaborator<'_> {
         method_name: &str,
         trait_bound: &ResolvedTraitBound,
         starting_trait_id: TraitId,
-    ) -> Option<HirMethodReference> {
+    ) -> Option<HirTraitMethodReference> {
         if let Some(trait_method) = the_trait.find_method(method_name, self.interner) {
             let trait_generics = trait_bound.trait_generics.clone();
-            let trait_item_id = HirMethodReference::TraitItemId(HirTraitMethodReference {
+            let trait_method = HirTraitMethodReference {
                 definition: trait_method,
                 trait_id: the_trait.id,
                 trait_generics,
                 assumed: false,
-            });
-            return Some(trait_item_id);
+            };
+            return Some(trait_method);
         }
 
         // Search in the parent traits, if any
