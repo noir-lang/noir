@@ -1055,7 +1055,7 @@ pub fn collect_function(
     let is_entry_point_function = if module_data.is_contract {
         function.attributes().is_contract_entry_point()
     } else {
-        function.name() == MAIN_FUNCTION
+        function.name() == MAIN_FUNCTION || function.attributes().is_foldable()
     };
     let has_export = function.def.attributes.has_export();
     let has_allow_dead_code = function.def.attributes.has_allow("dead_code");

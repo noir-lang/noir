@@ -198,3 +198,15 @@ fn cannot_return_slice_from_main() {
         "#;
     check_errors(src);
 }
+
+#[test]
+fn fold_function_with_generic() {
+    let src = r#"
+    fn main() {}
+
+    #[fold]
+    fn foo<T>(_: T) {}
+           ^ `foo` entry-point function is not allowed to have generic parameters
+    "#;
+    check_errors(src);
+}
