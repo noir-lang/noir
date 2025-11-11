@@ -1295,7 +1295,7 @@ macro_rules! apply_fit_comparison_op {
         if let (Fitted::Fit(lhs), Fitted::Fit(rhs)) = ($lhs, $rhs) {
             $f(lhs, rhs)
         } else {
-            $g($lhs_num, $rhs_num)
+            $g($lhs_num.convert_to_field(), $rhs_num.convert_to_field())
         }
     }};
 }
@@ -1464,22 +1464,6 @@ macro_rules! apply_int_comparison_op {
     }};
 }
 
-/// We are trying to compare two numeric values, at least one of which was `Unfit`.
-///
-/// This is the result of the DIE pass removing an `ArrayGet` and leaving a `LessThan`
-/// and a `Constrain` in its place. `LessThan` implicitly includes a `RangeCheck` on
-/// the operands during ACIR generation, which an `Unfit` value would fail, so we
-/// cannot treat them differently here, even if we could compare the values as `u128`
-/// or `i128`.
-///
-/// Instead we `Cast` the values in SSA, which should have converted our `Unfit` value
-/// back to a `Fit` one with an acceptable number of bits (e.g. an `Unfit` `u32` into a `u64`).
-///
-/// If we still hit this method, we have a problem.
-fn unfit_lt(a: NumericValue, b: NumericValue) -> bool {
-    unreachable!("shouldn't have to compare unfit values: lt {a}, {b}");
-}
-
 fn evaluate_binary(
     binary: &Binary,
     lhs: NumericValue,
@@ -1565,29 +1549,34 @@ fn evaluate_binary(
             num_traits::CheckedRem::checked_rem,
             display_binary
         ),
-        BinaryOp::Eq => apply_int_comparison_op!(
-            lhs,
-            rhs,
-            binary,
-            |a, b| a == b,
-            |a: NumericValue, b: NumericValue| a.convert_to_field() == b.convert_to_field()
-        ),
+        BinaryOp::Eq => apply_int_comparison_op!(lhs, rhs, binary, |a, b| a == b, |a, b| a == b),
         BinaryOp::Lt => {
-            apply_int_comparison_op!(lhs, rhs, binary, |a, b| a < b, unfit_lt)
+            apply_int_comparison_op!(lhs, rhs, binary, |a, b| a < b, |_, _| {
+                // This could be the result of the DIE pass removing an `ArrayGet` and leaving a `LessThan`
+                // and a `Constrain` in its place. `LessThan` implicitly includes a `RangeCheck` on
+                // the operands during ACIR generation, which an `Unfit` value would fail, so we
+                // cannot treat them differently here, even if we could compare the values as `u128` or `i128`.
+                //
+                // Instead we `Cast` the values in SSA, which should have converted our `Unfit` value
+                // back to a `Fit` one with an acceptable number of bits.
+                //
+                // If we still hit this case, we have a problem.
+                unreachable!("unfit 'lt': fit types should have been restored already")
+            })
         }
         BinaryOp::And => {
             apply_int_binop!(lhs, rhs, binary, |a, b| Some(a & b), |_, _| unreachable!(
-                "unfit and: fit types should have been restored already"
+                "unfit 'and': fit types should have been restored already"
             ))
         }
         BinaryOp::Or => {
             apply_int_binop!(lhs, rhs, binary, |a, b| Some(a | b), |_, _| unreachable!(
-                "unfit or: fit types should have been restored already"
+                "unfit 'or': fit types should have been restored already"
             ))
         }
         BinaryOp::Xor => {
             apply_int_binop!(lhs, rhs, binary, |a, b| Some(a ^ b), |_, _| unreachable!(
-                "unfit xor: fit types should have been restored already"
+                "unfit 'xor': fit types should have been restored already"
             ))
         }
         BinaryOp::Shl => {
