@@ -12,7 +12,9 @@ use crate::elaborator::path_resolution::PathResolutionItem;
 use crate::elaborator::types::{SELF_TYPE_NAME, TraitPathResolutionMethod};
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::hir::type_check::TypeCheckError;
-use crate::hir_def::expr::{HirExpression, HirIdent, HirMethodReference, ImplKind, TraitItem};
+use crate::hir_def::expr::{
+    HirExpression, HirIdent, HirMethodReference, HirTraitMethodReference, ImplKind, TraitItem,
+};
 use crate::node_interner::pusher::{HasLocation, PushedExpr};
 use crate::node_interner::{DefinitionId, DefinitionInfo, DefinitionKind, ExprId, TraitImplKind};
 use crate::{Kind, Type, TypeBindings};
@@ -186,6 +188,16 @@ impl Elaborator<'_> {
                     },
                     trait_path_resolution.item,
                 ),
+
+                TraitPathResolutionMethod::MultipleTraitsInScope => {
+                    // An error has already been pushed, return a dummy identifier
+                    let hir_ident = HirIdent {
+                        location: path.location,
+                        id: DefinitionId::dummy_id(),
+                        impl_kind: ImplKind::NotATraitMethod,
+                    };
+                    (hir_ident, trait_path_resolution.item)
+                }
             };
         }
 
@@ -327,10 +339,15 @@ impl Elaborator<'_> {
 
         let impl_kind = match method {
             HirMethodReference::FuncId(_) => ImplKind::NotATraitMethod,
-            HirMethodReference::TraitItemId(definition, trait_id, generics, _) => {
+            HirMethodReference::TraitItemId(HirTraitMethodReference {
+                definition,
+                trait_id,
+                trait_generics,
+                assumed: _,
+            }) => {
                 let mut constraint =
                     self.interner.get_trait(trait_id).as_constraint(ident_location);
-                constraint.trait_bound.trait_generics = generics;
+                constraint.trait_bound.trait_generics = trait_generics;
                 ImplKind::TraitItem(TraitItem { definition, constraint, assumed: false })
             }
         };

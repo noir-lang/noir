@@ -2840,7 +2840,7 @@ pub(crate) fn resolve_trait_item(
                 // We also need to apply any instantiation bindings if the expression has any
                 let instantiation_bindings = interner.try_get_instantiation_bindings(expr_id);
                 let value = if let Some(instantiation_bindings) = instantiation_bindings {
-                    item.typ.substitute(instantiation_bindings)
+                    item.typ.force_substitute(instantiation_bindings)
                 } else {
                     item.typ.clone()
                 };
