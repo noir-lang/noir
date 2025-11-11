@@ -117,3 +117,70 @@ impl<F: AcirField + for<'a> Deserialize<'a>> WitnessMap<F> {
             .map_err(|e| WitnessMapError(SerializationError::Deserialize(e)))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use acir_field::FieldElement;
+
+    #[test]
+    fn test_round_trip_serialization() {
+        // Create a witness map with several entries
+        let mut original = WitnessMap::new();
+        original.insert(Witness(0), FieldElement::from(42u128));
+        original.insert(Witness(1), FieldElement::from(123u128));
+        original.insert(Witness(5), FieldElement::from(999u128));
+        original.insert(Witness(10), FieldElement::zero());
+        original.insert(Witness(100), FieldElement::one());
+
+        // Serialize
+        let serialized = original.serialize().expect("Serialization should succeed");
+
+        // Deserialize
+        let deserialized =
+            WitnessMap::deserialize(&serialized).expect("Deserialization should succeed");
+
+        // Verify round trip
+        assert_eq!(original, deserialized);
+    }
+
+    #[test]
+    fn test_round_trip_empty_witness_map() {
+        // Test with an empty witness map
+        let original = WitnessMap::<FieldElement>::new();
+
+        let serialized = original.serialize().expect("Serialization should succeed");
+        let deserialized =
+            WitnessMap::deserialize(&serialized).expect("Deserialization should succeed");
+
+        assert_eq!(original, deserialized);
+    }
+
+    #[test]
+    fn test_round_trip_single_entry() {
+        // Test with a single entry
+        let mut original = WitnessMap::new();
+        original.insert(Witness(0), FieldElement::from(12345u128));
+
+        let serialized = original.serialize().expect("Serialization should succeed");
+        let deserialized =
+            WitnessMap::deserialize(&serialized).expect("Deserialization should succeed");
+
+        assert_eq!(original, deserialized);
+    }
+
+    #[test]
+    fn test_round_trip_large_field_elements() {
+        // Test with large field elements
+        let mut original = WitnessMap::new();
+        original.insert(Witness(0), FieldElement::from(u128::MAX));
+        original.insert(Witness(1), -FieldElement::one());
+        original.insert(Witness(2), FieldElement::from(u128::MAX / 2));
+
+        let serialized = original.serialize().expect("Serialization should succeed");
+        let deserialized =
+            WitnessMap::deserialize(&serialized).expect("Deserialization should succeed");
+
+        assert_eq!(original, deserialized);
+    }
+}

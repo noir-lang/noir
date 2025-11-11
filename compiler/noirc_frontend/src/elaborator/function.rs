@@ -479,11 +479,14 @@ impl Elaborator<'_> {
         // so we need to reintroduce the same IDs into scope here.
         for parameter in &func_meta.parameter_idents {
             let name = self.interner.definition_name(parameter.id).to_owned();
-            if name == "_" {
-                continue;
-            }
             let warn_if_unused = !(func_meta.trait_impl.is_some() && name == "self");
-            self.add_existing_variable_to_scope(name, parameter.clone(), warn_if_unused);
+            let allow_shadowing = false;
+            self.add_existing_variable_to_scope(
+                name,
+                parameter.clone(),
+                warn_if_unused,
+                allow_shadowing,
+            );
         }
 
         self.add_trait_constraints_to_scope(func_meta.all_trait_constraints(), func_meta.location);
@@ -510,8 +513,7 @@ impl Elaborator<'_> {
             FunctionKind::Normal => {
                 let return_type = func_meta.return_type();
                 let (block, body_type) = self.elaborate_block(body, Some(return_type));
-                let expr_id = self.intern_expr(block, body_location);
-                self.interner.push_expr_type(expr_id, body_type.clone());
+                let expr_id = self.interner.push_expr_full(block, body_location, body_type.clone());
                 (HirFunction::unchecked_from_expr(expr_id), body_type)
             }
         };

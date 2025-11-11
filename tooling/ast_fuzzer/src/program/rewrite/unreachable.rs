@@ -1,9 +1,12 @@
 use std::collections::{BTreeSet, VecDeque};
 
 use im::HashMap;
-use noirc_frontend::monomorphization::ast::{Definition, Expression, FuncId, Ident, Program};
+use noirc_frontend::monomorphization::{
+    ast::{Definition, Expression, FuncId, Ident, Program},
+    visitor::visit_expr_mut,
+};
 
-use crate::{expr, program::Context, visitor::visit_expr_mut};
+use crate::{expr, program::Context};
 
 /// Remove functions that are unreachable from main.
 pub(crate) fn remove_unreachable_functions(ctx: &mut Context) {

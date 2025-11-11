@@ -1,3 +1,5 @@
+//! Defines the [Value] type, representing a compile-time value, used by the
+//! comptime interpreter when evaluating code.
 use std::{borrow::Cow, rc::Rc, vec};
 
 use im::Vector;
@@ -34,6 +36,7 @@ use super::{
     errors::{IResult, InterpreterError},
 };
 
+/// A value representing the result of evaluating a Noir expression.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Value {
     Unit,
@@ -127,6 +130,8 @@ impl Value {
         Value::Expr(Box::new(ExprValue::Pattern(pattern)))
     }
 
+    /// Retrieves the type of this value. Types can always be determined from the value,
+    /// in cases where it would be ambiguous, Values store the type directly.
     pub(crate) fn get_type(&self) -> Cow<Type> {
         Cow::Owned(match self {
             Value::Unit => Type::Unit,
@@ -182,6 +187,12 @@ impl Value {
         })
     }
 
+    /// Lowers this value into a runtime expression.
+    ///
+    /// For literals this is often simple, e.g. `Value::I8(3)` translates to `3`, but not
+    /// all values are valid to lower. Certain values change form - e.g. format strings lowering
+    /// into normal string literals. Lowering quoted code will simply return the quoted code (after
+    /// parsing), this is how macros are implemented.
     pub(crate) fn into_expression(
         self,
         elaborator: &mut Elaborator,
@@ -244,9 +255,11 @@ impl Value {
                 let id = elaborator.interner.function_definition_id(id);
                 let impl_kind = ImplKind::NotATraitMethod;
                 let ident = HirIdent { location, id, impl_kind };
-                let expr_id = elaborator.interner.push_expr(HirExpression::Ident(ident, None));
-                elaborator.interner.push_expr_location(expr_id, location);
-                elaborator.interner.push_expr_type(expr_id, typ);
+                let expr_id = elaborator.interner.push_expr_full(
+                    HirExpression::Ident(ident, None),
+                    location,
+                    typ,
+                );
                 elaborator.interner.store_instantiation_bindings(expr_id, unwrap_rc(bindings));
                 ExpressionKind::Resolved(expr_id)
             }
@@ -361,13 +374,15 @@ impl Value {
         Ok(Expression::new(kind, location))
     }
 
+    /// Lowers this compile-time value into a HIR expression. This is similar to
+    /// [Self::into_expression] but is used in some cases in the monomorphizer where
+    /// code must already be in HIR.
     pub(crate) fn into_hir_expression(
         self,
         interner: &mut NodeInterner,
         location: Location,
     ) -> IResult<ExprId> {
         let typ = self.get_type().into_owned();
-
         let expression = match self {
             Value::Unit => HirExpression::Literal(HirLiteral::Unit),
             Value::Bool(value) => HirExpression::Literal(HirLiteral::Bool(value)),
@@ -413,9 +428,8 @@ impl Value {
                 let id = interner.function_definition_id(id);
                 let impl_kind = ImplKind::NotATraitMethod;
                 let ident = HirIdent { location, id, impl_kind };
-                let expr_id = interner.push_expr(HirExpression::Ident(ident, None));
-                interner.push_expr_location(expr_id, location);
-                interner.push_expr_type(expr_id, typ);
+                let expr_id =
+                    interner.push_expr_full(HirExpression::Ident(ident, None), location, typ);
                 interner.store_instantiation_bindings(expr_id, unwrap_rc(bindings));
                 return Ok(expr_id);
             }
@@ -496,12 +510,14 @@ impl Value {
             }
         };
 
-        let id = interner.push_expr(expression);
-        interner.push_expr_location(id, location);
-        interner.push_expr_type(id, typ);
+        let id = interner.push_expr_full(expression, location, typ);
         Ok(id)
     }
 
+    /// Attempt to convert this value into a Vec of tokens representing this value if it appeared
+    /// in source code. For example, `Value::Unit` is `vec!['(', ')']`. This is used for splicing
+    /// values into quoted values when `$` is used within a `quote {  }` expression. Since `Quoted`
+    /// code is represented as tokens, we need to convert the value into tokens.
     pub(crate) fn into_tokens(
         self,
         interner: &mut NodeInterner,
@@ -719,6 +735,11 @@ impl Value {
         }
     }
 
+    /// Similar to [Self::into_expression] or [Self::into_hir_expression] but for converting
+    /// into top-level item(s). Unlike those other methods, most expressions are invalid
+    /// as top-level items (e.g. a lone `3` is not a valid top-level statement). As a result,
+    /// this method is significantly simpler because we only have to parse `Quoted` values
+    /// into top level items.
     pub(crate) fn into_top_level_items(
         self,
         location: Location,
@@ -749,6 +770,10 @@ impl Value {
 
     /// Structs and tuples store references to their fields internally which need to be manually
     /// changed when moving them.
+    ///
+    /// All references are shared by default but when we have `let mut foo = Struct { .. }` in
+    /// code, we don't want moving it: `let mut bar = foo;` to refer to the same references.
+    /// This function will copy them so that mutating the fields of `foo` will not mutate `bar`.
     pub(crate) fn move_struct(self) -> Value {
         match self {
             Value::Tuple(fields) => Value::Tuple(vecmap(fields, |field| {
@@ -770,6 +795,9 @@ pub(crate) fn unwrap_rc<T: Clone>(rc: Rc<T>) -> T {
     Rc::try_unwrap(rc).unwrap_or_else(|rc| (*rc).clone())
 }
 
+/// Helper to parse the given tokens using the given parse function.
+///
+/// If they fail to parse, [InterpreterError::FailedToParseMacro] is returned.
 fn parse_tokens<'a, T, F>(
     tokens: Rc<Vec<LocatedToken>>,
     elaborator: &mut Elaborator,

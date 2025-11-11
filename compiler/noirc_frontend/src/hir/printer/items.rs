@@ -7,16 +7,18 @@ mod hir_def;
 mod types;
 
 use crate::{
-    Kind, NamedGeneric, Type,
-    ast::ItemVisibility,
+    Kind, NamedGeneric, QuotedType, Type,
+    ast::{IntegerBitSize, ItemVisibility},
     hir::def_map::ModuleId,
     modules::module_def_id_to_reference_id,
     node_interner::{
         FuncId, GlobalId, ImplMethod, Methods, TraitId, TraitImplId, TypeAliasId, TypeId,
     },
+    shared::Signedness,
 };
 use noirc_errors::Location;
 use std::collections::{BTreeMap, BTreeSet, HashSet};
+use strum::IntoEnumIterator;
 
 use crate::graph::CrateId;
 use crate::{
@@ -25,77 +27,85 @@ use crate::{
     node_interner::NodeInterner,
 };
 
-pub(super) enum Item {
+pub enum Item {
     Module(Module),
     DataType(DataType),
     Trait(Trait),
     TypeAlias(TypeAliasId),
+    PrimitiveType(PrimitiveType),
     Global(GlobalId),
     Function(FuncId),
 }
 
 impl Item {
-    pub(super) fn module_def_id(&self) -> ModuleDefId {
+    pub fn module_def_id(&self) -> ModuleDefId {
         match self {
             Item::Module(module) => ModuleDefId::ModuleId(module.id),
             Item::DataType(data_type) => ModuleDefId::TypeId(data_type.id),
             Item::Trait(trait_) => ModuleDefId::TraitId(trait_.id),
             Item::TypeAlias(type_alias_id) => ModuleDefId::TypeAliasId(*type_alias_id),
+            Item::PrimitiveType(_) => panic!("No ModuleDefId for PrimitiveType"),
             Item::Global(global_id) => ModuleDefId::GlobalId(*global_id),
             Item::Function(func_id) => ModuleDefId::FunctionId(*func_id),
         }
     }
 }
 
-pub(super) struct Module {
-    pub(super) id: ModuleId,
-    pub(super) name: Option<String>,
-    pub(super) is_contract: bool,
-    pub(super) imports: Vec<Import>,
-    pub(super) items: Vec<(ItemVisibility, Item)>,
+pub struct Module {
+    pub id: ModuleId,
+    pub name: Option<String>,
+    pub is_contract: bool,
+    pub imports: Vec<Import>,
+    pub items: Vec<(ItemVisibility, Item)>,
 }
 
-pub(super) struct DataType {
-    pub(super) id: TypeId,
-    pub(super) impls: Vec<Impl>,
-    pub(super) trait_impls: Vec<TraitImpl>,
+pub struct DataType {
+    pub id: TypeId,
+    pub impls: Vec<Impl>,
+    pub trait_impls: Vec<TraitImpl>,
 }
 
-pub(super) struct Trait {
-    pub(super) id: TraitId,
-    pub(super) methods: Vec<FuncId>,
-    pub(super) trait_impls: Vec<TraitImpl>,
+pub struct Trait {
+    pub id: TraitId,
+    pub methods: Vec<FuncId>,
+    pub trait_impls: Vec<TraitImpl>,
 }
 
-pub(super) struct Impl {
-    pub(super) generics: BTreeSet<(String, Kind)>,
-    pub(super) typ: Type,
-    pub(super) methods: Vec<(ItemVisibility, FuncId)>,
+pub struct PrimitiveType {
+    pub typ: Type,
+    pub impls: Vec<Impl>,
+    pub trait_impls: Vec<TraitImpl>,
 }
 
-pub(super) struct TraitImpl {
-    pub(super) generics: BTreeSet<(String, Kind)>,
-    pub(super) id: TraitImplId,
-    pub(super) methods: Vec<FuncId>,
+pub struct Impl {
+    pub generics: BTreeSet<(String, Kind)>,
+    pub typ: Type,
+    pub methods: Vec<(ItemVisibility, FuncId)>,
 }
 
-pub(super) struct Import {
-    pub(super) name: Ident,
-    pub(super) id: ModuleDefId,
-    pub(super) visibility: ItemVisibility,
-    pub(super) is_prelude: bool,
+#[derive(Clone)]
+pub struct TraitImpl {
+    pub generics: BTreeSet<(String, Kind)>,
+    pub id: TraitImplId,
+    pub methods: Vec<FuncId>,
+    /// True if the trait impl only mentions types from external crates.
+    /// (for example `impl Trait for Field` in a non-stdlib crate)
+    pub external_types: bool,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub struct Import {
+    pub name: Ident,
+    pub id: ModuleDefId,
+    pub visibility: ItemVisibility,
+    pub is_prelude: bool,
 }
 
 pub(super) struct ItemBuilder<'context> {
     crate_id: CrateId,
     interner: &'context NodeInterner,
     def_maps: &'context DefMaps,
-    /// This set is initially created with all the trait impls in the crate.
-    /// As we traverse traits, will gather trait impls associated to those traits
-    /// that aren't associated to types in the current crate.
-    /// As we find structs and enums, we'll gather trait impls associated to those types.
-    /// Because a trait impl might be associated to multiple types, once we link a trait
-    /// impl to a type we'll remove it from this set.
+    /// All trait implementations in the current crate.
     trait_impls: HashSet<TraitImplId>,
 }
 
@@ -109,7 +119,7 @@ impl<'context> ItemBuilder<'context> {
         Self { crate_id, interner, def_maps, trait_impls }
     }
 
-    pub(super) fn build_module(&mut self, module_id: ModuleId) -> Item {
+    pub(super) fn build_module(&mut self, module_id: ModuleId) -> Module {
         let attributes = self.interner.try_module_attributes(module_id);
         let name = attributes.map(|attributes| attributes.name.clone());
         let module_data = &self.def_maps[&self.crate_id][module_id.local_id];
@@ -165,7 +175,7 @@ impl<'context> ItemBuilder<'context> {
             })
             .collect();
 
-        Item::Module(Module { id: module_id, name, is_contract, imports, items })
+        Module { id: module_id, name, is_contract, imports, items }
     }
 
     fn module_def_id_location(&self, module_def_id: ModuleDefId) -> Location {
@@ -176,7 +186,7 @@ impl<'context> ItemBuilder<'context> {
 
     fn build_module_def_id(&mut self, module_def_id: ModuleDefId) -> Option<Item> {
         Some(match module_def_id {
-            ModuleDefId::ModuleId(module_id) => self.build_module(module_id),
+            ModuleDefId::ModuleId(module_id) => Item::Module(self.build_module(module_id)),
             ModuleDefId::TypeId(type_id) => self.build_data_type(type_id),
             ModuleDefId::TypeAliasId(type_alias_id) => Item::TypeAlias(type_alias_id),
             ModuleDefId::TraitId(trait_id) => self.build_trait(trait_id),
@@ -192,7 +202,7 @@ impl<'context> ItemBuilder<'context> {
         let impls = if let Some(methods) =
             self.interner.get_type_methods(&Type::DataType(data_type.clone(), vec![]))
         {
-            self.build_data_type_impls(methods.values())
+            self.build_impls(methods.values())
         } else {
             Vec::new()
         };
@@ -203,10 +213,7 @@ impl<'context> ItemBuilder<'context> {
         Item::DataType(DataType { id: type_id, impls, trait_impls })
     }
 
-    fn build_data_type_impls<'a, 'b>(
-        &'a mut self,
-        methods: impl Iterator<Item = &'b Methods>,
-    ) -> Vec<Impl> {
+    fn build_impls<'a, 'b>(&'a mut self, methods: impl Iterator<Item = &'b Methods>) -> Vec<Impl> {
         // Gather all impl methods
         // First split methods by impl methods and trait impl methods
         let mut impl_methods = Vec::new();
@@ -279,25 +286,18 @@ impl<'context> ItemBuilder<'context> {
         trait_impls.into_iter().map(|(trait_impl, _)| self.build_trait_impl(trait_impl)).collect()
     }
 
-    /// Builds trait impls for traits, but only when those impls are
-    /// for types outside of the current crate as they are likely defined next
-    /// to the trait.
     fn build_trait_impls_for_trait(&mut self, trait_id: TraitId) -> Vec<TraitImpl> {
-        let mut trait_impls = self
-            .trait_impls
-            .iter()
-            .filter_map(|trait_impl_id| {
-                let trait_impl = self.interner.get_trait_implementation(*trait_impl_id);
-                let trait_impl = trait_impl.borrow();
-                if trait_impl.trait_id == trait_id
-                    && self.type_only_mention_types_outside_current_crate(&trait_impl.typ)
-                {
-                    Some((*trait_impl_id, trait_impl.location))
-                } else {
-                    None
-                }
-            })
-            .collect::<Vec<_>>();
+        let mut trait_impls = Vec::new();
+
+        for trait_impl_id in &self.trait_impls {
+            let trait_impl = self.interner.get_trait_implementation(*trait_impl_id);
+            let trait_impl = trait_impl.borrow();
+            if trait_impl.trait_id != trait_id {
+                continue;
+            }
+
+            trait_impls.push((*trait_impl_id, trait_impl.location));
+        }
 
         self.sort_trait_impls(&mut trait_impls);
 
@@ -314,11 +314,9 @@ impl<'context> ItemBuilder<'context> {
     }
 
     fn build_trait_impl(&mut self, trait_impl_id: TraitImplId) -> TraitImpl {
-        // Remove the trait impl from the set so we don't show it again
-        self.trait_impls.remove(&trait_impl_id);
-
         let trait_impl = self.interner.get_trait_implementation(trait_impl_id);
         let trait_impl = trait_impl.borrow();
+        let external_types = self.type_only_mention_types_outside_current_crate(&trait_impl.typ);
 
         let mut type_var_names = BTreeSet::new();
         for generic in &trait_impl.trait_generics {
@@ -330,6 +328,7 @@ impl<'context> ItemBuilder<'context> {
             generics: type_var_names,
             id: trait_impl_id,
             methods: trait_impl.methods.clone(),
+            external_types,
         }
     }
 
@@ -414,6 +413,85 @@ impl<'context> ItemBuilder<'context> {
             | Type::NamedGeneric(..)
             | Type::Error => true,
         }
+    }
+
+    pub(super) fn add_primitive_types(&mut self, items: &mut Vec<(ItemVisibility, Item)>) {
+        self.add_primitive_type(Type::Bool, items);
+        self.add_primitive_type(Type::Integer(Signedness::Unsigned, IntegerBitSize::One), items);
+        self.add_primitive_type(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight), items);
+        self.add_primitive_type(
+            Type::Integer(Signedness::Unsigned, IntegerBitSize::Sixteen),
+            items,
+        );
+        self.add_primitive_type(
+            Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo),
+            items,
+        );
+        self.add_primitive_type(
+            Type::Integer(Signedness::Unsigned, IntegerBitSize::SixtyFour),
+            items,
+        );
+        self.add_primitive_type(
+            Type::Integer(Signedness::Unsigned, IntegerBitSize::HundredTwentyEight),
+            items,
+        );
+        self.add_primitive_type(Type::Integer(Signedness::Signed, IntegerBitSize::Eight), items);
+        self.add_primitive_type(Type::Integer(Signedness::Signed, IntegerBitSize::Sixteen), items);
+        self.add_primitive_type(
+            Type::Integer(Signedness::Signed, IntegerBitSize::ThirtyTwo),
+            items,
+        );
+        self.add_primitive_type(
+            Type::Integer(Signedness::Signed, IntegerBitSize::SixtyFour),
+            items,
+        );
+        self.add_primitive_type(Type::FieldElement, items);
+        self.add_primitive_type(Type::String(Box::new(Type::Error)), items);
+        self.add_primitive_type(
+            Type::FmtString(Box::new(Type::Error), Box::new(Type::Error)),
+            items,
+        );
+        self.add_primitive_type(Type::Array(Box::new(Type::Error), Box::new(Type::Error)), items);
+        self.add_primitive_type(Type::Slice(Box::new(Type::Error)), items);
+        for quoted_type in QuotedType::iter() {
+            self.add_primitive_type(Type::Quoted(quoted_type), items);
+        }
+    }
+
+    fn add_primitive_type(&mut self, typ: Type, items: &mut Vec<(ItemVisibility, Item)>) {
+        let mut impls = if let Some(methods) = self.interner.get_type_methods(&typ) {
+            self.build_impls(methods.values())
+        } else {
+            Vec::new()
+        };
+        if matches!(typ, Type::Bool | Type::Integer(..) | Type::FieldElement) {
+            // Numeric types seem to share all Field impls
+            impls.retain(|impl_| impl_.typ == typ);
+        }
+
+        let trait_impls = self.build_primitive_type_trait_impls(&typ);
+        let primitive_type = PrimitiveType { typ: typ.clone(), impls, trait_impls };
+        items.push((ItemVisibility::Public, Item::PrimitiveType(primitive_type)));
+    }
+
+    fn build_primitive_type_trait_impls(&mut self, primitive_type: &Type) -> Vec<TraitImpl> {
+        let mut trait_impls = self
+            .trait_impls
+            .iter()
+            .filter_map(|trait_impl_id| {
+                let trait_impl = self.interner.get_trait_implementation(*trait_impl_id);
+                let trait_impl = trait_impl.borrow();
+                if type_mentions_primitive_type(&trait_impl.typ, primitive_type) {
+                    Some((*trait_impl_id, trait_impl.location))
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+
+        self.sort_trait_impls(&mut trait_impls);
+
+        trait_impls.into_iter().map(|(trait_impl, _)| self.build_trait_impl(trait_impl)).collect()
     }
 }
 
@@ -520,6 +598,62 @@ fn type_mentions_data_type(typ: &Type, data_type: &crate::DataType) -> bool {
         Type::Forall(_, typ) => type_mentions_data_type(typ, data_type),
         Type::InfixExpr(lhs, _, rhs, _) => {
             type_mentions_data_type(lhs, data_type) || type_mentions_data_type(rhs, data_type)
+        }
+        Type::Unit
+        | Type::Bool
+        | Type::Integer(..)
+        | Type::FieldElement
+        | Type::String(_)
+        | Type::Quoted(_)
+        | Type::Constant(..)
+        | Type::TypeVariable(..)
+        | Type::NamedGeneric(..)
+        | Type::Error => false,
+    }
+}
+
+fn type_mentions_primitive_type(typ: &Type, target_type: &Type) -> bool {
+    if typ == target_type {
+        return true;
+    }
+
+    match typ {
+        Type::Array(length, typ) => {
+            type_mentions_primitive_type(length, target_type)
+                || type_mentions_primitive_type(typ, target_type)
+        }
+        Type::Slice(typ) => type_mentions_primitive_type(typ, target_type),
+        Type::FmtString(length, typ) => {
+            type_mentions_primitive_type(length, target_type)
+                || type_mentions_primitive_type(typ, target_type)
+        }
+        Type::Tuple(types) => {
+            types.iter().any(|typ| type_mentions_primitive_type(typ, target_type))
+        }
+        Type::DataType(_, generics) => {
+            generics.iter().any(|typ| type_mentions_primitive_type(typ, target_type))
+        }
+        Type::Alias(_type_alias, generics) => {
+            generics.iter().any(|typ| type_mentions_primitive_type(typ, target_type))
+        }
+        Type::TraitAsType(_, _, generics) => {
+            generics.ordered.iter().any(|typ| type_mentions_primitive_type(typ, target_type))
+                || generics
+                    .named
+                    .iter()
+                    .any(|named_type| type_mentions_primitive_type(&named_type.typ, target_type))
+        }
+        Type::CheckedCast { from: _, to } => type_mentions_primitive_type(to, target_type),
+        Type::Function(args, ret, env, _) => {
+            args.iter().any(|typ| type_mentions_primitive_type(typ, target_type))
+                || type_mentions_primitive_type(ret, target_type)
+                || type_mentions_primitive_type(env, target_type)
+        }
+        Type::Reference(typ, _) => type_mentions_primitive_type(typ, target_type),
+        Type::Forall(_, typ) => type_mentions_primitive_type(typ, target_type),
+        Type::InfixExpr(lhs, _, rhs, _) => {
+            type_mentions_primitive_type(lhs, target_type)
+                || type_mentions_primitive_type(rhs, target_type)
         }
         Type::Unit
         | Type::Bool
