@@ -2823,7 +2823,8 @@ impl std::fmt::Debug for Type {
             },
             Type::TypeVariable(var) => {
                 let binding = &var.1;
-                if let TypeBinding::Unbound(_, type_var_kind) = &*binding.borrow() {
+                let binding = &*binding.borrow();
+                if let TypeBinding::Unbound(_, type_var_kind) = binding {
                     match type_var_kind {
                         Kind::Any | Kind::Normal => write!(f, "{var:?}"),
                         Kind::IntegerOrField => write!(f, "IntOrField{binding:?}"),
@@ -2831,7 +2832,7 @@ impl std::fmt::Debug for Type {
                         Kind::Numeric(typ) => write!(f, "Numeric({binding:?}: {typ:?})"),
                     }
                 } else {
-                    write!(f, "{:?}", binding.borrow())
+                    write!(f, "{:?}", binding)
                 }
             }
             Type::DataType(s, args) => {
