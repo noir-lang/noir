@@ -269,7 +269,7 @@ impl Elaborator<'_> {
             typ,
             fields,
             location,
-            expected_type.clone(),
+            actual_type,
             definition,
             mutable,
             new_definitions,
