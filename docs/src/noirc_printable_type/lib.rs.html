@@ -662,7 +662,68 @@
 <a href="#661" id="661">661</a>
 <a href="#662" id="662">662</a>
 <a href="#663" id="663">663</a>
-<a href="#664" id="664">664</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#664" id="664">664</a>
+<a href="#665" id="665">665</a>
+<a href="#666" id="666">666</a>
+<a href="#667" id="667">667</a>
+<a href="#668" id="668">668</a>
+<a href="#669" id="669">669</a>
+<a href="#670" id="670">670</a>
+<a href="#671" id="671">671</a>
+<a href="#672" id="672">672</a>
+<a href="#673" id="673">673</a>
+<a href="#674" id="674">674</a>
+<a href="#675" id="675">675</a>
+<a href="#676" id="676">676</a>
+<a href="#677" id="677">677</a>
+<a href="#678" id="678">678</a>
+<a href="#679" id="679">679</a>
+<a href="#680" id="680">680</a>
+<a href="#681" id="681">681</a>
+<a href="#682" id="682">682</a>
+<a href="#683" id="683">683</a>
+<a href="#684" id="684">684</a>
+<a href="#685" id="685">685</a>
+<a href="#686" id="686">686</a>
+<a href="#687" id="687">687</a>
+<a href="#688" id="688">688</a>
+<a href="#689" id="689">689</a>
+<a href="#690" id="690">690</a>
+<a href="#691" id="691">691</a>
+<a href="#692" id="692">692</a>
+<a href="#693" id="693">693</a>
+<a href="#694" id="694">694</a>
+<a href="#695" id="695">695</a>
+<a href="#696" id="696">696</a>
+<a href="#697" id="697">697</a>
+<a href="#698" id="698">698</a>
+<a href="#699" id="699">699</a>
+<a href="#700" id="700">700</a>
+<a href="#701" id="701">701</a>
+<a href="#702" id="702">702</a>
+<a href="#703" id="703">703</a>
+<a href="#704" id="704">704</a>
+<a href="#705" id="705">705</a>
+<a href="#706" id="706">706</a>
+<a href="#707" id="707">707</a>
+<a href="#708" id="708">708</a>
+<a href="#709" id="709">709</a>
+<a href="#710" id="710">710</a>
+<a href="#711" id="711">711</a>
+<a href="#712" id="712">712</a>
+<a href="#713" id="713">713</a>
+<a href="#714" id="714">714</a>
+<a href="#715" id="715">715</a>
+<a href="#716" id="716">716</a>
+<a href="#717" id="717">717</a>
+<a href="#718" id="718">718</a>
+<a href="#719" id="719">719</a>
+<a href="#720" id="720">720</a>
+<a href="#721" id="721">721</a>
+<a href="#722" id="722">722</a>
+<a href="#723" id="723">723</a>
+<a href="#724" id="724">724</a>
+<a href="#725" id="725">725</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 
 </span><span class="kw">use </span>std::{collections::BTreeMap, str};
@@ -776,6 +837,7 @@
     FmtString(String, Vec&lt;PrintableValue&lt;F&gt;&gt;),
     Vec { array_elements: Vec&lt;PrintableValue&lt;F&gt;&gt;, is_slice: bool },
     Struct(BTreeMap&lt;String, PrintableValue&lt;F&gt;&gt;),
+    Enum { tag: usize, elements: Vec&lt;PrintableValue&lt;F&gt;&gt; },
     Other,
 }
 
@@ -802,13 +864,22 @@
     }
 }
 
-<span class="kw">fn </span>to_string&lt;F: AcirField&gt;(value: <span class="kw-2">&amp;</span>PrintableValue&lt;F&gt;, typ: <span class="kw-2">&amp;</span>PrintableType) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
+<span class="doccomment">/// Format a given [PrintableValue] according to an expected [PrintableType].
+///
+/// Returns `None` if the value is not what we expect based on the type.
+</span><span class="kw">fn </span>to_string&lt;F: AcirField&gt;(value: <span class="kw-2">&amp;</span>PrintableValue&lt;F&gt;, typ: <span class="kw-2">&amp;</span>PrintableType) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
     <span class="kw">let </span><span class="kw-2">mut </span>output = String::new();
-    <span class="kw">match </span>(value, typ) {
-        (PrintableValue::Field(f), PrintableType::Field) =&gt; {
+    <span class="kw">match </span>typ {
+        PrintableType::Field =&gt; {
+            <span class="kw">let </span>PrintableValue::Field(f) = value <span class="kw">else </span>{
+                <span class="kw">return </span><span class="prelude-val">None</span>;
+            };
             output.push_str(<span class="kw-2">&amp;</span>f.to_short_hex());
         }
-        (PrintableValue::Field(f), PrintableType::UnsignedInteger { width }) =&gt; {
+        PrintableType::UnsignedInteger { width } =&gt; {
+            <span class="kw">let </span>PrintableValue::Field(f) = value <span class="kw">else </span>{
+                <span class="kw">return </span><span class="prelude-val">None</span>;
+            };
             <span class="comment">// Retain the lower 'width' bits
             </span><span class="macro">debug_assert!</span>(
                 <span class="kw-2">*</span>width &lt;= <span class="number">128</span>,
@@ -821,7 +892,10 @@
 
             output.push_str(<span class="kw-2">&amp;</span>uint_cast.to_string());
         }
-        (PrintableValue::Field(f), PrintableType::SignedInteger { width }) =&gt; {
+        PrintableType::SignedInteger { width } =&gt; {
+            <span class="kw">let </span>PrintableValue::Field(f) = value <span class="kw">else </span>{
+                <span class="kw">return </span><span class="prelude-val">None</span>;
+            };
             <span class="kw">let </span><span class="kw-2">mut </span>uint = f.to_u128(); <span class="comment">// Interpret as uint
 
             // Extract sign relative to width of input
@@ -832,24 +906,33 @@
 
             output.push_str(<span class="kw-2">&amp;</span>uint.to_string());
         }
-        (PrintableValue::Field(f), PrintableType::Boolean) =&gt; {
+        PrintableType::Boolean =&gt; {
+            <span class="kw">let </span>PrintableValue::Field(f) = value <span class="kw">else </span>{
+                <span class="kw">return </span><span class="prelude-val">None</span>;
+            };
             <span class="kw">if </span>f.is_one() {
                 output.push_str(<span class="string">"true"</span>);
             } <span class="kw">else </span>{
                 output.push_str(<span class="string">"false"</span>);
             }
         }
-        (PrintableValue::Field(<span class="kw">_</span>), PrintableType::Function { .. }) =&gt; {
+        PrintableType::Function { .. } =&gt; {
+            <span class="kw">let </span>PrintableValue::Field(<span class="kw">_</span>) = value <span class="kw">else </span>{
+                <span class="kw">return </span><span class="prelude-val">None</span>;
+            };
             output.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"&lt;&lt;{typ}&gt;&gt;"</span>));
         }
-        (<span class="kw">_</span>, PrintableType::Reference { mutable: <span class="bool-val">false</span>, .. }) =&gt; {
-            output.push_str(<span class="string">"&lt;&lt;ref&gt;&gt;"</span>);
+        PrintableType::Reference { mutable, .. } =&gt; {
+            <span class="kw">if </span><span class="kw-2">*</span>mutable {
+                output.push_str(<span class="string">"&lt;&lt;mutable ref&gt;&gt;"</span>);
+            } <span class="kw">else </span>{
+                output.push_str(<span class="string">"&lt;&lt;ref&gt;&gt;"</span>);
+            }
         }
-        (<span class="kw">_</span>, PrintableType::Reference { mutable: <span class="bool-val">true</span>, .. }) =&gt; {
-            output.push_str(<span class="string">"&lt;&lt;mutable ref&gt;&gt;"</span>);
-        }
-        (PrintableValue::Vec { array_elements, is_slice }, PrintableType::Array { typ, .. })
-        | (PrintableValue::Vec { array_elements, is_slice }, PrintableType::Slice { typ }) =&gt; {
+        PrintableType::Array { typ, .. } | PrintableType::Slice { typ } =&gt; {
+            <span class="kw">let </span>PrintableValue::Vec { array_elements, is_slice } = value <span class="kw">else </span>{
+                <span class="kw">return </span><span class="prelude-val">None</span>;
+            };
             <span class="kw">if </span><span class="kw-2">*</span>is_slice {
                 output.push(<span class="string">'&amp;'</span>);
             }
@@ -866,12 +949,16 @@
             }
             output.push(<span class="string">']'</span>);
         }
-
-        (PrintableValue::String(s), PrintableType::String { .. }) =&gt; {
+        PrintableType::String { .. } =&gt; {
+            <span class="kw">let </span>PrintableValue::String(s) = value <span class="kw">else </span>{
+                <span class="kw">return </span><span class="prelude-val">None</span>;
+            };
             output.push_str(s);
         }
-
-        (PrintableValue::FmtString(template, values), PrintableType::FmtString { typ, .. }) =&gt; {
+        PrintableType::FmtString { typ, .. } =&gt; {
+            <span class="kw">let </span>PrintableValue::FmtString(template, values) = value <span class="kw">else </span>{
+                <span class="kw">return </span><span class="prelude-val">None</span>;
+            };
             <span class="kw">let </span>PrintableType::Tuple { types } = typ.as_ref() <span class="kw">else </span>{
                 <span class="macro">panic!</span>(<span class="string">"Expected type to be a Tuple for FmtString"</span>);
             };
@@ -879,8 +966,10 @@
             <span class="kw">let </span>args = values.iter().cloned().zip(types.iter().cloned()).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
             output.push_str(<span class="kw-2">&amp;</span>PrintableValueDisplay::FmtString(template, args).to_string());
         }
-
-        (PrintableValue::Struct(map), PrintableType::Struct { name, fields, .. }) =&gt; {
+        PrintableType::Struct { name, fields, .. } =&gt; {
+            <span class="kw">let </span>PrintableValue::Struct(map) = value <span class="kw">else </span>{
+                <span class="kw">return </span><span class="prelude-val">None</span>;
+            };
             output.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{name} {{ "</span>));
 
             <span class="kw">let </span><span class="kw-2">mut </span>fields = fields.iter().peekable();
@@ -897,8 +986,10 @@
 
             output.push_str(<span class="string">" }"</span>);
         }
-
-        (PrintableValue::Vec { array_elements, .. }, PrintableType::Tuple { types }) =&gt; {
+        PrintableType::Tuple { types } =&gt; {
+            <span class="kw">let </span>PrintableValue::Vec { array_elements, .. } = value <span class="kw">else </span>{
+                <span class="kw">return </span><span class="prelude-val">None</span>;
+            };
             output.push(<span class="string">'('</span>);
             <span class="kw">let </span><span class="kw-2">mut </span>elements = array_elements.iter().zip(types).peekable();
             <span class="kw">while let </span><span class="prelude-val">Some</span>((value, typ)) = elements.next() {
@@ -914,11 +1005,33 @@
             }
             output.push(<span class="string">')'</span>);
         }
-
-        (<span class="kw">_</span>, PrintableType::Unit) =&gt; output.push_str(<span class="string">"()"</span>),
-
-        <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">None</span>,
-    };
+        PrintableType::Unit =&gt; {
+            output.push_str(<span class="string">"()"</span>);
+        }
+        PrintableType::Enum { name, variants } =&gt; {
+            <span class="kw">let </span>PrintableValue::Enum { tag, elements } = value <span class="kw">else </span>{
+                <span class="kw">return </span><span class="prelude-val">None</span>;
+            };
+            <span class="kw">let </span>(variant_name, types) = <span class="kw-2">&amp;</span>variants[<span class="kw-2">*</span>tag];
+            <span class="kw">let </span>has_fields = !elements.is_empty();
+            output.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{name}::{variant_name}"</span>));
+            <span class="kw">if </span>has_fields {
+                output.push(<span class="string">'('</span>);
+            }
+            <span class="kw">let </span><span class="kw-2">mut </span>elements = elements.iter().zip(types).peekable();
+            <span class="kw">while let </span><span class="prelude-val">Some</span>((value, typ)) = elements.next() {
+                output.push_str(
+                    <span class="kw-2">&amp;</span>PrintableValueDisplay::Plain(value.clone(), typ.clone()).to_string(),
+                );
+                <span class="kw">if </span>elements.peek().is_some() {
+                    output.push_str(<span class="string">", "</span>);
+                }
+            }
+            <span class="kw">if </span>has_fields {
+                output.push(<span class="string">')'</span>);
+            }
+        }
+    }
 
     <span class="prelude-val">Some</span>(output)
 }
@@ -1082,15 +1195,24 @@
         PrintableType::Unit =&gt; PrintableValue::Field(F::zero()),
         PrintableType::Enum { name: <span class="kw">_</span>, variants } =&gt; {
             <span class="kw">let </span>tag = field_iterator.next().expect(<span class="string">"not enough data: expected enum tag"</span>);
-            <span class="kw">let </span>tag_value = tag.to_u128() <span class="kw">as </span>usize;
+            <span class="kw">let </span>tag = tag.to_u128() <span class="kw">as </span>usize;
+            <span class="comment">// A serialized enum looks as follows:
+            //  [tag, variant0.field0, ..., variant0.fieldN, variant1.field0, ..., variant1.fieldM, ...]
+            // So the number of fields are always the same, and we have to consume all of them
+            // to make sure the next item will resume parsing from the right index;
+            // the tag tells us which ones are non-default values.
 
-            <span class="kw">let </span>(_name, variant_types) = <span class="kw-2">&amp;</span>variants[tag_value];
-            PrintableValue::Vec {
-                array_elements: vecmap(variant_types, |typ| {
-                    decode_printable_value(field_iterator, typ)
-                }),
-                is_slice: <span class="bool-val">false</span>,
+            // Striving to keep only the non-default values in memory.
+            </span><span class="kw">let </span><span class="kw-2">mut </span>elements = Vec::with_capacity(variants[tag].<span class="number">1</span>.len());
+            <span class="kw">for </span>(i, (<span class="kw">_</span>, types)) <span class="kw">in </span>variants.iter().enumerate() {
+                <span class="kw">for </span>typ <span class="kw">in </span>types {
+                    <span class="kw">let </span>value = decode_printable_value(field_iterator, typ);
+                    <span class="kw">if </span>i == tag {
+                        elements.push(value);
+                    }
+                }
             }
+            PrintableValue::Enum { tag, elements }
         }
     }
 }
