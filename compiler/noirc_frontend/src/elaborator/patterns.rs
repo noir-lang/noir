@@ -67,7 +67,6 @@ impl Elaborator<'_> {
 
     /// Elaborate the (potentially mutable) pattern and add the variables
     /// it created to the scope if necessary.
-    #[allow(clippy::too_many_arguments)]
     fn elaborate_pattern_mut(
         &mut self,
         pattern: Pattern,
