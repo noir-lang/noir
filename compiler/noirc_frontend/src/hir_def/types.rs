@@ -1383,7 +1383,7 @@ impl Type {
                     if let TypeBinding::Bound(typ) = &*binding.borrow() {
                         typ.is_abi_compatible()
                     } else {
-                        false
+                        true
                     }
                 } else {
                     false
