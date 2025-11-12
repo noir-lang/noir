@@ -607,13 +607,47 @@ impl<'interner> Monomorphizer<'interner> {
                     .2
                     .map(|assert_msg_expr| {
                         self.expr(assert_msg_expr).map(|expr| {
-                            (expr, self.interner.id_type(assert_msg_expr).follow_bindings())
+                            let typ = self.interner.id_type(assert_msg_expr).follow_bindings();
+                            let loc = self.interner.expr_location(&assert_msg_expr);
+                            (expr, typ, loc)
                         })
                     })
-                    .transpose()?
-                    .map(Box::new);
+                    .transpose()?;
 
-                ast::Expression::Constrain(Box::new(expr), location, assert_message)
+                if let Some((_, typ, location)) = assert_message.as_ref() {
+                    match typ {
+                        Type::FmtString(_, items) => match items.as_ref() {
+                            Type::Tuple(items) => {
+                                for item in items {
+                                    if !item.is_message_compatible() {
+                                        return Err(
+                                            MonomorphizationError::InvalidTypeInErrorMessage {
+                                                typ: item.to_string(),
+                                                location: location.clone(),
+                                            },
+                                        );
+                                    }
+                                }
+                            }
+                            Type::Unit => {}
+                            other => unreachable!("fmtstr only has a tuple or a unit; got {other}"),
+                        },
+                        other => {
+                            if !other.is_message_compatible() {
+                                return Err(MonomorphizationError::InvalidTypeInErrorMessage {
+                                    typ: other.to_string(),
+                                    location: location.clone(),
+                                });
+                            }
+                        }
+                    }
+                }
+
+                ast::Expression::Constrain(
+                    Box::new(expr),
+                    location,
+                    assert_message.map(|(msg, typ, _)| (msg, typ)).map(Box::new),
+                )
             }
 
             HirExpression::Cast(cast) => {
