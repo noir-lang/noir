@@ -406,11 +406,12 @@ fn struct_pattern_with_mismatched_type() {
     let src = r#"
     struct Foo { x: Field }
     struct Bar { y: u32 }
-  
+
     fn main() {
         let value: Bar = Bar { y: 5 };
         let Foo { x } = value;
             ^^^^^^^^^ Cannot assign an expression of type Foo to a value of type Bar
+        // x should have type Field (from Foo), so the next line should error
         let _check: u32 = x;
                           ^ Expected type u32, found type Field
     }

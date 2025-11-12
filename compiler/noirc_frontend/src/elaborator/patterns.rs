@@ -5,7 +5,7 @@ use noirc_errors::{Located, Location};
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
-    DataType, Kind, Shared, Type, TypeAlias,
+    DataType, Kind, Type, TypeAlias,
     ast::{ERROR_IDENT, Ident, ItemVisibility, Path, PathSegment, Pattern},
     elaborator::Turbofish,
     hir::{
@@ -264,12 +264,10 @@ impl Elaborator<'_> {
             source: Source::Assignment,
         });
 
-        let typ = struct_type.clone();
         let fields = self.resolve_constructor_pattern_fields(
-            typ,
             fields,
             location,
-            actual_type,
+            actual_type.clone(),
             definition,
             mutable,
             new_definitions,
@@ -284,32 +282,33 @@ impl Elaborator<'_> {
             self.interner.add_struct_member_reference(struct_id, field_index, reference_location);
         }
 
-        HirPattern::Struct(expected_type, fields, location)
+        HirPattern::Struct(actual_type, fields, location)
     }
 
     /// Resolve all the fields of a struct constructor expression.
     /// Ensures all fields are present, none are repeated, and all
     /// are part of the struct.
-    #[allow(clippy::too_many_arguments)]
     fn resolve_constructor_pattern_fields(
         &mut self,
-        struct_type: Shared<DataType>,
         fields: Vec<(Ident, Pattern)>,
         location: Location,
-        expected_type: Type,
+        typ: Type,
         definition: DefinitionKind,
         mutable: Option<Location>,
         new_definitions: &mut Vec<HirIdent>,
     ) -> Vec<(Ident, HirPattern)> {
         let mut ret = Vec::with_capacity(fields.len());
         let mut seen_fields = HashSet::default();
+        let Type::DataType(struct_type, _) = &typ else {
+            unreachable!("Should be validated as struct before getting here")
+        };
         let mut unseen_fields = struct_type
             .borrow()
             .field_names()
             .expect("This type should already be validated to be a struct");
 
         for (field, pattern) in fields {
-            let (field_type, visibility) = expected_type
+            let (field_type, visibility) = typ
                 .get_field_type_and_visibility(field.as_str())
                 .unwrap_or((Type::Error, ItemVisibility::Public));
             let resolved = self.elaborate_pattern_mut(
