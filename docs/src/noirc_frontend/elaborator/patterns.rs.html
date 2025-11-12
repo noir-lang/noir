@@ -1294,7 +1294,7 @@
             <span class="kw">let </span>location = located_type.location();
             <span class="kw">let </span>typ = located_type.contents;
             <span class="kw">let </span>typ = typ.substitute_kind_any_with_kind(<span class="kw-2">&amp;</span>kind);
-            <span class="self">self</span>.check_kind(typ, <span class="kw-2">&amp;</span>kind, location)
+            <span class="self">self</span>.check_type_kind(typ, <span class="kw-2">&amp;</span>kind, location)
         })
     }
 

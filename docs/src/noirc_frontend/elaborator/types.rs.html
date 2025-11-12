@@ -2667,7 +2667,21 @@
 <a href="#2666" id="2666">2666</a>
 <a href="#2667" id="2667">2667</a>
 <a href="#2668" id="2668">2668</a>
-<a href="#2669" id="2669">2669</a></pre></div><pre class="rust"><code><span class="doccomment">//! Type resolution, unification, and method resolution (for both types and traits).
+<a href="#2669" id="2669">2669</a>
+<a href="#2670" id="2670">2670</a>
+<a href="#2671" id="2671">2671</a>
+<a href="#2672" id="2672">2672</a>
+<a href="#2673" id="2673">2673</a>
+<a href="#2674" id="2674">2674</a>
+<a href="#2675" id="2675">2675</a>
+<a href="#2676" id="2676">2676</a>
+<a href="#2677" id="2677">2677</a>
+<a href="#2678" id="2678">2678</a>
+<a href="#2679" id="2679">2679</a>
+<a href="#2680" id="2680">2680</a>
+<a href="#2681" id="2681">2681</a>
+<a href="#2682" id="2682">2682</a>
+<a href="#2683" id="2683">2683</a></pre></div><pre class="rust"><code><span class="doccomment">//! Type resolution, unification, and method resolution (for both types and traits).
 
 </span><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
 
@@ -2921,7 +2935,7 @@
             <span class="kw">_ </span>=&gt; (),
         }
 
-        <span class="self">self</span>.check_kind(resolved_type, kind, location)
+        <span class="self">self</span>.check_type_kind(resolved_type, kind, location)
     }
 
     <span class="doccomment">/// Resolve Self::Foo to an associated type on the current trait or trait impl
@@ -3374,11 +3388,11 @@
                 <span class="kw">if let </span>Type::Alias(alias, vec) = typ {
                     typ = alias.borrow().get_type(<span class="kw-2">&amp;</span>vec);
                 }
-                <span class="self">self</span>.check_kind(typ, expected_kind, location)
+                <span class="self">self</span>.check_type_kind(typ, expected_kind, location)
             }
             UnresolvedTypeExpression::Constant(int, suffix, _span) =&gt; {
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(suffix) = suffix {
-                    <span class="self">self</span>.check_kind(suffix.as_type(), expected_kind, location);
+                    <span class="self">self</span>.check_kind(suffix.as_kind(), expected_kind, location);
                 }
                 Type::Constant(int, expected_kind.clone())
             }
@@ -3427,13 +3441,14 @@
             }
             UnresolvedTypeExpression::AsTraitPath(path) =&gt; {
                 <span class="kw">let </span>typ = <span class="self">self</span>.resolve_as_trait_path(<span class="kw-2">*</span>path, wildcard_allowed);
-                <span class="self">self</span>.check_kind(typ, expected_kind, location)
+                <span class="self">self</span>.check_type_kind(typ, expected_kind, location)
             }
         }
     }
 
-    <span class="doccomment">/// Check that a [Type] unifies with an expected [Kind] and returned the unified result.
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>check_kind(
+    <span class="doccomment">/// Checks that the type's [Kind] matches the expected kind, issuing an error if it does not.
+    /// Returns `typ` unless an error occurs - in which case [Type::Error] is returned.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>check_type_kind(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         typ: Type,
         expected_kind: <span class="kw-2">&amp;</span>Kind,
@@ -3443,15 +3458,28 @@
             <span class="self">self</span>.push_err(TypeCheckError::CyclicType { typ, location });
             <span class="kw">return </span>Type::Error;
         }
-        <span class="kw">if </span>!typ.kind().unifies(expected_kind) {
+
+        <span class="kw">if </span><span class="self">self</span>.check_kind(typ.kind(), expected_kind, location) { typ } <span class="kw">else </span>{ Type::Error }
+    }
+
+    <span class="doccomment">/// Checks that `expr_kind` matches `expected_kind`, issuing an error if it does not.
+    /// Returns `true` if the kinds unify.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>check_kind(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        expr_kind: Kind,
+        expected_kind: <span class="kw-2">&amp;</span>Kind,
+        location: Location,
+    ) -&gt; bool {
+        <span class="kw">if </span>!expr_kind.unifies(expected_kind) {
             <span class="self">self</span>.push_err(TypeCheckError::TypeKindMismatch {
                 expected_kind: expected_kind.clone(),
-                expr_kind: typ.kind(),
+                expr_kind,
                 expr_location: location,
             });
-            <span class="kw">return </span>Type::Error;
-        }
-        typ
+            <span class="bool-val">false
+        </span>} <span class="kw">else </span>{
+            <span class="bool-val">true
+        </span>}
     }
 
     <span class="kw">fn </span>resolve_as_trait_path(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: AsTraitPath, wildcard_allowed: bool) -&gt; Type {

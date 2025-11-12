@@ -809,7 +809,23 @@
 <a href="#808" id="808">808</a>
 <a href="#809" id="809">809</a>
 <a href="#810" id="810">810</a>
-<a href="#811" id="811">811</a></pre></div><pre class="rust"><code><span class="doccomment">//! Defines the [Value] type, representing a compile-time value, used by the
+<a href="#811" id="811">811</a>
+<a href="#812" id="812">812</a>
+<a href="#813" id="813">813</a>
+<a href="#814" id="814">814</a>
+<a href="#815" id="815">815</a>
+<a href="#816" id="816">816</a>
+<a href="#817" id="817">817</a>
+<a href="#818" id="818">818</a>
+<a href="#819" id="819">819</a>
+<a href="#820" id="820">820</a>
+<a href="#821" id="821">821</a>
+<a href="#822" id="822">822</a>
+<a href="#823" id="823">823</a>
+<a href="#824" id="824">824</a>
+<a href="#825" id="825">825</a>
+<a href="#826" id="826">826</a>
+<a href="#827" id="827">827</a></pre></div><pre class="rust"><code><span class="doccomment">//! Defines the [Value] type, representing a compile-time value, used by the
 //! comptime interpreter when evaluating code.
 </span><span class="kw">use </span>std::{borrow::Cow, rc::Rc, vec};
 
@@ -1367,46 +1383,62 @@
             }
             Value::TypedExpr(TypedExpr::ExprId(expr_id)) =&gt; <span class="macro">vec!</span>[Token::UnquoteMarker(expr_id)],
             Value::Bool(bool) =&gt; <span class="macro">vec!</span>[Token::Bool(bool)],
-            Value::U1(bool) =&gt; <span class="macro">vec!</span>[Token::Int(u128::from(bool).into(), <span class="prelude-val">None</span>)],
+            Value::U1(bool) =&gt; {
+                <span class="macro">vec!</span>[Token::Int(u128::from(bool).into(), <span class="prelude-val">Some</span>(IntegerTypeSuffix::U1))]
+            }
             Value::U8(value) =&gt; {
-                <span class="macro">vec!</span>[Token::Int(u128::from(value).into(), <span class="prelude-val">None</span>)]
+                <span class="macro">vec!</span>[Token::Int(u128::from(value).into(), <span class="prelude-val">Some</span>(IntegerTypeSuffix::U8))]
             }
             Value::U16(value) =&gt; {
-                <span class="macro">vec!</span>[Token::Int(u128::from(value).into(), <span class="prelude-val">None</span>)]
+                <span class="macro">vec!</span>[Token::Int(u128::from(value).into(), <span class="prelude-val">Some</span>(IntegerTypeSuffix::U16))]
             }
             Value::U32(value) =&gt; {
-                <span class="macro">vec!</span>[Token::Int(u128::from(value).into(), <span class="prelude-val">None</span>)]
+                <span class="macro">vec!</span>[Token::Int(u128::from(value).into(), <span class="prelude-val">Some</span>(IntegerTypeSuffix::U32))]
             }
             Value::U64(value) =&gt; {
-                <span class="macro">vec!</span>[Token::Int(u128::from(value).into(), <span class="prelude-val">None</span>)]
+                <span class="macro">vec!</span>[Token::Int(u128::from(value).into(), <span class="prelude-val">Some</span>(IntegerTypeSuffix::U64))]
             }
-            Value::U128(value) =&gt; <span class="macro">vec!</span>[Token::Int(value.into(), <span class="prelude-val">None</span>)],
+            Value::U128(value) =&gt; {
+                <span class="macro">vec!</span>[Token::Int(value.into(), <span class="prelude-val">Some</span>(IntegerTypeSuffix::U128))]
+            }
             Value::I8(value) =&gt; {
                 <span class="kw">if </span>value &lt; <span class="number">0 </span>{
-                    <span class="macro">vec!</span>[Token::Minus, Token::Int((-value <span class="kw">as </span>u128).into(), <span class="prelude-val">None</span>)]
+                    <span class="macro">vec!</span>[
+                        Token::Minus,
+                        Token::Int((-value <span class="kw">as </span>u128).into(), <span class="prelude-val">Some</span>(IntegerTypeSuffix::I8)),
+                    ]
                 } <span class="kw">else </span>{
-                    <span class="macro">vec!</span>[Token::Int((value <span class="kw">as </span>u128).into(), <span class="prelude-val">None</span>)]
+                    <span class="macro">vec!</span>[Token::Int((value <span class="kw">as </span>u128).into(), <span class="prelude-val">Some</span>(IntegerTypeSuffix::I8))]
                 }
             }
             Value::I16(value) =&gt; {
                 <span class="kw">if </span>value &lt; <span class="number">0 </span>{
-                    <span class="macro">vec!</span>[Token::Minus, Token::Int((-value <span class="kw">as </span>u128).into(), <span class="prelude-val">None</span>)]
+                    <span class="macro">vec!</span>[
+                        Token::Minus,
+                        Token::Int((-value <span class="kw">as </span>u128).into(), <span class="prelude-val">Some</span>(IntegerTypeSuffix::I16)),
+                    ]
                 } <span class="kw">else </span>{
-                    <span class="macro">vec!</span>[Token::Int((value <span class="kw">as </span>u128).into(), <span class="prelude-val">None</span>)]
+                    <span class="macro">vec!</span>[Token::Int((value <span class="kw">as </span>u128).into(), <span class="prelude-val">Some</span>(IntegerTypeSuffix::I16))]
                 }
             }
             Value::I32(value) =&gt; {
                 <span class="kw">if </span>value &lt; <span class="number">0 </span>{
-                    <span class="macro">vec!</span>[Token::Minus, Token::Int((-value <span class="kw">as </span>u128).into(), <span class="prelude-val">None</span>)]
+                    <span class="macro">vec!</span>[
+                        Token::Minus,
+                        Token::Int((-value <span class="kw">as </span>u128).into(), <span class="prelude-val">Some</span>(IntegerTypeSuffix::I32)),
+                    ]
                 } <span class="kw">else </span>{
-                    <span class="macro">vec!</span>[Token::Int((value <span class="kw">as </span>u128).into(), <span class="prelude-val">None</span>)]
+                    <span class="macro">vec!</span>[Token::Int((value <span class="kw">as </span>u128).into(), <span class="prelude-val">Some</span>(IntegerTypeSuffix::I32))]
                 }
             }
             Value::I64(value) =&gt; {
                 <span class="kw">if </span>value &lt; <span class="number">0 </span>{
-                    <span class="macro">vec!</span>[Token::Minus, Token::Int((-value <span class="kw">as </span>u128).into(), <span class="prelude-val">None</span>)]
+                    <span class="macro">vec!</span>[
+                        Token::Minus,
+                        Token::Int((-value <span class="kw">as </span>u128).into(), <span class="prelude-val">Some</span>(IntegerTypeSuffix::I64)),
+                    ]
                 } <span class="kw">else </span>{
-                    <span class="macro">vec!</span>[Token::Int((value <span class="kw">as </span>u128).into(), <span class="prelude-val">None</span>)]
+                    <span class="macro">vec!</span>[Token::Int((value <span class="kw">as </span>u128).into(), <span class="prelude-val">Some</span>(IntegerTypeSuffix::I64))]
                 }
             }
             Value::Field(value) =&gt; {

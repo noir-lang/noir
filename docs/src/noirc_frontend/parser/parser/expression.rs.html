@@ -2241,7 +2241,9 @@
 <a href="#2240" id="2240">2240</a>
 <a href="#2241" id="2241">2241</a>
 <a href="#2242" id="2242">2242</a>
-<a href="#2243" id="2243">2243</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#2243" id="2243">2243</a>
+<a href="#2244" id="2244">2244</a>
+<a href="#2245" id="2245">2245</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
@@ -2491,8 +2493,10 @@
     <span class="kw">fn </span>parse_member_access_field_name(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Ident&gt; {
         <span class="kw">if let </span><span class="prelude-val">Some</span>(ident) = <span class="self">self</span>.eat_ident() {
             <span class="prelude-val">Some</span>(ident)
-        <span class="comment">// Using `None` because we don't want to allow integer type suffixes on tuple field names
-        </span>} <span class="kw">else if let </span><span class="prelude-val">Some</span>((int, <span class="prelude-val">None</span>)) = <span class="self">self</span>.eat_int() {
+        <span class="comment">// We allow integer type suffixes on tuple field names since this lets
+        // users unquote typed integers in macros to use as a tuple access expression.
+        // See https://github.com/noir-lang/noir/pull/10330#issuecomment-3499399843
+        </span>} <span class="kw">else if let </span><span class="prelude-val">Some</span>((int, <span class="kw">_</span>)) = <span class="self">self</span>.eat_int() {
             <span class="prelude-val">Some</span>(Ident::new(int.to_string(), <span class="self">self</span>.previous_token_location))
         } <span class="kw">else </span>{
             <span class="self">self</span>.push_error(
