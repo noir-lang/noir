@@ -1404,11 +1404,20 @@ impl Type {
             | Type::TraitAsType(..)
             | Type::NamedGeneric(..)
             | Type::Forall(..)
-            | Type::Quoted(_)
             | Type::Slice(_)
             | Type::Function(_, _, _, _)
             | Type::FmtString(_, _)
             | Type::Reference(..) => false,
+
+            // If quoted types got as far as ABI generation, they would cause a panic,
+            // but it's more likely that we encounter them during macro expansion,
+            // seemingly both in and out of a comptime context under the `#[aztec]` macro.
+            // We'd need more investigation around them, so for now just let it pass.
+            Type::Quoted(quoted) => {
+                // These are the two types that appear in noir-contracts.
+                // A static string becomes CtString, a format string is Quoted.
+                matches!(quoted, QuotedType::CtString | QuotedType::Quoted)
+            }
         }
     }
 
