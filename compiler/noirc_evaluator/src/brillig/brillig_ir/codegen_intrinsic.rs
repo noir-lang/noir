@@ -59,15 +59,18 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         );
     }
 
-    /// Issues a to_radix instruction. This instruction will write the modulus of the source register
-    /// And the radix register limb_count times to the target vector.
+    /// Issues a `to_radix` instruction. This instruction will write the modulus of the `source_field` register
+    /// and the `radix` register `target_array`, with the number of limbs given by the size of `target_array`.
+    ///
+    /// If `output_bits` is true, it generates bit limbs, otherwise it generates byte limbs.
+    /// If `little_endian` is true, then the `target_array` will contain the results in Little Endian order.
     pub(crate) fn codegen_to_radix(
         &mut self,
         source_field: SingleAddrVariable,
         target_array: BrilligArray,
         radix: SingleAddrVariable,
         little_endian: bool,
-        output_bits: bool, // If true will generate bit limbs, if false will generate byte limbs
+        output_bits: bool,
     ) {
         assert!(source_field.bit_size == F::max_num_bits());
         assert!(radix.bit_size == 32);
@@ -87,8 +90,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         });
 
         if little_endian {
-            let items_len = self.make_usize_constant_instruction(target_array.size.into());
-            self.codegen_array_reverse(*pointer, items_len.address);
+            self.codegen_array_reverse(*pointer, num_limbs.address);
         }
     }
 }
