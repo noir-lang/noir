@@ -578,7 +578,7 @@ mod tests {
             panic!("Expected let statement");
         };
         assert_eq!(let_statement.pattern.to_string(), "mut x");
-        assert!(matches!(let_statement.r#type.typ, UnresolvedTypeData::Unspecified));
+        assert!(let_statement.r#type.is_none());
         assert_eq!(let_statement.expression.to_string(), "1");
         assert!(!let_statement.comptime);
 
