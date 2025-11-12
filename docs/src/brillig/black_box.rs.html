@@ -145,11 +145,13 @@
 <a href="#144" id="144">144</a>
 <a href="#145" id="145">145</a>
 <a href="#146" id="146">146</a>
-<a href="#147" id="147">147</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{HeapArray, MemoryAddress, opcodes::HeapVector};
+<a href="#147" id="147">147</a>
+<a href="#148" id="148">148</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{HeapArray, MemoryAddress, opcodes::HeapVector};
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 
 <span class="doccomment">/// These opcodes provide an equivalent of ACIR blackbox functions.
 /// They are implemented as native functions in the VM.
+/// For more information, see the ACIR blackbox functions in acir::circuit::opcodes::BlackBoxFuncCall
 </span><span class="attr">#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Hash)]
 #[cfg_attr(feature = <span class="string">"arb"</span>, derive(proptest_derive::Arbitrary))]
 </span><span class="kw">pub enum </span>BlackBoxOp {

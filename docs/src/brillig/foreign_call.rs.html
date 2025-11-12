@@ -66,15 +66,162 @@
 <a href="#65" id="65">65</a>
 <a href="#66" id="66">66</a>
 <a href="#67" id="67">67</a>
-<a href="#68" id="68">68</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir_field::AcirField;
+<a href="#68" id="68">68</a>
+<a href="#69" id="69">69</a>
+<a href="#70" id="70">70</a>
+<a href="#71" id="71">71</a>
+<a href="#72" id="72">72</a>
+<a href="#73" id="73">73</a>
+<a href="#74" id="74">74</a>
+<a href="#75" id="75">75</a>
+<a href="#76" id="76">76</a>
+<a href="#77" id="77">77</a>
+<a href="#78" id="78">78</a>
+<a href="#79" id="79">79</a>
+<a href="#80" id="80">80</a>
+<a href="#81" id="81">81</a>
+<a href="#82" id="82">82</a>
+<a href="#83" id="83">83</a>
+<a href="#84" id="84">84</a>
+<a href="#85" id="85">85</a>
+<a href="#86" id="86">86</a>
+<a href="#87" id="87">87</a>
+<a href="#88" id="88">88</a>
+<a href="#89" id="89">89</a>
+<a href="#90" id="90">90</a>
+<a href="#91" id="91">91</a>
+<a href="#92" id="92">92</a>
+<a href="#93" id="93">93</a>
+<a href="#94" id="94">94</a>
+<a href="#95" id="95">95</a>
+<a href="#96" id="96">96</a>
+<a href="#97" id="97">97</a>
+<a href="#98" id="98">98</a>
+<a href="#99" id="99">99</a>
+<a href="#100" id="100">100</a>
+<a href="#101" id="101">101</a>
+<a href="#102" id="102">102</a>
+<a href="#103" id="103">103</a>
+<a href="#104" id="104">104</a>
+<a href="#105" id="105">105</a>
+<a href="#106" id="106">106</a>
+<a href="#107" id="107">107</a>
+<a href="#108" id="108">108</a>
+<a href="#109" id="109">109</a>
+<a href="#110" id="110">110</a>
+<a href="#111" id="111">111</a>
+<a href="#112" id="112">112</a>
+<a href="#113" id="113">113</a>
+<a href="#114" id="114">114</a>
+<a href="#115" id="115">115</a>
+<a href="#116" id="116">116</a>
+<a href="#117" id="117">117</a>
+<a href="#118" id="118">118</a>
+<a href="#119" id="119">119</a>
+<a href="#120" id="120">120</a>
+<a href="#121" id="121">121</a>
+<a href="#122" id="122">122</a>
+<a href="#123" id="123">123</a>
+<a href="#124" id="124">124</a>
+<a href="#125" id="125">125</a>
+<a href="#126" id="126">126</a>
+<a href="#127" id="127">127</a>
+<a href="#128" id="128">128</a>
+<a href="#129" id="129">129</a>
+<a href="#130" id="130">130</a>
+<a href="#131" id="131">131</a>
+<a href="#132" id="132">132</a>
+<a href="#133" id="133">133</a>
+<a href="#134" id="134">134</a>
+<a href="#135" id="135">135</a>
+<a href="#136" id="136">136</a>
+<a href="#137" id="137">137</a>
+<a href="#138" id="138">138</a>
+<a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a>
+<a href="#141" id="141">141</a>
+<a href="#142" id="142">142</a>
+<a href="#143" id="143">143</a>
+<a href="#144" id="144">144</a>
+<a href="#145" id="145">145</a>
+<a href="#146" id="146">146</a>
+<a href="#147" id="147">147</a>
+<a href="#148" id="148">148</a>
+<a href="#149" id="149">149</a>
+<a href="#150" id="150">150</a>
+<a href="#151" id="151">151</a>
+<a href="#152" id="152">152</a>
+<a href="#153" id="153">153</a>
+<a href="#154" id="154">154</a>
+<a href="#155" id="155">155</a>
+<a href="#156" id="156">156</a>
+<a href="#157" id="157">157</a>
+<a href="#158" id="158">158</a>
+<a href="#159" id="159">159</a>
+<a href="#160" id="160">160</a>
+<a href="#161" id="161">161</a>
+<a href="#162" id="162">162</a>
+<a href="#163" id="163">163</a>
+<a href="#164" id="164">164</a>
+<a href="#165" id="165">165</a>
+<a href="#166" id="166">166</a>
+<a href="#167" id="167">167</a>
+<a href="#168" id="168">168</a>
+<a href="#169" id="169">169</a>
+<a href="#170" id="170">170</a>
+<a href="#171" id="171">171</a>
+<a href="#172" id="172">172</a>
+<a href="#173" id="173">173</a>
+<a href="#174" id="174">174</a>
+<a href="#175" id="175">175</a>
+<a href="#176" id="176">176</a>
+<a href="#177" id="177">177</a>
+<a href="#178" id="178">178</a>
+<a href="#179" id="179">179</a>
+<a href="#180" id="180">180</a>
+<a href="#181" id="181">181</a>
+<a href="#182" id="182">182</a>
+<a href="#183" id="183">183</a>
+<a href="#184" id="184">184</a>
+<a href="#185" id="185">185</a>
+<a href="#186" id="186">186</a>
+<a href="#187" id="187">187</a>
+<a href="#188" id="188">188</a>
+<a href="#189" id="189">189</a>
+<a href="#190" id="190">190</a>
+<a href="#191" id="191">191</a>
+<a href="#192" id="192">192</a>
+<a href="#193" id="193">193</a>
+<a href="#194" id="194">194</a>
+<a href="#195" id="195">195</a>
+<a href="#196" id="196">196</a>
+<a href="#197" id="197">197</a>
+<a href="#198" id="198">198</a>
+<a href="#199" id="199">199</a>
+<a href="#200" id="200">200</a>
+<a href="#201" id="201">201</a>
+<a href="#202" id="202">202</a>
+<a href="#203" id="203">203</a>
+<a href="#204" id="204">204</a>
+<a href="#205" id="205">205</a>
+<a href="#206" id="206">206</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir_field::AcirField;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 
 <span class="doccomment">/// Single input or output of a [foreign call][crate::Opcode::ForeignCall].
+///
+/// This enum can represent either a single field element or an array of field elements.
+///
+/// The `#[serde(untagged)]` attribute uses the natural JSON representation:
+/// `Single(5)` serializes as `5`, and `Array([1,2,3])` serializes as `[1,2,3]`.
+/// This allows external systems to pass values directly without needing to know about
+/// Rust enum variants, relying on JSON's native distinction between single values and arrays.
 </span><span class="attr">#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
 #[serde(untagged)]
 </span><span class="kw">pub enum </span>ForeignCallParam&lt;F&gt; {
-    Single(F),
-    Array(Vec&lt;F&gt;),
+    <span class="doccomment">/// A single field element value.
+    </span>Single(F),
+    <span class="doccomment">/// Multiple field element values (array or vector passed by value).
+    </span>Array(Vec&lt;F&gt;),
 }
 
 <span class="kw">impl</span>&lt;F&gt; From&lt;F&gt; <span class="kw">for </span>ForeignCallParam&lt;F&gt; {
@@ -90,7 +237,10 @@
 }
 
 <span class="kw">impl</span>&lt;F: AcirField&gt; ForeignCallParam&lt;F&gt; {
-    <span class="doccomment">/// Convert the fields in the parameter into a vector, used to flatten data.
+    <span class="doccomment">/// Convert the parameter into a uniform vector representation.
+    ///
+    /// This is useful for flattening data when processing foreign call results,
+    /// allowing both `Single` and `Array` variants to be handled uniformly as `Vec&lt;F&gt;`.
     </span><span class="kw">pub fn </span>fields(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;F&gt; {
         <span class="kw">match </span><span class="self">self </span>{
             ForeignCallParam::Single(value) =&gt; <span class="macro">vec!</span>[<span class="kw-2">*</span>value],
@@ -108,30 +258,156 @@
 }
 
 <span class="doccomment">/// Represents the full output of a [foreign call][crate::Opcode::ForeignCall].
+///
+/// A foreign call can return multiple outputs, where each output can be either
+/// a single field element or an array. This struct wraps a vector of [ForeignCallParam]
+/// to represent all outputs from a single foreign call.
 </span><span class="attr">#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone, Default)]
 </span><span class="kw">pub struct </span>ForeignCallResult&lt;F&gt; {
     <span class="doccomment">/// Resolved output values of the foreign call.
+    ///
+    /// Each element represents one output, which can be either a single value or an array.
     </span><span class="kw">pub </span>values: Vec&lt;ForeignCallParam&lt;F&gt;&gt;,
 }
 
-<span class="doccomment">/// Result of a call returning a one output value.
+<span class="doccomment">/// Convenience conversion for a foreign call returning a single field element value.
+///
+/// Creates a `ForeignCallResult` with one output containing the single value.
 </span><span class="kw">impl</span>&lt;F&gt; From&lt;F&gt; <span class="kw">for </span>ForeignCallResult&lt;F&gt; {
     <span class="kw">fn </span>from(value: F) -&gt; <span class="self">Self </span>{
         ForeignCallResult { values: <span class="macro">vec!</span>[value.into()] }
     }
 }
 
-<span class="doccomment">/// Result of a call returning a one output array.
+<span class="doccomment">/// Conversion for a foreign call returning a single array output.
+/// Creates a `ForeignCallResult` with one output, where that output is an array.
+/// This represents one array output, not multiple single-value outputs:
+///
+/// ```ignore
+/// let result: ForeignCallResult&lt;F&gt; = vec![1, 2, 3].into();
+/// // result.values.len() == 1
+/// // result.values[0] == ForeignCallParam::Array([1, 2, 3])
+/// ```
+///
+/// For multiple single-value outputs, use `From&lt;Vec&lt;ForeignCallParam&lt;F&gt;&gt;&gt;` instead:
+/// ```ignore
+/// let result: ForeignCallResult&lt;F&gt; = vec![
+///     ForeignCallParam::Single(1),
+///     ForeignCallParam::Single(2),
+///     ForeignCallParam::Single(3)
+/// ].into();
+/// // result.values.len() == 3
+/// ```
 </span><span class="kw">impl</span>&lt;F&gt; From&lt;Vec&lt;F&gt;&gt; <span class="kw">for </span>ForeignCallResult&lt;F&gt; {
     <span class="kw">fn </span>from(values: Vec&lt;F&gt;) -&gt; <span class="self">Self </span>{
         ForeignCallResult { values: <span class="macro">vec!</span>[values.into()] }
     }
 }
 
-<span class="doccomment">/// Result of a call returning multiple outputs.
+<span class="doccomment">/// Conversion for a foreign call returning multiple outputs.
+///
+/// Each element in the vector represents a separate output, which can be
+/// either a single value or an array.
 </span><span class="kw">impl</span>&lt;F&gt; From&lt;Vec&lt;ForeignCallParam&lt;F&gt;&gt;&gt; <span class="kw">for </span>ForeignCallResult&lt;F&gt; {
     <span class="kw">fn </span>from(values: Vec&lt;ForeignCallParam&lt;F&gt;&gt;) -&gt; <span class="self">Self </span>{
         ForeignCallResult { values }
+    }
+}
+
+<span class="attr">#[cfg(test)]
+</span><span class="kw">mod </span>tests {
+    <span class="kw">use super</span>::<span class="kw-2">*</span>;
+    <span class="kw">use </span>acir_field::FieldElement;
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>test_foreign_call_param_from_single() {
+        <span class="kw">let </span>value = FieldElement::from(<span class="number">42u128</span>);
+        <span class="kw">let </span>param = ForeignCallParam::from(value);
+
+        <span class="macro">assert_eq!</span>(param, ForeignCallParam::Single(value));
+        <span class="macro">assert_eq!</span>(param.fields(), <span class="macro">vec!</span>[value]);
+        <span class="macro">assert_eq!</span>(param.unwrap_field(), value);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>test_foreign_call_param_from_array() {
+        <span class="kw">let </span>values =
+            <span class="macro">vec!</span>[FieldElement::from(<span class="number">1u128</span>), FieldElement::from(<span class="number">2u128</span>), FieldElement::from(<span class="number">3u128</span>)];
+        <span class="kw">let </span>param = ForeignCallParam::from(values.clone());
+
+        <span class="macro">assert_eq!</span>(param, ForeignCallParam::Array(values.clone()));
+        <span class="macro">assert_eq!</span>(param.fields(), values);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>test_foreign_call_param_array_roundtrip() {
+        <span class="comment">// Test that Array variant round trips through From&lt;Vec&lt;F&gt;&gt; and fields()
+        </span><span class="kw">let </span>original = <span class="macro">vec!</span>[
+            FieldElement::from(<span class="number">10u128</span>),
+            FieldElement::from(<span class="number">20u128</span>),
+            FieldElement::from(<span class="number">30u128</span>),
+        ];
+
+        <span class="comment">// Need explicit type annotation to disambiguate from From&lt;F&gt; impl
+        </span><span class="kw">let </span>param: ForeignCallParam&lt;FieldElement&gt; = original.clone().into();
+        <span class="kw">let </span>roundtrip = param.fields();
+
+        <span class="macro">assert_eq!</span>(roundtrip, original);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>test_foreign_call_param_single_to_array() {
+        <span class="comment">// Note: Single doesn't roundtrip perfectly because fields() returns Vec
+        // This test documents the expected behavior
+        </span><span class="kw">let </span>value = FieldElement::from(<span class="number">42u128</span>);
+        <span class="kw">let </span>param = ForeignCallParam::Single(value);
+
+        <span class="comment">// fields() converts Single to a Vec with one element
+        </span><span class="macro">assert_eq!</span>(param.fields(), <span class="macro">vec!</span>[value]);
+    }
+
+    <span class="attr">#[test]
+    #[should_panic(expected = <span class="string">"Expected single value, found array"</span>)]
+    </span><span class="kw">fn </span>test_foreign_call_param_unwrap_field_panics_on_array() {
+        <span class="kw">let </span>param =
+            ForeignCallParam::Array(<span class="macro">vec!</span>[FieldElement::from(<span class="number">1u128</span>), FieldElement::from(<span class="number">2u128</span>)]);
+
+        <span class="comment">// This should panic
+        </span>param.unwrap_field();
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>test_foreign_call_result_from_single_value() {
+        <span class="kw">let </span>value = FieldElement::from(<span class="number">42u128</span>);
+        <span class="kw">let </span>result = ForeignCallResult::from(value);
+
+        <span class="macro">assert_eq!</span>(result.values.len(), <span class="number">1</span>);
+        <span class="macro">assert_eq!</span>(result.values[<span class="number">0</span>], ForeignCallParam::Single(value));
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>test_foreign_call_result_from_vec_creates_single_array_output() {
+        <span class="kw">let </span>values =
+            <span class="macro">vec!</span>[FieldElement::from(<span class="number">1u128</span>), FieldElement::from(<span class="number">2u128</span>), FieldElement::from(<span class="number">3u128</span>)];
+        <span class="kw">let </span>result = ForeignCallResult::from(values.clone());
+
+        <span class="comment">// From&lt;Vec&lt;F&gt;&gt; creates one output that is an Array
+        </span><span class="macro">assert_eq!</span>(result.values.len(), <span class="number">1</span>);
+        <span class="macro">assert_eq!</span>(result.values[<span class="number">0</span>], ForeignCallParam::Array(values));
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>test_foreign_call_result_from_params_creates_multiple_outputs() {
+        <span class="kw">let </span>params = <span class="macro">vec!</span>[
+            ForeignCallParam::Single(FieldElement::from(<span class="number">1u128</span>)),
+            ForeignCallParam::Single(FieldElement::from(<span class="number">2u128</span>)),
+            ForeignCallParam::Single(FieldElement::from(<span class="number">3u128</span>)),
+        ];
+        <span class="kw">let </span>result = ForeignCallResult::from(params.clone());
+
+        <span class="comment">// From&lt;Vec&lt;ForeignCallParam&lt;F&gt;&gt;&gt; creates multiple outputs
+        </span><span class="macro">assert_eq!</span>(result.values.len(), <span class="number">3</span>);
+        <span class="macro">assert_eq!</span>(result.values, params);
     }
 }
 </code></pre></div></section></main></body></html>
