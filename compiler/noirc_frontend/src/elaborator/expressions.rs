@@ -835,20 +835,24 @@ impl Elaborator<'_> {
             // handles a wider variety of types, e.g. quoted types.
             if !self.in_comptime_context() {
                 let location = self.interner.expr_location(&msg);
+                let typ = typ.follow_bindings();
+                let mut check_abi_compat = |typ: &Type| {
+                    if typ.is_abi_compatible() || matches!(typ, Type::Error) {
+                        return;
+                    }
+                    let error = TypeCheckError::TypeCannotBeUsed {
+                        typ: typ.clone(),
+                        place: "message",
+                        location,
+                    };
+                    self.push_err(CompilationError::TypeError(error));
+                };
                 if let Type::FmtString(_, item_types) = typ {
                     if let Type::Tuple(item_types) = item_types.as_ref() {
-                        for typ in item_types {
-                            if typ.is_abi_compatible() || matches!(typ, Type::Error) {
-                                continue;
-                            }
-                            let error = TypeCheckError::TypeCannotBeUsed {
-                                typ: typ.clone(),
-                                place: "message",
-                                location,
-                            };
-                            self.push_err(CompilationError::TypeError(error));
-                        }
+                        item_types.iter().for_each(check_abi_compat);
                     }
+                } else {
+                    check_abi_compat(&typ);
                 }
             }
             msg

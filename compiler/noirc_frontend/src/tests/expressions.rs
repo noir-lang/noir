@@ -234,6 +234,12 @@ fn abi_incompatible_assert_message() {
             let xs = &[0_u32];
             assert(xs[0] > 0, f"bad slice: {xs}");
                               ^^^^^^^^^^^^^^^^^^ The type [u32] cannot be used in a message
+
+            assert(false, ());
+                          ^^ The type () cannot be used in a message
+
+            assert(false, xs);
+                          ^^ The type [u32] cannot be used in a message
         }
     "#;
     check_errors(src);
