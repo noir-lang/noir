@@ -1167,7 +1167,7 @@ impl NodeInterner {
         let mut usize_arena = Arena::default();
         let index = usize_arena.insert(0);
         let stdlib = CrateId::Stdlib(0);
-        let func_id = FuncId::dummy_id();
+        let func_id = FuncId(Index::dummy());
         // Use a definition ID that won't clash with anything else, and isn't the dummy one
         let definition_id = DefinitionId(usize::MAX - 1);
         self.function_definition_ids.insert(func_id, definition_id);

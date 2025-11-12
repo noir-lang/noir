@@ -51,15 +51,6 @@ pub struct ExprId(pub(super) Index);
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
 pub struct FuncId(pub(super) Index);
 
-impl FuncId {
-    //dummy id for error reporting
-    // This can be anything, as the program will ultimately fail
-    // after resolution
-    pub fn dummy_id() -> FuncId {
-        FuncId(Index::dummy())
-    }
-}
-
 impl fmt::Display for FuncId {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.0.fmt(f)

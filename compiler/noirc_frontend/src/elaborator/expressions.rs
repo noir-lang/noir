@@ -683,27 +683,23 @@ impl Elaborator<'_> {
                     .func_id(self.interner)
                     .expect("Expected trait function to be a DefinitionKind::Function");
 
-                let generics = if func_id != FuncId::dummy_id() {
-                    let function_type = self.interner.function_meta(&func_id).typ.clone();
-                    self.try_add_mutable_reference_to_object(
-                        &function_type,
-                        &mut object_type,
-                        &mut object,
-                    );
-                    let generics = method_call.generics;
-                    let generics = generics.map(|generics| {
-                        vecmap(generics, |generic| {
-                            let location = generic.location;
-                            let wildcard_allowed = true;
-                            let typ =
-                                self.use_type_with_kind(generic, &Kind::Any, wildcard_allowed);
-                            Located::from(location, typ)
-                        })
-                    });
-                    self.resolve_function_turbofish_generics(&func_id, generics, location)
-                } else {
-                    None
-                };
+                let function_type = self.interner.function_meta(&func_id).typ.clone();
+                self.try_add_mutable_reference_to_object(
+                    &function_type,
+                    &mut object_type,
+                    &mut object,
+                );
+                let generics = method_call.generics;
+                let generics = generics.map(|generics| {
+                    vecmap(generics, |generic| {
+                        let location = generic.location;
+                        let wildcard_allowed = true;
+                        let typ = self.use_type_with_kind(generic, &Kind::Any, wildcard_allowed);
+                        Located::from(location, typ)
+                    })
+                });
+                let generics =
+                    self.resolve_function_turbofish_generics(&func_id, generics, location);
 
                 let location = object_location.merge(method_name_location);
 

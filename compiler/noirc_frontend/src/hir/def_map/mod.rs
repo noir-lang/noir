@@ -33,7 +33,7 @@ impl LocalModuleId {
         LocalModuleId(index)
     }
 
-    pub fn dummy_id() -> LocalModuleId {
+    pub(crate) fn dummy_id() -> LocalModuleId {
         LocalModuleId(Index::dummy())
     }
 
