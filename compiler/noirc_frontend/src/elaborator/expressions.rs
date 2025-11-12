@@ -838,6 +838,10 @@ impl Elaborator<'_> {
                 if let Type::FmtString(_, item_types) = typ {
                     if let Type::Tuple(item_types) = item_types.as_ref() {
                         for typ in item_types {
+                            println!(
+                                "checking if {typ} ({typ:?}) is ABI compat: {}",
+                                typ.is_abi_compatible()
+                            );
                             if typ.is_abi_compatible() || matches!(typ, Type::Error) {
                                 continue;
                             }
