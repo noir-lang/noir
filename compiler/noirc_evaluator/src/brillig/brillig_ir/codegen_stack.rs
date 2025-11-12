@@ -9,7 +9,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     /// This function moves values from a set of registers to another set of registers.
     /// It assumes that:
     /// - every destination needs to be written at most once. Will panic if not.
-    /// - destinations are relative addresses, starting from 1 and with 1 increment. Will panic if not
+    /// - destinations are relative addresses, starting from 1 and consecutively incremented by one. Will panic if not
     /// - sources are any relative addresses, and can also be direct address to the global space. TODO: panic if not
     /// - sources and destinations have same length. Will panic if not.
     pub(crate) fn codegen_mov_registers_to_registers(
