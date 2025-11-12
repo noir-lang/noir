@@ -30,7 +30,7 @@ use super::Elaborator;
 
 impl Elaborator<'_> {
     pub(super) fn collect_trait_impl(&mut self, trait_impl: &mut UnresolvedTraitImpl) {
-        self.local_module = trait_impl.module_id;
+        self.local_module = Some(trait_impl.module_id);
         self.current_trait_impl = trait_impl.impl_id;
 
         let self_type = trait_impl.methods.self_type.clone();
@@ -203,7 +203,7 @@ impl Elaborator<'_> {
         trait_impl: &mut UnresolvedTraitImpl,
         trait_impl_where_clause: &[TraitConstraint],
     ) {
-        self.local_module = trait_impl.module_id;
+        self.local_module = Some(trait_impl.module_id);
 
         let impl_id = trait_impl.impl_id.expect("impl_id should be set in define_function_metas");
 
@@ -404,7 +404,7 @@ impl Elaborator<'_> {
         trait_id: TraitId,
         trait_impl: &UnresolvedTraitImpl,
     ) {
-        self.local_module = trait_impl.module_id;
+        self.local_module = Some(trait_impl.module_id);
 
         let object_crate = match &trait_impl.resolved_object_type {
             Some(Type::DataType(struct_type, _)) => Some(struct_type.borrow().id.krate()),
@@ -670,7 +670,7 @@ impl Elaborator<'_> {
         &mut self,
         trait_impl: &mut UnresolvedTraitImpl,
     ) -> Vec<(TraitConstraint, Location)> {
-        self.local_module = trait_impl.module_id;
+        self.local_module = Some(trait_impl.module_id);
 
         let (trait_id, trait_generics, path_location) =
             self.resolve_trait_impl_trait_path(trait_impl);

@@ -33,10 +33,6 @@ impl LocalModuleId {
         LocalModuleId(index)
     }
 
-    pub(crate) fn dummy_id() -> LocalModuleId {
-        LocalModuleId(Index::dummy())
-    }
-
     /// Gets the index that underlies this local module ID.
     pub fn as_index(self) -> Index {
         self.0
