@@ -75,8 +75,8 @@ fn perform_cast(kind: CastType, lhs: FieldElement) -> FieldElement {
                 return FieldElement::from(lhs.to_u128() & mask);
             } else {
                 let lhs_int = BigInt::from_bytes_be(num_bigint::Sign::Plus, &lhs.to_be_bytes());
-                let a = BigInt::from_u128(2).unwrap().pow(new_bit_size);
-                let lhs = lhs_int % a;
+                let modulus = BigInt::from_u128(2).unwrap().pow(new_bit_size);
+                let lhs = lhs_int % modulus;
                 FieldElement::from_be_bytes_reduce(&lhs.to_bytes_be().1)
             }
         }
@@ -136,12 +136,9 @@ pub(super) fn evaluate_cast_one_step(
     evaluated_lhs: Value,
 ) -> IResult<Value> {
     let lhs_type = evaluated_lhs.get_type().into_owned();
-    dbg!(&lhs_type);
-    dbg!(&output_type);
     let (lhs, lhs_is_negative) = convert_to_field(evaluated_lhs, location)?;
 
     let cast_kind = classify_cast(&lhs_type, output_type);
-    dbg!(&cast_kind);
     let lhs = perform_cast(cast_kind, lhs);
 
     // Now just wrap the Result in a Value
