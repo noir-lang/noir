@@ -116,7 +116,7 @@ impl Row {
 impl Elaborator<'_> {
     pub(super) fn collect_enum_definitions(&mut self, enums: &BTreeMap<TypeId, UnresolvedEnum>) {
         for (type_id, typ) in enums {
-            self.local_module = typ.module_id;
+            self.local_module = Some(typ.module_id);
             self.generics.clear();
 
             let datatype = self.interner.get_type(*type_id);
