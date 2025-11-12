@@ -516,7 +516,7 @@ fn can_be_eliminated_if_unused(
 /// pass where this check is done, but does mean that we cannot perform mem2reg
 /// after the DIE pass.
 fn should_remove_store(func: &Function, flattened: bool) -> bool {
-    flattened && func.runtime().is_acir() && func.reachable_blocks().len() == 1
+    false && flattened && func.runtime().is_acir() && func.reachable_blocks().len() == 1
 }
 
 /// Check pre-execution properties:

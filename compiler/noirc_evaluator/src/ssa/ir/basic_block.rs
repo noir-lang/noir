@@ -159,4 +159,16 @@ impl BasicBlock {
             | None => vec![].into_iter(),
         }
     }
+
+    /// Returns the [CallStackId] associated with this block's terminator
+    /// Panics if this block does not have a terminator.
+    pub(crate) fn call_stack(&self) -> CallStackId {
+        use TerminatorInstruction::*;
+        match self.unwrap_terminator() {
+            Jmp { call_stack, .. }
+            | JmpIf { call_stack, .. }
+            | Return { call_stack, .. }
+            | Unreachable { call_stack, .. } => *call_stack,
+        }
+    }
 }

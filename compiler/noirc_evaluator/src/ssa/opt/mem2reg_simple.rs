@@ -1,8 +1,6 @@
 //! Mem2reg algorithm adapted from the paper: https://bernsteinbear.com/assets/img/bebenita-ssa.pdf
-use std::collections::{BTreeSet, hash_map::Entry};
-
 use iter_extended::vecmap;
-use rustc_hash::FxHashMap;
+use std::collections::{BTreeMap, btree_map::Entry};
 
 use crate::ssa::{
     ir::{
@@ -21,6 +19,11 @@ use crate::ssa::{
 
 impl Ssa {
     pub(crate) fn mem2reg_simple(mut self) -> Ssa {
+        // As a pre-requisite for mem2reg_simple, we need to ensure that for each block with multiple predecessors,
+        // each of those predecessors has only a single successor. This limitation is because we don't currently support
+        // block arguments on [TerminatorInstruction::JmpIf] and thus need the extra block for a [TerminatorInstruction::Jmp]
+        self = self.process_cfg_for_mem2reg_simple();
+
         for function in self.functions.values_mut() {
             function.mem2reg_simple();
         }
@@ -30,16 +33,21 @@ impl Ssa {
 
 impl Function {
     fn mem2reg_simple(&mut self) {
-        let blocks = self.reachable_blocks();
         let cfg = ControlFlowGraph::with_function(self);
         let post_order = PostOrder::with_cfg(&cfg);
         let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
         let mut inserter = FunctionInserter::new(self);
 
-        let mut entry_states = FxHashMap::default();
-        let mut exit_states = FxHashMap::default();
+        let blocks = post_order.into_vec_reverse();
 
-        let variables = collect_all_eligible_variables(inserter.function, post_order);
+        // Note that entry_states, exit_states, and variables are all keyed by the original
+        // ValueId of the `allocate` instruction result. These are all iterated over at some point
+        // so it is important we use a deterministic order so that block arguments always correspond
+        // to block parameters in the same order.
+        let mut entry_states = BTreeMap::default();
+        let mut exit_states = BTreeMap::default();
+
+        let variables = collect_all_eligible_variables(inserter.function, &blocks);
 
         // Find the starting & ending states of each variable in each block
         for block in blocks.iter().copied() {
@@ -59,8 +67,7 @@ impl Function {
         // Link entry & exit states by adding block parameters & terminator arguments for every variable stored to
         for block in blocks.iter().copied() {
             for (address, entry_value) in entry_states[&block].iter() {
-                // If the current block is this variable's source block, no merge
-                // is needed, skip the block.
+                // If the current block is this variable's source block, no merge is needed.
                 if block == variables[address] {
                     continue;
                 }
@@ -71,19 +78,20 @@ impl Function {
                 let predecessor_count = predecessors.len();
 
                 for predecessor in predecessors {
-                    let exit_value = *exit_states
-                        .get(&predecessor)
-                        .unwrap_or_else(|| panic!("No entry for {predecessor}"))
-                        .get(address)
-                        .unwrap_or_else(|| {
-                            panic!(
-                                "No entry in {predecessor} for {address}, current block = {block}"
-                            )
-                        });
+                    let exit_value = exit_states[&predecessor][address];
                     last_value = exit_value;
 
                     if predecessor_count > 1 {
-                        add_terminator_argument(inserter.function, exit_value, predecessor);
+                        let index =
+                            add_terminator_argument(inserter.function, exit_value, predecessor);
+                        let parameter = inserter.function.dfg[block].parameters()[index];
+
+                        let expected_type = inserter.function.dfg.type_of_value(parameter);
+                        let actual_type = inserter.function.dfg.type_of_value(exit_value);
+                        assert_eq!(
+                            actual_type, expected_type,
+                            "mem2reg_simple argument type {actual_type} does not match expected type {expected_type} for block {block} and pred {predecessor}, argument {index}"
+                        );
                     }
                 }
 
@@ -118,13 +126,13 @@ impl Function {
 }
 
 /// Mapping from a variable to its value at a point in time
-type StateVec = FxHashMap<ValueId, ValueId>;
+type StateVec = BTreeMap<ValueId, ValueId>;
 
 /// Filter `variables`, returning only those that are visible at the start of the given block.
 /// Since we do not consider variables within a block, the visible variables at the start of a block
 /// are any variables whose declaration block dominates the given block.
 fn add_visible_variables_as_block_arguments(
-    variables: &FxHashMap<ValueId, BasicBlockId>,
+    variables: &BTreeMap<ValueId, BasicBlockId>,
     dom_tree: &mut DominatorTree,
     block: BasicBlockId,
     dfg: &mut DataFlowGraph,
@@ -168,11 +176,15 @@ fn keep_argument_mask(
     }
 
     vecmap(parameters.iter().enumerate(), |(i, parameter)| {
+        let predecessors = cfg.predecessors(block);
+        let predecessor_count = predecessors.len();
+
         let mut args = cfg.predecessors(block).map(|predecessor| {
             let terminator = inserter.function.dfg[predecessor].unwrap_terminator();
             if let TerminatorInstruction::Jmp { arguments, .. } = terminator {
                 arguments.get(i).copied()
             } else {
+                assert_eq!(predecessor_count, 1);
                 None
             }
         });
@@ -182,7 +194,8 @@ fn keep_argument_mask(
         };
 
         // keep the parameter if the arguments do not all match
-        let keep_param = !args.all(|arg| arg == Some(first_arg));
+        // unwrap safety: for all multi-predecessor blocks, each predecessor should end in a jmp, not jmpif
+        let keep_param = !args.all(|arg| arg.unwrap() == first_arg);
         if !keep_param {
             // All arguments are identical, so the choice to map to the first is arbitrary
             inserter.map_value(*parameter, first_arg);
@@ -200,10 +213,18 @@ fn retain_items_from_mask(items: &mut Vec<ValueId>, mask: &Vec<bool>) {
     });
 }
 
-fn add_terminator_argument(function: &mut Function, arg: ValueId, block: BasicBlockId) {
+fn add_terminator_argument(function: &mut Function, arg: ValueId, block: BasicBlockId) -> usize {
     match function.dfg[block].unwrap_terminator_mut() {
-        TerminatorInstruction::Jmp { arguments, .. } => arguments.push(arg),
-        other => panic!("Unexpected terminator when adding block argument: {other:?}"),
+        TerminatorInstruction::Jmp { arguments, .. } => {
+            let index = arguments.len();
+            arguments.push(arg);
+            index
+        }
+        other => {
+            panic!(
+                "Unexpected terminator in block {block} when adding block argument {arg}: {other:?}"
+            )
+        }
     }
 }
 
@@ -281,19 +302,19 @@ fn abstract_interpret_block(
 /// i.e. those that are allocated but never used in a first-class manner.
 fn collect_all_eligible_variables(
     function: &Function,
-    post_order: PostOrder,
-) -> FxHashMap<ValueId, BasicBlockId> {
+    blocks: &[BasicBlockId],
+) -> BTreeMap<ValueId, BasicBlockId> {
     // Map each variable to the block it was declared in
-    let mut variables = FxHashMap::default();
-    let forward_order = post_order.into_vec_reverse();
+    let mut variables = BTreeMap::default();
 
-    for block in forward_order {
-        for instruction_id in function.dfg[block].instructions() {
+    for block_id in blocks.iter().copied() {
+        let block = &function.dfg[block_id];
+        for instruction_id in block.instructions() {
             let instruction = &function.dfg[*instruction_id];
             match instruction {
                 Instruction::Allocate => {
                     let address = function.dfg.instruction_results(*instruction_id)[0];
-                    variables.insert(address, block);
+                    variables.insert(address, block_id);
                 }
                 Instruction::Load { .. } => (),
                 // Storing to an address is fine, but storing an address prevents optimizing it out.
@@ -306,6 +327,8 @@ fn collect_all_eligible_variables(
                 }
             }
         }
+
+        block.unwrap_terminator().for_each_value(|value| variables.remove(&value));
     }
 
     variables
@@ -316,8 +339,8 @@ fn collect_all_eligible_variables(
 /// - Remove all Allocate, Load, and Store instructions from the eligible variables
 fn commit(
     inserter: &mut FunctionInserter,
-    variables: &FxHashMap<ValueId, BasicBlockId>,
-    blocks: BTreeSet<BasicBlockId>,
+    variables: &BTreeMap<ValueId, BasicBlockId>,
+    blocks: Vec<BasicBlockId>,
 ) {
     for block in blocks {
         let mut instructions = inserter.function.dfg[block].take_instructions();
@@ -594,43 +617,6 @@ mod tests {
             ");
     }
 
-    // #[test]
-    // fn test_loop_with_back_edge() {
-    //     // Simple loop: allocate outside, store/load inside loop
-    //     let src = "
-    //         acir(inline) fn func f0 {
-    //           b0(v0: u32):
-    //             v1 = allocate -> &mut u32
-    //             store u32 0 at v1
-    //             jmp b1(v0)
-    //           b1(v2: u32):
-    //             v3 = load v1 -> u32
-    //             v4 = add v3, u32 1
-    //             store v4 at v1
-    //             v5 = lt v2, u32 10
-    //             jmpif v5 then: b1(v2), else: b2
-    //           b2():
-    //             v6 = load v1 -> u32
-    //             return v6
-    //         }
-    //         ";
-    //     let ssa = Ssa::from_str(src).unwrap();
-    //     let ssa = ssa.mem2reg_simple();
-    //     // The load in b1 should be replaced with the parameter, and loop iterations tracked
-    //     assert_ssa_snapshot!(ssa, @r"
-    //         acir(inline) fn func f0 {
-    //           b0(v0: u32):
-    //             jmp b1(u32 0, v0)
-    //           b1(v3: u32, v2: u32):
-    //             v4 = add v3, u32 1
-    //             v5 = lt v2, u32 10
-    //             jmpif v5 then: b1(v4, v2), else: b2
-    //           b2():
-    //             return v4
-    //         }
-    //         ");
-    // }
-
     #[test]
     fn test_variable_only_stored_in_one_branch() {
         // Variable is stored in one branch but not the other
@@ -784,18 +770,14 @@ acir(inline) fn main f0 {
     store v31 at v6
     v33 = load v3 -> u32
     v34 = load v3 -> u32
-    v35 = call f1(v33, v34) -> u32
     v36 = array_get v0, index v27 -> u32
-    v37 = call f1(v35, v36) -> u32
-    store v37 at v6
+    store u32 0 at v6
     v39 = load v3 -> u32
     v41 = array_get v0, index v27 -> u32
     v42 = array_get v1, index v27 -> u32
     v43 = mul v41, v42
     v44 = load v6 -> u32
-    v45 = call f3(v43, v44) -> u32
-    v46 = call f2(v39, v45) -> u32
-    store v46 at v3
+    store u32 1 at v3
     v47 = unchecked_add v27, u32 1
     jmp b4(v47)
   b6():
@@ -828,12 +810,10 @@ acir(inline) fn main f0 {
     v63 = lt v62, u32 3
     jmpif v63 then: b11, else: b12
   b11():
-    v64 = call f3(v54, u32 2) -> u32
-    store v64 at v6
+    store u32 3 at v6
     v65 = load v3 -> u32
     v66 = load v6 -> u32
-    v67 = call f1(v65, v66) -> u32
-    store v67 at v3
+    store u32 4 at v3
     v68 = unchecked_add v62, u32 1
     jmp b10(v68)
   b12():
@@ -922,181 +902,307 @@ acir(inline) fn main f0 {
 
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.mem2reg_simple();
-        // Should properly merge all three stores: from b2, b3, b4
         assert_ssa_snapshot!(ssa, @r"
-acir(inline) fn main f0 {
-  b0(v0: [u32; 5], v1: [u32; 5], v2: u32, v4: u32):
-    v3 = allocate -> &mut u32
-    store v2 at v3
-    v6 = allocate -> &mut u32
-    store u32 2301 at v6
-    v9 = array_get v1, index u32 4 -> u32
-    store v9 at v3
-    jmp b1(u32 0)
-  b1(v12: u32):
-    v13 = lt v12, u32 5
-    jmpif v13 then: b2, else: b3
-  b2():
-    v14 = load v3 -> u32
-    v15 = load v3 -> u32
-    v16 = mul v14, v15
-    v17 = array_get v1, index v12 -> u32
-    v18 = mul v16, v17
-    store v18 at v6
-    v19 = load v3 -> u32
-    v20 = load v6 -> u32
-    v21 = sub v19, v20
-    store v21 at v3
-    v22 = unchecked_add v12, u32 1
-    jmp b1(v22)
-  b3():
-    v23 = load v3 -> u32
-    v24 = eq v23, u32 0
-    constrain v23 == u32 0
-    store u32 2301 at v6
-    jmp b4(u32 0)
-  b4(v27: u32):
-    v28 = lt v27, u32 5
-    jmpif v28 then: b5, else: b6
-  b5():
-    v31 = add v4, u32 2
-    store v31 at v6
-    v33 = load v3 -> u32
-    v34 = load v3 -> u32
-    v35 = call f1(v33, v34) -> u32
-    v36 = array_get v0, index v27 -> u32
-    v37 = call f1(v35, v36) -> u32
-    store v37 at v6
-    v39 = load v3 -> u32
-    v41 = array_get v0, index v27 -> u32
-    v42 = array_get v1, index v27 -> u32
-    v43 = mul v41, v42
-    v44 = load v6 -> u32
-    v45 = call f3(v43, v44) -> u32
-    v46 = call f2(v39, v45) -> u32
-    store v46 at v3
-    v47 = unchecked_add v27, u32 1
-    jmp b4(v47)
-  b6():
-    v48 = load v3 -> u32
-    v50 = eq v48, u32 3814912846
-    constrain v48 == u32 3814912846
-    store u32 2300001 at v6
-    v53 = array_get v1, index u32 4 -> u32
-    store v53 at v3
-    jmp b7(u32 0)
-  b7(v54: u32):
-    v55 = lt v54, u32 5
-    jmpif v55 then: b8, else: b9
-  b8():
-    v56 = load v3 -> u32
-    v57 = array_get v0, index v54 -> u32
-    v58 = array_get v1, index v54 -> u32
-    v59 = mul v57, v58
-    v60 = add v56, v59
-    store v60 at v3
-    jmp b10(u32 0)
-  b9():
-    v70 = load v3 -> u32
-    v72 = eq v70, u32 41472
-    constrain v70 == u32 41472
-    v73 = array_get v1, index u32 4 -> u32
-    store v73 at v3
-    jmp b13(u32 0)
-  b10(v62: u32):
-    v63 = lt v62, u32 3
-    jmpif v63 then: b11, else: b12
-  b11():
-    v64 = call f3(v54, u32 2) -> u32
-    store v64 at v6
-    v65 = load v3 -> u32
-    v66 = load v6 -> u32
-    v67 = call f1(v65, v66) -> u32
-    store v67 at v3
-    v68 = unchecked_add v62, u32 1
-    jmp b10(v68)
-  b12():
-    v69 = unchecked_add v54, u32 1
-    jmp b7(v69)
-  b13(v74: u32):
-    v75 = lt v74, u32 3
-    jmpif v75 then: b14, else: b15
-  b14():
-    v76 = load v3 -> u32
-    v77 = array_get v0, index v74 -> u32
-    v78 = array_get v1, index v74 -> u32
-    v79 = mul v77, v78
-    v80 = add v76, v79
-    store v80 at v3
-    jmp b16(u32 0)
-  b15():
-    v92 = load v3 -> u32
-    v94 = eq v92, u32 11539
-    constrain v92 == u32 11539
-    v95 = load v3 -> u32
-    v96 = eq v95, u32 0
-    jmpif v96 then: b19, else: b20
-  b16(v81: u32):
-    v82 = lt v81, u32 2
-    jmpif v82 then: b17, else: b18
-  b17():
-    v83 = load v3 -> u32
-    v84 = add v74, v81
-    v85 = array_get v0, index v84 -> u32
-    v86 = add v74, v81
-    v87 = array_get v1, index v86 -> u32
-    v88 = sub v85, v87
-    v89 = add v83, v88
-    store v89 at v3
-    v90 = unchecked_add v81, u32 1
-    jmp b16(v90)
-  b18():
-    v91 = unchecked_add v74, u32 1
-    jmp b13(v91)
-  b19():
-    jmp b21(v0)
-  b20():
-    jmp b21(v1)
-  b21(v97: [u32; 5]):
-    v98 = array_get v97, index u32 0 -> u32
-    v99 = array_get v1, index u32 0 -> u32
-    v100 = eq v98, v99
-    constrain v98 == v99
-    jmp b22(u32 0)
-  b22(v102: u32):
-    v103 = lt v102, u32 5
-    jmpif v103 then: b23, else: b24
-  b23():
-    v104 = array_get v1, index v102 -> u32
-    jmp b25(u32 0)
-  b24():
-    v118 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 6] : [(Field, Field); 3]
-    v119 = allocate -> &mut [(Field, Field); 3]
-    store v118 at v119
-    v122 = load v119 -> [(Field, Field); 3]
-    v123 = array_set v122, index u32 2, value Field 7
-    v124 = array_set v123, index u32 3, value Field 8
-    store v124 at v119
-    v125 = load v119 -> [(Field, Field); 3]
-    v126 = array_get v125, index u32 2 -> Field
-    v127 = array_get v125, index u32 3 -> Field
-    v128 = eq v127, Field 8
-    constrain v127 == Field 8
-    return
-  b25(v105: u32):
-    v106 = lt v105, u32 5
-    jmpif v106 then: b26, else: b27
-  b26():
-    v107 = array_get v0, index v105 -> u32
-    v108 = eq v107, v104
-    v109 = not v108
-    constrain v108 == u1 0
-    v111 = unchecked_add v105, u32 1
-    jmp b25(v111)
-  b27():
-    v112 = unchecked_add v102, u32 1
-    jmp b22(v112)
-}
+        acir(inline) fn main f0 {
+          b0(v0: [u32; 5], v1: [u32; 5], v2: u32, v3: u32):
+            v32 = array_get v1, index u32 4 -> u32
+            jmp b1(u32 0, v32, u32 2301)
+          b1(v4: u32, v5: u32, v6: u32):
+            v36 = lt v4, u32 5
+            jmpif v36 then: b2, else: b3
+          b2():
+            v106 = mul v5, v5
+            v107 = array_get v1, index v4 -> u32
+            v108 = mul v106, v107
+            v109 = sub v5, v108
+            v110 = unchecked_add v4, u32 1
+            jmp b1(v110, v109, v108)
+          b3():
+            v37 = eq v5, u32 0
+            constrain v5 == u32 0
+            jmp b4(u32 0, v5, u32 2301)
+          b4(v7: u32, v8: u32, v9: u32):
+            v38 = lt v7, u32 5
+            jmpif v38 then: b5, else: b6
+          b5():
+            v100 = add v3, u32 2
+            v101 = array_get v0, index v7 -> u32
+            v102 = array_get v0, index v7 -> u32
+            v103 = array_get v1, index v7 -> u32
+            v104 = mul v102, v103
+            v105 = unchecked_add v7, u32 1
+            jmp b4(v105, u32 1, u32 0)
+          b6():
+            v40 = eq v8, u32 3814912846
+            constrain v8 == u32 3814912846
+            v41 = array_get v1, index u32 4 -> u32
+            jmp b7(u32 0, v41, u32 2300001)
+          b7(v10: u32, v11: u32, v12: u32):
+            v43 = lt v10, u32 5
+            jmpif v43 then: b8, else: b9
+          b8():
+            v93 = array_get v0, index v10 -> u32
+            v94 = array_get v1, index v10 -> u32
+            v95 = mul v93, v94
+            v96 = add v11, v95
+            jmp b10(u32 0, v96, v12)
+          b9():
+            v45 = eq v11, u32 41472
+            constrain v11 == u32 41472
+            v46 = array_get v1, index u32 4 -> u32
+            jmp b13(u32 0, v46, v12)
+          b10(v13: u32, v14: u32, v15: u32):
+            v97 = lt v13, u32 3
+            jmpif v97 then: b11, else: b12
+          b11():
+            v99 = unchecked_add v13, u32 1
+            jmp b10(v99, u32 4, u32 3)
+          b12():
+            v98 = unchecked_add v10, u32 1
+            jmp b7(v98, v14, v15)
+          b13(v16: u32, v17: u32, v18: u32):
+            v48 = lt v16, u32 3
+            jmpif v48 then: b14, else: b15
+          b14():
+            v80 = array_get v0, index v16 -> u32
+            v81 = array_get v1, index v16 -> u32
+            v82 = mul v80, v81
+            v83 = add v17, v82
+            jmp b16(u32 0, v83, v18)
+          b15():
+            v50 = eq v17, u32 11539
+            constrain v17 == u32 11539
+            v51 = eq v17, u32 0
+            jmpif v51 then: b19, else: b20
+          b16(v19: u32, v20: u32, v21: u32):
+            v84 = lt v19, u32 2
+            jmpif v84 then: b17, else: b18
+          b17():
+            v86 = add v16, v19
+            v87 = array_get v0, index v86 -> u32
+            v88 = add v16, v19
+            v89 = array_get v1, index v88 -> u32
+            v90 = sub v87, v89
+            v91 = add v20, v90
+            v92 = unchecked_add v19, u32 1
+            jmp b16(v92, v91, v21)
+          b18():
+            v85 = unchecked_add v16, u32 1
+            jmp b13(v85, v20, v21)
+          b19():
+            jmp b21(v0, v17, v18)
+          b20():
+            jmp b21(v1, v17, v18)
+          b21(v22: [u32; 5], v23: u32, v24: u32):
+            v52 = array_get v22, index u32 0 -> u32
+            v53 = array_get v1, index u32 0 -> u32
+            v54 = eq v52, v53
+            constrain v52 == v53
+            jmp b22(u32 0, v23, v24)
+          b22(v25: u32, v26: u32, v27: u32):
+            v55 = lt v25, u32 5
+            jmpif v55 then: b23, else: b24
+          b23():
+            v71 = array_get v1, index v25 -> u32
+            jmp b25(u32 0, v26, v27)
+          b24():
+            v62 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 6] : [(Field, Field); 3]
+            v65 = array_set v62, index u32 2, value Field 7
+            v67 = array_set v65, index u32 3, value Field 8
+            v68 = array_get v67, index u32 2 -> Field
+            v69 = array_get v67, index u32 3 -> Field
+            v70 = eq v69, Field 8
+            constrain v69 == Field 8
+            return
+          b25(v28: u32, v29: u32, v30: u32):
+            v72 = lt v28, u32 5
+            jmpif v72 then: b26, else: b27
+          b26():
+            v75 = array_get v0, index v28 -> u32
+            v76 = eq v75, v71
+            v77 = not v76
+            constrain v76 == u1 0
+            v79 = unchecked_add v28, u32 1
+            jmp b25(v79, v29, v30)
+          b27():
+            v74 = unchecked_add v25, u32 1
+            jmp b22(v74, v29, v30)
+        }
+        ");
+    }
+
+    #[test]
+    fn add_arg_to_jmpif_block_regression() {
+        // This case would require us to add block arguments to a jmpif. Instead, we modify
+        // the CFG to insert extra blocks. See [Ssa::process_cfg_for_mem2reg_simple] for more details.
+        let src = "
+            acir(inline) fn to_le_bits f19 {
+              b0(v0: Field):
+                v2 = call to_le_bits(v0) -> [u1; 32]
+                v7 = make_array [u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 1, u1 1, u1 1, u1 1, u1 0, u1 0, u1 1, u1 0, u1 0, u1 1, u1 1, u1 0, u1 1, u1 0, u1 1, u1 1, u1 1, u1 1, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 1, u1 1, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 1, u1 0, u1 0, u1 0, u1 1, u1 0, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 1, u1 0, u1 1, u1 0, u1 0, u1 1, u1 1, u1 1, u1 0, u1 1, u1 1, u1 0, u1 0, u1 1, u1 1, u1 1, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 1, u1 1, u1 1, u1 1, u1 1, u1 0, u1 0, u1 1, u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 1, u1 0, u1 0, u1 1, u1 0, u1 1, u1 1, u1 1, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 0, u1 1, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 1, u1 1, u1 0, u1 1, u1 1, u1 0, u1 1, u1 1, u1 0, u1 1, u1 0, u1 0, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 1, u1 0, u1 1, u1 1, u1 0, u1 0, u1 1, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 1, u1 1, u1 0, u1 0, u1 0, u1 1, u1 1, u1 0, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 1, u1 0, u1 1, u1 0, u1 0, u1 1, u1 1, u1 1, u1 0, u1 0, u1 1, u1 1, u1 1, u1 0, u1 0, u1 1, u1 0, u1 0, u1 0, u1 1, u1 0, u1 0, u1 1, u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1] : [u1]
+                v10 = allocate -> &mut u1
+                store u1 1 at v10
+                jmp b1(u32 0)
+              b1(v12: u32):
+                v13 = lt v12, u32 32
+                jmpif v13 then: b2, else: b3
+              b2():
+                v14 = load v10 -> u1
+                v15 = not v14
+                jmpif v15 then: b4, else: b5
+              b3():
+                v29 = load v10 -> u1
+                constrain v29 == u1 1
+                return v2
+              b4():
+                v18 = sub u32 31, v12
+                v19 = array_get v2, index v18 -> u1
+                v20 = sub u32 31, v12
+                v21 = lt v20, u32 254
+                constrain v21 == u1 1
+                v22 = array_get v7, index v20 -> u1
+                v23 = eq v19, v22
+                v24 = not v23
+                jmpif v24 then: b6, else: b7
+              b5():
+                v28 = unchecked_add v12, u32 1
+                jmp b1(v28)
+              b6():
+                v25 = sub u32 31, v12
+                v26 = lt v25, u32 254
+                constrain v26 == u1 1
+                v27 = array_get v7, index v25 -> u1
+                constrain v27 == u1 1
+                store u1 1 at v10
+                jmp b7()
+              b7():
+                jmp b5()
+            }";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg_simple();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn to_le_bits f0 {
+          b0(v0: Field):
+            v6 = call to_le_bits(v0) -> [u1; 32]
+            v9 = make_array [u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 1, u1 1, u1 1, u1 1, u1 0, u1 0, u1 1, u1 0, u1 0, u1 1, u1 1, u1 0, u1 1, u1 0, u1 1, u1 1, u1 1, u1 1, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 1, u1 1, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 1, u1 0, u1 0, u1 0, u1 1, u1 0, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 1, u1 0, u1 1, u1 0, u1 0, u1 1, u1 1, u1 1, u1 0, u1 1, u1 1, u1 0, u1 0, u1 1, u1 1, u1 1, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 1, u1 1, u1 1, u1 1, u1 1, u1 0, u1 0, u1 1, u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 1, u1 0, u1 0, u1 1, u1 0, u1 1, u1 1, u1 1, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 0, u1 1, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 1, u1 1, u1 0, u1 1, u1 1, u1 0, u1 1, u1 1, u1 0, u1 1, u1 0, u1 0, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 1, u1 0, u1 1, u1 1, u1 0, u1 0, u1 1, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 1, u1 1, u1 0, u1 0, u1 0, u1 1, u1 1, u1 0, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 1, u1 0, u1 1, u1 0, u1 0, u1 1, u1 1, u1 1, u1 0, u1 0, u1 1, u1 1, u1 1, u1 0, u1 0, u1 1, u1 0, u1 0, u1 0, u1 1, u1 0, u1 0, u1 1, u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1] : [u1]
+            jmp b1(u32 0, u1 1)
+          b1(v1: u32, v2: u1):
+            v12 = lt v1, u32 32
+            jmpif v12 then: b2, else: b3
+          b2():
+            v13 = not v2
+            jmpif v13 then: b4, else: b8
+          b3():
+            constrain v2 == u1 1
+            return v6
+          b4():
+            v15 = sub u32 31, v1
+            v16 = array_get v6, index v15 -> u1
+            v17 = sub u32 31, v1
+            v19 = lt v17, u32 254
+            constrain v19 == u1 1
+            v20 = array_get v9, index v17 -> u1
+            v21 = eq v16, v20
+            v22 = not v21
+            jmpif v22 then: b6, else: b9
+          b5(v3: u1):
+            v27 = unchecked_add v1, u32 1
+            jmp b1(v27, v3)
+          b6():
+            v23 = sub u32 31, v1
+            v24 = lt v23, u32 254
+            constrain v24 == u1 1
+            v25 = array_get v9, index v23 -> u1
+            constrain v25 == u1 1
+            jmp b7(u1 1)
+          b7(v4: u1):
+            jmp b5(v4)
+          b8():
+            jmp b5(v2)
+          b9():
+            jmp b7(v2)
+        }
+        ");
+    }
+
+    fn foo() {
+        let src = "
+            brillig(inline) impure fn func_5 f1 {
+              b0(v2: &mut [Field; 1], v3: &mut u1, v4: Field, v5: u1, v6: u1, v7: &mut u32):
+                v8 = allocate -> &mut Field
+                store v4 at v8
+                v9 = allocate -> &mut u1
+                store v5 at v9
+                v10 = allocate -> &mut u1
+                store v6 at v10
+                v11 = load v7 -> u32
+                v13 = eq v11, u32 0
+                jmpif v13 then: b1, else: b2
+              b1():
+                v14 = load v2 -> [Field; 1]
+                v15 = array_get v14, index u32 0 -> Field
+                v16 = load v3 -> u1
+                jmp b3(v15, v16)
+              b2():
+                v19 = load v7 -> u32
+                v21 = sub v19, u32 1
+                store v21 at v7
+                v22 = load v3 -> u1
+                jmpif v22 then: b4, else: b5
+              b3(v17: Field, v18: u1):
+                return v17, v18
+              b4():
+                jmp b6(v2, v3)
+              b5():
+                jmp b6(v2, v9)
+              b6(v23: &mut [Field; 1], v24: &mut u1):
+                v25 = load v8 -> Field
+                v26 = load v9 -> u1
+                v27 = load v10 -> u1
+                v29, v30 = call f1(v23, v24, v25, v26, v27, v7) -> (Field, u1)
+                jmp b3(v29, v30)
+            }
+            ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg_simple();
+        assert_ssa_snapshot!(ssa, @r"
+            brillig(inline) impure fn func_5 f1 {
+              b0(v2: &mut [Field; 1], v3: &mut u1, v4: Field, v5: u1, v6: u1, v7: &mut u32):
+                v8 = allocate -> &mut Field
+                store v4 at v8
+                v9 = allocate -> &mut u1
+                store v5 at v9
+                v10 = allocate -> &mut u1
+                store v6 at v10
+                v11 = load v7 -> u32
+                v13 = eq v11, u32 0
+                jmpif v13 then: b1, else: b2
+              b1():
+                v14 = load v2 -> [Field; 1]
+                v15 = array_get v14, index u32 0 -> Field
+                v16 = load v3 -> u1
+                jmp b3(v15, v16)
+              b2():
+                v19 = load v7 -> u32
+                v21 = sub v19, u32 1
+                store v21 at v7
+                v22 = load v3 -> u1
+                jmpif v22 then: b4, else: b5
+              b3(v17: Field, v18: u1):
+                return v17, v18
+              b4():
+                jmp b6(v2, v3)
+              b5():
+                jmp b6(v2, v9)
+              b6(v23: &mut [Field; 1], v24: &mut u1):
+                v25 = load v8 -> Field
+                v26 = load v9 -> u1
+                v27 = load v10 -> u1
+                v29, v30 = call f1(v23, v24, v25, v26, v27, v7) -> (Field, u1)
+                jmp b3(v29, v30)
+            }
             ");
     }
 }

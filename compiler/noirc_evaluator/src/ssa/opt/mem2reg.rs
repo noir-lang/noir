@@ -75,6 +75,7 @@
 //! performed before loop unrolling to try to allow for mutable variables used for loop indices.
 mod alias_set;
 mod block;
+mod cfg;
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -774,7 +775,14 @@ impl<'f> PerFunctionContext<'f> {
             TerminatorInstruction::JmpIf { .. } | TerminatorInstruction::Unreachable { .. } => (), // Nothing to do
             TerminatorInstruction::Jmp { destination, arguments, .. } => {
                 let destination_parameters = self.inserter.function.dfg[*destination].parameters();
-                assert_eq!(destination_parameters.len(), arguments.len());
+                assert_eq!(
+                    destination_parameters.len(),
+                    arguments.len(),
+                    "Block {block} has {} argument(s) for destination {destination} with {} parameter(s) in function:\n{}",
+                    arguments.len(),
+                    destination_parameters.len(),
+                    self.inserter.function,
+                );
 
                 // If we have multiple parameters that alias that same argument value,
                 // then those parameters also alias each other.
