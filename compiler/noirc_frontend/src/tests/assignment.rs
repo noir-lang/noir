@@ -496,6 +496,37 @@ fn struct_pattern_with_non_struct_type_name() {
 }
 
 #[test]
+fn parenthesized_pattern() {
+    let src = r#"
+        fn main() {
+            // Parenthesized identifier
+            let (x) = 5;
+            assert(x == 5);
+
+            // Parenthesized tuple pattern
+            let ((a, b)) = (1, 2);
+            assert(a == 1);
+            assert(b == 2);
+
+            // Multiple levels of parentheses
+            let (((c))) = 10;
+            assert(c == 10);
+
+            // Parenthesized struct pattern
+            let (Foo { x, y }) = Foo { x: 1, y: 2 };
+            assert(x == 1);
+            assert(y == 2);
+        }
+
+        struct Foo {
+            x: Field,
+            y: Field,
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn tuple_pattern_arity_mismatch() {
     let src = r#"
         fn main() {
