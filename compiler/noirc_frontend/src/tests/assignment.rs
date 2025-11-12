@@ -437,13 +437,29 @@ fn struct_pattern_with_non_struct_type() {
 
 #[test]
 fn struct_pattern_with_error_type() {
-    // When the expected type is Error (from a previous type resolution failure),
-    // we should not issue confusing cascading errors about missing/invalid fields.
     let src = r#"
     fn main() {
         let value = MyStruct { x: 1, y: 2 };
         let MyStruct { x: _, y: _ }: DoesNotExist = value;
                                      ^^^^^^^^^^^^ Could not resolve 'DoesNotExist' in path
+    }
+
+    struct MyStruct {
+        x: Field,
+        y: Field, 
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn struct_pattern_with_error_type_and_missing_fields() {
+    let src = r#"
+    fn main() {
+        let value = MyStruct { x: 1, y: 2 };
+        let MyStruct { x: _ }: DoesNotExist = value;
+                               ^^^^^^^^^^^^ Could not resolve 'DoesNotExist' in path
+            ^^^^^^^^^^^^^^^^^ missing field y in struct MyStruct
     }
 
     struct MyStruct {
