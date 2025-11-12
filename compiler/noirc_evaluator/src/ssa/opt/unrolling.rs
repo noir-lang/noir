@@ -1833,7 +1833,8 @@ mod tests {
     #[test]
     #[should_panic(expected = "ICE: overflow while incrementing constant")]
     fn unroll_loop_upper_bound_saturated() {
-        let ssa = format!(r#"
+        let ssa = format!(
+            r#"
         acir(inline) fn main f0 {{
           b0():
             jmp b1(u128 {0})
@@ -1847,14 +1848,16 @@ mod tests {
             jmp b1(v6)
           b3():
             return
-    }}"#, u128::MAX);
+    }}"#,
+            u128::MAX
+        );
 
         let ssa = Ssa::from_str(&ssa).unwrap();
         let function = ssa.main();
-        
+
         let loops = Loops::find_all(function);
         assert_eq!(loops.yet_to_unroll.len(), 1);
-        
+
         let loop_ = &loops.yet_to_unroll[0];
         let pre_header =
             loop_.get_pre_header(function, &loops.cfg).expect("Should have a pre_header");
