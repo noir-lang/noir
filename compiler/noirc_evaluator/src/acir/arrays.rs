@@ -165,6 +165,8 @@ impl Context<'_> {
     ) -> Result<(), RuntimeError> {
         // Initialize return_data using provided witnesses
         if let Some(return_data) = self.data_bus.return_data {
+            debug_assert!(!witnesses.is_empty(), "return data cannot be empty");
+
             let block_id = self.block_id(return_data);
             let already_initialized = self.initialized_arrays.contains(&block_id);
             if !already_initialized {
@@ -263,9 +265,7 @@ impl Context<'_> {
         }
         // Make sure this code is disabled, or fail with "Index out of bounds".
         let msg = "Index out of bounds, array has size 0".to_string();
-        let msg = self.acir_context.generate_assertion_message_payload(msg);
-        let zero = self.acir_context.add_constant(FieldElement::zero());
-        self.acir_context.assert_eq_var(self.current_side_effects_enabled_var, zero, Some(msg))?;
+        self.acir_context.assert_zero_var(self.current_side_effects_enabled_var, msg)?;
         Ok(true)
     }
 

@@ -248,8 +248,10 @@ impl Parser<'_> {
     fn parse_member_access_field_name(&mut self) -> Option<Ident> {
         if let Some(ident) = self.eat_ident() {
             Some(ident)
-        // Using `None` because we don't want to allow integer type suffixes on tuple field names
-        } else if let Some((int, None)) = self.eat_int() {
+        // We allow integer type suffixes on tuple field names since this lets
+        // users unquote typed integers in macros to use as a tuple access expression.
+        // See https://github.com/noir-lang/noir/pull/10330#issuecomment-3499399843
+        } else if let Some((int, _)) = self.eat_int() {
             Some(Ident::new(int.to_string(), self.previous_token_location))
         } else {
             self.push_error(

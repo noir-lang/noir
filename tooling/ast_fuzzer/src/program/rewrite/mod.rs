@@ -1,11 +1,9 @@
-use noirc_frontend::monomorphization::ast::{
-    Call, Expression, Function, Ident, LocalId, Program, Type,
-};
-
-use super::{
-    expr, types,
+use noirc_frontend::monomorphization::{
+    ast::{Call, Expression, Function, Ident, LocalId, Program, Type},
     visitor::{visit_expr, visit_expr_mut},
 };
+
+use super::{expr, types};
 
 mod limit;
 mod unreachable;

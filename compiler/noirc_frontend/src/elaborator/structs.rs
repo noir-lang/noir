@@ -90,14 +90,10 @@ impl Elaborator<'_> {
 
             let wildcard_allowed = false;
             let fields = vecmap(&unresolved.fields, |field| {
-                let ident = &field.item.name;
-                let typ = &field.item.typ;
+                let name = field.item.name.clone();
+                let typ = this.resolve_type(field.item.typ.clone(), wildcard_allowed);
                 let visibility = field.item.visibility;
-                StructField {
-                    visibility,
-                    name: ident.clone(),
-                    typ: this.resolve_type(typ.clone(), wildcard_allowed),
-                }
+                StructField { visibility, name, typ }
             });
 
             this.resolving_ids.remove(&struct_id);
