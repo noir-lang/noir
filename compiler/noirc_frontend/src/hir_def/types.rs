@@ -1378,13 +1378,13 @@ impl Type {
     /// This should try filter out types which would cause a panic in `abi_gen::abi_type_from_hir_type`,
     /// but it has to be more permissive, as we don't have all information yet; some only become apparent
     /// after monomorphization.
-    pub(crate) fn is_message_compatible(&self) -> bool {
+    pub(crate) fn is_message_compatible(&self, is_monomorphized: bool) -> bool {
         match self {
             Type::FieldElement | Type::Integer(_, _) | Type::Bool | Type::String(_) => true,
 
-            Type::Array(_, item) => item.is_message_compatible(),
+            Type::Array(_, item) => item.is_message_compatible(is_monomorphized),
             Type::TypeVariable(binding) => match &*binding.borrow() {
-                TypeBinding::Bound(typ) => typ.is_message_compatible(),
+                TypeBinding::Bound(typ) => typ.is_message_compatible(is_monomorphized),
                 TypeBinding::Unbound(_, kind) => {
                     matches!(kind, Kind::Integer | Kind::IntegerOrField)
                 }
@@ -1392,14 +1392,16 @@ impl Type {
             Type::DataType(def, args) => {
                 let struct_type = def.borrow();
                 let fields = struct_type.get_fields(args).unwrap_or_default();
-                fields.iter().all(|(_, typ, _)| typ.is_message_compatible())
+                fields.iter().all(|(_, typ, _)| typ.is_message_compatible(is_monomorphized))
             }
             Type::Alias(def, args) => {
                 let alias_type = def.borrow();
-                alias_type.get_type(args).is_message_compatible()
+                alias_type.get_type(args).is_message_compatible(is_monomorphized)
             }
-            Type::CheckedCast { to, .. } => to.is_message_compatible(),
-            Type::Tuple(fields) => fields.iter().all(|typ| typ.is_message_compatible()),
+            Type::CheckedCast { to, .. } => to.is_message_compatible(is_monomorphized),
+            Type::Tuple(fields) => {
+                fields.iter().all(|typ| typ.is_message_compatible(is_monomorphized))
+            }
             Type::Error
             | Type::Unit
             | Type::Constant(..)
@@ -1418,14 +1420,14 @@ impl Type {
             Type::Quoted(quoted) => {
                 // These are the two types that appear in noir-contracts.
                 // A static string becomes CtString, a format string is Quoted.
-                matches!(quoted, QuotedType::CtString | QuotedType::Quoted)
+                !is_monomorphized && matches!(quoted, QuotedType::CtString | QuotedType::Quoted)
             }
 
             // A generic would cause a panic in ABI generation, but if we don't allow it
             // here then we reject all functions which are generic over the message type.
             // Since we don't have a marker trait to show what can be turned into into a message,
             // we have to delay this check to monomorphization.
-            Type::NamedGeneric(..) => true,
+            Type::NamedGeneric(..) => !is_monomorphized,
         }
     }
 

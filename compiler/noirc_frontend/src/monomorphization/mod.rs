@@ -615,30 +615,30 @@ impl<'interner> Monomorphizer<'interner> {
                     .transpose()?;
 
                 if let Some((_, typ, location)) = assert_message.as_ref() {
+                    let check_msg_compat = |typ: &Type| {
+                        if !typ.is_message_compatible(true) {
+                            Err(MonomorphizationError::InvalidTypeInErrorMessage {
+                                typ: typ.to_string(),
+                                location: *location,
+                            })
+                        } else {
+                            Ok(())
+                        }
+                    };
                     match typ {
                         Type::FmtString(_, items) => match items.as_ref() {
                             Type::Tuple(items) => {
                                 for item in items {
-                                    if !item.is_message_compatible() {
-                                        return Err(
-                                            MonomorphizationError::InvalidTypeInErrorMessage {
-                                                typ: item.to_string(),
-                                                location: location.clone(),
-                                            },
-                                        );
-                                    }
+                                    check_msg_compat(item)?;
                                 }
                             }
                             Type::Unit => {}
-                            other => unreachable!("fmtstr only has a tuple or a unit; got {other}"),
+                            other => {
+                                unreachable!("ICE: expected Tuple or Unit in fmtstr; got {other}")
+                            }
                         },
                         other => {
-                            if !other.is_message_compatible() {
-                                return Err(MonomorphizationError::InvalidTypeInErrorMessage {
-                                    typ: other.to_string(),
-                                    location: location.clone(),
-                                });
-                            }
+                            check_msg_compat(other)?;
                         }
                     }
                 }

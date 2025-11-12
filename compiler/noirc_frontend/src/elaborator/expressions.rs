@@ -837,7 +837,7 @@ impl Elaborator<'_> {
                 let location = self.interner.expr_location(&msg);
                 let typ = typ.follow_bindings();
                 let mut check_msg_compat = |typ: &Type| {
-                    if typ.is_message_compatible() || matches!(typ, Type::Error) {
+                    if typ.is_message_compatible(false) || matches!(typ, Type::Error) {
                         return;
                     }
                     let error = TypeCheckError::TypeCannotBeUsed {
