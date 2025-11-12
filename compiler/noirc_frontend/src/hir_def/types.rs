@@ -2832,7 +2832,7 @@ impl std::fmt::Debug for Type {
                         Kind::Numeric(typ) => write!(f, "Numeric({binding:?}: {typ:?})"),
                     }
                 } else {
-                    write!(f, "{:?}", binding)
+                    write!(f, "{binding:?}")
                 }
             }
             Type::DataType(s, args) => {
