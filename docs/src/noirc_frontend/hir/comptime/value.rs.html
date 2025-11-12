@@ -825,7 +825,19 @@
 <a href="#824" id="824">824</a>
 <a href="#825" id="825">825</a>
 <a href="#826" id="826">826</a>
-<a href="#827" id="827">827</a></pre></div><pre class="rust"><code><span class="doccomment">//! Defines the [Value] type, representing a compile-time value, used by the
+<a href="#827" id="827">827</a>
+<a href="#828" id="828">828</a>
+<a href="#829" id="829">829</a>
+<a href="#830" id="830">830</a>
+<a href="#831" id="831">831</a>
+<a href="#832" id="832">832</a>
+<a href="#833" id="833">833</a>
+<a href="#834" id="834">834</a>
+<a href="#835" id="835">835</a>
+<a href="#836" id="836">836</a>
+<a href="#837" id="837">837</a>
+<a href="#838" id="838">838</a>
+<a href="#839" id="839">839</a></pre></div><pre class="rust"><code><span class="doccomment">//! Defines the [Value] type, representing a compile-time value, used by the
 //! comptime interpreter when evaluating code.
 </span><span class="kw">use </span>std::{borrow::Cow, rc::Rc, vec};
 
@@ -1405,7 +1417,10 @@
                 <span class="kw">if </span>value &lt; <span class="number">0 </span>{
                     <span class="macro">vec!</span>[
                         Token::Minus,
-                        Token::Int((-value <span class="kw">as </span>u128).into(), <span class="prelude-val">Some</span>(IntegerTypeSuffix::I8)),
+                        Token::Int(
+                            u128::from(value.unsigned_abs()).into(),
+                            <span class="prelude-val">Some</span>(IntegerTypeSuffix::I8),
+                        ),
                     ]
                 } <span class="kw">else </span>{
                     <span class="macro">vec!</span>[Token::Int((value <span class="kw">as </span>u128).into(), <span class="prelude-val">Some</span>(IntegerTypeSuffix::I8))]
@@ -1415,7 +1430,10 @@
                 <span class="kw">if </span>value &lt; <span class="number">0 </span>{
                     <span class="macro">vec!</span>[
                         Token::Minus,
-                        Token::Int((-value <span class="kw">as </span>u128).into(), <span class="prelude-val">Some</span>(IntegerTypeSuffix::I16)),
+                        Token::Int(
+                            u128::from(value.unsigned_abs()).into(),
+                            <span class="prelude-val">Some</span>(IntegerTypeSuffix::I16),
+                        ),
                     ]
                 } <span class="kw">else </span>{
                     <span class="macro">vec!</span>[Token::Int((value <span class="kw">as </span>u128).into(), <span class="prelude-val">Some</span>(IntegerTypeSuffix::I16))]
@@ -1425,7 +1443,10 @@
                 <span class="kw">if </span>value &lt; <span class="number">0 </span>{
                     <span class="macro">vec!</span>[
                         Token::Minus,
-                        Token::Int((-value <span class="kw">as </span>u128).into(), <span class="prelude-val">Some</span>(IntegerTypeSuffix::I32)),
+                        Token::Int(
+                            u128::from(value.unsigned_abs()).into(),
+                            <span class="prelude-val">Some</span>(IntegerTypeSuffix::I32),
+                        ),
                     ]
                 } <span class="kw">else </span>{
                     <span class="macro">vec!</span>[Token::Int((value <span class="kw">as </span>u128).into(), <span class="prelude-val">Some</span>(IntegerTypeSuffix::I32))]
@@ -1435,7 +1456,10 @@
                 <span class="kw">if </span>value &lt; <span class="number">0 </span>{
                     <span class="macro">vec!</span>[
                         Token::Minus,
-                        Token::Int((-value <span class="kw">as </span>u128).into(), <span class="prelude-val">Some</span>(IntegerTypeSuffix::I64)),
+                        Token::Int(
+                            u128::from(value.unsigned_abs()).into(),
+                            <span class="prelude-val">Some</span>(IntegerTypeSuffix::I64),
+                        ),
                     ]
                 } <span class="kw">else </span>{
                     <span class="macro">vec!</span>[Token::Int((value <span class="kw">as </span>u128).into(), <span class="prelude-val">Some</span>(IntegerTypeSuffix::I64))]
