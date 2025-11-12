@@ -1908,7 +1908,42 @@
 <a href="#1907" id="1907">1907</a>
 <a href="#1908" id="1908">1908</a>
 <a href="#1909" id="1909">1909</a>
-<a href="#1910" id="1910">1910</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{cmp::Ordering, collections::BTreeMap, io::Write};
+<a href="#1910" id="1910">1910</a>
+<a href="#1911" id="1911">1911</a>
+<a href="#1912" id="1912">1912</a>
+<a href="#1913" id="1913">1913</a>
+<a href="#1914" id="1914">1914</a>
+<a href="#1915" id="1915">1915</a>
+<a href="#1916" id="1916">1916</a>
+<a href="#1917" id="1917">1917</a>
+<a href="#1918" id="1918">1918</a>
+<a href="#1919" id="1919">1919</a>
+<a href="#1920" id="1920">1920</a>
+<a href="#1921" id="1921">1921</a>
+<a href="#1922" id="1922">1922</a>
+<a href="#1923" id="1923">1923</a>
+<a href="#1924" id="1924">1924</a>
+<a href="#1925" id="1925">1925</a>
+<a href="#1926" id="1926">1926</a>
+<a href="#1927" id="1927">1927</a>
+<a href="#1928" id="1928">1928</a>
+<a href="#1929" id="1929">1929</a>
+<a href="#1930" id="1930">1930</a>
+<a href="#1931" id="1931">1931</a>
+<a href="#1932" id="1932">1932</a>
+<a href="#1933" id="1933">1933</a>
+<a href="#1934" id="1934">1934</a>
+<a href="#1935" id="1935">1935</a>
+<a href="#1936" id="1936">1936</a>
+<a href="#1937" id="1937">1937</a>
+<a href="#1938" id="1938">1938</a>
+<a href="#1939" id="1939">1939</a>
+<a href="#1940" id="1940">1940</a>
+<a href="#1941" id="1941">1941</a>
+<a href="#1942" id="1942">1942</a>
+<a href="#1943" id="1943">1943</a>
+<a href="#1944" id="1944">1944</a>
+<a href="#1945" id="1945">1945</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{cmp::Ordering, collections::BTreeMap, io::Write};
 
 <span class="kw">use super</span>::{
     Ssa,
@@ -1953,9 +1988,14 @@
     /// being executed is an unconstrained function.
     </span>side_effects_enabled: bool,
 
-    options: InterpreterOptions,
+    <span class="doccomment">/// The options the interpreter was created with.
+    </span>options: InterpreterOptions,
+
     <span class="doccomment">/// Print output.
     </span>output: W,
+
+    <span class="doccomment">/// Number of instructions and terminators executed.
+    </span>step_counter: usize,
 }
 
 <span class="attr">#[derive(Debug, Clone, Copy, Default)]
@@ -1964,6 +2004,8 @@
     </span><span class="kw">pub </span>trace: bool,
     <span class="doccomment">/// If true, the interpreter treats all foreign function calls (e.g., `print`) as unknown
     </span><span class="kw">pub </span>no_foreign_calls: bool,
+    <span class="doccomment">/// Optional limit on the number of executed instructions and terminators, to avoid infinite loops.
+    </span><span class="kw">pub </span>step_limit: <span class="prelude-ty">Option</span>&lt;usize&gt;,
 }
 
 <span class="kw">struct </span>CallContext {
@@ -2027,11 +2069,34 @@
         output: W,
     ) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>call_stack = <span class="macro">vec!</span>[CallContext::global_context()];
-        <span class="self">Self </span>{ functions, call_stack, side_effects_enabled: <span class="bool-val">true</span>, options, output }
+        <span class="self">Self </span>{ functions, call_stack, side_effects_enabled: <span class="bool-val">true</span>, options, output, step_counter: <span class="number">0 </span>}
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>functions(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>BTreeMap&lt;FunctionId, Function&gt; {
         <span class="self">self</span>.functions
+    }
+
+    <span class="doccomment">/// Resets the step counter to 0.
+    ///
+    /// This can be used when the interpreter is reused between calls,
+    /// to reset the budget before interpreting the next entry point.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>reset_step_counter(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+        <span class="self">self</span>.step_counter = <span class="number">0</span>;
+    }
+
+    <span class="doccomment">/// Increment the step counter, or return [InterpreterError::OutOfBudget].
+    ///
+    /// If there is no step limit, then it doesn't increment the counter.
+    </span><span class="kw">fn </span>inc_step_counter(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; IResult&lt;()&gt; {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(limit) = <span class="self">self</span>.options.step_limit {
+            <span class="kw">if </span><span class="self">self</span>.step_counter &gt;= limit {
+                <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::OutOfBudget { steps: <span class="self">self</span>.step_counter });
+            }
+            <span class="comment">// With a limit we shouldn't wrap around, but just in case we wanted move this outside,
+            // use a safe wrap-around increment.
+            </span><span class="self">self</span>.step_counter = <span class="self">self</span>.step_counter.wrapping_add(<span class="number">1</span>);
+        };
+        <span class="prelude-val">Ok</span>(())
     }
 
     <span class="kw">fn </span>call_context(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>CallContext {
@@ -2156,6 +2221,9 @@
                 <span class="kw">let </span>results = dfg.instruction_results(<span class="kw-2">*</span>instruction_id);
                 <span class="self">self</span>.interpret_instruction(<span class="kw-2">&amp;</span>dfg[<span class="kw-2">*</span>instruction_id], results)<span class="question-mark">?</span>;
             }
+
+            <span class="comment">// Account for the terminator; a function might not have actual instructions, other than jumping around.
+            </span><span class="self">self</span>.inc_step_counter()<span class="question-mark">?</span>;
 
             <span class="kw">match </span>block.terminator() {
                 <span class="prelude-val">None </span>=&gt; {
@@ -2429,6 +2497,8 @@
         instruction: <span class="kw-2">&amp;</span>Instruction,
         results: <span class="kw-2">&amp;</span>[ValueId],
     ) -&gt; IResult&lt;()&gt; {
+        <span class="self">self</span>.inc_step_counter()<span class="question-mark">?</span>;
+
         <span class="kw">let </span>side_effects_enabled = <span class="self">self</span>.side_effects_enabled(instruction);
 
         <span class="kw">match </span>instruction {

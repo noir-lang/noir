@@ -638,7 +638,7 @@
         extra_constraints: <span class="kw-2">&amp;</span>[(TraitConstraint, Location)],
     ) {
         <span class="kw">for </span>(local_module, id, func) <span class="kw">in </span><span class="kw-2">&amp;mut </span>function_set.functions {
-            <span class="self">self</span>.local_module = <span class="kw-2">*</span>local_module;
+            <span class="self">self</span>.local_module = <span class="prelude-val">Some</span>(<span class="kw-2">*</span>local_module);
             <span class="self">self</span>.recover_generics(|this| {
                 this.define_function_meta(func, <span class="kw-2">*</span>id, <span class="prelude-val">None</span>, extra_constraints);
             });
@@ -653,7 +653,7 @@
         local_module: <span class="kw">crate</span>::hir::def_map::LocalModuleId,
         function_sets: <span class="kw-2">&amp;mut </span>Vec&lt;(UnresolvedGenerics, Location, UnresolvedFunctions)&gt;,
     ) {
-        <span class="self">self</span>.local_module = local_module;
+        <span class="self">self</span>.local_module = <span class="prelude-val">Some</span>(local_module);
 
         <span class="kw">for </span>(generics, <span class="kw">_</span>, function_set) <span class="kw">in </span>function_sets {
             <span class="comment">// Prepare the impl
@@ -807,7 +807,7 @@
             is_entry_point,
             has_inline_attribute: func.has_inline_attribute(),
             source_crate: <span class="self">self</span>.crate_id,
-            source_module: <span class="self">self</span>.local_module,
+            source_module: <span class="self">self</span>.local_module(),
             function_body: FunctionBody::Unresolved(func.kind, body, func.def.location),
             self_type: <span class="self">self</span>.self_type.clone(),
             source_file: location.file,
@@ -1020,7 +1020,7 @@
             <span class="string">"Functions in other crates should be already elaborated"
         </span>);
 
-        <span class="self">self</span>.local_module = func_meta.source_module;
+        <span class="self">self</span>.local_module = <span class="prelude-val">Some</span>(func_meta.source_module);
         <span class="self">self</span>.self_type = func_meta.self_type.clone();
         <span class="self">self</span>.current_trait_impl = func_meta.trait_impl;
 

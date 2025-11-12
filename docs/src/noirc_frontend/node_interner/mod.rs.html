@@ -2684,7 +2684,7 @@
         </span><span class="kw">let </span><span class="kw-2">mut </span>usize_arena = Arena::default();
         <span class="kw">let </span>index = usize_arena.insert(<span class="number">0</span>);
         <span class="kw">let </span>stdlib = CrateId::Stdlib(<span class="number">0</span>);
-        <span class="kw">let </span>func_id = FuncId::dummy_id();
+        <span class="kw">let </span>func_id = <span class="self">self</span>.push_empty_fn();
         <span class="comment">// Use a definition ID that won't clash with anything else, and isn't the dummy one
         </span><span class="kw">let </span>definition_id = DefinitionId(usize::MAX - <span class="number">1</span>);
         <span class="self">self</span>.function_definition_ids.insert(func_id, definition_id);

@@ -190,7 +190,12 @@
 <a href="#189" id="189">189</a>
 <a href="#190" id="190">190</a>
 <a href="#191" id="191">191</a>
-<a href="#192" id="192">192</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::BTreeMap, path::PathBuf};
+<a href="#192" id="192">192</a>
+<a href="#193" id="193">193</a>
+<a href="#194" id="194">194</a>
+<a href="#195" id="195">195</a>
+<a href="#196" id="196">196</a>
+<a href="#197" id="197">197</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::BTreeMap, path::PathBuf};
 
 <span class="kw">use </span>clap::Args;
 <span class="kw">use </span>color_eyre::eyre::{<span class="self">self</span>, Context, bail};
@@ -235,13 +240,18 @@
     <span class="doccomment">/// Turn on tracing in the SSA interpreter.
     </span><span class="attr">#[clap(long, default_value_t = <span class="bool-val">false</span>)]
     </span><span class="kw">pub </span>trace: bool,
+
+    <span class="doccomment">/// Optional limit for the interpreter.
+    </span><span class="attr">#[clap(long)]
+    </span><span class="kw">pub </span>step_limit: <span class="prelude-ty">Option</span>&lt;usize&gt;,
 }
 
 <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>run(args: InterpretCommand, ssa: Ssa) -&gt; eyre::Result&lt;()&gt; {
     <span class="comment">// Construct an ABI, which we can then use to parse input values.
     </span><span class="kw">let </span>abi = abi_from_ssa(<span class="kw-2">&amp;</span>ssa);
 
-    <span class="kw">let </span>options = InterpreterOptions { trace: args.trace, ..Default::default() };
+    <span class="kw">let </span>options =
+        InterpreterOptions { trace: args.trace, step_limit: args.step_limit, ..Default::default() };
 
     <span class="kw">let </span>(input_map, return_value) = read_inputs_and_return(<span class="kw-2">&amp;</span>abi, <span class="kw-2">&amp;</span>args)<span class="question-mark">?</span>;
     <span class="kw">let </span>ssa_args = noir_ast_fuzzer::input_values_to_ssa(<span class="kw-2">&amp;</span>abi, <span class="kw-2">&amp;</span>input_map);

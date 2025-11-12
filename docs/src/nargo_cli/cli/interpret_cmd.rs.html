@@ -326,7 +326,15 @@
 <a href="#325" id="325">325</a>
 <a href="#326" id="326">326</a>
 <a href="#327" id="327">327</a>
-<a href="#328" id="328">328</a></pre></div><pre class="rust"><code><span class="doccomment">//! Use the SSA Interpreter to execute a SSA after a certain pass.
+<a href="#328" id="328">328</a>
+<a href="#329" id="329">329</a>
+<a href="#330" id="330">330</a>
+<a href="#331" id="331">331</a>
+<a href="#332" id="332">332</a>
+<a href="#333" id="333">333</a>
+<a href="#334" id="334">334</a>
+<a href="#335" id="335">335</a>
+<a href="#336" id="336">336</a></pre></div><pre class="rust"><code><span class="doccomment">//! Use the SSA Interpreter to execute a SSA after a certain pass.
 
 </span><span class="kw">use </span>std::collections::BTreeMap;
 <span class="kw">use </span>std::path::PathBuf;
@@ -381,6 +389,10 @@
     <span class="doccomment">/// If true, the interpreter will trace its execution.
     </span><span class="attr">#[clap(long)]
     </span>trace: bool,
+
+    <span class="doccomment">/// Optional limit for the interpreter.
+    </span><span class="attr">#[clap(long)]
+    </span>step_limit: <span class="prelude-ty">Option</span>&lt;usize&gt;,
 }
 
 <span class="kw">impl </span>WorkspaceCommand <span class="kw">for </span>InterpretCommand {
@@ -457,7 +469,11 @@
             }
         });
 
-        <span class="kw">let </span>interpreter_options = InterpreterOptions { trace: args.trace, ..Default::default() };
+        <span class="kw">let </span>interpreter_options = InterpreterOptions {
+            trace: args.trace,
+            step_limit: args.step_limit,
+            ..Default::default()
+        };
         <span class="kw">let </span>file_manager =
             <span class="kw">if </span>args.compile_options.with_ssa_locations { <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>file_manager) } <span class="kw">else </span>{ <span class="prelude-val">None </span>};
 

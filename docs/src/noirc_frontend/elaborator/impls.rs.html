@@ -368,7 +368,7 @@
         impls: <span class="kw-2">&amp;mut </span>[(UnresolvedGenerics, Location, UnresolvedFunctions)],
         self_type: <span class="kw-2">&amp;</span>UnresolvedType,
     ) {
-        <span class="self">self</span>.local_module = module;
+        <span class="self">self</span>.local_module = <span class="prelude-val">Some</span>(module);
 
         <span class="kw">for </span>(generics, location, unresolved) <span class="kw">in </span>impls {
             <span class="self">self</span>.check_generics_appear_in_types(generics, <span class="kw-2">&amp;</span>[self_type], <span class="kw-2">&amp;</span>[]);

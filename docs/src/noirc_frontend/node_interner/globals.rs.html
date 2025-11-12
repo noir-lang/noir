@@ -137,14 +137,7 @@
 <a href="#136" id="136">136</a>
 <a href="#137" id="137">137</a>
 <a href="#138" id="138">138</a>
-<a href="#139" id="139">139</a>
-<a href="#140" id="140">140</a>
-<a href="#141" id="141">141</a>
-<a href="#142" id="142">142</a>
-<a href="#143" id="143">143</a>
-<a href="#144" id="144">144</a>
-<a href="#145" id="145">145</a>
-<a href="#146" id="146">146</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileId;
+<a href="#139" id="139">139</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileId;
 <span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
@@ -161,13 +154,6 @@
 <span class="doccomment">/// An ID for a global value
 </span><span class="attr">#[derive(Debug, Eq, PartialEq, Hash, Clone, Copy, PartialOrd, Ord)]
 </span><span class="kw">pub struct </span>GlobalId(usize);
-
-<span class="kw">impl </span>GlobalId {
-    <span class="comment">// Dummy id for error reporting
-    </span><span class="kw">pub fn </span>dummy_id() -&gt; <span class="self">Self </span>{
-        GlobalId(usize::MAX)
-    }
-}
 
 <span class="attr">#[derive(Debug, Clone)]
 </span><span class="kw">pub struct </span>GlobalInfo {

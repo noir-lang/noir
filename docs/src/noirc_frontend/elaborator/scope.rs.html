@@ -234,13 +234,11 @@
 <a href="#233" id="233">233</a>
 <a href="#234" id="234">234</a>
 <a href="#235" id="235">235</a>
-<a href="#236" id="236">236</a>
-<a href="#237" id="237">237</a>
-<a href="#238" id="238">238</a></pre></div><pre class="rust"><code><span class="doccomment">//! Lexical scoping, variable lookup, and closure capture tracking.
+<a href="#236" id="236">236</a></pre></div><pre class="rust"><code><span class="doccomment">//! Lexical scoping, variable lookup, and closure capture tracking.
 
 </span><span class="kw">use </span><span class="kw">crate</span>::ast::{ERROR_IDENT, Ident};
 <span class="kw">use </span><span class="kw">crate</span>::elaborator::path_resolution::PathResolution;
-<span class="kw">use </span><span class="kw">crate</span>::hir::def_map::{LocalModuleId, ModuleId};
+<span class="kw">use </span><span class="kw">crate</span>::hir::def_map::ModuleId;
 
 <span class="kw">use </span><span class="kw">crate</span>::hir::scope::{Scope <span class="kw">as </span>GenericScope, ScopeTree <span class="kw">as </span>GenericScopeTree};
 <span class="kw">use crate</span>::{
@@ -263,16 +261,14 @@
 
 <span class="kw">impl </span>Elaborator&lt;<span class="lifetime">'_</span>&gt; {
     <span class="kw">pub fn </span>module_id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ModuleId {
-        <span class="macro">assert_ne!</span>(<span class="self">self</span>.local_module, LocalModuleId::dummy_id(), <span class="string">"local_module is unset"</span>);
-        ModuleId { krate: <span class="self">self</span>.crate_id, local_id: <span class="self">self</span>.local_module }
+        ModuleId { krate: <span class="self">self</span>.crate_id, local_id: <span class="self">self</span>.local_module() }
     }
 
     <span class="kw">pub fn </span>replace_module(<span class="kw-2">&amp;mut </span><span class="self">self</span>, new_module: ModuleId) -&gt; ModuleId {
-        <span class="macro">assert_ne!</span>(new_module.local_id, LocalModuleId::dummy_id(), <span class="string">"local_module is unset"</span>);
         <span class="kw">let </span>current_module = <span class="self">self</span>.module_id();
 
         <span class="self">self</span>.crate_id = new_module.krate;
-        <span class="self">self</span>.local_module = new_module.local_id;
+        <span class="self">self</span>.local_module = <span class="prelude-val">Some</span>(new_module.local_id);
         current_module
     }
 

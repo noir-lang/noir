@@ -811,7 +811,9 @@
 <a href="#810" id="810">810</a>
 <a href="#811" id="811">811</a>
 <a href="#812" id="812">812</a>
-<a href="#813" id="813">813</a></pre></div><pre class="rust"><code><span class="doccomment">//! Comptime expression evaluation and macro expansion via the interpreter.
+<a href="#813" id="813">813</a>
+<a href="#814" id="814">814</a>
+<a href="#815" id="815">815</a></pre></div><pre class="rust"><code><span class="doccomment">//! Comptime expression evaluation and macro expansion via the interpreter.
 //!
 //! This module handles the execution of compile-time code and attributes in Noir.
 //!
@@ -901,7 +903,7 @@
                 <span class="kw">let </span>meta = elaborator.interner.function_meta(<span class="kw-2">&amp;</span>function);
                 elaborator.current_item = <span class="prelude-val">Some</span>(DependencyId::Function(function));
                 elaborator.crate_id = meta.source_crate;
-                elaborator.local_module = meta.source_module;
+                elaborator.local_module = <span class="prelude-val">Some</span>(meta.source_module);
                 elaborator.introduce_generics_into_scope(meta.all_generics.clone());
             }
         })
@@ -919,7 +921,7 @@
         <span class="self">self</span>.elaborate_item_from_comptime(reason, f, |elaborator| {
             elaborator.current_item = <span class="prelude-val">None</span>;
             elaborator.crate_id = module.krate;
-            elaborator.local_module = module.local_id;
+            elaborator.local_module = <span class="prelude-val">Some</span>(module.local_id);
         })
     }
 
@@ -1131,7 +1133,7 @@
         attribute_context: AttributeContext,
         attributes_to_run: <span class="kw-2">&amp;mut </span>CollectedAttributes,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), CompilationError&gt; {
-        <span class="self">self</span>.local_module = attribute_context.attribute_module;
+        <span class="self">self</span>.local_module = <span class="prelude-val">Some</span>(attribute_context.attribute_module);
 
         <span class="kw">let </span>kind = <span class="kw">match </span><span class="kw-2">&amp;</span>attribute.name {
             MetaAttributeName::Path(path) =&gt; ExpressionKind::Variable(path.clone()),
@@ -1194,7 +1196,7 @@
         location: Location,
         generated_items: <span class="kw-2">&amp;mut </span>CollectedItems,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), CompilationError&gt; {
-        <span class="self">self</span>.local_module = attribute_context.module;
+        <span class="self">self</span>.local_module = <span class="prelude-val">Some</span>(attribute_context.module);
 
         <span class="kw">let </span><span class="kw-2">mut </span>interpreter = <span class="self">self</span>.setup_interpreter();
         <span class="kw">let </span><span class="kw-2">mut </span>arguments = <span class="self">Self</span>::handle_attribute_arguments(
@@ -1260,7 +1262,7 @@
 
         <span class="kw">if </span><span class="kw-2">&amp;</span>parameters[<span class="number">0</span>] != expected_type {
             <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::TypeMismatch {
-                expected: parameters[<span class="number">0</span>].clone(),
+                expected: parameters[<span class="number">0</span>].to_string(),
                 actual: expected_type.clone(),
                 location,
             }
@@ -1317,7 +1319,7 @@
                     <span class="kw-2">&amp;mut </span>errors,
                     || {
                         CompilationError::InterpreterError(InterpreterError::TypeMismatch {
-                            expected: param_type.clone(),
+                            expected: param_type.to_string(),
                             actual: expr_type.clone(),
                             location: arg_location,
                         })
@@ -1364,6 +1366,8 @@
     /// (e.g., module declarations and submodules) would require additional def-map updates
     /// thus potentially affecting the source order of attributes and would not be safe during elaboration.
     </span><span class="kw">fn </span>add_item(<span class="kw-2">&amp;mut </span><span class="self">self</span>, item: Item, generated_items: <span class="kw-2">&amp;mut </span>CollectedItems, location: Location) {
+        <span class="kw">let </span>local_module = <span class="self">self</span>.local_module();
+
         <span class="kw">match </span>item.kind {
             ItemKind::Function(function) =&gt; {
                 <span class="kw">let </span>module_id = <span class="self">self</span>.module_id();
@@ -1377,7 +1381,7 @@
                     item.doc_comments,
                     <span class="kw-2">&amp;mut </span><span class="self">self</span>.errors,
                 ) {
-                    <span class="kw">let </span>functions = <span class="macro">vec!</span>[(<span class="self">self</span>.local_module, id, function)];
+                    <span class="kw">let </span>functions = <span class="macro">vec!</span>[(local_module, id, function)];
                     generated_items.functions.push(UnresolvedFunctions {
                         file_id: location.file,
                         functions,
@@ -1393,12 +1397,12 @@
                         <span class="kw-2">&amp;mut </span>trait_impl,
                         <span class="self">self</span>.crate_id,
                         location.file,
-                        <span class="self">self</span>.local_module,
+                        local_module,
                     );
 
                 generated_items.trait_impls.push(UnresolvedTraitImpl {
                     file_id: location.file,
-                    module_id: <span class="self">self</span>.local_module,
+                    module_id: local_module,
                     r#trait: trait_impl.r#trait,
                     object_type: trait_impl.object_type,
                     methods,
@@ -1424,7 +1428,7 @@
                     Documented::new(global, item.doc_comments),
                     visibility,
                     location.file,
-                    <span class="self">self</span>.local_module,
+                    local_module,
                     <span class="self">self</span>.crate_id,
                 );
 
@@ -1439,7 +1443,7 @@
                     <span class="self">self</span>.def_maps.get_mut(<span class="kw-2">&amp;</span><span class="self">self</span>.crate_id).unwrap(),
                     <span class="self">self</span>.usage_tracker,
                     Documented::new(struct_def, item.doc_comments),
-                    <span class="self">self</span>.local_module,
+                    local_module,
                     <span class="self">self</span>.crate_id,
                     <span class="kw-2">&amp;mut </span><span class="self">self</span>.errors,
                 ) {
@@ -1453,7 +1457,7 @@
                     <span class="self">self</span>.usage_tracker,
                     Documented::new(enum_def, item.doc_comments),
                     location.file,
-                    <span class="self">self</span>.local_module,
+                    local_module,
                     <span class="self">self</span>.crate_id,
                     <span class="kw-2">&amp;mut </span><span class="self">self</span>.errors,
                 ) {

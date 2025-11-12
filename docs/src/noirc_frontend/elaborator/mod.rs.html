@@ -819,7 +819,11 @@
 <a href="#818" id="818">818</a>
 <a href="#819" id="819">819</a>
 <a href="#820" id="820">820</a>
-<a href="#821" id="821">821</a></pre></div><pre class="rust"><code><span class="doccomment">//! # The Elaborator
+<a href="#821" id="821">821</a>
+<a href="#822" id="822">822</a>
+<a href="#823" id="823">823</a>
+<a href="#824" id="824">824</a>
+<a href="#825" id="825">825</a></pre></div><pre class="rust"><code><span class="doccomment">//! # The Elaborator
 //!
 //! The elaborator is the core semantic analysis phase of the compiler. It transforms collected,
 //! unresolved AST items into fully resolved and type-checked HIR through simultaneous and intertwined
@@ -1045,8 +1049,8 @@
     </span>function_context: Vec&lt;FunctionContext&gt;,
 
     <span class="doccomment">/// The current module this elaborator is in.
-    /// Initially empty, it is set whenever a new top-level item is resolved.
-    </span>local_module: LocalModuleId,
+    /// Initially None, it is set whenever a new top-level item is resolved.
+    </span>local_module: <span class="prelude-ty">Option</span>&lt;LocalModuleId&gt;,
 
     <span class="doccomment">/// True if we're elaborating a comptime item such as a comptime function,
     /// block, global, or attribute.
@@ -1127,7 +1131,7 @@
             lambda_stack: Vec::new(),
             self_type: <span class="prelude-val">None</span>,
             current_item: <span class="prelude-val">None</span>,
-            local_module: LocalModuleId::dummy_id(),
+            local_module: <span class="prelude-val">None</span>,
             crate_id,
             resolving_ids: BTreeSet::new(),
             trait_bounds: Vec::new(),
@@ -1141,6 +1145,10 @@
             options,
             elaborate_reasons,
         }
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>local_module(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; LocalModuleId {
+        <span class="self">self</span>.local_module.expect(<span class="string">"local_module is unset"</span>)
     }
 
     <span class="kw">pub fn </span>from_context(
@@ -1386,7 +1394,7 @@
     }
 
     <span class="kw">fn </span>elaborate_trait_impl(<span class="kw-2">&amp;mut </span><span class="self">self</span>, trait_impl: UnresolvedTraitImpl) {
-        <span class="self">self</span>.local_module = trait_impl.module_id;
+        <span class="self">self</span>.local_module = <span class="prelude-val">Some</span>(trait_impl.module_id);
 
         <span class="self">self</span>.generics = trait_impl.resolved_generics.clone();
         <span class="self">self</span>.current_trait_impl = trait_impl.impl_id;
@@ -1397,7 +1405,7 @@
         <span class="self">self</span>.remove_trait_impl_assumed_trait_implementations(trait_impl.impl_id);
 
         <span class="kw">for </span>(module, function, noir_function) <span class="kw">in </span><span class="kw-2">&amp;</span>trait_impl.methods.functions {
-            <span class="self">self</span>.local_module = <span class="kw-2">*</span>module;
+            <span class="self">self</span>.local_module = <span class="prelude-val">Some</span>(<span class="kw-2">*</span>module);
             <span class="kw">let </span>errors = check_trait_impl_method_matches_declaration(
                 <span class="self">self</span>.interner,
                 <span class="kw-2">*</span>function,
@@ -1424,7 +1432,7 @@
     }
 
     <span class="kw">fn </span>define_type_alias(<span class="kw-2">&amp;mut </span><span class="self">self</span>, alias_id: TypeAliasId, alias: UnresolvedTypeAlias) {
-        <span class="self">self</span>.local_module = alias.module_id;
+        <span class="self">self</span>.local_module = <span class="prelude-val">Some</span>(alias.module_id);
 
         <span class="kw">let </span>name = <span class="kw-2">&amp;</span>alias.type_alias_def.name;
         <span class="kw">let </span>visibility = alias.type_alias_def.visibility;

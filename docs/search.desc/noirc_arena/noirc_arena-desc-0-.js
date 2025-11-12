@@ -1,1 +1,1 @@
-searchState.loadedDescShard("noirc_arena", 0, "Return a dummy index (max value internally). This should …\nReturns the argument unchanged.\nReturns the argument unchanged.\nCalls <code>U::from(self)</code>.\nCalls <code>U::from(self)</code>.")
+searchState.loadedDescShard("noirc_arena", 0, "Returns the argument unchanged.\nReturns the argument unchanged.\nCalls <code>U::from(self)</code>.\nCalls <code>U::from(self)</code>.")

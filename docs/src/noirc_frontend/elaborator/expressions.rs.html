@@ -1595,11 +1595,7 @@
 <a href="#1594" id="1594">1594</a>
 <a href="#1595" id="1595">1595</a>
 <a href="#1596" id="1596">1596</a>
-<a href="#1597" id="1597">1597</a>
-<a href="#1598" id="1598">1598</a>
-<a href="#1599" id="1599">1599</a>
-<a href="#1600" id="1600">1600</a>
-<a href="#1601" id="1601">1601</a></pre></div><pre class="rust"><code><span class="doccomment">//! Expression elaboration, covering all expression [kinds][ExpressionKind].
+<a href="#1597" id="1597">1597</a></pre></div><pre class="rust"><code><span class="doccomment">//! Expression elaboration, covering all expression [kinds][ExpressionKind].
 
 </span><span class="kw">use </span>std::collections::HashMap;
 
@@ -2289,22 +2285,18 @@
             .func_id(<span class="self">self</span>.interner)
             .expect(<span class="string">"Expected trait function to be a DefinitionKind::Function"</span>);
 
-        <span class="kw">let </span>generics = <span class="kw">if </span>func_id != FuncId::dummy_id() {
-            <span class="kw">let </span>function_type = <span class="self">self</span>.interner.function_meta(<span class="kw-2">&amp;</span>func_id).typ.clone();
-            <span class="self">self</span>.try_add_mutable_reference_to_object(<span class="kw-2">&amp;</span>function_type, <span class="kw-2">&amp;mut </span>object_type, <span class="kw-2">&amp;mut </span>object);
-            <span class="kw">let </span>generics = method_call.generics;
-            <span class="kw">let </span>generics = generics.map(|generics| {
-                vecmap(generics, |generic| {
-                    <span class="kw">let </span>location = generic.location;
-                    <span class="kw">let </span>wildcard_allowed = <span class="bool-val">true</span>;
-                    <span class="kw">let </span>typ = <span class="self">self</span>.use_type_with_kind(generic, <span class="kw-2">&amp;</span>Kind::Any, wildcard_allowed);
-                    Located::from(location, typ)
-                })
-            });
-            <span class="self">self</span>.resolve_function_turbofish_generics(<span class="kw-2">&amp;</span>func_id, generics, location)
-        } <span class="kw">else </span>{
-            <span class="prelude-val">None
-        </span>};
+        <span class="kw">let </span>function_type = <span class="self">self</span>.interner.function_meta(<span class="kw-2">&amp;</span>func_id).typ.clone();
+        <span class="self">self</span>.try_add_mutable_reference_to_object(<span class="kw-2">&amp;</span>function_type, <span class="kw-2">&amp;mut </span>object_type, <span class="kw-2">&amp;mut </span>object);
+        <span class="kw">let </span>generics = method_call.generics;
+        <span class="kw">let </span>generics = generics.map(|generics| {
+            vecmap(generics, |generic| {
+                <span class="kw">let </span>location = generic.location;
+                <span class="kw">let </span>wildcard_allowed = <span class="bool-val">true</span>;
+                <span class="kw">let </span>typ = <span class="self">self</span>.use_type_with_kind(generic, <span class="kw-2">&amp;</span>Kind::Any, wildcard_allowed);
+                Located::from(location, typ)
+            })
+        });
+        <span class="kw">let </span>generics = <span class="self">self</span>.resolve_function_turbofish_generics(<span class="kw-2">&amp;</span>func_id, generics, location);
 
         <span class="kw">let </span>location = object_location.merge(method_name_location);
 

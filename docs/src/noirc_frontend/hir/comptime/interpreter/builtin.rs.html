@@ -3177,57 +3177,7 @@
 <a href="#3176" id="3176">3176</a>
 <a href="#3177" id="3177">3177</a>
 <a href="#3178" id="3178">3178</a>
-<a href="#3179" id="3179">3179</a>
-<a href="#3180" id="3180">3180</a>
-<a href="#3181" id="3181">3181</a>
-<a href="#3182" id="3182">3182</a>
-<a href="#3183" id="3183">3183</a>
-<a href="#3184" id="3184">3184</a>
-<a href="#3185" id="3185">3185</a>
-<a href="#3186" id="3186">3186</a>
-<a href="#3187" id="3187">3187</a>
-<a href="#3188" id="3188">3188</a>
-<a href="#3189" id="3189">3189</a>
-<a href="#3190" id="3190">3190</a>
-<a href="#3191" id="3191">3191</a>
-<a href="#3192" id="3192">3192</a>
-<a href="#3193" id="3193">3193</a>
-<a href="#3194" id="3194">3194</a>
-<a href="#3195" id="3195">3195</a>
-<a href="#3196" id="3196">3196</a>
-<a href="#3197" id="3197">3197</a>
-<a href="#3198" id="3198">3198</a>
-<a href="#3199" id="3199">3199</a>
-<a href="#3200" id="3200">3200</a>
-<a href="#3201" id="3201">3201</a>
-<a href="#3202" id="3202">3202</a>
-<a href="#3203" id="3203">3203</a>
-<a href="#3204" id="3204">3204</a>
-<a href="#3205" id="3205">3205</a>
-<a href="#3206" id="3206">3206</a>
-<a href="#3207" id="3207">3207</a>
-<a href="#3208" id="3208">3208</a>
-<a href="#3209" id="3209">3209</a>
-<a href="#3210" id="3210">3210</a>
-<a href="#3211" id="3211">3211</a>
-<a href="#3212" id="3212">3212</a>
-<a href="#3213" id="3213">3213</a>
-<a href="#3214" id="3214">3214</a>
-<a href="#3215" id="3215">3215</a>
-<a href="#3216" id="3216">3216</a>
-<a href="#3217" id="3217">3217</a>
-<a href="#3218" id="3218">3218</a>
-<a href="#3219" id="3219">3219</a>
-<a href="#3220" id="3220">3220</a>
-<a href="#3221" id="3221">3221</a>
-<a href="#3222" id="3222">3222</a>
-<a href="#3223" id="3223">3223</a>
-<a href="#3224" id="3224">3224</a>
-<a href="#3225" id="3225">3225</a>
-<a href="#3226" id="3226">3226</a>
-<a href="#3227" id="3227">3227</a>
-<a href="#3228" id="3228">3228</a>
-<a href="#3229" id="3229">3229</a></pre></div><pre class="rust"><code><span class="doccomment">//! Large file containing implementations of all the various built-in functions
+<a href="#3179" id="3179">3179</a></pre></div><pre class="rust"><code><span class="doccomment">//! Large file containing implementations of all the various built-in functions
 //! which can be called in the interpreter. This notably includes the entire comptime-API
 //! defined in `noir_stdlib/src/meta/*`
 </span><span class="kw">use </span>std::rc::Rc;
@@ -3300,16 +3250,14 @@
             <span class="string">"apply_range_constraint" </span>=&gt; {
                 <span class="self">self</span>.call_foreign(<span class="string">"range"</span>, arguments, return_type, location)
             }
-            <span class="string">"array_as_str_unchecked" </span>=&gt; array_as_str_unchecked(interner, arguments, location),
-            <span class="string">"array_len" </span>=&gt; array_len(interner, arguments, location),
+            <span class="string">"array_as_str_unchecked" </span>=&gt; array_as_str_unchecked(arguments, location),
+            <span class="string">"array_len" </span>=&gt; array_len(arguments, location),
             <span class="string">"array_refcount" </span>=&gt; <span class="prelude-val">Ok</span>(Value::U32(<span class="number">0</span>)),
             <span class="string">"assert_constant" </span>=&gt; <span class="prelude-val">Ok</span>(Value::Unit),
-            <span class="string">"as_slice" </span>=&gt; as_slice(interner, arguments, location),
+            <span class="string">"as_slice" </span>=&gt; as_slice(arguments, location),
             <span class="string">"ctstring_eq" </span>=&gt; ctstring_eq(arguments, location),
             <span class="string">"ctstring_hash" </span>=&gt; ctstring_hash(arguments, location),
-            <span class="string">"derive_pedersen_generators" </span>=&gt; {
-                derive_generators(interner, arguments, return_type, location)
-            }
+            <span class="string">"derive_pedersen_generators" </span>=&gt; derive_generators(arguments, return_type, location),
             <span class="string">"expr_as_array" </span>=&gt; expr_as_array(interner, arguments, return_type, location),
             <span class="string">"expr_as_assert" </span>=&gt; expr_as_assert(interner, arguments, return_type, location),
             <span class="string">"expr_as_assert_eq" </span>=&gt; expr_as_assert_eq(interner, arguments, return_type, location),
@@ -3354,8 +3302,8 @@
             <span class="string">"expr_resolve" </span>=&gt; expr_resolve(<span class="self">self</span>, arguments, location),
             <span class="string">"is_unconstrained" </span>=&gt; <span class="prelude-val">Ok</span>(Value::Bool(<span class="bool-val">true</span>)),
             <span class="string">"field_less_than" </span>=&gt; field_less_than(arguments, location),
-            <span class="string">"fmtstr_as_ctstring" </span>=&gt; fmtstr_as_ctstring(interner, arguments, location),
-            <span class="string">"fmtstr_quoted_contents" </span>=&gt; fmtstr_quoted_contents(interner, arguments, location),
+            <span class="string">"fmtstr_as_ctstring" </span>=&gt; fmtstr_as_ctstring(arguments, location),
+            <span class="string">"fmtstr_quoted_contents" </span>=&gt; fmtstr_quoted_contents(arguments, location),
             <span class="string">"fresh_type_variable" </span>=&gt; fresh_type_variable(interner),
             <span class="string">"function_def_add_attribute" </span>=&gt; function_def_add_attribute(<span class="self">self</span>, arguments, location),
             <span class="string">"function_def_as_typed_expr" </span>=&gt; function_def_as_typed_expr(<span class="self">self</span>, arguments, location),
@@ -3409,16 +3357,16 @@
             <span class="string">"quoted_eq" </span>=&gt; quoted_eq(<span class="self">self</span>.elaborator.interner, arguments, location),
             <span class="string">"quoted_hash" </span>=&gt; quoted_hash(arguments, location),
             <span class="string">"quoted_tokens" </span>=&gt; quoted_tokens(arguments, location),
-            <span class="string">"slice_insert" </span>=&gt; slice_insert(interner, arguments, location),
-            <span class="string">"slice_pop_back" </span>=&gt; slice_pop_back(interner, arguments, location, call_stack),
-            <span class="string">"slice_pop_front" </span>=&gt; slice_pop_front(interner, arguments, location, call_stack),
-            <span class="string">"slice_push_back" </span>=&gt; slice_push_back(interner, arguments, location),
-            <span class="string">"slice_push_front" </span>=&gt; slice_push_front(interner, arguments, location),
+            <span class="string">"slice_insert" </span>=&gt; slice_insert(arguments, location),
+            <span class="string">"slice_pop_back" </span>=&gt; slice_pop_back(arguments, location, call_stack),
+            <span class="string">"slice_pop_front" </span>=&gt; slice_pop_front(arguments, location, call_stack),
+            <span class="string">"slice_push_back" </span>=&gt; slice_push_back(arguments, location),
+            <span class="string">"slice_push_front" </span>=&gt; slice_push_front(arguments, location),
             <span class="string">"slice_refcount" </span>=&gt; <span class="prelude-val">Ok</span>(Value::U32(<span class="number">0</span>)),
-            <span class="string">"slice_remove" </span>=&gt; slice_remove(interner, arguments, location, call_stack),
+            <span class="string">"slice_remove" </span>=&gt; slice_remove(arguments, location, call_stack),
             <span class="string">"static_assert" </span>=&gt; static_assert(interner, arguments, location, call_stack),
-            <span class="string">"str_as_bytes" </span>=&gt; str_as_bytes(interner, arguments, location),
-            <span class="string">"str_as_ctstring" </span>=&gt; str_as_ctstring(interner, arguments, location),
+            <span class="string">"str_as_bytes" </span>=&gt; str_as_bytes(arguments, location),
+            <span class="string">"str_as_ctstring" </span>=&gt; str_as_ctstring(arguments, location),
             <span class="string">"to_be_radix" </span>=&gt; to_be_radix(arguments, return_type, location),
             <span class="string">"to_le_radix" </span>=&gt; to_le_radix(arguments, return_type, location),
             <span class="string">"to_be_bits" </span>=&gt; to_be_bits(arguments, return_type, location),
@@ -3509,63 +3457,45 @@
     })
 }
 
-<span class="kw">fn </span>array_len(
-    interner: <span class="kw-2">&amp;</span>NodeInterner,
-    arguments: Vec&lt;(Value, Location)&gt;,
-    location: Location,
-) -&gt; IResult&lt;Value&gt; {
+<span class="kw">fn </span>array_len(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
     <span class="kw">let </span>(argument, argument_location) = check_one_argument(arguments, location)<span class="question-mark">?</span>;
 
     <span class="kw">match </span>argument {
         Value::Array(values, <span class="kw">_</span>) | Value::Slice(values, <span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(Value::U32(values.len() <span class="kw">as </span>u32)),
         value =&gt; {
-            <span class="kw">let </span>type_var = Box::new(interner.next_type_variable());
-            <span class="kw">let </span>expected = Type::Array(type_var.clone(), type_var);
+            <span class="kw">let </span>expected = <span class="string">"array"</span>.to_string();
             <span class="kw">let </span>actual = value.get_type().into_owned();
             <span class="prelude-val">Err</span>(InterpreterError::TypeMismatch { expected, actual, location: argument_location })
         }
     }
 }
 
-<span class="kw">fn </span>array_as_str_unchecked(
-    interner: <span class="kw-2">&amp;</span>NodeInterner,
-    arguments: Vec&lt;(Value, Location)&gt;,
-    location: Location,
-) -&gt; IResult&lt;Value&gt; {
+<span class="kw">fn </span>array_as_str_unchecked(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
     <span class="kw">let </span>argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
 
-    <span class="kw">let </span>array = get_array(interner, argument)<span class="question-mark">?</span>.<span class="number">0</span>;
+    <span class="kw">let </span>array = get_array(argument)<span class="question-mark">?</span>.<span class="number">0</span>;
     <span class="kw">let </span>string_bytes = try_vecmap(array, |byte| get_u8((byte, location)))<span class="question-mark">?</span>;
     <span class="kw">let </span>string = String::from_utf8_lossy(<span class="kw-2">&amp;</span>string_bytes).into_owned();
     <span class="prelude-val">Ok</span>(Value::String(Rc::new(string)))
 }
 
-<span class="kw">fn </span>as_slice(
-    interner: <span class="kw-2">&amp;</span>NodeInterner,
-    arguments: Vec&lt;(Value, Location)&gt;,
-    location: Location,
-) -&gt; IResult&lt;Value&gt; {
+<span class="kw">fn </span>as_slice(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
     <span class="kw">let </span>(array, array_location) = check_one_argument(arguments, location)<span class="question-mark">?</span>;
 
     <span class="kw">match </span>array {
         Value::Array(values, Type::Array(<span class="kw">_</span>, typ)) =&gt; <span class="prelude-val">Ok</span>(Value::Slice(values, Type::Slice(typ))),
         value =&gt; {
-            <span class="kw">let </span>type_var = Box::new(interner.next_type_variable());
-            <span class="kw">let </span>expected = Type::Array(type_var.clone(), type_var);
+            <span class="kw">let </span>expected = <span class="string">"array"</span>.to_string();
             <span class="kw">let </span>actual = value.get_type().into_owned();
             <span class="prelude-val">Err</span>(InterpreterError::TypeMismatch { expected, actual, location: array_location })
         }
     }
 }
 
-<span class="kw">fn </span>slice_push_back(
-    interner: <span class="kw-2">&amp;</span>NodeInterner,
-    arguments: Vec&lt;(Value, Location)&gt;,
-    location: Location,
-) -&gt; IResult&lt;Value&gt; {
+<span class="kw">fn </span>slice_push_back(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
     <span class="kw">let </span>(slice, (element, <span class="kw">_</span>)) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
 
-    <span class="kw">let </span>(<span class="kw-2">mut </span>values, typ) = get_slice(interner, slice)<span class="question-mark">?</span>;
+    <span class="kw">let </span>(<span class="kw-2">mut </span>values, typ) = get_slice(slice)<span class="question-mark">?</span>;
     values.push_back(element);
     <span class="prelude-val">Ok</span>(Value::Slice(values, typ))
 }
@@ -3588,13 +3518,9 @@
     }
 }
 
-<span class="kw">fn </span>str_as_bytes(
-    interner: <span class="kw-2">&amp;</span>NodeInterner,
-    arguments: Vec&lt;(Value, Location)&gt;,
-    location: Location,
-) -&gt; IResult&lt;Value&gt; {
+<span class="kw">fn </span>str_as_bytes(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
     <span class="kw">let </span>string = check_one_argument(arguments, location)<span class="question-mark">?</span>;
-    <span class="kw">let </span>string = get_str(interner, string)<span class="question-mark">?</span>;
+    <span class="kw">let </span>string = get_str(string)<span class="question-mark">?</span>;
 
     <span class="kw">let </span>bytes: Vector&lt;Value&gt; = string.bytes().map(Value::U8).collect();
     <span class="kw">let </span>byte_array_type = byte_array_type(bytes.len());
@@ -3602,13 +3528,9 @@
 }
 
 <span class="comment">// fn str_as_ctstring(self) -&gt; CtString
-</span><span class="kw">fn </span>str_as_ctstring(
-    interner: <span class="kw-2">&amp;</span>NodeInterner,
-    arguments: Vec&lt;(Value, Location)&gt;,
-    location: Location,
-) -&gt; IResult&lt;Value&gt; {
+</span><span class="kw">fn </span>str_as_ctstring(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
     <span class="kw">let </span>self_argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
-    <span class="kw">let </span>string = get_str(interner, self_argument)<span class="question-mark">?</span>;
+    <span class="kw">let </span>string = get_str(self_argument)<span class="question-mark">?</span>;
     <span class="prelude-val">Ok</span>(Value::CtString(string))
 }
 
@@ -3620,7 +3542,7 @@
 ) -&gt; IResult&lt;Value&gt; {
     <span class="kw">let </span>(self_argument, attribute) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
     <span class="kw">let </span>attribute_location = attribute.<span class="number">1</span>;
-    <span class="kw">let </span>attribute = get_str(interner, attribute)<span class="question-mark">?</span>;
+    <span class="kw">let </span>attribute = get_str(attribute)<span class="question-mark">?</span>;
     <span class="kw">let </span>attribute = <span class="macro">format!</span>(<span class="string">"#[{attribute}]"</span>);
     <span class="kw">let </span><span class="kw-2">mut </span>parser = Parser::for_str(<span class="kw-2">&amp;</span>attribute, attribute_location.file);
     <span class="kw">let </span><span class="prelude-val">Some</span>((Attribute::Secondary(attribute), _span)) = parser.parse_attribute() <span class="kw">else </span>{
@@ -3646,7 +3568,7 @@
 ) -&gt; IResult&lt;Value&gt; {
     <span class="kw">let </span>(self_argument, generic) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
     <span class="kw">let </span>generic_location = generic.<span class="number">1</span>;
-    <span class="kw">let </span>generic = get_str(interner, generic)<span class="question-mark">?</span>;
+    <span class="kw">let </span>generic = get_str(generic)<span class="question-mark">?</span>;
 
     <span class="kw">let </span><span class="kw-2">mut </span>tokens = lex(<span class="kw-2">&amp;</span>generic, location);
     <span class="kw">if </span>tokens.len() != <span class="number">1 </span>{
@@ -3722,7 +3644,7 @@
     <span class="kw">let </span>type_def = type_def_rc.borrow();
 
     <span class="kw">let </span>generics_location = generics.<span class="number">1</span>;
-    <span class="kw">let </span>(generics, <span class="kw">_</span>) = get_slice(interner, generics)<span class="question-mark">?</span>;
+    <span class="kw">let </span>(generics, <span class="kw">_</span>) = get_slice(generics)<span class="question-mark">?</span>;
     <span class="kw">let </span>generics = try_vecmap(generics, |generic| get_type((generic, generics_location)))<span class="question-mark">?</span>;
 
     <span class="kw">let </span>correct_generic_count = type_def.generics.len() == generics.len();
@@ -3746,21 +3668,24 @@
     <span class="kw">let </span>type_def = interner.get_type(type_id);
     <span class="kw">let </span>type_def = type_def.borrow();
 
-    <span class="kw">let </span>expected = Type::Slice(Box::new(Type::Tuple(<span class="macro">vec!</span>[
-        Type::Quoted(QuotedType::Type),
-        interner.next_type_variable(), <span class="comment">// Option
-    </span>])));
+    <span class="kw">let </span>expected = || {
+        Type::Slice(Box::new(Type::Tuple(<span class="macro">vec!</span>[
+            Type::Quoted(QuotedType::Type),
+            interner.next_type_variable(), <span class="comment">// Option
+        </span>])))
+        .to_string()
+    };
 
     <span class="kw">let </span>actual = return_type.clone();
 
     <span class="kw">let </span>slice_item_type = <span class="kw">match </span>return_type {
         Type::Slice(item_type) =&gt; <span class="kw-2">*</span>item_type,
-        <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::TypeMismatch { expected, actual, location }),
+        <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::TypeMismatch { expected: expected(), actual, location }),
     };
 
     <span class="kw">let </span>option_typ = <span class="kw">match </span><span class="kw-2">&amp;</span>slice_item_type {
         Type::Tuple(types) <span class="kw">if </span>types.len() == <span class="number">2 </span>=&gt; types[<span class="number">1</span>].clone(),
-        <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::TypeMismatch { expected, actual, location }),
+        <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::TypeMismatch { expected: expected(), actual, location }),
     };
 
     <span class="kw">let </span>generics = type_def
@@ -3797,7 +3722,7 @@
     <span class="kw">let </span>(self_argument, name) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
     <span class="kw">let </span>type_id = get_type_id(self_argument)<span class="question-mark">?</span>;
 
-    <span class="kw">let </span>name = get_str(interner, name)<span class="question-mark">?</span>;
+    <span class="kw">let </span>name = get_str(name)<span class="question-mark">?</span>;
 
     <span class="prelude-val">Ok</span>(Value::Bool(has_named_attribute(<span class="kw-2">&amp;</span>name, interner.type_attributes(<span class="kw-2">&amp;</span>type_id), interner)))
 }
@@ -3817,7 +3742,7 @@
     <span class="kw">let </span>struct_def = struct_def.borrow();
 
     <span class="kw">let </span>args_location = generic_args.<span class="number">1</span>;
-    <span class="kw">let </span>generic_args = get_slice(interner, generic_args)<span class="question-mark">?</span>.<span class="number">0</span>;
+    <span class="kw">let </span>generic_args = get_slice(generic_args)<span class="question-mark">?</span>.<span class="number">0</span>;
     <span class="kw">let </span>generic_args = try_vecmap(generic_args, |arg| get_type((arg, args_location)))<span class="question-mark">?</span>;
 
     <span class="kw">let </span>actual = generic_args.len();
@@ -3930,10 +3855,10 @@
     <span class="kw">let </span><span class="kw-2">mut </span>struct_def = struct_def.borrow_mut();
 
     <span class="kw">let </span>field_location = fields.<span class="number">1</span>;
-    <span class="kw">let </span>fields = get_slice(elaborator.interner, fields)<span class="question-mark">?</span>.<span class="number">0</span>;
+    <span class="kw">let </span>fields = get_slice(fields)<span class="question-mark">?</span>.<span class="number">0</span>;
     <span class="kw">let </span>fields = fields
         .into_iter()
-        .flat_map(|field_pair| get_tuple(elaborator.interner, (field_pair, field_location)))
+        .flat_map(|field_pair| get_tuple((field_pair, field_location)))
         .enumerate()
         .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
 
@@ -3971,8 +3896,7 @@
                 }
             }
         } <span class="kw">else </span>{
-            <span class="kw">let </span>type_var = elaborator.interner.next_type_variable();
-            <span class="kw">let </span>expected = Type::Tuple(<span class="macro">vec!</span>[type_var.clone(), type_var]);
+            <span class="kw">let </span>expected = <span class="string">"tuple"</span>.to_string();
 
             <span class="kw">let </span>actual =
                 Type::Tuple(vecmap(<span class="kw-2">&amp;</span>field_pair, |value| value.borrow().get_type().into_owned()));
@@ -3986,14 +3910,13 @@
 }
 
 <span class="kw">fn </span>slice_remove(
-    interner: <span class="kw-2">&amp;mut </span>NodeInterner,
     arguments: Vec&lt;(Value, Location)&gt;,
     location: Location,
     call_stack: <span class="kw-2">&amp;</span>Vector&lt;Location&gt;,
 ) -&gt; IResult&lt;Value&gt; {
     <span class="kw">let </span>(slice, index) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
 
-    <span class="kw">let </span>(<span class="kw-2">mut </span>values, typ) = get_slice(interner, slice)<span class="question-mark">?</span>;
+    <span class="kw">let </span>(<span class="kw-2">mut </span>values, typ) = get_slice(slice)<span class="question-mark">?</span>;
     <span class="kw">let </span>index = get_u32(index)<span class="question-mark">? </span><span class="kw">as </span>usize;
 
     <span class="kw">if </span>values.is_empty() {
@@ -4012,27 +3935,22 @@
     <span class="prelude-val">Ok</span>(Value::Tuple(<span class="macro">vec!</span>[Shared::new(Value::Slice(values, typ)), element]))
 }
 
-<span class="kw">fn </span>slice_push_front(
-    interner: <span class="kw-2">&amp;mut </span>NodeInterner,
-    arguments: Vec&lt;(Value, Location)&gt;,
-    location: Location,
-) -&gt; IResult&lt;Value&gt; {
+<span class="kw">fn </span>slice_push_front(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
     <span class="kw">let </span>(slice, (element, <span class="kw">_</span>)) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
 
-    <span class="kw">let </span>(<span class="kw-2">mut </span>values, typ) = get_slice(interner, slice)<span class="question-mark">?</span>;
+    <span class="kw">let </span>(<span class="kw-2">mut </span>values, typ) = get_slice(slice)<span class="question-mark">?</span>;
     values.push_front(element);
     <span class="prelude-val">Ok</span>(Value::Slice(values, typ))
 }
 
 <span class="kw">fn </span>slice_pop_front(
-    interner: <span class="kw-2">&amp;mut </span>NodeInterner,
     arguments: Vec&lt;(Value, Location)&gt;,
     location: Location,
     call_stack: <span class="kw-2">&amp;</span>Vector&lt;Location&gt;,
 ) -&gt; IResult&lt;Value&gt; {
     <span class="kw">let </span>argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
 
-    <span class="kw">let </span>(<span class="kw-2">mut </span>values, typ) = get_slice(interner, argument)<span class="question-mark">?</span>;
+    <span class="kw">let </span>(<span class="kw-2">mut </span>values, typ) = get_slice(argument)<span class="question-mark">?</span>;
     <span class="kw">match </span>values.pop_front() {
         <span class="prelude-val">Some</span>(element) =&gt; {
             <span class="prelude-val">Ok</span>(Value::Tuple(<span class="macro">vec!</span>[Shared::new(element), Shared::new(Value::Slice(values, typ))]))
@@ -4042,14 +3960,13 @@
 }
 
 <span class="kw">fn </span>slice_pop_back(
-    interner: <span class="kw-2">&amp;mut </span>NodeInterner,
     arguments: Vec&lt;(Value, Location)&gt;,
     location: Location,
     call_stack: <span class="kw-2">&amp;</span>Vector&lt;Location&gt;,
 ) -&gt; IResult&lt;Value&gt; {
     <span class="kw">let </span>argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
 
-    <span class="kw">let </span>(<span class="kw-2">mut </span>values, typ) = get_slice(interner, argument)<span class="question-mark">?</span>;
+    <span class="kw">let </span>(<span class="kw-2">mut </span>values, typ) = get_slice(argument)<span class="question-mark">?</span>;
     <span class="kw">match </span>values.pop_back() {
         <span class="prelude-val">Some</span>(element) =&gt; {
             <span class="prelude-val">Ok</span>(Value::Tuple(<span class="macro">vec!</span>[Shared::new(Value::Slice(values, typ)), Shared::new(element)]))
@@ -4058,14 +3975,10 @@
     }
 }
 
-<span class="kw">fn </span>slice_insert(
-    interner: <span class="kw-2">&amp;mut </span>NodeInterner,
-    arguments: Vec&lt;(Value, Location)&gt;,
-    location: Location,
-) -&gt; IResult&lt;Value&gt; {
+<span class="kw">fn </span>slice_insert(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
     <span class="kw">let </span>(slice, index, (element, <span class="kw">_</span>)) = check_three_arguments(arguments, location)<span class="question-mark">?</span>;
 
-    <span class="kw">let </span>(<span class="kw-2">mut </span>values, typ) = get_slice(interner, slice)<span class="question-mark">?</span>;
+    <span class="kw">let </span>(<span class="kw-2">mut </span>values, typ) = get_slice(slice)<span class="question-mark">?</span>;
     <span class="kw">let </span>index = get_u32(index)<span class="question-mark">? </span><span class="kw">as </span>usize;
     values.insert(index, element);
     <span class="prelude-val">Ok</span>(Value::Slice(values, typ))
@@ -5673,24 +5586,16 @@
 }
 
 <span class="comment">// fn fmtstr_as_ctstring(self) -&gt; CtString
-</span><span class="kw">fn </span>fmtstr_as_ctstring(
-    interner: <span class="kw-2">&amp;</span>NodeInterner,
-    arguments: Vec&lt;(Value, Location)&gt;,
-    location: Location,
-) -&gt; IResult&lt;Value&gt; {
+</span><span class="kw">fn </span>fmtstr_as_ctstring(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
     <span class="kw">let </span>self_argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
-    <span class="kw">let </span>(string, <span class="kw">_</span>) = get_format_string(interner, self_argument)<span class="question-mark">?</span>;
+    <span class="kw">let </span>(string, <span class="kw">_</span>) = get_format_string(self_argument)<span class="question-mark">?</span>;
     <span class="prelude-val">Ok</span>(Value::CtString(string))
 }
 
 <span class="comment">// fn quoted_contents(self) -&gt; Quoted
-</span><span class="kw">fn </span>fmtstr_quoted_contents(
-    interner: <span class="kw-2">&amp;</span>NodeInterner,
-    arguments: Vec&lt;(Value, Location)&gt;,
-    location: Location,
-) -&gt; IResult&lt;Value&gt; {
+</span><span class="kw">fn </span>fmtstr_quoted_contents(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
     <span class="kw">let </span>self_argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
-    <span class="kw">let </span>(string, <span class="kw">_</span>) = get_format_string(interner, self_argument)<span class="question-mark">?</span>;
+    <span class="kw">let </span>(string, <span class="kw">_</span>) = get_format_string(self_argument)<span class="question-mark">?</span>;
     <span class="kw">let </span>tokens = lex(<span class="kw-2">&amp;</span>string, location);
     <span class="prelude-val">Ok</span>(Value::Quoted(Rc::new(tokens)))
 }
@@ -5708,7 +5613,7 @@
 ) -&gt; IResult&lt;Value&gt; {
     <span class="kw">let </span>(self_argument, attribute) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
     <span class="kw">let </span>attribute_location = attribute.<span class="number">1</span>;
-    <span class="kw">let </span>attribute = get_str(interpreter.elaborator.interner, attribute)<span class="question-mark">?</span>;
+    <span class="kw">let </span>attribute = get_str(attribute)<span class="question-mark">?</span>;
     <span class="kw">let </span>attribute = <span class="macro">format!</span>(<span class="string">"#[{attribute}]"</span>);
     <span class="kw">let </span><span class="kw-2">mut </span>parser = Parser::for_str(<span class="kw-2">&amp;</span>attribute, attribute_location.file);
     <span class="kw">let </span><span class="prelude-val">Some</span>((attribute, _span)) = parser.parse_attribute() <span class="kw">else </span>{
@@ -5809,7 +5714,7 @@
     <span class="kw">let </span>(self_argument, name) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
     <span class="kw">let </span>func_id = get_function_def(self_argument)<span class="question-mark">?</span>;
 
-    <span class="kw">let </span>name = <span class="kw-2">&amp;*</span>get_str(interner, name)<span class="question-mark">?</span>;
+    <span class="kw">let </span>name = <span class="kw-2">&amp;*</span>get_str(name)<span class="question-mark">?</span>;
 
     <span class="kw">let </span>modifiers = interner.function_modifiers(<span class="kw-2">&amp;</span>func_id);
     <span class="kw">if let </span><span class="prelude-val">Some</span>(attribute) = modifiers.attributes.function() {
@@ -5964,8 +5869,7 @@
     <span class="kw">let </span>func_id = get_function_def(self_argument)<span class="question-mark">?</span>;
     check_function_not_yet_resolved(interpreter, func_id, location)<span class="question-mark">?</span>;
 
-    <span class="kw">let </span>(input_parameters, _type) =
-        get_slice(interpreter.elaborator.interner, parameters_argument)<span class="question-mark">?</span>;
+    <span class="kw">let </span>(input_parameters, _type) = get_slice(parameters_argument)<span class="question-mark">?</span>;
 
     <span class="comment">// What follows is very similar to what happens in Elaborator::define_function_meta
     </span><span class="kw">let </span><span class="kw-2">mut </span>parameters = Vec::new();
@@ -5973,10 +5877,7 @@
     <span class="kw">let </span><span class="kw-2">mut </span>parameter_idents = Vec::new();
 
     <span class="kw">for </span>input_parameter <span class="kw">in </span>input_parameters {
-        <span class="kw">let </span><span class="kw-2">mut </span>tuple = get_tuple(
-            interpreter.elaborator.interner,
-            (input_parameter, parameters_argument_location),
-        )<span class="question-mark">?</span>;
+        <span class="kw">let </span><span class="kw-2">mut </span>tuple = get_tuple((input_parameter, parameters_argument_location))<span class="question-mark">?</span>;
         <span class="kw">let </span>parameter = tuple.pop().unwrap().unwrap_or_clone();
         <span class="kw">let </span>parameter_type = get_type((parameter, parameters_argument_location))<span class="question-mark">?</span>;
         <span class="kw">let </span>parameter_pattern = parse(
@@ -6239,7 +6140,7 @@
     <span class="kw">let </span>module_id = get_module(self_argument)<span class="question-mark">?</span>;
     <span class="kw">let </span>module_data = interpreter.elaborator.get_module(module_id);
 
-    <span class="kw">let </span>name = get_str(interpreter.elaborator.interner, name)<span class="question-mark">?</span>;
+    <span class="kw">let </span>name = get_str(name)<span class="question-mark">?</span>;
 
     <span class="prelude-val">Ok</span>(Value::Bool(has_named_attribute(
         <span class="kw-2">&amp;</span>name,
@@ -6391,7 +6292,6 @@
 }
 
 <span class="kw">fn </span>derive_generators(
-    interner: <span class="kw-2">&amp;mut </span>NodeInterner,
     arguments: Vec&lt;(Value, Location)&gt;,
     return_type: Type,
     location: Location,
@@ -6399,7 +6299,7 @@
     <span class="kw">let </span>(domain_separator_string, starting_index) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
 
     <span class="kw">let </span>domain_separator_location = domain_separator_string.<span class="number">1</span>;
-    <span class="kw">let </span>(domain_separator_string, <span class="kw">_</span>) = get_array(interner, domain_separator_string)<span class="question-mark">?</span>;
+    <span class="kw">let </span>(domain_separator_string, <span class="kw">_</span>) = get_array(domain_separator_string)<span class="question-mark">?</span>;
     <span class="kw">let </span>starting_index = get_u32(starting_index)<span class="question-mark">?</span>;
 
     <span class="kw">let </span>domain_separator_string =

@@ -510,15 +510,7 @@
 <a href="#509" id="509">509</a>
 <a href="#510" id="510">510</a>
 <a href="#511" id="511">511</a>
-<a href="#512" id="512">512</a>
-<a href="#513" id="513">513</a>
-<a href="#514" id="514">514</a>
-<a href="#515" id="515">515</a>
-<a href="#516" id="516">516</a>
-<a href="#517" id="517">517</a>
-<a href="#518" id="518">518</a>
-<a href="#519" id="519">519</a>
-<a href="#520" id="520">520</a></pre></div><pre class="rust"><code><span class="comment">// This has been taken and modified from the rust-analyzer codebase
+<a href="#512" id="512">512</a></pre></div><pre class="rust"><code><span class="comment">// This has been taken and modified from the rust-analyzer codebase
 // For the most part, everything is the same, the differences are quite subtle
 // but still present. Moreover, since RA is uses incremental compilation, the usage of this component may differ.
 // This version is also simpler due to not having macro_defs or proc_macros
@@ -540,25 +532,20 @@
     /// In that case there's only one crate, and it's both the root
     /// crate and the stdlib crate.
     </span>RootAndStdlib(usize),
-    Dummy,
 }
 
 <span class="kw">impl </span>CrateId {
-    <span class="kw">pub fn </span>dummy_id() -&gt; CrateId {
-        CrateId::Dummy
-    }
-
     <span class="kw">pub fn </span>is_stdlib(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
         <span class="kw">match </span><span class="self">self </span>{
             CrateId::Stdlib(<span class="kw">_</span>) | CrateId::RootAndStdlib(<span class="kw">_</span>) =&gt; <span class="bool-val">true</span>,
-            CrateId::Root(<span class="kw">_</span>) | CrateId::Crate(<span class="kw">_</span>) | CrateId::Dummy =&gt; <span class="bool-val">false</span>,
+            CrateId::Root(<span class="kw">_</span>) | CrateId::Crate(<span class="kw">_</span>) =&gt; <span class="bool-val">false</span>,
         }
     }
 
     <span class="kw">pub fn </span>is_root(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
         <span class="kw">match </span><span class="self">self </span>{
             CrateId::Root(<span class="kw">_</span>) | CrateId::RootAndStdlib(<span class="kw">_</span>) =&gt; <span class="bool-val">true</span>,
-            CrateId::Stdlib(<span class="kw">_</span>) | CrateId::Crate(<span class="kw">_</span>) | CrateId::Dummy =&gt; <span class="bool-val">false</span>,
+            CrateId::Stdlib(<span class="kw">_</span>) | CrateId::Crate(<span class="kw">_</span>) =&gt; <span class="bool-val">false</span>,
         }
     }
 }
@@ -770,9 +757,6 @@
             }
             <span class="prelude-val">Some</span>((CrateId::Stdlib(<span class="kw">_</span>), <span class="kw">_</span>)) | <span class="prelude-val">Some</span>((CrateId::RootAndStdlib(<span class="kw">_</span>), <span class="kw">_</span>)) =&gt; {
                 <span class="macro">panic!</span>(<span class="string">"ICE: Tried to re-add the stdlib crate as a regular crate"</span>)
-            }
-            <span class="prelude-val">Some</span>((CrateId::Dummy, <span class="kw">_</span>)) =&gt; {
-                <span class="macro">panic!</span>(<span class="string">"ICE: A dummy CrateId should not exist in the CrateGraph"</span>)
             }
             <span class="prelude-val">None </span>=&gt; {
                 <span class="kw">let </span>data = CrateData { root_file_id: file_id, dependencies: Vec::new() };

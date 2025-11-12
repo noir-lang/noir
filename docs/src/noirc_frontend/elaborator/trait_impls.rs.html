@@ -901,14 +901,12 @@
 <a href="#900" id="900">900</a>
 <a href="#901" id="901">901</a>
 <a href="#902" id="902">902</a>
-<a href="#903" id="903">903</a>
-<a href="#904" id="904">904</a></pre></div><pre class="rust"><code><span class="doccomment">//! Trait implementation collection, method matching, and coherence checking.
+<a href="#903" id="903">903</a></pre></div><pre class="rust"><code><span class="doccomment">//! Trait implementation collection, method matching, and coherence checking.
 
 </span><span class="kw">use crate</span>::{
     Kind, NamedGeneric, ResolvedGeneric, Shared, TypeBindings, TypeVariable,
     ast::{GenericTypeArgs, Ident, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
     elaborator::{PathResolutionMode, types::bind_ordered_generics},
-    graph::CrateId,
     hir::{
         def_collector::{
             dc_crate::{CompilationError, UnresolvedTraitImpl},
@@ -935,7 +933,7 @@
 
 <span class="kw">impl </span>Elaborator&lt;<span class="lifetime">'_</span>&gt; {
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>collect_trait_impl(<span class="kw-2">&amp;mut </span><span class="self">self</span>, trait_impl: <span class="kw-2">&amp;mut </span>UnresolvedTraitImpl) {
-        <span class="self">self</span>.local_module = trait_impl.module_id;
+        <span class="self">self</span>.local_module = <span class="prelude-val">Some</span>(trait_impl.module_id);
         <span class="self">self</span>.current_trait_impl = trait_impl.impl_id;
 
         <span class="kw">let </span>self_type = trait_impl.methods.self_type.clone();
@@ -1108,7 +1106,7 @@
         trait_impl: <span class="kw-2">&amp;mut </span>UnresolvedTraitImpl,
         trait_impl_where_clause: <span class="kw-2">&amp;</span>[TraitConstraint],
     ) {
-        <span class="self">self</span>.local_module = trait_impl.module_id;
+        <span class="self">self</span>.local_module = <span class="prelude-val">Some</span>(trait_impl.module_id);
 
         <span class="kw">let </span>impl_id = trait_impl.impl_id.expect(<span class="string">"impl_id should be set in define_function_metas"</span>);
 
@@ -1309,15 +1307,15 @@
         trait_id: TraitId,
         trait_impl: <span class="kw-2">&amp;</span>UnresolvedTraitImpl,
     ) {
-        <span class="self">self</span>.local_module = trait_impl.module_id;
+        <span class="self">self</span>.local_module = <span class="prelude-val">Some</span>(trait_impl.module_id);
 
         <span class="kw">let </span>object_crate = <span class="kw">match </span><span class="kw-2">&amp;</span>trait_impl.resolved_object_type {
-            <span class="prelude-val">Some</span>(Type::DataType(struct_type, <span class="kw">_</span>)) =&gt; struct_type.borrow().id.krate(),
-            <span class="kw">_ </span>=&gt; CrateId::Dummy,
+            <span class="prelude-val">Some</span>(Type::DataType(struct_type, <span class="kw">_</span>)) =&gt; <span class="prelude-val">Some</span>(struct_type.borrow().id.krate()),
+            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
         };
 
         <span class="kw">let </span>the_trait = <span class="self">self</span>.interner.get_trait(trait_id);
-        <span class="kw">if </span><span class="self">self</span>.crate_id != the_trait.crate_id &amp;&amp; <span class="self">self</span>.crate_id != object_crate {
+        <span class="kw">if </span><span class="self">self</span>.crate_id != the_trait.crate_id &amp;&amp; <span class="prelude-val">Some</span>(<span class="self">self</span>.crate_id) != object_crate {
             <span class="self">self</span>.push_err(DefCollectorErrorKind::TraitImplOrphaned {
                 location: trait_impl.object_type.location,
             });
@@ -1575,7 +1573,7 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         trait_impl: <span class="kw-2">&amp;mut </span>UnresolvedTraitImpl,
     ) -&gt; Vec&lt;(TraitConstraint, Location)&gt; {
-        <span class="self">self</span>.local_module = trait_impl.module_id;
+        <span class="self">self</span>.local_module = <span class="prelude-val">Some</span>(trait_impl.module_id);
 
         <span class="kw">let </span>(trait_id, trait_generics, path_location) =
             <span class="self">self</span>.resolve_trait_impl_trait_path(trait_impl);

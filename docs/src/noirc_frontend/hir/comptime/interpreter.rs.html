@@ -2309,7 +2309,7 @@
                     (value, <span class="kw">_</span>) =&gt; {
                         <span class="kw">let </span>actual = value.get_type().into_owned();
                         <span class="prelude-val">Err</span>(InterpreterError::TypeMismatch {
-                            expected: typ.clone(),
+                            expected: typ.to_string(),
                             actual,
                             location,
                         })
@@ -2346,7 +2346,7 @@
                         <span class="prelude-val">Ok</span>(())
                     }
                     value =&gt; <span class="prelude-val">Err</span>(InterpreterError::TypeMismatch {
-                        expected: typ.clone(),
+                        expected: typ.to_string(),
                         actual: value.get_type().into_owned(),
                         location,
                     }),

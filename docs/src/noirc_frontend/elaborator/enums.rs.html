@@ -1566,7 +1566,7 @@
 <span class="kw">impl </span>Elaborator&lt;<span class="lifetime">'_</span>&gt; {
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>collect_enum_definitions(<span class="kw-2">&amp;mut </span><span class="self">self</span>, enums: <span class="kw-2">&amp;</span>BTreeMap&lt;TypeId, UnresolvedEnum&gt;) {
         <span class="kw">for </span>(type_id, typ) <span class="kw">in </span>enums {
-            <span class="self">self</span>.local_module = typ.module_id;
+            <span class="self">self</span>.local_module = <span class="prelude-val">Some</span>(typ.module_id);
             <span class="self">self</span>.generics.clear();
 
             <span class="kw">let </span>datatype = <span class="self">self</span>.interner.get_type(<span class="kw-2">*</span>type_id);

@@ -1155,7 +1155,7 @@
     /// 4. Resolves the trait's bounds (its listed super traits).
     </span><span class="kw">pub fn </span>collect_traits(<span class="kw-2">&amp;mut </span><span class="self">self</span>, traits: <span class="kw-2">&amp;mut </span>BTreeMap&lt;TraitId, UnresolvedTrait&gt;) {
         <span class="kw">for </span>(trait_id, unresolved_trait) <span class="kw">in </span>traits {
-            <span class="self">self</span>.local_module = unresolved_trait.module_id;
+            <span class="self">self</span>.local_module = <span class="prelude-val">Some</span>(unresolved_trait.module_id);
 
             <span class="self">self</span>.recover_generics(|this| {
                 this.current_trait = <span class="prelude-val">Some</span>(<span class="kw-2">*</span>trait_id);
@@ -1233,7 +1233,7 @@
     /// method bodies are not elaborated.
     </span><span class="kw">pub fn </span>collect_trait_methods(<span class="kw-2">&amp;mut </span><span class="self">self</span>, traits: <span class="kw-2">&amp;mut </span>BTreeMap&lt;TraitId, UnresolvedTrait&gt;) {
         <span class="kw">for </span>(trait_id, unresolved_trait) <span class="kw">in </span>traits {
-            <span class="self">self</span>.local_module = unresolved_trait.module_id;
+            <span class="self">self</span>.local_module = <span class="prelude-val">Some</span>(unresolved_trait.module_id);
 
             <span class="self">self</span>.recover_generics(|this| {
                 this.current_trait = <span class="prelude-val">Some</span>(<span class="kw-2">*</span>trait_id);
@@ -1565,7 +1565,7 @@
         trait_id: TraitId,
         unresolved_trait: <span class="kw-2">&amp;</span>UnresolvedTrait,
     ) -&gt; Vec&lt;TraitFunction&gt; {
-        <span class="self">self</span>.local_module = unresolved_trait.module_id;
+        <span class="self">self</span>.local_module = <span class="prelude-val">Some</span>(unresolved_trait.module_id);
 
         <span class="kw">let </span><span class="kw-2">mut </span>functions = <span class="macro">vec!</span>[];
 

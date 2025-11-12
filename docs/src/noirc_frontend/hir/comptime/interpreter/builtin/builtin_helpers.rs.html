@@ -714,22 +714,7 @@
 <a href="#713" id="713">713</a>
 <a href="#714" id="714">714</a>
 <a href="#715" id="715">715</a>
-<a href="#716" id="716">716</a>
-<a href="#717" id="717">717</a>
-<a href="#718" id="718">718</a>
-<a href="#719" id="719">719</a>
-<a href="#720" id="720">720</a>
-<a href="#721" id="721">721</a>
-<a href="#722" id="722">722</a>
-<a href="#723" id="723">723</a>
-<a href="#724" id="724">724</a>
-<a href="#725" id="725">725</a>
-<a href="#726" id="726">726</a>
-<a href="#727" id="727">727</a>
-<a href="#728" id="728">728</a>
-<a href="#729" id="729">729</a>
-<a href="#730" id="730">730</a>
-<a href="#731" id="731">731</a></pre></div><pre class="rust"><code><span class="doccomment">//! Various helpers for implementing built-in functions in the comptime interpreter.
+<a href="#716" id="716">716</a></pre></div><pre class="rust"><code><span class="doccomment">//! Various helpers for implementing built-in functions in the comptime interpreter.
 //!
 //! These functions may implement error checking for argument count, type-check an
 //! argument for a specific type, returning its value, etc.
@@ -749,7 +734,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::parser::{Parser, ParserError};
 <span class="kw">use </span><span class="kw">crate</span>::signed_field::SignedField;
 <span class="kw">use </span><span class="kw">crate</span>::token::{Keyword, LocatedToken, SecondaryAttributeKind};
-<span class="kw">use crate</span>::{DataType, Kind, Shared};
+<span class="kw">use crate</span>::{Kind, Shared};
 <span class="kw">use crate</span>::{
     QuotedType, Type,
     ast::{
@@ -826,14 +811,12 @@
 }
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_array(
-    interner: <span class="kw-2">&amp;</span>NodeInterner,
     (value, location): (Value, Location),
 ) -&gt; IResult&lt;(im::Vector&lt;Value&gt;, Type)&gt; {
     <span class="kw">match </span>value {
         Value::Array(values, typ) =&gt; <span class="prelude-val">Ok</span>((values, typ)),
         value =&gt; {
-            <span class="kw">let </span>type_var = Box::new(interner.next_type_variable());
-            <span class="kw">let </span>expected = Type::Array(type_var.clone(), type_var);
+            <span class="kw">let </span>expected = <span class="string">"array"</span>;
             type_mismatch(value, expected, location)
         }
     }
@@ -848,14 +831,7 @@
     <span class="kw">match </span>value {
         Value::Struct(fields, typ) =&gt; <span class="prelude-val">Ok</span>((fields, typ)),
         <span class="kw">_ </span>=&gt; {
-            <span class="kw">let </span>expected = DataType::new(
-                TypeId::dummy_id(),
-                Ident::new(name.to_string(), location),
-                location,
-                Vec::new(),
-                ItemVisibility::Public,
-            );
-            <span class="kw">let </span>expected = Type::DataType(Shared::new(expected), Vec::new());
+            <span class="kw">let </span>expected = <span class="macro">format!</span>(<span class="string">"struct {name}"</span>);
             type_mismatch(value, expected, location)
         }
     }
@@ -883,19 +859,17 @@
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_bool((value, location): (Value, Location)) -&gt; IResult&lt;bool&gt; {
     <span class="kw">match </span>value {
         Value::Bool(value) =&gt; <span class="prelude-val">Ok</span>(value),
-        value =&gt; type_mismatch(value, Type::Bool, location),
+        value =&gt; type_mismatch(value, <span class="string">"bool"</span>, location),
     }
 }
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_slice(
-    interner: <span class="kw-2">&amp;</span>NodeInterner,
     (value, location): (Value, Location),
 ) -&gt; IResult&lt;(im::Vector&lt;Value&gt;, Type)&gt; {
     <span class="kw">match </span>value {
         Value::Slice(values, typ) =&gt; <span class="prelude-val">Ok</span>((values, typ)),
         value =&gt; {
-            <span class="kw">let </span>type_var = Box::new(interner.next_type_variable());
-            <span class="kw">let </span>expected = Type::Slice(type_var);
+            <span class="kw">let </span>expected = <span class="string">"slice"</span>;
             type_mismatch(value, expected, location)
         }
     }
@@ -904,11 +878,10 @@
 <span class="doccomment">/// Interpret the input as an array, then map each element.
 /// Returns the values in the array and the original array type.
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_array_map&lt;T&gt;(
-    interner: <span class="kw-2">&amp;</span>NodeInterner,
     (value, location): (Value, Location),
     f: <span class="kw">impl </span>Fn((Value, Location)) -&gt; IResult&lt;T&gt;,
 ) -&gt; IResult&lt;(Vec&lt;T&gt;, Type)&gt; {
-    <span class="kw">let </span>(values, typ) = get_array(interner, (value, location))<span class="question-mark">?</span>;
+    <span class="kw">let </span>(values, typ) = get_array((value, location))<span class="question-mark">?</span>;
     <span class="kw">let </span>values = try_vecmap(values, |value| f((value, location)))<span class="question-mark">?</span>;
     <span class="prelude-val">Ok</span>((values, typ))
 }
@@ -916,30 +889,27 @@
 <span class="doccomment">/// Get an array and convert it to a fixed size.
 /// Returns the values in the array and the original array type.
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_fixed_array_map&lt;T, <span class="kw">const </span>N: usize&gt;(
-    interner: <span class="kw-2">&amp;</span>NodeInterner,
     (value, location): (Value, Location),
     f: <span class="kw">impl </span>Fn((Value, Location)) -&gt; IResult&lt;T&gt;,
 ) -&gt; IResult&lt;([T; N], Type)&gt; {
-    <span class="kw">let </span>(values, typ) = get_array_map(interner, (value, location), f)<span class="question-mark">?</span>;
+    <span class="kw">let </span>(values, typ) = get_array_map((value, location), f)<span class="question-mark">?</span>;
 
     values.try_into().map(|v| (v, typ.clone())).map_err(|<span class="kw">_</span>| {
         <span class="comment">// Assuming that `values.len()` corresponds to `typ`.
         </span><span class="kw">let </span>Type::Array(<span class="kw">_</span>, <span class="kw-2">ref </span>elem) = typ <span class="kw">else </span>{
             <span class="macro">unreachable!</span>(<span class="string">"get_array_map checked it was an array"</span>)
         };
-        <span class="kw">let </span>expected = Type::Array(Box::new(Type::Constant(N.into(), Kind::u32())), elem.clone());
+        <span class="kw">let </span>expected =
+            Type::Array(Box::new(Type::Constant(N.into(), Kind::u32())), elem.clone()).to_string();
         InterpreterError::TypeMismatch { expected, actual: typ, location }
     })
 }
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_str(
-    interner: <span class="kw-2">&amp;</span>NodeInterner,
-    (value, location): (Value, Location),
-) -&gt; IResult&lt;Rc&lt;String&gt;&gt; {
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_str((value, location): (Value, Location)) -&gt; IResult&lt;Rc&lt;String&gt;&gt; {
     <span class="kw">match </span>value {
         Value::String(string) =&gt; <span class="prelude-val">Ok</span>(string),
         value =&gt; {
-            <span class="kw">let </span>expected = Type::String(Box::new(interner.next_type_variable()));
+            <span class="kw">let </span>expected = <span class="string">"str"</span>;
             type_mismatch(value, expected, location)
         }
     }
@@ -948,19 +918,15 @@
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_ctstring((value, location): (Value, Location)) -&gt; IResult&lt;Rc&lt;String&gt;&gt; {
     <span class="kw">match </span>value {
         Value::CtString(string) =&gt; <span class="prelude-val">Ok</span>(string),
-        value =&gt; type_mismatch(value, Type::Quoted(QuotedType::CtString), location),
+        value =&gt; type_mismatch(value, Type::Quoted(QuotedType::CtString).to_string(), location),
     }
 }
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_tuple(
-    interner: <span class="kw-2">&amp;</span>NodeInterner,
-    (value, location): (Value, Location),
-) -&gt; IResult&lt;Vec&lt;Shared&lt;Value&gt;&gt;&gt; {
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_tuple((value, location): (Value, Location)) -&gt; IResult&lt;Vec&lt;Shared&lt;Value&gt;&gt;&gt; {
     <span class="kw">match </span>value {
         Value::Tuple(values) =&gt; <span class="prelude-val">Ok</span>(values),
         value =&gt; {
-            <span class="kw">let </span>type_var = interner.next_type_variable();
-            <span class="kw">let </span>expected = Type::Tuple(<span class="macro">vec!</span>[type_var]);
+            <span class="kw">let </span>expected = <span class="string">"tuple"</span>;
             type_mismatch(value, expected, location)
         }
     }
@@ -969,7 +935,7 @@
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_field((value, location): (Value, Location)) -&gt; IResult&lt;SignedField&gt; {
     <span class="kw">match </span>value {
         Value::Field(value) =&gt; <span class="prelude-val">Ok</span>(value),
-        value =&gt; type_mismatch(value, Type::FieldElement, location),
+        value =&gt; type_mismatch(value, Type::FieldElement.to_string(), location),
     }
 }
 
@@ -978,7 +944,7 @@
         Value::U8(value) =&gt; <span class="prelude-val">Ok</span>(value),
         value =&gt; {
             <span class="kw">let </span>expected = Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight);
-            type_mismatch(value, expected, location)
+            type_mismatch(value, expected.to_string(), location)
         }
     }
 }
@@ -988,7 +954,7 @@
         Value::U32(value) =&gt; <span class="prelude-val">Ok</span>(value),
         value =&gt; {
             <span class="kw">let </span>expected = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
-            type_mismatch(value, expected, location)
+            type_mismatch(value, expected.to_string(), location)
         }
     }
 }
@@ -998,7 +964,7 @@
         Value::U64(value) =&gt; <span class="prelude-val">Ok</span>(value),
         value =&gt; {
             <span class="kw">let </span>expected = Type::Integer(Signedness::Unsigned, IntegerBitSize::SixtyFour);
-            type_mismatch(value, expected, location)
+            type_mismatch(value, expected.to_string(), location)
         }
     }
 }
@@ -1023,42 +989,39 @@
             }
             <span class="kw">_ </span>=&gt; <span class="prelude-val">Ok</span>(<span class="kw-2">*</span>expr),
         },
-        value =&gt; type_mismatch(value, Type::Quoted(QuotedType::Expr), location),
+        value =&gt; type_mismatch(value, Type::Quoted(QuotedType::Expr).to_string(), location),
     }
 }
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_format_string(
-    interner: <span class="kw-2">&amp;</span>NodeInterner,
     (value, location): (Value, Location),
 ) -&gt; IResult&lt;(Rc&lt;String&gt;, Type)&gt; {
     <span class="kw">match </span>value {
         Value::FormatString(value, typ) =&gt; <span class="prelude-val">Ok</span>((value, typ)),
-        value =&gt; {
-            <span class="kw">let </span>n = Box::new(interner.next_type_variable());
-            <span class="kw">let </span>e = Box::new(interner.next_type_variable());
-            type_mismatch(value, Type::FmtString(n, e), location)
-        }
+        value =&gt; type_mismatch(value, <span class="string">"fmtstr"</span>, location),
     }
 }
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_function_def((value, location): (Value, Location)) -&gt; IResult&lt;FuncId&gt; {
     <span class="kw">match </span>value {
         Value::FunctionDefinition(id) =&gt; <span class="prelude-val">Ok</span>(id),
-        value =&gt; type_mismatch(value, Type::Quoted(QuotedType::FunctionDefinition), location),
+        value =&gt; {
+            type_mismatch(value, Type::Quoted(QuotedType::FunctionDefinition).to_string(), location)
+        }
     }
 }
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_module((value, location): (Value, Location)) -&gt; IResult&lt;ModuleId&gt; {
     <span class="kw">match </span>value {
         Value::ModuleDefinition(module_id) =&gt; <span class="prelude-val">Ok</span>(module_id),
-        value =&gt; type_mismatch(value, Type::Quoted(QuotedType::Module), location),
+        value =&gt; type_mismatch(value, Type::Quoted(QuotedType::Module).to_string(), location),
     }
 }
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_type_id((value, location): (Value, Location)) -&gt; IResult&lt;TypeId&gt; {
     <span class="kw">match </span>value {
         Value::TypeDefinition(id) =&gt; <span class="prelude-val">Ok</span>(id),
-        <span class="kw">_ </span>=&gt; type_mismatch(value, Type::Quoted(QuotedType::TypeDefinition), location),
+        <span class="kw">_ </span>=&gt; type_mismatch(value, Type::Quoted(QuotedType::TypeDefinition).to_string(), location),
     }
 }
 
@@ -1067,42 +1030,46 @@
 ) -&gt; IResult&lt;(TraitId, TraitGenerics)&gt; {
     <span class="kw">match </span>value {
         Value::TraitConstraint(trait_id, generics) =&gt; <span class="prelude-val">Ok</span>((trait_id, generics)),
-        value =&gt; type_mismatch(value, Type::Quoted(QuotedType::TraitConstraint), location),
+        value =&gt; {
+            type_mismatch(value, Type::Quoted(QuotedType::TraitConstraint).to_string(), location)
+        }
     }
 }
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_trait_def((value, location): (Value, Location)) -&gt; IResult&lt;TraitId&gt; {
     <span class="kw">match </span>value {
         Value::TraitDefinition(id) =&gt; <span class="prelude-val">Ok</span>(id),
-        value =&gt; type_mismatch(value, Type::Quoted(QuotedType::TraitDefinition), location),
+        value =&gt; {
+            type_mismatch(value, Type::Quoted(QuotedType::TraitDefinition).to_string(), location)
+        }
     }
 }
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_trait_impl((value, location): (Value, Location)) -&gt; IResult&lt;TraitImplId&gt; {
     <span class="kw">match </span>value {
         Value::TraitImpl(id) =&gt; <span class="prelude-val">Ok</span>(id),
-        value =&gt; type_mismatch(value, Type::Quoted(QuotedType::TraitImpl), location),
+        value =&gt; type_mismatch(value, Type::Quoted(QuotedType::TraitImpl).to_string(), location),
     }
 }
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_type((value, location): (Value, Location)) -&gt; IResult&lt;Type&gt; {
     <span class="kw">match </span>value {
         Value::Type(typ) =&gt; <span class="prelude-val">Ok</span>(typ),
-        value =&gt; type_mismatch(value, Type::Quoted(QuotedType::Type), location),
+        value =&gt; type_mismatch(value, Type::Quoted(QuotedType::Type).to_string(), location),
     }
 }
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_typed_expr((value, location): (Value, Location)) -&gt; IResult&lt;TypedExpr&gt; {
     <span class="kw">match </span>value {
         Value::TypedExpr(typed_expr) =&gt; <span class="prelude-val">Ok</span>(typed_expr),
-        value =&gt; type_mismatch(value, Type::Quoted(QuotedType::TypedExpr), location),
+        value =&gt; type_mismatch(value, Type::Quoted(QuotedType::TypedExpr).to_string(), location),
     }
 }
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_quoted((value, location): (Value, Location)) -&gt; IResult&lt;Rc&lt;Vec&lt;LocatedToken&gt;&gt;&gt; {
     <span class="kw">match </span>value {
         Value::Quoted(tokens) =&gt; <span class="prelude-val">Ok</span>(tokens),
-        value =&gt; type_mismatch(value, Type::Quoted(QuotedType::Quoted), location),
+        value =&gt; type_mismatch(value, Type::Quoted(QuotedType::Quoted).to_string(), location),
     }
 }
 
@@ -1119,12 +1086,15 @@
                 <span class="prelude-val">Ok</span>(typ)
             }
         }
-        value =&gt; type_mismatch(value, Type::Quoted(QuotedType::UnresolvedType), location),
+        value =&gt; {
+            type_mismatch(value, Type::Quoted(QuotedType::UnresolvedType).to_string(), location)
+        }
     }
 }
 
-<span class="kw">fn </span>type_mismatch&lt;T&gt;(value: Value, expected: Type, location: Location) -&gt; IResult&lt;T&gt; {
+<span class="kw">fn </span>type_mismatch&lt;T&gt;(value: Value, expected: <span class="kw">impl </span>Into&lt;String&gt;, location: Location) -&gt; IResult&lt;T&gt; {
     <span class="kw">let </span>actual = value.get_type().into_owned();
+    <span class="kw">let </span>expected = expected.into();
     <span class="prelude-val">Err</span>(InterpreterError::TypeMismatch { expected, actual, location })
 }
 

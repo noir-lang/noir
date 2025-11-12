@@ -382,63 +382,7 @@
 <a href="#381" id="381">381</a>
 <a href="#382" id="382">382</a>
 <a href="#383" id="383">383</a>
-<a href="#384" id="384">384</a>
-<a href="#385" id="385">385</a>
-<a href="#386" id="386">386</a>
-<a href="#387" id="387">387</a>
-<a href="#388" id="388">388</a>
-<a href="#389" id="389">389</a>
-<a href="#390" id="390">390</a>
-<a href="#391" id="391">391</a>
-<a href="#392" id="392">392</a>
-<a href="#393" id="393">393</a>
-<a href="#394" id="394">394</a>
-<a href="#395" id="395">395</a>
-<a href="#396" id="396">396</a>
-<a href="#397" id="397">397</a>
-<a href="#398" id="398">398</a>
-<a href="#399" id="399">399</a>
-<a href="#400" id="400">400</a>
-<a href="#401" id="401">401</a>
-<a href="#402" id="402">402</a>
-<a href="#403" id="403">403</a>
-<a href="#404" id="404">404</a>
-<a href="#405" id="405">405</a>
-<a href="#406" id="406">406</a>
-<a href="#407" id="407">407</a>
-<a href="#408" id="408">408</a>
-<a href="#409" id="409">409</a>
-<a href="#410" id="410">410</a>
-<a href="#411" id="411">411</a>
-<a href="#412" id="412">412</a>
-<a href="#413" id="413">413</a>
-<a href="#414" id="414">414</a>
-<a href="#415" id="415">415</a>
-<a href="#416" id="416">416</a>
-<a href="#417" id="417">417</a>
-<a href="#418" id="418">418</a>
-<a href="#419" id="419">419</a>
-<a href="#420" id="420">420</a>
-<a href="#421" id="421">421</a>
-<a href="#422" id="422">422</a>
-<a href="#423" id="423">423</a>
-<a href="#424" id="424">424</a>
-<a href="#425" id="425">425</a>
-<a href="#426" id="426">426</a>
-<a href="#427" id="427">427</a>
-<a href="#428" id="428">428</a>
-<a href="#429" id="429">429</a>
-<a href="#430" id="430">430</a>
-<a href="#431" id="431">431</a>
-<a href="#432" id="432">432</a>
-<a href="#433" id="433">433</a>
-<a href="#434" id="434">434</a>
-<a href="#435" id="435">435</a>
-<a href="#436" id="436">436</a>
-<a href="#437" id="437">437</a>
-<a href="#438" id="438">438</a>
-<a href="#439" id="439">439</a>
-<a href="#440" id="440">440</a></pre></div><pre class="rust"><code><span class="doccomment">//! The foreign function counterpart to `interpreter/builtin.rs`, defines how to call
+<a href="#384" id="384">384</a></pre></div><pre class="rust"><code><span class="doccomment">//! The foreign function counterpart to `interpreter/builtin.rs`, defines how to call
 //! all foreign functions available to the interpreter.
 </span><span class="kw">use </span>acvm::{
     AcirField, BlackBoxResolutionError, FieldElement, acir::BlackBoxFunc,
@@ -450,12 +394,11 @@
 <span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
-    Kind, Type,
+    Type,
     hir::comptime::{
         InterpreterError, Value, errors::IResult,
         interpreter::builtin::builtin_helpers::to_byte_array,
     },
-    node_interner::NodeInterner,
     signed_field::SignedField,
 };
 
@@ -476,14 +419,7 @@
         return_type: Type,
         location: Location,
     ) -&gt; IResult&lt;Value&gt; {
-        call_foreign(
-            <span class="self">self</span>.elaborator.interner,
-            name,
-            arguments,
-            return_type,
-            location,
-            <span class="self">self</span>.elaborator.pedantic_solving(),
-        )
+        call_foreign(name, arguments, return_type, location, <span class="self">self</span>.elaborator.pedantic_solving())
     }
 }
 
@@ -491,7 +427,6 @@
 ///
 /// Similar to `evaluate_black_box` in `brillig_vm`.
 </span><span class="kw">fn </span>call_foreign(
-    interner: <span class="kw-2">&amp;mut </span>NodeInterner,
     name: <span class="kw-2">&amp;</span>str,
     args: Vec&lt;(Value, Location)&gt;,
     return_type: Type,
@@ -499,33 +434,23 @@
     pedantic_solving: bool,
 ) -&gt; IResult&lt;Value&gt; {
     <span class="kw">match </span>name {
-        <span class="string">"aes128_encrypt" </span>=&gt; aes128_encrypt(interner, args, location),
-        <span class="string">"blake2s" </span>=&gt; blake_hash(interner, args, location, acvm::blackbox_solver::blake2s),
-        <span class="string">"blake3" </span>=&gt; blake_hash(interner, args, location, acvm::blackbox_solver::blake3),
+        <span class="string">"aes128_encrypt" </span>=&gt; aes128_encrypt(args, location),
+        <span class="string">"blake2s" </span>=&gt; blake_hash(args, location, acvm::blackbox_solver::blake2s),
+        <span class="string">"blake3" </span>=&gt; blake_hash(args, location, acvm::blackbox_solver::blake3),
         <span class="comment">// cSpell:disable-next-line
-        </span><span class="string">"ecdsa_secp256k1" </span>=&gt; ecdsa_secp256_verify(
-            interner,
-            args,
-            location,
-            acvm::blackbox_solver::ecdsa_secp256k1_verify,
-        ),
+        </span><span class="string">"ecdsa_secp256k1" </span>=&gt; {
+            ecdsa_secp256_verify(args, location, acvm::blackbox_solver::ecdsa_secp256k1_verify)
+        }
         <span class="comment">// cSpell:disable-next-line
-        </span><span class="string">"ecdsa_secp256r1" </span>=&gt; ecdsa_secp256_verify(
-            interner,
-            args,
-            location,
-            acvm::blackbox_solver::ecdsa_secp256r1_verify,
-        ),
+        </span><span class="string">"ecdsa_secp256r1" </span>=&gt; {
+            ecdsa_secp256_verify(args, location, acvm::blackbox_solver::ecdsa_secp256r1_verify)
+        }
         <span class="string">"embedded_curve_add" </span>=&gt; embedded_curve_add(args, return_type, location, pedantic_solving),
-        <span class="string">"multi_scalar_mul" </span>=&gt; {
-            multi_scalar_mul(interner, args, return_type, location, pedantic_solving)
-        }
-        <span class="string">"poseidon2_permutation" </span>=&gt; {
-            poseidon2_permutation(interner, args, location, pedantic_solving)
-        }
-        <span class="string">"keccakf1600" </span>=&gt; keccakf1600(interner, args, location),
+        <span class="string">"multi_scalar_mul" </span>=&gt; multi_scalar_mul(args, return_type, location, pedantic_solving),
+        <span class="string">"poseidon2_permutation" </span>=&gt; poseidon2_permutation(args, location, pedantic_solving),
+        <span class="string">"keccakf1600" </span>=&gt; keccakf1600(args, location),
         <span class="string">"range" </span>=&gt; apply_range_constraint(args, location),
-        <span class="string">"sha256_compression" </span>=&gt; sha256_compression(interner, args, location),
+        <span class="string">"sha256_compression" </span>=&gt; sha256_compression(args, location),
         <span class="kw">_ </span>=&gt; {
             <span class="kw">let </span>explanation = <span class="kw">match </span>name {
                 <span class="string">"and" </span>| <span class="string">"xor" </span>=&gt; <span class="string">"It should be turned into a binary operation."</span>.into(),
@@ -543,16 +468,12 @@
 }
 
 <span class="doccomment">/// `pub fn aes128_encrypt&lt;let N: u32&gt;(input: [u8; N], iv: [u8; 16], key: [u8; 16]) -&gt; [u8]`
-</span><span class="kw">fn </span>aes128_encrypt(
-    interner: <span class="kw-2">&amp;mut </span>NodeInterner,
-    arguments: Vec&lt;(Value, Location)&gt;,
-    location: Location,
-) -&gt; IResult&lt;Value&gt; {
+</span><span class="kw">fn </span>aes128_encrypt(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
     <span class="kw">let </span>(inputs, iv, key) = check_three_arguments(arguments, location)<span class="question-mark">?</span>;
 
-    <span class="kw">let </span>(inputs, <span class="kw">_</span>) = get_array_map(interner, inputs, get_u8)<span class="question-mark">?</span>;
-    <span class="kw">let </span>(iv, <span class="kw">_</span>) = get_fixed_array_map(interner, iv, get_u8)<span class="question-mark">?</span>;
-    <span class="kw">let </span>(key, <span class="kw">_</span>) = get_fixed_array_map(interner, key, get_u8)<span class="question-mark">?</span>;
+    <span class="kw">let </span>(inputs, <span class="kw">_</span>) = get_array_map(inputs, get_u8)<span class="question-mark">?</span>;
+    <span class="kw">let </span>(iv, <span class="kw">_</span>) = get_fixed_array_map(iv, get_u8)<span class="question-mark">?</span>;
+    <span class="kw">let </span>(key, <span class="kw">_</span>) = get_fixed_array_map(key, get_u8)<span class="question-mark">?</span>;
 
     <span class="kw">let </span>output = acvm::blackbox_solver::aes128_encrypt(<span class="kw-2">&amp;</span>inputs, iv, key)
         .map_err(|e| InterpreterError::BlackBoxError(e, location))<span class="question-mark">?</span>;
@@ -587,14 +508,13 @@
 /// pub fn blake3&lt;let N: u32&gt;(input: [u8; N]) -&gt; [u8; 32]
 /// ```
 </span><span class="kw">fn </span>blake_hash(
-    interner: <span class="kw-2">&amp;mut </span>NodeInterner,
     arguments: Vec&lt;(Value, Location)&gt;,
     location: Location,
     f: <span class="kw">impl </span>Fn(<span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;[u8; <span class="number">32</span>], BlackBoxResolutionError&gt;,
 ) -&gt; IResult&lt;Value&gt; {
     <span class="kw">let </span>inputs = check_one_argument(arguments, location)<span class="question-mark">?</span>;
 
-    <span class="kw">let </span>(inputs, <span class="kw">_</span>) = get_array_map(interner, inputs, get_u8)<span class="question-mark">?</span>;
+    <span class="kw">let </span>(inputs, <span class="kw">_</span>) = get_array_map(inputs, get_u8)<span class="question-mark">?</span>;
     <span class="kw">let </span>output = f(<span class="kw-2">&amp;</span>inputs).map_err(|e| InterpreterError::BlackBoxError(e, location))<span class="question-mark">?</span>;
 
     <span class="prelude-val">Ok</span>(to_byte_array(<span class="kw-2">&amp;</span>output))
@@ -611,7 +531,6 @@
 /// ) -&gt; bool
 </span><span class="comment">// cSpell:disable-next-line
 </span><span class="kw">fn </span>ecdsa_secp256_verify(
-    interner: <span class="kw-2">&amp;mut </span>NodeInterner,
     arguments: Vec&lt;(Value, Location)&gt;,
     location: Location,
     f: <span class="kw">impl </span>Fn(<span class="kw-2">&amp;</span>[u8; <span class="number">32</span>], <span class="kw-2">&amp;</span>[u8; <span class="number">32</span>], <span class="kw-2">&amp;</span>[u8; <span class="number">32</span>], <span class="kw-2">&amp;</span>[u8; <span class="number">64</span>]) -&gt; <span class="prelude-ty">Result</span>&lt;bool, BlackBoxResolutionError&gt;,
@@ -619,10 +538,10 @@
     <span class="kw">let </span>[pub_key_x, pub_key_y, sig, msg_hash, predicate] = check_arguments(arguments, location)<span class="question-mark">?</span>;
     <span class="macro">assert_eq!</span>(predicate.<span class="number">0</span>, Value::Bool(<span class="bool-val">true</span>), <span class="string">"verify_signature predicate should be true"</span>);
 
-    <span class="kw">let </span>(pub_key_x, <span class="kw">_</span>) = get_fixed_array_map(interner, pub_key_x, get_u8)<span class="question-mark">?</span>;
-    <span class="kw">let </span>(pub_key_y, <span class="kw">_</span>) = get_fixed_array_map(interner, pub_key_y, get_u8)<span class="question-mark">?</span>;
-    <span class="kw">let </span>(sig, <span class="kw">_</span>) = get_fixed_array_map(interner, sig, get_u8)<span class="question-mark">?</span>;
-    <span class="kw">let </span>(msg_hash, <span class="kw">_</span>) = get_fixed_array_map(interner, msg_hash.clone(), get_u8)<span class="question-mark">?</span>;
+    <span class="kw">let </span>(pub_key_x, <span class="kw">_</span>) = get_fixed_array_map(pub_key_x, get_u8)<span class="question-mark">?</span>;
+    <span class="kw">let </span>(pub_key_y, <span class="kw">_</span>) = get_fixed_array_map(pub_key_y, get_u8)<span class="question-mark">?</span>;
+    <span class="kw">let </span>(sig, <span class="kw">_</span>) = get_fixed_array_map(sig, get_u8)<span class="question-mark">?</span>;
+    <span class="kw">let </span>(msg_hash, <span class="kw">_</span>) = get_fixed_array_map(msg_hash.clone(), get_u8)<span class="question-mark">?</span>;
 
     <span class="kw">let </span>is_valid = f(<span class="kw-2">&amp;</span>msg_hash, <span class="kw-2">&amp;</span>pub_key_x, <span class="kw-2">&amp;</span>pub_key_y, <span class="kw-2">&amp;</span>sig)
         .map_err(|e| InterpreterError::BlackBoxError(e, location))<span class="question-mark">?</span>;
@@ -675,7 +594,6 @@
 /// ) -&gt; [EmbeddedCurvePoint; 1]
 /// ```
 </span><span class="kw">fn </span>multi_scalar_mul(
-    interner: <span class="kw-2">&amp;mut </span>NodeInterner,
     arguments: Vec&lt;(Value, Location)&gt;,
     return_type: Type,
     location: Location,
@@ -684,8 +602,8 @@
     <span class="kw">let </span>(points, scalars, predicate) = check_three_arguments(arguments, location)<span class="question-mark">?</span>;
     <span class="macro">assert_eq!</span>(predicate.<span class="number">0</span>, Value::Bool(<span class="bool-val">true</span>), <span class="string">"verify_signature predicate should be true"</span>);
 
-    <span class="kw">let </span>(points, <span class="kw">_</span>) = get_array_map(interner, points, get_embedded_curve_point)<span class="question-mark">?</span>;
-    <span class="kw">let </span>(scalars, <span class="kw">_</span>) = get_array_map(interner, scalars, get_embedded_curve_scalar)<span class="question-mark">?</span>;
+    <span class="kw">let </span>(points, <span class="kw">_</span>) = get_array_map(points, get_embedded_curve_point)<span class="question-mark">?</span>;
+    <span class="kw">let </span>(scalars, <span class="kw">_</span>) = get_array_map(scalars, get_embedded_curve_scalar)<span class="question-mark">?</span>;
 
     <span class="kw">let </span>points: Vec&lt;<span class="kw">_</span>&gt; = points.into_iter().flat_map(|(x, y, inf)| [x, y, inf.into()]).collect();
     <span class="kw">let </span><span class="kw-2">mut </span>scalars_lo = Vec::new();
@@ -708,10 +626,7 @@
         Type::Array(<span class="kw">_</span>, item_type) =&gt; item_type.as_ref().clone(),
         <span class="kw">_ </span>=&gt; {
             <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::TypeMismatch {
-                expected: Type::Array(
-                    Box::new(Type::Constant(<span class="number">1_usize</span>.into(), Kind::u32())),
-                    Box::new(interner.next_type_variable()), <span class="comment">// EmbeddedCurvePoint
-                </span>),
+                expected: <span class="string">"[EmbeddedCurvePoint; 1]"</span>.to_string(),
                 actual: return_type.clone(),
                 location,
             });
@@ -726,14 +641,13 @@
 
 <span class="doccomment">/// `poseidon2_permutation&lt;let N: u32&gt;(_input: [Field; N], _state_length: u32) -&gt; [Field; N]`
 </span><span class="kw">fn </span>poseidon2_permutation(
-    interner: <span class="kw-2">&amp;mut </span>NodeInterner,
     arguments: Vec&lt;(Value, Location)&gt;,
     location: Location,
     pedantic_solving: bool,
 ) -&gt; IResult&lt;Value&gt; {
     <span class="kw">let </span>input = check_one_argument(arguments, location)<span class="question-mark">?</span>;
 
-    <span class="kw">let </span>(input, typ) = get_array_map(interner, input, get_field)<span class="question-mark">?</span>;
+    <span class="kw">let </span>(input, typ) = get_array_map(input, get_field)<span class="question-mark">?</span>;
     <span class="kw">let </span>input = vecmap(input, SignedField::to_field_element);
 
     <span class="kw">let </span>fields = Bn254BlackBoxSolver(pedantic_solving)
@@ -745,14 +659,10 @@
 }
 
 <span class="doccomment">/// `fn keccakf1600(input: [u64; 25]) -&gt; [u64; 25] {}`
-</span><span class="kw">fn </span>keccakf1600(
-    interner: <span class="kw-2">&amp;mut </span>NodeInterner,
-    arguments: Vec&lt;(Value, Location)&gt;,
-    location: Location,
-) -&gt; IResult&lt;Value&gt; {
+</span><span class="kw">fn </span>keccakf1600(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
     <span class="kw">let </span>input = check_one_argument(arguments, location)<span class="question-mark">?</span>;
 
-    <span class="kw">let </span>(state, typ) = get_fixed_array_map(interner, input, get_u64)<span class="question-mark">?</span>;
+    <span class="kw">let </span>(state, typ) = get_fixed_array_map(input, get_u64)<span class="question-mark">?</span>;
 
     <span class="kw">let </span>result_lanes = acvm::blackbox_solver::keccakf1600(state)
         .map_err(|error| InterpreterError::BlackBoxError(error, location))<span class="question-mark">?</span>;
@@ -762,15 +672,11 @@
 }
 
 <span class="doccomment">/// `pub fn sha256_compression(input: [u32; 16], state: [u32; 8]) -&gt; [u32; 8]`
-</span><span class="kw">fn </span>sha256_compression(
-    interner: <span class="kw-2">&amp;mut </span>NodeInterner,
-    arguments: Vec&lt;(Value, Location)&gt;,
-    location: Location,
-) -&gt; IResult&lt;Value&gt; {
+</span><span class="kw">fn </span>sha256_compression(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
     <span class="kw">let </span>(input, state) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
 
-    <span class="kw">let </span>(input, <span class="kw">_</span>) = get_fixed_array_map(interner, input, get_u32)<span class="question-mark">?</span>;
-    <span class="kw">let </span>(<span class="kw-2">mut </span>state, typ) = get_fixed_array_map(interner, state, get_u32)<span class="question-mark">?</span>;
+    <span class="kw">let </span>(input, <span class="kw">_</span>) = get_fixed_array_map(input, get_u32)<span class="question-mark">?</span>;
+    <span class="kw">let </span>(<span class="kw-2">mut </span>state, typ) = get_fixed_array_map(state, get_u32)<span class="question-mark">?</span>;
 
     acvm::blackbox_solver::sha256_compression(<span class="kw-2">&amp;mut </span>state, <span class="kw-2">&amp;</span>input);
 
@@ -829,48 +735,30 @@
     <span class="kw">use </span><span class="kw">crate</span>::hir::comptime::InterpreterError::{
         ArgumentCountMismatch, InvalidInComptimeContext, Unimplemented,
     };
-    <span class="kw">use </span><span class="kw">crate</span>::hir::comptime::tests::with_interpreter;
 
     <span class="kw">use </span><span class="kw">super</span>::call_foreign;
 
     <span class="doccomment">/// Check that all `BlackBoxFunc` are covered by `call_foreign`.
     </span><span class="attr">#[test]
     </span><span class="kw">fn </span>test_blackbox_implemented() {
-        <span class="kw">let </span>dummy = <span class="string">"
-        comptime fn main() -&gt; pub u8 {
-            0
+        <span class="kw">let </span>no_location = Location::dummy();
+        <span class="kw">let </span><span class="kw-2">mut </span>not_implemented = Vec::new();
+
+        <span class="kw">for </span>blackbox <span class="kw">in </span>BlackBoxFunc::iter() {
+            <span class="kw">let </span>name = blackbox.name();
+            <span class="kw">let </span>pedantic_solving = <span class="bool-val">true</span>;
+            <span class="kw">match </span>call_foreign(name, Vec::new(), Type::Unit, no_location, pedantic_solving) {
+                <span class="prelude-val">Ok</span>(<span class="kw">_</span>) =&gt; {
+                    <span class="comment">// Exists and works with no args (unlikely)
+                </span>}
+                <span class="prelude-val">Err</span>(ArgumentCountMismatch { .. }) =&gt; {
+                    <span class="comment">// Exists but doesn't work with no args (expected)
+                </span>}
+                <span class="prelude-val">Err</span>(InvalidInComptimeContext { .. }) =&gt; {}
+                <span class="prelude-val">Err</span>(Unimplemented { .. }) =&gt; not_implemented.push(name),
+                <span class="prelude-val">Err</span>(other) =&gt; <span class="macro">panic!</span>(<span class="string">"unexpected error: {other:?}"</span>),
+            };
         }
-        "</span>;
-
-        <span class="kw">let </span>not_implemented = with_interpreter(dummy, |interpreter, <span class="kw">_</span>, <span class="kw">_</span>| {
-            <span class="kw">let </span>no_location = Location::dummy();
-            <span class="kw">let </span><span class="kw-2">mut </span>not_implemented = Vec::new();
-
-            <span class="kw">for </span>blackbox <span class="kw">in </span>BlackBoxFunc::iter() {
-                <span class="kw">let </span>name = blackbox.name();
-                <span class="kw">let </span>pedantic_solving = <span class="bool-val">true</span>;
-                <span class="kw">match </span>call_foreign(
-                    interpreter.elaborator.interner,
-                    name,
-                    Vec::new(),
-                    Type::Unit,
-                    no_location,
-                    pedantic_solving,
-                ) {
-                    <span class="prelude-val">Ok</span>(<span class="kw">_</span>) =&gt; {
-                        <span class="comment">// Exists and works with no args (unlikely)
-                    </span>}
-                    <span class="prelude-val">Err</span>(ArgumentCountMismatch { .. }) =&gt; {
-                        <span class="comment">// Exists but doesn't work with no args (expected)
-                    </span>}
-                    <span class="prelude-val">Err</span>(InvalidInComptimeContext { .. }) =&gt; {}
-                    <span class="prelude-val">Err</span>(Unimplemented { .. }) =&gt; not_implemented.push(name),
-                    <span class="prelude-val">Err</span>(other) =&gt; <span class="macro">panic!</span>(<span class="string">"unexpected error: {other:?}"</span>),
-                };
-            }
-
-            not_implemented
-        });
 
         <span class="macro">assert!</span>(
             not_implemented.is_empty(),

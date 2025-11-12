@@ -2444,7 +2444,16 @@
 <a href="#2443" id="2443">2443</a>
 <a href="#2444" id="2444">2444</a>
 <a href="#2445" id="2445">2445</a>
-<a href="#2446" id="2446">2446</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the constant folding optimization pass is to propagate any constants forwards into
+<a href="#2446" id="2446">2446</a>
+<a href="#2447" id="2447">2447</a>
+<a href="#2448" id="2448">2448</a>
+<a href="#2449" id="2449">2449</a>
+<a href="#2450" id="2450">2450</a>
+<a href="#2451" id="2451">2451</a>
+<a href="#2452" id="2452">2452</a>
+<a href="#2453" id="2453">2453</a>
+<a href="#2454" id="2454">2454</a>
+<a href="#2455" id="2455">2455</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the constant folding optimization pass is to propagate any constants forwards into
 //! later [`Instruction`]s to maximize the impact of [compile-time simplifications][crate::ssa::ir::dfg::simplify::simplify()].
 //!
 //! The pass works as follows:
@@ -2495,6 +2504,11 @@
 
 <span class="kw">pub const </span>DEFAULT_MAX_ITER: usize = <span class="number">5</span>;
 
+<span class="doccomment">/// Maximum number of SSA instructions to execute during inlining a constant Brillig call.
+///
+/// The number is based on some experimentation to limit a tight loop to ~100ms.
+</span><span class="kw">const </span>DEFAULT_INTERPRETER_STEP_LIMIT: usize = <span class="number">10_000_000</span>;
+
 <span class="kw">impl </span>Ssa {
     <span class="doccomment">/// Performs constant folding on each instruction.
     ///
@@ -2540,7 +2554,11 @@
         </span>} <span class="kw">else </span>{
             <span class="kw">let </span><span class="kw-2">mut </span>interpreter = Interpreter::new_from_functions(
                 <span class="kw-2">&amp;</span>brillig_functions,
-                InterpreterOptions { no_foreign_calls: <span class="bool-val">true</span>, ..Default::default() },
+                InterpreterOptions {
+                    no_foreign_calls: <span class="bool-val">true</span>,
+                    step_limit: <span class="prelude-val">Some</span>(DEFAULT_INTERPRETER_STEP_LIMIT),
+                    ..Default::default()
+                },
                 std::io::empty(),
             );
             <span class="comment">// Interpret globals once so that we do not have to repeat this computation on every Brillig call.

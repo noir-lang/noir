@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["DEFAULT_MAX_ITER"],"enum":["CanBeDeduplicated"],"fn":["can_be_deduplicated","constant_folding_post_check","resolve_cache"],"mod":["interpret","result_cache","simplification_cache"],"struct":["Context"]};
+window.SIDEBAR_ITEMS = {"constant":["DEFAULT_INTERPRETER_STEP_LIMIT","DEFAULT_MAX_ITER"],"enum":["CanBeDeduplicated"],"fn":["can_be_deduplicated","constant_folding_post_check","resolve_cache"],"mod":["interpret","result_cache","simplification_cache"],"struct":["Context"]};

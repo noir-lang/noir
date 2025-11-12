@@ -171,19 +171,7 @@
 <a href="#170" id="170">170</a>
 <a href="#171" id="171">171</a>
 <a href="#172" id="172">172</a>
-<a href="#173" id="173">173</a>
-<a href="#174" id="174">174</a>
-<a href="#175" id="175">175</a>
-<a href="#176" id="176">176</a>
-<a href="#177" id="177">177</a>
-<a href="#178" id="178">178</a>
-<a href="#179" id="179">179</a>
-<a href="#180" id="180">180</a>
-<a href="#181" id="181">181</a>
-<a href="#182" id="182">182</a>
-<a href="#183" id="183">183</a>
-<a href="#184" id="184">184</a>
-<a href="#185" id="185">185</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
+<a href="#173" id="173">173</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
     Type,
@@ -235,18 +223,6 @@
     /// See ModCollector for it's usage.
     </span><span class="kw">pub fn </span>push_fn_meta(<span class="kw-2">&amp;mut </span><span class="self">self</span>, func_data: FuncMeta, func_id: FuncId) {
         <span class="self">self</span>.func_meta.insert(func_id, func_data);
-    }
-
-    <span class="doccomment">/// Push a function with the default modifiers and [`ModuleId`] for testing
-    </span><span class="attr">#[cfg(test)]
-    </span><span class="kw">pub fn </span>push_test_function_definition(<span class="kw-2">&amp;mut </span><span class="self">self</span>, name: String) -&gt; FuncId {
-        <span class="kw">let </span>id = <span class="self">self</span>.push_fn(HirFunction::empty());
-        <span class="kw">let </span><span class="kw-2">mut </span>modifiers = FunctionModifiers::new();
-        modifiers.name = name;
-        <span class="kw">let </span>module = ModuleId::dummy_id();
-        <span class="kw">let </span>location = Location::dummy();
-        <span class="self">self</span>.push_function_definition(id, modifiers, module, location);
-        id
     }
 
     <span class="kw">pub fn </span>push_function(

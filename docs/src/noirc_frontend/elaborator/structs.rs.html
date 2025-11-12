@@ -162,7 +162,7 @@
         <span class="comment">// Resolve each field in each struct.
         // Each struct should already be present in the NodeInterner after def collection.
         </span><span class="kw">for </span>(type_id, typ) <span class="kw">in </span>structs {
-            <span class="self">self</span>.local_module = typ.module_id;
+            <span class="self">self</span>.local_module = <span class="prelude-val">Some</span>(typ.module_id);
 
             <span class="kw">let </span>fields = <span class="self">self</span>.resolve_struct_fields(<span class="kw-2">&amp;</span>typ.struct_def, <span class="kw-2">*</span>type_id);
 

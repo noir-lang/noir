@@ -132,7 +132,19 @@
 <a href="#131" id="131">131</a>
 <a href="#132" id="132">132</a>
 <a href="#133" id="133">133</a>
-<a href="#134" id="134">134</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::cmp::Ordering;
+<a href="#134" id="134">134</a>
+<a href="#135" id="135">135</a>
+<a href="#136" id="136">136</a>
+<a href="#137" id="137">137</a>
+<a href="#138" id="138">138</a>
+<a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a>
+<a href="#141" id="141">141</a>
+<a href="#142" id="142">142</a>
+<a href="#143" id="143">143</a>
+<a href="#144" id="144">144</a>
+<a href="#145" id="145">145</a>
+<a href="#146" id="146">146</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::cmp::Ordering;
 
 <span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>num_traits::Zero;
@@ -198,27 +210,39 @@
         }
     }
 
-    <span class="doccomment">/// Increment the value by 1, saturating at the maximum value.
+    <span class="doccomment">/// Increment the value by 1
+    ///
+    /// # Panics
+    ///
+    /// Panics if the increment causes an overflow.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>inc(<span class="self">self</span>) -&gt; <span class="self">Self </span>{
         <span class="kw">match </span><span class="self">self </span>{
-            <span class="self">Self</span>::Signed { value, bit_size } =&gt; {
-                <span class="self">Self</span>::Signed { value: value.saturating_add(<span class="number">1</span>), bit_size }
-            }
-            <span class="self">Self</span>::Unsigned { value, bit_size } =&gt; {
-                <span class="self">Self</span>::Unsigned { value: value.saturating_add(<span class="number">1</span>), bit_size }
-            }
+            <span class="self">Self</span>::Signed { value, bit_size } =&gt; <span class="self">Self</span>::Signed {
+                value: value.checked_add(<span class="number">1</span>).expect(<span class="string">"ICE: overflow while incrementing constant"</span>),
+                bit_size,
+            },
+            <span class="self">Self</span>::Unsigned { value, bit_size } =&gt; <span class="self">Self</span>::Unsigned {
+                value: value.checked_add(<span class="number">1</span>).expect(<span class="string">"ICE: overflow while incrementing constant"</span>),
+                bit_size,
+            },
         }
     }
 
     <span class="doccomment">/// Decrement the value by 1, saturating at the minimum value.
+    ///
+    /// # panics
+    ///
+    /// Panics if the decrement causes an overflow.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>dec(<span class="self">self</span>) -&gt; <span class="self">Self </span>{
         <span class="kw">match </span><span class="self">self </span>{
-            <span class="self">Self</span>::Signed { value, bit_size } =&gt; {
-                <span class="self">Self</span>::Signed { value: value.saturating_sub(<span class="number">1</span>), bit_size }
-            }
-            <span class="self">Self</span>::Unsigned { value, bit_size } =&gt; {
-                <span class="self">Self</span>::Unsigned { value: value.saturating_sub(<span class="number">1</span>), bit_size }
-            }
+            <span class="self">Self</span>::Signed { value, bit_size } =&gt; <span class="self">Self</span>::Signed {
+                value: value.checked_sub(<span class="number">1</span>).expect(<span class="string">"ICE: overflow while decrementing constant"</span>),
+                bit_size,
+            },
+            <span class="self">Self</span>::Unsigned { value, bit_size } =&gt; <span class="self">Self</span>::Unsigned {
+                value: value.checked_sub(<span class="number">1</span>).expect(<span class="string">"ICE: overflow while decrementing constant"</span>),
+                bit_size,
+            },
         }
     }
 
