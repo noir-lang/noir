@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1762955341203,
+  "lastUpdate": 1762955692540,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23116,48 +23116,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "03a4839c618c57187fa804235643b9cc3f1c8d47",
-          "message": "chore: Add remaining doc comments to interpreter (#10368)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-11-05T14:21:01Z",
-          "tree_id": "fbb69f72d79d44222e1b110971a896dd85901bfe",
-          "url": "https://github.com/noir-lang/noir/commit/03a4839c618c57187fa804235643b9cc3f1c8d47"
-        },
-        "date": 1762354215735,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 262503,
-            "range": "± 635",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 231807,
-            "range": "± 8138",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2794419,
-            "range": "± 1187",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25209,6 +25167,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2264195,
             "range": "± 1976",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "794b685f77ec3b4c1c885c4131ee7792e949511d",
+          "message": "fix(frontend): No negative overflow when quoting signed integer (#10331)\n\nCo-authored-by: Jake Fecher <jfecher11@gmail.com>",
+          "timestamp": "2025-11-12T13:32:53Z",
+          "tree_id": "f602f3d6c7754cfd69aabe92d6344a69a2f04e3b",
+          "url": "https://github.com/noir-lang/noir/commit/794b685f77ec3b4c1c885c4131ee7792e949511d"
+        },
+        "date": 1762955666646,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 256709,
+            "range": "± 1789",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 227030,
+            "range": "± 5173",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2781892,
+            "range": "± 1418",
             "unit": "ns/iter"
           }
         ]
