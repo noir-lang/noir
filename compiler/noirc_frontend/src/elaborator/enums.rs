@@ -24,7 +24,7 @@ use crate::{
     hir_def::{
         expr::{
             Case, Constructor, HirBlockExpression, HirEnumConstructorExpression, HirExpression,
-            HirIdent, HirMatch,
+            HirIdent, HirLiteral, HirMatch,
         },
         function::{FuncMeta, FunctionBody, HirFunction, Parameters},
         stmt::{HirLetStatement, HirPattern, HirStatement},
@@ -462,6 +462,12 @@ impl Elaborator<'_> {
                     None => self.interner.next_type_variable_with_kind(Kind::IntegerOrField),
                 };
                 unify_with_expected_type(self, &actual);
+
+                let expr = HirExpression::Literal(HirLiteral::Integer(value));
+                let location = expr_location;
+                let expr_id = self.interner.push_expr_full(expr, location, actual.clone());
+                self.push_integer_literal_expr_id(expr_id);
+
                 Pattern::Int(value)
             }
             ExpressionKind::Literal(Literal::Bool(value)) => {

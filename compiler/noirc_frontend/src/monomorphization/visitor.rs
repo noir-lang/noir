@@ -1,4 +1,4 @@
-use noirc_frontend::monomorphization::ast::{Expression, Ident, LValue, Literal};
+use super::ast::{Expression, Ident, LValue, Literal};
 
 /// Visit all identifiers under the [Expression].
 pub fn visit_ident_mut<V>(expr: &mut Expression, v: &mut V)

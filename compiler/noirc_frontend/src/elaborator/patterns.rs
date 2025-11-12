@@ -67,7 +67,6 @@ impl Elaborator<'_> {
 
     /// Elaborate the (potentially mutable) pattern and add the variables
     /// it created to the scope if necessary.
-    #[allow(clippy::too_many_arguments)]
     fn elaborate_pattern_mut(
         &mut self,
         pattern: Pattern,
@@ -410,10 +409,9 @@ impl Elaborator<'_> {
     /// Lookup and use the specified local variable.
     /// This will increment its use counter by one and return the variable if found.
     /// If the variable is not found, an error is returned.
-    pub(super) fn use_variable(
-        &mut self,
-        name: &Ident,
-    ) -> Result<(HirIdent, usize), ResolverError> {
+    ///
+    /// This method is private and is expected to be called through [Self::get_ident_from_path_or_error].
+    fn use_variable(&mut self, name: &Ident) -> Result<(HirIdent, usize), ResolverError> {
         // Find the definition for this Ident
         let scope_tree = self.scopes.current_scope_tree();
         let variable = scope_tree.find(name.as_str());
@@ -574,7 +572,7 @@ impl Elaborator<'_> {
             let location = located_type.location();
             let typ = located_type.contents;
             let typ = typ.substitute_kind_any_with_kind(&kind);
-            self.check_kind(typ, &kind, location)
+            self.check_type_kind(typ, &kind, location)
         })
     }
 

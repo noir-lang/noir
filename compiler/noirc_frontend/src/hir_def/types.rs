@@ -1337,7 +1337,8 @@ impl Type {
             | Type::FmtString(_, _)
             | Type::Unit
             | Type::Function(..)
-            | Type::Tuple(..) => true,
+            | Type::Tuple(..)
+            | Type::Quoted(..) => true,
             Type::Alias(alias_type, generics) => {
                 alias_type.borrow().get_type(&generics).is_primitive()
             }
@@ -1349,7 +1350,6 @@ impl Type {
             | Type::CheckedCast { .. }
             | Type::Forall(..)
             | Type::Constant(..)
-            | Type::Quoted(..)
             | Type::InfixExpr(..)
             | Type::Error => false,
         }

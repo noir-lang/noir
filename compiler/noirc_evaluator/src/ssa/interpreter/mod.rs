@@ -1083,8 +1083,8 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             let index = index - offset.to_u32();
             let value = self.lookup(value)?;
 
-            let should_mutate =
-                if self.in_unconstrained_context() { *array.rc.borrow() == 1 } else { mutable };
+            let is_rc_one = *array.rc.borrow() == 1;
+            let should_mutate = if self.in_unconstrained_context() { is_rc_one } else { mutable };
 
             if index >= length {
                 return Err(InterpreterError::IndexOutOfBounds { index: index.into(), length });
@@ -1094,6 +1094,9 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 array.elements.borrow_mut()[index as usize] = value;
                 Value::ArrayOrSlice(array.clone())
             } else {
+                if !is_rc_one {
+                    Self::decrement_rc(&array);
+                }
                 let mut elements = array.elements.borrow().to_vec();
                 elements[index as usize] = value;
                 let elements = Shared::new(elements);
@@ -1108,6 +1111,13 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         };
         self.define(result, result_array)?;
         Ok(())
+    }
+
+    /// Decrement the ref-count of an array by 1.
+    fn decrement_rc(_array: &ArrayValue) {
+        // The decrement of the ref-count is currently disabled in SSA as well as the Brillig codegen,
+        // but we might re-enable it in the future if the ownership optimizations change.
+        // *array.rc.borrow_mut() -= 1;
     }
 
     fn interpret_inc_rc(&self, value_id: ValueId) -> IResult<()> {
@@ -1551,23 +1561,32 @@ fn evaluate_binary(
         ),
         BinaryOp::Eq => apply_int_comparison_op!(lhs, rhs, binary, |a, b| a == b, |a, b| a == b),
         BinaryOp::Lt => {
-            apply_int_comparison_op!(lhs, rhs, binary, |a, b| a < b, |_, _| unreachable!(
-                "unfit lt: fit types should have been restored already"
-            ))
+            apply_int_comparison_op!(lhs, rhs, binary, |a, b| a < b, |_, _| {
+                // This could be the result of the DIE pass removing an `ArrayGet` and leaving a `LessThan`
+                // and a `Constrain` in its place. `LessThan` implicitly includes a `RangeCheck` on
+                // the operands during ACIR generation, which an `Unfit` value would fail, so we
+                // cannot treat them differently here, even if we could compare the values as `u128` or `i128`.
+                //
+                // Instead we `Cast` the values in SSA, which should have converted our `Unfit` value
+                // back to a `Fit` one with an acceptable number of bits.
+                //
+                // If we still hit this case, we have a problem.
+                unreachable!("unfit 'lt': fit types should have been restored already")
+            })
         }
         BinaryOp::And => {
             apply_int_binop!(lhs, rhs, binary, |a, b| Some(a & b), |_, _| unreachable!(
-                "unfit and: fit types should have been restored already"
+                "unfit 'and': fit types should have been restored already"
             ))
         }
         BinaryOp::Or => {
             apply_int_binop!(lhs, rhs, binary, |a, b| Some(a | b), |_, _| unreachable!(
-                "unfit or: fit types should have been restored already"
+                "unfit 'or': fit types should have been restored already"
             ))
         }
         BinaryOp::Xor => {
             apply_int_binop!(lhs, rhs, binary, |a, b| Some(a ^ b), |_, _| unreachable!(
-                "unfit xor: fit types should have been restored already"
+                "unfit 'xor': fit types should have been restored already"
             ))
         }
         BinaryOp::Shl => {
