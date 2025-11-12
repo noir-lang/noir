@@ -112,7 +112,7 @@ impl Elaborator<'_> {
         impls: &mut [(UnresolvedGenerics, Location, UnresolvedFunctions)],
         self_type: &UnresolvedType,
     ) {
-        self.local_module = module;
+        self.local_module = Some(module);
 
         for (generics, location, unresolved) in impls {
             self.check_generics_appear_in_types(generics, &[self_type], &[]);

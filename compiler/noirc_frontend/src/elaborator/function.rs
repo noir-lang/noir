@@ -71,7 +71,7 @@ impl Elaborator<'_> {
         extra_constraints: &[(TraitConstraint, Location)],
     ) {
         for (local_module, id, func) in &mut function_set.functions {
-            self.local_module = *local_module;
+            self.local_module = Some(*local_module);
             self.recover_generics(|this| {
                 this.define_function_meta(func, *id, None, extra_constraints);
             });
@@ -86,7 +86,7 @@ impl Elaborator<'_> {
         local_module: crate::hir::def_map::LocalModuleId,
         function_sets: &mut Vec<(UnresolvedGenerics, Location, UnresolvedFunctions)>,
     ) {
-        self.local_module = local_module;
+        self.local_module = Some(local_module);
 
         for (generics, _, function_set) in function_sets {
             // Prepare the impl
@@ -240,7 +240,7 @@ impl Elaborator<'_> {
             is_entry_point,
             has_inline_attribute: func.has_inline_attribute(),
             source_crate: self.crate_id,
-            source_module: self.local_module,
+            source_module: self.local_module(),
             function_body: FunctionBody::Unresolved(func.kind, body, func.def.location),
             self_type: self.self_type.clone(),
             source_file: location.file,
@@ -453,7 +453,7 @@ impl Elaborator<'_> {
             "Functions in other crates should be already elaborated"
         );
 
-        self.local_module = func_meta.source_module;
+        self.local_module = Some(func_meta.source_module);
         self.self_type = func_meta.self_type.clone();
         self.current_trait_impl = func_meta.trait_impl;
 

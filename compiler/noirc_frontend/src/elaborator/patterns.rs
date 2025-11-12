@@ -67,7 +67,6 @@ impl Elaborator<'_> {
 
     /// Elaborate the (potentially mutable) pattern and add the variables
     /// it created to the scope if necessary.
-    #[allow(clippy::too_many_arguments)]
     fn elaborate_pattern_mut(
         &mut self,
         pattern: Pattern,
@@ -126,9 +125,11 @@ impl Elaborator<'_> {
             }
             // e.g. let (<pattern 0>, <pattern 1>, ...) = ...;
             Pattern::Tuple(fields, location) => {
+                // Returns Some for valid tuple types (where arity checking makes sense),
+                // None when we've already issued an error or have an invalid type.
                 let field_types = match expected_type.follow_bindings() {
-                    Type::Tuple(fields) => fields,
-                    Type::Error => Vec::new(),
+                    Type::Tuple(fields) => Some(fields),
+                    Type::Error => None,
                     expected_type => {
                         let tuple =
                             Type::Tuple(vecmap(&fields, |_| self.interner.next_type_variable()));
@@ -139,20 +140,27 @@ impl Elaborator<'_> {
                             location,
                             source: Source::Assignment,
                         });
-                        Vec::new()
+                        None
                     }
                 };
 
-                if fields.len() != field_types.len() {
-                    self.push_err(TypeCheckError::TupleMismatch {
-                        tuple_types: field_types.clone(),
-                        actual_count: fields.len(),
-                        location,
-                    });
+                // Only check tuple arity if the expected type was actually a tuple.
+                // If it wasn't, we've already issued a type mismatch error above.
+                if let Some(field_types) = &field_types {
+                    if fields.len() != field_types.len() {
+                        self.push_err(TypeCheckError::TupleMismatch {
+                            tuple_types: field_types.clone(),
+                            actual_count: fields.len(),
+                            location,
+                        });
+                    }
                 }
 
                 let fields = vecmap(fields.into_iter().enumerate(), |(i, field)| {
-                    let field_type = field_types.get(i).cloned().unwrap_or(Type::Error);
+                    let field_type = field_types
+                        .as_ref()
+                        .and_then(|types| types.get(i).cloned())
+                        .unwrap_or(Type::Error);
                     self.elaborate_pattern_mut(
                         field,
                         field_type,
@@ -573,7 +581,7 @@ impl Elaborator<'_> {
             let location = located_type.location();
             let typ = located_type.contents;
             let typ = typ.substitute_kind_any_with_kind(&kind);
-            self.check_kind(typ, &kind, location)
+            self.check_type_kind(typ, &kind, location)
         })
     }
 

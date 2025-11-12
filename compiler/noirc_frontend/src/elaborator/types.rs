@@ -252,7 +252,7 @@ impl Elaborator<'_> {
             _ => (),
         }
 
-        self.check_kind(resolved_type, kind, location)
+        self.check_type_kind(resolved_type, kind, location)
     }
 
     /// Resolve Self::Foo to an associated type on the current trait or trait impl
@@ -705,11 +705,11 @@ impl Elaborator<'_> {
                 if let Type::Alias(alias, vec) = typ {
                     typ = alias.borrow().get_type(&vec);
                 }
-                self.check_kind(typ, expected_kind, location)
+                self.check_type_kind(typ, expected_kind, location)
             }
             UnresolvedTypeExpression::Constant(int, suffix, _span) => {
                 if let Some(suffix) = suffix {
-                    self.check_kind(suffix.as_type(), expected_kind, location);
+                    self.check_kind(suffix.as_kind(), expected_kind, location);
                 }
                 Type::Constant(int, expected_kind.clone())
             }
@@ -758,13 +758,14 @@ impl Elaborator<'_> {
             }
             UnresolvedTypeExpression::AsTraitPath(path) => {
                 let typ = self.resolve_as_trait_path(*path, wildcard_allowed);
-                self.check_kind(typ, expected_kind, location)
+                self.check_type_kind(typ, expected_kind, location)
             }
         }
     }
 
-    /// Check that a [Type] unifies with an expected [Kind] and returned the unified result.
-    pub(super) fn check_kind(
+    /// Checks that the type's [Kind] matches the expected kind, issuing an error if it does not.
+    /// Returns `typ` unless an error occurs - in which case [Type::Error] is returned.
+    pub(super) fn check_type_kind(
         &mut self,
         typ: Type,
         expected_kind: &Kind,
@@ -774,15 +775,28 @@ impl Elaborator<'_> {
             self.push_err(TypeCheckError::CyclicType { typ, location });
             return Type::Error;
         }
-        if !typ.kind().unifies(expected_kind) {
+
+        if self.check_kind(typ.kind(), expected_kind, location) { typ } else { Type::Error }
+    }
+
+    /// Checks that `expr_kind` matches `expected_kind`, issuing an error if it does not.
+    /// Returns `true` if the kinds unify.
+    pub(super) fn check_kind(
+        &mut self,
+        expr_kind: Kind,
+        expected_kind: &Kind,
+        location: Location,
+    ) -> bool {
+        if !expr_kind.unifies(expected_kind) {
             self.push_err(TypeCheckError::TypeKindMismatch {
                 expected_kind: expected_kind.clone(),
-                expr_kind: typ.kind(),
+                expr_kind,
                 expr_location: location,
             });
-            return Type::Error;
+            false
+        } else {
+            true
         }
-        typ
     }
 
     fn resolve_as_trait_path(&mut self, path: AsTraitPath, wildcard_allowed: bool) -> Type {
