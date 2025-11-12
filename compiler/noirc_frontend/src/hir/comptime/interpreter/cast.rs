@@ -7,10 +7,8 @@ use crate::{
     shared::Signedness,
     signed_field::SignedField,
 };
-use acvm::{AcirField, FieldElement};
+use acvm::{AcirField, FieldElement, acir::acir_field::truncate_to};
 use noirc_errors::Location;
-use num_bigint::BigInt;
-use num_traits::FromPrimitive;
 
 fn bit_size(typ: &Type) -> u32 {
     match typ {
@@ -67,19 +65,7 @@ fn classify_cast(input: &Type, output: &Type) -> CastType {
 
 fn perform_cast(kind: CastType, lhs: FieldElement) -> FieldElement {
     match kind {
-        CastType::Truncate { new_bit_size } => {
-            if new_bit_size >= lhs.num_bits() {
-                lhs
-            } else if lhs.num_bits() < 128 {
-                let mask = 2u128.pow(new_bit_size) - 1;
-                return FieldElement::from(lhs.to_u128() & mask);
-            } else {
-                let lhs_int = BigInt::from_bytes_be(num_bigint::Sign::Plus, &lhs.to_be_bytes());
-                let modulus = BigInt::from_u128(2).unwrap().pow(new_bit_size);
-                let lhs = lhs_int % modulus;
-                FieldElement::from_be_bytes_reduce(&lhs.to_bytes_be().1)
-            }
-        }
+        CastType::Truncate { new_bit_size } => truncate_to(&lhs, new_bit_size),
         CastType::SignExtend { old_bit_size, new_bit_size } => {
             assert!(new_bit_size <= 128);
             let max_positive_value = 2u128.pow(old_bit_size - 1) - 1;
