@@ -20,25 +20,20 @@ pub enum CrateId {
     /// In that case there's only one crate, and it's both the root
     /// crate and the stdlib crate.
     RootAndStdlib(usize),
-    Dummy,
 }
 
 impl CrateId {
-    pub fn dummy_id() -> CrateId {
-        CrateId::Dummy
-    }
-
     pub fn is_stdlib(&self) -> bool {
         match self {
             CrateId::Stdlib(_) | CrateId::RootAndStdlib(_) => true,
-            CrateId::Root(_) | CrateId::Crate(_) | CrateId::Dummy => false,
+            CrateId::Root(_) | CrateId::Crate(_) => false,
         }
     }
 
     pub fn is_root(&self) -> bool {
         match self {
             CrateId::Root(_) | CrateId::RootAndStdlib(_) => true,
-            CrateId::Stdlib(_) | CrateId::Crate(_) | CrateId::Dummy => false,
+            CrateId::Stdlib(_) | CrateId::Crate(_) => false,
         }
     }
 }
@@ -250,9 +245,6 @@ impl CrateGraph {
             }
             Some((CrateId::Stdlib(_), _)) | Some((CrateId::RootAndStdlib(_), _)) => {
                 panic!("ICE: Tried to re-add the stdlib crate as a regular crate")
-            }
-            Some((CrateId::Dummy, _)) => {
-                panic!("ICE: A dummy CrateId should not exist in the CrateGraph")
             }
             None => {
                 let data = CrateData { root_file_id: file_id, dependencies: Vec::new() };

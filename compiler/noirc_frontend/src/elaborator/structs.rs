@@ -35,7 +35,7 @@ impl Elaborator<'_> {
         // Resolve each field in each struct.
         // Each struct should already be present in the NodeInterner after def collection.
         for (type_id, typ) in structs {
-            self.local_module = typ.module_id;
+            self.local_module = Some(typ.module_id);
 
             let fields = self.resolve_struct_fields(&typ.struct_def, *type_id);
 
