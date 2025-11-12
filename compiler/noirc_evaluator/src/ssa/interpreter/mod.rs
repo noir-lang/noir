@@ -211,7 +211,10 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
     }
 
     pub(crate) fn interpret_globals(&mut self) -> IResult<()> {
-        let (_, function) = self.functions.first_key_value().unwrap();
+        let Some((_, function)) = self.functions.first_key_value() else {
+            return Ok(());
+        };
+        
         let globals = &function.dfg.globals;
         for (global_id, global) in globals.values_iter() {
             let value = match global {
