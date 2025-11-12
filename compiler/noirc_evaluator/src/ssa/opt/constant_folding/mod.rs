@@ -49,6 +49,11 @@ use simplification_cache::{ConstraintSimplificationCache, SimplificationCache};
 
 pub const DEFAULT_MAX_ITER: usize = 5;
 
+/// Maximum number of SSA instructions to execute during inlining a constant Brillig call.
+///
+/// The number is based on some experimentation to limit a tight loop to ~100ms.
+const DEFAULT_INTERPRETER_STEP_LIMIT: usize = 10_000_000;
+
 impl Ssa {
     /// Performs constant folding on each instruction.
     ///
@@ -94,7 +99,11 @@ impl Ssa {
         } else {
             let mut interpreter = Interpreter::new_from_functions(
                 &brillig_functions,
-                InterpreterOptions { no_foreign_calls: true, ..Default::default() },
+                InterpreterOptions {
+                    no_foreign_calls: true,
+                    step_limit: Some(DEFAULT_INTERPRETER_STEP_LIMIT),
+                    ..Default::default()
+                },
                 std::io::empty(),
             );
             // Interpret globals once so that we do not have to repeat this computation on every Brillig call.
@@ -2373,6 +2382,8 @@ mod test {
     fn do_not_deduplicate_call_with_inc_rc() {
         // This test ensures that a function which mutates an array pointer is marked impure.
         // This protects against future deduplication passes incorrectly assuming purity.
+        // The increasing RC numbers reflect the current expectation that the RC of the
+        // original array does not get decremented when a copy is made.
         let src = r#"
         brillig(inline) fn main f0 {
           b0(v0: u32):

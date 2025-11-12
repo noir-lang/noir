@@ -103,6 +103,9 @@ impl Formatter<'_> {
             SecondaryAttributeKind::Meta(meta_attribute) => {
                 self.format_meta_attribute(meta_attribute);
             }
+            SecondaryAttributeKind::MustUse(message) => {
+                self.format_must_use_attribute(message);
+            }
         }
 
         self.write_line();
@@ -224,6 +227,22 @@ impl Formatter<'_> {
             }
         }
         self.write_right_bracket();
+    }
+
+    fn format_must_use_attribute(&mut self, message: Option<String>) {
+        self.write_current_token_and_bump(); // #[
+        self.skip_comments_and_whitespace();
+        self.write_current_token_and_bump(); // name
+
+        if message.is_some() {
+            self.write_space();
+            self.write_token(Token::Assign);
+            self.write_space();
+            self.write_current_token_and_bump(); // message
+            self.skip_comments_and_whitespace();
+        }
+
+        self.write_right_bracket(); // ]
     }
 
     fn format_no_args_attribute(&mut self) {
@@ -450,5 +469,23 @@ mod tests {
         let src = " #[foo] #[test] #[bar]  ";
         let expected = "#[foo]\n#[test]\n#[bar]";
         assert_format_attribute(src, expected);
+    }
+
+    #[test]
+    fn format_must_use_attribute() {
+        dbg!();
+        let src = " #[  must_use  ] ";
+        dbg!();
+        let expected = "#[must_use]";
+        dbg!();
+        assert_format_attribute(src, expected);
+        dbg!();
+
+        let src = " #[   must_use   =   \"hey you should really use this thing\"  ]  ";
+        dbg!();
+        let expected = "#[must_use = \"hey you should really use this thing\"]";
+        dbg!();
+        assert_format_attribute(src, expected);
+        dbg!();
     }
 }

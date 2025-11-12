@@ -35,7 +35,7 @@ impl Elaborator<'_> {
         // Resolve each field in each struct.
         // Each struct should already be present in the NodeInterner after def collection.
         for (type_id, typ) in structs {
-            self.local_module = typ.module_id;
+            self.local_module = Some(typ.module_id);
 
             let fields = self.resolve_struct_fields(&typ.struct_def, *type_id);
 
@@ -56,6 +56,10 @@ impl Elaborator<'_> {
             }
 
             self.interner.update_type(*type_id, |struct_def| {
+                let mut attributes = typ.struct_def.attributes.iter();
+                if let Some(message) = attributes.find_map(|attr| attr.kind.must_use_message()) {
+                    struct_def.must_use = crate::MustUse::MustUse(message);
+                };
                 struct_def.set_fields(fields);
             });
         }
@@ -86,14 +90,10 @@ impl Elaborator<'_> {
 
             let wildcard_allowed = false;
             let fields = vecmap(&unresolved.fields, |field| {
-                let ident = &field.item.name;
-                let typ = &field.item.typ;
+                let name = field.item.name.clone();
+                let typ = this.resolve_type(field.item.typ.clone(), wildcard_allowed);
                 let visibility = field.item.visibility;
-                StructField {
-                    visibility,
-                    name: ident.clone(),
-                    typ: this.resolve_type(typ.clone(), wildcard_allowed),
-                }
+                StructField { visibility, name, typ }
             });
 
             this.resolving_ids.remove(&struct_id);

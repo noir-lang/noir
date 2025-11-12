@@ -147,7 +147,14 @@ pub enum IntegerTypeSuffix {
 }
 
 impl IntegerTypeSuffix {
-    pub(crate) fn as_type(&self) -> crate::Type {
+    /// Returns the type of this integer suffix when used in a value position.
+    /// Note that this is _not_ the type of the integer when the integer is in a type position!
+    ///
+    /// An integer value like `3u32` has type `u32` but when used in a type `[Field; 3u32]`,
+    /// `3u32` will have the type `Type::Constant(3, Kind::Numeric(u32))`. As a result, using
+    /// this method for any kind checks on integer types will result in a kind error! For those
+    /// cases, use [IntegerTypeSuffix::as_kind] instead.
+    pub(crate) fn as_type(self) -> crate::Type {
         use crate::{Type::Integer, ast::IntegerBitSize::*, shared::Signedness::*};
         match self {
             IntegerTypeSuffix::I8 => Integer(Signed, Eight),
@@ -162,6 +169,18 @@ impl IntegerTypeSuffix {
             IntegerTypeSuffix::U128 => Integer(Unsigned, HundredTwentyEight),
             IntegerTypeSuffix::Field => crate::Type::FieldElement,
         }
+    }
+
+    /// Returns the kind of this integer constant when used in a type position.
+    /// For example, when used as `[Field; 3u32]`, this [IntegerTypeSuffix::U32]
+    /// will return `Kind::Numeric(Type::U32)`.
+    ///
+    /// This method should generally be used whenever an integer is used in a type position.
+    /// [IntegerTypeSuffix::as_type] would return a raw `u32` type which is not the actual
+    /// type of an integer in a type position - that'd be `Type::Constant(3, Kind::Numeric(u32))`
+    /// for `3u32`.
+    pub(crate) fn as_kind(self) -> crate::Kind {
+        crate::Kind::Numeric(Box::new(self.as_type()))
     }
 }
 
@@ -1117,6 +1136,12 @@ pub enum SecondaryAttributeKind {
 
     /// Allow chosen warnings to happen so they are silenced.
     Allow(String),
+
+    /// Unlike Rust, all values in Noir already warn if they are not used.
+    ///
+    /// Instead, `#[must_use]` in Noir promotes this warning to a hard error, with
+    /// an optional message for the error.
+    MustUse(Option<String>),
 }
 
 impl SecondaryAttributeKind {
@@ -1146,6 +1171,18 @@ impl SecondaryAttributeKind {
             SecondaryAttributeKind::Varargs => "varargs".to_string(),
             SecondaryAttributeKind::UseCallersScope => "use_callers_scope".to_string(),
             SecondaryAttributeKind::Allow(k) => format!("allow({k})"),
+            SecondaryAttributeKind::MustUse(None) => "must_use".to_string(),
+            SecondaryAttributeKind::MustUse(Some(msg)) => format!("must_use = \"{msg}\""),
+        }
+    }
+
+    /// If this is a `#[must_use]` attribute, return `Some(message)` where message is the
+    /// optional message. Otherwise, return `None`. Since `message` itself is optional,
+    /// `Some(None)` indicates there is a `must_use` but no message was provided.
+    pub(crate) fn must_use_message(&self) -> Option<Option<String>> {
+        match self {
+            SecondaryAttributeKind::MustUse(message) => Some(message.clone()),
+            _ => None,
         }
     }
 }

@@ -45,29 +45,11 @@ impl DefinitionId {
 #[derive(Debug, Eq, PartialEq, Hash, Clone, Copy)]
 pub struct StmtId(pub(super) Index);
 
-impl StmtId {
-    //dummy id for error reporting
-    // This can be anything, as the program will ultimately fail
-    // after resolution
-    pub fn dummy_id() -> StmtId {
-        StmtId(Index::dummy())
-    }
-}
-
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, PartialOrd, Ord)]
 pub struct ExprId(pub(super) Index);
 
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
 pub struct FuncId(pub(super) Index);
-
-impl FuncId {
-    //dummy id for error reporting
-    // This can be anything, as the program will ultimately fail
-    // after resolution
-    pub fn dummy_id() -> FuncId {
-        FuncId(Index::dummy())
-    }
-}
 
 impl fmt::Display for FuncId {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -79,13 +61,6 @@ impl fmt::Display for FuncId {
 pub struct TypeId(pub(super) ModuleId);
 
 impl TypeId {
-    //dummy id for error reporting
-    // This can be anything, as the program will ultimately fail
-    // after resolution
-    pub fn dummy_id() -> TypeId {
-        TypeId(ModuleId { krate: CrateId::dummy_id(), local_id: LocalModuleId::dummy_id() })
-    }
-
     pub fn module_id(self) -> ModuleId {
         self.0
     }
@@ -110,15 +85,6 @@ pub struct TypeAliasId(pub usize);
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct TraitId(pub ModuleId);
 
-impl TraitId {
-    // dummy id for error reporting
-    // This can be anything, as the program will ultimately fail
-    // after resolution
-    pub fn dummy_id() -> TraitId {
-        TraitId(ModuleId { krate: CrateId::dummy_id(), local_id: LocalModuleId::dummy_id() })
-    }
-}
-
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, PartialOrd, Ord)]
 pub struct TraitAssociatedTypeId(pub usize);
 
@@ -135,12 +101,15 @@ pub struct TraitItemId {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct QuotedTypeId(pub(super) Index);
 
+/// The ID of an [crate::ast::ExpressionKind] that's been pushed into the [NodeInterner][crate::node_interner::NodeInterner].
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct InternedExpressionKind(pub(super) Index);
 
+/// The ID of a [crate::ast::StatementKind] that's been pushed into the [NodeInterner][crate::node_interner::NodeInterner].
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct InternedStatementKind(pub(super) Index);
 
+/// The ID of a [crate::ast::UnresolvedTypeData] that's been pushed into the [NodeInterner][crate::node_interner::NodeInterner].
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct InternedUnresolvedTypeData(pub(super) Index);
 

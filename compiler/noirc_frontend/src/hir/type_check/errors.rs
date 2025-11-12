@@ -167,7 +167,9 @@ pub enum TypeCheckError {
     #[error("{0}")]
     ResolverError(ResolverError),
     #[error("Unused expression result of type {expr_type}")]
-    UnusedResultError { expr_type: Type, expr_location: Location },
+    UnusedResultWarning { expr_type: Type, expr_location: Location },
+    #[error("Unused expression result of type {expr_type}")]
+    UnusedResultError { expr_type: Type, expr_location: Location, message: Option<String> },
     #[error("Expected type {expected_typ:?} is not the same as {actual_typ:?}")]
     TraitMethodParameterTypeMismatch {
         method_name: String,
@@ -320,6 +322,7 @@ impl TypeCheckError {
             | TypeCheckError::TypeAnnotationsNeededForFieldAccess { location }
             | TypeCheckError::MultipleMatchingImpls { location, .. }
             | TypeCheckError::CallDeprecated { location, .. }
+            | TypeCheckError::UnusedResultWarning { expr_location: location, .. }
             | TypeCheckError::UnusedResultError { expr_location: location, .. }
             | TypeCheckError::TraitMethodParameterTypeMismatch {
                 parameter_location: location,
@@ -619,9 +622,17 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 diagnostic.deprecated = true;
                 diagnostic
             }
-            TypeCheckError::UnusedResultError { expr_type, expr_location } => {
+            TypeCheckError::UnusedResultWarning { expr_type, expr_location } => {
                 let msg = format!("Unused expression result of type {expr_type}");
                 Diagnostic::simple_warning(msg, String::new(), *expr_location)
+            }
+            TypeCheckError::UnusedResultError { expr_type, expr_location, message } => {
+                let unused_message = format!("Unused expression result of type {expr_type} which must be used");
+                let (primary, secondary) = match message {
+                    Some(message) => (message.clone(), unused_message),
+                    None => (unused_message, format!("`{expr_type}` was declared with `#[must_use]`")),
+                };
+                Diagnostic::simple_error(primary, secondary, *expr_location)
             }
             TypeCheckError::NoMatchingImplFound(error) => error.into(),
             TypeCheckError::UnneededTraitConstraint { trait_name, typ, location } => {
@@ -696,35 +707,35 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             }
             TypeCheckError::CannotInvokeStructFieldFunctionType { method_name, object_type, location } => {
                 Diagnostic::simple_error(
-                    format!("Cannot invoke function field '{method_name}' on type '{object_type}' as a method"), 
+                    format!("Cannot invoke function field '{method_name}' on type '{object_type}' as a method"),
                     format!("to call the function stored in '{method_name}', surround the field access with parentheses: '(', ')'"),
                     *location,
                 )
             },
             TypeCheckError::TypeAnnotationsNeededForIndex { location } => {
                 Diagnostic::simple_error(
-                    "Type annotations required before indexing this array or slice".into(), 
+                    "Type annotations required before indexing this array or slice".into(),
                     "Type annotations needed before this point, can't decide if this is an array or slice".into(),
                     *location,
                 )
             },
             TypeCheckError::UnnecessaryUnsafeBlock { location } => {
                 Diagnostic::simple_warning(
-                    "Unnecessary `unsafe` block".into(), 
+                    "Unnecessary `unsafe` block".into(),
                     "".into(),
                     *location,
                 )
             },
             TypeCheckError::NestedUnsafeBlock { location } => {
                 Diagnostic::simple_warning(
-                    "Unnecessary `unsafe` block".into(), 
+                    "Unnecessary `unsafe` block".into(),
                     "Because it's nested inside another `unsafe` block".into(),
                     *location,
                 )
             },
             TypeCheckError::UnreachableCase { location } => {
                 Diagnostic::simple_warning(
-                    "Unreachable match case".into(), 
+                    "Unreachable match case".into(),
                     "This pattern is redundant with one or more prior patterns".into(),
                     *location,
                 )

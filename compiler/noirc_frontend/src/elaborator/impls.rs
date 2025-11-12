@@ -112,7 +112,7 @@ impl Elaborator<'_> {
         impls: &mut [(UnresolvedGenerics, Location, UnresolvedFunctions)],
         self_type: &UnresolvedType,
     ) {
-        self.local_module = module;
+        self.local_module = Some(module);
 
         for (generics, location, unresolved) in impls {
             self.check_generics_appear_in_types(generics, &[self_type], &[]);
@@ -210,7 +210,11 @@ impl Elaborator<'_> {
                     self.declare_methods(self_type, &function_ids);
                 }
             } else {
-                self.push_err(DefCollectorErrorKind::NonStructTypeInImpl { location });
+                let is_primitive = self_type.is_primitive();
+                self.push_err(DefCollectorErrorKind::NonStructTypeInImpl {
+                    location,
+                    is_primitive,
+                });
             }
         }
     }

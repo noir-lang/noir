@@ -112,6 +112,7 @@ pub enum PrintableValue<F> {
     FmtString(String, Vec<PrintableValue<F>>),
     Vec { array_elements: Vec<PrintableValue<F>>, is_slice: bool },
     Struct(BTreeMap<String, PrintableValue<F>>),
+    Enum { tag: usize, elements: Vec<PrintableValue<F>> },
     Other,
 }
 
@@ -138,13 +139,22 @@ impl<F: AcirField> std::fmt::Display for PrintableValueDisplay<F> {
     }
 }
 
+/// Format a given [PrintableValue] according to an expected [PrintableType].
+///
+/// Returns `None` if the value is not what we expect based on the type.
 fn to_string<F: AcirField>(value: &PrintableValue<F>, typ: &PrintableType) -> Option<String> {
     let mut output = String::new();
-    match (value, typ) {
-        (PrintableValue::Field(f), PrintableType::Field) => {
+    match typ {
+        PrintableType::Field => {
+            let PrintableValue::Field(f) = value else {
+                return None;
+            };
             output.push_str(&f.to_short_hex());
         }
-        (PrintableValue::Field(f), PrintableType::UnsignedInteger { width }) => {
+        PrintableType::UnsignedInteger { width } => {
+            let PrintableValue::Field(f) = value else {
+                return None;
+            };
             // Retain the lower 'width' bits
             debug_assert!(
                 *width <= 128,
@@ -157,7 +167,10 @@ fn to_string<F: AcirField>(value: &PrintableValue<F>, typ: &PrintableType) -> Op
 
             output.push_str(&uint_cast.to_string());
         }
-        (PrintableValue::Field(f), PrintableType::SignedInteger { width }) => {
+        PrintableType::SignedInteger { width } => {
+            let PrintableValue::Field(f) = value else {
+                return None;
+            };
             let mut uint = f.to_u128(); // Interpret as uint
 
             // Extract sign relative to width of input
@@ -168,24 +181,33 @@ fn to_string<F: AcirField>(value: &PrintableValue<F>, typ: &PrintableType) -> Op
 
             output.push_str(&uint.to_string());
         }
-        (PrintableValue::Field(f), PrintableType::Boolean) => {
+        PrintableType::Boolean => {
+            let PrintableValue::Field(f) = value else {
+                return None;
+            };
             if f.is_one() {
                 output.push_str("true");
             } else {
                 output.push_str("false");
             }
         }
-        (PrintableValue::Field(_), PrintableType::Function { .. }) => {
+        PrintableType::Function { .. } => {
+            let PrintableValue::Field(_) = value else {
+                return None;
+            };
             output.push_str(&format!("<<{typ}>>"));
         }
-        (_, PrintableType::Reference { mutable: false, .. }) => {
-            output.push_str("<<ref>>");
+        PrintableType::Reference { mutable, .. } => {
+            if *mutable {
+                output.push_str("<<mutable ref>>");
+            } else {
+                output.push_str("<<ref>>");
+            }
         }
-        (_, PrintableType::Reference { mutable: true, .. }) => {
-            output.push_str("<<mutable ref>>");
-        }
-        (PrintableValue::Vec { array_elements, is_slice }, PrintableType::Array { typ, .. })
-        | (PrintableValue::Vec { array_elements, is_slice }, PrintableType::Slice { typ }) => {
+        PrintableType::Array { typ, .. } | PrintableType::Slice { typ } => {
+            let PrintableValue::Vec { array_elements, is_slice } = value else {
+                return None;
+            };
             if *is_slice {
                 output.push('&');
             }
@@ -202,12 +224,16 @@ fn to_string<F: AcirField>(value: &PrintableValue<F>, typ: &PrintableType) -> Op
             }
             output.push(']');
         }
-
-        (PrintableValue::String(s), PrintableType::String { .. }) => {
+        PrintableType::String { .. } => {
+            let PrintableValue::String(s) = value else {
+                return None;
+            };
             output.push_str(s);
         }
-
-        (PrintableValue::FmtString(template, values), PrintableType::FmtString { typ, .. }) => {
+        PrintableType::FmtString { typ, .. } => {
+            let PrintableValue::FmtString(template, values) = value else {
+                return None;
+            };
             let PrintableType::Tuple { types } = typ.as_ref() else {
                 panic!("Expected type to be a Tuple for FmtString");
             };
@@ -215,8 +241,10 @@ fn to_string<F: AcirField>(value: &PrintableValue<F>, typ: &PrintableType) -> Op
             let args = values.iter().cloned().zip(types.iter().cloned()).collect::<Vec<_>>();
             output.push_str(&PrintableValueDisplay::FmtString(template, args).to_string());
         }
-
-        (PrintableValue::Struct(map), PrintableType::Struct { name, fields, .. }) => {
+        PrintableType::Struct { name, fields, .. } => {
+            let PrintableValue::Struct(map) = value else {
+                return None;
+            };
             output.push_str(&format!("{name} {{ "));
 
             let mut fields = fields.iter().peekable();
@@ -233,8 +261,10 @@ fn to_string<F: AcirField>(value: &PrintableValue<F>, typ: &PrintableType) -> Op
 
             output.push_str(" }");
         }
-
-        (PrintableValue::Vec { array_elements, .. }, PrintableType::Tuple { types }) => {
+        PrintableType::Tuple { types } => {
+            let PrintableValue::Vec { array_elements, .. } = value else {
+                return None;
+            };
             output.push('(');
             let mut elements = array_elements.iter().zip(types).peekable();
             while let Some((value, typ)) = elements.next() {
@@ -250,11 +280,33 @@ fn to_string<F: AcirField>(value: &PrintableValue<F>, typ: &PrintableType) -> Op
             }
             output.push(')');
         }
-
-        (_, PrintableType::Unit) => output.push_str("()"),
-
-        _ => return None,
-    };
+        PrintableType::Unit => {
+            output.push_str("()");
+        }
+        PrintableType::Enum { name, variants } => {
+            let PrintableValue::Enum { tag, elements } = value else {
+                return None;
+            };
+            let (variant_name, types) = &variants[*tag];
+            let has_fields = !elements.is_empty();
+            output.push_str(&format!("{name}::{variant_name}"));
+            if has_fields {
+                output.push('(');
+            }
+            let mut elements = elements.iter().zip(types).peekable();
+            while let Some((value, typ)) = elements.next() {
+                output.push_str(
+                    &PrintableValueDisplay::Plain(value.clone(), typ.clone()).to_string(),
+                );
+                if elements.peek().is_some() {
+                    output.push_str(", ");
+                }
+            }
+            if has_fields {
+                output.push(')');
+            }
+        }
+    }
 
     Some(output)
 }
@@ -418,15 +470,24 @@ pub fn decode_printable_value<F: AcirField>(
         PrintableType::Unit => PrintableValue::Field(F::zero()),
         PrintableType::Enum { name: _, variants } => {
             let tag = field_iterator.next().expect("not enough data: expected enum tag");
-            let tag_value = tag.to_u128() as usize;
+            let tag = tag.to_u128() as usize;
+            // A serialized enum looks as follows:
+            //  [tag, variant0.field0, ..., variant0.fieldN, variant1.field0, ..., variant1.fieldM, ...]
+            // So the number of fields are always the same, and we have to consume all of them
+            // to make sure the next item will resume parsing from the right index;
+            // the tag tells us which ones are non-default values.
 
-            let (_name, variant_types) = &variants[tag_value];
-            PrintableValue::Vec {
-                array_elements: vecmap(variant_types, |typ| {
-                    decode_printable_value(field_iterator, typ)
-                }),
-                is_slice: false,
+            // Striving to keep only the non-default values in memory.
+            let mut elements = Vec::with_capacity(variants[tag].1.len());
+            for (i, (_, types)) in variants.iter().enumerate() {
+                for typ in types {
+                    let value = decode_printable_value(field_iterator, typ);
+                    if i == tag {
+                        elements.push(value);
+                    }
+                }
             }
+            PrintableValue::Enum { tag, elements }
         }
     }
 }
