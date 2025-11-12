@@ -244,3 +244,20 @@ fn abi_incompatible_assert_message() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn abi_incompatible_generic_assert_message() {
+    // The message cannot appear in the ABI, but we can't tell
+    // what T is going to be before monomorphization.
+    let src = r#"
+        fn main() {
+            let a = &[1, 2, 3];
+            foo(f"A: {a} is not 1!");
+        }
+
+        fn foo<T>(x: T) {
+            assert(false, x);
+        }
+    "#;
+    assert_no_errors(src);
+}
