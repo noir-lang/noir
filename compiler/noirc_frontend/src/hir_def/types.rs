@@ -994,11 +994,9 @@ impl TypeVariable {
     /// and if unbound, that it's a Kind::Integer
     pub fn is_integer(&self) -> bool {
         match &*self.borrow() {
-            TypeBinding::Bound(binding) => match binding.follow_bindings() {
-                Type::Integer(..) => true,
-                Type::TypeVariable(var) => var.is_integer(),
-                _ => false,
-            },
+            TypeBinding::Bound(binding) => {
+                matches!(binding.follow_bindings(), Type::Integer(..))
+            }
             TypeBinding::Unbound(_, type_var_kind) => {
                 matches!(type_var_kind.follow_bindings(), Kind::Integer)
             }
@@ -1010,12 +1008,7 @@ impl TypeVariable {
     pub fn is_integer_or_field(&self) -> bool {
         match &*self.borrow() {
             TypeBinding::Bound(binding) => {
-                let binding = binding.follow_bindings();
-                match binding {
-                    Type::Integer(..) | Type::FieldElement => true,
-                    Type::TypeVariable(var) => var.is_integer_or_field(),
-                    _ => false,
-                }
+                matches!(binding.follow_bindings(), Type::Integer(..) | Type::FieldElement)
             }
             TypeBinding::Unbound(_, type_var_kind) => {
                 matches!(type_var_kind.follow_bindings(), Kind::IntegerOrField)
@@ -1387,17 +1380,12 @@ impl Type {
             Type::FieldElement | Type::Integer(_, _) | Type::Bool | Type::String(_) => true,
 
             Type::Array(_, item) => item.is_abi_compatible(),
-            Type::TypeVariable(binding) => {
-                if binding.is_integer() || binding.is_integer_or_field() {
-                    if let TypeBinding::Bound(typ) = &*binding.borrow() {
-                        typ.is_abi_compatible()
-                    } else {
-                        true
-                    }
-                } else {
-                    false
+            Type::TypeVariable(binding) => match &*binding.borrow() {
+                TypeBinding::Bound(typ) => typ.is_abi_compatible(),
+                TypeBinding::Unbound(_, kind) => {
+                    matches!(kind, Kind::Integer | Kind::IntegerOrField)
                 }
-            }
+            },
             Type::DataType(def, args) => {
                 let struct_type = def.borrow();
                 let fields = struct_type.get_fields(args).unwrap_or_default();
