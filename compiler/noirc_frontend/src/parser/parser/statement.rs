@@ -566,6 +566,27 @@ mod tests {
     }
 
     #[test]
+    fn parses_let_statement_with_two_mut() {
+        let src = "
+        let mut mut x = 1;
+                ^^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
+        let statement = parser.parse_statement().unwrap().0;
+        let StatementKind::Let(let_statement) = statement.kind else {
+            panic!("Expected let statement");
+        };
+        assert_eq!(let_statement.pattern.to_string(), "mut x");
+        assert!(matches!(let_statement.r#type.typ, UnresolvedTypeData::Unspecified));
+        assert_eq!(let_statement.expression.to_string(), "1");
+        assert!(!let_statement.comptime);
+
+        let reason = get_single_error_reason(&parser.errors, span);
+        assert!(matches!(reason, ParserErrorReason::MutOnABindingCannotBeRepeated));
+    }
+
+    #[test]
     fn parses_comptime_block() {
         let src = "comptime { 1 }";
         let statement = parse_statement_no_errors(src);

@@ -438,16 +438,12 @@ fn tuple_pattern_with_error_type() {
     check_errors(src);
 }
 
-/// TODO(https://github.com/noir-lang/noir/issues/10487): Improve error messages
 #[test]
 fn duplicated_mut_in_basic_let_pattern() {
     let src = r#"
     fn main() {
         let mut mut _x = 1;
-                ^^^ Expected a pattern but found 'mut'
-                ^^^ Expected a '=' but found 'mut'
-                ^^^ Expected a statement but found 'mut'
-            ^^^ Expected a ; after `let` statement
+                ^^^ `mut` on a binding cannot be repeated
     }
     "#;
     check_errors(src);
