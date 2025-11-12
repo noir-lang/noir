@@ -828,7 +828,27 @@ impl Elaborator<'_> {
         let (expr_id, expr_type) = self.elaborate_expression(expr);
 
         // Must type check the assertion message expression so that we instantiate bindings
-        let msg = message.map(|assert_msg_expr| self.elaborate_expression(assert_msg_expr).0);
+        let msg = message.map(|assert_msg_expr| {
+            let (msg, typ) = self.elaborate_expression(assert_msg_expr);
+            let location = self.interner.expr_location(&msg);
+            // If the error message contains a format string, those types need to appear in the ABI.
+            if let Type::FmtString(_, item_types) = typ {
+                if let Type::Tuple(item_types) = item_types.as_ref() {
+                    for typ in item_types {
+                        if typ.is_abi_compatible() || matches!(typ, Type::Error) {
+                            continue;
+                        }
+                        let error = TypeCheckError::TypeCannotBeUsed {
+                            typ: typ.clone(),
+                            place: "message",
+                            location,
+                        };
+                        self.push_err(CompilationError::TypeError(error));
+                    }
+                }
+            }
+            msg
+        });
 
         self.unify(&expr_type, &Type::Bool, || TypeCheckError::TypeMismatch {
             expr_typ: expr_type.to_string(),

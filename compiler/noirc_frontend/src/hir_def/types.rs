@@ -1371,6 +1371,50 @@ impl Type {
         matches!(self.follow_bindings_shallow().as_ref(), Type::Reference(_, _))
     }
 
+    /// Returns `true` if the type should be handled by `abi_gen::abi_type_from_hir_type`,
+    /// `false` if it would likely cause a panic.
+    pub(crate) fn is_abi_compatible(&self) -> bool {
+        match self {
+            Type::FieldElement | Type::Integer(_, _) | Type::Bool | Type::String(_) => true,
+
+            Type::Array(_, item) => item.is_abi_compatible(),
+            Type::TypeVariable(binding) => {
+                if binding.is_integer() || binding.is_integer_or_field() {
+                    if let TypeBinding::Bound(typ) = &*binding.borrow() {
+                        typ.is_abi_compatible()
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
+            }
+            Type::DataType(def, args) => {
+                let struct_type = def.borrow();
+                let fields = struct_type.get_fields(args).unwrap_or_default();
+                fields.iter().all(|(_, typ, _)| typ.is_abi_compatible())
+            }
+            Type::Alias(def, args) => {
+                let alias_type = def.borrow();
+                alias_type.get_type(args).is_abi_compatible()
+            }
+            Type::CheckedCast { to, .. } => to.is_abi_compatible(),
+            Type::Tuple(fields) => fields.iter().all(|typ| typ.is_abi_compatible()),
+            Type::Error
+            | Type::Unit
+            | Type::Constant(..)
+            | Type::InfixExpr(..)
+            | Type::TraitAsType(..)
+            | Type::NamedGeneric(..)
+            | Type::Forall(..)
+            | Type::Quoted(_)
+            | Type::Slice(_)
+            | Type::Function(_, _, _, _)
+            | Type::FmtString(_, _)
+            | Type::Reference(..) => false,
+        }
+    }
+
     /// Returns the number of `Forall`-quantified type variables on this type.
     /// Returns 0 if this is not a Type::Forall
     pub fn generic_count(&self) -> usize {

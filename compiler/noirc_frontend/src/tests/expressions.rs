@@ -74,7 +74,7 @@ fn resolve_fmt_strings() {
 fn resolve_fmt_string_with_global() {
     let src = r#"
     global VALUE: u32 = 42;
-    
+
     fn main() {
         let _result = f"Value: {VALUE}";
     }
@@ -93,7 +93,7 @@ fn multiple_resolution_errors() {
                        ~ not found in this scope
                ^ unused variable z
                ~ unused variable
-                       
+
         }
     "#;
     check_errors(src);
@@ -222,6 +222,18 @@ fn must_use() {
 
         fn foo() -> PleaseUseMe {
             PleaseUseMe {}
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn abi_incompatible_assert_message() {
+    let src = r#"
+        fn main() {
+            let xs = &[0_u32];
+            assert(xs[0] > 0, f"bad slice: {xs}");
+                              ^^^^^^^^^^^^^^^^^^ The type [u32] cannot be used in a message
         }
     "#;
     check_errors(src);
