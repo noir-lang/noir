@@ -194,6 +194,8 @@ pub enum ResolverError {
     ReferencesNotAllowedInGlobals { location: Location },
     #[error("Functions marked with #[oracle] must have no body")]
     OracleWithBody { location: Location },
+    #[error("Builtin and low-level function declarations cannot have a body")]
+    BuiltinWithBody { location: Location },
 }
 
 impl ResolverError {
@@ -261,7 +263,8 @@ impl ResolverError {
             | ResolverError::AmbiguousAssociatedType { location, .. }
             | ResolverError::WildcardTypeDisallowed { location }
             | ResolverError::ReferencesNotAllowedInGlobals { location }
-            | ResolverError::OracleWithBody { location } => *location,
+            | ResolverError::OracleWithBody { location }
+            | ResolverError::BuiltinWithBody { location } => *location,
             ResolverError::UnusedVariable { ident }
             | ResolverError::UnusedItem { ident, .. }
             | ResolverError::DuplicateField { field: ident }
@@ -827,7 +830,14 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     "This function body will never be run so should be removed".to_string(),
                     *location,
                 )
+            }
+            ResolverError::BuiltinWithBody { location } => {
+                Diagnostic::simple_error(
+                    "Builtin and low-level function declarations cannot have a body".to_string(),
+                    "This function body should be removed".to_string(),
+                    *location,
+                )
+            }
         }
-    }
     }
 }

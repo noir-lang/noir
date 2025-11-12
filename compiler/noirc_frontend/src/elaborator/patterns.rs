@@ -67,7 +67,6 @@ impl Elaborator<'_> {
 
     /// Elaborate the (potentially mutable) pattern and add the variables
     /// it created to the scope if necessary.
-    #[allow(clippy::too_many_arguments)]
     fn elaborate_pattern_mut(
         &mut self,
         pattern: Pattern,
@@ -573,7 +572,7 @@ impl Elaborator<'_> {
             let location = located_type.location();
             let typ = located_type.contents;
             let typ = typ.substitute_kind_any_with_kind(&kind);
-            self.check_kind(typ, &kind, location)
+            self.check_type_kind(typ, &kind, location)
         })
     }
 
