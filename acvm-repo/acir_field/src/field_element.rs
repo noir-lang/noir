@@ -128,12 +128,11 @@ impl<F: PrimeField> FieldElement<F> {
         self.num_bits() <= 128
     }
 
-    /// Returns None, if the string is not a canonical
-    /// representation of a field element; less than the order
-    /// or if the hex string is invalid.
-    /// This method can be used for both hex and decimal representations.
+    /// Returns None if the string is not a canonical representation of a field element
+    /// (i.e. less than the order) or if the hex string is invalid.
+    /// Supports decimal strings and hex strings prefixed with `0x` or `0X`.
     pub fn try_from_str(input: &str) -> Option<FieldElement<F>> {
-        if input.contains('x') {
+        if input.starts_with("0x") || input.starts_with("0X") {
             return FieldElement::from_hex(input);
         }
 
@@ -291,7 +290,11 @@ impl<F: PrimeField> AcirField for FieldElement<F> {
     }
 
     fn from_hex(hex_str: &str) -> Option<FieldElement<F>> {
-        let value = hex_str.strip_prefix("0x").unwrap_or(hex_str);
+        let value = if hex_str.starts_with("0x") || hex_str.starts_with("0X") {
+            &hex_str[2..]
+        } else {
+            hex_str
+        };
         // Values of odd length require an additional "0" prefix
         let sanitized_value =
             if value.len() % 2 == 0 { value.to_string() } else { format!("0{value}") };
