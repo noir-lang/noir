@@ -45,15 +45,6 @@ impl DefinitionId {
 #[derive(Debug, Eq, PartialEq, Hash, Clone, Copy)]
 pub struct StmtId(pub(super) Index);
 
-impl StmtId {
-    //dummy id for error reporting
-    // This can be anything, as the program will ultimately fail
-    // after resolution
-    pub fn dummy_id() -> StmtId {
-        StmtId(Index::dummy())
-    }
-}
-
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, PartialOrd, Ord)]
 pub struct ExprId(pub(super) Index);
 
