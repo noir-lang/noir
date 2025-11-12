@@ -116,13 +116,14 @@ pub(crate) fn solve<F: AcirField>(
             signature,
             hashed_message: message,
             output,
-            ..
+            predicate,
         } => secp256k1_prehashed(
             initial_witness,
             public_key_x,
             public_key_y,
             signature,
             message.as_ref(),
+            predicate,
             *output,
         ),
         BlackBoxFuncCall::EcdsaSecp256r1 {
@@ -131,20 +132,21 @@ pub(crate) fn solve<F: AcirField>(
             signature,
             hashed_message: message,
             output,
-            ..
+            predicate,
         } => secp256r1_prehashed(
             initial_witness,
             public_key_x,
             public_key_y,
             signature,
             message.as_ref(),
+            predicate,
             *output,
         ),
-        BlackBoxFuncCall::MultiScalarMul { points, scalars, outputs, .. } => {
-            multi_scalar_mul(backend, initial_witness, points, scalars, *outputs)
+        BlackBoxFuncCall::MultiScalarMul { points, scalars, outputs, predicate } => {
+            multi_scalar_mul(backend, initial_witness, points, scalars, *predicate, *outputs)
         }
-        BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, outputs, .. } => {
-            embedded_curve_add(backend, initial_witness, **input1, **input2, *outputs)
+        BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, outputs, predicate } => {
+            embedded_curve_add(backend, initial_witness, **input1, **input2, *predicate, *outputs)
         }
         // Recursive aggregation will be entirely handled by the backend and is not solved by the ACVM
         BlackBoxFuncCall::RecursiveAggregation { .. } => Ok(()),

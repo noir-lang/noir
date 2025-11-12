@@ -11,7 +11,7 @@
 // the most useful inliner setting for unconstrained functions.
 use std::mem::slice_refcount;
 
-fn main() {
+fn main(i: u32) {
     let mut slice = &[0, 1, 2];
     assert_refcount(slice, 1, true);
 
@@ -26,8 +26,10 @@ fn main() {
     let rc2 = slice_refcount(u32_slice);
     borrow_mut_two_separate(&mut slice, &mut u32_slice, rc1, rc2);
 
-    // Safety: test
     regression_7297();
+
+    // Safety: test
+    unsafe { regression_10335(i) };
 }
 
 fn borrow(slice: [Field], rc_before_call: u32) {
@@ -119,4 +121,17 @@ fn regression_7297() {
             "after refcount_1 we clone once in passing slice to copy_mut, once to slice_refcount after, and once within copy_mut",
         );
     }
+}
+
+unconstrained fn regression_10335(i: u32) {
+    let a: [Field] = &[0, 1, 2];
+    let mut b = a;
+    b[i] = 3;
+
+    let rc_a = slice_refcount(a);
+    let rc_b = slice_refcount(b);
+
+    // The current expectation is that the original array does not get its RC decremented.
+    assert_eq(rc_a, 2);
+    assert_eq(rc_b, 1);
 }

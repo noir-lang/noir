@@ -16,7 +16,7 @@ pub use program::{
     DisplayAstAsNoir, DisplayAstAsNoirComptime, arb_program, arb_program_comptime,
     program_wrap_expression,
 };
-pub use program::{expr, rewrite, scope, types, visitor};
+pub use program::{expr, rewrite, scope, types};
 
 /// AST generation configuration.
 #[derive(Debug, Clone)]

@@ -2,7 +2,7 @@
 
 use crate::ast::{ERROR_IDENT, Ident};
 use crate::elaborator::path_resolution::PathResolution;
-use crate::hir::def_map::{LocalModuleId, ModuleId};
+use crate::hir::def_map::ModuleId;
 
 use crate::hir::scope::{Scope as GenericScope, ScopeTree as GenericScopeTree};
 use crate::{
@@ -25,16 +25,14 @@ type ScopeTree = GenericScopeTree<String, ResolverMeta>;
 
 impl Elaborator<'_> {
     pub fn module_id(&self) -> ModuleId {
-        assert_ne!(self.local_module, LocalModuleId::dummy_id(), "local_module is unset");
-        ModuleId { krate: self.crate_id, local_id: self.local_module }
+        ModuleId { krate: self.crate_id, local_id: self.local_module() }
     }
 
     pub fn replace_module(&mut self, new_module: ModuleId) -> ModuleId {
-        assert_ne!(new_module.local_id, LocalModuleId::dummy_id(), "local_module is unset");
         let current_module = self.module_id();
 
         self.crate_id = new_module.krate;
-        self.local_module = new_module.local_id;
+        self.local_module = Some(new_module.local_id);
         current_module
     }
 

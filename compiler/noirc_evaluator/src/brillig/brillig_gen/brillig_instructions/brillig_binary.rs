@@ -326,11 +326,11 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                     let value_type = dfg.type_of_value(*value);
                     FunctionContext::ssa_type_to_parameter(&value_type)
                 });
-                self.brillig_context.codegen_constrain_with_revert_data(
+                self.brillig_context.codegen_constrain_with_error_data(
                     *condition,
                     payload_values,
                     payload_as_params,
-                    *selector,
+                    Some(*selector),
                 );
             }
             Some(ConstrainError::StaticString(message)) => {
