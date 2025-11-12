@@ -1,8 +1,5 @@
 use std::cmp::Ordering;
 
-use acvm::{AcirField, FieldElement};
-use noirc_errors::Location;
-
 use crate::{
     Type,
     ast::IntegerBitSize,
@@ -10,6 +7,10 @@ use crate::{
     shared::Signedness,
     signed_field::SignedField,
 };
+use acvm::{AcirField, FieldElement};
+use noirc_errors::Location;
+use num_bigint::BigInt;
+use num_traits::FromPrimitive;
 
 fn bit_size(typ: &Type) -> u32 {
     match typ {
@@ -67,13 +68,17 @@ fn classify_cast(input: &Type, output: &Type) -> CastType {
 fn perform_cast(kind: CastType, lhs: FieldElement) -> FieldElement {
     match kind {
         CastType::Truncate { new_bit_size } => {
-            // This performs a truncation to u128 but all types should be <= 128 bits anyway
-            let lhs = lhs.to_u128();
-            if new_bit_size == 128 {
-                return lhs.into();
+            if new_bit_size >= lhs.num_bits() {
+                lhs.into()
+            } else if lhs.num_bits() < 128 {
+                let mask = 2u128.pow(new_bit_size) - 1;
+                return FieldElement::from(lhs.to_u128() & mask);
+            } else {
+                let lhs_int = BigInt::from_bytes_be(num_bigint::Sign::Plus, &lhs.to_be_bytes());
+                let a = BigInt::from_u128(2).unwrap().pow(new_bit_size);
+                let lhs = lhs_int % a;
+                FieldElement::from_be_bytes_reduce(&lhs.to_bytes_be().1)
             }
-            let mask = 2u128.pow(new_bit_size) - 1;
-            FieldElement::from(lhs & mask)
         }
         CastType::SignExtend { old_bit_size, new_bit_size } => {
             assert!(new_bit_size <= 128);
@@ -131,9 +136,12 @@ pub(super) fn evaluate_cast_one_step(
     evaluated_lhs: Value,
 ) -> IResult<Value> {
     let lhs_type = evaluated_lhs.get_type().into_owned();
+    dbg!(&lhs_type);
+    dbg!(&output_type);
     let (lhs, lhs_is_negative) = convert_to_field(evaluated_lhs, location)?;
 
     let cast_kind = classify_cast(&lhs_type, output_type);
+    dbg!(&cast_kind);
     let lhs = perform_cast(cast_kind, lhs);
 
     // Now just wrap the Result in a Value
