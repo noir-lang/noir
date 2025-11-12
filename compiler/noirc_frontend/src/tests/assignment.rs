@@ -522,7 +522,7 @@ fn tuple_pattern_with_non_tuple_type() {
 #[test]
 fn tuple_pattern_with_error_type() {
     // When the expected type is Error (from a previous type resolution failure),
-    // we should not issue confusing cascading errors about missing/invalid fields.
+    // we should not issue confusing cascading errors about invalid fields.
     let src = r#"
     fn main() {
         let x = 1;
