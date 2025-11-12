@@ -443,7 +443,7 @@ fn duplicated_mut_in_basic_let_pattern() {
     let src = r#"
     fn main() {
         let mut mut _x = 1;
-                ^^^ `mut` on a binding cannot be repated
+                ^^^ `mut` on a binding cannot be repeated
     }
     "#;
     check_errors(src);
