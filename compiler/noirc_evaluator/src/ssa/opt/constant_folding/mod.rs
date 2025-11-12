@@ -649,10 +649,13 @@ mod test {
     use crate::{
         assert_ssa_snapshot,
         ssa::{
-            interpreter::{value::Value, Interpreter, InterpreterOptions}, ir::{types::NumericType, value::ValueMapping}, opt::{
+            Ssa,
+            interpreter::{Interpreter, InterpreterOptions, value::Value},
+            ir::{types::NumericType, value::ValueMapping},
+            opt::{
                 assert_normalized_ssa_equals, assert_ssa_does_not_change,
                 constant_folding::DEFAULT_MAX_ITER,
-            }, Ssa
+            },
         },
     };
 
@@ -1165,7 +1168,11 @@ mod test {
 
         // First demonstrate what happens if we don't revisit.
         let empty_functions_map = BTreeMap::new();
-        let mut empty_interpreter = Interpreter::new_from_functions(&empty_functions_map, InterpreterOptions::default(), std::io::empty());
+        let mut empty_interpreter = Interpreter::new_from_functions(
+            &empty_functions_map,
+            InterpreterOptions::default(),
+            std::io::empty(),
+        );
         ssa.main_mut().constant_fold(false, 1, &mut empty_interpreter);
 
         // 1. v9 is a duplicate of v5 -> hoisted to b0
