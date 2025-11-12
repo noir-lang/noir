@@ -1420,7 +1420,7 @@ impl Type {
             Type::Quoted(quoted) => {
                 // These are the two types that appear in noir-contracts.
                 // A static string becomes CtString, a format string is Quoted.
-                !is_monomorphized && matches!(quoted, QuotedType::CtString | QuotedType::Quoted)
+                matches!(quoted, QuotedType::CtString | QuotedType::Quoted)
             }
 
             // A generic would cause a panic in ABI generation, but if we don't allow it
