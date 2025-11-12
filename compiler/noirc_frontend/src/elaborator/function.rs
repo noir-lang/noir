@@ -71,7 +71,7 @@ impl Elaborator<'_> {
         extra_constraints: &[(TraitConstraint, Location)],
     ) {
         for (local_module, id, func) in &mut function_set.functions {
-            self.local_module = *local_module;
+            self.local_module = Some(*local_module);
             self.recover_generics(|this| {
                 this.define_function_meta(func, *id, None, extra_constraints);
             });
@@ -86,7 +86,7 @@ impl Elaborator<'_> {
         local_module: crate::hir::def_map::LocalModuleId,
         function_sets: &mut Vec<(UnresolvedGenerics, Location, UnresolvedFunctions)>,
     ) {
-        self.local_module = local_module;
+        self.local_module = Some(local_module);
 
         for (generics, _, function_set) in function_sets {
             // Prepare the impl
@@ -240,7 +240,7 @@ impl Elaborator<'_> {
             is_entry_point,
             has_inline_attribute: func.has_inline_attribute(),
             source_crate: self.crate_id,
-            source_module: self.local_module,
+            source_module: self.local_module(),
             function_body: FunctionBody::Unresolved(func.kind, body, func.def.location),
             self_type: self.self_type.clone(),
             source_file: location.file,
@@ -453,7 +453,7 @@ impl Elaborator<'_> {
             "Functions in other crates should be already elaborated"
         );
 
-        self.local_module = func_meta.source_module;
+        self.local_module = Some(func_meta.source_module);
         self.self_type = func_meta.self_type.clone();
         self.current_trait_impl = func_meta.trait_impl;
 
@@ -479,11 +479,14 @@ impl Elaborator<'_> {
         // so we need to reintroduce the same IDs into scope here.
         for parameter in &func_meta.parameter_idents {
             let name = self.interner.definition_name(parameter.id).to_owned();
-            if name == "_" {
-                continue;
-            }
             let warn_if_unused = !(func_meta.trait_impl.is_some() && name == "self");
-            self.add_existing_variable_to_scope(name, parameter.clone(), warn_if_unused);
+            let allow_shadowing = false;
+            self.add_existing_variable_to_scope(
+                name,
+                parameter.clone(),
+                warn_if_unused,
+                allow_shadowing,
+            );
         }
 
         self.add_trait_constraints_to_scope(func_meta.all_trait_constraints(), func_meta.location);
@@ -493,9 +496,9 @@ impl Elaborator<'_> {
             | FunctionKind::LowLevel
             | FunctionKind::TraitFunctionWithoutBody => {
                 if !body.statements.is_empty() {
-                    panic!(
-                        "Builtin, low-level, and trait function declarations cannot have a body"
-                    );
+                    self.push_err(ResolverError::BuiltinWithBody {
+                        location: func_meta.name.location,
+                    });
                 }
                 (HirFunction::empty(), Type::Error)
             }
@@ -510,8 +513,7 @@ impl Elaborator<'_> {
             FunctionKind::Normal => {
                 let return_type = func_meta.return_type();
                 let (block, body_type) = self.elaborate_block(body, Some(return_type));
-                let expr_id = self.intern_expr(block, body_location);
-                self.interner.push_expr_type(expr_id, body_type.clone());
+                let expr_id = self.interner.push_expr_full(block, body_location, body_type.clone());
                 (HirFunction::unchecked_from_expr(expr_id), body_type)
             }
         };

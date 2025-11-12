@@ -224,8 +224,8 @@ pub struct Elaborator<'context> {
     function_context: Vec<FunctionContext>,
 
     /// The current module this elaborator is in.
-    /// Initially empty, it is set whenever a new top-level item is resolved.
-    local_module: LocalModuleId,
+    /// Initially None, it is set whenever a new top-level item is resolved.
+    local_module: Option<LocalModuleId>,
 
     /// True if we're elaborating a comptime item such as a comptime function,
     /// block, global, or attribute.
@@ -306,7 +306,7 @@ impl<'context> Elaborator<'context> {
             lambda_stack: Vec::new(),
             self_type: None,
             current_item: None,
-            local_module: LocalModuleId::dummy_id(),
+            local_module: None,
             crate_id,
             resolving_ids: BTreeSet::new(),
             trait_bounds: Vec::new(),
@@ -320,6 +320,10 @@ impl<'context> Elaborator<'context> {
             options,
             elaborate_reasons,
         }
+    }
+
+    pub(crate) fn local_module(&self) -> LocalModuleId {
+        self.local_module.expect("local_module is unset")
     }
 
     pub fn from_context(
@@ -441,8 +445,11 @@ impl<'context> Elaborator<'context> {
         self.errors.push(error);
     }
 
-    pub(crate) fn push_errors(&mut self, errors: impl IntoIterator<Item = CompilationError>) {
-        self.errors.extend(errors);
+    pub(crate) fn push_errors<E: Into<CompilationError>>(
+        &mut self,
+        errors: impl IntoIterator<Item = E>,
+    ) {
+        self.errors.extend(errors.into_iter().map(|e| e.into()));
     }
 
     fn run_lint(&mut self, lint: impl Fn(&Elaborator) -> Option<CompilationError>) {
@@ -465,9 +472,7 @@ impl<'context> Elaborator<'context> {
     fn resolve_trait_by_path(&mut self, path: TypedPath) -> Option<TraitId> {
         let error = match self.resolve_path_as_type(path.clone()) {
             Ok(PathResolution { item: PathResolutionItem::Trait(trait_id), errors }) => {
-                for error in errors {
-                    self.push_err(error);
-                }
+                self.push_errors(errors);
                 return Some(trait_id);
             }
             Ok(_) => DefCollectorErrorKind::NotATrait { not_a_trait_name: path },
@@ -564,7 +569,7 @@ impl<'context> Elaborator<'context> {
     }
 
     fn elaborate_trait_impl(&mut self, trait_impl: UnresolvedTraitImpl) {
-        self.local_module = trait_impl.module_id;
+        self.local_module = Some(trait_impl.module_id);
 
         self.generics = trait_impl.resolved_generics.clone();
         self.current_trait_impl = trait_impl.impl_id;
@@ -575,13 +580,13 @@ impl<'context> Elaborator<'context> {
         self.remove_trait_impl_assumed_trait_implementations(trait_impl.impl_id);
 
         for (module, function, noir_function) in &trait_impl.methods.functions {
-            self.local_module = *module;
+            self.local_module = Some(*module);
             let errors = check_trait_impl_method_matches_declaration(
                 self.interner,
                 *function,
                 noir_function,
             );
-            self.push_errors(errors.into_iter().map(|error| error.into()));
+            self.push_errors(errors);
         }
 
         self.elaborate_functions(trait_impl.methods);
@@ -602,7 +607,7 @@ impl<'context> Elaborator<'context> {
     }
 
     fn define_type_alias(&mut self, alias_id: TypeAliasId, alias: UnresolvedTypeAlias) {
-        self.local_module = alias.module_id;
+        self.local_module = Some(alias.module_id);
 
         let name = &alias.type_alias_def.name;
         let visibility = alias.type_alias_def.visibility;

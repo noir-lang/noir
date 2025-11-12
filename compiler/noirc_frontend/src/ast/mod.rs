@@ -339,14 +339,6 @@ impl std::fmt::Display for UnresolvedTypeExpression {
 }
 
 impl UnresolvedType {
-    pub fn is_synthesized(&self) -> bool {
-        match &self.typ {
-            UnresolvedTypeData::Reference(ty, _) => ty.is_synthesized(),
-            UnresolvedTypeData::Named(_, _, synthesized) => *synthesized,
-            _ => false,
-        }
-    }
-
     pub(crate) fn is_type_expression(&self) -> bool {
         matches!(&self.typ, UnresolvedTypeData::Expression(_))
     }

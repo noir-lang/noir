@@ -415,6 +415,57 @@ fn tuple_pattern_arity_mismatch() {
 }
 
 #[test]
+fn tuple_pattern_for_non_tuple_type() {
+    let src = r#"
+    fn main() {
+        let x: Field = 1;
+        let (_a, _b) = x;
+            ^^^^^^^^ Cannot assign an expression of type (_, _) to a value of type Field
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn tuple_pattern_with_error_type() {
+    let src = r#"
+    fn main() {
+        let x = 1;
+        let (_a, _b): DoesNotExist = x;
+                      ^^^^^^^^^^^^ Could not resolve 'DoesNotExist' in path
+    }
+    "#;
+    check_errors(src);
+}
+
+/// TODO(https://github.com/noir-lang/noir/issues/10487): Improve error messages
+#[test]
+fn duplicated_mut_in_basic_let_pattern() {
+    let src = r#"
+    fn main() {
+        let mut mut _x = 1;
+                ^^^ Expected a pattern but found 'mut'
+                ^^^ Expected a '=' but found 'mut'
+                ^^^ Expected a statement but found 'mut'
+            ^^^ Expected a ; after `let` statement
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn duplicated_mut_in_nested_pattern() {
+    let src = r#"
+    fn main() {
+        let mut (_a, mut (_b, _c)) = (1, (2, 3));
+                     ^^^^^^^^^^^^ 'mut' here is not necessary
+            ~~~~~~~~~~~~~~~~~~~~~~ Pattern was already made mutable from this 'mut'
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn dereference_in_lvalue() {
     let src = r#"
         fn main() {
@@ -432,6 +483,33 @@ fn dereference_in_lvalue() {
             let y = &mut &mut 20;
             **y = 30;
             assert(**y == 30);
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn reference_chain_in_tuple_member_access() {
+    // Ensure that references appearing in the middle of a member access chain are properly dereferenced.
+    //
+    // 1. `x` has type `(&mut (u32, &mut (u32, u32)), u32)`
+    // 2. Accessing `.0` yields `&mut (u32, &mut (u32, u32))`
+    // 3. Must dereference to get `(u32, &mut (u32, u32))`
+    // 4. Accessing `.1` yields `&mut (u32, u32)`
+    // 5. Must dereference to get `(u32, u32)`
+    // 6. Accessing `.0` yields `u32`
+    let src = r#"
+        fn main() {
+            let inner = &mut (10, 20);
+            let outer = &mut (5, inner);
+            let mut x = (outer, 99);
+
+            x.0.1.0 = 42;
+
+            assert(x.0.1.0 == 42);
+            assert(x.0.1.1 == 20);
+            assert(x.0.0 == 5);
+            assert(x.1 == 99);
         }
     "#;
     assert_no_errors(src);

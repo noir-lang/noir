@@ -269,3 +269,200 @@ fn as_trait_path_self_type() {
     "#;
     assert_no_errors(src);
 }
+
+/// TODO(https://github.com/noir-lang/noir/issues/9562): Reactive once the issue is resolved
+#[test]
+#[should_panic]
+fn as_trait_path_with_method_turbofish() {
+    let src = r#"
+    trait Foo {
+        fn bar<U>(x: U) -> U;
+    }
+    
+    impl Foo for u32 {
+        fn bar<U>(x: U) -> U { x }
+    }
+    
+    fn main() {
+        let _x: i32 = <u32 as Foo>::bar(42);
+        // Explicitly specify U instead of relying on inference
+        let _x: i32 = <u32 as Foo>::bar::<i32>(42);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// TODO(https://github.com/noir-lang/noir/issues/10436): Reactivate once the issue is resolved
+#[test]
+#[should_panic]
+fn self_with_associated_type_method_call_on_non_primitives() {
+    // In Rust, this would be valid:
+    // trait MyTrait {
+    //     type AssocType;
+    // }
+    // impl MyTrait for u32 {
+    //     type AssocType = Vec<i32>;
+    //     fn method() {
+    //         Self::AssocType::new()  // Valid in Rust
+    //     }
+    // }
+    let src = r#"
+    trait Default {
+        fn default() -> Self;
+    }
+
+    impl Default for Field {
+        fn default() -> Field { 0 }
+    }
+
+    trait MyTrait {
+        type AssocType;
+        fn method() -> Field;
+    }
+
+    struct MyStruct { }
+
+    impl MyTrait for MyStruct {
+        type AssocType = Field;
+
+        fn method() -> Field {
+            // This would work in Rust but not in Noir
+            Self::AssocType::default()
+        }
+    }
+
+    fn main() {
+        let _ = MyStruct { };
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// TODO(https://github.com/noir-lang/noir/issues/10434): Reactivate once the issue is resolved
+#[test]
+#[should_panic]
+fn self_with_associated_type_method_call_on_primitive() {
+    // In Noir, the special Self:: handling for primitives only works with
+    // exactly 2 segments (Self::method or Self::AssociatedConstant).
+    // Paths with 3+ segments fall through to regular path resolution which
+    // cannot resolve Self as a path component for primitive types.
+    let src = r#"
+    trait Default {
+        fn default() -> Self;
+    }
+
+    impl Default for Field {
+        fn default() -> Field { 0 }
+    }
+
+    trait MyTrait {
+        type AssocType;
+        fn method() -> Field;
+    }
+
+    impl MyTrait for u32 {
+        type AssocType = Field;
+
+        fn method() -> Field {
+            // This would work in Rust but not in Noir
+            Self::AssocType::default()
+        }
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+/// TODO(https://github.com/noir-lang/noir/issues/10435): Improve error message
+#[test]
+fn self_with_non_associated_item_access() {
+    let src = r#"
+    struct Outer {
+        inner: Inner
+    }
+    
+    struct Inner {}
+    
+    impl Inner {
+        fn method() -> u32 { 42 }
+    }
+    
+    trait MyTrait {
+        fn test() -> u32;
+    }
+    
+    impl MyTrait for Outer {
+        fn test() -> u32 {
+            Self::inner::method()
+                  ^^^^^ Could not resolve 'inner' in path
+        }
+    }
+
+    fn main() {
+        let inner = Inner {};
+        let _ = Outer { inner };
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn self_recursive_call_primitive_in_trait_impl() {
+    // Self:: works correctly in recursive calls on primitive types
+    let src = r#"
+    trait Factorial {
+        fn factorial(n: u32) -> u32;
+    }
+
+    impl Factorial for u32 {
+        fn factorial(n: u32) -> u32 {
+            if n <= 1 {
+                1
+            } else {
+                n * Self::factorial(n - 1)
+            }
+        }
+    }
+
+    fn main() {
+        assert(u32::factorial(5) == 120);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn self_resolves_correctly_when_multiple_trait_impls_exist() {
+    // When a type has multiple trait impls with the same method name,
+    // Self:: should resolve to the method in the current impl context
+    let src = r#"
+    trait MyTrait<T> {
+        fn foo(self) -> T;
+    }
+
+    impl MyTrait<Field> for u32 {
+        fn foo(self) -> Field {
+            self as Field
+        }
+    }
+
+    impl MyTrait<i32> for u32 {
+        fn foo(self) -> i32 {
+            // Self::foo here should refer to this impl's `foo` method
+            if self == 0 {
+                0
+            } else {
+                Self::foo(self - 1) + 1
+            }
+        }
+    }
+
+    fn main() {
+        let x: u32 = 5;
+        let _: Field = MyTrait::<Field>::foo(x);
+        let _: i32 = MyTrait::<i32>::foo(x);
+    }
+    "#;
+    assert_no_errors(src);
+}
