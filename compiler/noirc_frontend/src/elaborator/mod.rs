@@ -58,6 +58,7 @@ use std::{
 use crate::{
     Type,
     ast::UnresolvedGenerics,
+    elaborator::types::WildcardDisallowedContext,
     graph::CrateId,
     hir::{
         Context,
@@ -615,7 +616,7 @@ impl<'context> Elaborator<'context> {
 
         let generics = self.add_generics(&alias.type_alias_def.generics);
         self.current_item = Some(DependencyId::Alias(alias_id));
-        let wildcard_allowed = false;
+        let wildcard_allowed = types::WildcardAllowed::No(WildcardDisallowedContext::TypeAlias);
         let (typ, num_expr) = if let Some(num_type) = alias.type_alias_def.numeric_type {
             let num_type = self.resolve_type(num_type, wildcard_allowed);
             let kind = Kind::numeric(num_type);

@@ -142,7 +142,6 @@ impl Formatter<'_> {
             UnresolvedTypeData::Resolved(..)
             | UnresolvedTypeData::Interned(..)
             | UnresolvedTypeData::Error => unreachable!("Should not be present in the AST"),
-            UnresolvedTypeData::Unspecified => panic!("Unspecified type should have been handled"),
         }
     }
 

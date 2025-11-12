@@ -32,8 +32,7 @@ fn do_not_infer_globals_to_u32_from_type_use() {
                ^^^^^^^^^ Globals must have a specified type
                            ~ Inferred type is `Field`
         global STR_LEN: _ = 2;
-               ^^^^^^^ Globals must have a specified type
-                            ~ Inferred type is `Field`
+                        ^ The placeholder `_` is not allowed in global definitions
         global FMT_STR_LEN = 2;
                ^^^^^^^^^^^ Globals must have a specified type
                              ~ Inferred type is `Field`
@@ -57,26 +56,21 @@ fn do_not_infer_globals_to_u32_from_type_use() {
 fn do_not_infer_partial_global_types() {
     let src = r#"
         pub global ARRAY: [Field; _] = [0; 3];
-                   ^^^^^ Globals must have a specified type
-                                       ~~~~~~ Inferred type is `[Field; 3]`
+                                  ^ The placeholder `_` is not allowed in global definitions
         pub global NESTED_ARRAY: [[Field; _]; 3] = [[]; 3];
-                   ^^^^^^^^^^^^ Globals must have a specified type
-                                                   ~~~~~~~ Inferred type is `[[Field; 0]; 3]`
+                                          ^ The placeholder `_` is not allowed in global definitions
         pub global STR: str<_> = "hi";
-                   ^^^ Globals must have a specified type
-                                 ~~~~ Inferred type is `str<2>`
-                 
+                            ^ The placeholder `_` is not allowed in global definitions
         pub global NESTED_STR: [str<_>] = &["hi"];
-                   ^^^^^^^^^^ Globals must have a specified type
-                                          ~~~~~~~ Inferred type is `[str<2>]`
+                                    ^ The placeholder `_` is not allowed in global definitions
         pub global FORMATTED_VALUE: str<5> = "there";
         pub global FMT_STR: fmtstr<_, _> = f"hi {FORMATTED_VALUE}";
-                   ^^^^^^^ Globals must have a specified type
-                                           ~~~~~~~~~~~~~~~~~~~~~~~ Inferred type is `fmtstr<20, (str<5>,)>`
+                                   ^ The placeholder `_` is not allowed in global definitions
+                                      ^ The placeholder `_` is not allowed in global definitions
         pub global TUPLE_WITH_MULTIPLE: ([str<_>], [[Field; _]; 3]) = 
-                   ^^^^^^^^^^^^^^^^^^^ Globals must have a specified type
+                                              ^ The placeholder `_` is not allowed in global definitions
+                                                            ^ The placeholder `_` is not allowed in global definitions
             (&["hi"], [[]; 3]);
-            ~~~~~~~~~~~~~~~~~~ Inferred type is `([str<2>], [[Field; 0]; 3])`
     "#;
     check_errors(src);
 }

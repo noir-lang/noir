@@ -22,7 +22,7 @@
 
 use crate::{
     Type,
-    ast::{Pattern, UnresolvedTypeData},
+    ast::Pattern,
     hir::{def_collector::dc_crate::UnresolvedGlobal, resolution::errors::ResolverError},
     hir_def::stmt::HirStatement,
     node_interner::{DependencyId, GlobalId, GlobalValue},
@@ -70,11 +70,7 @@ impl Elaborator<'_> {
         };
 
         let location = let_stmt.pattern.location();
-        let type_location = if matches!(let_stmt.r#type.typ, UnresolvedTypeData::Unspecified) {
-            location
-        } else {
-            let_stmt.r#type.location
-        };
+        let type_location = let_stmt.r#type.as_ref().map(|typ| typ.location).unwrap_or(location);
 
         // ABI attributes are only meaningful within contracts, so error if used elsewhere.
         if !self.in_contract() {

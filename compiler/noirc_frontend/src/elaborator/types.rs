@@ -60,9 +60,38 @@ pub(super) enum TraitPathResolutionMethod {
     MultipleTraitsInScope,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WildcardAllowed {
+    Yes,
+    No(WildcardDisallowedContext),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WildcardDisallowedContext {
+    AssociatedType,
+    Cast,
+    EnumVariant,
+    FunctionReturn,
+    FunctionParameter,
+    Global,
+    ImplType,
+    NumericGeneric,
+    QuotedAsType,
+    StructField,
+    TraitAsType,
+    TraitBound,
+    TraitConstraint,
+    TraitImplType,
+    TypeAlias,
+}
+
 impl Elaborator<'_> {
     /// Resolves an [UnresolvedType] to a [Type] with [Kind::Normal] and marks it, and any generic types it contains, as _referenced_.
-    pub(crate) fn resolve_type(&mut self, typ: UnresolvedType, wildcard_allowed: bool) -> Type {
+    pub(crate) fn resolve_type(
+        &mut self,
+        typ: UnresolvedType,
+        wildcard_allowed: WildcardAllowed,
+    ) -> Type {
         self.resolve_type_inner(
             typ,
             &Kind::Normal,
@@ -72,7 +101,11 @@ impl Elaborator<'_> {
     }
 
     /// Resolves an [UnresolvedType] to a [Type] with [Kind::Normal] and marks it, and any generic types it contains, as _used_.
-    pub(crate) fn use_type(&mut self, typ: UnresolvedType, wildcard_allowed: bool) -> Type {
+    pub(crate) fn use_type(
+        &mut self,
+        typ: UnresolvedType,
+        wildcard_allowed: WildcardAllowed,
+    ) -> Type {
         self.use_type_with_kind(typ, &Kind::Normal, wildcard_allowed)
     }
 
@@ -81,7 +114,7 @@ impl Elaborator<'_> {
         &mut self,
         typ: UnresolvedType,
         kind: &Kind,
-        wildcard_allowed: bool,
+        wildcard_allowed: WildcardAllowed,
     ) -> Type {
         self.resolve_type_inner(typ, kind, PathResolutionMode::MarkAsUsed, wildcard_allowed)
     }
@@ -94,7 +127,7 @@ impl Elaborator<'_> {
         typ: UnresolvedType,
         kind: &Kind,
         mode: PathResolutionMode,
-        wildcard_allowed: bool,
+        wildcard_allowed: WildcardAllowed,
     ) -> Type {
         let location = typ.location;
         let resolved_type = self.resolve_type_with_kind_inner(typ, kind, mode, wildcard_allowed);
@@ -109,7 +142,7 @@ impl Elaborator<'_> {
         &mut self,
         typ: UnresolvedType,
         kind: &Kind,
-        wildcard_allowed: bool,
+        wildcard_allowed: WildcardAllowed,
     ) -> Type {
         self.resolve_type_inner(typ, kind, PathResolutionMode::MarkAsReferenced, wildcard_allowed)
     }
@@ -120,7 +153,7 @@ impl Elaborator<'_> {
         typ: UnresolvedType,
         kind: &Kind,
         mode: PathResolutionMode,
-        wildcard_allowed: bool,
+        wildcard_allowed: WildcardAllowed,
     ) -> Type {
         use crate::ast::UnresolvedTypeData::*;
 
@@ -161,11 +194,6 @@ impl Elaborator<'_> {
                 self.convert_expression_type(expr, kind, location, wildcard_allowed)
             }
             Unit => Type::Unit,
-            Unspecified => {
-                let location = typ.location;
-                self.push_err(TypeCheckError::UnspecifiedType { location });
-                Type::Error
-            }
             Error => Type::Error,
             Named(path, args, _) => {
                 let path = self.validate_path(path);
@@ -280,7 +308,7 @@ impl Elaborator<'_> {
         path: TypedPath,
         args: GenericTypeArgs,
         mode: PathResolutionMode,
-        wildcard_allowed: bool,
+        wildcard_allowed: WildcardAllowed,
     ) -> Type {
         if args.is_empty() {
             if let Some(typ) = self.lookup_generic_or_global_type(&path, mode) {
@@ -406,7 +434,7 @@ impl Elaborator<'_> {
         &mut self,
         path: &TypedPath,
         args: &GenericTypeArgs,
-        wildcard_allowed: bool,
+        wildcard_allowed: WildcardAllowed,
     ) -> Option<Type> {
         if path.segments.len() != 1 {
             return None;
@@ -422,10 +450,14 @@ impl Elaborator<'_> {
                 Some(self_type)
             }
             WILDCARD_TYPE => {
-                if !wildcard_allowed {
-                    self.push_err(ResolverError::WildcardTypeDisallowed {
-                        location: path.location,
-                    });
+                match wildcard_allowed {
+                    WildcardAllowed::Yes => {}
+                    WildcardAllowed::No(reason) => {
+                        self.push_err(ResolverError::WildcardTypeDisallowed {
+                            location: path.location,
+                            context: reason,
+                        });
+                    }
                 }
 
                 Some(self.interner.next_type_variable_with_kind(Kind::Any))
@@ -446,7 +478,7 @@ impl Elaborator<'_> {
         let trait_as_type_info = self.lookup_trait_or_error(path).map(|t| t.id);
 
         if let Some(id) = trait_as_type_info {
-            let wildcard_allowed = false;
+            let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::TraitAsType);
             let (ordered, named) =
                 self.resolve_type_args_inner(args, id, location, mode, wildcard_allowed);
             let name = self.interner.get_trait(id).name.to_string();
@@ -466,7 +498,7 @@ impl Elaborator<'_> {
         location: Location,
     ) -> (Vec<Type>, Vec<NamedType>) {
         let mode = PathResolutionMode::MarkAsUsed;
-        let wildcard_allowed = true;
+        let wildcard_allowed = WildcardAllowed::Yes;
         self.resolve_type_args_inner(args, item, location, mode, wildcard_allowed)
     }
 
@@ -477,7 +509,7 @@ impl Elaborator<'_> {
         item: impl Generic,
         location: Location,
         mode: PathResolutionMode,
-        wildcard_allowed: bool,
+        wildcard_allowed: WildcardAllowed,
     ) -> (Vec<Type>, Vec<NamedType>) {
         let allow_implicit_named_args = true;
         self.resolve_type_or_trait_args_inner(
@@ -500,7 +532,7 @@ impl Elaborator<'_> {
         location: Location,
         allow_implicit_named_args: bool,
         mode: PathResolutionMode,
-        wildcard_allowed: bool,
+        wildcard_allowed: WildcardAllowed,
     ) -> (Vec<Type>, Vec<NamedType>) {
         let expected_kinds = item.generic_kinds(self.interner);
 
@@ -549,7 +581,7 @@ impl Elaborator<'_> {
         location: Location,
         allow_implicit_named_args: bool,
         mode: PathResolutionMode,
-        wildcard_allowed: bool,
+        wildcard_allowed: WildcardAllowed,
     ) -> Vec<NamedType> {
         let mut seen_args = HashMap::default();
         let mut required_args = item.named_generics(self.interner);
@@ -688,7 +720,7 @@ impl Elaborator<'_> {
         length: UnresolvedTypeExpression,
         expected_kind: &Kind,
         location: Location,
-        wildcard_allowed: bool,
+        wildcard_allowed: WildcardAllowed,
     ) -> Type {
         match length {
             UnresolvedTypeExpression::Variable(path) => {
@@ -799,7 +831,11 @@ impl Elaborator<'_> {
         }
     }
 
-    fn resolve_as_trait_path(&mut self, path: AsTraitPath, wildcard_allowed: bool) -> Type {
+    fn resolve_as_trait_path(
+        &mut self,
+        path: AsTraitPath,
+        wildcard_allowed: WildcardAllowed,
+    ) -> Type {
         let location = path.trait_path.location;
         let trait_path = self.validate_path(path.trait_path.clone());
         let Some(trait_id) = self.resolve_trait_by_path(trait_path) else {
@@ -1163,15 +1199,14 @@ impl Elaborator<'_> {
 
     /// Translates a (possibly Unspecified) UnresolvedType to a Type.
     /// Any UnresolvedType::Unspecified encountered are replaced with fresh type variables.
-    pub(super) fn resolve_inferred_type(&mut self, typ: UnresolvedType) -> Type {
-        match &typ.typ {
-            UnresolvedTypeData::Unspecified => {
-                self.interner.next_type_variable_with_kind(Kind::Any)
-            }
-            _ => {
-                let wildcard_allowed = true;
-                self.use_type(typ, wildcard_allowed)
-            }
+    pub(super) fn resolve_inferred_type(
+        &mut self,
+        typ: Option<UnresolvedType>,
+        wildcard_allowed: WildcardAllowed,
+    ) -> Type {
+        match typ {
+            Some(typ) => self.use_type(typ, wildcard_allowed),
+            None => self.interner.next_type_variable_with_kind(Kind::Any),
         }
     }
 

@@ -6,7 +6,7 @@ use noirc_errors::Location;
 use crate::{
     QuotedType, Type,
     ast::{GenericTypeArgs, IntegerBitSize},
-    elaborator::{Elaborator, PathResolutionMode, Turbofish},
+    elaborator::{Elaborator, PathResolutionMode, Turbofish, types::WildcardAllowed},
     hir::{
         def_collector::dc_crate::CompilationError,
         type_check::{
@@ -188,7 +188,7 @@ impl Elaborator<'_> {
         primitive_type: PrimitiveType,
         args: GenericTypeArgs,
         location: Location,
-        wildcard_allowed: bool,
+        wildcard_allowed: WildcardAllowed,
     ) -> Type {
         match primitive_type {
             PrimitiveType::Bool
