@@ -438,6 +438,33 @@ fn tuple_pattern_with_error_type() {
     check_errors(src);
 }
 
+/// TODO(https://github.com/noir-lang/noir/issues/10487): Improve error messages
+#[test]
+fn duplicated_mut_in_basic_let_pattern() {
+    let src = r#"
+    fn main() {
+        let mut mut _x = 1;
+                ^^^ Expected a pattern but found 'mut'
+                ^^^ Expected a '=' but found 'mut'
+                ^^^ Expected a statement but found 'mut'
+            ^^^ Expected a ; after `let` statement
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn duplicated_mut_in_nested_pattern() {
+    let src = r#"
+    fn main() {
+        let mut (_a, mut (_b, _c)) = (1, (2, 3));
+                     ^^^^^^^^^^^^ 'mut' here is not necessary
+            ~~~~~~~~~~~~~~~~~~~~~~ Pattern was already made mutable from this 'mut'
+    }
+    "#;
+    check_errors(src);
+}
+
 #[test]
 fn dereference_in_lvalue() {
     let src = r#"
