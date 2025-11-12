@@ -358,6 +358,7 @@ pub(crate) mod tests {
             _points: &[FieldElement],
             _scalars_lo: &[FieldElement],
             _scalars_hi: &[FieldElement],
+            _predicate: bool,
         ) -> Result<(FieldElement, FieldElement, FieldElement), BlackBoxResolutionError> {
             Ok((4_u128.into(), 5_u128.into(), 0_u128.into()))
         }
@@ -370,6 +371,7 @@ pub(crate) mod tests {
             _input2_x: &FieldElement,
             _input2_y: &FieldElement,
             _input2_infinite: &FieldElement,
+            _predicate: bool,
         ) -> Result<(FieldElement, FieldElement, FieldElement), BlackBoxResolutionError> {
             panic!("Path not trodden by this test")
         }

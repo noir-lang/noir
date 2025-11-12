@@ -330,7 +330,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                     *condition,
                     payload_values,
                     payload_as_params,
-                    *selector,
+                    Some(*selector),
                 );
             }
             Some(ConstrainError::StaticString(message)) => {

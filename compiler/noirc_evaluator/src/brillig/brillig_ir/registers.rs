@@ -550,12 +550,18 @@ impl<F, Registers: RegisterAllocator> BrilligContext<F, Registers> {
         self.allocate_single_addr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)
     }
 
-    /// Allocate a [BrilligVector].
+    /// Allocate a pointer for [BrilligVector].
+    ///
+    /// This does not include allocating memory for the data on the heap or shaping the meta-data.
+    /// That is done by [BrilligContext::codegen_initialize_vector].
     pub(crate) fn allocate_brillig_vector(&mut self) -> Allocated<BrilligVector, Registers> {
         self.allocate_register().map(|a| BrilligVector { pointer: a })
     }
 
-    /// Allocate a [BrilligArray].
+    /// Allocate a pointer for [BrilligArray].
+    ///
+    /// This does not include allocating memory for the data on the heap or shaping the meta-data.
+    /// That is done by [BrilligContext::codegen_initialize_array].
     pub(crate) fn allocate_brillig_array(
         &mut self,
         size: usize,
@@ -574,14 +580,19 @@ impl<F, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     pub(crate) fn allocate_heap_array(&mut self, size: usize) -> Allocated<HeapArray, Registers> {
         self.allocate_register().map(|pointer| HeapArray { pointer, size })
     }
+
+    /// Create a number of consecutive [MemoryAddress::Direct] addresses at the start of the [ScratchSpace].
+    pub(crate) fn make_scratch_registers<const N: usize>(&self) -> [MemoryAddress; N] {
+        let scratch_start = ScratchSpace::start();
+        std::array::from_fn(|i| MemoryAddress::direct(scratch_start + i))
+    }
 }
 
 impl<F> BrilligContext<F, ScratchSpace> {
     /// Allocate a number of consecutive scratch registers and replace the current allocator with
     /// one that has the new registers pre-allocated.
     pub(crate) fn allocate_scratch_registers<const N: usize>(&mut self) -> [MemoryAddress; N] {
-        let scratch_start = self.registers().start();
-        let registers = std::array::from_fn(|i| MemoryAddress::direct(scratch_start + i));
+        let registers = self.make_scratch_registers();
         self.set_allocated_registers(registers.iter().copied().collect());
         registers
     }
@@ -681,19 +692,6 @@ impl<A, R: RegisterAllocator> Allocated<A, R> {
         let other = other.into_inner();
         Allocated::from_inner(AllocatedInner {
             value: f(inner.value, other.value),
-            addresses: Self::merge_addresses(inner.addresses, other.addresses),
-            registers: inner.registers.or(other.registers),
-        })
-    }
-
-    /// Map the `value` to something else that involves allocation.
-    ///
-    /// The resulting value keeps both addresses alive.
-    pub(crate) fn and_then<B>(self, f: impl FnOnce(A) -> Allocated<B, R>) -> Allocated<B, R> {
-        let inner = self.into_inner();
-        let other = f(inner.value).into_inner();
-        Allocated::from_inner(AllocatedInner {
-            value: other.value,
             addresses: Self::merge_addresses(inner.addresses, other.addresses),
             registers: inner.registers.or(other.registers),
         })
