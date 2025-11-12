@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1762959280121,
+  "lastUpdate": 1762963358224,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23081,48 +23081,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "163862677+noirwhal@users.noreply.github.com",
-            "name": "noirwhal",
-            "username": "noirwhal"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "83245db91dcf63420ef4bcbbd85b98f397fee663",
-          "message": "chore: Release Noir(1.0.0-beta.15) (#10125)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>",
-          "timestamp": "2025-11-05T18:23:25Z",
-          "tree_id": "9e0ff3139ac41bc25936fe9c110b72137ae488e4",
-          "url": "https://github.com/noir-lang/noir/commit/83245db91dcf63420ef4bcbbd85b98f397fee663"
-        },
-        "date": 1762368492351,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 265534,
-            "range": "± 1614",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 236623,
-            "range": "± 8229",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2800863,
-            "range": "± 16743",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -25174,6 +25132,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2783500,
             "range": "± 1495",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "52610192+Aristotelis2002@users.noreply.github.com",
+            "name": "Aristotelis",
+            "username": "Aristotelis2002"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "24de605dd526477ef3e8dc38a6c038f695aeed28",
+          "message": "chore: monomorphizer public fields (#9979)",
+          "timestamp": "2025-11-12T15:38:48Z",
+          "tree_id": "8b6495b1416c65e949951013c181bb7d0a1863d9",
+          "url": "https://github.com/noir-lang/noir/commit/24de605dd526477ef3e8dc38a6c038f695aeed28"
+        },
+        "date": 1762963328067,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 254458,
+            "range": "± 1875",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 230895,
+            "range": "± 3430",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2257809,
+            "range": "± 1217",
             "unit": "ns/iter"
           }
         ]
