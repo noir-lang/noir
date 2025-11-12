@@ -19,41 +19,40 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     ) {
         assert_eq!(sources.len(), destinations.len(), "sources and destinations length must match");
         let n = sources.len();
-        let start = Stack::start();
         let mut processed = 0;
-        // Compute the number of children for each source node that is also a destination node (i.e within 0,..n-1) in the movement graph
-        let mut children = vec![0; n];
+        // Compute the number of destinations for each source node that is also a destination node (i.e within 0,..n-1) in the movement graph
+        let mut num_destinations = vec![0; n];
         for i in 0..n {
             // Check that destinations are relatives to 0,..,n-1
-            assert_eq!(destinations[i].unwrap_relative() - start, i);
+            assert_eq!(to_index(&destinations[i]), Some(i));
             if let Some(index) = to_index(&sources[i]) {
                 if index < n && index != i {
-                    children[index] += 1;
+                    num_destinations[index] += 1;
                 }
             }
         }
 
         // Process all sinks in the graph and follow their parents.
-        // Keep track of nodes having more than 2 children, in case they belong to a loop.
+        // Keep track of nodes having more than 2 destinations, in case they belong to a loop.
         let mut tail_candidates = Vec::new();
         for i in 0..n {
             // Generate a movement for each sink in the graph
             let mut node = i;
             // A sink has no child
-            while children[node] == 0 {
+            while num_destinations[node] == 0 {
                 if to_index(&sources[node]) == Some(node) {
                     //no-op: mark the node as processed
-                    children[node] = usize::MAX;
+                    num_destinations[node] = usize::MAX;
                     processed += 1;
                     break;
                 }
                 // Generates a move instruction
-                self.perform_movement(node, sources[node], &mut children, &mut processed);
+                self.perform_movement(node, sources[node], &mut num_destinations, &mut processed);
                 // Follow the parent
                 if let Some(index) = to_index(&sources[node]) {
                     if index < n {
-                        children[index] -= 1;
-                        if children[index] > 0 {
+                        num_destinations[index] -= 1;
+                        if num_destinations[index] > 0 {
                             // The parent node has another child, so we cannot process it yet.
                             tail_candidates.push((sources[node], node));
                             break;
@@ -74,12 +73,12 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         // Check if a tail_candidate is a branch to a loop
         for (entry, free) in tail_candidates {
             let entry_idx = to_index(&entry).unwrap();
-            if entry_idx < n && children[entry_idx] == 1 {
+            if entry_idx < n && num_destinations[entry_idx] == 1 {
                 // Use the branch as the temporary register for the loop
                 self.process_loop(
                     entry_idx,
                     &from_index(free),
-                    &mut children,
+                    &mut num_destinations,
                     sources,
                     &mut processed,
                 );
@@ -92,18 +91,24 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         // Allocate one temporary per loop to avoid type confusion when reusing registers,
         // since different loops may contain values of different types.
         for i in 0..n {
-            if children[i] == 1 {
+            if num_destinations[i] == 1 {
                 let src = from_index(i);
                 // Copy the loop entry to a temporary register.
                 // Unfortunately, we cannot use one register for all the loops
                 // when the sources do not have the same type
                 let temp_register = self.registers_mut().allocate_register();
                 self.mov_instruction(temp_register, src);
-                self.process_loop(i, &temp_register, &mut children, sources, &mut processed);
+                self.process_loop(
+                    i,
+                    &temp_register,
+                    &mut num_destinations,
+                    sources,
+                    &mut processed,
+                );
                 self.deallocate_register(temp_register);
             } else {
                 // Nodes must have been processed, or are part of a loop.
-                assert_eq!(children[i], usize::MAX);
+                assert_eq!(num_destinations[i], usize::MAX);
             }
         }
     }
@@ -114,16 +119,16 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         &mut self,
         entry: usize,
         free: &MemoryAddress,
-        children: &mut [usize],
+        num_destinations: &mut [usize],
         source: &[MemoryAddress],
         processed: &mut usize,
     ) {
         let mut current = entry;
         while to_index(&source[current]).unwrap() != entry {
-            self.perform_movement(current, source[current], children, processed);
+            self.perform_movement(current, source[current], num_destinations, processed);
             current = to_index(&source[current]).unwrap();
         }
-        self.perform_movement(current, *free, children, processed);
+        self.perform_movement(current, *free, num_destinations, processed);
     }
 
     /// Generates a move opcode from 'src' to 'dest'.
@@ -131,13 +136,13 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         &mut self,
         dest: usize,
         src: MemoryAddress,
-        children: &mut [usize],
+        num_destinations: &mut [usize],
         processed: &mut usize,
     ) {
         let destination = from_index(dest);
         self.mov_instruction(destination, src);
         // set the node as 'processed'
-        children[dest] = usize::MAX;
+        num_destinations[dest] = usize::MAX;
         *processed += 1;
     }
 }
@@ -288,6 +293,22 @@ mod tests {
     fn test_one_loop() {
         let movements = vec![(2, 1), (4, 2), (5, 3), (3, 4), (1, 5)];
         assert_generated_opcodes(movements, vec![(1, 6), (2, 1), (4, 2), (3, 4), (5, 3), (6, 5)]);
+    }
+
+    /// This creates a chain (N+1)->1->2->...->N where N is large enough to overflow the stack
+    #[test]
+    fn test_deep_chain() {
+        // Each movement is i -> i+1, creating a single long chain
+        const CHAIN_DEPTH: usize = 10_000;
+
+        let mut movements: Vec<(usize, usize)> = (0..CHAIN_DEPTH).map(|i| (i, i + 1)).collect();
+        movements[0] = (CHAIN_DEPTH + 1, 1);
+        let (sources, destinations) = movements_to_source_and_destinations(movements);
+
+        let mut context = create_context();
+
+        // This should overflow the stack with recursive implementation
+        context.codegen_mov_registers_to_registers(&sources, &destinations);
     }
 
     #[test]
