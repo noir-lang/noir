@@ -99,7 +99,7 @@ message BrilligOpcode {
     MemoryAddress source = 2;
   }
   message BlackBox { BlackBoxOp op = 1; }
-  message Trap { HeapVector revert_data = 1; }
+  message Trap { HeapVector error_data = 1; }
   message Stop { HeapVector return_data = 1; }
 }
 
