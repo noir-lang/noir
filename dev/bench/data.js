@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1762963701065,
+  "lastUpdate": 1762963809039,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23066,48 +23066,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "9eee29a37dc509be15e24777188d87ca38b522f7",
-          "message": "chore(frontend): Loop control flow unit tests (#10387)",
-          "timestamp": "2025-11-05T20:21:00Z",
-          "tree_id": "2c2212ea0593c30e7f0d6f2c0df7e544651bb878",
-          "url": "https://github.com/noir-lang/noir/commit/9eee29a37dc509be15e24777188d87ca38b522f7"
-        },
-        "date": 1762375382103,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 266411,
-            "range": "± 361",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 237648,
-            "range": "± 1411",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2802787,
-            "range": "± 13669",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "rodiondenmark@gmail.com",
             "name": "Ragnar",
             "username": "DeVikingMark"
@@ -25159,6 +25117,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2257809,
             "range": "± 1217",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e7253b72e17de37995767f95fc69e43fc44b7f22",
+          "message": "chore(frontend): Tuple pattern tests and remove confusing arity error  (#10480)",
+          "timestamp": "2025-11-12T15:46:17Z",
+          "tree_id": "21b306d8e92343e52bb3795598541db54b8339f9",
+          "url": "https://github.com/noir-lang/noir/commit/e7253b72e17de37995767f95fc69e43fc44b7f22"
+        },
+        "date": 1762963782776,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 257981,
+            "range": "± 465",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 228058,
+            "range": "± 5759",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2782404,
+            "range": "± 2000",
             "unit": "ns/iter"
           }
         ]
