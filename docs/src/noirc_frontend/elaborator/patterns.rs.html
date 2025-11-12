@@ -720,7 +720,16 @@
 <a href="#719" id="719">719</a>
 <a href="#720" id="720">720</a>
 <a href="#721" id="721">721</a>
-<a href="#722" id="722">722</a></pre></div><pre class="rust"><code><span class="doccomment">//! Pattern elaboration, variable binding, and turbofish generic resolution.
+<a href="#722" id="722">722</a>
+<a href="#723" id="723">723</a>
+<a href="#724" id="724">724</a>
+<a href="#725" id="725">725</a>
+<a href="#726" id="726">726</a>
+<a href="#727" id="727">727</a>
+<a href="#728" id="728">728</a>
+<a href="#729" id="729">729</a>
+<a href="#730" id="730">730</a>
+<a href="#731" id="731">731</a></pre></div><pre class="rust"><code><span class="doccomment">//! Pattern elaboration, variable binding, and turbofish generic resolution.
 
 </span><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{Located, Location};
@@ -847,9 +856,11 @@
             }
             <span class="comment">// e.g. let (&lt;pattern 0&gt;, &lt;pattern 1&gt;, ...) = ...;
             </span>Pattern::Tuple(fields, location) =&gt; {
-                <span class="kw">let </span>field_types = <span class="kw">match </span>expected_type.follow_bindings() {
-                    Type::Tuple(fields) =&gt; fields,
-                    Type::Error =&gt; Vec::new(),
+                <span class="comment">// Returns Some for valid tuple types (where arity checking makes sense),
+                // None when we've already issued an error or have an invalid type.
+                </span><span class="kw">let </span>field_types = <span class="kw">match </span>expected_type.follow_bindings() {
+                    Type::Tuple(fields) =&gt; <span class="prelude-val">Some</span>(fields),
+                    Type::Error =&gt; <span class="prelude-val">None</span>,
                     expected_type =&gt; {
                         <span class="kw">let </span>tuple =
                             Type::Tuple(vecmap(<span class="kw-2">&amp;</span>fields, |<span class="kw">_</span>| <span class="self">self</span>.interner.next_type_variable()));
@@ -860,20 +871,27 @@
                             location,
                             source: Source::Assignment,
                         });
-                        Vec::new()
-                    }
+                        <span class="prelude-val">None
+                    </span>}
                 };
 
-                <span class="kw">if </span>fields.len() != field_types.len() {
-                    <span class="self">self</span>.push_err(TypeCheckError::TupleMismatch {
-                        tuple_types: field_types.clone(),
-                        actual_count: fields.len(),
-                        location,
-                    });
+                <span class="comment">// Only check tuple arity if the expected type was actually a tuple.
+                // If it wasn't, we've already issued a type mismatch error above.
+                </span><span class="kw">if let </span><span class="prelude-val">Some</span>(field_types) = <span class="kw-2">&amp;</span>field_types {
+                    <span class="kw">if </span>fields.len() != field_types.len() {
+                        <span class="self">self</span>.push_err(TypeCheckError::TupleMismatch {
+                            tuple_types: field_types.clone(),
+                            actual_count: fields.len(),
+                            location,
+                        });
+                    }
                 }
 
                 <span class="kw">let </span>fields = vecmap(fields.into_iter().enumerate(), |(i, field)| {
-                    <span class="kw">let </span>field_type = field_types.get(i).cloned().unwrap_or(Type::Error);
+                    <span class="kw">let </span>field_type = field_types
+                        .as_ref()
+                        .and_then(|types| types.get(i).cloned())
+                        .unwrap_or(Type::Error);
                     <span class="self">self</span>.elaborate_pattern_mut(
                         field,
                         field_type,
