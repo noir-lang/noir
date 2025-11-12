@@ -2036,25 +2036,7 @@
 <a href="#2035" id="2035">2035</a>
 <a href="#2036" id="2036">2036</a>
 <a href="#2037" id="2037">2037</a>
-<a href="#2038" id="2038">2038</a>
-<a href="#2039" id="2039">2039</a>
-<a href="#2040" id="2040">2040</a>
-<a href="#2041" id="2041">2041</a>
-<a href="#2042" id="2042">2042</a>
-<a href="#2043" id="2043">2043</a>
-<a href="#2044" id="2044">2044</a>
-<a href="#2045" id="2045">2045</a>
-<a href="#2046" id="2046">2046</a>
-<a href="#2047" id="2047">2047</a>
-<a href="#2048" id="2048">2048</a>
-<a href="#2049" id="2049">2049</a>
-<a href="#2050" id="2050">2050</a>
-<a href="#2051" id="2051">2051</a>
-<a href="#2052" id="2052">2052</a>
-<a href="#2053" id="2053">2053</a>
-<a href="#2054" id="2054">2054</a>
-<a href="#2055" id="2055">2055</a>
-<a href="#2056" id="2056">2056</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the SSA flattening pass - a required pass for ACIR to remove any remaining
+<a href="#2038" id="2038">2038</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the SSA flattening pass - a required pass for ACIR to remove any remaining
 //! control-flow in the singular program-function, resulting in a single block containing the
 //! program logic.
 //!
@@ -2341,12 +2323,8 @@
     ///
     /// It starts out empty, then gets filled in when we finish the branch.
     </span>last_block: <span class="prelude-ty">Option</span>&lt;BasicBlockId&gt;,
-    <span class="doccomment">/// The unresolved condition of the branch
-    </span>old_condition: ValueId,
     <span class="doccomment">/// The resolved condition of the branch, AND-ed with all outer branch conditions.
     </span>condition: ValueId,
-    <span class="doccomment">/// The allocations accumulated before processing the branch.
-    </span>local_allocations: HashSet&lt;ValueId&gt;,
 }
 
 <span class="kw">struct </span>ConditionalContext {
@@ -2368,6 +2346,8 @@
     ///
     /// We use this information to reset the values to their originals when we exit from branches.
     </span>predicated_values: HashMap&lt;ValueId, ValueId&gt;,
+    <span class="doccomment">/// The allocations accumulated before processing the branch.
+    </span>local_allocations: HashSet&lt;ValueId&gt;,
 }
 
 <span class="doccomment">/// Flattens the control flow graph of the function such that it is left with a
@@ -2626,19 +2606,15 @@
         if_entry: <span class="kw-2">&amp;</span>BasicBlockId,
         call_stack: CallStackId,
     ) -&gt; Vec&lt;BasicBlockId&gt; {
-        <span class="comment">// manage conditions
-        </span><span class="kw">let </span>old_condition = <span class="kw-2">*</span>condition;
-        <span class="kw">let </span>then_condition = <span class="self">self</span>.inserter.resolve(old_condition);
+        <span class="kw">let </span>then_condition = <span class="self">self</span>.inserter.resolve(<span class="kw-2">*</span>condition);
 
         <span class="comment">// Take the current allocations: everything for the new branch is non-local.
-        </span><span class="kw">let </span>old_allocations = std::mem::take(<span class="kw-2">&amp;mut </span><span class="self">self</span>.local_allocations);
-        <span class="kw">let </span>branch = ConditionalBranch {
-            old_condition,
+        </span><span class="kw">let </span>branch = ConditionalBranch {
             condition: <span class="self">self</span>.link_condition(then_condition),
             <span class="comment">// To be filled in by `then_stop`.
             </span>last_block: <span class="prelude-val">None</span>,
-            local_allocations: old_allocations,
         };
+        <span class="kw">let </span>local_allocations = std::mem::take(<span class="kw-2">&amp;mut </span><span class="self">self</span>.local_allocations);
         <span class="kw">let </span>cond_context = ConditionalContext {
             condition: then_condition,
             entry_block: <span class="kw-2">*</span>if_entry,
@@ -2647,6 +2623,7 @@
             </span>else_branch: <span class="prelude-val">None</span>,
             call_stack,
             predicated_values: HashMap::default(),
+            local_allocations,
         };
         <span class="self">self</span>.condition_stack.push(cond_context);
         <span class="self">self</span>.insert_current_side_effects_enabled();
@@ -2681,13 +2658,7 @@
         <span class="kw">let </span>else_condition = <span class="self">self</span>.link_condition(else_condition);
 
         <span class="comment">// Pass on the local allocations that came before the 'then_branch' to the 'else_branch'.
-        </span><span class="kw">let </span>old_allocations = std::mem::take(<span class="kw-2">&amp;mut </span>cond_context.then_branch.local_allocations);
-        <span class="kw">let </span>else_branch = ConditionalBranch {
-            old_condition: cond_context.then_branch.old_condition,
-            condition: else_condition,
-            last_block: <span class="prelude-val">None</span>,
-            local_allocations: old_allocations,
-        };
+        </span><span class="kw">let </span>else_branch = ConditionalBranch { condition: else_condition, last_block: <span class="prelude-val">None </span>};
         <span class="comment">// All local allocations on the stopped 'then_branch' go out of scope.
         </span><span class="self">self</span>.local_allocations.clear();
         cond_context.else_branch = <span class="prelude-val">Some</span>(else_branch);
@@ -2727,7 +2698,7 @@
         }
 
         <span class="kw">let </span><span class="kw-2">mut </span>else_branch = cond_context.else_branch.unwrap();
-        <span class="self">self</span>.reset_local_allocations(<span class="kw-2">&amp;mut </span>else_branch);
+        <span class="self">self</span>.local_allocations = std::mem::take(<span class="kw-2">&amp;mut </span>cond_context.local_allocations);
         else_branch.last_block = <span class="prelude-val">Some</span>(<span class="kw-2">*</span>block);
         cond_context.else_branch = <span class="prelude-val">Some</span>(else_branch);
 
@@ -2781,10 +2752,8 @@
         <span class="kw">let </span>args = vecmap(then_args.iter().zip(else_args), |(then_arg, else_arg)| {
             (<span class="self">self</span>.inserter.resolve(<span class="kw-2">*</span>then_arg), <span class="self">self</span>.inserter.resolve(else_arg))
         });
-        <span class="kw">let </span>else_condition = <span class="kw">if let </span><span class="prelude-val">Some</span>(branch) = cond_context.else_branch {
-            branch.condition
-        } <span class="kw">else </span>{
-            <span class="self">self</span>.inserter.function.dfg.make_constant(FieldElement::zero(), NumericType::bool())
+        <span class="kw">let </span><span class="prelude-val">Some</span>(else_branch) = cond_context.else_branch <span class="kw">else </span>{
+            <span class="macro">unreachable!</span>(<span class="string">"malformed branch"</span>);
         };
         <span class="kw">let </span>block = <span class="self">self</span>.target_block;
 
@@ -2793,7 +2762,7 @@
             <span class="kw">let </span>instruction = Instruction::IfElse {
                 then_condition: cond_context.then_branch.condition,
                 then_value: then_arg,
-                else_condition,
+                else_condition: else_branch.condition,
                 else_value: else_arg,
             };
             <span class="kw">let </span>call_stack = cond_context.call_stack;
@@ -2825,11 +2794,6 @@
         <span class="kw">for </span>(value, old_mapping) <span class="kw">in </span>conditional_context.predicated_values.drain() {
             <span class="self">self</span>.inserter.map_value(value, old_mapping);
         }
-    }
-
-    <span class="doccomment">/// Restore the previously known local allocations after a branch is finished.
-    </span><span class="kw">fn </span>reset_local_allocations(<span class="kw-2">&amp;mut </span><span class="self">self</span>, conditional_branch: <span class="kw-2">&amp;mut </span>ConditionalBranch) {
-        <span class="self">self</span>.local_allocations = std::mem::take(<span class="kw-2">&amp;mut </span>conditional_branch.local_allocations);
     }
 
     <span class="doccomment">/// Insert a new instruction into the target block.
