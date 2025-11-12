@@ -1373,15 +1373,18 @@ impl Type {
         matches!(self.follow_bindings_shallow().as_ref(), Type::Reference(_, _))
     }
 
-    /// Returns `true` if the type should be handled by `abi_gen::abi_type_from_hir_type`,
-    /// `false` if it would cause a panic.
-    pub(crate) fn is_abi_compatible(&self) -> bool {
+    /// Returns `true` if a type is allowed to appear in an assertion message.
+    ///
+    /// This should try filter out types which would cause a panic in `abi_gen::abi_type_from_hir_type`,
+    /// but it has to be more permissive, as we don't have all information yet; some only become apparent
+    /// after monomorphization.
+    pub(crate) fn is_message_compatible(&self) -> bool {
         match self {
             Type::FieldElement | Type::Integer(_, _) | Type::Bool | Type::String(_) => true,
 
-            Type::Array(_, item) => item.is_abi_compatible(),
+            Type::Array(_, item) => item.is_message_compatible(),
             Type::TypeVariable(binding) => match &*binding.borrow() {
-                TypeBinding::Bound(typ) => typ.is_abi_compatible(),
+                TypeBinding::Bound(typ) => typ.is_message_compatible(),
                 TypeBinding::Unbound(_, kind) => {
                     matches!(kind, Kind::Integer | Kind::IntegerOrField)
                 }
@@ -1389,20 +1392,19 @@ impl Type {
             Type::DataType(def, args) => {
                 let struct_type = def.borrow();
                 let fields = struct_type.get_fields(args).unwrap_or_default();
-                fields.iter().all(|(_, typ, _)| typ.is_abi_compatible())
+                fields.iter().all(|(_, typ, _)| typ.is_message_compatible())
             }
             Type::Alias(def, args) => {
                 let alias_type = def.borrow();
-                alias_type.get_type(args).is_abi_compatible()
+                alias_type.get_type(args).is_message_compatible()
             }
-            Type::CheckedCast { to, .. } => to.is_abi_compatible(),
-            Type::Tuple(fields) => fields.iter().all(|typ| typ.is_abi_compatible()),
+            Type::CheckedCast { to, .. } => to.is_message_compatible(),
+            Type::Tuple(fields) => fields.iter().all(|typ| typ.is_message_compatible()),
             Type::Error
             | Type::Unit
             | Type::Constant(..)
             | Type::InfixExpr(..)
             | Type::TraitAsType(..)
-            | Type::NamedGeneric(..)
             | Type::Forall(..)
             | Type::Slice(_)
             | Type::Function(_, _, _, _)
@@ -1418,6 +1420,12 @@ impl Type {
                 // A static string becomes CtString, a format string is Quoted.
                 matches!(quoted, QuotedType::CtString | QuotedType::Quoted)
             }
+
+            // A generic would cause a panic in ABI generation, but if we don't allow it
+            // here then we reject all functions which are generic over the message type.
+            // Since we don't have a marker trait to show what can be turned into into a message,
+            // we have to delay this check to monomorphization.
+            Type::NamedGeneric(..) => true,
         }
     }
 

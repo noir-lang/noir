@@ -836,8 +836,8 @@ impl Elaborator<'_> {
             if !self.in_comptime_context() {
                 let location = self.interner.expr_location(&msg);
                 let typ = typ.follow_bindings();
-                let mut check_abi_compat = |typ: &Type| {
-                    if typ.is_abi_compatible() || matches!(typ, Type::Error) {
+                let mut check_msg_compat = |typ: &Type| {
+                    if typ.is_message_compatible() || matches!(typ, Type::Error) {
                         return;
                     }
                     let error = TypeCheckError::TypeCannotBeUsed {
@@ -849,10 +849,10 @@ impl Elaborator<'_> {
                 };
                 if let Type::FmtString(_, item_types) = typ {
                     if let Type::Tuple(item_types) = item_types.as_ref() {
-                        item_types.iter().for_each(check_abi_compat);
+                        item_types.iter().for_each(check_msg_compat);
                     }
                 } else {
-                    check_abi_compat(&typ);
+                    check_msg_compat(&typ);
                 }
             }
             msg
