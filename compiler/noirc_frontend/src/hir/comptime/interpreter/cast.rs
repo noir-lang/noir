@@ -69,7 +69,7 @@ fn perform_cast(kind: CastType, lhs: FieldElement) -> FieldElement {
     match kind {
         CastType::Truncate { new_bit_size } => {
             if new_bit_size >= lhs.num_bits() {
-                lhs.into()
+                lhs
             } else if lhs.num_bits() < 128 {
                 let mask = 2u128.pow(new_bit_size) - 1;
                 return FieldElement::from(lhs.to_u128() & mask);
