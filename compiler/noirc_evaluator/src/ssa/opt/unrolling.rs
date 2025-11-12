@@ -361,7 +361,11 @@ impl Loop {
             unreachable!("the back edge is expected to end in a `Jmp`");
         };
         assert_eq!(*destination, self.header, "back edge goes to the header");
-        assert_eq!(arguments.len(), 1);
+
+        // Loop entry blocks almost always start out with 1 argument - the induction variable -
+        // but mem2reg_simple can add more arguments to them. In that case, the induction variable remains
+        // as the first argument.
+        assert!(!arguments.is_empty());
         dfg.get_numeric_constant(arguments[0]).is_some()
     }
 
@@ -414,8 +418,9 @@ impl Loop {
         dfg: &DataFlowGraph,
         pre_header: BasicBlockId,
     ) -> Option<IntegerConstant> {
-        let jump_value = get_induction_variable(dfg, pre_header).ok()?;
-        dfg.get_integer_constant(jump_value)
+        let jump_value = get_induction_variables(dfg, pre_header).ok()?;
+        // The main loop induction variable `i` is expected to be the first argument.
+        dfg.get_integer_constant(jump_value[0])
     }
 
     /// Find the upper bound of the loop in the loop header and return it
@@ -565,12 +570,18 @@ impl Loop {
     /// that a few SSA passes are required to evaluate and simplify these values.
     fn unroll(&self, function: &mut Function, cfg: &ControlFlowGraph) -> Result<(), CallStack> {
         let mut unroll_into = self.get_pre_header(function, cfg)?;
-        let mut jump_value = get_induction_variable(&function.dfg, unroll_into)?;
+        let mut jump_values = get_induction_variables(&function.dfg, unroll_into)?;
 
-        while let Some(context) = self.unroll_header(function, unroll_into, jump_value)? {
-            (unroll_into, jump_value) = context.unroll_loop_iteration();
-        }
+        let end_block = loop {
+            match self.unroll_header(function, unroll_into, jump_values)? {
+                LoopIterationResult::KeepLooping(context) => {
+                    (unroll_into, jump_values) = context.unroll_loop_iteration();
+                }
+                LoopIterationResult::StopSuccessfully(end_block) => break end_block,
+            }
+        };
 
+        self.move_extra_block_arguments_to_loop_end(function, end_block);
         Ok(())
     }
 
@@ -605,20 +616,27 @@ impl Loop {
         &'a self,
         function: &'a mut Function,
         unroll_into: BasicBlockId,
-        induction_value: ValueId,
-    ) -> Result<Option<LoopIteration<'a>>, CallStack> {
+        induction_values: Vec<ValueId>,
+    ) -> Result<LoopIterationResult<'a>, CallStack> {
         // We insert into a fresh block first and move instructions into the unroll_into block later
         // only once we verify the jmpif instruction has a constant condition. If it does not, we can
         // just discard this fresh block and leave the loop unmodified.
         let fresh_block = function.dfg.make_block();
 
-        let mut context = LoopIteration::new(function, self, fresh_block, self.header);
+        let mut context =
+            LoopIteration::new(function, self, fresh_block, self.header, induction_values.clone());
         let source_block = &context.dfg()[context.source_block];
-        assert_eq!(source_block.parameters().len(), 1, "Expected only 1 argument in loop header");
+        assert!(
+            !source_block.parameters().is_empty(),
+            "Expected at least 1 argument in loop header"
+        );
 
-        // Insert the current value of the loop induction variable into our context.
-        let first_param = source_block.parameters()[0];
-        context.inserter.try_map_value(first_param, induction_value);
+        // Insert the current value of each loop induction variable into our context.
+        let parameters = source_block.parameters().to_vec();
+        for (parameter, induction_value) in parameters.into_iter().zip(induction_values) {
+            context.inserter.try_map_value(parameter, induction_value);
+        }
+
         // Copy over all instructions and a fresh terminator.
         context.inline_instructions_from_block();
         // Mutate the terminator if possible so that it points at the iteration block.
@@ -651,7 +669,11 @@ impl Loop {
                     // have no more loops to unroll, because that block was not part of the loop itself,
                     // ie. it wasn't between `loop_header` and `loop_body`. Otherwise we have the `loop_body`
                     // in `source_block` and can unroll that into the destination.
-                    Ok(self.blocks.contains(&context.source_block).then_some(context))
+                    if self.blocks.contains(&context.source_block) {
+                        Ok(LoopIterationResult::KeepLooping(context))
+                    } else {
+                        Ok(LoopIterationResult::StopSuccessfully(context.source_block))
+                    }
                 } else {
                     // If this case is reached the loop either uses non-constant indices or we need
                     // another pass, such as mem2reg to resolve them to constants.
@@ -837,6 +859,30 @@ impl Loop {
             has_const_zero_jump_condition: self.has_const_zero_jump_condition(&function.dfg),
         })
     }
+
+    fn move_extra_block_arguments_to_loop_end(
+        &self,
+        function: &mut Function,
+        loop_end: BasicBlockId,
+    ) {
+        let header_parameters = function.dfg[self.header].parameters().to_vec();
+
+        // Remove the first parameter, the loop index itself is never passed as an argument to the end of the loop
+        for value in header_parameters.into_iter().skip(1) {
+            // Cheat and add the parameter directly to the end block.
+            // Reusing the same value means we no longer have to map the value on each use to a new one.
+            let new_position = function.dfg[loop_end].parameters().len();
+            function.dfg[loop_end].add_parameter(value);
+
+            match &mut function.dfg[value] {
+                crate::ssa::ir::value::Value::Param { block, position, .. } => {
+                    *block = loop_end;
+                    *position = new_position;
+                }
+                _ => (),
+            }
+        }
+    }
 }
 
 /// All the instructions in the following example are boilerplate:
@@ -926,23 +972,29 @@ impl BoilerplateStats {
 ///   ...
 /// ```
 /// We're looking for the terminating jump of the `main` predecessor of `loop_entry`.
-fn get_induction_variable(dfg: &DataFlowGraph, block: BasicBlockId) -> Result<ValueId, CallStack> {
+fn get_induction_variables(
+    dfg: &DataFlowGraph,
+    block: BasicBlockId,
+) -> Result<Vec<ValueId>, CallStack> {
     match dfg[block].terminator() {
         Some(TerminatorInstruction::Jmp { arguments, call_stack: location, .. }) => {
             // This assumption will no longer be valid if e.g. mutable variables are represented as
             // block parameters. If that becomes the case we'll need to figure out which variable
             // is generally constant and increasing to guess which parameter is the induction
             // variable.
-            if arguments.len() != 1 {
+            // mem2reg_simple can add more parameters to the loop header, but the induction variable
+            // should always be the first one.
+            if arguments.is_empty() {
                 // It is expected that a loop's induction variable is the only block parameter of the loop header.
                 // If there's no variable this might be a `loop`.
                 let call_stack = dfg.get_call_stack(*location);
                 return Err(call_stack);
             }
 
-            let value = arguments[0];
-            if dfg.get_numeric_constant(value).is_some() {
-                Ok(value)
+            // Ensure the first argument (expected to be the induction variable) is a numeric constant.
+            let induction_value = arguments[0];
+            if dfg.get_numeric_constant(induction_value).is_some() {
+                Ok(arguments.clone())
             } else {
                 let call_stack = dfg.get_call_stack(*location);
                 Err(call_stack)
@@ -970,11 +1022,26 @@ struct LoopIteration<'f> {
     insert_block: BasicBlockId,
     source_block: BasicBlockId,
 
-    /// The induction value (and the block it was found in) is the new value for
+    /// The induction values (and the block they were found in) is the new value for
+    /// each block parameter of the loop header. The first of which is notably
     /// the variable traditionally called `i` on each iteration of the loop.
     /// This is None until we visit the block which jumps back to the start of the
     /// loop, at which point we record its value and the block it was found in.
-    induction_value: Option<(BasicBlockId, ValueId)>,
+    induction_values: Option<(BasicBlockId, Vec<ValueId>)>,
+
+    /// `induction_values` from the previous loop iteration. Typically not needed,
+    /// but used when forwarding the induction values to the end of the loop. The
+    /// main induction value `i` will never need to be forwarded like this, so this
+    /// would contain only any extra block parameters used.
+    previous_induction_values: Vec<ValueId>,
+}
+
+enum LoopIterationResult<'f> {
+    /// Continue looping with the given loop state
+    KeepLooping(LoopIteration<'f>),
+
+    /// Stop looping, successfully finishing at the given end block.
+    StopSuccessfully(BasicBlockId),
 }
 
 impl<'f> LoopIteration<'f> {
@@ -983,6 +1050,7 @@ impl<'f> LoopIteration<'f> {
         loop_: &'f Loop,
         insert_block: BasicBlockId,
         source_block: BasicBlockId,
+        previous_induction_values: Vec<ValueId>,
     ) -> Self {
         Self {
             inserter: FunctionInserter::new(function),
@@ -992,7 +1060,8 @@ impl<'f> LoopIteration<'f> {
             blocks: HashMap::default(),
             original_blocks: HashMap::default(),
             visited_blocks: HashSet::default(),
-            induction_value: None,
+            previous_induction_values,
+            induction_values: None,
         }
     }
 
@@ -1002,7 +1071,7 @@ impl<'f> LoopIteration<'f> {
     /// It is expected the terminator instructions are set up to branch into an empty block
     /// for further unrolling. When the loop is finished this will need to be mutated to
     /// jump to the end of the loop instead.
-    fn unroll_loop_iteration(mut self) -> (BasicBlockId, ValueId) {
+    fn unroll_loop_iteration(mut self) -> (BasicBlockId, Vec<ValueId>) {
         // Kick off the unrolling from the initial source block.
         let mut next_blocks = self.unroll_loop_block();
 
@@ -1018,7 +1087,7 @@ impl<'f> LoopIteration<'f> {
         // After having unrolled all blocks in the loop body, we must know how to get back to the header;
         // this is also the block into which we have to unroll into next.
         let (end_block, induction_value) = self
-            .induction_value
+            .induction_values
             .expect("Expected to find the induction variable by end of loop iteration");
 
         (end_block, induction_value)
@@ -1045,9 +1114,9 @@ impl<'f> LoopIteration<'f> {
             TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
                 if self.get_original_block(*destination) == self.loop_.header {
                     // We found the back-edge of the loop.
-                    assert_eq!(arguments.len(), 1, "back-edge should only have 1 argument");
-                    assert!(self.induction_value.is_none(), "there should be only one back-edge");
-                    self.induction_value = Some((self.insert_block, arguments[0]));
+                    assert!(!arguments.is_empty(), "back-edge should have at least 1 argument");
+                    assert!(self.induction_values.is_none(), "there should be only one back-edge");
+                    self.induction_values = Some((self.insert_block, arguments.clone()));
                 }
                 vec![*destination]
             }
@@ -1095,7 +1164,10 @@ impl<'f> LoopIteration<'f> {
 
                 self.source_block = self.get_original_block(destination);
 
-                let arguments = Vec::new();
+                let mut arguments = self.previous_induction_values.clone();
+                // Remove old induction variable argument.
+                arguments.remove(0);
+
                 let jmp = TerminatorInstruction::Jmp { destination, arguments, call_stack };
                 self.inserter.function.dfg.set_block_terminator(self.insert_block, jmp);
                 vec![destination]

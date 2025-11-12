@@ -189,7 +189,7 @@ impl<'local> SsaBuilder<'local> {
 
         // Always normalize if we are going to print at least one of the passes
         if !matches!(self.ssa_logging, SsaLogging::None) {
-            self.ssa.normalize_ids();
+            // self.ssa.normalize_ids();
         }
 
         if print_ssa_pass {
