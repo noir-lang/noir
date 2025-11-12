@@ -1372,7 +1372,7 @@ impl Type {
     }
 
     /// Returns `true` if the type should be handled by `abi_gen::abi_type_from_hir_type`,
-    /// `false` if it would likely cause a panic.
+    /// `false` if it would cause a panic.
     pub(crate) fn is_abi_compatible(&self) -> bool {
         match self {
             Type::FieldElement | Type::Integer(_, _) | Type::Bool | Type::String(_) => true,

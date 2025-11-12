@@ -830,20 +830,24 @@ impl Elaborator<'_> {
         // Must type check the assertion message expression so that we instantiate bindings
         let msg = message.map(|assert_msg_expr| {
             let (msg, typ) = self.elaborate_expression(assert_msg_expr);
-            let location = self.interner.expr_location(&msg);
-            // If the error message contains a format string, those types need to appear in the ABI.
-            if let Type::FmtString(_, item_types) = typ {
-                if let Type::Tuple(item_types) = item_types.as_ref() {
-                    for typ in item_types {
-                        if typ.is_abi_compatible() || matches!(typ, Type::Error) {
-                            continue;
+            // If the error message contains a format string, those types need to appear in the ABI,
+            // except if we are in a meta-programming context, in which case the comptime interpreter
+            // handles a wider variety of types, e.g. quoted types.
+            if !self.in_comptime_context() {
+                let location = self.interner.expr_location(&msg);
+                if let Type::FmtString(_, item_types) = typ {
+                    if let Type::Tuple(item_types) = item_types.as_ref() {
+                        for typ in item_types {
+                            if typ.is_abi_compatible() || matches!(typ, Type::Error) {
+                                continue;
+                            }
+                            let error = TypeCheckError::TypeCannotBeUsed {
+                                typ: typ.clone(),
+                                place: "message",
+                                location,
+                            };
+                            self.push_err(CompilationError::TypeError(error));
                         }
-                        let error = TypeCheckError::TypeCannotBeUsed {
-                            typ: typ.clone(),
-                            place: "message",
-                            location,
-                        };
-                        self.push_err(CompilationError::TypeError(error));
                     }
                 }
             }
