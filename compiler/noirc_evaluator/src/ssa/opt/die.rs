@@ -569,6 +569,7 @@ mod test {
             opt::assert_ssa_does_not_change,
         },
     };
+    use test_case::test_case;
 
     #[test]
     fn dead_instruction_elimination() {
@@ -1102,8 +1103,9 @@ mod test {
           b0(v0: u32):
             v2 = make_array [u32 0, u32 0] : [u32; 2]
             v3 = array_get v2, index v0 -> u32
-            v5 = lt v3, u32 2
-            constrain v5 == u1 1, "Index out of bounds"
+            v4 = cast v3 as u64
+            v6 = lt v4, u64 2
+            constrain v6 == u1 1, "Index out of bounds"
             return
         }
         "#);
@@ -1209,5 +1211,20 @@ mod test {
         }
         "#;
         assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
+    }
+
+    #[test_case("ecdsa_secp256k1")]
+    #[test_case("ecdsa_secp256r1")]
+    fn does_not_remove_unused_ecdsa_verification(ecdsa_func: &str) {
+        let src = format!(
+            r#"
+        acir(inline) fn main f0 {{
+            b0(v0: [u8; 32], v1: [u8; 32], v2: [u8; 64], v3: [u8; 32]):
+            v4 = call {ecdsa_func}(v0, v1, v2, v3, u1 1) -> u1
+            return
+        }}
+        "#
+        );
+        assert_ssa_does_not_change(&src, Ssa::dead_instruction_elimination);
     }
 }

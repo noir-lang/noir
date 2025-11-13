@@ -6,9 +6,9 @@ use crate::NamedGeneric;
 use crate::ast::{
     ArrayLiteral, AssignStatement, BlockExpression, CallExpression, CastExpression, ConstrainKind,
     ConstructorExpression, ExpressionKind, ForLoopStatement, ForRange, GenericTypeArgs, Ident,
-    IfExpression, IndexExpression, InfixExpression, LValue, Lambda, Literal, MatchExpression,
-    MemberAccessExpression, Path, PathSegment, Pattern, PrefixExpression, UnresolvedType,
-    UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression, WhileStatement,
+    IfExpression, IndexExpression, InfixExpression, LValue, Lambda, Literal, LoopStatement,
+    MatchExpression, MemberAccessExpression, Path, PathSegment, Pattern, PrefixExpression,
+    UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression, WhileStatement,
 };
 use crate::ast::{ConstrainExpression, Expression, Statement, StatementKind};
 use crate::hir_def::expr::{
@@ -47,9 +47,10 @@ impl HirStatement {
                 block: for_stmt.block.to_display_ast(interner),
                 location,
             }),
-            HirStatement::Loop(block) => {
-                StatementKind::Loop(block.to_display_ast(interner), location)
-            }
+            HirStatement::Loop(block) => StatementKind::Loop(LoopStatement {
+                body: block.to_display_ast(interner),
+                loop_keyword_location: location,
+            }),
             HirStatement::While(condition, block) => StatementKind::While(WhileStatement {
                 condition: condition.to_display_ast(interner),
                 body: block.to_display_ast(interner),

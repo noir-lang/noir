@@ -23,9 +23,9 @@ pub enum NumericType {
 
 impl NumericType {
     /// Returns the bit size of the provided numeric type.
-    pub(crate) fn bit_size(self: &NumericType) -> u32 {
+    pub(crate) fn bit_size<F: AcirField>(self: &NumericType) -> u32 {
         match self {
-            NumericType::NativeField => FieldElement::max_num_bits(),
+            NumericType::NativeField => F::max_num_bits(),
             NumericType::Unsigned { bit_size } | NumericType::Signed { bit_size } => *bit_size,
         }
     }
@@ -83,6 +83,10 @@ impl NumericType {
 
     pub(crate) fn is_unsigned(&self) -> bool {
         matches!(self, NumericType::Unsigned { .. })
+    }
+
+    pub(crate) fn is_signed(&self) -> bool {
+        matches!(self, NumericType::Signed { .. })
     }
 
     pub(crate) fn max_value(&self) -> Result<FieldElement, String> {
@@ -211,7 +215,7 @@ impl Type {
     /// Panics if `self` is not a [`Type::Numeric`]
     pub(crate) fn bit_size(&self) -> u32 {
         match self {
-            Type::Numeric(numeric_type) => numeric_type.bit_size(),
+            Type::Numeric(numeric_type) => numeric_type.bit_size::<FieldElement>(),
             other => panic!("bit_size: Expected numeric type, found {other}"),
         }
     }

@@ -3,7 +3,7 @@ use acvm::assert_circuit_snapshot;
 use crate::acir::tests::ssa_to_acir_program;
 
 #[test]
-fn slice_push_back() {
+fn slice_push_back_known_length() {
     // This SSA would never be generated as we are writing to a slice without a preceding OOB check.
     // We forego the OOB check here for the succinctness of the test.
     let src = "
@@ -41,6 +41,53 @@ fn slice_push_back() {
     INIT b3 = [w6, w8, w9]
     ASSERT w10 = 20
     WRITE b3[w0] = w10
+    ");
+}
+
+#[test]
+fn slice_push_back_unknown_length() {
+    // Here we use v2 as the length of the slice to show the generated ACIR when the
+    // length is now known at compile time.
+    let src = "
+    acir(inline) predicate_pure fn main f0 {
+      b0(v0: u32, v1: u32, v2: u32):
+        v3 = make_array [Field 2, Field 3] : [Field]
+        // Mutate it at index v0 (to make it non-constant in the circuit)
+        v5 = array_set v3, index v0, value Field 4
+        v8, v9 = call slice_push_back(v2, v5, Field 10) -> (u32, [Field])
+        constrain v8 == v1
+        // Mutate the new slice to make the result block observable
+        v11 = array_set v9, index v0, value Field 20
+        return
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0, w1, w2]
+    public parameters: []
+    return values: []
+    BLACKBOX::RANGE input: w1, bits: 32
+    ASSERT w3 = 2
+    ASSERT w4 = 3
+    INIT b1 = [w3, w4]
+    ASSERT w5 = 4
+    WRITE b1[w0] = w5
+    ASSERT w6 = 0
+    READ w7 = b1[w6]
+    ASSERT w8 = 1
+    READ w9 = b1[w8]
+    INIT b2 = [w7, w9, w6]
+    ASSERT w10 = 10
+    WRITE b2[w2] = w10
+    ASSERT w2 = w1 - 1
+    READ w11 = b2[w6]
+    READ w12 = b2[w8]
+    READ w13 = b2[w3]
+    INIT b3 = [w11, w12, w13]
+    ASSERT w14 = 20
+    WRITE b3[w0] = w14
     ");
 }
 
@@ -121,9 +168,67 @@ fn slice_pop_back() {
     READ w9 = b1[w5]
     ASSERT w1 = 1
     ASSERT w6 = 3
-    INIT b3 = [w8, w9]
+    INIT b3 = [w8]
     ASSERT w10 = 20
     WRITE b3[w0] = w10
+    ");
+}
+
+#[test]
+fn slice_pop_back_zero_length() {
+    let src = "
+    acir(inline) predicate_pure fn main f0 {
+      b0(v0: u32, v1: u1):
+        v7 = make_array [] : [Field]
+        enable_side_effects v1
+        v9, v10, v11 = call slice_pop_back(u32 0, v7) -> (u32, [Field], Field)
+        return
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    // An SSA with constant zero slice length should be removed in the "Remove unreachable instructions" pass,
+    // however if it wasn't, we'd still want to generate a runtime constraint failure.
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0, w1]
+    public parameters: []
+    return values: []
+    BLACKBOX::RANGE input: w0, bits: 32
+    BLACKBOX::RANGE input: w1, bits: 1
+    ASSERT 0 = 1
+    ");
+}
+
+#[test]
+fn slice_pop_back_unknown_length() {
+    let src = "
+    acir(inline) predicate_pure fn main f0 {
+      b0(v0: u32, v1: u1):
+        v5 = cast v1 as u32
+        v6 = unchecked_mul u32 1, v5
+        v7 = make_array [Field 1]: [Field]
+        enable_side_effects v1
+        v9, v10, v11 = call slice_pop_back(v6, v7) -> (u32, [Field], Field)
+        return
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    // In practice the multiplication will come from flattening, resulting in a slice
+    // that can have a semantic length of 0, but only when the side effects are disabled;
+    // popping should not fail in such a scenario.
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0, w1]
+    public parameters: []
+    return values: []
+    BLACKBOX::RANGE input: w0, bits: 32
+    BLACKBOX::RANGE input: w1, bits: 1
+    ASSERT w2 = 1
+    INIT b0 = [w2]
+    ASSERT w3 = w1*w1 - w1
+    READ w4 = b0[w3]
     ");
 }
 
@@ -397,7 +502,7 @@ fn slice_push_front_not_affected_by_predicate() {
 }
 
 #[test]
-fn slice_pop_back_not_affected_by_predicate() {
+fn slice_pop_back_positive_length_not_affected_by_predicate() {
     let src_side_effects = "
     acir(inline) predicate_pure fn main f0 {
       b0(v0: u32, v1: u1):
@@ -423,6 +528,60 @@ fn slice_pop_back_not_affected_by_predicate() {
     let program_side_effects = ssa_to_acir_program(src_side_effects);
     let program_no_side_effects = ssa_to_acir_program(src_no_side_effects);
     assert_eq!(program_side_effects, program_no_side_effects);
+}
+
+#[test]
+fn slice_pop_back_zero_length_not_affected_by_predicate() {
+    let src_side_effects = "
+    acir(inline) predicate_pure fn main f0 {
+      b0(v0: u32, v1: u1):
+        v7 = make_array [] : [Field]
+        enable_side_effects v1
+        v9, v10, v11 = call slice_pop_back(u32 0, v7) -> (u32, [Field], Field)
+        return
+    }
+    ";
+    let src_no_side_effects = "
+    acir(inline) predicate_pure fn main f0 {
+      b0(v0: u32, v1: u1):
+        v7 = make_array [] : [Field]
+        v9, v10, v11 = call slice_pop_back(u32 0, v7) -> (u32, [Field], Field)
+        return
+    }
+    ";
+
+    let program_side_effects = ssa_to_acir_program(src_side_effects);
+    let program_no_side_effects = ssa_to_acir_program(src_no_side_effects);
+    assert_eq!(program_side_effects, program_no_side_effects);
+}
+
+#[test]
+fn slice_pop_back_unknown_length_affected_by_predicate() {
+    let src_side_effects = "
+    acir(inline) predicate_pure fn main f0 {
+      b0(v0: u32, v1: u1):
+        v4 = cast v1 as u32
+        v5 = unchecked_mul u32 1, v4
+        v7 = make_array [Field 1] : [Field]
+        enable_side_effects v1
+        v9, v10, v11 = call slice_pop_back(v5, v7) -> (u32, [Field], Field)
+        return
+    }
+    ";
+    let src_no_side_effects = "
+    acir(inline) predicate_pure fn main f0 {
+      b0(v0: u32, v1: u1):
+        v4 = cast v1 as u32
+        v5 = unchecked_mul u32 1, v4
+        v7 = make_array [Field 1] : [Field]
+        v9, v10, v11 = call slice_pop_back(v5, v7) -> (u32, [Field], Field)
+        return
+    }
+    ";
+
+    let program_side_effects = ssa_to_acir_program(src_side_effects);
+    let program_no_side_effects = ssa_to_acir_program(src_no_side_effects);
+    assert_ne!(program_side_effects, program_no_side_effects);
 }
 
 #[test]

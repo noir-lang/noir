@@ -220,25 +220,27 @@ impl Function {
 
 /// Describe the blocks that constitute up a loop.
 #[derive(Debug)]
-pub(super) struct Loop {
+pub(crate) struct Loop {
     /// The header block of a loop is the block which dominates all the
     /// other blocks in the loop.
-    pub(super) header: BasicBlockId,
+    pub(crate) header: BasicBlockId,
 
     /// The start of the back_edge n -> d is the block n at the end of
     /// the loop that jumps back to the header block d which restarts the loop.
-    back_edge_start: BasicBlockId,
+    pub(crate) back_edge_start: BasicBlockId,
 
     /// All the blocks contained within the loop, including `header` and `back_edge_start`.
-    pub(super) blocks: BTreeSet<BasicBlockId>,
+    pub(crate) blocks: BTreeSet<BasicBlockId>,
 }
 
 /// All the unrolled loops in the SSA.
-pub(super) struct Loops {
+pub(crate) struct Loops {
     /// Loops that haven't been unrolled yet, which is all the loops currently in the CFG.
-    pub(super) yet_to_unroll: Vec<Loop>,
+    pub(crate) yet_to_unroll: Vec<Loop>,
     /// The CFG so we can query the predecessors of blocks when needed.
-    pub(super) cfg: ControlFlowGraph,
+    pub(crate) cfg: ControlFlowGraph,
+    /// The [DominatorTree] used during the discovery of loops.
+    pub(crate) dom: DominatorTree,
 }
 
 impl Loops {
@@ -273,7 +275,7 @@ impl Loops {
     ///
     /// Returns all groups of blocks that look like a loop, even if we might not be able to unroll them,
     /// which we can use to check whether we were able to unroll all blocks.
-    pub(super) fn find_all(function: &Function) -> Self {
+    pub(crate) fn find_all(function: &Function) -> Self {
         let cfg = ControlFlowGraph::with_function(function);
         let post_order = PostOrder::with_function(function);
         let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
@@ -296,7 +298,7 @@ impl Loops {
         // their loop range. We will start popping loops from the back.
         loops.sort_by_key(|loop_| loop_.blocks.len());
 
-        Self { yet_to_unroll: loops, cfg }
+        Self { yet_to_unroll: loops, cfg, dom: dom_tree }
     }
 }
 
@@ -364,7 +366,7 @@ impl Loop {
     /// ```text
     /// brillig(inline) predicate_pure fn main f0 {
     ///   b0():
-    ///     jmp b1(u32 10)               // Pre-header
+    ///     jmp b1(u32 1)                // Pre-header
     ///   b1(v0: u32):                   // Header
     ///     v3 = lt v0, u32 20
     ///     jmpif v3 then: b2, else: b3
@@ -545,7 +547,7 @@ impl Loop {
     ///   v1 = 2
     ///   jmp loop_entry(v0)
     /// loop_entry(i: Field):
-    ///   v2 = lt i v1
+    ///   v2 = lt i, v1
     ///   jmpif v2, then: loop_body, else: loop_end
     /// ```
     ///
@@ -555,7 +557,7 @@ impl Loop {
     /// main():
     ///   v0 = 0
     ///   v1 = 2
-    ///   v2 = lt v0 v1
+    ///   v2 = lt v0, v1
     ///   // jmpif v2, then: loop_body, else: loop_end
     ///   jmp dest: loop_body
     /// ```
@@ -567,9 +569,9 @@ impl Loop {
     /// main():
     ///   v0 = 0
     ///   v1 = 2
-    ///   v2 = lt v0 v1
+    ///   v2 = lt v0, v1
     ///   v3 = ... body ...
-    ///   v4 = add 1, 0
+    ///   v4 = add v0, u32 1
     ///   jmp loop_entry(v4)
     /// ```
     ///
@@ -578,17 +580,17 @@ impl Loop {
     /// main():
     ///   v0 = 0
     ///   v1 = 2
-    ///   v2 = lt 0
+    ///   v2 = lt v0, v1
     ///   v3 = ... body ...
-    ///   v4 = add 1, v0
-    ///   v5 = lt v4 v1
+    ///   v4 = add u32 1, v0
+    ///   v5 = lt v4, v1
     ///   v6 = ... body ...
-    ///   v7 = add v4, 1
-    ///   v8 = lt v5 v1
+    ///   v7 = add v4, u32 1
+    ///   v8 = lt v7, v1
     ///   jmp loop_end
     /// ```
     ///
-    /// When e.g. `v8 = lt v5 v1` cannot be evaluated to a constant, the loop signals by returning `Err`
+    /// When e.g. `v8 = lt v7, v1` cannot be evaluated to a constant, the loop signals by returning `Err`
     /// that a few SSA passes are required to evaluate and simplify these values.
     fn unroll(&self, function: &mut Function, cfg: &ControlFlowGraph) -> Result<(), CallStack> {
         let mut unroll_into = self.get_pre_header(function, cfg)?;
@@ -633,7 +635,7 @@ impl Loop {
 
     /// Unrolls the header block of the loop. This is the block that dominates all other blocks in the
     /// loop and contains the jmpif instruction that lets us know if we should continue looping.
-    /// Returns Some(iteration context) if we should perform another iteration.
+    /// Returns Some((iteration context, loop_header_id)) if we should perform another iteration.
     fn unroll_header<'a>(
         &'a self,
         function: &'a mut Function,
@@ -661,6 +663,8 @@ impl Loop {
 
         // Copy over all instructions and a fresh terminator.
         context.inline_instructions_from_block();
+        context.visited_blocks.insert(context.source_block);
+
         // Mutate the terminator if possible so that it points at the iteration block.
         match context.dfg()[fresh_block].unwrap_terminator() {
             TerminatorInstruction::JmpIf {
@@ -1041,6 +1045,9 @@ struct LoopIteration<'f> {
     original_blocks: HashMap<BasicBlockId, BasicBlockId>,
     visited_blocks: HashSet<BasicBlockId>,
 
+    /// Has `unroll_loop_iteration` reached the `loop_header_id`?
+    encountered_loop_header: bool,
+
     insert_block: BasicBlockId,
     source_block: BasicBlockId,
 
@@ -1084,6 +1091,7 @@ impl<'f> LoopIteration<'f> {
             visited_blocks: HashSet::default(),
             previous_induction_values,
             induction_values: None,
+            encountered_loop_header: false,
         }
     }
 
@@ -1100,6 +1108,7 @@ impl<'f> LoopIteration<'f> {
         while let Some(block) = next_blocks.pop() {
             self.insert_block = block;
             self.source_block = self.get_original_block(block);
+            self.encountered_loop_header |= self.loop_.header == self.source_block;
 
             if !self.blocks.contains_key(&self.source_block) {
                 continue;
@@ -1116,6 +1125,11 @@ impl<'f> LoopIteration<'f> {
         let (end_block, induction_value) = self
             .induction_values
             .expect("Expected to find the induction variable by end of loop iteration");
+
+        assert!(
+            self.encountered_loop_header,
+            "expected to encounter loop header when visiting blocks"
+        );
 
         (end_block, induction_value)
     }
@@ -1946,5 +1960,41 @@ mod tests {
 
         let loop_ = loops.yet_to_unroll.pop().unwrap();
         assert_eq!(loop_.blocks, expected_loop_blocks);
+    }
+
+    #[test]
+    #[should_panic(expected = "ICE: overflow while incrementing constant")]
+    fn unroll_loop_upper_bound_saturated() {
+        let ssa = format!(
+            r#"
+        acir(inline) fn main f0 {{
+          b0():
+            jmp b1(u128 {0})
+          b1(v0: u128):
+            v3 = eq v0, u128 {0}
+            jmpif v3 then: b3, else: b2
+          b2():
+            v2 = make_array b""
+            call print(u1 1, v0, v2, u1 0)
+            v6 = unchecked_add v0, u128 1
+            jmp b1(v6)
+          b3():
+            return
+    }}"#,
+            u128::MAX
+        );
+
+        let ssa = Ssa::from_str(&ssa).unwrap();
+        let function = ssa.main();
+
+        let loops = Loops::find_all(function);
+        assert_eq!(loops.yet_to_unroll.len(), 1);
+
+        let loop_ = &loops.yet_to_unroll[0];
+        let pre_header =
+            loop_.get_pre_header(function, &loops.cfg).expect("Should have a pre_header");
+        let (lower, upper) =
+            loop_.get_const_bounds(&function.dfg, pre_header).expect("bounds are numeric const");
+        assert_ne!(lower, upper);
     }
 }

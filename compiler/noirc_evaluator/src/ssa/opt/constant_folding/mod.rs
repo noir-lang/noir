@@ -49,6 +49,11 @@ use simplification_cache::{ConstraintSimplificationCache, SimplificationCache};
 
 pub const DEFAULT_MAX_ITER: usize = 5;
 
+/// Maximum number of SSA instructions to execute during inlining a constant Brillig call.
+///
+/// The number is based on some experimentation to limit a tight loop to ~100ms.
+const DEFAULT_INTERPRETER_STEP_LIMIT: usize = 10_000_000;
+
 impl Ssa {
     /// Performs constant folding on each instruction.
     ///
@@ -94,7 +99,11 @@ impl Ssa {
         } else {
             let mut interpreter = Interpreter::new_from_functions(
                 &brillig_functions,
-                InterpreterOptions { no_foreign_calls: true, ..Default::default() },
+                InterpreterOptions {
+                    no_foreign_calls: true,
+                    step_limit: Some(DEFAULT_INTERPRETER_STEP_LIMIT),
+                    ..Default::default()
+                },
                 std::io::empty(),
             );
             // Interpret globals once so that we do not have to repeat this computation on every Brillig call.
@@ -334,7 +343,7 @@ impl Context {
                 })
         };
         // If the target_block is distinct than the original block
-        // that means that the current instruction is not added in the orignal block
+        // that means that the current instruction is not added in the original block
         // so it is deduplicated by the one in the target block.
         // In case it refers to an array that is mutated, we need to increment
         // its reference count.
@@ -928,29 +937,28 @@ mod test {
         let instructions = main.dfg[main.entry_block()].instructions();
         assert_eq!(instructions.len(), 15);
 
+        let ssa = ssa.fold_constants_using_constraints(MIN_ITER);
+
         // The `array_get` instruction after `enable_side_effects v1` is deduplicated
         // with the one under `enable_side_effects v0` because it doesn't require a predicate,
         // but the `array_set` is not, because it does require a predicate, and the subsequent
         // `array_get` uses a different input, so it's not a duplicate of anything.
-        let expected = "
-            acir(inline) fn main f0 {
-              b0(v0: u1, v1: u1, v2: [Field; 2]):
-                enable_side_effects v0
-                v4 = array_get v2, index u32 0 -> u32
-                v7 = array_set v2, index u32 1, value u32 2
-                v8 = array_get v7, index u32 0 -> u32
-                constrain v4 == v8
-                enable_side_effects v1
-                v9 = array_set v2, index u32 1, value u32 2
-                v10 = array_get v9, index u32 0 -> u32
-                constrain v4 == v10
-                enable_side_effects v0
-                return
-            }
-            ";
-
-        let ssa = ssa.fold_constants_using_constraints(MIN_ITER);
-        assert_normalized_ssa_equals(ssa, expected);
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1, v2: [Field; 2]):
+            enable_side_effects v0
+            v4 = array_get v2, index u32 0 -> u32
+            v7 = array_set v2, index u32 1, value u32 2
+            v8 = array_get v2, index u32 0 -> u32
+            constrain v4 == v8
+            enable_side_effects v1
+            v9 = array_set v2, index u32 1, value u32 2
+            v10 = array_get v2, index u32 0 -> u32
+            constrain v4 == v10
+            enable_side_effects v0
+            return
+        }
+        ");
     }
 
     #[test]
@@ -2374,6 +2382,8 @@ mod test {
     fn do_not_deduplicate_call_with_inc_rc() {
         // This test ensures that a function which mutates an array pointer is marked impure.
         // This protects against future deduplication passes incorrectly assuming purity.
+        // The increasing RC numbers reflect the current expectation that the RC of the
+        // original array does not get decremented when a copy is made.
         let src = r#"
         brillig(inline) fn main f0 {
           b0(v0: u32):

@@ -33,10 +33,6 @@ impl LocalModuleId {
         LocalModuleId(index)
     }
 
-    pub fn dummy_id() -> LocalModuleId {
-        LocalModuleId(Index::dummy())
-    }
-
     /// Gets the index that underlies this local module ID.
     pub fn as_index(self) -> Index {
         self.0
@@ -50,10 +46,6 @@ pub struct ModuleId {
 }
 
 impl ModuleId {
-    pub fn dummy_id() -> ModuleId {
-        ModuleId { krate: CrateId::dummy_id(), local_id: LocalModuleId::dummy_id() }
-    }
-
     pub fn module(self, def_maps: &DefMaps) -> &ModuleData {
         &def_maps[&self.krate].modules()[self.local_id.0]
     }

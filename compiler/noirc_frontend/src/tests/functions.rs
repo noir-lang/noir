@@ -198,3 +198,18 @@ fn cannot_return_slice_from_main() {
         "#;
     check_errors(src);
 }
+
+#[test]
+fn builtin_function_with_body() {
+    let src = r#"
+    #[builtin(foo)]
+    ^^^^^^^^^^^^^^^ Definition of low-level function outside of standard library
+    ~~~~~~~~~~~~~~~ Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library
+    pub fn foo() {
+           ^^^ Builtin and low-level function declarations cannot have a body
+           ~~~ This function body should be removed
+        let x = 1;
+    }
+    "#;
+    check_errors(src);
+}

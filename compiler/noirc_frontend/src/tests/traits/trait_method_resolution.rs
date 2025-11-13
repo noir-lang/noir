@@ -580,3 +580,118 @@ fn suggests_importing_trait_via_module_reexport() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn inherent_impl_shadows_trait_impl_for_qualified_calls() {
+    // Inherent impls take precedence over trait impls for qualified method calls.
+    let src = r#"
+    struct Foo {
+        value: Field,
+    }
+
+    trait Trait {
+        fn method(self) -> Field;
+    }
+
+    impl Trait for Foo {
+        fn method(self) -> Field {
+            100 + self.value
+        }
+    }
+
+    impl Foo {
+        fn method(self) -> Field {
+            200 + self.value
+        }
+    }
+
+    fn main() {
+        let foo = Foo { value: 42 };
+
+        // Qualified call should resolve to inherent impl (200, not 100)
+        assert(Foo::method(foo) == 242);
+
+        // Instance call should also resolve to inherent impl
+        let foo2 = Foo { value: 42 };
+        assert(foo2.method() == 242);
+
+        // Trait impl via trait syntax
+        // Even when an inherent impl shadows a trait impl for qualified calls,
+        // you can still access the trait method using trait syntax.
+        assert(Trait::method(foo2) == 142);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn ambiguous_trait_method_multiple_bounds_with_self() {
+    let src = r#"
+    pub trait One {
+        fn method(_self: Self) {}
+    }
+
+    pub trait Two {
+        fn method(_self: Self) {}
+    }
+
+    pub struct Foo {}
+    impl One for Foo {}
+    impl Two for Foo {}
+
+    fn foo<T: One + Two>(x: T) {
+        x.method();
+        ^^^^^^^^^^ Multiple applicable items in scope
+        ~~~~~~~~~~ All these trait which provide `method` are implemented and in scope: `One`, `Two`
+    }
+
+    fn main() {
+        foo(Foo {});
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn ambiguous_trait_method_in_parent_child_relationship_with_self() {
+    let src = r#"
+    trait Parent {
+        fn foo(_self: Self);
+    }
+
+    trait Child: Parent {
+        fn foo(_self: Self);
+    }
+
+    pub fn foo<T: Child>(x: T) {
+        x.foo();
+        ^^^^^^^ Multiple applicable items in scope
+        ~~~~~~~ All these trait which provide `foo` are implemented and in scope: `Child`, `Parent`
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn ambiguous_trait_method_in_parent_child_relationship_without_self() {
+    let src = r#"
+    trait Parent {
+        fn foo();
+    }
+
+    trait Child: Parent {
+        fn foo();
+    }
+
+    pub fn foo<T: Child>() {
+        T::foo();
+        ^^^^^^ Multiple applicable items in scope
+        ~~~~~~ All these trait which provide `foo` are implemented and in scope: `Child`, `Parent`
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}

@@ -131,7 +131,6 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         SsaPass::new(Ssa::expand_signed_checks, "expand signed checks"),
         SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
         SsaPass::new(Ssa::defunctionalize, "Defunctionalization"),
-        //SsaPass::new(Ssa::mem2reg_simple, "Mem2Reg Simple"),
         SsaPass::new_try(Ssa::inline_simple_functions, "Inlining simple functions")
             .and_then(Ssa::remove_unreachable_functions),
         // BUG: Enabling this mem2reg causes test failures in aztec-nr; specifically `state_vars::private_mutable::test::initialize_and_get_pending`
@@ -158,6 +157,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         ),
         // Run mem2reg with the CFG separated into blocks
         SsaPass::new(Ssa::mem2reg_simple, "Mem2Reg"),
+        SsaPass::new(Ssa::mem2reg, "Mem2Reg Complex"),
         // Running DIE here might remove some unused instructions mem2reg could not eliminate.
         SsaPass::new(
             Ssa::dead_instruction_elimination_pre_flattening,
@@ -402,7 +402,7 @@ pub fn create_program_with_minimal_passes(
     for func in &program.functions {
         assert!(
             func.unconstrained,
-            "The minimum SSA pipeline only works with Brillig: '{}' needs to be unconstrained",
+            "The minimal SSA pipeline only works with Brillig: '{}' needs to be unconstrained",
             func.name
         );
     }
