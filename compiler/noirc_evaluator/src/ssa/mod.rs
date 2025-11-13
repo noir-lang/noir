@@ -156,6 +156,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             "Inlining",
         ),
         // Run mem2reg with the CFG separated into blocks
+        SsaPass::new(Ssa::mem2reg_simple, "Mem2Reg Simple"),
         SsaPass::new(Ssa::mem2reg, "Mem2Reg Complex"),
         // Running DIE here might remove some unused instructions mem2reg could not eliminate.
         SsaPass::new(
