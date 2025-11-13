@@ -312,6 +312,9 @@ impl Loop {
         // Insert the header so we don't go past it when traversing backwards from the back-edge.
         blocks.insert(header);
 
+        // Assume the loop end is always the `else` branch of the header, if there is one.
+        let loop_end = cfg.successors(header).nth(1);
+
         let mut insert = |block, stack: &mut Vec<BasicBlockId>| {
             if !blocks.contains(&block) {
                 blocks.insert(block);
@@ -326,6 +329,25 @@ impl Loop {
         while let Some(block) = stack.pop() {
             for predecessor in cfg.predecessors(block) {
                 insert(predecessor, &mut stack);
+            }
+
+            // There can be cases when `break` is used such as:
+            // for _ in 0 .. 5 {
+            //     if foo { break; }
+            // }
+            // where the break will jump after the loop end due to an extra block
+            // being inserted in the `process_cfg_for_mem2reg_simple` pass. In this
+            // case, we still need the block containing the break to be part of the
+            // loop even though it is not a predecessor of the loop end. So we check
+            // successors too for this special case of a block that jumps one after the
+            // loop end.
+            for potential_break_block in cfg.successors(block) {
+                for potential_past_loop_end_block in cfg.successors(potential_break_block) {
+                    let mut predecessors = cfg.predecessors(potential_past_loop_end_block);
+                    if predecessors.any(|predecessor| Some(predecessor) == loop_end) {
+                        insert(potential_break_block, &mut stack);
+                    }
+                }
             }
         }
 
@@ -1079,11 +1101,16 @@ impl<'f> LoopIteration<'f> {
             self.insert_block = block;
             self.source_block = self.get_original_block(block);
 
+            if !self.blocks.contains_key(&self.source_block) {
+                continue;
+            }
+
             if !self.visited_blocks.contains(&self.source_block) {
                 let mut blocks = self.unroll_loop_block();
                 next_blocks.append(&mut blocks);
             }
         }
+
         // After having unrolled all blocks in the loop body, we must know how to get back to the header;
         // this is also the block into which we have to unroll into next.
         let (end_block, induction_value) = self
@@ -1129,15 +1156,6 @@ impl<'f> LoopIteration<'f> {
                 unreachable!("unexpected unreachable terminator in loop body");
             }
         };
-
-        // Guarantee that the next blocks we set up to be unrolled, are actually part of the loop,
-        // which we recorded while inlining the instructions of the blocks already processed.
-        // Since we only call `unroll_loop_block` from `unroll_loop_iteration`, which we only call
-        // if the single destination in `unroll_header` is *not* outside the loop, this should hold.
-        next_blocks.iter().for_each(|block| {
-            let b = self.get_original_block(*block);
-            assert!(self.loop_.blocks.contains(&b), "destination not in original loop");
-        });
 
         next_blocks
     }
@@ -1255,10 +1273,13 @@ fn is_new_size_ok(orig_size: usize, new_size: usize, max_incr_pct: i32) -> bool 
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeSet;
+
     use test_case::test_case;
 
     use crate::assert_ssa_snapshot;
     use crate::errors::RuntimeError;
+    use crate::ssa::ir::basic_block::BasicBlockId;
     use crate::ssa::ir::integer::IntegerConstant;
     use crate::ssa::{Ssa, ir::value::ValueId, opt::assert_normalized_ssa_equals};
 
@@ -1878,5 +1899,52 @@ mod tests {
         let pre_header = loop0.get_pre_header(function, &loops.cfg).unwrap();
         assert!(loop0.get_const_lower_bound(&function.dfg, pre_header).is_none());
         assert!(loop0.get_const_upper_bound(&function.dfg, pre_header).is_none());
+    }
+
+    /// The `process_cfg_for_mem2reg_simple` pass may insert additional blocks which
+    /// can make identifying which blocks are part of a loop more tricky. In this case,
+    /// it is possible `b4` below isn't identified as part of the loop because it isn't
+    /// a predecessor of the loop end since it jumps one block past the loop end due to
+    /// `process_cfg_for_mem2reg_simple`. We want to assert that b4 is indeed part of the loop.
+    /// If it is not, it's parameter `v3` will not get remapped despite being removed from the
+    /// program.
+    #[test]
+    fn break_past_end_of_loop_is_part_of_loop() {
+        let src = "
+            brillig(inline) predicate_pure fn main f0 {
+              b0(v0: Field):
+                v18 = eq v0, Field 5
+                jmp b1(u32 0, u32 0)
+              b1(v3: u32, v10: u32):
+                v4 = eq v3, u32 0
+                jmpif v4 then: b2, else: b6
+              b2():
+                jmpif v18 then: b4, else: b5
+              b3(v15: u32):
+                constrain v15 == u32 0
+                return
+              b4():
+                jmp b3(v3)
+              b5():
+                v9 = unchecked_add v3, u32 1
+                jmp b1(v9, v10)
+              b6():
+                jmp b3(v10)
+            }
+        ";
+
+        let mut expected_loop_blocks = BTreeSet::new();
+        expected_loop_blocks.insert(BasicBlockId::test_new(1));
+        expected_loop_blocks.insert(BasicBlockId::test_new(2));
+        expected_loop_blocks.insert(BasicBlockId::test_new(4));
+        expected_loop_blocks.insert(BasicBlockId::test_new(5));
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let function = ssa.main();
+        let mut loops = Loops::find_all(function);
+        assert_eq!(loops.yet_to_unroll.len(), 1);
+
+        let loop_ = loops.yet_to_unroll.pop().unwrap();
+        assert_eq!(loop_.blocks, expected_loop_blocks);
     }
 }
