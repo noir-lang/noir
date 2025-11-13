@@ -931,7 +931,7 @@ impl<'f> Validator<'f> {
         if !self.function.runtime().is_acir() {
             return;
         }
-        let Instruction::Call { func, .. } = &self.function.dfg[instruction] else {
+        let Instruction::Call { func, arguments } = &self.function.dfg[instruction] else {
             return;
         };
         let Value::Function(func_id) = &self.function.dfg[*func] else {
@@ -941,12 +941,12 @@ impl<'f> Validator<'f> {
         if called_function.runtime().is_acir() {
             return;
         }
-        for param_id in called_function.parameters() {
-            let typ = self.function.dfg.type_of_value(*param_id);
+        for arg_id in arguments {
+            let typ = self.function.dfg.type_of_value(*arg_id);
             if typ.contains_reference() {
                 // If we don't panic here, we would have a different, more obscure panic later on.
                 panic!(
-                    "Trying to pass a reference in parameter {param_id}: {typ}, from ACIR fn {} {} to unconstrained fn {} {}",
+                    "Trying to pass a reference from ACIR 'fn {} {}' to 'unconstrained fn {} {}' in argument {arg_id}: {typ}",
                     self.function.name(),
                     self.function.id(),
                     called_function.name(),
