@@ -654,6 +654,8 @@ impl DocItemBuilder<'_> {
                 continue;
             }
 
+            // Instead of a regex we could parse Markdown and find actual links,
+            // but this is simpler and good enough for now.
             let words = self
                 .reference_regex
                 .captures_iter(line)
