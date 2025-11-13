@@ -378,7 +378,7 @@ impl HTMLCreator {
 
                     let markdown = markdown::to_html(&summary);
                     let markdown = markdown.trim_start_matches("<p>");
-                    let summary = markdown.trim_end_matches("</p>").trim();
+                    let summary = markdown.trim().trim_end_matches("</p>").trim();
 
                     self.output.push_str(summary);
                 }
