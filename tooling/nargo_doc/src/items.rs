@@ -78,6 +78,7 @@ pub struct Module {
     pub name: String,
     pub items: Vec<(ItemVisibility, Item)>,
     pub comments: Option<String>,
+    pub is_contract: bool,
 }
 
 impl Module {
@@ -340,6 +341,7 @@ pub struct PrimitiveType {
     pub kind: PrimitiveTypeKind,
     pub impls: Vec<Impl>,
     pub trait_impls: Vec<TraitImpl>,
+    pub comments: Option<String>,
 }
 
 impl HasNameAndComments for PrimitiveType {
@@ -348,7 +350,7 @@ impl HasNameAndComments for PrimitiveType {
     }
 
     fn comments(&self) -> Option<&str> {
-        None
+        self.comments.as_deref()
     }
 }
 

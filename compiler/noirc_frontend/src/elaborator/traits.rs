@@ -199,7 +199,7 @@ impl Elaborator<'_> {
     /// 4. Resolves the trait's bounds (its listed super traits).
     pub fn collect_traits(&mut self, traits: &mut BTreeMap<TraitId, UnresolvedTrait>) {
         for (trait_id, unresolved_trait) in traits {
-            self.local_module = unresolved_trait.module_id;
+            self.local_module = Some(unresolved_trait.module_id);
 
             self.recover_generics(|this| {
                 this.current_trait = Some(*trait_id);
@@ -277,7 +277,7 @@ impl Elaborator<'_> {
     /// method bodies are not elaborated.
     pub fn collect_trait_methods(&mut self, traits: &mut BTreeMap<TraitId, UnresolvedTrait>) {
         for (trait_id, unresolved_trait) in traits {
-            self.local_module = unresolved_trait.module_id;
+            self.local_module = Some(unresolved_trait.module_id);
 
             self.recover_generics(|this| {
                 this.current_trait = Some(*trait_id);
@@ -351,7 +351,7 @@ impl Elaborator<'_> {
             return Vec::new();
         };
 
-        let the_trait = self.get_trait_mut(trait_id);
+        let the_trait = self.get_trait(trait_id);
 
         if the_trait.associated_types.len() > bound.trait_generics.named_args.len() {
             let trait_name = the_trait.name.to_string();
@@ -609,7 +609,7 @@ impl Elaborator<'_> {
         trait_id: TraitId,
         unresolved_trait: &UnresolvedTrait,
     ) -> Vec<TraitFunction> {
-        self.local_module = unresolved_trait.module_id;
+        self.local_module = Some(unresolved_trait.module_id);
 
         let mut functions = vec![];
 
