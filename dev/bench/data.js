@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1763041053621,
+  "lastUpdate": 1763061027826,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23066,48 +23066,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "805880531173b97319c54eca71f7c32dbad4ca50",
-          "message": "chore: use `map_data_bus_in_place` in mem2reg (#10407)",
-          "timestamp": "2025-11-06T18:11:54Z",
-          "tree_id": "a45d76dbdc7a44621d90115e6e2e4e8fb4962880",
-          "url": "https://github.com/noir-lang/noir/commit/805880531173b97319c54eca71f7c32dbad4ca50"
-        },
-        "date": 1762454012532,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 263920,
-            "range": "± 1633",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 235511,
-            "range": "± 9108",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2800196,
-            "range": "± 6164",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25159,6 +25117,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2782726,
             "range": "± 1318",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ff431be8bf2f50ab02b63d01ac0b8c25af428c08",
+          "message": "chore(frontend): Correct type for struct field on type mismatch and extra negative case unit tests  (#10493)",
+          "timestamp": "2025-11-13T18:47:32Z",
+          "tree_id": "8645daf91e76bb2329149259b7b5bd8a377003ec",
+          "url": "https://github.com/noir-lang/noir/commit/ff431be8bf2f50ab02b63d01ac0b8c25af428c08"
+        },
+        "date": 1763061001379,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 260082,
+            "range": "± 1221",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 231629,
+            "range": "± 4448",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2782518,
+            "range": "± 2327",
             "unit": "ns/iter"
           }
         ]
