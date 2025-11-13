@@ -1411,17 +1411,8 @@ impl Type {
             | Type::Slice(_)
             | Type::Function(_, _, _, _)
             | Type::FmtString(_, _)
+            | Type::Quoted(_)
             | Type::Reference(..) => false,
-
-            // If quoted types got as far as ABI generation, they would cause a panic,
-            // but it's more likely that we encounter them during macro expansion,
-            // seemingly both in and out of a comptime context under the `#[aztec]` macro.
-            // We'd need more investigation around them, so for now just let it pass.
-            Type::Quoted(quoted) => {
-                // These are the two types that appear in noir-contracts.
-                // A static string becomes CtString, a format string is Quoted.
-                !is_monomorphized && matches!(quoted, QuotedType::CtString | QuotedType::Quoted)
-            }
 
             // A generic would cause a panic in ABI generation, but if we don't allow it
             // here then we reject all functions which are generic over the message type.
