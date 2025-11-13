@@ -2,7 +2,7 @@ pub(super) mod brillig_black_box;
 pub(super) mod brillig_slice_ops;
 pub(super) mod code_gen_call;
 
-use acvm::acir::brillig::MemoryAddress;
+use acvm::brillig_vm::offsets;
 use iter_extended::vecmap;
 
 use crate::brillig::BrilligBlock;
@@ -27,62 +27,87 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
     /// external host functions return values back into the program.
     ///
     /// Numeric types and fixed-sized array results are directly allocated.
-    /// As vector's are determined at runtime they are allocated differently.
+    ///
+    /// As vectors are determined at runtime they are allocated differently:
     /// - Allocates memory for a [BrilligVariable::BrilligVector], which holds a pointer and dynamic size.
     /// - Initializes the pointer using the free memory pointer.
     /// - The actual size will be updated after the foreign function call returns.
     ///
     /// # Returns
     /// A [BrilligVariable] representing the allocated memory structure to store the foreign call's result.
-    fn allocate_external_call_result(
+    ///
+    /// # Panics
+    /// If there is a vector among the output variables _and_ it's followed by another array or vector:
+    /// when we allocate memory for a vector, we don't know its length, so it just points at the current
+    /// free memory pointer without increasing it; anything else that needs the free memory pointer would
+    /// risk pointing at the same memory region.
+    fn allocate_external_call_results(
         &mut self,
-        result: ValueId,
+        results: &[ValueId],
         dfg: &DataFlowGraph,
-    ) -> BrilligVariable {
-        let typ = dfg[result].get_type();
-        match typ.as_ref() {
-            Type::Numeric(_) => self.variables.define_variable(
-                self.function_context,
-                self.brillig_context,
-                result,
-                dfg,
-            ),
+    ) -> Vec<BrilligVariable> {
+        let mut variables = Vec::new();
+        let mut vector_allocated = false;
 
-            Type::Array(..) => {
-                let variable = self.variables.define_variable(
+        for result in results {
+            let result = *result;
+            let typ = dfg[result].get_type();
+            let variable = match typ.as_ref() {
+                Type::Numeric(_) => self.variables.define_variable(
                     self.function_context,
                     self.brillig_context,
                     result,
                     dfg,
-                );
-                let array = variable.extract_array();
-                self.allocate_foreign_call_result_array(typ.as_ref(), array);
+                ),
 
-                variable
-            }
-            Type::Slice(_) => {
-                let variable = self.variables.define_variable(
-                    self.function_context,
-                    self.brillig_context,
-                    result,
-                    dfg,
-                );
-                let vector = variable.extract_vector();
+                Type::Array(..) => {
+                    let variable = self.variables.define_variable(
+                        self.function_context,
+                        self.brillig_context,
+                        result,
+                        dfg,
+                    );
+                    let array = variable.extract_array();
 
-                // Set the pointer to the current stack frame
-                // The stack pointer will then be updated by the caller of this method
-                // once the external call is resolved and the array size is known
-                self.brillig_context.load_free_memory_pointer_instruction(vector.pointer);
+                    assert!(
+                        !vector_allocated,
+                        "a vector of unknown length has already been allocated at the free memory pointer"
+                    );
+                    self.allocate_foreign_call_result_array(typ.as_ref(), array);
 
-                variable
-            }
-            _ => {
-                unreachable!("ICE: unsupported return type for black box call {typ:?}")
-            }
+                    variable
+                }
+                Type::Slice(_) => {
+                    let variable = self.variables.define_variable(
+                        self.function_context,
+                        self.brillig_context,
+                        result,
+                        dfg,
+                    );
+                    let vector = variable.extract_vector();
+
+                    // Set the pointer to the current free memory pointer.
+                    // The free memory pointer will then be updated by the caller of this method,
+                    // once the external call is resolved and the vector size is known.
+                    assert!(
+                        !vector_allocated,
+                        "a previous vector has already been allocated at the free memory pointer"
+                    );
+                    vector_allocated = true;
+                    self.brillig_context.load_free_memory_pointer_instruction(vector.pointer);
+
+                    variable
+                }
+                _ => {
+                    unreachable!("ICE: unsupported return type for black box call {typ:?}")
+                }
+            };
+            variables.push(variable);
         }
+        variables
     }
 
-    /// Recursively allocates memory for a nested array returned from a foreign function call.
+    /// Recursively allocates memory on the heap for a nested array returned from a foreign function call.
     ///
     /// # Panics
     /// - If the provided `typ` is not an array.
@@ -93,31 +118,38 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
             unreachable!("ICE: allocate_foreign_call_array() expects an array, got {typ:?}")
         };
 
+        // Reserve free memory on the heap and set the initial ref-count.
         self.brillig_context.codegen_initialize_array(array);
 
-        let mut index = 0_usize;
+        // Go through each slot in the array: if it's a simple type then we don't need to do anything,
+        // but if it's a nested one we have to recursively allocate memory for it, and store the variable in the array.
+        // We add one since array.pointer points to [RC, ...items]
+        let mut index = offsets::ARRAY_ITEMS;
         for _ in 0..*size {
             for element_type in types.iter() {
                 match element_type {
                     Type::Array(_, nested_size) => {
-                        let inner_array = BrilligArray {
-                            pointer: self.brillig_context.allocate_register(),
-                            size: *nested_size as usize,
-                        };
-                        self.allocate_foreign_call_result_array(element_type, inner_array);
+                        // Allocate a pointer for an array on the stack.
+                        let inner_array =
+                            self.brillig_context.allocate_brillig_array(*nested_size as usize);
 
-                        // We add one since array.pointer points to [RC, ...items]
-                        let idx = self
-                            .brillig_context
-                            .make_usize_constant_instruction((index + 1).into());
+                        // Recursively allocate memory for the inner array on the heap.
+                        // This sets the pointer on the stack to point at the heap.
+                        self.allocate_foreign_call_result_array(element_type, *inner_array);
+
+                        // Set the index in the outer array to be the total offset accounting for complex types.
+                        let idx =
+                            self.brillig_context.make_usize_constant_instruction(index.into());
+
+                        // Copy the inner array pointer, which points at the heap, into the outer array cell.
+                        // After this, it is okay for the `inner_array` to be deallocated from the stack,
+                        // and for its address to be reused, ie. we don't need to `.detach()` it.
+                        // What matters is that we stored the pointer to the heap.
                         self.brillig_context.codegen_store_with_offset(
                             array.pointer,
-                            idx,
+                            *idx,
                             inner_array.pointer,
                         );
-
-                        self.brillig_context.deallocate_single_addr(idx);
-                        self.brillig_context.deallocate_register(inner_array.pointer);
                     }
                     Type::Slice(_) => unreachable!(
                         "ICE: unsupported slice type in allocate_nested_array(), expects an array or a numeric type"
@@ -150,41 +182,6 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         self.brillig_context.codegen_call(func_id, &argument_variables, &return_variables);
     }
 
-    /// Gets the "user-facing" length of an array.
-    /// An array of structs with two fields would be stored as an 2 * array.len() array/vector.
-    /// So we divide the length by the number of subitems in an item to get the user-facing length.
-    fn convert_ssa_array_len(
-        &mut self,
-        array_id: ValueId,
-        result_register: MemoryAddress,
-        dfg: &DataFlowGraph,
-    ) {
-        let array_variable = self.convert_ssa_value(array_id, dfg);
-        let element_size = dfg.type_of_value(array_id).element_size();
-
-        match array_variable {
-            BrilligVariable::BrilligArray(BrilligArray { size, .. }) => {
-                self.brillig_context
-                    .usize_const_instruction(result_register, (size / element_size).into());
-            }
-            BrilligVariable::BrilligVector(vector) => {
-                let size = self.brillig_context.codegen_make_vector_length(vector);
-
-                self.brillig_context.codegen_usize_op(
-                    size.address,
-                    result_register,
-                    BrilligBinaryOp::UnsignedDiv,
-                    element_size,
-                );
-
-                self.brillig_context.deallocate_single_addr(size);
-            }
-            _ => {
-                unreachable!("ICE: Cannot get length of {array_variable:?}")
-            }
-        }
-    }
-
     /// Increase or decrease the slice length by 1.
     ///
     /// Slices have a tuple structure (slice length, slice contents) to enable logic
@@ -206,6 +203,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         source_len: SingleAddrVariable,
         binary_op: BrilligBinaryOp,
     ) {
+        debug_assert!(matches!(binary_op, BrilligBinaryOp::Add | BrilligBinaryOp::Sub));
         self.brillig_context.codegen_usize_op(source_len.address, target_len.address, binary_op, 1);
     }
 
@@ -250,27 +248,25 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         let source_vector = self.convert_ssa_value(slice_id, dfg).extract_vector();
 
         let results = dfg.instruction_results(instruction_id);
+
+        let get_target_len = |this: &mut Self, idx: usize| {
+            this.variables
+                .define_variable(this.function_context, this.brillig_context, results[idx], dfg)
+                .extract_single_addr()
+        };
+
+        let get_target_vector = |this: &mut Self, idx: usize| {
+            this.variables
+                .define_variable(this.function_context, this.brillig_context, results[idx], dfg)
+                .extract_vector()
+        };
+
         match intrinsic {
             Value::Intrinsic(Intrinsic::SlicePushBack) => {
-                // target_len, target_slice = slice_push_back source_len, source_slice
-                let target_len = match self.variables.define_variable(
-                    self.function_context,
-                    self.brillig_context,
-                    results[0],
-                    dfg,
-                ) {
-                    BrilligVariable::SingleAddr(register_index) => register_index,
-                    _ => unreachable!("ICE: first value of a slice must be a register index"),
-                };
+                // target_len, target_slice = slice_push_back source_len, source_slice, ...elements
+                let target_len = get_target_len(self, 0);
+                let target_vector = get_target_vector(self, 1);
 
-                let target_variable = self.variables.define_variable(
-                    self.function_context,
-                    self.brillig_context,
-                    results[1],
-                    dfg,
-                );
-
-                let target_vector = target_variable.extract_vector();
                 let item_values = vecmap(&arguments[2..element_size + 2], |arg| {
                     self.convert_ssa_value(*arg, dfg)
                 });
@@ -286,23 +282,9 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                 );
             }
             Value::Intrinsic(Intrinsic::SlicePushFront) => {
-                let target_len = match self.variables.define_variable(
-                    self.function_context,
-                    self.brillig_context,
-                    results[0],
-                    dfg,
-                ) {
-                    BrilligVariable::SingleAddr(register_index) => register_index,
-                    _ => unreachable!("ICE: first value of a slice must be a register index"),
-                };
+                let target_len = get_target_len(self, 0);
+                let target_vector = get_target_vector(self, 1);
 
-                let target_variable = self.variables.define_variable(
-                    self.function_context,
-                    self.brillig_context,
-                    results[1],
-                    dfg,
-                );
-                let target_vector = target_variable.extract_vector();
                 let item_values = vecmap(&arguments[2..element_size + 2], |arg| {
                     self.convert_ssa_value(*arg, dfg)
                 });
@@ -317,24 +299,8 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                 );
             }
             Value::Intrinsic(Intrinsic::SlicePopBack) => {
-                let target_len = match self.variables.define_variable(
-                    self.function_context,
-                    self.brillig_context,
-                    results[0],
-                    dfg,
-                ) {
-                    BrilligVariable::SingleAddr(register_index) => register_index,
-                    _ => unreachable!("ICE: first value of a slice must be a register index"),
-                };
-
-                let target_variable = self.variables.define_variable(
-                    self.function_context,
-                    self.brillig_context,
-                    results[1],
-                    dfg,
-                );
-
-                let target_vector = target_variable.extract_vector();
+                let target_len = get_target_len(self, 0);
+                let target_vector = get_target_vector(self, 1);
 
                 let pop_variables = vecmap(&results[2..element_size + 2], |result| {
                     self.variables.define_variable(
@@ -355,15 +321,9 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                 );
             }
             Value::Intrinsic(Intrinsic::SlicePopFront) => {
-                let target_len = match self.variables.define_variable(
-                    self.function_context,
-                    self.brillig_context,
-                    results[element_size],
-                    dfg,
-                ) {
-                    BrilligVariable::SingleAddr(register_index) => register_index,
-                    _ => unreachable!("ICE: first value of a slice must be a register index"),
-                };
+                // ...elements, target_len, target_vector = slice_pop_front len, vector
+                let target_len = get_target_len(self, element_size);
+                let target_vector = get_target_vector(self, element_size + 1);
 
                 let pop_variables = vecmap(&results[0..element_size], |result| {
                     self.variables.define_variable(
@@ -373,14 +333,6 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                         dfg,
                     )
                 });
-
-                let target_variable = self.variables.define_variable(
-                    self.function_context,
-                    self.brillig_context,
-                    results[element_size + 1],
-                    dfg,
-                );
-                let target_vector = target_variable.extract_vector();
 
                 self.update_slice_length(target_len, source_len, BrilligBinaryOp::Sub);
 
@@ -392,25 +344,8 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                 );
             }
             Value::Intrinsic(Intrinsic::SliceInsert) => {
-                let target_len = match self.variables.define_variable(
-                    self.function_context,
-                    self.brillig_context,
-                    results[0],
-                    dfg,
-                ) {
-                    BrilligVariable::SingleAddr(register_index) => register_index,
-                    _ => unreachable!("ICE: first value of a slice must be a register index"),
-                };
-
-                let target_id = results[1];
-                let target_variable = self.variables.define_variable(
-                    self.function_context,
-                    self.brillig_context,
-                    target_id,
-                    dfg,
-                );
-
-                let target_vector = target_variable.extract_vector();
+                let target_len = get_target_len(self, 0);
+                let target_vector = get_target_vector(self, 1);
 
                 // Remove if indexing in insert is changed to flattened indexing
                 // https://github.com/noir-lang/noir/issues/1889#issuecomment-1668048587
@@ -432,29 +367,11 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
 
                 self.update_slice_length(target_len, source_len, BrilligBinaryOp::Add);
 
-                self.slice_insert_operation(target_vector, source_vector, converted_index, &items);
-                self.brillig_context.deallocate_single_addr(converted_index);
+                self.slice_insert_operation(target_vector, source_vector, *converted_index, &items);
             }
             Value::Intrinsic(Intrinsic::SliceRemove) => {
-                let target_len = match self.variables.define_variable(
-                    self.function_context,
-                    self.brillig_context,
-                    results[0],
-                    dfg,
-                ) {
-                    BrilligVariable::SingleAddr(register_index) => register_index,
-                    _ => unreachable!("ICE: first value of a slice must be a register index"),
-                };
-
-                let target_id = results[1];
-
-                let target_variable = self.variables.define_variable(
-                    self.function_context,
-                    self.brillig_context,
-                    target_id,
-                    dfg,
-                );
-                let target_vector = target_variable.extract_vector();
+                let target_len = get_target_len(self, 0);
+                let target_vector = get_target_vector(self, 1);
 
                 // Remove if indexing in remove is changed to flattened indexing
                 // https://github.com/noir-lang/noir/issues/1889#issuecomment-1668048587
@@ -462,6 +379,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
 
                 let converted_index =
                     self.brillig_context.make_usize_constant_instruction(element_size.into());
+
                 self.brillig_context.memory_op_instruction(
                     converted_index.address,
                     user_index.address,
@@ -483,11 +401,9 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                 self.slice_remove_operation(
                     target_vector,
                     source_vector,
-                    converted_index,
+                    *converted_index,
                     &removed_items,
                 );
-
-                self.brillig_context.deallocate_single_addr(converted_index);
             }
             _ => unreachable!("ICE: Slice operation not supported"),
         }

@@ -72,7 +72,7 @@ fn main() -> Result<(), String> {
 
 /// Some tests are explicitly ignored in brillig due to them failing.
 /// These should be fixed and removed from this list.
-const IGNORED_BRILLIG_TESTS: [&str; 10] = [
+const IGNORED_BRILLIG_TESTS: [&str; 11] = [
     // bit sizes for bigint operation doesn't match up.
     "bigint",
     // ICE due to looking for function which doesn't exist.
@@ -86,6 +86,8 @@ const IGNORED_BRILLIG_TESTS: [&str; 10] = [
     "fold_numeric_generic_poseidon",
     // Expected to fail as test asserts on which runtime it is in.
     "is_unconstrained",
+    // The output depends on function IDs of lambdas, and with --force-brillig we only get one kind.
+    "regression_10158",
 ];
 
 /// Tests which aren't expected to work with the default minimum inliner cases.
@@ -130,7 +132,7 @@ const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 2] = [
 ];
 
 /// `nargo execute --minimal-ssa` ignored tests
-const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 13] = [
+const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 16] = [
     // internal error: entered unreachable code: unsupported function call type Intrinsic(AssertConstant)
     // These tests contain calls to `assert_constant`, which are evaluated and removed in the full SSA
     // pipeline, but in the minimal they are untouched, and trying to remove them causes a failure because
@@ -146,10 +148,13 @@ const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 13] = [
     "pedersen_commitment",
     "simple_shield",
     "strings",
-    // The minimum SSA pipeline only works with Brillig: \'zeroed_lambda\' needs to be unconstrained
+    // The minimal SSA pipeline only works with Brillig: \'zeroed_lambda\' needs to be unconstrained
     "lambda_from_dynamic_if",
+    "regression_10156",
     // This relies on maximum inliner setting
     "reference_counts_inliner_max",
+    "reference_counts_inliner_min",
+    "reference_counts_inliner_0",
 ];
 
 /// These tests are ignored because making them work involves a more complex test code that
@@ -165,12 +170,12 @@ const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 10] = [
     // bug
     "numeric_type_alias",
     "negative_associated_constants",
-    // bug
-    "regression_9116",
     // There's no "src/main.nr" here so it's trickier to make this work
     "overlapping_dep_and_mod",
     // bug
     "regression_9116",
+    // bug
+    "regression_10466",
     // bug
     "trait_associated_constant",
     // There's no "src/main.nr" here so it's trickier to make this work

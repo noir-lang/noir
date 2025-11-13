@@ -1,0 +1,20 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(a: bool) -> pub bool {
+    if !a {
+        let mut c: [str<2>] = &["IR"];
+        for _ in 0_u32..2_u32 {
+            c = if a {
+                let _: ([str<2>], str<2>) = c.pop_back();
+                &["QM", "HF"]
+            } else {
+                &["VD", "YH", "SE", "FB"]
+            };
+        }
+        false
+    } else {
+        true
+    }
+}

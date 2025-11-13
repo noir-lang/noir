@@ -32,7 +32,7 @@ pub fn sha256_compression(state: &mut [u32; 8], msg_blocks: &[u32; 16]) {
 }
 
 const KECCAK_LANES: usize = 25;
-
+/// Keccak permutation for a state of size 1600 bits, represented by 25 lanes of 64 bits (25*64 = 1600)
 pub fn keccakf1600(
     mut state: [u64; KECCAK_LANES],
 ) -> Result<[u64; KECCAK_LANES], BlackBoxResolutionError> {

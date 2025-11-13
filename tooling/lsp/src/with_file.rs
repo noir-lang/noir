@@ -8,13 +8,13 @@ use noirc_frontend::{
         CastExpression, ConstrainExpression, ConstructorExpression, Documented, EnumVariant,
         Expression, ExpressionKind, ForBounds, ForLoopStatement, ForRange, FunctionDefinition,
         FunctionReturnType, GenericTypeArgs, Ident, IdentOrQuotedType, IfExpression,
-        IndexExpression, InfixExpression, LValue, Lambda, LetStatement, Literal, MatchExpression,
-        MemberAccessExpression, MethodCallExpression, ModuleDeclaration, NoirEnumeration,
-        NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, Param, Path, PathSegment, Pattern,
-        PrefixExpression, Statement, StatementKind, StructField, TraitBound, TraitImplItem,
-        TraitImplItemKind, TraitItem, TypeAlias, TypeImpl, TypePath, UnresolvedGeneric,
-        UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
-        UnsafeExpression, UseTree, UseTreeKind, WhileStatement,
+        IndexExpression, InfixExpression, LValue, Lambda, LetStatement, Literal, LoopStatement,
+        MatchExpression, MemberAccessExpression, MethodCallExpression, ModuleDeclaration,
+        NoirEnumeration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, Param, Path,
+        PathSegment, Pattern, PrefixExpression, Statement, StatementKind, StructField, TraitBound,
+        TraitImplItem, TraitImplItemKind, TraitItem, TypeAlias, TypeImpl, TypePath,
+        UnresolvedGeneric, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
+        UnresolvedTypeExpression, UnsafeExpression, UseTree, UseTreeKind, WhileStatement,
     },
     parser::{Item, ItemKind, ParsedSubModule},
     token::{
@@ -593,6 +593,7 @@ fn secondary_attribute_with_file(
         | SecondaryAttributeKind::Abi(_)
         | SecondaryAttributeKind::Varargs
         | SecondaryAttributeKind::UseCallersScope
+        | SecondaryAttributeKind::MustUse(_)
         | SecondaryAttributeKind::Allow(_) => secondary_attribute.kind,
     };
     SecondaryAttribute { kind, location: location_with_file(secondary_attribute.location, file) }
@@ -901,10 +902,10 @@ fn statement_kind_with_file(kind: StatementKind, file: FileId) -> StatementKind 
             body: expression_with_file(while_.body, file),
             while_keyword_location: while_.while_keyword_location,
         }),
-        StatementKind::Loop(expression, location) => StatementKind::Loop(
-            expression_with_file(expression, file),
-            location_with_file(location, file),
-        ),
+        StatementKind::Loop(loop_) => StatementKind::Loop(LoopStatement {
+            body: expression_with_file(loop_.body, file),
+            loop_keyword_location: location_with_file(loop_.loop_keyword_location, file),
+        }),
         StatementKind::Comptime(statement) => {
             StatementKind::Comptime(Box::new(statement_with_file(*statement, file)))
         }

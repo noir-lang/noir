@@ -738,7 +738,8 @@ impl DataFlowGraph {
         }
     }
 
-    /// True if the given ValueId refers to a (recursively) constant value
+    /// True if the given [ValueId] refers to a constant value.
+    /// A [MakeArray][Instruction::MakeArray] instruction is considered constant if all its elements are constants.
     pub(crate) fn is_constant(&self, argument: ValueId) -> bool {
         match &self[argument] {
             Value::Param { .. } => false,

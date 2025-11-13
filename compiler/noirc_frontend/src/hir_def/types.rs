@@ -311,12 +311,10 @@ impl std::fmt::Display for Kind {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash, PartialOrd, Ord)]
-#[cfg_attr(test, derive(strum_macros::EnumIter))]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash, PartialOrd, Ord, strum_macros::EnumIter)]
 pub enum QuotedType {
     Expr,
     Quoted,
-    TopLevelItem,
     Type,
     TypedExpr,
     TypeDefinition,
@@ -371,6 +369,16 @@ pub struct DataType {
 
     pub generics: Generics,
     pub location: Location,
+
+    pub must_use: MustUse,
+}
+
+/// Convenience enum to avoid using `Option<Option<String>>` to indicate
+/// whether `#[must_use]` is present (outer option) and the optional message (inner option).
+#[derive(Clone)]
+pub enum MustUse {
+    NoMustUse,
+    MustUse(Option<String>),
 }
 
 enum TypeBody {
@@ -471,7 +479,15 @@ impl DataType {
         generics: Generics,
         visibility: ItemVisibility,
     ) -> DataType {
-        DataType { id, name, location, generics, body: TypeBody::None, visibility }
+        DataType {
+            id,
+            name,
+            location,
+            generics,
+            body: TypeBody::None,
+            visibility,
+            must_use: MustUse::NoMustUse,
+        }
     }
 
     /// To account for cyclic references between structs, a struct's
@@ -774,6 +790,9 @@ impl TypeAlias {
         self.numeric_expr = num_expr;
     }
 
+    /// Bind the generics of the aliased [Type] to the given generic arguments.
+    ///
+    /// Panics if the number of arguments do not meet expectations.
     pub fn get_type(&self, generic_args: &[Type]) -> Type {
         assert_eq!(self.generics.len(), generic_args.len());
 
@@ -1190,7 +1209,6 @@ impl std::fmt::Display for QuotedType {
         match self {
             QuotedType::Expr => write!(f, "Expr"),
             QuotedType::Quoted => write!(f, "Quoted"),
-            QuotedType::TopLevelItem => write!(f, "TopLevelItem"),
             QuotedType::Type => write!(f, "Type"),
             QuotedType::TypedExpr => write!(f, "TypedExpr"),
             QuotedType::TypeDefinition => write!(f, "TypeDefinition"),
@@ -1319,7 +1337,8 @@ impl Type {
             | Type::FmtString(_, _)
             | Type::Unit
             | Type::Function(..)
-            | Type::Tuple(..) => true,
+            | Type::Tuple(..)
+            | Type::Quoted(..) => true,
             Type::Alias(alias_type, generics) => {
                 alias_type.borrow().get_type(&generics).is_primitive()
             }
@@ -1331,7 +1350,6 @@ impl Type {
             | Type::CheckedCast { .. }
             | Type::Forall(..)
             | Type::Constant(..)
-            | Type::Quoted(..)
             | Type::InfixExpr(..)
             | Type::Error => false,
         }
@@ -1563,6 +1581,7 @@ impl Type {
         }
     }
 
+    /// Check whether this type is an array or slice, and contains a nested slice in its element type.
     pub(crate) fn is_nested_slice(&self) -> bool {
         match self {
             Type::Slice(elem) => elem.as_ref().contains_slice(),
@@ -1572,6 +1591,7 @@ impl Type {
         }
     }
 
+    /// Check whether this type is itself a slice, or a struct/enum/tuple/array which contains a slice.
     pub(crate) fn contains_slice(&self) -> bool {
         match self {
             Type::Slice(..) => true,
@@ -1911,8 +1931,10 @@ impl Type {
         }
     }
 
-    /// Retrieves the type of the given field name
-    /// Panics if the type is not a struct or tuple.
+    /// Retrieves the [Type] and [ItemVisibility] of the given field name:
+    /// * for structs, it finds a member with a matching name
+    /// * for tuples, it find the item by index, treating indexes as names "0", "1", ...
+    /// * otherwise returns `None`
     pub fn get_field_type_and_visibility(
         &self,
         field_name: &str,
@@ -2741,12 +2763,16 @@ impl From<&Type> for PrintableType {
             Type::CheckedCast { to, .. } => to.as_ref().into(),
             Type::NamedGeneric(..) => unreachable!(),
             Type::Forall(..) => unreachable!(),
-            Type::Function(arguments, return_type, env, unconstrained) => PrintableType::Function {
-                arguments: arguments.iter().map(|arg| arg.into()).collect(),
-                return_type: Box::new(return_type.as_ref().into()),
-                env: Box::new(env.as_ref().into()),
-                unconstrained: *unconstrained,
-            },
+            Type::Function(arguments, return_type, env, _unconstrained) => {
+                // Mimicking `Monomorphizer::convert_type_helper`: functions are represented as a tuple of constrained and unconstrained version.
+                let make_function = |unconstrained| PrintableType::Function {
+                    arguments: arguments.iter().map(|arg| arg.into()).collect(),
+                    return_type: Box::new(return_type.as_ref().into()),
+                    env: Box::new(env.as_ref().into()),
+                    unconstrained,
+                };
+                PrintableType::Tuple { types: vecmap([false, true], make_function) }
+            }
             Type::Reference(typ, mutable) => {
                 PrintableType::Reference { typ: Box::new(typ.as_ref().into()), mutable: *mutable }
             }

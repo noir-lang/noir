@@ -204,3 +204,126 @@ fn mutable_self_call() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn errors_on_impl_for_type_that_does_not_exist() {
+    let src = r#"
+    // Try to impl methods on a type that does not exist
+    impl Foo {
+         ^^^ Could not resolve 'Foo' in path
+        fn foo() {}
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_on_impl_for_primitive_type_outside_stdlib() {
+    let src = r#"
+    // User code (not stdlib) cannot impl methods on primitive types
+    impl Field {
+         ^^^^^ Cannot define inherent `impl` for primitive types
+         ~~~~~ Primitive types can only have implementation methods defined in the standard library
+        fn my_method(self) -> Field {
+            self
+        }
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn cross_module_impl_resolves_in_impl_module() {
+    let src = r#"
+    mod types {
+        pub struct Point {
+            pub x: Field,
+            pub y: Field,
+        }
+    }
+
+    mod methods {
+        use crate::types::Point;
+
+        fn helper() -> Field {
+            42
+        }
+
+        impl Point {
+            pub fn distance(self) -> Field {
+                // This should resolve helper from the methods module
+                helper() + self.x
+            }
+        }
+    }
+
+    use crate::types::Point;
+
+    fn main() {
+        let p = Point { x: 1, y: 2 };
+        // Method should be accessible via qualified call
+        let _ = Point::distance(p);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn constructor_missing_field() {
+    let src = r#"
+        struct Foo {
+            x: Field,
+            y: Field,
+            z: Field,
+        }
+
+        fn main() {
+            let _ = Foo { x: 1, y: 2 };
+                    ^^^ missing field z in struct Foo
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn constructor_extra_field() {
+    let src = r#"
+        struct Foo {
+            x: Field,
+            y: Field,
+        }
+
+        fn main() {
+            let _ = Foo { x: 1, y: 2, z: 3 };
+                                      ^ no such field z defined in struct Foo
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn constructor_private_field() {
+    let src = r#"
+        mod foo {
+            pub struct Foo {
+                pub x: Field,
+                y: Field,
+            }
+
+            pub fn make() -> Foo {
+                Foo { x: 1, y: 2 }
+            }
+        }
+
+        fn main() {
+            let f = foo::make();
+            let foo::Foo { x: _, y: _ } = f;
+                                 ^ y is private and not visible from the current module
+                                 ~ y is private
+            let foo::Foo { x: _ } = f;
+                ^^^^^^^^^^^^^^^^^ missing field y in struct Foo
+        }
+    "#;
+    // NOTE: The second attempt could work with `foo::Foo { x: _, .. }` if Noir supported `..`.
+    check_errors(src);
+}
