@@ -653,13 +653,47 @@ impl<'interner> Monomorphizer<'interner> {
                     .2
                     .map(|assert_msg_expr| {
                         self.expr(assert_msg_expr).map(|expr| {
-                            (expr, self.interner.id_type(assert_msg_expr).follow_bindings())
+                            let typ = self.interner.id_type(assert_msg_expr).follow_bindings();
+                            let loc = self.interner.expr_location(&assert_msg_expr);
+                            (expr, typ, loc)
                         })
                     })
-                    .transpose()?
-                    .map(Box::new);
+                    .transpose()?;
 
-                ast::Expression::Constrain(Box::new(expr), location, assert_message)
+                if let Some((_, typ, location)) = assert_message.as_ref() {
+                    let check_msg_compat = |typ: &Type| {
+                        if !typ.is_message_compatible(true) {
+                            Err(MonomorphizationError::InvalidTypeInErrorMessage {
+                                typ: typ.to_string(),
+                                location: *location,
+                            })
+                        } else {
+                            Ok(())
+                        }
+                    };
+                    match typ {
+                        Type::FmtString(_, items) => match items.as_ref() {
+                            Type::Tuple(items) => {
+                                for item in items {
+                                    check_msg_compat(item)?;
+                                }
+                            }
+                            Type::Unit => {}
+                            other => {
+                                unreachable!("ICE: expected Tuple or Unit in fmtstr; got {other}")
+                            }
+                        },
+                        other => {
+                            check_msg_compat(other)?;
+                        }
+                    }
+                }
+
+                ast::Expression::Constrain(
+                    Box::new(expr),
+                    location,
+                    assert_message.map(|(msg, typ, _)| (msg, typ)).map(Box::new),
+                )
             }
 
             HirExpression::Cast(cast) => {

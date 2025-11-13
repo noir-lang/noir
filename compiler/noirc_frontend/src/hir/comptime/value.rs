@@ -633,6 +633,9 @@ impl Value {
                     vec![Token::Int(value.absolute_value(), None)]
                 }
             }
+            Value::String(value) | Value::CtString(value) | Value::FormatString(value, _) => {
+                vec![Token::Str(unwrap_rc(value))]
+            }
             other => vec![Token::UnquoteMarker(other.into_hir_expression(interner, location)?)],
         };
         let tokens = vecmap(tokens, |token| LocatedToken::new(token, location));
