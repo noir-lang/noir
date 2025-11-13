@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1763063191257,
+  "lastUpdate": 1763063391669,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23076,48 +23076,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "e137fdca6c7708a1963d65d6c3ab36b53d6428a4",
-          "message": "chore: refactor codegen_memory (#10323)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-11-07T09:23:29Z",
-          "tree_id": "3fa37ea3f35fb9edfc0cbb0d4f63e8f23de05daf",
-          "url": "https://github.com/noir-lang/noir/commit/e137fdca6c7708a1963d65d6c3ab36b53d6428a4"
-        },
-        "date": 1762508845028,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 266078,
-            "range": "± 1176",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 237122,
-            "range": "± 5923",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2803145,
-            "range": "± 9645",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "72797635+Savio-Sou@users.noreply.github.com",
             "name": "Savio",
             "username": "Savio-Sou"
@@ -25169,6 +25127,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2784197,
             "range": "± 3206",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5a85979f1b8a05345cf488e7f3f8c400636afa50",
+          "message": "fix(fuzzer): Set `in_dynamic` in `gen_match` (#10470)",
+          "timestamp": "2025-11-13T19:25:52Z",
+          "tree_id": "8fad74b0c4bacff99ba37238d118cd1d569543cf",
+          "url": "https://github.com/noir-lang/noir/commit/5a85979f1b8a05345cf488e7f3f8c400636afa50"
+        },
+        "date": 1763063361821,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 254466,
+            "range": "± 411",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 231348,
+            "range": "± 2269",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2258991,
+            "range": "± 833",
             "unit": "ns/iter"
           }
         ]
