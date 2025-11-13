@@ -132,7 +132,15 @@ pub fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     }
 
     let ssa = function_context.builder.finish();
-    validate_ssa(&ssa);
+
+    if let Err(payload) =
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| validate_ssa(&ssa)))
+    {
+        // We can print the SSA, but it appears *under* the panic message,
+        // which is potentially more confusing than just showing the panic.
+        // eprintln!("--- The SSA failed to validate:\n{ssa}\n");
+        std::panic::resume_unwind(payload);
+    }
 
     Ok(ssa)
 }
