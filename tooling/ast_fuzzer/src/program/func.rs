@@ -1452,6 +1452,8 @@ impl<'a> FunctionContext<'a> {
             .current()
             .variables()
             .filter_map(|(id, (_, _, typ))| types::is_printable(typ).then_some((id, typ)))
+            // TODO(#10499): comptime function representations are at the moment just "(function)"
+            .filter(|(_, typ)| !types::is_function(typ))
             .collect::<Vec<_>>();
 
         if opts.is_empty() {
