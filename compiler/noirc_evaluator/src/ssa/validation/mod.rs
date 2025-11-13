@@ -1702,6 +1702,27 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(
+        expected = "Trying to pass a reference from ACIR function 'main f0' to unconstrained 'foo f1' in argument v1: &mut u32"
+    )]
+    fn disallows_passing_refs_from_acir_to_brillig() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v1 = allocate -> &mut u32
+            store v0 at v1
+            call f1(v1)
+            return
+        }
+        brillig(inline) fn foo f1 {
+          b0(v0: &mut u32):
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
     #[should_panic(expected = "JmpIf conditions should have boolean type")]
     fn disallows_non_boolean_jmpif_condition() {
         let src = "
