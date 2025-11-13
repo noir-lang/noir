@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["LoopDetector"],"type":["AddressLoop","MovementsMap"]};
+window.SIDEBAR_ITEMS = {"fn":["from_index","to_index"]};

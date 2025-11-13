@@ -374,223 +374,171 @@
 <a href="#373" id="373">373</a>
 <a href="#374" id="374">374</a>
 <a href="#375" id="375">375</a>
-<a href="#376" id="376">376</a>
-<a href="#377" id="377">377</a>
-<a href="#378" id="378">378</a>
-<a href="#379" id="379">379</a>
-<a href="#380" id="380">380</a>
-<a href="#381" id="381">381</a>
-<a href="#382" id="382">382</a>
-<a href="#383" id="383">383</a>
-<a href="#384" id="384">384</a>
-<a href="#385" id="385">385</a>
-<a href="#386" id="386">386</a>
-<a href="#387" id="387">387</a>
-<a href="#388" id="388">388</a>
-<a href="#389" id="389">389</a>
-<a href="#390" id="390">390</a>
-<a href="#391" id="391">391</a>
-<a href="#392" id="392">392</a>
-<a href="#393" id="393">393</a>
-<a href="#394" id="394">394</a>
-<a href="#395" id="395">395</a>
-<a href="#396" id="396">396</a>
-<a href="#397" id="397">397</a>
-<a href="#398" id="398">398</a>
-<a href="#399" id="399">399</a>
-<a href="#400" id="400">400</a>
-<a href="#401" id="401">401</a>
-<a href="#402" id="402">402</a>
-<a href="#403" id="403">403</a>
-<a href="#404" id="404">404</a>
-<a href="#405" id="405">405</a>
-<a href="#406" id="406">406</a>
-<a href="#407" id="407">407</a>
-<a href="#408" id="408">408</a>
-<a href="#409" id="409">409</a>
-<a href="#410" id="410">410</a>
-<a href="#411" id="411">411</a>
-<a href="#412" id="412">412</a>
-<a href="#413" id="413">413</a>
-<a href="#414" id="414">414</a>
-<a href="#415" id="415">415</a>
-<a href="#416" id="416">416</a>
-<a href="#417" id="417">417</a>
-<a href="#418" id="418">418</a>
-<a href="#419" id="419">419</a>
-<a href="#420" id="420">420</a>
-<a href="#421" id="421">421</a>
-<a href="#422" id="422">422</a>
-<a href="#423" id="423">423</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet, HashSet};
+<a href="#376" id="376">376</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, acir::brillig::MemoryAddress};
 
-<span class="kw">use </span>acvm::{AcirField, acir::brillig::MemoryAddress};
+<span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::registers::Stack;
 
 <span class="kw">use super</span>::{BrilligContext, debug_show::DebugToString, registers::RegisterAllocator};
 
-<span class="doccomment">/// Map sources to potentially multiple destinations.
-///
-/// Using a BTree so we get deterministic loop detection.
-</span><span class="kw">type </span>MovementsMap = BTreeMap&lt;MemoryAddress, BTreeSet&lt;MemoryAddress&gt;&gt;;
-
 <span class="kw">impl</span>&lt;F: AcirField + DebugToString, Registers: RegisterAllocator&gt; BrilligContext&lt;F, Registers&gt; {
-    <span class="doccomment">/// This function moves values from a set of registers to another set of registers.
-    ///
-    /// The only requirement is that every destination needs to be written at most once.
-    /// The same source can be copied to multiple destinations.
-    ///
-    /// The method detects cycles in the movements and breaks them by introducing
-    /// temporary registers.
+    <span class="doccomment">/// Map sources to potentially multiple destinations.
+    /// This function moves values from a set of registers to another set of registers.
+    /// It assumes that:
+    /// - every destination needs to be written at most once. Will panic if not.
+    /// - destinations are relative addresses, starting from 1 and consecutively incremented by one. Will panic if not
+    /// - sources are any relative addresses, and can also be direct address to the global space. TODO: panic if not
+    /// - sources and destinations have same length. Will panic if not.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_mov_registers_to_registers(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         sources: <span class="kw-2">&amp;</span>[MemoryAddress],
         destinations: <span class="kw-2">&amp;</span>[MemoryAddress],
     ) {
         <span class="macro">assert_eq!</span>(sources.len(), destinations.len(), <span class="string">"sources and destinations length must match"</span>);
-
-        <span class="comment">// Remove all no-ops
-        </span><span class="kw">let </span>movements =
-            sources.iter().zip(destinations).filter(|(source, destination)| source != destination);
-
-        <span class="comment">// Now we need to detect all cycles.
-        // First build a map of the movements. Note that a source could have multiple destinations
-        </span><span class="kw">let </span><span class="kw-2">mut </span>movements_map = movements.into_iter().fold(
-            MovementsMap::default(),
-            |<span class="kw-2">mut </span>map, (source, destination)| {
-                map.entry(<span class="kw-2">*</span>source).or_default().insert(<span class="kw-2">*</span>destination);
-                map
-            },
-        );
-
-        <span class="comment">// Unique addresses that get anything moved into them.
-        </span><span class="kw">let </span>destinations_set: BTreeSet&lt;<span class="kw">_</span>&gt; = movements_map.values().flatten().copied().collect();
-
-        <span class="comment">// Ensure that all destinations are unique.
-        </span><span class="macro">assert_eq!</span>(
-            destinations_set.len(),
-            movements_map.values().flatten().count(),
-            <span class="string">"Multiple moves to the same register found"
-        </span>);
-
-        <span class="kw">let </span>loops = LoopDetector::detect_loops(<span class="kw-2">&amp;</span>movements_map);
-
-        <span class="comment">// In order to break the loops we need to store one register from each in a temporary and then use that temporary as source.
-        </span><span class="kw">let </span><span class="kw-2">mut </span>temporaries = Vec::with_capacity(loops.len());
-
-        <span class="kw">for </span>loop_found <span class="kw">in </span>loops {
-            <span class="kw">let </span>temp_register = <span class="self">self</span>.allocate_register();
-            <span class="kw">let </span>first_source = loop_found.get_min().unwrap();
-            <span class="self">self</span>.mov_instruction(<span class="kw-2">*</span>temp_register, <span class="kw-2">*</span>first_source);
-            <span class="kw">let </span>destinations_of_temp = movements_map.remove(first_source).unwrap();
-            movements_map.insert(<span class="kw-2">*</span>temp_register, destinations_of_temp);
-            temporaries.push(temp_register);
-        }
-
-        <span class="comment">// After removing loops we should have an DAG with each node having only one ancestor (but could have multiple successors)
-        // Now we should be able to move the registers just by performing a DFS on the movements map.
-        // Starting from the head of movement sequences, anything else should be reachable from them by following the paths.
-        </span><span class="kw">let </span>heads: Vec&lt;<span class="kw">_</span>&gt; = movements_map
-            .keys()
-            .filter(|source| !destinations_set.contains(source))
-            .copied()
-            .collect();
-
-        <span class="kw">for </span>head <span class="kw">in </span>heads {
-            <span class="self">self</span>.perform_movements(<span class="kw-2">&amp;</span>movements_map, head);
-        }
-    }
-
-    <span class="doccomment">/// Starting from the head do a DFS through the movements to find the last destination,
-    /// then generate movement opcodes _backwards_, unraveling the DFS path.
-    ///
-    /// By doing so, we can have a series of moves such as `[1-&gt;2, 2-&gt;3]` which become opcodes
-    /// `[3&lt;-2, 2&lt;-1]`, avoiding having 2 overwritten by 1 before it could be copied to 3.
-    </span><span class="kw">fn </span>perform_movements(<span class="kw-2">&amp;mut </span><span class="self">self</span>, movements: <span class="kw-2">&amp;</span>MovementsMap, current_source: MemoryAddress) {
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(destinations) = movements.get(<span class="kw-2">&amp;</span>current_source) {
-            <span class="kw">for </span>destination <span class="kw">in </span>destinations {
-                <span class="self">self</span>.perform_movements(movements, <span class="kw-2">*</span>destination);
-            }
-            <span class="kw">for </span>destination <span class="kw">in </span>destinations {
-                <span class="self">self</span>.mov_instruction(<span class="kw-2">*</span>destination, current_source);
-            }
-        }
-    }
-}
-
-<span class="doccomment">/// A set of addresses that were part of a loop in the movements.
-///
-/// They are ordered by their value, not their appearance in the loop.
-/// The order provides determinism when we try to break the loop.
-///
-/// Using an immutable data structure for structural sharing during DFS.
-</span><span class="kw">type </span>AddressLoop = im::OrdSet&lt;MemoryAddress&gt;;
-
-<span class="kw">struct </span>LoopDetector {
-    visited_sources: HashSet&lt;MemoryAddress&gt;,
-    loops: Vec&lt;AddressLoop&gt;,
-}
-
-<span class="kw">impl </span>LoopDetector {
-    <span class="doccomment">/// Detect all loops in a series of movements.
-    ///
-    /// Returns a list of all loops detected.
-    </span><span class="kw">fn </span>detect_loops(
-        movements: <span class="kw-2">&amp;</span>BTreeMap&lt;MemoryAddress, BTreeSet&lt;MemoryAddress&gt;&gt;,
-    ) -&gt; Vec&lt;AddressLoop&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>detector = <span class="self">Self </span>{ visited_sources: Default::default(), loops: Default::default() };
-        detector.collect_loops(movements);
-        detector.loops
-    }
-
-    <span class="kw">fn </span>collect_loops(<span class="kw-2">&amp;mut </span><span class="self">self</span>, movements: <span class="kw-2">&amp;</span>MovementsMap) {
-        <span class="kw">for </span>source <span class="kw">in </span>movements.keys() {
-            <span class="self">self</span>.find_loop_recursive(
-                <span class="kw-2">*</span>source,
-                movements,
-                im::OrdSet::default(),
-                im::Vector::default(),
-            );
-        }
-    }
-
-    <span class="kw">fn </span>find_loop_recursive(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        source: MemoryAddress,
-        movements: <span class="kw-2">&amp;</span>MovementsMap,
-        <span class="kw-2">mut </span>sources_in_path: im::OrdSet&lt;MemoryAddress&gt;,
-        <span class="kw-2">mut </span>source_path: im::Vector&lt;MemoryAddress&gt;,
-    ) {
-        <span class="comment">// Mark as visited
-        </span><span class="kw">if </span>!<span class="self">self</span>.visited_sources.insert(source) {
-            <span class="kw">return</span>;
-        }
-
-        sources_in_path.insert(source);
-        source_path.push_back(source);
-
-        <span class="comment">// Get all destinations (this can be empty when we treat destinations as sources during recursion).
-        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(destinations) = movements.get(<span class="kw-2">&amp;</span>source) {
-            <span class="kw">for </span>destination <span class="kw">in </span>destinations {
-                <span class="kw">if </span>sources_in_path.contains(destination) {
-                    <span class="comment">// Found a loop; find the suffix that is contained in the loop.
-                    </span><span class="kw">let </span>idx = source_path.index_of(destination).unwrap();
-                    <span class="kw">let </span>loop_sources = AddressLoop::from_iter(source_path.skip(idx));
-                    <span class="self">self</span>.loops.push(loop_sources);
-                } <span class="kw">else </span>{
-                    <span class="self">self</span>.find_loop_recursive(
-                        <span class="kw-2">*</span>destination,
-                        movements,
-                        sources_in_path.clone(),
-                        source_path.clone(),
-                    );
+        <span class="kw">let </span>n = sources.len();
+        <span class="kw">let </span><span class="kw-2">mut </span>processed = <span class="number">0</span>;
+        <span class="comment">// Compute the number of destinations for each source node that is also a destination node (i.e within 0,..n-1) in the movement graph
+        </span><span class="kw">let </span><span class="kw-2">mut </span>num_destinations = <span class="macro">vec!</span>[<span class="number">0</span>; n];
+        <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..n {
+            <span class="comment">// Check that destinations are relatives to 0,..,n-1
+            </span><span class="macro">assert_eq!</span>(to_index(<span class="kw-2">&amp;</span>destinations[i]), <span class="prelude-val">Some</span>(i));
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(index) = to_index(<span class="kw-2">&amp;</span>sources[i]) {
+                <span class="kw">if </span>index &lt; n &amp;&amp; index != i {
+                    num_destinations[index] += <span class="number">1</span>;
                 }
             }
         }
+
+        <span class="comment">// Process all sinks in the graph and follow their parents.
+        // Keep track of nodes having more than 2 destinations, in case they belong to a loop.
+        </span><span class="kw">let </span><span class="kw-2">mut </span>tail_candidates = Vec::new();
+        <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..n {
+            <span class="comment">// Generate a movement for each sink in the graph
+            </span><span class="kw">let </span><span class="kw-2">mut </span>node = i;
+            <span class="comment">// A sink has no child
+            </span><span class="kw">while </span>num_destinations[node] == <span class="number">0 </span>{
+                <span class="kw">if </span>to_index(<span class="kw-2">&amp;</span>sources[node]) == <span class="prelude-val">Some</span>(node) {
+                    <span class="comment">//no-op: mark the node as processed
+                    </span>num_destinations[node] = usize::MAX;
+                    processed += <span class="number">1</span>;
+                    <span class="kw">break</span>;
+                }
+                <span class="comment">// Generates a move instruction
+                </span><span class="self">self</span>.perform_movement(node, sources[node], <span class="kw-2">&amp;mut </span>num_destinations, <span class="kw-2">&amp;mut </span>processed);
+                <span class="comment">// Follow the parent
+                </span><span class="kw">if let </span><span class="prelude-val">Some</span>(index) = to_index(<span class="kw-2">&amp;</span>sources[node]) {
+                    <span class="kw">if </span>index &lt; n {
+                        num_destinations[index] -= <span class="number">1</span>;
+                        <span class="kw">if </span>num_destinations[index] &gt; <span class="number">0 </span>{
+                            <span class="comment">// The parent node has another child, so we cannot process it yet.
+                            </span>tail_candidates.push((sources[node], node));
+                            <span class="kw">break</span>;
+                        }
+                        <span class="comment">// process the parent node
+                        </span>node = index;
+                        <span class="kw">continue</span>;
+                    }
+                }
+                <span class="comment">// End of the path
+                </span><span class="kw">break</span>;
+            }
+            <span class="kw">if </span>processed == n {
+                <span class="kw">return</span>;
+            }
+        }
+        <span class="comment">// All sinks and their parents have been processed, remaining nodes are part of a loop
+        // Check if a tail_candidate is a branch to a loop
+        </span><span class="kw">for </span>(entry, free) <span class="kw">in </span>tail_candidates {
+            <span class="kw">let </span>entry_idx = to_index(<span class="kw-2">&amp;</span>entry).unwrap();
+            <span class="kw">if </span>entry_idx &lt; n &amp;&amp; num_destinations[entry_idx] == <span class="number">1 </span>{
+                <span class="comment">// Use the branch as the temporary register for the loop
+                </span><span class="self">self</span>.process_loop(
+                    entry_idx,
+                    <span class="kw-2">&amp;</span>from_index(free),
+                    <span class="kw-2">&amp;mut </span>num_destinations,
+                    sources,
+                    <span class="kw-2">&amp;mut </span>processed,
+                );
+            }
+        }
+        <span class="kw">if </span>processed == n {
+            <span class="kw">return</span>;
+        }
+        <span class="comment">// Now process all the remaining loops with a temporary register.
+        // Allocate one temporary per loop to avoid type confusion when reusing registers,
+        // since different loops may contain values of different types.
+        </span><span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..n {
+            <span class="kw">if </span>num_destinations[i] == <span class="number">1 </span>{
+                <span class="kw">let </span>src = from_index(i);
+                <span class="comment">// Copy the loop entry to a temporary register.
+                // Unfortunately, we cannot use one register for all the loops
+                // when the sources do not have the same type
+                </span><span class="kw">let </span>temp_register = <span class="self">self</span>.registers_mut().allocate_register();
+                <span class="self">self</span>.mov_instruction(temp_register, src);
+                <span class="self">self</span>.process_loop(
+                    i,
+                    <span class="kw-2">&amp;</span>temp_register,
+                    <span class="kw-2">&amp;mut </span>num_destinations,
+                    sources,
+                    <span class="kw-2">&amp;mut </span>processed,
+                );
+                <span class="self">self</span>.deallocate_register(temp_register);
+            } <span class="kw">else </span>{
+                <span class="comment">// Nodes must have been processed, or are part of a loop.
+                </span><span class="macro">assert_eq!</span>(num_destinations[i], usize::MAX);
+            }
+        }
     }
+
+    <span class="doccomment">/// Generates mov opcodes corresponding to a loop, given a node from the loop (entry)
+    /// and a register not in the loop that contains its value (free)
+    </span><span class="kw">fn </span>process_loop(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        entry: usize,
+        free: <span class="kw-2">&amp;</span>MemoryAddress,
+        num_destinations: <span class="kw-2">&amp;mut </span>[usize],
+        source: <span class="kw-2">&amp;</span>[MemoryAddress],
+        processed: <span class="kw-2">&amp;mut </span>usize,
+    ) {
+        <span class="kw">let </span><span class="kw-2">mut </span>current = entry;
+        <span class="kw">while </span>to_index(<span class="kw-2">&amp;</span>source[current]).unwrap() != entry {
+            <span class="self">self</span>.perform_movement(current, source[current], num_destinations, processed);
+            current = to_index(<span class="kw-2">&amp;</span>source[current]).unwrap();
+        }
+        <span class="self">self</span>.perform_movement(current, <span class="kw-2">*</span>free, num_destinations, processed);
+    }
+
+    <span class="doccomment">/// Generates a move opcode from 'src' to 'dest'.
+    </span><span class="kw">fn </span>perform_movement(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        dest: usize,
+        src: MemoryAddress,
+        num_destinations: <span class="kw-2">&amp;mut </span>[usize],
+        processed: <span class="kw-2">&amp;mut </span>usize,
+    ) {
+        <span class="kw">let </span>destination = from_index(dest);
+        <span class="self">self</span>.mov_instruction(destination, src);
+        <span class="comment">// set the node as 'processed'
+        </span>num_destinations[dest] = usize::MAX;
+        <span class="kw-2">*</span>processed += <span class="number">1</span>;
+    }
+}
+
+<span class="doccomment">/// Map the address so that the first register of the stack will have index 0
+</span><span class="kw">fn </span>to_index(adr: <span class="kw-2">&amp;</span>MemoryAddress) -&gt; <span class="prelude-ty">Option</span>&lt;usize&gt; {
+    <span class="kw">match </span>adr {
+        MemoryAddress::Relative(size) =&gt; <span class="prelude-val">Some</span>(size - Stack::start()),
+        MemoryAddress::Direct(<span class="kw">_</span>) =&gt; <span class="prelude-val">None</span>,
+    }
+}
+
+<span class="doccomment">/// Construct the register corresponding to the given mapped 'index'
+</span><span class="kw">fn </span>from_index(idx: usize) -&gt; MemoryAddress {
+    <span class="macro">assert!</span>(idx != usize::MAX, <span class="string">"invalid index"</span>);
+    MemoryAddress::Relative(idx + Stack::start())
 }
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
-    <span class="kw">use </span>std::collections::BTreeMap;
 
     <span class="kw">use </span>acvm::{
         FieldElement,
@@ -604,74 +552,11 @@
             brillig_ir::{
                 BrilligContext, LayoutConfig,
                 artifact::Label,
-                codegen_stack::{LoopDetector, MovementsMap},
-                registers::Stack,
+                registers::{RegisterAllocator, Stack},
             },
         },
         ssa::ir::function::FunctionId,
     };
-
-    <span class="comment">// Tests for the loop finder
-
-    </span><span class="doccomment">/// Generate a movements map from test data, turning numbers into relative addresses.
-    </span><span class="kw">fn </span>generate_movements_map(movements: Vec&lt;(usize, usize)&gt;) -&gt; MovementsMap {
-        movements.into_iter().fold(BTreeMap::default(), |<span class="kw-2">mut </span>map, (source, destination)| {
-            map.entry(MemoryAddress::relative(source))
-                .or_default()
-                .insert(MemoryAddress::relative(destination));
-            map
-        })
-    }
-
-    <span class="attr">#[test]
-    </span><span class="kw">fn </span>test_loop_detector_basic_loop() {
-        <span class="kw">let </span>movements = <span class="macro">vec!</span>[(<span class="number">0</span>, <span class="number">1</span>), (<span class="number">1</span>, <span class="number">2</span>), (<span class="number">2</span>, <span class="number">3</span>), (<span class="number">3</span>, <span class="number">0</span>)];
-        <span class="kw">let </span>movements_map = generate_movements_map(movements);
-        <span class="kw">let </span>loops = LoopDetector::detect_loops(<span class="kw-2">&amp;</span>movements_map);
-        <span class="macro">assert_eq!</span>(loops.len(), <span class="number">1</span>);
-        <span class="macro">assert_eq!</span>(loops[<span class="number">0</span>].len(), <span class="number">4</span>);
-    }
-
-    <span class="attr">#[test]
-    </span><span class="kw">fn </span>test_loop_detector_loop_with_init() {
-        <span class="comment">// 0-&gt;1-&gt;2-&gt;3-&gt;1
-        </span><span class="kw">let </span>movements = <span class="macro">vec!</span>[(<span class="number">0</span>, <span class="number">1</span>), (<span class="number">1</span>, <span class="number">2</span>), (<span class="number">2</span>, <span class="number">3</span>), (<span class="number">3</span>, <span class="number">1</span>)];
-        <span class="kw">let </span>movements_map = generate_movements_map(movements);
-        <span class="kw">let </span>loops = LoopDetector::detect_loops(<span class="kw-2">&amp;</span>movements_map);
-        <span class="macro">assert_eq!</span>(loops.len(), <span class="number">1</span>);
-        <span class="macro">assert_eq!</span>(
-            loops[<span class="number">0</span>],
-            im::OrdSet::from_iter([<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>].map(MemoryAddress::relative)),
-            <span class="string">"Only the blocks actually in the loop should be included"
-        </span>);
-    }
-
-    <span class="attr">#[test]
-    </span><span class="kw">fn </span>test_loop_detector_no_loop() {
-        <span class="kw">let </span>movements = <span class="macro">vec!</span>[(<span class="number">0</span>, <span class="number">1</span>), (<span class="number">1</span>, <span class="number">2</span>), (<span class="number">2</span>, <span class="number">3</span>), (<span class="number">3</span>, <span class="number">4</span>)];
-        <span class="kw">let </span>movements_map = generate_movements_map(movements);
-        <span class="kw">let </span>loops = LoopDetector::detect_loops(<span class="kw-2">&amp;</span>movements_map);
-        <span class="macro">assert_eq!</span>(loops.len(), <span class="number">0</span>);
-    }
-
-    <span class="attr">#[test]
-    </span><span class="kw">fn </span>test_loop_detector_loop_with_branch() {
-        <span class="kw">let </span>movements = <span class="macro">vec!</span>[(<span class="number">0</span>, <span class="number">1</span>), (<span class="number">1</span>, <span class="number">2</span>), (<span class="number">2</span>, <span class="number">0</span>), (<span class="number">0</span>, <span class="number">3</span>), (<span class="number">3</span>, <span class="number">4</span>)];
-        <span class="kw">let </span>movements_map = generate_movements_map(movements);
-        <span class="kw">let </span>loops = LoopDetector::detect_loops(<span class="kw-2">&amp;</span>movements_map);
-        <span class="macro">assert_eq!</span>(loops.len(), <span class="number">1</span>);
-        <span class="macro">assert_eq!</span>(loops[<span class="number">0</span>].len(), <span class="number">3</span>);
-    }
-
-    <span class="attr">#[test]
-    </span><span class="kw">fn </span>test_loop_detector_two_loops() {
-        <span class="kw">let </span>movements = <span class="macro">vec!</span>[(<span class="number">0</span>, <span class="number">1</span>), (<span class="number">1</span>, <span class="number">2</span>), (<span class="number">2</span>, <span class="number">0</span>), (<span class="number">3</span>, <span class="number">4</span>), (<span class="number">4</span>, <span class="number">5</span>), (<span class="number">5</span>, <span class="number">3</span>)];
-        <span class="kw">let </span>movements_map = generate_movements_map(movements);
-        <span class="kw">let </span>loops = LoopDetector::detect_loops(<span class="kw-2">&amp;</span>movements_map);
-        <span class="macro">assert_eq!</span>(loops.len(), <span class="number">2</span>);
-        <span class="macro">assert_eq!</span>(loops[<span class="number">0</span>].len(), <span class="number">3</span>);
-        <span class="macro">assert_eq!</span>(loops[<span class="number">1</span>].len(), <span class="number">3</span>);
-    }
 
     <span class="comment">// Tests for mov_registers_to_registers
 
@@ -717,9 +602,11 @@
         movements: Vec&lt;(usize, usize)&gt;,
         expected_moves: Vec&lt;(usize, usize)&gt;,
     ) {
-        <span class="kw">let </span>(sources, destinations) = movements_to_source_and_destinations(movements);
-
         <span class="kw">let </span><span class="kw-2">mut </span>context = create_context();
+        <span class="kw">for _ in </span><span class="number">0</span>..movements.len() {
+            context.registers_mut().allocate_register();
+        }
+        <span class="kw">let </span>(sources, destinations) = movements_to_source_and_destinations(movements);
         context.codegen_mov_registers_to_registers(<span class="kw-2">&amp;</span>sources, <span class="kw-2">&amp;</span>destinations);
 
         <span class="kw">let </span>opcodes = context.artifact().byte_code;
@@ -728,55 +615,79 @@
     }
 
     <span class="attr">#[test]
-    #[should_panic(expected = <span class="string">"Multiple moves to the same register found"</span>)]
+    </span><span class="kw">fn </span>test_no_op() {
+        <span class="kw">let </span>movements = <span class="macro">vec!</span>[(<span class="number">1</span>, <span class="number">1</span>), (<span class="number">2</span>, <span class="number">2</span>), (<span class="number">1</span>, <span class="number">3</span>), (<span class="number">2</span>, <span class="number">4</span>)];
+        assert_generated_opcodes(movements, <span class="macro">vec!</span>[(<span class="number">1</span>, <span class="number">3</span>), (<span class="number">2</span>, <span class="number">4</span>)]);
+    }
+
+    <span class="attr">#[test]
+    #[should_panic]
     </span><span class="kw">fn </span>test_mov_registers_to_registers_overwrite() {
-        <span class="kw">let </span>movements = <span class="macro">vec!</span>[(<span class="number">10</span>, <span class="number">11</span>), (<span class="number">12</span>, <span class="number">11</span>), (<span class="number">10</span>, <span class="number">13</span>)];
+        <span class="kw">let </span>movements = <span class="macro">vec!</span>[(<span class="number">10</span>, <span class="number">1</span>), (<span class="number">12</span>, <span class="number">1</span>), (<span class="number">10</span>, <span class="number">3</span>)];
         assert_generated_opcodes(movements, <span class="macro">vec!</span>[]);
     }
 
     <span class="attr">#[test]
-    </span><span class="kw">fn </span>test_mov_registers_to_registers_no_loop() {
-        <span class="kw">let </span>movements = <span class="macro">vec!</span>[(<span class="number">10</span>, <span class="number">11</span>), (<span class="number">11</span>, <span class="number">12</span>), (<span class="number">12</span>, <span class="number">13</span>), (<span class="number">13</span>, <span class="number">14</span>)];
-        <span class="kw">let </span>expected_moves = <span class="macro">vec!</span>[(<span class="number">13</span>, <span class="number">14</span>), (<span class="number">12</span>, <span class="number">13</span>), (<span class="number">11</span>, <span class="number">12</span>), (<span class="number">10</span>, <span class="number">11</span>)];
-        assert_generated_opcodes(movements, expected_moves);
-    }
-    <span class="attr">#[test]
-    </span><span class="kw">fn </span>test_mov_registers_to_registers_no_op_filter() {
-        <span class="kw">let </span>movements = <span class="macro">vec!</span>[(<span class="number">10</span>, <span class="number">11</span>), (<span class="number">11</span>, <span class="number">11</span>), (<span class="number">11</span>, <span class="number">12</span>)];
-        <span class="kw">let </span>expected_moves = <span class="macro">vec!</span>[(<span class="number">11</span>, <span class="number">12</span>), (<span class="number">10</span>, <span class="number">11</span>)];
-        assert_generated_opcodes(movements, expected_moves);
+    </span><span class="kw">fn </span>test_basic_no_loop() {
+        <span class="kw">let </span>movements = <span class="macro">vec!</span>[(<span class="number">2</span>, <span class="number">1</span>), (<span class="number">3</span>, <span class="number">2</span>), (<span class="number">4</span>, <span class="number">3</span>), (<span class="number">5</span>, <span class="number">4</span>)];
+        assert_generated_opcodes(movements, <span class="macro">vec!</span>[(<span class="number">2</span>, <span class="number">1</span>), (<span class="number">3</span>, <span class="number">2</span>), (<span class="number">4</span>, <span class="number">3</span>), (<span class="number">5</span>, <span class="number">4</span>)]);
     }
 
     <span class="attr">#[test]
-    </span><span class="kw">fn </span>test_mov_registers_to_registers_loop() {
-        <span class="kw">let </span>movements = <span class="macro">vec!</span>[(<span class="number">10</span>, <span class="number">11</span>), (<span class="number">11</span>, <span class="number">12</span>), (<span class="number">12</span>, <span class="number">13</span>), (<span class="number">13</span>, <span class="number">10</span>)];
-        <span class="kw">let </span>expected_moves = <span class="macro">vec!</span>[(<span class="number">10</span>, <span class="number">1</span>), (<span class="number">13</span>, <span class="number">10</span>), (<span class="number">12</span>, <span class="number">13</span>), (<span class="number">11</span>, <span class="number">12</span>), (<span class="number">1</span>, <span class="number">11</span>)];
-        assert_generated_opcodes(movements, expected_moves);
+    </span><span class="kw">fn </span>test_basic_loop() {
+        <span class="kw">let </span>movements = <span class="macro">vec!</span>[(<span class="number">4</span>, <span class="number">1</span>), (<span class="number">1</span>, <span class="number">2</span>), (<span class="number">2</span>, <span class="number">3</span>), (<span class="number">3</span>, <span class="number">4</span>)];
+        assert_generated_opcodes(movements, <span class="macro">vec!</span>[(<span class="number">1</span>, <span class="number">5</span>), (<span class="number">4</span>, <span class="number">1</span>), (<span class="number">3</span>, <span class="number">4</span>), (<span class="number">2</span>, <span class="number">3</span>), (<span class="number">5</span>, <span class="number">2</span>)]);
     }
 
     <span class="attr">#[test]
-    </span><span class="kw">fn </span>test_mov_registers_to_registers_loop_and_branch() {
-        <span class="kw">let </span>movements = <span class="macro">vec!</span>[(<span class="number">10</span>, <span class="number">11</span>), (<span class="number">11</span>, <span class="number">12</span>), (<span class="number">12</span>, <span class="number">10</span>), (<span class="number">10</span>, <span class="number">13</span>), (<span class="number">13</span>, <span class="number">14</span>)];
-        <span class="kw">let </span>expected_moves = <span class="macro">vec!</span>[
-            (<span class="number">10</span>, <span class="number">1</span>),  <span class="comment">// Temporary
-            </span>(<span class="number">12</span>, <span class="number">10</span>), <span class="comment">// Branch
-            </span>(<span class="number">11</span>, <span class="number">12</span>), <span class="comment">// Loop
-            </span>(<span class="number">13</span>, <span class="number">14</span>), <span class="comment">// Loop
-            </span>(<span class="number">1</span>, <span class="number">11</span>),  <span class="comment">// Finish branch
-            </span>(<span class="number">1</span>, <span class="number">13</span>),  <span class="comment">// Finish loop
-        </span>];
-        assert_generated_opcodes(movements, expected_moves);
+    </span><span class="kw">fn </span>test_no_loop() {
+        <span class="kw">let </span>movements = <span class="macro">vec!</span>[(<span class="number">6</span>, <span class="number">1</span>), (<span class="number">1</span>, <span class="number">2</span>), (<span class="number">2</span>, <span class="number">3</span>), (<span class="number">3</span>, <span class="number">4</span>), (<span class="number">4</span>, <span class="number">5</span>)];
+        assert_generated_opcodes(movements, <span class="macro">vec!</span>[(<span class="number">4</span>, <span class="number">5</span>), (<span class="number">3</span>, <span class="number">4</span>), (<span class="number">2</span>, <span class="number">3</span>), (<span class="number">1</span>, <span class="number">2</span>), (<span class="number">6</span>, <span class="number">1</span>)]);
     }
 
     <span class="attr">#[test]
-    #[should_panic(expected = <span class="string">"Multiple moves to the same register found"</span>)]
-    </span><span class="kw">fn </span>test_mov_registers_to_registers_loop_with_init() {
-        <span class="kw">let </span>movements = <span class="macro">vec!</span>[(<span class="number">0</span>, <span class="number">1</span>), (<span class="number">1</span>, <span class="number">2</span>), (<span class="number">2</span>, <span class="number">3</span>), (<span class="number">3</span>, <span class="number">2</span>)];
-        assert_generated_opcodes(movements, <span class="macro">vec!</span>[]);
+    </span><span class="kw">fn </span>test_loop_with_branch() {
+        <span class="kw">let </span>movements = <span class="macro">vec!</span>[(<span class="number">3</span>, <span class="number">1</span>), (<span class="number">1</span>, <span class="number">2</span>), (<span class="number">2</span>, <span class="number">3</span>), (<span class="number">1</span>, <span class="number">4</span>), (<span class="number">4</span>, <span class="number">5</span>)];
+        assert_generated_opcodes(movements, <span class="macro">vec!</span>[(<span class="number">4</span>, <span class="number">5</span>), (<span class="number">1</span>, <span class="number">4</span>), (<span class="number">3</span>, <span class="number">1</span>), (<span class="number">2</span>, <span class="number">3</span>), (<span class="number">4</span>, <span class="number">2</span>)]);
     }
 
-    <span class="doccomment">/// Test that random movements have the expected effect.
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>test_two_loops() {
+        <span class="kw">let </span>movements = <span class="macro">vec!</span>[(<span class="number">3</span>, <span class="number">1</span>), (<span class="number">1</span>, <span class="number">2</span>), (<span class="number">2</span>, <span class="number">3</span>), (<span class="number">6</span>, <span class="number">4</span>), (<span class="number">4</span>, <span class="number">5</span>), (<span class="number">5</span>, <span class="number">6</span>)];
+        assert_generated_opcodes(
+            movements,
+            <span class="macro">vec!</span>[(<span class="number">1</span>, <span class="number">7</span>), (<span class="number">3</span>, <span class="number">1</span>), (<span class="number">2</span>, <span class="number">3</span>), (<span class="number">7</span>, <span class="number">2</span>), (<span class="number">4</span>, <span class="number">7</span>), (<span class="number">6</span>, <span class="number">4</span>), (<span class="number">5</span>, <span class="number">6</span>), (<span class="number">7</span>, <span class="number">5</span>)],
+        );
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>test_another_loop_with_branch() {
+        <span class="kw">let </span>movements = <span class="macro">vec!</span>[(<span class="number">2</span>, <span class="number">1</span>), (<span class="number">1</span>, <span class="number">2</span>), (<span class="number">2</span>, <span class="number">3</span>), (<span class="number">3</span>, <span class="number">4</span>), (<span class="number">4</span>, <span class="number">5</span>)];
+        assert_generated_opcodes(movements, <span class="macro">vec!</span>[(<span class="number">4</span>, <span class="number">5</span>), (<span class="number">3</span>, <span class="number">4</span>), (<span class="number">2</span>, <span class="number">3</span>), (<span class="number">1</span>, <span class="number">2</span>), (<span class="number">3</span>, <span class="number">1</span>)]);
+    }
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>test_one_loop() {
+        <span class="kw">let </span>movements = <span class="macro">vec!</span>[(<span class="number">2</span>, <span class="number">1</span>), (<span class="number">4</span>, <span class="number">2</span>), (<span class="number">5</span>, <span class="number">3</span>), (<span class="number">3</span>, <span class="number">4</span>), (<span class="number">1</span>, <span class="number">5</span>)];
+        assert_generated_opcodes(movements, <span class="macro">vec!</span>[(<span class="number">1</span>, <span class="number">6</span>), (<span class="number">2</span>, <span class="number">1</span>), (<span class="number">4</span>, <span class="number">2</span>), (<span class="number">3</span>, <span class="number">4</span>), (<span class="number">5</span>, <span class="number">3</span>), (<span class="number">6</span>, <span class="number">5</span>)]);
+    }
+
+    <span class="doccomment">/// This creates a chain (N+1)-&gt;1-&gt;2-&gt;...-&gt;N where N is large enough to overflow the stack
     </span><span class="attr">#[test]
+    </span><span class="kw">fn </span>test_deep_chain() {
+        <span class="comment">// Each movement is i -&gt; i+1, creating a single long chain
+        </span><span class="kw">const </span>CHAIN_DEPTH: usize = <span class="number">10_000</span>;
+
+        <span class="kw">let </span><span class="kw-2">mut </span>movements: Vec&lt;(usize, usize)&gt; = (<span class="number">0</span>..CHAIN_DEPTH).map(|i| (i, i + <span class="number">1</span>)).collect();
+        movements[<span class="number">0</span>] = (CHAIN_DEPTH + <span class="number">1</span>, <span class="number">1</span>);
+        <span class="kw">let </span>(sources, destinations) = movements_to_source_and_destinations(movements);
+
+        <span class="kw">let </span><span class="kw-2">mut </span>context = create_context();
+
+        <span class="comment">// This should overflow the stack with recursive implementation
+        </span>context.codegen_mov_registers_to_registers(<span class="kw-2">&amp;</span>sources, <span class="kw-2">&amp;</span>destinations);
+    }
+
+    <span class="attr">#[test]
     </span><span class="kw">fn </span>prop_mov_registers_to_registers() {
         <span class="kw">const </span>MEM_SIZE: usize = <span class="number">10</span>;
         arbtest::arbtest(|u| {
@@ -792,13 +703,8 @@
 
             <span class="comment">// All potential memory slots; we can't address before the stack start.
             </span><span class="kw">let </span>all_indexes = (<span class="number">0</span>..MEM_SIZE).map(|i| i + Stack::start()).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-            <span class="kw">let </span><span class="kw-2">mut </span>destinations = all_indexes.clone();
 
-            <span class="comment">// Shuffle the destinations; using the random numbers in memory as key.
-            </span>destinations.sort_by_key(|i| memory[<span class="kw-2">*</span>i]);
-
-            <span class="comment">// Keep the first N destinations.
-            </span>destinations.truncate(num_destinations);
+            <span class="kw">let </span>destinations: Vec&lt;usize&gt; = (<span class="number">1</span>..num_destinations + <span class="number">1</span>).collect();
 
             <span class="comment">// Pick random sources for each destination (same source can be repeated).
             </span><span class="kw">let </span><span class="kw-2">mut </span>sources = Vec::with_capacity(num_destinations);
