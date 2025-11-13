@@ -178,8 +178,9 @@ fn keep_argument_mask(
     vecmap(parameters.iter().enumerate(), |(i, parameter)| {
         let predecessors = cfg.predecessors(block);
         let predecessor_count = predecessors.len();
+        let parameter = inserter.resolve(*parameter);
 
-        let mut args = cfg.predecessors(block).map(|predecessor| {
+        let args = cfg.predecessors(block).map(|predecessor| {
             let terminator = inserter.function.dfg[predecessor].unwrap_terminator();
             if let TerminatorInstruction::Jmp { arguments, .. } = terminator {
                 arguments.get(i).copied()
@@ -189,16 +190,23 @@ fn keep_argument_mask(
             }
         });
 
+        let mut args = args.filter(|arg| match arg {
+            Some(arg) => inserter.resolve(*arg) != parameter,
+            None => true,
+        });
+
         let Some(Some(first_arg)) = args.next() else {
             return false;
         };
 
+        let first_arg = inserter.resolve(first_arg);
+
         // keep the parameter if the arguments do not all match
         // unwrap safety: for all multi-predecessor blocks, each predecessor should end in a jmp, not jmpif
-        let keep_param = !args.all(|arg| arg.unwrap() == first_arg);
+        let keep_param = !args.all(|arg| inserter.resolve(arg.unwrap()) == first_arg);
         if !keep_param {
             // All arguments are identical, so the choice to map to the first is arbitrary
-            inserter.map_value(*parameter, first_arg);
+            inserter.map_value(parameter, first_arg);
         }
         keep_param
     })
@@ -905,128 +913,128 @@ acir(inline) fn main f0 {
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: [u32; 5], v1: [u32; 5], v2: u32, v3: u32):
-            v32 = array_get v1, index u32 4 -> u32
-            jmp b1(u32 0, v32, u32 2301)
+            v27 = array_get v1, index u32 4 -> u32
+            jmp b1(u32 0, v27, u32 2301)
           b1(v4: u32, v5: u32, v6: u32):
-            v36 = lt v4, u32 5
-            jmpif v36 then: b2, else: b3
+            v31 = lt v4, u32 5
+            jmpif v31 then: b2, else: b3
           b2():
-            v106 = mul v5, v5
-            v107 = array_get v1, index v4 -> u32
-            v108 = mul v106, v107
-            v109 = sub v5, v108
-            v110 = unchecked_add v4, u32 1
-            jmp b1(v110, v109, v108)
+            v101 = mul v5, v5
+            v102 = array_get v1, index v4 -> u32
+            v103 = mul v101, v102
+            v104 = sub v5, v103
+            v105 = unchecked_add v4, u32 1
+            jmp b1(v105, v104, v103)
           b3():
-            v37 = eq v5, u32 0
+            v32 = eq v5, u32 0
             constrain v5 == u32 0
             jmp b4(u32 0, v5, u32 2301)
           b4(v7: u32, v8: u32, v9: u32):
-            v38 = lt v7, u32 5
-            jmpif v38 then: b5, else: b6
+            v33 = lt v7, u32 5
+            jmpif v33 then: b5, else: b6
           b5():
-            v100 = add v3, u32 2
-            v101 = array_get v0, index v7 -> u32
-            v102 = array_get v0, index v7 -> u32
-            v103 = array_get v1, index v7 -> u32
-            v104 = mul v102, v103
-            v105 = unchecked_add v7, u32 1
-            jmp b4(v105, u32 1, u32 0)
+            v95 = add v3, u32 2
+            v96 = array_get v0, index v7 -> u32
+            v97 = array_get v0, index v7 -> u32
+            v98 = array_get v1, index v7 -> u32
+            v99 = mul v97, v98
+            v100 = unchecked_add v7, u32 1
+            jmp b4(v100, u32 1, u32 0)
           b6():
-            v40 = eq v8, u32 3814912846
+            v35 = eq v8, u32 3814912846
             constrain v8 == u32 3814912846
-            v41 = array_get v1, index u32 4 -> u32
-            jmp b7(u32 0, v41, u32 2300001)
+            v36 = array_get v1, index u32 4 -> u32
+            jmp b7(u32 0, v36, u32 2300001)
           b7(v10: u32, v11: u32, v12: u32):
-            v43 = lt v10, u32 5
-            jmpif v43 then: b8, else: b9
+            v38 = lt v10, u32 5
+            jmpif v38 then: b8, else: b9
           b8():
-            v93 = array_get v0, index v10 -> u32
-            v94 = array_get v1, index v10 -> u32
-            v95 = mul v93, v94
-            v96 = add v11, v95
-            jmp b10(u32 0, v96, v12)
+            v88 = array_get v0, index v10 -> u32
+            v89 = array_get v1, index v10 -> u32
+            v90 = mul v88, v89
+            v91 = add v11, v90
+            jmp b10(u32 0, v91, v12)
           b9():
-            v45 = eq v11, u32 41472
+            v40 = eq v11, u32 41472
             constrain v11 == u32 41472
-            v46 = array_get v1, index u32 4 -> u32
-            jmp b13(u32 0, v46, v12)
+            v41 = array_get v1, index u32 4 -> u32
+            jmp b13(u32 0, v41, v12)
           b10(v13: u32, v14: u32, v15: u32):
-            v97 = lt v13, u32 3
-            jmpif v97 then: b11, else: b12
+            v92 = lt v13, u32 3
+            jmpif v92 then: b11, else: b12
           b11():
-            v99 = unchecked_add v13, u32 1
-            jmp b10(v99, u32 4, u32 3)
+            v94 = unchecked_add v13, u32 1
+            jmp b10(v94, u32 4, u32 3)
           b12():
-            v98 = unchecked_add v10, u32 1
-            jmp b7(v98, v14, v15)
+            v93 = unchecked_add v10, u32 1
+            jmp b7(v93, v14, v15)
           b13(v16: u32, v17: u32, v18: u32):
-            v48 = lt v16, u32 3
-            jmpif v48 then: b14, else: b15
+            v43 = lt v16, u32 3
+            jmpif v43 then: b14, else: b15
           b14():
-            v80 = array_get v0, index v16 -> u32
-            v81 = array_get v1, index v16 -> u32
-            v82 = mul v80, v81
-            v83 = add v17, v82
-            jmp b16(u32 0, v83, v18)
+            v75 = array_get v0, index v16 -> u32
+            v76 = array_get v1, index v16 -> u32
+            v77 = mul v75, v76
+            v78 = add v17, v77
+            jmp b16(u32 0, v78)
           b15():
-            v50 = eq v17, u32 11539
+            v45 = eq v17, u32 11539
             constrain v17 == u32 11539
-            v51 = eq v17, u32 0
-            jmpif v51 then: b19, else: b20
-          b16(v19: u32, v20: u32, v21: u32):
-            v84 = lt v19, u32 2
-            jmpif v84 then: b17, else: b18
+            v46 = eq v17, u32 0
+            jmpif v46 then: b19, else: b20
+          b16(v19: u32, v20: u32):
+            v79 = lt v19, u32 2
+            jmpif v79 then: b17, else: b18
           b17():
-            v86 = add v16, v19
-            v87 = array_get v0, index v86 -> u32
-            v88 = add v16, v19
-            v89 = array_get v1, index v88 -> u32
-            v90 = sub v87, v89
-            v91 = add v20, v90
-            v92 = unchecked_add v19, u32 1
-            jmp b16(v92, v91, v21)
+            v81 = add v16, v19
+            v82 = array_get v0, index v81 -> u32
+            v83 = add v16, v19
+            v84 = array_get v1, index v83 -> u32
+            v85 = sub v82, v84
+            v86 = add v20, v85
+            v87 = unchecked_add v19, u32 1
+            jmp b16(v87, v86)
           b18():
-            v85 = unchecked_add v16, u32 1
-            jmp b13(v85, v20, v21)
+            v80 = unchecked_add v16, u32 1
+            jmp b13(v80, v20, v18)
           b19():
-            jmp b21(v0, v17, v18)
+            jmp b21(v0)
           b20():
-            jmp b21(v1, v17, v18)
-          b21(v22: [u32; 5], v23: u32, v24: u32):
-            v52 = array_get v22, index u32 0 -> u32
-            v53 = array_get v1, index u32 0 -> u32
-            v54 = eq v52, v53
-            constrain v52 == v53
-            jmp b22(u32 0, v23, v24)
-          b22(v25: u32, v26: u32, v27: u32):
-            v55 = lt v25, u32 5
-            jmpif v55 then: b23, else: b24
+            jmp b21(v1)
+          b21(v21: [u32; 5]):
+            v47 = array_get v21, index u32 0 -> u32
+            v48 = array_get v1, index u32 0 -> u32
+            v49 = eq v47, v48
+            constrain v47 == v48
+            jmp b22(u32 0, v17, v18)
+          b22(v22: u32, v23: u32, v24: u32):
+            v50 = lt v22, u32 5
+            jmpif v50 then: b23, else: b24
           b23():
-            v71 = array_get v1, index v25 -> u32
-            jmp b25(u32 0, v26, v27)
+            v66 = array_get v1, index v22 -> u32
+            jmp b25(u32 0)
           b24():
-            v62 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 6] : [(Field, Field); 3]
-            v65 = array_set v62, index u32 2, value Field 7
-            v67 = array_set v65, index u32 3, value Field 8
-            v68 = array_get v67, index u32 2 -> Field
-            v69 = array_get v67, index u32 3 -> Field
-            v70 = eq v69, Field 8
-            constrain v69 == Field 8
+            v57 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 6] : [(Field, Field); 3]
+            v60 = array_set v57, index u32 2, value Field 7
+            v62 = array_set v60, index u32 3, value Field 8
+            v63 = array_get v62, index u32 2 -> Field
+            v64 = array_get v62, index u32 3 -> Field
+            v65 = eq v64, Field 8
+            constrain v64 == Field 8
             return
-          b25(v28: u32, v29: u32, v30: u32):
-            v72 = lt v28, u32 5
-            jmpif v72 then: b26, else: b27
+          b25(v25: u32):
+            v67 = lt v25, u32 5
+            jmpif v67 then: b26, else: b27
           b26():
-            v75 = array_get v0, index v28 -> u32
-            v76 = eq v75, v71
-            v77 = not v76
-            constrain v76 == u1 0
-            v79 = unchecked_add v28, u32 1
-            jmp b25(v79, v29, v30)
-          b27():
+            v70 = array_get v0, index v25 -> u32
+            v71 = eq v70, v66
+            v72 = not v71
+            constrain v71 == u1 0
             v74 = unchecked_add v25, u32 1
-            jmp b22(v74, v29, v30)
+            jmp b25(v74)
+          b27():
+            v69 = unchecked_add v22, u32 1
+            jmp b22(v69, v23, v24)
         }
         ");
     }
@@ -1122,6 +1130,43 @@ acir(inline) fn main f0 {
             jmp b5(v2)
           b9():
             jmp b7(v2)
+        }
+        ");
+    }
+
+    #[test]
+    fn read_only_loop() {
+        // In the loop header b1 we have v1 incoming with a value of Field 0 from b0,
+        // or the current block parameter that was added from the loop edge. Normally,
+        // we only check if all arguments are equal to forward them, but it is sufficient
+        // to check if all arguments are equal or equal to the original block parameter.
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u1):
+                v1 = allocate -> &mut Field
+                store Field 0 at v1
+                jmp b1()
+              b1():
+                jmpif v0 then: b2, else: b3
+              b2():
+                jmp b1()
+              b3():
+                v2 = load v1 -> Field
+                return v2
+            }";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg_simple();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            jmp b1()
+          b1():
+            jmpif v0 then: b2, else: b3
+          b2():
+            jmp b1()
+          b3():
+            return Field 0
         }
         ");
     }
