@@ -1386,7 +1386,7 @@ impl Type {
             Type::TypeVariable(binding) => match &*binding.borrow() {
                 TypeBinding::Bound(typ) => typ.is_message_compatible(is_monomorphized),
                 TypeBinding::Unbound(_, kind) => {
-                    matches!(kind, Kind::Integer | Kind::IntegerOrField)
+                    !is_monomorphized || matches!(kind, Kind::Integer | Kind::IntegerOrField)
                 }
             },
             Type::DataType(def, args) => {

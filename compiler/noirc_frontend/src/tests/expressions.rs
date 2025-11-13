@@ -248,7 +248,7 @@ fn abi_incompatible_assert_message() {
 #[test]
 fn abi_incompatible_generic_assert_message() {
     // The message cannot appear in the ABI, but we can't tell
-    // what T is going to be before monomorphization.
+    // what T is going to be before monomorphization, so we can't reject.
     let src = r#"
         fn main() {
             let a = &[1, 2, 3];
