@@ -64,7 +64,7 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
         SsaCommand::List => {
             // This command doesn't actually use the common parameters, but we could potentially
             // read the source, and figure out which passes we can apply to it based on its state.
-            let options = CompileOptions::default().as_ssa_options(Default::default());
+            let options = CompileOptions::default().as_ssa_options(Default::default(), false);
             for (msg, _) in ssa_passes(&options) {
                 println_to_stdout!("{msg}");
             }
