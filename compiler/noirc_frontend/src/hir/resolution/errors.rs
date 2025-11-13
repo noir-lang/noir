@@ -190,8 +190,8 @@ pub enum ResolverError {
     AmbiguousAssociatedType { trait_name: String, associated_type_name: String, location: Location },
     #[error("The placeholder `_` is not allowed within types on item signatures for functions")]
     WildcardTypeDisallowed { location: Location },
-    #[error("References are not allowed in globals")]
-    ReferencesNotAllowedInGlobals { location: Location },
+    #[error("Reference (`{typ}`) is not allowed in globals")]
+    ReferencesNotAllowedInGlobals { typ: String, location: Location },
     #[error("Functions marked with #[oracle] must have no body")]
     OracleWithBody { location: Location },
     #[error("Builtin and low-level function declarations cannot have a body")]
@@ -262,7 +262,7 @@ impl ResolverError {
             | ResolverError::AssociatedItemConstraintsNotAllowedInGenerics { location }
             | ResolverError::AmbiguousAssociatedType { location, .. }
             | ResolverError::WildcardTypeDisallowed { location }
-            | ResolverError::ReferencesNotAllowedInGlobals { location }
+            | ResolverError::ReferencesNotAllowedInGlobals { location, .. }
             | ResolverError::OracleWithBody { location }
             | ResolverError::BuiltinWithBody { location } => *location,
             ResolverError::UnusedVariable { ident }
@@ -817,9 +817,9 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *location,
                 )
             }
-            ResolverError::ReferencesNotAllowedInGlobals { location } => {
+            ResolverError::ReferencesNotAllowedInGlobals { typ, location } => {
                 Diagnostic::simple_error(
-                    "References are not allowed in globals".to_string(),
+                    format!("Reference `{typ}` is not allowed in globals").to_string(),
                     String::new(),
                     *location,
                 )

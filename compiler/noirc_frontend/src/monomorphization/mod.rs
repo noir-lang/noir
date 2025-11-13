@@ -679,12 +679,14 @@ impl<'interner> Monomorphizer<'interner> {
                 let frontend_type = self.interner.id_type(expr);
                 let typ = Self::convert_type(&frontend_type, location)?;
 
-                if !self.in_unconstrained_function && Self::contains_reference(&frontend_type) {
-                    let typ = frontend_type.to_string();
-                    return Err(MonomorphizationError::ReferenceReturnedFromIfOrMatch {
-                        typ,
-                        location,
-                    });
+                if !self.in_unconstrained_function {
+                    if let Some(typ) = frontend_type.contains_reference() {
+                        let typ = typ.to_string();
+                        return Err(MonomorphizationError::ReferenceReturnedFromIfOrMatch {
+                            typ,
+                            location,
+                        });
+                    }
                 }
 
                 ast::Expression::If(ast::If { condition, consequence, alternative: else_, typ })
@@ -711,59 +713,6 @@ impl<'interner> Monomorphizer<'interner> {
         };
 
         Ok(expr)
-    }
-
-    fn contains_reference(typ: &Type) -> bool {
-        match typ {
-            Type::FieldElement
-            | Type::Bool
-            | Type::String(_)
-            | Type::Integer(..)
-            | Type::Unit
-            | Type::TraitAsType(..)
-            | Type::Constant(..)
-            | Type::Quoted(..)
-            | Type::InfixExpr(..)
-            | Type::Error => false,
-
-            Type::Reference(_, _) => true,
-
-            Type::Array(_len, element) => Self::contains_reference(element),
-            Type::Slice(element) => Self::contains_reference(element),
-            Type::FmtString(_, environment) => Self::contains_reference(environment),
-            Type::Tuple(fields) => fields.iter().any(Self::contains_reference),
-            Type::DataType(datatype, generics) => {
-                let datatype = datatype.borrow();
-                if let Some(fields) = datatype.get_fields(generics) {
-                    fields.iter().any(|(_, field, _)| Self::contains_reference(field))
-                } else if let Some(variants) = datatype.get_variants(generics) {
-                    variants
-                        .iter()
-                        .any(|(_, variant_args)| variant_args.iter().any(Self::contains_reference))
-                } else {
-                    false
-                }
-            }
-            Type::Alias(alias, generics) => {
-                Self::contains_reference(&alias.borrow().get_type(generics))
-            }
-            Type::TypeVariable(type_variable) => match &*type_variable.borrow() {
-                TypeBinding::Bound(binding) => Self::contains_reference(binding),
-                TypeBinding::Unbound(..) => false,
-            },
-            Type::NamedGeneric(named_generic) => match &*named_generic.type_var.borrow() {
-                TypeBinding::Bound(binding) => Self::contains_reference(binding),
-                TypeBinding::Unbound(..) => false,
-            },
-            Type::CheckedCast { to, .. } => Self::contains_reference(to),
-            Type::Function(_args, _ret, env, _unconstrained) => {
-                // Only the environment of a function is counted as an actual reference value.
-                // Otherwise we can't return functions accepting references as arguments from if
-                // expressions.
-                Self::contains_reference(env)
-            }
-            Type::Forall(_, typ) => Self::contains_reference(typ),
-        }
     }
 
     fn standard_array(
@@ -1147,17 +1096,21 @@ impl<'interner> Monomorphizer<'interner> {
                 let func_id = *func_id;
 
                 // Functions are represented as a pair of their constrained and unconstrained versions
-                self.monomorphize_constrained_and_unconstrained(use_current_runtime, |this| {
-                    this.function_reference(
-                        mutable,
-                        name,
-                        ident.location,
-                        func_id,
-                        expr_id,
-                        &typ,
-                        generics,
-                    )
-                })
+                self.monomorphize_constrained_and_unconstrained(
+                    use_current_runtime,
+                    self.force_unconstrained,
+                    |this| {
+                        this.function_reference(
+                            mutable,
+                            name,
+                            ident.location,
+                            func_id,
+                            expr_id,
+                            &typ,
+                            generics,
+                        )
+                    },
+                )
             }
             DefinitionKind::Global(global_id) => {
                 self.global_ident(*global_id, definition.name.clone(), &typ, ident.location)
@@ -1735,9 +1688,11 @@ impl<'interner> Monomorphizer<'interner> {
         };
 
         // Functions are represented as (constrained, unconstrained) pairs
-        self.monomorphize_constrained_and_unconstrained(use_current_runtime, |this| {
-            this.resolve_trait_method_expr(func_id, expr_id, function_type, trait_item_id)
-        })
+        self.monomorphize_constrained_and_unconstrained(
+            use_current_runtime,
+            self.force_unconstrained,
+            |this| this.resolve_trait_method_expr(func_id, expr_id, function_type, trait_item_id),
+        )
     }
 
     fn resolve_trait_method_expr(
@@ -1780,6 +1735,7 @@ impl<'interner> Monomorphizer<'interner> {
     fn monomorphize_constrained_and_unconstrained<F>(
         &mut self,
         use_current_runtime: bool,
+        force_unconstrained: bool,
         f: F,
     ) -> Result<ast::Expression, MonomorphizationError>
     where
@@ -1794,7 +1750,7 @@ impl<'interner> Monomorphizer<'interner> {
             // monomorphization consistent regardless of whether the flag is set, since the type
             // of functions would also need to be updated, which affects how closures are detected,
             // etc.
-            let is_unconstrained = self.force_unconstrained;
+            let is_unconstrained = force_unconstrained;
 
             let old_value =
                 std::mem::replace(&mut self.in_unconstrained_function, is_unconstrained);
@@ -1815,6 +1771,13 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> Result<ast::Expression, MonomorphizationError> {
         let original_func = Box::new(self.extract_function(call.func)?);
 
+        let crossing_runtime_boundaries =
+            !self.in_unconstrained_function && self.function_is_unconstrained(call.func);
+
+        if crossing_runtime_boundaries {
+            self.check_arguments_crossing_runtime_boundaries(&call)?;
+        }
+
         let mut arguments = try_vecmap(&call.arguments, |id| self.expr(*id))?;
         let hir_arguments = vecmap(&call.arguments, |id| self.interner.expression(id));
 
@@ -1822,6 +1785,11 @@ impl<'interner> Monomorphizer<'interner> {
 
         let return_type = self.interner.id_type(id);
         let location = self.interner.expr_location(&id);
+
+        if crossing_runtime_boundaries {
+            self.check_return_type_crossing_runtime_boundaries(&return_type, location)?;
+        }
+
         let return_type = Self::convert_type(&return_type, location)?;
 
         let location = call.location;
@@ -1893,6 +1861,49 @@ impl<'interner> Monomorphizer<'interner> {
         } else {
             Ok(call)
         }
+    }
+
+    fn check_arguments_crossing_runtime_boundaries(
+        &mut self,
+        call: &HirCallExpression,
+    ) -> Result<(), MonomorphizationError> {
+        for argument in &call.arguments {
+            let typ = self.interner.id_type(argument);
+            if let Some(typ) = typ.contains_reference() {
+                let typ = typ.to_string();
+                let location = self.interner.id_location(argument);
+                return Err(MonomorphizationError::ConstrainedReferenceToUnconstrained {
+                    typ,
+                    location,
+                });
+            }
+        }
+
+        Ok(())
+    }
+
+    fn check_return_type_crossing_runtime_boundaries(
+        &mut self,
+        return_type: &Type,
+        location: Location,
+    ) -> Result<(), MonomorphizationError> {
+        if let Some(typ) = return_type.contains_slice() {
+            let typ = typ.to_string();
+            return Err(MonomorphizationError::UnconstrainedSliceReturnToConstrained {
+                typ,
+                location,
+            });
+        }
+
+        if let Some(typ) = return_type.contains_reference() {
+            let typ = typ.to_string();
+            return Err(MonomorphizationError::UnconstrainedReferenceReturnToConstrained {
+                typ,
+                location,
+            });
+        }
+
+        Ok(())
     }
 
     /// Adds a function argument that contains type metadata that is required to tell
@@ -2084,9 +2095,14 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> Result<ast::Expression, MonomorphizationError> {
         let expression_type = self.interner.id_type(assign.expression);
         let location = self.interner.expr_location(&assign.expression);
-        if !self.in_unconstrained_function && Self::contains_reference(&expression_type) {
-            let typ = expression_type.to_string();
-            return Err(MonomorphizationError::AssignedToVarContainingReference { typ, location });
+        if !self.in_unconstrained_function {
+            if let Some(typ) = expression_type.contains_reference() {
+                let typ = typ.to_string();
+                return Err(MonomorphizationError::AssignedToVarContainingReference {
+                    typ,
+                    location,
+                });
+            }
         }
 
         let expression = Box::new(self.expr(assign.expression)?);
@@ -2127,14 +2143,18 @@ impl<'interner> Monomorphizer<'interner> {
         expr: ExprId,
     ) -> Result<ast::Expression, MonomorphizationError> {
         // Function values are represented as a tuple of (constrained version, unconstrained version)
-        self.monomorphize_constrained_and_unconstrained(false, |this: &mut Self| {
-            if lambda.captures.is_empty() {
-                this.lambda_no_capture(lambda, expr)
-            } else {
-                let (setup, closure_variable) = this.lambda_with_setup(lambda, expr)?;
-                Ok(ast::Expression::Block(vec![setup, closure_variable]))
-            }
-        })
+        self.monomorphize_constrained_and_unconstrained(
+            false,
+            self.force_unconstrained || lambda.unconstrained,
+            |this: &mut Self| {
+                if lambda.captures.is_empty() {
+                    this.lambda_no_capture(lambda, expr)
+                } else {
+                    let (setup, closure_variable) = this.lambda_with_setup(lambda, expr)?;
+                    Ok(ast::Expression::Block(vec![setup, closure_variable]))
+                }
+            },
+        )
     }
 
     fn lambda_no_capture(
@@ -2340,9 +2360,14 @@ impl<'interner> Monomorphizer<'interner> {
         let result_type = self.interner.id_type(expr_id);
         let location = self.interner.expr_location(&expr_id);
 
-        if !self.in_unconstrained_function && Self::contains_reference(&result_type) {
-            let typ = result_type.to_string();
-            return Err(MonomorphizationError::ReferenceReturnedFromIfOrMatch { typ, location });
+        if !self.in_unconstrained_function {
+            if let Some(typ) = result_type.contains_reference() {
+                let typ = typ.to_string();
+                return Err(MonomorphizationError::ReferenceReturnedFromIfOrMatch {
+                    typ,
+                    location,
+                });
+            }
         }
 
         match match_expr {
@@ -2632,6 +2657,16 @@ impl<'interner> Monomorphizer<'interner> {
             }
             tuple => Ok(ast::Expression::ExtractTupleField(Box::new(tuple), index)),
         }
+    }
+
+    fn function_is_unconstrained(&self, function: ExprId) -> bool {
+        if let HirExpression::Ident(ident, _) = self.interner.expression(&function) {
+            if let DefinitionKind::Function(func_id) = self.interner.definition(ident.id).kind {
+                return self.interner.function_modifiers(&func_id).is_unconstrained;
+            }
+        }
+
+        false
     }
 }
 

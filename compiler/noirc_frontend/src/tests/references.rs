@@ -1,9 +1,9 @@
 use crate::{
     elaborator::UnstableFeature,
-    tests::{check_errors, get_program_using_features},
+    tests::{
+        assert_no_errors, check_errors, check_monomorphization_error, get_program_using_features,
+    },
 };
-
-use super::assert_no_errors;
 
 #[test]
 fn cannot_mutate_immutable_variable() {
@@ -92,7 +92,7 @@ fn constrained_reference_to_unconstrained() {
             // Safety: test context
             unsafe {
                 mut_ref_input(x_ref, y);        
-                              ^^^^^ Cannot pass a mutable reference from a constrained runtime to an unconstrained runtime
+                              ^^^^^ Cannot pass mutable reference `&mut u32` from a constrained runtime to an unconstrained runtime
             }
         }
 
@@ -136,4 +136,46 @@ fn immutable_references_without_ownership_feature() {
                           ~~~~~~~~~~~ Pass -Zownership to nargo to enable this feature at your own risk.
     "#;
     check_errors(src);
+}
+
+#[test]
+fn infers_lambda_to_be_unconstrained() {
+    let src = "
+    unconstrained fn main() {
+        foo(|x| bar(x))
+    }
+
+    unconstrained fn foo(f: unconstrained fn(&mut Field)) {
+        let x = &mut 0;
+        f(x);
+    }
+
+    unconstrained fn bar(_: &mut Field) {}
+    ";
+    assert_no_errors(src);
+}
+
+#[test]
+fn disallows_passing_unconstrained_lambda_to_constrained_fn() {
+    let src = "
+    unconstrained fn main() {
+        foo(unconstrained || {})
+            ^^^^^^^^^^^^^^^^^^^ Converting an unconstrained fn to a non-unconstrained fn is unsafe
+    }
+
+    unconstrained fn foo(_: fn()) {}
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn allows_calling_unconstrained_fn_from_unconstrained_lambda() {
+    let src = "
+    fn main() {
+        let _ = unconstrained || foo();
+    }
+
+    unconstrained fn foo() {}
+    ";
+    check_monomorphization_error(src);
 }

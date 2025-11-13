@@ -259,6 +259,9 @@ impl ItemPrinter<'_, '_> {
     }
 
     pub(crate) fn show_hir_lambda(&mut self, hir_lambda: HirLambda) {
+        if hir_lambda.unconstrained {
+            self.push_str("unconstrained ");
+        }
         self.push('|');
         self.show_separated_by_comma(&hir_lambda.parameters, |this, (parameter, typ)| {
             this.show_hir_pattern(parameter.clone());

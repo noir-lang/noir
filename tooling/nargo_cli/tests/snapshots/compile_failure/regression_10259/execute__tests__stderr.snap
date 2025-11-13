@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Slice `[Field]` cannot be returned from an unconstrained runtime to a constrained runtime
+  ┌─ src/main.nr:8:9
+  │
+8 │         foo(x)
+  │         ------
+  │
+
+Aborting due to 1 previous error

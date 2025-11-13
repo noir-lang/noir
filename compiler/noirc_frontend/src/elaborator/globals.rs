@@ -100,8 +100,9 @@ impl Elaborator<'_> {
 
         // References cannot be stored in globals because they would outlive their referents.
         // All data in globals must be owned.
-        if let_statement.r#type.contains_reference() {
-            self.push_err(ResolverError::ReferencesNotAllowedInGlobals { location });
+        if let Some(typ) = let_statement.r#type.contains_reference() {
+            let typ = typ.to_string();
+            self.push_err(ResolverError::ReferencesNotAllowedInGlobals { location, typ });
         }
 
         if !let_statement.comptime && matches!(let_statement.r#type, Type::Quoted(_)) {
