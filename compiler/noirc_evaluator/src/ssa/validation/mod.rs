@@ -906,16 +906,50 @@ impl<'f> Validator<'f> {
         (self.function.dfg.type_of_value(results[0]), self.function.dfg.type_of_value(results[1]))
     }
 
-    /// Validates that acir functions are not called from unconstrained code.
+    /// Validates that ACIR functions are not called from unconstrained code.
     fn check_calls_in_unconstrained(&self, instruction: InstructionId) {
         if self.function.runtime().is_brillig() {
             if let Instruction::Call { func, .. } = &self.function.dfg[instruction] {
                 if let Value::Function(func_id) = &self.function.dfg[*func] {
                     let called_function = &self.ssa.functions[func_id];
                     if called_function.runtime().is_acir() {
-                        panic!("Call to acir function {} from unconstrained code", func_id);
+                        panic!(
+                            "Call to ACIR function {} from unconstrained function {}",
+                            func_id,
+                            self.function.id()
+                        );
                     }
                 }
+            }
+        }
+    }
+
+    /// Check that we are not trying to pass references from constrained to unconstrained code.
+    ///
+    /// See the discussion in [#10262](https://github.com/noir-lang/noir/pull/10264) about the difficulty of catching this in the frontend.
+    fn check_calls_in_constrained(&self, instruction: InstructionId) {
+        if !self.function.runtime().is_acir() {
+            return;
+        }
+        let Instruction::Call { func, .. } = &self.function.dfg[instruction] else {
+            return;
+        };
+        let Value::Function(func_id) = &self.function.dfg[*func] else {
+            return;
+        };
+        let called_function = &self.ssa.functions[func_id];
+        if called_function.runtime().is_acir() {
+            return;
+        }
+        for param_id in called_function.parameters() {
+            let typ = self.function.dfg.type_of_value(*param_id);
+            if typ.contains_reference() {
+                // If we don't panic here, we would have a different, more obscure panic later on.
+                panic!(
+                    "Trying to pass a reference in parameter {param_id} from ACIR function {} to unconstrained function {}",
+                    self.function.id(),
+                    called_function.id()
+                )
             }
         }
     }
@@ -972,6 +1006,7 @@ impl<'f> Validator<'f> {
                 self.validate_field_to_integer_cast_invariant(*instruction);
                 self.type_check_instruction(*instruction);
                 self.check_calls_in_unconstrained(*instruction);
+                self.check_calls_in_constrained(*instruction);
             }
             self.validate_block_terminator(block);
         }
