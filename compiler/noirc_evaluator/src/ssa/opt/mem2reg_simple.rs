@@ -1,4 +1,4 @@
-//! Mem2reg algorithm adapted from the paper: https://bernsteinbear.com/assets/img/bebenita-ssa.pdf
+//! Mem2reg algorithm adapted from the paper: <https://bernsteinbear.com/assets/img/bebenita-ssa.pdf>
 use iter_extended::vecmap;
 use std::collections::{BTreeMap, btree_map::Entry};
 
