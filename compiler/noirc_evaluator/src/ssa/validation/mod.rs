@@ -914,9 +914,11 @@ impl<'f> Validator<'f> {
                     let called_function = &self.ssa.functions[func_id];
                     if called_function.runtime().is_acir() {
                         panic!(
-                            "Call to ACIR function {} from unconstrained function {}",
-                            func_id,
-                            self.function.id()
+                            "Call to ACIR function '{} {}' from unconstrained '{} {}'",
+                            called_function.name(),
+                            called_function.id(),
+                            self.function.name(),
+                            self.function.id(),
                         );
                     }
                 }
@@ -946,7 +948,7 @@ impl<'f> Validator<'f> {
             if typ.contains_reference() {
                 // If we don't panic here, we would have a different, more obscure panic later on.
                 panic!(
-                    "Trying to pass a reference from ACIR 'fn {} {}' to 'unconstrained fn {} {}' in argument {arg_id}: {typ}",
+                    "Trying to pass a reference from ACIR function '{} {}' to unconstrained '{} {}' in argument {arg_id}: {typ}",
                     self.function.name(),
                     self.function.id(),
                     called_function.name(),
@@ -1681,7 +1683,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Call to acir function f1 from unconstrained code")]
+    #[should_panic(expected = "Call to ACIR function 'foo f1' from unconstrained 'main f0'")]
     fn disallows_calling_acir_from_brillig() {
         let src = "
         brillig(inline) fn main f0 {
