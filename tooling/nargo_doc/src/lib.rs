@@ -673,6 +673,10 @@ impl DocItemBuilder<'_> {
         links.into_iter().collect()
     }
 
+    /// Tries to convert a path into a link by resolving a path like `std::collections::Vec`.
+    /// This is similar to how name resolution works in the compiler, except that it's simpler
+    /// (no need to report errors), and references to type and trait functions are handled
+    /// a bit differently.
     fn path_to_link(
         &mut self,
         path: &str,
