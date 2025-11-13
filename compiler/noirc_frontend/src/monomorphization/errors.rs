@@ -120,7 +120,7 @@ impl From<MonomorphizationError> for CustomDiagnostic {
             }
             MonomorphizationError::ConstrainedReferenceToUnconstrained { typ, .. } => {
                 format!(
-                    "Cannot pass  mutable reference `{typ}` from a constrained runtime to an unconstrained runtime"
+                    "Cannot pass mutable reference `{typ}` from a constrained runtime to an unconstrained runtime"
                 )
             }
             MonomorphizationError::UnconstrainedReferenceReturnToConstrained { typ, .. } => {
