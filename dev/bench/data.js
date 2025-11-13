@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1763062367511,
+  "lastUpdate": 1763062606247,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23086,48 +23086,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "12387f3286c4a38725df962be1bf23144a8a89f4",
-          "message": "chore: use SignedField::from_signed in enums.rs (#10408)",
-          "timestamp": "2025-11-06T18:53:27Z",
-          "tree_id": "65d131f29b6a0816e5f649a97c9c8171fc5c9476",
-          "url": "https://github.com/noir-lang/noir/commit/12387f3286c4a38725df962be1bf23144a8a89f4"
-        },
-        "date": 1762457502991,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 264366,
-            "range": "± 735",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 235783,
-            "range": "± 1982",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2802793,
-            "range": "± 1945",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -25179,6 +25137,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2782518,
             "range": "± 2327",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rkarabut@users.noreply.github.com",
+            "name": "Ratmir Karabut",
+            "username": "rkarabut"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "9fd2cf1aed74715747fab3d4cdc6abdaf6e37b36",
+          "message": "feat(fuzz): Add support for more functions in comptime_vs_brillig_direct (#10500)",
+          "timestamp": "2025-11-13T19:11:42Z",
+          "tree_id": "89f700803f366d71de5c1220af96642761a28d64",
+          "url": "https://github.com/noir-lang/noir/commit/9fd2cf1aed74715747fab3d4cdc6abdaf6e37b36"
+        },
+        "date": 1763062577538,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 265932,
+            "range": "± 1423",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 234348,
+            "range": "± 1290",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2801787,
+            "range": "± 4340",
             "unit": "ns/iter"
           }
         ]
