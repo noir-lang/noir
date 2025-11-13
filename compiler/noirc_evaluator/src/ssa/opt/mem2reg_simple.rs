@@ -205,7 +205,7 @@ fn keep_argument_mask(
 }
 
 // For each index i of `items`, keep `items[i]` iff `mask[i]`
-fn retain_items_from_mask(items: &mut Vec<ValueId>, mask: &Vec<bool>) {
+fn retain_items_from_mask(items: &mut Vec<ValueId>, mask: &[bool]) {
     let mut i = 0;
     items.retain(|_| {
         i += 1;

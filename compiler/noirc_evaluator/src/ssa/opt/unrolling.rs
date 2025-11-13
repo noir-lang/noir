@@ -59,7 +59,7 @@ use crate::{
             instruction::{Binary, BinaryOp, Instruction, TerminatorInstruction},
             integer::IntegerConstant,
             post_order::PostOrder,
-            value::ValueId,
+            value::{Value, ValueId},
         },
         ssa_gen::Ssa,
     },
@@ -900,12 +900,9 @@ impl Loop {
             let new_position = function.dfg[loop_end].parameters().len();
             function.dfg[loop_end].add_parameter(value);
 
-            match &mut function.dfg[value] {
-                crate::ssa::ir::value::Value::Param { block, position, .. } => {
-                    *block = loop_end;
-                    *position = new_position;
-                }
-                _ => (),
+            if let Value::Param { block, position, .. } = &mut function.dfg[value] {
+                *block = loop_end;
+                *position = new_position;
             }
         }
     }
@@ -1145,7 +1142,7 @@ impl<'f> LoopIteration<'f> {
 
         let terminator = self.inserter.function.dfg[self.insert_block].unwrap_terminator();
 
-        let next_blocks = match terminator {
+        match terminator {
             TerminatorInstruction::JmpIf {
                 condition,
                 then_destination,
@@ -1169,9 +1166,7 @@ impl<'f> LoopIteration<'f> {
                 // The SSA pass that adds unreachable terminators must come after unrolling.
                 unreachable!("unexpected unreachable terminator in loop body");
             }
-        };
-
-        next_blocks
+        }
     }
 
     /// Find the next branch(es) to take from a jmpif terminator and return them.
