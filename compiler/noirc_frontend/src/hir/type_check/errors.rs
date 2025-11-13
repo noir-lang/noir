@@ -197,9 +197,9 @@ pub enum TypeCheckError {
     )]
     ConstrainedReferenceToUnconstrained { location: Location },
     #[error(
-        "Cannot pass a mutable reference from a unconstrained runtime to an constrained runtime"
+        "Mutable references cannot be returned from an unconstrained runtime to a constrained runtime"
     )]
-    UnconstrainedReferenceToConstrained { location: Location },
+    UnconstrainedReferenceReturnToConstrained { location: Location },
     #[error("Slices cannot be returned from an unconstrained runtime to a constrained runtime")]
     UnconstrainedSliceReturnToConstrained { location: Location },
     #[error(
@@ -331,7 +331,7 @@ impl TypeCheckError {
             | TypeCheckError::UnneededTraitConstraint { location, .. }
             | TypeCheckError::IncorrectTurbofishGenericCount { location, .. }
             | TypeCheckError::ConstrainedReferenceToUnconstrained { location }
-            | TypeCheckError::UnconstrainedReferenceToConstrained { location }
+            | TypeCheckError::UnconstrainedReferenceReturnToConstrained { location }
             | TypeCheckError::UnconstrainedSliceReturnToConstrained { location }
             | TypeCheckError::Unsafe { location }
             | TypeCheckError::UnsafeFn { location }
@@ -523,7 +523,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             | TypeCheckError::FieldModulo { location }
             | TypeCheckError::FieldNot { location }
             | TypeCheckError::ConstrainedReferenceToUnconstrained { location }
-            | TypeCheckError::UnconstrainedReferenceToConstrained { location }
+            | TypeCheckError::UnconstrainedReferenceReturnToConstrained { location }
             | TypeCheckError::UnconstrainedSliceReturnToConstrained { location }
             | TypeCheckError::NonConstantEvaluated { location, .. }
             | TypeCheckError::StringIndexAssign { location }

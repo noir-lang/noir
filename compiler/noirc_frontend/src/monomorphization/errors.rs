@@ -21,7 +21,7 @@ pub enum MonomorphizationError {
     ReferenceReturnedFromIfOrMatch { typ: String, location: Location },
     AssignedToVarContainingReference { typ: String, location: Location },
     ConstrainedReferenceToUnconstrained { location: Location },
-    UnconstrainedReferenceToConstrained { location: Location },
+    UnconstrainedReferenceReturnToConstrained { location: Location },
     UnconstrainedSliceReturnToConstrained { location: Location },
 }
 
@@ -41,7 +41,7 @@ impl MonomorphizationError {
             | MonomorphizationError::AssignedToVarContainingReference { location, .. }
             | MonomorphizationError::CannotComputeAssociatedConstant { location, .. }
             | MonomorphizationError::ConstrainedReferenceToUnconstrained { location }
-            | MonomorphizationError::UnconstrainedReferenceToConstrained { location }
+            | MonomorphizationError::UnconstrainedReferenceReturnToConstrained { location }
             | MonomorphizationError::UnconstrainedSliceReturnToConstrained { location } => {
                 *location
             }
@@ -119,8 +119,8 @@ impl From<MonomorphizationError> for CustomDiagnostic {
             MonomorphizationError::ConstrainedReferenceToUnconstrained { .. } => {
                 "Cannot pass a mutable reference from a constrained runtime to an unconstrained runtime".to_string()
             }
-            MonomorphizationError::UnconstrainedReferenceToConstrained { .. } => {
-                "Cannot pass a mutable reference from a unconstrained runtime to an constrained runtime".to_string()
+            MonomorphizationError::UnconstrainedReferenceReturnToConstrained { .. } => {
+                "Mutable references be returned from an unconstrained runtime to a constrained runtime".to_string()
             }
             MonomorphizationError::UnconstrainedSliceReturnToConstrained { .. } => {
                 "Slices cannot be returned from an unconstrained runtime to a constrained runtime".to_string()

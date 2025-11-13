@@ -168,7 +168,7 @@ pub(super) fn unconstrained_function_return(
     if return_type.contains_slice() {
         Some(TypeCheckError::UnconstrainedSliceReturnToConstrained { location })
     } else if return_type.contains_reference() {
-        Some(TypeCheckError::UnconstrainedReferenceToConstrained { location })
+        Some(TypeCheckError::UnconstrainedReferenceReturnToConstrained { location })
     } else {
         None
     }

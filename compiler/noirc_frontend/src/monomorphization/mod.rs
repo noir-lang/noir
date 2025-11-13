@@ -1888,7 +1888,9 @@ impl<'interner> Monomorphizer<'interner> {
         }
 
         if return_type.contains_reference() {
-            return Err(MonomorphizationError::UnconstrainedReferenceToConstrained { location });
+            return Err(MonomorphizationError::UnconstrainedReferenceReturnToConstrained {
+                location,
+            });
         }
 
         Ok(())
