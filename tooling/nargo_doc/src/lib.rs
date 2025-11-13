@@ -262,8 +262,7 @@ impl DocItemBuilder<'_> {
                     .cloned()
                     .map(|comments| comments.join("\n").trim().to_string());
                 let comments = comments.map(|comments| {
-                    // TODO: compute links
-                    let links = Links::new();
+                    let links = self.find_links_in_comments(&comments);
                     (comments, links)
                 });
                 Item::PrimitiveType(PrimitiveType { kind, impls, trait_impls, comments })
@@ -723,6 +722,16 @@ impl DocItemBuilder<'_> {
         }
 
         let mut segments: Vec<&str> = path.split("::").collect();
+        if let Some(first_segment) = segments.first() {
+            if check_dependencies && *first_segment == "crate" {
+                let crate_def_map = &self.def_maps[&module_id.krate];
+                let root_local_module = crate_def_map.root();
+                let root_module = ModuleId { krate: module_id.krate, local_id: root_local_module };
+                segments.remove(0);
+                let path = segments.join("::");
+                return self.path_to_link_searching_modules(&path, root_module, false);
+            }
+        }
 
         let crate_id = module_id.krate;
         let crate_def_map = &self.def_maps[&crate_id];
