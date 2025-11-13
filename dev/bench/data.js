@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1762976202789,
+  "lastUpdate": 1763039646521,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23066,48 +23066,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "d8b7cda01b7c6ef777c077b636381be9565c207a",
-          "message": "chore: apply typo fixes from Cantina (#10406)",
-          "timestamp": "2025-11-06T16:32:48Z",
-          "tree_id": "45424bd3bc32aded1433fd9d99820b1f22dadd90",
-          "url": "https://github.com/noir-lang/noir/commit/d8b7cda01b7c6ef777c077b636381be9565c207a"
-        },
-        "date": 1762448186883,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 282731,
-            "range": "± 2564",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 256406,
-            "range": "± 6021",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2824254,
-            "range": "± 19446",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "805880531173b97319c54eca71f7c32dbad4ca50",
           "message": "chore: use `map_data_bus_in_place` in mem2reg (#10407)",
           "timestamp": "2025-11-06T18:11:54Z",
@@ -25149,6 +25107,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2783048,
             "range": "± 3742",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8da0cc8213c6d9e3c204350f0fc41885b515f07c",
+          "message": "chore: improve register moves in brillig return code-gen (#10305)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2025-11-13T12:44:58Z",
+          "tree_id": "68261a34179f7bbd1641a0a7f04b52ccb5f64297",
+          "url": "https://github.com/noir-lang/noir/commit/8da0cc8213c6d9e3c204350f0fc41885b515f07c"
+        },
+        "date": 1763039619216,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 257923,
+            "range": "± 577",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 227660,
+            "range": "± 4170",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2782726,
+            "range": "± 1318",
             "unit": "ns/iter"
           }
         ]
