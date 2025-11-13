@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
-error: Cannot pass a mutable reference from a constrained runtime to an unconstrained runtime
+error: Cannot pass  mutable reference `&mut u32` from a constrained runtime to an unconstrained runtime
    ┌─ std/lib.nr:42:35
    │
 42 │         print_unconstrained(true, input);

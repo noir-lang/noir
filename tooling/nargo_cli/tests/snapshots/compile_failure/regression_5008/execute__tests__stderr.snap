@@ -9,7 +9,7 @@ warning: unused variable self
    │                               ---- unused variable
    │
 
-error: Cannot pass a mutable reference from a constrained runtime to an unconstrained runtime
+error: Cannot pass mutable reference `&mut Bar` from a constrained runtime to an unconstrained runtime
    ┌─ src/main.nr:17:14
    │
 17 │     unsafe { foo.crash_fn() };

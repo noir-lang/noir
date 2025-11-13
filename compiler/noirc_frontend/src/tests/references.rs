@@ -92,7 +92,7 @@ fn constrained_reference_to_unconstrained() {
             // Safety: test context
             unsafe {
                 mut_ref_input(x_ref, y);        
-                              ^^^^^ Cannot pass a mutable reference from a constrained runtime to an unconstrained runtime
+                              ^^^^^ Cannot pass mutable reference `&mut u32` from a constrained runtime to an unconstrained runtime
             }
         }
 

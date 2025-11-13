@@ -193,15 +193,17 @@ pub enum TypeCheckError {
         location: Location,
     },
     #[error(
-        "Cannot pass a mutable reference from a constrained runtime to an unconstrained runtime"
+        "Cannot pass mutable reference `{typ}` from a constrained runtime to an unconstrained runtime"
     )]
-    ConstrainedReferenceToUnconstrained { location: Location },
+    ConstrainedReferenceToUnconstrained { location: Location, typ: String },
     #[error(
-        "Mutable references cannot be returned from an unconstrained runtime to a constrained runtime"
+        "Mutable reference `{typ}` cannot be returned from an unconstrained runtime to a constrained runtime"
     )]
-    UnconstrainedReferenceReturnToConstrained { location: Location },
-    #[error("Slices cannot be returned from an unconstrained runtime to a constrained runtime")]
-    UnconstrainedSliceReturnToConstrained { location: Location },
+    UnconstrainedReferenceReturnToConstrained { location: Location, typ: String },
+    #[error(
+        "Slice `{typ}` cannot be returned from an unconstrained runtime to a constrained runtime"
+    )]
+    UnconstrainedSliceReturnToConstrained { location: Location, typ: String },
     #[error(
         "Call to unconstrained function is unsafe and must be in an unconstrained function or unsafe block"
     )]
@@ -330,9 +332,9 @@ impl TypeCheckError {
             }
             | TypeCheckError::UnneededTraitConstraint { location, .. }
             | TypeCheckError::IncorrectTurbofishGenericCount { location, .. }
-            | TypeCheckError::ConstrainedReferenceToUnconstrained { location }
-            | TypeCheckError::UnconstrainedReferenceReturnToConstrained { location }
-            | TypeCheckError::UnconstrainedSliceReturnToConstrained { location }
+            | TypeCheckError::ConstrainedReferenceToUnconstrained { location, .. }
+            | TypeCheckError::UnconstrainedReferenceReturnToConstrained { location, .. }
+            | TypeCheckError::UnconstrainedSliceReturnToConstrained { location, .. }
             | TypeCheckError::Unsafe { location }
             | TypeCheckError::UnsafeFn { location }
             | TypeCheckError::NonConstantEvaluated { location, .. }
@@ -522,9 +524,9 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             | TypeCheckError::FailingBinaryOp { location, .. }
             | TypeCheckError::FieldModulo { location }
             | TypeCheckError::FieldNot { location }
-            | TypeCheckError::ConstrainedReferenceToUnconstrained { location }
-            | TypeCheckError::UnconstrainedReferenceReturnToConstrained { location }
-            | TypeCheckError::UnconstrainedSliceReturnToConstrained { location }
+            | TypeCheckError::ConstrainedReferenceToUnconstrained { location, .. }
+            | TypeCheckError::UnconstrainedReferenceReturnToConstrained { location, .. }
+            | TypeCheckError::UnconstrainedSliceReturnToConstrained { location, .. }
             | TypeCheckError::NonConstantEvaluated { location, .. }
             | TypeCheckError::StringIndexAssign { location }
             | TypeCheckError::InvalidShiftSize { location } => {

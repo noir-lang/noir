@@ -679,12 +679,14 @@ impl<'interner> Monomorphizer<'interner> {
                 let frontend_type = self.interner.id_type(expr);
                 let typ = Self::convert_type(&frontend_type, location)?;
 
-                if !self.in_unconstrained_function && frontend_type.contains_reference() {
-                    let typ = frontend_type.to_string();
-                    return Err(MonomorphizationError::ReferenceReturnedFromIfOrMatch {
-                        typ,
-                        location,
-                    });
+                if !self.in_unconstrained_function {
+                    if let Some(typ) = frontend_type.contains_reference() {
+                        let typ = typ.to_string();
+                        return Err(MonomorphizationError::ReferenceReturnedFromIfOrMatch {
+                            typ,
+                            location,
+                        });
+                    }
                 }
 
                 ast::Expression::If(ast::If { condition, consequence, alternative: else_, typ })
@@ -1867,9 +1869,11 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> Result<(), MonomorphizationError> {
         for argument in &call.arguments {
             let typ = self.interner.id_type(argument);
-            if typ.contains_reference() {
+            if let Some(typ) = typ.contains_reference() {
+                let typ = typ.to_string();
                 let location = self.interner.id_location(argument);
                 return Err(MonomorphizationError::ConstrainedReferenceToUnconstrained {
+                    typ,
                     location,
                 });
             }
@@ -1883,12 +1887,18 @@ impl<'interner> Monomorphizer<'interner> {
         return_type: &Type,
         location: Location,
     ) -> Result<(), MonomorphizationError> {
-        if return_type.contains_slice() {
-            return Err(MonomorphizationError::UnconstrainedSliceReturnToConstrained { location });
+        if let Some(typ) = return_type.contains_slice() {
+            let typ = typ.to_string();
+            return Err(MonomorphizationError::UnconstrainedSliceReturnToConstrained {
+                typ,
+                location,
+            });
         }
 
-        if return_type.contains_reference() {
+        if let Some(typ) = return_type.contains_reference() {
+            let typ = typ.to_string();
             return Err(MonomorphizationError::UnconstrainedReferenceReturnToConstrained {
+                typ,
                 location,
             });
         }
@@ -2085,9 +2095,14 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> Result<ast::Expression, MonomorphizationError> {
         let expression_type = self.interner.id_type(assign.expression);
         let location = self.interner.expr_location(&assign.expression);
-        if !self.in_unconstrained_function && expression_type.contains_reference() {
-            let typ = expression_type.to_string();
-            return Err(MonomorphizationError::AssignedToVarContainingReference { typ, location });
+        if !self.in_unconstrained_function {
+            if let Some(typ) = expression_type.contains_reference() {
+                let typ = typ.to_string();
+                return Err(MonomorphizationError::AssignedToVarContainingReference {
+                    typ,
+                    location,
+                });
+            }
         }
 
         let expression = Box::new(self.expr(assign.expression)?);
@@ -2345,9 +2360,14 @@ impl<'interner> Monomorphizer<'interner> {
         let result_type = self.interner.id_type(expr_id);
         let location = self.interner.expr_location(&expr_id);
 
-        if !self.in_unconstrained_function && result_type.contains_reference() {
-            let typ = result_type.to_string();
-            return Err(MonomorphizationError::ReferenceReturnedFromIfOrMatch { typ, location });
+        if !self.in_unconstrained_function {
+            if let Some(typ) = result_type.contains_reference() {
+                let typ = typ.to_string();
+                return Err(MonomorphizationError::ReferenceReturnedFromIfOrMatch {
+                    typ,
+                    location,
+                });
+            }
         }
 
         match match_expr {

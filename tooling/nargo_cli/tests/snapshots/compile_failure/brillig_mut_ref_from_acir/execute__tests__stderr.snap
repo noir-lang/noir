@@ -9,7 +9,7 @@ warning: unused variable y
   │                       - unused variable
   │
 
-error: Cannot pass a mutable reference from a constrained runtime to an unconstrained runtime
+error: Cannot pass mutable reference `&mut Field` from a constrained runtime to an unconstrained runtime
   ┌─ src/main.nr:7:48
   │
 7 │     let returned_x = unsafe { mut_ref_identity(&mut x) };

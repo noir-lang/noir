@@ -127,7 +127,7 @@ fn operators_in_global_used_in_type() {
 fn disallows_references_in_globals() {
     let src = r#"
     pub global mutable: &mut Field = &mut 0;
-               ^^^^^^^ References are not allowed in globals
+               ^^^^^^^ Reference `&mut Field` is not allowed in globals
     "#;
     check_errors(src);
 }

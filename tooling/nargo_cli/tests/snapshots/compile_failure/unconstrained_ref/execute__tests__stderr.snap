@@ -9,7 +9,7 @@ warning: unused variable e
   │         - unused variable
   │
 
-error: Mutable references cannot be returned from an unconstrained runtime to a constrained runtime
+error: Mutable reference `&mut Field` cannot be returned from an unconstrained runtime to a constrained runtime
   ┌─ src/main.nr:8:22
   │
 8 │     let e = unsafe { uncon_ref() };
