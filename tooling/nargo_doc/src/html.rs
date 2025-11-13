@@ -1382,15 +1382,30 @@ impl HTMLCreator {
         comments.push('\n');
         for (reference, link) in links {
             let id = link.id();
-            if let Some(ItemInfo { path: _, uri, class: _, visibility: ItemVisibility::Public }) =
-                self.id_to_info.get(&id)
-            {
-                let anchor = link.name().map(|name| format!("#{name}")).unwrap_or_default();
+            let anchor = link.name().map(|name| format!("#{name}")).unwrap_or_default();
+            if let Some(id) = id {
+                if let Some(ItemInfo {
+                    path: _,
+                    uri,
+                    class: _,
+                    visibility: ItemVisibility::Public,
+                }) = self.id_to_info.get(&id)
+                {
+                    let nesting = self.current_path.len();
+                    comments.push_str(&format!(
+                        "[{reference}]: {}{}{}\n",
+                        "../".repeat(nesting),
+                        uri,
+                        anchor,
+                    ));
+                }
+            }
+            if let Some(primitive_type) = link.primitive_type() {
                 let nesting = self.current_path.len();
                 comments.push_str(&format!(
-                    "[{reference}]: {}{}{}\n",
+                    "[{reference}]: {}std/{}{}\n",
                     "../".repeat(nesting),
-                    uri,
+                    primitive_type.uri(),
                     anchor,
                 ));
             }

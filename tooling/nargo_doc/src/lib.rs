@@ -661,10 +661,8 @@ impl DocItemBuilder<'_> {
                 .map(|captures| captures[1].to_string())
                 .collect::<Vec<_>>();
 
-            let module_id = ModuleId { krate: self.crate_id, local_id: self.current_module_id };
-            let check_dependencies = true;
             for word in words {
-                if let Some(link) = self.path_to_link(&word, module_id, check_dependencies) {
+                if let Some(link) = self.path_to_link(&word) {
                     links.insert(word.to_string(), link);
                     continue;
                 }
@@ -677,16 +675,45 @@ impl DocItemBuilder<'_> {
     /// This is similar to how name resolution works in the compiler, except that it's simpler
     /// (no need to report errors), and references to type and trait functions are handled
     /// a bit differently.
-    fn path_to_link(
+    fn path_to_link(&mut self, path: &str) -> Option<Link> {
+        if path.is_empty() || path.contains(' ') {
+            return None;
+        }
+
+        let module_id = ModuleId { krate: self.crate_id, local_id: self.current_module_id };
+        let check_dependencies = true;
+        if let Some(link) = self.path_to_link_searching_modules(path, module_id, check_dependencies)
+        {
+            return Some(link);
+        }
+
+        // Search a primitive type or primitive type function
+        let segments: Vec<&str> = path.split("::").collect();
+        if segments.len() > 2 {
+            return None;
+        }
+
+        let first_name = segments[0];
+        let second_name = segments.get(1);
+
+        let primitive_type = noirc_frontend::elaborator::PrimitiveType::lookup_by_name(first_name)?;
+        let doc_primitive_type = convert_primitive_type(primitive_type);
+        let Some(second_name) = second_name else {
+            return Some(Link::PrimitiveType(doc_primitive_type));
+        };
+
+        let typ = primitive_type.to_type();
+        self.interner.lookup_direct_method(&typ, second_name, false)?;
+
+        Some(Link::PrimitiveTypeFunction(doc_primitive_type, second_name.to_string()))
+    }
+
+    fn path_to_link_searching_modules(
         &mut self,
         path: &str,
         module_id: ModuleId,
         check_dependencies: bool,
     ) -> Option<Link> {
-        if path.contains(' ') {
-            return None;
-        }
-
         // The path can be empty if a link is, for example, `[std]`.
         // In that case we'll recurse into this function with an empty path,
         // by searching starting from the `std` root module.
@@ -724,7 +751,7 @@ impl DocItemBuilder<'_> {
                     };
                     segments.remove(0);
                     let path = segments.join("::");
-                    return self.path_to_link(&path, dependency_module_id, false);
+                    return self.path_to_link_searching_modules(&path, dependency_module_id, false);
                 }
 
                 return None;
@@ -906,5 +933,51 @@ impl DocItemBuilder<'_> {
         let location = global_info.location;
         let module_def_id = ModuleDefId::GlobalId(id);
         ItemId { location, module_def_id }
+    }
+}
+
+fn convert_primitive_type(
+    primitive_type: noirc_frontend::elaborator::PrimitiveType,
+) -> PrimitiveTypeKind {
+    match primitive_type {
+        noirc_frontend::elaborator::PrimitiveType::Field => PrimitiveTypeKind::Field,
+        noirc_frontend::elaborator::PrimitiveType::Bool => PrimitiveTypeKind::Bool,
+        noirc_frontend::elaborator::PrimitiveType::U1 => PrimitiveTypeKind::U1,
+        noirc_frontend::elaborator::PrimitiveType::U8 => PrimitiveTypeKind::U8,
+        noirc_frontend::elaborator::PrimitiveType::U16 => PrimitiveTypeKind::U16,
+        noirc_frontend::elaborator::PrimitiveType::U32 => PrimitiveTypeKind::U32,
+        noirc_frontend::elaborator::PrimitiveType::U64 => PrimitiveTypeKind::U64,
+        noirc_frontend::elaborator::PrimitiveType::U128 => PrimitiveTypeKind::U128,
+        noirc_frontend::elaborator::PrimitiveType::I8 => PrimitiveTypeKind::I8,
+        noirc_frontend::elaborator::PrimitiveType::I16 => PrimitiveTypeKind::I16,
+        noirc_frontend::elaborator::PrimitiveType::I32 => PrimitiveTypeKind::I32,
+        noirc_frontend::elaborator::PrimitiveType::I64 => PrimitiveTypeKind::I64,
+        noirc_frontend::elaborator::PrimitiveType::Str => PrimitiveTypeKind::Str,
+        noirc_frontend::elaborator::PrimitiveType::Fmtstr => PrimitiveTypeKind::Fmtstr,
+        noirc_frontend::elaborator::PrimitiveType::Expr => PrimitiveTypeKind::Expr,
+        noirc_frontend::elaborator::PrimitiveType::Quoted => PrimitiveTypeKind::Quoted,
+        noirc_frontend::elaborator::PrimitiveType::Type => PrimitiveTypeKind::Type,
+        noirc_frontend::elaborator::PrimitiveType::TypedExpr => PrimitiveTypeKind::TypedExpr,
+        noirc_frontend::elaborator::PrimitiveType::TypeDefinition => {
+            PrimitiveTypeKind::TypeDefinition
+        }
+        noirc_frontend::elaborator::PrimitiveType::TraitConstraint => {
+            PrimitiveTypeKind::TraitConstraint
+        }
+        noirc_frontend::elaborator::PrimitiveType::CtString => PrimitiveTypeKind::CtString,
+        noirc_frontend::elaborator::PrimitiveType::FunctionDefinition => {
+            PrimitiveTypeKind::FunctionDefinition
+        }
+        noirc_frontend::elaborator::PrimitiveType::Module => PrimitiveTypeKind::Module,
+        noirc_frontend::elaborator::PrimitiveType::StructDefinition => {
+            PrimitiveTypeKind::TypeDefinition
+        }
+        noirc_frontend::elaborator::PrimitiveType::TraitDefinition => {
+            PrimitiveTypeKind::TraitDefinition
+        }
+        noirc_frontend::elaborator::PrimitiveType::TraitImpl => PrimitiveTypeKind::TraitImpl,
+        noirc_frontend::elaborator::PrimitiveType::UnresolvedType => {
+            PrimitiveTypeKind::UnresolvedType
+        }
     }
 }

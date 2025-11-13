@@ -29,20 +29,30 @@ pub struct ItemId {
 pub enum Link {
     TypeOrModule(ItemId),
     Function(ItemId, String),
+    PrimitiveType(PrimitiveTypeKind),
+    PrimitiveTypeFunction(PrimitiveTypeKind, String),
 }
 
 impl Link {
-    pub fn id(&self) -> ItemId {
+    pub fn id(&self) -> Option<ItemId> {
         match self {
-            Link::TypeOrModule(id) => *id,
-            Link::Function(id, _) => *id,
+            Link::TypeOrModule(id) | Link::Function(id, _) => Some(*id),
+            Link::PrimitiveType(_) | Link::PrimitiveTypeFunction(..) => None,
         }
     }
 
     pub fn name(&self) -> Option<&str> {
         match self {
-            Link::TypeOrModule(_) => None,
-            Link::Function(_, name) => Some(name),
+            Link::TypeOrModule(_) | Link::PrimitiveType(_) => None,
+            Link::Function(_, name) | Link::PrimitiveTypeFunction(_, name) => Some(name),
+        }
+    }
+
+    pub fn primitive_type(&self) -> Option<PrimitiveTypeKind> {
+        match self {
+            Link::TypeOrModule(..) | Link::Function(..) => None,
+            Link::PrimitiveType(primitive_type_kind)
+            | Link::PrimitiveTypeFunction(primitive_type_kind, _) => Some(*primitive_type_kind),
         }
     }
 }
@@ -401,7 +411,7 @@ pub struct Reexport {
     pub name: String,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub enum PrimitiveTypeKind {
     Bool,
     U1,
