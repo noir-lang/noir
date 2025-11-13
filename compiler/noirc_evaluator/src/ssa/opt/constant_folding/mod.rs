@@ -490,7 +490,7 @@ impl Context {
         let use_constraint_info = self.use_constraint_info;
         let is_make_array = matches!(instruction, Instruction::MakeArray { .. });
 
-        let first_result = instruction_results.get(0).copied();
+        let first_result = instruction_results.first().copied();
 
         let cache_instruction = || {
             let predicate = self.cache_predicate(side_effects_enabled_var, instruction, dfg);
@@ -514,7 +514,7 @@ impl Context {
             _ if is_make_array
                 && !dfg.type_of_value(first_result.unwrap()).contains_reference() =>
             {
-                cache_instruction()
+                cache_instruction();
             }
 
             CanBeDeduplicated::UnderSamePredicate | CanBeDeduplicated::Never => {}
