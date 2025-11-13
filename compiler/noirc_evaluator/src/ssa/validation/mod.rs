@@ -946,8 +946,10 @@ impl<'f> Validator<'f> {
             if typ.contains_reference() {
                 // If we don't panic here, we would have a different, more obscure panic later on.
                 panic!(
-                    "Trying to pass a reference in parameter {param_id} from ACIR function {} to unconstrained function {}",
+                    "Trying to pass a reference in parameter {param_id}: {typ}, from ACIR fn {} {} to unconstrained fn {} {}",
+                    self.function.name(),
                     self.function.id(),
+                    called_function.name(),
                     called_function.id()
                 )
             }
