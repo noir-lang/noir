@@ -2,32 +2,46 @@
 
 use std::collections::BTreeMap;
 
-use noirc_frontend::{ast::ItemVisibility, hir::def_map::ModuleId};
+use noirc_errors::Location;
+use noirc_frontend::{
+    ast::ItemVisibility,
+    hir::def_map::{ModuleDefId, ModuleId},
+};
 
 pub trait HasNameAndComments {
     fn name(&self) -> String;
     fn comments(&self) -> Option<&Comments>;
 }
 
-pub type Id = usize;
+/// Uniquely identifies an item.
+/// This is done by using a type's name, location in source code and kind.
+/// With macros, two types might end up being defined in the same location but they will likely
+/// have different names.
+/// This is just a temporary solution until we have a better way to uniquely identify items
+/// across crates.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub struct ItemId {
+    pub module_def_id: ModuleDefId,
+    pub location: Location,
+}
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub enum Link {
-    Id(Id),
-    Function(Id, String),
+    TypeOrModule(ItemId),
+    Function(ItemId, String),
 }
 
 impl Link {
-    pub fn id(&self) -> Id {
+    pub fn id(&self) -> ItemId {
         match self {
-            Link::Id(id) => *id,
+            Link::TypeOrModule(id) => *id,
             Link::Function(id, _) => *id,
         }
     }
 
     pub fn name(&self) -> Option<&str> {
         match self {
-            Link::Id(_) => None,
+            Link::TypeOrModule(_) => None,
             Link::Function(_, name) => Some(name),
         }
     }
@@ -99,7 +113,7 @@ impl Item {
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Module {
-    pub id: Id,
+    pub id: ItemId,
     pub module_id: ModuleId,
     pub name: String,
     pub items: Vec<(ItemVisibility, Item)>,
@@ -125,7 +139,7 @@ impl HasNameAndComments for Module {
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Struct {
-    pub id: Id,
+    pub id: ItemId,
     pub name: String,
     pub generics: Vec<Generic>,
     /// All `pub` fields of the struct.
@@ -174,7 +188,7 @@ pub struct Impl {
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct TraitImpl {
     pub generics: Vec<Generic>,
-    pub trait_id: Id,
+    pub trait_id: ItemId,
     pub trait_name: String,
     pub trait_generics: Vec<Type>,
     pub r#type: Type,
@@ -184,7 +198,7 @@ pub struct TraitImpl {
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Global {
-    pub id: Id,
+    pub id: ItemId,
     pub name: String,
     pub comptime: bool,
     pub mutable: bool,
@@ -204,7 +218,7 @@ impl HasNameAndComments for Global {
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Function {
-    pub id: Id,
+    pub id: ItemId,
     pub unconstrained: bool,
     pub comptime: bool,
     pub name: String,
@@ -234,7 +248,7 @@ pub struct FunctionParam {
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Trait {
-    pub id: Id,
+    pub id: ItemId,
     pub name: String,
     pub generics: Vec<Generic>,
     pub bounds: Vec<TraitBound>,
@@ -271,7 +285,7 @@ impl HasNameAndComments for Trait {
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct TypeAlias {
-    pub id: Id,
+    pub id: ItemId,
     pub name: String,
     pub generics: Vec<Generic>,
     pub r#type: Type,
@@ -302,7 +316,7 @@ pub struct TraitConstraint {
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct TraitBound {
-    pub trait_id: Id,
+    pub trait_id: ItemId,
     pub trait_name: String,
     pub ordered_generics: Vec<Type>,
     pub named_generics: BTreeMap<String, Type>,
@@ -332,12 +346,12 @@ pub enum Type {
         mutable: bool,
     },
     Struct {
-        id: Id,
+        id: ItemId,
         name: String,
         generics: Vec<Type>,
     },
     TypeAlias {
-        id: Id,
+        id: ItemId,
         name: String,
         generics: Vec<Type>,
     },
@@ -355,7 +369,7 @@ pub enum Type {
         rhs: Box<Type>,
     },
     TraitAsType {
-        trait_id: Id,
+        trait_id: ItemId,
         trait_name: String,
         ordered_generics: Vec<Type>,
         named_generics: BTreeMap<String, Type>,
@@ -382,21 +396,9 @@ impl HasNameAndComments for PrimitiveType {
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Reexport {
-    pub id: Id,
+    pub id: ItemId,
     pub item_name: String,
     pub name: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum ItemKind {
-    Module,
-    Struct,
-    Trait,
-    TypeAlias,
-    Function,
-    Global,
-    PrimitiveType,
-    Reexport,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash)]

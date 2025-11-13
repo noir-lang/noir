@@ -15,8 +15,8 @@ use crate::{
         trait_impls::gather_all_trait_impls,
     },
     items::{
-        Comments, Crate, Function, FunctionParam, Generic, Global, HasNameAndComments, Id, Impl,
-        Item, Links, Module, PrimitiveType, PrimitiveTypeKind, Reexport, Struct, StructField,
+        Comments, Crate, Function, FunctionParam, Generic, Global, HasNameAndComments, Impl, Item,
+        ItemId, Links, Module, PrimitiveType, PrimitiveTypeKind, Reexport, Struct, StructField,
         Trait, TraitBound, TraitConstraint, TraitImpl, Type, TypeAlias, Workspace,
     },
 };
@@ -46,9 +46,9 @@ struct HTMLCreator {
     current_path: Vec<String>,
     current_crate_version: Option<String>,
     workspace_name: String,
-    id_to_info: HashMap<Id, ItemInfo>,
+    id_to_info: HashMap<ItemId, ItemInfo>,
     /// Maps a trait ID to all its implementations across all crates.
-    all_trait_impls: HashMap<Id, HashSet<TraitImpl>>,
+    all_trait_impls: HashMap<ItemId, HashSet<TraitImpl>>,
     self_type: Option<Type>,
 }
 
@@ -396,10 +396,6 @@ impl HTMLCreator {
         self.output.push_str("<ul class=\"item-list\">\n");
 
         for reexport in reexports {
-            if !self.id_to_info.contains_key(&reexport.id) {
-                println!("{} {} {}", reexport.id, reexport.name, reexport.item_name);
-            }
-
             let info = &self.id_to_info[&reexport.id];
             let path = info.path.join("::");
             let path = if path.is_empty() { String::new() } else { format!("{path}::") };
@@ -1169,7 +1165,7 @@ impl HTMLCreator {
         self.render_trait_generics(&bound.ordered_generics, &bound.named_generics);
     }
 
-    fn render_id_reference(&mut self, id: Id, name: &str) {
+    fn render_id_reference(&mut self, id: ItemId, name: &str) {
         if let Some(ItemInfo { path: _, uri, class, visibility: ItemVisibility::Public }) =
             self.id_to_info.get(&id)
         {

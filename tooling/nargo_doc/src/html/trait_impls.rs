@@ -2,10 +2,10 @@ use std::collections::{HashMap, HashSet};
 
 use noirc_frontend::ast::ItemVisibility;
 
-use crate::items::{Id, Item, TraitImpl, Workspace};
+use crate::items::{ItemId, Item, TraitImpl, Workspace};
 
 /// Gather all trait impls in the workspace, grouped by the trait they implement.
-pub(super) fn gather_all_trait_impls(workspace: &Workspace) -> HashMap<Id, HashSet<TraitImpl>> {
+pub(super) fn gather_all_trait_impls(workspace: &Workspace) -> HashMap<ItemId, HashSet<TraitImpl>> {
     let mut trait_impls = HashMap::new();
 
     for krate in workspace.all_crates() {
@@ -19,7 +19,7 @@ pub(super) fn gather_all_trait_impls(workspace: &Workspace) -> HashMap<Id, HashS
     trait_impls
 }
 
-fn gather_trait_impls_in_item(item: &Item, trait_impls: &mut HashMap<Id, HashSet<TraitImpl>>) {
+fn gather_trait_impls_in_item(item: &Item, trait_impls: &mut HashMap<ItemId, HashSet<TraitImpl>>) {
     match item {
         Item::Module(module) => {
             for (visibility, item) in &module.items {

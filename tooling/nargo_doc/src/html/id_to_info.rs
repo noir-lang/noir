@@ -4,7 +4,7 @@ use noirc_frontend::ast::ItemVisibility;
 
 use crate::{
     html::{HasClass, has_uri::HasUri},
-    items::{Id, Item, Workspace},
+    items::{ItemId, Item, Workspace},
 };
 
 pub(super) struct ItemInfo {
@@ -18,7 +18,7 @@ pub(super) struct ItemInfo {
 }
 
 /// Computes an ItemInfo for every item in the workspace, indexed by its Id.
-pub(super) fn compute_id_to_info(workspace: &Workspace) -> HashMap<Id, ItemInfo> {
+pub(super) fn compute_id_to_info(workspace: &Workspace) -> HashMap<ItemId, ItemInfo> {
     let mut id_to_info = HashMap::new();
     let mut path = Vec::new();
 
@@ -44,7 +44,7 @@ pub(super) fn compute_id_to_info(workspace: &Workspace) -> HashMap<Id, ItemInfo>
 fn compute_id_to_info_in_item(
     item: &Item,
     visibility: ItemVisibility,
-    id_to_info: &mut HashMap<Id, ItemInfo>,
+    id_to_info: &mut HashMap<ItemId, ItemInfo>,
     path: &mut Vec<String>,
 ) {
     match item {

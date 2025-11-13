@@ -4,8 +4,10 @@ use iter_extended::vecmap;
 use noirc_driver::CrateId;
 use noirc_errors::Location;
 use noirc_frontend::ast::{Ident, IntegerBitSize, ItemVisibility};
+use noirc_frontend::graph::CrateGraph;
 use noirc_frontend::hir::def_map::{LocalModuleId, ModuleDefId, ModuleId};
 use noirc_frontend::hir::printer::items as expand_items;
+use noirc_frontend::hir::resolution::visibility::module_def_id_visibility;
 use noirc_frontend::hir_def::stmt::{HirLetStatement, HirPattern};
 use noirc_frontend::hir_def::traits::ResolvedTraitBound;
 use noirc_frontend::node_interner::{FuncId, GlobalId, ReferenceId, TraitId, TypeAliasId, TypeId};
@@ -15,8 +17,8 @@ use noirc_frontend::{hir::def_map::DefMaps, node_interner::NodeInterner};
 use regex::Regex;
 
 use crate::items::{
-    AssociatedConstant, AssociatedType, Function, FunctionParam, Generic, Global, Id, Impl, Item,
-    ItemKind, Link, Links, Module, PrimitiveType, PrimitiveTypeKind, Reexport, Struct, StructField,
+    AssociatedConstant, AssociatedType, Function, FunctionParam, Generic, Global, Impl, Item,
+    ItemId, Link, Links, Module, PrimitiveType, PrimitiveTypeKind, Reexport, Struct, StructField,
     Trait, TraitBound, TraitConstraint, TraitImpl, Type, TypeAlias,
 };
 
@@ -27,12 +29,12 @@ pub use html::to_html;
 /// Returns the root module in a crate.
 pub fn crate_module(
     crate_id: CrateId,
+    crate_graph: &CrateGraph,
     def_maps: &DefMaps,
     interner: &NodeInterner,
-    ids: &mut ItemIds,
 ) -> Module {
     let module = noirc_frontend::hir::printer::crate_to_module(crate_id, def_maps, interner);
-    let mut builder = DocItemBuilder::new(interner, crate_id, def_maps, ids);
+    let mut builder = DocItemBuilder::new(interner, crate_id, crate_graph, def_maps);
     let mut module = builder.convert_module(module);
     builder.process_module_reexports(&mut module);
     module
@@ -40,8 +42,8 @@ pub fn crate_module(
 
 struct DocItemBuilder<'a> {
     interner: &'a NodeInterner,
-    ids: &'a mut ItemIds,
     crate_id: CrateId,
+    crate_graph: &'a CrateGraph,
     def_maps: &'a DefMaps,
     current_module_id: LocalModuleId,
     /// The minimum visibility of the current module. For example,
@@ -66,15 +68,15 @@ impl<'a> DocItemBuilder<'a> {
     fn new(
         interner: &'a NodeInterner,
         crate_id: CrateId,
+        crate_graph: &'a CrateGraph,
         def_maps: &'a DefMaps,
-        ids: &'a mut ItemIds,
     ) -> Self {
         let current_module_id = def_maps[&crate_id].root();
         let reference_regex = Regex::new(r"\[([^\[\]]+)\]").unwrap();
         Self {
             interner,
-            ids,
             crate_id,
+            crate_graph,
             def_maps,
             current_module_id,
             visibility: ItemVisibility::Public,
@@ -93,22 +95,6 @@ struct ConvertedItem {
     // struct B will have `pub(crate)` visibility here as it can't be publicly
     // reached.
     visibility: ItemVisibility,
-}
-
-/// Maps an ItemId to a unique identifier.
-pub type ItemIds = HashMap<ItemId, usize>;
-
-/// Uniquely identifies an item.
-/// This is done by using a type's name, location in source code and kind.
-/// With macros, two types might end up being defined in the same location but they will likely
-/// have different names.
-/// This is just a temporary solution until we have a better way to uniquely identify items
-/// across crates.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct ItemId {
-    pub location: Location,
-    pub kind: ItemKind,
-    pub name: String,
 }
 
 impl DocItemBuilder<'_> {
@@ -675,8 +661,10 @@ impl DocItemBuilder<'_> {
                 .map(|captures| captures[1].to_string())
                 .collect::<Vec<_>>();
 
+            let module_id = ModuleId { krate: self.crate_id, local_id: self.current_module_id };
+            let check_dependencies = true;
             for word in words {
-                if let Some(link) = self.path_to_link(&word) {
+                if let Some(link) = self.path_to_link(&word, module_id, check_dependencies) {
                     links.insert(word.to_string(), link);
                     continue;
                 }
@@ -685,30 +673,68 @@ impl DocItemBuilder<'_> {
         links.into_iter().collect()
     }
 
-    fn path_to_link(&mut self, path: &str) -> Option<Link> {
-        let segments: Vec<&str> = path.split("::").collect();
-        if segments.is_empty() {
+    fn path_to_link(
+        &mut self,
+        path: &str,
+        module_id: ModuleId,
+        check_dependencies: bool,
+    ) -> Option<Link> {
+        if path.contains(' ') {
             return None;
         }
 
-        let crate_def_map = &self.def_maps[&self.crate_id];
-        let mut current_module = &crate_def_map[self.current_module_id];
+        // The path can be empty if a link is, for example, `[std]`.
+        // In that case we'll recurse into this function with an empty path,
+        // by searching starting from the `std` root module.
+        if path.is_empty() {
+            let id = self.get_module_id(module_id);
+            return Some(Link::TypeOrModule(id));
+        }
+
+        let mut segments: Vec<&str> = path.split("::").collect();
+
+        let crate_id = module_id.krate;
+        let crate_def_map = &self.def_maps[&crate_id];
+        let mut current_module = &crate_def_map[module_id.local_id];
 
         for (index, segment) in segments.iter().enumerate() {
             let name = Ident::new(segment.to_string(), Location::dummy());
             let per_ns = current_module.scope().find_name(&name);
+
             if per_ns.is_none() {
+                // If we can't find the first segment we can try to search in dependencies
+                if index == 0 && check_dependencies {
+                    let crate_data = &self.crate_graph[crate_id];
+                    let dependency_crate_id =
+                        crate_data.dependencies.iter().find_map(|dependency| {
+                            if &dependency.as_name() == segment {
+                                Some(dependency.crate_id)
+                            } else {
+                                None
+                            }
+                        })?;
+                    let dependency_local_module_id = self.def_maps[&dependency_crate_id].root();
+                    let dependency_module_id = ModuleId {
+                        krate: dependency_crate_id,
+                        local_id: dependency_local_module_id,
+                    };
+                    segments.remove(0);
+                    let path = segments.join("::");
+                    return self.path_to_link(&path, dependency_module_id, false);
+                }
+
                 return None;
             }
 
             // We are at the last segment so we can return the item if it's public
             if index == segments.len() - 1 {
-                let (module_def_id, visibility, _) = per_ns.iter_items().next()?;
+                let (module_def_id, _, _) = per_ns.iter_items().next()?;
+                let visibility = module_def_id_visibility(module_def_id, self.interner);
                 if visibility != ItemVisibility::Public {
                     return None;
                 }
                 let id = self.get_module_def_id(module_def_id);
-                return Some(Link::Id(id));
+                return Some(Link::TypeOrModule(id));
             }
 
             // We are not at the last segment. Find a module, type or trait to continue.
@@ -820,7 +846,7 @@ impl DocItemBuilder<'_> {
         }
     }
 
-    fn get_module_def_id(&mut self, id: ModuleDefId) -> Id {
+    fn get_module_def_id(&mut self, id: ModuleDefId) -> ItemId {
         match id {
             ModuleDefId::ModuleId(id) => self.get_module_id(id),
             ModuleDefId::FunctionId(id) => self.get_function_id(id),
@@ -834,69 +860,47 @@ impl DocItemBuilder<'_> {
         }
     }
 
-    fn get_module_id(&mut self, id: ModuleId) -> Id {
+    fn get_module_id(&mut self, id: ModuleId) -> ItemId {
         let module = self.interner.module_attributes(id);
         let location = module.location;
-        let name = module.name.clone();
-        let kind = ItemKind::Module;
-        let id = ItemId { location, kind, name };
-        self.get_id(id)
+        let module_def_id = ModuleDefId::ModuleId(id);
+        ItemId { location, module_def_id }
     }
 
-    fn get_type_id(&mut self, id: TypeId) -> Id {
+    fn get_type_id(&mut self, id: TypeId) -> ItemId {
         let data_type = self.interner.get_type(id);
         let data_type = data_type.borrow();
         let location = data_type.location;
-        let name = data_type.name.to_string();
-        let kind = ItemKind::Struct;
-        let id = ItemId { location, kind, name };
-        self.get_id(id)
+        let module_def_id = ModuleDefId::TypeId(id);
+        ItemId { location, module_def_id }
     }
 
-    fn get_trait_id(&mut self, id: TraitId) -> Id {
+    fn get_trait_id(&mut self, id: TraitId) -> ItemId {
         let trait_ = self.interner.get_trait(id);
         let location = trait_.location;
-        let name = trait_.name.to_string();
-        let kind = ItemKind::Trait;
-        let id = ItemId { location, kind, name };
-        self.get_id(id)
+        let module_def_id = ModuleDefId::TraitId(id);
+        ItemId { location, module_def_id }
     }
 
-    fn get_type_alias_id(&mut self, id: TypeAliasId) -> Id {
+    fn get_type_alias_id(&mut self, id: TypeAliasId) -> ItemId {
         let alias = self.interner.get_type_alias(id);
         let alias = alias.borrow();
         let location = alias.location;
-        let name = alias.name.to_string();
-        let kind = ItemKind::TypeAlias;
-        let id = ItemId { location, kind, name };
-        self.get_id(id)
+        let module_def_id = ModuleDefId::TypeAliasId(id);
+        ItemId { location, module_def_id }
     }
 
-    fn get_function_id(&mut self, id: FuncId) -> Id {
+    fn get_function_id(&mut self, id: FuncId) -> ItemId {
         let func_meta = self.interner.function_meta(&id);
-        let name = self.interner.function_name(&id).to_owned();
         let location = func_meta.location;
-        let kind = ItemKind::Function;
-        let id = ItemId { location, kind, name };
-        self.get_id(id)
+        let module_def_id = ModuleDefId::FunctionId(id);
+        ItemId { location, module_def_id }
     }
 
-    fn get_global_id(&mut self, id: GlobalId) -> Id {
+    fn get_global_id(&mut self, id: GlobalId) -> ItemId {
         let global_info = self.interner.get_global(id);
         let location = global_info.location;
-        let name = global_info.ident.to_string();
-        let kind = ItemKind::Global;
-        let id = ItemId { location, kind, name };
-        self.get_id(id)
-    }
-
-    fn get_id(&mut self, key: ItemId) -> Id {
-        if let Some(existing_id) = self.ids.get(&key) {
-            *existing_id
-        } else {
-            let new_id = self.ids.len();
-            self.ids.insert(key, new_id);
-            new_id
-        }
+        let module_def_id = ModuleDefId::GlobalId(id);
+        ItemId { location, module_def_id }
     }
 }
