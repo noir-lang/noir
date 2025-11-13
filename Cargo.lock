@@ -3367,6 +3367,7 @@ dependencies = [
  "noirc_driver",
  "noirc_errors",
  "noirc_frontend",
+ "regex",
  "serde",
 ]
 

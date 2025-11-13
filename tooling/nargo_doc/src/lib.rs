@@ -3,20 +3,21 @@ use std::collections::HashMap;
 use iter_extended::vecmap;
 use noirc_driver::CrateId;
 use noirc_errors::Location;
-use noirc_frontend::ast::{IntegerBitSize, ItemVisibility};
-use noirc_frontend::hir::def_map::{ModuleDefId, ModuleId};
+use noirc_frontend::ast::{Ident, IntegerBitSize, ItemVisibility};
+use noirc_frontend::hir::def_map::{LocalModuleId, ModuleDefId, ModuleId};
 use noirc_frontend::hir::printer::items as expand_items;
 use noirc_frontend::hir_def::stmt::{HirLetStatement, HirPattern};
 use noirc_frontend::hir_def::traits::ResolvedTraitBound;
 use noirc_frontend::node_interner::{FuncId, GlobalId, ReferenceId, TraitId, TypeAliasId, TypeId};
 use noirc_frontend::shared::Signedness;
 use noirc_frontend::{Kind, NamedGeneric, ResolvedGeneric, TypeBinding};
-use noirc_frontend::{graph::CrateGraph, hir::def_map::DefMaps, node_interner::NodeInterner};
+use noirc_frontend::{hir::def_map::DefMaps, node_interner::NodeInterner};
+use regex::Regex;
 
 use crate::items::{
     AssociatedConstant, AssociatedType, Function, FunctionParam, Generic, Global, Id, Impl, Item,
-    ItemKind, Module, PrimitiveType, PrimitiveTypeKind, Reexport, Struct, StructField, Trait,
-    TraitBound, TraitConstraint, TraitImpl, Type, TypeAlias,
+    ItemKind, Link, Links, Module, PrimitiveType, PrimitiveTypeKind, Reexport, Struct, StructField,
+    Trait, TraitBound, TraitConstraint, TraitImpl, Type, TypeAlias,
 };
 
 mod html;
@@ -26,13 +27,12 @@ pub use html::to_html;
 /// Returns the root module in a crate.
 pub fn crate_module(
     crate_id: CrateId,
-    _crate_graph: &CrateGraph,
     def_maps: &DefMaps,
     interner: &NodeInterner,
     ids: &mut ItemIds,
 ) -> Module {
     let module = noirc_frontend::hir::printer::crate_to_module(crate_id, def_maps, interner);
-    let mut builder = DocItemBuilder::new(interner, ids);
+    let mut builder = DocItemBuilder::new(interner, crate_id, def_maps, ids);
     let mut module = builder.convert_module(module);
     builder.process_module_reexports(&mut module);
     module
@@ -41,6 +41,9 @@ pub fn crate_module(
 struct DocItemBuilder<'a> {
     interner: &'a NodeInterner,
     ids: &'a mut ItemIds,
+    crate_id: CrateId,
+    def_maps: &'a DefMaps,
+    current_module_id: LocalModuleId,
     /// The minimum visibility of the current module. For example,
     /// if the visibilities of parents modules are [pub, pub(crate), pub] then
     /// this will be `pub(crate)`.
@@ -55,17 +58,30 @@ struct DocItemBuilder<'a> {
     /// Trait constraints in scope.
     /// These are set when a trait or trait impl is visited.
     trait_constraints: Vec<TraitConstraint>,
+    /// A regex to match `[.+]` references.
+    reference_regex: Regex,
 }
 
 impl<'a> DocItemBuilder<'a> {
-    fn new(interner: &'a NodeInterner, ids: &'a mut ItemIds) -> Self {
+    fn new(
+        interner: &'a NodeInterner,
+        crate_id: CrateId,
+        def_maps: &'a DefMaps,
+        ids: &'a mut ItemIds,
+    ) -> Self {
+        let current_module_id = def_maps[&crate_id].root();
+        let reference_regex = Regex::new(r"\[([^\[\]]+)\]").unwrap();
         Self {
             interner,
             ids,
+            crate_id,
+            def_maps,
+            current_module_id,
             visibility: ItemVisibility::Public,
             module_def_id_to_item: HashMap::new(),
             module_imports: HashMap::new(),
             trait_constraints: Vec::new(),
+            reference_regex,
         }
     }
 }
@@ -107,9 +123,13 @@ impl DocItemBuilder<'_> {
                 let old_visibility = self.visibility;
                 self.visibility = old_visibility.min(visibility);
 
+                let old_module_id = self.current_module_id;
+                self.current_module_id = module.id.local_id;
+
                 let module = self.convert_module(module);
 
                 self.visibility = old_visibility;
+                self.current_module_id = old_module_id;
 
                 Item::Module(module)
             }
@@ -255,6 +275,11 @@ impl DocItemBuilder<'_> {
                     .get(&kind.to_string())
                     .cloned()
                     .map(|comments| comments.join("\n").trim().to_string());
+                let comments = comments.map(|comments| {
+                    // TODO: compute links
+                    let links = Links::new();
+                    (comments, links)
+                });
                 Item::PrimitiveType(PrimitiveType { kind, impls, trait_impls, comments })
             }
             expand_items::Item::Global(global_id) => {
@@ -625,8 +650,120 @@ impl DocItemBuilder<'_> {
         }
     }
 
-    fn doc_comments(&self, id: ReferenceId) -> Option<String> {
-        self.interner.doc_comments(id).map(|comments| comments.join("\n").trim().to_string())
+    fn doc_comments(&mut self, id: ReferenceId) -> Option<(String, Links)> {
+        let comments = self.interner.doc_comments(id)?;
+        let comments = comments.join("\n").trim().to_string();
+        let links = self.find_links_in_comments(&comments);
+        Some((comments, links))
+    }
+
+    fn find_links_in_comments(&mut self, comments: &str) -> Links {
+        let mut links = HashMap::new();
+        let mut in_code_block = false;
+        for line in comments.lines() {
+            if line.trim_start().starts_with("```") {
+                in_code_block = !in_code_block;
+                continue;
+            }
+            if in_code_block {
+                continue;
+            }
+
+            let words = self
+                .reference_regex
+                .captures_iter(line)
+                .map(|captures| captures[1].to_string())
+                .collect::<Vec<_>>();
+
+            for word in words {
+                if let Some(link) = self.path_to_link(&word) {
+                    links.insert(word.to_string(), link);
+                    continue;
+                }
+            }
+        }
+        links.into_iter().collect()
+    }
+
+    fn path_to_link(&mut self, path: &str) -> Option<Link> {
+        let segments: Vec<&str> = path.split("::").collect();
+        if segments.is_empty() {
+            return None;
+        }
+
+        let crate_def_map = &self.def_maps[&self.crate_id];
+        let mut current_module = &crate_def_map[self.current_module_id];
+
+        for (index, segment) in segments.iter().enumerate() {
+            let name = Ident::new(segment.to_string(), Location::dummy());
+            let per_ns = current_module.scope().find_name(&name);
+            if per_ns.is_none() {
+                return None;
+            }
+
+            // We are at the last segment so we can return the item if it's public
+            if index == segments.len() - 1 {
+                let (module_def_id, visibility, _) = per_ns.iter_items().next()?;
+                if visibility != ItemVisibility::Public {
+                    return None;
+                }
+                let id = self.get_module_def_id(module_def_id);
+                return Some(Link::Id(id));
+            }
+
+            // We are not at the last segment. Find a module, type or trait to continue.
+            let (module_def_id, _, _) = per_ns.types?;
+            match module_def_id {
+                ModuleDefId::ModuleId(module_id) => {
+                    current_module = &crate_def_map[module_id.local_id];
+                }
+                ModuleDefId::TypeId(type_id) => {
+                    // This must refer to a type method, so only one segment should remain
+                    if index != segments.len() - 2 {
+                        return None;
+                    }
+                    let data_type = self.interner.get_type(type_id);
+                    if data_type.borrow().visibility != ItemVisibility::Public {
+                        return None;
+                    }
+                    let generic_types = data_type.borrow().generic_types();
+                    let typ = noirc_frontend::Type::DataType(data_type, generic_types);
+                    let methods = self.interner.get_type_methods(&typ)?;
+                    let method_name = *segments.last().unwrap();
+                    let method = methods.get(method_name)?;
+                    let method = method.direct.first()?;
+                    let method = method.method;
+                    let visibility = self.interner.function_modifiers(&method).visibility;
+                    if visibility != ItemVisibility::Public {
+                        return None;
+                    }
+                    let id = self.get_type_id(type_id);
+                    return Some(Link::Function(id, method_name.to_string()));
+                }
+                ModuleDefId::TraitId(trait_id) => {
+                    // This must refer to a trait method, so only one segment should remain
+                    if index != segments.len() - 2 {
+                        return None;
+                    }
+                    let trait_ = self.interner.get_trait(trait_id);
+                    if trait_.visibility != ItemVisibility::Public {
+                        return None;
+                    }
+                    let method_name = *segments.last().unwrap();
+                    trait_.find_method(method_name, self.interner)?;
+                    let id = self.get_trait_id(trait_id);
+                    return Some(Link::Function(id, method_name.to_string()));
+                }
+                ModuleDefId::TypeAliasId(_) => {
+                    // We could handle methods via type aliases, but for now we don't
+                    return None;
+                }
+                ModuleDefId::TraitAssociatedTypeId(..)
+                | ModuleDefId::FunctionId(..)
+                | ModuleDefId::GlobalId(..) => return None,
+            }
+        }
+        None
     }
 
     fn pattern_to_string(&self, pattern: &HirPattern) -> String {

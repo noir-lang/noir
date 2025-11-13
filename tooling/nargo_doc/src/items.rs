@@ -6,10 +6,36 @@ use noirc_frontend::{ast::ItemVisibility, hir::def_map::ModuleId};
 
 pub trait HasNameAndComments {
     fn name(&self) -> String;
-    fn comments(&self) -> Option<&str>;
+    fn comments(&self) -> Option<&Comments>;
 }
 
 pub type Id = usize;
+
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub enum Link {
+    Id(Id),
+    Function(Id, String),
+}
+
+impl Link {
+    pub fn id(&self) -> Id {
+        match self {
+            Link::Id(id) => *id,
+            Link::Function(id, _) => *id,
+        }
+    }
+
+    pub fn name(&self) -> Option<&str> {
+        match self {
+            Link::Id(_) => None,
+            Link::Function(_, name) => Some(name),
+        }
+    }
+}
+
+pub type Links = Vec<(String, Link)>;
+
+pub type Comments = (String, Links);
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Workspace {
@@ -39,7 +65,7 @@ impl HasNameAndComments for Crate {
         self.name.clone()
     }
 
-    fn comments(&self) -> Option<&str> {
+    fn comments(&self) -> Option<&Comments> {
         self.root_module.comments()
     }
 }
@@ -77,7 +103,7 @@ pub struct Module {
     pub module_id: ModuleId,
     pub name: String,
     pub items: Vec<(ItemVisibility, Item)>,
-    pub comments: Option<String>,
+    pub comments: Option<Comments>,
     pub is_contract: bool,
 }
 
@@ -92,8 +118,8 @@ impl HasNameAndComments for Module {
         self.name.clone()
     }
 
-    fn comments(&self) -> Option<&str> {
-        self.comments.as_deref()
+    fn comments(&self) -> Option<&Comments> {
+        self.comments.as_ref()
     }
 }
 
@@ -108,7 +134,7 @@ pub struct Struct {
     pub has_private_fields: bool,
     pub impls: Vec<Impl>,
     pub trait_impls: Vec<TraitImpl>,
-    pub comments: Option<String>,
+    pub comments: Option<Comments>,
 }
 
 impl HasNameAndComments for Struct {
@@ -116,8 +142,8 @@ impl HasNameAndComments for Struct {
         self.name.clone()
     }
 
-    fn comments(&self) -> Option<&str> {
-        self.comments.as_deref()
+    fn comments(&self) -> Option<&Comments> {
+        self.comments.as_ref()
     }
 }
 
@@ -125,7 +151,7 @@ impl HasNameAndComments for Struct {
 pub struct StructField {
     pub name: String,
     pub r#type: Type,
-    pub comments: Option<String>,
+    pub comments: Option<Comments>,
 }
 
 impl HasNameAndComments for StructField {
@@ -133,8 +159,8 @@ impl HasNameAndComments for StructField {
         self.name.clone()
     }
 
-    fn comments(&self) -> Option<&str> {
-        self.comments.as_deref()
+    fn comments(&self) -> Option<&Comments> {
+        self.comments.as_ref()
     }
 }
 
@@ -163,7 +189,7 @@ pub struct Global {
     pub comptime: bool,
     pub mutable: bool,
     pub r#type: Type,
-    pub comments: Option<String>,
+    pub comments: Option<Comments>,
 }
 
 impl HasNameAndComments for Global {
@@ -171,8 +197,8 @@ impl HasNameAndComments for Global {
         self.name.clone()
     }
 
-    fn comments(&self) -> Option<&str> {
-        self.comments.as_deref()
+    fn comments(&self) -> Option<&Comments> {
+        self.comments.as_ref()
     }
 }
 
@@ -186,7 +212,7 @@ pub struct Function {
     pub params: Vec<FunctionParam>,
     pub return_type: Type,
     pub where_clause: Vec<TraitConstraint>,
-    pub comments: Option<String>,
+    pub comments: Option<Comments>,
 }
 
 impl HasNameAndComments for Function {
@@ -194,8 +220,8 @@ impl HasNameAndComments for Function {
         self.name.clone()
     }
 
-    fn comments(&self) -> Option<&str> {
-        self.comments.as_deref()
+    fn comments(&self) -> Option<&Comments> {
+        self.comments.as_ref()
     }
 }
 
@@ -218,7 +244,7 @@ pub struct Trait {
     pub required_methods: Vec<Function>,
     pub provided_methods: Vec<Function>,
     pub trait_impls: Vec<TraitImpl>,
-    pub comments: Option<String>,
+    pub comments: Option<Comments>,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash)]
@@ -238,8 +264,8 @@ impl HasNameAndComments for Trait {
         self.name.clone()
     }
 
-    fn comments(&self) -> Option<&str> {
-        self.comments.as_deref()
+    fn comments(&self) -> Option<&Comments> {
+        self.comments.as_ref()
     }
 }
 
@@ -249,7 +275,7 @@ pub struct TypeAlias {
     pub name: String,
     pub generics: Vec<Generic>,
     pub r#type: Type,
-    pub comments: Option<String>,
+    pub comments: Option<Comments>,
 }
 
 impl HasNameAndComments for TypeAlias {
@@ -257,8 +283,8 @@ impl HasNameAndComments for TypeAlias {
         self.name.clone()
     }
 
-    fn comments(&self) -> Option<&str> {
-        self.comments.as_deref()
+    fn comments(&self) -> Option<&Comments> {
+        self.comments.as_ref()
     }
 }
 
@@ -341,7 +367,7 @@ pub struct PrimitiveType {
     pub kind: PrimitiveTypeKind,
     pub impls: Vec<Impl>,
     pub trait_impls: Vec<TraitImpl>,
-    pub comments: Option<String>,
+    pub comments: Option<Comments>,
 }
 
 impl HasNameAndComments for PrimitiveType {
@@ -349,8 +375,8 @@ impl HasNameAndComments for PrimitiveType {
         self.kind.to_string()
     }
 
-    fn comments(&self) -> Option<&str> {
-        self.comments.as_deref()
+    fn comments(&self) -> Option<&Comments> {
+        self.comments.as_ref()
     }
 }
 

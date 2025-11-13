@@ -103,8 +103,7 @@ fn package_crate(
 
     check_crate_and_report_errors(&mut context, crate_id, compile_options)?;
 
-    let module =
-        crate_module(crate_id, &context.crate_graph, &context.def_maps, &context.def_interner, ids);
+    let module = crate_module(crate_id, &context.def_maps, &context.def_interner, ids);
 
     collect_dependencies(&context, Some(package), crate_id, file_manager, dependencies, ids)?;
 
@@ -134,13 +133,7 @@ fn collect_dependencies(
             continue;
         }
 
-        let module = crate_module(
-            crate_id,
-            &context.crate_graph,
-            &context.def_maps,
-            &context.def_interner,
-            ids,
-        );
+        let module = crate_module(crate_id, &context.def_maps, &context.def_interner, ids);
         let name = dependency.name.to_string();
         // The `graph::Dependency` type doesn't carry a version. Instead, we can get it from the
         // `Package's` dependencies by finding the dependency with the same name.
