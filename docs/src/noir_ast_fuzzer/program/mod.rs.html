@@ -593,7 +593,21 @@
 <a href="#592" id="592">592</a>
 <a href="#593" id="593">593</a>
 <a href="#594" id="594">594</a>
-<a href="#595" id="595">595</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module responsible for generating arbitrary [Program] ASTs.
+<a href="#595" id="595">595</a>
+<a href="#596" id="596">596</a>
+<a href="#597" id="597">597</a>
+<a href="#598" id="598">598</a>
+<a href="#599" id="599">599</a>
+<a href="#600" id="600">600</a>
+<a href="#601" id="601">601</a>
+<a href="#602" id="602">602</a>
+<a href="#603" id="603">603</a>
+<a href="#604" id="604">604</a>
+<a href="#605" id="605">605</a>
+<a href="#606" id="606">606</a>
+<a href="#607" id="607">607</a>
+<a href="#608" id="608">608</a>
+<a href="#609" id="609">609</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module responsible for generating arbitrary [Program] ASTs.
 </span><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet}; <span class="comment">// Using BTree for deterministic enumeration, for repeatability.
 
 </span><span class="kw">use </span>func::{FunctionContext, FunctionDeclaration, can_call};
@@ -644,9 +658,17 @@
 
     <span class="kw">let </span><span class="kw-2">mut </span>ctx = Context::new(config);
 
-    <span class="kw">let </span>decl_inner = ctx.gen_function_decl(u, <span class="number">1</span>, <span class="bool-val">true</span>)<span class="question-mark">?</span>;
+    <span class="comment">// Generate the first (main-wrapped) function declaration
+    </span><span class="kw">let </span>decl_inner = ctx.gen_function_decl(u, <span class="number">1</span>, <span class="bool-val">true</span>)<span class="question-mark">?</span>;
     ctx.set_function_decl(FuncId(<span class="number">1</span>), decl_inner.clone());
-    ctx.gen_function(u, FuncId(<span class="number">1</span>))<span class="question-mark">?</span>;
+
+    <span class="comment">// Generate the rest of the declarations
+    </span><span class="kw">let </span>num_extra_fns = u.int_in_range(ctx.config.min_functions..=ctx.config.max_functions)<span class="question-mark">?</span>;
+
+    <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..num_extra_fns {
+        <span class="kw">let </span>d = ctx.gen_function_decl(u, i + <span class="number">2</span>, <span class="bool-val">false</span>)<span class="question-mark">?</span>;
+        ctx.set_function_decl(FuncId((i + <span class="number">2</span>) <span class="kw">as </span>u32), d);
+    }
 
     <span class="comment">// Parameterless main declaration wrapping the inner "main"
     // function call
@@ -660,6 +682,12 @@
     };
 
     ctx.set_function_decl(FuncId(<span class="number">0</span>), decl_main);
+
+    <span class="comment">// Generating functions in this way (after the main wrapper has been
+    // declared) will disallow them from calling the wrapper but not the
+    // main inner function
+    </span>ctx.gen_functions(u)<span class="question-mark">?</span>;
+
     ctx.gen_function_with_body(u, FuncId(<span class="number">0</span>), |u, function_ctx| {
         function_ctx.gen_body_with_lit_call(u, FuncId(<span class="number">1</span>))
     })<span class="question-mark">?</span>;
