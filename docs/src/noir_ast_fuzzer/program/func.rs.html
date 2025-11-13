@@ -2403,7 +2403,14 @@
 <a href="#2402" id="2402">2402</a>
 <a href="#2403" id="2403">2403</a>
 <a href="#2404" id="2404">2404</a>
-<a href="#2405" id="2405">2405</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#2405" id="2405">2405</a>
+<a href="#2406" id="2406">2406</a>
+<a href="#2407" id="2407">2407</a>
+<a href="#2408" id="2408">2408</a>
+<a href="#2409" id="2409">2409</a>
+<a href="#2410" id="2410">2410</a>
+<a href="#2411" id="2411">2411</a>
+<a href="#2412" id="2412">2412</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>nargo::errors::Location;
 <span class="kw">use </span>std::{
     collections::{BTreeMap, BTreeSet, HashSet},
@@ -4303,6 +4310,10 @@
             <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
         }
 
+        <span class="comment">// Similar to an `if` statement, if the source variable is dynamic, we can't do certain things in the body.
+        </span><span class="kw">let </span>in_dynamic = <span class="self">self</span>.in_dynamic || src_dyn;
+        <span class="kw">let </span>was_in_dynamic = std::mem::replace(<span class="kw-2">&amp;mut </span><span class="self">self</span>.in_dynamic, in_dynamic);
+
         <span class="kw">let </span><span class="kw-2">mut </span>match_expr = Match {
             variable_to_match: (src_id, src_name),
             cases: <span class="macro">vec!</span>[],
@@ -4311,7 +4322,9 @@
         };
 
         <span class="kw">let </span>num_cases = u.int_in_range(<span class="number">0</span>..=<span class="self">self</span>.ctx.config.max_match_cases)<span class="question-mark">?</span>;
-        <span class="kw">let </span><span class="kw-2">mut </span>is_dyn = src_dyn;
+
+        <span class="comment">// The dynamic nature of the final expression depends on the source and the rules.
+        </span><span class="kw">let </span><span class="kw-2">mut </span>is_dyn = src_dyn;
 
         <span class="comment">// Generate a number of rows, depending on what we can do with the source type.
         // See `MatchCompiler::compile_rows` for what is currently supported.
@@ -4380,6 +4393,7 @@
             match_expr.default_case = <span class="prelude-val">Some</span>(Box::new(default_expr));
         }
 
+        <span class="self">self</span>.in_dynamic = was_in_dynamic;
         <span class="kw">let </span>match_expr = Expression::Match(match_expr);
         <span class="kw">let </span>expr = Expression::Block(<span class="macro">vec!</span>[src_expr, match_expr]);
 
