@@ -2971,7 +2971,41 @@
 <a href="#2970" id="2970">2970</a>
 <a href="#2971" id="2971">2971</a>
 <a href="#2972" id="2972">2972</a>
-<a href="#2973" id="2973">2973</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
+<a href="#2973" id="2973">2973</a>
+<a href="#2974" id="2974">2974</a>
+<a href="#2975" id="2975">2975</a>
+<a href="#2976" id="2976">2976</a>
+<a href="#2977" id="2977">2977</a>
+<a href="#2978" id="2978">2978</a>
+<a href="#2979" id="2979">2979</a>
+<a href="#2980" id="2980">2980</a>
+<a href="#2981" id="2981">2981</a>
+<a href="#2982" id="2982">2982</a>
+<a href="#2983" id="2983">2983</a>
+<a href="#2984" id="2984">2984</a>
+<a href="#2985" id="2985">2985</a>
+<a href="#2986" id="2986">2986</a>
+<a href="#2987" id="2987">2987</a>
+<a href="#2988" id="2988">2988</a>
+<a href="#2989" id="2989">2989</a>
+<a href="#2990" id="2990">2990</a>
+<a href="#2991" id="2991">2991</a>
+<a href="#2992" id="2992">2992</a>
+<a href="#2993" id="2993">2993</a>
+<a href="#2994" id="2994">2994</a>
+<a href="#2995" id="2995">2995</a>
+<a href="#2996" id="2996">2996</a>
+<a href="#2997" id="2997">2997</a>
+<a href="#2998" id="2998">2998</a>
+<a href="#2999" id="2999">2999</a>
+<a href="#3000" id="3000">3000</a>
+<a href="#3001" id="3001">3001</a>
+<a href="#3002" id="3002">3002</a>
+<a href="#3003" id="3003">3003</a>
+<a href="#3004" id="3004">3004</a>
+<a href="#3005" id="3005">3005</a>
+<a href="#3006" id="3006">3006</a>
+<a href="#3007" id="3007">3007</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
 //! It accepts the type checked HIR as input and produces a monomorphized AST as output.
 //! This file implements the pass itself, while the AST is defined in the ast module.
 //!
@@ -3626,13 +3660,47 @@
                     .<span class="number">2
                     </span>.map(|assert_msg_expr| {
                         <span class="self">self</span>.expr(assert_msg_expr).map(|expr| {
-                            (expr, <span class="self">self</span>.interner.id_type(assert_msg_expr).follow_bindings())
+                            <span class="kw">let </span>typ = <span class="self">self</span>.interner.id_type(assert_msg_expr).follow_bindings();
+                            <span class="kw">let </span>loc = <span class="self">self</span>.interner.expr_location(<span class="kw-2">&amp;</span>assert_msg_expr);
+                            (expr, typ, loc)
                         })
                     })
-                    .transpose()<span class="question-mark">?
-                    </span>.map(Box::new);
+                    .transpose()<span class="question-mark">?</span>;
 
-                ast::Expression::Constrain(Box::new(expr), location, assert_message)
+                <span class="kw">if let </span><span class="prelude-val">Some</span>((<span class="kw">_</span>, typ, location)) = assert_message.as_ref() {
+                    <span class="kw">let </span>check_msg_compat = |typ: <span class="kw-2">&amp;</span>Type| {
+                        <span class="kw">if </span>!typ.is_message_compatible(<span class="bool-val">true</span>) {
+                            <span class="prelude-val">Err</span>(MonomorphizationError::InvalidTypeInErrorMessage {
+                                typ: typ.to_string(),
+                                location: <span class="kw-2">*</span>location,
+                            })
+                        } <span class="kw">else </span>{
+                            <span class="prelude-val">Ok</span>(())
+                        }
+                    };
+                    <span class="kw">match </span>typ {
+                        Type::FmtString(<span class="kw">_</span>, items) =&gt; <span class="kw">match </span>items.as_ref() {
+                            Type::Tuple(items) =&gt; {
+                                <span class="kw">for </span>item <span class="kw">in </span>items {
+                                    check_msg_compat(item)<span class="question-mark">?</span>;
+                                }
+                            }
+                            Type::Unit =&gt; {}
+                            other =&gt; {
+                                <span class="macro">unreachable!</span>(<span class="string">"ICE: expected Tuple or Unit in fmtstr; got {other}"</span>)
+                            }
+                        },
+                        other =&gt; {
+                            check_msg_compat(other)<span class="question-mark">?</span>;
+                        }
+                    }
+                }
+
+                ast::Expression::Constrain(
+                    Box::new(expr),
+                    location,
+                    assert_message.map(|(msg, typ, <span class="kw">_</span>)| (msg, typ)).map(Box::new),
+                )
             }
 
             HirExpression::Cast(cast) =&gt; {

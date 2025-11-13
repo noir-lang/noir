@@ -837,7 +837,10 @@
 <a href="#836" id="836">836</a>
 <a href="#837" id="837">837</a>
 <a href="#838" id="838">838</a>
-<a href="#839" id="839">839</a></pre></div><pre class="rust"><code><span class="doccomment">//! Defines the [Value] type, representing a compile-time value, used by the
+<a href="#839" id="839">839</a>
+<a href="#840" id="840">840</a>
+<a href="#841" id="841">841</a>
+<a href="#842" id="842">842</a></pre></div><pre class="rust"><code><span class="doccomment">//! Defines the [Value] type, representing a compile-time value, used by the
 //! comptime interpreter when evaluating code.
 </span><span class="kw">use </span>std::{borrow::Cow, rc::Rc, vec};
 
@@ -1471,6 +1474,9 @@
                 } <span class="kw">else </span>{
                     <span class="macro">vec!</span>[Token::Int(value.absolute_value(), <span class="prelude-val">None</span>)]
                 }
+            }
+            Value::String(value) | Value::CtString(value) | Value::FormatString(value, <span class="kw">_</span>) =&gt; {
+                <span class="macro">vec!</span>[Token::Str(unwrap_rc(value))]
             }
             other =&gt; <span class="macro">vec!</span>[Token::UnquoteMarker(other.into_hir_expression(interner, location)<span class="question-mark">?</span>)],
         };
