@@ -16,7 +16,10 @@ use crate::{
         BlockExpression, FunctionKind, Ident, NoirFunction, Param, UnresolvedGenerics,
         UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
     },
-    elaborator::lints,
+    elaborator::{
+        lints,
+        types::{WildcardAllowed, WildcardDisallowedContext},
+    },
     hir::{
         def_collector::dc_crate::{ImplMap, UnresolvedFunctions, UnresolvedTraitImpl},
         resolution::errors::ResolverError,
@@ -93,7 +96,7 @@ impl Elaborator<'_> {
             // Adds the impl generics to the generics state and resolve the impl's self type
             self.add_generics(generics);
 
-            let wildcard_allowed = false;
+            let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::ImplType);
             let self_type = self.resolve_type(self_type.clone(), wildcard_allowed);
             function_set.self_type = Some(self_type.clone());
             self.self_type = Some(self_type);
@@ -171,7 +174,7 @@ impl Elaborator<'_> {
             self.resolve_function_parameters(func, &mut generics, &mut trait_constraints);
 
         // Resolve return type
-        let wildcard_allowed = false;
+        let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::FunctionReturn);
         let return_type = Box::new(self.use_type(func.return_type(), wildcard_allowed));
 
         let is_entry_point = func.is_entry_point(self.is_function_in_contract());
@@ -323,7 +326,7 @@ impl Elaborator<'_> {
         let mut parameters = Vec::new();
         let mut parameter_types = Vec::new();
         let mut parameter_idents = Vec::new();
-        let wildcard_allowed = false;
+        let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::FunctionParameter);
 
         for Param { visibility, pattern, typ, location: _ } in func.parameters().iter().cloned() {
             self.run_lint(|_| {

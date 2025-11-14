@@ -1045,7 +1045,7 @@ mod tests {
     use crate::{
         ast::{
             ArrayLiteral, BinaryOpKind, ConstrainKind, Expression, ExpressionKind, Literal,
-            StatementKind, UnaryOp, UnresolvedTypeData,
+            StatementKind, UnaryOp,
         },
         parse_program_with_dummy_file,
         parser::{
@@ -2031,7 +2031,7 @@ mod tests {
         };
         assert!(lambda.parameters.is_empty());
         assert_eq!(lambda.body.to_string(), "1");
-        assert!(matches!(lambda.return_type.typ, UnresolvedTypeData::Unspecified));
+        assert!(lambda.return_type.is_none());
     }
 
     #[test]
@@ -2045,11 +2045,11 @@ mod tests {
 
         let (pattern, typ) = lambda.parameters.remove(0);
         assert_eq!(pattern.to_string(), "x");
-        assert!(matches!(typ.typ, UnresolvedTypeData::Unspecified));
+        assert!(typ.is_none());
 
         let (pattern, typ) = lambda.parameters.remove(0);
         assert_eq!(pattern.to_string(), "y");
-        assert_eq!(typ.typ.to_string(), "Field");
+        assert_eq!(typ.unwrap().to_string(), "Field");
     }
 
     #[test]
@@ -2061,7 +2061,7 @@ mod tests {
         };
         assert!(lambda.parameters.is_empty());
         assert_eq!(lambda.body.to_string(), "1");
-        assert_eq!(lambda.return_type.typ.to_string(), "Field");
+        assert_eq!(lambda.return_type.unwrap().to_string(), "Field");
     }
 
     #[test]
