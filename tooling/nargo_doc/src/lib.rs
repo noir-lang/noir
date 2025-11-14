@@ -677,7 +677,13 @@ impl DocItemBuilder<'_> {
                 .collect::<Vec<_>>();
 
             for word in words {
-                if let Some(link) = self.path_to_link(&word) {
+                // Remove surrounding backticks if present.
+                // The footnote will still mention the word with backticks.
+                let path = &word;
+                let path = path.strip_prefix('`').unwrap_or(path);
+                let path = path.strip_suffix('`').unwrap_or(path);
+
+                if let Some(link) = self.path_to_link(path) {
                     links.insert(word.to_string(), link);
                     continue;
                 }
